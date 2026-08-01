@@ -1,0 +1,17 @@
+@import './tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-border; }
+  html { @apply bg-background; }
+  body { @apply m-0 min-w-80 bg-background font-sans text-text-primary antialiased; }
+  button, input { font: inherit; }
+}
+
+@layer components {
+  .app-shell { @apply mx-auto min-h-dvh w-full max-w-[402px] bg-background pb-24 shadow-card; }
+  .page-content { @apply space-y-5 px-4 py-4; }
+  .section-title { @apply text-base font-semibold tracking-tight text-text-primary; }
+}
