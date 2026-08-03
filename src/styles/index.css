@@ -5,13 +5,29 @@
 
 @layer base {
   * { @apply border-border; }
-  html { @apply bg-background; }
-  body { @apply m-0 min-w-80 bg-background font-sans text-text-primary antialiased; }
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  html {
+    @apply bg-background;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply m-0 min-w-80 bg-background font-sans text-text-primary antialiased;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
   button, input { font: inherit; }
 }
 
 @layer components {
-  .app-shell { @apply mx-auto min-h-dvh w-full max-w-[402px] bg-background pb-24 shadow-card; }
+  .app-shell {
+    @apply mx-auto h-dvh w-full max-w-[402px] overflow-y-auto overscroll-contain bg-background pb-24 shadow-card;
+    -webkit-overflow-scrolling: touch;
+  }
   .page-content { @apply space-y-5 px-4 py-4; }
   .section-title { @apply text-base font-semibold tracking-tight text-text-primary; }
 }

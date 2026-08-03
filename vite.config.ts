@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    host: true
+  },
   plugins: [
     react(),
     VitePWA({
@@ -16,7 +19,14 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/health-events',
         lang: 'zh-CN',
-        icons: []
+        icons: [
+          {
+            src: '/icons/app-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          }
+        ]
       }
     })
   ]

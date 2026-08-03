@@ -1,6 +1,12 @@
 node_modules
 dist
+build
+coverage
 .vite
+.cache
+.vercel
+.codex-tmp
+outputs
 *.local
 *.log
 *.tsbuildinfo

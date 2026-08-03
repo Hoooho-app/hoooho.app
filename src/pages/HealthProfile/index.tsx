@@ -1,8 +1,8 @@
 import { AlertTriangle, ChevronRight, FileHeart, HeartPulse, Pill, UsersRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Card, Header } from '../../components/common'
+import { Card } from '../../components/common'
+import { MainAppHeader } from '../../components/navigation'
 import { MemberIdentityCard } from '../../components/health'
-import { BottomNavigation } from '../../components/navigation'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { healthProfiles } from '../../mock/healthProfiles'
 
@@ -26,7 +26,7 @@ export function HealthProfilePage() {
 
   return (
     <main className="app-shell">
-      <Header title="健康档案" />
+      <MainAppHeader title="健康档案" />
       <div className="page-content">
         <MemberIdentityCard member={member} />
         <Card className="bg-primary-soft">
@@ -48,7 +48,6 @@ export function HealthProfilePage() {
           ))}
         </section>
       </div>
-      <BottomNavigation />
     </main>
   )
 }
