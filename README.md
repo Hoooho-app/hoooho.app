@@ -1,32 +1,70 @@
 # Hoooho
 
-Hoooho 是移动端优先的家庭健康事件管理与就诊准备 Web App。它用于记录健康事件、整理症状时间线、管理家庭成员健康档案，并形成就诊前信息摘要；不提供医疗诊断。
+Hoooho is a mobile-first family health management platform.
 
-## 当前版本
+## Product Position
 
-`v0.1.0`：完成前端基础工程、Design System、Mock 数据、三项底部导航和基础页面；尚未接入数据库或后端。
+Hoooho helps users:
 
-## 技术栈
+- Record health events
+- Organize symptoms and medical history
+- Manage family health information
+- Prepare structured information before medical visits
 
-- React + TypeScript + Vite
+Hoooho is not a medical diagnosis system.
+
+## Core Features
+
+### Health Events
+
+Users can:
+
+- Create health events
+- Track symptoms
+- Record timeline changes
+- Generate visit summaries
+
+### Health Profile
+
+Users can manage:
+
+- Allergies
+- Chronic conditions
+- Medication history
+- Previous medical information
+
+### Family Health Management
+
+Users can manage health information for:
+
+- Self
+- Parents
+- Children
+- Family members
+
+## Technology Stack
+
+Frontend:
+
+- React
+- TypeScript
+- Vite
 - Tailwind CSS
-- React Router
-- Zustand
-- vite-plugin-pwa
-- Mock Data（无后端、无真实医疗数据）
 
-## 本地运行
+Development:
 
-```bash
-npm install
-npm start
-```
+- Codex assisted development
 
-默认地址：`http://localhost:5173/health-events`。开发服务器监听 `0.0.0.0`，同一局域网设备可通过电脑 IP 访问。
+Backend:
 
-## 构建
+- Mock data for MVP
 
-```bash
-npm run build
-npm run preview
-```
+## Development Status
+
+Version:
+
+v0.1 MVP
+
+Current stage:
+
+Prototype development
