@@ -1,4 +1,5 @@
 export * from './EventHeader'
+export * from './FirstRecordComposer'
 export * from './HealthRecordEditorModal'
 export * from './EventIdentitySection'
 export * from './TemperatureChartSection'

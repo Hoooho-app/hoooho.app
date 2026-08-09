@@ -8,7 +8,7 @@ import {
   EventHeader,
   EventIdentitySection,
   EventStatus,
-  EventTitleSection,
+  FirstRecordComposer,
   AttachmentSection,
   ConcernSection,
   MedicalInfoSection,
@@ -19,11 +19,12 @@ import {
   TemperatureChartSection,
   TimelineSection
 } from './components'
+import { requestHealthRecordOrganization } from '../../services/healthRecordOrganization'
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, updateStage, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, updateStage, retry } = useHealthEventDetail(eventId)
   const loadedStage = state.status === 'success' ? state.data.viewModel.stage : 'observing'
   const [stage, setStage] = useState<HealthEventStage>(loadedStage)
 
@@ -81,6 +82,7 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
+  const isFirstRecord = state.data.records.length === 0
   if (!subject) return null
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
@@ -99,22 +101,42 @@ export function HealthEventDetailPage() {
     void updateStage(nextStage).catch(() => setStage(previousStage))
   }
 
+  const saveFirstRecord = async (input: CreateHealthEventRecordInput) => {
+    const rawInput = input.content.trim()
+    if (!rawInput) throw new Error('请先描述当前不舒服的情况')
+    const created = await addRecord({
+      type: 'symptom',
+      content: rawInput,
+      occurredAt: input.occurredAt
+    })
+    await requestHealthRecordOrganization({
+      eventId: event.id,
+      recordId: created.id,
+      rawInput
+    })
+  }
+
   return (
     <main className="app-shell bg-background pb-8">
       <EventHeader />
       <div className="page-content space-y-6">
         <EventIdentitySection subject={subject} />
-        <EventTitleSection title={event.title} onSave={updateTitle} />
-        <SymptomSection event={event} onAddRecord={addHealthRecord} />
-        <EventStatus stage={stage} onStageChange={changeStage} />
-        <StageDetailSection event={event} stage={stage} onAddRecord={addHealthRecord} />
-        <TimelineSection event={event} onAddRecord={addHealthRecord} />
-        <TemperatureChartSection event={event} />
-        <AttachmentSection event={event} />
-        <PersonalizedModulesSection modules={recommendedModules} />
-        <ConcernSection event={event} />
-        <MedicalInfoSection event={event} />
-        <NextActionSection status={event.status} onMarkRecovered={async () => { await updateStage('recovered') }} />
+        {isFirstRecord ? (
+          <FirstRecordComposer onSave={saveFirstRecord} />
+        ) : (
+          <>
+            <SymptomSection event={event} onAddRecord={addHealthRecord} />
+            <EventStatus stage={stage} onStageChange={changeStage} />
+            <StageDetailSection event={event} stage={stage} onAddRecord={addHealthRecord} />
+            <TimelineSection event={event} onAddRecord={addHealthRecord} />
+            <TemperatureChartSection event={event} />
+            <AttachmentSection event={event} />
+            <PersonalizedModulesSection modules={recommendedModules} />
+            <ConcernSection event={event} />
+            <MedicalInfoSection event={event} />
+            <NextActionSection status={event.status} onMarkRecovered={async () => { await updateStage('recovered') }} />
+          </>
+        )}
       </div>
     </main>
   )
