@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { FamilyMemberApiDto, HealthEventListItemViewModel, Member } from '../types'
+import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../types'
 import { ApiRequestError } from '../services/apiClient'
 import { familyMemberService } from '../services/familyMembers'
 import { adaptFamilyMember } from '../services/healthEventDetailAdapter'
@@ -67,5 +67,35 @@ export function useHealthEventsList() {
     return () => controller.abort()
   }, [load])
 
-  return { state, retry: () => void load() }
+  const updateEventStatus = useCallback(async (eventId: string, status: HealthEventStage) => {
+    if (!token) throw new Error('登录状态已失效')
+    const updated = await healthEventService.updateStatus(eventId, status, token)
+    setState((current) => current.status === 'success'
+      ? {
+          status: 'success',
+          data: {
+            ...current.data,
+            events: current.data.events.map((event) => event.id === eventId
+              ? { ...event, status: updated.status, updatedAt: updated.updatedAt }
+              : event)
+          }
+        }
+      : current)
+  }, [token])
+
+  const deleteEvent = useCallback(async (eventId: string) => {
+    if (!token) throw new Error('登录状态已失效')
+    await healthEventService.delete(eventId, token)
+    setState((current) => current.status === 'success'
+      ? {
+          status: 'success',
+          data: {
+            ...current.data,
+            events: current.data.events.filter((event) => event.id !== eventId)
+          }
+        }
+      : current)
+  }, [token])
+
+  return { state, retry: () => void load(), updateEventStatus, deleteEvent }
 }

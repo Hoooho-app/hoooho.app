@@ -9,7 +9,7 @@ import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
 import { healthEventService } from '../../services/healthEvents'
 import { useAppStore } from '../../store/useAppStore'
-import type { HealthEventListItemViewModel, Member } from '../../types'
+import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -65,7 +65,8 @@ function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEve
     }
     if (filters.year !== null && eventDate.getFullYear() !== filters.year) return false
     if (filters.months.length > 0 && !filters.months.includes(eventDate.getMonth() + 1)) return false
-    if (filters.statuses.length > 0 && !filters.statuses.includes(event.status)) return false
+    const displayStatus = event.status === 'handling' ? 'observing' : event.status
+    if (filters.statuses.length > 0 && !filters.statuses.includes(displayStatus)) return false
     if (filters.categories.length > 0 && !filters.categories.includes(event.category)) return false
     return true
   })
@@ -77,7 +78,7 @@ export function HealthEventsPage() {
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
-  const { state, retry } = useHealthEventsList()
+  const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -117,6 +118,24 @@ export function HealthEventsPage() {
       setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const changeEventStatus = async (eventId: string, status: HealthEventStage) => {
+    setCreateError('')
+    try {
+      await updateEventStatus(eventId, status)
+    } catch (requestError) {
+      setCreateError(requestError instanceof Error ? requestError.message : '状态更新失败，请稍后重试')
+    }
+  }
+
+  const removeEvent = async (eventId: string) => {
+    setCreateError('')
+    try {
+      await deleteEvent(eventId)
+    } catch (requestError) {
+      setCreateError(requestError instanceof Error ? requestError.message : '删除失败，请稍后重试')
     }
   }
 
@@ -175,7 +194,7 @@ export function HealthEventsPage() {
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
-          <HealthEventTimeline events={visibleEvents} />
+          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (

@@ -32,5 +32,12 @@ export const healthEventService = {
       method: 'PATCH',
       body: { title }
     })
+  },
+
+  delete(eventId: string, token: string) {
+    return apiRequest<void>(`/api/events/${encodeURIComponent(eventId)}`, {
+      token,
+      method: 'DELETE'
+    })
   }
 }
