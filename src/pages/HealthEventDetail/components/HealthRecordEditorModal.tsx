@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Mic, Paperclip, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
-import type { HealthEventRecordType } from '../../../types'
+import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
 
 export type HealthRecordTemplateType =
   | 'symptom'
@@ -83,7 +83,7 @@ export interface HealthRecordEditorResult {
   originalText: string
   occurredAt: string
   structuredFields: Array<{ label: string; value: string }>
-  attachments: string[]
+  attachments: CreateEventAttachmentInput[]
 }
 
 export type SelectableRecordType = Exclude<HealthEventRecordType, 'other'>
@@ -121,6 +121,8 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   const [occurredAt, setOccurredAt] = useState(localDateTimeValue)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [attachments, setAttachments] = useState<CreateEventAttachmentInput[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -130,6 +132,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     setOccurredAt(localDateTimeValue())
     setIsSaving(false)
     setSaveError('')
+    setAttachments([])
   }, [defaultRecordType, open, templateType, initialValue])
 
   const preview = useMemo(() => [
@@ -137,14 +140,35 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     { label: '发生时间', value: new Date(occurredAt).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) },
     { label: '记录内容', value: text.trim() }
   ], [occurredAt, recordType, text])
-  const canSave = Boolean(text.trim() && occurredAt)
+  const canSave = Boolean((text.trim() || attachments.length) && occurredAt)
+
+  const selectImages = async (files: FileList | null) => {
+    if (!files?.length) return
+    setSaveError('')
+    try {
+      const selected = await Promise.all([...files].map(async (file) => {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('仅支持 JPG、PNG 或 WebP 图片')
+        if (file.size > 5 * 1024 * 1024) throw new Error('单张图片不能超过 5MB')
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error('图片读取失败'))
+          reader.readAsDataURL(file)
+        })
+        return { name: file.name, mimeType: file.type, dataUrl }
+      }))
+      setAttachments((current) => [...current, ...selected].slice(0, 5))
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '图片读取失败')
+    }
+  }
 
   const save = async () => {
     setSaveError('')
     setIsSaving(true)
     try {
       if (!onSave) return
-      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments: [] })
+      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments })
       onClose()
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '保存失败，请稍后重试')
@@ -217,7 +241,8 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               <span className="text-[11px] text-text-secondary">{text.length}/1000</span>
               <div className="flex gap-2">
                 <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="语音功能准备中" type="button"><Mic size={15} />语音准备中</button>
-                <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="图片功能准备中" type="button"><Paperclip size={15} />图片准备中</button>
+                <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => void selectImages(event.target.files)} ref={fileInputRef} type="file" />
+                <button className="flex min-h-9 items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={15} />添加图片{attachments.length ? ` (${attachments.length})` : ''}</button>
               </div>
             </div>
           </Card>

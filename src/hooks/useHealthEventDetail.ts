@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import type {
   CreateHealthEventRecordInput,
+  CreateEventAttachmentInput,
+  EventAttachmentApiDto,
   FamilyMemberApiDto,
   HealthEventApiDto,
   HealthEventDetailViewModel,
   HealthEventRecordApiDto,
+  HealthRecordOrganizationApiDto,
   Member
 } from '../types'
 import { ApiRequestError } from '../services/apiClient'
@@ -12,12 +15,16 @@ import { familyMemberService } from '../services/familyMembers'
 import { adaptFamilyMember, adaptHealthEventDetail } from '../services/healthEventDetailAdapter'
 import { healthEventRecordService } from '../services/healthEventRecords'
 import { healthEventService } from '../services/healthEvents'
+import { healthRecordOrganizationService } from '../services/healthRecordOrganization'
+import { eventAttachmentService } from '../services/eventAttachments'
 import { useAppStore } from '../store/useAppStore'
 
 interface LoadedDetailData {
   eventDto: HealthEventApiDto
   memberDto: FamilyMemberApiDto
   records: HealthEventRecordApiDto[]
+  organizations: HealthRecordOrganizationApiDto[]
+  attachments: EventAttachmentApiDto[]
   member: Member
   viewModel: HealthEventDetailViewModel
 }
@@ -51,9 +58,11 @@ export function useHealthEventDetail(eventId: string | undefined) {
     setState({ status: 'loading' })
     try {
       const eventDto = await healthEventService.getById(eventId, token, signal)
-      const [records, memberDto] = await Promise.all([
+      const [records, memberDto, organizations, attachments] = await Promise.all([
         healthEventRecordService.list(eventId, token, signal),
-        familyMemberService.getById(eventDto.memberId, token, signal)
+        familyMemberService.getById(eventDto.memberId, token, signal),
+        healthRecordOrganizationService.list(eventId, token, signal),
+        eventAttachmentService.list(eventId, token, signal)
       ])
       if (signal?.aborted) return
       setState({
@@ -62,8 +71,10 @@ export function useHealthEventDetail(eventId: string | undefined) {
           eventDto,
           memberDto,
           records,
+          organizations,
+          attachments,
           member: adaptFamilyMember(memberDto),
-          viewModel: adaptHealthEventDetail(eventDto, records)
+          viewModel: adaptHealthEventDetail(eventDto, records, organizations, attachments)
         }
       })
     } catch (error) {
@@ -88,11 +99,50 @@ export function useHealthEventDetail(eventId: string | undefined) {
         data: {
           ...current.data,
           records,
-          viewModel: adaptHealthEventDetail(current.data.eventDto, records)
+          viewModel: adaptHealthEventDetail(current.data.eventDto, records, current.data.organizations, current.data.attachments)
         }
       }
     })
     return created
+  }, [eventId, token])
+
+  const organizeRecord = useCallback(async (recordId: string) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const organization = await healthRecordOrganizationService.organize(eventId, recordId, token)
+    setState((current) => {
+      if (current.status !== 'success') return current
+      const organizations = [
+        ...current.data.organizations.filter((item) => item.recordId !== organization.recordId),
+        organization
+      ]
+      return {
+        status: 'success',
+        data: {
+          ...current.data,
+          organizations,
+          viewModel: adaptHealthEventDetail(current.data.eventDto, current.data.records, organizations, current.data.attachments)
+        }
+      }
+    })
+    return organization
+  }, [eventId, token])
+
+  const addAttachment = useCallback(async (input: CreateEventAttachmentInput) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const attachment = await eventAttachmentService.create(eventId, input, token)
+    setState((current) => {
+      if (current.status !== 'success') return current
+      const attachments = [...current.data.attachments, attachment]
+      return {
+        status: 'success',
+        data: {
+          ...current.data,
+          attachments,
+          viewModel: adaptHealthEventDetail(current.data.eventDto, current.data.records, current.data.organizations, attachments)
+        }
+      }
+    })
+    return attachment
   }, [eventId, token])
 
   const updateStage = useCallback(async (stage: HealthEventApiDto['status']) => {
@@ -105,7 +155,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
         data: {
           ...current.data,
           eventDto: updatedEvent,
-          viewModel: adaptHealthEventDetail(updatedEvent, current.data.records)
+          viewModel: adaptHealthEventDetail(updatedEvent, current.data.records, current.data.organizations, current.data.attachments)
         }
       }
     })
@@ -122,7 +172,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
         data: {
           ...current.data,
           eventDto: updatedEvent,
-          viewModel: adaptHealthEventDetail(updatedEvent, current.data.records)
+          viewModel: adaptHealthEventDetail(updatedEvent, current.data.records, current.data.organizations, current.data.attachments)
         }
       }
     })
@@ -133,5 +183,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, updateStage, updateTitle, retry }
+  return { state, addRecord, addAttachment, organizeRecord, updateStage, updateTitle, retry }
 }

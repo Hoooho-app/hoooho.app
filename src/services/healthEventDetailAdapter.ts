@@ -1,9 +1,12 @@
 import type {
   FamilyMemberApiDto,
+  EventAttachmentApiDto,
   HealthEvent,
   HealthEventApiDto,
   HealthEventDetailViewModel,
   HealthEventRecordApiDto,
+  OrganizedHealthData,
+  HealthRecordOrganizationApiDto,
   Member,
   MemberRelation,
   TimelineEntry
@@ -61,7 +64,9 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
 
 export function adaptHealthEventDetail(
   eventDto: HealthEventApiDto,
-  recordDtos: HealthEventRecordApiDto[]
+  recordDtos: HealthEventRecordApiDto[],
+  organizationDtos: HealthRecordOrganizationApiDto[] = [],
+  attachmentDtos: EventAttachmentApiDto[] = []
 ): HealthEventDetailViewModel {
   const sortedRecords = [...recordDtos].sort(compareRecords)
   const displayStatus: HealthEvent['status'] = eventDto.status === 'recovered'
@@ -69,7 +74,21 @@ export function adaptHealthEventDetail(
     : sortedRecords.length
       ? 'ongoing'
       : 'empty'
-  const symptomRecords = sortedRecords.filter((record) => record.type === 'symptom')
+  const organizedData = organizationDtos.map((organization) => (
+    organization.confirmedData ?? organization.organizedHealthData
+  ))
+  const organizedSymptoms = uniqueText(organizedData.flatMap((data) => data.symptoms.map((fact) => fact.content)))
+  const organizedRecordIds = new Set(organizationDtos.map((organization) => organization.recordId))
+  const unorganizedSymptoms = sortedRecords
+    .filter((record) => record.type === 'symptom' && !organizedRecordIds.has(record.id))
+    .map((record) => record.content)
+  const symptoms = uniqueText([...organizedSymptoms, ...unorganizedSymptoms])
+  const medications = uniqueText(organizedData.flatMap((data) => data.medications.map((fact) => fact.content)))
+  const visits = uniqueText(organizedData.flatMap((data) => data.visits.map((fact) => fact.content)))
+  const examinations = uniqueText(organizedData.flatMap((data) => data.examinations.map((fact) => fact.content)))
+  const concerns = uniqueText(organizedData.flatMap((data) => data.concerns.map((fact) => fact.content)))
+  const temperatureRecords = buildTemperatureRecords(organizedData, organizationDtos, sortedRecords)
+  const timeline = buildTimeline(sortedRecords, organizationDtos)
 
   return {
     category: eventDto.category,
@@ -80,12 +99,15 @@ export function adaptHealthEventDetail(
       title: eventDto.title,
       status: displayStatus,
       startDate: eventDto.startTime,
-      symptoms: symptomRecords.map((record) => record.content),
+      symptoms,
       summary: '',
-      timeline: sortedRecords.map(toTimelineEntry),
-      temperatureRecords: [],
-      attachments: [],
-      concerns: [],
+      medications,
+      visits,
+      examinations,
+      timeline,
+      temperatureRecords,
+      attachments: attachmentDtos.map((attachment) => ({ id: attachment.id, name: attachment.name, type: 'image', url: attachment.dataUrl })),
+      concerns,
       personalizedModules: [],
       medicalInfo: emptyMedicalInfo,
       ...(eventDto.status === 'recovered'
@@ -99,4 +121,54 @@ export function adaptHealthEventDetail(
         : {})
     }
   }
+}
+
+function uniqueText(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function buildTemperatureRecords(
+  organizedData: OrganizedHealthData[],
+  organizations: HealthRecordOrganizationApiDto[],
+  records: HealthEventRecordApiDto[]
+) {
+  const occurredAtByRecord = new Map(records.map((record) => [record.id, record.occurredAt]))
+  return organizedData.map((data, index) => {
+    const temperature = data.temperature
+    if (!temperature) return null
+    const time = occurredAtByRecord.get(organizations[index]?.recordId) ?? organizations[index]?.createdAt ?? ''
+    if (!time) return null
+    const label = temperature.min === temperature.max
+      ? `${temperature.min}℃`
+      : `${temperature.min}-${temperature.max}℃`
+    return {
+      time,
+      value: (temperature.min + temperature.max) / 2,
+      min: temperature.min,
+      max: temperature.max,
+      label
+    }
+  }).filter((record): record is NonNullable<typeof record> => Boolean(record))
+}
+
+function buildTimeline(
+  records: HealthEventRecordApiDto[],
+  organizations: HealthRecordOrganizationApiDto[]
+): TimelineEntry[] {
+  const organizationByRecord = new Map(organizations.map((organization) => [organization.recordId, organization]))
+
+  return records.flatMap((record) => {
+    const organization = organizationByRecord.get(record.id)
+    if (!organization) return [toTimelineEntry(record)]
+
+    const data = organization.confirmedData ?? organization.organizedHealthData
+    return data.timeline.map((item, index) => ({
+      id: `${organization.id}-timeline-${index}`,
+      time: record.occurredAt,
+      displayTime: item.time,
+      content: item.content,
+      recordType: record.type,
+      kind: record.type === 'medication' ? 'medication' : 'text'
+    }))
+  })
 }

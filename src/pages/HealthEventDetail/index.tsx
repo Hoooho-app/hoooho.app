@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput, HealthEventStage } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
-import { createHealthEventSubject, getRecommendedHealthModules } from '../../services/healthEventPersonalization'
+import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import {
   EventHeader,
   EventIdentitySection,
@@ -13,18 +13,16 @@ import {
   ConcernSection,
   MedicalInfoSection,
   NextActionSection,
-  PersonalizedModulesSection,
   SymptomSection,
   StageDetailSection,
   TemperatureChartSection,
   TimelineSection
 } from './components'
-import { requestHealthRecordOrganization } from '../../services/healthRecordOrganization'
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, updateStage, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, addAttachment, organizeRecord, updateStage, retry } = useHealthEventDetail(eventId)
   const loadedStage = state.status === 'success' ? state.data.viewModel.stage : 'observing'
   const [stage, setStage] = useState<HealthEventStage>(loadedStage)
 
@@ -35,9 +33,6 @@ export function HealthEventDetailPage() {
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
     : null, [state])
-  const recommendedModules = useMemo(() => subject
-    ? getRecommendedHealthModules(subject, stage)
-    : [], [stage, subject])
 
   if (state.status === 'loading') {
     return (
@@ -87,12 +82,15 @@ export function HealthEventDetailPage() {
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
     const originalText = input.content.trim()
-    if (!originalText) throw new Error('请先输入健康记录内容')
-    await addRecord({
-      type: input.type,
-      content: originalText,
+    const attachments = input.attachments ?? []
+    if (!originalText && !attachments.length) throw new Error('请先输入健康记录内容或添加图片')
+    const created = await addRecord({
+      type: originalText ? input.type : 'note',
+      content: originalText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
       occurredAt: input.occurredAt
     })
+    if (originalText) await organizeRecord(created.id)
+    for (const attachment of attachments) await addAttachment(attachment)
   }
 
   const changeStage = (nextStage: HealthEventStage) => {
@@ -109,11 +107,7 @@ export function HealthEventDetailPage() {
       content: rawInput,
       occurredAt: input.occurredAt
     })
-    await requestHealthRecordOrganization({
-      eventId: event.id,
-      recordId: created.id,
-      rawInput
-    })
+    await organizeRecord(created.id)
   }
 
   return (
@@ -125,14 +119,13 @@ export function HealthEventDetailPage() {
           <FirstRecordComposer onSave={saveFirstRecord} />
         ) : (
           <>
-            <SymptomSection event={event} onAddRecord={addHealthRecord} />
+            {event.symptoms.length > 0 && <SymptomSection event={event} onAddRecord={addHealthRecord} />}
             <EventStatus stage={stage} onStageChange={changeStage} />
-            <StageDetailSection event={event} stage={stage} onAddRecord={addHealthRecord} />
-            <TimelineSection event={event} onAddRecord={addHealthRecord} />
-            <TemperatureChartSection event={event} />
-            <AttachmentSection event={event} />
-            <PersonalizedModulesSection modules={recommendedModules} />
-            <ConcernSection event={event} />
+            <StageDetailSection event={event} stage={stage} />
+            {event.timeline.length > 0 && <TimelineSection event={event} onAddRecord={addHealthRecord} />}
+            {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+            {event.attachments.length > 0 && <AttachmentSection event={event} />}
+            {event.concerns.length > 0 && <ConcernSection event={event} />}
             <MedicalInfoSection event={event} />
             <NextActionSection status={event.status} onMarkRecovered={async () => { await updateStage('recovered') }} />
           </>

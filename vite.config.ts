@@ -5,6 +5,8 @@ import { authApiPlugin } from './server/auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './server/members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './server/events/vite-events-plugin.mjs'
 import { eventRecordsApiPlugin } from './server/events/vite-event-records-plugin.mjs'
+import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachments-plugin.mjs'
+import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 
 export default defineConfig({
   server: {
@@ -15,6 +17,8 @@ export default defineConfig({
     membersApiPlugin(),
     eventsApiPlugin(),
     eventRecordsApiPlugin(),
+    eventAttachmentsApiPlugin(),
+    aiApiPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

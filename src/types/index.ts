@@ -95,6 +95,62 @@ export interface CreateHealthEventRecordInput {
   type: HealthEventRecordType
   content: string
   occurredAt: string
+  attachments?: CreateEventAttachmentInput[]
+}
+
+export interface CreateEventAttachmentInput {
+  name: string
+  mimeType: string
+  dataUrl: string
+}
+
+export interface EventAttachmentApiDto extends CreateEventAttachmentInput {
+  id: string
+  accountId: string
+  eventId: string
+  createdAt: string
+}
+
+export interface OrganizedHealthFact {
+  content: string
+  keywords: string[]
+}
+
+export interface OrganizedTemperature {
+  min: number
+  max: number
+  unit: '℃'
+}
+
+export interface OrganizedTimelineItem {
+  time: string
+  content: string
+  relatedSymptoms: string[]
+}
+
+export interface OrganizedHealthData {
+  symptoms: OrganizedHealthFact[]
+  temperature: OrganizedTemperature | null
+  medications: OrganizedHealthFact[]
+  visits: OrganizedHealthFact[]
+  examinations: OrganizedHealthFact[]
+  concerns: OrganizedHealthFact[]
+  attachments: OrganizedHealthFact[]
+  timeline: OrganizedTimelineItem[]
+}
+
+export interface HealthRecordOrganizationApiDto {
+  id: string
+  accountId: string
+  eventId: string
+  recordId: string
+  rawInput: string
+  organizedHealthData: OrganizedHealthData
+  confirmedData: OrganizedHealthData | null
+  status: 'completed' | 'failed'
+  provider: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface NotificationPreferences {
@@ -112,6 +168,7 @@ export type HealthEventStage = 'observing' | 'handling' | 'recovered'
 export interface TimelineEntry {
   id: string
   time: string
+  displayTime?: string
   content: string
   recordType: HealthEventRecordType
   kind: 'text' | 'temperature' | 'medication'
@@ -134,12 +191,16 @@ export interface HealthEventRecoveryInfo {
 export interface TemperatureRecord {
   time: string
   value: number
+  min?: number
+  max?: number
+  label?: string
 }
 
 export interface EventAttachment {
   id: string
   name: string
   type: 'image' | 'document'
+  url?: string
 }
 
 export interface HealthEvent {
@@ -150,6 +211,9 @@ export interface HealthEvent {
   startDate: string
   symptoms: string[]
   summary: string
+  medications: string[]
+  visits: string[]
+  examinations: string[]
   timeline: TimelineEntry[]
   temperatureRecords: TemperatureRecord[]
   attachments: EventAttachment[]

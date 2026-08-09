@@ -50,7 +50,7 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
             templateType="timeline"
             defaultRecordType="note"
             onClose={() => setIsEditorOpen(false)}
-            onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
+            onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt, attachments: result.attachments }) : undefined}
           />
         </>
       ) : (
@@ -65,7 +65,7 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded-pill bg-primary-soft px-2 py-1 text-[11px] font-medium text-primary"><Icon size={12} />{presentation.label}</span>
-                    <time className="text-xs text-text-secondary">{formatHealthDate(entry.time)}</time>
+                    <time className="text-xs text-text-secondary">{entry.displayTime || formatHealthDate(entry.time)}</time>
                   </div>
                   <p className="mt-1 text-sm leading-6">{entry.content}</p>
                 </div>
@@ -80,7 +80,7 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
           templateType="timeline"
           defaultRecordType="note"
           onClose={() => setIsEditorOpen(false)}
-          onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
+          onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt, attachments: result.attachments }) : undefined}
         />
       )}
     </section>

@@ -17,6 +17,8 @@ export async function cleanupTestDataOnce(dataDirectory) {
   const membersStore = new JsonStore(path.join(dataDirectory, 'family-members.json'), { members: [] })
   const eventsStore = new JsonStore(path.join(dataDirectory, 'health-events.json'), { events: [] })
   const recordsStore = new JsonStore(path.join(dataDirectory, 'health-event-records.json'), { records: [] })
+  const organizationsStore = new JsonStore(path.join(dataDirectory, 'health-record-organizations.json'), { organizations: [] })
+  const attachmentsStore = new JsonStore(path.join(dataDirectory, 'event-attachments.json'), { attachments: [] })
 
   const beforeMembers = await membersStore.read()
   const beforeEvents = await eventsStore.read()
@@ -32,6 +34,8 @@ export async function cleanupTestDataOnce(dataDirectory) {
   await membersStore.update(() => ({ members: keptMembers }))
   await eventsStore.update(() => ({ events: [] }))
   await recordsStore.update(() => ({ records: [] }))
+  await organizationsStore.update(() => ({ organizations: [] }))
+  await attachmentsStore.update(() => ({ attachments: [] }))
   await mkdir(dataDirectory, { recursive: true })
   await writeFile(markerPath, JSON.stringify({
     appliedAt: now,

@@ -8,8 +8,10 @@ import { authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
 import { HealthEventService } from './events/health-event-service.mjs'
+import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
+import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -28,6 +30,8 @@ const auth = new AuthService(sharedOptions)
 const members = new FamilyMemberService(sharedOptions)
 const events = new HealthEventService(sharedOptions)
 const records = new HealthEventRecordService(sharedOptions)
+const organizations = new HealthRecordOrganizationService(sharedOptions)
+const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 
 const mimeTypes = new Map([
@@ -64,7 +68,7 @@ function sendEmpty(response, statusCode = 204) {
   response.end()
 }
 
-function readJson(request) {
+function readJson(request, maxLength = 16_384) {
   return new Promise((resolve, reject) => {
     let body = ''
     let settled = false
@@ -72,7 +76,7 @@ function readJson(request) {
     request.on('data', (chunk) => {
       if (settled) return
       body += chunk
-      if (body.length > 16_384) {
+      if (body.length > maxLength) {
         settled = true
         const error = new Error('请求内容过大')
         error.status = 413
@@ -177,6 +181,29 @@ async function handleEventRecords(request, response, pathname) {
   return true
 }
 
+async function handleOrganizations(request, response, pathname) {
+  const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
+  if (!match) return false
+
+  const accountId = readAccountId(request)
+  const eventId = decodeRouteValue(match[1])
+  if (request.method === 'GET') sendJson(response, 200, await organizations.list(accountId, eventId))
+  else if (request.method === 'POST') sendJson(response, 201, await organizations.organize(accountId, eventId, await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
+async function handleAttachments(request, response, pathname) {
+  const match = /^\/api\/events\/([^/]+)\/attachments$/.exec(pathname)
+  if (!match) return false
+  const accountId = readAccountId(request)
+  const eventId = decodeRouteValue(match[1])
+  if (request.method === 'GET') sendJson(response, 200, await attachments.list(accountId, eventId))
+  else if (request.method === 'POST') sendJson(response, 201, await attachments.create(accountId, eventId, await readJson(request, 7_100_000)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleEvents(request, response, pathname) {
   const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
@@ -203,6 +230,8 @@ async function handleApi(request, response, pathname) {
   }
   if (await handleAuth(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
+  if (await handleAttachments(request, response, pathname)) return true
+  if (await handleOrganizations(request, response, pathname)) return true
   if (await handleEventRecords(request, response, pathname)) return true
   if (await handleEvents(request, response, pathname)) return true
 

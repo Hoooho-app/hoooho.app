@@ -59,7 +59,7 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
             defaultRecordType="symptom"
             lockRecordType
             onClose={() => setIsEditorOpen(false)}
-            onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
+            onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt, attachments: result.attachments }) : undefined}
           />
         </div>
       ) : (
@@ -82,7 +82,7 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
           defaultRecordType="symptom"
           lockRecordType
           onClose={() => setIsEditorOpen(false)}
-          onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
+          onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt, attachments: result.attachments }) : undefined}
         />
       )}
     </section>
