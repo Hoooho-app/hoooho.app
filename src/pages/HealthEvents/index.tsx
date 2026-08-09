@@ -11,33 +11,30 @@ import { healthEventService } from '../../services/healthEvents'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventListItemViewModel, Member } from '../../types'
 
-function HeaderActions({ filterActive, onFilter, onMessages }: { filterActive: boolean; onFilter: () => void; onMessages: () => void }) {
+function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
-    <div className="flex items-center">
-      <button className={`relative grid h-11 w-11 place-items-center rounded-full transition hover:bg-primary-soft ${filterActive ? 'text-primary' : 'text-text-primary'}`} type="button" aria-label="筛选健康事件" onClick={onFilter}>
-        <Filter size={20} strokeWidth={1.8} />
-        {filterActive && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />}
-      </button>
-      <button className="grid h-11 w-11 place-items-center rounded-full text-text-primary transition hover:bg-primary-soft" type="button" aria-label="消息中心" onClick={onMessages}>
-        <Bell size={21} strokeWidth={1.8} />
-      </button>
-    </div>
+    <button className="grid h-11 w-11 place-items-center rounded-full text-text-primary transition hover:bg-primary-soft" type="button" aria-label="消息中心" onClick={onMessages}>
+      <Bell size={21} strokeWidth={1.8} />
+    </button>
   )
 }
+
+const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
 function UserIdentity({ member }: { member: Member | null }) {
   const navigate = useNavigate()
 
   return (
-    <div className="mx-4 flex min-h-[86px] items-center gap-3 rounded-card border bg-surface px-4 py-3 shadow-card">
+    <div className="mx-4 mt-4 flex min-h-[86px] items-center gap-3 rounded-card border bg-surface px-4 py-3 shadow-card">
       <Avatar name={member?.name ?? '家庭成员'} src={member?.avatar} size="lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-lg font-semibold tracking-tight">{member?.name ?? '家庭成员'}</p>
           {member?.relation === '本人' && <span className="rounded-pill bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary">本人</span>}
         </div>
-        <p className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
-          <span>{member?.age ?? '健康数据加载中'}</span>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary">
+          {member && <span>{genderLabels[member.gender ?? '']} · {member.age}</span>}
+          {!member && <span>健康数据加载中</span>}
           {member?.birthday && <><CalendarDays size={13} strokeWidth={1.7} /><span>{member.birthday}</span></>}
         </p>
       </div>
@@ -126,10 +123,23 @@ export function HealthEventsPage() {
 
   return (
     <main className="app-shell relative flex flex-col overflow-hidden pb-0">
-      <MainAppHeader title="健康事件" action={<HeaderActions filterActive={hasActiveFilters(filters)} onFilter={() => setFilterOpen(true)} onMessages={() => navigate('/messages')} />} />
+      <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
       <UserIdentity member={currentMember} />
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
+      <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
+        <div className="mb-4 flex min-h-11 items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">事件列表</h2>
+          <button
+            className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
+            type="button"
+            aria-label="筛选事件列表"
+            onClick={() => setFilterOpen(true)}
+          >
+            <Filter size={17} strokeWidth={1.8} />
+            筛选
+            {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+          </button>
+        </div>
         {state.status === 'loading' && (
           <Card className="py-12 text-center">
             <p className="text-sm text-text-secondary">正在加载健康事件…</p>

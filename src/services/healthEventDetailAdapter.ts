@@ -9,6 +9,7 @@ import type {
   TimelineEntry
 } from '../types'
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
+import { createVirtualAvatarId } from '../utils/virtualAvatar'
 
 const relationLabels: Record<FamilyMemberApiDto['relationship'], MemberRelation> = {
   self: '本人',
@@ -43,13 +44,17 @@ function toTimelineEntry(record: HealthEventRecordApiDto): TimelineEntry {
 }
 
 export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
+  const canGenerateAvatar = Boolean(member.birthday && (member.gender === 'male' || member.gender === 'female'))
+
   return {
     id: member.id,
     name: member.name,
     relation: relationLabels[member.relationship],
     birthday: member.birthday ?? undefined,
     gender: member.gender ?? '',
-    avatar: member.avatar ?? undefined,
+    avatar: canGenerateAvatar
+      ? createVirtualAvatarId(member.birthday!, member.gender!)
+      : member.avatar ?? undefined,
     age: member.birthday ? formatAgeFromBirthday(member.birthday) : '未填写年龄'
   }
 }
