@@ -1,21 +1,26 @@
 import { useState } from 'react'
 import { Activity, CalendarDays, CircleDashed, Plus } from 'lucide-react'
-import type { HealthEvent } from '../../../types'
+import type { CreateHealthEventRecordInput, HealthEvent } from '../../../types'
 import { Button, Card } from '../../../components/common'
 import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 import { formatHealthDate } from '../../../utils/formatDate'
 
-export function SymptomSection({ event }: { event: HealthEvent }) {
+interface SymptomSectionProps {
+  event: HealthEvent
+  onAddRecord?: (input: CreateHealthEventRecordInput) => Promise<void>
+}
+
+export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false)
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="section-title">症状记录</h2>
-        {event.status === 'ongoing' && <Button variant="ghost" onClick={() => setIsEditorOpen(true)}><Plus size={16} />补充症状</Button>}
+        {event.symptoms.length > 0 && <Button variant="ghost" onClick={() => setIsEditorOpen(true)}><Plus size={16} />补充症状</Button>}
       </div>
 
-      {event.status === 'empty' ? (
+      {!event.symptoms.length ? (
         <div className="space-y-2">
           <Card
             interactive
@@ -51,19 +56,34 @@ export function SymptomSection({ event }: { event: HealthEvent }) {
           <HealthRecordEditorModal
             open={isEditorOpen}
             templateType="symptom"
+            defaultRecordType="symptom"
+            lockRecordType
             onClose={() => setIsEditorOpen(false)}
+            onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
           />
         </div>
       ) : (
-        <Card interactive className="cursor-pointer" onClick={() => setIsEditorOpen(true)} role="button" tabIndex={0}>
-          <div className="flex flex-wrap gap-2">
-            {event.symptoms.map((symptom) => <span key={symptom} className="rounded-pill bg-primary-soft px-3 py-2 text-sm text-primary">{symptom}</span>)}
-          </div>
-          {event.summary && <p className="mt-4 text-sm leading-7 text-text-secondary">{event.summary}</p>}
+        <Card interactive className="cursor-pointer p-0" onClick={() => setIsEditorOpen(true)} role="button" tabIndex={0}>
+          <ul className="divide-y">
+            {event.symptoms.map((symptom) => (
+              <li className="flex gap-3 px-4 py-3" key={symptom}>
+                <Activity className="mt-0.5 shrink-0 text-primary" size={17} />
+                <span className="text-sm leading-6">{symptom}</span>
+              </li>
+            ))}
+          </ul>
+          {event.summary && <p className="border-t px-4 py-3 text-sm leading-7 text-text-secondary">{event.summary}</p>}
         </Card>
       )}
-      {event.status !== 'empty' && (
-        <HealthRecordEditorModal open={isEditorOpen} templateType="symptom" onClose={() => setIsEditorOpen(false)} />
+      {event.symptoms.length > 0 && (
+        <HealthRecordEditorModal
+          open={isEditorOpen}
+          templateType="symptom"
+          defaultRecordType="symptom"
+          lockRecordType
+          onClose={() => setIsEditorOpen(false)}
+          onSave={onAddRecord ? (result) => onAddRecord({ type: result.recordType, content: result.originalText, occurredAt: result.occurredAt }) : undefined}
+        />
       )}
     </section>
   )

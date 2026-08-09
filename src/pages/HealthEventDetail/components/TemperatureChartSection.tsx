@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { Thermometer } from 'lucide-react'
 import type { HealthEvent } from '../../../types'
 import { Card } from '../../../components/common'
-import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 
 export function TemperatureChartSection({ event }: { event: HealthEvent }) {
-  const [isEditorOpen, setIsEditorOpen] = useState(false)
   const records = event.temperatureRecords
   const points = records.map((record, index) => {
     const x = records.length === 1 ? 150 : 16 + (index * 268) / (records.length - 1)
@@ -16,12 +13,12 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
   return (
     <section className="space-y-3">
       <h2 className="section-title">体温曲线（℃）</h2>
-      <Card interactive className="cursor-pointer" onClick={() => setIsEditorOpen(true)} role="button" tabIndex={0}>
+      <Card>
         {!records.length ? (
           <div className="py-5 text-center">
             <Thermometer className="mx-auto text-primary" size={27} strokeWidth={1.6} />
             <h3 className="mt-3 font-semibold">暂无体温记录</h3>
-            <p className="mt-2 text-sm text-text-secondary">记录体温后，将在这里显示变化趋势。</p>
+            <p className="mt-2 text-sm text-text-secondary">体温记录功能准备中</p>
           </div>
         ) : (
           <div>
@@ -41,7 +38,6 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
           </div>
         )}
       </Card>
-      <HealthRecordEditorModal open={isEditorOpen} templateType="temperature" onClose={() => setIsEditorOpen(false)} />
     </section>
   )
 }

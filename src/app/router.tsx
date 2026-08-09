@@ -11,27 +11,33 @@ import { MessageCenterPage } from '../pages/Messages'
 import { HelpCenterPage } from '../pages/Help'
 import { FeedbackPage, FeedbackSubmittedPage } from '../pages/Feedback'
 import { AboutPage } from '../pages/About'
+import { RequireAuth } from '../components/auth/RequireAuth'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', element: <LoginPage /> },
-  { path: '/onboarding/success', element: <AccountCreatedPage /> },
-  { path: '/onboarding/profile', element: <ProfileSetupPage /> },
-  { path: '/health-events', element: <HealthEventsPage /> },
-  { path: '/health-events/new', element: <CreateHealthEventPage /> },
-  { path: '/health-events/:eventId', element: <HealthEventDetailPage /> },
-  { path: '/health-profile', element: <HealthProfilePage /> },
-  { path: '/family', element: <FamilyPage /> },
-  { path: '/family/new', element: <AddFamilyMemberPage /> },
-  { path: '/guide', element: <UsageGuidePage /> },
-  { path: '/settings', element: <SettingsPage /> },
-  { path: '/settings/account', element: <AccountSettingsPage /> },
-  { path: '/settings/notification', element: <NotificationSettingsPage /> },
-  { path: '/settings/privacy', element: <PrivacySettingsPage /> },
-  { path: '/messages', element: <MessageCenterPage /> },
-  { path: '/help', element: <HelpCenterPage /> },
-  { path: '/feedback', element: <FeedbackPage /> },
-  { path: '/feedback/submitted', element: <FeedbackSubmittedPage /> },
-  { path: '/about', element: <AboutPage /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      { path: '/onboarding/success', element: <AccountCreatedPage /> },
+      { path: '/onboarding/profile', element: <ProfileSetupPage /> },
+      { path: '/health-events', element: <HealthEventsPage /> },
+      { path: '/health-events/new', element: <CreateHealthEventPage /> },
+      { path: '/health-events/:eventId', element: <HealthEventDetailPage /> },
+      { path: '/health-profile', element: <HealthProfilePage /> },
+      { path: '/family', element: <FamilyPage /> },
+      { path: '/family/new', element: <AddFamilyMemberPage /> },
+      { path: '/guide', element: <UsageGuidePage /> },
+      { path: '/settings', element: <SettingsPage /> },
+      { path: '/settings/account', element: <AccountSettingsPage /> },
+      { path: '/settings/notification', element: <NotificationSettingsPage /> },
+      { path: '/settings/privacy', element: <PrivacySettingsPage /> },
+      { path: '/messages', element: <MessageCenterPage /> },
+      { path: '/help', element: <HelpCenterPage /> },
+      { path: '/feedback', element: <FeedbackPage /> },
+      { path: '/feedback/submitted', element: <FeedbackSubmittedPage /> },
+      { path: '/about', element: <AboutPage /> }
+    ]
+  },
   { path: '*', element: <Navigate to="/login" replace /> }
 ])

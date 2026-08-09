@@ -33,9 +33,9 @@ export const healthEvents: HealthEvent[] = [
     symptoms: ['发热', '轻微咳嗽', '精神状态一般'],
     summary: '体温反复，伴随轻微咳嗽，已补水并在家观察。',
     timeline: [
-      { id: 't1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃，精神状态尚可。', kind: 'temperature' },
-      { id: 't2', time: '2026-07-20T16:10:00+08:00', content: '体温升至 38.5℃，开始出现轻微咳嗽。', kind: 'text' },
-      { id: 't3', time: '2026-07-20T19:40:00+08:00', content: '补充温水并休息，继续观察体温变化。', kind: 'text' }
+      { id: 't1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃，精神状态尚可。', recordType: 'symptom', kind: 'temperature' },
+      { id: 't2', time: '2026-07-20T16:10:00+08:00', content: '体温升至 38.5℃，开始出现轻微咳嗽。', recordType: 'symptom', kind: 'text' },
+      { id: 't3', time: '2026-07-20T19:40:00+08:00', content: '补充温水并休息，继续观察体温变化。', recordType: 'note', kind: 'text' }
     ],
     temperatureRecords: [
       { time: '2026-07-20T14:30:00+08:00', value: 37.8 },
@@ -60,10 +60,10 @@ export const healthEvents: HealthEvent[] = [
     symptoms: ['发热', '轻微咳嗽'],
     summary: '本次发热持续约两天，休息并补充水分后体温逐渐恢复。',
     timeline: [
-      { id: 'r1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃。', kind: 'temperature' },
-      { id: 'r2', time: '2026-07-20T19:40:00+08:00', content: '体温最高 38.5℃，补水并居家观察。', kind: 'temperature' },
-      { id: 'r3', time: '2026-07-21T20:30:00+08:00', content: '体温回落至 37.2℃，精神状态好转。', kind: 'temperature' },
-      { id: 'r4', time: '2026-07-22T08:30:00+08:00', content: '体温恢复正常，未再出现明显不适。', kind: 'text' }
+      { id: 'r1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃。', recordType: 'symptom', kind: 'temperature' },
+      { id: 'r2', time: '2026-07-20T19:40:00+08:00', content: '体温最高 38.5℃，补水并居家观察。', recordType: 'symptom', kind: 'temperature' },
+      { id: 'r3', time: '2026-07-21T20:30:00+08:00', content: '体温回落至 37.2℃，精神状态好转。', recordType: 'symptom', kind: 'temperature' },
+      { id: 'r4', time: '2026-07-22T08:30:00+08:00', content: '体温恢复正常，未再出现明显不适。', recordType: 'note', kind: 'text' }
     ],
     temperatureRecords: [
       { time: '2026-07-20T14:30:00+08:00', value: 37.8 },

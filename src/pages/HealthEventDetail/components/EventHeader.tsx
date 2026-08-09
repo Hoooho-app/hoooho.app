@@ -1,4 +1,4 @@
-import { ChevronLeft, MoreHorizontal } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export function EventHeader() {
@@ -10,9 +10,7 @@ export function EventHeader() {
         <ChevronLeft size={23} strokeWidth={1.8} />
       </button>
       <h1 className="whitespace-nowrap text-center text-base font-semibold">健康事件详情</h1>
-      <button className="grid h-11 w-11 place-items-center justify-self-end rounded-full hover:bg-primary-soft" type="button" aria-label="更多操作">
-        <MoreHorizontal size={22} strokeWidth={1.8} />
-      </button>
+      <span aria-hidden="true" />
     </header>
   )
 }

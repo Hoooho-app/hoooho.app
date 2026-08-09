@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
+import { useAppStore } from '../../store/useAppStore'
 
 interface SideDrawerProps {
   open: boolean
@@ -33,6 +34,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const member = useCurrentMember()
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
 
   const openPage = (to: string) => {
     onClose()
+    if (to === '/login') clearAuthSession()
     navigate(to)
   }
 

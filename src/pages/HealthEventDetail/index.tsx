@@ -1,12 +1,14 @@
-import { useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
-import { healthEvents } from '../../mock/events'
-import type { HealthEventStage } from '../../types'
-import { useHealthEventPersonalization } from '../../hooks/useHealthEventPersonalization'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Button, Card } from '../../components/common'
+import type { CreateHealthEventRecordInput, HealthEventStage } from '../../types'
+import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
+import { createHealthEventSubject, getRecommendedHealthModules } from '../../services/healthEventPersonalization'
 import {
   EventHeader,
   EventIdentitySection,
   EventStatus,
+  EventTitleSection,
   AttachmentSection,
   ConcernSection,
   MedicalInfoSection,
@@ -20,28 +22,99 @@ import {
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
-  const event = healthEvents.find((item) => item.id === eventId)
-  const initialStage: HealthEventStage = event?.status === 'recovered' ? 'recovered' : event?.status === 'ongoing' ? 'handling' : 'observing'
-  const [stage, setStage] = useState<HealthEventStage>(initialStage)
-  const { subject, recommendedModules } = useHealthEventPersonalization(event?.memberId, stage)
+  const navigate = useNavigate()
+  const { state, addRecord, updateStage, updateTitle, retry } = useHealthEventDetail(eventId)
+  const loadedStage = state.status === 'success' ? state.data.viewModel.stage : 'observing'
+  const [stage, setStage] = useState<HealthEventStage>(loadedStage)
 
-  if (!event) return <Navigate to="/health-events" replace />
+  useEffect(() => {
+    setStage(loadedStage)
+  }, [loadedStage])
+
+  const subject = useMemo(() => state.status === 'success'
+    ? createHealthEventSubject(state.data.member)
+    : null, [state])
+  const recommendedModules = useMemo(() => subject
+    ? getRecommendedHealthModules(subject, stage)
+    : [], [stage, subject])
+
+  if (state.status === 'loading') {
+    return (
+      <main className="app-shell bg-background pb-8">
+        <EventHeader />
+        <div className="page-content">
+          <Card className="py-12 text-center">
+            <p className="text-sm text-text-secondary">正在加载健康事件…</p>
+          </Card>
+        </div>
+      </main>
+    )
+  }
+
+  if (state.status === 'not-found') {
+    return (
+      <main className="app-shell bg-background pb-8">
+        <EventHeader />
+        <div className="page-content">
+          <Card className="py-10 text-center">
+            <h2 className="font-semibold">健康事件不存在或已删除</h2>
+            <Button className="mt-5" onClick={() => navigate('/health-events')}>返回健康事件</Button>
+          </Card>
+        </div>
+      </main>
+    )
+  }
+
+  if (state.status === 'error') {
+    return (
+      <main className="app-shell bg-background pb-8">
+        <EventHeader />
+        <div className="page-content">
+          <Card className="py-10 text-center">
+            <h2 className="font-semibold">健康事件加载失败</h2>
+            <p className="mt-2 text-sm text-text-secondary">{state.message}</p>
+            <Button className="mt-5" onClick={retry}>重新加载</Button>
+          </Card>
+        </div>
+      </main>
+    )
+  }
+
+  const event = state.data.viewModel.event
+  if (!subject) return null
+
+  const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
+    const originalText = input.content.trim()
+    if (!originalText) throw new Error('请先输入健康记录内容')
+    await addRecord({
+      type: input.type,
+      content: originalText,
+      occurredAt: input.occurredAt
+    })
+  }
+
+  const changeStage = (nextStage: HealthEventStage) => {
+    const previousStage = stage
+    setStage(nextStage)
+    void updateStage(nextStage).catch(() => setStage(previousStage))
+  }
 
   return (
     <main className="app-shell bg-background pb-8">
       <EventHeader />
       <div className="page-content space-y-6">
         <EventIdentitySection subject={subject} />
-        <SymptomSection event={event} />
-        <EventStatus stage={stage} onStageChange={setStage} />
-        <StageDetailSection event={event} stage={stage} />
-        <TimelineSection event={event} />
+        <EventTitleSection title={event.title} onSave={updateTitle} />
+        <SymptomSection event={event} onAddRecord={addHealthRecord} />
+        <EventStatus stage={stage} onStageChange={changeStage} />
+        <StageDetailSection event={event} stage={stage} onAddRecord={addHealthRecord} />
+        <TimelineSection event={event} onAddRecord={addHealthRecord} />
         <TemperatureChartSection event={event} />
         <AttachmentSection event={event} />
         <PersonalizedModulesSection modules={recommendedModules} />
         <ConcernSection event={event} />
         <MedicalInfoSection event={event} />
-        <NextActionSection status={event.status} />
+        <NextActionSection status={event.status} onMarkRecovered={async () => { await updateStage('recovered') }} />
       </div>
     </main>
   )

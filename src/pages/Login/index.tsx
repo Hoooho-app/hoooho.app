@@ -2,9 +2,11 @@ import { ShieldCheck, Smartphone } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
+import { authService, AuthApiError } from '../../services/auth'
+import { useAppStore } from '../../store/useAppStore'
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/
-const CODE_PATTERN = /^\d{4,6}$/
+const CODE_PATTERN = /^\d{6}$/
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -12,6 +14,12 @@ export function LoginPage() {
   const [code, setCode] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const setAuthSession = useAppStore((state) => state.setAuthSession)
+  const phoneIsValid = PHONE_PATTERN.test(phone)
+  const codeIsValid = CODE_PATTERN.test(code)
 
   useEffect(() => {
     if (countdown <= 0) return
@@ -21,27 +29,49 @@ export function LoginPage() {
     return () => window.clearInterval(timer)
   }, [countdown])
 
-  const requestCode = () => {
-    if (!PHONE_PATTERN.test(phone)) {
+  const requestCode = async () => {
+    if (!phoneIsValid) {
       setError('请输入正确的中国大陆手机号')
       return
     }
     setError('')
-    setCountdown(60)
+    setNotice('')
+    setIsSending(true)
+    try {
+      const result = await authService.sendCode(phone)
+      setCountdown(result.retryAfter)
+      setNotice('验证码已生成，请查看开发服务器控制台')
+    } catch (requestError) {
+      const authError = requestError instanceof AuthApiError ? requestError : null
+      setError(authError?.message ?? '验证码发送失败，请稍后重试')
+      if (authError?.retryAfter) setCountdown(authError.retryAfter)
+    } finally {
+      setIsSending(false)
+    }
   }
 
-  const login = (event: FormEvent<HTMLFormElement>) => {
+  const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!PHONE_PATTERN.test(phone)) {
+    if (!phoneIsValid) {
       setError('请输入正确的中国大陆手机号')
       return
     }
-    if (!CODE_PATTERN.test(code)) {
-      setError('请输入 4–6 位数字验证码')
+    if (!codeIsValid) {
+      setError('请输入 6 位数字验证码')
       return
     }
     setError('')
-    navigate('/health-events')
+    setNotice('')
+    setIsLoggingIn(true)
+    try {
+      const session = await authService.login(phone, code)
+      setAuthSession(session)
+      navigate('/health-events', { replace: true })
+    } catch (requestError) {
+      setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
 
   return (
@@ -67,7 +97,9 @@ export function LoginPage() {
               onChange={(event) => {
                 setPhone(event.target.value.replace(/\D/g, ''))
                 setError('')
+                setNotice('')
               }}
+              onBlur={() => phone && !PHONE_PATTERN.test(phone) && setError('请输入正确的中国大陆手机号')}
             />
           </label>
 
@@ -89,19 +121,20 @@ export function LoginPage() {
             <button
               className="shrink-0 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:text-text-secondary/60"
               type="button"
-              disabled={countdown > 0}
+              disabled={!phoneIsValid || countdown > 0 || isSending}
               onClick={requestCode}
             >
-              {countdown > 0 ? `重新获取 (${countdown}s)` : '获取验证码'}
+              {isSending ? '发送中…' : countdown > 0 ? `重新获取 (${countdown}s)` : '获取验证码'}
             </button>
           </label>
 
           <div className="min-h-5 px-1" aria-live="polite">
             {error && <p className="text-xs text-danger">{error}</p>}
+            {!error && notice && <p className="text-xs text-primary">{notice}</p>}
           </div>
 
-          <button className="min-h-12 w-full rounded-pill bg-primary text-sm font-semibold text-surface shadow-floating transition active:scale-[0.98] disabled:opacity-50" type="submit">
-            登录
+          <button className="min-h-12 w-full rounded-pill bg-primary text-sm font-semibold text-surface shadow-floating transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!phoneIsValid || !codeIsValid || isLoggingIn}>
+            {isLoggingIn ? '登录中…' : '登录'}
           </button>
         </form>
 

@@ -1,7 +1,8 @@
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
-import { ImagePlus, Mic, Paperclip, PencilLine, Sparkles, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Mic, Paperclip, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
+import type { HealthEventRecordType } from '../../../types'
 
 export type HealthRecordTemplateType =
   | 'symptom'
@@ -78,56 +79,78 @@ const templates: Record<HealthRecordTemplateType, EditorTemplate> = {
 
 export interface HealthRecordEditorResult {
   templateType: HealthRecordTemplateType
+  recordType: SelectableRecordType
   originalText: string
+  occurredAt: string
   structuredFields: Array<{ label: string; value: string }>
   attachments: string[]
 }
 
+export type SelectableRecordType = Exclude<HealthEventRecordType, 'other'>
+
+const recordTypeOptions: Array<{ value: SelectableRecordType; label: string }> = [
+  { value: 'symptom', label: '症状' },
+  { value: 'medication', label: '用药' },
+  { value: 'visit', label: '就诊' },
+  { value: 'examination', label: '检查' },
+  { value: 'note', label: '备注' }
+]
+
+const recordTypeLabels = new Map(recordTypeOptions.map((option) => [option.value, option.label]))
+
 interface HealthRecordEditorModalProps {
   open: boolean
   templateType: HealthRecordTemplateType
+  defaultRecordType?: SelectableRecordType
+  lockRecordType?: boolean
   titleOverride?: string
   initialValue?: string
   onClose: () => void
-  onSave?: (result: HealthRecordEditorResult) => void
+  onSave?: (result: HealthRecordEditorResult) => void | Promise<void>
 }
 
-function buildPreview(template: EditorTemplate, text: string, attachments: string[]) {
-  const temperature = text.match(/\d{2}(?:\.\d)?\s*℃?/)?.[0]
-  return template.previewLabels.map((label, index) => ({
-    label,
-    value: index === 0 && text ? text : index === 1 && temperature ? temperature : attachments.length && index === 0 ? `${attachments.length} 张图片` : '待进一步确认'
-  }))
+function localDateTimeValue(date = new Date()) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
-export function HealthRecordEditorModal({ open, templateType, titleOverride, initialValue = '', onClose, onSave }: HealthRecordEditorModalProps) {
+export function HealthRecordEditorModal({ open, templateType, defaultRecordType = 'note', lockRecordType = false, titleOverride, initialValue = '', onClose, onSave }: HealthRecordEditorModalProps) {
   const template = templates[templateType]
   const [text, setText] = useState(initialValue)
-  const [attachments, setAttachments] = useState<string[]>([])
-  const [showPreview, setShowPreview] = useState(false)
-  const [voiceHint, setVoiceHint] = useState(false)
+  const [recordType, setRecordType] = useState<SelectableRecordType>(defaultRecordType)
+  const [occurredAt, setOccurredAt] = useState(localDateTimeValue)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   usePageScrollLock(open)
 
   useEffect(() => {
     if (!open) return
     setText(initialValue)
-    setAttachments([])
-    setShowPreview(false)
-    setVoiceHint(false)
-  }, [open, templateType, initialValue])
+    setRecordType(defaultRecordType)
+    setOccurredAt(localDateTimeValue())
+    setIsSaving(false)
+    setSaveError('')
+  }, [defaultRecordType, open, templateType, initialValue])
 
-  const preview = useMemo(() => buildPreview(template, text.trim(), attachments), [attachments, template, text])
-  const canAnalyze = Boolean(text.trim() || attachments.length)
+  const preview = useMemo(() => [
+    { label: '记录类型', value: recordTypeLabels.get(recordType) ?? '备注' },
+    { label: '发生时间', value: new Date(occurredAt).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) },
+    { label: '记录内容', value: text.trim() }
+  ], [occurredAt, recordType, text])
+  const canSave = Boolean(text.trim() && occurredAt)
 
-  const addImages = (event: ChangeEvent<HTMLInputElement>) => {
-    const names = Array.from(event.target.files || []).map((file) => file.name)
-    setAttachments((current) => [...current, ...names])
-    event.target.value = ''
-  }
-
-  const save = () => {
-    onSave?.({ templateType, originalText: text.trim(), structuredFields: preview, attachments })
-    onClose()
+  const save = async () => {
+    setSaveError('')
+    setIsSaving(true)
+    try {
+      if (!onSave) return
+      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments: [] })
+      onClose()
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '保存失败，请稍后重试')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (!open) return null
@@ -139,7 +162,7 @@ export function HealthRecordEditorModal({ open, templateType, titleOverride, ini
     >
       <section
         aria-modal="true"
-        className={`flex w-full max-w-[354px] touch-auto flex-col overflow-hidden rounded-t-[24px] bg-background shadow-floating ${showPreview ? 'max-h-[90dvh]' : 'max-h-[80dvh]'}`}
+        className="flex max-h-[80dvh] w-full max-w-[354px] touch-auto flex-col overflow-hidden rounded-t-[24px] bg-background shadow-floating"
         role="dialog"
       >
         <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center border-b bg-surface px-3">
@@ -153,32 +176,59 @@ export function HealthRecordEditorModal({ open, templateType, titleOverride, ini
             <div className="flex gap-2"><Sparkles className="mt-0.5 shrink-0 text-primary" size={17} /><div><h3 className="text-sm font-semibold">怎么写？</h3><p className="mt-1 text-xs leading-5 text-text-secondary">{template.guidance}</p></div></div>
           </Card>
 
-          <div><p className="mb-2 text-xs text-text-secondary">示例</p><p className="text-sm leading-6 text-text-secondary">{template.example}</p></div>
+          {onSave && (
+            <div className="space-y-3">
+              {!lockRecordType && <div>
+                <p className="mb-2 text-xs font-medium text-text-secondary">记录类型</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {recordTypeOptions.map((option) => (
+                    <button
+                      className={`min-h-9 rounded-pill px-2 text-xs font-medium transition ${recordType === option.value ? 'bg-primary text-surface' : 'bg-primary-soft text-text-secondary'}`}
+                      key={option.value}
+                      onClick={() => setRecordType(option.value)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>}
+              <label className="block space-y-2">
+                <span className="text-xs font-medium text-text-secondary">发生时间</span>
+                <input
+                  className="min-h-11 w-full rounded-control border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  onChange={(event) => setOccurredAt(event.target.value)}
+                  type="datetime-local"
+                  value={occurredAt}
+                />
+              </label>
+            </div>
+          )}
 
           <Card className="p-0">
-            <textarea className="h-48 w-full resize-none rounded-t-card bg-transparent p-4 text-sm leading-6 outline-none placeholder:text-text-secondary/65" maxLength={1000} onChange={(event) => { setText(event.target.value); setShowPreview(false) }} placeholder={template.placeholder} value={text} />
+            <textarea
+              className="h-40 w-full resize-none rounded-t-card bg-transparent p-4 text-sm leading-6 outline-none placeholder:text-text-secondary/65"
+              maxLength={1000}
+              onChange={(event) => setText(event.target.value)}
+              placeholder={`${template.placeholder}\n\n例如：${template.example}`}
+              value={text}
+            />
             <div className="flex items-center justify-between border-t px-3 py-2">
               <span className="text-[11px] text-text-secondary">{text.length}/1000</span>
               <div className="flex gap-2">
-                <button className="flex min-h-9 items-center gap-1.5 rounded-pill px-3 text-xs text-primary hover:bg-primary-soft" onClick={() => setVoiceHint(true)} type="button"><Mic size={15} />语音输入</button>
-                <label className="flex min-h-9 cursor-pointer items-center gap-1.5 rounded-pill px-3 text-xs text-primary hover:bg-primary-soft"><Paperclip size={15} />添加图片<input accept="image/*" className="sr-only" multiple onChange={addImages} type="file" /></label>
+                <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="语音功能准备中" type="button"><Mic size={15} />语音准备中</button>
+                <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="图片功能准备中" type="button"><Paperclip size={15} />图片准备中</button>
               </div>
             </div>
           </Card>
 
-          {voiceHint && <p className="text-xs text-text-secondary">语音输入入口已预留，后续接入语音识别服务。</p>}
-          {attachments.length > 0 && <Card className="space-y-2"><div className="flex items-center gap-2 text-sm font-semibold"><ImagePlus className="text-primary" size={17} />已选择图片</div>{attachments.map((name) => <p className="truncate text-xs text-text-secondary" key={name}>{name}</p>)}</Card>}
-
-          {showPreview && (
-            <Card>
-              <div className="mb-4 flex items-center justify-between"><h3 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="text-primary" size={16} />AI整理结果</h3><button className="flex items-center gap-1 text-xs text-primary" onClick={() => setShowPreview(false)} type="button"><PencilLine size={14} />编辑</button></div>
-              <dl className="space-y-3">{preview.map(({ label, value }) => <div className="grid grid-cols-[5rem_1fr] gap-3 text-sm" key={label}><dt className="text-text-secondary">{label}</dt><dd className="leading-6">{value}</dd></div>)}</dl>
-            </Card>
-          )}
         </div>
 
         <footer className="shrink-0 border-t bg-surface p-4">
-          {showPreview ? <Button fullWidth onClick={save}>确认保存</Button> : <Button disabled={!canAnalyze} fullWidth onClick={() => setShowPreview(true)}>整理并预览</Button>}
+          {saveError && <p className="mb-3 text-center text-xs text-red-600">{saveError}</p>}
+          {!onSave
+            ? <Button disabled fullWidth>功能准备中</Button>
+            : <Button disabled={!canSave || isSaving} fullWidth onClick={() => void save()}>{isSaving ? '保存中…' : '保存记录'}</Button>}
         </footer>
       </section>
     </div>

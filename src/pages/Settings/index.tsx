@@ -28,10 +28,12 @@ export function SettingsPage() {
 export function AccountSettingsPage() {
   const member = useCurrentMember()
   const profile = useAppStore((state) => state.profile)
+  const phone = useAppStore((state) => state.authUser?.phone)
+  const maskedPhone = phone ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : '未登录'
   const rows = [
     ['头像', member.name],
     ['昵称', member.name],
-    ['手机号', '138****5678'],
+    ['手机号', maskedPhone],
     ['登录方式', '手机号登录'],
     ['修改密码', '']
   ] as const

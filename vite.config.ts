@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { authApiPlugin } from './server/auth/vite-auth-plugin.mjs'
+import { membersApiPlugin } from './server/members/vite-members-plugin.mjs'
+import { eventsApiPlugin } from './server/events/vite-events-plugin.mjs'
+import { eventRecordsApiPlugin } from './server/events/vite-event-records-plugin.mjs'
 
 export default defineConfig({
   server: {
     host: true
   },
   plugins: [
+    authApiPlugin(),
+    membersApiPlugin(),
+    eventsApiPlugin(),
+    eventRecordsApiPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

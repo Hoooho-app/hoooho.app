@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { members as initialMembers } from '../mock/members'
-import type { Member, NotificationPreferences, UserProfile } from '../types'
+import type { AuthSession, AuthUser, Member, NotificationPreferences, UserProfile } from '../types'
 
 interface AppState {
+  authToken: string | null
+  authUser: AuthUser | null
   currentMemberId: string
   members: Member[]
   profile: UserProfile | null
   notifications: NotificationPreferences
   setCurrentMemberId: (memberId: string) => void
+  setAuthSession: (session: AuthSession) => void
+  clearAuthSession: () => void
   addMember: (member: Member) => void
   setProfile: (profile: UserProfile) => void
   setNotification: (key: keyof Omit<NotificationPreferences, 'quietHours'>, value: boolean) => void
@@ -18,6 +22,8 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      authToken: null,
+      authUser: null,
       currentMemberId: 'self',
       members: initialMembers,
       profile: null,
@@ -30,6 +36,8 @@ export const useAppStore = create<AppState>()(
         quietHours: '22:00 - 07:00'
       },
       setCurrentMemberId: (currentMemberId) => set({ currentMemberId }),
+      setAuthSession: ({ token, user }) => set({ authToken: token, authUser: user }),
+      clearAuthSession: () => set({ authToken: null, authUser: null }),
       addMember: (member) => set((state) => ({ members: [...state.members, member] })),
       setProfile: (profile) => set((state) => ({
         profile,
@@ -47,7 +55,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'hoooho-app',
-      partialize: ({ currentMemberId, members, profile, notifications }) => ({ currentMemberId, members, profile, notifications })
+      partialize: ({ authToken, authUser, currentMemberId, members, profile, notifications }) => ({ authToken, authUser, currentMemberId, members, profile, notifications })
     }
   )
 )
