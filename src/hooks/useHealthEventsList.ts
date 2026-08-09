@@ -21,6 +21,8 @@ type HealthEventsListState =
 export function useHealthEventsList() {
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const setMembers = useAppStore((state) => state.setMembers)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const [state, setState] = useState<HealthEventsListState>({ status: 'loading' })
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -32,12 +34,18 @@ export function useHealthEventsList() {
         familyMemberService.list(token, signal)
       ])
       if (signal?.aborted) return
+      const adaptedMembers = memberDtos.map(adaptFamilyMember)
+      setMembers(adaptedMembers)
+      const currentId = useAppStore.getState().currentMemberId
+      if (!adaptedMembers.some((member) => member.id === currentId) && adaptedMembers[0]) {
+        setCurrentMemberId(adaptedMembers[0].id)
+      }
       setState({
         status: 'success',
         data: {
           events: adaptHealthEventList(eventDtos, memberDtos),
           memberDtos,
-          members: memberDtos.map(adaptFamilyMember)
+          members: adaptedMembers
         }
       })
     } catch (error) {
@@ -51,7 +59,7 @@ export function useHealthEventsList() {
         message: error instanceof Error ? error.message : '健康事件加载失败，请稍后重试'
       })
     }
-  }, [clearAuthSession, token])
+  }, [clearAuthSession, setCurrentMemberId, setMembers, token])
 
   useEffect(() => {
     const controller = new AbortController()

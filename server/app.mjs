@@ -9,11 +9,15 @@ import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
 import { HealthEventService } from './events/health-event-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
+import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
 const port = Number.parseInt(process.env.PORT || '3000', 10)
 const host = process.env.HOST || '0.0.0.0'
+
+const cleanupResult = await cleanupTestDataOnce(authConfig.dataDirectory)
+if (cleanupResult.applied) console.info('[Hoooho] test data cleanup completed', cleanupResult)
 
 const sharedOptions = {
   dataDirectory: authConfig.dataDirectory,

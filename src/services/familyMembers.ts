@@ -10,6 +10,14 @@ export const familyMemberService = {
     return apiRequest<FamilyMemberApiDto>(`/api/members/${encodeURIComponent(memberId)}`, { token, signal })
   },
 
+  create(input: { name: string; birthday: string; gender: 'male' | 'female'; avatar: string }, token: string) {
+    return apiRequest<FamilyMemberApiDto>('/api/members', {
+      token,
+      method: 'POST',
+      body: { ...input, relationship: 'other' }
+    })
+  },
+
   update(
     memberId: string,
     input: Pick<FamilyMemberApiDto, 'name' | 'birthday' | 'gender' | 'avatar'>,

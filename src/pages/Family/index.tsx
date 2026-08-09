@@ -1,17 +1,44 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Input, WebPageHeader } from '../../components/common'
+import { Avatar, Button, Input, WebPageHeader } from '../../components/common'
+import { ApiRequestError } from '../../services/apiClient'
+import { familyMemberService } from '../../services/familyMembers'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { MemberRelation, ProfileGender } from '../../types'
+import type { Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { createVirtualAvatarId } from '../../utils/virtualAvatar'
 
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
 
 export function FamilyPage() {
   const navigate = useNavigate()
+  const token = useAppStore((state) => state.authToken)
   const members = useAppStore((state) => state.members)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
+  const setMembers = useAppStore((state) => state.setMembers)
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!token) return
+    const controller = new AbortController()
+    familyMemberService.list(token, controller.signal)
+      .then((items) => setMembers(items.map(adaptFamilyMember)))
+      .catch((requestError) => {
+        if (requestError instanceof DOMException && requestError.name === 'AbortError') return
+        if (requestError instanceof ApiRequestError && requestError.status === 401) {
+          clearAuthSession()
+          navigate('/login', { replace: true })
+          return
+        }
+        setError(requestError instanceof Error ? requestError.message : '家庭成员加载失败')
+      })
+      .finally(() => setLoading(false))
+    return () => controller.abort()
+  }, [clearAuthSession, navigate, setMembers, token])
 
   return (
     <main className="app-shell pb-0">
@@ -19,18 +46,23 @@ export function FamilyPage() {
         <button className="whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}>+ 添加家人</button>
       } />
       <div className="space-y-3 px-4 py-4">
-        {members.map((member) => {
+        {loading && <p className="py-12 text-center text-sm text-text-secondary">正在加载家人…</p>}
+        {error && <p className="py-8 text-center text-sm text-danger">{error}</p>}
+        {!loading && !error && members.map((member) => {
           const current = member.id === currentMemberId
           return (
-            <div key={member.id} className="flex h-16 items-center justify-between rounded-[16px] bg-surface px-4 py-3 shadow-card">
-              <div>
-                <strong className="block text-sm font-medium">{member.name}</strong>
-                <span className="mt-0.5 block text-xs text-text-secondary">{genderLabel[member.gender ?? '']} · {member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}</span>
+            <div key={member.id} className="flex min-h-16 items-center justify-between gap-3 rounded-card bg-surface px-4 py-3 shadow-card">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar name={member.name} src={member.avatar} />
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-medium">{member.name}</strong>
+                  <span className="mt-0.5 block text-xs text-text-secondary">{genderLabel[member.gender ?? '']} · {member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}</span>
+                </div>
               </div>
               {current ? (
-                <span className="rounded-pill bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary">当前身份</span>
+                <span className="shrink-0 rounded-pill bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary">当前身份</span>
               ) : (
-                <button className="rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => setCurrentMemberId(member.id)}>切换身份</button>
+                <button className="shrink-0 rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => setCurrentMemberId(member.id)}>切换身份</button>
               )}
             </div>
           )
@@ -40,52 +72,71 @@ export function FamilyPage() {
   )
 }
 
+type RequiredGender = Extract<ProfileGender, 'male' | 'female'> | ''
+
 export function AddFamilyMemberPage() {
   const navigate = useNavigate()
+  const token = useAppStore((state) => state.authToken)
   const addMember = useAppStore((state) => state.addMember)
-  const [relation, setRelation] = useState<MemberRelation>('子女')
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [name, setName] = useState('')
-  const [gender, setGender] = useState<ProfileGender>('')
+  const [gender, setGender] = useState<RequiredGender>('')
   const [birthday, setBirthday] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!name.trim() || !birthday || !gender) {
-      setError('请完整填写姓名、性别和出生日期')
+    const cleanName = name.trim()
+    if (!cleanName || cleanName.length > 20 || !birthday || !gender || !token) {
+      setError('请完整填写姓名、出生日期和性别')
       return
     }
-    addMember({
-      id: `member-${Date.now()}`,
-      name: name.trim(),
-      age: formatAgeFromBirthday(birthday),
-      relation,
-      birthday,
-      gender
-    })
-    navigate('/family', { replace: true })
+
+    setError('')
+    setSubmitting(true)
+    try {
+      const avatar = createVirtualAvatarId(birthday, gender)
+      const created = await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
+      addMember(adaptFamilyMember(created) as Member)
+      navigate('/family', { replace: true })
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        navigate('/login', { replace: true })
+        return
+      }
+      setError(requestError instanceof Error ? requestError.message : '添加失败，请稍后重试')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <main className="app-shell pb-0">
+    <main className="app-shell flex flex-col pb-0">
       <WebPageHeader title="添加家庭成员" fallback="/family" />
-      <form className="space-y-3 px-4 py-4" onSubmit={submit}>
-        <label className="block rounded-card bg-surface px-4 py-2.5 shadow-card">
-          <span className="block text-sm">关系选择</span>
-          <select className="mt-1 w-full bg-transparent text-xs text-text-secondary outline-none" value={relation} onChange={(event) => setRelation(event.target.value as MemberRelation)}>
-            <option value="父亲">爸爸</option><option value="母亲">妈妈</option><option value="子女">子女</option><option value="配偶">配偶</option><option value="其他">其他</option>
-          </select>
-        </label>
-        <Input label="姓名" placeholder="请输入姓名" value={name} onChange={(event) => { setName(event.target.value); setError('') }} />
-        <label className="block rounded-card bg-surface px-4 py-2.5 shadow-card">
-          <span className="block text-sm">性别</span>
-          <select className="mt-1 w-full bg-transparent text-xs text-text-secondary outline-none" value={gender} onChange={(event) => setGender(event.target.value as ProfileGender)}>
-            <option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="undisclosed">不方便透露</option>
-          </select>
-        </label>
-        <Input label="出生日期" type="date" max={new Date().toISOString().slice(0, 10)} value={birthday} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
-        <div className="min-h-5">{error && <p className="text-xs text-danger">{error}</p>}</div>
-        <Button fullWidth type="submit">保存成员</Button>
+      <form className="flex flex-1 flex-col px-4 py-5" onSubmit={submit}>
+        <div className="space-y-5 rounded-card bg-surface p-4 shadow-card">
+          <Input label="姓名 *" name="name" maxLength={20} placeholder="请输入姓名" value={name} disabled={submitting} onChange={(event) => { setName(event.target.value); setError('') }} />
+          <Input label="出生日期 *" name="birthday" type="date" max={new Date().toISOString().slice(0, 10)} hint="系统将根据出生日期自动计算年龄" value={birthday} disabled={submitting} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
+          <fieldset disabled={submitting}>
+            <legend className="text-sm font-medium">性别 *</legend>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {([['male', '男'], ['female', '女']] as const).map(([value, label]) => (
+                <label key={value} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-control border text-sm transition ${gender === value ? 'border-primary bg-primary-soft font-semibold text-primary' : 'bg-surface'}`}>
+                  <input className="h-4 w-4 accent-primary" type="radio" name="gender" value={value} checked={gender === value} onChange={() => { setGender(value); setError('') }} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <p className="text-xs leading-5 text-text-secondary">保存后将根据年龄和性别自动生成虚拟头像，无需上传照片。</p>
+        </div>
+
+        <div className="mt-auto pb-[max(20px,env(safe-area-inset-bottom))] pt-6">
+          <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
+          <Button className="mt-2" disabled={submitting} fullWidth type="submit">{submitting ? '正在添加…' : '添加家庭成员'}</Button>
+        </div>
       </form>
     </main>
   )

@@ -13,7 +13,7 @@
     "test:members": "node --test server/members/family-member-service.test.mjs",
     "test:events": "node --test server/events/health-event-service.test.mjs",
     "test:records": "node --test server/events/health-event-record-service.test.mjs",
-    "test:server": "node --test --test-concurrency=1 server/auth/auth-service.test.mjs server/members/family-member-service.test.mjs server/events/health-event-service.test.mjs server/events/health-event-record-service.test.mjs",
+    "test:server": "node --test --test-concurrency=1 server/auth/auth-service.test.mjs server/members/family-member-service.test.mjs server/events/health-event-service.test.mjs server/events/health-event-record-service.test.mjs server/data/cleanup-test-data.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false"
   },
   "dependencies": {

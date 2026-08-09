@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { members as initialMembers } from '../mock/members'
 import type { AuthSession, AuthUser, Member, NotificationPreferences, UserProfile } from '../types'
 
 interface AppState {
@@ -14,6 +13,7 @@ interface AppState {
   setAuthSession: (session: AuthSession) => void
   clearAuthSession: () => void
   addMember: (member: Member) => void
+  setMembers: (members: Member[]) => void
   setProfile: (profile: UserProfile, memberId: string) => void
   setNotification: (key: keyof Omit<NotificationPreferences, 'quietHours'>, value: boolean) => void
   setQuietHours: (quietHours: string) => void
@@ -25,7 +25,7 @@ export const useAppStore = create<AppState>()(
       authToken: null,
       authUser: null,
       currentMemberId: 'self',
-      members: initialMembers,
+      members: [],
       profile: null,
       notifications: {
         healthEvent: true,
@@ -45,12 +45,15 @@ export const useAppStore = create<AppState>()(
       })),
       clearAuthSession: () => set({ authToken: null, authUser: null, profile: null, currentMemberId: 'self' }),
       addMember: (member) => set((state) => ({ members: [...state.members, member] })),
+      setMembers: (members) => set({ members }),
       setProfile: (profile, memberId) => set((state) => ({
         profile,
         currentMemberId: memberId,
-        members: state.members.map((member) => member.id === 'self'
-          ? { ...member, id: memberId, name: profile.nickname, birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }
-          : member)
+        members: state.members.some((member) => member.id === memberId || member.id === 'self')
+          ? state.members.map((member) => member.id === memberId || member.id === 'self'
+            ? { ...member, id: memberId, name: profile.nickname, birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }
+            : member)
+          : [{ id: memberId, name: profile.nickname, age: '', relation: '本人', birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }, ...state.members]
       })),
       setNotification: (key, value) => set((state) => ({
         notifications: { ...state.notifications, [key]: value }
@@ -61,6 +64,8 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'hoooho-app',
+      version: 2,
+      migrate: (persisted) => ({ ...(persisted as AppState), members: [] }),
       partialize: ({ authToken, authUser, currentMemberId, members, profile, notifications }) => ({ authToken, authUser, currentMemberId, members, profile, notifications })
     }
   )
