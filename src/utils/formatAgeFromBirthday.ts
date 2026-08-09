@@ -9,6 +9,7 @@ export function formatAgeFromBirthday(birthday: string, today = new Date()) {
   const totalMonths = differenceInMonths(today, birthDate)
 
   if (totalMonths < 1) return '未满1个月'
-  if (years < 18) return `${Math.max(years, 0)}岁${Math.max(totalMonths - years * 12, 0)}个月`
+  if (totalMonths < 12) return `${totalMonths}个月`
+  if (years < 3) return `${years}岁${Math.max(totalMonths - years * 12, 0)}个月`
   return `${Math.max(years, 0)}岁`
 }

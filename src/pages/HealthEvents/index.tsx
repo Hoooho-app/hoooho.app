@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, ClipboardList, Filter, Plus } from 'lucide-react'
+import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Avatar, Button, Card } from '../../components/common'
@@ -32,10 +32,9 @@ function UserIdentity({ member }: { member: Member | null }) {
           <p className="truncate text-lg font-semibold tracking-tight">{member?.name ?? '家庭成员'}</p>
           {member?.relation === '本人' && <span className="rounded-pill bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary">本人</span>}
         </div>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary">
+        <p className="mt-1 text-xs text-text-secondary">
           {member && <span>{genderLabels[member.gender ?? '']} · {member.age}</span>}
           {!member && <span>健康数据加载中</span>}
-          {member?.birthday && <><CalendarDays size={13} strokeWidth={1.7} /><span>{member.birthday}</span></>}
         </p>
       </div>
       <button
@@ -162,7 +161,7 @@ export function HealthEventsPage() {
                 <Plus size={25} strokeWidth={2} />
               </span>
             </div>
-            <h2 className="mt-5 text-xl font-semibold tracking-tight">不舒服记一下</h2>
+            <h2 className="mt-5 text-xl font-semibold tracking-tight">不舒服？记一下！</h2>
             <p className="mt-3 text-sm leading-7 text-text-secondary">
               心慌、胸闷、咳嗽、受凉等疑似感冒
               <br />
