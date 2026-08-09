@@ -13,6 +13,7 @@ export function useCurrentMember() {
       name: profile.nickname,
       birthday: profile.birthday,
       gender: profile.gender,
+      avatar: profile.avatar,
       age: formatAgeFromBirthday(profile.birthday)
     }
   }

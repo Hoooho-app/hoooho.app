@@ -61,7 +61,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         </button>
 
         <button className="mt-5 flex h-[58px] w-full items-center gap-3 text-left" type="button" onClick={() => openPage('/family')}>
-          <Avatar name={member.name} />
+          <Avatar name={member.name} src={member.avatar} />
           <span className="min-w-0 flex-1">
             <strong className="block truncate text-[15px] font-medium">{member.name}</strong>
             <span className="mt-0.5 block truncate text-xs text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>

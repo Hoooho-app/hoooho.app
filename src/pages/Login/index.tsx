@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
 import { authService, AuthApiError } from '../../services/auth'
+import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/
@@ -18,6 +19,7 @@ export function LoginPage() {
   const [isSending, setIsSending] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
+  const setProfile = useAppStore((state) => state.setProfile)
   const phoneIsValid = PHONE_PATTERN.test(phone)
   const codeIsValid = CODE_PATTERN.test(code)
 
@@ -66,7 +68,25 @@ export function LoginPage() {
     try {
       const session = await authService.login(phone, code)
       setAuthSession(session)
-      navigate('/health-events', { replace: true })
+      const members = await familyMemberService.list(session.token)
+      const self = members.find((member) => member.isSelf)
+      const completed = self
+        && self.name.trim() !== '我'
+        && Boolean(self.birthday)
+        && (self.gender === 'male' || self.gender === 'female')
+        && Boolean(self.avatar)
+
+      if (completed) {
+        setProfile({
+          nickname: self.name,
+          birthday: self.birthday!,
+          gender: self.gender!,
+          avatar: self.avatar ?? undefined
+        }, self.id)
+        navigate('/health-events', { replace: true })
+      } else {
+        navigate('/onboarding/profile', { replace: true })
+      }
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
     } finally {

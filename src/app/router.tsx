@@ -3,7 +3,7 @@ import { HealthEventDetailPage } from '../pages/HealthEventDetail'
 import { CreateHealthEventPage, HealthEventsPage } from '../pages/HealthEvents'
 import { HealthProfilePage } from '../pages/HealthProfile'
 import { LoginPage } from '../pages/Login'
-import { AccountCreatedPage, ProfileSetupPage } from '../pages/ProfileSetup'
+import { ProfileSetupPage } from '../pages/ProfileSetup'
 import { AddFamilyMemberPage, FamilyPage } from '../pages/Family'
 import { UsageGuidePage } from '../pages/Guide'
 import { AccountSettingsPage, NotificationSettingsPage, PrivacySettingsPage, SettingsPage } from '../pages/Settings'
@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
   {
     element: <RequireAuth />,
     children: [
-      { path: '/onboarding/success', element: <AccountCreatedPage /> },
+      { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', element: <ProfileSetupPage /> },
       { path: '/health-events', element: <HealthEventsPage /> },
       { path: '/health-events/new', element: <CreateHealthEventPage /> },

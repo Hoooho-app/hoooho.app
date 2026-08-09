@@ -25,7 +25,7 @@ export function EventIdentitySection({ subject }: { subject: HealthEventSubject 
           onClick={() => setIsExpanded((current) => !current)}
           type="button"
         >
-          <Avatar name={subject.name} size="sm" />
+          <Avatar name={subject.name} src={subject.avatar} size="sm" />
           <span className="min-w-0 flex-1">
             <strong className="block text-sm">{subject.name}</strong>
             <span className="mt-1 block truncate text-xs text-text-secondary">{subject.genderLabel} · {subject.displayAge}</span>

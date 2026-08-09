@@ -1,7 +1,7 @@
-import { Bell, ClipboardList, Plus, UserRound } from 'lucide-react'
+import { Bell, ClipboardList, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Button, Card } from '../../components/common'
+import { Avatar, Button, Card } from '../../components/common'
 import { HealthEventCard } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
@@ -28,9 +28,7 @@ function UserIdentity({ member }: { member: Member | null }) {
 
   return (
     <div className="flex min-h-[92px] items-center gap-4 px-5">
-      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-primary-soft text-text-primary">
-        <UserRound size={29} strokeWidth={1.7} />
-      </div>
+      <Avatar name={member?.name ?? '家庭成员'} src={member?.avatar} size="lg" />
       <div className="min-w-0 flex-1">
         <p className="text-lg font-semibold tracking-tight">{member?.name ?? '家庭成员'}</p>
         <p className="mt-0.5 text-sm text-text-secondary">{member?.age ?? '健康数据加载中'}</p>
@@ -56,7 +54,7 @@ export function HealthEventsPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
 
-  if (!profile) return <Navigate to="/onboarding/success" replace />
+  if (!profile) return <Navigate to="/onboarding/profile" replace />
 
   const currentMember = state.status === 'success'
     ? state.data.members.find((member) => member.id === currentMemberId) ?? state.data.members[0] ?? null

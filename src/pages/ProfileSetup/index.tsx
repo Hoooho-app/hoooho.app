@@ -1,61 +1,93 @@
-import { Camera, Check, ChevronLeft, LockKeyhole, UserRound } from 'lucide-react'
-import { FormEvent, useState } from 'react'
+import { ChevronLeft, LockKeyhole, Sparkles } from 'lucide-react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '../../components/common'
+import { ApiRequestError } from '../../services/apiClient'
+import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
-import type { ProfileGender } from '../../types'
-
-export function AccountCreatedPage() {
-  const navigate = useNavigate()
-
-  return (
-    <main className="app-shell flex flex-col bg-surface px-6 pb-8">
-      <button className="mt-4 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="返回" onClick={() => navigate(-1)}>
-        <ChevronLeft size={22} strokeWidth={1.8} />
-      </button>
-
-      <section className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
-        <div className="relative grid h-28 w-28 place-items-center rounded-full bg-primary-soft">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-primary text-surface shadow-floating">
-            <Check size={36} strokeWidth={2} />
-          </span>
-        </div>
-        <h1 className="mt-8 text-2xl font-semibold tracking-tight">创建成功！</h1>
-        <p className="mt-4 text-sm leading-7 text-text-secondary">
-          我们已为你创建 Hoooho 账号
-          <br />
-          请完善个人信息，开启健康管理之旅
-        </p>
-      </section>
-
-      <Button fullWidth onClick={() => navigate('/onboarding/profile')}>去完善个人信息</Button>
-    </main>
-  )
-}
+import type { FamilyMemberApiDto, ProfileGender } from '../../types'
+import { createVirtualAvatarId } from '../../utils/virtualAvatar'
 
 export function ProfileSetupPage() {
   const navigate = useNavigate()
+  const token = useAppStore((state) => state.authToken)
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const setProfile = useAppStore((state) => state.setProfile)
-  const [nickname, setNickname] = useState('')
+  const [selfMember, setSelfMember] = useState<FamilyMemberApiDto | null>(null)
+  const [name, setName] = useState('')
   const [birthday, setBirthday] = useState('')
   const [gender, setGender] = useState<ProfileGender>('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (!token) return
+    const controller = new AbortController()
+    familyMemberService.list(token, controller.signal)
+      .then((members) => {
+        const self = members.find((member) => member.isSelf) ?? null
+        setSelfMember(self)
+        if (self && self.name !== '我') setName(self.name)
+        if (self?.birthday) setBirthday(self.birthday)
+        if (self?.gender === 'male' || self?.gender === 'female') setGender(self.gender)
+      })
+      .catch((requestError) => {
+        if (requestError instanceof DOMException && requestError.name === 'AbortError') return
+        if (requestError instanceof ApiRequestError && requestError.status === 401) {
+          clearAuthSession()
+          navigate('/login', { replace: true })
+          return
+        }
+        setError(requestError instanceof Error ? requestError.message : '家庭成员信息加载失败，请稍后重试')
+      })
+      .finally(() => setLoading(false))
+    return () => controller.abort()
+  }, [clearAuthSession, navigate, token])
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const cleanNickname = nickname.trim()
+    const cleanName = name.trim()
 
-    if (!cleanNickname || cleanNickname.length > 20) {
-      setError('请输入 1–20 个字符的昵称')
+    if (!cleanName || cleanName.length > 20) {
+      setError('请输入 1–20 个字符的姓名')
       return
     }
     if (!birthday) {
       setError('请选择出生日期')
       return
     }
+    if (gender !== 'male' && gender !== 'female') {
+      setError('请选择性别')
+      return
+    }
+    if (!token || !selfMember) {
+      setError('暂时无法创建家庭成员，请重新登录后再试')
+      return
+    }
 
-    setProfile({ nickname: cleanNickname, birthday, gender })
-    navigate('/health-events', { replace: true })
+    setError('')
+    setSubmitting(true)
+    const avatar = createVirtualAvatarId(birthday, gender)
+    try {
+      const member = await familyMemberService.update(selfMember.id, {
+        name: cleanName,
+        birthday,
+        gender,
+        avatar
+      }, token)
+      setProfile({ nickname: member.name, birthday: member.birthday ?? birthday, gender, avatar: member.avatar ?? avatar }, member.id)
+      navigate('/health-events', { replace: true })
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        navigate('/login', { replace: true })
+        return
+      }
+      setError(requestError instanceof Error ? requestError.message : '保存失败，请稍后重试')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -68,31 +100,32 @@ export function ProfileSetupPage() {
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">完善你的健康信息</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">添加第一个家人</h1>
           <p className="mt-3 text-sm leading-7 text-text-secondary">
-            方便记录健康事件，
+            先添加第一个家人，
             <br />
-            也方便以后管理家人健康
+            方便开始记录健康事件
           </p>
         </div>
 
-        <div className="relative mx-auto mt-5 grid h-24 w-24 place-items-center rounded-full bg-primary-soft text-text-secondary">
-          <UserRound size={46} strokeWidth={1.5} />
-          <span className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-surface bg-primary text-surface">
-            <Camera size={15} strokeWidth={1.8} />
-          </span>
+        <div className="mt-6 flex items-start gap-3 rounded-card bg-primary-soft/65 px-4 py-3.5 text-left">
+          <Sparkles className="mt-0.5 shrink-0 text-primary" size={18} strokeWidth={1.8} />
+          <p className="text-xs leading-5 text-text-secondary">
+            无需上传照片。系统会根据年龄和性别，自动分配一个卡通头像。
+          </p>
         </div>
 
         <div className="mt-7 space-y-5">
           <Input
-            label="昵称 *"
-            name="nickname"
-            autoComplete="nickname"
+            label="姓名 *"
+            name="name"
+            autoComplete="name"
             maxLength={20}
-            placeholder="请输入昵称"
-            value={nickname}
+            placeholder="请输入姓名"
+            value={name}
+            disabled={loading || submitting}
             onChange={(event) => {
-              setNickname(event.target.value)
+              setName(event.target.value)
               setError('')
             }}
           />
@@ -104,22 +137,22 @@ export function ProfileSetupPage() {
             max={new Date().toISOString().slice(0, 10)}
             hint="系统将根据出生日期自动计算年龄"
             value={birthday}
+            disabled={loading || submitting}
             onChange={(event) => {
               setBirthday(event.target.value)
               setError('')
             }}
           />
 
-          <fieldset>
-            <legend className="text-sm font-medium">性别（可选）</legend>
-            <div className="mt-3 space-y-3">
+          <fieldset disabled={loading || submitting}>
+            <legend className="text-sm font-medium">性别 *</legend>
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {([
                 ['male', '男'],
-                ['female', '女'],
-                ['undisclosed', '不方便透露']
+                ['female', '女']
               ] as const).map(([value, label]) => (
-                <label key={value} className="flex min-h-8 items-center gap-3 text-sm">
-                  <input className="h-4 w-4 accent-primary" type="radio" name="gender" value={value} checked={gender === value} onChange={() => setGender(value)} />
+                <label key={value} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-control border text-sm transition ${gender === value ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface'}`}>
+                  <input className="h-4 w-4 accent-primary" type="radio" name="gender" value={value} checked={gender === value} onChange={() => { setGender(value); setError('') }} />
                   <span>{label}</span>
                 </label>
               ))}
@@ -131,7 +164,9 @@ export function ProfileSetupPage() {
           <div className="min-h-5" aria-live="polite">
             {error && <p className="text-xs text-danger">{error}</p>}
           </div>
-          <Button className="mt-2" fullWidth type="submit">完成，开始记录健康</Button>
+          <Button className="mt-2" disabled={loading || submitting || !selfMember} fullWidth type="submit">
+            {loading ? '正在准备…' : submitting ? '正在添加…' : '添加家人，开始记录'}
+          </Button>
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">
             <LockKeyhole size={12} strokeWidth={1.8} />
             信息仅用于健康管理，不会对外公开

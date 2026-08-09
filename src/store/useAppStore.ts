@@ -14,7 +14,7 @@ interface AppState {
   setAuthSession: (session: AuthSession) => void
   clearAuthSession: () => void
   addMember: (member: Member) => void
-  setProfile: (profile: UserProfile) => void
+  setProfile: (profile: UserProfile, memberId: string) => void
   setNotification: (key: keyof Omit<NotificationPreferences, 'quietHours'>, value: boolean) => void
   setQuietHours: (quietHours: string) => void
 }
@@ -36,14 +36,20 @@ export const useAppStore = create<AppState>()(
         quietHours: '22:00 - 07:00'
       },
       setCurrentMemberId: (currentMemberId) => set({ currentMemberId }),
-      setAuthSession: ({ token, user }) => set({ authToken: token, authUser: user }),
-      clearAuthSession: () => set({ authToken: null, authUser: null }),
+      setAuthSession: ({ token, user }) => set((state) => ({
+        authToken: token,
+        authUser: user,
+        ...(state.authUser?.id && state.authUser.id !== user.id
+          ? { profile: null, currentMemberId: 'self' }
+          : {})
+      })),
+      clearAuthSession: () => set({ authToken: null, authUser: null, profile: null, currentMemberId: 'self' }),
       addMember: (member) => set((state) => ({ members: [...state.members, member] })),
-      setProfile: (profile) => set((state) => ({
+      setProfile: (profile, memberId) => set((state) => ({
         profile,
-        currentMemberId: 'self',
+        currentMemberId: memberId,
         members: state.members.map((member) => member.id === 'self'
-          ? { ...member, name: profile.nickname, birthday: profile.birthday, gender: profile.gender }
+          ? { ...member, id: memberId, name: profile.nickname, birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }
           : member)
       })),
       setNotification: (key, value) => set((state) => ({

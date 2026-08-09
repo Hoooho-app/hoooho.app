@@ -16,6 +16,7 @@ export interface UserProfile {
   nickname: string
   birthday: string
   gender: ProfileGender
+  avatar?: string
 }
 
 export interface AuthUser {

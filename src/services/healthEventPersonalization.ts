@@ -20,6 +20,7 @@ export type PersonalizedModuleId =
 export interface HealthEventSubject {
   memberId: string
   name: string
+  avatar?: string
   birthday: string
   gender: ProfileGender
   genderLabel: string
@@ -76,6 +77,7 @@ export function createHealthEventSubject(member: Member, userProfile?: UserProfi
   return {
     memberId: member.id,
     name: useAccountProfile ? userProfile?.nickname || member.name : member.name,
+    avatar: useAccountProfile ? userProfile?.avatar || member.avatar : member.avatar,
     birthday,
     gender,
     genderLabel: genderLabels[gender],
