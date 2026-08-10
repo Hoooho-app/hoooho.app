@@ -2,7 +2,7 @@ import { AIService } from './ai-service.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
-import { hasOrganizedHealthFacts } from './ai-types.mjs'
+import { hasHealthFacts, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
 
 export class HealthRecordOrganizationError extends Error {
   constructor(message, status = 400, code = 'HEALTH_RECORD_ORGANIZATION_ERROR') {
@@ -37,24 +37,29 @@ export class HealthRecordOrganizationService {
     }
 
     const context = typeof input?.context === 'string' ? input.context.trim().slice(0, 240) : ''
-    const organized = await this.ai.organizeHealthRecord(record.content)
+    const organized = await this.ai.organizeHealthRecord(record.content, {
+      selectedOccurredAt: record.occurredAt,
+      timezone: input?.timezone
+    })
     const bodyLocations = context.startsWith('身体部位：')
       ? context.slice('身体部位：'.length).split('、').map((item) => item.trim()).filter(Boolean)
       : []
-    const organizedHealthData = bodyLocations.length && organized.organizedHealthData.symptoms.length
-      ? {
-          ...organized.organizedHealthData,
-          symptoms: organized.organizedHealthData.symptoms.map((symptom, index) => index === 0
-            ? { ...symptom, keywords: [...new Set([...symptom.keywords, ...bodyLocations])] }
-            : symptom)
-        }
-      : organized.organizedHealthData
+    const firstSymptomIndex = organized.healthAIOutput.facts.findIndex((fact) => fact.type === 'symptom')
+    const healthAIOutput = bodyLocations.length && firstSymptomIndex >= 0
+      ? normalizeHealthAIOutput({
+          ...organized.healthAIOutput,
+          facts: organized.healthAIOutput.facts.map((fact, index) => index === firstSymptomIndex && !fact.bodyPart
+            ? { ...fact, bodyPart: bodyLocations.join('、') }
+            : fact)
+        })
+      : organized.healthAIOutput
     return this.repository.upsert({
       accountId,
       eventId,
       recordId: record.id,
       rawInput: record.content,
-      organizedHealthData,
+      healthAIOutput,
+      organizedHealthData: projectOrganizedHealthData(healthAIOutput),
       status: 'completed',
       provider: organized.provider
     }, now)
@@ -62,9 +67,13 @@ export class HealthRecordOrganizationService {
 
   async preview(accountId, eventId, input) {
     await this.assertEventOwnership(accountId, eventId)
-    const organized = await this.ai.organizeHealthRecord(input?.rawInput)
+    const organized = await this.ai.organizeHealthRecord(input?.rawInput, {
+      selectedOccurredAt: input?.selectedOccurredAt,
+      timezone: input?.timezone
+    })
     return {
-      hasHealthFacts: hasOrganizedHealthFacts(organized.organizedHealthData),
+      hasHealthFacts: hasHealthFacts(organized.healthAIOutput),
+      healthAIOutput: organized.healthAIOutput,
       organizedHealthData: organized.organizedHealthData,
       provider: organized.provider
     }
@@ -73,17 +82,21 @@ export class HealthRecordOrganizationService {
   async list(accountId, eventId) {
     await this.assertEventOwnership(accountId, eventId)
     const organizations = await this.repository.findByEventId(eventId)
-    const legacyOrganizations = organizations.filter((organization) => organization.schemaVersion !== 2)
+    const legacyOrganizations = organizations.filter((organization) => organization.schemaVersion !== 5)
     if (!legacyOrganizations.length) return organizations
 
     await Promise.all(legacyOrganizations.map(async (organization) => {
       try {
-        const organized = await this.ai.organizeHealthRecord(organization.rawInput)
+        const record = await this.records.findById(organization.recordId)
+        const organized = await this.ai.organizeHealthRecord(organization.rawInput, {
+          selectedOccurredAt: record?.occurredAt
+        })
         await this.repository.upsert({
           accountId,
           eventId,
           recordId: organization.recordId,
           rawInput: organization.rawInput,
+          healthAIOutput: organized.healthAIOutput,
           organizedHealthData: organized.organizedHealthData,
           status: 'completed',
           provider: organized.provider

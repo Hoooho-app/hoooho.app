@@ -1,4 +1,18 @@
-import type { OrganizedHealthData } from '../types'
+import type { HealthAIOutput, OrganizedHealthData } from '../types'
+
+export function deriveHealthEventTitleFromFacts(output: HealthAIOutput, hasAttachments = false) {
+  const facts = output.facts ?? []
+  const symptom = facts.find((fact) => fact.type === 'symptom')
+  if (symptom?.name) return symptom.name
+  const temperature = facts.find((fact) => fact.type === 'temperature')
+  if (temperature?.name) return `体温${temperature.name}`
+  if (facts.some((fact) => fact.type === 'medication')) return '用药记录'
+  if (facts.some((fact) => fact.type === 'visit')) return '就诊记录'
+  if (facts.some((fact) => fact.type === 'examination')) return '检查记录'
+  if (facts.some((fact) => fact.type === 'concern')) return '健康担心'
+  if (hasAttachments) return '健康附件'
+  return ''
+}
 
 export function deriveHealthEventTitle(data: OrganizedHealthData, hasAttachments = false) {
   const symptom = data.symptoms[0]

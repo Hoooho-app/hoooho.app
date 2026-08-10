@@ -1,5 +1,5 @@
-import { buildHealthEventOrganizerInput, healthEventOrganizerInstructions, organizedHealthDataSchema } from '../ai-prompt.mjs'
-import { normalizeOrganizedHealthData } from '../ai-types.mjs'
+import { buildHealthEventOrganizerInput, healthEventOrganizerInstructions, healthAIOutputSchema } from '../ai-prompt.mjs'
+import { normalizeHealthAIOutput } from '../ai-types.mjs'
 
 function readOutputText(response) {
   for (const output of response?.output ?? []) {
@@ -31,9 +31,9 @@ export class OpenAIProvider {
         text: {
           format: {
             type: 'json_schema',
-            name: 'organized_health_data',
+            name: 'health_ai_output',
             strict: true,
-            schema: organizedHealthDataSchema
+            schema: healthAIOutputSchema
           }
         }
       }),
@@ -43,6 +43,6 @@ export class OpenAIProvider {
     if (!response.ok) throw Object.assign(new Error('AI 整理暂时不可用'), { code: 'AI_PROVIDER_ERROR', status: response.status })
     const text = readOutputText(await response.json())
     if (!text) throw Object.assign(new Error('AI 未返回可用结果'), { code: 'EMPTY_AI_OUTPUT' })
-    return normalizeOrganizedHealthData(JSON.parse(text))
+    return normalizeHealthAIOutput(JSON.parse(text))
   }
 }

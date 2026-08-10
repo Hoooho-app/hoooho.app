@@ -19,10 +19,9 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
   const [expandedAttachmentEntries, setExpandedAttachmentEntries] = useState<Set<string>>(new Set())
 
   const timeline = useMemo(() => [...event.timeline].sort((left, right) => {
-    const comparison = left.time.localeCompare(right.time)
-      || (left.sequence ?? 0) - (right.sequence ?? 0)
-      || left.id.localeCompare(right.id)
-    return order === 'desc' ? -comparison : comparison
+    const timeComparison = left.time.localeCompare(right.time)
+    if (timeComparison) return order === 'desc' ? -timeComparison : timeComparison
+    return (left.sequence ?? 0) - (right.sequence ?? 0) || left.id.localeCompare(right.id)
   }), [event.timeline, order])
 
   const timelineGroups = useMemo(() => timeline.reduce<Array<{ date: string; entries: TimelineEntry[] }>>((groups, entry) => {

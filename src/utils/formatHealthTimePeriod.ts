@@ -14,7 +14,7 @@ const spokenPeriodMatchers = [
   { pattern: /上午/, label: periods[2].label },
   { pattern: /中午/, label: periods[3].label },
   { pattern: /下午/, label: periods[4].label },
-  { pattern: /晚上/, label: periods[5].label },
+  { pattern: /晚上/, label: '晚上 18:00–24:00' },
   { pattern: /夜里|夜间/, label: periods[6].label }
 ] as const
 

@@ -141,12 +141,52 @@ export interface OrganizedHealthData {
   timeline: OrganizedTimelineItem[]
 }
 
+export type HealthFactType = 'symptom' | 'temperature' | 'medication' | 'visit' | 'examination' | 'concern' | 'status_change'
+export type HealthStatusChange = 'improved' | 'worsened' | 'persistent'
+export type HealthFactTimePrecision = 'exact' | 'period' | 'day' | 'month' | 'year' | 'fuzzy' | 'unknown'
+export type HealthFactTimeSource = 'user_text' | 'selected_time' | 'document'
+
+export interface HealthFact {
+  id: string
+  type: HealthFactType
+  name: string
+  bodyPart: string | null
+  sourceText: string
+  time: {
+    raw: string | null
+    resolvedStart: string | null
+    resolvedEnd: string | null
+    precision: HealthFactTimePrecision
+    source: HealthFactTimeSource
+  }
+  confidence: number
+  temperature?: OrganizedTemperature
+  target?: string | null
+  change?: HealthStatusChange | null
+}
+
+export interface HealthAIOutput {
+  facts: HealthFact[]
+  confidence: number
+  parserVersion: string
+  promptVersion: string
+  timeConflict: {
+    hasConflict: boolean
+    conflict: {
+      type: 'time_conflict'
+      selected: string
+      mentioned: string
+    } | null
+  }
+}
+
 export interface HealthRecordOrganizationApiDto {
   id: string
   accountId: string
   eventId: string
   recordId: string
   rawInput: string
+  healthAIOutput: HealthAIOutput
   organizedHealthData: OrganizedHealthData
   confirmedData: OrganizedHealthData | null
   status: 'completed' | 'failed'
@@ -157,6 +197,7 @@ export interface HealthRecordOrganizationApiDto {
 
 export interface HealthRecordOrganizationPreviewApiDto {
   hasHealthFacts: boolean
+  healthAIOutput: HealthAIOutput
   organizedHealthData: OrganizedHealthData
   provider: string
 }
@@ -184,7 +225,7 @@ export interface TimelineEntry {
   sourceRecordId?: string
   sequence?: number
   segments?: Array<{
-    label: '症状' | '体温' | '用药' | '检查' | '就诊' | '记录'
+    label: '症状' | '体温' | '用药' | '检查' | '就诊' | '担心' | '状态' | '部位' | '附件' | '记录'
     content: string
   }>
   attachments?: EventAttachment[]
@@ -249,6 +290,7 @@ export interface HealthEventDetailViewModel {
   event: HealthEvent
   category: HealthEventCategory
   stage: HealthEventStage
+  hasTimeConflict: boolean
 }
 
 export interface HealthProfile {

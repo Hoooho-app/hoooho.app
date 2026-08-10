@@ -1,12 +1,13 @@
 import type {
-  FamilyMemberApiDto,
-  EventAttachmentApiDto,
   EventAttachment,
+  EventAttachmentApiDto,
+  FamilyMemberApiDto,
   HealthEvent,
   HealthEventApiDto,
   HealthEventDetailViewModel,
   HealthEventRecordApiDto,
-  OrganizedHealthData,
+  HealthFact,
+  HealthFactType,
   HealthRecordOrganizationApiDto,
   Member,
   MemberRelation,
@@ -32,25 +33,11 @@ const emptyMedicalInfo = {
   familyHistory: []
 }
 
-const compareRecords = (left: HealthEventRecordApiDto, right: HealthEventRecordApiDto) => (
-  left.occurredAt.localeCompare(right.occurredAt)
-  || left.createdAt.localeCompare(right.createdAt)
-  || left.id.localeCompare(right.id)
-)
-
-function toTimelineEntry(record: HealthEventRecordApiDto): TimelineEntry {
-  return {
-    id: record.id,
-    time: record.occurredAt,
-    periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
-    content: record.content,
-    recordType: record.type,
-    kind: record.type === 'medication' ? 'medication' : 'text',
-    sourceRecordId: record.id,
-    sequence: 0,
-    segments: [{ label: recordLabel(record.type), content: record.content }],
-    attachments: []
-  }
+interface FactContext {
+  organization: HealthRecordOrganizationApiDto
+  record?: HealthEventRecordApiDto
+  fact: HealthFact
+  factIndex: number
 }
 
 export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
@@ -75,47 +62,43 @@ export function adaptHealthEventDetail(
   organizationDtos: HealthRecordOrganizationApiDto[] = [],
   attachmentDtos: EventAttachmentApiDto[] = []
 ): HealthEventDetailViewModel {
-  const sortedRecords = [...recordDtos].sort(compareRecords)
+  const recordsById = new Map(recordDtos.map((record) => [record.id, record]))
+  const facts = organizationDtos.flatMap((organization) => (
+    (organization.healthAIOutput?.facts ?? []).map((fact, factIndex) => ({
+      organization,
+      record: recordsById.get(organization.recordId),
+      fact,
+      factIndex
+    }))
+  ))
+  const adaptedAttachments = attachmentDtos.map(adaptAttachment)
+  const timeline = buildFactTimeline(facts, recordDtos, adaptedAttachments)
+  const temperatureRecords = buildTemperatureRecords(facts)
   const displayStatus: HealthEvent['status'] = eventDto.status === 'recovered'
     ? 'recovered'
-    : sortedRecords.length
+    : timeline.length
       ? 'ongoing'
       : 'empty'
-  const organizedData = organizationDtos.map((organization) => (
-    organization.confirmedData ?? organization.organizedHealthData
-  ))
-  const organizedSymptoms = uniqueText(organizedData.flatMap((data) => data.symptoms.map((fact) => fact.content)))
-  const organizedRecordIds = new Set(organizationDtos.map((organization) => organization.recordId))
-  const unorganizedSymptoms = sortedRecords
-    .filter((record) => record.type === 'symptom' && !organizedRecordIds.has(record.id))
-    .map((record) => record.content)
-  const symptoms = uniqueText([...organizedSymptoms, ...unorganizedSymptoms])
-  const medications = uniqueText(organizedData.flatMap((data) => data.medications.map((fact) => fact.content)))
-  const visits = uniqueText(organizedData.flatMap((data) => data.visits.map((fact) => fact.content)))
-  const examinations = uniqueText(organizedData.flatMap((data) => data.examinations.map((fact) => fact.content)))
-  const concerns = uniqueText(organizedData.flatMap((data) => data.concerns.map((fact) => fact.content)))
-  const adaptedAttachments = attachmentDtos.map(adaptAttachment)
-  const temperatureRecords = buildTemperatureRecords(organizationDtos, sortedRecords)
-  const timeline = buildTimeline(sortedRecords, organizationDtos, adaptedAttachments)
 
   return {
     category: eventDto.category,
     stage: eventDto.status,
+    hasTimeConflict: organizationDtos.some((organization) => organization.healthAIOutput?.timeConflict?.hasConflict),
     event: {
       id: eventDto.id,
       memberId: eventDto.memberId,
       title: eventDto.title,
       status: displayStatus,
       startDate: eventDto.startTime,
-      symptoms,
+      symptoms: uniqueFactNames(facts, 'symptom'),
       summary: '',
-      medications,
-      visits,
-      examinations,
+      medications: uniqueFactNames(facts, 'medication'),
+      visits: uniqueFactNames(facts, 'visit'),
+      examinations: uniqueFactNames(facts, 'examination'),
       timeline,
       temperatureRecords,
       attachments: adaptedAttachments,
-      concerns,
+      concerns: uniqueFactNames(facts, 'concern'),
       personalizedModules: [],
       medicalInfo: emptyMedicalInfo,
       ...(eventDto.status === 'recovered'
@@ -135,17 +118,20 @@ function uniqueText(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
-function buildTemperatureRecords(
-  organizations: HealthRecordOrganizationApiDto[],
-  records: HealthEventRecordApiDto[]
-) {
-  const occurredAtByRecord = new Map(records.map((record) => [record.id, record.occurredAt]))
-  return organizations.map((organization) => {
-    const data = organization.confirmedData ?? organization.organizedHealthData
-    const temperature = data.temperature
-    if (!temperature) return null
-    const time = occurredAtByRecord.get(organization.recordId) ?? organization.createdAt ?? ''
-    if (!time) return null
+function uniqueFactNames(facts: FactContext[], type: HealthFactType) {
+  return uniqueText(facts.filter((item) => item.fact.type === type).map((item) => item.fact.name))
+}
+
+function factTime(item: FactContext) {
+  return item.fact.time.resolvedStart
+    ?? item.record?.createdAt
+    ?? item.organization.createdAt
+}
+
+function buildTemperatureRecords(facts: FactContext[]) {
+  return facts.filter((item) => item.fact.type === 'temperature' && item.fact.temperature).map((item) => {
+    const temperature = item.fact.temperature!
+    const time = factTime(item)
     const label = temperature.min === temperature.max
       ? `${temperature.min}℃`
       : `${temperature.min}-${temperature.max}℃`
@@ -155,47 +141,112 @@ function buildTemperatureRecords(
       min: temperature.min,
       max: temperature.max,
       label,
-      periodLabel: formatHealthTimePeriod(data.timeline[0]?.time, time)
+      periodLabel: factPeriodLabel(item.fact, time)
     }
-  }).filter((record): record is NonNullable<typeof record> => Boolean(record))
+  }).sort((left, right) => left.time.localeCompare(right.time))
 }
 
-function buildTimeline(
+function buildFactTimeline(
+  facts: FactContext[],
   records: HealthEventRecordApiDto[],
-  organizations: HealthRecordOrganizationApiDto[],
   attachments: EventAttachment[]
 ): TimelineEntry[] {
-  const organizationByRecord = new Map(organizations.map((organization) => [organization.recordId, organization]))
   const attachmentsByRecord = new Map<string, EventAttachment[]>()
   for (const attachment of attachments) {
     if (!attachment.recordId) continue
     attachmentsByRecord.set(attachment.recordId, [...(attachmentsByRecord.get(attachment.recordId) ?? []), attachment])
   }
+  const recordsWithFacts = new Set(facts.map((item) => item.organization.recordId))
 
-  return records.flatMap((record) => {
-    const organization = organizationByRecord.get(record.id)
-    if (!organization) {
-      const entry = toTimelineEntry(record)
-      entry.attachments = attachmentsByRecord.get(record.id) ?? []
-      return [entry]
+  const factEntries = facts.map((item): TimelineEntry => {
+    const time = factTime(item)
+    const content = factDisplayContent(item.fact)
+    return {
+      id: `${item.organization.id}-${item.fact.id}`,
+      time,
+      displayTime: item.fact.time.raw ?? undefined,
+      periodLabel: factPeriodLabel(item.fact, time),
+      content,
+      recordType: factRecordType(item.fact.type),
+      kind: item.fact.type === 'temperature' ? 'temperature' : item.fact.type === 'medication' ? 'medication' : 'text',
+      sourceRecordId: item.organization.recordId,
+      sequence: item.factIndex,
+      segments: factSegments(item.fact),
+      attachments: item.factIndex === 0 ? attachmentsByRecord.get(item.organization.recordId) ?? [] : []
     }
-
-    const data = organization.confirmedData ?? organization.organizedHealthData
-    const timelineItems = data.timeline.length ? data.timeline : [{ time: '', content: record.content, relatedSymptoms: [] }]
-    return timelineItems.map((item, index) => ({
-      id: `${organization.id}-timeline-${index}`,
-      time: record.occurredAt,
-      displayTime: item.time,
-      periodLabel: formatHealthTimePeriod(item.time, record.occurredAt),
-      content: item.content,
-      recordType: record.type,
-      kind: record.type === 'medication' ? 'medication' : 'text',
-      sourceRecordId: record.id,
-      sequence: index,
-      segments: buildTimelineSegments(item.content, item.relatedSymptoms, data, record.type),
-      attachments: index === 0 ? attachmentsByRecord.get(record.id) ?? [] : []
-    }))
   })
+
+  const attachmentOnlyEntries = records.filter((record) => (
+    !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) > 0
+  )).map((record): TimelineEntry => ({
+    id: `${record.id}-attachments`,
+    time: record.createdAt,
+    periodLabel: formatHealthTimePeriod(undefined, record.createdAt),
+    content: '添加图片',
+    recordType: 'note',
+    kind: 'text',
+    sourceRecordId: record.id,
+    sequence: 0,
+    segments: [{ label: '附件', content: '添加图片' }],
+    attachments: attachmentsByRecord.get(record.id) ?? []
+  }))
+
+  return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => (
+    right.time.localeCompare(left.time)
+    || (left.sequence ?? 0) - (right.sequence ?? 0)
+    || left.id.localeCompare(right.id)
+  ))
+}
+
+function factPeriodLabel(fact: HealthFact, fallbackTime: string) {
+  const raw = fact.time.raw ?? undefined
+  if (fact.time.precision === 'fuzzy' || fact.time.precision === 'year' || fact.time.precision === 'month' || fact.time.precision === 'day') {
+    return raw
+  }
+  return formatHealthTimePeriod(raw, fact.time.resolvedStart ?? fallbackTime)
+}
+
+function factRecordType(type: HealthFactType): HealthEventRecordApiDto['type'] {
+  if (type === 'symptom') return 'symptom'
+  if (type === 'medication') return 'medication'
+  if (type === 'visit') return 'visit'
+  if (type === 'examination') return 'examination'
+  return 'note'
+}
+
+function factLabel(type: HealthFactType): NonNullable<TimelineEntry['segments']>[number]['label'] {
+  if (type === 'symptom') return '症状'
+  if (type === 'temperature') return '体温'
+  if (type === 'medication') return '用药'
+  if (type === 'visit') return '就诊'
+  if (type === 'examination') return '检查'
+  if (type === 'concern') return '担心'
+  if (type === 'status_change') return '状态'
+  return '记录'
+}
+
+function statusChangeContent(fact: HealthFact) {
+  const target = fact.target?.trim() || '症状'
+  const isGeneric = target === '当前症状' || target === '症状'
+  if (fact.change === 'improved') {
+    if (isGeneric) return '症状有所改善'
+    if (/疼|痛/.test(target)) return `${target}有所缓解`
+    return `${target}有所好转`
+  }
+  if (fact.change === 'worsened') return isGeneric ? '症状较之前加重' : `${target}加重`
+  if (fact.change === 'persistent') return isGeneric ? '症状仍在持续' : `${target}持续`
+  return fact.name
+}
+
+function factDisplayContent(fact: HealthFact) {
+  return fact.type === 'status_change' ? statusChangeContent(fact) : fact.name
+}
+
+function factSegments(fact: HealthFact): NonNullable<TimelineEntry['segments']> {
+  return [
+    ...(fact.bodyPart ? [{ label: '部位' as const, content: fact.bodyPart }] : []),
+    { label: factLabel(fact.type), content: factDisplayContent(fact) }
+  ]
 }
 
 function adaptAttachment(attachment: EventAttachmentApiDto): EventAttachment {
@@ -206,37 +257,4 @@ function adaptAttachment(attachment: EventAttachmentApiDto): EventAttachment {
     url: attachment.dataUrl,
     recordId: attachment.recordId
   }
-}
-
-function recordLabel(type: HealthEventRecordApiDto['type']): NonNullable<TimelineEntry['segments']>[number]['label'] {
-  if (type === 'symptom') return '症状'
-  if (type === 'medication') return '用药'
-  if (type === 'visit') return '就诊'
-  if (type === 'examination') return '检查'
-  return '记录'
-}
-
-function buildTimelineSegments(
-  content: string,
-  relatedSymptoms: string[],
-  data: OrganizedHealthData,
-  recordType: HealthEventRecordApiDto['type']
-): NonNullable<TimelineEntry['segments']> {
-  const clauses = content.split(/[，,；;。]/).map((item) => item.trim()).filter(Boolean)
-  const segments = clauses.map((clause) => ({ label: classifyClause(clause, relatedSymptoms, data, recordType), content: clause }))
-  return segments.length ? segments : [{ label: recordLabel(recordType), content }]
-}
-
-function classifyClause(
-  clause: string,
-  relatedSymptoms: string[],
-  data: OrganizedHealthData,
-  recordType: HealthEventRecordApiDto['type']
-): NonNullable<TimelineEntry['segments']>[number]['label'] {
-  if (/体温|\d{2}(?:\.\d)?\s*(?:度|℃)|发热|发烧/.test(clause)) return '体温'
-  if (/服用|吃了?|用药|药物|药片|美林|布洛芬|感冒药|退烧药/.test(clause)) return '用药'
-  if (/检查|化验|验血|血常规|报告|结果/.test(clause)) return '检查'
-  if (/就诊|医院|门诊|医生/.test(clause)) return '就诊'
-  if (relatedSymptoms.some((symptom) => clause.includes(symptom)) || data.symptoms.some((fact) => fact.keywords.some((keyword) => clause.includes(keyword)))) return '症状'
-  return recordLabel(recordType)
 }

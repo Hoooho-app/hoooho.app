@@ -15,7 +15,7 @@
     "test:records": "node --test server/events/health-event-record-service.test.mjs",
     "test:ai": "node --test server/ai/health-record-organization-service.test.mjs",
     "test:attachments": "node --test server/events/event-attachment-service.test.mjs",
-    "test:server": "node --test --test-concurrency=1 server/auth/auth-service.test.mjs server/members/family-member-service.test.mjs server/events/health-event-service.test.mjs server/events/health-event-record-service.test.mjs server/events/event-attachment-service.test.mjs server/ai/health-record-organization-service.test.mjs server/data/cleanup-test-data.test.mjs",
+    "test:server": "node --test --test-concurrency=1 server/auth/auth-service.test.mjs server/members/family-member-service.test.mjs server/events/health-event-service.test.mjs server/events/health-event-record-service.test.mjs server/events/event-attachment-service.test.mjs server/ai/time-resolver-service.test.mjs server/ai/health-record-organization-service.test.mjs server/ai/health-parser-real-scenarios.test.mjs server/data/cleanup-test-data.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false"
   },
   "dependencies": {

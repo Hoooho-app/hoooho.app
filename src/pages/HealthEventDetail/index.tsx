@@ -4,7 +4,7 @@ import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
-import { deriveHealthEventTitle } from '../../services/healthEventFacts'
+import { deriveHealthEventTitleFromFacts } from '../../services/healthEventFacts'
 import {
   EventHeader,
   EventIdentitySection,
@@ -65,8 +65,8 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
-  const hasOrganizedRecord = state.data.organizations.some((organization) => organization.status === 'completed')
-    || (state.data.records.length > 0 && state.data.attachments.length > 0)
+  const hasOrganizedRecord = state.data.organizations.some((organization) => organization.healthAIOutput?.facts.length > 0)
+    || state.data.attachments.length > 0
   if (!subject) return null
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
@@ -90,7 +90,7 @@ export function HealthEventDetailPage() {
     for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
     if (!state.data.eventDto.title) {
       const title = preview
-        ? deriveHealthEventTitle(preview.organizedHealthData, attachments.length > 0)
+        ? deriveHealthEventTitleFromFacts(preview.healthAIOutput, attachments.length > 0)
         : '健康附件'
       if (title) await updateTitle(title.slice(0, 120))
     }
