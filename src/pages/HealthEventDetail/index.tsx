@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
-import type { CreateHealthEventRecordInput, HealthEventStage } from '../../types'
+import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import {
   EventHeader,
   EventIdentitySection,
-  EventStatus,
   FirstRecordComposer,
   AttachmentSection,
   ConcernSection,
   MedicalInfoSection,
-  NextActionSection,
   SymptomSection,
   StageDetailSection,
   TemperatureChartSection,
@@ -22,13 +20,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, addAttachment, organizeRecord, updateStage, retry } = useHealthEventDetail(eventId)
-  const loadedStage = state.status === 'success' ? state.data.viewModel.stage : 'observing'
-  const [stage, setStage] = useState<HealthEventStage>(loadedStage)
-
-  useEffect(() => {
-    setStage(loadedStage)
-  }, [loadedStage])
+  const { state, addRecord, addAttachment, organizeRecord, retry } = useHealthEventDetail(eventId)
 
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
@@ -77,6 +69,7 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
+  const stage = state.data.viewModel.stage
   const isFirstRecord = state.data.records.length === 0
   if (!subject) return null
 
@@ -91,12 +84,6 @@ export function HealthEventDetailPage() {
     })
     if (originalText) await organizeRecord(created.id)
     for (const attachment of attachments) await addAttachment(attachment)
-  }
-
-  const changeStage = (nextStage: HealthEventStage) => {
-    const previousStage = stage
-    setStage(nextStage)
-    void updateStage(nextStage).catch(() => setStage(previousStage))
   }
 
   const saveFirstRecord = async (input: CreateHealthEventRecordInput) => {
@@ -120,14 +107,12 @@ export function HealthEventDetailPage() {
         ) : (
           <>
             {event.symptoms.length > 0 && <SymptomSection event={event} onAddRecord={addHealthRecord} />}
-            <EventStatus stage={stage} onStageChange={changeStage} />
             <StageDetailSection event={event} stage={stage} />
             {event.timeline.length > 0 && <TimelineSection event={event} onAddRecord={addHealthRecord} />}
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
             {event.attachments.length > 0 && <AttachmentSection event={event} />}
             {event.concerns.length > 0 && <ConcernSection event={event} />}
             <MedicalInfoSection event={event} />
-            <NextActionSection status={event.status} onMarkRecovered={async () => { await updateStage('recovered') }} />
           </>
         )}
       </div>
