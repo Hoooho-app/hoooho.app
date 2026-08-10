@@ -14,11 +14,11 @@ export const healthRecordOrganizationService = {
     return apiRequest<HealthRecordOrganizationApiDto[]>(`/api/events/${encodeURIComponent(eventId)}/organizations`, { token, signal })
   },
 
-  organize(eventId: string, recordId: string, token: string) {
+  organize(eventId: string, recordId: string, token: string, context?: string) {
     return apiRequest<HealthRecordOrganizationApiDto>(`/api/events/${encodeURIComponent(eventId)}/organizations`, {
       token,
       method: 'POST',
-      body: { recordId }
+      body: { recordId, context }
     })
   }
 }

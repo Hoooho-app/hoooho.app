@@ -8,6 +8,7 @@ import { deriveHealthEventTitle } from '../../services/healthEventFacts'
 import {
   EventHeader,
   EventIdentitySection,
+  FirstRecordComposer,
   TemperatureChartSection,
   TimelineSection
 } from './components'
@@ -64,11 +65,15 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
+  const hasOrganizedRecord = state.data.organizations.some((organization) => organization.status === 'completed')
+    || (state.data.records.length > 0 && state.data.attachments.length > 0)
   if (!subject) return null
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
     const originalText = input.content.trim()
     const attachments = input.attachments ?? []
+    const bodyLocations = input.bodyLocations ?? []
+    const organizationContext = bodyLocations.length ? `身体部位：${bodyLocations.join('、')}` : ''
     if (!originalText && !attachments.length) throw new Error('请先输入健康记录内容或添加图片')
 
     const preview = originalText ? await previewRecord(originalText) : null
@@ -81,7 +86,7 @@ export function HealthEventDetailPage() {
       content: originalText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
       occurredAt: input.occurredAt
     })
-    if (originalText) await organizeRecord(created.id)
+    if (originalText) await organizeRecord(created.id, organizationContext)
     for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
     if (!state.data.eventDto.title) {
       const title = preview
@@ -96,8 +101,14 @@ export function HealthEventDetailPage() {
       <EventHeader />
       <div className="page-content">
         <EventIdentitySection subject={subject} />
-        <TimelineSection event={event} onAddRecord={addHealthRecord} />
-        {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+        {!hasOrganizedRecord ? (
+          <FirstRecordComposer onSave={addHealthRecord} />
+        ) : (
+          <>
+            <TimelineSection event={event} onAddRecord={addHealthRecord} />
+            {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+          </>
+        )}
       </div>
     </main>
   )

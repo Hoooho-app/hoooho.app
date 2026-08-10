@@ -93,7 +93,10 @@ export function HealthEventsPage() {
     ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? state.data.memberDtos[0] ?? null
     : null
   const memberEvents = state.status === 'success'
-    ? state.data.events.filter((event) => !currentMemberDto || event.memberId === currentMemberDto.id)
+    ? state.data.events.filter((event) => (
+        (!currentMemberDto || event.memberId === currentMemberDto.id)
+        && event.title.trim().length > 0
+      ))
     : []
   const visibleEvents = filterEvents(memberEvents, filters)
   const years = [...new Set(memberEvents.map((event) => new Date(event.startTime).getFullYear()))].sort((left, right) => right - left)

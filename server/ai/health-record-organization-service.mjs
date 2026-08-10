@@ -36,13 +36,25 @@ export class HealthRecordOrganizationService {
       throw new HealthRecordOrganizationError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
     }
 
+    const context = typeof input?.context === 'string' ? input.context.trim().slice(0, 240) : ''
     const organized = await this.ai.organizeHealthRecord(record.content)
+    const bodyLocations = context.startsWith('身体部位：')
+      ? context.slice('身体部位：'.length).split('、').map((item) => item.trim()).filter(Boolean)
+      : []
+    const organizedHealthData = bodyLocations.length && organized.organizedHealthData.symptoms.length
+      ? {
+          ...organized.organizedHealthData,
+          symptoms: organized.organizedHealthData.symptoms.map((symptom, index) => index === 0
+            ? { ...symptom, keywords: [...new Set([...symptom.keywords, ...bodyLocations])] }
+            : symptom)
+        }
+      : organized.organizedHealthData
     return this.repository.upsert({
       accountId,
       eventId,
       recordId: record.id,
       rawInput: record.content,
-      organizedHealthData: organized.organizedHealthData,
+      organizedHealthData,
       status: 'completed',
       provider: organized.provider
     }, now)

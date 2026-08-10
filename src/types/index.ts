@@ -96,6 +96,7 @@ export interface CreateHealthEventRecordInput {
   content: string
   occurredAt: string
   attachments?: CreateEventAttachmentInput[]
+  bodyLocations?: string[]
 }
 
 export interface CreateEventAttachmentInput {

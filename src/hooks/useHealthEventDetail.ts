@@ -111,9 +111,9 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return healthRecordOrganizationService.preview(eventId, rawInput, token)
   }, [eventId, token])
 
-  const organizeRecord = useCallback(async (recordId: string) => {
+  const organizeRecord = useCallback(async (recordId: string, context?: string) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
-    const organization = await healthRecordOrganizationService.organize(eventId, recordId, token)
+    const organization = await healthRecordOrganizationService.organize(eventId, recordId, token, context)
     setState((current) => {
       if (current.status !== 'success') return current
       const organizations = [
