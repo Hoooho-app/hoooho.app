@@ -47,7 +47,7 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
         <h2 className="section-title">时间线</h2>
         <div className="flex items-center gap-2">
           <Button className="min-h-10 px-4 text-surface shadow-calm" onClick={() => setIsEditorOpen(true)}>
-            添加记录<PlusCircle size={17} />
+            新增情况<PlusCircle size={17} />
           </Button>
           <button
             aria-label={order === 'desc' ? '当前最新优先，切换为最早优先' : '当前最早优先，切换为最新优先'}
@@ -128,7 +128,6 @@ function TimelineRow({
     <article className="relative pb-8 last:pb-1">
       <span className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full border-[3px] border-primary bg-background" />
       <div className="flex items-center gap-2 text-[13px] font-semibold text-heading">
-        <Clock3 className="shrink-0 text-primary" size={17} strokeWidth={1.8} />
         <span>{entry.periodLabel}</span>
       </div>
       <p className="mt-3 text-sm leading-7 text-text-primary">
