@@ -7,12 +7,6 @@ import { createHealthEventSubject } from '../../services/healthEventPersonalizat
 import {
   EventHeader,
   EventIdentitySection,
-  FirstRecordComposer,
-  AttachmentSection,
-  ConcernSection,
-  MedicalInfoSection,
-  SymptomSection,
-  StageDetailSection,
   TemperatureChartSection,
   TimelineSection
 } from './components'
@@ -69,8 +63,6 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
-  const stage = state.data.viewModel.stage
-  const isFirstRecord = state.data.records.length === 0
   if (!subject) return null
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
@@ -83,18 +75,7 @@ export function HealthEventDetailPage() {
       occurredAt: input.occurredAt
     })
     if (originalText) await organizeRecord(created.id)
-    for (const attachment of attachments) await addAttachment(attachment)
-  }
-
-  const saveFirstRecord = async (input: CreateHealthEventRecordInput) => {
-    const rawInput = input.content.trim()
-    if (!rawInput) throw new Error('请先描述当前不舒服的情况')
-    const created = await addRecord({
-      type: 'symptom',
-      content: rawInput,
-      occurredAt: input.occurredAt
-    })
-    await organizeRecord(created.id)
+    for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
   }
 
   return (
@@ -102,19 +83,8 @@ export function HealthEventDetailPage() {
       <EventHeader />
       <div className="page-content space-y-6">
         <EventIdentitySection subject={subject} />
-        {isFirstRecord ? (
-          <FirstRecordComposer onSave={saveFirstRecord} />
-        ) : (
-          <>
-            {event.symptoms.length > 0 && <SymptomSection event={event} onAddRecord={addHealthRecord} />}
-            <StageDetailSection event={event} stage={stage} />
-            {event.timeline.length > 0 && <TimelineSection event={event} onAddRecord={addHealthRecord} />}
-            {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
-            {event.attachments.length > 0 && <AttachmentSection event={event} />}
-            {event.concerns.length > 0 && <ConcernSection event={event} />}
-            <MedicalInfoSection event={event} />
-          </>
-        )}
+        <TimelineSection event={event} onAddRecord={addHealthRecord} />
+        {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
       </div>
     </main>
   )

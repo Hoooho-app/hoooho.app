@@ -36,7 +36,7 @@ function extractTemperature(text) {
   return { min: value, max: value, unit: '℃' }
 }
 
-const timelineMarkerPattern = /(?:到了?)?(?:(?:今天|昨天|前天)\s*)?(?:早上|上午|中午|下午|晚上|夜里)\s*\d{1,2}点(?:\s*\d{1,2}分)?(?:的时候)?|(?:到了?)?(?:今天|昨天|前天)?(?:早上|上午|中午|下午|晚上|夜里)|(?:今天|昨天|前天)\s*\d{1,2}点(?:\s*\d{1,2}分)?(?:的时候)?/g
+const timelineMarkerPattern = /(?:到了?)?(?:(?:今天|昨天|前天)\s*)?(?:今早|早上|上午|中午|下午|晚上|夜里|夜间|凌晨|半夜)\s*\d{1,2}点(?:\s*\d{1,2}分)?(?:的时候)?|(?:到了?)?(?:今天|昨天|前天)?(?:今早|早上|上午|中午|下午|晚上|夜里|夜间|凌晨|半夜)|(?:今天|昨天|前天)\s*\d{1,2}点(?:\s*\d{1,2}分)?(?:的时候)?/g
 
 function normalizeTimelineTime(marker) {
   const hourMatch = marker.match(/(\d{1,2})点(?:\s*(\d{1,2})分)?/)

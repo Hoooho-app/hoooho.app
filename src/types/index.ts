@@ -102,6 +102,7 @@ export interface CreateEventAttachmentInput {
   name: string
   mimeType: string
   dataUrl: string
+  recordId?: string
 }
 
 export interface EventAttachmentApiDto extends CreateEventAttachmentInput {
@@ -169,9 +170,17 @@ export interface TimelineEntry {
   id: string
   time: string
   displayTime?: string
+  periodLabel?: string
   content: string
   recordType: HealthEventRecordType
   kind: 'text' | 'temperature' | 'medication'
+  sourceRecordId?: string
+  sequence?: number
+  segments?: Array<{
+    label: '症状' | '体温' | '用药' | '检查' | '就诊' | '记录'
+    content: string
+  }>
+  attachments?: EventAttachment[]
 }
 
 export interface HealthEventMedicalInfo {
@@ -194,6 +203,7 @@ export interface TemperatureRecord {
   min?: number
   max?: number
   label?: string
+  periodLabel?: string
 }
 
 export interface EventAttachment {
@@ -201,6 +211,7 @@ export interface EventAttachment {
   name: string
   type: 'image' | 'document'
   url?: string
+  recordId?: string
 }
 
 export interface HealthEvent {

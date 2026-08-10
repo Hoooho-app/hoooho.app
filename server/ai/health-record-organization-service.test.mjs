@@ -53,13 +53,17 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.match(detailedProgression.organizedHealthData.symptoms[0].content, /乏力/)
     assert.doesNotMatch(detailedProgression.organizedHealthData.symptoms[0].content, /发热/)
 
+    const spokenPeriods = await organize('今早开始咳嗽，夜里感觉好一些，半夜又有点冷')
+    assert.equal(spokenPeriods.organizedHealthData.timeline.length, 3)
+    assert.deepEqual(spokenPeriods.organizedHealthData.timeline.map((item) => item.time), ['今早', '夜里', '半夜'])
+
     const concern = await organize('担心是不是严重疾病')
     assert.deepEqual(concern.organizedHealthData.symptoms, [])
     assert.equal(concern.organizedHealthData.concerns[0].content, '担心是不是严重疾病')
     assert.deepEqual(concern.organizedHealthData.attachments, [])
 
     const list = await organizations.list(accountId, event.id)
-    assert.equal(list.length, 5)
+    assert.equal(list.length, 6)
     assert.ok(list.every((organization) => organization.schemaVersion === 2))
     await assert.rejects(() => organizations.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
   } finally {

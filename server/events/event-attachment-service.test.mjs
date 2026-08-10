@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { FamilyMemberService } from '../members/family-member-service.mjs'
 import { HealthEventService } from './health-event-service.mjs'
+import { HealthEventRecordService } from './health-event-record-service.mjs'
 import { EventAttachmentService } from './event-attachment-service.mjs'
 
 test('用户上传的检查图片独立保存并按账号隔离', async () => {
@@ -13,14 +14,20 @@ test('用户上传的检查图片独立保存并按账号隔离', async () => {
     const accountId = 'attachment-account'
     const members = new FamilyMemberService({ dataDirectory })
     const events = new HealthEventService({ dataDirectory })
+    const records = new HealthEventRecordService({ dataDirectory })
     const attachments = new EventAttachmentService({ dataDirectory })
     const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
+    const record = await records.create(accountId, event.id, { type: 'examination', content: '完成血常规检查', occurredAt: '2026-08-09T10:00:00+08:00' })
     const created = await attachments.create(accountId, event.id, {
-      name: '血常规.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,aGVsbG8='
+      name: '血常规.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,aGVsbG8=', recordId: record.id
     })
     assert.equal(created.name, '血常规.png')
+    assert.equal(created.recordId, record.id)
     assert.equal((await attachments.list(accountId, event.id)).length, 1)
+    await assert.rejects(() => attachments.create(accountId, event.id, {
+      name: '错误.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,aGVsbG8=', recordId: 'missing-record'
+    }), (error) => error.code === 'HEALTH_EVENT_RECORD_NOT_FOUND')
     await assert.rejects(() => attachments.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
