@@ -105,7 +105,11 @@ export function HealthEventDetailPage() {
           <FirstRecordComposer onSave={addHealthRecord} />
         ) : (
           <>
-            <TimelineSection event={event} onAddRecord={addHealthRecord} />
+            <TimelineSection
+              event={event}
+              firstRecordTime={state.data.records.map((record) => record.occurredAt).sort()[0]}
+              onAddRecord={addHealthRecord}
+            />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
           </>
         )}

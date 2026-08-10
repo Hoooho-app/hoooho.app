@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Mic, Paperclip, Sparkles, X } from 'lucide-react'
+import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
@@ -38,7 +38,7 @@ const templates: Record<HealthRecordTemplateType, EditorTemplate> = {
     previewLabels: ['发生时间', '主要症状', '严重程度', '伴随症状', '处理措施', '当前状态']
   },
   timeline: {
-    title: '补充时间线',
+    title: '新增健康情况',
     guidance: '按时间顺序描述事情发生的过程，包括症状变化、体温变化、用药或就医等重要节点。',
     example: '7月20日20:00开始发热，22:00体温38.5℃并服用退烧药，第二天08:00体温37.2℃。',
     placeholder: '请按时间顺序描述事件过程……',
@@ -84,6 +84,7 @@ export interface HealthRecordEditorResult {
   occurredAt: string
   structuredFields: Array<{ label: string; value: string }>
   attachments: CreateEventAttachmentInput[]
+  bodyLocations?: string[]
 }
 
 export type SelectableRecordType = Exclude<HealthEventRecordType, 'other'>
@@ -105,6 +106,7 @@ interface HealthRecordEditorModalProps {
   lockRecordType?: boolean
   titleOverride?: string
   initialValue?: string
+  minOccurredAt?: string
   onClose: () => void
   onSave?: (result: HealthRecordEditorResult) => void | Promise<void>
 }
@@ -114,7 +116,28 @@ function localDateTimeValue(date = new Date()) {
   return local.toISOString().slice(0, 16)
 }
 
-export function HealthRecordEditorModal({ open, templateType, defaultRecordType = 'note', lockRecordType = false, titleOverride, initialValue = '', onClose, onSave }: HealthRecordEditorModalProps) {
+const bodyLocations = ['头', '颈', '肩', '胸', '腹', '腰', '手', '手掌', '腿', '脚', '皮肤', '其他']
+
+function inferImageLabel(name: string, selectedLocations: string[]) {
+  if (/药|药盒|药瓶/.test(name)) return '药物'
+  if (/检查|化验|报告|血常规/.test(name)) return '检查单'
+  if (/皮肤|红疹|皮疹/.test(name)) return '皮肤'
+  return selectedLocations[0] || '图片'
+}
+
+function formatConstraintTime(value?: string) {
+  if (!value) return ''
+  return new Date(value).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+export function HealthRecordEditorModal({ open, templateType, defaultRecordType = 'note', lockRecordType = false, titleOverride, initialValue = '', minOccurredAt, onClose, onSave }: HealthRecordEditorModalProps) {
   const template = templates[templateType]
   const [text, setText] = useState(initialValue)
   const [recordType, setRecordType] = useState<SelectableRecordType>(defaultRecordType)
@@ -122,6 +145,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [attachments, setAttachments] = useState<CreateEventAttachmentInput[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
   usePageScrollLock(open)
@@ -130,18 +154,27 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     if (!open) return
     setText(initialValue)
     setRecordType(defaultRecordType)
-    setOccurredAt(localDateTimeValue())
+    const minimumTime = minOccurredAt ? new Date(minOccurredAt).getTime() : 0
+    setOccurredAt(localDateTimeValue(new Date(Math.max(Date.now(), minimumTime))))
     setIsSaving(false)
     setSaveError('')
     setAttachments([])
-  }, [defaultRecordType, open, templateType, initialValue])
+    setSelectedLocations([])
+  }, [defaultRecordType, open, templateType, initialValue, minOccurredAt])
 
   const preview = useMemo(() => [
     { label: '记录类型', value: recordTypeLabels.get(recordType) ?? '备注' },
     { label: '发生时间', value: new Date(occurredAt).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) },
     { label: '记录内容', value: text.trim() }
   ], [occurredAt, recordType, text])
-  const canSave = Boolean((text.trim() || attachments.length) && occurredAt)
+  const isBeforeFirstRecord = Boolean(minOccurredAt && new Date(occurredAt).getTime() < new Date(minOccurredAt).getTime())
+  const canSave = Boolean((text.trim() || attachments.length) && occurredAt && !isBeforeFirstRecord)
+
+  const toggleLocation = (location: string) => {
+    setSelectedLocations((current) => current.includes(location)
+      ? current.filter((item) => item !== location)
+      : [...current, location])
+  }
 
   const selectImages = async (files: FileList | null) => {
     if (!files?.length) return
@@ -156,9 +189,10 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
           reader.onerror = () => reject(new Error('图片读取失败'))
           reader.readAsDataURL(file)
         })
-        return { name: file.name, mimeType: file.type, dataUrl }
+        const label = inferImageLabel(file.name, selectedLocations)
+        return { name: `[${label}] ${file.name}`, mimeType: file.type, dataUrl }
       }))
-      setAttachments((current) => [...current, ...selected].slice(0, 5))
+      setAttachments((current) => [...current, ...selected].slice(0, 8))
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '图片读取失败')
     }
@@ -166,10 +200,14 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
 
   const save = async () => {
     setSaveError('')
+    if (isBeforeFirstRecord) {
+      setSaveError('该时间早于本次健康情况开始时间，无法作为新增情况记录。')
+      return
+    }
     setIsSaving(true)
     try {
       if (!onSave) return
-      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments })
+      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments, bodyLocations: selectedLocations })
       onClose()
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '保存失败，请稍后重试')
@@ -179,6 +217,102 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   }
 
   if (!open) return null
+
+  if (templateType === 'timeline') {
+    return (
+      <div className="fixed inset-0 z-50 flex touch-none items-end justify-center overscroll-none bg-black/35 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" role="presentation">
+        <section aria-modal="true" className="flex max-h-[90dvh] w-full max-w-[354px] touch-auto flex-col overflow-hidden rounded-[20px] bg-surface shadow-floating" role="dialog">
+          <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center px-3">
+            <button aria-label="关闭" className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" onClick={onClose} type="button"><X size={21} /></button>
+            <h2 className="text-center text-base font-semibold text-heading">新增健康情况</h2>
+            <span aria-hidden="true" />
+          </header>
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 pb-4">
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-heading" htmlFor="continuation-occurred-at">发生时间</label>
+              <span className="relative block">
+                <input
+                  className="min-h-12 w-full rounded-control border bg-surface px-3 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  id="continuation-occurred-at"
+                  min={minOccurredAt ? localDateTimeValue(new Date(minOccurredAt)) : undefined}
+                  onChange={(event) => { setOccurredAt(event.target.value); setSaveError('') }}
+                  type="datetime-local"
+                  value={occurredAt}
+                />
+                <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+              </span>
+              {minOccurredAt && (
+                <div className="mt-2 flex items-start gap-2 rounded-control bg-background px-3 py-2 text-[11px] leading-4 text-text-secondary">
+                  <Info className="mt-0.5 shrink-0 text-primary" size={13} />
+                  <span>时间不可早于本次健康事件的首次记录时间：<br />{formatConstraintTime(minOccurredAt)}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-heading">身体部位</p>
+              <div className="grid grid-cols-6 gap-2" aria-label="身体部位快速选择">
+                {bodyLocations.map((location) => {
+                  const selected = selectedLocations.includes(location)
+                  return (
+                    <button
+                      aria-pressed={selected}
+                      className={`min-h-9 rounded-pill border px-1 text-xs font-medium transition ${selected ? 'border-primary bg-primary text-surface' : 'border-primary/20 bg-surface text-text-secondary'}`}
+                      key={location}
+                      onClick={() => toggleLocation(location)}
+                      type="button"
+                    >
+                      {location}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-heading" htmlFor="continuation-description">描述情况</label>
+              <div className="relative">
+                <textarea
+                  className="h-40 w-full resize-none rounded-control border bg-surface px-3 py-3 pb-8 text-sm leading-6 outline-none transition placeholder:text-text-secondary/65 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  id="continuation-description"
+                  maxLength={1000}
+                  onChange={(event) => { setText(event.target.value); setSaveError('') }}
+                  placeholder={'请直接描述发生了什么，例如：\n8月10日22:05体温38.8℃，比之前更高，头有些痛，已服用退烧药。'}
+                  ref={textAreaRef}
+                  value={text}
+                />
+                <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-heading">添加图片</p>
+              <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
+              <button className="inline-flex min-h-10 items-center gap-2 rounded-control border border-primary/25 px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus size={17} />添加图片</button>
+              {attachments.length > 0 && (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {attachments.map((attachment, index) => (
+                    <figure className="relative aspect-square overflow-hidden rounded-lg bg-primary-soft" key={`${attachment.name}-${index}`}>
+                      <img alt={attachment.name} className="h-full w-full object-cover" src={attachment.dataUrl} />
+                      <figcaption className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-pill bg-surface/90 px-1.5 py-0.5 text-[10px] font-medium text-primary">{attachment.name.match(/^\[([^\]]+)\]/)?.[1] ?? '图片'}</figcaption>
+                      <button aria-label={`删除图片 ${attachment.name}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-text-primary/75 text-surface" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
+                    </figure>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {saveError && <p className="rounded-control bg-warning/10 px-3 py-2 text-xs leading-5 text-danger" role="alert">{saveError}</p>}
+          </div>
+
+          <footer className="shrink-0 px-4 pb-4 pt-2">
+            <Button disabled={!canSave || isSaving} fullWidth onClick={() => void save()}><Sparkles size={17} />{isSaving ? '正在整理…' : '保存，自动整理'}</Button>
+          </footer>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div

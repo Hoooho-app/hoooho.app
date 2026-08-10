@@ -71,15 +71,15 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const unauthorized = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', null)
     assert.equal(unauthorized.status, 401)
 
-    const eveningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
-      type: 'note',
-      content: '精神状态好转',
-      occurredAt: '2026-08-09T18:00:00+08:00'
-    })
     const morningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'symptom',
       content: '体温 38.5℃',
       occurredAt: '2026-08-09T09:00:00+08:00'
+    })
+    const eveningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
+      type: 'note',
+      content: '精神状态好转',
+      occurredAt: '2026-08-09T18:00:00+08:00'
     })
     const noonResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'medication',
@@ -95,6 +95,14 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     assert.equal(morning.accountId, first.user.id)
     assert.equal(morning.eventId, event.id)
     assert.equal(morning.content, '体温 38.5℃')
+
+    const beforeFirstRecordResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
+      type: 'note',
+      content: '早于首次记录的新增情况',
+      occurredAt: '2026-08-09T08:00:00+08:00'
+    })
+    assert.equal(beforeFirstRecordResponse.status, 400)
+    assert.equal((await beforeFirstRecordResponse.json()).error.code, 'RECORD_BEFORE_EVENT_START')
 
     const invalidTypeResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'diagnosis',

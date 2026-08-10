@@ -7,12 +7,13 @@ import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 
 interface TimelineSectionProps {
   event: HealthEvent
+  firstRecordTime?: string
   onAddRecord?: (input: CreateHealthEventRecordInput) => Promise<void>
 }
 
 type TimelineOrder = 'desc' | 'asc'
 
-export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
+export function TimelineSection({ event, firstRecordTime, onAddRecord }: TimelineSectionProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [expandedAttachmentEntries, setExpandedAttachmentEntries] = useState<Set<string>>(new Set())
@@ -100,12 +101,14 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
         open={isEditorOpen}
         templateType="timeline"
         defaultRecordType="note"
+        minOccurredAt={firstRecordTime ?? event.startDate}
         onClose={() => setIsEditorOpen(false)}
         onSave={onAddRecord ? (result) => onAddRecord({
           type: result.recordType,
           content: result.originalText,
           occurredAt: result.occurredAt,
-          attachments: result.attachments
+          attachments: result.attachments,
+          bodyLocations: result.bodyLocations
         }) : undefined}
       />
     </section>

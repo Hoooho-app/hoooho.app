@@ -75,12 +75,22 @@ export class HealthEventRecordService {
   async create(accountId, eventId, input, now = new Date()) {
     await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
+    const occurredAt = validateOccurredAt(input.occurredAt)
+    const existingRecords = await this.repository.findByEventId(eventId)
+    const firstRecord = existingRecords[0]
+    if (firstRecord && occurredAt < firstRecord.occurredAt) {
+      throw new HealthEventRecordError(
+        '该时间早于本次健康情况开始时间，无法作为新增情况记录',
+        400,
+        'RECORD_BEFORE_EVENT_START'
+      )
+    }
     return this.repository.create({
       accountId,
       eventId,
       type: validateType(input.type),
       content: validateContent(input.content),
-      occurredAt: validateOccurredAt(input.occurredAt)
+      occurredAt
     }, now)
   }
 
