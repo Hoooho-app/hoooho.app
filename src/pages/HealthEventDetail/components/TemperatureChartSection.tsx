@@ -1,5 +1,4 @@
 import type { HealthEvent } from '../../../types'
-import { Card } from '../../../components/common'
 import { formatHealthTimelineDate } from '../../../utils/formatHealthTimePeriod'
 
 export function TemperatureChartSection({ event }: { event: HealthEvent }) {
@@ -13,8 +12,8 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
   return (
     <section className="space-y-3">
       <h2 className="section-title">体温曲线（℃）</h2>
-      <Card>
-        <div>
+      <div className="border-t border-primary/15 px-1 pt-5">
+        <div className="rounded-2xl bg-primary/[0.045] px-3 py-4">
           <svg aria-label="体温变化曲线" className="h-32 w-full overflow-visible" viewBox="0 0 300 120" role="img">
             {[20, 55, 90].map((y) => <line key={y} x1="12" x2="288" y1={y} y2={y} className="stroke-border" strokeDasharray="3 4" />)}
             <polyline fill="none" points={points.map(({ x, y }) => `${x},${y}`).join(' ')} className="stroke-primary" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
@@ -34,7 +33,7 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
             ))}
           </div>
         </div>
-      </Card>
+      </div>
     </section>
   )
 }

@@ -12,6 +12,9 @@ export default {
         border: 'rgb(var(--color-border) / <alpha-value>)',
         'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
         'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
+        heading: 'rgb(var(--color-heading) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--color-surface-muted) / <alpha-value>)',
+        'border-calm': 'rgb(var(--color-border-calm) / <alpha-value>)',
         success: 'rgb(var(--color-success) / <alpha-value>)',
         warning: 'rgb(var(--color-warning) / <alpha-value>)',
         danger: 'rgb(var(--color-danger) / <alpha-value>)'
@@ -23,6 +26,7 @@ export default {
       },
       boxShadow: {
         card: 'var(--shadow-card)',
+        calm: 'var(--shadow-calm)',
         floating: 'var(--shadow-floating)'
       },
       fontFamily: {

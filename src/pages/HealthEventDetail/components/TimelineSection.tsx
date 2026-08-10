@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock3, PlusCircle } from 'lucide-react'
 import type { CreateHealthEventRecordInput, EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Button, Card } from '../../../components/common'
@@ -24,6 +24,14 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
     return order === 'desc' ? -comparison : comparison
   }), [event.timeline, order])
 
+  const timelineGroups = useMemo(() => timeline.reduce<Array<{ date: string; entries: TimelineEntry[] }>>((groups, entry) => {
+    const date = formatHealthTimelineDate(entry.time)
+    const currentGroup = groups[groups.length - 1]
+    if (currentGroup?.date === date) currentGroup.entries.push(entry)
+    else groups.push({ date, entries: [entry] })
+    return groups
+  }, []), [timeline])
+
   const toggleAttachments = (entryId: string) => {
     setExpandedAttachmentEntries((current) => {
       const next = new Set(current)
@@ -38,12 +46,12 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
       <div className="flex items-center justify-between gap-3">
         <h2 className="section-title">时间线</h2>
         <div className="flex items-center gap-2">
-          <Button className="min-h-10 px-4 text-surface" onClick={() => setIsEditorOpen(true)}>
+          <Button className="min-h-10 px-4 text-surface shadow-calm" onClick={() => setIsEditorOpen(true)}>
             添加记录<PlusCircle size={17} />
           </Button>
           <button
             aria-label={order === 'desc' ? '当前最新优先，切换为最早优先' : '当前最早优先，切换为最新优先'}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border bg-surface text-text-secondary transition hover:border-primary hover:text-primary"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-surface text-text-secondary shadow-calm transition hover:border-primary hover:text-primary"
             onClick={() => setOrder((current) => current === 'desc' ? 'asc' : 'desc')}
             title={order === 'desc' ? '切换为最早优先' : '切换为最新优先'}
             type="button"
@@ -56,7 +64,7 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
       {!timeline.length ? (
         <Card
           interactive
-          className="cursor-pointer py-8 text-center"
+          className="cursor-pointer rounded-2xl border-primary/10 py-8 text-center shadow-calm"
           role="button"
           tabIndex={0}
           onClick={() => setIsEditorOpen(true)}
@@ -69,22 +77,23 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
           <p className="mt-2 text-sm leading-6 text-text-secondary">直接描述什么时候开始、有哪些变化，以及做过什么处理。</p>
         </Card>
       ) : (
-        <Card className="overflow-hidden p-0">
-          {timeline.map((entry, index) => {
-            const previousEntry = timeline[index - 1]
-            const showDate = !previousEntry || formatHealthTimelineDate(previousEntry.time) !== formatHealthTimelineDate(entry.time)
-            const isExpanded = expandedAttachmentEntries.has(entry.id)
-            return (
-              <TimelineRow
-                key={entry.id}
-                entry={entry}
-                isExpanded={isExpanded}
-                showDate={showDate}
-                onToggleAttachments={() => toggleAttachments(entry.id)}
-              />
-            )
-          })}
-        </Card>
+        <div className="space-y-8" aria-label="健康过程记录">
+          {timelineGroups.map((group) => (
+            <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-4" key={group.date}>
+              <time className="pt-0.5 text-right text-sm font-bold leading-5 text-primary">{group.date}</time>
+              <div className="border-l border-primary/25 pl-5">
+                {group.entries.map((entry) => (
+                  <TimelineRow
+                    key={entry.id}
+                    entry={entry}
+                    isExpanded={expandedAttachmentEntries.has(entry.id)}
+                    onToggleAttachments={() => toggleAttachments(entry.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <HealthRecordEditorModal
@@ -106,38 +115,31 @@ export function TimelineSection({ event, onAddRecord }: TimelineSectionProps) {
 function TimelineRow({
   entry,
   isExpanded,
-  showDate,
   onToggleAttachments
 }: {
   entry: TimelineEntry
   isExpanded: boolean
-  showDate: boolean
   onToggleAttachments: () => void
 }) {
   const attachments = entry.attachments ?? []
   const visibleAttachments = isExpanded ? attachments : attachments.slice(0, 4)
 
   return (
-    <article className="grid grid-cols-[88px_minmax(0,1fr)] border-b last:border-b-0">
-      <div className="relative border-r border-border px-3 py-5 text-center">
-        <span className={`block text-sm font-semibold text-primary ${showDate ? '' : 'sr-only'}`}>
-          {formatHealthTimelineDate(entry.time)}
-        </span>
-        <span className="absolute right-[-7px] top-7 h-3.5 w-3.5 rounded-full border-[3px] border-primary bg-surface" />
+    <article className="relative pb-8 last:pb-1">
+      <span className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full border-[3px] border-primary bg-background" />
+      <div className="flex items-center gap-2 text-[13px] font-semibold text-heading">
+        <Clock3 className="shrink-0 text-primary" size={17} strokeWidth={1.8} />
+        <span>{entry.periodLabel}</span>
       </div>
-      <div className="min-w-0 px-4 py-5">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Clock3 className="shrink-0 text-primary" size={19} strokeWidth={1.8} />
-          <span>{entry.periodLabel}</span>
-        </div>
-        <div className="mt-3 space-y-2 text-sm leading-6 text-text-primary">
-          {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index) => (
-            <p key={`${entry.id}-segment-${index}`}>
-              <span className="mr-2 inline-flex rounded-pill bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">{segment.label}</span>
-              <span>{segment.content}{index < (entry.segments?.length ?? 1) - 1 ? '；' : ''}</span>
-            </p>
-          ))}
-        </div>
+      <p className="mt-3 text-sm leading-7 text-text-primary">
+        {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index, segments) => (
+          <Fragment key={`${entry.id}-segment-${index}`}>
+            <span className="mr-1.5 inline-flex rounded-pill bg-primary/10 px-2 py-0.5 align-middle text-[11px] font-bold text-heading">{segment.label}</span>
+            <span>{segment.content}</span>
+            {index < segments.length - 1 && <span className="mx-1 text-text-secondary">；</span>}
+          </Fragment>
+        ))}
+      </p>
         {attachments.length > 0 && (
           <div className="mt-4">
             <div className="grid grid-cols-4 gap-2">
@@ -151,7 +153,6 @@ function TimelineRow({
             )}
           </div>
         )}
-      </div>
     </article>
   )
 }

@@ -79,9 +79,9 @@ export function HealthEventDetailPage() {
   }
 
   return (
-    <main className="app-shell bg-background pb-8">
+    <main className="app-shell health-event-detail bg-background pb-8">
       <EventHeader />
-      <div className="page-content space-y-6">
+      <div className="page-content">
         <EventIdentitySection subject={subject} />
         <TimelineSection event={event} onAddRecord={addHealthRecord} />
         {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}

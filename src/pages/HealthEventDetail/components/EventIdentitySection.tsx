@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { HealthEventSubject } from '../../../services/healthEventPersonalization'
-import { Avatar, Card } from '../../../components/common'
+import { Avatar } from '../../../components/common'
 
 export function EventIdentitySection({ subject }: { subject: HealthEventSubject }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -18,10 +18,10 @@ export function EventIdentitySection({ subject }: { subject: HealthEventSubject 
   return (
     <section className="space-y-3">
       <h2 className="section-title">记录对象</h2>
-      <Card className="p-0">
+      <div className="overflow-hidden rounded-2xl border border-primary/10 bg-surface/55">
         <button
           aria-expanded={isExpanded}
-          className="flex min-h-[60px] w-full items-center gap-3 px-4 py-2 text-left"
+          className="flex min-h-[64px] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-primary/5"
           onClick={() => setIsExpanded((current) => !current)}
           type="button"
         >
@@ -34,7 +34,7 @@ export function EventIdentitySection({ subject }: { subject: HealthEventSubject 
         </button>
 
         {isExpanded && (
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-t px-4 py-4">
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 px-4 py-4">
             {details.map(([label, value]) => (
               <div key={label} className="min-w-0">
                 <dt className="text-xs text-text-secondary">{label}</dt>
@@ -43,7 +43,7 @@ export function EventIdentitySection({ subject }: { subject: HealthEventSubject 
             ))}
           </dl>
         )}
-      </Card>
+      </div>
     </section>
   )
 }

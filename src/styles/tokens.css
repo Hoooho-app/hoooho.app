@@ -6,6 +6,9 @@
   --color-border: 229 239 236;
   --color-text-primary: 31 41 55;
   --color-text-secondary: 107 114 128;
+  --color-heading: 19 78 74;
+  --color-surface-muted: 249 250 251;
+  --color-border-calm: 204 251 241;
   --color-success: 61 153 112;
   --color-warning: 224 151 69;
   --color-danger: 220 91 91;
@@ -13,6 +16,7 @@
   --radius-card: 20px;
   --radius-pill: 999px;
   --shadow-card: 0 8px 24px rgb(31 41 55 / 0.06);
+  --shadow-calm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-floating: 0 12px 32px rgb(77 182 172 / 0.22);
   --font-sans: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
