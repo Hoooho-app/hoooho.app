@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock3, PlusCircle } from 'lucide-react'
 import type { CreateHealthEventRecordInput, EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Button, Card } from '../../../components/common'
-import { formatHealthTimelineDate } from '../../../utils/formatHealthTimePeriod'
+import { groupTimelineByYearAndDate } from '../../../services/healthTimelineGrouping'
 import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 
 interface TimelineSectionProps {
@@ -24,13 +24,7 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
     return (left.sequence ?? 0) - (right.sequence ?? 0) || left.id.localeCompare(right.id)
   }), [event.timeline, order])
 
-  const timelineGroups = useMemo(() => timeline.reduce<Array<{ date: string; entries: TimelineEntry[] }>>((groups, entry) => {
-    const date = formatHealthTimelineDate(entry.time)
-    const currentGroup = groups[groups.length - 1]
-    if (currentGroup?.date === date) currentGroup.entries.push(entry)
-    else groups.push({ date, entries: [entry] })
-    return groups
-  }, []), [timeline])
+  const timelineGroups = useMemo(() => groupTimelineByYearAndDate(timeline), [timeline])
 
   const toggleAttachments = (entryId: string) => {
     setExpandedAttachmentEntries((current) => {
@@ -77,21 +71,26 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
           <p className="mt-2 text-sm leading-6 text-text-secondary">直接描述什么时候开始、有哪些变化，以及做过什么处理。</p>
         </Card>
       ) : (
-        <div className="space-y-8" aria-label="健康过程记录">
-          {timelineGroups.map((group) => (
-            <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-4" key={group.date}>
-              <time className="pt-0.5 text-right text-sm font-bold leading-5 text-primary">{group.date}</time>
-              <div className="border-l border-primary/25 pl-5">
-                {group.entries.map((entry) => (
-                  <TimelineRow
-                    key={entry.id}
-                    entry={entry}
-                    isExpanded={expandedAttachmentEntries.has(entry.id)}
-                    onToggleAttachments={() => toggleAttachments(entry.id)}
-                  />
-                ))}
-              </div>
-            </div>
+        <div className="space-y-9" aria-label="健康过程记录">
+          {timelineGroups.map((yearGroup) => (
+            <section className="space-y-6" key={yearGroup.year} aria-label={`${yearGroup.year}年健康记录`}>
+              <h3 className="text-lg font-bold text-primary">{yearGroup.year}年</h3>
+              {yearGroup.dates.map((dateGroup) => (
+                <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-4" key={`${yearGroup.year}-${dateGroup.date}`}>
+                  <time className="pt-0.5 text-right text-sm font-bold leading-5 text-primary">{dateGroup.date}</time>
+                  <div className="border-l border-primary/25 pl-5">
+                    {dateGroup.entries.map((entry) => (
+                      <TimelineRow
+                        key={entry.id}
+                        entry={entry}
+                        isExpanded={expandedAttachmentEntries.has(entry.id)}
+                        onToggleAttachments={() => toggleAttachments(entry.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
           ))}
         </div>
       )}
@@ -129,9 +128,11 @@ function TimelineRow({
   return (
     <article className="relative pb-8 last:pb-1">
       <span className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full border-[3px] border-primary bg-background" />
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-heading">
-        <span>{entry.periodLabel}</span>
-      </div>
+      {entry.periodLabel && (
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-heading">
+          <span>{entry.periodLabel}</span>
+        </div>
+      )}
       <p className="mt-3 text-sm leading-7 text-text-primary">
         {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index, segments) => (
           <Fragment key={`${entry.id}-segment-${index}`}>

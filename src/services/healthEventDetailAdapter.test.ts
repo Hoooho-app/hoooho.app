@@ -9,6 +9,7 @@ import type {
   OrganizedHealthData
 } from '../types'
 import { adaptHealthEventDetail } from './healthEventDetailAdapter'
+import { groupTimelineByYearAndDate } from './healthTimelineGrouping'
 
 const emptyOrganizedData: OrganizedHealthData = {
   symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: []
@@ -143,4 +144,38 @@ test('症状与后续状态变化按解析时间共同进入时间线', () => {
 
   assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['发热有所好转', '发热'])
   assert.deepEqual(view.event.timeline.map((entry) => entry.segments?.[0].label), ['状态', '症状'])
+})
+
+test('时间线按有记录的年份分组，年份不会重复进入 Fact 节点', () => {
+  const sourceRecord = record('record-years', '跨年份健康经历')
+  const facts = [
+    {
+      ...fact('fact-2026', 'symptom', '发热', '2026年', '2026-08-10T00:00:00+08:00'),
+      time: {
+        raw: '2026年', resolvedStart: '2026-08-10T00:00:00+08:00', resolvedEnd: null,
+        precision: 'year' as const, source: 'user_text' as const
+      }
+    },
+    {
+      ...fact('fact-2025', 'symptom', '手脚发凉', '2025年', '2025-01-01T00:00:00+08:00'),
+      time: {
+        raw: '2025年', resolvedStart: '2025-01-01T00:00:00+08:00', resolvedEnd: null,
+        precision: 'year' as const, source: 'user_text' as const
+      }
+    },
+    {
+      ...fact('fact-1998', 'examination', '一次检查', '1998年', '1998-01-01T00:00:00+08:00'),
+      time: {
+        raw: '1998年', resolvedStart: '1998-01-01T00:00:00+08:00', resolvedEnd: null,
+        precision: 'year' as const, source: 'user_text' as const
+      }
+    }
+  ]
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, facts)])
+  const groups = groupTimelineByYearAndDate(view.event.timeline)
+
+  assert.deepEqual(groups.map((group) => group.year), [2026, 2025, 1998])
+  assert.deepEqual(groups.map((group) => group.dates[0].date), ['8月10日', '1月1日', '1月1日'])
+  assert.ok(view.event.timeline.every((entry) => entry.periodLabel === undefined))
+  assert.equal(groups.some((group) => [2024, 2023, 2022].includes(group.year)), false)
 })

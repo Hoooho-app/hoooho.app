@@ -200,9 +200,8 @@ function buildFactTimeline(
 
 function factPeriodLabel(fact: HealthFact, fallbackTime: string) {
   const raw = fact.time.raw ?? undefined
-  if (fact.time.precision === 'fuzzy' || fact.time.precision === 'year' || fact.time.precision === 'month' || fact.time.precision === 'day') {
-    return raw
-  }
+  if (fact.time.precision === 'year' || fact.time.precision === 'month' || fact.time.precision === 'day') return undefined
+  if (fact.time.precision === 'fuzzy') return raw
   return formatHealthTimePeriod(raw, fact.time.resolvedStart ?? fallbackTime)
 }
 
