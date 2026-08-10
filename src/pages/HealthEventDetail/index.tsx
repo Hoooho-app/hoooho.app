@@ -4,6 +4,7 @@ import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
+import { deriveHealthEventTitle } from '../../services/healthEventFacts'
 import {
   EventHeader,
   EventIdentitySection,
@@ -14,7 +15,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, addAttachment, organizeRecord, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
 
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
@@ -69,6 +70,12 @@ export function HealthEventDetailPage() {
     const originalText = input.content.trim()
     const attachments = input.attachments ?? []
     if (!originalText && !attachments.length) throw new Error('请先输入健康记录内容或添加图片')
+
+    const preview = originalText ? await previewRecord(originalText) : null
+    if (!preview?.hasHealthFacts && !attachments.length) {
+      throw new Error('暂未识别到健康相关信息。请描述哪里不舒服、什么时候开始或有什么症状，然后重新编辑。')
+    }
+
     const created = await addRecord({
       type: originalText ? input.type : 'note',
       content: originalText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
@@ -76,6 +83,12 @@ export function HealthEventDetailPage() {
     })
     if (originalText) await organizeRecord(created.id)
     for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
+    if (!state.data.eventDto.title) {
+      const title = preview
+        ? deriveHealthEventTitle(preview.organizedHealthData, attachments.length > 0)
+        : '健康附件'
+      if (title) await updateTitle(title.slice(0, 120))
+    }
   }
 
   return (

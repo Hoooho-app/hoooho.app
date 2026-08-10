@@ -2,6 +2,7 @@ import { AIService } from './ai-service.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
+import { hasOrganizedHealthFacts } from './ai-types.mjs'
 
 export class HealthRecordOrganizationError extends Error {
   constructor(message, status = 400, code = 'HEALTH_RECORD_ORGANIZATION_ERROR') {
@@ -45,6 +46,16 @@ export class HealthRecordOrganizationService {
       status: 'completed',
       provider: organized.provider
     }, now)
+  }
+
+  async preview(accountId, eventId, input) {
+    await this.assertEventOwnership(accountId, eventId)
+    const organized = await this.ai.organizeHealthRecord(input?.rawInput)
+    return {
+      hasHealthFacts: hasOrganizedHealthFacts(organized.organizedHealthData),
+      organizedHealthData: organized.organizedHealthData,
+      provider: organized.provider
+    }
   }
 
   async list(accountId, eventId) {

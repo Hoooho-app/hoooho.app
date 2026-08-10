@@ -106,6 +106,11 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return created
   }, [eventId, token])
 
+  const previewRecord = useCallback(async (rawInput: string) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    return healthRecordOrganizationService.preview(eventId, rawInput, token)
+  }, [eventId, token])
+
   const organizeRecord = useCallback(async (recordId: string) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     const organization = await healthRecordOrganizationService.organize(eventId, recordId, token)
@@ -183,5 +188,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, addAttachment, organizeRecord, updateStage, updateTitle, retry }
+  return { state, addRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, retry }
 }

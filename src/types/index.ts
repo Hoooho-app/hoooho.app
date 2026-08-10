@@ -154,6 +154,12 @@ export interface HealthRecordOrganizationApiDto {
   updatedAt: string
 }
 
+export interface HealthRecordOrganizationPreviewApiDto {
+  hasHealthFacts: boolean
+  organizedHealthData: OrganizedHealthData
+  provider: string
+}
+
 export interface NotificationPreferences {
   healthEvent: boolean
   medication: boolean

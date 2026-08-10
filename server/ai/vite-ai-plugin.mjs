@@ -51,12 +51,17 @@ export function aiApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const previewMatch = /^\/api\/events\/([^/]+)\/organizations\/preview$/.exec(pathname)
         const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
-        if (!match) return next()
+        if (!previewMatch && !match) return next()
 
         try {
           const accountId = readAccountId(request, tokens)
-          const eventId = decodeURIComponent(match[1])
+          const eventId = decodeURIComponent((previewMatch ?? match)[1])
+          if (previewMatch) {
+            if (request.method === 'POST') return sendJson(response, 200, await service.preview(accountId, eventId, await readJson(request)))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          }
           if (request.method === 'GET') return sendJson(response, 200, await service.list(accountId, eventId))
           if (request.method === 'POST') return sendJson(response, 201, await service.organize(accountId, eventId, await readJson(request)))
           return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

@@ -75,7 +75,7 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       </div>
 
       <button
-        aria-label={`查看健康事件：${event.title || '待补充健康情况'}`}
+        aria-label={`查看健康事件：${event.title}`}
         className="relative block w-full touch-pan-y text-left transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${translateX}px)` }}
         type="button"
@@ -108,10 +108,10 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         <Card interactive className="flex items-center gap-3 px-3 py-3">
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
-              <h3 className={`truncate text-sm font-semibold ${event.title ? '' : 'text-text-secondary'}`}>{event.title || '待补充健康情况'}</h3>
+              <h3 className="truncate text-sm font-semibold">{event.title}</h3>
               <Tag tone={statusTone}>{statusLabel}</Tag>
             </div>
-            <p className="line-clamp-2 text-xs leading-5 text-text-secondary">主要症状：{event.title || '待补充'}</p>
+            <p className="line-clamp-2 text-xs leading-5 text-text-secondary">主要症状：{event.title}</p>
           </div>
           <ChevronRight className="shrink-0 text-text-secondary" size={18} />
         </Card>

@@ -62,6 +62,16 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.equal(concern.organizedHealthData.concerns[0].content, '担心是不是严重疾病')
     assert.deepEqual(concern.organizedHealthData.attachments, [])
 
+    const invalidPreview = await organizations.preview(accountId, event.id, { rawInput: '北京' })
+    assert.equal(invalidPreview.hasHealthFacts, false)
+    assert.deepEqual(invalidPreview.organizedHealthData.symptoms, [])
+
+    const coughPreview = await organizations.preview(accountId, event.id, { rawInput: '孩子咳嗽两天' })
+    assert.equal(coughPreview.hasHealthFacts, true)
+
+    const temperaturePreview = await organizations.preview(accountId, event.id, { rawInput: '38.5度' })
+    assert.equal(temperaturePreview.hasHealthFacts, true)
+
     const list = await organizations.list(accountId, event.id)
     assert.equal(list.length, 6)
     assert.ok(list.every((organization) => organization.schemaVersion === 2))

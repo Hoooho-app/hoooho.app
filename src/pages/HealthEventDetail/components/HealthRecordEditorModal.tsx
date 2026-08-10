@@ -123,6 +123,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   const [saveError, setSaveError] = useState('')
   const [attachments, setAttachments] = useState<CreateEventAttachmentInput[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -235,6 +236,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               maxLength={1000}
               onChange={(event) => setText(event.target.value)}
               placeholder={`${template.placeholder}\n\n例如：${template.example}`}
+              ref={textAreaRef}
               value={text}
             />
             <div className="flex items-center justify-between border-t px-3 py-2">
@@ -250,7 +252,21 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
         </div>
 
         <footer className="shrink-0 border-t bg-surface p-4">
-          {saveError && <p className="mb-3 text-center text-xs text-red-600">{saveError}</p>}
+          {saveError && (
+            <div className="mb-3 text-center">
+              <p className="text-xs leading-5 text-red-600">{saveError}</p>
+              <button
+                className="mt-2 text-sm font-semibold text-primary"
+                onClick={() => {
+                  setSaveError('')
+                  textAreaRef.current?.focus()
+                }}
+                type="button"
+              >
+                重新编辑
+              </button>
+            </div>
+          )}
           {!onSave
             ? <Button disabled fullWidth>功能准备中</Button>
             : <Button disabled={!canSave || isSaving} fullWidth onClick={() => void save()}>{isSaving ? '保存中…' : '保存记录'}</Button>}

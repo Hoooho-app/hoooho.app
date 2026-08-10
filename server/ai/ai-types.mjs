@@ -52,6 +52,19 @@ export function emptyOrganizedHealthData() {
   }
 }
 
+export function hasOrganizedHealthFacts(value) {
+  const data = normalizeOrganizedHealthData(value)
+  return Boolean(
+    data.symptoms.length
+    || data.temperature
+    || data.medications.length
+    || data.visits.length
+    || data.examinations.length
+    || data.concerns.length
+    || data.attachments.length
+  )
+}
+
 export function normalizeOrganizedHealthData(value) {
   const source = value && typeof value === 'object' ? value : {}
   return {

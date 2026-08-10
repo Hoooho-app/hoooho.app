@@ -182,12 +182,16 @@ async function handleEventRecords(request, response, pathname) {
 }
 
 async function handleOrganizations(request, response, pathname) {
+  const previewMatch = /^\/api\/events\/([^/]+)\/organizations\/preview$/.exec(pathname)
   const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
-  if (!match) return false
+  if (!previewMatch && !match) return false
 
   const accountId = readAccountId(request)
-  const eventId = decodeRouteValue(match[1])
-  if (request.method === 'GET') sendJson(response, 200, await organizations.list(accountId, eventId))
+  const eventId = decodeRouteValue((previewMatch ?? match)[1])
+  if (previewMatch) {
+    if (request.method === 'POST') sendJson(response, 200, await organizations.preview(accountId, eventId, await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (request.method === 'GET') sendJson(response, 200, await organizations.list(accountId, eventId))
   else if (request.method === 'POST') sendJson(response, 201, await organizations.organize(accountId, eventId, await readJson(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true

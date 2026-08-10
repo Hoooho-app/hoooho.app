@@ -76,7 +76,8 @@ export class HealthEventService {
   }
 
   async list(accountId) {
-    return this.repository.findByAccountId(accountId)
+    const events = await this.repository.findByAccountId(accountId)
+    return events.filter((event) => event.title.trim())
   }
 
   async get(accountId, id) {

@@ -93,9 +93,8 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     const listResponse = await jsonRequest(`${baseUrl}/api/events`, 'GET', first.token)
     assert.equal(listResponse.status, 200)
     const events = await listResponse.json()
-    assert.equal(events.length, 2)
-    assert.ok(events[0].createdAt >= events[1].createdAt)
-    assert.deepEqual(new Set(events.map((event) => event.id)), new Set([selfEvent.id, childEvent.id]))
+    assert.equal(events.length, 1)
+    assert.equal(events[0].id, childEvent.id)
 
     const updateResponse = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}`, 'PATCH', first.token, {
       title: '发热', status: 'handling'
@@ -110,6 +109,10 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     })
     assert.equal(namedEmptyEventResponse.status, 200)
     assert.equal((await namedEmptyEventResponse.json()).title, '咳嗽')
+
+    const afterNamingResponse = await jsonRequest(`${baseUrl}/api/events`, 'GET', first.token)
+    const afterNaming = await afterNamingResponse.json()
+    assert.deepEqual(new Set(afterNaming.map((event) => event.id)), new Set([selfEvent.id, childEvent.id]))
 
     const crossMemberCreate = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
       memberId: secondSelfMember.id,
