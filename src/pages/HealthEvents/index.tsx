@@ -83,6 +83,7 @@ export function HealthEventsPage() {
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   if (!profile) return <Navigate to="/onboarding/profile" replace />
 
@@ -98,8 +99,22 @@ export function HealthEventsPage() {
         && event.title.trim().length > 0
       ))
     : []
-  const visibleEvents = filterEvents(memberEvents, filters)
   const years = [...new Set(memberEvents.map((event) => new Date(event.startTime).getFullYear()))].sort((left, right) => right - left)
+  const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
+  const filteredEvents = filterEvents(memberEvents, filters)
+  const visibleEvents = activeYear === null
+    ? filteredEvents
+    : filteredEvents.filter((event) => new Date(event.startTime).getFullYear() === activeYear)
+
+  const selectYear = (year: number) => {
+    setSelectedYear(year)
+    if (filters.year !== null) setFilters((current) => ({ ...current, year: null }))
+  }
+
+  const applyFilters = (nextFilters: HealthEventFilters) => {
+    setFilters(nextFilters)
+    if (nextFilters.year !== null) setSelectedYear(nextFilters.year)
+  }
 
   const createEmptyEvent = async () => {
     if (!token || !currentMemberDto || creating) return
@@ -148,18 +163,45 @@ export function HealthEventsPage() {
       <UserIdentity member={currentMember} />
 
       <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
-        <div className="mb-4 flex min-h-11 items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">事件列表</h2>
-          <button
-            className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
-            type="button"
-            aria-label="筛选事件列表"
-            onClick={() => setFilterOpen(true)}
-          >
-            <Filter size={17} strokeWidth={1.8} />
-            筛选
-            {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-          </button>
+        <div className="mb-4 space-y-3">
+          <div className="flex min-h-11 items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-tight">事件列表</h2>
+            <button
+              className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
+              type="button"
+              aria-label="筛选事件列表"
+              onClick={() => setFilterOpen(true)}
+            >
+              <Filter size={17} strokeWidth={1.8} />
+              筛选
+              {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            </button>
+          </div>
+
+          {state.status === 'success' && years.length > 0 && (
+            <div
+              className="flex overflow-x-auto rounded-control border bg-surface px-2 shadow-card"
+              role="tablist"
+              aria-label="按年份切换健康事件"
+            >
+              {years.map((year) => {
+                const selected = year === activeYear
+                return (
+                  <button
+                    className={`relative min-h-12 min-w-24 flex-1 whitespace-nowrap px-4 text-sm transition ${selected ? 'font-semibold text-primary' : 'font-medium text-text-secondary hover:text-text-primary'}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    key={year}
+                    onClick={() => selectYear(year)}
+                  >
+                    {year}年
+                    {selected && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
         {state.status === 'loading' && (
           <Card className="py-12 text-center">
@@ -224,7 +266,7 @@ export function HealthEventsPage() {
         <Plus size={30} strokeWidth={1.8} />
       </button>
 
-      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} onClose={() => setFilterOpen(false)} onApply={setFilters} />
+      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
     </main>
   )
 }
