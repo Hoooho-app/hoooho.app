@@ -180,7 +180,7 @@ export function HealthEventsPage() {
 
           {state.status === 'success' && years.length > 0 && (
             <div
-              className="flex overflow-x-auto rounded-control border bg-surface px-2 shadow-card"
+              className="flex overflow-x-auto rounded-control border bg-surface px-2 shadow-card [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               role="tablist"
               aria-label="按年份切换健康事件"
             >
