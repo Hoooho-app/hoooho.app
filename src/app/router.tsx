@@ -4,7 +4,7 @@ import { CreateHealthEventPage, HealthEventsPage } from '../pages/HealthEvents'
 import { HealthProfilePage } from '../pages/HealthProfile'
 import { LoginPage } from '../pages/Login'
 import { ProfileSetupPage } from '../pages/ProfileSetup'
-import { AddFamilyMemberPage, FamilyPage } from '../pages/Family'
+import { AddFamilyMemberPage, EditFamilyMemberPage, FamilyPage } from '../pages/Family'
 import { UsageGuidePage } from '../pages/Guide'
 import { AccountSettingsPage, NotificationSettingsPage, PrivacySettingsPage, SettingsPage } from '../pages/Settings'
 import { MessageCenterPage } from '../pages/Messages'
@@ -27,6 +27,7 @@ export const router = createBrowserRouter([
       { path: '/health-profile', element: <HealthProfilePage /> },
       { path: '/family', element: <FamilyPage /> },
       { path: '/family/new', element: <AddFamilyMemberPage /> },
+      { path: '/family/:memberId/edit', element: <EditFamilyMemberPage /> },
       { path: '/guide', element: <UsageGuidePage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/settings/account', element: <AccountSettingsPage /> },

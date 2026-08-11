@@ -18,6 +18,9 @@ export class FamilyMemberRepository {
       gender: input.gender ?? null,
       birthday: input.birthday ?? null,
       avatar: input.avatar ?? null,
+      heightCm: input.heightCm ?? null,
+      weightKg: input.weightKg ?? null,
+      bloodType: input.bloodType ?? null,
       isSelf: Boolean(input.isSelf),
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
@@ -39,6 +42,9 @@ export class FamilyMemberRepository {
         gender: null,
         birthday: null,
         avatar: null,
+        heightCm: null,
+        weightKg: null,
+        bloodType: null,
         isSelf: true,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()

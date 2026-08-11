@@ -1,0 +1,584 @@
+{
+  "datasetVersion": "parser-p0-v1",
+  "description": "Hoooho Health Parser P0 基础评价集。用于建立 LocalFactProvider 基线，不用于驱动生产逻辑。",
+  "defaults": {
+    "context": {
+      "referenceNow": "2026-08-11T04:00:00.000Z",
+      "timezone": "Asia/Shanghai"
+    }
+  },
+  "cases": [
+    {
+      "id": "time-001",
+      "category": "time",
+      "difficulty": "easy",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "昨天晚上开始发烧",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "发热",
+            "time": {
+              "raw": "昨天晚上",
+              "resolvedStart": "2026-08-10T18:00:00+08:00",
+              "precision": "period"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-002",
+      "category": "time",
+      "difficulty": "hard",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "三年前做过一次手术",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "visit",
+            "nameIncludes": "手术",
+            "time": {
+              "raw": "三年前",
+              "precision": "fuzzy"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-003",
+      "category": "time",
+      "difficulty": "medium",
+      "failureCategory": ["time_error", "duration_missing"],
+      "input": "去年冬天经常咳嗽，大概持续一周",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "咳嗽",
+            "time": {
+              "raw": "去年",
+              "resolvedStart": "2025-01-01T00:00:00+08:00",
+              "precision": "year"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-004",
+      "category": "time",
+      "difficulty": "hard",
+      "failureCategory": ["time_error", "medication_missing"],
+      "input": "前几个月吃过一段时间的药",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "medication",
+            "nameIncludes": "药",
+            "time": {
+              "raw": "前几个月",
+              "precision": "fuzzy"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-005",
+      "category": "time",
+      "difficulty": "easy",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "今天早上喉咙痛",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "喉咙痛",
+            "time": {
+              "raw": "今天早上",
+              "resolvedStart": "2026-08-11T06:00:00+08:00",
+              "precision": "period"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-006",
+      "category": "time",
+      "difficulty": "medium",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "上周三晚上肚子疼",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "腹痛",
+            "time": {
+              "raw": "上周三晚上",
+              "resolvedStart": "2026-08-05T18:00:00+08:00",
+              "precision": "period"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-007",
+      "category": "time",
+      "difficulty": "hard",
+      "failureCategory": ["time_error", "relation_error"],
+      "input": "上周三晚上肚子疼，第二天去医院检查",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "visit",
+            "nameIncludes": "医院",
+            "time": {
+              "raw": "第二天",
+              "resolvedStart": "2026-08-06T00:00:00+08:00"
+            }
+          },
+          {
+            "type": "examination",
+            "nameIncludes": "检查",
+            "time": {
+              "raw": "第二天",
+              "resolvedStart": "2026-08-06T00:00:00+08:00"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-008",
+      "category": "time",
+      "difficulty": "easy",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "2024年5月10日开始胃疼",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "胃痛",
+            "time": {
+              "raw": "2024年5月10日",
+              "resolvedStart": "2024-05-10T00:00:00+08:00",
+              "precision": "exact"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-009",
+      "category": "time",
+      "difficulty": "medium",
+      "failureCategory": ["time_error", "entity_missing"],
+      "input": "小时候有过哮喘",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "哮喘",
+            "time": {
+              "raw": "小时候",
+              "precision": "fuzzy",
+              "resolvedStart": null
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "time-010",
+      "category": "time",
+      "difficulty": "hard",
+      "failureCategory": ["time_error"],
+      "input": "8月初皮肤开始红肿",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          {
+            "type": "symptom",
+            "name": "皮肤红肿",
+            "time": {
+              "raw": "8月初",
+              "precision": "month"
+            }
+          }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-001",
+      "category": "symptom_status",
+      "difficulty": "hard",
+      "failureCategory": ["status_change_missing", "time_error"],
+      "input": "孩子昨天发烧39度，吃美林后退下来，但是晚上又烧起来",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "发热" },
+          { "type": "temperature", "temperature": { "min": 39, "max": 39 } },
+          { "type": "medication", "nameIncludes": "美林" },
+          { "type": "status_change", "change": "improved", "target": "发热" },
+          { "type": "status_change", "change": "recurred", "target": "发热" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-002",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["status_change_missing", "entity_missing"],
+      "input": "咳嗽三天越来越严重",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "咳嗽" },
+          { "type": "status_change", "change": "worsened", "target": "咳嗽" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-003",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["status_change_missing", "entity_missing"],
+      "input": "一直腹痛",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "腹痛" },
+          { "type": "status_change", "change": "persistent", "target": "腹痛" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-004",
+      "category": "symptom_status",
+      "difficulty": "medium",
+      "failureCategory": ["status_change_missing", "relation_error"],
+      "input": "昨天头疼，今天已经没那么疼了",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "头痛", "time": { "raw": "昨天" } },
+          { "type": "status_change", "change": "improved", "target": "头痛", "time": { "raw": "今天" } }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-005",
+      "category": "symptom_status",
+      "difficulty": "medium",
+      "failureCategory": ["status_change_missing", "relation_error"],
+      "input": "昨晚手脚发凉，今天早上好多了",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "手脚发凉", "time": { "raw": "昨晚" } },
+          { "type": "status_change", "change": "improved", "target": "手脚发凉", "time": { "raw": "今天早上" } }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-006",
+      "category": "symptom_status",
+      "difficulty": "hard",
+      "failureCategory": ["status_change_missing"],
+      "input": "白天烧退了，晚上又开始发烧",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "status_change", "change": "improved", "target": "发热" },
+          { "type": "status_change", "change": "recurred", "target": "发热", "time": { "raw": "晚上" } }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-007",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["entity_missing"],
+      "input": "今天喉咙痛，还有流鼻涕",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "喉咙痛" },
+          { "type": "symptom", "name": "流鼻涕" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-008",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["body_part_error", "entity_missing"],
+      "input": "左手腕疼",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "疼痛", "bodyPart": "左手腕" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-009",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["entity_missing"],
+      "input": "皮肤起了红疹，而且很痒",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "皮疹" },
+          { "type": "symptom", "name": "瘙痒" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "status-010",
+      "category": "symptom_status",
+      "difficulty": "easy",
+      "failureCategory": ["entity_missing"],
+      "input": "胸闷，身体没精神",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "胸闷" },
+          { "type": "symptom", "name": "乏力" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "complex-001",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["negation_error", "status_change_missing"],
+      "input": "没有发烧，但是咳嗽越来越严重",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "咳嗽" },
+          { "type": "status_change", "change": "worsened", "target": "咳嗽" }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "temperature" },
+        { "type": "symptom", "name": "发热" }
+      ]
+    },
+    {
+      "id": "complex-002",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["negation_error", "entity_missing", "body_part_error"],
+      "input": "没有咳嗽，只是喉咙有点痒",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "瘙痒", "bodyPart": "喉咙" }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "symptom", "name": "咳嗽" }
+      ]
+    },
+    {
+      "id": "complex-003",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["negation_error", "temperature_error"],
+      "input": "体温36.8度，没有发烧",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "temperature", "temperature": { "min": 36.8, "max": 36.8 } }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "symptom", "name": "发热" }
+      ]
+    },
+    {
+      "id": "complex-004",
+      "category": "negation_complex",
+      "difficulty": "hard",
+      "failureCategory": ["negation_error", "entity_missing", "body_part_error"],
+      "input": "不是胃疼，是肚脐周围发胀",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "腹胀", "bodyPart": "肚脐周围" }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "symptom", "name": "胃痛" }
+      ]
+    },
+    {
+      "id": "complex-005",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["negation_error", "concern_error"],
+      "input": "担心是不是肺炎，但目前没有发烧",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "concern", "nameIncludes": "担心" }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "temperature" },
+        { "type": "symptom", "name": "发热" }
+      ]
+    },
+    {
+      "id": "complex-006",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["status_change_missing", "relation_error"],
+      "input": "吃了布洛芬，咳嗽还是没有改善",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "medication", "name": "布洛芬" },
+          { "type": "symptom", "name": "咳嗽" },
+          { "type": "status_change", "change": "persistent", "target": "咳嗽" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "complex-007",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["negation_error", "entity_missing", "body_part_error"],
+      "input": "头有点晕，但不疼",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "头晕", "bodyPart": "头" }
+        ]
+      },
+      "mustNotContain": [
+        { "type": "symptom", "name": "疼痛" }
+      ]
+    },
+    {
+      "id": "complex-008",
+      "category": "negation_complex",
+      "difficulty": "medium",
+      "failureCategory": ["status_change_missing", "temperature_error"],
+      "input": "烧到39左右，吃了美林后降下来了",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "temperature", "temperature": { "min": 39, "max": 39 } },
+          { "type": "medication", "name": "美林" },
+          { "type": "status_change", "change": "improved", "target": "发热" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "complex-009",
+      "category": "negation_complex",
+      "difficulty": "hard",
+      "failureCategory": ["time_error", "status_change_missing", "negation_error"],
+      "input": "前两天有点咳，现在已经不咳了",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": true,
+        "facts": [
+          { "type": "symptom", "name": "咳嗽", "time": { "raw": "前两天" } },
+          { "type": "status_change", "change": "improved", "target": "咳嗽" }
+        ]
+      },
+      "mustNotContain": []
+    },
+    {
+      "id": "complex-010",
+      "category": "negation_complex",
+      "difficulty": "easy",
+      "failureCategory": ["invalid_input_error"],
+      "input": "北京旅游，天气很好",
+      "context": {},
+      "expected": {
+        "hasHealthFacts": false,
+        "facts": []
+      },
+      "mustNotContain": [
+        { "type": "symptom" },
+        { "type": "temperature" },
+        { "type": "medication" },
+        { "type": "visit" },
+        { "type": "examination" },
+        { "type": "concern" },
+        { "type": "status_change" }
+      ]
+    }
+  ]
+}

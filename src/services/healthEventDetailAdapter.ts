@@ -49,9 +49,12 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     relation: relationLabels[member.relationship],
     birthday: member.birthday ?? undefined,
     gender: member.gender ?? '',
-    avatar: canGenerateAvatar
+    avatar: member.avatar ?? (canGenerateAvatar
       ? createVirtualAvatarId(member.birthday!, member.gender!)
-      : member.avatar ?? undefined,
+      : undefined),
+    heightCm: member.heightCm ?? undefined,
+    weightKg: member.weightKg ?? undefined,
+    bloodType: member.bloodType ?? undefined,
     age: member.birthday ? formatAgeFromBirthday(member.birthday) : '未填写年龄'
   }
 }

@@ -8,6 +8,9 @@ export interface Member {
   birthday?: string
   gender?: ProfileGender
   avatar?: string
+  heightCm?: number
+  weightKg?: number
+  bloodType?: 'A' | 'B' | 'AB' | 'O'
 }
 
 export type ProfileGender = 'male' | 'female' | 'undisclosed' | ''
@@ -41,6 +44,9 @@ export interface FamilyMemberApiDto {
   gender: ApiMemberGender
   birthday: string | null
   avatar: string | null
+  heightCm?: number | null
+  weightKg?: number | null
+  bloodType?: 'A' | 'B' | 'AB' | 'O' | null
   isSelf: boolean
   createdAt: string
   updatedAt: string

@@ -2,7 +2,8 @@ import { FamilyMemberRepository } from './repositories/family-member-repository.
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
-const editableFields = new Set(['name', 'relationship', 'gender', 'birthday', 'avatar'])
+const editableFields = new Set(['name', 'relationship', 'gender', 'birthday', 'avatar', 'heightCm', 'weightKg', 'bloodType'])
+const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
 
 export class FamilyMemberError extends Error {
   constructor(message, status = 400, code = 'MEMBER_ERROR') {
@@ -49,6 +50,21 @@ function validateAvatar(value) {
   return value
 }
 
+function validateOptionalNumber(value, label, min, max) {
+  if (value === undefined || value === null || value === '') return null
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < min || number > max) {
+    throw new FamilyMemberError(`${label}格式错误`, 400, `INVALID_${label === '身高' ? 'HEIGHT' : 'WEIGHT'}`)
+  }
+  return Math.round(number * 10) / 10
+}
+
+function validateBloodType(value) {
+  if (value === undefined || value === null || value === '') return null
+  if (!bloodTypes.has(value)) throw new FamilyMemberError('血型字段格式错误', 400, 'INVALID_BLOOD_TYPE')
+  return value
+}
+
 export class FamilyMemberService {
   constructor(options = {}) {
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
@@ -89,6 +105,9 @@ export class FamilyMemberService {
       if (key === 'gender') changes.gender = validateGender(input.gender)
       if (key === 'birthday') changes.birthday = validateBirthday(input.birthday)
       if (key === 'avatar') changes.avatar = validateAvatar(input.avatar)
+      if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
+      if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
+      if (key === 'bloodType') changes.bloodType = validateBloodType(input.bloodType)
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
     return this.repository.update(id, changes, now)

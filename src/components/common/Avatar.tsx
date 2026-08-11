@@ -4,16 +4,16 @@ import { VirtualAvatar } from './VirtualAvatar'
 interface AvatarProps {
   name: string
   src?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
-const sizes = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-16 w-16 text-lg' }
+const sizes = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-16 w-16 text-lg', xl: 'h-28 w-28 text-2xl' }
 
 export function Avatar({ name, src, size = 'md' }: AvatarProps) {
-  const virtualKind = parseVirtualAvatarId(src)
+  const virtualAvatar = parseVirtualAvatarId(src)
 
-  if (virtualKind) {
-    return <VirtualAvatar className={sizes[size]} kind={virtualKind} name={name} />
+  if (virtualAvatar) {
+    return <VirtualAvatar className={sizes[size]} kind={virtualAvatar.kind} name={name} variant={virtualAvatar.variant} />
   }
 
   return src ? (

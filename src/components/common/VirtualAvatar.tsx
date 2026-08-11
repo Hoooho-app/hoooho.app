@@ -4,19 +4,24 @@ interface VirtualAvatarProps {
   kind: VirtualAvatarKind
   className?: string
   name: string
+  variant?: number
 }
 
 const femaleKinds = new Set<VirtualAvatarKind>(['baby-girl', 'girl', 'woman', 'grandmother'])
 const childKinds = new Set<VirtualAvatarKind>(['baby-boy', 'baby-girl', 'boy', 'girl'])
 const elderKinds = new Set<VirtualAvatarKind>(['grandfather', 'grandmother'])
 
-export function VirtualAvatar({ kind, className = '', name }: VirtualAvatarProps) {
+export function VirtualAvatar({ kind, className = '', name, variant = 0 }: VirtualAvatarProps) {
   const female = femaleKinds.has(kind)
   const child = childKinds.has(kind)
   const elder = elderKinds.has(kind)
   const baby = kind.startsWith('baby-')
   const hair = elder ? '#94A3B8' : '#334155'
-  const clothing = elder ? '#7AA7A1' : female ? '#EFA3B1' : '#57B4AA'
+  const clothingPalettes = female
+    ? ['#EFA3B1', '#8BC7C0', '#F1B77A']
+    : ['#57B4AA', '#7FA6D9', '#E5A86B']
+  const clothing = elder ? ['#7AA7A1', '#8197B5', '#B59677'][variant] : clothingPalettes[variant]
+  const background = ['#E6F7F3', '#EEF3FB', '#FFF3E8'][variant]
   const faceY = baby ? 31 : child ? 29 : 28
   const faceRadius = baby ? 16 : child ? 15 : 14
   const hairPath = elder
@@ -32,7 +37,7 @@ export function VirtualAvatar({ kind, className = '', name }: VirtualAvatarProps
   return (
     <span className={`inline-flex shrink-0 overflow-hidden rounded-full bg-primary-soft ${className}`} role="img" aria-label={`${name}的虚拟卡通头像`}>
       <svg aria-hidden="true" viewBox="0 0 64 64" className="h-full w-full">
-        <circle cx="32" cy="32" r="32" fill="#E6F7F3" />
+        <circle cx="32" cy="32" r="32" fill={background} />
         <circle cx="11" cy="15" r="4" fill="#BEEBE5" opacity="0.75" />
         <circle cx="54" cy="12" r="2.5" fill="#F8C9D3" opacity="0.75" />
         <path d={baby ? 'M10 64c3-12 10-18 22-18s19 6 22 18' : 'M11 64c2-14 10-21 21-21s19 7 21 21'} fill={clothing} />

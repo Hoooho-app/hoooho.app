@@ -20,7 +20,7 @@ export const familyMemberService = {
 
   update(
     memberId: string,
-    input: Pick<FamilyMemberApiDto, 'name' | 'birthday' | 'gender' | 'avatar'>,
+    input: Pick<FamilyMemberApiDto, 'name' | 'birthday' | 'gender' | 'avatar' | 'heightCm' | 'weightKg' | 'bloodType'>,
     token: string,
     signal?: AbortSignal
   ) {
@@ -29,6 +29,14 @@ export const familyMemberService = {
       signal,
       method: 'PATCH',
       body: input
+    })
+  },
+
+  delete(memberId: string, token: string, signal?: AbortSignal) {
+    return apiRequest<{ success: true }>(`/api/members/${encodeURIComponent(memberId)}`, {
+      token,
+      signal,
+      method: 'DELETE'
     })
   }
 }

@@ -9,6 +9,8 @@ import type { Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import { createVirtualAvatarId } from '../../utils/virtualAvatar'
 
+export { EditFamilyMemberPage } from './EditFamilyMemberPage'
+
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
 
 export function FamilyPage() {

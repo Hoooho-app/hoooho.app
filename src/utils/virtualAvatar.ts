@@ -13,6 +13,11 @@ export type VirtualAvatarKind =
 
 const PREFIX = 'virtual:'
 
+export interface VirtualAvatarProfile {
+  kind: VirtualAvatarKind
+  variant: number
+}
+
 export function createVirtualAvatarId(birthday: string, gender: ProfileGender, today = new Date()) {
   const birthDate = parseISO(birthday)
   const age = isValid(birthDate) ? Math.max(differenceInYears(today, birthDate), 0) : 18
@@ -24,10 +29,19 @@ export function createVirtualAvatarId(birthday: string, gender: ProfileGender, t
   return `${PREFIX}${female ? 'grandmother' : 'grandfather'}`
 }
 
-export function parseVirtualAvatarId(value?: string): VirtualAvatarKind | null {
+export function cycleVirtualAvatarId(value: string | undefined, birthday: string, gender: ProfileGender) {
+  const current = parseVirtualAvatarId(value)
+  const base = createVirtualAvatarId(birthday, gender)
+  const kind = base.slice(PREFIX.length)
+  return `${PREFIX}${kind}:${((current?.variant ?? 0) + 1) % 3}`
+}
+
+export function parseVirtualAvatarId(value?: string): VirtualAvatarProfile | null {
   if (!value?.startsWith(PREFIX)) return null
-  const kind = value.slice(PREFIX.length) as VirtualAvatarKind
+  const [rawKind, rawVariant] = value.slice(PREFIX.length).split(':')
+  const kind = rawKind as VirtualAvatarKind
+  const variant = Number.parseInt(rawVariant ?? '0', 10)
   return ['baby-boy', 'baby-girl', 'boy', 'girl', 'man', 'woman', 'grandfather', 'grandmother'].includes(kind)
-    ? kind
+    ? { kind, variant: Number.isFinite(variant) ? Math.abs(variant) % 3 : 0 }
     : null
 }
