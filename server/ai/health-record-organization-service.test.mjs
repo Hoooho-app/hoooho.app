@@ -72,6 +72,37 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.equal(invalidPreview.hasHealthFacts, false)
     assert.deepEqual(invalidPreview.organizedHealthData.symptoms, [])
 
+    const structuredBodyPartPreview = await organizations.preview(accountId, event.id, {
+      rawInput: '颈部不舒服',
+      bodyLocations: ['颈'],
+      selectedOccurredAt: '2026-08-09T10:00:00+08:00'
+    })
+    assert.equal(structuredBodyPartPreview.hasHealthFacts, true)
+    assert.ok(structuredBodyPartPreview.healthAIOutput.facts.some((fact) => (
+      fact.type === 'symptom'
+      && fact.name === '颈部不舒服'
+      && fact.bodyPart === '颈'
+      && fact.time.resolvedStart === '2026-08-09T10:00:00+08:00'
+    )))
+
+    await assert.rejects(
+      () => organizations.preview(accountId, event.id, { rawInput: '   ', bodyLocations: [] }),
+      (error) => error.code === 'EMPTY_RAW_INPUT'
+    )
+
+    const structuredRecord = await records.create(accountId, event.id, {
+      type: 'symptom',
+      content: '颈部不舒服',
+      occurredAt: '2026-08-09T11:00:00+08:00'
+    })
+    const structuredOrganization = await organizations.organize(accountId, event.id, {
+      recordId: structuredRecord.id,
+      context: '身体部位：颈'
+    })
+    assert.ok(structuredOrganization.healthAIOutput.facts.some((fact) => (
+      fact.type === 'symptom' && fact.name === '颈部不舒服' && fact.bodyPart === '颈'
+    )))
+
     const coughPreview = await organizations.preview(accountId, event.id, { rawInput: '孩子咳嗽两天' })
     assert.equal(coughPreview.hasHealthFacts, true)
 
@@ -114,7 +145,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.equal(persistence.change, 'persistent')
 
     const list = await organizations.list(accountId, event.id)
-    assert.equal(list.length, 6)
+    assert.equal(list.length, 7)
     assert.ok(list.every((organization) => organization.schemaVersion === 5))
     await assert.rejects(() => organizations.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
   } finally {

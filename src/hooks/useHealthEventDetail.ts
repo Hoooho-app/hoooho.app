@@ -106,9 +106,9 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return created
   }, [eventId, token])
 
-  const previewRecord = useCallback(async (rawInput: string) => {
+  const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string }) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
-    return healthRecordOrganizationService.preview(eventId, rawInput, token)
+    return healthRecordOrganizationService.preview(eventId, rawInput, token, options)
   }, [eventId, token])
 
   const organizeRecord = useCallback(async (recordId: string, context?: string) => {

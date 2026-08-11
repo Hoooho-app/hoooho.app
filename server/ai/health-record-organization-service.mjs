@@ -4,6 +4,58 @@ import { HealthEventRecordRepository } from '../events/repositories/health-event
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
 import { hasHealthFacts, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
 
+function normalizeBodyLocations(value) {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean))].slice(0, 12)
+}
+
+function readBodyLocations(input) {
+  const explicit = normalizeBodyLocations(input?.bodyLocations)
+  if (explicit.length) return explicit
+  const context = typeof input?.context === 'string' ? input.context.trim().slice(0, 240) : ''
+  return context.startsWith('身体部位：')
+    ? normalizeBodyLocations(context.slice('身体部位：'.length).split('、'))
+    : []
+}
+
+function mergeStructuredHealthFacts(healthAIOutput, { bodyLocations, rawInput, occurredAt }) {
+  if (!bodyLocations.length) return healthAIOutput
+  const firstSymptomIndex = healthAIOutput.facts.findIndex((fact) => fact.type === 'symptom')
+  if (firstSymptomIndex >= 0) {
+    return normalizeHealthAIOutput({
+      ...healthAIOutput,
+      facts: healthAIOutput.facts.map((fact, index) => index === firstSymptomIndex && !fact.bodyPart
+        ? { ...fact, bodyPart: bodyLocations.join('、') }
+        : fact)
+    })
+  }
+
+  const description = typeof rawInput === 'string' && rawInput.trim()
+    ? rawInput.trim()
+    : `${bodyLocations.join('、')}不舒服`
+  return normalizeHealthAIOutput({
+    ...healthAIOutput,
+    facts: [
+      ...healthAIOutput.facts,
+      {
+        id: `structured-body-part-${healthAIOutput.facts.length + 1}`,
+        type: 'symptom',
+        name: description,
+        bodyPart: bodyLocations.join('、'),
+        sourceText: description,
+        time: {
+          raw: null,
+          resolvedStart: occurredAt || null,
+          resolvedEnd: null,
+          precision: occurredAt ? 'exact' : 'unknown',
+          source: 'selected_time'
+        },
+        confidence: 1
+      }
+    ]
+  })
+}
+
 export class HealthRecordOrganizationError extends Error {
   constructor(message, status = 400, code = 'HEALTH_RECORD_ORGANIZATION_ERROR') {
     super(message)
@@ -36,23 +88,15 @@ export class HealthRecordOrganizationService {
       throw new HealthRecordOrganizationError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
     }
 
-    const context = typeof input?.context === 'string' ? input.context.trim().slice(0, 240) : ''
     const organized = await this.ai.organizeHealthRecord(record.content, {
       selectedOccurredAt: record.occurredAt,
       timezone: input?.timezone
     })
-    const bodyLocations = context.startsWith('身体部位：')
-      ? context.slice('身体部位：'.length).split('、').map((item) => item.trim()).filter(Boolean)
-      : []
-    const firstSymptomIndex = organized.healthAIOutput.facts.findIndex((fact) => fact.type === 'symptom')
-    const healthAIOutput = bodyLocations.length && firstSymptomIndex >= 0
-      ? normalizeHealthAIOutput({
-          ...organized.healthAIOutput,
-          facts: organized.healthAIOutput.facts.map((fact, index) => index === firstSymptomIndex && !fact.bodyPart
-            ? { ...fact, bodyPart: bodyLocations.join('、') }
-            : fact)
-        })
-      : organized.healthAIOutput
+    const healthAIOutput = mergeStructuredHealthFacts(organized.healthAIOutput, {
+      bodyLocations: readBodyLocations(input),
+      rawInput: record.content,
+      occurredAt: record.occurredAt
+    })
     return this.repository.upsert({
       accountId,
       eventId,
@@ -71,10 +115,15 @@ export class HealthRecordOrganizationService {
       selectedOccurredAt: input?.selectedOccurredAt,
       timezone: input?.timezone
     })
+    const healthAIOutput = mergeStructuredHealthFacts(organized.healthAIOutput, {
+      bodyLocations: readBodyLocations(input),
+      rawInput: input?.rawInput,
+      occurredAt: input?.selectedOccurredAt
+    })
     return {
-      hasHealthFacts: hasHealthFacts(organized.healthAIOutput),
-      healthAIOutput: organized.healthAIOutput,
-      organizedHealthData: organized.organizedHealthData,
+      hasHealthFacts: hasHealthFacts(healthAIOutput),
+      healthAIOutput,
+      organizedHealthData: projectOrganizedHealthData(healthAIOutput),
       provider: organized.provider
     }
   }

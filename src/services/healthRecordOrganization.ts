@@ -2,11 +2,11 @@ import type { HealthRecordOrganizationApiDto, HealthRecordOrganizationPreviewApi
 import { apiRequest } from './apiClient'
 
 export const healthRecordOrganizationService = {
-  preview(eventId: string, rawInput: string, token: string) {
+  preview(eventId: string, rawInput: string, token: string, options: { bodyLocations?: string[]; selectedOccurredAt?: string } = {}) {
     return apiRequest<HealthRecordOrganizationPreviewApiDto>(`/api/events/${encodeURIComponent(eventId)}/organizations/preview`, {
       token,
       method: 'POST',
-      body: { rawInput }
+      body: { rawInput, ...options }
     })
   },
 

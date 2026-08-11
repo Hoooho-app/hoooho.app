@@ -74,19 +74,22 @@ export function HealthEventDetailPage() {
     const attachments = input.attachments ?? []
     const bodyLocations = input.bodyLocations ?? []
     const organizationContext = bodyLocations.length ? `身体部位：${bodyLocations.join('、')}` : ''
-    if (!originalText && !attachments.length) throw new Error('请先输入健康记录内容或添加图片')
+    if (!originalText && !attachments.length && !bodyLocations.length) throw new Error('请先输入健康记录内容、选择身体部位或添加图片')
 
-    const preview = originalText ? await previewRecord(originalText) : null
-    if (!preview?.hasHealthFacts && !attachments.length) {
+    const recordText = originalText || (bodyLocations.length ? `${bodyLocations.join('、')}不舒服` : '')
+    const preview = recordText
+      ? await previewRecord(recordText, { bodyLocations, selectedOccurredAt: input.occurredAt })
+      : null
+    if (!preview?.hasHealthFacts && !attachments.length && !bodyLocations.length) {
       throw new Error('暂未识别到健康相关信息。请描述哪里不舒服、什么时候开始或有什么症状，然后重新编辑。')
     }
 
     const created = await addRecord({
-      type: originalText ? input.type : 'note',
-      content: originalText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
+      type: recordText ? input.type : 'note',
+      content: recordText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
       occurredAt: input.occurredAt
     })
-    if (originalText) await organizeRecord(created.id, organizationContext)
+    if (recordText) await organizeRecord(created.id, organizationContext)
     for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
     if (!state.data.eventDto.title) {
       const title = preview
