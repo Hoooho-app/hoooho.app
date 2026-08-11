@@ -16,8 +16,12 @@ interface HealthEventTimelineProps {
 
 function groupEvents(events: HealthEventListItemViewModel[]): DateGroup[] {
   const dates = new Map<string, HealthEventListItemViewModel[]>()
-  for (const event of [...events].sort((left, right) => right.startTime.localeCompare(left.startTime))) {
-    const date = event.startTime.slice(0, 10)
+  for (const event of [...events].sort((left, right) => (
+    right.occurredAt.localeCompare(left.occurredAt)
+      || right.createdAt.localeCompare(left.createdAt)
+      || right.id.localeCompare(left.id)
+  ))) {
+    const date = event.occurredAt.slice(0, 10)
     dates.set(date, [...(dates.get(date) ?? []), event])
   }
   return [...dates].map(([date, groupedEvents]) => ({ date, events: groupedEvents }))

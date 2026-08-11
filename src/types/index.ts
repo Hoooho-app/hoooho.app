@@ -81,6 +81,8 @@ export interface HealthEventListItemViewModel {
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string
+  occurredAt: string
+  createdAt: string
   updatedAt: string
 }
 

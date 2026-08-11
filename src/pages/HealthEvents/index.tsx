@@ -55,13 +55,13 @@ function hasActiveFilters(filters: HealthEventFilters) {
 function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters) {
   const now = new Date()
   return events.filter((event) => {
-    const eventDate = new Date(event.startTime)
+    const eventDate = new Date(event.occurredAt)
     if (filters.range === '7d' && eventDate < new Date(now.getTime() - 7 * 86_400_000)) return false
     if (filters.range === '30d' && eventDate < new Date(now.getTime() - 30 * 86_400_000)) return false
     if (filters.range === 'year' && eventDate.getFullYear() !== now.getFullYear()) return false
     if (filters.range === 'custom') {
-      if (filters.customStart && event.startTime.slice(0, 10) < filters.customStart) return false
-      if (filters.customEnd && event.startTime.slice(0, 10) > filters.customEnd) return false
+      if (filters.customStart && event.occurredAt.slice(0, 10) < filters.customStart) return false
+      if (filters.customEnd && event.occurredAt.slice(0, 10) > filters.customEnd) return false
     }
     if (filters.year !== null && eventDate.getFullYear() !== filters.year) return false
     if (filters.months.length > 0 && !filters.months.includes(eventDate.getMonth() + 1)) return false
@@ -99,12 +99,12 @@ export function HealthEventsPage() {
         && event.title.trim().length > 0
       ))
     : []
-  const years = [...new Set(memberEvents.map((event) => new Date(event.startTime).getFullYear()))].sort((left, right) => right - left)
+  const years = [...new Set(memberEvents.map((event) => new Date(event.occurredAt).getFullYear()))].sort((left, right) => right - left)
   const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
   const filteredEvents = filterEvents(memberEvents, filters)
   const visibleEvents = activeYear === null
     ? filteredEvents
-    : filteredEvents.filter((event) => new Date(event.startTime).getFullYear() === activeYear)
+    : filteredEvents.filter((event) => new Date(event.occurredAt).getFullYear() === activeYear)
 
   const selectYear = (year: number) => {
     setSelectedYear(year)

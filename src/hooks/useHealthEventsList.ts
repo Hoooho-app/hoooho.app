@@ -4,6 +4,7 @@ import { ApiRequestError } from '../services/apiClient'
 import { familyMemberService } from '../services/familyMembers'
 import { adaptFamilyMember } from '../services/healthEventDetailAdapter'
 import { adaptHealthEventList } from '../services/healthEventListAdapter'
+import { healthEventRecordService } from '../services/healthEventRecords'
 import { healthEventService } from '../services/healthEvents'
 import { useAppStore } from '../store/useAppStore'
 
@@ -33,7 +34,11 @@ export function useHealthEventsList() {
         healthEventService.list(token, signal),
         familyMemberService.list(token, signal)
       ])
+      const recordEntries = await Promise.all(eventDtos.map(async (event) => (
+        [event.id, await healthEventRecordService.list(event.id, token, signal)] as const
+      )))
       if (signal?.aborted) return
+      const recordsByEventId = new Map(recordEntries)
       const adaptedMembers = memberDtos.map(adaptFamilyMember)
       setMembers(adaptedMembers)
       const currentId = useAppStore.getState().currentMemberId
@@ -43,7 +48,7 @@ export function useHealthEventsList() {
       setState({
         status: 'success',
         data: {
-          events: adaptHealthEventList(eventDtos, memberDtos),
+          events: adaptHealthEventList(eventDtos, memberDtos, recordsByEventId),
           memberDtos,
           members: adaptedMembers
         }
