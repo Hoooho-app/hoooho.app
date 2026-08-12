@@ -3,6 +3,7 @@ import { ArrowUpDown, ChevronDown, ChevronUp, Clock3, PlusCircle } from 'lucide-
 import type { CreateHealthEventRecordInput, EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Button, Card } from '../../../components/common'
 import { groupTimelineByYearAndDate } from '../../../services/healthTimelineGrouping'
+import { compareHealthChronologyAsc, compareHealthChronologyDesc } from '../../../services/healthChronology'
 import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 
 interface TimelineSectionProps {
@@ -19,9 +20,11 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
   const [expandedAttachmentEntries, setExpandedAttachmentEntries] = useState<Set<string>>(new Set())
 
   const timeline = useMemo(() => [...event.timeline].sort((left, right) => {
-    const timeComparison = left.time.localeCompare(right.time)
-    if (timeComparison) return order === 'desc' ? -timeComparison : timeComparison
-    return (left.sequence ?? 0) - (right.sequence ?? 0) || left.id.localeCompare(right.id)
+    const normalizedLeft = { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time }
+    const normalizedRight = { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
+    return order === 'desc'
+      ? compareHealthChronologyDesc(normalizedLeft, normalizedRight)
+      : compareHealthChronologyAsc(normalizedLeft, normalizedRight)
   }), [event.timeline, order])
 
   const timelineGroups = useMemo(() => groupTimelineByYearAndDate(timeline), [timeline])

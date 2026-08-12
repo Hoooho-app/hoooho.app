@@ -225,6 +225,7 @@ export type HealthEventStage = 'observing' | 'handling' | 'recovered'
 export interface TimelineEntry {
   id: string
   time: string
+  createdAt?: string
   displayTime?: string
   periodLabel?: string
   content: string

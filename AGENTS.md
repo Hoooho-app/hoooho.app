@@ -26,3 +26,11 @@ See `docs/hoho-design-system-v1.md` for the component and token contract and `do
 - Every write of `startTime` or `occurredAt` must enforce `value <= current time` in both the UI and the server API.
 - The server is authoritative: future values must fail validation before persistence or AI Parser/Organization processing.
 - Compare instants after ISO 8601 parsing so client and server timezone differences do not change the rule.
+## Hoho Health Chronology
+
+- Health timelines and health-record lists default to newest first.
+- The stable ordering contract is `occurredAt DESC -> createdAt DESC -> id DESC`.
+- This contract applies to event detail timelines, same-day records, temperature, medication, visit, examination, status-change and backfilled history displays.
+- Backfilled history is positioned by its actual `occurredAt`; a newer `createdAt` must not move an older occurrence above more recent health records.
+- Year navigation lists only years that contain events and orders them newest to oldest.
+- Do not substitute `createdAt` or `updatedAt` for `occurredAt` when displaying or ordering health chronology.

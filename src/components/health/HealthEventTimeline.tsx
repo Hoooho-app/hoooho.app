@@ -3,6 +3,7 @@ import { zhCN } from 'date-fns/locale'
 import { HealthTimeline } from '../design-system'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
 import { HealthEventCard } from './HealthEventCard'
+import { compareHealthChronologyDesc } from '../../services/healthChronology'
 
 interface DateGroup {
   date: string
@@ -17,11 +18,7 @@ interface HealthEventTimelineProps {
 
 function groupEvents(events: HealthEventListItemViewModel[]): DateGroup[] {
   const dates = new Map<string, HealthEventListItemViewModel[]>()
-  for (const event of [...events].sort((left, right) => (
-    right.occurredAt.localeCompare(left.occurredAt)
-      || right.createdAt.localeCompare(left.createdAt)
-      || right.id.localeCompare(left.id)
-  ))) {
+  for (const event of [...events].sort(compareHealthChronologyDesc)) {
     const date = event.occurredAt.slice(0, 10)
     dates.set(date, [...(dates.get(date) ?? []), event])
   }

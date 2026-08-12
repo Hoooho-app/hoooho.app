@@ -16,6 +16,7 @@ import type {
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
 import { createVirtualAvatarId } from '../utils/virtualAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
+import { compareHealthChronologyDesc } from './healthChronology'
 
 const relationLabels: Record<FamilyMemberApiDto['relationship'], MemberRelation> = {
   self: '本人',
@@ -127,12 +128,21 @@ function uniqueFactNames(facts: FactContext[], type: HealthFactType) {
 
 function factTime(item: FactContext) {
   return item.fact.time.resolvedStart
-    ?? item.record?.createdAt
+    ?? item.record?.occurredAt
     ?? item.organization.createdAt
 }
 
+function factCreatedAt(item: FactContext) {
+  return item.record?.createdAt ?? item.organization.createdAt
+}
+
 function buildTemperatureRecords(facts: FactContext[]) {
-  return facts.filter((item) => item.fact.type === 'temperature' && item.fact.temperature).map((item) => {
+  return facts.filter((item) => item.fact.type === 'temperature' && item.fact.temperature)
+    .sort((left, right) => compareHealthChronologyDesc(
+      { id: left.fact.id, occurredAt: factTime(left), createdAt: factCreatedAt(left) },
+      { id: right.fact.id, occurredAt: factTime(right), createdAt: factCreatedAt(right) }
+    ))
+    .map((item) => {
     const temperature = item.fact.temperature!
     const time = factTime(item)
     const label = temperature.min === temperature.max
@@ -146,7 +156,7 @@ function buildTemperatureRecords(facts: FactContext[]) {
       label,
       periodLabel: factPeriodLabel(item.fact, time)
     }
-  }).sort((left, right) => left.time.localeCompare(right.time))
+    })
 }
 
 function buildFactTimeline(
@@ -167,6 +177,7 @@ function buildFactTimeline(
     return {
       id: `${item.organization.id}-${item.fact.id}`,
       time,
+      createdAt: factCreatedAt(item),
       displayTime: item.fact.time.raw ?? undefined,
       periodLabel: factPeriodLabel(item.fact, time),
       content,
@@ -183,8 +194,9 @@ function buildFactTimeline(
     !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) > 0
   )).map((record): TimelineEntry => ({
     id: `${record.id}-attachments`,
-    time: record.createdAt,
-    periodLabel: formatHealthTimePeriod(undefined, record.createdAt),
+    time: record.occurredAt,
+    createdAt: record.createdAt,
+    periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
     content: '添加图片',
     recordType: 'note',
     kind: 'text',
@@ -194,10 +206,9 @@ function buildFactTimeline(
     attachments: attachmentsByRecord.get(record.id) ?? []
   }))
 
-  return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => (
-    right.time.localeCompare(left.time)
-    || (left.sequence ?? 0) - (right.sequence ?? 0)
-    || left.id.localeCompare(right.id)
+  return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => compareHealthChronologyDesc(
+    { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
+    { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))
 }
 
