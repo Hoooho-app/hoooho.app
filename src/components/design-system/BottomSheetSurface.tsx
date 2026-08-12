@@ -6,12 +6,13 @@ export interface BottomSheetSurfaceProps {
   children: ReactNode
   footer?: ReactNode
   label: string
+  navigation?: ReactNode
   onClose: () => void
   open: boolean
   title: string
 }
 
-export function BottomSheetSurface({ children, footer, label, onClose, open, title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, footer, label, navigation, onClose, open, title }: BottomSheetSurfaceProps) {
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function BottomSheetSurface({ children, footer, label, onClose, open, tit
             <X size={21} strokeWidth={1.8} />
           </button>
         </header>
+        {navigation && <div className="hoho-bottom-sheet__navigation">{navigation}</div>}
         <div className="hoho-bottom-sheet__body">{children}</div>
         {footer && <footer className="hoho-bottom-sheet__footer">{footer}</footer>}
       </section>

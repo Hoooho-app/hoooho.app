@@ -245,19 +245,19 @@
     position: absolute;
     inset: 0;
     width: 100%;
-    background: rgb(var(--hoho-color-text-primary) / 0.32);
+    background: rgb(var(--hoho-color-text-primary) / 0.24);
   }
 
   .hoho-bottom-sheet {
     position: relative;
     display: flex;
-    width: min(100%, 402px);
-    max-height: calc(100dvh - max(16px, env(safe-area-inset-top)));
+    width: min(calc(100vw - 24px), 520px);
+    max-height: min(78dvh, 720px);
+    margin: 0 auto 12px;
     flex-direction: column;
     overflow: hidden;
     border: 1px solid rgb(var(--hoho-color-border));
-    border-bottom: 0;
-    border-radius: var(--hoho-radius-large) var(--hoho-radius-large) 0 0;
+    border-radius: calc(var(--hoho-radius-large) + var(--hoho-space-2));
     background: rgb(var(--hoho-color-surface));
     box-shadow: var(--hoho-shadow-floating);
     animation: hoho-bottom-sheet-enter 180ms ease-out;
@@ -272,19 +272,19 @@
     width: 44px;
     height: 5px;
     flex: 0 0 auto;
-    margin: var(--hoho-space-3) auto var(--hoho-space-1);
+    margin: var(--hoho-space-3) auto 0;
     border-radius: var(--hoho-radius-pill);
     background: rgb(var(--hoho-color-border-strong));
   }
 
   .hoho-bottom-sheet__header {
     display: flex;
-    min-height: 56px;
+    min-height: 52px;
     flex: 0 0 auto;
     align-items: center;
     justify-content: space-between;
     gap: var(--hoho-space-3);
-    padding: 0 var(--hoho-space-4);
+    padding: 0 var(--hoho-space-5);
   }
 
   .hoho-bottom-sheet__close {
@@ -298,20 +298,28 @@
     color: rgb(var(--hoho-color-text-secondary));
   }
 
+  .hoho-bottom-sheet__navigation {
+    flex: 0 0 auto;
+    padding: var(--hoho-space-1) var(--hoho-space-5) var(--hoho-space-3);
+  }
+
   .hoho-bottom-sheet__body {
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--hoho-space-2) var(--hoho-space-4) var(--hoho-space-5);
+    padding: var(--hoho-space-2) var(--hoho-space-5) var(--hoho-space-5);
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
+
+  .hoho-bottom-sheet__body::-webkit-scrollbar { display: none; }
 
   .hoho-bottom-sheet__footer {
     flex: 0 0 auto;
     border-top: 1px solid rgb(var(--hoho-color-border));
     background: rgb(var(--hoho-color-surface));
-    padding: var(--hoho-space-3) var(--hoho-space-4) max(var(--hoho-space-4), env(safe-area-inset-bottom));
+    padding: var(--hoho-space-3) var(--hoho-space-5) calc(var(--hoho-space-4) + env(safe-area-inset-bottom));
   }
 
   .hoho-timeline { display: grid; gap: var(--hoho-space-4); }

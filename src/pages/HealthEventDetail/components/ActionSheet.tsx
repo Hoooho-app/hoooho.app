@@ -67,7 +67,15 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
   }
 
   return (
-    <BottomSheetSurface label="行动" onClose={onClose} open={open} title="行动" footer={category === 'observation'
+    <BottomSheetSurface label="行动" onClose={onClose} open={open} title="行动" navigation={(
+      <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="行动分类">
+        {(['observation', 'hospital', 'consultation', 'help'] as ActionCategory[]).map((key) => (
+          <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
+            {key === 'observation' ? '重点观察' : categoryContent[key].label}
+          </button>
+        ))}
+      </div>
+    )} footer={category === 'observation'
       ? <ObservationFooter onComingSoon={onComingSoon} recorder={recorder} />
       : selectedFeature && (
         <div className="grid gap-2">
@@ -76,15 +84,7 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
           ))}
         </div>
       )}>
-      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
-        {(['observation', 'hospital', 'consultation', 'help'] as ActionCategory[]).map((key) => (
-          <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
-            {key === 'observation' ? '重点观察' : categoryContent[key].label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5">
+      <div>
         {category === 'observation' ? (
           <ObservationContent onComingSoon={onComingSoon} recorder={recorder} setRecorder={setRecorder} />
         ) : selectedFeature ? (
@@ -104,7 +104,7 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
         ) : (
           <div>
             <Typography variant="body">{current?.description}</Typography>
-            <div className="mt-4 overflow-hidden rounded-card border bg-surface">
+            <div className="health-action-list mt-4 overflow-hidden rounded-card border bg-surface">
               {current?.features.map((feature) => {
                 const Icon = feature.icon
                 return (
