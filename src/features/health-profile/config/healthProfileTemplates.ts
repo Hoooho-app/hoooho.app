@@ -11,3 +11,9 @@ export const healthProfilePriorities: Record<HealthProfileType, HealthProfileSec
   'elder-female': ['history', 'medication', 'indicators', 'examination', 'care'],
   'elder-male': ['history', 'medication', 'indicators', 'examination', 'care'],
 }
+
+export const healthProfileSecondaryOrder: Partial<Record<HealthProfileType, HealthProfileSectionId[]>> = {
+  'adult-male': ['allergy', 'family-history', 'vaccination', 'sleep'],
+  'adult-female': ['allergy', 'family-history', 'vaccination', 'indicators', 'sleep'],
+  infant: ['basic', 'examination', 'family-history', 'sleep'],
+}
