@@ -51,6 +51,19 @@
   .health-observation-chip { @apply min-h-9 rounded-pill border px-3 text-xs font-medium text-text-secondary; background: rgb(var(--hoho-color-surface)); }
   .health-observation-chip[data-selected='true'] { border-color: rgb(var(--hoho-color-primary) / 0.35); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
 
+  .first-record-form-row { @apply grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2; }
+  .first-record-form-label,
+  .first-record-form-field { min-width: 0; max-width: 100%; }
+  .first-record-datetime { @apply relative block min-w-0 max-w-full overflow-hidden; }
+  .first-record-datetime input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+
+  @media (max-width: 480px) {
+    .first-record-composer__card { padding-inline: var(--hoho-space-4); }
+    .first-record-form-row { @apply block; }
+    .first-record-form-label { @apply mb-2 block w-full p-0; }
+    .first-record-form-field { @apply block w-full; }
+  }
+
   .hoho-page-header {
     border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.75);
     background: rgb(var(--hoho-color-surface) / 0.94);

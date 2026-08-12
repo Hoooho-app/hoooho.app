@@ -98,46 +98,46 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
   }
 
   return (
-    <section aria-labelledby="first-record-title">
-      <Card>
+    <section aria-labelledby="first-record-title" className="first-record-composer">
+      <Card className="first-record-composer__card">
         <h2 className="section-title text-heading" id="first-record-title">记录情况</h2>
 
         <div className="mt-5 space-y-5">
-          <label className="grid grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-2">
-            <span className="text-sm font-medium text-heading">发生时间</span>
-            <span className="relative block">
-              <input className="hoho-input pr-10" max={localDateTimeValue()} onChange={(event) => {
+          <label className="first-record-form-row items-center">
+            <span className="first-record-form-label text-sm font-medium text-heading">发生时间</span>
+            <span className="first-record-form-field first-record-datetime">
+              <input className="hoho-input min-w-0 max-w-full pr-10" max={localDateTimeValue()} onChange={(event) => {
                 const nextValue = clampOccurredAtToNow(event.target.value)
                 setOccurredAt(nextValue)
                 setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
               }} type="datetime-local" value={occurredAt} />
-              <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+              <CalendarDays className="pointer-events-none absolute right-3 top-1/2 shrink-0 -translate-y-1/2 text-text-secondary" size={18} />
             </span>
           </label>
 
-          <div className="grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2">
-            <p className="pt-2 text-sm font-medium text-heading">身体部位</p>
-            <div className="grid grid-cols-6 gap-2" aria-label="身体部位快速选择">
+          <div className="first-record-form-row">
+            <p className="first-record-form-label pt-2 text-sm font-medium text-heading">身体部位</p>
+            <div className="first-record-form-field flex flex-wrap gap-2" aria-label="身体部位快速选择">
               {bodyLocations.map((location) => {
                 const selected = selectedLocations.includes(location)
-                return <button aria-pressed={selected} className={`min-h-9 rounded-pill border px-1 text-xs font-medium transition ${selected ? 'border-primary bg-primary text-surface' : 'border-primary/20 bg-surface text-text-secondary'}`} key={location} onClick={() => toggleLocation(location)} type="button">{location}</button>
+                return <button aria-pressed={selected} className={`min-h-9 shrink-0 rounded-pill border px-3 text-xs font-medium transition ${selected ? 'border-primary bg-primary text-surface' : 'border-primary/20 bg-surface text-text-secondary'}`} key={location} onClick={() => toggleLocation(location)} type="button">{location}</button>
               })}
             </div>
           </div>
 
-          <label className="grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2">
-            <span className="pt-3 text-sm font-medium text-heading">描述情况</span>
-            <span className="relative block">
-              <textarea aria-label="描述健康情况" autoFocus className="hoho-textarea h-36 resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder={'请直接描述发生了什么，例如：\n8月6日晚开始发烧，早上体温38.5℃，吃了一次退烧药。'} ref={textAreaRef} value={text} />
+          <label className="first-record-form-row">
+            <span className="first-record-form-label pt-3 text-sm font-medium text-heading">描述情况</span>
+            <span className="first-record-form-field relative overflow-hidden">
+              <textarea aria-label="描述健康情况" autoFocus className="hoho-textarea h-36 min-w-0 max-w-full resize-y pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder={'请直接描述发生了什么，例如：\n8月6日晚开始发烧，早上体温38.5℃，吃了一次退烧药。'} ref={textAreaRef} value={text} />
               <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
             </span>
           </label>
 
-          <div className="grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2">
-            <p className="pt-2 text-sm font-medium text-heading">添加图片</p>
-            <div>
+          <div className="first-record-form-row">
+            <p className="first-record-form-label pt-2 text-sm font-medium text-heading">添加图片</p>
+            <div className="first-record-form-field min-w-0">
               <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
-              <button className="inline-flex min-h-10 items-center gap-2 rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus size={18} />添加图片</button>
+              <button className="inline-flex min-h-10 max-w-full flex-wrap items-center gap-2 rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus className="shrink-0" size={18} />添加图片</button>
               {attachments.length > 0 && (
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {attachments.map((attachment, index) => (
