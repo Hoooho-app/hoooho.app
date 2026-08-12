@@ -114,6 +114,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   const organizeRecord = useCallback(async (recordId: string, context?: string) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     const organization = await healthRecordOrganizationService.organize(eventId, recordId, token, context)
+    const refreshedEvent = await healthEventService.getById(eventId, token)
     setState((current) => {
       if (current.status !== 'success') return current
       const organizations = [
@@ -124,8 +125,9 @@ export function useHealthEventDetail(eventId: string | undefined) {
         status: 'success',
         data: {
           ...current.data,
+          eventDto: refreshedEvent,
           organizations,
-          viewModel: adaptHealthEventDetail(current.data.eventDto, current.data.records, organizations, current.data.attachments)
+          viewModel: adaptHealthEventDetail(refreshedEvent, current.data.records, organizations, current.data.attachments)
         }
       }
     })
@@ -184,9 +186,25 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return updatedEvent
   }, [eventId, token])
 
+  const correctSummary = useCallback(async (input: { title: string; summary: string }) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const updatedEvent = await healthEventService.correctSummary(eventId, input, token)
+    setState((current) => current.status === 'success'
+      ? {
+          status: 'success',
+          data: {
+            ...current.data,
+            eventDto: updatedEvent,
+            viewModel: adaptHealthEventDetail(updatedEvent, current.data.records, current.data.organizations, current.data.attachments)
+          }
+        }
+      : current)
+    return updatedEvent
+  }, [eventId, token])
+
   const retry = useCallback(() => {
     void load()
   }, [load])
 
-  return { state, addRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, retry }
+  return { state, addRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, correctSummary, retry }
 }

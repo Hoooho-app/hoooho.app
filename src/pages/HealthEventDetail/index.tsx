@@ -4,12 +4,12 @@ import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
-import { deriveHealthEventTitleFromFacts } from '../../services/healthEventFacts'
 import {
   EventHeader,
   ActionSheet,
   ComingSoonPrompt,
   EventDetailStickyHeader,
+  EventSummarySection,
   FirstRecordComposer,
   HealthRecordEditorModal,
   TemperatureChartSection,
@@ -19,7 +19,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, correctSummary, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [recordEditorOpen, setRecordEditorOpen] = useState(false)
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
@@ -97,11 +97,8 @@ export function HealthEventDetailPage() {
     })
     if (recordText) await organizeRecord(created.id, organizationContext)
     for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
-    if (!state.data.eventDto.title) {
-      const title = preview
-        ? deriveHealthEventTitleFromFacts(preview.healthAIOutput, attachments.length > 0)
-        : '健康附件'
-      if (title) await updateTitle(title.slice(0, 120))
+    if (!state.data.eventDto.title && !preview?.hasHealthFacts && attachments.length > 0) {
+      await updateTitle('健康附件')
     }
   }
 
@@ -116,6 +113,9 @@ export function HealthEventDetailPage() {
           <FirstRecordComposer onSave={addHealthRecord} />
         ) : (
           <>
+            {state.data.eventDto.eventSummary && (
+              <EventSummarySection summary={state.data.eventDto.eventSummary} onSave={correctSummary} />
+            )}
             <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
           </>

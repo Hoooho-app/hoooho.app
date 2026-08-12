@@ -3,6 +3,7 @@ import test from 'node:test'
 import type { FamilyMemberApiDto, HealthEventApiDto, HealthEventRecordApiDto } from '../types/index.ts'
 import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts.ts'
 import { getEventOccurredAt } from './healthEventListPresentation.ts'
+import { adaptHealthEventList } from './healthEventListAdapter.ts'
 
 const member: FamilyMemberApiDto = {
   id: 'member-1', accountId: 'account-1', name: '朱琳', relationship: 'self', gender: 'female',
@@ -57,4 +58,19 @@ test('事件标题保持简短，补充摘要不直接复制标题', () => {
 
   assert.equal(title, '手脚发凉')
   assert.equal(deriveHealthEventListSummary(title, coldRecord.content), null)
+})
+
+test('一级列表优先读取事件摘要层的标题和副标题', () => {
+  const summarizedEvent: HealthEventApiDto = {
+    ...event,
+    eventSummary: {
+      systemGenerated: { title: '甲型流感', summary: '系统摘要', evidence: ['检查结果'], updatedAt: event.updatedAt },
+      userCorrection: null,
+      displayedResult: { title: '甲型流感', summary: '发热、头痛，最高体温39℃，检查提示甲型流感。', evidence: ['检查结果'], updatedAt: event.updatedAt, source: 'system' },
+      hasNewEvidenceAfterCorrection: false
+    }
+  }
+  const [adapted] = adaptHealthEventList([summarizedEvent], [member], new Map([[event.id, [record]]]))
+  assert.equal(adapted.title, '甲型流感')
+  assert.match(adapted.summary ?? '', /最高体温39℃/)
 })

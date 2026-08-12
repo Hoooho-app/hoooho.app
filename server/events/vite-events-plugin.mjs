@@ -52,11 +52,17 @@ export function eventsApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
         const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
-        if (!match) return next()
+        if (!match && !summaryMatch) return next()
 
         try {
           const accountId = readAccountId(request, tokens)
+          if (summaryMatch) {
+            const eventId = decodeURIComponent(summaryMatch[1])
+            if (request.method === 'PATCH') return sendJson(response, 200, await events.correctSummary(accountId, eventId, await readJson(request)))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          }
           const eventId = match[1] ? decodeURIComponent(match[1]) : null
 
           if (!eventId && request.method === 'GET') return sendJson(response, 200, await events.list(accountId))

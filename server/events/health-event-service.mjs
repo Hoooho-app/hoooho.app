@@ -1,5 +1,6 @@
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
+import { correctHealthEventSummary } from './health-event-summary.mjs'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -108,5 +109,19 @@ export class HealthEventService {
     await this.get(accountId, id)
     await this.repository.delete(id)
     return { success: true }
+  }
+
+  async correctSummary(accountId, id, input, now = new Date()) {
+    const event = await this.get(accountId, id)
+    let eventSummary
+    try {
+      eventSummary = correctHealthEventSummary(event.eventSummary, input, now)
+    } catch (error) {
+      throw new HealthEventError(error.message, 400, 'INVALID_EVENT_SUMMARY')
+    }
+    return this.repository.update(id, {
+      title: eventSummary.displayedResult.title,
+      eventSummary
+    }, now)
   }
 }

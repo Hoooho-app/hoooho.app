@@ -62,6 +62,7 @@ export interface HealthEventApiDto {
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string
+  eventSummary?: HealthEventSummaryApiDto | null
   createdAt: string
   updatedAt: string
 }
@@ -71,6 +72,21 @@ export interface CreateHealthEventInput {
   title: string
   category: HealthEventCategory
   startTime?: string
+}
+
+export interface HealthEventSummaryResult {
+  title: string
+  summary: string
+  evidence: string[]
+  updatedAt: string
+  source?: 'system' | 'user_corrected'
+}
+
+export interface HealthEventSummaryApiDto {
+  systemGenerated: HealthEventSummaryResult
+  userCorrection: { title: string; summary: string; updatedAt: string } | null
+  displayedResult: HealthEventSummaryResult
+  hasNewEvidenceAfterCorrection: boolean
 }
 
 export interface HealthEventListItemViewModel {

@@ -209,6 +209,14 @@ async function handleAttachments(request, response, pathname) {
 }
 
 async function handleEvents(request, response, pathname) {
+  const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
+  if (summaryMatch) {
+    const accountId = readAccountId(request)
+    const eventId = decodeRouteValue(summaryMatch[1])
+    if (request.method === 'PATCH') sendJson(response, 200, await events.correctSummary(accountId, eventId, await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
   const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
 

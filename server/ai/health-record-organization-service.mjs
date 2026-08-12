@@ -3,6 +3,7 @@ import { HealthEventRepository } from '../events/repositories/health-event-repos
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
 import { hasHealthFacts, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
+import { buildHealthEventSummary } from '../events/health-event-summary.mjs'
 
 function normalizeBodyLocations(value) {
   if (!Array.isArray(value)) return []
@@ -97,7 +98,7 @@ export class HealthRecordOrganizationService {
       rawInput: record.content,
       occurredAt: record.occurredAt
     })
-    return this.repository.upsert({
+    const saved = await this.repository.upsert({
       accountId,
       eventId,
       recordId: record.id,
@@ -107,6 +108,8 @@ export class HealthRecordOrganizationService {
       status: 'completed',
       provider: organized.provider
     }, now)
+    await this.refreshEventSummary(eventId, now)
+    return saved
   }
 
   async preview(accountId, eventId, input) {
@@ -132,7 +135,10 @@ export class HealthRecordOrganizationService {
     await this.assertEventOwnership(accountId, eventId)
     const organizations = await this.repository.findByEventId(eventId)
     const legacyOrganizations = organizations.filter((organization) => organization.schemaVersion !== 5)
-    if (!legacyOrganizations.length) return organizations
+    if (!legacyOrganizations.length) {
+      await this.refreshEventSummary(eventId)
+      return organizations
+    }
 
     await Promise.all(legacyOrganizations.map(async (organization) => {
       try {
@@ -155,6 +161,25 @@ export class HealthRecordOrganizationService {
       }
     }))
 
-    return this.repository.findByEventId(eventId)
+    const refreshed = await this.repository.findByEventId(eventId)
+    await this.refreshEventSummary(eventId)
+    return refreshed
+  }
+
+  async refreshEventSummary(eventId, now = new Date()) {
+    const event = await this.events.findById(eventId)
+    if (!event) return null
+    const [records, organizations] = await Promise.all([
+      this.records.findByEventId(eventId),
+      this.repository.findByEventId(eventId)
+    ])
+    const eventSummary = buildHealthEventSummary({ event, records, organizations, now })
+    if (!eventSummary) return null
+    if (event.title === eventSummary.displayedResult.title
+      && JSON.stringify(event.eventSummary) === JSON.stringify(eventSummary)) return event
+    return this.events.update(eventId, {
+      title: eventSummary.displayedResult.title,
+      eventSummary
+    }, now)
   }
 }

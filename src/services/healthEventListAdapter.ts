@@ -11,13 +11,16 @@ export function adaptHealthEventList(
   return events.map((event) => {
     const records = recordsByEventId.get(event.id) ?? []
     const primaryRecord = getPrimaryRecord(records)
-    const title = normalizeHealthEventTitle(event.title, primaryRecord?.content)
+    const projectedSummary = event.eventSummary?.displayedResult
+    const title = projectedSummary?.title ?? normalizeHealthEventTitle(event.title, primaryRecord?.content)
     return ({
     id: event.id,
     memberId: event.memberId,
     memberName: memberNames.get(event.memberId) ?? '未知成员',
     title,
-    summary: deriveHealthEventListSummary(title, primaryRecord?.content),
+    summary: projectedSummary
+      ? projectedSummary.summary.slice(0, 52)
+      : deriveHealthEventListSummary(title, primaryRecord?.content),
     category: event.category,
     status: event.status,
     startTime: event.startTime,

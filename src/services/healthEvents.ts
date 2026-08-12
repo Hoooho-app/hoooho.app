@@ -34,6 +34,14 @@ export const healthEventService = {
     })
   },
 
+  correctSummary(eventId: string, input: { title: string; summary: string }, token: string) {
+    return apiRequest<HealthEventApiDto>(`/api/events/${encodeURIComponent(eventId)}/summary`, {
+      token,
+      method: 'PATCH',
+      body: input
+    })
+  },
+
   delete(eventId: string, token: string) {
     return apiRequest<void>(`/api/events/${encodeURIComponent(eventId)}`, {
       token,

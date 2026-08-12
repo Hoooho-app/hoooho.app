@@ -103,6 +103,21 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
       fact.type === 'symptom' && fact.name === '颈部不舒服' && fact.bodyPart === '颈'
     )))
 
+    const summarizedEvent = await events.get(accountId, event.id)
+    assert.ok(summarizedEvent.eventSummary?.systemGenerated)
+    assert.ok(summarizedEvent.eventSummary.displayedResult.title)
+    assert.ok(summarizedEvent.eventSummary.displayedResult.summary)
+    assert.ok(summarizedEvent.eventSummary.displayedResult.evidence.length > 0)
+
+    const factSnapshot = JSON.stringify((await organizations.list(accountId, event.id)).flatMap((item) => item.healthAIOutput.facts))
+    const correctedEvent = await events.correctSummary(accountId, event.id, {
+      title: '8月健康情况',
+      summary: '这是用户校对后的事件摘要。'
+    }, new Date('2026-08-12T06:00:00.000Z'))
+    assert.equal(correctedEvent.eventSummary.displayedResult.title, '8月健康情况')
+    assert.equal(correctedEvent.eventSummary.displayedResult.source, 'user_corrected')
+    assert.equal(JSON.stringify((await organizations.list(accountId, event.id)).flatMap((item) => item.healthAIOutput.facts)), factSnapshot)
+
     const coughPreview = await organizations.preview(accountId, event.id, { rawInput: '孩子咳嗽两天' })
     assert.equal(coughPreview.hasHealthFacts, true)
 
