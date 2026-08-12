@@ -75,7 +75,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
             <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
           </button>
           <button className="mt-4 inline-flex min-h-10 items-center rounded-pill border border-primary/35 bg-surface px-4 text-sm font-medium text-primary transition hover:bg-primary-soft" type="button" onClick={() => openPage('/family')}>
-            切换角色
+            切换人物
           </button>
         </section>
 
