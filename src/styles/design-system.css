@@ -156,6 +156,8 @@
   .hoho-button[data-variant='primary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-hover)); }
   .hoho-button[data-variant='secondary'] { border: 1px solid rgb(var(--hoho-color-border-strong)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
   .hoho-button[data-variant='secondary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
+  .hoho-button[data-variant='danger'] { border: 1px solid rgb(var(--hoho-color-error) / 0.32); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-error)); }
+  .hoho-button[data-variant='danger']:hover:not(:disabled) { background: rgb(var(--hoho-color-error) / 0.06); }
   .hoho-button[data-variant='text'] { min-height: 36px; border-radius: var(--hoho-radius-medium); background: transparent; color: rgb(var(--hoho-color-primary)); }
   .hoho-button[data-variant='text']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
 
@@ -176,6 +178,58 @@
     background: rgb(var(--hoho-color-primary-soft));
     color: rgb(var(--hoho-color-primary));
   }
+
+  .hoho-field { display: grid; gap: var(--hoho-space-2); }
+
+  .hoho-input,
+  .hoho-select,
+  .hoho-textarea {
+    width: 100%;
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-medium);
+    background: rgb(var(--hoho-color-surface));
+    color: rgb(var(--hoho-color-text-primary));
+    font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+    outline: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .hoho-input,
+  .hoho-select { min-height: 44px; padding: 0 var(--hoho-space-3); }
+  .hoho-textarea { min-height: 128px; resize: vertical; padding: var(--hoho-space-3); }
+  .hoho-input::placeholder,
+  .hoho-textarea::placeholder { color: rgb(var(--hoho-color-text-weak)); }
+  .hoho-input:focus,
+  .hoho-select:focus,
+  .hoho-textarea:focus { border-color: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.1); }
+  .hoho-input[aria-invalid='true'] { border-color: rgb(var(--hoho-color-error)); }
+
+  .hoho-field__message { color: rgb(var(--hoho-color-text-weak)); font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family); }
+  .hoho-field__message[data-error='true'] { color: rgb(var(--hoho-color-error)); }
+
+  .hoho-section { display: grid; gap: var(--hoho-space-3); }
+  .hoho-section__header { display: flex; align-items: flex-start; gap: var(--hoho-space-3); }
+
+  .hoho-surface-row {
+    display: flex;
+    min-height: 64px;
+    width: 100%;
+    align-items: center;
+    gap: var(--hoho-space-3);
+    border-bottom: 1px solid rgb(var(--hoho-color-border));
+    padding: var(--hoho-space-3) var(--hoho-space-4);
+    text-align: left;
+  }
+  button.hoho-surface-row { transition: background-color 160ms ease; }
+  button.hoho-surface-row:hover { background: rgb(var(--hoho-color-surface-subtle)); }
+  .hoho-surface-row:last-child { border-bottom: 0; }
+
+  .hoho-toggle { position: relative; height: 24px; width: 44px; flex-shrink: 0; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-border-strong)); transition: background-color 160ms ease; }
+  .hoho-toggle[data-checked='true'] { background: rgb(var(--hoho-color-primary)); }
+  .hoho-toggle__thumb { position: absolute; top: 3px; left: 3px; height: 18px; width: 18px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-surface)); box-shadow: 0 1px 3px rgb(var(--hoho-color-text-primary) / 0.18); transition: transform 160ms ease; }
+  .hoho-toggle[data-checked='true'] .hoho-toggle__thumb { transform: translateX(20px); }
+
+  .hoho-modal-surface { width: min(100%, 354px); max-height: 90dvh; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-large); background: rgb(var(--hoho-color-surface)); box-shadow: var(--hoho-shadow-floating); }
 
   .hoho-timeline { display: grid; gap: var(--hoho-space-4); }
 
@@ -222,5 +276,11 @@
 @media (prefers-reduced-motion: reduce) {
   .hoho-health-card,
   .hoho-button,
+  .hoho-input,
+  .hoho-select,
+  .hoho-textarea,
+  .hoho-surface-row,
+  .hoho-toggle,
+  .hoho-toggle__thumb,
   .hoho-year-tabs__item { transition: none; }
 }

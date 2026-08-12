@@ -8,11 +8,11 @@ export function MainAppHeader({ title, action }: { title: string; action?: React
 
   return (
     <>
-      <header className="grid h-16 shrink-0 grid-cols-3 items-center bg-surface px-3">
+      <header className="hoho-page-header grid h-16 shrink-0 grid-cols-3 items-center px-3">
         <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} />
         </button>
-        <h1 className="text-center text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="hoho-text-section-title text-center">{title}</h1>
         <div className="justify-self-end">{action}</div>
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />

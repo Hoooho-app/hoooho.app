@@ -1,10 +1,21 @@
-# Hoooho UI freeze
+# Hoho Design System Freeze V1
 
-The current product UI is frozen at baseline commit `c5f1b91` (2026-08-09).
+Hoho Design System V1 is the project's formal and frozen visual baseline.
+The reference implementation is the production-approved `/health-events` page,
+the `--hoho-*` tokens in `src/styles/tokens.css`, and the components in
+`src/components/design-system/`.
 
-- Do not proactively change existing page structure, layout, colors, typography, spacing, card styling, or interaction patterns.
-- A UI change is allowed only when the user explicitly names the page or component to modify.
-- Backend, data, and AI work must reuse the existing UI and remain behind service/adaptor boundaries.
-- When a requested feature needs new UI, make the smallest change within the explicitly named surface and leave every other frozen screen untouched.
+- New pages and components must use `--hoho-*` tokens and existing Design System components first.
+- Do not define a parallel primary color, typography scale, spacing scale, radius, shadow, button, card, tag, input, modal or timeline style inside a page.
+- If a reusable visual capability is missing, extend `components/design-system/` and document it. An extension must be reusable in at least two product contexts and contain no health business logic.
+- Do not introduce another UI framework, replace the Design System, or globally redesign the product without explicit user authorization.
+- Do not change a frozen page's information architecture or interaction flow while performing visual work.
+- A local page request changes only the explicitly named surface; all other product surfaces remain frozen.
+- Health event hierarchy is frozen: the list page emphasizes year/date/event summary, while the detail page emphasizes exact time and health fact changes. Shared visual language must not erase this distinction.
+- Avoid dashboard density, card nesting, decorative badges, large tinted blocks and nonessential elevation. Sections are flat by default; cards are reserved for important surfaces.
+- Hoho is a mobile-first web product. Do not add native-app navigation patterns or unrelated app chrome.
+- Backend, API, data, AI/parser, HealthFact and time-resolution changes must stay behind their existing boundaries and must not be made as part of visual migration.
 
-See `docs/ui-freeze-v1.md` for the frozen scope and review checklist.
+Illustration artwork such as virtual-avatar skin, hair and clothing palettes is an asset-level exception; those colors are not UI tokens.
+
+See `docs/hoho-design-system-v1.md` for the component and token contract and `docs/ui-freeze-v1.md` for the review checklist.

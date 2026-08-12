@@ -1,6 +1,7 @@
 import { AlertTriangle, ChevronRight, FileHeart, HeartPulse, Pill, UsersRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '../../components/common'
+import { HohoSection, Typography } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { MemberIdentityCard } from '../../components/health'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
@@ -29,21 +30,20 @@ export function HealthProfilePage() {
       <MainAppHeader title="健康档案" />
       <div className="page-content">
         <MemberIdentityCard member={member} />
-        <Card className="bg-primary-soft">
-          <h2 className="font-semibold">健康信息</h2>
-          <p className="mt-2 text-sm leading-relaxed text-text-secondary">记录基础健康资料，帮助更好了解长期健康情况。</p>
-        </Card>
-        <section className="space-y-3">
+        <HohoSection description="记录基础健康资料，帮助更好了解长期健康情况。" title="健康信息">
+          <div className="h-px bg-border" />
+        </HohoSection>
+        <section className="overflow-hidden rounded-card border bg-surface">
           {categories.map(({ label, description, count, icon: Icon }) => (
-            <button key={label} className="block w-full text-left">
-              <Card interactive className="flex items-center gap-3">
+            <button key={label} className="block w-full border-b text-left last:border-b-0">
+              <div className="flex min-h-[72px] items-center gap-3 px-4 py-3 transition hover:bg-surface-muted">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={20} strokeWidth={1.75} /></span>
                 <span className="min-w-0 flex-1">
-                  <strong className="block text-sm">{label}</strong>
-                  <span className="mt-1 block truncate text-xs text-text-secondary">{description} · {count} 项</span>
+                  <Typography variant="body" className="font-medium text-text-primary">{label}</Typography>
+                  <Typography variant="caption" className="mt-1 block truncate">{description} · {count} 项</Typography>
                 </span>
                 <ChevronRight className="text-text-secondary" size={18} />
-              </Card>
+              </div>
             </button>
           ))}
         </section>

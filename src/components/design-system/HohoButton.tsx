@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-export type HohoButtonVariant = 'primary' | 'secondary' | 'text'
+export type HohoButtonVariant = 'primary' | 'secondary' | 'danger' | 'text'
 
 export interface HohoButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode

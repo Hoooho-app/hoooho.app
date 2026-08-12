@@ -21,16 +21,27 @@
     overscroll-behavior: none;
     touch-action: manipulation;
   }
-  button, input { font: inherit; }
+  button, input, select, textarea { font: inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid rgb(var(--hoho-color-primary) / 0.35);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
   .app-shell {
-    @apply mx-auto h-dvh w-full max-w-[402px] overflow-y-auto overscroll-contain bg-background pb-24 shadow-card;
+    @apply mx-auto h-dvh w-full max-w-[402px] overflow-y-auto overscroll-contain bg-background pb-24;
+    box-shadow: 0 0 0 1px rgb(var(--hoho-color-border) / 0.55);
     -webkit-overflow-scrolling: touch;
   }
   .page-content { @apply space-y-5 px-4 py-4; }
-  .section-title { @apply text-base font-semibold tracking-tight text-text-primary; }
+  .section-title { color: rgb(var(--hoho-color-text-primary)); font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family); letter-spacing: -0.01em; }
   .health-event-detail .page-content { @apply space-y-8 px-6 py-6; }
-  .health-event-detail .section-title { @apply text-lg font-bold tracking-normal text-heading; }
+  .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }
+
+  .hoho-page-header {
+    border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.75);
+    background: rgb(var(--hoho-color-surface) / 0.94);
+    backdrop-filter: blur(12px);
+  }
 }

@@ -98,14 +98,14 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
 
   return (
     <section aria-labelledby="first-record-title">
-      <Card className="border-primary/15 p-4 shadow-calm">
+      <Card>
         <h2 className="section-title text-heading" id="first-record-title">记录情况</h2>
 
         <div className="mt-5 space-y-5">
           <label className="grid grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-2">
             <span className="text-sm font-medium text-heading">发生时间</span>
             <span className="relative block">
-              <input className="min-h-12 w-full rounded-control border bg-surface px-3 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
+              <input className="hoho-input pr-10" onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
               <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
             </span>
           </label>
@@ -123,7 +123,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
           <label className="grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2">
             <span className="pt-3 text-sm font-medium text-heading">描述情况</span>
             <span className="relative block">
-              <textarea aria-label="描述健康情况" autoFocus className="h-36 w-full resize-none rounded-control border bg-surface px-3 py-3 pb-8 text-sm leading-6 outline-none transition placeholder:text-text-secondary/65 focus:border-primary focus:ring-2 focus:ring-primary/15" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder={'请直接描述发生了什么，例如：\n8月6日晚开始发烧，早上体温38.5℃，吃了一次退烧药。'} ref={textAreaRef} value={text} />
+              <textarea aria-label="描述健康情况" autoFocus className="hoho-textarea h-36 resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder={'请直接描述发生了什么，例如：\n8月6日晚开始发烧，早上体温38.5℃，吃了一次退烧药。'} ref={textAreaRef} value={text} />
               <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
             </span>
           </label>

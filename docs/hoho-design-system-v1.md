@@ -1,146 +1,89 @@
 # Hoho Design System V1
 
-## 1. Purpose and status
+## 1. Formal status
 
-Hoho Design System V1 establishes a calm, trustworthy and human visual foundation for future page migrations. It does not change information architecture, business logic, data contracts or existing frozen pages.
+Status: **production-approved, globally migrated and frozen**.
 
-Status: **Foundation ready, page migration not started.**
+Hoho Design System V1 is the only default visual system for current and future product pages. The production `/health-events` page is the primary real-product reference. V1 standardizes visual language without changing product information architecture, business rules, data contracts or navigation flows.
 
-Design principles:
+Principles: Calm, Trustworthy, Human, Medical and Private.
 
-- Calm: low-saturation color and restrained elevation.
-- Trustworthy: clear hierarchy, readable contrast and predictable interaction.
-- Human: generous whitespace and natural guidance instead of dashboard density.
-- Medical: precise structure without looking like a hospital administration system.
-- Private: quiet surfaces and limited visual noise.
+Avoid dashboard density, large tinted blocks, excessive borders or shadows, decorative badges, card nesting and page-specific component systems.
 
-## 2. Compatibility boundary
-
-The V1 foundation is additive:
-
-- New tokens use the `--hoho-*` namespace.
-- Existing `--color-*`, `--radius-*` and `--shadow-*` tokens remain unchanged.
-- New components live in `src/components/design-system/`.
-- No existing page imports these components yet.
-
-This boundary prevents an unplanned global restyle. A page adopts V1 only through an explicit migration task.
-
-## 3. Design tokens
+## 2. Token contract
 
 Source: `src/styles/tokens.css`.
 
-### Color
+- Color: `--hoho-color-primary*`, secondary, background, surface, border, three text levels and semantic success/warning/error.
+- Typography: page title, section title, card title, body, caption and label.
+- Spacing: `4, 8, 12, 16, 24, 32, 40px`.
+- Radius: small `8px`, medium `12px`, large `20px`, pill.
+- Shadow: none, soft and floating.
 
-| Token group | Role |
-| --- | --- |
-| `--hoho-color-primary*` | Deep, low-saturation teal for primary actions and emphasis |
-| `--hoho-color-secondary` | Supporting blue-grey accent |
-| `--hoho-color-background` | Very light warm grey-green page background |
-| `--hoho-color-surface*` | White and subtle neutral content surfaces |
-| `--hoho-color-border*` | Quiet separators and stronger interactive boundaries |
-| `--hoho-color-text-primary` | Deep blue-grey primary content |
-| `--hoho-color-text-secondary` | Supporting content |
-| `--hoho-color-text-weak` | Captions and low-priority metadata |
-| `--hoho-color-success/warning/error` | Semantic feedback only, not decoration |
+Legacy `--color-*`, `--radius-*` and `--shadow-*` variables are compatibility aliases to the Hoho tokens. They are not a second visual system and must not receive independent values.
 
-Do not use large blocks of semantic or primary soft color. Prefer the background, surface and border tokens for layout.
+Illustration artwork, including virtual-avatar skin, hair, clothing and background palettes, is an asset-level exception rather than UI color definition.
 
-### Typography
-
-| Variant | Use |
-| --- | --- |
-| `Page Title` | One page-level heading |
-| `Section Title` | Major content sections |
-| `Card Title` | Concise card subject |
-| `Body` | Default reading content |
-| `Caption` | Dates, metadata and supporting notes |
-| `Label` | Compact controls and factual tags |
-
-Use the `Typography` component or the matching `.hoho-text-*` class. Do not promote supporting copy to title styles.
-
-### Spacing
-
-The fixed scale is `4, 8, 12, 16, 24, 32, 40px`, exposed as `--hoho-space-1/2/3/4/6/8/10`.
-
-New V1 components should use this scale. A page migration should replace arbitrary spacing only inside that page's authorized scope.
-
-### Radius
-
-- Small: `8px` for compact elements.
-- Medium: `12px` for controls.
-- Large: `20px` for health content surfaces.
-- Pill: fully rounded tags and primary actions.
-
-### Shadow
-
-- None: default for flat layout.
-- Soft: restrained card separation.
-- Floating: overlays or true floating controls only.
-
-## 4. Components
+## 3. Components
 
 Import from `src/components/design-system`.
 
-### HealthCard
+- `Typography`: the six frozen type levels.
+- `HealthCard`: important health-content surface with restrained border and elevation.
+- `HealthTag`: lightweight factual or status label.
+- `HealthTimeline`: explicit `list` and `detail` visual levels.
+- `HohoButton`: primary, secondary, danger and text actions.
+- `HohoInput`: labeled field with hint, error and accessible state.
+- `HohoSection`: flat page section with optional title, description and action.
+- `HohoSurfaceRow`: reusable settings, menu and list row.
+- `HohoToggle`: accessible binary control.
+- `ModalSurface`: common dialog/sheet surface.
+- `EmptyState`: natural empty-content guidance.
 
-General health information surface with a light border, generous padding and soft shadow. `interactive` adds only restrained hover/press feedback. Business navigation stays with the consuming page.
+The components in `components/common` remain compatibility adapters and delegate their visual behavior to V1. New code should prefer direct Design System imports.
 
-### HealthTag
+## 4. Surface hierarchy
 
-Lightweight factual label with `neutral`, `primary`, `success`, `warning` and `error` tones. Use for facts such as symptom, temperature, medication, examination or status. Do not use tags as decorative badges or repeat a status already clear from nearby content.
+- Page: natural background and generous whitespace.
+- Section: flat by default; no card required.
+- Important surface: use `HealthCard` when separation has product meaning.
+- Fact/event: choose the lightest container that preserves scanability.
+- Tag: semantic only, never decorative.
+- Floating shadow: overlays and genuinely floating controls only.
 
-### HohoButton
+## 5. Health timeline hierarchy
 
-- `primary`: the single main action in a context.
-- `secondary`: supporting action with an outlined surface.
-- `text`: low-emphasis inline action.
+- Health event list (`level="list"`): year, date and event summary. It does not emphasize minute-level process time.
+- Health event detail (`level="detail"` or the established detail timeline): exact time or period, symptoms, temperature, medication, examinations, status changes and attachments.
 
-All variants preserve a 44px primary touch target, keyboard focus visibility, disabled state and button semantics.
+The list and detail share tokens and component quality, but must remain visually distinct. Grouping, ordering and time semantics remain in service/adapter/domain boundaries.
 
-### EmptyState
+## 6. Extension rules
 
-Natural guidance for genuinely empty content. It accepts a title, optional description, icon and action. It must not advertise unavailable functionality or add dashboard-style placeholders.
+A missing visual capability must be added to the Design System instead of creating a parallel page-level style. A new component must:
 
-### HealthTimeline
+1. serve at least two product contexts;
+2. contain no health business logic;
+3. own only visual and basic interaction behavior;
+4. use `--hoho-*` tokens;
+5. be documented here.
 
-The component has an explicit `level` contract:
+Do not introduce another UI framework, change the token scales, or replace V1 without explicit user authorization.
 
-- `list`: groups events by year/date and emphasizes the day. It must not present minute-level process detail as the main axis.
-- `detail`: presents exact time and fact changes such as symptoms, temperature, medication, examinations and attachments.
+## 7. Migration coverage
 
-The component is presentation-only. Grouping, ordering and date semantics remain in the existing service/adapter/domain boundaries.
+The V1 baseline covers all user routes registered in `src/app/router.tsx`:
 
-## 5. Usage example
+- login and first-profile setup;
+- family list, add and edit-basic-information flows;
+- health event list, filters, detail, first record, continuation record, timeline, charts and attachments;
+- health profile;
+- side drawer and role navigation;
+- guide, settings, messages, help, feedback and about pages;
+- loading, error and empty states mounted by those routes.
 
-```tsx
-import { HealthCard, HealthTag, HohoButton, Typography } from '../components/design-system'
+Development fixtures, test pages and internal tools are outside the migration scope.
 
-<HealthCard>
-  <Typography variant="cardTitle">发热</Typography>
-  <Typography variant="body">今天体温有所升高</Typography>
-  <HealthTag tone="warning">体温</HealthTag>
-  <HohoButton variant="text">查看记录</HohoButton>
-</HealthCard>
-```
+## 8. Frozen boundaries
 
-The example is documentation only and is not mounted by the application.
-
-## 6. Migration plan (not executed)
-
-1. Health event list page.
-2. Health event detail page.
-3. Health profile.
-4. Profile/settings area.
-
-Each migration must be a separate scoped task with visual regression checks. Do not replace all existing common components globally.
-
-## 7. Frozen boundaries
-
-V1 foundation work does not change:
-
-- data models, schemas or API contracts;
-- AI/parser behavior or HealthFact;
-- event creation and update flows;
-- timeline grouping or occurrence-time logic;
-- existing page JSX or routing;
-- existing common component behavior.
+V1 does not authorize changes to data models, APIs, permissions, AI/parser behavior, HealthFact, time resolution, event matching, event creation rules or established interaction flows. Local visual changes must remain inside the explicitly requested surface.

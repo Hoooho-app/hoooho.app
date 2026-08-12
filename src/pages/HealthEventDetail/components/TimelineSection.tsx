@@ -40,7 +40,7 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
       <div className="flex items-center justify-between gap-3">
         <h2 className="section-title">时间线</h2>
         <div className="flex items-center gap-2">
-          <Button className="min-h-10 px-4 text-surface shadow-calm" onClick={() => setIsEditorOpen(true)}>
+          <Button className="min-h-10 px-4" onClick={() => setIsEditorOpen(true)}>
             新增情况<PlusCircle size={17} />
           </Button>
           <button
@@ -58,7 +58,7 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
       {!timeline.length ? (
         <Card
           interactive
-          className="cursor-pointer rounded-2xl border-primary/10 py-8 text-center shadow-calm"
+          className="cursor-pointer py-8 text-center"
           role="button"
           tabIndex={0}
           onClick={() => setIsEditorOpen(true)}
@@ -74,7 +74,7 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
         <div className="space-y-9" aria-label="健康过程记录">
           {timelineGroups.map((yearGroup) => (
             <section className="space-y-6" key={yearGroup.year} aria-label={`${yearGroup.year}年健康记录`}>
-              <h3 className="text-lg font-bold text-primary">{yearGroup.year}年</h3>
+              <h3 className="hoho-text-section-title text-primary">{yearGroup.year}年</h3>
               {yearGroup.dates.map((dateGroup) => (
                 <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-4" key={`${yearGroup.year}-${dateGroup.date}`}>
                   <time className="pt-0.5 text-right text-sm font-bold leading-5 text-primary">{dateGroup.date}</time>

@@ -17,12 +17,12 @@ export function MessageCenterPage() {
     <main className="app-shell pb-0">
       <WebPageHeader title="消息中心" fallback="/settings" />
       <div className="space-y-3 px-4 py-4">
-        <div className="flex h-10 gap-2 rounded-pill bg-surface p-1 shadow-card">
+        <div className="flex h-10 gap-2 rounded-pill border bg-surface p-1">
           <button className={`w-24 rounded-pill text-[13px] font-medium ${tab === 'health' ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`} type="button" onClick={() => setTab('health')}>健康提醒</button>
           <button className={`w-24 rounded-pill text-[13px] font-medium ${tab === 'system' ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`} type="button" onClick={() => setTab('system')}>系统消息</button>
         </div>
         {messages.map(([title, description, time]) => (
-          <article key={title} className="rounded-[16px] bg-surface p-4 shadow-card">
+          <article key={title} className="border-b p-4 last:border-b-0">
             <h2 className="text-sm font-medium">{title}</h2>
             <p className="mt-1.5 text-xs leading-6 text-text-secondary">{description}</p>
             <time className="mt-1.5 block text-[11px] text-text-secondary">{time}</time>

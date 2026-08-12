@@ -91,7 +91,7 @@ export function ProfileSetupPage() {
   }
 
   return (
-    <main className="app-shell flex flex-col bg-surface pb-6">
+    <main className="app-shell flex flex-col pb-6">
       <header className="grid min-h-16 grid-cols-3 items-center px-3">
         <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="返回" onClick={() => navigate(-1)}>
           <ChevronLeft size={22} strokeWidth={1.8} />
@@ -100,7 +100,7 @@ export function ProfileSetupPage() {
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">添加第一个家人</h1>
+          <h1 className="hoho-text-page-title">添加第一个家人</h1>
           <p className="mt-3 text-sm leading-7 text-text-secondary">
             先添加第一个家人，
             <br />
@@ -108,7 +108,7 @@ export function ProfileSetupPage() {
           </p>
         </div>
 
-        <div className="mt-6 flex items-start gap-3 rounded-card bg-primary-soft/65 px-4 py-3.5 text-left">
+        <div className="mt-6 flex items-start gap-3 rounded-card border bg-surface px-4 py-3.5 text-left">
           <Sparkles className="mt-0.5 shrink-0 text-primary" size={18} strokeWidth={1.8} />
           <p className="text-xs leading-5 text-text-secondary">
             无需上传照片。系统会根据年龄和性别，自动分配一个卡通头像。

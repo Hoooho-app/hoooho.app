@@ -221,7 +221,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   if (templateType === 'timeline') {
     return (
       <div className="fixed inset-0 z-50 flex touch-none items-end justify-center overscroll-none bg-black/35 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" role="presentation">
-        <section aria-modal="true" className="flex max-h-[90dvh] w-full max-w-[354px] touch-auto flex-col overflow-hidden rounded-[20px] bg-surface shadow-floating" role="dialog">
+        <section aria-label="新增健康情况" aria-modal="true" className="hoho-modal-surface flex touch-auto flex-col" role="dialog">
           <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center px-3">
             <button aria-label="关闭" className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" onClick={onClose} type="button"><X size={21} /></button>
             <h2 className="text-center text-base font-semibold text-heading">新增健康情况</h2>
@@ -233,7 +233,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               <label className="mb-2 block text-xs font-semibold text-heading" htmlFor="continuation-occurred-at">发生时间</label>
               <span className="relative block">
                 <input
-                  className="min-h-12 w-full rounded-control border bg-surface px-3 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  className="hoho-input pr-10"
                   id="continuation-occurred-at"
                   min={minOccurredAt ? localDateTimeValue(new Date(minOccurredAt)) : undefined}
                   onChange={(event) => { setOccurredAt(event.target.value); setSaveError('') }}
@@ -274,7 +274,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               <label className="mb-2 block text-xs font-semibold text-heading" htmlFor="continuation-description">描述情况</label>
               <div className="relative">
                 <textarea
-                  className="h-40 w-full resize-none rounded-control border bg-surface px-3 py-3 pb-8 text-sm leading-6 outline-none transition placeholder:text-text-secondary/65 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  className="hoho-textarea h-40 resize-none pb-8"
                   id="continuation-description"
                   maxLength={1000}
                   onChange={(event) => { setText(event.target.value); setSaveError('') }}
@@ -321,7 +321,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     >
       <section
         aria-modal="true"
-        className="flex max-h-[80dvh] w-full max-w-[354px] touch-auto flex-col overflow-hidden rounded-t-[24px] bg-background shadow-floating"
+        className="hoho-modal-surface flex max-h-[80dvh] touch-auto flex-col rounded-t-[var(--hoho-radius-large)] bg-background"
         role="dialog"
       >
         <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center border-b bg-surface px-3">
@@ -355,7 +355,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               <label className="block space-y-2">
                 <span className="text-xs font-medium text-text-secondary">发生时间</span>
                 <input
-                  className="min-h-11 w-full rounded-control border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                  className="hoho-input"
                   onChange={(event) => setOccurredAt(event.target.value)}
                   type="datetime-local"
                   value={occurredAt}

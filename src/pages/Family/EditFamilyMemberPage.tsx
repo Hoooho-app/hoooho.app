@@ -203,9 +203,9 @@ export function EditFamilyMemberPage() {
           <div className="mt-auto pt-7">
             <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
             <Button className="mt-2" disabled={submitting || deleting} fullWidth type="submit">{submitting ? '正在保存…' : '保存'}</Button>
-            <button className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-danger bg-surface text-sm font-medium text-danger disabled:opacity-50" disabled={submitting || deleting} type="button" onClick={remove}>
+            <button className="hoho-button mt-4 w-full" data-variant="danger" disabled={submitting || deleting} type="button" onClick={remove}>
               <Trash2 size={18} strokeWidth={1.7} />
-              {deleting ? '正在删除…' : '删除此身份'}
+              {deleting ? '正在删除…' : '删除此角色'}
             </button>
           </div>
         </form>

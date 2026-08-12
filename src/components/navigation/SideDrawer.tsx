@@ -60,12 +60,12 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   return (
     <div className="fixed inset-0 z-50 mx-auto w-full max-w-[402px]" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
-      <aside className="relative flex h-dvh w-[84%] max-w-[338px] flex-col overflow-y-auto bg-surface px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-5 shadow-[18px_0_44px_rgb(17_24_39_/_0.14)]">
+      <aside className="relative flex h-dvh w-[84%] max-w-[338px] flex-col overflow-y-auto border-r bg-surface px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-5 shadow-floating">
         <button className="grid h-10 w-10 place-items-center" type="button" aria-label="关闭菜单" onClick={onClose}>
           <X size={24} strokeWidth={1.7} />
         </button>
 
-        <section className="mt-5 rounded-card border border-border-calm bg-primary-soft/45 p-4" aria-label="当前角色">
+        <section className="mt-5 rounded-card border bg-surface p-4" aria-label="当前角色">
           <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的基本信息`} onClick={() => openPage(`/family/${encodeURIComponent(member.id)}/edit`)}>
             <Avatar name={member.name} src={member.avatar} size="lg" />
             <span className="min-w-0 flex-1">
@@ -87,7 +87,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
                 <h2 id={`drawer-${group.title}`} className="text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
                 <span className="h-px flex-1 bg-border" />
               </div>
-              <div className="overflow-hidden rounded-card border border-border-calm bg-surface px-2">
+              <div className="overflow-hidden rounded-card border bg-surface px-2">
               {group.items.map(({ label, icon: Icon, to }, itemIndex) => {
                 const active = location.pathname === to || (to !== '/health-events' && location.pathname.startsWith(`${to}/`))
                 return (
@@ -103,7 +103,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           ))}
         </nav>
 
-        <button className="mt-6 flex min-h-[54px] w-full items-center gap-3.5 rounded-card border border-border-calm px-4 text-left text-[15px] font-medium transition hover:bg-surface-muted" type="button" onClick={() => openPage('/login')}>
+        <button className="mt-6 flex min-h-[54px] w-full items-center gap-3.5 rounded-card border px-4 text-left text-[15px] font-medium transition hover:bg-surface-muted" type="button" onClick={() => openPage('/login')}>
           <LogOut size={20} strokeWidth={1.7} />
           <span className="flex-1">退出登录</span>
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />

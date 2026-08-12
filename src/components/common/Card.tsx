@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react'
+import { HealthCard } from '../design-system'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
@@ -6,12 +7,5 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function Card({ children, interactive, className = '', ...props }: CardProps) {
-  return (
-    <div
-      className={`rounded-card border bg-surface p-4 shadow-card ${interactive ? 'transition hover:-translate-y-0.5 hover:shadow-floating' : ''} ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  )
+  return <HealthCard className={className} interactive={interactive} {...props}>{children}</HealthCard>
 }

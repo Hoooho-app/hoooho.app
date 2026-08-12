@@ -1,4 +1,5 @@
 import { WebPageHeader } from '../../components/common'
+import { HohoSection } from '../../components/design-system'
 
 const guideCards = [
   ['快速开始', '选择记录对象后创建健康事件，持续补充症状与时间线。'],
@@ -11,12 +12,9 @@ export function UsageGuidePage() {
   return (
     <main className="app-shell pb-0">
       <WebPageHeader title="使用说明" fallback="/health-events" />
-      <div className="space-y-3 px-4 py-4">
+      <div className="space-y-6 px-4 py-5">
         {guideCards.map(([title, description]) => (
-          <section key={title} className="rounded-[16px] bg-surface p-4 shadow-card">
-            <h2 className="text-sm font-medium">{title}</h2>
-            <p className="mt-1.5 text-xs leading-6 text-text-secondary">{description}</p>
-          </section>
+          <HohoSection description={description} key={title} title={title}><div className="h-px bg-border" /></HohoSection>
         ))}
       </div>
     </main>

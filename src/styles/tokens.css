@@ -53,24 +53,25 @@
   --hoho-shadow-soft: 0 1px 2px rgb(30 43 50 / 0.04), 0 8px 24px rgb(30 43 50 / 0.04);
   --hoho-shadow-floating: 0 12px 32px rgb(30 43 50 / 0.12);
 
-  --color-primary: 77 182 172;
-  --color-primary-soft: 232 247 244;
-  --color-surface: 255 255 255;
-  --color-background: 244 250 248;
-  --color-border: 229 239 236;
-  --color-text-primary: 31 41 55;
-  --color-text-secondary: 107 114 128;
-  --color-heading: 19 78 74;
-  --color-surface-muted: 249 250 251;
-  --color-border-calm: 204 251 241;
-  --color-success: 61 153 112;
-  --color-warning: 224 151 69;
-  --color-danger: 220 91 91;
-  --radius-control: 12px;
-  --radius-card: 20px;
-  --radius-pill: 999px;
-  --shadow-card: 0 8px 24px rgb(31 41 55 / 0.06);
-  --shadow-calm: 0 1px 2px rgb(15 23 42 / 0.05);
-  --shadow-floating: 0 12px 32px rgb(77 182 172 / 0.22);
-  --font-sans: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Compatibility aliases. V1 is now the formal global baseline. */
+  --color-primary: var(--hoho-color-primary);
+  --color-primary-soft: var(--hoho-color-primary-soft);
+  --color-surface: var(--hoho-color-surface);
+  --color-background: var(--hoho-color-background);
+  --color-border: var(--hoho-color-border);
+  --color-text-primary: var(--hoho-color-text-primary);
+  --color-text-secondary: var(--hoho-color-text-secondary);
+  --color-heading: var(--hoho-color-text-primary);
+  --color-surface-muted: var(--hoho-color-surface-subtle);
+  --color-border-calm: var(--hoho-color-border-strong);
+  --color-success: var(--hoho-color-success);
+  --color-warning: var(--hoho-color-warning);
+  --color-danger: var(--hoho-color-error);
+  --radius-control: var(--hoho-radius-medium);
+  --radius-card: var(--hoho-radius-large);
+  --radius-pill: var(--hoho-radius-pill);
+  --shadow-card: var(--hoho-shadow-soft);
+  --shadow-calm: var(--hoho-shadow-soft);
+  --shadow-floating: var(--hoho-shadow-floating);
+  --font-sans: var(--hoho-font-family);
 }

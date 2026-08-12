@@ -62,9 +62,9 @@ export function FamilyPage() {
                 </div>
               </div>
               {current ? (
-                <span className="shrink-0 rounded-pill bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary">当前身份</span>
+                <span className="shrink-0 rounded-pill bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary">当前角色</span>
               ) : (
-                <button className="shrink-0 rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => setCurrentMemberId(member.id)}>切换身份</button>
+                <button className="shrink-0 rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => setCurrentMemberId(member.id)}>切换角色</button>
               )}
             </div>
           )

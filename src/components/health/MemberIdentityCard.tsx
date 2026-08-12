@@ -3,7 +3,7 @@ import { Avatar, Card } from '../common'
 
 export function MemberIdentityCard({ member }: { member: Member }) {
   return (
-    <Card className="flex items-center gap-3 bg-primary-soft/60">
+    <Card className="flex items-center gap-3">
       <Avatar name={member.name} src={member.avatar} />
       <div>
         <strong className="block text-sm">{member.name}</strong>

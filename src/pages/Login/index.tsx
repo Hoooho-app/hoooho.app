@@ -95,12 +95,12 @@ export function LoginPage() {
   }
 
   return (
-    <main className="relative mx-auto flex h-dvh w-full max-w-[402px] flex-col overflow-y-auto overscroll-contain bg-background px-6 pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(48px,env(safe-area-inset-top))] shadow-card">
+    <main className="app-shell relative flex flex-col px-6 pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(48px,env(safe-area-inset-top))]">
       <div className="relative z-10 flex flex-1 flex-col">
         <header className="flex flex-col items-center pt-10 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
-          <h1 className="mt-7 text-2xl font-semibold tracking-tight text-text-primary">欢迎使用 Hoooho</h1>
-          <p className="mt-2 text-sm text-text-secondary">家庭健康事件管理平台</p>
+          <h1 className="hoho-text-page-title mt-7">欢迎使用 Hoooho</h1>
+          <p className="hoho-text-body mt-2">家庭健康事件管理平台</p>
         </header>
 
         <form className="mt-12 space-y-3" noValidate onSubmit={login}>
@@ -153,7 +153,7 @@ export function LoginPage() {
             {!error && notice && <p className="text-xs text-primary">{notice}</p>}
           </div>
 
-          <button className="min-h-12 w-full rounded-pill bg-primary text-sm font-semibold text-surface shadow-floating transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!phoneIsValid || !codeIsValid || isLoggingIn}>
+          <button className="hoho-button min-h-12 w-full" data-variant="primary" type="submit" disabled={!phoneIsValid || !codeIsValid || isLoggingIn}>
             {isLoggingIn ? '登录中…' : '登录'}
           </button>
         </form>

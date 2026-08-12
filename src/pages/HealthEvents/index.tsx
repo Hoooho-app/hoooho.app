@@ -43,7 +43,7 @@ function UserIdentity({ member }: { member: Member | null }) {
         type="button"
         onClick={() => navigate('/family')}
       >
-        切换身份
+        切换角色
       </button>
     </div>
   )
