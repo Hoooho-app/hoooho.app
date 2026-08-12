@@ -80,6 +80,15 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
       message: '发生时间不能晚于现在'
     })
 
+    const emptyEventResponse = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
+      memberId: selfMember.id,
+      title: '',
+      category: 'other'
+    })
+    assert.equal(emptyEventResponse.status, 201)
+    const emptyEvent = await emptyEventResponse.json()
+    assert.equal(emptyEvent.startTime, emptyEvent.createdAt)
+
     const selfEventResponse = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
       memberId: selfMember.id,
       title: '',

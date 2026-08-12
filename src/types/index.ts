@@ -70,7 +70,7 @@ export interface CreateHealthEventInput {
   memberId: string
   title: string
   category: HealthEventCategory
-  startTime: string
+  startTime?: string
 }
 
 export interface HealthEventListItemViewModel {

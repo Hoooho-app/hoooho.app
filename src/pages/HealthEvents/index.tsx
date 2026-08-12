@@ -125,8 +125,7 @@ export function HealthEventsPage() {
       const created = await healthEventService.create({
         memberId: currentMemberDto.id,
         title: '',
-        category: 'other',
-        startTime: new Date().toISOString()
+        category: 'other'
       }, token)
       navigate(`/health-events/${created.id}`)
     } catch (requestError) {

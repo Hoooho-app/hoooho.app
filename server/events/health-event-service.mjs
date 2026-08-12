@@ -66,13 +66,16 @@ export class HealthEventService {
   async create(accountId, input, now = new Date()) {
     const memberId = typeof input.memberId === 'string' ? input.memberId : ''
     await this.assertMemberOwnership(accountId, memberId)
+    const startTime = input.startTime === undefined
+      ? now.toISOString()
+      : validateStartTime(input.startTime, now)
     return this.repository.create({
       accountId,
       memberId,
       title: validateInitialTitle(input.title),
       category: validateCategory(input.category),
       status: 'observing',
-      startTime: validateStartTime(input.startTime, now)
+      startTime
     }, now)
   }
 
