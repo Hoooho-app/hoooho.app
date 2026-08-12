@@ -1,7 +1,8 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card } from '../../components/common'
+import { Avatar } from '../../components/common'
+import { EmptyState, HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
@@ -158,14 +159,14 @@ export function HealthEventsPage() {
   }
 
   return (
-    <main className="app-shell relative flex flex-col overflow-hidden pb-0">
+    <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0">
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
       <UserIdentity member={currentMember} />
 
       <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
           <div className="flex min-h-11 items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">事件列表</h2>
+            <Typography variant="sectionTitle">事件列表</Typography>
             <button
               className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
               type="button"
@@ -180,7 +181,7 @@ export function HealthEventsPage() {
 
           {state.status === 'success' && years.length > 0 && (
             <div
-              className="flex overflow-x-auto rounded-control border bg-surface px-2 shadow-card [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="hoho-year-tabs"
               role="tablist"
               aria-label="按年份切换健康事件"
             >
@@ -188,7 +189,8 @@ export function HealthEventsPage() {
                 const selected = year === activeYear
                 return (
                   <button
-                    className={`relative min-h-12 min-w-24 flex-1 whitespace-nowrap px-4 text-sm transition ${selected ? 'font-semibold text-primary' : 'font-medium text-text-secondary hover:text-text-primary'}`}
+                    className="hoho-year-tabs__item"
+                    data-selected={selected}
                     type="button"
                     role="tab"
                     aria-selected={selected}
@@ -196,7 +198,6 @@ export function HealthEventsPage() {
                     onClick={() => selectYear(year)}
                   >
                     {year}年
-                    {selected && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />}
                   </button>
                 )
               })}
@@ -204,38 +205,31 @@ export function HealthEventsPage() {
           )}
         </div>
         {state.status === 'loading' && (
-          <Card className="py-12 text-center">
-            <p className="text-sm text-text-secondary">正在加载健康事件…</p>
-          </Card>
+          <HealthCard className="py-12 text-center">
+            <Typography variant="body">正在加载健康事件…</Typography>
+          </HealthCard>
         )}
 
         {state.status === 'error' && (
-          <Card className="py-10 text-center">
-            <h2 className="font-semibold">健康事件加载失败</h2>
-            <p className="mt-2 text-sm text-text-secondary">{state.message}</p>
-            <Button className="mt-5" onClick={retry}>重新加载</Button>
-          </Card>
+          <HealthCard className="py-10 text-center">
+            <Typography variant="sectionTitle">健康事件加载失败</Typography>
+            <Typography className="mt-2" variant="body">{state.message}</Typography>
+            <HohoButton className="mt-5" onClick={retry}>重新加载</HohoButton>
+          </HealthCard>
         )}
 
         {state.status === 'success' && memberEvents.length === 0 && (
-          <Card className="flex min-h-[500px] w-full flex-col items-center justify-center px-8 py-12 text-center">
-            <div className="relative grid h-32 w-32 place-items-center rounded-full bg-primary-soft">
-              <ClipboardList className="text-primary" size={76} strokeWidth={1.45} />
-              <span className="absolute bottom-3 right-1 grid h-10 w-10 place-items-center rounded-full bg-primary text-surface shadow-floating">
-                <Plus size={25} strokeWidth={2} />
-              </span>
-            </div>
-            <h2 className="mt-5 text-xl font-semibold tracking-tight">不舒服？记一下！</h2>
-            <p className="mt-3 text-sm leading-7 text-text-secondary">
-              心慌、胸闷、咳嗽、受凉等疑似感冒
-              <br />
-              都可以记录下来
-            </p>
-            <Button className="mt-7 min-w-56 rounded-control" disabled={creating} type="button" onClick={() => void createEmptyEvent()}>
+          <HealthCard className="flex min-h-[500px] items-center justify-center">
+            <EmptyState
+              action={<HohoButton disabled={creating} onClick={() => void createEmptyEvent()}>
               <Plus size={19} strokeWidth={1.8} />
               {creating ? '正在开始记录…' : '记录一次健康事件'}
-            </Button>
-          </Card>
+              </HohoButton>}
+              description={<>心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</>}
+              icon={<ClipboardList size={28} strokeWidth={1.6} />}
+              title="不舒服？记一下"
+            />
+          </HealthCard>
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
@@ -243,11 +237,13 @@ export function HealthEventsPage() {
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
-          <Card className="py-12 text-center">
-            <h2 className="font-semibold">没有符合条件的健康事件</h2>
-            <p className="mt-2 text-sm text-text-secondary">可以调整或重置筛选条件</p>
-            <Button className="mt-5" variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</Button>
-          </Card>
+          <HealthCard>
+            <EmptyState
+              action={<HohoButton variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</HohoButton>}
+              description="可以调整或重置筛选条件"
+              title="没有符合条件的健康事件"
+            />
+          </HealthCard>
         )}
         {createError && <p className="mt-3 text-center text-xs text-danger">{createError}</p>}
       </div>

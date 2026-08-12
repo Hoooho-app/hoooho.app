@@ -1,4 +1,58 @@
 :root {
+  /*
+   * Hoho Design System V1
+   *
+   * These namespaced tokens are intentionally additive. Existing --color-*,
+   * --radius-* and --shadow-* tokens remain unchanged until each frozen page
+   * is migrated explicitly.
+   */
+  --hoho-color-primary: 35 105 101;
+  --hoho-color-primary-hover: 27 86 83;
+  --hoho-color-primary-soft: 235 244 242;
+  --hoho-color-secondary: 91 117 126;
+  --hoho-color-background: 247 249 247;
+  --hoho-color-surface: 255 255 255;
+  --hoho-color-surface-subtle: 250 251 250;
+  --hoho-color-border: 222 229 226;
+  --hoho-color-border-strong: 198 211 206;
+  --hoho-color-text-primary: 30 43 50;
+  --hoho-color-text-secondary: 89 105 112;
+  --hoho-color-text-weak: 132 145 149;
+  --hoho-color-success: 54 125 91;
+  --hoho-color-warning: 176 118 51;
+  --hoho-color-error: 184 72 72;
+
+  --hoho-font-family: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --hoho-font-size-page-title: 1.5rem;
+  --hoho-line-height-page-title: 2rem;
+  --hoho-font-size-section-title: 1.125rem;
+  --hoho-line-height-section-title: 1.75rem;
+  --hoho-font-size-card-title: 0.9375rem;
+  --hoho-line-height-card-title: 1.375rem;
+  --hoho-font-size-body: 0.875rem;
+  --hoho-line-height-body: 1.375rem;
+  --hoho-font-size-caption: 0.75rem;
+  --hoho-line-height-caption: 1.125rem;
+  --hoho-font-size-label: 0.75rem;
+  --hoho-line-height-label: 1rem;
+
+  --hoho-space-1: 4px;
+  --hoho-space-2: 8px;
+  --hoho-space-3: 12px;
+  --hoho-space-4: 16px;
+  --hoho-space-6: 24px;
+  --hoho-space-8: 32px;
+  --hoho-space-10: 40px;
+
+  --hoho-radius-small: 8px;
+  --hoho-radius-medium: 12px;
+  --hoho-radius-large: 20px;
+  --hoho-radius-pill: 999px;
+
+  --hoho-shadow-none: none;
+  --hoho-shadow-soft: 0 1px 2px rgb(30 43 50 / 0.04), 0 8px 24px rgb(30 43 50 / 0.04);
+  --hoho-shadow-floating: 0 12px 32px rgb(30 43 50 / 0.12);
+
   --color-primary: 77 182 172;
   --color-primary-soft: 232 247 244;
   --color-surface: 255 255 255;

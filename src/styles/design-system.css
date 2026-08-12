@@ -1,0 +1,226 @@
+@layer components {
+  .hoho-health-events-page {
+    --color-primary: var(--hoho-color-primary);
+    --color-primary-soft: var(--hoho-color-primary-soft);
+    --color-surface: var(--hoho-color-surface);
+    --color-background: var(--hoho-color-background);
+    --color-border: var(--hoho-color-border);
+    --color-text-primary: var(--hoho-color-text-primary);
+    --color-text-secondary: var(--hoho-color-text-secondary);
+    --color-success: var(--hoho-color-success);
+    --color-warning: var(--hoho-color-warning);
+    --color-danger: var(--hoho-color-error);
+    --radius-control: var(--hoho-radius-medium);
+    --radius-card: var(--hoho-radius-large);
+    --radius-pill: var(--hoho-radius-pill);
+    --shadow-card: var(--hoho-shadow-soft);
+    --shadow-floating: var(--hoho-shadow-floating);
+
+    background: rgb(var(--hoho-color-background));
+    color: rgb(var(--hoho-color-text-primary));
+  }
+
+  .hoho-text-page-title {
+    color: rgb(var(--hoho-color-text-primary));
+    font: 700 var(--hoho-font-size-page-title) / var(--hoho-line-height-page-title) var(--hoho-font-family);
+    letter-spacing: -0.02em;
+  }
+
+  .hoho-text-section-title {
+    color: rgb(var(--hoho-color-text-primary));
+    font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family);
+    letter-spacing: -0.01em;
+  }
+
+  .hoho-text-card-title {
+    color: rgb(var(--hoho-color-text-primary));
+    font: 600 var(--hoho-font-size-card-title) / var(--hoho-line-height-card-title) var(--hoho-font-family);
+  }
+
+  .hoho-text-body {
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+  }
+
+  .hoho-text-caption {
+    color: rgb(var(--hoho-color-text-weak));
+    font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family);
+  }
+
+  .hoho-text-label {
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+    letter-spacing: 0.01em;
+  }
+
+  .hoho-health-card {
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-large);
+    background: rgb(var(--hoho-color-surface));
+    box-shadow: var(--hoho-shadow-soft);
+    padding: var(--hoho-space-4);
+  }
+
+  .hoho-health-card[data-interactive='true'] {
+    cursor: pointer;
+    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+
+  .hoho-health-card[data-interactive='true']:hover {
+    border-color: rgb(var(--hoho-color-border-strong));
+    background: rgb(var(--hoho-color-surface-subtle));
+  }
+
+  .hoho-health-card[data-interactive='true']:active { transform: scale(0.995); }
+
+  .hoho-health-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: var(--hoho-radius-pill);
+    padding: 2px var(--hoho-space-2);
+    background: rgb(var(--hoho-color-surface-subtle));
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+  }
+
+  .hoho-health-tag[data-tone='primary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-health-tag[data-tone='success'] { background: rgb(var(--hoho-color-success) / 0.09); color: rgb(var(--hoho-color-success)); }
+  .hoho-health-tag[data-tone='warning'] { background: rgb(var(--hoho-color-warning) / 0.09); color: rgb(var(--hoho-color-warning)); }
+  .hoho-health-tag[data-tone='error'] { background: rgb(var(--hoho-color-error) / 0.09); color: rgb(var(--hoho-color-error)); }
+
+  .hoho-year-tabs {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid rgb(var(--hoho-color-border));
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .hoho-year-tabs::-webkit-scrollbar { display: none; }
+
+  .hoho-year-tabs__item {
+    position: relative;
+    min-height: 44px;
+    min-width: 96px;
+    flex: 1 0 auto;
+    padding: 0 var(--hoho-space-4);
+    scroll-snap-align: center;
+    white-space: nowrap;
+    color: rgb(var(--hoho-color-text-weak));
+    font: 500 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+    transition: color 160ms ease;
+  }
+
+  .hoho-year-tabs__item:hover { color: rgb(var(--hoho-color-text-secondary)); }
+
+  .hoho-year-tabs__item[data-selected='true'] {
+    color: rgb(var(--hoho-color-primary));
+    font-weight: 650;
+  }
+
+  .hoho-year-tabs__item[data-selected='true']::after {
+    position: absolute;
+    right: var(--hoho-space-4);
+    bottom: -1px;
+    left: var(--hoho-space-4);
+    height: 2px;
+    border-radius: var(--hoho-radius-pill);
+    background: rgb(var(--hoho-color-primary));
+    content: '';
+  }
+
+  .hoho-year-tabs__item:focus-visible {
+    border-radius: var(--hoho-radius-small);
+    outline: 2px solid rgb(var(--hoho-color-primary) / 0.35);
+    outline-offset: -3px;
+  }
+
+  .hoho-button {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--hoho-space-2);
+    border-radius: var(--hoho-radius-pill);
+    padding: 0 var(--hoho-space-4);
+    font: 600 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .hoho-button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary) / 0.35); outline-offset: 2px; }
+  .hoho-button:active:not(:disabled) { transform: scale(0.98); }
+  .hoho-button:disabled { cursor: not-allowed; opacity: 0.5; }
+  .hoho-button[data-variant='primary'] { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
+  .hoho-button[data-variant='primary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-hover)); }
+  .hoho-button[data-variant='secondary'] { border: 1px solid rgb(var(--hoho-color-border-strong)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-button[data-variant='secondary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
+  .hoho-button[data-variant='text'] { min-height: 36px; border-radius: var(--hoho-radius-medium); background: transparent; color: rgb(var(--hoho-color-primary)); }
+  .hoho-button[data-variant='text']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
+
+  .hoho-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: var(--hoho-space-3);
+    padding: var(--hoho-space-10) var(--hoho-space-6);
+    text-align: center;
+  }
+
+  .hoho-empty-state__icon {
+    display: grid;
+    height: 56px;
+    width: 56px;
+    place-items: center;
+    border-radius: var(--hoho-radius-pill);
+    background: rgb(var(--hoho-color-primary-soft));
+    color: rgb(var(--hoho-color-primary));
+  }
+
+  .hoho-timeline { display: grid; gap: var(--hoho-space-4); }
+
+  .hoho-timeline-item {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: var(--hoho-space-3);
+  }
+
+  .hoho-timeline-item__label {
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family);
+    text-align: right;
+  }
+
+  .hoho-timeline-item__content {
+    position: relative;
+    border-left: 1px solid rgb(var(--hoho-color-border));
+    padding-left: var(--hoho-space-4);
+  }
+
+  .hoho-timeline-item__content::before {
+    position: absolute;
+    top: var(--hoho-space-2);
+    left: -5px;
+    height: 9px;
+    width: 9px;
+    border: 2px solid rgb(var(--hoho-color-background));
+    border-radius: var(--hoho-radius-pill);
+    background: rgb(var(--hoho-color-primary));
+    content: '';
+  }
+
+  .hoho-timeline[data-level='list'] .hoho-timeline-item__label {
+    color: rgb(var(--hoho-color-primary));
+    font-size: var(--hoho-font-size-body);
+  }
+
+  .hoho-timeline[data-level='detail'] { gap: var(--hoho-space-6); }
+  .hoho-timeline[data-level='detail'] .hoho-timeline-item { grid-template-columns: 56px minmax(0, 1fr); }
+  .hoho-timeline[data-level='detail'] .hoho-timeline-item__content::before { background: rgb(var(--hoho-color-surface)); border-color: rgb(var(--hoho-color-primary)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoho-health-card,
+  .hoho-button,
+  .hoho-year-tabs__item { transition: none; }
+}

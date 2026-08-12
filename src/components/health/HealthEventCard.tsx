@@ -1,8 +1,9 @@
 import { CheckCircle2, ChevronRight, RotateCcw, Trash2 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
-import { Card, Tag } from '../common'
+import { HealthCard, HealthTag, Typography } from '../design-system'
 
 const actionWidth = 148
 
@@ -21,7 +22,8 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
   const [busy, setBusy] = useState(false)
   const isRecovered = event.status === 'recovered'
   const statusLabel = isRecovered ? '已康复' : '观察中'
-  const statusTone = isRecovered ? 'success' : 'neutral'
+  const statusTone = isRecovered ? 'success' : 'primary'
+  const startDate = format(parseISO(event.occurredAt), 'M月d日')
 
   const finishSwipe = () => {
     setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
@@ -49,8 +51,8 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
   }
 
   return (
-    <div className="relative overflow-hidden rounded-card" data-event-id={event.id}>
-      <div className="absolute inset-y-0 right-0 flex w-[148px] overflow-hidden rounded-r-card text-surface">
+    <div className="relative overflow-hidden rounded-[var(--hoho-radius-large)]" data-event-id={event.id}>
+      <div className="absolute inset-y-0 right-0 flex w-[148px] overflow-hidden rounded-r-[var(--hoho-radius-large)] text-surface">
         <button
           aria-label={isRecovered ? '重新观察该健康事件' : '标记该健康事件为已康复'}
           className="grid w-[74px] place-items-center bg-primary px-1 text-center text-xs font-medium disabled:opacity-70"
@@ -105,16 +107,17 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerUp={finishSwipe}
         onPointerCancel={finishSwipe}
       >
-        <Card interactive className="flex items-center gap-3 px-3 py-3">
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate text-sm font-semibold">{event.title}</h3>
-              <Tag tone={statusTone}>{statusLabel}</Tag>
+        <HealthCard interactive className="flex min-h-[104px] items-center gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <Typography className="min-w-0 flex-1 truncate" variant="cardTitle">{event.title}</Typography>
+              <HealthTag className="shrink-0" tone={statusTone}>{statusLabel}</HealthTag>
             </div>
-            <p className="line-clamp-2 text-xs leading-5 text-text-secondary">主要症状：{event.title}</p>
+            <Typography className="line-clamp-2" variant="caption">主要症状：{event.title}</Typography>
+            <Typography variant="caption">开始日期：{startDate}</Typography>
           </div>
-          <ChevronRight className="shrink-0 text-text-secondary" size={18} />
-        </Card>
+          <ChevronRight className="shrink-0 text-[rgb(var(--hoho-color-text-weak))]" size={18} />
+        </HealthCard>
       </button>
     </div>
   )
