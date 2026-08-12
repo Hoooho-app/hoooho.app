@@ -36,10 +36,19 @@ export function cycleVirtualAvatarId(value: string | undefined, birthday: string
   return `${PREFIX}${kind}:${((current?.variant ?? 0) + 1) % 3}`
 }
 
+export function remapVirtualAvatarId(value: string | undefined, birthday: string, gender: ProfileGender) {
+  const current = parseVirtualAvatarId(value)
+  if (value && !current) return value
+
+  const role = createVirtualAvatarId(birthday, gender)
+  return current ? `${role}:${current.variant}` : role
+}
+
 export function parseVirtualAvatarId(value?: string): VirtualAvatarProfile | null {
   if (!value?.startsWith(PREFIX)) return null
   const [rawKind, rawVariant] = value.slice(PREFIX.length).split(':')
-  const kind = rawKind as VirtualAvatarKind
+  const kindAliases: Record<string, VirtualAvatarKind> = { father: 'man', mother: 'woman' }
+  const kind = kindAliases[rawKind] ?? rawKind as VirtualAvatarKind
   const variant = Number.parseInt(rawVariant ?? '0', 10)
   return ['baby-boy', 'baby-girl', 'boy', 'girl', 'man', 'woman', 'grandfather', 'grandmother'].includes(kind)
     ? { kind, variant: Number.isFinite(variant) ? Math.abs(variant) % 3 : 0 }

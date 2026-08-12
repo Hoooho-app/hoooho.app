@@ -8,7 +8,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { createVirtualAvatarId, cycleVirtualAvatarId } from '../../utils/virtualAvatar'
+import { createVirtualAvatarId, cycleVirtualAvatarId, remapVirtualAvatarId } from '../../utils/virtualAvatar'
 
 type RequiredGender = Extract<ProfileGender, 'male' | 'female'>
 type BloodType = 'A' | 'B' | 'AB' | 'O' | ''
@@ -69,7 +69,7 @@ export function EditFamilyMemberPage() {
   }, [clearAuthSession, memberId, navigate, token])
 
   const age = useMemo(() => birthday ? formatAgeFromBirthday(birthday) : '', [birthday])
-  const previewAvatar = avatar || (birthday ? createVirtualAvatarId(birthday, gender) : undefined)
+  const previewAvatar = birthday ? remapVirtualAvatarId(avatar || undefined, birthday, gender) : avatar || undefined
 
   const changeAvatar = () => {
     if (!birthday) {
@@ -168,7 +168,7 @@ export function EditFamilyMemberPage() {
               <span className="text-sm font-medium">性别</span>
               <div className="ml-auto grid w-36 grid-cols-2 overflow-hidden rounded-control border border-border">
                 {([['male', '男'], ['female', '女']] as const).map(([value, label]) => (
-                  <button key={value} className={`min-h-10 text-sm ${gender === value ? 'bg-primary-soft font-semibold text-primary' : 'bg-surface text-text-secondary'}`} type="button" onClick={() => { setGender(value); if (birthday) setAvatar(createVirtualAvatarId(birthday, value)) }}>
+                  <button key={value} className={`min-h-10 text-sm ${gender === value ? 'bg-primary-soft font-semibold text-primary' : 'bg-surface text-text-secondary'}`} type="button" onClick={() => { setGender(value); if (birthday) setAvatar(remapVirtualAvatarId(avatar || undefined, birthday, value)) }}>
                     {label}
                   </button>
                 ))}
