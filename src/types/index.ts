@@ -78,6 +78,7 @@ export interface HealthEventListItemViewModel {
   memberId: string
   memberName: string
   title: string
+  summary: string | null
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string

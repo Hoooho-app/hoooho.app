@@ -1,12 +1,6 @@
 import type { FamilyMemberApiDto, HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
-
-function getEventOccurredAt(event: HealthEventApiDto, records: readonly HealthEventRecordApiDto[]) {
-  if (records.length === 0) return event.startTime
-  return records.reduce(
-    (earliest, record) => record.occurredAt < earliest ? record.occurredAt : earliest,
-    records[0].occurredAt
-  )
-}
+import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts'
+import { getEventOccurredAt, getPrimaryRecord } from './healthEventListPresentation'
 
 export function adaptHealthEventList(
   events: HealthEventApiDto[],
@@ -14,16 +8,22 @@ export function adaptHealthEventList(
   recordsByEventId: ReadonlyMap<string, readonly HealthEventRecordApiDto[]> = new Map()
 ): HealthEventListItemViewModel[] {
   const memberNames = new Map(members.map((member) => [member.id, member.name]))
-  return events.map((event) => ({
+  return events.map((event) => {
+    const records = recordsByEventId.get(event.id) ?? []
+    const primaryRecord = getPrimaryRecord(records)
+    const title = normalizeHealthEventTitle(event.title, primaryRecord?.content)
+    return ({
     id: event.id,
     memberId: event.memberId,
     memberName: memberNames.get(event.memberId) ?? '未知成员',
-    title: event.title,
+    title,
+    summary: deriveHealthEventListSummary(title, primaryRecord?.content),
     category: event.category,
     status: event.status,
     startTime: event.startTime,
-    occurredAt: getEventOccurredAt(event, recordsByEventId.get(event.id) ?? []),
+    occurredAt: getEventOccurredAt(event, records),
     createdAt: event.createdAt,
     updatedAt: event.updatedAt
-  }))
+    })
+  })
 }

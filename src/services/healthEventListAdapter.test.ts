@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { FamilyMemberApiDto, HealthEventApiDto, HealthEventRecordApiDto } from '../types/index.ts'
-import { adaptHealthEventList } from './healthEventListAdapter.ts'
+import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts.ts'
+import { getEventOccurredAt } from './healthEventListPresentation.ts'
 
 const member: FamilyMemberApiDto = {
   id: 'member-1', accountId: 'account-1', name: '朱琳', relationship: 'self', gender: 'female',
@@ -20,15 +21,40 @@ const record: HealthEventRecordApiDto = {
 }
 
 test('列表使用 Record occurredAt 归属年份，而不是事件创建时间', () => {
-  const result = adaptHealthEventList([event], [member], new Map([[event.id, [record]]]))
+  const occurredAt = getEventOccurredAt(event, [record])
 
-  assert.equal(result[0].occurredAt, record.occurredAt)
-  assert.equal(new Date(result[0].occurredAt).getUTCFullYear(), 2025)
-  assert.equal(new Date(result[0].createdAt).getUTCFullYear(), 2026)
+  assert.equal(occurredAt, record.occurredAt)
+  assert.equal(new Date(occurredAt).getUTCFullYear(), 2025)
+  assert.equal(new Date(event.createdAt).getUTCFullYear(), 2026)
 })
 
 test('没有 Record 时回退到事件 startTime', () => {
-  const result = adaptHealthEventList([event], [member])
+  assert.equal(getEventOccurredAt(event, []), event.startTime)
+})
 
-  assert.equal(result[0].occurredAt, event.startTime)
+test('标题与主要症状相同，列表不生成重复摘要', () => {
+  const feverEvent = { ...event, title: '发热' }
+  const feverRecord = { ...record, content: '发热' }
+  const title = normalizeHealthEventTitle(feverEvent.title, feverRecord.content)
+
+  assert.equal(title, '发热')
+  assert.equal(deriveHealthEventListSummary(title, feverRecord.content), null)
+})
+
+test('长描述提炼为症状关键词，并把额外事实放入摘要', () => {
+  const longEvent = { ...event, title: '当时头上有点胀痛，而且有点冒汗' }
+  const longRecord = { ...record, content: '当时头上有点胀痛，而且有点冒汗' }
+  const title = normalizeHealthEventTitle(longEvent.title, longRecord.content)
+
+  assert.equal(title, '头痛')
+  assert.equal(deriveHealthEventListSummary(title, longRecord.content), '伴出汗')
+})
+
+test('事件标题保持简短，补充摘要不直接复制标题', () => {
+  const coldEvent = { ...event, title: '手脚发凉' }
+  const coldRecord = { ...record, content: '手脚发凉' }
+  const title = normalizeHealthEventTitle(coldEvent.title, coldRecord.content)
+
+  assert.equal(title, '手脚发凉')
+  assert.equal(deriveHealthEventListSummary(title, coldRecord.content), null)
 })

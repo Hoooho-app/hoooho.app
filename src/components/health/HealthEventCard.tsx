@@ -1,5 +1,4 @@
 import { CheckCircle2, ChevronRight, RotateCcw, Trash2 } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
@@ -23,7 +22,6 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
   const isRecovered = event.status === 'recovered'
   const statusLabel = isRecovered ? '已康复' : '观察中'
   const statusTone = isRecovered ? 'success' : 'primary'
-  const startDate = format(parseISO(event.occurredAt), 'M月d日')
 
   const finishSwipe = () => {
     setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
@@ -107,14 +105,11 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerUp={finishSwipe}
         onPointerCancel={finishSwipe}
       >
-        <HealthCard interactive className="flex min-h-[104px] items-center gap-3">
+        <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <Typography className="min-w-0 flex-1 truncate" variant="cardTitle">{event.title}</Typography>
-              <HealthTag className="shrink-0" tone={statusTone}>{statusLabel}</HealthTag>
-            </div>
-            <Typography className="line-clamp-2" variant="caption">主要症状：{event.title}</Typography>
-            <Typography variant="caption">开始日期：{startDate}</Typography>
+            <Typography className="line-clamp-1 break-words" variant="cardTitle">{event.title}</Typography>
+            {event.summary && <Typography className="line-clamp-2 break-words" variant="caption">{event.summary}</Typography>}
+            <div><HealthTag tone={statusTone}>{statusLabel}</HealthTag></div>
           </div>
           <ChevronRight className="shrink-0 text-[rgb(var(--hoho-color-text-weak))]" size={18} />
         </HealthCard>
