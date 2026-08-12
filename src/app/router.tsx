@@ -1,7 +1,7 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { HealthEventDetailPage } from '../pages/HealthEventDetail'
 import { CreateHealthEventPage, HealthEventsPage } from '../pages/HealthEvents'
-import { HealthProfilePage } from '../pages/HealthProfile'
+import { HealthProfilePage, HealthProfileSectionPage } from '../pages/HealthProfile'
 import { LoginPage } from '../pages/Login'
 import { ProfileSetupPage } from '../pages/ProfileSetup'
 import { AddFamilyMemberPage, EditFamilyMemberPage, FamilyPage } from '../pages/Family'
@@ -25,6 +25,7 @@ export const router = createBrowserRouter([
       { path: '/health-events/new', element: <CreateHealthEventPage /> },
       { path: '/health-events/:eventId', element: <HealthEventDetailPage /> },
       { path: '/health-profile', element: <HealthProfilePage /> },
+      { path: '/health-profile/:sectionId', element: <HealthProfileSectionPage /> },
       { path: '/family', element: <FamilyPage /> },
       { path: '/family/new', element: <AddFamilyMemberPage /> },
       { path: '/family/:memberId/edit', element: <EditFamilyMemberPage /> },

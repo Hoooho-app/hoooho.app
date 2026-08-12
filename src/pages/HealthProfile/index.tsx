@@ -1,53 +1,74 @@
-import { AlertTriangle, ChevronRight, FileHeart, HeartPulse, Pill, UsersRound } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { Card } from '../../components/common'
-import { HohoSection, Typography } from '../../components/design-system'
+import { Activity, AlertTriangle, Baby, CalendarDays, ChevronRight, FileHeart, HeartPulse, Moon, Pill, Stethoscope, Syringe, UserRound, UsersRound, Utensils, type LucideIcon } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Typography } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { MemberIdentityCard } from '../../components/health'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { healthProfiles } from '../../mock/healthProfiles'
+import { healthProfileSections, type HealthProfileSectionConfig } from '../../features/health-profile/config/healthProfileSections'
+import { getHealthProfileType } from '../../features/health-profile/utils/getHealthProfileProfile'
+import { getPrioritizedSections } from '../../features/health-profile/utils/getPrioritizedSections'
 
-interface Category {
-  label: string
-  description: string
-  count: number
-  icon: LucideIcon
+const icons: Record<HealthProfileSectionConfig['icon'], LucideIcon> = {
+  activity: Activity, allergy: AlertTriangle, baby: Baby, calendar: CalendarDays, care: UserRound,
+  family: UsersRound, file: FileHeart, heart: HeartPulse, pill: Pill, sleep: Moon,
+  stethoscope: Stethoscope, syringe: Syringe, utensils: Utensils,
+}
+
+function getSectionCount(sectionId: string, memberId: string) {
+  const profile = healthProfiles.find((item) => item.memberId === memberId)
+  if (!profile) return 0
+  if (sectionId === 'basic') return [profile.heightCm, profile.weightKg, profile.bloodType].filter(Boolean).length
+  if (sectionId === 'allergy') return profile.allergies.length
+  if (sectionId === 'medication') return profile.medications.length
+  if (sectionId === 'history') return profile.medicalHistory.length
+  if (sectionId === 'family-history') return profile.familyHistory.length
+  return 0
+}
+
+function ProfileSectionRows({ sections, memberId }: { sections: HealthProfileSectionConfig[]; memberId: string }) {
+  const navigate = useNavigate()
+  return (
+    <div className="overflow-hidden rounded-card border bg-surface">
+      {sections.map((section) => {
+        const Icon = icons[section.icon]
+        const count = getSectionCount(section.id, memberId)
+        return (
+          <button className="hoho-surface-row" key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={19} strokeWidth={1.75} /></span>
+            <span className="min-w-0 flex-1">
+              <Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography>
+              <Typography className="mt-0.5 block truncate" variant="caption">{count ? `已记录 ${count} 项` : section.description}</Typography>
+            </span>
+            <ChevronRight className="text-text-secondary" size={18} />
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 export function HealthProfilePage() {
   const member = useCurrentMember()
-  const profile = healthProfiles.find((item) => item.memberId === member.id)
-  const categories: Category[] = [
-    { label: '基础信息', description: '身高、体重、血型等基础资料', count: profile ? 3 : 0, icon: FileHeart },
-    { label: '过敏史', description: '药物、食物和环境过敏记录', count: profile?.allergies.length ?? 0, icon: AlertTriangle },
-    { label: '长期用药', description: '长期使用的药物记录', count: profile?.medications.length ?? 0, icon: Pill },
-    { label: '既往病史', description: '过去的重要疾病记录', count: profile?.medicalHistory.length ?? 0, icon: HeartPulse },
-    { label: '家族健康史', description: '家庭成员的重要健康信息', count: profile?.familyHistory.length ?? 0, icon: UsersRound }
-  ]
+  const profileType = getHealthProfileType(member.birthday, member.gender)
+  const { priorities } = getPrioritizedSections(profileType)
 
   return (
     <main className="app-shell">
       <MainAppHeader title="健康档案" />
-      <div className="page-content">
+      <div className="page-content pb-10">
         <MemberIdentityCard member={member} />
-        <HohoSection description="记录基础健康资料，帮助更好了解长期健康情况。" title="健康信息">
-          <div className="h-px bg-border" />
-        </HohoSection>
-        <section className="overflow-hidden rounded-card border bg-surface">
-          {categories.map(({ label, description, count, icon: Icon }) => (
-            <button key={label} className="block w-full border-b text-left last:border-b-0">
-              <div className="flex min-h-[72px] items-center gap-3 px-4 py-3 transition hover:bg-surface-muted">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={20} strokeWidth={1.75} /></span>
-                <span className="min-w-0 flex-1">
-                  <Typography variant="body" className="font-medium text-text-primary">{label}</Typography>
-                  <Typography variant="caption" className="mt-1 block truncate">{description} · {count} 项</Typography>
-                </span>
-                <ChevronRight className="text-text-secondary" size={18} />
-              </div>
-            </button>
-          ))}
+        <section className="grid gap-3">
+          <header><Typography variant="sectionTitle">当前重点</Typography><Typography className="mt-1" variant="caption">根据当前成员的年龄与性别动态排序</Typography></header>
+          <ProfileSectionRows memberId={member.id} sections={priorities} />
+        </section>
+        <section className="mt-6 grid gap-3">
+          <header><Typography variant="sectionTitle">全部健康档案</Typography><Typography className="mt-1" variant="caption">完整档案持续保留，重点会随年龄变化</Typography></header>
+          <ProfileSectionRows memberId={member.id} sections={healthProfileSections} />
         </section>
       </div>
     </main>
   )
 }
+
+export { HealthProfileSectionPage } from './HealthProfileSectionPage'
