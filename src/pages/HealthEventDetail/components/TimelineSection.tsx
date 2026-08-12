@@ -1,21 +1,17 @@
 import { Fragment, useMemo, useState } from 'react'
-import { ArrowUpDown, ChevronDown, ChevronUp, Clock3, PlusCircle } from 'lucide-react'
-import type { CreateHealthEventRecordInput, EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
-import { Button, Card } from '../../../components/common'
+import { ArrowUpDown, ChevronDown, ChevronUp, Clock3 } from 'lucide-react'
+import type { EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
+import { Card } from '../../../components/common'
 import { groupTimelineByYearAndDate } from '../../../services/healthTimelineGrouping'
 import { compareHealthChronologyAsc, compareHealthChronologyDesc } from '../../../services/healthChronology'
-import { HealthRecordEditorModal } from './HealthRecordEditorModal'
 
 interface TimelineSectionProps {
   event: HealthEvent
-  firstRecordTime?: string
-  onAddRecord?: (input: CreateHealthEventRecordInput) => Promise<void>
 }
 
 type TimelineOrder = 'desc' | 'asc'
 
-export function TimelineSection({ event, firstRecordTime, onAddRecord }: TimelineSectionProps) {
-  const [isEditorOpen, setIsEditorOpen] = useState(false)
+export function TimelineSection({ event }: TimelineSectionProps) {
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [expandedAttachmentEntries, setExpandedAttachmentEntries] = useState<Set<string>>(new Set())
 
@@ -43,9 +39,6 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
       <div className="flex items-center justify-between gap-3">
         <h2 className="section-title">时间线</h2>
         <div className="flex items-center gap-2">
-          <Button className="min-h-10 px-4" onClick={() => setIsEditorOpen(true)}>
-            新增情况<PlusCircle size={17} />
-          </Button>
           <button
             aria-label={order === 'desc' ? '当前最新优先，切换为最早优先' : '当前最早优先，切换为最新优先'}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-surface text-text-secondary shadow-calm transition hover:border-primary hover:text-primary"
@@ -60,14 +53,7 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
 
       {!timeline.length ? (
         <Card
-          interactive
-          className="cursor-pointer py-8 text-center"
-          role="button"
-          tabIndex={0}
-          onClick={() => setIsEditorOpen(true)}
-          onKeyDown={(keyEvent) => {
-            if (keyEvent.key === 'Enter' || keyEvent.key === ' ') setIsEditorOpen(true)
-          }}
+          className="py-8 text-center"
         >
           <Clock3 className="mx-auto text-primary" size={27} strokeWidth={1.6} />
           <h3 className="mt-3 font-semibold">添加第一条过程记录</h3>
@@ -98,20 +84,6 @@ export function TimelineSection({ event, firstRecordTime, onAddRecord }: Timelin
         </div>
       )}
 
-      <HealthRecordEditorModal
-        open={isEditorOpen}
-        templateType="timeline"
-        defaultRecordType="note"
-        minOccurredAt={firstRecordTime ?? event.startDate}
-        onClose={() => setIsEditorOpen(false)}
-        onSave={onAddRecord ? (result) => onAddRecord({
-          type: result.recordType,
-          content: result.originalText,
-          occurredAt: result.occurredAt,
-          attachments: result.attachments,
-          bodyLocations: result.bodyLocations
-        }) : undefined}
-      />
     </section>
   )
 }

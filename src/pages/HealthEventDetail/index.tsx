@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput } from '../../types'
@@ -7,8 +7,13 @@ import { createHealthEventSubject } from '../../services/healthEventPersonalizat
 import { deriveHealthEventTitleFromFacts } from '../../services/healthEventFacts'
 import {
   EventHeader,
-  EventIdentitySection,
+  ActionSheet,
+  ComingSoonPrompt,
+  EventDetailStickyHeader,
   FirstRecordComposer,
+  HealthRecordEditorModal,
+  ObservationSection,
+  ObservationSheet,
   TemperatureChartSection,
   TimelineSection
 } from './components'
@@ -17,6 +22,10 @@ export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
   const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const [actionOpen, setActionOpen] = useState(false)
+  const [observationOpen, setObservationOpen] = useState(false)
+  const [recordEditorOpen, setRecordEditorOpen] = useState(false)
+  const [comingSoonOpen, setComingSoonOpen] = useState(false)
 
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
@@ -100,23 +109,39 @@ export function HealthEventDetailPage() {
   }
 
   return (
-    <main className="app-shell health-event-detail bg-background pb-8">
-      <EventHeader />
-      <div className="page-content">
-        <EventIdentitySection subject={subject} />
+    <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0">
+      <div className="health-event-detail-fixed">
+        <EventHeader />
+        <EventDetailStickyHeader onAction={() => setActionOpen(true)} onAddRecord={() => setRecordEditorOpen(true)} subject={subject} />
+      </div>
+      <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {!hasOrganizedRecord ? (
           <FirstRecordComposer onSave={addHealthRecord} />
         ) : (
           <>
-            <TimelineSection
-              event={event}
-              firstRecordTime={state.data.records.map((record) => record.occurredAt).sort()[0]}
-              onAddRecord={addHealthRecord}
-            />
+            <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+            <ObservationSection onStart={() => setObservationOpen(true)} />
           </>
         )}
       </div>
+      <HealthRecordEditorModal
+        defaultRecordType="note"
+        minOccurredAt={state.data.records.map((record) => record.occurredAt).sort()[0] ?? event.startDate}
+        onClose={() => setRecordEditorOpen(false)}
+        onSave={(result) => addHealthRecord({
+          type: result.recordType,
+          content: result.originalText,
+          occurredAt: result.occurredAt,
+          attachments: result.attachments,
+          bodyLocations: result.bodyLocations
+        })}
+        open={recordEditorOpen}
+        templateType="timeline"
+      />
+      <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />
+      <ObservationSheet onClose={() => setObservationOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={observationOpen} />
+      <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />
     </main>
   )
 }

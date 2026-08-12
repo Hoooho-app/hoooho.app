@@ -1,4 +1,5 @@
 export * from './EmptyState'
+export * from './BottomSheetSurface'
 export * from './HealthCard'
 export * from './HealthTag'
 export * from './HealthTimeline'
