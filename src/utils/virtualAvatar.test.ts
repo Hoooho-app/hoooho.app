@@ -29,3 +29,9 @@ test('virtual avatars keep their role while cycling through three variants', () 
   assert.deepEqual([first, second, third], ['virtual:woman:1', 'virtual:woman:2', 'virtual:woman:0'])
   assert.deepEqual(parseVirtualAvatarId(second), { kind: 'woman', variant: 2 })
 })
+
+test('legacy virtual avatar ids remain compatible', () => {
+  assert.deepEqual(parseVirtualAvatarId('virtual:baby-boy:2'), { kind: 'baby-boy', variant: 2 })
+  assert.deepEqual(parseVirtualAvatarId('virtual:girl:8'), { kind: 'girl', variant: 2 })
+  assert.deepEqual(parseVirtualAvatarId('virtual:grandfather'), { kind: 'grandfather', variant: 0 })
+})
