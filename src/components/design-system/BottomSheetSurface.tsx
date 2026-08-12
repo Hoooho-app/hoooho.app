@@ -4,6 +4,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 
 export interface BottomSheetSurfaceProps {
   children: ReactNode
+  className?: string
   footer?: ReactNode
   label: string
   navigation?: ReactNode
@@ -12,7 +13,7 @@ export interface BottomSheetSurfaceProps {
   title: string
 }
 
-export function BottomSheetSurface({ children, footer, label, navigation, onClose, open, title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, className = '', footer, label, navigation, onClose, open, title }: BottomSheetSurfaceProps) {
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export function BottomSheetSurface({ children, footer, label, navigation, onClos
   return (
     <div className="hoho-bottom-sheet-layer" role="presentation">
       <button aria-label={`关闭${label}`} className="hoho-bottom-sheet-backdrop" onClick={onClose} type="button" />
-      <section aria-label={label} aria-modal="true" className="hoho-bottom-sheet" role="dialog">
+      <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} role="dialog">
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
         <header className="hoho-bottom-sheet__header">
           <h2 className="hoho-text-section-title">{title}</h2>

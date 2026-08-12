@@ -1,8 +1,8 @@
 import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, MessageCircle, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { BottomSheetSurface, HealthCard, HohoButton, HohoToggle, Typography } from '../../../components/design-system'
+import { actionCategoryLabels, actionCategoryOrder, type ActionCategory } from './actionSheetPresentation'
 
-type ActionCategory = 'observation' | 'hospital' | 'consultation' | 'help'
 type Recorder = 'self' | 'family'
 
 interface ActionFeature {
@@ -27,7 +27,7 @@ const categoryContent: Record<Exclude<ActionCategory, 'observation'>, { descript
     ]
   },
   consultation: {
-    label: '在线问诊',
+    label: 'AI问诊',
     description: '整理当前健康事件，便于提供给 AI 或在线医生进行咨询。',
     features: [
       { id: 'consult-summary', title: '生成问诊摘要', description: '整理症状、时间线、体温、用药和重要变化。', actionLabel: '生成问诊摘要', icon: MessageCircle, preview: ['症状概况', '关键时间线', '体温与用药', '重要变化'] },
@@ -67,11 +67,11 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
   }
 
   return (
-    <BottomSheetSurface label="行动" onClose={onClose} open={open} title="行动" navigation={(
-      <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="行动分类">
-        {(['observation', 'hospital', 'consultation', 'help'] as ActionCategory[]).map((key) => (
+    <BottomSheetSurface className="health-action-sheet" label="行动" onClose={onClose} open={open} title="行动" navigation={(
+      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
+        {actionCategoryOrder.map((key) => (
           <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
-            {key === 'observation' ? '重点观察' : categoryContent[key].label}
+            {actionCategoryLabels[key]}
           </button>
         ))}
       </div>
@@ -137,11 +137,11 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
     : [...current, focus])
 
   return (
-    <div className="space-y-5">
+    <div className="health-observation-content">
       <Typography variant="body">持续收集当前健康事件中值得关注的变化。</Typography>
       <section>
         <Typography variant="label">1. 谁来记录</Typography>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <RecorderChoice active={recorder === 'self'} description="由我继续补充这个健康事件的变化" icon={UserRound} label="自己记录" onClick={() => setRecorder('self')} />
           <RecorderChoice active={recorder === 'family'} description="邀请家人通过链接一起补充" icon={UsersRound} label="家人协作" onClick={() => setRecorder('family')} />
         </div>
@@ -150,10 +150,10 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
       {recorder === 'family' && (
         <section>
           <Typography variant="label">2. 协作链接</Typography>
-          <HealthCard className="mt-3 shadow-none">
+          <HealthCard className="mt-2 shadow-none">
             <div className="flex items-center gap-2 text-sm font-medium"><Link className="text-primary" size={18} />hoho.app/care/8K2F...</div>
             <Typography className="mt-2" variant="caption">家人可通过链接补充本事件的相关情况，例如测量数据、症状变化、作息和图片。</Typography>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <HohoButton onClick={onComingSoon} variant="secondary"><Copy size={16} />复制链接</HohoButton>
               <HohoButton onClick={onComingSoon} variant="secondary"><Send size={16} />发送给家人</HohoButton>
             </div>
@@ -163,7 +163,7 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
 
       <section>
         <Typography variant="label">{recorder === 'family' ? '3' : '2'}. 观察重点</Typography>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {focusOptions.map((focus) => (
             <button aria-pressed={focuses.includes(focus)} className="health-observation-chip" data-selected={focuses.includes(focus)} key={focus} onClick={() => toggleFocus(focus)} type="button">{focus}</button>
           ))}
@@ -171,11 +171,11 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
         </div>
       </section>
 
-      <section className="flex items-center gap-3 rounded-card border bg-surface px-4 py-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Bell size={19} /></span>
+      <section className="flex items-center gap-2.5 rounded-card border bg-surface px-3 py-2">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Bell size={17} /></span>
         <span className="min-w-0 flex-1">
           <strong className="block text-sm">关注此事件</strong>
-          <span className="mt-1 block text-xs leading-5 text-text-secondary">有新的协作记录或事件更新时提醒我</span>
+          <span className="mt-0.5 block text-xs leading-4 text-text-secondary">有新的协作记录或事件更新时提醒我</span>
         </span>
         <HohoToggle checked={following} label="关注此事件" onChange={setFollowing} />
       </section>
@@ -190,9 +190,9 @@ function ObservationFooter({ onComingSoon, recorder = 'self' }: { onComingSoon: 
 function RecorderChoice({ active, description, icon: Icon, label, onClick }: { active: boolean; description: string; icon: LucideIcon; label: string; onClick: () => void }) {
   return (
     <button aria-pressed={active} className="health-recorder-choice" data-selected={active} onClick={onClick} type="button">
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={20} /></span>
-      <strong className="mt-2 block text-sm">{label}</strong>
-      <span className="mt-1 block text-xs leading-5 text-text-secondary">{description}</span>
+      <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={18} /></span>
+      <strong className="mt-1.5 block text-sm">{label}</strong>
+      <span className="health-recorder-choice__description mt-0.5 block text-xs leading-4 text-text-secondary">{description}</span>
     </button>
   )
 }

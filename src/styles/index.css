@@ -43,13 +43,25 @@
   .health-event-detail-sticky { @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3; border-color: rgb(var(--hoho-color-border) / 0.8); }
   .health-event-detail-sticky__identity { @apply flex min-w-0 items-center gap-3 rounded-card border bg-surface px-3 py-2; }
 
-  .health-action-tab { @apply min-h-10 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
+  .health-action-tab { @apply min-h-9 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
   .health-action-tab[data-selected='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
   .health-action-list .hoho-surface-row { min-height: 68px; gap: var(--hoho-space-3); padding: var(--hoho-space-2) var(--hoho-space-3); }
-  .health-recorder-choice { @apply min-w-0 rounded-card border bg-surface p-3 text-left; }
+  .health-recorder-choice { @apply min-w-0 rounded-card border bg-surface p-2.5 text-left; }
   .health-recorder-choice[data-selected='true'] { border-color: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 1px rgb(var(--hoho-color-primary) / 0.16); }
-  .health-observation-chip { @apply min-h-9 rounded-pill border px-3 text-xs font-medium text-text-secondary; background: rgb(var(--hoho-color-surface)); }
+  .health-observation-chip { @apply min-h-8 rounded-pill border px-2.5 text-xs font-medium text-text-secondary; background: rgb(var(--hoho-color-surface)); }
   .health-observation-chip[data-selected='true'] { border-color: rgb(var(--hoho-color-primary) / 0.35); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .health-observation-content { display: grid; gap: var(--hoho-space-3); }
+  .health-recorder-choice__description { display: -webkit-box; min-height: 2rem; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+  @media (max-width: 480px) {
+    .health-action-sheet { max-height: min(72dvh, 640px); }
+    .health-action-sheet .hoho-bottom-sheet__handle { height: 4px; margin-top: var(--hoho-space-2); }
+    .health-action-sheet .hoho-bottom-sheet__header { min-height: 44px; padding-inline: var(--hoho-space-4); }
+    .health-action-sheet .hoho-bottom-sheet__close { width: 36px; height: 36px; }
+    .health-action-sheet .hoho-bottom-sheet__navigation { padding: 0 var(--hoho-space-3) var(--hoho-space-2); }
+    .health-action-sheet .hoho-bottom-sheet__body { padding: var(--hoho-space-2) var(--hoho-space-3) var(--hoho-space-3); }
+    .health-action-sheet .hoho-bottom-sheet__footer { padding: var(--hoho-space-2) var(--hoho-space-3) calc(var(--hoho-space-2) + env(safe-area-inset-bottom)); }
+  }
 
   .first-record-form-row { @apply grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2; }
   .first-record-form-label,
