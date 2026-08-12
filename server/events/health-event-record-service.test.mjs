@@ -8,6 +8,7 @@ import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from '../members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './vite-events-plugin.mjs'
 import { eventRecordsApiPlugin } from './vite-event-records-plugin.mjs'
+import { validateOccurredAt } from './health-event-record-service.mjs'
 
 const jsonRequest = (url, method, token, body) => fetch(url, {
   method,
@@ -35,6 +36,24 @@ async function createEvent(baseUrl, token, memberId, title = '发烧') {
   assert.equal(response.status, 201)
   return response.json()
 }
+
+test('occurredAt 允许当前及历史时间并拒绝所有未来时间', () => {
+  const serverNow = new Date('2026-08-12T07:35:00.000Z')
+  assert.equal(validateOccurredAt('2026-08-11T15:35:00+08:00', serverNow), '2026-08-11T07:35:00.000Z')
+  assert.equal(validateOccurredAt('2025-01-12T00:00:00+08:00', serverNow), '2025-01-11T16:00:00.000Z')
+  assert.equal(validateOccurredAt('2026-08-12T15:35:00+08:00', serverNow), serverNow.toISOString())
+
+  for (const futureValue of [
+    '2026-08-12T16:35:00+08:00',
+    '2026-08-13T00:00:00+08:00',
+    '2037-01-01T00:00:00+08:00'
+  ]) {
+    assert.throws(
+      () => validateOccurredAt(futureValue, serverNow),
+      (error) => error.code === 'FUTURE_OCCURRED_AT' && error.message === '发生时间不能晚于现在'
+    )
+  }
+})
 
 test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔离', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-event-records-api-'))
@@ -70,6 +89,19 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
 
     const unauthorized = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', null)
     assert.equal(unauthorized.status, 401)
+
+    const futureResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
+      type: 'note',
+      content: '前端绕过后提交的未来记录',
+      occurredAt: '2037-01-01T00:00:00+08:00'
+    })
+    assert.equal(futureResponse.status, 400)
+    assert.deepEqual((await futureResponse.json()).error, {
+      code: 'FUTURE_OCCURRED_AT',
+      message: '发生时间不能晚于现在'
+    })
+    const recordsAfterFutureAttempt = await (await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', first.token)).json()
+    assert.equal(recordsAfterFutureAttempt.length, 0)
 
     const morningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'symptom',
@@ -141,6 +173,14 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const updated = await updateResponse.json()
     assert.equal(updated.content, '12:00 服用一次退烧药')
     assert.equal(updated.occurredAt, '2026-08-09T04:05:00.000Z')
+
+    const futureUpdateResponse = await jsonRequest(`${baseUrl}/api/records/${noon.id}`, 'PATCH', first.token, {
+      occurredAt: '2037-01-01T00:00:00+08:00'
+    })
+    assert.equal(futureUpdateResponse.status, 400)
+    assert.equal((await futureUpdateResponse.json()).error.code, 'FUTURE_OCCURRED_AT')
+    const unchangedAfterFutureUpdate = await (await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', first.token)).json()
+    assert.equal(unchangedAfterFutureUpdate.find((record) => record.id === noon.id).occurredAt, updated.occurredAt)
 
     const immutableResponse = await jsonRequest(`${baseUrl}/api/records/${noon.id}`, 'PATCH', first.token, {
       accountId: second.user.id,

@@ -7,6 +7,7 @@ import { createServer } from 'vite'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from '../members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './vite-events-plugin.mjs'
+import { validateStartTime } from './health-event-service.mjs'
 
 const jsonRequest = (url, method, token, body) => fetch(url, {
   method,
@@ -29,6 +30,16 @@ async function listMembers(baseUrl, token) {
   assert.equal(response.status, 200)
   return response.json()
 }
+
+test('健康事件开始时间不能晚于服务端当前时刻', () => {
+  const serverNow = new Date('2026-08-12T07:35:00.000Z')
+  assert.equal(validateStartTime('2005-03-01T00:00:00+08:00', serverNow), '2005-02-28T16:00:00.000Z')
+  assert.equal(validateStartTime('2026-08-12T15:35:00+08:00', serverNow), serverNow.toISOString())
+  assert.throws(
+    () => validateStartTime('2026-08-12T18:00:00+08:00', serverNow),
+    (error) => error.code === 'FUTURE_START_TIME' && error.message === '发生时间不能晚于现在'
+  )
+})
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-events-api-'))
@@ -56,6 +67,18 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
 
     const unauthorized = await jsonRequest(`${baseUrl}/api/events`, 'GET', null)
     assert.equal(unauthorized.status, 401)
+
+    const futureEventResponse = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
+      memberId: selfMember.id,
+      title: '未来事件',
+      category: 'other',
+      startTime: '2037-01-01T00:00:00+08:00'
+    })
+    assert.equal(futureEventResponse.status, 400)
+    assert.deepEqual((await futureEventResponse.json()).error, {
+      code: 'FUTURE_START_TIME',
+      message: '发生时间不能晚于现在'
+    })
 
     const selfEventResponse = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
       memberId: selfMember.id,
@@ -103,6 +126,12 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     const updated = await updateResponse.json()
     assert.equal(updated.title, '发热')
     assert.equal(updated.status, 'handling')
+
+    const futureUpdateResponse = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}`, 'PATCH', first.token, {
+      startTime: '2037-01-01T00:00:00+08:00'
+    })
+    assert.equal(futureUpdateResponse.status, 400)
+    assert.equal((await futureUpdateResponse.json()).error.code, 'FUTURE_START_TIME')
 
     const namedEmptyEventResponse = await jsonRequest(`${baseUrl}/api/events/${selfEvent.id}`, 'PATCH', first.token, {
       title: '咳嗽'

@@ -31,13 +31,16 @@ function validateContent(value) {
   return content
 }
 
-function validateOccurredAt(value) {
+export function validateOccurredAt(value, now = new Date()) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
     throw new HealthEventRecordError('发生时间必须是 ISO 8601 日期时间', 400, 'INVALID_OCCURRED_AT')
   }
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) {
     throw new HealthEventRecordError('发生时间格式错误', 400, 'INVALID_OCCURRED_AT')
+  }
+  if (parsed.getTime() > now.getTime()) {
+    throw new HealthEventRecordError('发生时间不能晚于现在', 400, 'FUTURE_OCCURRED_AT')
   }
   return parsed.toISOString()
 }
@@ -75,7 +78,7 @@ export class HealthEventRecordService {
   async create(accountId, eventId, input, now = new Date()) {
     await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
-    const occurredAt = validateOccurredAt(input.occurredAt)
+    const occurredAt = validateOccurredAt(input.occurredAt, now)
     const existingRecords = await this.repository.findByEventId(eventId)
     const firstRecord = existingRecords[0]
     if (firstRecord && occurredAt < firstRecord.occurredAt) {
@@ -107,7 +110,7 @@ export class HealthEventRecordService {
       if (!editableFields.has(key)) continue
       if (key === 'type') changes.type = validateType(input.type)
       if (key === 'content') changes.content = validateContent(input.content)
-      if (key === 'occurredAt') changes.occurredAt = validateOccurredAt(input.occurredAt)
+      if (key === 'occurredAt') changes.occurredAt = validateOccurredAt(input.occurredAt, now)
     }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')

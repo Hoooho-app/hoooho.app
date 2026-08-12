@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { CalendarDays, ImagePlus, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
+import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
 
 interface FirstRecordComposerProps {
   onSave: (input: CreateHealthEventRecordInput) => Promise<void>
@@ -13,11 +14,6 @@ interface LabeledAttachment extends CreateEventAttachmentInput {
 }
 
 const bodyLocations = ['头', '颈', '肩', '胸', '腹', '腰', '手', '手掌', '腿', '脚', '皮肤', '其他']
-
-function localDateTimeValue(date = new Date()) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
-}
 
 function inferImageLabel(name: string, selectedLocations: string[]) {
   if (/药|药盒|药瓶/.test(name)) return '药物'
@@ -75,6 +71,11 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
       setError('请先描述发生了什么，或添加相关图片')
       return
     }
+    if (isFutureOccurredAt(occurredAt)) {
+      setOccurredAt(localDateTimeValue())
+      setError(FUTURE_OCCURRED_AT_MESSAGE)
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -105,7 +106,11 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
           <label className="grid grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-2">
             <span className="text-sm font-medium text-heading">发生时间</span>
             <span className="relative block">
-              <input className="hoho-input pr-10" onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
+              <input className="hoho-input pr-10" max={localDateTimeValue()} onChange={(event) => {
+                const nextValue = clampOccurredAtToNow(event.target.value)
+                setOccurredAt(nextValue)
+                setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
+              }} type="datetime-local" value={occurredAt} />
               <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
             </span>
           </label>

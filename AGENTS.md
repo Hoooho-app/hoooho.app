@@ -19,3 +19,10 @@ the `--hoho-*` tokens in `src/styles/tokens.css`, and the components in
 Illustration artwork such as virtual-avatar skin, hair and clothing palettes is an asset-level exception; those colors are not UI tokens.
 
 See `docs/hoho-design-system-v1.md` for the component and token contract and `docs/ui-freeze-v1.md` for the review checklist.
+
+## Health time semantics
+
+- Health event and health record occurrence times represent facts that already happened or are happening now.
+- Every write of `startTime` or `occurredAt` must enforce `value <= current time` in both the UI and the server API.
+- The server is authoritative: future values must fail validation before persistence or AI Parser/Organization processing.
+- Compare instants after ISO 8601 parsing so client and server timezone differences do not change the rule.

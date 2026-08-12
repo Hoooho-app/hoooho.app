@@ -3,6 +3,7 @@ import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'luci
 import { Button, Card } from '../../../components/common'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
+import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
 
 export type HealthRecordTemplateType =
   | 'symptom'
@@ -111,11 +112,6 @@ interface HealthRecordEditorModalProps {
   onSave?: (result: HealthRecordEditorResult) => void | Promise<void>
 }
 
-function localDateTimeValue(date = new Date()) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
-}
-
 const bodyLocations = ['头', '颈', '肩', '胸', '腹', '腰', '手', '手掌', '腿', '脚', '皮肤', '其他']
 
 function inferImageLabel(name: string, selectedLocations: string[]) {
@@ -168,7 +164,14 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     { label: '记录内容', value: text.trim() }
   ], [occurredAt, recordType, text])
   const isBeforeFirstRecord = Boolean(minOccurredAt && new Date(occurredAt).getTime() < new Date(minOccurredAt).getTime())
-  const canSave = Boolean((text.trim() || attachments.length) && occurredAt && !isBeforeFirstRecord)
+  const isFutureTime = isFutureOccurredAt(occurredAt)
+  const canSave = Boolean((text.trim() || attachments.length) && occurredAt && !isBeforeFirstRecord && !isFutureTime)
+
+  const changeOccurredAt = (value: string) => {
+    const nextValue = clampOccurredAtToNow(value)
+    setOccurredAt(nextValue)
+    setSaveError(nextValue === value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
+  }
 
   const toggleLocation = (location: string) => {
     setSelectedLocations((current) => current.includes(location)
@@ -200,6 +203,11 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
 
   const save = async () => {
     setSaveError('')
+    if (isFutureOccurredAt(occurredAt)) {
+      setOccurredAt(localDateTimeValue())
+      setSaveError(FUTURE_OCCURRED_AT_MESSAGE)
+      return
+    }
     if (isBeforeFirstRecord) {
       setSaveError('该时间早于本次健康情况开始时间，无法作为新增情况记录。')
       return
@@ -235,8 +243,9 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
                 <input
                   className="hoho-input pr-10"
                   id="continuation-occurred-at"
+                  max={localDateTimeValue()}
                   min={minOccurredAt ? localDateTimeValue(new Date(minOccurredAt)) : undefined}
-                  onChange={(event) => { setOccurredAt(event.target.value); setSaveError('') }}
+                  onChange={(event) => changeOccurredAt(event.target.value)}
                   type="datetime-local"
                   value={occurredAt}
                 />
@@ -356,7 +365,8 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
                 <span className="text-xs font-medium text-text-secondary">发生时间</span>
                 <input
                   className="hoho-input"
-                  onChange={(event) => setOccurredAt(event.target.value)}
+                  max={localDateTimeValue()}
+                  onChange={(event) => changeOccurredAt(event.target.value)}
                   type="datetime-local"
                   value={occurredAt}
                 />

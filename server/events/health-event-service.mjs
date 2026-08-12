@@ -39,12 +39,13 @@ function validateStatus(value) {
   return value
 }
 
-function validateStartTime(value) {
+export function validateStartTime(value, now = new Date()) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
     throw new HealthEventError('开始时间必须是 ISO 8601 日期时间', 400, 'INVALID_START_TIME')
   }
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) throw new HealthEventError('开始时间格式错误', 400, 'INVALID_START_TIME')
+  if (parsed.getTime() > now.getTime()) throw new HealthEventError('发生时间不能晚于现在', 400, 'FUTURE_START_TIME')
   return parsed.toISOString()
 }
 
@@ -71,7 +72,7 @@ export class HealthEventService {
       title: validateInitialTitle(input.title),
       category: validateCategory(input.category),
       status: 'observing',
-      startTime: validateStartTime(input.startTime)
+      startTime: validateStartTime(input.startTime, now)
     }, now)
   }
 
@@ -94,7 +95,7 @@ export class HealthEventService {
       if (key === 'title') changes.title = validateTitle(input.title)
       if (key === 'category') changes.category = validateCategory(input.category)
       if (key === 'status') changes.status = validateStatus(input.status)
-      if (key === 'startTime') changes.startTime = validateStartTime(input.startTime)
+      if (key === 'startTime') changes.startTime = validateStartTime(input.startTime, now)
     }
     if (!Object.keys(changes).length) throw new HealthEventError('没有可更新的事件字段', 400, 'NO_EVENT_CHANGES')
     return this.repository.update(id, changes, now)
