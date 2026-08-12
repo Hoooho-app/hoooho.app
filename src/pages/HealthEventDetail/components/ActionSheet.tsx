@@ -1,8 +1,9 @@
-import { ArrowLeft, ChevronRight, ClipboardList, FileText, HelpCircle, ListChecks, MessageCircle, Send, Share2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, MessageCircle, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
-import { BottomSheetSurface, HealthCard, HohoButton, Typography } from '../../../components/design-system'
+import { BottomSheetSurface, HealthCard, HohoButton, HohoToggle, Typography } from '../../../components/design-system'
 
-type ActionCategory = 'hospital' | 'consultation' | 'help'
+type ActionCategory = 'observation' | 'hospital' | 'consultation' | 'help'
+type Recorder = 'self' | 'family'
 
 interface ActionFeature {
   actionLabel: string
@@ -14,7 +15,7 @@ interface ActionFeature {
   splitActions?: string[]
 }
 
-const categoryContent: Record<ActionCategory, { description: string; label: string; features: ActionFeature[] }> = {
+const categoryContent: Record<Exclude<ActionCategory, 'observation'>, { description: string; label: string; features: ActionFeature[] }> = {
   hospital: {
     label: '去医院',
     description: '为线下就医整理当前健康事件信息，方便挂号、候诊和现场沟通。',
@@ -54,10 +55,11 @@ interface ActionSheetProps {
 }
 
 export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
-  const [category, setCategory] = useState<ActionCategory>('hospital')
+  const [category, setCategory] = useState<ActionCategory>('observation')
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
-  const current = categoryContent[category]
-  const selectedFeature = current.features.find((feature) => feature.id === selectedFeatureId) ?? null
+  const [recorder, setRecorder] = useState<Recorder>('self')
+  const current = category === 'observation' ? null : categoryContent[category]
+  const selectedFeature = current?.features.find((feature) => feature.id === selectedFeatureId) ?? null
 
   const selectCategory = (next: ActionCategory) => {
     setCategory(next)
@@ -65,23 +67,27 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
   }
 
   return (
-    <BottomSheetSurface label="行动" onClose={onClose} open={open} title="行动" footer={selectedFeature && (
-      <div className="grid gap-2">
-        {(selectedFeature.splitActions ?? [selectedFeature.actionLabel]).map((label) => (
-          <HohoButton fullWidth key={label} onClick={onComingSoon} variant={label === selectedFeature.actionLabel ? 'primary' : 'secondary'}>{label}</HohoButton>
-        ))}
-      </div>
-    )}>
-      <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="行动分类">
-        {(Object.keys(categoryContent) as ActionCategory[]).map((key) => (
+    <BottomSheetSurface label="行动" onClose={onClose} open={open} title="行动" footer={category === 'observation'
+      ? <ObservationFooter onComingSoon={onComingSoon} recorder={recorder} />
+      : selectedFeature && (
+        <div className="grid gap-2">
+          {(selectedFeature.splitActions ?? [selectedFeature.actionLabel]).map((label) => (
+            <HohoButton fullWidth key={label} onClick={onComingSoon} variant={label === selectedFeature.actionLabel ? 'primary' : 'secondary'}>{label}</HohoButton>
+          ))}
+        </div>
+      )}>
+      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
+        {(['observation', 'hospital', 'consultation', 'help'] as ActionCategory[]).map((key) => (
           <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
-            {categoryContent[key].label}
+            {key === 'observation' ? '重点观察' : categoryContent[key].label}
           </button>
         ))}
       </div>
 
       <div className="mt-5">
-        {selectedFeature ? (
+        {category === 'observation' ? (
+          <ObservationContent onComingSoon={onComingSoon} recorder={recorder} setRecorder={setRecorder} />
+        ) : selectedFeature ? (
           <div>
             <button className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary" onClick={() => setSelectedFeatureId(null)} type="button">
               <ArrowLeft size={17} />返回
@@ -97,9 +103,9 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
           </div>
         ) : (
           <div>
-            <Typography variant="body">{current.description}</Typography>
+            <Typography variant="body">{current?.description}</Typography>
             <div className="mt-4 overflow-hidden rounded-card border bg-surface">
-              {current.features.map((feature) => {
+              {current?.features.map((feature) => {
                 const Icon = feature.icon
                 return (
                   <button className="hoho-surface-row" key={feature.id} onClick={() => setSelectedFeatureId(feature.id)} type="button">
@@ -117,5 +123,76 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
         )}
       </div>
     </BottomSheetSurface>
+  )
+}
+
+const focusOptions = ['血压', '头晕', '用药', '饮食作息', '睡眠', '照片']
+
+function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingSoon: () => void; recorder: Recorder; setRecorder: (recorder: Recorder) => void }) {
+  const [focuses, setFocuses] = useState(['头晕', '用药'])
+  const [following, setFollowing] = useState(true)
+
+  const toggleFocus = (focus: string) => setFocuses((current) => current.includes(focus)
+    ? current.filter((item) => item !== focus)
+    : [...current, focus])
+
+  return (
+    <div className="space-y-5">
+      <Typography variant="body">持续收集当前健康事件中值得关注的变化。</Typography>
+      <section>
+        <Typography variant="label">1. 谁来记录</Typography>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <RecorderChoice active={recorder === 'self'} description="由我继续补充这个健康事件的变化" icon={UserRound} label="自己记录" onClick={() => setRecorder('self')} />
+          <RecorderChoice active={recorder === 'family'} description="邀请家人通过链接一起补充" icon={UsersRound} label="家人协作" onClick={() => setRecorder('family')} />
+        </div>
+      </section>
+
+      {recorder === 'family' && (
+        <section>
+          <Typography variant="label">2. 协作链接</Typography>
+          <HealthCard className="mt-3 shadow-none">
+            <div className="flex items-center gap-2 text-sm font-medium"><Link className="text-primary" size={18} />hoho.app/care/8K2F...</div>
+            <Typography className="mt-2" variant="caption">家人可通过链接补充本事件的相关情况，例如测量数据、症状变化、作息和图片。</Typography>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <HohoButton onClick={onComingSoon} variant="secondary"><Copy size={16} />复制链接</HohoButton>
+              <HohoButton onClick={onComingSoon} variant="secondary"><Send size={16} />发送给家人</HohoButton>
+            </div>
+          </HealthCard>
+        </section>
+      )}
+
+      <section>
+        <Typography variant="label">{recorder === 'family' ? '3' : '2'}. 观察重点</Typography>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {focusOptions.map((focus) => (
+            <button aria-pressed={focuses.includes(focus)} className="health-observation-chip" data-selected={focuses.includes(focus)} key={focus} onClick={() => toggleFocus(focus)} type="button">{focus}</button>
+          ))}
+          <button className="health-observation-chip" onClick={onComingSoon} type="button">+ 添加其他</button>
+        </div>
+      </section>
+
+      <section className="flex items-center gap-3 rounded-card border bg-surface px-4 py-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Bell size={19} /></span>
+        <span className="min-w-0 flex-1">
+          <strong className="block text-sm">关注此事件</strong>
+          <span className="mt-1 block text-xs leading-5 text-text-secondary">有新的协作记录或事件更新时提醒我</span>
+        </span>
+        <HohoToggle checked={following} label="关注此事件" onChange={setFollowing} />
+      </section>
+    </div>
+  )
+}
+
+function ObservationFooter({ onComingSoon, recorder = 'self' }: { onComingSoon: () => void; recorder?: Recorder }) {
+  return <HohoButton fullWidth onClick={onComingSoon}>{recorder === 'family' ? '开始协作观察' : '开始重点观察'}</HohoButton>
+}
+
+function RecorderChoice({ active, description, icon: Icon, label, onClick }: { active: boolean; description: string; icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button aria-pressed={active} className="health-recorder-choice" data-selected={active} onClick={onClick} type="button">
+      <span className="grid h-10 w-10 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={20} /></span>
+      <strong className="mt-2 block text-sm">{label}</strong>
+      <span className="mt-1 block text-xs leading-5 text-text-secondary">{description}</span>
+    </button>
   )
 }

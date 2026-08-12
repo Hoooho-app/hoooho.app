@@ -12,8 +12,6 @@ import {
   EventDetailStickyHeader,
   FirstRecordComposer,
   HealthRecordEditorModal,
-  ObservationSection,
-  ObservationSheet,
   TemperatureChartSection,
   TimelineSection
 } from './components'
@@ -23,7 +21,6 @@ export function HealthEventDetailPage() {
   const navigate = useNavigate()
   const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
-  const [observationOpen, setObservationOpen] = useState(false)
   const [recordEditorOpen, setRecordEditorOpen] = useState(false)
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
 
@@ -121,7 +118,6 @@ export function HealthEventDetailPage() {
           <>
             <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
-            <ObservationSection onStart={() => setObservationOpen(true)} />
           </>
         )}
       </div>
@@ -140,7 +136,6 @@ export function HealthEventDetailPage() {
         templateType="timeline"
       />
       <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />
-      <ObservationSheet onClose={() => setObservationOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={observationOpen} />
       <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />
     </main>
   )
