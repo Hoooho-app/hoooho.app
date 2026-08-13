@@ -5,6 +5,7 @@ import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
+import { getImageRecordTitle } from '../../services/imageAnalysisPresentation'
 import {
   EventHeader,
   ActionSheet,
@@ -92,13 +93,14 @@ export function HealthEventDetailPage() {
 
     const created = await addRecord({
       type: recordText ? input.type : 'note',
-      content: recordText || `添加附件：${attachments.map((attachment) => attachment.name).join('、')}`,
+      content: recordText || '图片记录',
       occurredAt: input.occurredAt
     })
     if (recordText) await organizeRecord(created.id, organizationContext)
-    for (const attachment of attachments) await addAttachment({ ...attachment, recordId: created.id })
+    const savedAttachments = []
+    for (const attachment of attachments) savedAttachments.push(await addAttachment({ ...attachment, recordId: created.id }))
     if (!state.data.eventDto.title && !preview?.hasHealthFacts && attachments.length > 0) {
-      await updateTitle('健康附件')
+      await updateTitle(getImageRecordTitle(savedAttachments))
     }
   }
 

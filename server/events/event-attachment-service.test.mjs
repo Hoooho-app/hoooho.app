@@ -15,7 +15,15 @@ test('用户上传的检查图片独立保存并按账号隔离', async () => {
     const members = new FamilyMemberService({ dataDirectory })
     const events = new HealthEventService({ dataDirectory })
     const records = new HealthEventRecordService({ dataDirectory })
-    const attachments = new EventAttachmentService({ dataDirectory })
+    const attachments = new EventAttachmentService({
+      dataDirectory,
+      imageAnalysis: {
+        analyze: async (attachment) => ({
+          status: 'completed', category: 'report', summary: '血常规报告', extractedFacts: [],
+          provider: 'fixture-vision', analyzedAt: attachment.createdAt
+        })
+      }
+    })
     const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
     const record = await records.create(accountId, event.id, { type: 'examination', content: '完成血常规检查', occurredAt: '2026-08-09T10:00:00+08:00' })
@@ -24,11 +32,49 @@ test('用户上传的检查图片独立保存并按账号隔离', async () => {
     })
     assert.equal(created.name, '血常规.png')
     assert.equal(created.recordId, record.id)
+    assert.equal(created.analysis.summary, '血常规报告')
     assert.equal((await attachments.list(accountId, event.id)).length, 1)
     await assert.rejects(() => attachments.create(accountId, event.id, {
       name: '错误.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,aGVsbG8=', recordId: 'missing-record'
     }), (error) => error.code === 'HEALTH_EVENT_RECORD_NOT_FOUND')
     await assert.rejects(() => attachments.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test('图片分析失败不回滚已经保存的附件，多图结果保持独立', async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-event-attachment-fallback-'))
+  try {
+    const accountId = 'attachment-fallback-account'
+    const members = new FamilyMemberService({ dataDirectory })
+    const events = new HealthEventService({ dataDirectory })
+    const records = new HealthEventRecordService({ dataDirectory })
+    let call = 0
+    const attachments = new EventAttachmentService({
+      dataDirectory,
+      imageAnalysis: {
+        analyze: async (attachment) => ({
+          status: call++ === 0 ? 'failed' : 'completed',
+          category: call === 1 ? 'other' : 'body_photo',
+          summary: call === 1 ? '图片记录' : '皮肤局部照片',
+          extractedFacts: [], provider: 'fixture-vision', analyzedAt: attachment.createdAt
+        })
+      }
+    })
+    const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
+    const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
+    const record = await records.create(accountId, event.id, { type: 'note', content: '图片记录', occurredAt: '2026-08-09T10:00:00+08:00' })
+
+    const first = await attachments.create(accountId, event.id, {
+      name: '模糊.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,aGVsbG8=', recordId: record.id
+    })
+    const second = await attachments.create(accountId, event.id, {
+      name: '皮肤.png', mimeType: 'image/png', dataUrl: 'data:image/png;base64,d29ybGQ=', recordId: record.id
+    })
+    assert.equal(first.analysis.status, 'failed')
+    assert.equal(second.analysis.category, 'body_photo')
+    assert.equal((await attachments.list(accountId, event.id)).length, 2)
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
   }
