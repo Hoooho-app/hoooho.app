@@ -40,6 +40,17 @@ Import from `src/components/design-system`.
 - `ModalSurface`: common dialog/sheet surface.
 - `EmptyState`: natural empty-content guidance.
 
+### Body Location Picker
+
+`src/components/health/BodyLocationPicker.tsx` is Hoho's reusable 身体部位定位器. It is a single Bottom Sheet that switches between a top-level region directory and one detailed region without adding routes or nested dialogs.
+
+- Input: optional current `member`, structured `BodyLocationSelection[]`, and `onChange`.
+- Data catalog: `src/features/body-location/bodyLocationCatalog.ts`.
+- Supports multi-select, left/right semantics, front/back/internal views, direct search, removable result chips, and member-applicable organs.
+- Surface locations and known organs remain distinct; the picker never infers an organ from a surface position.
+- Diagrams are neutral 2D location guides. They must not become muscular, diagnostic, 3D, or clinically graphic.
+- V1 is integrated only with the surgery-history profile. Other pages adopt it only through separately authorized migrations.
+
 The components in `components/common` remain compatibility adapters and delegate their visual behavior to V1. New code should prefer direct Design System imports.
 
 ## 4. Surface hierarchy

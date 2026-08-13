@@ -1,3 +1,7 @@
+// @ts-expect-error Node's native TypeScript test runner requires an explicit extension; Vite supports it at runtime.
+import { normalizeBodyLocationSelection } from '../../body-location/bodyLocationCatalog.ts'
+import type { BodyLocationSelection } from '../../body-location/types'
+
 export interface SurgeryProfileRecord {
   id: string
   sequence: number
@@ -5,7 +9,7 @@ export interface SurgeryProfileRecord {
   date: string
   hospital: string
   reason: string
-  locations: string[]
+  locations: BodyLocationSelection[]
   recovery: string
   remainingImpact: string
   hasImplant: string
@@ -37,7 +41,7 @@ export function normalizeSurgeryRecords(records: readonly StoredSurgeryRecord[])
     date: String(record.date ?? ''),
     hospital: String(record.hospital ?? ''),
     reason: String(record.reason ?? ''),
-    locations: Array.isArray(record.locations) ? record.locations.map(String) : [],
+    locations: Array.isArray(record.locations) ? record.locations.flatMap((value, locationIndex) => normalizeBodyLocationSelection(value, locationIndex) ?? []) : [],
     recovery: String(record.recovery ?? ''),
     remainingImpact: String(record.remainingImpact ?? ''),
     hasImplant: String(record.hasImplant ?? ''),
@@ -54,7 +58,7 @@ export function surgerySummary(record: SurgeryProfileRecord) {
     context: [record.date ? record.date.slice(0, 7).replace('-', '/') : '', record.hospital].filter(Boolean).join(' · '),
     reason: record.reason,
     status: record.recovery || '术后情况未填',
-    implant: record.hasImplant === '有' ? [record.locations[0], record.implantName].filter(Boolean).join(' · ') : ''
+    implant: record.hasImplant === '有' ? [record.locations[0]?.label, record.implantName].filter(Boolean).join(' · ') : ''
   }
 }
 
