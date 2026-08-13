@@ -340,7 +340,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
-          <Card className="border-l-4 border-l-primary bg-primary-soft/55 shadow-none">
+          <Card className="border-primary/20 bg-primary-soft/55 shadow-none">
             <div className="flex gap-2"><Sparkles className="mt-0.5 shrink-0 text-primary" size={17} /><div><h3 className="text-sm font-semibold">怎么写？</h3><p className="mt-1 text-xs leading-5 text-text-secondary">{template.guidance}</p></div></div>
           </Card>
 

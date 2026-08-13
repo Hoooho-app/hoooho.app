@@ -20,6 +20,38 @@ Illustration artwork such as virtual-avatar skin, hair and clothing palettes is 
 
 See `docs/hoho-design-system-v1.md` for the component and token contract and `docs/ui-freeze-v1.md` for the review checklist.
 
+## Impeccable 使用规则
+
+Hoho Design System V1 已冻结。
+
+Impeccable 默认只能用于：
+
+- audit
+- critique
+- polish
+- distill
+- responsive refinement
+- spacing / hierarchy / alignment / typography refinement
+- accessibility and UI anti-pattern review
+
+除非用户明确要求，否则禁止使用 Impeccable：
+
+- redesign 整个页面
+- 创建新的视觉体系
+- 更换 Hoho Design System V1
+- 修改主色、Typography Scale、Radius、Shadow 基线
+- 引入新的 UI Framework
+- 改变冻结的信息架构和业务交互
+
+所有 Impeccable 优化必须：
+
+1. 先读取 Hoho Design System V1；
+2. 读取目标页面当前实现；
+3. 保留现有产品视觉语言；
+4. 只修改用户明确授权的范围。
+
+原则：Impeccable 是 Hoho 的“设计审计和精修工具”，不是新的设计系统。
+
 ## Health time semantics
 
 - Health event and health record occurrence times represent facts that already happened or are happening now.

@@ -36,8 +36,8 @@ export function EventSummarySection({ summary, onSave }: EventSummarySectionProp
   }
 
   return (
-    <section aria-labelledby="event-summary-title" className="mb-6">
-      <HealthCard className="space-y-4">
+    <section aria-labelledby="event-summary-title">
+      <HealthCard className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <Typography id="event-summary-title" variant="sectionTitle">事件摘要</Typography>
           {!editing && <HohoButton variant="text" onClick={() => setEditing(true)}>手动校对</HohoButton>}
@@ -59,13 +59,13 @@ export function EventSummarySection({ summary, onSave }: EventSummarySectionProp
           </div>
         ) : (
           <>
-            <Typography className="break-words" variant="pageTitle">{displayed.title}</Typography>
+            <Typography className="break-words" variant="sectionTitle">{displayed.title}</Typography>
             <Typography className="whitespace-pre-wrap break-words" variant="body">{displayed.summary}</Typography>
             <div className="flex items-start gap-2 text-text-secondary">
               <FileText className="mt-0.5 shrink-0" size={17} />
               <Typography variant="caption">依据：{displayed.evidence.join(' · ')}</Typography>
             </div>
-            <div className="border-t border-dashed border-border pt-3">
+            <div className="border-t border-border/70 pt-3">
               <Typography variant="caption">
                 {summary.hasNewEvidenceAfterCorrection
                   ? '新的关键记录已纳入系统摘要；当前仍保留你的校对表达。'

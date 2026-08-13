@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock3 } from 'lucide-react'
 import type { EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Card } from '../../../components/common'
+import { HealthTag } from '../../../components/design-system'
 import { groupTimelineByYearAndDate } from '../../../services/healthTimelineGrouping'
 import { compareHealthChronologyAsc, compareHealthChronologyDesc } from '../../../services/healthChronology'
 
@@ -60,14 +61,14 @@ export function TimelineSection({ event }: TimelineSectionProps) {
           <p className="mt-2 text-sm leading-6 text-text-secondary">直接描述什么时候开始、有哪些变化，以及做过什么处理。</p>
         </Card>
       ) : (
-        <div className="space-y-9" aria-label="健康过程记录">
+        <div className="space-y-8" aria-label="健康过程记录">
           {timelineGroups.map((yearGroup) => (
-            <section className="space-y-6" key={yearGroup.year} aria-label={`${yearGroup.year}年健康记录`}>
+            <section className="space-y-5" key={yearGroup.year} aria-label={`${yearGroup.year}年健康记录`}>
               <h3 className="hoho-text-section-title text-primary">{yearGroup.year}年</h3>
               {yearGroup.dates.map((dateGroup) => (
-                <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-4" key={`${yearGroup.year}-${dateGroup.date}`}>
-                  <time className="pt-0.5 text-right text-sm font-bold leading-5 text-primary">{dateGroup.date}</time>
-                  <div className="border-l border-primary/25 pl-5">
+                <div className="grid grid-cols-[60px_minmax(0,1fr)] gap-3" key={`${yearGroup.year}-${dateGroup.date}`}>
+                  <time className="pt-0.5 text-right text-sm font-semibold leading-5 text-text-primary">{dateGroup.date}</time>
+                  <div className="border-l border-border-strong pl-4">
                     {dateGroup.entries.map((entry) => (
                       <TimelineRow
                         key={entry.id}
@@ -101,17 +102,17 @@ function TimelineRow({
   const visibleAttachments = isExpanded ? attachments : attachments.slice(0, 4)
 
   return (
-    <article className="relative pb-8 last:pb-1">
-      <span className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full border-[3px] border-primary bg-background" />
+    <article className="relative pb-6 last:pb-1">
+      <span className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background" />
       {entry.periodLabel && (
         <div className="flex items-center gap-2 text-[13px] font-semibold text-heading">
           <span>{entry.periodLabel}</span>
         </div>
       )}
-      <p className="mt-3 text-sm leading-7 text-text-primary">
+      <p className="mt-2.5 text-sm leading-6 text-text-primary">
         {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index, segments) => (
           <Fragment key={`${entry.id}-segment-${index}`}>
-            <span className="mr-1.5 inline-flex rounded-pill bg-primary/10 px-2 py-0.5 align-middle text-[11px] font-bold text-heading">{segment.label}</span>
+            <HealthTag className="mr-1.5 min-h-0 align-middle text-[11px]" tone="primary">{segment.label}</HealthTag>
             <span>{segment.content}</span>
             {index < segments.length - 1 && <span className="mx-1 text-text-secondary">；</span>}
           </Fragment>

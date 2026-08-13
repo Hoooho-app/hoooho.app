@@ -36,14 +36,14 @@
   }
   .page-content { @apply space-y-5 px-4 py-4; }
   .section-title { color: rgb(var(--hoho-color-text-primary)); font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family); letter-spacing: -0.01em; }
-  .health-event-detail .page-content { @apply space-y-8 px-6 py-6; }
+  .health-event-detail .page-content { @apply space-y-6 px-6 py-6; }
   .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }
   .health-event-detail-fixed { @apply relative z-20 shrink-0; background: rgb(var(--hoho-color-background) / 0.96); backdrop-filter: blur(12px); }
   .health-event-detail-fixed .hoho-page-header { position: static; }
   .health-event-detail-sticky { @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3; border-color: rgb(var(--hoho-color-border) / 0.8); }
   .health-event-detail-sticky__identity { @apply flex min-w-0 items-center gap-3 rounded-card border bg-surface px-3 py-2; }
 
-  .health-action-tab { @apply min-h-9 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
+  .health-action-tab { @apply min-h-11 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
   .health-action-tab[data-selected='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
   .health-action-list .hoho-surface-row { min-height: 68px; gap: var(--hoho-space-3); padding: var(--hoho-space-2) var(--hoho-space-3); }
   .health-recorder-choice { @apply min-w-0 rounded-card border bg-surface p-2.5 text-left; }
