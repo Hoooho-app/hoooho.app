@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   calculateBmi,
+  combineBloodType,
   getBasicHealthProfileValues,
   getInitialHealthProfileRecords,
+  splitBloodType,
   toFamilyMemberHealthUpdate
 } from './healthProfileBasicInfo.ts'
 
@@ -23,9 +25,9 @@ test('成员已有基础健康字段会完整映射，并兼容原 ABO 血型字
     weight: '56',
     waistCircumference: '72',
     bodyFatPercentage: '21.5',
-    headCircumference: '55',
-    bloodType: 'A',
-    rhBloodType: 'negative'
+    combinedBloodType: 'A-',
+    _originalBloodType: 'A',
+    _originalRhBloodType: 'negative'
   })
   assert.equal(getInitialHealthProfileRecords('basic', [], member).length, 1)
 })
@@ -36,7 +38,7 @@ test('旧本地基础档案值仅作为成员字段缺失时的兼容回填', ()
     getInitialHealthProfileRecords('basic', stored, { heightCm: 168 }),
     [{
       height: '168', weight: '60', waistCircumference: '80', bodyFatPercentage: '',
-      headCircumference: '', bloodType: 'B', rhBloodType: '', _savedAt: 'member-health-profile'
+      combinedBloodType: '', _originalBloodType: 'B', _originalRhBloodType: '', _savedAt: 'member-health-profile'
     }]
   )
 })
@@ -47,23 +49,41 @@ test('所有基础健康字段均可留空并保存为 null', () => {
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
-    headCircumferenceCm: null,
     bloodType: null,
     rhBloodType: null
   })
 })
 
-test('头围、ABO 与 Rh(D) 可独立保存', () => {
+test('组合血型映射为兼容的 ABO 与 Rh(D) 字段', () => {
   assert.deepEqual(toFamilyMemberHealthUpdate({
-    headCircumference: '46.5', bloodType: 'AB', rhBloodType: 'positive'
+    combinedBloodType: 'AB+', _combinedBloodTypeTouched: true
   }), {
     heightCm: null,
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
-    headCircumferenceCm: 46.5,
     bloodType: 'AB',
     rhBloodType: 'positive'
+  })
+  assert.equal(combineBloodType('O', 'negative'), 'O-')
+  assert.deepEqual(splitBloodType('B+'), { bloodType: 'B', rhBloodType: 'positive' })
+
+  for (const value of ['A+','A-','B+','B-','AB+','AB-','O+','O-']) {
+    const split = splitBloodType(value)
+    assert.equal(combineBloodType(split.bloodType ?? undefined, split.rhBloodType ?? undefined), value)
+  }
+})
+
+test('只有旧 ABO 数据时保存其他字段不会清空原血型', () => {
+  assert.deepEqual(toFamilyMemberHealthUpdate({
+    height: '170', combinedBloodType: '', _originalBloodType: 'B', _originalRhBloodType: ''
+  }), {
+    heightCm: 170,
+    weightKg: null,
+    waistCircumferenceCm: null,
+    bodyFatPercentage: null,
+    bloodType: 'B',
+    rhBloodType: null
   })
 })
 
@@ -71,4 +91,6 @@ test('BMI 仅在身高与体重同时存在时计算', () => {
   assert.equal(calculateBmi('170', '60'), '20.8')
   assert.equal(calculateBmi('170', ''), '')
   assert.equal(calculateBmi('', '60'), '')
+  assert.equal(calculateBmi('0', '60'), '')
+  assert.equal(calculateBmi('invalid', '60'), '')
 })

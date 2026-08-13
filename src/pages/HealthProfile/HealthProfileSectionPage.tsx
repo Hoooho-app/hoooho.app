@@ -25,6 +25,21 @@ function Field({ field, value, onChange, onUnavailable }: { field: HealthProfile
   return <label className="hoho-field"><span className="hoho-text-label">{field.label}</span><span className="relative"><input className="hoho-input pr-16" placeholder={field.placeholder} type={field.type} value={String(value)} onChange={(event) => onChange(event.target.value)} />{field.unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">{field.unit}</span>}</span></label>
 }
 
+function BasicMetrics({ fields, values, bmi, onChange }: {
+  fields: HealthProfileField[]
+  values: FormValues
+  bmi: string
+  onChange: (id: string, value: string | boolean) => void
+}) {
+  return <div className="grid grid-cols-3 gap-2.5">{fields.map((field) => <Field
+    field={field}
+    key={field.id}
+    onChange={(value) => onChange(field.id, value)}
+    onUnavailable={() => undefined}
+    value={field.id === 'bmi' ? bmi : (values[field.id] ?? '')}
+  />)}</div>
+}
+
 function summarizeRecord(fields: HealthProfileField[], record: FormValues) {
   return fields.flatMap((field) => {
     if (field.type === 'attachment' || field.type === 'computed') return []
@@ -89,9 +104,8 @@ export function HealthProfileSectionPage() {
 
   return <main className="app-shell min-h-dvh">
     <WebPageHeader fallback="/health-profile" title={section.title} />
-    <div className="page-content pb-10">
+    <div className="page-content pb-[calc(104px+env(safe-area-inset-bottom))]">
       <MemberIdentityCard member={member} recordSubject />
-      <Typography className="mt-4" variant="body">{section.guidance}</Typography>
 
       {section.id !== 'basic' && records.length > 0 && <section className="mt-6 grid gap-3">
         <Typography variant="sectionTitle">已有记录</Typography>
@@ -103,13 +117,31 @@ export function HealthProfileSectionPage() {
         </article>)}</div>
       </section>}
 
-      <form className="mt-6 grid gap-5 rounded-card border bg-surface p-4" onSubmit={submit}>
-        <div><Typography variant="sectionTitle">{section.id === 'basic' ? '维护档案' : editingIndex == null ? '添加记录' : '编辑记录'}</Typography><Typography className="mt-1" variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography></div>
-        {section.fields.map((field, index) => <div key={field.id}>{section.id === 'basic' && index === 6 && <Typography className="mb-4 mt-1" variant="sectionTitle">血型</Typography>}<Field field={field} value={field.id === 'bmi' ? bmi : (values[field.id] ?? '')} onChange={(value) => setValues((current) => ({ ...current, [field.id]: value }))} onUnavailable={() => setStatus('附件功能暂未开放')} />{field.id === 'rhBloodType' && values.rhBloodType === 'negative' && <Typography className="mt-2" variant="caption">Rh(D) 阴性，日常也常被称为“熊猫血”</Typography>}</div>)}
+      <form className="mt-6 grid gap-5 rounded-card border bg-surface p-4" id="health-profile-form" onSubmit={submit}>
+        <Typography variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography>
+        {section.id === 'basic' && <BasicMetrics
+          bmi={bmi}
+          fields={section.fields.slice(0, 3)}
+          onChange={(id, value) => setValues((current) => ({ ...current, [id]: value }))}
+          values={values}
+        />}
+        {(section.id === 'basic' ? section.fields.slice(3) : section.fields).map((field) => <Field
+          field={field}
+          key={field.id}
+          value={values[field.id] ?? ''}
+          onChange={(value) => setValues((current) => ({
+            ...current,
+            [field.id]: value,
+            ...(field.id === 'combinedBloodType' ? { _combinedBloodTypeTouched: true } : {})
+          }))}
+          onUnavailable={() => setStatus('附件功能暂未开放')}
+        />)}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
         {status && <p className="text-sm text-primary" role="status">{status}</p>}
-        <div className={editingIndex == null || section.id === 'basic' ? '' : 'grid grid-cols-2 gap-2'}>{editingIndex != null && section.id !== 'basic' && <HohoButton disabled={submitting} onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}<HohoButton disabled={submitting} type="submit">{submitting ? '正在保存…' : section.id === 'basic' ? '保存档案' : editingIndex == null ? '保存记录' : '更新记录'}</HohoButton></div>
       </form>
+    </div>
+    <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[402px] -translate-x-1/2 border-t bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgb(var(--hoho-color-text-primary)/0.06)]">
+      <div className={editingIndex == null || section.id === 'basic' ? '' : 'grid grid-cols-2 gap-2'}>{editingIndex != null && section.id !== 'basic' && <HohoButton disabled={submitting} onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}<HohoButton disabled={submitting} form="health-profile-form" type="submit">{submitting ? '正在保存…' : '保存档案'}</HohoButton></div>
     </div>
   </main>
 }

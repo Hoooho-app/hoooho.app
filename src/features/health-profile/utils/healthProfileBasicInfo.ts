@@ -14,6 +14,21 @@ export type BasicHealthProfileValues = Record<string, string | boolean>
 
 const asText = (value: number | undefined) => value?.toString() ?? ''
 
+export function combineBloodType(
+  bloodType: BasicHealthProfileSource['bloodType'] | string | undefined,
+  rhBloodType: BasicHealthProfileSource['rhBloodType'] | string | undefined
+) {
+  if (!bloodType || !rhBloodType) return ''
+  return `${bloodType}${rhBloodType === 'positive' ? '+' : '-'}`
+}
+
+export function splitBloodType(value: string | boolean | undefined) {
+  const match = String(value ?? '').match(/^(A|B|AB|O)([+-])$/)
+  return match
+    ? { bloodType: match[1] as 'A' | 'B' | 'AB' | 'O', rhBloodType: match[2] === '+' ? 'positive' as const : 'negative' as const }
+    : { bloodType: null, rhBloodType: null }
+}
+
 export function getBasicHealthProfileValues(
   member: BasicHealthProfileSource,
   fallback: BasicHealthProfileValues = {}
@@ -23,9 +38,12 @@ export function getBasicHealthProfileValues(
     weight: asText(member.weightKg) || String(fallback.weight ?? ''),
     waistCircumference: asText(member.waistCircumferenceCm) || String(fallback.waistCircumference ?? ''),
     bodyFatPercentage: asText(member.bodyFatPercentage) || String(fallback.bodyFatPercentage ?? ''),
-    headCircumference: asText(member.headCircumferenceCm) || String(fallback.headCircumference ?? ''),
-    bloodType: member.bloodType ?? String(fallback.bloodType ?? ''),
-    rhBloodType: member.rhBloodType ?? String(fallback.rhBloodType ?? '')
+    combinedBloodType: combineBloodType(
+      member.bloodType ?? String(fallback.bloodType ?? ''),
+      member.rhBloodType ?? String(fallback.rhBloodType ?? '')
+    ) || String(fallback.combinedBloodType ?? ''),
+    _originalBloodType: member.bloodType ?? String(fallback._originalBloodType ?? fallback.bloodType ?? ''),
+    _originalRhBloodType: member.rhBloodType ?? String(fallback._originalRhBloodType ?? fallback.rhBloodType ?? '')
   }
 }
 
@@ -64,16 +82,17 @@ export function calculateBmi(height: string | boolean | undefined, weight: strin
 }
 
 export function toFamilyMemberHealthUpdate(values: BasicHealthProfileValues) {
-  const bloodType = String(values.bloodType ?? '').trim()
-  const rhBloodType = String(values.rhBloodType ?? '').trim()
+  const combined = splitBloodType(values.combinedBloodType)
+  const preserveLegacyBloodType = !values._combinedBloodTypeTouched && !values.combinedBloodType
+  const bloodType = preserveLegacyBloodType ? String(values._originalBloodType ?? '') || null : combined.bloodType
+  const rhBloodType = preserveLegacyBloodType ? String(values._originalRhBloodType ?? '') || null : combined.rhBloodType
 
   return {
     heightCm: optionalNumber(values.height),
     weightKg: optionalNumber(values.weight),
     waistCircumferenceCm: optionalNumber(values.waistCircumference),
     bodyFatPercentage: optionalNumber(values.bodyFatPercentage),
-    headCircumferenceCm: optionalNumber(values.headCircumference),
-    bloodType: (bloodType || null) as 'A' | 'B' | 'AB' | 'O' | null,
-    rhBloodType: (rhBloodType || null) as 'positive' | 'negative' | null
+    bloodType: bloodType as 'A' | 'B' | 'AB' | 'O' | null,
+    rhBloodType: rhBloodType as 'positive' | 'negative' | null
   }
 }

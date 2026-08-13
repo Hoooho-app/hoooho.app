@@ -44,9 +44,8 @@ const attachment = field('attachment', '附件', 'attachment')
 
 export const healthProfileSections: HealthProfileSectionConfig[] = [
   { id:'basic', title:'基础健康信息', description:'身高、体重、体脂与血型等基础健康资料', guidance:'记录长期有效的基础身体信息即可。', category:'core', icon:'file', activeFor:all, fields: [
-    field('height','身高','number',{unit:'cm'}), field('weight','体重','number',{unit:'kg'}), field('bmi','BMI','computed'), field('waistCircumference','腰围','number',{unit:'cm'}), field('bodyFatPercentage','体脂率','number',{unit:'%'}), field('headCircumference','头围','number',{unit:'cm'}),
-    field('bloodType','ABO 血型','select',{options:[{value:'A',label:'A型'},{value:'B',label:'B型'},{value:'AB',label:'AB型'},{value:'O',label:'O型'}]}),
-    field('rhBloodType','Rh(D) 血型','select',{options:[{value:'positive',label:'Rh(D) 阳性'},{value:'negative',label:'Rh(D) 阴性'}]}) ] },
+    field('height','身高','number',{unit:'cm'}), field('weight','体重','number',{unit:'kg'}), field('bmi','BMI','computed'), field('waistCircumference','腰围','number',{unit:'cm'}), field('bodyFatPercentage','体脂率','number',{unit:'%'}),
+    field('combinedBloodType','血型','select',{options:['A+','A-','B+','B-','AB+','AB-','O+','O-']}) ] },
   { id:'allergy', title:'过敏与不良反应', description:'药物、食物和环境相关的过敏记录', guidance:'记录明确发生过或仍需注意的反应即可。', category:'core', icon:'allergy', activeFor:all, repeatable:true, fields:[field('type','类型','select',{options:['药物','食物','环境','接触','其他']}),field('name','名称'),field('reaction','出现过什么反应','textarea'),field('firstFoundAt','首次发现时间','date'),field('active','是否仍需注意','select',{options:yn}),note] },
   { id:'medication', title:'长期用药', description:'长期使用的药物及用法', guidance:'记录长期或持续使用的药物，不必填写临时用药。', category:'core', icon:'pill', activeFor:all, repeatable:true, fields:[field('name','药物名称'),field('reason','使用原因'),field('dosage','用法用量'),field('frequency','使用频率'),field('startedAt','开始时间','date'),field('active','当前是否仍使用','select',{options:yn}),note] },
   { id:'chronic', title:'慢性病与长期健康问题', description:'长期存在或需要持续管理的健康问题', guidance:'使用日常理解的名称即可，不要求填写医学确诊。', category:'core', icon:'heart', activeFor:all, repeatable:true, fields:[field('name','疾病 / 问题名称'),field('firstFoundAt','首次发现时间','date'),field('status','当前状态','select',{options:['稳定','持续中','持续治疗中','已缓解']}),field('impact','主要影响 / 表现','textarea'),field('management','当前管理情况','textarea'),note] },
