@@ -3,7 +3,7 @@ import test from 'node:test'
 import { healthProfileSections } from '../config/healthProfileSections.ts'
 import { healthProfilePriorities } from '../config/healthProfileTemplates.ts'
 import { getHealthProfileType } from './getHealthProfileProfile.ts'
-import { getHealthProfileSectionGroups } from './getHealthProfileSectionGroups.ts'
+import { buildHealthProfileHomeGroups, latestStoredSections } from './healthProfileHomeLogic.ts'
 
 const today = new Date('2026-08-12T12:00:00+08:00')
 
@@ -15,38 +15,37 @@ test('health profile priorities change with age and gender', () => {
   assert.equal(getHealthProfileType('1958-01-01', 'male', today), 'elder-male')
 })
 
-test('adult male hides menstrual health and has no duplicate sections', () => {
-  const groups = getHealthProfileSectionGroups('adult-male', new Set())
-  const visibleIds = [...groups.priorities, ...groups.secondary, ...groups.historical].map(({ id }) => id)
-  assert.equal(visibleIds.includes('menstrual'), false)
-  assert.equal(new Set(visibleIds).size, visibleIds.length)
-  assert.equal(groups.priorities.some(({ id }) => groups.secondary.some((section) => section.id === id)), false)
-  assert.deepEqual(groups.secondary.map(({ id }) => id).filter((id) => ['allergy', 'family-history', 'vaccination', 'sleep'].includes(id)), ['allergy', 'family-history', 'vaccination', 'sleep'])
+test('catalog contains 26 unique top-level sections', () => {
+  assert.equal(healthProfileSections.length, 26)
+  assert.equal(new Set(healthProfileSections.map(({ id }) => id)).size, 26)
 })
 
-test('adult female keeps menstrual health applicable', () => {
-  const groups = getHealthProfileSectionGroups('adult-female', new Set())
-  assert.equal(groups.priorities.some(({ id }) => id === 'menstrual'), true)
+test('recorded sections are pinned and sorted by latest update', () => {
+  const groups = buildHealthProfileHomeGroups(healthProfileSections, healthProfilePriorities['adult-male'], [
+    { id: 'allergy', updatedAt: '2026-01-01T00:00:00Z' },
+    { id: 'medication', updatedAt: '2026-08-01T00:00:00Z' }
+  ])
+  assert.deepEqual(groups.recorded.map(({ id }) => id), ['medication', 'allergy'])
+  assert.equal(groups.suggested.some(({ id }) => id === 'allergy' || id === 'medication'), false)
 })
 
-test('historical sections require real data', () => {
-  const withoutData = getHealthProfileSectionGroups('adult-male', new Set())
-  assert.deepEqual(withoutData.historical, [])
-  const withData = getHealthProfileSectionGroups('adult-male', new Set(['growth', 'feeding', 'birth']))
-  assert.deepEqual(withData.historical.map(({ id }) => id), ['growth', 'feeding', 'birth'])
+test('recommendations respect life stage and gender', () => {
+  assert.deepEqual(healthProfilePriorities.infant.slice(0, 6), ['basic','feeding','growth','allergy','vaccination','birth'])
+  assert.equal(healthProfilePriorities['adult-male'].includes('feeding'), false)
+  assert.equal(healthProfilePriorities.child.includes('smoking'), false)
+  assert.equal(healthProfilePriorities['adult-female'].includes('menstrual'), true)
+  assert.equal(healthProfilePriorities['elder-male'].includes('mobility'), true)
+  assert.equal(healthProfilePriorities['elder-male'].includes('fall'), true)
 })
 
-test('infant feeding stays active while adult feeding without data stays hidden', () => {
-  const infant = getHealthProfileSectionGroups('infant', new Set())
-  assert.equal(infant.priorities.some(({ id }) => id === 'feeding'), true)
-  const adult = getHealthProfileSectionGroups('adult-male', new Set())
-  assert.equal([...adult.priorities, ...adult.secondary, ...adult.historical].some(({ id }) => id === 'feeding'), false)
-})
-
-test('priority sections match the frozen profile rules and keep a complete catalog', () => {
-  assert.deepEqual(healthProfilePriorities.infant, ['growth', 'feeding', 'allergy', 'vaccination', 'birth'])
-  assert.deepEqual(healthProfilePriorities['adult-female'], ['basic', 'history', 'medication', 'examination', 'menstrual'])
-  assert.deepEqual(healthProfilePriorities['elder-male'], ['history', 'medication', 'indicators', 'examination', 'care'])
-  assert.equal(healthProfileSections.length, 14)
-  assert.equal(new Set(healthProfileSections.map(({ id }) => id)).size, 14)
+test('stored records retain latest update per member section', () => {
+  const data = new Map([
+    ['hoho-health-profile:m1:allergy', JSON.stringify([{ _savedAt: '2026-01-01' }, { _savedAt: '2026-08-01' }])],
+    ['hoho-health-profile:m1:medication', JSON.stringify([{ _savedAt: '2026-06-01' }])]
+  ])
+  const stored = latestStoredSections(healthProfileSections.map(({ id }) => id), 'm1', { getItem: (key) => data.get(key) ?? null })
+  assert.deepEqual(stored.slice(0, 2), [
+    { id: 'allergy', updatedAt: '2026-08-01' },
+    { id: 'medication', updatedAt: '2026-06-01' }
+  ])
 })

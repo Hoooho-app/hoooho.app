@@ -1,51 +1,36 @@
 import { healthProfileSections, type HealthProfileSectionConfig, type HealthProfileSectionId } from '../config/healthProfileSections'
-import { healthProfilePriorities, healthProfileSecondaryOrder, type HealthProfileType } from '../config/healthProfileTemplates'
+import { healthProfilePriorities, type HealthProfileType } from '../config/healthProfileTemplates'
+import { buildHealthProfileHomeGroups, latestStoredSections } from './healthProfileHomeLogic'
 
-export type HealthProfileSectionState = 'priority' | 'secondary' | 'historical' | 'hidden'
-
-export interface HealthProfileSectionGroups {
-  priorities: HealthProfileSectionConfig[]
-  secondary: HealthProfileSectionConfig[]
-  historical: HealthProfileSectionConfig[]
+export interface StoredHealthProfileSection {
+  id: HealthProfileSectionId
+  updatedAt: string
 }
 
-export function getHealthProfileSectionState(
-  type: HealthProfileType,
-  section: HealthProfileSectionConfig,
-  hasData: boolean
-): HealthProfileSectionState {
-  const active = section.activeFor.includes(type)
-  if (active && healthProfilePriorities[type].includes(section.id)) return 'priority'
-  if (active) return 'secondary'
-  if (hasData && section.historicalFor?.includes(type)) return 'historical'
-  return 'hidden'
+export interface HealthProfileHomeGroups {
+  recorded: HealthProfileSectionConfig[]
+  suggested: HealthProfileSectionConfig[]
+  all: HealthProfileSectionConfig[]
 }
 
-export function getHealthProfileSectionGroups(
-  type: HealthProfileType,
-  sectionsWithData: ReadonlySet<HealthProfileSectionId>
-): HealthProfileSectionGroups {
-  const groups: HealthProfileSectionGroups = { priorities: [], secondary: [], historical: [] }
-  for (const section of healthProfileSections) {
-    const state = getHealthProfileSectionState(type, section, sectionsWithData.has(section.id))
-    if (state === 'priority') groups.priorities.push(section)
-    if (state === 'secondary') groups.secondary.push(section)
-    if (state === 'historical') groups.historical.push(section)
-  }
-  const priorityOrder = new Map(healthProfilePriorities[type].map((id, index) => [id, index]))
-  groups.priorities.sort((left, right) => (priorityOrder.get(left.id) ?? 99) - (priorityOrder.get(right.id) ?? 99))
-  const secondaryOrder = new Map((healthProfileSecondaryOrder[type] ?? []).map((id, index) => [id, index]))
-  groups.secondary.sort((left, right) => (secondaryOrder.get(left.id) ?? 99) - (secondaryOrder.get(right.id) ?? 99))
-  return groups
+export function getStoredHealthProfileSectionDetails(memberId: string, storage: Pick<Storage, 'getItem'> = localStorage) {
+  return latestStoredSections(healthProfileSections.map(({ id }) => id), memberId, storage) as StoredHealthProfileSection[]
 }
 
 export function getStoredHealthProfileSections(memberId: string, storage: Pick<Storage, 'getItem'> = localStorage) {
-  return new Set(healthProfileSections.flatMap((section) => {
-    try {
-      const records = JSON.parse(storage.getItem(`hoho-health-profile:${memberId}:${section.id}`) ?? '[]')
-      return Array.isArray(records) && records.length > 0 ? [section.id] : []
-    } catch {
-      return []
-    }
-  })) as Set<HealthProfileSectionId>
+  return new Set(getStoredHealthProfileSectionDetails(memberId, storage).map(({ id }) => id))
+}
+
+export function getHealthProfileHomeGroups(
+  type: HealthProfileType,
+  stored: readonly StoredHealthProfileSection[],
+  suggestedLimit = 8
+): HealthProfileHomeGroups {
+  return buildHealthProfileHomeGroups(healthProfileSections, healthProfilePriorities[type], stored, suggestedLimit)
+}
+
+export function getHealthProfileSectionGroups(type: HealthProfileType, sectionsWithData: ReadonlySet<HealthProfileSectionId>) {
+  const stored = [...sectionsWithData].map((id) => ({ id, updatedAt: '' }))
+  const { recorded, suggested, all } = getHealthProfileHomeGroups(type, stored)
+  return { priorities: suggested, secondary: all.filter((section) => !sectionsWithData.has(section.id) && !suggested.includes(section)), historical: recorded }
 }
