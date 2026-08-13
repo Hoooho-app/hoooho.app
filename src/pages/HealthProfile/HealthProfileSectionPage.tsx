@@ -10,6 +10,7 @@ import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
+import { MedicationProfilePage } from './MedicationProfilePage'
 
 type FormValues = Record<string, string | boolean>
 
@@ -68,6 +69,7 @@ export function HealthProfileSectionPage() {
   const [status, setStatus] = useState('')
 
   if (!section) return <Navigate replace to="/health-profile" />
+  if (section.id === 'medication') return <MedicationProfilePage member={member} storageKey={storageKey} />
   const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
 
   const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
