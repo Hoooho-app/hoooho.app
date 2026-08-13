@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Camera, Droplet, Ruler, Scale, Trash2, UserRound } from 'lucide-react'
+import { CalendarDays, RefreshCw, Trash2, UserRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Avatar, Button, WebPageHeader } from '../../components/common'
 import { ApiRequestError } from '../../services/apiClient'
@@ -11,8 +11,6 @@ import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import { createVirtualAvatarId, cycleVirtualAvatarId, remapVirtualAvatarId } from '../../utils/virtualAvatar'
 
 type RequiredGender = Extract<ProfileGender, 'male' | 'female'>
-type BloodType = 'A' | 'B' | 'AB' | 'O' | ''
-
 const fieldClass = 'min-w-0 flex-1 bg-transparent text-right text-[15px] text-heading outline-none placeholder:text-text-secondary/70'
 
 export function EditFamilyMemberPage() {
@@ -33,9 +31,6 @@ export function EditFamilyMemberPage() {
   const [birthday, setBirthday] = useState(cachedMember?.birthday ?? '')
   const [gender, setGender] = useState<RequiredGender>(cachedMember?.gender === 'female' ? 'female' : 'male')
   const [avatar, setAvatar] = useState(cachedMember?.avatar ?? '')
-  const [heightCm, setHeightCm] = useState(cachedMember?.heightCm?.toString() ?? '')
-  const [weightKg, setWeightKg] = useState(cachedMember?.weightKg?.toString() ?? '')
-  const [bloodType, setBloodType] = useState<BloodType>(cachedMember?.bloodType ?? '')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -51,9 +46,6 @@ export function EditFamilyMemberPage() {
         setBirthday(member.birthday ?? '')
         setGender(member.gender === 'female' ? 'female' : 'male')
         setAvatar(member.avatar ?? (member.birthday && member.gender ? createVirtualAvatarId(member.birthday, member.gender) : ''))
-        setHeightCm(member.heightCm?.toString() ?? '')
-        setWeightKg(member.weightKg?.toString() ?? '')
-        setBloodType(member.bloodType ?? '')
       })
       .catch((requestError) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
@@ -93,10 +85,7 @@ export function EditFamilyMemberPage() {
         name: name.trim(),
         birthday,
         gender,
-        avatar: previewAvatar ?? null,
-        heightCm: heightCm ? Number(heightCm) : null,
-        weightKg: weightKg ? Number(weightKg) : null,
-        bloodType: bloodType || null
+        avatar: previewAvatar ?? null
       }, token)
       const adapted = adaptFamilyMember(saved)
       setMembers(members.map((member) => member.id === saved.id ? adapted : member))
@@ -141,7 +130,7 @@ export function EditFamilyMemberPage() {
             <span className="relative">
               <Avatar name={name || '角色'} src={previewAvatar} size="xl" />
               <span className="absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card">
-                <Camera size={18} strokeWidth={1.8} />
+                <RefreshCw size={18} strokeWidth={1.8} />
               </span>
             </span>
             <span className="mt-3 text-sm font-medium text-primary">更换头像</span>
@@ -163,7 +152,7 @@ export function EditFamilyMemberPage() {
               </span>
             </label>
 
-            <div className="flex min-h-[70px] items-center gap-3 border-b border-border">
+            <div className="flex min-h-[70px] items-center gap-3">
               <UserRound className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
               <span className="text-sm font-medium">性别</span>
               <div className="ml-auto grid w-36 grid-cols-2 overflow-hidden rounded-control border border-border">
@@ -175,29 +164,6 @@ export function EditFamilyMemberPage() {
               </div>
             </div>
 
-            <label className="flex min-h-[66px] items-center gap-3 border-b border-border">
-              <Ruler className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
-              <span className="text-sm font-medium">身高（cm）</span>
-              <input className={fieldClass} inputMode="decimal" min="20" max="260" step="0.1" type="number" placeholder="未填写" value={heightCm} onChange={(event) => setHeightCm(event.target.value)} />
-            </label>
-
-            <label className="flex min-h-[66px] items-center gap-3 border-b border-border">
-              <Scale className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
-              <span className="text-sm font-medium">体重（kg）</span>
-              <input className={fieldClass} inputMode="decimal" min="1" max="500" step="0.1" type="number" placeholder="未填写" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} />
-            </label>
-
-            <label className="flex min-h-[66px] items-center gap-3">
-              <Droplet className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
-              <span className="text-sm font-medium">血型</span>
-              <select className={fieldClass} value={bloodType} onChange={(event) => setBloodType(event.target.value as BloodType)}>
-                <option value="">未填写</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="AB">AB</option>
-                <option value="O">O</option>
-              </select>
-            </label>
           </section>
 
           <div className="mt-auto pt-7">

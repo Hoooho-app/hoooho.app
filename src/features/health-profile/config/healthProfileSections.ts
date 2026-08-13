@@ -31,8 +31,7 @@ const adultAndElderTypes: HealthProfileType[] = ['adult-female', 'adult-male', '
 
 export const healthProfileSections: HealthProfileSectionConfig[] = [
   { id: 'basic', title: '基础信息', description: '身高、体重、血型等基础资料', icon: 'file', activeFor: allProfileTypes, fields: [
-    { id: 'name', label: '姓名', type: 'text', placeholder: '成员姓名' }, { id: 'birthday', label: '出生日期', type: 'date' },
-    { id: 'gender', label: '性别', type: 'select', options: ['男', '女', '未说明'] }, { id: 'height', label: '身高', type: 'number', unit: 'cm' },
+    { id: 'height', label: '身高', type: 'number', unit: 'cm' },
     { id: 'weight', label: '体重', type: 'number', unit: 'kg' }, { id: 'bloodType', label: '血型', type: 'select', options: ['A', 'B', 'AB', 'O', '未知'] },
   ] },
   { id: 'growth', title: '生长发育', description: '身长、体重、头围与发育变化', icon: 'activity', activeFor: ['infant', 'child'], historicalFor: ['teen', ...adultAndElderTypes], historicalLabel: '儿童期', fields: [

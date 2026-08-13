@@ -20,7 +20,7 @@ export const familyMemberService = {
 
   update(
     memberId: string,
-    input: Pick<FamilyMemberApiDto, 'name' | 'birthday' | 'gender' | 'avatar' | 'heightCm' | 'weightKg' | 'bloodType'>,
+    input: Partial<Pick<FamilyMemberApiDto, 'name' | 'birthday' | 'gender' | 'avatar' | 'heightCm' | 'weightKg' | 'bloodType'>>,
     token: string,
     signal?: AbortSignal
   ) {
