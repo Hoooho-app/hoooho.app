@@ -1,5 +1,8 @@
 import type { TimelineEntry } from '../types'
 import { formatHealthTimelineDate } from '../utils/formatHealthTimePeriod'
+import { compareHealthChronologyAsc, compareHealthChronologyDesc } from './healthChronology'
+
+export type TimelineOrder = 'desc' | 'asc'
 
 export interface TimelineDateGroup {
   date: string
@@ -9,6 +12,30 @@ export interface TimelineDateGroup {
 export interface TimelineYearGroup {
   year: number
   dates: TimelineDateGroup[]
+}
+
+function chronologyItem(entry: TimelineEntry) {
+  return {
+    id: entry.id,
+    occurredAt: entry.time,
+    createdAt: entry.createdAt ?? entry.time
+  }
+}
+
+export function sortTimelineEntries(
+  timeline: readonly TimelineEntry[],
+  order: TimelineOrder
+): TimelineEntry[] {
+  const compare = order === 'desc' ? compareHealthChronologyDesc : compareHealthChronologyAsc
+
+  return [...timeline].sort((left, right) => compare(chronologyItem(left), chronologyItem(right)))
+}
+
+export function sortAndGroupTimeline(
+  timeline: readonly TimelineEntry[],
+  order: TimelineOrder
+): TimelineYearGroup[] {
+  return groupTimelineByYearAndDate(sortTimelineEntries(timeline, order))
 }
 
 export function groupTimelineByYearAndDate(timeline: TimelineEntry[]): TimelineYearGroup[] {

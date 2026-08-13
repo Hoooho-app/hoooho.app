@@ -3,28 +3,20 @@ import { ArrowUpDown, ChevronDown, ChevronUp, Clock3 } from 'lucide-react'
 import type { EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Card } from '../../../components/common'
 import { HealthTag } from '../../../components/design-system'
-import { groupTimelineByYearAndDate } from '../../../services/healthTimelineGrouping'
-import { compareHealthChronologyAsc, compareHealthChronologyDesc } from '../../../services/healthChronology'
+import { sortAndGroupTimeline, type TimelineOrder } from '../../../services/healthTimelineGrouping'
 
 interface TimelineSectionProps {
   event: HealthEvent
 }
 
-type TimelineOrder = 'desc' | 'asc'
-
 export function TimelineSection({ event }: TimelineSectionProps) {
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [expandedAttachmentEntries, setExpandedAttachmentEntries] = useState<Set<string>>(new Set())
 
-  const timeline = useMemo(() => [...event.timeline].sort((left, right) => {
-    const normalizedLeft = { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time }
-    const normalizedRight = { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
-    return order === 'desc'
-      ? compareHealthChronologyDesc(normalizedLeft, normalizedRight)
-      : compareHealthChronologyAsc(normalizedLeft, normalizedRight)
-  }), [event.timeline, order])
-
-  const timelineGroups = useMemo(() => groupTimelineByYearAndDate(timeline), [timeline])
+  const timelineGroups = useMemo(
+    () => sortAndGroupTimeline(event.timeline, order),
+    [event.timeline, order]
+  )
 
   const toggleAttachments = (entryId: string) => {
     setExpandedAttachmentEntries((current) => {
@@ -52,7 +44,7 @@ export function TimelineSection({ event }: TimelineSectionProps) {
         </div>
       </div>
 
-      {!timeline.length ? (
+      {!event.timeline.length ? (
         <Card
           className="py-8 text-center"
         >
