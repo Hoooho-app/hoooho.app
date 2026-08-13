@@ -12,6 +12,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { MedicationProfilePage } from './MedicationProfilePage'
 import { AllergyProfilePage } from './AllergyProfilePage'
+import { ChronicProfilePage } from './ChronicProfilePage'
 
 type FormValues = Record<string, string | boolean>
 
@@ -72,6 +73,7 @@ export function HealthProfileSectionPage() {
   if (!section) return <Navigate replace to="/health-profile" />
   if (section.id === 'medication') return <MedicationProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'allergy') return <AllergyProfilePage member={member} storageKey={storageKey} />
+  if (section.id === 'chronic') return <ChronicProfilePage member={member} storageKey={storageKey} />
   const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
 
   const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
