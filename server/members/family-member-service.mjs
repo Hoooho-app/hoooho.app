@@ -2,8 +2,13 @@ import { FamilyMemberRepository } from './repositories/family-member-repository.
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
-const editableFields = new Set(['name', 'relationship', 'gender', 'birthday', 'avatar', 'heightCm', 'weightKg', 'bloodType'])
+const editableFields = new Set([
+  'name', 'relationship', 'gender', 'birthday', 'avatar',
+  'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
+  'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType'
+])
 const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
+const rhBloodTypes = new Set(['positive', 'negative'])
 
 export class FamilyMemberError extends Error {
   constructor(message, status = 400, code = 'MEMBER_ERROR') {
@@ -65,6 +70,12 @@ function validateBloodType(value) {
   return value
 }
 
+function validateRhBloodType(value) {
+  if (value === undefined || value === null || value === '') return null
+  if (!rhBloodTypes.has(value)) throw new FamilyMemberError('Rh(D) 血型字段格式错误', 400, 'INVALID_RH_BLOOD_TYPE')
+  return value
+}
+
 export class FamilyMemberService {
   constructor(options = {}) {
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
@@ -108,6 +119,10 @@ export class FamilyMemberService {
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
       if (key === 'bloodType') changes.bloodType = validateBloodType(input.bloodType)
+      if (key === 'waistCircumferenceCm') changes.waistCircumferenceCm = validateOptionalNumber(input.waistCircumferenceCm, '腰围', 1, 300)
+      if (key === 'bodyFatPercentage') changes.bodyFatPercentage = validateOptionalNumber(input.bodyFatPercentage, '体脂率', 0, 100)
+      if (key === 'headCircumferenceCm') changes.headCircumferenceCm = validateOptionalNumber(input.headCircumferenceCm, '头围', 1, 100)
+      if (key === 'rhBloodType') changes.rhBloodType = validateRhBloodType(input.rhBloodType)
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
     return this.repository.update(id, changes, now)

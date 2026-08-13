@@ -11,6 +11,10 @@ export interface Member {
   heightCm?: number
   weightKg?: number
   bloodType?: 'A' | 'B' | 'AB' | 'O'
+  waistCircumferenceCm?: number
+  bodyFatPercentage?: number
+  headCircumferenceCm?: number
+  rhBloodType?: 'positive' | 'negative'
 }
 
 export type ProfileGender = 'male' | 'female' | 'undisclosed' | ''
@@ -47,6 +51,10 @@ export interface FamilyMemberApiDto {
   heightCm?: number | null
   weightKg?: number | null
   bloodType?: 'A' | 'B' | 'AB' | 'O' | null
+  waistCircumferenceCm?: number | null
+  bodyFatPercentage?: number | null
+  headCircumferenceCm?: number | null
+  rhBloodType?: 'positive' | 'negative' | null
   isSelf: boolean
   createdAt: string
   updatedAt: string

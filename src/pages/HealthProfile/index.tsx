@@ -15,10 +15,13 @@ const icons: Record<HealthProfileSectionConfig['icon'], LucideIcon> = {
   stethoscope: Stethoscope, syringe: Syringe, utensils: Utensils,
 }
 
-function getSectionCount(sectionId: string, memberId: string) {
+function getSectionCount(sectionId: string, memberId: string, member: ReturnType<typeof useCurrentMember>) {
+  if (sectionId === 'basic') return [
+    member.heightCm, member.weightKg, member.waistCircumferenceCm,
+    member.bodyFatPercentage, member.headCircumferenceCm, member.bloodType, member.rhBloodType
+  ].filter((value) => value != null).length
   const profile = healthProfiles.find((item) => item.memberId === memberId)
   if (!profile) return 0
-  if (sectionId === 'basic') return [profile.heightCm, profile.weightKg, profile.bloodType].filter(Boolean).length
   if (sectionId === 'allergy') return profile.allergies.length
   if (sectionId === 'medication') return profile.medications.length
   if (sectionId === 'history') return profile.medicalHistory.length
@@ -26,13 +29,13 @@ function getSectionCount(sectionId: string, memberId: string) {
   return 0
 }
 
-function ProfileSectionRows({ sections, memberId, historical = false }: { sections: HealthProfileSectionConfig[]; memberId: string; historical?: boolean }) {
+function ProfileSectionRows({ sections, member, historical = false }: { sections: HealthProfileSectionConfig[]; member: ReturnType<typeof useCurrentMember>; historical?: boolean }) {
   const navigate = useNavigate()
   return (
     <div className="overflow-hidden rounded-card border bg-surface">
       {sections.map((section) => {
         const Icon = icons[section.icon]
-        const count = getSectionCount(section.id, memberId)
+        const count = getSectionCount(section.id, member.id, member)
         return (
           <button className={`hoho-surface-row ${historical ? 'text-text-secondary' : ''}`} key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={19} strokeWidth={1.75} /></span>
@@ -62,16 +65,16 @@ export function HealthProfilePage() {
         <MemberIdentityCard member={member} />
         <section className="grid gap-3">
           <header><Typography variant="sectionTitle">当前重点</Typography><Typography className="mt-1" variant="caption">根据当前成员的年龄与性别动态排序</Typography></header>
-          <ProfileSectionRows memberId={member.id} sections={priorities} />
+          <ProfileSectionRows member={member} sections={priorities} />
         </section>
         <section className="mt-6 grid gap-3">
           <header><Typography variant="sectionTitle">其他健康档案</Typography><Typography className="mt-1" variant="caption">当前仍适用的其他健康资料</Typography></header>
-          <ProfileSectionRows memberId={member.id} sections={secondary} />
+          <ProfileSectionRows member={member} sections={secondary} />
         </section>
         {historical.length > 0 && (
           <section className="mt-6 grid gap-3">
             <header><Typography variant="sectionTitle">历史档案</Typography><Typography className="mt-1" variant="caption">过去生命阶段留下的健康资料</Typography></header>
-            <ProfileSectionRows historical memberId={member.id} sections={historical} />
+            <ProfileSectionRows historical member={member} sections={historical} />
           </section>
         )}
       </div>

@@ -70,7 +70,9 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(list.length, 2)
 
     const updatedResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
-      name: '小明同学', heightCm: 128.5, weightKg: 26.2, bloodType: 'A'
+      name: '小明同学', heightCm: 128.5, weightKg: 26.2, bloodType: 'A',
+      waistCircumferenceCm: 58, bodyFatPercentage: 18.5, headCircumferenceCm: 51,
+      rhBloodType: 'negative'
     })
     assert.equal(updatedResponse.status, 200)
     const updated = await updatedResponse.json()
@@ -78,6 +80,19 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(updated.heightCm, 128.5)
     assert.equal(updated.weightKg, 26.2)
     assert.equal(updated.bloodType, 'A')
+    assert.equal(updated.waistCircumferenceCm, 58)
+    assert.equal(updated.bodyFatPercentage, 18.5)
+    assert.equal(updated.headCircumferenceCm, 51)
+    assert.equal(updated.rhBloodType, 'negative')
+
+    const clearedResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      heightCm: null, weightKg: null, bloodType: null, waistCircumferenceCm: null,
+      bodyFatPercentage: null, headCircumferenceCm: null, rhBloodType: null
+    })
+    assert.equal(clearedResponse.status, 200)
+    const cleared = await clearedResponse.json()
+    assert.equal(cleared.heightCm, null)
+    assert.equal(cleared.rhBloodType, null)
 
     const crossAccountResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'GET', second.token)
     assert.equal(crossAccountResponse.status, 404)

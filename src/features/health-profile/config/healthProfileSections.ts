@@ -2,13 +2,18 @@ export type HealthProfileSectionId =
   | 'basic' | 'growth' | 'feeding' | 'sleep' | 'allergy' | 'medication' | 'history'
   | 'examination' | 'vaccination' | 'indicators' | 'menstrual' | 'care' | 'family-history' | 'birth'
 
-export type HealthProfileFieldType = 'text' | 'number' | 'date' | 'time' | 'textarea' | 'select' | 'checkbox'
+export type HealthProfileFieldType = 'text' | 'number' | 'date' | 'time' | 'textarea' | 'select' | 'checkbox' | 'computed'
+
+export interface HealthProfileFieldOption {
+  value: string
+  label: string
+}
 
 export interface HealthProfileField {
   id: string
   label: string
   type: HealthProfileFieldType
-  options?: string[]
+  options?: Array<string | HealthProfileFieldOption>
   placeholder?: string
   unit?: string
 }
@@ -30,9 +35,21 @@ const allProfileTypes: HealthProfileType[] = ['infant', 'child', 'teen', 'adult-
 const adultAndElderTypes: HealthProfileType[] = ['adult-female', 'adult-male', 'elder-female', 'elder-male']
 
 export const healthProfileSections: HealthProfileSectionConfig[] = [
-  { id: 'basic', title: '基础信息', description: '身高、体重、血型等基础资料', icon: 'file', activeFor: allProfileTypes, fields: [
+  { id: 'basic', title: '基础健康信息', description: '身高、体重、体脂与血型等基础健康资料', icon: 'file', activeFor: allProfileTypes, fields: [
     { id: 'height', label: '身高', type: 'number', unit: 'cm' },
-    { id: 'weight', label: '体重', type: 'number', unit: 'kg' }, { id: 'bloodType', label: '血型', type: 'select', options: ['A', 'B', 'AB', 'O', '未知'] },
+    { id: 'weight', label: '体重', type: 'number', unit: 'kg' },
+    { id: 'bmi', label: 'BMI', type: 'computed' },
+    { id: 'waistCircumference', label: '腰围', type: 'number', unit: 'cm' },
+    { id: 'bodyFatPercentage', label: '体脂率', type: 'number', unit: '%' },
+    { id: 'headCircumference', label: '头围', type: 'number', unit: 'cm' },
+    { id: 'bloodType', label: 'ABO 血型', type: 'select', options: [
+      { value: 'A', label: 'A型' }, { value: 'B', label: 'B型' },
+      { value: 'AB', label: 'AB型' }, { value: 'O', label: 'O型' },
+    ] },
+    { id: 'rhBloodType', label: 'Rh(D) 血型', type: 'select', options: [
+      { value: 'positive', label: 'Rh(D) 阳性' },
+      { value: 'negative', label: 'Rh(D) 阴性' },
+    ] },
   ] },
   { id: 'growth', title: '生长发育', description: '身长、体重、头围与发育变化', icon: 'activity', activeFor: ['infant', 'child'], historicalFor: ['teen', ...adultAndElderTypes], historicalLabel: '儿童期', fields: [
     { id: 'height', label: '身高', type: 'number', unit: 'cm' }, { id: 'weight', label: '体重', type: 'number', unit: 'kg' },

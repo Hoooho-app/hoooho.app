@@ -56,6 +56,10 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     heightCm: member.heightCm ?? undefined,
     weightKg: member.weightKg ?? undefined,
     bloodType: member.bloodType ?? undefined,
+    waistCircumferenceCm: member.waistCircumferenceCm ?? undefined,
+    bodyFatPercentage: member.bodyFatPercentage ?? undefined,
+    headCircumferenceCm: member.headCircumferenceCm ?? undefined,
+    rhBloodType: member.rhBloodType ?? undefined,
     age: member.birthday ? formatAgeFromBirthday(member.birthday) : '未填写年龄'
   }
 }

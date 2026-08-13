@@ -21,6 +21,10 @@ export class FamilyMemberRepository {
       heightCm: input.heightCm ?? null,
       weightKg: input.weightKg ?? null,
       bloodType: input.bloodType ?? null,
+      waistCircumferenceCm: input.waistCircumferenceCm ?? null,
+      bodyFatPercentage: input.bodyFatPercentage ?? null,
+      headCircumferenceCm: input.headCircumferenceCm ?? null,
+      rhBloodType: input.rhBloodType ?? null,
       isSelf: Boolean(input.isSelf),
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
@@ -45,6 +49,10 @@ export class FamilyMemberRepository {
         heightCm: null,
         weightKg: null,
         bloodType: null,
+        waistCircumferenceCm: null,
+        bodyFatPercentage: null,
+        headCircumferenceCm: null,
+        rhBloodType: null,
         isSelf: true,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()
