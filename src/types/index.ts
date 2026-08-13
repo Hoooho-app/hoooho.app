@@ -131,11 +131,31 @@ export interface CreateEventAttachmentInput {
   recordId?: string
 }
 
+export type ImageAnalysisStatus = 'completed' | 'unavailable' | 'failed'
+export type ImageAnalysisCategory = 'temperature' | 'report' | 'medication' | 'prescription' | 'receipt' | 'body_photo' | 'other'
+
+export interface ImageAnalysisResult {
+  status: ImageAnalysisStatus
+  category: ImageAnalysisCategory
+  summary: string
+  observedText?: string
+  medicationName?: string | null
+  examinationName?: string | null
+  temperatureValue?: number | null
+  extractedFacts: HealthFact[]
+  confidence?: number
+  provider: string | null
+  sourceAttachmentId?: string
+  analyzedAt: string
+  errorCode?: string
+}
+
 export interface EventAttachmentApiDto extends CreateEventAttachmentInput {
   id: string
   accountId: string
   eventId: string
   createdAt: string
+  analysis?: ImageAnalysisResult
 }
 
 export interface OrganizedHealthFact {
@@ -286,6 +306,7 @@ export interface EventAttachment {
   type: 'image' | 'document'
   url?: string
   recordId?: string
+  analysis?: ImageAnalysisResult
 }
 
 export interface HealthEvent {

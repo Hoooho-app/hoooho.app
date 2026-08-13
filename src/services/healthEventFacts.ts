@@ -68,7 +68,7 @@ export function deriveHealthEventTitleFromFacts(output: HealthAIOutput, hasAttac
   if (facts.some((fact) => fact.type === 'visit')) return '就诊记录'
   if (facts.some((fact) => fact.type === 'examination')) return '检查记录'
   if (facts.some((fact) => fact.type === 'concern')) return '健康担心'
-  if (hasAttachments) return '健康附件'
+  if (hasAttachments) return '图片记录'
   return ''
 }
 
@@ -86,6 +86,6 @@ export function deriveHealthEventTitle(data: OrganizedHealthData, hasAttachments
   if (data.visits.length) return '就诊记录'
   if (data.examinations.length) return '检查记录'
   if (data.concerns.length) return '健康担心'
-  if (hasAttachments) return '健康附件'
+  if (hasAttachments) return '图片记录'
   return ''
 }

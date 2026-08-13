@@ -67,7 +67,7 @@ export function adaptHealthEventDetail(
   attachmentDtos: EventAttachmentApiDto[] = []
 ): HealthEventDetailViewModel {
   const recordsById = new Map(recordDtos.map((record) => [record.id, record]))
-  const facts = organizationDtos.flatMap((organization) => (
+  const organizationFacts = organizationDtos.flatMap((organization) => (
     (organization.healthAIOutput?.facts ?? []).map((fact, factIndex) => ({
       organization,
       record: recordsById.get(organization.recordId),
@@ -75,6 +75,36 @@ export function adaptHealthEventDetail(
       factIndex
     }))
   ))
+  const attachmentFacts = attachmentDtos.flatMap((attachment) => (
+    (attachment.analysis?.extractedFacts ?? []).map((fact, factIndex): FactContext => ({
+      organization: {
+        id: `attachment-analysis-${attachment.id}`,
+        accountId: attachment.accountId,
+        eventId: attachment.eventId,
+        recordId: attachment.recordId ?? '',
+        rawInput: '',
+        healthAIOutput: {
+          facts: attachment.analysis?.extractedFacts ?? [],
+          confidence: attachment.analysis?.confidence ?? 0,
+          parserVersion: 'image-analysis-v1',
+          promptVersion: 'health-image-observation-v1',
+          timeConflict: { hasConflict: false, conflict: null }
+        },
+        organizedHealthData: {
+          symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: []
+        },
+        confirmedData: null,
+        status: 'completed',
+        provider: attachment.analysis?.provider ?? 'unavailable',
+        createdAt: attachment.createdAt,
+        updatedAt: attachment.analysis?.analyzedAt ?? attachment.createdAt
+      },
+      record: attachment.recordId ? recordsById.get(attachment.recordId) : undefined,
+      fact,
+      factIndex
+    }))
+  ))
+  const facts = [...organizationFacts, ...attachmentFacts]
   const adaptedAttachments = attachmentDtos.map(adaptAttachment)
   const timeline = buildFactTimeline(facts, recordDtos, adaptedAttachments)
   const temperatureRecords = buildTemperatureRecords(facts)
@@ -192,19 +222,24 @@ function buildFactTimeline(
 
   const attachmentOnlyEntries = records.filter((record) => (
     !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) > 0
-  )).map((record): TimelineEntry => ({
+  )).map((record): TimelineEntry => {
+    const recordAttachments = attachmentsByRecord.get(record.id) ?? []
+    const analyzed = recordAttachments.find((attachment) => attachment.analysis?.status === 'completed')
+    const presentation = attachmentPresentation(analyzed)
+    return ({
     id: `${record.id}-attachments`,
     time: record.occurredAt,
     createdAt: record.createdAt,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
-    content: '添加图片',
+    content: presentation.content,
     recordType: 'note',
     kind: 'text',
     sourceRecordId: record.id,
     sequence: 0,
-    segments: [{ label: '附件', content: '添加图片' }],
-    attachments: attachmentsByRecord.get(record.id) ?? []
-  }))
+    segments: [{ label: presentation.label, content: presentation.content }],
+    attachments: recordAttachments
+    })
+  })
 
   return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => compareHealthChronologyDesc(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
@@ -268,6 +303,19 @@ function adaptAttachment(attachment: EventAttachmentApiDto): EventAttachment {
     name: attachment.name,
     type: 'image',
     url: attachment.dataUrl,
-    recordId: attachment.recordId
+    recordId: attachment.recordId,
+    analysis: attachment.analysis
   }
+}
+
+function attachmentPresentation(attachment?: EventAttachment) {
+  const analysis = attachment?.analysis
+  if (!analysis || analysis.status !== 'completed') return { label: '记录' as const, content: '图片记录' }
+  if (analysis.category === 'temperature') return { label: '体温' as const, content: analysis.summary }
+  if (analysis.category === 'report') return { label: '检查' as const, content: analysis.summary }
+  if (analysis.category === 'medication' || analysis.category === 'prescription') {
+    return { label: '用药' as const, content: analysis.summary }
+  }
+  if (analysis.category === 'body_photo') return { label: '记录' as const, content: analysis.summary }
+  return { label: '记录' as const, content: analysis.summary || '图片记录' }
 }

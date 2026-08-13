@@ -1,6 +1,7 @@
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { EventAttachmentRepository } from './repositories/event-attachment-repository.mjs'
 import { HealthEventRecordRepository } from './repositories/health-event-record-repository.mjs'
+import { ImageAnalysisService } from '../ai/image-analysis-service.mjs'
 
 export class EventAttachmentError extends Error {
   constructor(message, status = 400, code = 'EVENT_ATTACHMENT_ERROR') {
@@ -15,6 +16,7 @@ export class EventAttachmentService {
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
     this.records = options.records ?? new HealthEventRecordRepository(options.dataDirectory)
     this.repository = options.repository ?? new EventAttachmentRepository(options.dataDirectory)
+    this.imageAnalysis = options.imageAnalysis ?? new ImageAnalysisService(options)
   }
 
   async assertEventOwnership(accountId, eventId) {
@@ -38,7 +40,9 @@ export class EventAttachmentService {
         throw new EventAttachmentError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
       }
     }
-    return this.repository.create({ accountId, eventId, recordId: recordId || null, name, mimeType, dataUrl }, now)
+    const attachment = await this.repository.create({ accountId, eventId, recordId: recordId || null, name, mimeType, dataUrl }, now)
+    const analysis = await this.imageAnalysis.analyze(attachment, now)
+    return this.repository.updateAnalysis(attachment.id, analysis)
   }
 
   async list(accountId, eventId) {

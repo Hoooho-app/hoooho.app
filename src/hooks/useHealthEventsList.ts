@@ -6,6 +6,7 @@ import { adaptFamilyMember } from '../services/healthEventDetailAdapter'
 import { adaptHealthEventList } from '../services/healthEventListAdapter'
 import { healthEventRecordService } from '../services/healthEventRecords'
 import { healthEventService } from '../services/healthEvents'
+import { eventAttachmentService } from '../services/eventAttachments'
 import { useAppStore } from '../store/useAppStore'
 
 interface LoadedHealthEvents {
@@ -34,11 +35,17 @@ export function useHealthEventsList() {
         healthEventService.list(token, signal),
         familyMemberService.list(token, signal)
       ])
-      const recordEntries = await Promise.all(eventDtos.map(async (event) => (
-        [event.id, await healthEventRecordService.list(event.id, token, signal)] as const
-      )))
+      const [recordEntries, attachmentEntries] = await Promise.all([
+        Promise.all(eventDtos.map(async (event) => (
+          [event.id, await healthEventRecordService.list(event.id, token, signal)] as const
+        ))),
+        Promise.all(eventDtos.map(async (event) => (
+          [event.id, await eventAttachmentService.list(event.id, token, signal)] as const
+        )))
+      ])
       if (signal?.aborted) return
       const recordsByEventId = new Map(recordEntries)
+      const attachmentsByEventId = new Map(attachmentEntries)
       const adaptedMembers = memberDtos.map(adaptFamilyMember)
       setMembers(adaptedMembers)
       const currentId = useAppStore.getState().currentMemberId
@@ -48,7 +55,7 @@ export function useHealthEventsList() {
       setState({
         status: 'success',
         data: {
-          events: adaptHealthEventList(eventDtos, memberDtos, recordsByEventId),
+          events: adaptHealthEventList(eventDtos, memberDtos, recordsByEventId, attachmentsByEventId),
           memberDtos,
           members: adaptedMembers
         }

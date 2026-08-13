@@ -58,7 +58,7 @@ test('详情页完全由 HealthFact 生成时间线、标签和体温记录', ()
   const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, facts)])
 
   assert.equal(view.event.timeline.length, 3)
-  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['38.5℃', '退烧药', '头痛'])
+  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['退烧药', '38.5℃', '头痛'])
   assert.equal(view.event.timeline[2].segments?.[0].label, '部位')
   assert.equal(view.event.timeline[2].segments?.[0].content, '头')
   assert.equal(view.event.temperatureRecords.length, 1)
@@ -101,8 +101,45 @@ test('真实附件只跟随所属记录，没有图片时不生成附件时间�
   }
   const withAttachment = adaptHealthEventDetail(eventDto, [sourceRecord], [], [attachment])
   assert.equal(withAttachment.event.timeline.length, 1)
-  assert.equal(withAttachment.event.timeline[0].segments?.[0].label, '附件')
+  assert.equal(withAttachment.event.timeline[0].segments?.[0].label, '记录')
   assert.equal(withAttachment.event.timeline[0].attachments?.length, 1)
+})
+
+test('图片分析结果驱动时间线与体温记录，附件缩略图仍保留', () => {
+  const sourceRecord = record('record-image-temperature', '图片记录', '2026-08-12T07:25:00.000Z')
+  const imageFact = fact('fact-image-temperature', 'temperature', '38.5℃', null, sourceRecord.occurredAt)
+  imageFact.time.source = 'document'
+  const attachment: EventAttachmentApiDto = {
+    id: 'attachment-temperature', accountId: 'account-1', eventId: 'event-1', recordId: sourceRecord.id,
+    name: '体温计.jpg', mimeType: 'image/jpeg', dataUrl: 'data:image/jpeg;base64,AA==', createdAt: sourceRecord.createdAt,
+    analysis: {
+      status: 'completed', category: 'temperature', summary: '体温计显示 38.5℃',
+      temperatureValue: 38.5, extractedFacts: [imageFact], confidence: 0.98,
+      provider: 'fixture-vision', analyzedAt: sourceRecord.createdAt
+    }
+  }
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [], [attachment])
+
+  assert.equal(view.event.timeline.length, 1)
+  assert.equal(view.event.timeline[0].segments?.[0].label, '体温')
+  assert.equal(view.event.timeline[0].attachments?.length, 1)
+  assert.equal(view.event.temperatureRecords[0].value, 38.5)
+})
+
+test('无法分析图片时降级为图片记录，不泄露文件名', () => {
+  const sourceRecord = record('record-image-fallback', '图片记录')
+  const attachment: EventAttachmentApiDto = {
+    id: 'attachment-fallback', accountId: 'account-1', eventId: 'event-1', recordId: sourceRecord.id,
+    name: 'private-file-name.jpg', mimeType: 'image/jpeg', dataUrl: 'data:image/jpeg;base64,AA==', createdAt: sourceRecord.createdAt,
+    analysis: {
+      status: 'unavailable', category: 'other', summary: '图片记录', extractedFacts: [],
+      provider: null, analyzedAt: sourceRecord.createdAt, errorCode: 'VISION_NOT_CONFIGURED'
+    }
+  }
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [], [attachment])
+
+  assert.equal(view.event.timeline[0].content, '图片记录')
+  assert.equal(view.event.timeline[0].content.includes(attachment.name), false)
 })
 
 test('状态变化事实使用自然中文接入现有时间线', () => {

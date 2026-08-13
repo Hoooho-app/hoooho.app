@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { FamilyMemberApiDto, HealthEventApiDto, HealthEventRecordApiDto } from '../types/index.ts'
+import type { EventAttachmentApiDto, FamilyMemberApiDto, HealthEventApiDto, HealthEventRecordApiDto } from '../types/index.ts'
 import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts.ts'
 import { getEventOccurredAt } from './healthEventListPresentation.ts'
 import { adaptHealthEventList } from './healthEventListAdapter.ts'
@@ -73,4 +73,45 @@ test('一级列表优先读取事件摘要层的标题和副标题', () => {
   const [adapted] = adaptHealthEventList([summarizedEvent], [member], new Map([[event.id, [record]]]))
   assert.equal(adapted.title, '甲型流感')
   assert.match(adapted.summary ?? '', /最高体温39℃/)
+})
+
+test('图片-only 事件用分析结果生成标题摘要，不展示健康附件或文件名', () => {
+  const imageEvent = { ...event, title: '健康附件' }
+  const imageRecord = { ...record, type: 'note' as const, content: '图片记录' }
+  const attachment: EventAttachmentApiDto = {
+    id: 'attachment-1', accountId: 'account-1', eventId: event.id, recordId: record.id,
+    name: 'image.jpg', mimeType: 'image/jpeg', dataUrl: 'data:image/jpeg;base64,AA==', createdAt: record.createdAt,
+    analysis: {
+      status: 'completed', category: 'report', summary: '血常规报告', examinationName: '血常规',
+      extractedFacts: [], confidence: 0.95, provider: 'fixture-vision', analyzedAt: record.createdAt
+    }
+  }
+  const [adapted] = adaptHealthEventList(
+    [imageEvent],
+    [member],
+    new Map([[event.id, [imageRecord]]]),
+    new Map([[event.id, [attachment]]])
+  )
+
+  assert.equal(adapted.title, '检查结果')
+  assert.equal(adapted.summary, '血常规报告')
+  assert.equal(`${adapted.title}${adapted.summary}`.includes('image.jpg'), false)
+})
+
+test('Vision 不可用时图片-only 事件稳定降级为图片记录', () => {
+  const imageEvent = { ...event, title: '健康附件' }
+  const imageRecord = { ...record, type: 'note' as const, content: '图片记录' }
+  const attachment: EventAttachmentApiDto = {
+    id: 'attachment-fallback', accountId: 'account-1', eventId: event.id, recordId: record.id,
+    name: 'image.jpg', mimeType: 'image/jpeg', dataUrl: 'data:image/jpeg;base64,AA==', createdAt: record.createdAt,
+    analysis: {
+      status: 'unavailable', category: 'other', summary: '图片记录', extractedFacts: [],
+      provider: null, analyzedAt: record.createdAt, errorCode: 'VISION_NOT_CONFIGURED'
+    }
+  }
+  const [adapted] = adaptHealthEventList(
+    [imageEvent], [member], new Map([[event.id, [imageRecord]]]), new Map([[event.id, [attachment]]])
+  )
+  assert.equal(adapted.title, '图片记录')
+  assert.equal(adapted.summary, null)
 })

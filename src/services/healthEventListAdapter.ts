@@ -1,18 +1,24 @@
-import type { FamilyMemberApiDto, HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
+import type { EventAttachmentApiDto, FamilyMemberApiDto, HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
 import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts'
 import { getEventOccurredAt, getPrimaryRecord } from './healthEventListPresentation'
+import { getImageRecordSummary, getImageRecordTitle, isLegacyAttachmentTitle } from './imageAnalysisPresentation'
 
 export function adaptHealthEventList(
   events: HealthEventApiDto[],
   members: FamilyMemberApiDto[],
-  recordsByEventId: ReadonlyMap<string, readonly HealthEventRecordApiDto[]> = new Map()
+  recordsByEventId: ReadonlyMap<string, readonly HealthEventRecordApiDto[]> = new Map(),
+  attachmentsByEventId: ReadonlyMap<string, readonly EventAttachmentApiDto[]> = new Map()
 ): HealthEventListItemViewModel[] {
   const memberNames = new Map(members.map((member) => [member.id, member.name]))
   return events.map((event) => {
     const records = recordsByEventId.get(event.id) ?? []
     const primaryRecord = getPrimaryRecord(records)
+    const attachments = attachmentsByEventId.get(event.id) ?? []
     const projectedSummary = event.eventSummary?.displayedResult
-    const title = projectedSummary?.title ?? normalizeHealthEventTitle(event.title, primaryRecord?.content)
+    const title = projectedSummary?.title
+      ?? (attachments.length && isLegacyAttachmentTitle(event.title)
+        ? getImageRecordTitle(attachments)
+        : normalizeHealthEventTitle(event.title, primaryRecord?.content))
     return ({
     id: event.id,
     memberId: event.memberId,
@@ -20,7 +26,7 @@ export function adaptHealthEventList(
     title,
     summary: projectedSummary
       ? projectedSummary.summary.slice(0, 52)
-      : deriveHealthEventListSummary(title, primaryRecord?.content),
+      : getImageRecordSummary(attachments) ?? deriveHealthEventListSummary(title, primaryRecord?.content),
     category: event.category,
     status: event.status,
     startTime: event.startTime,

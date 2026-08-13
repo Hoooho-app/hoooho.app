@@ -20,4 +20,17 @@ export class EventAttachmentRepository {
     return data.attachments.filter((item) => item.eventId === eventId)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
   }
+
+  async updateAnalysis(id, analysis) {
+    let updated = null
+    await this.#store.update((data) => ({
+      ...data,
+      attachments: data.attachments.map((item) => {
+        if (item.id !== id) return item
+        updated = { ...item, analysis }
+        return updated
+      })
+    }))
+    return updated
+  }
 }
