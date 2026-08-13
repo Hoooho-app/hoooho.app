@@ -3,7 +3,7 @@ import test from 'node:test'
 import { healthProfileSections } from '../config/healthProfileSections.ts'
 import { healthProfilePriorities } from '../config/healthProfileTemplates.ts'
 import { getHealthProfileType } from './getHealthProfileProfile.ts'
-import { buildHealthProfileHomeGroups, latestStoredSections } from './healthProfileHomeLogic.ts'
+import { buildHealthProfileHomeGroups, buildPersonalizedHealthDirectory, latestStoredSections } from './healthProfileHomeLogic.ts'
 
 const today = new Date('2026-08-12T12:00:00+08:00')
 
@@ -30,12 +30,13 @@ test('recorded sections are pinned and sorted by latest update', () => {
 })
 
 test('recommendations respect life stage and gender', () => {
-  assert.deepEqual(healthProfilePriorities.infant.slice(0, 6), ['basic','feeding','growth','allergy','vaccination','birth'])
+  assert.deepEqual(healthProfilePriorities.infant.slice(0, 6), ['basic','growth','feeding','allergy','vaccination','birth'])
   assert.equal(healthProfilePriorities['adult-male'].includes('feeding'), false)
   assert.equal(healthProfilePriorities.child.includes('smoking'), false)
   assert.equal(healthProfilePriorities['adult-female'].includes('menstrual'), true)
   assert.equal(healthProfilePriorities['elder-male'].includes('mobility'), true)
   assert.equal(healthProfilePriorities['elder-male'].includes('fall'), true)
+  assert.deepEqual(healthProfilePriorities['elder-male'].slice(0, 3), ['basic', 'mobility', 'fall'])
 })
 
 test('stored records retain latest update per member section', () => {
@@ -48,4 +49,27 @@ test('stored records retain latest update per member section', () => {
     { id: 'allergy', updatedAt: '2026-08-01' },
     { id: 'medication', updatedAt: '2026-06-01' }
   ])
+})
+
+test('personalized directory hides inapplicable items and never duplicates priority items', () => {
+  const recordedIds = new Set<string>()
+  const adultMale = buildPersonalizedHealthDirectory(healthProfileSections, 'adult-male', healthProfilePriorities['adult-male'], recordedIds)
+  assert.equal(adultMale.visible.some(({ id }) => id === 'menstrual' || id === 'pregnancy'), false)
+  assert.equal(new Set([...adultMale.priority, ...adultMale.remaining].map(({ id }) => id)).size, adultMale.visible.length)
+
+  const child = buildPersonalizedHealthDirectory(healthProfileSections, 'child', healthProfilePriorities.child, recordedIds)
+  assert.equal(child.priority[1]?.id, 'growth')
+  assert.equal(child.visible.some(({ id }) => id === 'smoking' || id === 'alcohol'), false)
+
+  const elderFemale = buildPersonalizedHealthDirectory(healthProfileSections, 'elder-female', healthProfilePriorities['elder-female'], recordedIds)
+  assert.equal(elderFemale.visible.some(({ id }) => id === 'menstrual' || id === 'pregnancy'), false)
+})
+
+test('search and filled status use title, description and field labels', () => {
+  const recordedIds = new Set<string>(['medication'])
+  const searched = buildPersonalizedHealthDirectory(healthProfileSections, 'adult-female', healthProfilePriorities['adult-female'], recordedIds, '药物', 'all')
+  assert.equal(searched.visible.some(({ id }) => id === 'medication'), true)
+  assert.equal(searched.visible.some(({ id }) => id === 'allergy'), true)
+  const filled = buildPersonalizedHealthDirectory(healthProfileSections, 'adult-female', healthProfilePriorities['adult-female'], recordedIds, '', 'filled')
+  assert.deepEqual(filled.visible.map(({ id }) => id), ['medication'])
 })
