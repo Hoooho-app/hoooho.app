@@ -6,10 +6,11 @@ import type { HealthEventSubject } from '../../../services/healthEventPersonaliz
 interface EventDetailStickyHeaderProps {
   onAction: () => void
   onAddRecord: () => void
+  showActions?: boolean
   subject: HealthEventSubject
 }
 
-export function EventDetailStickyHeader({ onAction, onAddRecord, subject }: EventDetailStickyHeaderProps) {
+export function EventDetailStickyHeader({ onAction, onAddRecord, showActions = true, subject }: EventDetailStickyHeaderProps) {
   return (
     <section className="health-event-detail-sticky">
       <div className="health-event-detail-sticky__identity">
@@ -20,10 +21,10 @@ export function EventDetailStickyHeader({ onAction, onAddRecord, subject }: Even
           <span className="hoho-text-caption block truncate">{subject.genderLabel} · {subject.displayAge}</span>
         </div>
       </div>
-      <div className="grid min-w-[138px] gap-2">
+      {showActions && <div className="grid min-w-[138px] gap-2">
         <HohoButton className="min-h-10" onClick={onAction}><Network size={18} strokeWidth={1.8} />行动</HohoButton>
         <HohoButton className="min-h-10" onClick={onAddRecord} variant="secondary">补录情况</HohoButton>
-      </div>
+      </div>}
     </section>
   )
 }

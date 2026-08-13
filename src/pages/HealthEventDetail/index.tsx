@@ -4,6 +4,7 @@ import { Button, Card } from '../../components/common'
 import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
+import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
 import {
   EventHeader,
   ActionSheet,
@@ -71,8 +72,7 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
-  const hasOrganizedRecord = state.data.organizations.some((organization) => organization.healthAIOutput?.facts.length > 0)
-    || state.data.attachments.length > 0
+  const hasRecords = hasPersistedHealthEventRecords(state.data.records)
   if (!subject) return null
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
@@ -106,10 +106,15 @@ export function HealthEventDetailPage() {
     <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0">
       <div className="health-event-detail-fixed">
         <EventHeader />
-        <EventDetailStickyHeader onAction={() => setActionOpen(true)} onAddRecord={() => setRecordEditorOpen(true)} subject={subject} />
+        <EventDetailStickyHeader
+          onAction={() => setActionOpen(true)}
+          onAddRecord={() => setRecordEditorOpen(true)}
+          showActions={hasRecords}
+          subject={subject}
+        />
       </div>
       <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {!hasOrganizedRecord ? (
+        {!hasRecords ? (
           <FirstRecordComposer onSave={addHealthRecord} />
         ) : (
           <>
@@ -121,7 +126,7 @@ export function HealthEventDetailPage() {
           </>
         )}
       </div>
-      <HealthRecordEditorModal
+      {hasRecords && <HealthRecordEditorModal
         defaultRecordType="note"
         minOccurredAt={state.data.records.map((record) => record.occurredAt).sort()[0] ?? event.startDate}
         onClose={() => setRecordEditorOpen(false)}
@@ -134,9 +139,9 @@ export function HealthEventDetailPage() {
         })}
         open={recordEditorOpen}
         templateType="timeline"
-      />
-      <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />
-      <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />
+      />}
+      {hasRecords && <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
+      {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
     </main>
   )
 }
