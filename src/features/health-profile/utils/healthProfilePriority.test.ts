@@ -33,7 +33,9 @@ test('recommendations respect life stage and gender', () => {
   assert.deepEqual(healthProfilePriorities.infant.slice(0, 6), ['basic','growth','feeding','allergy','vaccination','birth'])
   assert.equal(healthProfilePriorities['adult-male'].includes('feeding'), false)
   assert.equal(healthProfilePriorities.child.includes('smoking'), false)
-  assert.equal(healthProfilePriorities['adult-female'].includes('menstrual'), true)
+  assert.deepEqual(healthProfilePriorities['adult-female'], ['basic','medication','allergy','chronic','surgery','family-history'])
+  assert.equal(healthProfilePriorities['adult-female'].includes('menstrual'), false)
+  assert.equal(healthProfilePriorities['adult-female'].includes('examination'), false)
   assert.equal(healthProfilePriorities['elder-male'].includes('mobility'), true)
   assert.equal(healthProfilePriorities['elder-male'].includes('fall'), true)
   assert.deepEqual(healthProfilePriorities['elder-male'].slice(0, 3), ['basic', 'mobility', 'fall'])
@@ -55,14 +57,29 @@ test('personalized directory hides inapplicable items and never duplicates prior
   const recordedIds = new Set<string>()
   const adultMale = buildPersonalizedHealthDirectory(healthProfileSections, 'adult-male', healthProfilePriorities['adult-male'], recordedIds)
   assert.equal(adultMale.visible.some(({ id }) => id === 'menstrual' || id === 'pregnancy'), false)
+  assert.deepEqual(adultMale.priority.map(({ id }) => id), ['basic','medication','allergy','chronic','surgery','family-history'])
   assert.equal(new Set([...adultMale.priority, ...adultMale.remaining].map(({ id }) => id)).size, adultMale.visible.length)
 
   const child = buildPersonalizedHealthDirectory(healthProfileSections, 'child', healthProfilePriorities.child, recordedIds)
   assert.equal(child.priority[1]?.id, 'growth')
+  assert.equal(child.priority.length, 6)
   assert.equal(child.visible.some(({ id }) => id === 'smoking' || id === 'alcohol'), false)
 
   const elderFemale = buildPersonalizedHealthDirectory(healthProfileSections, 'elder-female', healthProfilePriorities['elder-female'], recordedIds)
   assert.equal(elderFemale.visible.some(({ id }) => id === 'menstrual' || id === 'pregnancy'), false)
+})
+
+test('adult female keeps six priority items and groups moved items in their target sections', () => {
+  const directory = buildPersonalizedHealthDirectory(
+    healthProfileSections,
+    'adult-female',
+    healthProfilePriorities['adult-female'],
+    new Set<string>()
+  )
+
+  assert.deepEqual(directory.priority.map(({ id }) => id), ['basic','medication','allergy','chronic','surgery','family-history'])
+  assert.equal(directory.remaining.find(({ id }) => id === 'menstrual')?.category, 'female')
+  assert.equal(directory.remaining.find(({ id }) => id === 'examination')?.category, 'long-term')
 })
 
 test('search and filled status use title, description and field labels', () => {
