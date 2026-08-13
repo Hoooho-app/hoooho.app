@@ -63,6 +63,27 @@
     .health-action-sheet .hoho-bottom-sheet__footer { padding: var(--hoho-space-2) var(--hoho-space-3) calc(var(--hoho-space-2) + env(safe-area-inset-bottom)); }
   }
 
+  @media (min-width: 768px) {
+    .health-action-sheet {
+      width: min(calc(100vw - 48px), 520px);
+      max-height: min(70dvh, 600px);
+      margin-bottom: var(--hoho-space-6);
+    }
+    .health-action-sheet .hoho-bottom-sheet__handle { height: 4px; margin-top: var(--hoho-space-2); }
+    .health-action-sheet .hoho-bottom-sheet__header { min-height: 44px; padding-inline: var(--hoho-space-4); }
+    .health-action-sheet .hoho-bottom-sheet__close { width: 36px; height: 36px; }
+    .health-action-sheet .hoho-bottom-sheet__navigation { padding: 0 var(--hoho-space-4) var(--hoho-space-2); }
+    .health-action-sheet .hoho-bottom-sheet__body { padding: var(--hoho-space-2) var(--hoho-space-4) var(--hoho-space-4); }
+    .health-action-sheet .hoho-bottom-sheet__footer { padding: var(--hoho-space-2) var(--hoho-space-4) calc(var(--hoho-space-3) + env(safe-area-inset-bottom)); }
+    .health-action-sheet .health-action-tab { min-height: 40px; }
+    .health-action-sheet .health-observation-content { gap: var(--hoho-space-2); }
+    .health-action-sheet .health-recorder-choice { padding: var(--hoho-space-2); }
+    .health-action-sheet .health-recorder-choice__description {
+      min-height: 1rem;
+      -webkit-line-clamp: 1;
+    }
+  }
+
   .first-record-form-row { @apply grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2; }
   .first-record-form-label,
   .first-record-form-field { min-width: 0; max-width: 100%; }
