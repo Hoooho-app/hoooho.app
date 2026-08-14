@@ -80,9 +80,18 @@ export function HealthProfilePage() {
     <div className="page-content pb-10">
       <MemberIdentityCard member={member} />
 
-      <section className="grid grid-cols-[minmax(0,1fr)_96px] gap-2" aria-label="搜索和查看状态">
+      <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" aria-label="搜索和查看状态">
         <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} /><span className="sr-only">搜索健康档案</span><input className="hoho-input w-full pl-10" placeholder="搜索健康档案" type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <label><span className="sr-only">查看状态</span><select className="hoho-select w-full" value={status} onChange={(event) => setStatus(event.target.value as HealthProfileViewStatus)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <fieldset className="grid min-w-0 grid-cols-3 gap-2 md:w-[248px]">
+          <legend className="sr-only">查看状态</legend>
+          {Object.entries(statusLabels).map(([value, label]) => <button
+            aria-pressed={status === value}
+            className="min-h-11 min-w-0 rounded-control border bg-surface px-2 text-sm text-text-secondary transition-colors aria-pressed:border-primary/40 aria-pressed:bg-primary-soft aria-pressed:font-medium aria-pressed:text-primary"
+            key={value}
+            onClick={() => setStatus(value as HealthProfileViewStatus)}
+            type="button"
+          >{label}</button>)}
+        </fieldset>
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
