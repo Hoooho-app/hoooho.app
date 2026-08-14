@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
-import { Paperclip, Pencil, Trash2 } from 'lucide-react'
+import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { MemberIdentityCard } from '../../components/health'
@@ -16,6 +16,7 @@ import { ChronicProfilePage } from './ChronicProfilePage'
 import { SurgeryProfilePage } from './SurgeryProfilePage'
 import { profileSectionExperienceMap } from '../../features/health-profile/config/profileSectionExperiences'
 import { HealthProfileExperiencePage } from './profile-sections/HealthProfileExperiencePage'
+import { ProfileChoiceGroup } from './profile-sections/ProfileSectionPatterns'
 
 type FormValues = Record<string, string | boolean>
 
@@ -28,7 +29,7 @@ function Field({ field, value, onChange, onUnavailable }: { field: HealthProfile
   if (field.type === 'textarea') return <label className="hoho-field"><span className="hoho-text-label">{field.label}</span><textarea className="hoho-textarea" placeholder={field.placeholder} rows={3} value={String(value)} onChange={(event) => onChange(event.target.value)} /></label>
   if (field.type === 'select') return <label className="hoho-field"><span className="hoho-text-label">{field.label}</span><select className="hoho-select" value={String(value)} onChange={(event) => onChange(event.target.value)}><option value="">请选择</option>{field.options?.map((option) => <option key={optionValue(option)} value={optionValue(option)}>{optionLabel(option)}</option>)}</select></label>
   if (field.type === 'checkbox') return <label className="flex min-h-12 items-center justify-between rounded-control border bg-surface px-3"><span className="hoho-text-label">{field.label}</span><input checked={Boolean(value)} type="checkbox" onChange={(event) => onChange(event.target.checked)} /></label>
-  return <label className="hoho-field"><span className="hoho-text-label">{field.label}</span><span className="relative"><input className="hoho-input pr-16" placeholder={field.placeholder} type={field.type} value={String(value)} onChange={(event) => onChange(event.target.value)} />{field.unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">{field.unit}</span>}</span></label>
+  return <label className="hoho-field min-w-0"><span className="hoho-text-label">{field.label}</span><span className="relative min-w-0"><input className={`hoho-input min-w-0 text-left ${field.type === 'number' ? 'hoho-number-input pr-10' : field.unit ? 'pr-10' : ''}`} inputMode={field.type === 'number' ? 'decimal' : undefined} placeholder={field.placeholder} step={field.type === 'number' ? 'any' : undefined} type={field.type} value={String(value)} onChange={(event) => onChange(event.target.value)} />{field.unit && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">{field.unit}</span>}</span></label>
 }
 
 function BasicMetrics({ fields, values, bmi, onChange }: {
@@ -44,6 +45,17 @@ function BasicMetrics({ fields, values, bmi, onChange }: {
     onUnavailable={() => undefined}
     value={field.id === 'bmi' ? bmi : (values[field.id] ?? '')}
   />)}</div>
+}
+
+function BasicBloodType({ values, onChange }: { values: FormValues; onChange: (id: string, value: string | boolean) => void }) {
+  const [expanded, setExpanded] = useState(Boolean(values.otherBloodTypeInfo))
+  return <section className="grid gap-5 border-t pt-5">
+    <Typography variant="sectionTitle">血型</Typography>
+    <ProfileChoiceGroup label="ABO 血型" onChange={(value) => onChange('aboBloodType', Array.isArray(value) ? value[0] ?? '' : value)} options={['A型', 'B型', 'AB型', 'O型']} value={String(values.aboBloodType ?? '').replace(/^(A|B|AB|O)$/, '$1型')} />
+    <ProfileChoiceGroup label="RhD" onChange={(value) => onChange('rhBloodType', Array.isArray(value) ? value[0] ?? '' : value)} options={['阳性', '阴性']} value={values.rhBloodType === 'positive' ? '阳性' : values.rhBloodType === 'negative' ? '阴性' : ''} />
+    <button className="flex min-h-11 items-center gap-2 justify-self-start text-sm font-medium text-primary" onClick={() => setExpanded((current) => !current)} type="button"><Plus className={expanded ? 'rotate-45 transition-transform' : 'transition-transform'} size={17} />{expanded ? '收起其他血型信息' : '其他血型信息'}</button>
+    {expanded && <label className="hoho-field"><span className="hoho-text-label">其他已知血型 / 红细胞血型信息</span><input className="hoho-input" onChange={(event) => onChange('otherBloodTypeInfo', event.target.value)} placeholder="如有明确检查结果，可记录其他血型信息" value={String(values.otherBloodTypeInfo ?? '')} /></label>}
+  </section>
 }
 
 function summarizeRecord(fields: HealthProfileField[], record: FormValues) {
@@ -93,7 +105,7 @@ export function HealthProfileSectionPage() {
         if (!token) throw new Error('登录状态无效，请重新登录')
         const updated = await familyMemberService.update(member.id, toFamilyMemberHealthUpdate(values), token)
         setMembers(members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
-        savedValues = { ...getBasicHealthProfileValues(adaptFamilyMember(updated)), _savedAt: new Date().toISOString() }
+        savedValues = { ...getBasicHealthProfileValues(adaptFamilyMember(updated), values), _savedAt: new Date().toISOString() }
         setValues(savedValues)
         persist([savedValues])
       } else if (editingIndex == null) {
@@ -148,6 +160,11 @@ export function HealthProfileSectionPage() {
           }))}
           onUnavailable={() => setStatus('附件功能暂未开放')}
         />)}
+        {section.id === 'basic' && <BasicBloodType values={values} onChange={(id, value) => setValues((current) => ({
+          ...current,
+          [id]: id === 'aboBloodType' ? String(value).replace('型', '') : id === 'rhBloodType' ? value === '阳性' ? 'positive' : value === '阴性' ? 'negative' : '' : value,
+          ...(id === 'aboBloodType' || id === 'rhBloodType' ? { _bloodTypeTouched: true } : {})
+        }))} />}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
         {status && <p className="text-sm text-primary" role="status">{status}</p>}
       </form>

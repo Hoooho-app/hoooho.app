@@ -33,15 +33,20 @@ export function getBasicHealthProfileValues(
   member: BasicHealthProfileSource,
   fallback: BasicHealthProfileValues = {}
 ): BasicHealthProfileValues {
+  const legacyCombined = splitBloodType(fallback.combinedBloodType)
+  const fallbackBloodType = String(fallback.aboBloodType ?? fallback.bloodType ?? legacyCombined.bloodType ?? '')
+  const fallbackRhBloodType = String(fallback.rhBloodType ?? legacyCombined.rhBloodType ?? '')
+  const bloodType = member.bloodType ?? fallbackBloodType
+  const rhBloodType = member.rhBloodType ?? fallbackRhBloodType
   return {
     height: asText(member.heightCm) || String(fallback.height ?? ''),
     weight: asText(member.weightKg) || String(fallback.weight ?? ''),
     waistCircumference: asText(member.waistCircumferenceCm) || String(fallback.waistCircumference ?? ''),
     bodyFatPercentage: asText(member.bodyFatPercentage) || String(fallback.bodyFatPercentage ?? ''),
-    combinedBloodType: combineBloodType(
-      member.bloodType ?? String(fallback.bloodType ?? ''),
-      member.rhBloodType ?? String(fallback.rhBloodType ?? '')
-    ) || String(fallback.combinedBloodType ?? ''),
+    aboBloodType: bloodType,
+    rhBloodType,
+    otherBloodTypeInfo: String(fallback.otherBloodTypeInfo ?? ''),
+    combinedBloodType: combineBloodType(bloodType, rhBloodType) || String(fallback.combinedBloodType ?? ''),
     _originalBloodType: member.bloodType ?? String(fallback._originalBloodType ?? fallback.bloodType ?? ''),
     _originalRhBloodType: member.rhBloodType ?? String(fallback._originalRhBloodType ?? fallback.rhBloodType ?? '')
   }
@@ -83,9 +88,11 @@ export function calculateBmi(height: string | boolean | undefined, weight: strin
 
 export function toFamilyMemberHealthUpdate(values: BasicHealthProfileValues) {
   const combined = splitBloodType(values.combinedBloodType)
-  const preserveLegacyBloodType = !values._combinedBloodTypeTouched && !values.combinedBloodType
-  const bloodType = preserveLegacyBloodType ? String(values._originalBloodType ?? '') || null : combined.bloodType
-  const rhBloodType = preserveLegacyBloodType ? String(values._originalRhBloodType ?? '') || null : combined.rhBloodType
+  const selectedBloodType = String(values.aboBloodType ?? combined.bloodType ?? '')
+  const selectedRhBloodType = String(values.rhBloodType ?? combined.rhBloodType ?? '')
+  const preserveLegacyBloodType = !values._bloodTypeTouched && !values._combinedBloodTypeTouched && !selectedBloodType && !selectedRhBloodType
+  const bloodType = preserveLegacyBloodType ? String(values._originalBloodType ?? '') || null : selectedBloodType || null
+  const rhBloodType = preserveLegacyBloodType ? String(values._originalRhBloodType ?? '') || null : selectedRhBloodType || null
 
   return {
     heightCm: optionalNumber(values.height),

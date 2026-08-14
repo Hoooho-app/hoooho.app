@@ -207,6 +207,10 @@
   .hoho-textarea:focus { border-color: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.1); }
   .hoho-input[aria-invalid='true'] { border-color: rgb(var(--hoho-color-error)); }
 
+  .hoho-number-input { appearance: textfield; -moz-appearance: textfield; }
+  .hoho-number-input::-webkit-inner-spin-button,
+  .hoho-number-input::-webkit-outer-spin-button { margin: 0; appearance: none; -webkit-appearance: none; }
+
   .hoho-field__message { color: rgb(var(--hoho-color-text-weak)); font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family); }
   .hoho-field__message[data-error='true'] { color: rgb(var(--hoho-color-error)); }
 
