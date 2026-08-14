@@ -14,6 +14,8 @@ import { MedicationProfilePage } from './MedicationProfilePage'
 import { AllergyProfilePage } from './AllergyProfilePage'
 import { ChronicProfilePage } from './ChronicProfilePage'
 import { SurgeryProfilePage } from './SurgeryProfilePage'
+import { profileSectionExperienceMap } from '../../features/health-profile/config/profileSectionExperiences'
+import { HealthProfileExperiencePage } from './profile-sections/HealthProfileExperiencePage'
 
 type FormValues = Record<string, string | boolean>
 
@@ -76,6 +78,8 @@ export function HealthProfileSectionPage() {
   if (section.id === 'allergy') return <AllergyProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'chronic') return <ChronicProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'surgery') return <SurgeryProfilePage member={member} storageKey={storageKey} />
+  const experience = profileSectionExperienceMap[section.id as keyof typeof profileSectionExperienceMap]
+  if (experience) return <main className="app-shell min-h-dvh"><WebPageHeader fallback="/health-profile" title={section.title} /><HealthProfileExperiencePage definition={experience} member={member} storageKey={storageKey} title={section.title} /></main>
   const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
 
   const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
