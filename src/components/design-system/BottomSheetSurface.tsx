@@ -7,13 +7,15 @@ export interface BottomSheetSurfaceProps {
   className?: string
   footer?: ReactNode
   label: string
+  leading?: ReactNode
   navigation?: ReactNode
   onClose: () => void
   open: boolean
+  size?: 'default' | 'workspace'
   title: string
 }
 
-export function BottomSheetSurface({ children, className = '', footer, label, navigation, onClose, open, title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, className = '', footer, label, leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
   usePageScrollLock(open)
 
   useEffect(() => {
@@ -30,10 +32,10 @@ export function BottomSheetSurface({ children, className = '', footer, label, na
   return (
     <div className="hoho-bottom-sheet-layer" role="presentation">
       <button aria-label={`关闭${label}`} className="hoho-bottom-sheet-backdrop" onClick={onClose} type="button" />
-      <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} role="dialog">
+      <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} data-size={size} role="dialog">
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
         <header className="hoho-bottom-sheet__header">
-          <h2 className="hoho-text-section-title">{title}</h2>
+          <div className="hoho-bottom-sheet__title-group">{leading}<h2 className="hoho-text-section-title">{title}</h2></div>
           <button aria-label={`关闭${label}`} className="hoho-bottom-sheet__close" onClick={onClose} type="button">
             <X size={21} strokeWidth={1.8} />
           </button>

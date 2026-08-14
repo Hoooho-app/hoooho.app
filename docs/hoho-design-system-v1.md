@@ -42,14 +42,20 @@ Import from `src/components/design-system`.
 
 ### Body Location Picker
 
-`src/components/health/BodyLocationPicker.tsx` is Hoho's reusable 身体部位定位器. It is a single Bottom Sheet that switches between a top-level region directory and one detailed region without adding routes or nested dialogs.
+`src/components/health/BodyLocationPicker.tsx` is Hoho's reusable 身体部位定位器. V2 is a single Bottom Sheet that switches between a top-level region directory and a dedicated body atlas without adding routes or nested dialogs.
 
 - Input: optional current `member`, structured `BodyLocationSelection[]`, and `onChange`.
 - Data catalog: `src/features/body-location/bodyLocationCatalog.ts`.
-- Supports multi-select, left/right semantics, front/back/internal views, direct search, removable result chips, and member-applicable organs.
+- Atlas renderer: `src/components/health/body-location/BodyLocationAtlas.tsx`.
+- The first atlas batch covers head, chest, abdomen, back, hand and foot with body-part-specific views instead of a generic full-body diagram.
+- Supports multi-select, left/right semantics, front/back/palm/dorsum/sole/internal views, direct search, removable result chips, and member-applicable organs.
 - Surface locations and known organs remain distinct; the picker never infers an organ from a surface position.
-- Diagrams are neutral 2D location guides. They must not become muscular, diagnostic, 3D, or clinically graphic.
-- V1 is integrated only with the surgery-history profile. Other pages adopt it only through separately authorized migrations.
+- The abdomen organ-reference view is educational only and does not change the saved surface selection.
+- Atlas labels remain user-facing while optional `clinicalLabel` values preserve future professional mappings.
+- Diagrams are neutral 2D location guides. They must be recognisable without labels, but must not become muscular, diagnostic, 3D, or clinically graphic.
+- The picker is integrated only with the surgery-history profile. Other pages adopt it only through separately authorized migrations.
+
+`BottomSheetSurface` provides a `workspace` size for heavy, multi-step-in-place tasks such as the body atlas. It keeps the header and footer fixed, scrolls only the body, uses up to `88dvh`, and accounts for the bottom safe area. Close always exits the whole sheet; an optional leading back action only navigates inside the current sheet.
 
 The components in `components/common` remain compatibility adapters and delegate their visual behavior to V1. New code should prefer direct Design System imports.
 
