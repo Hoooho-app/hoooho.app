@@ -43,6 +43,30 @@
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     box-shadow: 0 -8px 24px rgb(var(--hoho-color-text-primary) / 0.06);
   }
+  .health-profile-detail-shell {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  .health-profile-detail-shell > .health-profile-page-content {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: var(--hoho-space-4);
+    -webkit-overflow-scrolling: touch;
+  }
+  .health-profile-detail-shell > .health-profile-action-bar {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
   .section-title { color: rgb(var(--hoho-color-text-primary)); font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family); letter-spacing: -0.01em; }
   .health-event-detail .page-content { @apply space-y-6 px-6 py-6; }
   .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }

@@ -98,7 +98,7 @@ export function AllergyProfilePage({ member, storageKey }: { member: Member; sto
     }
   }
 
-  return <main className="app-shell min-h-dvh">
+  return <main className="app-shell health-profile-detail-shell">
     <WebPageHeader fallback="/health-profile" title="过敏与不良反应" />
     <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />

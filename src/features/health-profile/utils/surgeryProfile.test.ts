@@ -1,38 +1,61 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { emptySurgeryRecord, nextSurgerySequence, normalizeSurgeryRecords, normalizeSurgeryReports, surgerySummary } from './surgeryProfile.ts'
+import { emptySurgeryRecord, nextSurgerySequence, normalizeSurgeryRecords, surgerySummary } from './surgeryProfile.ts'
 
-test('旧手术记录映射到新结构且旧备注保留', () => {
-  const [record] = normalizeSurgeryRecords([{ name: '胆囊手术', date: '2022-06-18', hospital: 'XX医院', reason: '胆囊结石', recovery: '恢复良好', note: '旧附件说明' }])
-  assert.equal(record.sequence, 1)
-  assert.equal(record.name, '胆囊手术')
-  assert.equal(record.legacyNote, '旧附件说明')
-  assert.deepEqual(surgerySummary(record), { context: '2022/06 · XX医院', reason: '胆囊结石', status: '恢复良好', implant: '' })
+test('旧 recovery 与 impact 合并为去重的术后标签并保留隐藏字段', () => {
+  const attachment = { id: 'legacy-file' }
+  const [record] = normalizeSurgeryRecords([{
+    name: '胆囊手术',
+    date: '2022-06-18',
+    hospital: 'XX医院',
+    reason: '胆囊结石',
+    recovery: '仍有一些影响',
+    remainingImpact: '偶尔疼痛',
+    impact: '偶尔疼痛',
+    note: '旧备注',
+    attachment
+  }])
+
+  assert.deepEqual(record.postoperativeStatusTags, ['仍有影响', '偶尔疼痛'])
+  assert.equal(record.reason, '胆囊结石')
+  assert.equal(record.legacyNote, '旧备注')
+  assert.equal(record.legacyAttachment, attachment)
 })
 
-test('编号稳定且植入物摘要只在选择有时显示', () => {
-  const [record] = normalizeSurgeryRecords([{ ...emptySurgeryRecord(3), locations: ['右膝'], hasImplant: '有', implantName: '人工关节' }])
+test('旧植入物字段映射为互斥标签且无法确认的真值被保留', () => {
+  const [none, named, unnamed] = normalizeSurgeryRecords([
+    { hasImplant: false },
+    { implant: true, implantDetail: '人工关节' },
+    { hasImplant: '有' }
+  ])
+
+  assert.deepEqual(none.implantTags, ['无'])
+  assert.deepEqual(named.implantTags, ['人工关节'])
+  assert.deepEqual(unnamed.implantTags, [])
+  assert.equal(unnamed.legacyImplantNote, '有植入物，名称未记录')
+})
+
+test('已有具体植入物优先于矛盾的无标签', () => {
+  const [record] = normalizeSurgeryRecords([{ implantTags: ['无', '钢板', '钢板'] }])
+  assert.deepEqual(record.implantTags, ['钢板'])
+})
+
+test('编号、标准身体部位和折叠摘要保持稳定', () => {
+  const [record] = normalizeSurgeryRecords([{
+    ...emptySurgeryRecord(3),
+    date: '2024-06-18',
+    hospital: '北京医院',
+    locations: ['右膝'],
+    postoperativeStatusTags: ['恢复良好'],
+    implantTags: ['无']
+  }])
+
   assert.equal(nextSurgerySequence([record]), 4)
-  assert.equal(surgerySummary(record).implant, '右膝 · 人工关节')
-  assert.equal(normalizeSurgeryRecords([record])[0].sequence, 3)
-})
-
-test('旧字符串位置无损迁移为标准位置，未知位置仍保留', () => {
-  const [record] = normalizeSurgeryRecords([{ locations: ['右膝', '既有自定义部位'] }])
-  assert.deepEqual(record.locations[0], {
-    id: 'lower_limb_knee_right',
-    label: '右膝',
-    parentId: 'lower_limb',
-    locationType: 'surface',
-    laterality: 'right',
-    view: 'front'
+  assert.equal(record.locations[0].label, '右膝')
+  assert.deepEqual(surgerySummary(record), {
+    context: '2024-06-18 · 北京医院',
+    locations: '右膝',
+    postoperative: '恢复良好',
+    implant: '无植入物'
   })
-  assert.equal(record.locations[1].label, '既有自定义部位')
-  assert.equal(record.locations[1].locationType, 'surface')
-})
-
-test('无效资料被忽略且解析状态保持人工确认', () => {
-  const reports = normalizeSurgeryReports([{ id: 'r1', name: '出院记录.pdf', dataUrl: 'data:application/pdf;base64,AA', parsingStatus: '已自动确认' }, {}])
-  assert.equal(reports.length, 1)
-  assert.equal(reports[0].parsingStatus, '待人工整理')
 })

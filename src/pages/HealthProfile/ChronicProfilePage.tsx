@@ -225,7 +225,7 @@ export function ChronicProfilePage({ member, storageKey }: { member: Member; sto
   }
 
   return (
-    <main className="app-shell min-h-dvh">
+    <main className="app-shell health-profile-detail-shell">
       <WebPageHeader fallback="/health-profile" title="慢性病史" />
       <div className="page-content health-profile-page-content">
         <MemberIdentityCard member={member} recordSubject />

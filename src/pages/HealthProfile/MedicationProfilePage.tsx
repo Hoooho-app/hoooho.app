@@ -90,7 +90,7 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
     } catch { setStatus('保存失败，请缩小图片后重试') }
   }
 
-  return <main className="app-shell min-h-dvh">
+  return <main className="app-shell health-profile-detail-shell">
     <WebPageHeader fallback="/health-profile" title="长期用药" />
     <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />

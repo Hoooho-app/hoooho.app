@@ -91,7 +91,7 @@ export function HealthProfileSectionPage() {
   if (section.id === 'chronic') return <ChronicProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'surgery') return <SurgeryProfilePage member={member} storageKey={storageKey} />
   const experience = profileSectionExperienceMap[section.id as keyof typeof profileSectionExperienceMap]
-  if (experience) return <main className="app-shell min-h-dvh"><WebPageHeader fallback="/health-profile" title={section.title} /><HealthProfileExperiencePage definition={experience} member={member} storageKey={storageKey} title={section.title} /></main>
+  if (experience) return <main className="app-shell health-profile-detail-shell"><WebPageHeader fallback="/health-profile" title={section.title} /><HealthProfileExperiencePage definition={experience} member={member} storageKey={storageKey} title={section.title} /></main>
   const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
 
   const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
@@ -126,7 +126,7 @@ export function HealthProfileSectionPage() {
     persist(records.filter((_, recordIndex) => recordIndex !== index)); resetForm(); setStatus('记录已删除')
   }
 
-  return <main className="app-shell min-h-dvh">
+  return <main className="app-shell health-profile-detail-shell">
     <WebPageHeader fallback="/health-profile" title={section.title} />
     <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />
