@@ -29,17 +29,18 @@ export function useHealthEventsList() {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!token) return
-    setState({ status: 'loading' })
+    setState((current) => current.status === 'loading' ? current : { status: 'loading' })
     try {
       const [eventDtos, memberDtos] = await Promise.all([
         healthEventService.list(token, signal),
         familyMemberService.list(token, signal)
       ])
+      const eventsWithoutSummary = eventDtos.filter((event) => !event.eventSummary)
       const [recordEntries, attachmentEntries] = await Promise.all([
         Promise.all(eventDtos.map(async (event) => (
           [event.id, await healthEventRecordService.list(event.id, token, signal)] as const
         ))),
-        Promise.all(eventDtos.map(async (event) => (
+        Promise.all(eventsWithoutSummary.map(async (event) => (
           [event.id, await eventAttachmentService.list(event.id, token, signal)] as const
         )))
       ])

@@ -55,14 +55,13 @@ export function useHealthEventDetail(eventId: string | undefined) {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!eventId || !token) return
-    setState({ status: 'loading' })
+    setState((current) => current.status === 'loading' ? current : { status: 'loading' })
     try {
       const eventDto = await healthEventService.getById(eventId, token, signal)
-      const [records, memberDto, organizations, attachments] = await Promise.all([
+      const [records, memberDto, organizations] = await Promise.all([
         healthEventRecordService.list(eventId, token, signal),
         familyMemberService.getById(eventDto.memberId, token, signal),
-        healthRecordOrganizationService.list(eventId, token, signal),
-        eventAttachmentService.list(eventId, token, signal)
+        healthRecordOrganizationService.list(eventId, token, signal)
       ])
       if (signal?.aborted) return
       setState({
@@ -72,15 +71,44 @@ export function useHealthEventDetail(eventId: string | undefined) {
           memberDto,
           records,
           organizations,
-          attachments,
+          attachments: [],
           member: adaptFamilyMember(memberDto),
-          viewModel: adaptHealthEventDetail(eventDto, records, organizations, attachments)
+          viewModel: adaptHealthEventDetail(eventDto, records, organizations, [])
         }
       })
+      try {
+        const loadedAttachments = await eventAttachmentService.list(eventId, token, signal)
+        if (signal?.aborted) return
+        setState((current) => {
+          if (current.status !== 'success' || current.data.eventDto.id !== eventDto.id) return current
+          const loadedIds = new Set(loadedAttachments.map(({ id }) => id))
+          const attachments = [
+            ...loadedAttachments,
+            ...current.data.attachments.filter(({ id }) => !loadedIds.has(id))
+          ]
+          return {
+            status: 'success',
+            data: {
+              ...current.data,
+              attachments,
+              viewModel: adaptHealthEventDetail(
+                current.data.eventDto,
+                current.data.records,
+                current.data.organizations,
+                attachments
+              )
+            }
+          }
+        })
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (error instanceof ApiRequestError && error.status === 401) clearAuthSession()
+        else console.warn('[Hoooho] attachment list did not load', error)
+      }
     } catch (error) {
       handleRequestError(error)
     }
-  }, [eventId, handleRequestError, token])
+  }, [clearAuthSession, eventId, handleRequestError, token])
 
   useEffect(() => {
     const controller = new AbortController()

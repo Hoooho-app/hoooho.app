@@ -8,6 +8,39 @@ import { HealthEventService } from '../events/health-event-service.mjs'
 import { HealthEventRecordService } from '../events/health-event-record-service.mjs'
 import { HealthRecordOrganizationService } from './health-record-organization-service.mjs'
 
+test('listing current organizations does not rebuild an existing event summary', async () => {
+  let eventReads = 0
+  let recordReads = 0
+  let organizationReads = 0
+  const service = new HealthRecordOrganizationService({
+    events: {
+      findById: async () => {
+        eventReads += 1
+        return { id: 'event-one', accountId: 'account-one', eventSummary: { displayedResult: { title: '发热' } } }
+      },
+      update: async () => { throw new Error('summary should not be rewritten') }
+    },
+    records: {
+      findByEventId: async () => {
+        recordReads += 1
+        return []
+      }
+    },
+    repository: {
+      findByEventId: async () => {
+        organizationReads += 1
+        return [{ id: 'organization-one', schemaVersion: 5 }]
+      }
+    }
+  })
+
+  const result = await service.list('account-one', 'event-one')
+  assert.equal(result.length, 1)
+  assert.equal(eventReads, 1)
+  assert.equal(organizationReads, 1)
+  assert.equal(recordReads, 0)
+})
+
 test('结构化健康事实保留原文、识别否定表达并隔离账号', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-ai-organization-'))
   const accountId = 'account-one'

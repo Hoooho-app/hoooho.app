@@ -1,44 +1,40 @@
+import type { ComponentType } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
-import { HealthEventDetailPage } from '../pages/HealthEventDetail'
-import { CreateHealthEventPage, HealthEventsPage } from '../pages/HealthEvents'
-import { HealthProfilePage, HealthProfileSectionPage } from '../pages/HealthProfile'
-import { LoginPage } from '../pages/Login'
-import { ProfileSetupPage } from '../pages/ProfileSetup'
-import { AddFamilyMemberPage, EditFamilyMemberPage, FamilyPage } from '../pages/Family'
-import { UsageGuidePage } from '../pages/Guide'
-import { AccountSettingsPage, NotificationSettingsPage, PrivacySettingsPage, SettingsPage } from '../pages/Settings'
-import { MessageCenterPage } from '../pages/Messages'
-import { HelpCenterPage } from '../pages/Help'
-import { FeedbackPage, FeedbackSubmittedPage } from '../pages/Feedback'
-import { AboutPage } from '../pages/About'
 import { RequireAuth } from '../components/auth/RequireAuth'
+
+function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string) {
+  return async () => {
+    const module = await load()
+    return { Component: module[exportName] as ComponentType }
+  }
+}
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   {
     element: <RequireAuth />,
     children: [
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
-      { path: '/onboarding/profile', element: <ProfileSetupPage /> },
-      { path: '/health-events', element: <HealthEventsPage /> },
-      { path: '/health-events/new', element: <CreateHealthEventPage /> },
-      { path: '/health-events/:eventId', element: <HealthEventDetailPage /> },
-      { path: '/health-profile', element: <HealthProfilePage /> },
-      { path: '/health-profile/:sectionId', element: <HealthProfileSectionPage /> },
-      { path: '/family', element: <FamilyPage /> },
-      { path: '/family/new', element: <AddFamilyMemberPage /> },
-      { path: '/family/:memberId/edit', element: <EditFamilyMemberPage /> },
-      { path: '/guide', element: <UsageGuidePage /> },
-      { path: '/settings', element: <SettingsPage /> },
-      { path: '/settings/account', element: <AccountSettingsPage /> },
-      { path: '/settings/notification', element: <NotificationSettingsPage /> },
-      { path: '/settings/privacy', element: <PrivacySettingsPage /> },
-      { path: '/messages', element: <MessageCenterPage /> },
-      { path: '/help', element: <HelpCenterPage /> },
-      { path: '/feedback', element: <FeedbackPage /> },
-      { path: '/feedback/submitted', element: <FeedbackSubmittedPage /> },
-      { path: '/about', element: <AboutPage /> }
+      { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
+      { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
+      { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
+      { path: '/health-events/:eventId', lazy: lazyPage(() => import('../pages/HealthEventDetail'), 'HealthEventDetailPage') },
+      { path: '/health-profile', lazy: lazyPage(() => import('../pages/HealthProfile'), 'HealthProfilePage') },
+      { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') },
+      { path: '/family', lazy: lazyPage(() => import('../pages/Family'), 'FamilyPage') },
+      { path: '/family/new', lazy: lazyPage(() => import('../pages/Family'), 'AddFamilyMemberPage') },
+      { path: '/family/:memberId/edit', lazy: lazyPage(() => import('../pages/Family'), 'EditFamilyMemberPage') },
+      { path: '/guide', lazy: lazyPage(() => import('../pages/Guide'), 'UsageGuidePage') },
+      { path: '/settings', lazy: lazyPage(() => import('../pages/Settings'), 'SettingsPage') },
+      { path: '/settings/account', lazy: lazyPage(() => import('../pages/Settings'), 'AccountSettingsPage') },
+      { path: '/settings/notification', lazy: lazyPage(() => import('../pages/Settings'), 'NotificationSettingsPage') },
+      { path: '/settings/privacy', lazy: lazyPage(() => import('../pages/Settings'), 'PrivacySettingsPage') },
+      { path: '/messages', lazy: lazyPage(() => import('../pages/Messages'), 'MessageCenterPage') },
+      { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
+      { path: '/feedback', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackPage') },
+      { path: '/feedback/submitted', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackSubmittedPage') },
+      { path: '/about', lazy: lazyPage(() => import('../pages/About'), 'AboutPage') }
     ]
   },
   { path: '*', element: <Navigate to="/login" replace /> }

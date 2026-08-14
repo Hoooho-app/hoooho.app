@@ -1,6 +1,6 @@
 import { Activity, AlertTriangle, Baby, CalendarDays, ChevronRight, FileHeart, HeartPulse, Moon, Pill, Search, Stethoscope, Syringe, UserRound, UsersRound, Utensils, type LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Typography } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { MemberIdentityCard } from '../../components/health'
@@ -8,7 +8,7 @@ import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { healthProfileSections, type HealthProfileSectionConfig } from '../../features/health-profile/config/healthProfileSections'
 import { healthProfilePriorities } from '../../features/health-profile/config/healthProfileTemplates'
 import { getHealthProfileType } from '../../features/health-profile/utils/getHealthProfileProfile'
-import { getStoredHealthProfileSectionDetails } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
+import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
 import { buildPersonalizedHealthDirectory, type HealthProfileViewStatus } from '../../features/health-profile/utils/healthProfileHomeLogic'
 import { hasBasicHealthProfileValues } from '../../features/health-profile/utils/healthProfileBasicInfo'
 
@@ -23,26 +23,23 @@ const groupLabels: Partial<Record<HealthProfileSectionConfig['category'], string
 }
 const categoryOrder: HealthProfileSectionConfig['category'][] = ['lifestyle', 'long-term', 'child', 'female', 'elder', 'core']
 
-function getSectionSummary(section: HealthProfileSectionConfig, memberId: string) {
-  try {
-    const records = JSON.parse(localStorage.getItem(`hoho-health-profile:${memberId}:${section.id}`) ?? '[]') as Array<Record<string, unknown>>
-    if (!records.length) return section.description
-    const visible = section.fields.flatMap((field) => {
-      const value = records[0]?.[field.id]
-      if (value == null || value === '' || value === false) return []
-      return [`${field.label}：${String(value)}`]
-    }).slice(0, 2)
-    return visible.join(' · ') || `已记录 ${records.length} 项`
-  } catch { return section.description }
+function getSectionSummary(section: HealthProfileSectionConfig, records: Array<Record<string, unknown>> = []) {
+  if (!records.length) return section.description
+  const visible = section.fields.flatMap((field) => {
+    const value = records[0]?.[field.id]
+    if (value == null || value === '' || value === false) return []
+    return [`${field.label}：${String(value)}`]
+  }).slice(0, 2)
+  return visible.join(' · ') || `已记录 ${records.length} 项`
 }
 
-function ProfileSectionRows({ sections, memberId }: { sections: HealthProfileSectionConfig[]; memberId: string }) {
+function ProfileSectionRows({ sections, summaries }: { sections: HealthProfileSectionConfig[]; summaries: ReadonlyMap<string, string> }) {
   const navigate = useNavigate()
   return <div className="overflow-hidden rounded-card border bg-surface">{sections.map((section) => {
     const Icon = icons[section.icon]
     return <button className="hoho-surface-row" key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={19} strokeWidth={1.75} /></span>
-      <span className="min-w-0 flex-1 text-left"><Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography><Typography className="mt-0.5 block truncate" variant="caption">{getSectionSummary(section, memberId)}</Typography></span>
+      <span className="min-w-0 flex-1 text-left"><Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography><Typography className="mt-0.5 block truncate" variant="caption">{summaries.get(section.id) ?? section.description}</Typography></span>
       <ChevronRight className="shrink-0 text-text-secondary" size={18} />
     </button>
   })}</div>
@@ -53,14 +50,29 @@ export function HealthProfilePage() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<HealthProfileViewStatus>('all')
   const profileType = getHealthProfileType(member.birthday, member.gender)
-  const stored = getStoredHealthProfileSectionDetails(member.id)
-  const recordedIds = new Set(stored.map(({ id }) => id))
-  if (hasBasicHealthProfileValues(member)) recordedIds.add('basic')
-  const directory = buildPersonalizedHealthDirectory(healthProfileSections, profileType, healthProfilePriorities[profileType], recordedIds, query, status)
-  const grouped = categoryOrder.flatMap((category) => {
+  const hasBasicValues = hasBasicHealthProfileValues(member)
+  const stored = useMemo(() => getStoredHealthProfileSectionSnapshots(member.id), [member.id])
+  const recordsBySection = useMemo(() => new Map(stored.map(({ id, records }) => [id, records])), [stored])
+  const summaries = useMemo(() => new Map(healthProfileSections.map((section) => (
+    [section.id, getSectionSummary(section, recordsBySection.get(section.id))]
+  ))), [recordsBySection])
+  const recordedIds = useMemo(() => {
+    const ids = new Set(stored.map(({ id }) => id))
+    if (hasBasicValues) ids.add('basic')
+    return ids
+  }, [hasBasicValues, stored])
+  const directory = useMemo(() => buildPersonalizedHealthDirectory(
+    healthProfileSections,
+    profileType,
+    healthProfilePriorities[profileType],
+    recordedIds,
+    query,
+    status
+  ), [profileType, query, recordedIds, status])
+  const grouped = useMemo(() => categoryOrder.flatMap((category) => {
     const sections = directory.remaining.filter((section) => section.category === category)
     return sections.length ? [{ category, sections }] : []
-  })
+  }), [directory.remaining])
   const filtering = Boolean(query.trim()) || status !== 'all'
 
   return <main className="app-shell">
@@ -74,12 +86,10 @@ export function HealthProfilePage() {
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
-        {directory.priority.length > 0 && <section className="mt-5"><ProfileSectionRows memberId={member.id} sections={directory.priority} /></section>}
-        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows memberId={member.id} sections={sections} /></section>)}
+        {directory.priority.length > 0 && <section className="mt-5"><ProfileSectionRows sections={directory.priority} summaries={summaries} /></section>}
+        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows sections={sections} summaries={summaries} /></section>)}
         {filtering && directory.remaining.length === 0 && directory.priority.length > 0 && <Typography className="mt-4 text-center" variant="caption">已显示全部匹配项目</Typography>}
       </>}
     </div>
   </main>
 }
-
-export { HealthProfileSectionPage } from './HealthProfileSectionPage'

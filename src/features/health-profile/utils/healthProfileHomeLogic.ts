@@ -1,5 +1,6 @@
 export interface HealthProfileCatalogItem { id: string }
 export interface StoredHealthProfileItem { id: string; updatedAt: string }
+export interface StoredHealthProfileSnapshot extends StoredHealthProfileItem { records: Array<Record<string, unknown>> }
 
 export function buildHealthProfileHomeGroups<T extends HealthProfileCatalogItem>(
   catalog: readonly T[],
@@ -24,6 +25,14 @@ export function latestStoredSections(
   memberId: string,
   storage: { getItem(key: string): string | null }
 ) {
+  return readStoredSectionSnapshots(sectionIds, memberId, storage).map(({ id, updatedAt }) => ({ id, updatedAt }))
+}
+
+export function readStoredSectionSnapshots(
+  sectionIds: readonly string[],
+  memberId: string,
+  storage: { getItem(key: string): string | null }
+) {
   return sectionIds.flatMap((id) => {
     try {
       const records = JSON.parse(storage.getItem(`hoho-health-profile:${memberId}:${id}`) ?? '[]')
@@ -32,7 +41,7 @@ export function latestStoredSections(
         const value = typeof record?._savedAt === 'string' ? record._savedAt : ''
         return value > latest ? value : latest
       }, '')
-      return [{ id, updatedAt }]
+      return [{ id, updatedAt, records }]
     } catch { return [] }
   }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
 }

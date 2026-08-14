@@ -82,7 +82,7 @@ export class HealthRecordOrganizationService {
   }
 
   async organize(accountId, eventId, input, now = new Date()) {
-    await this.assertEventOwnership(accountId, eventId)
+    const event = await this.assertEventOwnership(accountId, eventId)
     const recordId = typeof input?.recordId === 'string' ? input.recordId : ''
     const record = recordId ? await this.records.findById(recordId) : null
     if (!record || record.accountId !== accountId || record.eventId !== eventId) {
@@ -108,7 +108,7 @@ export class HealthRecordOrganizationService {
       status: 'completed',
       provider: organized.provider
     }, now)
-    await this.refreshEventSummary(eventId, now)
+    await this.refreshEventSummary(eventId, now, event)
     return saved
   }
 
@@ -132,11 +132,11 @@ export class HealthRecordOrganizationService {
   }
 
   async list(accountId, eventId) {
-    await this.assertEventOwnership(accountId, eventId)
+    const event = await this.assertEventOwnership(accountId, eventId)
     const organizations = await this.repository.findByEventId(eventId)
     const legacyOrganizations = organizations.filter((organization) => organization.schemaVersion !== 5)
     if (!legacyOrganizations.length) {
-      await this.refreshEventSummary(eventId)
+      if (!event.eventSummary && organizations.length) await this.refreshEventSummary(eventId, new Date(), event)
       return organizations
     }
 
@@ -162,12 +162,12 @@ export class HealthRecordOrganizationService {
     }))
 
     const refreshed = await this.repository.findByEventId(eventId)
-    await this.refreshEventSummary(eventId)
+    await this.refreshEventSummary(eventId, new Date(), event)
     return refreshed
   }
 
-  async refreshEventSummary(eventId, now = new Date()) {
-    const event = await this.events.findById(eventId)
+  async refreshEventSummary(eventId, now = new Date(), knownEvent = null) {
+    const event = knownEvent ?? await this.events.findById(eventId)
     if (!event) return null
     const [records, organizations] = await Promise.all([
       this.records.findByEventId(eventId),

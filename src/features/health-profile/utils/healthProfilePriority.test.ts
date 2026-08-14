@@ -3,7 +3,7 @@ import test from 'node:test'
 import { healthProfileSections } from '../config/healthProfileSections.ts'
 import { healthProfilePriorities } from '../config/healthProfileTemplates.ts'
 import { getHealthProfileType } from './getHealthProfileProfile.ts'
-import { buildHealthProfileHomeGroups, buildPersonalizedHealthDirectory, latestStoredSections } from './healthProfileHomeLogic.ts'
+import { buildHealthProfileHomeGroups, buildPersonalizedHealthDirectory, latestStoredSections, readStoredSectionSnapshots } from './healthProfileHomeLogic.ts'
 
 const today = new Date('2026-08-12T12:00:00+08:00')
 
@@ -51,6 +51,24 @@ test('stored records retain latest update per member section', () => {
     { id: 'allergy', updatedAt: '2026-08-01' },
     { id: 'medication', updatedAt: '2026-06-01' }
   ])
+})
+
+test('health profile snapshots read each section once and can be reused by summaries', () => {
+  const data = new Map([
+    ['hoho-health-profile:m1:basic', JSON.stringify([{ heightCm: 168, _savedAt: '2026-08-01' }])],
+    ['hoho-health-profile:m1:allergy', JSON.stringify([{ allergen: '猫毛', _savedAt: '2026-08-02' }])]
+  ])
+  let reads = 0
+  const snapshots = readStoredSectionSnapshots(healthProfileSections.map(({ id }) => id), 'm1', {
+    getItem: (key) => {
+      reads += 1
+      return data.get(key) ?? null
+    }
+  })
+
+  assert.equal(reads, healthProfileSections.length)
+  assert.deepEqual(snapshots.map(({ id }) => id), ['allergy', 'basic'])
+  assert.equal(snapshots.find(({ id }) => id === 'basic')?.records[0]?.heightCm, 168)
 })
 
 test('personalized directory hides inapplicable items and never duplicates priority items', () => {

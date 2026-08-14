@@ -130,7 +130,7 @@ function TimelineRow({
 function TimelineAttachment({ attachment }: { attachment: EventAttachment }) {
   return (
     <figure className="relative aspect-square overflow-hidden rounded-lg bg-primary-soft">
-      {attachment.url && <img alt={attachment.name} className="h-full w-full object-cover" src={attachment.url} />}
+      {attachment.url && <img alt={attachment.name} className="h-full w-full object-cover" decoding="async" loading="lazy" src={attachment.url} />}
       <figcaption className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded bg-text-primary/65 px-1.5 py-0.5 text-[10px] text-surface">
         {attachmentLabel(attachment.name)}
       </figcaption>

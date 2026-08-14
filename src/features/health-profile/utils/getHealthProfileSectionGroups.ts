@@ -1,6 +1,6 @@
 import { healthProfileSections, type HealthProfileSectionConfig, type HealthProfileSectionId } from '../config/healthProfileSections'
 import { healthProfilePriorities, type HealthProfileType } from '../config/healthProfileTemplates'
-import { buildHealthProfileHomeGroups, latestStoredSections } from './healthProfileHomeLogic'
+import { buildHealthProfileHomeGroups, latestStoredSections, readStoredSectionSnapshots } from './healthProfileHomeLogic'
 
 export interface StoredHealthProfileSection {
   id: HealthProfileSectionId
@@ -15,6 +15,10 @@ export interface HealthProfileHomeGroups {
 
 export function getStoredHealthProfileSectionDetails(memberId: string, storage: Pick<Storage, 'getItem'> = localStorage) {
   return latestStoredSections(healthProfileSections.map(({ id }) => id), memberId, storage) as StoredHealthProfileSection[]
+}
+
+export function getStoredHealthProfileSectionSnapshots(memberId: string, storage: Pick<Storage, 'getItem'> = localStorage) {
+  return readStoredSectionSnapshots(healthProfileSections.map(({ id }) => id), memberId, storage)
 }
 
 export function getStoredHealthProfileSections(memberId: string, storage: Pick<Storage, 'getItem'> = localStorage) {
