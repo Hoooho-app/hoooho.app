@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useRef, useState } from 'react'
 import { Camera, Check, ChevronDown, Plus } from 'lucide-react'
 import { WebPageHeader } from '../../components/common'
-import { MemberIdentityCard } from '../../components/health'
+import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
 import { HohoButton, Typography } from '../../components/design-system'
 import {
   emptyMedicationRecord,
@@ -92,7 +92,7 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
 
   return <main className="app-shell min-h-dvh">
     <WebPageHeader fallback="/health-profile" title="长期用药" />
-    <div className="page-content pb-[calc(104px+env(safe-area-inset-bottom))]">
+    <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />
       <Typography variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography>
       <form className="grid gap-3" id="medication-profile-form" onSubmit={saveArchive}>
@@ -120,6 +120,6 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
         {status && <p className={`text-sm ${status.includes('失败') || status.includes('过大') ? 'text-danger' : 'text-primary'}`} role="status">{status}</p>}
       </form>
     </div>
-    <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[402px] -translate-x-1/2 border-t bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgb(var(--hoho-color-text-primary)/0.06)]"><HohoButton form="medication-profile-form" type="submit">保存档案</HohoButton></div>
+    <HealthProfileActionBar><HohoButton fullWidth form="medication-profile-form" type="submit">保存档案</HohoButton></HealthProfileActionBar>
   </main>
 }

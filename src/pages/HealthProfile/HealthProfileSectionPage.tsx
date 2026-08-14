@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Navigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
-import { MemberIdentityCard } from '../../components/health'
+import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
 import { HohoButton, Typography } from '../../components/design-system'
 import { healthProfileSectionMap, type HealthProfileField, type HealthProfileSectionId } from '../../features/health-profile/config/healthProfileSections'
 import { calculateBmi, getBasicHealthProfileValues, getInitialHealthProfileRecords, toFamilyMemberHealthUpdate } from '../../features/health-profile/utils/healthProfileBasicInfo'
@@ -128,11 +128,10 @@ export function HealthProfileSectionPage() {
 
   return <main className="app-shell min-h-dvh">
     <WebPageHeader fallback="/health-profile" title={section.title} />
-    <div className="page-content pb-[calc(104px+env(safe-area-inset-bottom))]">
+    <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />
 
       {section.id !== 'basic' && records.length > 0 && <section className="mt-6 grid gap-3">
-        <Typography variant="sectionTitle">已有记录</Typography>
         <div className="overflow-hidden rounded-card border bg-surface">{records.map((record, index) => <article className="border-b p-4 last:border-b-0" key={`${String(record._savedAt)}-${index}`}>
           <div className="flex items-start gap-3"><div className="min-w-0 flex-1"><strong className="text-sm">{String(record.name || record.disease || record.type || section.title)}</strong><p className="mt-1 line-clamp-2 text-xs leading-5 text-text-secondary">{summarizeRecord(section.fields, record)}</p></div>
             <button aria-label="编辑记录" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-primary" onClick={() => editRecord(record, index)} type="button"><Pencil size={17} /></button>
@@ -169,8 +168,9 @@ export function HealthProfileSectionPage() {
         {status && <p className="text-sm text-primary" role="status">{status}</p>}
       </form>
     </div>
-    <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[402px] -translate-x-1/2 border-t bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgb(var(--hoho-color-text-primary)/0.06)]">
-      <div className={editingIndex == null || section.id === 'basic' ? '' : 'grid grid-cols-2 gap-2'}>{editingIndex != null && section.id !== 'basic' && <HohoButton disabled={submitting} onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}<HohoButton disabled={submitting} form="health-profile-form" type="submit">{submitting ? '正在保存…' : '保存档案'}</HohoButton></div>
-    </div>
+    <HealthProfileActionBar split={editingIndex != null && section.id !== 'basic'}>
+      {editingIndex != null && section.id !== 'basic' && <HohoButton disabled={submitting} fullWidth onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}
+      <HohoButton disabled={submitting} fullWidth form="health-profile-form" type="submit">{submitting ? '正在保存…' : '保存档案'}</HohoButton>
+    </HealthProfileActionBar>
   </main>
 }

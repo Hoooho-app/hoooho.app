@@ -35,6 +35,14 @@
     -webkit-overflow-scrolling: touch;
   }
   .page-content { @apply space-y-5 px-4 py-4; }
+  .health-profile-page-content {
+    padding-bottom: calc(5.5rem + max(1rem, env(safe-area-inset-bottom)));
+  }
+  .health-profile-action-bar {
+    @apply fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[402px] border-t bg-surface px-4 pt-3;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px rgb(var(--hoho-color-text-primary) / 0.06);
+  }
   .section-title { color: rgb(var(--hoho-color-text-primary)); font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family); letter-spacing: -0.01em; }
   .health-event-detail .page-content { @apply space-y-6 px-6 py-6; }
   .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }
