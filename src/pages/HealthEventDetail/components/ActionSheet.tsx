@@ -1,7 +1,9 @@
-import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, MessageCircle, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { BottomSheetSurface, HealthCard, HohoButton, HohoToggle, Typography } from '../../../components/design-system'
+import { SmartTagInput } from '../../../components/health'
 import { actionCategoryLabels, actionCategoryOrder, type ActionCategory } from './actionSheetPresentation'
+import { aiConsultationConcernSuggestions, aiConsultationDraftSections } from './aiConsultationPresentation'
 
 type Recorder = 'self' | 'family'
 
@@ -15,7 +17,7 @@ interface ActionFeature {
   splitActions?: string[]
 }
 
-const categoryContent: Record<Exclude<ActionCategory, 'observation'>, { description: string; label: string; features: ActionFeature[] }> = {
+const categoryContent: Record<Exclude<ActionCategory, 'observation' | 'consultation'>, { description: string; label: string; features: ActionFeature[] }> = {
   hospital: {
     label: '去医院',
     description: '为线下就医整理当前健康事件信息，方便挂号、候诊和现场沟通。',
@@ -24,16 +26,6 @@ const categoryContent: Record<Exclude<ActionCategory, 'observation'>, { descript
       { id: 'medical-summary', title: '生成就医摘要', description: '生成就医时间线和关键健康信息摘要。', actionLabel: '生成就医摘要', icon: FileText, preview: ['主要症状', '时间线', '体温与用药', '检查与状态变化'] },
       { id: 'doctor-questions', title: '整理想问医生的问题', description: '根据当前记录整理重点疑问和问题清单。', actionLabel: '生成问题清单', icon: HelpCircle, preview: ['症状持续多久', '哪些变化需要重点说明', '是否还需补充信息'] },
       { id: 'medical-list', title: '检查 / 用药清单', description: '整理当前事件中已经记录的检查和用药情况。', actionLabel: '生成清单', icon: ListChecks, preview: ['检查记录', '用药名称与时间', '待确认内容'] }
-    ]
-  },
-  consultation: {
-    label: 'AI问诊',
-    description: '整理当前健康事件，便于提供给 AI 或在线医生进行咨询。',
-    features: [
-      { id: 'consult-summary', title: '生成问诊摘要', description: '整理症状、时间线、体温、用药和重要变化。', actionLabel: '生成问诊摘要', icon: MessageCircle, preview: ['症状概况', '关键时间线', '体温与用药', '重要变化'] },
-      { id: 'timeline-summary', title: '整理症状与时间线', description: '按时间顺序整理当前健康事件的关键变化。', actionLabel: '生成整理内容', icon: ClipboardList, preview: ['发生时间', '症状变化', '处理记录'] },
-      { id: 'consult-questions', title: '整理想问的问题', description: '整理适合在线咨询时提出的问题。', actionLabel: '生成问题清单', icon: HelpCircle, preview: ['当前最担心的问题', '希望进一步了解的内容'] },
-      { id: 'copy-export', title: '复制文字 / 导出 PDF', description: '将整理后的内容复制或导出，方便发送和保存。', actionLabel: '复制文字', splitActions: ['复制文字', '导出 PDF'], icon: Share2, preview: ['问诊摘要预览', '文字与 PDF 输出'] }
     ]
   },
   help: {
@@ -58,35 +50,51 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
   const [category, setCategory] = useState<ActionCategory>('observation')
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
   const [recorder, setRecorder] = useState<Recorder>('self')
-  const current = category === 'observation' ? null : categoryContent[category]
+  const [consultationStep, setConsultationStep] = useState<'input' | 'result'>('input')
+  const [consultationConcerns, setConsultationConcerns] = useState<string[]>([])
+  const current = category === 'hospital' || category === 'help' ? categoryContent[category] : null
   const selectedFeature = current?.features.find((feature) => feature.id === selectedFeatureId) ?? null
 
   const selectCategory = (next: ActionCategory) => {
     setCategory(next)
     setSelectedFeatureId(null)
+    setConsultationStep('input')
   }
 
-  return (
-    <BottomSheetSurface className="health-action-sheet" label="行动" onClose={onClose} open={open} title="行动" navigation={(
-      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
-        {actionCategoryOrder.map((key) => (
-          <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
-            {actionCategoryLabels[key]}
-          </button>
-        ))}
-      </div>
-    )} footer={category === 'observation'
-      ? <ObservationFooter onComingSoon={onComingSoon} recorder={recorder} />
+  const consultationResult = category === 'consultation' && consultationStep === 'result'
+  const navigation = consultationResult ? undefined : (
+    <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
+      {actionCategoryOrder.map((key) => (
+        <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
+          {actionCategoryLabels[key]}
+        </button>
+      ))}
+    </div>
+  )
+
+  const footer = category === 'observation'
+    ? <ObservationFooter onComingSoon={onComingSoon} recorder={recorder} />
+    : category === 'consultation'
+      ? consultationResult
+        ? <div className="grid grid-cols-2 gap-2"><HohoButton onClick={onComingSoon} variant="secondary">复制文字</HohoButton><HohoButton onClick={onComingSoon} variant="secondary">生成长图</HohoButton></div>
+        : <HohoButton fullWidth onClick={() => setConsultationStep('result')}>生成 AI 问诊提示词</HohoButton>
       : selectedFeature && (
         <div className="grid gap-2">
           {(selectedFeature.splitActions ?? [selectedFeature.actionLabel]).map((label) => (
             <HohoButton fullWidth key={label} onClick={onComingSoon} variant={label === selectedFeature.actionLabel ? 'primary' : 'secondary'}>{label}</HohoButton>
           ))}
         </div>
-      )}>
+      )
+
+  return (
+    <BottomSheetSurface className="health-action-sheet" footer={footer} label="行动" navigation={navigation} onClose={onClose} open={open} title={consultationResult ? 'AI问诊' : '行动'}>
       <div>
         {category === 'observation' ? (
           <ObservationContent onComingSoon={onComingSoon} recorder={recorder} setRecorder={setRecorder} />
+        ) : category === 'consultation' ? consultationResult ? (
+          <AIConsultationResult concerns={consultationConcerns} onBack={() => setConsultationStep('input')} />
+        ) : (
+          <AIConsultationInput concerns={consultationConcerns} setConcerns={setConsultationConcerns} />
         ) : selectedFeature ? (
           <div>
             <button className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary" onClick={() => setSelectedFeatureId(null)} type="button">
@@ -123,6 +131,48 @@ export function ActionSheet({ onClose, onComingSoon, open }: ActionSheetProps) {
         )}
       </div>
     </BottomSheetSurface>
+  )
+}
+
+function AIConsultationInput({ concerns, setConcerns }: { concerns: string[]; setConcerns: (concerns: string[]) => void }) {
+  return (
+    <div className="grid gap-5">
+      <div>
+        <Typography variant="sectionTitle">AI问诊</Typography>
+        <Typography className="mt-2" variant="body">根据这次健康事件整理一份完整信息，用于继续向 AI 咨询。</Typography>
+      </div>
+      <SmartTagInput
+        label="你现在最担心什么？（选填）"
+        maxTags={6}
+        onChange={setConcerns}
+        placeholder="也可以直接写下你最担心的问题"
+        showSuggestions
+        suggestions={aiConsultationConcernSuggestions}
+        value={concerns}
+      />
+    </div>
+  )
+}
+
+function AIConsultationResult({ concerns, onBack }: { concerns: string[]; onBack: () => void }) {
+  return (
+    <div>
+      <button className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary" onClick={onBack} type="button"><ArrowLeft size={17} />返回修改</button>
+      <Typography className="mt-2" variant="sectionTitle">AI问诊提示词</Typography>
+      <Typography className="mt-1" variant="caption">V0 界面预览，尚未接入正式提示词生成逻辑。</Typography>
+      <article className="mt-4 rounded-card border bg-surface px-4 py-1" aria-label="AI问诊提示词预览">
+        {aiConsultationDraftSections.map((section) => (
+          <section className="border-b py-4 last:border-b-0" key={section.title}>
+            <Typography variant="label">【{section.title}】</Typography>
+            <Typography className="mt-1.5" variant="body">{section.body}</Typography>
+          </section>
+        ))}
+        <section className="py-4">
+          <Typography variant="label">【我担心的问题】</Typography>
+          <Typography className="mt-1.5" variant="body">{concerns.length > 0 ? concerns.join('；') : '未补充，可直接基于现有健康事件继续整理。'}</Typography>
+        </section>
+      </article>
+    </div>
   )
 }
 

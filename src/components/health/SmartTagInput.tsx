@@ -10,6 +10,7 @@ export interface SmartTagInputProps {
   placeholder?: string
   maxTags?: number
   exclusiveValue?: string
+  showSuggestions?: boolean
 }
 
 export function SmartTagInput({
@@ -19,7 +20,8 @@ export function SmartTagInput({
   suggestions = [],
   placeholder = '输入后按回车添加',
   maxTags = 12,
-  exclusiveValue
+  exclusiveValue,
+  showSuggestions = false
 }: SmartTagInputProps) {
   const [draft, setDraft] = useState('')
   const [focused, setFocused] = useState(false)
@@ -90,7 +92,7 @@ export function SmartTagInput({
           <Plus size={17} />
         </button>
       </div>
-      {(focused || draft) && availableSuggestions.length > 0 && (
+      {(showSuggestions || focused || draft) && availableSuggestions.length > 0 && (
         <div className="flex min-w-0 flex-wrap gap-2 rounded-control bg-background p-2" aria-label={`${label}建议`}>
           {availableSuggestions.map((suggestion) => {
             const selected = value.includes(suggestion)
