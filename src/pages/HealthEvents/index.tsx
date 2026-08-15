@@ -9,6 +9,7 @@ import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
 import { healthEventService } from '../../services/healthEvents'
+import { adaptHealthEventList } from '../../services/healthEventListAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 
@@ -22,7 +23,7 @@ function HeaderActions({ onMessages }: { onMessages: () => void }) {
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
-function UserIdentity({ member }: { member: Member | null }) {
+function UserIdentity({ member, loading, error, onRetry }: { member: Member | null; loading: boolean; error?: string; onRetry: () => void }) {
   const navigate = useNavigate()
 
   return (
@@ -35,7 +36,17 @@ function UserIdentity({ member }: { member: Member | null }) {
         </div>
         <p className="mt-1 text-xs text-text-secondary">
           {member && <span>{genderLabels[member.gender ?? '']} · {member.age}</span>}
-          {!member && <span>健康数据加载中</span>}
+          {!member && loading && <span>健康数据加载中</span>}
+          {!member && error && (
+            <button className="font-medium text-danger underline-offset-2 hover:underline" onClick={onRetry} type="button">
+              加载失败，点击重试
+            </button>
+          )}
+          {member && error && (
+            <button className="ml-2 font-medium text-danger underline-offset-2 hover:underline" onClick={onRetry} type="button">
+              刷新失败，重试
+            </button>
+          )}
         </p>
       </div>
       <button
@@ -79,7 +90,8 @@ export function HealthEventsPage() {
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
-  const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
+  const members = useAppStore((state) => state.members)
+  const { eventsState, membersState, retryEvents, retryMembers, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -88,15 +100,15 @@ export function HealthEventsPage() {
 
   if (!profile) return <Navigate to="/onboarding/profile" replace />
 
-  const currentMember = state.status === 'success'
-    ? state.data.members.find((member) => member.id === currentMemberId) ?? state.data.members[0] ?? null
-    : null
-  const currentMemberDto = state.status === 'success'
-    ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? state.data.memberDtos[0] ?? null
-    : null
-  const memberEvents = state.status === 'success'
-    ? state.data.events.filter((event) => (
-        (!currentMemberDto || event.memberId === currentMemberDto.id)
+  const memberDtos = membersState.data ?? []
+  const eventDtos = eventsState.data ?? []
+  const currentMember = members.find((member) => member.id === currentMemberId) ?? members[0] ?? null
+  const currentMemberDto = memberDtos.find((member) => member.id === currentMember?.id) ?? memberDtos[0] ?? null
+  const activeMemberId = currentMember?.id ?? currentMemberDto?.id ?? currentMemberId
+  const events = adaptHealthEventList(eventDtos, memberDtos)
+  const memberEvents = eventDtos.length || eventsState.status === 'success'
+    ? events.filter((event) => (
+        (!activeMemberId || activeMemberId === 'self' || event.memberId === activeMemberId)
         && event.title.trim().length > 0
       ))
     : []
@@ -118,12 +130,12 @@ export function HealthEventsPage() {
   }
 
   const createEmptyEvent = async () => {
-    if (!token || !currentMemberDto || creating) return
+    if (!token || !activeMemberId || activeMemberId === 'self' || creating) return
     setCreating(true)
     setCreateError('')
     try {
       const created = await healthEventService.create({
-        memberId: currentMemberDto.id,
+        memberId: activeMemberId,
         title: '',
         category: 'other'
       }, token)
@@ -160,7 +172,12 @@ export function HealthEventsPage() {
   return (
     <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0">
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
-      <UserIdentity member={currentMember} />
+      <UserIdentity
+        error={membersState.status === 'error' ? membersState.message : undefined}
+        loading={membersState.status === 'loading'}
+        member={currentMember}
+        onRetry={retryMembers}
+      />
 
       <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
@@ -178,7 +195,7 @@ export function HealthEventsPage() {
             </button>
           </div>
 
-          {state.status === 'success' && years.length > 0 && (
+          {eventsState.data && years.length > 0 && (
             <div
               className="hoho-year-tabs"
               role="tablist"
@@ -203,21 +220,28 @@ export function HealthEventsPage() {
             </div>
           )}
         </div>
-        {state.status === 'loading' && (
+        {eventsState.status === 'loading' && !eventsState.data && (
           <HealthCard className="py-12 text-center">
             <Typography variant="body">正在加载健康事件…</Typography>
           </HealthCard>
         )}
 
-        {state.status === 'error' && (
+        {eventsState.status === 'error' && !eventsState.data && (
           <HealthCard className="py-10 text-center">
             <Typography variant="sectionTitle">健康事件加载失败</Typography>
-            <Typography className="mt-2" variant="body">{state.message}</Typography>
-            <HohoButton className="mt-5" onClick={retry}>重新加载</HohoButton>
+            <Typography className="mt-2" variant="body">{eventsState.message}</Typography>
+            <HohoButton className="mt-5" onClick={retryEvents}>重新加载</HohoButton>
           </HealthCard>
         )}
 
-        {state.status === 'success' && memberEvents.length === 0 && (
+        {eventsState.status === 'error' && eventsState.data && (
+          <div className="mb-3 flex items-center justify-between rounded-control bg-warning/10 px-3 py-2 text-xs text-text-secondary" role="status">
+            <span>显示上次数据，本次刷新失败</span>
+            <button className="font-semibold text-primary" onClick={retryEvents} type="button">重新加载</button>
+          </div>
+        )}
+
+        {eventsState.status === 'success' && memberEvents.length === 0 && (
           <HealthCard className="flex min-h-[500px] items-center justify-center">
             <EmptyState
               action={<HohoButton disabled={creating} onClick={() => void createEmptyEvent()}>
@@ -231,11 +255,11 @@ export function HealthEventsPage() {
           </HealthCard>
         )}
 
-        {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
+        {eventsState.data && memberEvents.length > 0 && visibleEvents.length > 0 && (
           <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
         )}
 
-        {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
+        {eventsState.data && memberEvents.length > 0 && visibleEvents.length === 0 && (
           <HealthCard>
             <EmptyState
               action={<HohoButton variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</HohoButton>}
@@ -255,7 +279,7 @@ export function HealthEventsPage() {
         }}
         type="button"
         aria-label="新增健康事件"
-        disabled={creating || !currentMemberDto}
+        disabled={creating || !activeMemberId || activeMemberId === 'self'}
         onClick={() => void createEmptyEvent()}
       >
         <Plus size={30} strokeWidth={1.8} />

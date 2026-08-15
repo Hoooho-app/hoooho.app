@@ -1,4 +1,5 @@
 import type { AuthSession } from '../types'
+import { FetchTimeoutError, reliableFetch } from './apiClient'
 
 interface SendCodeResponse {
   success: true
@@ -26,11 +27,18 @@ export class AuthApiError extends Error {
 }
 
 async function post<T>(path: string, body: Record<string, string>): Promise<T> {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  })
+  let response: Response
+  try {
+    response = await reliableFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      retries: 0
+    })
+  } catch (error) {
+    if (error instanceof FetchTimeoutError) throw new AuthApiError(error.message, 'REQUEST_TIMEOUT')
+    throw error
+  }
   const data = await response.json() as T & ApiErrorBody
   if (!response.ok) {
     throw new AuthApiError(data.error?.message ?? '请求失败，请稍后重试', data.error?.code, data.error?.retryAfter)

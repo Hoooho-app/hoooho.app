@@ -66,3 +66,11 @@ Impeccable 默认只能用于：
 - Backfilled history is positioned by its actual `occurredAt`; a newer `createdAt` must not move an older occurrence above more recent health records.
 - Year navigation lists only years that contain events and orders them newest to oldest.
 - Do not substitute `createdAt` or `updatedAt` for `occurredAt` when displaying or ordering health chronology.
+
+## Data loading reliability
+
+- Frontend API requests must have a finite total timeout; the default read budget is 10 seconds.
+- Idempotent reads may retry once within the same total budget. Mutations must not retry automatically unless they have an explicit idempotency mechanism.
+- Independent page regions load independently and expose success, empty, error, timeout and manual retry states. No UI may remain in loading forever.
+- List pages request list-level data only. Records, attachments, AI output, organizations and other detail data load on demand in detail surfaces.
+- Production list APIs emit structured phase timings and flag requests still pending after 2 seconds.

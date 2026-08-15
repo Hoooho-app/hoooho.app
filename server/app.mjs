@@ -12,6 +12,8 @@ import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
+import { performance } from 'node:perf_hooks'
+import { measureRequestPhase, recordSerializationTime, startRequestPerformanceTrace } from './observability/request-performance.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -59,7 +61,10 @@ function sendJson(response, statusCode, data) {
   response.statusCode = statusCode
   response.setHeader('Content-Type', 'application/json; charset=utf-8')
   response.setHeader('Cache-Control', 'no-store')
-  response.end(JSON.stringify(data))
+  const serializeStartedAt = performance.now()
+  const payload = JSON.stringify(data)
+  recordSerializationTime(response, serializeStartedAt)
+  response.end(payload)
 }
 
 function sendEmpty(response, statusCode = 204) {
@@ -149,9 +154,9 @@ async function handleMembers(request, response, pathname) {
   const match = /^\/api\/members(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await measureRequestPhase(response, 'authMs', () => readAccountId(request))
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
-  if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
+  if (!memberId && request.method === 'GET') sendJson(response, 200, await measureRequestPhase(response, 'memberQueryMs', () => members.list(accountId)))
   else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request)))
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
   else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request)))
@@ -220,9 +225,9 @@ async function handleEvents(request, response, pathname) {
   const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await measureRequestPhase(response, 'authMs', () => readAccountId(request))
   const eventId = match[1] ? decodeRouteValue(match[1]) : null
-  if (!eventId && request.method === 'GET') sendJson(response, 200, await events.list(accountId))
+  if (!eventId && request.method === 'GET') sendJson(response, 200, await measureRequestPhase(response, 'healthEventsQueryMs', () => events.list(accountId)))
   else if (!eventId && request.method === 'POST') sendJson(response, 201, await events.create(accountId, await readJson(request)))
   else if (eventId && request.method === 'GET') sendJson(response, 200, await events.get(accountId, eventId))
   else if (eventId && request.method === 'PATCH') sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))
@@ -309,6 +314,9 @@ async function handleStatic(request, response, pathname) {
 const server = createServer(async (request, response) => {
   try {
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (request.method === 'GET' && (pathname === '/api/members' || pathname === '/api/events')) {
+      startRequestPerformanceTrace(request, response, pathname)
+    }
     if (await handleApi(request, response, pathname)) return
     await handleStatic(request, response, pathname)
   } catch (error) {
