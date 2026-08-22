@@ -3,6 +3,7 @@ import { access, readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthService } from './auth/auth-service.mjs'
 import { authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
@@ -308,6 +309,15 @@ async function handleStatic(request, response, pathname) {
 
 const server = createServer(async (request, response) => {
   try {
+    const canonicalRedirect = getCanonicalDomainRedirect(request)
+    if (canonicalRedirect) {
+      setCommonHeaders(response)
+      response.statusCode = 308
+      response.setHeader('Location', canonicalRedirect)
+      response.setHeader('Cache-Control', 'no-store')
+      response.end()
+      return
+    }
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
     if (await handleApi(request, response, pathname)) return
     await handleStatic(request, response, pathname)
