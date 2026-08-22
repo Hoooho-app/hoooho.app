@@ -13,6 +13,7 @@ import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
+import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -34,6 +35,7 @@ const records = new HealthEventRecordService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
+const ops = new OpsService(sharedOptions)
 
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -125,6 +127,29 @@ function decodeRouteValue(value) {
   }
 }
 
+function readAuthPayload(request) {
+  const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')
+  const payload = match ? tokens.verify(match[1]) : null
+  if (payload) return payload
+  const error = new Error('登录状态无效或已过期')
+  error.status = 401
+  error.code = 'UNAUTHORIZED'
+  throw error
+}
+
+async function handleOps(request, response, pathname) {
+  if (!pathname.startsWith('/api/ops')) return false
+  assertOpsAccess(readAuthPayload(request))
+  if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, await ops.list())
+  else if (pathname === '/api/ops/resources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
+  else if (pathname === '/api/ops/sync' && request.method === 'POST') sendJson(response, 200, await ops.sync())
+  else {
+    const match = /^\/api\/ops\/resources\/([^/]+)$/.exec(pathname)
+    if (match && request.method === 'PATCH') sendJson(response, 200, await ops.update(decodeRouteValue(match[1]), await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  }
+  return true
+}
 async function handleAuth(request, response, pathname) {
   if (!pathname.startsWith('/api/auth/')) return false
   if (request.method !== 'POST') {
@@ -242,6 +267,7 @@ async function handleApi(request, response, pathname) {
     return true
   }
   if (await handleAuth(request, response, pathname)) return true
+  if (await handleOps(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOrganizations(request, response, pathname)) return true
