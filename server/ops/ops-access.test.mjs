@@ -29,13 +29,14 @@ test('production accepts account ID first and phone as fallback', () => {
   assert.doesNotThrow(() => assertOpsAccess({ sub: 'account-other', phone: '13900000000' }))
 })
 
-test('Railway volume mount path is the persistence fallback when DATA_DIRECTORY is absent', async () => {
+test('temporary Ops release does not switch the shared data root to an unverified Railway volume', async () => {
   const previousData = process.env.DATA_DIRECTORY
   const previousMount = process.env.RAILWAY_VOLUME_MOUNT_PATH
   delete process.env.DATA_DIRECTORY
   process.env.RAILWAY_VOLUME_MOUNT_PATH = '/data/hoho'
-  const { authConfig } = await import(`../auth/config.mjs?volume-test=${Date.now()}`)
-  assert.match(authConfig.dataDirectory.replaceAll('\\', '/'), /\/data\/hoho$/)
+  const { authConfig } = await import(`../auth/config.mjs?temporary-persistence-test=${Date.now()}`)
+  assert.doesNotMatch(authConfig.dataDirectory.replaceAll('\\', '/'), /\/data\/hoho$/)
+  assert.match(authConfig.dataDirectory.replaceAll('\\', '/'), /\.codex-tmp\/auth$/)
   if (previousData === undefined) delete process.env.DATA_DIRECTORY; else process.env.DATA_DIRECTORY = previousData
   if (previousMount === undefined) delete process.env.RAILWAY_VOLUME_MOUNT_PATH; else process.env.RAILWAY_VOLUME_MOUNT_PATH = previousMount
 })
