@@ -42,6 +42,12 @@ export function authApiPlugin(options = {}) {
           if (pathname === '/api/auth/login') {
             return sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
           }
+          if (pathname === '/api/auth/email/send-code') {
+            return sendJson(response, 200, await auth.sendEmailCode(String(body.email ?? '')))
+          }
+          if (pathname === '/api/auth/email/login') {
+            return sendJson(response, 200, await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? '')))
+          }
           return sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在' } })
         } catch (error) {
           const status = error instanceof AuthError ? error.status : 500

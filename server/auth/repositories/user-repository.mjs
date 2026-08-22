@@ -19,4 +19,15 @@ export class UserRepository {
     })
     return selectedUser
   }
+
+  async findOrCreateByEmail(email, now = new Date()) {
+    let selectedUser
+    await this.#store.update((data) => {
+      selectedUser = data.users.find((user) => user.email === email)
+      if (selectedUser) return data
+      selectedUser = { id: randomUUID(), email, createdAt: now.toISOString() }
+      return { ...data, users: [...data.users, selectedUser] }
+    })
+    return selectedUser
+  }
 }

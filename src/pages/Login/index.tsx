@@ -1,17 +1,18 @@
-import { ShieldCheck, Smartphone } from 'lucide-react'
+import { Mail, ShieldCheck, Smartphone } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
+import { HohoButton } from '../../components/design-system/HohoButton'
 import { authService, AuthApiError } from '../../services/auth'
 import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
 
-const PHONE_PATTERN = /^1[3-9]\d{9}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [error, setError] = useState('')
@@ -20,7 +21,8 @@ export function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
   const setProfile = useAppStore((state) => state.setProfile)
-  const phoneIsValid = PHONE_PATTERN.test(phone)
+  const normalizedEmail = email.trim().toLowerCase()
+  const emailIsValid = normalizedEmail.length <= 254 && EMAIL_PATTERN.test(normalizedEmail)
   const codeIsValid = CODE_PATTERN.test(code)
 
   useEffect(() => {
@@ -32,17 +34,17 @@ export function LoginPage() {
   }, [countdown])
 
   const requestCode = async () => {
-    if (!phoneIsValid) {
-      setError('请输入正确的中国大陆手机号')
+    if (!emailIsValid) {
+      setError('请输入正确的邮箱地址')
       return
     }
     setError('')
     setNotice('')
     setIsSending(true)
     try {
-      const result = await authService.sendCode(phone)
+      const result = await authService.sendEmailCode(normalizedEmail)
       setCountdown(result.retryAfter)
-      setNotice('验证码已生成，请查看开发服务器控制台')
+      setNotice('验证码已发送，请查看邮箱')
     } catch (requestError) {
       const authError = requestError instanceof AuthApiError ? requestError : null
       setError(authError?.message ?? '验证码发送失败，请稍后重试')
@@ -54,8 +56,8 @@ export function LoginPage() {
 
   const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!phoneIsValid) {
-      setError('请输入正确的中国大陆手机号')
+    if (!emailIsValid) {
+      setError('请输入正确的邮箱地址')
       return
     }
     if (!codeIsValid) {
@@ -66,7 +68,7 @@ export function LoginPage() {
     setNotice('')
     setIsLoggingIn(true)
     try {
-      const session = await authService.login(phone, code)
+      const session = await authService.loginWithEmail(normalizedEmail, code)
       setAuthSession(session)
       const members = await familyMemberService.list(session.token)
       const self = members.find((member) => member.isSelf)
@@ -105,21 +107,22 @@ export function LoginPage() {
 
         <form className="mt-12 space-y-3" noValidate onSubmit={login}>
           <label className="flex min-h-12 items-center gap-3 rounded-control border bg-surface px-4 shadow-card transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
-            <Smartphone aria-hidden="true" className="shrink-0 text-primary" size={18} strokeWidth={1.8} />
-            <span className="sr-only">手机号</span>
+            <Mail aria-hidden="true" className="shrink-0 text-primary" size={18} strokeWidth={1.8} />
+            <span className="sr-only">邮箱地址</span>
             <input
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-text-secondary/60"
-              inputMode="tel"
-              autoComplete="tel"
-              maxLength={11}
-              placeholder="请输入手机号"
-              value={phone}
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-text-secondary/60"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              maxLength={254}
+              placeholder="请输入邮箱地址"
+              value={email}
               onChange={(event) => {
-                setPhone(event.target.value.replace(/\D/g, ''))
+                setEmail(event.target.value)
                 setError('')
                 setNotice('')
               }}
-              onBlur={() => phone && !PHONE_PATTERN.test(phone) && setError('请输入正确的中国大陆手机号')}
+              onBlur={() => email && !emailIsValid && setError('请输入正确的邮箱地址')}
             />
           </label>
 
@@ -127,7 +130,7 @@ export function LoginPage() {
             <ShieldCheck aria-hidden="true" className="shrink-0 text-primary" size={18} strokeWidth={1.8} />
             <span className="sr-only">验证码</span>
             <input
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-text-secondary/60"
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-text-secondary/60"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
@@ -139,9 +142,9 @@ export function LoginPage() {
               }}
             />
             <button
-              className="shrink-0 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:text-text-secondary/60"
+              className="min-h-11 shrink-0 px-1 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:text-text-secondary/60"
               type="button"
-              disabled={!phoneIsValid || countdown > 0 || isSending}
+              disabled={!emailIsValid || countdown > 0 || isSending}
               onClick={requestCode}
             >
               {isSending ? '发送中…' : countdown > 0 ? `重新获取 (${countdown}s)` : '获取验证码'}
@@ -153,10 +156,23 @@ export function LoginPage() {
             {!error && notice && <p className="text-xs text-primary">{notice}</p>}
           </div>
 
-          <button className="hoho-button min-h-12 w-full" data-variant="primary" type="submit" disabled={!phoneIsValid || !codeIsValid || isLoggingIn}>
+          <button className="hoho-button min-h-12 w-full" data-variant="primary" type="submit" disabled={!emailIsValid || !codeIsValid || isLoggingIn}>
             {isLoggingIn ? '登录中…' : '登录'}
           </button>
         </form>
+
+        <HohoButton
+          className="mt-3"
+          fullWidth
+          variant="secondary"
+          onClick={() => {
+            setError('')
+            setNotice('该功能暂未开放')
+          }}
+        >
+          <Smartphone aria-hidden="true" size={17} strokeWidth={1.8} />
+          手机号登录
+        </HohoButton>
 
         <p className="mt-4 text-center text-[11px] leading-5 text-text-secondary">
           登录即表示同意
