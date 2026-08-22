@@ -114,12 +114,12 @@ export class AuthService {
     try {
       await this.emailProvider.sendVerificationCode({ email, code, expiresIn })
     } catch (error) {
-      const code = error instanceof EmailProviderError ? error.code : 'EMAIL_SEND_FAILED'
-      this.logger(`[Hoooho auth] verification provider error email=${maskEmail(email)} code=${code}`)
-      if (code === 'EMAIL_PROVIDER_NOT_CONFIGURED') {
-        throw new AuthError('邮箱验证码服务尚未配置', 503, code)
+      const errorCode = error instanceof EmailProviderError ? error.code : 'EMAIL_PROVIDER_NETWORK_ERROR'
+      this.logger(`[Hoooho auth] verification provider error email=${maskEmail(email)} code=${errorCode}`)
+      if (errorCode === 'EMAIL_PROVIDER_NOT_CONFIGURED') {
+        throw new AuthError('邮箱验证码服务尚未配置', 503, errorCode)
       }
-      throw new AuthError('验证码发送失败，请稍后重试', 502, 'EMAIL_SEND_FAILED')
+      throw new AuthError('邮件服务暂时不可用，请稍后重试', 503, 'EMAIL_PROVIDER_UNAVAILABLE')
     }
 
     await this.codes.save({

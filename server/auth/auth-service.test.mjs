@@ -216,7 +216,7 @@ test('邮箱 provider 失败或未配置时不保留有效验证码', async () =
       await assert.rejects(
         context.service.sendEmailCode('failure@example.com', 1_000),
         (error) => error instanceof AuthError && error.code === (
-          providerError instanceof EmailProviderError ? 'EMAIL_PROVIDER_NOT_CONFIGURED' : 'EMAIL_SEND_FAILED'
+          providerError instanceof EmailProviderError ? 'EMAIL_PROVIDER_NOT_CONFIGURED' : 'EMAIL_PROVIDER_UNAVAILABLE'
         )
       )
       assert.equal(await context.service.codes.find('email', 'failure@example.com'), null)
@@ -226,11 +226,32 @@ test('邮箱 provider 失败或未配置时不保留有效验证码', async () =
   }
 })
 
+test('Resend provider 对限流和网络错误进行稳定分类', async () => {
+  const rateLimitedProvider = new ResendEmailVerificationProvider({
+    apiKey: 'test-key',
+    from: 'Hoooho <login@example.com>',
+    fetch: async () => ({ ok: false, status: 429 })
+  })
+  await assert.rejects(
+    rateLimitedProvider.sendVerificationCode({ email: 'user@example.com', code: '123456', expiresIn: 300 }),
+    (error) => error instanceof EmailProviderError && error.code === 'EMAIL_PROVIDER_RATE_LIMITED'
+  )
+
+  const networkProvider = new ResendEmailVerificationProvider({
+    apiKey: 'test-key',
+    from: 'Hoooho <login@example.com>',
+    fetch: async () => { throw new TypeError('network failed') }
+  })
+  await assert.rejects(
+    networkProvider.sendVerificationCode({ email: 'user@example.com', code: '123456', expiresIn: 300 }),
+    (error) => error instanceof EmailProviderError && error.code === 'EMAIL_PROVIDER_NETWORK_ERROR'
+  )
+})
 test('Resend provider 使用受控发件人和纯登录验证码邮件', async () => {
   const requests = []
   const provider = new ResendEmailVerificationProvider({
     apiKey: 'test-key',
-    from: 'Hoho <login@example.com>',
+    from: 'Hoooho <login@example.com>',
     fetch: async (url, options) => {
       requests.push({ url, options })
       return { ok: true }
@@ -242,9 +263,10 @@ test('Resend provider 使用受控发件人和纯登录验证码邮件', async (
   assert.equal(requests[0].url, 'https://api.resend.com/emails')
   assert.equal(requests[0].options.headers.Authorization, 'Bearer test-key')
   const body = JSON.parse(requests[0].options.body)
-  assert.equal(body.from, 'Hoho <login@example.com>')
+  assert.equal(body.from, 'Hoooho <login@example.com>')
   assert.deepEqual(body.to, ['user@example.com'])
-  assert.equal(body.subject, 'Hoho 登录验证码')
+  assert.equal(body.subject, 'Hoooho 登录验证码')
+  assert.match(body.text, /你的 Hoooho 登录验证码是/)
   assert.match(body.text, /123456/)
   assert.match(body.text, /5 分钟内有效/)
 })

@@ -14,7 +14,7 @@ Hoho 当前默认使用邮箱验证码登录，同时保留原手机号认证 AP
 ## 环境变量
 
 - `RESEND_API_KEY`：Resend API 密钥，必须作为 secret 配置。
-- `AUTH_EMAIL_FROM`：Resend 已验证的发件地址，例如 `Hoho <login@example.com>`。
+- `AUTH_EMAIL_FROM`：Resend 已验证的发件地址，例如 `Hoooho <login@example.com>`。
 - `AUTH_TOKEN_SECRET`：会话签名密钥，必须作为 secret 配置。
 
 缺少 Resend 配置时，发送接口返回 `EMAIL_PROVIDER_NOT_CONFIGURED`，不会把验证码输出到控制台，也不会保存可用于登录的验证码。

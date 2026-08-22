@@ -30,15 +30,23 @@ export class ResendEmailVerificationProvider {
         body: JSON.stringify({
           from: this.from,
           to: [email],
-          subject: 'Hoho 登录验证码',
-          text: `你的 Hoho 登录验证码是：\n\n${code}\n\n验证码 ${Math.floor(expiresIn / 60)} 分钟内有效。\n如果不是你本人操作，可以忽略这封邮件。`
+          subject: 'Hoooho 登录验证码',
+          text: `你的 Hoooho 登录验证码是：\n\n${code}\n\n验证码 ${Math.floor(expiresIn / 60)} 分钟内有效。\n如果不是你本人操作，可以忽略这封邮件。`
         }),
         signal: controller.signal
       })
-      if (!response.ok) throw new EmailProviderError('验证码发送失败，请稍后重试')
+      if (!response.ok) {
+        const category = response.status === 429
+          ? 'EMAIL_PROVIDER_RATE_LIMITED'
+          : response.status >= 500
+            ? 'EMAIL_PROVIDER_UNAVAILABLE'
+            : 'EMAIL_PROVIDER_REJECTED'
+        throw new EmailProviderError('邮件服务暂时不可用，请稍后重试', category)
+      }
     } catch (error) {
       if (error instanceof EmailProviderError) throw error
-      throw new EmailProviderError('验证码发送失败，请稍后重试')
+      const category = error?.name === 'AbortError' ? 'EMAIL_PROVIDER_TIMEOUT' : 'EMAIL_PROVIDER_NETWORK_ERROR'
+      throw new EmailProviderError('邮件服务暂时不可用，请稍后重试', category)
     } finally {
       clearTimeout(timer)
     }

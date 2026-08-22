@@ -1,10 +1,11 @@
 import { createReadStream } from 'node:fs'
 import { access, readFile, stat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
-import { AuthService } from './auth/auth-service.mjs'
+import { AuthError, AuthService } from './auth/auth-service.mjs'
 import { authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
@@ -125,35 +126,82 @@ function decodeRouteValue(value) {
   }
 }
 
-async function handleAuth(request, response, pathname) {
-  if (!pathname.startsWith('/api/auth/')) return false
-  if (request.method !== 'POST') {
-    sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求' } })
-    return true
-  }
+const authRequestIdPattern = /^[A-Za-z0-9_-]{8,64}$/
 
-  const body = await readJson(request)
-  if (pathname === '/api/auth/send-code') {
-    sendJson(response, 200, await auth.sendCode(String(body.phone ?? '')))
-    return true
+function createEmailAuthRequestContext(request, response, pathname) {
+  const suppliedRequestId = String(request.headers['x-hoooho-request-id'] ?? '')
+  const requestId = authRequestIdPattern.test(suppliedRequestId) ? suppliedRequestId : randomUUID()
+  const userAgent = String(request.headers['user-agent'] ?? '')
+  const origin = String(request.headers.origin ?? '').slice(0, 200)
+  response.setHeader('X-Hoooho-Request-ID', requestId)
+  return {
+    requestId,
+    channel: 'email',
+    endpoint: pathname,
+    userAgentType: /Mobile|Android|iPhone|iPad|MicroMessenger/i.test(userAgent) ? 'mobile' : userAgent ? 'desktop' : 'unknown',
+    origin: origin || 'missing',
+    host: String(request.headers.host ?? '').slice(0, 200),
+    cookiePresent: Boolean(request.headers.cookie),
+    viaCloudflare: Boolean(request.headers['cf-ray'])
   }
-  if (pathname === '/api/auth/login') {
-    sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
-    return true
-  }
-  if (pathname === '/api/auth/email/send-code') {
-    sendJson(response, 200, await auth.sendEmailCode(String(body.email ?? '')))
-    return true
-  }
-  if (pathname === '/api/auth/email/login') {
-    sendJson(response, 200, await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? '')))
-    return true
-  }
-
-  sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在' } })
-  return true
 }
 
+function logEmailAuthRequest(context, status, errorCategory = 'OK') {
+  console.info(`[Hoooho auth request] ${JSON.stringify({
+    ...context,
+    status,
+    errorCategory,
+    rateLimited: status === 429 || errorCategory === 'CODE_RATE_LIMITED'
+  })}`)
+}
+
+async function handleAuth(request, response, pathname) {
+  if (!pathname.startsWith('/api/auth/')) return false
+  const context = pathname.startsWith('/api/auth/email/')
+    ? createEmailAuthRequestContext(request, response, pathname)
+    : null
+
+  try {
+    if (request.method !== 'POST') {
+      if (context) logEmailAuthRequest(context, 405, 'METHOD_NOT_ALLOWED')
+      sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求' } })
+      return true
+    }
+
+    const body = await readJson(request)
+    if (pathname === '/api/auth/send-code') {
+      sendJson(response, 200, await auth.sendCode(String(body.phone ?? '')))
+      return true
+    }
+    if (pathname === '/api/auth/login') {
+      sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
+      return true
+    }
+    if (pathname === '/api/auth/email/send-code') {
+      const result = await auth.sendEmailCode(String(body.email ?? ''))
+      logEmailAuthRequest(context, 200)
+      sendJson(response, 200, result)
+      return true
+    }
+    if (pathname === '/api/auth/email/login') {
+      const result = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
+      logEmailAuthRequest(context, 200)
+      sendJson(response, 200, result)
+      return true
+    }
+
+    if (context) logEmailAuthRequest(context, 404, 'NOT_FOUND')
+    sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在' } })
+    return true
+  } catch (error) {
+    if (context) {
+      const status = Number.isInteger(error?.status) ? error.status : 500
+      const category = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
+      logEmailAuthRequest(context, status, category)
+    }
+    throw error
+  }
+}
 async function handleMembers(request, response, pathname) {
   const match = /^\/api\/members(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
