@@ -48,5 +48,7 @@ async function post<T>(path: string, body: Record<string, string>): Promise<T> {
 
 export const authService = {
   sendCode: (phone: string) => post<SendCodeResponse>('/api/auth/send-code', { phone }),
-  login: (phone: string, code: string) => post<AuthSession>('/api/auth/login', { phone, code })
+  login: (phone: string, code: string) => post<AuthSession>('/api/auth/login', { phone, code }),
+  sendEmailCode: (email: string) => post<SendCodeResponse>('/api/auth/email/send-code', { email }),
+  loginWithEmail: (email: string, code: string) => post<AuthSession>('/api/auth/email/login', { email, code })
 }

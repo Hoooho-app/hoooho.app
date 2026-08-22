@@ -74,3 +74,11 @@ Impeccable 默认只能用于：
 - Independent page regions load independently and expose success, empty, error, timeout and manual retry states. No UI may remain in loading forever.
 - List pages request list-level data only. Records, attachments, AI output, organizations and other detail data load on demand in detail surfaces.
 - Production list APIs emit structured phase timings and flag requests still pending after 2 seconds.
+
+## Email verification authentication release strategy
+
+- While Hoho is not formally open to external users, email verification authentication may use the rapid Production iteration flow: automated verification -> commit -> push -> Production deployment -> online acceptance.
+- Before a Production deployment, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `AUTH_TOKEN_SECRET` must be configured as Production environment-scoped secrets and must never be committed or printed in logs.
+- `AUTH_EMAIL_FROM` must be an actual sender allowed by the configured Resend account. Do not guess or deploy an unverified sender.
+- Once the user explicitly announces that unknown or formal external users are using Hoho, switch to the Staging-first release gate: development -> isolated Staging -> real-email acceptance -> Production.
+- Keep the existing Railway Staging environment available. The rapid Production mode does not delete or weaken Staging; it only makes Staging optional during the current internal-use phase.

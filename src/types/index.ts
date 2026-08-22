@@ -28,7 +28,8 @@ export interface UserProfile {
 
 export interface AuthUser {
   id: string
-  phone: string
+  email?: string
+  phone?: string
   createdAt: string
 }
 

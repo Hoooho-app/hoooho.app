@@ -145,6 +145,14 @@ async function handleAuth(request, response, pathname) {
     sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
     return true
   }
+  if (pathname === '/api/auth/email/send-code') {
+    sendJson(response, 200, await auth.sendEmailCode(String(body.email ?? '')))
+    return true
+  }
+  if (pathname === '/api/auth/email/login') {
+    sendJson(response, 200, await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? '')))
+    return true
+  }
 
   sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在' } })
   return true
@@ -322,7 +330,7 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     const status = Number.isInteger(error?.status) ? error.status : 500
     const code = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
-    const message = status >= 500 ? '服务器暂时不可用' : error.message
+    const message = status >= 500 && !(error instanceof AuthError) ? '服务器暂时不可用' : error.message
     if (status >= 500) console.error(error)
     sendJson(response, status, { error: { code, message, ...(error?.details ?? {}) } })
   }
