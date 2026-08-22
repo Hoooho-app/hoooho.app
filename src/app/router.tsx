@@ -34,6 +34,7 @@ export const router = createBrowserRouter([
       { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
       { path: '/feedback', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackPage') },
       { path: '/feedback/submitted', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackSubmittedPage') },
+      { path: '/ops', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
       { path: '/about', lazy: lazyPage(() => import('../pages/About'), 'AboutPage') }
     ]
   },
