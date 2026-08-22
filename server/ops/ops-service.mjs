@@ -50,7 +50,18 @@ function deriveStatus(resource) {
 
 export class OpsService {
   constructor(options = {}) { this.store = options.store ?? new JsonStore(path.join(options.dataDirectory, 'ops', 'resources.json'), { resources: initialOpsResources }) }
-  async list() { return this.store.read() }
+  async list() {
+    const data = await this.store.read()
+    const resources = Array.isArray(data?.resources) ? data.resources : []
+    const existingIds = new Set(resources.map((item) => item?.id).filter(Boolean))
+    const missing = initialOpsResources.filter((item) => !existingIds.has(item.id))
+    if (missing.length === 0) return { ...data, resources }
+    return this.store.update((current) => {
+      const currentResources = Array.isArray(current?.resources) ? current.resources : []
+      const currentIds = new Set(currentResources.map((item) => item?.id).filter(Boolean))
+      return { ...current, resources: [...currentResources, ...initialOpsResources.filter((item) => !currentIds.has(item.id))] }
+    })
+  }
   async update(id, input) {
     let selected
     await this.store.update((data) => {
@@ -89,6 +100,8 @@ export class OpsService {
 export function assertOpsAccess(payload) {
   const ids = (process.env.OPS_ALLOWED_ACCOUNT_IDS ?? '').split(',').map((v) => v.trim()).filter(Boolean)
   const phones = (process.env.OPS_ALLOWED_PHONES ?? '').split(',').map((v) => v.trim()).filter(Boolean)
+  if (ids.length === 0 && phones.length === 0) return { mode: 'temporary-authenticated' }
   const allowed = ids.includes(payload.sub) || phones.includes(payload.phone)
   if (!allowed) { const error = new Error('当前账号没有运营总控台权限'); error.status = 403; error.code = 'OPS_FORBIDDEN'; throw error }
+  return { mode: 'allowlist' }
 }

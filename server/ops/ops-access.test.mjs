@@ -14,19 +14,20 @@ test.afterEach(() => {
   if (original.phones === undefined) delete process.env.OPS_ALLOWED_PHONES; else process.env.OPS_ALLOWED_PHONES = original.phones
 })
 
-test('production denies an account outside the Ops allowlist', () => {
+test('production allows authenticated access temporarily when no Ops allowlist is configured', () => {
   process.env.NODE_ENV = 'production'
   delete process.env.OPS_ALLOWED_ACCOUNT_IDS
   delete process.env.OPS_ALLOWED_PHONES
-  assert.throws(() => assertOpsAccess({ sub: 'account-other', phone: '13800000000' }), (error) => error.status === 403 && error.code === 'OPS_FORBIDDEN')
+  assert.deepEqual(assertOpsAccess({ sub: 'account-other', phone: '13800000000' }), { mode: 'temporary-authenticated' })
 })
 
 test('production accepts account ID first and phone as fallback', () => {
   process.env.NODE_ENV = 'production'
   process.env.OPS_ALLOWED_ACCOUNT_IDS = 'account-owner'
   process.env.OPS_ALLOWED_PHONES = '13900000000'
-  assert.doesNotThrow(() => assertOpsAccess({ sub: 'account-owner', phone: '13800000000' }))
-  assert.doesNotThrow(() => assertOpsAccess({ sub: 'account-other', phone: '13900000000' }))
+  assert.deepEqual(assertOpsAccess({ sub: 'account-owner', phone: '13800000000' }), { mode: 'allowlist' })
+  assert.deepEqual(assertOpsAccess({ sub: 'account-other', phone: '13900000000' }), { mode: 'allowlist' })
+  assert.throws(() => assertOpsAccess({ sub: 'account-other', phone: '13800000000' }), (error) => error.status === 403 && error.code === 'OPS_FORBIDDEN')
 })
 
 test('temporary Ops release does not switch the shared data root to an unverified Railway volume', async () => {

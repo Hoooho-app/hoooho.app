@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -27,6 +27,19 @@ test('manual edits persist outside health data and survive a new service instanc
   assert.equal(domain.autoRenew, true)
   const persisted = JSON.parse(await readFile(path.join(directory, 'ops', 'resources.json'), 'utf8'))
   assert.equal(persisted.resources.length, initialOpsResources.length)
+})
+
+test('repairs an empty or partial persisted catalog without overwriting manual data', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'hoho-ops-'))
+  const opsDirectory = path.join(directory, 'ops')
+  await mkdir(opsDirectory, { recursive: true })
+  await writeFile(path.join(opsDirectory, 'resources.json'), JSON.stringify({ resources: [{ ...initialOpsResources[0], plan: 'Manual override' }] }), 'utf8')
+  const result = await new OpsService({ dataDirectory: directory }).list()
+  assert.equal(result.resources.length, 23)
+  assert.equal(result.resources.find((item) => item.id === 'railway').plan, 'Manual override')
+  assert.equal(result.resources.some((item) => item.id === 'google-play'), true)
+  const persisted = JSON.parse(await readFile(path.join(opsDirectory, 'resources.json'), 'utf8'))
+  assert.equal(persisted.resources.length, 23)
 })
 
 test('sync preserves manual data and records connector failures as fallback state', async () => {

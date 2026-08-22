@@ -140,8 +140,8 @@ function readAuthPayload(request) {
 
 async function handleOps(request, response, pathname) {
   if (!pathname.startsWith('/api/ops')) return false
-  assertOpsAccess(readAuthPayload(request))
-  if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, await ops.list())
+  const access = assertOpsAccess(readAuthPayload(request))
+  if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, { ...await ops.list(), accessMode: access.mode })
   else if (pathname === '/api/ops/resources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
   else if (pathname === '/api/ops/sync' && request.method === 'POST') sendJson(response, 200, await ops.sync())
   else {
