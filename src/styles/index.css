@@ -122,6 +122,38 @@
   .first-record-datetime { @apply relative block min-w-0 max-w-full overflow-hidden; }
   .first-record-datetime input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
 
+  .quick-voice-flow {
+    @apply fixed inset-0 z-50 mx-auto flex h-dvh w-full max-w-[402px] flex-col overflow-hidden bg-background;
+    box-shadow: 0 0 0 1px rgb(var(--hoho-color-border) / 0.55);
+  }
+  .quick-voice-flow__header { @apply grid grid-cols-[44px_minmax(0,1fr)_44px] items-center px-4 py-3 text-center; }
+  .quick-voice-flow__context { @apply flex flex-wrap justify-center gap-2 px-4 pb-4; }
+  .quick-voice-flow__body { @apply min-h-0 flex-1 overflow-y-auto px-4 pb-6; }
+  .quick-voice-flow__body .hoho-button[data-variant='text'] { min-height: 44px; }
+  .quick-voice-flow__footer {
+    @apply grid gap-2 border-t bg-surface px-4 pt-3;
+    padding-bottom: max(var(--hoho-space-3), env(safe-area-inset-bottom));
+  }
+  .quick-voice-listener { @apply grid justify-items-center gap-3 rounded-card border bg-surface p-6 text-center; }
+  .quick-voice-listener__button { @apply grid h-28 w-28 touch-none place-items-center rounded-full bg-primary text-surface shadow-floating transition; }
+  .quick-voice-listener.is-listening .quick-voice-listener__button {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 14px rgb(var(--hoho-color-primary) / 0.08), 0 0 0 30px rgb(var(--hoho-color-primary) / 0.04);
+  }
+  .quick-voice-wave { @apply flex h-10 items-center justify-center gap-1; }
+  .quick-voice-wave span {
+    width: 3px;
+    height: 12px;
+    border-radius: var(--hoho-radius-pill);
+    background: rgb(var(--hoho-color-primary));
+    animation: quick-voice-wave 900ms ease-in-out infinite alternate;
+  }
+  .quick-voice-wave span:nth-child(3n) { height: 28px; animation-delay: -300ms; }
+  .quick-voice-wave span:nth-child(2n) { height: 20px; animation-delay: -600ms; }
+  .quick-record-toast { @apply fixed left-1/2 top-5 z-[60] inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-pill bg-primary px-4 text-sm font-semibold text-surface shadow-floating; }
+  @keyframes quick-voice-wave { from { transform: scaleY(0.45); opacity: 0.55; } to { transform: scaleY(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .quick-voice-wave span { animation: none; } }
+
   @media (max-width: 480px) {
     .first-record-composer__card { padding-inline: var(--hoho-space-4); }
     .first-record-form-row { @apply block; }

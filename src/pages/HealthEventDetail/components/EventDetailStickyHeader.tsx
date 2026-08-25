@@ -23,7 +23,7 @@ export function EventDetailStickyHeader({ onAction, onAddRecord, showActions = t
       </div>
       {showActions && <div className="grid min-w-[138px] gap-2">
         <HohoButton className="min-h-10" onClick={onAction}><Network size={18} strokeWidth={1.8} />行动</HohoButton>
-        <HohoButton className="min-h-10" onClick={onAddRecord} variant="secondary">补录情况</HohoButton>
+        <HohoButton className="min-h-10" onClick={onAddRecord} variant="secondary">新增记录</HohoButton>
       </div>}
     </section>
   )

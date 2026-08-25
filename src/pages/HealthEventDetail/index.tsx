@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Check, Mic } from 'lucide-react'
+import { differenceInCalendarDays } from 'date-fns'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
+import { HohoButton } from '../../components/design-system'
 import type { CreateHealthEventRecordInput } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
@@ -14,6 +17,8 @@ import {
   EventSummarySection,
   FirstRecordComposer,
   HealthRecordEditorModal,
+  QuickRecordMenu,
+  QuickVoiceRecordFlow,
   TemperatureChartSection,
   TimelineSection
 } from './components'
@@ -24,6 +29,9 @@ export function HealthEventDetailPage() {
   const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, correctSummary, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [recordEditorOpen, setRecordEditorOpen] = useState(false)
+  const [quickRecordMenuOpen, setQuickRecordMenuOpen] = useState(false)
+  const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
+  const [recordedMessage, setRecordedMessage] = useState('')
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
 
   const subject = useMemo(() => state.status === 'success'
@@ -75,6 +83,8 @@ export function HealthEventDetailPage() {
   const event = state.data.viewModel.event
   const hasRecords = hasPersistedHealthEventRecords(state.data.records)
   if (!subject) return null
+  const eventDay = Math.max(1, differenceInCalendarDays(new Date(), new Date(event.startDate)) + 1)
+  const eventLabel = `${event.title || '健康事件'} · 第${eventDay}天`
 
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
     const originalText = input.content.trim()
@@ -110,7 +120,7 @@ export function HealthEventDetailPage() {
         <EventHeader />
         <EventDetailStickyHeader
           onAction={() => setActionOpen(true)}
-          onAddRecord={() => setRecordEditorOpen(true)}
+          onAddRecord={() => setQuickRecordMenuOpen(true)}
           showActions={hasRecords}
           subject={subject}
         />
@@ -125,6 +135,7 @@ export function HealthEventDetailPage() {
             )}
             <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+            <HohoButton fullWidth onClick={() => setVoiceRecordOpen(true)}><Mic size={18} />继续说</HohoButton>
           </>
         )}
       </div>
@@ -142,8 +153,28 @@ export function HealthEventDetailPage() {
         open={recordEditorOpen}
         templateType="timeline"
       />}
+      {hasRecords && <QuickRecordMenu
+        onClose={() => setQuickRecordMenuOpen(false)}
+        onManual={() => { setQuickRecordMenuOpen(false); setRecordEditorOpen(true) }}
+        onVoice={() => { setQuickRecordMenuOpen(false); setVoiceRecordOpen(true) }}
+        open={quickRecordMenuOpen}
+      />}
+      {hasRecords && <QuickVoiceRecordFlow
+        eventLabel={eventLabel}
+        member={{ name: subject.name, avatar: subject.avatar }}
+        onClose={() => setVoiceRecordOpen(false)}
+        onConfirm={async (records) => {
+          for (const record of records) await addHealthRecord(record)
+          setRecordedMessage(`已记录 ${records.length} 条`)
+          window.setTimeout(() => setRecordedMessage(''), 3000)
+        }}
+        onParse={(text, occurredAt) => previewRecord(text, { selectedOccurredAt: occurredAt })}
+        onSwitchEvent={() => navigate('/health-events')}
+        open={voiceRecordOpen}
+      />}
       {hasRecords && <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
       {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
+      {recordedMessage && <div aria-live="polite" className="quick-record-toast" role="status"><Check size={17} />{recordedMessage}</div>}
     </main>
   )
 }
