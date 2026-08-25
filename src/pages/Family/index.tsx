@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Button, Input, WebPageHeader } from '../../components/common'
+import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
@@ -15,6 +16,7 @@ const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露'
 
 export function FamilyPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const members = useAppStore((state) => state.members)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
@@ -23,6 +25,21 @@ export function FamilyPage() {
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const switchMember = (member: Member) => {
+    setCurrentMemberId(member.id)
+    const entry = (location.state as FamilyLocationState | null)?.familyEntry
+    const returnTo = isSafeReturnPath(entry?.returnTo) ? entry.returnTo : '/health-events'
+    navigate(returnTo, {
+      replace: true,
+      state: {
+        memberSwitchResult: {
+          memberName: member.name,
+          reopenDrawer: entry?.reopenDrawer === true
+        }
+      }
+    })
+  }
 
   useEffect(() => {
     if (!token) return
@@ -64,7 +81,7 @@ export function FamilyPage() {
               {current ? (
                 <span className="shrink-0 rounded-pill bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary">当前角色</span>
               ) : (
-                <button className="shrink-0 rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => setCurrentMemberId(member.id)}>切换角色</button>
+                <button className="shrink-0 rounded-pill border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => switchMember(member)}>切换角色</button>
               )}
             </div>
           )

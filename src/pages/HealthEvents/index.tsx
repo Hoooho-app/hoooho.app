@@ -41,7 +41,9 @@ function UserIdentity({ member }: { member: Member | null }) {
       <button
         className="rounded-control border border-primary/25 px-3 py-2 text-sm font-semibold text-primary"
         type="button"
-        onClick={() => navigate('/family')}
+        onClick={() => navigate('/family', {
+          state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
+        })}
       >
         切换人物
       </button>
