@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { CalendarDays, ImagePlus, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
+import { BodyLocationPicker } from '../../../components/health'
+import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
 
@@ -13,8 +15,6 @@ interface LabeledAttachment extends CreateEventAttachmentInput {
   originalName: string
 }
 
-const bodyLocations = ['头', '颈', '肩', '胸', '腹', '腰', '手', '手掌', '腿', '脚', '皮肤', '其他']
-
 function inferImageLabel(name: string, selectedLocations: string[]) {
   if (/药|药盒|药瓶/.test(name)) return '药物'
   if (/检查|化验|报告|血常规/.test(name)) return '检查单'
@@ -25,18 +25,12 @@ function inferImageLabel(name: string, selectedLocations: string[]) {
 export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
   const [text, setText] = useState('')
   const [occurredAt, setOccurredAt] = useState(localDateTimeValue)
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<BodyLocationSelection[]>([])
   const [attachments, setAttachments] = useState<LabeledAttachment[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
-
-  const toggleLocation = (location: string) => {
-    setSelectedLocations((current) => current.includes(location)
-      ? current.filter((item) => item !== location)
-      : [...current, location])
-  }
 
   const selectImages = async (files: FileList | null) => {
     if (!files?.length) return
@@ -56,7 +50,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
           originalName: file.name,
           mimeType: file.type,
           dataUrl,
-          label: inferImageLabel(file.name, selectedLocations)
+          label: inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations))
         }
       }))
       setAttachments((current) => [...current, ...selected].slice(0, 8))
@@ -67,8 +61,8 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
 
   const save = async () => {
     const rawInput = text.trim()
-    if (!rawInput && !attachments.length) {
-      setError('请先描述发生了什么，或添加相关图片')
+    if (!rawInput && !attachments.length && !selectedLocations.length) {
+      setError('请先描述发生了什么、选择身体部位或添加相关图片')
       return
     }
     if (isFutureOccurredAt(occurredAt)) {
@@ -84,7 +78,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
         type: 'symptom',
         content: rawInput,
         occurredAt: new Date(occurredAt).toISOString(),
-        bodyLocations: selectedLocations,
+        bodyLocations: bodyLocationSelectionLabels(selectedLocations),
         attachments: attachments.map(({ label, originalName, ...attachment }) => ({
           ...attachment,
           name: `[${label}] ${originalName}`
@@ -104,7 +98,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
 
         <div className="mt-5 space-y-5">
           <label className="first-record-form-row items-center">
-            <span className="first-record-form-label text-sm font-medium text-heading">发生时间</span>
+            <span className="first-record-form-label text-sm font-medium text-heading">最早开始时间</span>
             <span className="first-record-form-field first-record-datetime">
               <input className="hoho-input min-w-0 max-w-full pr-10" max={localDateTimeValue()} onChange={(event) => {
                 const nextValue = clampOccurredAtToNow(event.target.value)
@@ -116,13 +110,8 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
           </label>
 
           <div className="first-record-form-row">
-            <p className="first-record-form-label pt-2 text-sm font-medium text-heading">身体部位</p>
-            <div className="first-record-form-field flex flex-wrap gap-2" aria-label="身体部位快速选择">
-              {bodyLocations.map((location) => {
-                const selected = selectedLocations.includes(location)
-                return <button aria-pressed={selected} className={`min-h-9 shrink-0 rounded-pill border px-3 text-xs font-medium transition ${selected ? 'border-primary bg-primary text-surface' : 'border-primary/20 bg-surface text-text-secondary'}`} key={location} onClick={() => toggleLocation(location)} type="button">{location}</button>
-              })}
-            </div>
+            <span aria-hidden="true" className="first-record-form-label" />
+            <div className="first-record-form-field"><BodyLocationPicker label="身体部位" onChange={setSelectedLocations} value={selectedLocations} /></div>
           </div>
 
           <label className="first-record-form-row">
@@ -161,7 +150,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
           </div>
         )}
 
-        <Button className="mt-5" disabled={saving || (!text.trim() && !attachments.length)} fullWidth onClick={() => void save()} type="button"><Sparkles size={18} strokeWidth={1.8} />{saving ? '正在整理…' : '保存，自动整理'}</Button>
+        <Button className="mt-5" disabled={saving || (!text.trim() && !attachments.length && !selectedLocations.length)} fullWidth onClick={() => void save()} type="button"><Sparkles size={18} strokeWidth={1.8} />{saving ? '正在整理…' : '保存，自动整理'}</Button>
       </Card>
     </section>
   )

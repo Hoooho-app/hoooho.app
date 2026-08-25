@@ -77,6 +77,10 @@ export function toBodyLocationSelection(item: BodyLocationOption): BodyLocationS
   return { id: item.id, label: item.label, parentId: item.parentId, locationType: item.locationType, laterality: item.laterality, view: item.view }
 }
 
+export function bodyLocationSelectionLabels(values: readonly BodyLocationSelection[]): string[] {
+  return values.map((item) => item.label)
+}
+
 export function normalizeBodyLocationSelection(value: unknown, fallbackIndex = 0): BodyLocationSelection | undefined {
   if (typeof value === 'string') return findBodyLocation(value) ?? { id: `legacy_location_${fallbackIndex}`, label: value, locationType: 'surface', laterality: 'none' }
   if (!value || typeof value !== 'object') return undefined
