@@ -1,9 +1,8 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Avatar } from '../../components/common'
 import { EmptyState, HealthCard, HohoButton, Typography } from '../../components/design-system'
-import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline } from '../../components/health'
+import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
@@ -26,27 +25,17 @@ function UserIdentity({ member }: { member: Member | null }) {
   const navigate = useNavigate()
 
   return (
-    <div className="mx-4 mt-4 flex min-h-[86px] items-center gap-3 rounded-card border bg-surface px-4 py-3 shadow-card">
-      <Avatar name={member?.name ?? '家庭成员'} src={member?.avatar} size="lg" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-lg font-semibold tracking-tight">{member?.name ?? '家庭成员'}</p>
-          {member?.relation === '本人' && <span className="rounded-pill bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary">本人</span>}
-        </div>
-        <p className="mt-1 text-xs text-text-secondary">
-          {member && <span>{genderLabels[member.gender ?? '']} · {member.age}</span>}
-          {!member && <span>健康数据加载中</span>}
-        </p>
-      </div>
-      <button
-        className="rounded-control border border-primary/25 px-3 py-2 text-sm font-semibold text-primary"
-        type="button"
-        onClick={() => navigate('/family', {
+    <div className="mx-4 mt-3">
+      <RecordSubjectCard
+        action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
-        })}
-      >
-        切换人物
-      </button>
+        })}>切换人物</button>}
+        age={member?.age ?? (member ? '' : '健康数据加载中')}
+        avatar={member?.avatar}
+        gender={member ? genderLabels[member.gender ?? ''] : ''}
+        label="当前成员"
+        name={member?.name ?? '家庭成员'}
+      />
     </div>
   )
 }

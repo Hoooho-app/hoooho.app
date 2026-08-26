@@ -136,7 +136,7 @@ export function HealthEventDetailPage() {
       </div>
       {hasRecords && <QuickVoiceRecordFlow
         eventLabel={eventLabel}
-        member={{ name: subject.name, avatar: subject.avatar }}
+        member={{ name: subject.name, avatar: subject.avatar, gender: subject.genderLabel, age: subject.displayAge }}
         onClose={() => setVoiceRecordOpen(false)}
         onConfirm={async (records) => {
           for (const record of records) await addHealthRecord(record)

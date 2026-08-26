@@ -68,13 +68,14 @@
     margin: 0;
   }
   .section-title { color: rgb(var(--hoho-color-text-primary)); font: 650 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family); letter-spacing: -0.01em; }
-  .health-event-detail .page-content { @apply space-y-6 px-6 py-6; }
+  .health-event-detail .page-content { @apply space-y-6 px-6 pb-6 pt-4; }
   .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }
   .health-event-detail-fixed { @apply relative z-20 shrink-0; background: rgb(var(--hoho-color-background) / 0.96); backdrop-filter: blur(12px); }
   .health-event-detail-fixed .hoho-page-header { position: static; }
-  .health-event-detail-sticky { @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3; border-color: rgb(var(--hoho-color-border) / 0.8); }
-  .health-event-detail-sticky__identity { @apply flex min-w-0 items-center gap-3 rounded-card border bg-surface px-3 py-2; }
-  .health-event-next-button { min-width: 112px; min-height: 52px; }
+  .health-event-detail-sticky { @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b px-4 py-3; border-color: rgb(var(--hoho-color-border) / 0.8); }
+  .health-event-detail-sticky__identity { min-width: 0; }
+  .health-event-detail-sticky__identity > * { width: 100%; }
+  .health-event-next-button { min-width: 104px; min-height: 50px; padding-inline: var(--hoho-space-3); }
 
   .health-action-tab { @apply min-h-11 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
   .health-action-tab[data-selected='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
@@ -140,7 +141,7 @@
     box-shadow: 0 0 0 1px rgb(var(--hoho-color-border) / 0.55);
   }
   .quick-voice-flow__header { @apply grid grid-cols-[44px_minmax(0,1fr)_44px] items-center px-4 py-3 text-center; }
-  .quick-voice-flow__context { @apply flex flex-wrap justify-center gap-2 px-4 pb-4; }
+  .quick-voice-flow__context { @apply grid grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] items-center gap-2 px-4 pb-4; }
   .quick-voice-flow__body { @apply min-h-0 flex-1 overflow-y-auto px-4 pb-6; }
   .quick-voice-flow__body .hoho-button[data-variant='text'] { min-height: 44px; }
   .quick-voice-flow__footer {

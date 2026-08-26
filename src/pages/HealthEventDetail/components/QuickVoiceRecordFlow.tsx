@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronRight, ClipboardPlus, Mic, PencilLine, Pill, RotateCcw, Stethoscope, Thermometer } from 'lucide-react'
-import { Avatar } from '../../../components/common'
 import { HealthCard, HohoButton, Typography } from '../../../components/design-system'
+import { RecordSubjectCard } from '../../../components/health'
 import { createQuickRecordCandidates, type QuickRecordCandidate } from '../../../features/quick-record'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import type { HealthEventRecordType, HealthRecordOrganizationPreviewApiDto } from '../../../types'
@@ -14,7 +14,7 @@ type RecognitionConstructor = new () => Recognition
 
 interface QuickVoiceRecordFlowProps {
   eventLabel: string
-  member: { name: string; avatar?: string }
+  member: { name: string; avatar?: string; gender?: string; age?: string }
   onClose: () => void
   onConfirm: (records: Array<{ type: HealthEventRecordType; content: string; occurredAt: string }>) => Promise<void>
   onParse: (text: string, occurredAt: string) => Promise<HealthRecordOrganizationPreviewApiDto>
@@ -105,7 +105,7 @@ export function QuickVoiceRecordFlow({ eventLabel, member, onClose, onConfirm, o
   return (
     <section aria-label="说一句快捷记录" aria-modal="true" className="quick-voice-flow" role="dialog">
       <header className="quick-voice-flow__header"><button aria-label="返回" className="grid h-11 w-11 place-items-center rounded-full" onClick={onClose} type="button"><ArrowLeft size={23} /></button><Typography variant="sectionTitle">说一句</Typography><span className="h-11 w-11" /></header>
-      <div className="quick-voice-flow__context"><span className="inline-flex min-h-11 items-center gap-2 rounded-pill border bg-surface px-3 text-sm font-medium"><Avatar name={member.name} size="sm" src={member.avatar} />{member.name}</span><span className="inline-flex min-h-11 items-center gap-2 rounded-pill border bg-surface px-3 text-sm font-medium"><Thermometer className="text-primary" size={18} />{eventLabel}</span></div>
+      <div className="quick-voice-flow__context"><RecordSubjectCard age={member.age} avatar={member.avatar} className="shadow-none" gender={member.gender} name={member.name} /><span className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-pill border bg-surface px-3 text-sm font-medium"><Thermometer className="shrink-0 text-primary" size={18} /><span className="truncate">{eventLabel}</span></span></div>
       <div className="quick-voice-flow__body">
         {state === 'result'
           ? <ResultContent candidates={candidates} editingText={editingText} editingTime={editingTime} eventLabel={eventLabel} memberName={member.name} onCandidatesChange={setCandidates} onEditText={() => setEditingText((current) => !current)} onEditTime={() => setEditingTime((current) => !current)} onReparse={() => void parse(transcript)} onSwitchEvent={onSwitchEvent} setTranscript={setTranscript} transcript={transcript} />
