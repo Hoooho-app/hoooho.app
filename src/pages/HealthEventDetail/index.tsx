@@ -16,8 +16,6 @@ import {
   EventDetailStickyHeader,
   EventSummarySection,
   FirstRecordComposer,
-  HealthRecordEditorModal,
-  QuickRecordMenu,
   QuickVoiceRecordFlow,
   TemperatureChartSection,
   TimelineSection
@@ -28,8 +26,6 @@ export function HealthEventDetailPage() {
   const navigate = useNavigate()
   const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, correctSummary, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
-  const [recordEditorOpen, setRecordEditorOpen] = useState(false)
-  const [quickRecordMenuOpen, setQuickRecordMenuOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
@@ -120,7 +116,6 @@ export function HealthEventDetailPage() {
         <EventHeader />
         <EventDetailStickyHeader
           onAction={() => setActionOpen(true)}
-          onAddRecord={() => setQuickRecordMenuOpen(true)}
           showActions={hasRecords}
           subject={subject}
         />
@@ -139,26 +134,6 @@ export function HealthEventDetailPage() {
           </>
         )}
       </div>
-      {hasRecords && <HealthRecordEditorModal
-        defaultRecordType="note"
-        minOccurredAt={state.data.records.map((record) => record.occurredAt).sort()[0] ?? event.startDate}
-        onClose={() => setRecordEditorOpen(false)}
-        onSave={(result) => addHealthRecord({
-          type: result.recordType,
-          content: result.originalText,
-          occurredAt: result.occurredAt,
-          attachments: result.attachments,
-          bodyLocations: result.bodyLocations
-        })}
-        open={recordEditorOpen}
-        templateType="timeline"
-      />}
-      {hasRecords && <QuickRecordMenu
-        onClose={() => setQuickRecordMenuOpen(false)}
-        onManual={() => { setQuickRecordMenuOpen(false); setRecordEditorOpen(true) }}
-        onVoice={() => { setQuickRecordMenuOpen(false); setVoiceRecordOpen(true) }}
-        open={quickRecordMenuOpen}
-      />}
       {hasRecords && <QuickVoiceRecordFlow
         eventLabel={eventLabel}
         member={{ name: subject.name, avatar: subject.avatar }}
@@ -172,7 +147,7 @@ export function HealthEventDetailPage() {
         onSwitchEvent={() => navigate('/health-events')}
         open={voiceRecordOpen}
       />}
-      {hasRecords && <ActionSheet onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
+      {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
       {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
       {recordedMessage && <div aria-live="polite" className="quick-record-toast" role="status"><Check size={17} />{recordedMessage}</div>}
     </main>

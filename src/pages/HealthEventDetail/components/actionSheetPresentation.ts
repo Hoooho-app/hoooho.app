@@ -8,7 +8,7 @@ export const actionCategoryOrder: readonly ActionCategory[] = [
 ]
 
 export const actionCategoryLabels: Record<ActionCategory, string> = {
-  consultation: 'AI问诊',
+  consultation: '问 AI',
   hospital: '去医院',
   observation: '重点观察',
   help: '求助',
