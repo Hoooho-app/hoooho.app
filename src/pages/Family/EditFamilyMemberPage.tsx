@@ -90,10 +90,6 @@ export function EditFamilyMemberPage() {
 
   const selectAvatarMode = (mode: AvatarMode) => {
     setError('')
-    if (mode === 'photo' && !photoAvatar) {
-      photoInputRef.current?.click()
-      return
-    }
     setAvatarMode(mode)
   }
 
@@ -114,6 +110,10 @@ export function EditFamilyMemberPage() {
     event.preventDefault()
     if (!token || !memberId || !name.trim() || !birthday) {
       setError('请完整填写姓名、出生日期和性别')
+      return
+    }
+    if (avatarMode === 'photo' && !photoAvatar) {
+      setError('请先点击相机上传照片头像')
       return
     }
     setSubmitting(true)
@@ -166,19 +166,28 @@ export function EditFamilyMemberPage() {
         <form className="flex flex-1 flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-5" onSubmit={save}>
           <div className="mx-auto flex flex-col items-center">
             <button
-              aria-label={avatarMode === 'cartoon' ? '更换卡通头像' : '选择照片头像'}
+              aria-label={avatarMode === 'cartoon' ? '更换卡通头像' : photoAvatar ? '更换照片头像' : '上传照片头像'}
               className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
               type="button"
               onClick={avatarMode === 'cartoon' ? changeCartoonAvatar : () => photoInputRef.current?.click()}
             >
-              <span className="inline-flex rounded-full border-2 border-primary bg-surface p-0.5 shadow-card">
-                <Avatar name={name || '角色'} src={previewAvatar} size="xl" />
+              <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card ${avatarMode === 'cartoon' ? '[&_img]:-translate-x-0.5 [&_img]:scale-[1.12]' : ''}`}>
+                {avatarMode === 'photo' && !photoAvatar ? (
+                  <span className="inline-flex h-28 w-28 items-center justify-center rounded-full bg-primary-soft text-primary">
+                    <Camera aria-hidden="true" size={34} strokeWidth={1.6} />
+                    <span className="sr-only">上传照片</span>
+                  </span>
+                ) : (
+                  <Avatar name={name || '角色'} src={previewAvatar} size="xl" />
+                )}
               </span>
-              <span className="absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card">
-                {avatarMode === 'cartoon' ? <RefreshCw size={18} strokeWidth={1.8} /> : <Camera size={18} strokeWidth={1.8} />}
-              </span>
+              {(avatarMode === 'cartoon' || photoAvatar) && (
+                <span className="absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card">
+                  {avatarMode === 'cartoon' ? <RefreshCw size={18} strokeWidth={1.8} /> : <Camera size={18} strokeWidth={1.8} />}
+                </span>
+              )}
             </button>
-            <input ref={photoInputRef} accept="image/jpeg,image/png,image/webp" className="sr-only" type="file" onChange={(event) => void selectPhoto(event)} />
+            <input ref={photoInputRef} accept="image/jpeg,image/png,image/webp" className="hidden" type="file" onChange={(event) => void selectPhoto(event)} />
             <div className="mt-3 grid w-48 grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface" aria-label="头像类型">
               {([['cartoon', '卡通头像'], ['photo', '照片头像']] as const).map(([mode, label]) => (
                 <button
