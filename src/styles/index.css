@@ -457,7 +457,7 @@
     .hoho-health-events-page .health-events-member,
     .hoho-health-events-page .health-events-content { width: calc(100% - 48px); }
     .health-event-detail .page-content { width: 100%; max-width: none; margin-inline: auto; }
-    .health-event-detail-fixed { max-width: var(--hoho-app-shell-max); margin-inline: auto; }
+    .health-event-detail-fixed { width: 100%; max-width: var(--hoho-app-shell-max); margin-inline: auto; }
     .health-event-detail-fixed .hoho-page-header,
     .health-event-detail-sticky { padding-inline: var(--hoho-page-gutter); }
     .quick-record-trigger,
