@@ -128,64 +128,68 @@ export function ProfileSetupPage() {
             }}
           />
 
-          <fieldset disabled={loading || submitting}>
-            <legend className="text-sm font-medium">出生信息精度</legend>
-            <div aria-label="出生信息精度" className="hoho-segmented-control mt-3 !grid w-full grid-cols-2" role="group">
-              {([
-                ['year', '仅年份'],
-                ['date', '完整日期']
-              ] as const).map(([value, label]) => (
-                <button
-                  aria-pressed={birthdayPrecision === value}
-                  className="!min-h-11"
-                  data-selected={birthdayPrecision === value}
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    setBirthdayPrecision(value)
-                    setBirthday(value === 'year' ? birthday.slice(0, 4) : '')
-                    setError('')
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+          <fieldset className="hoho-field" disabled={loading || submitting}>
+            <legend className="sr-only">出生日期 *</legend>
+            <div className="flex items-center justify-between gap-3">
+              <label className="hoho-text-label" htmlFor="profile-birthday">出生日期 *</label>
+              <div aria-label="出生日期精度" className="hoho-segmented-control grid w-40 grid-cols-2" role="group">
+                {([
+                  ['year', '仅年份'],
+                  ['date', '完整日期']
+                ] as const).map(([value, label]) => (
+                  <button
+                    aria-pressed={birthdayPrecision === value}
+                    data-selected={birthdayPrecision === value}
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setBirthdayPrecision(value)
+                      setBirthday(value === 'year' ? birthday.slice(0, 4) : '')
+                      setError('')
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+            {birthdayPrecision === 'year' ? (
+              <input
+                aria-describedby="profile-birthday-message"
+                autoComplete="bday-year"
+                className="hoho-input"
+                id="profile-birthday"
+                inputMode="numeric"
+                maxLength={4}
+                name="birth-year"
+                pattern="[0-9]{4}"
+                placeholder="例如：1990"
+                value={birthday}
+                onChange={(event) => {
+                  setBirthday(event.target.value.replace(/\D/g, '').slice(0, 4))
+                  setError('')
+                }}
+              />
+            ) : (
+              <input
+                aria-describedby="profile-birthday-message"
+                autoComplete="bday"
+                className="hoho-input"
+                id="profile-birthday"
+                max={new Date().toISOString().slice(0, 10)}
+                name="birthday"
+                type="date"
+                value={birthday}
+                onChange={(event) => {
+                  setBirthday(event.target.value)
+                  setError('')
+                }}
+              />
+            )}
+            <span className="hoho-field__message" id="profile-birthday-message">
+              {birthdayPrecision === 'year' ? '填写出生年份即可，系统将计算大致年龄' : '系统将根据出生日期自动计算年龄'}
+            </span>
           </fieldset>
-
-          {birthdayPrecision === 'year' ? (
-            <Input
-              autoComplete="bday-year"
-              hint="填写出生年份即可，系统将计算大致年龄"
-              inputMode="numeric"
-              label="出生年份 *"
-              maxLength={4}
-              name="birth-year"
-              pattern="[0-9]{4}"
-              placeholder="例如：1990"
-              value={birthday}
-              disabled={loading || submitting}
-              onChange={(event) => {
-                setBirthday(event.target.value.replace(/\D/g, '').slice(0, 4))
-                setError('')
-              }}
-            />
-          ) : (
-            <Input
-              autoComplete="bday"
-              hint="系统将根据出生日期自动计算年龄"
-              label="出生日期 *"
-              max={new Date().toISOString().slice(0, 10)}
-              name="birthday"
-              type="date"
-              value={birthday}
-              disabled={loading || submitting}
-              onChange={(event) => {
-                setBirthday(event.target.value)
-                setError('')
-              }}
-            />
-          )}
 
           <fieldset disabled={loading || submitting}>
             <legend className="text-sm font-medium">性别 *</legend>
