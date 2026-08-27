@@ -17,7 +17,7 @@ const recordTypeForFact = (fact: HealthFact): HealthEventRecordType => {
   return 'note'
 }
 
-const titleForFact = (fact: HealthFact) => ({ temperature: '体温', medication: '用药', symptom: '症状', visit: '就诊', examination: '检查', concern: '备注', status_change: '状态变化' }[fact.type])
+const titleForFact = (fact: HealthFact) => ({ temperature: '体温', medication: '用药', symptom: '症状', visit: '就诊', examination: '检查', diagnosis: '问诊结论', concern: '备注', status_change: '状态变化', other: '记录' }[fact.type])
 const temperatureText = (fact: HealthFact) => fact.temperature ? (fact.temperature.min === fact.temperature.max ? `${fact.temperature.min} ℃` : `${fact.temperature.min}～${fact.temperature.max} ℃`) : fact.name
 const dosageFrom = (value: string) => value.match(/\d+(?:\.\d+)?\s*(?:毫升|ml|mL|片|粒|袋|滴|喷)/)?.[0] ?? ''
 
@@ -28,19 +28,28 @@ const occurredAtFor = (fact: HealthFact, fallback: string) => {
 }
 
 export function createQuickRecordCandidates(preview: HealthRecordOrganizationPreviewApiDto, fallbackOccurredAt: string): QuickRecordCandidate[] {
-  return preview.healthAIOutput.facts.map((fact, index) => {
-    const occurredAt = occurredAtFor(fact, fallbackOccurredAt)
-    const title = titleForFact(fact)
+  const facts = preview.healthAIOutput.facts
+  if (!facts.length) return []
+  const primary = facts.find((fact) => fact.time.resolvedStart) ?? facts[0]
+  const occurredAt = occurredAtFor(primary, fallbackOccurredAt)
+  const timeLabel = primary.time.raw || new Date(occurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+  const fields = [{ label: '发生时间', value: timeLabel }]
+  for (const fact of facts) {
+    if (fact.bodyPart) fields.push({ label: '身体部位', value: fact.bodyPart })
     const temperature = fact.type === 'temperature' ? temperatureText(fact) : ''
     const dosage = fact.type === 'medication' ? dosageFrom(`${fact.name} ${fact.sourceText}`) : ''
-    const content = temperature || fact.name || fact.sourceText
-    const timeLabel = fact.time.raw || new Date(occurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-    const fields = [{ label: '发生时间', value: timeLabel }]
-    if (fact.type === 'temperature') fields.push({ label: '数值', value: temperature })
-    else if (fact.type === 'medication') {
-      fields.push({ label: '药物', value: fact.name || '未填写' })
-      fields.push({ label: '剂量', value: dosage || '未填写' })
-    } else fields.push({ label: title, value: fact.name || '未填写' })
-    return { id: fact.id || `quick-record-${index}`, type: recordTypeForFact(fact), title, occurredAt, content, fields }
-  })
+    const value = fact.type === 'medication' && dosage && !fact.name.includes(dosage)
+      ? `${fact.name} · ${dosage}`
+      : temperature || fact.name || fact.sourceText
+    fields.push({ label: titleForFact(fact), value })
+  }
+  const recordTypes = new Set(facts.map(recordTypeForFact))
+  return [{
+    id: `quick-record-${facts.map((fact) => fact.id).join('-')}`,
+    type: recordTypes.size === 1 ? recordTypeForFact(facts[0]) : 'note',
+    title: '本次记录',
+    occurredAt,
+    content: facts.map((fact) => fact.name || fact.sourceText).filter(Boolean).join('；'),
+    fields
+  }]
 }

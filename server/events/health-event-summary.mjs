@@ -1,133 +1,185 @@
-const diagnosisPatterns = [
-  /甲型流感/, /乙型流感/, /流感/, /新型冠状病毒感染|新冠/, /肺炎/, /支气管炎/, /扁桃体炎/
-]
+import { isConsumedMedication, isCurrentPositiveFact, isUsableMeasurement } from '../ai/health-fact-policy.mjs'
 
 const evidenceLabels = {
-  symptom: '症状记录',
-  temperature: '体温记录',
-  medication: '用药记录',
-  visit: '就诊记录',
-  examination: '检查结果',
-  concern: '关注记录',
-  status_change: '状态变化'
+  symptom: '症状记录', temperature: '体温记录', medication: '用药记录', visit: '就诊记录',
+  examination: '检查结果', diagnosis: '诊断记录', concern: '关注记录', status_change: '状态变化'
 }
+
+const diagnosisSourcePriority = { doctor_statement: 100, test_result: 90, ai_consultation: 80 }
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))]
 }
 
-function factTime(fact, record, fallback) {
-  return fact.time?.resolvedStart ?? record?.occurredAt ?? fallback
+function factTime(item) {
+  return item.fact.time?.resolvedStart ?? item.record?.occurredAt ?? item.organization.createdAt
 }
 
-function formatDate(value) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return `${date.getMonth() + 1}月${date.getDate()}日`
+function normalizedBodyPart(value) {
+  return String(value ?? '').replace(/^左|^右/, '').replace(/部位$/, '')
 }
 
-function findDiagnosis(facts) {
-  const candidates = facts.filter(({ fact }) => fact.type === 'examination' || fact.type === 'visit')
-  for (const { fact } of candidates) {
-    const text = `${fact.name ?? ''} ${fact.sourceText ?? ''}`
-    const diagnosis = diagnosisPatterns.find((pattern) => pattern.test(text))?.exec(text)?.[0]
-    if (diagnosis) return diagnosis
+function canonicalSymptom(fact) {
+  const name = String(fact.name ?? '').trim()
+  const bodyPart = normalizedBodyPart(fact.bodyPart)
+  if (/脑袋疼|头疼|头痛/.test(name) || (/疼痛|疼|痛/.test(name) && bodyPart === '头')) return '头痛'
+  if (/脚疼|脚痛/.test(name) || (/疼痛|疼|痛/.test(name) && /脚/.test(bodyPart))) return '脚痛'
+  if (/手疼|手痛/.test(name) || (/疼痛|疼|痛/.test(name) && /手/.test(bodyPart))) return '手痛'
+  if (/腿疼|腿痛/.test(name) || (/疼痛|疼|痛/.test(name) && /腿/.test(bodyPart))) return '腿痛'
+  if (/颈|脖子/.test(bodyPart) && /疼痛|疼|痛|不舒服/.test(name)) return '颈部不适'
+  if (/脚.*(?:红|发红)|皮肤红肿/.test(name) && /脚/.test(bodyPart || name)) return '脚部发红'
+  if (/发烧|高烧|低烧|发热/.test(name)) return '发热'
+  if (/瘙痒|发痒|很痒|有点痒/.test(name)) return '瘙痒'
+  return name.replace('脑袋疼', '头痛').replace('头疼', '头痛').replace('脚疼', '脚痛')
+}
+
+function canonicalTarget(value) {
+  return canonicalSymptom({ name: value, bodyPart: null })
+}
+
+function collectCurrentSymptoms(chronological) {
+  const symptoms = new Map()
+  for (const item of chronological) {
+    const { fact } = item
+    if (fact.subject !== 'event_subject') continue
+    if (fact.type === 'symptom') {
+      const label = canonicalSymptom(fact)
+      if (!label) continue
+      if (fact.polarity === 'affirmed' && fact.temporality === 'current' && ['active', 'improving', 'recurrent'].includes(fact.status)) {
+        if (!symptoms.has(label)) symptoms.set(label, { label, firstAt: factTime(item), latestAt: factTime(item) })
+        else symptoms.get(label).latestAt = factTime(item)
+      } else if (fact.polarity === 'negated' || fact.status === 'resolved') symptoms.delete(label)
+    }
+    if (fact.type === 'status_change' && fact.polarity === 'affirmed') {
+      const target = canonicalTarget(fact.target)
+      if (fact.change === 'resolved') symptoms.delete(target)
+      else if (fact.change === 'recurred' && target) symptoms.set(target, { label: target, firstAt: factTime(item), latestAt: factTime(item) })
+    }
   }
-  return null
+  return [...symptoms.values()]
 }
 
-function buildTitle(facts) {
-  const diagnosis = findDiagnosis(facts)
-  if (diagnosis) return diagnosis
-  const symptoms = unique(facts.filter(({ fact }) => fact.type === 'symptom').map(({ fact }) => fact.name))
-  const hasFever = symptoms.some((name) => /发热|发烧|高烧|低烧/.test(name))
-  const normalized = symptoms.filter((name) => !/症状好转|感冒表现/.test(name))
-  if (hasFever) {
-    const companion = normalized.find((name) => !/发热|发烧|高烧|低烧/.test(name))
-    return companion ? `发热伴${companion}` : '发热'
+function collectDiagnoses(chronological) {
+  const diagnoses = new Map()
+  for (const item of chronological) {
+    const { fact } = item
+    if (fact.type !== 'diagnosis' || fact.subject !== 'event_subject') continue
+    const name = String(fact.name ?? '').trim()
+    if (!name) continue
+    if (fact.polarity === 'negated' || fact.diagnosisCertainty === 'ruled_out' || fact.status === 'not_applicable') {
+      const sourceText = `${fact.originalText ?? ''} ${fact.sourceText ?? ''}`
+      for (const existingName of diagnoses.keys()) {
+        if (name === existingName || sourceText.includes(existingName)) diagnoses.delete(existingName)
+      }
+      continue
+    }
+    const sourcePriority = diagnosisSourcePriority[fact.source] ?? 0
+    const allowed = sourcePriority > 0 && fact.polarity === 'affirmed'
+      && ['confirmed', 'suspected'].includes(fact.diagnosisCertainty)
+    if (!allowed) continue
+    const candidate = { name, source: fact.source, certainty: fact.diagnosisCertainty, occurredAt: factTime(item), sourcePriority }
+    const previous = diagnoses.get(name)
+    if (!previous || candidate.sourcePriority >= previous.sourcePriority) diagnoses.set(name, candidate)
   }
-  if (normalized[0]) return normalized.slice(0, 2).join('伴').slice(0, 24)
-  if (facts.some(({ fact }) => fact.type === 'temperature')) return '体温变化'
-  if (facts.some(({ fact }) => fact.type === 'medication')) return '用药记录'
-  if (facts.some(({ fact }) => fact.type === 'examination')) return '检查记录'
-  if (facts.some(({ fact }) => fact.type === 'visit')) return '就诊记录'
+  return [...diagnoses.values()].sort((left, right) => right.sourcePriority - left.sourcePriority || right.occurredAt.localeCompare(left.occurredAt))
+}
+
+function buildTags({ diagnoses, symptoms, maxTemperature }) {
+  const tags = []
+  for (const diagnosis of diagnoses) {
+    const aiAssessment = diagnosis.source === 'ai_consultation'
+    tags.push({
+      label: aiAssessment ? `疑似${diagnosis.name}` : diagnosis.name,
+      kind: aiAssessment ? 'assessment' : 'diagnosis',
+      source: diagnosis.source,
+      certainty: aiAssessment ? 'suspected' : diagnosis.certainty,
+      priority: diagnosis.sourcePriority
+    })
+  }
+  symptoms.forEach((symptom, index) => tags.push({
+    label: symptom.label, kind: 'symptom', source: 'user_report', certainty: null, priority: index === 0 ? 70 : 60
+  }))
+  if (maxTemperature !== null) tags.push({
+    label: `最高${maxTemperature}℃`, kind: 'measurement', source: 'measurement', certainty: null, priority: 40
+  })
+  return tags.filter((tag, index) => tags.findIndex((candidate) => candidate.label === tag.label) === index)
+    .sort((left, right) => right.priority - left.priority)
+}
+
+function joinFacts(values) {
+  if (values.length < 2) return values[0] ?? ''
+  return `${values.slice(0, -1).join('、')}和${values.at(-1)}`
+}
+
+function buildTitle(diagnoses, symptoms, maxTemperature, facts) {
+  const diagnosis = diagnoses[0]
+  if (diagnosis) return diagnosis.source === 'ai_consultation' ? `疑似${diagnosis.name}` : diagnosis.name
+  const fever = symptoms.find(({ label }) => label === '发热')
+  if (fever) {
+    const companion = symptoms.find(({ label }) => label !== '发热')
+    return companion ? `发热伴${companion.label}` : '发热'
+  }
+  if (symptoms[0]) return symptoms.slice(0, 2).map(({ label }) => label).join('伴').slice(0, 24)
+  if (maxTemperature !== null) return '体温变化'
+  if (facts.some(({ fact }) => isConsumedMedication(fact))) return '用药记录'
+  if (facts.some(({ fact }) => fact.type === 'examination' && isCurrentPositiveFact(fact))) return '检查记录'
+  if (facts.some(({ fact }) => fact.type === 'visit' && isCurrentPositiveFact(fact))) return '就诊记录'
   return '健康情况'
 }
 
-function buildSummary(facts, records, event) {
-  const chronological = [...facts].sort((left, right) => (
-    factTime(left.fact, left.record, left.organization.createdAt)
-      .localeCompare(factTime(right.fact, right.record, right.organization.createdAt))
-  ))
-  const start = chronological[0]
-  const startDate = formatDate(start
-    ? factTime(start.fact, start.record, start.organization.createdAt)
-    : event.startTime)
-  const symptoms = unique(facts.filter(({ fact }) => fact.type === 'symptom')
-    .map(({ fact }) => fact.name)
-    .filter((name) => !/症状好转|感冒表现/.test(name)))
-  const temperatures = facts.filter(({ fact }) => fact.type === 'temperature' && fact.temperature)
-    .flatMap(({ fact }) => [fact.temperature.min, fact.temperature.max])
-    .filter(Number.isFinite)
-  const maxTemperature = temperatures.length ? Math.max(...temperatures) : null
-  const diagnosis = findDiagnosis(facts)
-  const medications = unique(facts.filter(({ fact }) => fact.type === 'medication').map(({ fact }) => fact.name))
-  const visits = unique(facts.filter(({ fact }) => fact.type === 'visit').map(({ fact }) => fact.name))
-  const changes = facts.filter(({ fact }) => fact.type === 'status_change').map(({ fact }) => fact.change)
-
+function buildSummary({ diagnoses, symptoms, maxTemperature, facts, event }) {
   const sentences = []
-  const opening = [startDate ? `${startDate}开始记录` : '本次事件记录了', symptoms.slice(0, 3).join('、')]
-    .filter(Boolean).join('')
-  if (opening) sentences.push(`${opening}。`)
-  if (maxTemperature !== null) sentences.push(`记录最高体温${maxTemperature}℃。`)
-  if (diagnosis) sentences.push(`后续检查或就诊信息提示${diagnosis}。`)
-  else if (visits.length) sentences.push('已记录相关就诊信息。')
-  if (medications.length) sentences.push(`期间记录用药：${medications.slice(0, 2).join('、')}。`)
-  if (changes.includes('improved')) sentences.push('后续记录显示症状有所好转。')
-  else if (changes.includes('worsened')) sentences.push('后续记录显示症状有所加重。')
-  else if (changes.includes('persistent')) sentences.push('后续记录显示症状仍在持续。')
-  if (event.status === 'recovered') sentences.push('当前事件已标记为康复。')
-  return sentences.join('').slice(0, 600)
+  const diagnosis = diagnoses[0]
+  if (diagnosis?.source === 'doctor_statement') sentences.push(`医生诊断为${diagnosis.name}`)
+  else if (diagnosis?.source === 'test_result') sentences.push(`检查结果支持${diagnosis.name}`)
+  else if (diagnosis?.source === 'ai_consultation') sentences.push(`通过AI问诊，初步判断可能为${diagnosis.name}`)
+
+  const symptomText = joinFacts(symptoms.map(({ label }) => label))
+  if (symptomText) sentences.push(`${diagnosis ? '此前' : '目前'}记录有${symptomText}`)
+  if (maxTemperature !== null) sentences.push(`最高体温${maxTemperature}℃`)
+
+  const medications = unique(facts.filter(({ fact }) => isConsumedMedication(fact)).map(({ fact }) => fact.name))
+  if (medications.length) sentences.push(`已记录用药${joinFacts(medications.slice(0, 2))}`)
+  const latestChange = [...facts].sort((left, right) => factTime(right).localeCompare(factTime(left)))
+    .find(({ fact }) => fact.type === 'status_change' && fact.polarity === 'affirmed')?.fact
+  const changeTarget = canonicalTarget(latestChange?.target || latestChange?.name?.replace(/好转|加重|持续|复发|消失$/, '')) || '症状'
+  if (latestChange?.change === 'improved') sentences.push(`${changeTarget}有所好转`)
+  else if (latestChange?.change === 'worsened') sentences.push(`${changeTarget}较之前加重`)
+  else if (latestChange?.change === 'persistent') sentences.push(`${changeTarget}仍在持续`)
+  else if (latestChange?.change === 'recurred') sentences.push(`${changeTarget}再次出现`)
+  else if (latestChange?.change === 'resolved') sentences.push(`${changeTarget}已消失`)
+  if (event.status === 'recovered') sentences.push('当前事件已标记为康复')
+  return sentences.length ? `${sentences.join('；')}。`.slice(0, 600) : '当前记录中暂无可用于摘要的有效健康事实。'
 }
 
 export function buildHealthEventSummary({ event, records, organizations, now = new Date() }) {
   const recordsById = new Map(records.map((record) => [record.id, record]))
   const facts = organizations.flatMap((organization) => (
-    (organization.healthAIOutput?.facts ?? []).map((fact) => ({
-      organization,
-      record: recordsById.get(organization.recordId),
-      fact
-    }))
+    (organization.healthAIOutput?.facts ?? []).map((fact) => ({ organization, record: recordsById.get(organization.recordId), fact }))
   ))
   if (!facts.length) return null
 
-  const updatedAt = organizations.reduce(
-    (latest, organization) => organization.updatedAt > latest ? organization.updatedAt : latest,
-    event.eventSummary?.systemGenerated?.updatedAt ?? now.toISOString()
-  )
+  const chronological = [...facts].sort((left, right) => factTime(left).localeCompare(factTime(right)))
+  const symptoms = collectCurrentSymptoms(chronological)
+  const diagnoses = collectDiagnoses(chronological)
+  const temperatures = facts.filter(({ fact }) => isUsableMeasurement(fact) && fact.temperature)
+    .flatMap(({ fact }) => [fact.temperature.min, fact.temperature.max]).filter(Number.isFinite)
+  const maxTemperature = temperatures.length ? Math.max(...temperatures) : null
+  const updatedAt = now.toISOString()
   const systemGenerated = {
-    title: buildTitle(facts),
-    summary: buildSummary(facts, records, event),
-    evidence: unique(facts.map(({ fact }) => evidenceLabels[fact.type])).slice(0, 6),
+    title: buildTitle(diagnoses, symptoms, maxTemperature, facts),
+    summary: buildSummary({ diagnoses, symptoms, maxTemperature, facts, event }),
+    tags: buildTags({ diagnoses, symptoms, maxTemperature }),
+    evidence: unique(facts.filter(({ fact }) => isCurrentPositiveFact(fact)).map(({ fact }) => evidenceLabels[fact.type])),
     updatedAt
   }
   const userCorrection = event.eventSummary?.userCorrection ?? null
-  const displayedResult = userCorrection
-    ? {
-        title: userCorrection.title,
-        summary: userCorrection.summary,
-        evidence: systemGenerated.evidence,
-        updatedAt,
-        source: 'user_corrected'
-      }
+  const hasNewEvidenceAfterCorrection = Boolean(userCorrection && updatedAt > userCorrection.updatedAt)
+  const displayedResult = userCorrection && !hasNewEvidenceAfterCorrection
+    ? { title: userCorrection.title, summary: userCorrection.summary, tags: systemGenerated.tags, evidence: systemGenerated.evidence, updatedAt: userCorrection.updatedAt, source: 'user_corrected' }
     : { ...systemGenerated, source: 'system' }
 
-  return {
-    systemGenerated,
-    userCorrection,
-    displayedResult,
-    hasNewEvidenceAfterCorrection: Boolean(userCorrection && updatedAt > userCorrection.updatedAt)
-  }
+  return { systemGenerated, userCorrection, displayedResult, hasNewEvidenceAfterCorrection }
 }
 
 export function correctHealthEventSummary(eventSummary, input, now = new Date()) {
@@ -141,13 +193,7 @@ export function correctHealthEventSummary(eventSummary, input, now = new Date())
   return {
     ...eventSummary,
     userCorrection,
-    displayedResult: {
-      title,
-      summary,
-      evidence: eventSummary.systemGenerated.evidence,
-      updatedAt,
-      source: 'user_corrected'
-    },
+    displayedResult: { title, summary, tags: eventSummary.systemGenerated.tags ?? [], evidence: eventSummary.systemGenerated.evidence, updatedAt, source: 'user_corrected' },
     hasNewEvidenceAfterCorrection: false
   }
 }

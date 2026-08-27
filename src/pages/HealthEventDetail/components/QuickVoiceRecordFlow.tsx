@@ -90,6 +90,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     try {
       const preview = await onPreviewRef.current(value, occurredAt)
       if (!preview.length) throw new Error('暂未识别到健康记录，请补充发生了什么、时间或数值。')
+      occurredAtRef.current = preview[0].occurredAt
       setCandidates(preview)
       setState('review')
     } catch (reason) {
@@ -240,8 +241,8 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   if (state === 'review') {
     return (
       <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-review">
-        <div className="quick-record-review-heading"><strong>识别到 {candidates.length} 条记录</strong><p>{transcript}</p></div>
-        <div className="quick-record-candidates">{candidates.map((candidate) => <article key={candidate.id}><strong>{candidate.title}</strong>{candidate.fields.map((field) => <p key={field.label}><span>{field.label}</span>{field.value}</p>)}</article>)}</div>
+        <div className="quick-record-review-heading"><strong>识别到 1 条记录 · {Math.max(0, (candidates[0]?.fields.length ?? 1) - 1)} 项信息</strong><p>{transcript}</p></div>
+        <div className="quick-record-candidates">{candidates.map((candidate) => <article key={candidate.id}><strong>{candidate.title}</strong>{candidate.fields.map((field, index) => <p key={`${field.label}-${index}`}><span>{field.label}</span>{field.value}</p>)}</article>)}</div>
         <div className="quick-record-error-actions"><button className="quick-record-cancel" onClick={useTextEntry} type="button">修改</button><HohoButton onClick={() => void saveFinal()}>确认记录</HohoButton></div>
       </section>
     )
