@@ -52,6 +52,39 @@ test('明确检查结论优先于症状标题，并纳入依据', () => {
   assert.deepEqual(summary.displayedResult.evidence, ['症状记录', '诊断记录'])
 })
 
+test('用户明确陈述的 confirmed 诊断进入事件摘要并保留记录级溯源', () => {
+  const summary = buildHealthEventSummary({
+    event,
+    records,
+    organizations: [organization('o1', 'record-1', [
+      fact('symptom', '瘙痒'),
+      fact('diagnosis', '荨麻疹', {
+        diagnosisCertainty: 'confirmed', source: 'user_report', sourceRecordId: 'record-1'
+      })
+    ], '2026-08-10T03:00:00.000Z')],
+    now: new Date('2026-08-10T04:00:00.000Z')
+  })
+  assert.equal(summary.aggregationVersion, 2)
+  assert.equal(summary.displayedResult.title, '荨麻疹')
+  assert.match(summary.displayedResult.summary, /已记录明确诊断为荨麻疹/)
+  assert.deepEqual(summary.displayedResult.tags[0], {
+    label: '荨麻疹', kind: 'diagnosis', source: 'user_report', certainty: 'confirmed', priority: 220,
+    sourceRecordId: 'record-1', factUpdatedAt: '2026-08-10T03:00:00.000Z'
+  })
+})
+
+test('症状提及和用户猜测不能升级为明确诊断', () => {
+  const summary = buildHealthEventSummary({
+    event, records,
+    organizations: [organization('o1', 'record-1', [
+      fact('symptom', '荨麻疹样皮疹'),
+      fact('diagnosis', '荨麻疹', { diagnosisCertainty: 'suspected', source: 'user_report' })
+    ], '2026-08-10T03:00:00.000Z')]
+  })
+  assert.notEqual(summary.displayedResult.title, '荨麻疹')
+  assert.equal(summary.displayedResult.tags.some((item) => item.kind === 'diagnosis'), false)
+})
+
 test('状态变化纳入摘要，后续新证据触发动态摘要而不删除历史校对', () => {
   const generated = buildHealthEventSummary({
     event,

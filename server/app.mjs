@@ -34,9 +34,9 @@ const sharedOptions = {
 
 const auth = new AuthService(sharedOptions)
 const members = new FamilyMemberService(sharedOptions)
-const events = new HealthEventService(sharedOptions)
-const records = new HealthEventRecordService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
+const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
+const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)

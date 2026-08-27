@@ -16,16 +16,16 @@ const summary = (tags: HealthEventSummaryTag[]): HealthEventSummaryResult => ({
   title: '系统标题', summary: '旧自然语言摘要', tags, evidence: [], updatedAt, source: 'system'
 })
 
-test('没有可追溯确认诊断时统一显示未明确，症状和 AI 判断都不会被当成诊断', () => {
-  assert.equal(getHealthEventDefinitionTitle(null), '未明确')
-  assert.equal(getHealthEventDefinitionTitle({ title: '旧摘要', summary: '旧数据', evidence: [], updatedAt } as HealthEventSummaryResult), '未明确')
+test('没有可追溯确认诊断时统一显示未定性，症状和 AI 判断都不会被当成诊断', () => {
+  assert.equal(getHealthEventDefinitionTitle(null), '未定性')
+  assert.equal(getHealthEventDefinitionTitle({ title: '旧摘要', summary: '旧数据', evidence: [], updatedAt } as HealthEventSummaryResult), '未定性')
   assert.equal(getHealthEventDefinitionTitle(summary([
     tag({ label: '发热', kind: 'symptom' }),
     tag({ label: '疑似皮炎', kind: 'assessment', source: 'ai_consultation', certainty: 'suspected' })
-  ])), '未明确')
+  ])), '未定性')
 })
 
-test('只有医生结论或正式检查来源的 confirmed diagnosis 才成为定性标题', () => {
+test('后端确认并带有溯源的 diagnosis 成为定性标题，疑似结论不会', () => {
   assert.equal(getHealthEventDefinitionTitle(summary([
     tag({ label: '带状疱疹', kind: 'diagnosis', source: 'doctor_statement', certainty: 'confirmed', priority: 100 })
   ])), '带状疱疹')
@@ -33,8 +33,11 @@ test('只有医生结论或正式检查来源的 confirmed diagnosis 才成为�
     tag({ label: '荨麻疹', kind: 'diagnosis', source: 'test_result', certainty: 'confirmed', priority: 90 })
   ])), '荨麻疹')
   assert.equal(getHealthEventDefinitionTitle(summary([
+    tag({ label: '荨麻疹', kind: 'diagnosis', source: 'user_report', certainty: 'confirmed', priority: 80, sourceRecordId: 'record-1' })
+  ])), '荨麻疹')
+  assert.equal(getHealthEventDefinitionTitle(summary([
     tag({ label: '皮炎', kind: 'diagnosis', source: 'doctor_statement', certainty: 'suspected', priority: 100 })
-  ])), '未明确')
+  ])), '未定性')
 })
 
 test('第几天按指定时区的本地自然日计算并覆盖当天、跨日、跨月和跨年', () => {

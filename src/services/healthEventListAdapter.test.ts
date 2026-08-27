@@ -39,7 +39,7 @@ test('旧事件标题仍可作为未结构化数据的速览特征，但不会�
   const feverRecord = { ...record, content: '发热' }
   const [adapted] = adaptHealthEventList([feverEvent], [member], new Map([[event.id, [feverRecord]]]), new Map(), now)
 
-  assert.equal(adapted.definitionTitle, '未明确')
+  assert.equal(adapted.definitionTitle, '未定性')
   assert.deepEqual(adapted.quickFacts, ['第1天', '发热'])
 })
 
@@ -82,6 +82,28 @@ test('一级列表只从可追溯的确认诊断标签读取定性标题', () =>
   const [adapted] = adaptHealthEventList([summarizedEvent], [member], new Map([[event.id, [record]]]), new Map(), now)
   assert.equal(adapted.definitionTitle, '甲型流感')
   assert.deepEqual(adapted.quickFacts, ['第1天', '发热', '头痛'])
+})
+
+test('一级列表显示用户明确记录的 confirmed 诊断名称', () => {
+  const diagnosedEvent: HealthEventApiDto = {
+    ...event,
+    eventSummary: {
+      aggregationVersion: 2,
+      systemGenerated: { title: '荨麻疹', summary: '系统摘要', tags: [], evidence: ['诊断记录'], updatedAt: event.updatedAt },
+      userCorrection: null,
+      displayedResult: {
+        title: '荨麻疹', summary: '已记录明确诊断为荨麻疹。',
+        tags: [{
+          label: '荨麻疹', kind: 'diagnosis', source: 'user_report', certainty: 'confirmed', priority: 220,
+          sourceRecordId: record.id, factUpdatedAt: record.updatedAt
+        }],
+        evidence: ['诊断记录'], updatedAt: event.updatedAt, source: 'system'
+      },
+      hasNewEvidenceAfterCorrection: false
+    }
+  }
+  const [adapted] = adaptHealthEventList([diagnosedEvent], [member], new Map([[event.id, [record]]]), new Map(), now)
+  assert.equal(adapted.definitionTitle, '荨麻疹')
 })
 
 test('图片-only 事件用分析结果生成标题摘要，不展示健康附件或文件名', () => {

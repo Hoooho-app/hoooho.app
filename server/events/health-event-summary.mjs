@@ -5,8 +5,12 @@ const evidenceLabels = {
   examination: '检查结果', diagnosis: '诊断记录', concern: '关注记录', status_change: '状态变化'
 }
 
-const diagnosisSourcePriority = { doctor_statement: 100, test_result: 90, ai_consultation: 80 }
+const diagnosisSourcePriority = { doctor_statement: 40, test_result: 30, user_report: 20, structured_input: 20, ai_consultation: 10 }
+const confirmedDiagnosisSources = new Set(['doctor_statement', 'test_result', 'user_report', 'structured_input'])
+const suspectedDiagnosisSources = new Set(['doctor_statement', 'test_result', 'ai_consultation'])
 const summaryTagSources = new Set(['doctor_statement', 'test_result', 'ai_consultation', 'user_report', 'measurement'])
+
+export const healthEventSummaryAggregationVersion = 2
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))]
@@ -74,15 +78,23 @@ function collectDiagnoses(chronological) {
       }
       continue
     }
-    const sourcePriority = diagnosisSourcePriority[fact.source] ?? 0
-    const allowed = sourcePriority > 0 && fact.polarity === 'affirmed'
-      && ['confirmed', 'suspected'].includes(fact.diagnosisCertainty)
-    if (!allowed) continue
-    const candidate = { name, source: fact.source, certainty: fact.diagnosisCertainty, occurredAt: factTime(item), sourcePriority }
+    const confirmed = fact.diagnosisCertainty === 'confirmed' && confirmedDiagnosisSources.has(fact.source)
+    const suspected = fact.diagnosisCertainty === 'suspected' && suspectedDiagnosisSources.has(fact.source)
+    if (fact.polarity !== 'affirmed' || (!confirmed && !suspected)) continue
+    const priority = (confirmed ? 200 : 100) + (diagnosisSourcePriority[fact.source] ?? 0)
+    const candidate = {
+      name,
+      source: fact.source,
+      certainty: fact.diagnosisCertainty,
+      occurredAt: factTime(item),
+      priority,
+      sourceRecordId: fact.sourceRecordId ?? item.record?.id ?? item.organization.recordId ?? null,
+      factUpdatedAt: item.organization.updatedAt ?? item.record?.updatedAt ?? factTime(item)
+    }
     const previous = diagnoses.get(name)
-    if (!previous || candidate.sourcePriority >= previous.sourcePriority) diagnoses.set(name, candidate)
+    if (!previous || candidate.priority >= previous.priority) diagnoses.set(name, candidate)
   }
-  return [...diagnoses.values()].sort((left, right) => right.sourcePriority - left.sourcePriority || right.occurredAt.localeCompare(left.occurredAt))
+  return [...diagnoses.values()].sort((left, right) => right.priority - left.priority || right.occurredAt.localeCompare(left.occurredAt))
 }
 
 function collectStatusChanges(chronological) {
@@ -110,13 +122,15 @@ function collectStatusChanges(chronological) {
 function buildTags({ diagnoses, symptoms, maxTemperature, changes }) {
   const tags = []
   for (const diagnosis of diagnoses) {
-    const aiAssessment = diagnosis.source === 'ai_consultation'
+    const suspected = diagnosis.certainty === 'suspected'
     tags.push({
-      label: aiAssessment ? `疑似${diagnosis.name}` : diagnosis.name,
-      kind: aiAssessment ? 'assessment' : 'diagnosis',
-      source: diagnosis.source,
-      certainty: aiAssessment ? 'suspected' : diagnosis.certainty,
-      priority: diagnosis.sourcePriority
+      label: suspected ? `疑似${diagnosis.name}` : diagnosis.name,
+      kind: suspected ? 'assessment' : 'diagnosis',
+      source: summaryTagSources.has(diagnosis.source) ? diagnosis.source : 'user_report',
+      certainty: diagnosis.certainty,
+      priority: diagnosis.priority,
+      sourceRecordId: diagnosis.sourceRecordId,
+      factUpdatedAt: diagnosis.factUpdatedAt
     })
   }
   symptoms.forEach((symptom, index) => tags.push({
@@ -139,7 +153,7 @@ function joinFacts(values) {
 
 function buildTitle(diagnoses, symptoms, maxTemperature, facts) {
   const diagnosis = diagnoses[0]
-  if (diagnosis) return diagnosis.source === 'ai_consultation' ? `疑似${diagnosis.name}` : diagnosis.name
+  if (diagnosis) return diagnosis.certainty === 'suspected' ? `疑似${diagnosis.name}` : diagnosis.name
   const fever = symptoms.find(({ label }) => label === '发热')
   if (fever) {
     const companion = symptoms.find(({ label }) => label !== '发热')
@@ -159,6 +173,7 @@ function buildSummary({ diagnoses, symptoms, maxTemperature, facts, event }) {
   if (diagnosis?.source === 'doctor_statement') sentences.push(`医生诊断为${diagnosis.name}`)
   else if (diagnosis?.source === 'test_result') sentences.push(`检查结果支持${diagnosis.name}`)
   else if (diagnosis?.source === 'ai_consultation') sentences.push(`通过AI问诊，初步判断可能为${diagnosis.name}`)
+  else if (diagnosis?.certainty === 'confirmed') sentences.push(`已记录明确诊断为${diagnosis.name}`)
 
   const symptomText = joinFacts(symptoms.map(({ label }) => label))
   if (symptomText) sentences.push(`${diagnosis ? '此前' : '目前'}记录有${symptomText}`)
@@ -206,7 +221,7 @@ export function buildHealthEventSummary({ event, records, organizations, now = n
     ? { title: userCorrection.title, summary: userCorrection.summary, tags: systemGenerated.tags, evidence: systemGenerated.evidence, updatedAt: userCorrection.updatedAt, source: 'user_corrected' }
     : { ...systemGenerated, source: 'system' }
 
-  return { systemGenerated, userCorrection, displayedResult, hasNewEvidenceAfterCorrection }
+  return { aggregationVersion: healthEventSummaryAggregationVersion, systemGenerated, userCorrection, displayedResult, hasNewEvidenceAfterCorrection }
 }
 
 export function correctHealthEventSummary(eventSummary, input, now = new Date()) {

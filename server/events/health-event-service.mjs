@@ -1,6 +1,6 @@
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
-import { correctHealthEventSummary } from './health-event-summary.mjs'
+import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -54,6 +54,7 @@ export class HealthEventService {
   constructor(options = {}) {
     this.repository = options.repository ?? new HealthEventRepository(options.dataDirectory)
     this.members = options.members ?? new FamilyMemberRepository(options.dataDirectory)
+    this.summaryRefresher = options.summaryRefresher ?? null
   }
 
   async assertMemberOwnership(accountId, memberId) {
@@ -81,7 +82,14 @@ export class HealthEventService {
   }
 
   async list(accountId) {
-    const events = await this.repository.findByAccountId(accountId)
+    let events = await this.repository.findByAccountId(accountId)
+    const staleSummaries = events.filter((event) => (
+      event.eventSummary && event.eventSummary.aggregationVersion !== healthEventSummaryAggregationVersion
+    ))
+    if (this.summaryRefresher && staleSummaries.length) {
+      await Promise.all(staleSummaries.map((event) => this.summaryRefresher.ensureSummaryCurrent(accountId, event.id)))
+      events = await this.repository.findByAccountId(accountId)
+    }
     return events.filter((event) => event.title.trim())
   }
 

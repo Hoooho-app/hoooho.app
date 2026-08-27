@@ -1,7 +1,6 @@
 import type { HealthEventStage, HealthEventSummaryResult, HealthEventSummaryTag } from '../types'
 import { getLocalCalendarDaySerial } from '../utils/localCalendarDate'
 
-const confirmedDiagnosisSources = new Set<HealthEventSummaryTag['source']>(['doctor_statement', 'test_result'])
 const millisecondsPerDay = 86_400_000
 
 const statusPresentations: Record<HealthEventStage, { label: string; tone: 'primary' | 'warning' | 'success' }> = {
@@ -47,10 +46,9 @@ export function getHealthEventDefinitionTitle(summary?: HealthEventSummaryResult
   const confirmedDiagnosis = (summary?.tags ?? []).find((tag) => (
     tag.kind === 'diagnosis'
     && tag.certainty === 'confirmed'
-    && confirmedDiagnosisSources.has(tag.source)
     && tag.label.trim().length > 0
   ))
-  return confirmedDiagnosis?.label.trim() ?? '未明确'
+  return confirmedDiagnosis?.label.trim() ?? '未定性'
 }
 
 export function getHealthEventStatusPresentation(status: HealthEventStage) {

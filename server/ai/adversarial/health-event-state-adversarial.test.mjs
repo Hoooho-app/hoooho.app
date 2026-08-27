@@ -179,6 +179,63 @@ test('SUMMARY-DYNAMIC: record create, diagnosis precedence, negation, edit and d
   } finally { await rm(f.dataDirectory, { recursive: true, force: true }) }
 })
 
+test('SUMMARY-CONFIRMED: quick record diagnosis propagates to the event summary and edit/delete revoke it', async () => {
+  const f = await fixture()
+  try {
+    await f.records.create(f.accountId, f.event.id, {
+      type: 'symptom', content: '现在挺痒的。', occurredAt: '2026-08-20T09:00:00+08:00'
+    })
+    const diagnosisRecord = await f.records.create(f.accountId, f.event.id, {
+      type: 'note', content: '确诊了那个荨麻疹。', occurredAt: '2026-08-20T10:00:00+08:00'
+    })
+    let organization = (await f.organizations.list(f.accountId, f.event.id)).find(({ recordId }) => recordId === diagnosisRecord.id)
+    let diagnosis = organization.healthAIOutput.facts.find((fact) => fact.type === 'diagnosis')
+    let diagnosedEvent = await f.events.get(f.accountId, f.event.id)
+    assert.equal(organization.rawInput, '确诊了那个荨麻疹。')
+    assert.equal(diagnosis.name, '荨麻疹')
+    assert.equal(diagnosis.diagnosisCertainty, 'confirmed')
+    assert.equal(diagnosis.source, 'user_report')
+    assert.equal(diagnosis.sourceRecordId, diagnosisRecord.id)
+    assert.equal(diagnosedEvent.organizationState.status, 'completed')
+    assert.equal(diagnosedEvent.eventSummary.displayedResult.title, '荨麻疹')
+    assert.equal(diagnosedEvent.eventSummary.displayedResult.tags[0].sourceRecordId, diagnosisRecord.id)
+
+    await f.records.update(f.accountId, diagnosisRecord.id, { content: '只是怀疑荨麻疹，还没确诊。' })
+    diagnosedEvent = await f.events.get(f.accountId, f.event.id)
+    assert.notEqual(diagnosedEvent.eventSummary.displayedResult.title, '荨麻疹')
+    assert.equal(diagnosedEvent.eventSummary.displayedResult.tags.some((tag) => tag.kind === 'diagnosis'), false)
+
+    await f.records.update(f.accountId, diagnosisRecord.id, { content: '医生确诊是荨麻疹。' })
+    organization = (await f.organizations.list(f.accountId, f.event.id)).find(({ recordId }) => recordId === diagnosisRecord.id)
+    diagnosis = organization.healthAIOutput.facts.find((fact) => fact.type === 'diagnosis')
+    diagnosedEvent = await f.events.get(f.accountId, f.event.id)
+    assert.equal(diagnosis.source, 'doctor_statement')
+    assert.equal(diagnosedEvent.eventSummary.displayedResult.title, '荨麻疹')
+
+    await f.records.delete(f.accountId, diagnosisRecord.id)
+    diagnosedEvent = await f.events.get(f.accountId, f.event.id)
+    assert.notEqual(diagnosedEvent.eventSummary.displayedResult.title, '荨麻疹')
+  } finally { await rm(f.dataDirectory, { recursive: true, force: true }) }
+})
+
+test('SUMMARY-VERSION: listing events refreshes a stale persisted summary without reparsing facts', async () => {
+  const f = await fixture()
+  try {
+    await f.records.create(f.accountId, f.event.id, {
+      type: 'note', content: '确诊了那个荨麻疹。', occurredAt: '2026-08-20T10:00:00+08:00'
+    })
+    const current = await f.events.get(f.accountId, f.event.id)
+    const { aggregationVersion: _discarded, ...legacySummary } = current.eventSummary
+    await f.events.repository.update(f.event.id, {
+      title: '瘙痒', eventSummary: { ...legacySummary, displayedResult: { ...legacySummary.displayedResult, title: '瘙痒' } }
+    })
+    const eventsWithRefresh = new HealthEventService({ dataDirectory: f.dataDirectory, summaryRefresher: f.organizations })
+    const [listed] = await eventsWithRefresh.list(f.accountId)
+    assert.equal(listed.eventSummary.aggregationVersion, 2)
+    assert.equal(listed.eventSummary.displayedResult.title, '荨麻疹')
+  } finally { await rm(f.dataDirectory, { recursive: true, force: true }) }
+})
+
 test('SUMMARY-FAILURE: a failed recompute preserves the last completed summary and raw record', async () => {
   const f = await fixture()
   try {

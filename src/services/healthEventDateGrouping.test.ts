@@ -9,7 +9,7 @@ function event(id: string, occurredAt: string, createdAt = occurredAt): HealthEv
     memberId: 'member-1',
     memberName: '测试成员',
     title: '测试事件',
-    definitionTitle: '未明确',
+    definitionTitle: '未定性',
     quickFacts: [],
     category: 'other',
     status: 'observing',

@@ -1,6 +1,7 @@
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventError, HealthEventService } from './health-event-service.mjs'
+import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 
 const readJson = (request) => new Promise((resolve, reject) => {
   let body = ''
@@ -44,7 +45,8 @@ function readAccountId(request, tokenService) {
 
 export function eventsApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
-  const events = options.service ?? new HealthEventService({ dataDirectory: config.dataDirectory })
+  const summaryRefresher = options.summaryRefresher ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory })
+  const events = options.service ?? new HealthEventService({ dataDirectory: config.dataDirectory, summaryRefresher })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
 
   return {

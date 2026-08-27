@@ -4,7 +4,7 @@ import { HealthEventRecordRepository } from '../events/repositories/health-event
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
 import { HealthOrganizationStateRepository } from './repositories/health-organization-state-repository.mjs'
 import { hasHealthFacts, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
-import { buildHealthEventSummary } from '../events/health-event-summary.mjs'
+import { buildHealthEventSummary, healthEventSummaryAggregationVersion } from '../events/health-event-summary.mjs'
 
 function normalizeBodyLocations(value) {
   if (!Array.isArray(value)) return []
@@ -134,7 +134,7 @@ export class HealthRecordOrganizationService {
   }
 
   async list(accountId, eventId) {
-    await this.assertEventOwnership(accountId, eventId)
+    const event = await this.assertEventOwnership(accountId, eventId)
     if (!this.state) return this.repository.findByEventId(eventId)
     let state = await this.state.get(eventId)
     const records = await this.records.findByEventId(eventId)
@@ -143,8 +143,24 @@ export class HealthRecordOrganizationService {
     if (!state || state.status !== 'completed' || !current) {
       const result = await this.invalidateAndRecompute(accountId, eventId)
       state = await this.state.get(eventId); organizations = result.organizations ?? []
+    } else if (event.eventSummary && event.eventSummary.aggregationVersion !== healthEventSummaryAggregationVersion) {
+      await this.refreshEventSummary(eventId, new Date(), event, organizations, records)
     }
     return state?.status === 'completed' ? organizations.filter((item) => item.sourceRevision === state.revision) : []
+  }
+
+  async ensureSummaryCurrent(accountId, eventId, now = new Date()) {
+    const event = await this.assertEventOwnership(accountId, eventId)
+    if (!event.eventSummary || event.eventSummary.aggregationVersion === healthEventSummaryAggregationVersion) return event
+    if (!this.state) return this.refreshEventSummary(eventId, now, event)
+    const state = await this.state.get(eventId)
+    if (state?.status !== 'completed') return event
+    const records = await this.records.findByEventId(eventId)
+    const organizations = await this.repository.findByEventId(eventId, { revision: state.revision })
+    const current = organizations.length === records.length && organizations.every((item) => records.some((record) => (
+      record.id === item.recordId && record.updatedAt === item.sourceRecordUpdatedAt
+    )))
+    return current ? this.refreshEventSummary(eventId, now, event, organizations, records) : event
   }
 
   async refreshEventSummary(eventId, now = new Date(), knownEvent = null, knownOrganizations = null, knownRecords = null) {

@@ -50,7 +50,7 @@ function sourceFor(text) {
   if (/AI(?:问诊)?|人工智能(?:问诊)?/.test(text)) return 'ai_consultation'
   if (/网上|医学文章|搜索关键词|搜索的关键词/.test(text)) return 'internet_information'
   if (/系统提示|聊天记录|<\/?system>|药品说明书|说明书写|病历里写|检查单写/.test(text)) return 'quoted_text'
-  if (/医生(?:说|表示|判断|诊断|排除|怀疑)/.test(text)) return 'doctor_statement'
+  if (/医生(?:说|表示|判断|诊断|确诊|排除|怀疑)/.test(text)) return 'doctor_statement'
   if (/检查|化验|检测|报告|胸片|血常规/.test(text)) return 'test_result'
   return 'user_report'
 }

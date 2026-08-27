@@ -98,9 +98,12 @@ export interface HealthEventSummaryTag {
   source: 'doctor_statement' | 'test_result' | 'ai_consultation' | 'user_report' | 'measurement'
   certainty: 'confirmed' | 'suspected' | null
   priority: number
+  sourceRecordId?: string | null
+  factUpdatedAt?: string | null
 }
 
 export interface HealthEventSummaryApiDto {
+  aggregationVersion?: number
   systemGenerated: HealthEventSummaryResult
   userCorrection: { title: string; summary: string; updatedAt: string } | null
   displayedResult: HealthEventSummaryResult

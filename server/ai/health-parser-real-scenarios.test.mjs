@@ -122,14 +122,21 @@ test('无标点连接词不会把后一个症状的否定扩散到前一个事�
 })
 
 test('荨麻疹确定性和炉甘石使用动作保持安全边界', async () => {
-  const confirmed = await parse('确诊是荨麻疹')
-  assert.ok(factsOf(confirmed, 'diagnosis').some((fact) => fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed'))
+  for (const input of ['已经确诊荨麻疹', '今天确诊了荨麻疹', '确诊了那个荨麻疹']) {
+    const confirmed = await parse(input)
+    assert.ok(factsOf(confirmed, 'diagnosis').some((fact) => (
+      fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed' && fact.source === 'user_report'
+    )), input)
+  }
 
-  const doctorConfirmed = await parse('医生诊断为荨麻疹')
+  const doctorConfirmed = await parse('医生确诊是荨麻疹')
   assert.ok(factsOf(doctorConfirmed, 'diagnosis').some((fact) => fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed' && fact.source === 'doctor_statement'))
 
   const suspected = await parse('疑似荨麻疹')
   assert.equal(factsOf(suspected, 'diagnosis').some((fact) => fact.diagnosisCertainty === 'confirmed'), false)
+
+  const mentionOnly = await parse('荨麻疹')
+  assert.equal(factsOf(mentionOnly, 'diagnosis').some((fact) => fact.diagnosisCertainty === 'confirmed'), false)
 
   const taken = await parse('用了炉甘石洗剂')
   assert.ok(factsOf(taken, 'medication').some((fact) => fact.name === '炉甘石洗剂' && fact.medicationAction === 'taken'))
