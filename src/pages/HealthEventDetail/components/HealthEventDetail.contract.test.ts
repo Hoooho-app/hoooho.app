@@ -84,3 +84,35 @@ test('快捷记录预览明确一次输入只是一条记录', () => {
   assert.match(recorderSource, /识别到 1 条记录/)
   assert.equal(recorderSource.includes('识别到 {candidates.length} 条记录'), false)
 })
+
+test('自动整理无事实或失败时仍允许按原文确认保存', () => {
+  assert.match(pageSource, /if \(!preview\.hasHealthFacts\) return \[\]/)
+  assert.equal(pageSource.includes("throw new Error('暂未识别到健康记录"), false)
+  assert.match(recorderSource, /暂未自动整理，可先按原文保存/)
+  assert.match(recorderSource, /自动整理失败，可先按原文保存/)
+  assert.match(recorderSource, /setState\('review'\)/)
+  assert.match(recorderSource, /onConfirmRef\.current\(value/)
+})
+
+test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', () => {
+  assert.match(pageSource, /content: recordText \|\| '图片记录'/)
+  assert.match(pageSource, /原始记录已保存，暂未自动整理/)
+  assert.match(pageSource, /commitRecord\(pending\.record\)/)
+  assert.equal(pageSource.includes("throw new Error('暂未识别到健康相关信息"), false)
+  assert.equal(firstRecordSource.includes('未识别到健康事件关键信息'), false)
+})
+
+test('降级保存保留空内容、未来时间和重复提交安全边界', () => {
+  assert.match(firstRecordSource, /if \(!rawInput && !attachments\.length && !selectedLocations\.length\)/)
+  assert.match(firstRecordSource, /isFutureOccurredAt\(occurredAt\)/)
+  assert.match(firstRecordSource, /savingRef\.current/)
+  assert.match(recorderSource, /submittingRef\.current/)
+  assert.match(pageSource, /needsNewQuickRecord\(pending, transcript\)/)
+  assert.match(pageSource, /pendingQuickRecordRef\.current = null/)
+})
+
+test('原文已保存后自动整理失败使用部分成功提示而不是整条保存失败', () => {
+  assert.match(pageSource, /原始记录已保存，自动整理失败/)
+  assert.match(recorderSource, /setSavedMessage\(message \|\| '已记录'\)/)
+  assert.match(recorderSource, /state === 'saved' \? savedMessage/)
+})

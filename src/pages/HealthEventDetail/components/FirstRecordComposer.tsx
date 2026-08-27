@@ -9,8 +9,8 @@ import { QuickVoiceRecordFlow } from './QuickVoiceRecordFlow'
 
 interface FirstRecordComposerProps {
   onAvailabilityChange?: (available: boolean, saving: boolean) => void
-  onRecorded?: () => void
-  onSave: (input: CreateHealthEventRecordInput) => Promise<void>
+  onRecorded?: (message?: string) => void
+  onSave: (input: CreateHealthEventRecordInput) => Promise<string | void>
 }
 
 export interface FirstRecordComposerHandle {
@@ -82,14 +82,14 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
     setSaving(true)
     setError('')
     try {
-      await onSave({
+      const message = await onSave({
         type: 'symptom',
         content: rawInput,
         occurredAt: new Date(occurredAt).toISOString(),
         bodyLocations: bodyLocationSelectionLabels(selectedLocations),
         attachments: attachments.map(({ label, originalName, ...attachment }) => ({ ...attachment, name: `[${label}] ${originalName}` }))
       })
-      onRecorded?.()
+      onRecorded?.(typeof message === 'string' ? message : undefined)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : '保存失败，请稍后重试')
     } finally {
@@ -139,9 +139,9 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
         </div>
       </div>
 
-      {error && <div className="first-record-error" role="alert"><p>{error.includes('暂未识别') ? '未识别到健康事件关键信息' : error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}
+      {error && <div className="first-record-error" role="alert"><p>{error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}
       {!voiceOpen && <button className="quick-record-trigger first-record-quick-trigger" onClick={() => setVoiceOpen(true)} type="button"><Mic size={18} />快捷记录</button>}
-      <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setError('') }} open={voiceOpen} />
+      <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setError(''); return '已加入描述' }} open={voiceOpen} />
     </section>
   )
 })

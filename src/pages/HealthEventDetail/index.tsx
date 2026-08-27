@@ -98,11 +98,15 @@ export function HealthEventDetailPage() {
     if (!originalText && !attachments.length && !bodyLocations.length) throw new Error('请先输入健康记录内容、选择身体部位或添加图片')
 
     const recordText = originalText || (bodyLocations.length ? `${bodyLocations.join('、')}不舒服` : '')
-    const preview = recordText
-      ? await previewRecord(recordText, { bodyLocations, selectedOccurredAt: input.occurredAt })
-      : null
-    if (!preview?.hasHealthFacts && !attachments.length && !bodyLocations.length) {
-      throw new Error('暂未识别到健康相关信息。请描述哪里不舒服、什么时候开始或有什么症状，然后重新编辑。')
+    let preview = null
+    let organizationMessage = ''
+    if (recordText) {
+      try {
+        preview = await previewRecord(recordText, { bodyLocations, selectedOccurredAt: input.occurredAt })
+        if (!preview.hasHealthFacts) organizationMessage = '原始记录已保存，暂未自动整理'
+      } catch {
+        organizationMessage = '原始记录已保存，暂未自动整理'
+      }
     }
 
     const fingerprint = JSON.stringify(input)
@@ -116,7 +120,12 @@ export function HealthEventDetailPage() {
       pendingFirstRecordRef.current = pending
     }
     if (recordText && !pending.organized) {
-      await organizeRecord(pending.record.id, organizationContext)
+      try {
+        const organization = await organizeRecord(pending.record.id, organizationContext)
+        if (organization.status !== 'completed') organizationMessage = '原始记录已保存，暂未自动整理'
+      } catch {
+        organizationMessage = '原始记录已保存，自动整理失败'
+      }
       pending.organized = true
     }
     for (let index = 0; index < attachments.length; index += 1) {
@@ -129,6 +138,7 @@ export function HealthEventDetailPage() {
     }
     commitRecord(pending.record)
     pendingFirstRecordRef.current = null
+    return organizationMessage
   }
 
   const saveQuickRecord = async (transcript: string, occurredAt: string) => {
@@ -139,16 +149,22 @@ export function HealthEventDetailPage() {
       pendingQuickRecordRef.current = pending
     }
     if (!pending) throw new Error('保存失败，请重试')
-    const organization = await organizeRecord(pending.recordId)
-    if (organization.status !== 'completed') throw new Error('原始记录已保存，整理失败，请重试')
+    let message = '已记录'
+    try {
+      const organization = await organizeRecord(pending.recordId)
+      if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
+    } catch {
+      message = '原始记录已保存，自动整理失败'
+    }
     pendingQuickRecordRef.current = null
-    setRecordedMessage('已记录')
+    setRecordedMessage(message)
     window.setTimeout(() => setRecordedMessage(''), 3000)
+    return message
   }
 
   const previewQuickRecord = async (transcript: string, occurredAt: string) => {
     const preview = await previewRecord(transcript, { selectedOccurredAt: occurredAt })
-    if (!preview.hasHealthFacts) throw new Error('暂未识别到健康记录，请补充发生了什么、时间或数值。')
+    if (!preview.hasHealthFacts) return []
     return createQuickRecordCandidates(preview, occurredAt)
   }
 
@@ -164,7 +180,7 @@ export function HealthEventDetailPage() {
       </div>
       <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {!hasRecords ? (
-          <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={() => { setRecordedMessage('已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
+          <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={(message) => { setRecordedMessage(message || '已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
         ) : (
           <>
             {state.data.eventDto.eventSummary && (
