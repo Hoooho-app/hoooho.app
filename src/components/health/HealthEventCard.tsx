@@ -107,9 +107,11 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       >
         <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <Typography className="line-clamp-1 break-words" variant="cardTitle">{event.title}</Typography>
+            <div className="flex min-w-0 items-center gap-2">
+              <Typography className="min-w-0 flex-1 line-clamp-1 break-words" variant="cardTitle">{event.title}</Typography>
+              <HealthTag tone={statusTone}>{statusLabel}</HealthTag>
+            </div>
             {event.summary && <Typography className="line-clamp-2 break-words" variant="caption">{event.summary}</Typography>}
-            <div><HealthTag tone={statusTone}>{statusLabel}</HealthTag></div>
           </div>
           <ChevronRight className="shrink-0 text-[rgb(var(--hoho-color-text-weak))]" size={18} />
         </HealthCard>
