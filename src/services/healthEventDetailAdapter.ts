@@ -245,7 +245,23 @@ function buildFactTimeline(
     })
   })
 
-  return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => compareHealthChronologyDesc(
+  const rawRecordEntries = records.filter((record) => (
+    !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) === 0
+  )).map((record): TimelineEntry => ({
+    id: `${record.id}-raw`,
+    time: record.occurredAt,
+    createdAt: record.createdAt,
+    periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
+    content: record.content,
+    recordType: record.type,
+    kind: record.type === 'medication' ? 'medication' : 'text',
+    sourceRecordId: record.id,
+    sequence: 0,
+    segments: [{ label: '记录', content: record.content }],
+    attachments: []
+  }))
+
+  return [...factEntries, ...attachmentOnlyEntries, ...rawRecordEntries].sort((left, right) => compareHealthChronologyDesc(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
     { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))

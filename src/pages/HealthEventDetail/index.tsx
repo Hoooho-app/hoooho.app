@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Check, Mic } from 'lucide-react'
-import { differenceInCalendarDays } from 'date-fns'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
@@ -20,15 +19,17 @@ import {
   TemperatureChartSection,
   TimelineSection
 } from './components'
+import { needsNewQuickRecord } from './components/quickRecordPresentation'
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, correctSummary, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
+  const pendingQuickRecordRef = useRef<{ recordId: string; transcript: string } | null>(null)
 
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
@@ -79,9 +80,6 @@ export function HealthEventDetailPage() {
   const event = state.data.viewModel.event
   const hasRecords = hasPersistedHealthEventRecords(state.data.records)
   if (!subject) return null
-  const eventDay = Math.max(1, differenceInCalendarDays(new Date(), new Date(event.startDate)) + 1)
-  const eventLabel = `${event.title || '健康事件'} · 第${eventDay}天`
-
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
     const originalText = input.content.trim()
     const attachments = input.attachments ?? []
@@ -110,6 +108,21 @@ export function HealthEventDetailPage() {
     }
   }
 
+  const saveQuickRecord = async (transcript: string, occurredAt: string) => {
+    let pending = pendingQuickRecordRef.current
+    if (needsNewQuickRecord(pending, transcript)) {
+      const created = await addRecord({ type: 'note', content: transcript, occurredAt })
+      pending = { recordId: created.id, transcript }
+      pendingQuickRecordRef.current = pending
+    }
+    if (!pending) throw new Error('保存失败，请重试')
+    const organization = await organizeRecord(pending.recordId)
+    if (organization.status !== 'completed') throw new Error('原始记录已保存，整理失败，请重试')
+    pendingQuickRecordRef.current = null
+    setRecordedMessage('已记录')
+    window.setTimeout(() => setRecordedMessage(''), 3000)
+  }
+
   return (
     <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0">
       <div className="health-event-detail-fixed">
@@ -126,25 +139,17 @@ export function HealthEventDetailPage() {
         ) : (
           <>
             {state.data.eventDto.eventSummary && (
-              <EventSummarySection summary={state.data.eventDto.eventSummary} onSave={correctSummary} />
+              <EventSummarySection summary={state.data.eventDto.eventSummary} />
             )}
             <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
-            <HohoButton fullWidth onClick={() => setVoiceRecordOpen(true)}><Mic size={18} />继续说</HohoButton>
           </>
         )}
       </div>
+      {hasRecords && !voiceRecordOpen && <button className="quick-record-trigger" onClick={() => setVoiceRecordOpen(true)} type="button"><Mic size={18} />快捷记录</button>}
       {hasRecords && <QuickVoiceRecordFlow
-        eventLabel={eventLabel}
-        member={{ name: subject.name, avatar: subject.avatar, gender: subject.genderLabel, age: subject.displayAge }}
         onClose={() => setVoiceRecordOpen(false)}
-        onConfirm={async (records) => {
-          for (const record of records) await addHealthRecord(record)
-          setRecordedMessage(`已记录 ${records.length} 条`)
-          window.setTimeout(() => setRecordedMessage(''), 3000)
-        }}
-        onParse={(text, occurredAt) => previewRecord(text, { selectedOccurredAt: occurredAt })}
-        onSwitchEvent={() => navigate('/health-events')}
+        onConfirm={saveQuickRecord}
         open={voiceRecordOpen}
       />}
       {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
