@@ -16,6 +16,7 @@ import type {
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
 import { createVirtualAvatarId } from '../utils/virtualAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
+import { getExactTemperatureMeasurement } from '../utils/temperatureMeasurement'
 import { compareHealthChronologyDesc } from './healthChronology'
 
 const relationLabels: Record<FamilyMemberApiDto['relationship'], MemberRelation> = {
@@ -176,20 +177,20 @@ function buildTemperatureRecords(facts: FactContext[]) {
       { id: left.fact.id, occurredAt: factTime(left), createdAt: factCreatedAt(left) },
       { id: right.fact.id, occurredAt: factTime(right), createdAt: factCreatedAt(right) }
     ))
-    .map((item) => {
-    const temperature = item.fact.temperature!
-    const time = factTime(item)
-    const label = temperature.min === temperature.max
-      ? `${temperature.min}℃`
-      : `${temperature.min}-${temperature.max}℃`
-    return {
-      time,
-      value: (temperature.min + temperature.max) / 2,
-      min: temperature.min,
-      max: temperature.max,
-      label,
-      periodLabel: factPeriodLabel(item.fact, time)
-    }
+    .flatMap((item) => {
+      const temperature = item.fact.temperature!
+      const exactValue = getExactTemperatureMeasurement(temperature.min, temperature.max)
+      if (exactValue === null) return []
+      const time = factTime(item)
+      return {
+        time,
+        value: exactValue,
+        min: exactValue,
+        max: exactValue,
+        label: `${exactValue.toFixed(1)}℃`,
+        periodLabel: factPeriodLabel(item.fact, time),
+        measurementSite: item.fact.bodyPart ?? undefined
+      }
     })
 }
 

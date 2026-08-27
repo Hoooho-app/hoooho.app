@@ -92,6 +92,19 @@ test('无对应 Fact 时保留原始记录、隐藏派生健康模块，并忽�
   assert.equal(noFever.event.temperatureRecords.length, 0)
 })
 
+test('体温趋势只使用真实单次测量值，并保留已有测量部位', () => {
+  const sourceRecord = record('record-temperature-chart', '腋下体温38.5度，参考范围35到36.9度')
+  const exact = fact('fact-temperature-exact', 'temperature', '38.5℃', null, sourceRecord.occurredAt, '腋下')
+  const range = fact('fact-temperature-range', 'temperature', '35–36.9℃', null, sourceRecord.occurredAt)
+  range.temperature = { min: 35, max: 36.9, unit: '℃' }
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, [exact, range])])
+
+  assert.equal(view.event.temperatureRecords.length, 1)
+  assert.equal(view.event.temperatureRecords[0].value, 38.5)
+  assert.equal(view.event.temperatureRecords[0].label, '38.5℃')
+  assert.equal(view.event.temperatureRecords[0].measurementSite, '腋下')
+})
+
 test('真实附件只跟随所属记录，没有图片时不生成附件时间线', () => {
   const sourceRecord = record('record-3', '上传图片')
   const withoutAttachment = adaptHealthEventDetail(eventDto, [sourceRecord], [], [])
