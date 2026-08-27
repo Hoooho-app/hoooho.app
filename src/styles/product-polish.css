@@ -175,6 +175,17 @@
     border-block: 1px solid rgb(var(--hoho-color-border) / 0.82);
     padding-block: var(--hoho-space-2);
   }
+  .body-location-picker-row.body-location-picker-row--input {
+    min-height: 48px;
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-surface));
+    padding: 0 var(--hoho-space-3);
+  }
+  .body-location-picker-row--input:focus-within {
+    border-color: rgb(var(--hoho-color-primary));
+    box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary) / 0.12);
+  }
   .body-location-picker-action { border-radius: var(--hoho-radius-small); }
   .body-location-picker-action:hover { background: rgb(var(--hoho-color-primary-soft)); }
   .event-identity-details {
