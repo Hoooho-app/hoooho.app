@@ -6,6 +6,7 @@ const read = (relative: string) => readFile(new URL(relative, import.meta.url), 
 
 test('V2 exposes the required design foundations', async () => {
   const tokens = await read('./tokens.css')
+  const html = await read('../../index.html')
   for (const token of [
     '--hoho-color-primary-active', '--hoho-color-primary-border', '--hoho-color-surface-elevated',
     '--hoho-color-info', '--hoho-color-disabled', '--hoho-font-size-data', '--hoho-space-5',
@@ -16,6 +17,7 @@ test('V2 exposes the required design foundations', async () => {
   assert.match(tokens, /--hoho-color-background:\s*245 248 246/)
   assert.match(tokens, /--hoho-color-text-primary:\s*24 49 47/)
   assert.match(tokens, /--hoho-radius-control:\s*12px/)
+  assert.match(html, /name="theme-color" content="#1B7A6E"/)
 })
 
 test('product polish keeps shared navigation and grouped rows on one visual system', async () => {
