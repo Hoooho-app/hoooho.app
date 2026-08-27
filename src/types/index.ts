@@ -290,6 +290,11 @@ export interface TimelineEntry {
   displayTime?: string
   periodLabel?: string
   content: string
+  summary?: string
+  details?: {
+    description: string
+    measures: string[]
+  }
   recordType: HealthEventRecordType
   kind: 'text' | 'temperature' | 'medication'
   sourceRecordId?: string

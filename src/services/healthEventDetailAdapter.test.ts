@@ -48,7 +48,7 @@ function organization(recordId: string, facts: HealthFact[], organizedHealthData
   }
 }
 
-test('详情页完全由 HealthFact 生成时间线、标签和体温记录', () => {
+test('一次原始提交的多个 HealthFact 聚合为一个时间线节点，体温图表仍保留事实数据', () => {
   const sourceRecord = record('record-1', '今天早上头痛，晚上38.5度，吃退烧药')
   const facts = [
     fact('fact-1', 'symptom', '头痛', '今天早上', '2026-08-10T06:00:00+08:00', '头'),
@@ -57,10 +57,12 @@ test('详情页完全由 HealthFact 生成时间线、标签和体温记录', ()
   ]
   const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, facts)])
 
-  assert.equal(view.event.timeline.length, 3)
-  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['退烧药', '38.5℃', '头痛'])
-  assert.equal(view.event.timeline[2].segments?.[0].label, '部位')
-  assert.equal(view.event.timeline[2].segments?.[0].content, '头')
+  assert.equal(view.event.timeline.length, 1)
+  assert.equal(view.event.timeline[0].sourceRecordId, sourceRecord.id)
+  assert.equal(view.event.timeline[0].content, sourceRecord.content)
+  assert.deepEqual(view.event.timeline[0].segments?.map((segment) => [segment.label, segment.content]), [
+    ['部位', '头'], ['症状', '头痛'], ['体温', '38.5℃'], ['用药', '退烧药']
+  ])
   assert.equal(view.event.temperatureRecords.length, 1)
   assert.equal(view.event.temperatureRecords[0].value, 38.5)
   assert.deepEqual(view.event.symptoms, ['头痛'])
@@ -158,7 +160,7 @@ test('无法分析图片时降级为图片记录，不泄露文件名', () => {
   assert.equal(view.event.timeline[0].content.includes(attachment.name), false)
 })
 
-test('状态变化事实使用自然中文接入现有时间线', () => {
+test('同一次提交中的状态事实仍只形成一个节点且不生成后续变化模块', () => {
   const sourceRecord = record('record-4', '今天早上退了一点')
   const changes: HealthFact[] = [
     {
@@ -176,27 +178,37 @@ test('状态变化事实使用自然中文接入现有时间线', () => {
   ]
   const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, changes)])
 
-  assert.equal(view.event.timeline.length, 3)
-  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['腹痛持续', '咳嗽加重', '发热有所好转'])
-  assert.ok(view.event.timeline.every((entry) => entry.segments?.[0].label === '状态'))
-  assert.equal(view.event.timeline.some((entry) => /improved|worsened|persistent/.test(entry.content)), false)
+  assert.equal(view.event.timeline.length, 1)
+  assert.deepEqual(view.event.timeline[0].segments?.map((entry) => entry.content), ['发热有所好转', '咳嗽加重', '腹痛持续'])
+  assert.ok(view.event.timeline[0].segments?.every((entry) => entry.label === '状态'))
+  assert.equal('followUp' in view.event.timeline[0], false)
   assert.equal(view.event.temperatureRecords.length, 0)
 })
 
-test('症状与后续状态变化按解析时间共同进入时间线', () => {
-  const sourceRecord = record('record-5', '昨晚发烧，今天好多了')
+test('稍后独立提交的状态变化按新 recordId 和发生时间形成第二个节点', () => {
+  const sourceRecord = record('record-5', '昨晚发烧', '2026-08-09T18:00:00+08:00')
+  const laterRecord = record('record-6', '今天早上好多了', '2026-08-10T06:00:00+08:00')
   const improvement: HealthFact = {
     ...fact('fact-improved-later', 'status_change', '发热好转', '今天早上', '2026-08-10T06:00:00+08:00'),
     target: '发热', change: 'improved'
   }
-  const facts = [
-    fact('fact-fever', 'symptom', '发热', '昨晚', '2026-08-09T18:00:00+08:00'),
-    improvement
-  ]
-  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, facts)])
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord, laterRecord], [
+    organization(sourceRecord.id, [fact('fact-fever', 'symptom', '发热', '昨晚', '2026-08-09T18:00:00+08:00')]),
+    organization(laterRecord.id, [improvement])
+  ])
 
-  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['发热有所好转', '发热'])
-  assert.deepEqual(view.event.timeline.map((entry) => entry.segments?.[0].label), ['状态', '症状'])
+  assert.equal(view.event.timeline.length, 2)
+  assert.deepEqual(view.event.timeline.map((entry) => entry.sourceRecordId), [laterRecord.id, sourceRecord.id])
+  assert.deepEqual(view.event.timeline.map((entry) => entry.content), ['今天早上好多了', '昨晚发烧'])
+})
+
+test('两个独立提交即使发生时间相同也不会粗暴合并', () => {
+  const occurredAt = '2026-08-10T08:00:00.000Z'
+  const first = record('record-same-1', '第一次独立提交', occurredAt, '2026-08-10T08:01:00.000Z')
+  const second = record('record-same-2', '第二次独立提交', occurredAt, '2026-08-10T08:02:00.000Z')
+  const view = adaptHealthEventDetail(eventDto, [first, second], [])
+  assert.equal(view.event.timeline.length, 2)
+  assert.deepEqual(view.event.timeline.map((entry) => entry.sourceRecordId), [second.id, first.id])
 })
 
 test('时间线按有记录的年份分组，年份不会重复进入 Fact 节点', () => {
@@ -227,8 +239,9 @@ test('时间线按有记录的年份分组，年份不会重复进入 Fact 节�
   const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, facts)])
   const groups = groupTimelineByYearAndDate(view.event.timeline)
 
-  assert.deepEqual(groups.map((group) => group.year), [2026, 2025, 1998])
-  assert.deepEqual(groups.map((group) => group.dates[0].date), ['8月10日', '1月1日', '1月1日'])
-  assert.ok(view.event.timeline.every((entry) => entry.periodLabel === undefined))
+  assert.deepEqual(groups.map((group) => group.year), [2026])
+  assert.deepEqual(groups.map((group) => group.dates[0].date), ['8月10日'])
+  assert.equal(view.event.timeline.length, 1)
+  assert.equal(view.event.timeline[0].periodLabel, undefined)
   assert.equal(groups.some((group) => [2024, 2023, 2022].includes(group.year)), false)
 })

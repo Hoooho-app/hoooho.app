@@ -18,6 +18,7 @@ import { createVirtualAvatarId } from '../utils/virtualAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
 import { getExactTemperatureMeasurement } from '../utils/temperatureMeasurement'
 import { compareHealthChronologyDesc } from './healthChronology'
+import { createTimelineRecordDetails, createTimelineRecordSummary } from './timelineRecordPresentation'
 
 const relationLabels: Record<FamilyMemberApiDto['relationship'], MemberRelation> = {
   self: '本人',
@@ -204,24 +205,40 @@ function buildFactTimeline(
     if (!attachment.recordId) continue
     attachmentsByRecord.set(attachment.recordId, [...(attachmentsByRecord.get(attachment.recordId) ?? []), attachment])
   }
-  const recordsWithFacts = new Set(facts.map((item) => item.organization.recordId))
+  const factGroups = new Map<string, FactContext[]>()
+  for (const item of facts) {
+    const sourceKey = item.organization.recordId || `organization:${item.organization.id}`
+    factGroups.set(sourceKey, [...(factGroups.get(sourceKey) ?? []), item])
+  }
+  const recordsWithFacts = new Set([...factGroups.keys()].filter((key) => !key.startsWith('organization:')))
 
-  const factEntries = facts.map((item): TimelineEntry => {
-    const time = factTime(item)
-    const content = factDisplayContent(item.fact)
+  const factEntries = [...factGroups.entries()].map(([sourceKey, items]): TimelineEntry => {
+    const record = items.find((item) => item.record)?.record
+    const primary = items.find((item) => item.fact.time.resolvedStart && item.fact.time.source === 'user_text')
+      ?? items.find((item) => item.fact.time.resolvedStart)
+      ?? items[0]
+    const time = primary ? factTime(primary) : record?.occurredAt ?? items[0].organization.createdAt
+    const segments = uniqueSegments(items.flatMap((item) => factSegments(item.fact)))
+    const originalText = record?.content.trim()
+      || items.find((item) => item.organization.rawInput.trim())?.organization.rawInput.trim()
+      || segments.map((segment) => segment.content).join('；')
+    const fallbackSummary = segments.map((segment) => segment.content).join('；')
+    const firstFact = items[0].fact
     return {
-      id: `${item.organization.id}-${item.fact.id}`,
+      id: record ? `${record.id}-timeline` : `${sourceKey}-timeline`,
       time,
-      createdAt: factCreatedAt(item),
-      displayTime: item.fact.time.raw ?? undefined,
-      periodLabel: factPeriodLabel(item.fact, time),
-      content,
-      recordType: factRecordType(item.fact.type),
-      kind: item.fact.type === 'temperature' ? 'temperature' : item.fact.type === 'medication' ? 'medication' : 'text',
-      sourceRecordId: item.organization.recordId,
-      sequence: item.factIndex,
-      segments: factSegments(item.fact),
-      attachments: item.factIndex === 0 ? attachmentsByRecord.get(item.organization.recordId) ?? [] : []
+      createdAt: record?.createdAt ?? items[0].organization.createdAt,
+      displayTime: primary?.fact.time.raw ?? undefined,
+      periodLabel: primary ? factPeriodLabel(primary.fact, time) : formatHealthTimePeriod(undefined, time),
+      content: originalText,
+      summary: createTimelineRecordSummary(originalText, fallbackSummary),
+      details: createTimelineRecordDetails(originalText),
+      recordType: record?.type ?? factRecordType(firstFact.type),
+      kind: firstFact.type === 'temperature' ? 'temperature' : firstFact.type === 'medication' ? 'medication' : 'text',
+      sourceRecordId: record?.id ?? (items[0].organization.recordId || undefined),
+      sequence: 0,
+      segments,
+      attachments: record ? attachmentsByRecord.get(record.id) ?? [] : []
     }
   })
 
@@ -236,7 +253,9 @@ function buildFactTimeline(
     time: record.occurredAt,
     createdAt: record.createdAt,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
-    content: presentation.content,
+    content: record.content,
+    summary: createTimelineRecordSummary(record.content, presentation.content),
+    details: createTimelineRecordDetails(record.content),
     recordType: 'note',
     kind: 'text',
     sourceRecordId: record.id,
@@ -254,6 +273,8 @@ function buildFactTimeline(
     createdAt: record.createdAt,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
     content: record.content,
+    summary: createTimelineRecordSummary(record.content),
+    details: createTimelineRecordDetails(record.content),
     recordType: record.type,
     kind: record.type === 'medication' ? 'medication' : 'text',
     sourceRecordId: record.id,
@@ -266,6 +287,16 @@ function buildFactTimeline(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
     { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))
+}
+
+function uniqueSegments(segments: NonNullable<TimelineEntry['segments']>) {
+  const seen = new Set<string>()
+  return segments.filter((segment) => {
+    const key = `${segment.label}:${segment.content}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 function factPeriodLabel(fact: HealthFact, fallbackTime: string) {
