@@ -98,6 +98,7 @@
   }
 
   .hoho-health-tag[data-tone='primary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-health-tag[data-tone='info'] { background: rgb(var(--hoho-color-info) / 0.08); color: rgb(var(--hoho-color-info)); }
   .hoho-health-tag[data-tone='success'] { background: rgb(var(--hoho-color-success) / 0.09); color: rgb(var(--hoho-color-success)); }
   .hoho-health-tag[data-tone='warning'] { background: rgb(var(--hoho-color-warning) / 0.09); color: rgb(var(--hoho-color-warning)); }
   .hoho-health-tag[data-tone='error'] { background: rgb(var(--hoho-color-error) / 0.09); color: rgb(var(--hoho-color-error)); }

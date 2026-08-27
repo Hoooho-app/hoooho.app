@@ -107,8 +107,8 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       >
         <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <Typography className="min-w-0 flex-1 truncate" variant="cardTitle">{event.definitionTitle}</Typography>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Typography className="min-w-0 truncate" variant="cardTitle">{event.definitionTitle}</Typography>
               <HealthTag className="shrink-0" tone={statusPresentation.tone}>{statusPresentation.label}</HealthTag>
             </div>
             {event.quickFacts.length > 0 && (
