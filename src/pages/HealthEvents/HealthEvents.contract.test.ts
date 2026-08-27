@@ -6,6 +6,7 @@ const pageSource = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../styles/design-system.css', import.meta.url), 'utf8')
 const pageStylesSource = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 const cardSource = readFileSync(new URL('../../components/health/HealthEventCard.tsx', import.meta.url), 'utf8')
+const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEventCardSurface.tsx', import.meta.url), 'utf8')
 
 test('健康事件首页使用紧凑标题、家人文案和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前家人"/)
@@ -21,14 +22,15 @@ test('新增健康事件按钮恢复主绿色单色样式', () => {
 })
 
 test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {
-  assert.match(cardSource, /flex min-w-0 items-center gap-2[^]*event\.definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
-  assert.match(cardSource, /className="block truncate"[^]*event\.quickFacts\.join\(' · '\)/)
+  assert.match(cardSource, /HealthEventCardSurface/)
+  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-2[^]*definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
+  assert.match(cardSurfaceSource, /className="block truncate"[^]*quickFacts\.join\(' · '\)/)
   assert.doesNotMatch(cardSource, /event\.summary/)
   assert.doesNotMatch(cardSource, /<div><HealthTag/)
 })
 
 test('长标题和速览在箭头前截断且整张卡片保持单一点击入口', () => {
-  assert.match(cardSource, /Typography className="min-w-0 flex-1 truncate"/)
-  assert.match(cardSource, /ChevronRight className="shrink-0/)
+  assert.match(cardSurfaceSource, /Typography className="min-w-0 flex-1 truncate"/)
+  assert.match(cardSurfaceSource, /ChevronRight className="shrink-0/)
   assert.match(cardSource, /navigate\(`\/health-events\/\$\{event\.id\}`\)/)
 })

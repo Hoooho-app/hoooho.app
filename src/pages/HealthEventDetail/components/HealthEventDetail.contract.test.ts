@@ -10,14 +10,29 @@ const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url),
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
 
-test('紧凑摘要不再渲染旧说明和校对入口', () => {
+test('详情概览直接复用列表卡片内容且不保留旧摘要结构', () => {
   for (const removed of ['手动校对', '自动整理', '依据：', '系统会根据后续记录自动更新']) {
     assert.equal(summarySource.includes(removed), false)
   }
-  assert.match(summarySource, /event-summary-tags/)
-  assert.match(summarySource, /event-summary-description/)
-  assert.match(stylesSource, /event-summary-tags[^}]*flex-nowrap/)
-  assert.match(stylesSource, /-webkit-line-clamp:\s*2/)
+  assert.match(summarySource, /HealthEventCardSurface/)
+  assert.match(summarySource, /getHealthEventDefinitionTitle/)
+  assert.match(summarySource, /buildHealthEventQuickFacts/)
+  assert.equal(summarySource.includes('事件摘要'), false)
+})
+
+test('时间线以日期作为分组标题、时段作为左侧锚点且不显示年份标题', () => {
+  assert.match(timelineSource, /timeline-date-group/)
+  assert.match(timelineSource, /timeline-entry-time/)
+  assert.match(timelineSource, /dateGroup\.date/)
+  assert.equal(timelineSource.includes('{yearGroup.year}年'), false)
+  assert.match(stylesSource, /timeline-entry-row[^}]*grid-cols-\[112px_minmax\(0,1fr\)\]/)
+})
+
+test('时间线排序入口复用设计系统图标按钮', () => {
+  assert.match(timelineSource, /<HohoButton/)
+  assert.match(timelineSource, /size="icon"/)
+  assert.match(timelineSource, /variant="ghost"/)
+  assert.match(timelineSource, /strokeWidth=\{1\.7\}/)
 })
 
 test('详情页使用悬浮快捷记录且不保留说一句中间流程', () => {

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock3 } from 'lucide-react'
 import type { EventAttachment, HealthEvent, TimelineEntry } from '../../../types'
 import { Card } from '../../../components/common'
-import { HealthTag } from '../../../components/design-system'
+import { HealthTag, HohoButton } from '../../../components/design-system'
 import { sortAndGroupTimeline, type TimelineOrder } from '../../../services/healthTimelineGrouping'
 
 interface TimelineSectionProps {
@@ -42,15 +42,15 @@ export function TimelineSection({ event }: TimelineSectionProps) {
       <div className="flex items-center justify-between gap-3">
         <h2 className="section-title">时间线</h2>
         <div className="flex items-center gap-2">
-          <button
+          <HohoButton
             aria-label={order === 'desc' ? '当前最新优先，切换为最早优先' : '当前最早优先，切换为最新优先'}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-surface text-text-secondary shadow-calm transition hover:border-primary hover:text-primary"
             onClick={() => setOrder((current) => current === 'desc' ? 'asc' : 'desc')}
+            size="icon"
             title={order === 'desc' ? '切换为最早优先' : '切换为最新优先'}
-            type="button"
+            variant="ghost"
           >
-            <ArrowUpDown size={19} strokeWidth={1.8} />
-          </button>
+            <ArrowUpDown size={20} strokeWidth={1.7} />
+          </HohoButton>
         </div>
       </div>
 
@@ -64,28 +64,23 @@ export function TimelineSection({ event }: TimelineSectionProps) {
         </Card>
       ) : (
         <div className="space-y-8" aria-label="健康过程记录">
-          {timelineGroups.map((yearGroup) => (
-            <section className="space-y-5" key={yearGroup.year} aria-label={`${yearGroup.year}年健康记录`}>
-              <h3 className="hoho-text-section-title text-primary">{yearGroup.year}年</h3>
-              {yearGroup.dates.map((dateGroup) => (
-                <div className="timeline-date-row" key={`${yearGroup.year}-${dateGroup.date}`}>
-                  <time>{dateGroup.date}</time>
-                  <div className="timeline-date-track">
-                    {dateGroup.entries.map((entry) => (
-                      <TimelineRow
-                        key={entry.id}
-                        entry={entry}
-                        detailsExpanded={expandedDetailEntries.has(entry.id)}
-                        attachmentsExpanded={expandedAttachmentEntries.has(entry.id)}
-                        onToggleAttachments={() => toggleAttachments(entry.id)}
-                        onToggleDetails={() => toggleDetails(entry.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+          {timelineGroups.flatMap((yearGroup) => yearGroup.dates.map((dateGroup) => (
+            <section className="timeline-date-group" key={`${yearGroup.year}-${dateGroup.date}`} aria-label={`${dateGroup.date}健康记录`}>
+              <h3 className="hoho-text-section-title text-primary">{dateGroup.date}</h3>
+              <div className="timeline-date-entries">
+                {dateGroup.entries.map((entry) => (
+                  <TimelineRow
+                    key={entry.id}
+                    entry={entry}
+                    detailsExpanded={expandedDetailEntries.has(entry.id)}
+                    attachmentsExpanded={expandedAttachmentEntries.has(entry.id)}
+                    onToggleAttachments={() => toggleAttachments(entry.id)}
+                    onToggleDetails={() => toggleDetails(entry.id)}
+                  />
+                ))}
+              </div>
             </section>
-          ))}
+          )))}
         </div>
       )}
 
@@ -113,25 +108,26 @@ function TimelineRow({
   const Main = hasDetails ? 'button' : 'div'
 
   return (
-    <article className="relative pb-6 last:pb-1">
-      <span className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background" />
-      <div className="timeline-record-card">
+    <article className="timeline-entry-row">
+      <time className="timeline-entry-time">{entry.periodLabel ?? entry.displayTime ?? formatTimelineClock(entry.time)}</time>
+      <div className="timeline-entry-track">
+        <span className="timeline-entry-marker" />
+        <div className="timeline-record-card">
         <Main
           {...(hasDetails ? { 'aria-expanded': detailsExpanded, onClick: onToggleDetails, type: 'button' as const } : {})}
           className="timeline-record-main"
         >
-          <span className="timeline-record-time">
-            <strong>{entry.periodLabel ?? entry.displayTime ?? formatTimelineClock(entry.time)}</strong>
-            {hasDetails && (detailsExpanded ? <ChevronUp aria-hidden="true" size={20} /> : <ChevronDown aria-hidden="true" size={20} />)}
-          </span>
-          <span className="timeline-record-facts">
-            {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index) => (
-              <span className="timeline-record-fact" key={`${entry.id}-segment-${index}`}>
-                {segment.label === '部位' || segment.label === '症状' || segment.label === '状态'
-                  ? <HealthTag tone="primary">{segment.content}</HealthTag>
-                  : <><HealthTag tone="primary">{segment.label}</HealthTag><span>{segment.content}</span></>}
-              </span>
-            ))}
+          <span className="timeline-record-heading">
+            <span className="timeline-record-facts">
+              {(entry.segments?.length ? entry.segments : [{ label: '记录' as const, content: entry.content }]).map((segment, index) => (
+                <span className="timeline-record-fact" key={`${entry.id}-segment-${index}`}>
+                  {segment.label === '部位' || segment.label === '症状' || segment.label === '状态'
+                    ? <HealthTag tone="primary">{segment.content}</HealthTag>
+                    : <><HealthTag tone="primary">{segment.label}</HealthTag><span>{segment.content}</span></>}
+                </span>
+              ))}
+            </span>
+            {hasDetails && <span className="timeline-record-expand-icon">{detailsExpanded ? <ChevronUp aria-hidden="true" size={20} /> : <ChevronDown aria-hidden="true" size={20} />}</span>}
           </span>
           <span className="timeline-record-summary">{entry.summary ?? entry.content}</span>
         </Main>
@@ -170,6 +166,7 @@ function TimelineRow({
             {detailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         )}
+        </div>
       </div>
     </article>
   )

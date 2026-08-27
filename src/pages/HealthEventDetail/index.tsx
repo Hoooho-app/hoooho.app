@@ -184,7 +184,7 @@ export function HealthEventDetailPage() {
         ) : (
           <>
             {state.data.eventDto.eventSummary && (
-              <EventSummarySection summary={state.data.eventDto.eventSummary} />
+              <EventSummarySection event={state.data.eventDto} />
             )}
             <TimelineSection event={event} />
             {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
