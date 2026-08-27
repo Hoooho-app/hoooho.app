@@ -9,6 +9,7 @@ import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachment
 import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
 import { feedbackApiPlugin } from './server/help/vite-feedback-plugin.mjs'
+import { onlineConsultationsApiPlugin } from './server/consultations/vite-online-consultations-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
@@ -28,6 +29,7 @@ export default defineConfig({
     aiApiPlugin(),
     feedbackApiPlugin(),
     opsApiPlugin(),
+    onlineConsultationsApiPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

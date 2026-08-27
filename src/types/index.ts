@@ -146,6 +146,30 @@ export interface CreateHealthEventRecordInput {
   bodyLocations?: string[]
 }
 
+export type OnlineConsultationStatus = 'preparing' | 'waiting' | 'doctor_questions' | 'completed'
+
+export interface OnlineConsultationQuestionApiDto {
+  id: string
+  question: string
+  reply: string
+  missing: string[]
+  sources: string[]
+  supplements: string[]
+  createdAt: string
+}
+
+export interface OnlineConsultationApiDto {
+  id: string
+  accountId: string
+  eventId: string
+  status: OnlineConsultationStatus
+  questions: OnlineConsultationQuestionApiDto[]
+  finalDoctorInstructions: string | null
+  finalRecordId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreateEventAttachmentInput {
   name: string
   mimeType: string
