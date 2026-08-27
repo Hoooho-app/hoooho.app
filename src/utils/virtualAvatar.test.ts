@@ -21,6 +21,11 @@ test('virtual avatars map age and gender to distinct family roles', () => {
   }
 })
 
+test('virtual avatars support a birthday recorded to year precision', () => {
+  assert.equal(createVirtualAvatarId('1990', 'female', today), 'virtual:woman')
+  assert.equal(createVirtualAvatarId('1950', 'male', today), 'virtual:grandfather')
+})
+
 test('virtual avatars keep their role while cycling through three variants', () => {
   const first = cycleVirtualAvatarId('virtual:woman', '1990-08-12', 'female')
   const second = cycleVirtualAvatarId(first, '1990-08-12', 'female')

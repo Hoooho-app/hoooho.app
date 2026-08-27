@@ -39,8 +39,14 @@ function validateGender(value) {
 
 function validateBirthday(value) {
   if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new FamilyMemberError('出生日期格式应为 YYYY-MM-DD', 400, 'INVALID_BIRTHDAY')
+  if (typeof value !== 'string' || !/^\d{4}(?:-\d{2}-\d{2})?$/.test(value)) {
+    throw new FamilyMemberError('出生日期格式应为 YYYY 或 YYYY-MM-DD', 400, 'INVALID_BIRTHDAY')
+  }
+  if (/^\d{4}$/.test(value)) {
+    if (value > new Date().toISOString().slice(0, 4)) {
+      throw new FamilyMemberError('请输入有效且不晚于今年的出生年份', 400, 'INVALID_BIRTHDAY')
+    }
+    return value
   }
   const date = new Date(`${value}T00:00:00Z`)
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > new Date().toISOString().slice(0, 10)) {
