@@ -67,8 +67,8 @@
   --hoho-motion-slow: 280ms;
   --hoho-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --hoho-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
-  --hoho-page-gutter: clamp(16px, 3vw, 28px);
-  --hoho-app-shell-max: 780px;
+  --hoho-page-gutter: clamp(16px, 3vw, 24px);
+  --hoho-app-shell-max: 620px;
   --hoho-content-compact: 680px;
   --hoho-content-wide: 1120px;
   --hoho-touch-target: 44px;
