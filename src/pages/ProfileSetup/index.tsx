@@ -1,7 +1,7 @@
-import { ChevronLeft, LockKeyhole } from 'lucide-react'
+import { LockKeyhole } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Input } from '../../components/common'
+import { Button, Input, WebPageHeader } from '../../components/common'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
@@ -102,18 +102,10 @@ export function ProfileSetupPage() {
 
   return (
     <main className="app-shell flex flex-col pb-6">
-      <header className="grid min-h-16 grid-cols-3 items-center px-3">
-        <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="返回" onClick={() => navigate(-1)}>
-          <ChevronLeft size={22} strokeWidth={1.8} />
-        </button>
-      </header>
+      <WebPageHeader title="添加第一个家人" />
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
-        <div className="text-center">
-          <h1 className="hoho-text-page-title">添加第一个家人</h1>
-        </div>
-
-        <div className="mt-8 space-y-5">
+        <div className="mt-5 space-y-5">
           <Input
             label="姓名 *"
             name="name"
