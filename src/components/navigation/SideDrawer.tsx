@@ -9,6 +9,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { useAppStore } from '../../store/useAppStore'
 import { getCurrentPath } from './navigationState'
+import { makeFeedbackState } from '../../features/feedback/navigation'
 
 interface SideDrawerProps {
   open: boolean
@@ -58,7 +59,13 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const openPage = (to: string) => {
     onClose()
     if (to === '/login') clearAuthSession()
-    navigate(to, to === '/family' ? {
+    navigate(to, to === '/feedback' ? {
+      state: makeFeedbackState(
+        getCurrentPath(location.pathname, location.search, location.hash),
+        location.pathname.startsWith('/health-events/') ? '健康事件详情' : location.pathname === '/health-events' ? '健康事件' : location.pathname === '/settings' ? '我的' : '原页面',
+        window.scrollY
+      )
+    } : to === '/family' ? {
       state: {
         familyEntry: {
           returnTo: getCurrentPath(location.pathname, location.search, location.hash),

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { SettingsRow, ToggleSwitch, WebPageHeader } from '../../components/common'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { useAppStore } from '../../store/useAppStore'
+import { makeFeedbackState } from '../../features/feedback/navigation'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -11,6 +12,9 @@ export function SettingsPage() {
     ['通知设置', '提醒与免打扰', '/settings/notification'],
     ['隐私设置', '健康数据与授权', '/settings/privacy'],
     ['消息中心', '健康提醒与系统消息', '/messages'],
+    ['帮助中心', '查找使用方法和常见问题', '/help'],
+    ['我的反馈', '查看反馈记录和处理进度', '/feedback/mine'],
+    ['反馈意见', '告诉我们哪里不好用', '/feedback'],
     ['数据管理', '导出与删除健康数据', '/settings/privacy'],
     ['关于 Hoooho', '版本、协议与隐私政策', '/about']
   ] as const
@@ -19,7 +23,7 @@ export function SettingsPage() {
     <main className="app-shell pb-0">
       <WebPageHeader title="设置" fallback="/health-events" />
       <div className="overflow-hidden rounded-card border bg-surface mx-4 my-4">
-        {rows.map(([title, description, to]) => <SettingsRow key={title} title={title} description={description} onClick={() => navigate(to)} />)}
+        {rows.map(([title, description, to]) => <SettingsRow key={title} title={title} description={description} onClick={() => navigate(to, to === '/feedback' ? { state: makeFeedbackState('/settings', '我的', window.scrollY) } : undefined)} />)}
       </div>
     </main>
   )
