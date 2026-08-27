@@ -38,5 +38,5 @@ export const router = createBrowserRouter([
       { path: '/about', lazy: lazyPage(() => import('../pages/About'), 'AboutPage') }
     ]
   },
-  { path: '*', element: <Navigate to="/login" replace /> }
+  { path: '*', lazy: lazyPage(() => import('../pages/NotFound'), 'NotFoundPage') }
 ])

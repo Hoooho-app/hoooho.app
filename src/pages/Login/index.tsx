@@ -97,16 +97,16 @@ export function LoginPage() {
   }
 
   return (
-    <main className="app-shell relative flex flex-col px-6 pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(48px,env(safe-area-inset-top))]">
-      <div className="relative z-10 flex flex-1 flex-col">
-        <header className="flex flex-col items-center pt-10 text-center">
+    <main className="app-shell auth-shell relative flex flex-col pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(32px,env(safe-area-inset-top))]">
+      <div className="auth-panel relative z-10 flex flex-1 flex-col">
+        <header className="flex flex-col items-center pt-6 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
           <h1 className="hoho-text-page-title mt-7">欢迎使用 Hoooho</h1>
           <p className="hoho-text-body mt-2">家庭健康事件管理平台</p>
         </header>
 
-        <form className="mt-12 space-y-3" noValidate onSubmit={login}>
-          <label className="flex min-h-12 items-center gap-3 rounded-control border bg-surface px-4 shadow-card transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+        <form className="mt-10 space-y-3" noValidate onSubmit={login}>
+          <label className="flex min-h-12 items-center gap-3 rounded-control border bg-surface px-4 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
             <Mail aria-hidden="true" className="shrink-0 text-primary" size={18} strokeWidth={1.8} />
             <span className="sr-only">邮箱地址</span>
             <input
@@ -126,7 +126,7 @@ export function LoginPage() {
             />
           </label>
 
-          <label className="flex min-h-12 items-center gap-3 rounded-control border bg-surface px-4 shadow-card transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+          <label className="flex min-h-12 items-center gap-3 rounded-control border bg-surface px-4 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
             <ShieldCheck aria-hidden="true" className="shrink-0 text-primary" size={18} strokeWidth={1.8} />
             <span className="sr-only">验证码</span>
             <input
@@ -156,9 +156,7 @@ export function LoginPage() {
             {!error && notice && <p className="text-xs text-primary">{notice}</p>}
           </div>
 
-          <button className="hoho-button min-h-12 w-full" data-variant="primary" type="submit" disabled={!emailIsValid || !codeIsValid || isLoggingIn}>
-            {isLoggingIn ? '登录中…' : '登录'}
-          </button>
+          <HohoButton fullWidth loading={isLoggingIn} size="large" type="submit" disabled={!emailIsValid || !codeIsValid}>登录</HohoButton>
         </form>
 
         <HohoButton
@@ -188,15 +186,6 @@ export function LoginPage() {
         </div>
       </div>
 
-      <div aria-hidden="true" className="pointer-events-none relative -mx-6 -mb-[max(28px,env(safe-area-inset-bottom))] mt-8 h-28 overflow-hidden bg-primary-soft">
-        <div className="absolute -left-12 top-7 h-24 w-60 rotate-3 rounded-[50%] bg-primary/12" />
-        <div className="absolute -right-14 top-3 h-24 w-64 -rotate-3 rounded-[50%] bg-primary/15" />
-        <div className="absolute bottom-0 left-0 h-12 w-full bg-primary/20" />
-        <div className="absolute bottom-9 left-1/2 h-9 w-12 -translate-x-1/2 bg-surface/85 [clip-path:polygon(50%_0,100%_40%,100%_100%,0_100%,0_40%)]" />
-        <div className="absolute bottom-9 left-[calc(50%+3px)] h-5 w-1.5 bg-primary/35" />
-        <div className="absolute bottom-8 left-10 h-12 w-4 rounded-full bg-primary/35" />
-        <div className="absolute bottom-8 right-10 h-11 w-4 rounded-full bg-primary/30" />
-      </div>
     </main>
   )
 }

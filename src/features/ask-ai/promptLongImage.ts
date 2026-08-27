@@ -12,7 +12,7 @@ function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: num
   return lines
 }
 
-export function downloadPromptLongImage(prompt: string, filename = 'HOOOHO-健康信息.png') {
+export function downloadPromptLongImage(prompt: string, filename = 'Hoooho-健康信息.png') {
   const width = 1080
   const padding = 88
   const canvas = document.createElement('canvas')
@@ -24,7 +24,7 @@ export function downloadPromptLongImage(prompt: string, filename = 'HOOOHO-健�
   canvas.width = width
   canvas.height = Math.max(900, padding * 2 + 150 + lines.length * lineHeight)
   context.fillStyle = '#f7faf9'; context.fillRect(0, 0, canvas.width, canvas.height)
-  context.fillStyle = '#147d70'; context.font = '700 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('HOOOHO', padding, padding)
+  context.fillStyle = '#167068'; context.font = '700 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('Hoooho', padding, padding)
   context.fillStyle = '#1d292d'; context.font = '700 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('健康信息整理', padding, padding + 72)
   context.font = '34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   lines.forEach((line, index) => { context.fillText(line, padding, padding + 150 + index * lineHeight) })

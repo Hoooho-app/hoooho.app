@@ -1,59 +1,78 @@
 :root {
-  /*
-   * Hoho Design System V1
-   *
-   * These namespaced tokens are intentionally additive. Existing --color-*,
-   * --radius-* and --shadow-* tokens remain unchanged until each frozen page
-   * is migrated explicitly.
-   */
-  --hoho-color-primary: 35 105 101;
-  --hoho-color-primary-hover: 27 86 83;
-  --hoho-color-primary-soft: 235 244 242;
-  --hoho-color-secondary: 91 117 126;
-  --hoho-color-background: 247 249 247;
+  /* Hoooho Design System V2: quiet, trustworthy and information-first. */
+  --hoho-color-primary: 22 112 104;
+  --hoho-color-primary-hover: 17 91 85;
+  --hoho-color-primary-active: 13 74 70;
+  --hoho-color-primary-soft: 234 246 243;
+  --hoho-color-primary-border: 177 218 211;
+  --hoho-color-secondary: 76 101 109;
+  --hoho-color-background: 246 248 247;
   --hoho-color-surface: 255 255 255;
-  --hoho-color-surface-subtle: 250 251 250;
-  --hoho-color-border: 222 229 226;
-  --hoho-color-border-strong: 198 211 206;
-  --hoho-color-text-primary: 30 43 50;
-  --hoho-color-text-secondary: 89 105 112;
-  --hoho-color-text-weak: 132 145 149;
-  --hoho-color-success: 54 125 91;
-  --hoho-color-warning: 176 118 51;
-  --hoho-color-error: 184 72 72;
+  --hoho-color-surface-subtle: 250 252 251;
+  --hoho-color-surface-elevated: 255 255 255;
+  --hoho-color-border: 220 228 225;
+  --hoho-color-border-strong: 190 205 200;
+  --hoho-color-text-primary: 24 39 45;
+  --hoho-color-text-secondary: 77 96 103;
+  --hoho-color-text-weak: 111 128 133;
+  --hoho-color-success: 42 120 82;
+  --hoho-color-warning: 166 105 34;
+  --hoho-color-error: 174 62 67;
+  --hoho-color-info: 48 103 152;
+  --hoho-color-disabled: 153 166 169;
 
-  --hoho-font-family: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --hoho-font-size-page-title: 1.5rem;
-  --hoho-line-height-page-title: 2rem;
-  --hoho-font-size-section-title: 1.125rem;
-  --hoho-line-height-section-title: 1.75rem;
+  --hoho-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  --hoho-font-size-display: clamp(1.75rem, 2.5vw, 2.125rem);
+  --hoho-line-height-display: 1.25;
+  --hoho-font-size-page-title: clamp(1.375rem, 2vw, 1.625rem);
+  --hoho-line-height-page-title: 1.35;
+  --hoho-font-size-section-title: 1.0625rem;
+  --hoho-line-height-section-title: 1.55;
   --hoho-font-size-card-title: 0.9375rem;
-  --hoho-line-height-card-title: 1.375rem;
+  --hoho-line-height-card-title: 1.5;
   --hoho-font-size-body: 0.875rem;
-  --hoho-line-height-body: 1.375rem;
+  --hoho-line-height-body: 1.6;
   --hoho-font-size-caption: 0.75rem;
-  --hoho-line-height-caption: 1.125rem;
-  --hoho-font-size-label: 0.75rem;
-  --hoho-line-height-label: 1rem;
+  --hoho-line-height-caption: 1.5;
+  --hoho-font-size-label: 0.8125rem;
+  --hoho-line-height-label: 1.4;
+  --hoho-font-size-data: 1.125rem;
+  --hoho-line-height-data: 1.35;
 
   --hoho-space-1: 4px;
   --hoho-space-2: 8px;
   --hoho-space-3: 12px;
   --hoho-space-4: 16px;
+  --hoho-space-5: 20px;
   --hoho-space-6: 24px;
   --hoho-space-8: 32px;
   --hoho-space-10: 40px;
 
-  --hoho-radius-small: 8px;
-  --hoho-radius-medium: 12px;
-  --hoho-radius-large: 20px;
+  --hoho-radius-small: 6px;
+  --hoho-radius-control: 10px;
+  --hoho-radius-card: 16px;
+  --hoho-radius-overlay: 22px;
+  --hoho-radius-medium: var(--hoho-radius-control);
+  --hoho-radius-large: var(--hoho-radius-card);
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-soft: 0 1px 2px rgb(30 43 50 / 0.04), 0 8px 24px rgb(30 43 50 / 0.04);
-  --hoho-shadow-floating: 0 12px 32px rgb(30 43 50 / 0.12);
+  --hoho-shadow-card: 0 1px 2px rgb(24 39 45 / 0.035);
+  --hoho-shadow-soft: var(--hoho-shadow-card);
+  --hoho-shadow-floating: 0 12px 36px rgb(24 39 45 / 0.11);
+  --hoho-shadow-overlay: 0 24px 64px rgb(24 39 45 / 0.16);
 
-  /* Compatibility aliases. V1 is now the formal global baseline. */
+  --hoho-motion-fast: 140ms;
+  --hoho-motion-base: 200ms;
+  --hoho-motion-slow: 280ms;
+  --hoho-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --hoho-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --hoho-page-gutter: clamp(16px, 3vw, 28px);
+  --hoho-content-compact: 680px;
+  --hoho-content-wide: 1120px;
+  --hoho-touch-target: 44px;
+
+  /* Compatibility aliases used by Tailwind and the existing feature layer. */
   --color-primary: var(--hoho-color-primary);
   --color-primary-soft: var(--hoho-color-primary-soft);
   --color-surface: var(--hoho-color-surface);
@@ -67,11 +86,11 @@
   --color-success: var(--hoho-color-success);
   --color-warning: var(--hoho-color-warning);
   --color-danger: var(--hoho-color-error);
-  --radius-control: var(--hoho-radius-medium);
-  --radius-card: var(--hoho-radius-large);
+  --radius-control: var(--hoho-radius-control);
+  --radius-card: var(--hoho-radius-card);
   --radius-pill: var(--hoho-radius-pill);
-  --shadow-card: var(--hoho-shadow-soft);
-  --shadow-calm: var(--hoho-shadow-soft);
+  --shadow-card: var(--hoho-shadow-card);
+  --shadow-calm: var(--hoho-shadow-card);
   --shadow-floating: var(--hoho-shadow-floating);
   --font-sans: var(--hoho-font-family);
 }

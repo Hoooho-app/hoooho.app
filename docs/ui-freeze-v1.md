@@ -1,4 +1,6 @@
-# Hoooho UI 基准冻结 V1
+# Hoooho UI 基准冻结 V1（已由 V2 取代）
+
+> V1 的冻结状态已被全站视觉重构明确解除。当前基线与组件规范见 `docs/hoooho-design-system-v2.md` 和 `docs/ui-audit-v2.md`。
 
 冻结日期：2026-08-09
 基准提交：`c5f1b91`

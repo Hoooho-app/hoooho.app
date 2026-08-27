@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { CalendarDays, Mic, Paperclip, X } from 'lucide-react'
+import { Mic, Paperclip, X } from 'lucide-react'
 import { BodyLocationPicker } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
@@ -106,12 +106,11 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
         <label className="first-record-field">
           <span className="hoho-text-label">最早开始时间</span>
           <span className="first-record-datetime">
-            <input className="hoho-input pr-10" max={localDateTimeValue()} onChange={(event) => {
+            <input className="hoho-input" max={localDateTimeValue()} onChange={(event) => {
               const nextValue = clampOccurredAtToNow(event.target.value)
               setOccurredAt(nextValue)
               setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
             }} type="datetime-local" value={occurredAt} />
-            <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
           </span>
         </label>
 

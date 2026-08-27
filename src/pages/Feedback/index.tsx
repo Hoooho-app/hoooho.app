@@ -32,7 +32,7 @@ export function FeedbackPage() {
           <span className="min-w-0 flex-1"><strong className="block text-sm font-medium">上传图片</strong><span className="mt-1.5 block text-xs text-text-secondary">{files.length ? `已选择 ${files.length} 张图片` : '支持 JPG、PNG，最多 3 张'}</span></span>
           <input className="sr-only" type="file" accept="image/jpeg,image/png" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 3))} />
         </label>
-        <div className="min-h-5">{error && <p className="text-xs text-danger">{error}</p>}</div>
+        <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger" role="alert">{error}</p>}</div>
         <Button fullWidth type="submit">提交</Button>
       </form>
     </main>

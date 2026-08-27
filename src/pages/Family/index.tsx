@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
 import { RecordSubjectCard } from '../../components/health'
@@ -63,7 +64,7 @@ export function FamilyPage() {
   return (
     <main className="app-shell pb-0">
       <WebPageHeader title="我的家人" fallback="/health-events" action={
-        <button className="whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}>+ 添加家人</button>
+        <button className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}><Plus aria-hidden="true" size={16} />添加家人</button>
       } />
       <div className="space-y-3 px-4 py-4">
         {loading && <p className="py-12 text-center text-sm text-text-secondary">正在加载家人…</p>}

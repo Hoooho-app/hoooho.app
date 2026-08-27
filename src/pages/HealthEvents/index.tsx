@@ -1,7 +1,7 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { EmptyState, HealthCard, HohoButton, Typography } from '../../components/design-system'
+import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
@@ -25,7 +25,7 @@ function UserIdentity({ member }: { member: Member | null }) {
   const navigate = useNavigate()
 
   return (
-    <div className="mx-4 mt-3">
+    <div className="health-events-member mx-4 mt-3">
       <RecordSubjectCard
         action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
@@ -153,7 +153,7 @@ export function HealthEventsPage() {
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
       <UserIdentity member={currentMember} />
 
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
+      <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
           <div className="flex min-h-11 items-center justify-between">
             <Typography variant="sectionTitle">事件列表</Typography>
@@ -195,21 +195,15 @@ export function HealthEventsPage() {
           )}
         </div>
         {state.status === 'loading' && (
-          <HealthCard className="py-12 text-center">
-            <Typography variant="body">正在加载健康事件…</Typography>
-          </HealthCard>
+          <ListSkeleton rows={3} />
         )}
 
         {state.status === 'error' && (
-          <HealthCard className="py-10 text-center">
-            <Typography variant="sectionTitle">健康事件加载失败</Typography>
-            <Typography className="mt-2" variant="body">{state.message}</Typography>
-            <HohoButton className="mt-5" onClick={retry}>重新加载</HohoButton>
-          </HealthCard>
+          <StatusNotice action={<HohoButton size="small" variant="secondary" onClick={retry}>重新加载</HohoButton>} title="健康事件加载失败" tone="error">{state.message}</StatusNotice>
         )}
 
         {state.status === 'success' && memberEvents.length === 0 && (
-          <HealthCard className="flex min-h-[500px] items-center justify-center">
+          <HealthCard className="flex min-h-[360px] items-center justify-center">
             <EmptyState
               action={<HohoButton disabled={creating} onClick={() => void createEmptyEvent()}>
               <Plus size={19} strokeWidth={1.8} />
@@ -239,11 +233,7 @@ export function HealthEventsPage() {
       </div>
 
       <button
-        className="fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
-        style={{
-          bottom: 'max(24px, env(safe-area-inset-bottom))',
-          right: 'max(24px, calc((100vw - 402px) / 2 + 24px))'
-        }}
+        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="新增健康事件"
         disabled={creating || !currentMemberDto}

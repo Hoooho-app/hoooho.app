@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { WebPageHeader } from '../../components/common'
 
@@ -28,12 +28,12 @@ export function HelpCenterPage() {
           const open = openQuestion === question
           return (
             <button key={question} className="block w-full border-b bg-transparent p-4 text-left last:border-b-0" type="button" aria-expanded={open} onClick={() => setOpenQuestion(open ? '' : question)}>
-              <strong className="block text-sm font-medium">{question}</strong>
-              <span className="mt-1.5 block text-xs leading-6 text-text-secondary">{open ? answer : '点击查看详细说明  ›'}</span>
+              <span className="flex items-center gap-3"><strong className="block min-w-0 flex-1 text-sm font-medium">{question}</strong><ChevronDown aria-hidden="true" className={`shrink-0 text-text-secondary transition-transform ${open ? 'rotate-180' : ''}`} size={18} /></span>
+              <span className="help-answer" data-open={open}><span className="mt-1.5 block text-xs leading-6 text-text-secondary">{answer}</span></span>
             </button>
           )
         })}
-        <section className="rounded-card border bg-surface p-4">
+        <section className="border-t border-border p-4">
           <h2 className="text-sm font-medium">需要更多帮助？</h2>
           <p className="mt-1.5 text-xs leading-6 text-text-secondary">可以查阅使用说明，快速了解 Hoooho 的记录流程。</p>
         </section>

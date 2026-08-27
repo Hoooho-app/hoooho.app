@@ -1,8 +1,10 @@
-# Hoho Design System V1
+# Hoho Design System V1（Superseded）
+
+> This historical baseline has been superseded by [Hoooho Design System V2](./hoooho-design-system-v2.md). It remains for migration history only.
 
 ## 1. Formal status
 
-Status: **production-approved, globally migrated and frozen**.
+Status: **historical baseline, superseded by V2**.
 
 Hoho Design System V1 is the only default visual system for current and future product pages. The production `/health-events` page is the primary real-product reference. V1 standardizes visual language without changing product information architecture, business rules, data contracts or navigation flows.
 
