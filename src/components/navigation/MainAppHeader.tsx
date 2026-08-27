@@ -32,7 +32,7 @@ export function MainAppHeader({ title, action }: { title: string; action?: React
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />
       {switchedMemberName && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[max(24px,env(safe-area-inset-bottom))] z-[60] mx-auto flex w-full max-w-[680px] justify-center px-4" aria-live="polite" role="status">
+        <div className="app-shell-toast pointer-events-none fixed inset-x-0 bottom-[max(24px,env(safe-area-inset-bottom))] z-[60] mx-auto flex w-full justify-center px-6" aria-live="polite" role="status">
           <p className="rounded-control bg-text-primary px-4 py-2.5 text-sm font-medium text-surface shadow-floating">
             已切换至 {switchedMemberName}
           </p>
