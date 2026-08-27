@@ -379,6 +379,20 @@
   .health-events-fab {
     right: var(--hoho-page-gutter);
     bottom: max(var(--hoho-space-6), env(safe-area-inset-bottom));
+    border: 1px solid rgb(var(--hoho-color-primary-hover) / 0.12);
+    background: linear-gradient(
+      145deg,
+      rgb(var(--hoho-color-primary-border)) -18%,
+      rgb(var(--hoho-color-primary)) 52%,
+      rgb(var(--hoho-color-primary-hover)) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(var(--hoho-color-surface) / 0.58),
+      0 12px 28px rgb(var(--hoho-color-primary) / 0.22);
+  }
+  .health-events-fab:disabled {
+    opacity: 0.5;
+    box-shadow: inset 0 1px 0 rgb(var(--hoho-color-surface) / 0.4);
   }
   .hoho-health-events-page .health-events-member,
   .hoho-health-events-page .health-events-content { width: calc(100% - 32px); margin-inline: auto; }

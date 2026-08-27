@@ -233,7 +233,7 @@ export function HealthEventsPage() {
       </div>
 
       <button
-        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
+        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full text-surface transition active:scale-95"
         type="button"
         aria-label="新增健康事件"
         disabled={creating || !currentMemberDto}
