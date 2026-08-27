@@ -292,6 +292,77 @@
   .help-choice-list { @apply mt-3 grid gap-2; } .help-choice-list button { @apply min-h-12 rounded-control border bg-surface px-3 text-left text-sm font-semibold; } .help-text-action { @apply mt-4 min-h-11 text-sm font-semibold text-primary; }
   .help-detail ol,.help-detail ul { @apply mt-3 space-y-2 pl-6 text-sm leading-6 text-text-secondary; } .help-detail ol { @apply list-decimal; } .help-detail ul { @apply list-disc; }
   .help-resolution { @apply mt-8 border-t pt-5; } .help-resolution>div:not(.help-footer-actions) { @apply mt-3 flex gap-2; } .help-resolution>div:not(.help-footer-actions) button { @apply min-h-11 rounded-control border bg-surface px-4 text-sm font-semibold; } .help-resolution p { @apply mt-3 text-sm leading-6 text-text-secondary; }
+  .feedback-page { overflow-x: hidden; }
+  .feedback-header-action { @apply inline-flex min-h-11 items-center text-sm font-semibold text-primary; }
+  .feedback-form,.feedback-list-content,.feedback-detail-content { @apply space-y-6 px-4 py-5; padding-bottom: calc(7rem + env(safe-area-inset-bottom)); }
+  .feedback-intro { @apply text-sm leading-6 text-text-secondary; }
+  .feedback-categories legend { @apply mb-2 text-sm font-semibold text-text-secondary; }
+  .feedback-categories>div { @apply grid grid-cols-3 gap-2; }
+  .feedback-categories button { @apply min-h-11 rounded-control border bg-surface px-2 text-sm; }
+  .feedback-categories button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
+  .feedback-textarea { min-height: 168px; }
+  .feedback-voice { @apply grid gap-2; }
+  .feedback-voice button { @apply min-h-12 rounded-control border bg-surface px-4 text-sm font-semibold text-primary; touch-action: none; }
+  .feedback-voice button[data-listening='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
+  .feedback-voice p,.feedback-images-heading p,.feedback-privacy { @apply text-xs leading-5 text-text-secondary; }
+  .feedback-images { @apply space-y-3 border-t pt-5; }
+  .feedback-images-heading { @apply flex flex-wrap items-start justify-between gap-3; }
+  .feedback-images-heading h2 { @apply text-sm font-semibold; }
+  .feedback-image-actions { @apply flex shrink-0 flex-wrap justify-end gap-1; }
+  .feedback-file-button { @apply inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-control border bg-surface px-3 text-sm font-semibold text-primary; }
+  .feedback-file-button input { @apply sr-only; }
+  .feedback-file-button:has(input:disabled) { @apply cursor-not-allowed opacity-50; }
+  .feedback-image-grid { @apply grid grid-cols-2 gap-3; }
+  .feedback-image-grid li { @apply min-w-0 overflow-hidden rounded-control border bg-surface; }
+  .feedback-image-grid img { @apply aspect-square w-full object-cover; }
+  .feedback-image-grid li>div { @apply flex flex-wrap gap-1 p-2; }
+  .feedback-image-grid span { @apply w-full break-words text-xs leading-5 text-text-secondary; }
+  .feedback-image-grid button { @apply min-h-8 rounded-control px-2 text-xs font-semibold text-primary; }
+  .feedback-image-grid button:disabled { @apply opacity-40; }
+  .feedback-privacy { @apply border-t pt-4; }
+  .feedback-error { @apply rounded-control border px-3 py-2 text-sm leading-6 text-danger; border-color: rgb(var(--hoho-color-error) / .3); background: rgb(var(--hoho-color-error) / .05); }
+  .feedback-submit-bar { @apply fixed inset-x-0 bottom-0 z-20 mx-auto grid w-full max-w-[680px] gap-1 border-t bg-surface px-4 pt-3; padding-bottom: calc(var(--hoho-space-3) + env(safe-area-inset-bottom)); }
+  .feedback-cancel { @apply min-h-9 text-xs font-semibold text-text-secondary; }
+  .feedback-success { @apply grid gap-4 px-5 py-12 text-center; padding-bottom: calc(var(--hoho-space-10) + env(safe-area-inset-bottom)); }
+  .feedback-success h2 { @apply text-xl font-semibold; }
+  .feedback-success p { @apply text-sm leading-6 text-text-secondary; }
+  .feedback-success small { @apply break-all text-xs text-text-secondary; }
+  .feedback-success>button { @apply min-h-11 text-sm font-semibold text-primary; }
+  .feedback-contribution { @apply space-y-2 border-b pb-5; }
+  .feedback-contribution h2,.feedback-empty h2,.feedback-detail-content h3 { @apply text-base font-semibold; }
+  .feedback-contribution p { @apply text-lg font-semibold; }
+  .feedback-contribution small { @apply text-xs leading-5 text-text-secondary; }
+  .feedback-state { @apply py-10 text-center text-sm text-text-secondary; }
+  .feedback-empty { @apply grid justify-items-start gap-3 py-8; }
+  .feedback-empty p { @apply text-sm text-text-secondary; }
+  .feedback-empty a { @apply inline-flex min-h-11 items-center rounded-control border bg-surface px-4 text-sm font-semibold text-primary; }
+  .feedback-record-list { @apply overflow-hidden rounded-control border bg-surface; }
+  .feedback-record-list>a { @apply flex min-h-20 items-start justify-between gap-3 border-b px-3 py-3 last:border-0; }
+  .feedback-record-list>a>div:first-child { @apply min-w-0 flex-1; }
+  .feedback-record-list strong,.feedback-record-list span,.feedback-record-list p,.feedback-record-list em,.feedback-record-list small { @apply block; }
+  .feedback-record-list strong { @apply break-words text-sm font-semibold; }
+  .feedback-record-list span,.feedback-record-list small { @apply mt-1 text-xs text-text-secondary; }
+  .feedback-record-list p { @apply mt-2 line-clamp-2 text-xs leading-5 text-text-secondary; }
+  .feedback-record-list em { @apply whitespace-nowrap text-xs font-semibold text-primary; }
+  .feedback-detail-title { @apply space-y-2 border-b pb-5; }
+  .feedback-detail-title>span { @apply inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold text-primary; background: rgb(var(--hoho-color-primary-soft)); }
+  .feedback-detail-title h2 { @apply break-words text-xl font-semibold leading-8; }
+  .feedback-detail-title p,.feedback-detail-content section>p { @apply whitespace-pre-wrap text-sm leading-6 text-text-secondary; }
+  .feedback-detail-content>section { @apply space-y-3; }
+  .feedback-saved-images { @apply grid grid-cols-3 gap-2; }
+  .feedback-saved-images img { @apply aspect-square w-full rounded-control border object-cover; }
+  .feedback-timeline { @apply space-y-0; }
+  .feedback-timeline li { @apply relative grid grid-cols-[auto_1fr] gap-x-3 border-l pl-4 pb-5 last:pb-0; }
+  .feedback-timeline li::before { @apply absolute -left-1 top-1 h-2 w-2 rounded-full bg-primary content-['']; }
+  .feedback-timeline strong { @apply text-sm font-semibold; }
+  .feedback-timeline span { @apply text-right text-xs text-text-secondary; }
+  .feedback-messages { @apply space-y-3; }
+  .feedback-messages article { @apply space-y-1 border-l-2 pl-3; }
+  .feedback-messages article[data-kind='user-reply'] { border-color: rgb(var(--hoho-color-primary)); }
+  .feedback-messages strong { @apply text-xs font-semibold; }
+  .feedback-messages p { @apply whitespace-pre-wrap text-sm leading-6; }
+  .feedback-messages span { @apply text-xs text-text-secondary; }
+  .feedback-supplement { @apply border-t pt-5; }
   .hoho-drawer-layer {
     position: fixed;
     inset: 0;

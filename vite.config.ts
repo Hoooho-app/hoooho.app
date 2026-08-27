@@ -8,8 +8,14 @@ import { eventRecordsApiPlugin } from './server/events/vite-event-records-plugin
 import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachments-plugin.mjs'
 import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
+import { feedbackApiPlugin } from './server/help/vite-feedback-plugin.mjs'
+
+const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildEnvironment.VITE_APP_VERSION || buildEnvironment.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) || 'web')
+  },
   server: {
     host: true
   },
@@ -20,6 +26,7 @@ export default defineConfig({
     eventRecordsApiPlugin(),
     eventAttachmentsApiPlugin(),
     aiApiPlugin(),
+    feedbackApiPlugin(),
     opsApiPlugin(),
     react(),
     VitePWA({

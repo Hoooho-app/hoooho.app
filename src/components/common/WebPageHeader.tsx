@@ -6,9 +6,10 @@ interface WebPageHeaderProps {
   title: string
   action?: ReactNode
   fallback?: string
+  onBack?: () => void
 }
 
-export function WebPageHeader({ title, action, fallback }: WebPageHeaderProps) {
+export function WebPageHeader({ title, action, fallback, onBack }: WebPageHeaderProps) {
   const navigate = useNavigate()
 
   return (
@@ -17,7 +18,7 @@ export function WebPageHeader({ title, action, fallback }: WebPageHeaderProps) {
         className="flex h-14 min-w-11 items-center pl-4 text-text-primary"
         type="button"
         aria-label="返回"
-        onClick={() => fallback ? navigate(fallback) : navigate(-1)}
+        onClick={() => onBack ? onBack() : fallback ? navigate(fallback) : navigate(-1)}
       >
         <ChevronLeft size={23} strokeWidth={1.7} />
       </button>
