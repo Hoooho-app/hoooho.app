@@ -307,6 +307,7 @@ export interface TemperatureRecord {
   max?: number
   label?: string
   periodLabel?: string
+  measurementSite?: string
 }
 
 export interface EventAttachment {
