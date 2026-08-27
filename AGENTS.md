@@ -1,5 +1,21 @@
 # Hoho Design System Freeze V1
 
+## Hoho mandatory delivery chain
+
+- The canonical application repository is `https://github.com/Hoooho-app/hoooho.app.git`; its formal deploy branch is `main`.
+- Every requested application source, runtime configuration, or deployment configuration change defaults to the complete delivery chain: development -> tests -> commit -> push -> integration into `main` -> Railway Staging deploy -> Staging verification -> Railway Production deploy -> Production verification. Only an explicit user scope restriction or a genuine blocker may stop this chain.
+- A feature Worktree or Branch that lacks Railway, Staging, or Production configuration is not exempt from deployment. Locate the canonical repository and deploy branch, then transfer only the verified change by cherry-pick, a clean branch, or another minimal safe integration method.
+- Do not report Deployment as `N/A` merely because the current Worktree cannot deploy. Report that it must be transferred to the deployment repository, and continue there.
+- `DONE` is forbidden while any applicable test, commit, push, `main` integration, Staging deploy/verification, or Production deploy/verification remains incomplete. “Ready to deploy”, “waiting for deployment confirmation”, and “current Worktree has no deployment configuration” are not completion states.
+- If credentials, permissions, branch protection, provider failure, or a required high-risk approval prevents completion, preserve the evidence and report `BLOCKED`, not `DONE` or `N/A`.
+- This delivery authorization does not permit destructive data operations, force-push, secret disclosure, bypassing security controls, or unrelated business changes.
+- Pure instruction or documentation changes do not require redeploying an unchanged application version unless they alter runtime, build, or release behavior or the user explicitly asks for deployment.
+
+### Existing Codex Thread rule refresh
+
+- A new Codex Thread must read both `$CODEX_HOME/AGENTS.md` and this repository `AGENTS.md` before work begins.
+- Existing Threads may not reliably hot-load later rule changes. Before resuming an existing development task, compare the Thread start context with the applicable rule file update times; if the Thread predates either file, re-read both rule layers before continuing.
+
 Hoho Design System V1 is the project's formal and frozen visual baseline.
 The reference implementation is the production-approved `/health-events` page,
 the `--hoho-*` tokens in `src/styles/tokens.css`, and the components in
@@ -66,3 +82,10 @@ Impeccable 默认只能用于：
 - Backfilled history is positioned by its actual `occurredAt`; a newer `createdAt` must not move an older occurrence above more recent health records.
 - Year navigation lists only years that contain events and orders them newest to oldest.
 - Do not substitute `createdAt` or `updatedAt` for `occurredAt` when displaying or ordering health chronology.
+
+## Email verification authentication release strategy
+
+- Email verification authentication follows the same mandatory release gate as all other application changes: automated verification -> commit -> push -> integration into `main` -> isolated Railway Staging -> real-email acceptance -> Railway Production -> online acceptance.
+- Before a Production deployment, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `AUTH_TOKEN_SECRET` must be configured as Production environment-scoped secrets and must never be committed or printed in logs.
+- `AUTH_EMAIL_FROM` must be an actual sender allowed by the configured Resend account. Do not guess or deploy an unverified sender.
+- Keep the Railway Staging environment available and verified; Staging is not optional during internal-use or external-user phases.

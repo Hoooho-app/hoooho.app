@@ -64,9 +64,9 @@ test('一级列表优先读取事件摘要层的标题和副标题', () => {
   const summarizedEvent: HealthEventApiDto = {
     ...event,
     eventSummary: {
-      systemGenerated: { title: '甲型流感', summary: '系统摘要', evidence: ['检查结果'], updatedAt: event.updatedAt },
+      systemGenerated: { title: '甲型流感', summary: '系统摘要', tags: [], evidence: ['检查结果'], updatedAt: event.updatedAt },
       userCorrection: null,
-      displayedResult: { title: '甲型流感', summary: '发热、头痛，最高体温39℃，检查提示甲型流感。', evidence: ['检查结果'], updatedAt: event.updatedAt, source: 'system' },
+      displayedResult: { title: '甲型流感', summary: '发热、头痛，最高体温39℃，检查提示甲型流感。', tags: [], evidence: ['检查结果'], updatedAt: event.updatedAt, source: 'system' },
       hasNewEvidenceAfterCorrection: false
     }
   }

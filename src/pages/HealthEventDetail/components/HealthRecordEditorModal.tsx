@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
+import { BodyLocationPicker } from '../../../components/health'
+import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
@@ -112,8 +114,6 @@ interface HealthRecordEditorModalProps {
   onSave?: (result: HealthRecordEditorResult) => void | Promise<void>
 }
 
-const bodyLocations = ['头', '颈', '肩', '胸', '腹', '腰', '手', '手掌', '腿', '脚', '皮肤', '其他']
-
 function inferImageLabel(name: string, selectedLocations: string[]) {
   if (/药|药盒|药瓶/.test(name)) return '药物'
   if (/检查|化验|报告|血常规/.test(name)) return '检查单'
@@ -141,7 +141,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [attachments, setAttachments] = useState<CreateEventAttachmentInput[]>([])
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<BodyLocationSelection[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
   usePageScrollLock(open)
@@ -165,18 +165,12 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   ], [occurredAt, recordType, text])
   const isBeforeFirstRecord = Boolean(minOccurredAt && new Date(occurredAt).getTime() < new Date(minOccurredAt).getTime())
   const isFutureTime = isFutureOccurredAt(occurredAt)
-  const canSave = Boolean((text.trim() || attachments.length) && occurredAt && !isBeforeFirstRecord && !isFutureTime)
+  const canSave = Boolean((text.trim() || attachments.length || selectedLocations.length) && occurredAt && !isBeforeFirstRecord && !isFutureTime)
 
   const changeOccurredAt = (value: string) => {
     const nextValue = clampOccurredAtToNow(value)
     setOccurredAt(nextValue)
     setSaveError(nextValue === value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
-  }
-
-  const toggleLocation = (location: string) => {
-    setSelectedLocations((current) => current.includes(location)
-      ? current.filter((item) => item !== location)
-      : [...current, location])
   }
 
   const selectImages = async (files: FileList | null) => {
@@ -192,7 +186,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
           reader.onerror = () => reject(new Error('图片读取失败'))
           reader.readAsDataURL(file)
         })
-        const label = inferImageLabel(file.name, selectedLocations)
+        const label = inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations))
         return { name: `[${label}] ${file.name}`, mimeType: file.type, dataUrl }
       }))
       setAttachments((current) => [...current, ...selected].slice(0, 8))
@@ -215,7 +209,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     setIsSaving(true)
     try {
       if (!onSave) return
-      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments, bodyLocations: selectedLocations })
+      await onSave({ templateType, recordType, originalText: text.trim(), occurredAt: new Date(occurredAt).toISOString(), structuredFields: preview, attachments, bodyLocations: bodyLocationSelectionLabels(selectedLocations) })
       onClose()
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '保存失败，请稍后重试')
@@ -259,25 +253,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               )}
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-semibold text-heading">身体部位</p>
-              <div className="grid grid-cols-6 gap-2" aria-label="身体部位快速选择">
-                {bodyLocations.map((location) => {
-                  const selected = selectedLocations.includes(location)
-                  return (
-                    <button
-                      aria-pressed={selected}
-                      className={`min-h-9 rounded-pill border px-1 text-xs font-medium transition ${selected ? 'border-primary bg-primary text-surface' : 'border-primary/20 bg-surface text-text-secondary'}`}
-                      key={location}
-                      onClick={() => toggleLocation(location)}
-                      type="button"
-                    >
-                      {location}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            <BodyLocationPicker label="身体部位" onChange={setSelectedLocations} value={selectedLocations} />
 
             <div>
               <label className="mb-2 block text-xs font-semibold text-heading" htmlFor="continuation-description">描述情况</label>

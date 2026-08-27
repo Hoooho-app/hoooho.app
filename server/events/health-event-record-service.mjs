@@ -1,5 +1,6 @@
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from './repositories/health-event-record-repository.mjs'
+import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 
 const recordTypes = new Set(['note', 'symptom', 'medication', 'visit', 'examination', 'other'])
 const editableFields = new Set(['type', 'content', 'occurredAt'])
@@ -56,6 +57,15 @@ export class HealthEventRecordService {
   constructor(options = {}) {
     this.repository = options.repository ?? new HealthEventRecordRepository(options.dataDirectory)
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
+    this.organizations = options.organizations ?? new HealthRecordOrganizationService(options)
+  }
+
+  async recomputeAfterMutation(accountId, eventId, now, options = {}) {
+    try {
+      await this.organizations.invalidateAndRecompute(accountId, eventId, now, options)
+    } catch (error) {
+      console.warn('[Hoooho AI] record saved but organization recompute failed', eventId, error?.code ?? error?.message)
+    }
   }
 
   async assertEventOwnership(accountId, eventId) {
@@ -88,13 +98,20 @@ export class HealthEventRecordService {
         'RECORD_BEFORE_EVENT_START'
       )
     }
-    return this.repository.create({
+    const created = await this.repository.create({
       accountId,
       eventId,
       type: validateType(input.type),
       content: validateContent(input.content),
       occurredAt
     }, now)
+    const bodyLocations = Array.isArray(input.bodyLocations)
+      ? [...new Set(input.bodyLocations.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean))].slice(0, 12)
+      : []
+    await this.recomputeAfterMutation(accountId, eventId, now, bodyLocations.length
+      ? { bodyLocationsByRecord: { [created.id]: bodyLocations } }
+      : {})
+    return created
   }
 
   async list(accountId, eventId) {
@@ -103,7 +120,7 @@ export class HealthEventRecordService {
   }
 
   async update(accountId, id, input, now = new Date()) {
-    await this.getOwnedRecord(accountId, id)
+    const record = await this.getOwnedRecord(accountId, id)
     rejectImmutableFields(input)
     const changes = {}
     for (const key of Object.keys(input)) {
@@ -115,12 +132,15 @@ export class HealthEventRecordService {
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')
     }
-    return this.repository.update(id, changes, now)
+    const updated = await this.repository.update(id, changes, now)
+    await this.recomputeAfterMutation(accountId, record.eventId, now)
+    return updated
   }
 
   async delete(accountId, id) {
-    await this.getOwnedRecord(accountId, id)
+    const record = await this.getOwnedRecord(accountId, id)
     await this.repository.delete(id)
+    await this.recomputeAfterMutation(accountId, record.eventId, new Date())
     return { success: true }
   }
 }

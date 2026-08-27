@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { findBodyLocation, getBodyLocationRegions, normalizeBodyLocationSelection, searchBodyLocations } from './bodyLocationCatalog.ts'
+import { bodyLocationSelectionLabels, findBodyLocation, getBodyLocationRegions, normalizeBodyLocationSelection, searchBodyLocations } from './bodyLocationCatalog.ts'
 
 test('标准目录区分表面区域与内部器官', () => {
   assert.deepEqual(findBodyLocation('右膝'), {
@@ -44,4 +44,9 @@ test('成员性别只影响适用器官目录，不做其他医学推断', () =>
 test('旧字符串和已结构化数据均可归一化', () => {
   assert.equal(normalizeBodyLocationSelection('右膝')?.id, 'lower_limb_knee_right')
   assert.equal(normalizeBodyLocationSelection({ id: 'custom', label: '自定义位置', locationType: 'surface' })?.label, '自定义位置')
+})
+
+test('结构化部位选择按既有 HealthEvent string[] 契约序列化', () => {
+  const values = ['颈', '肩', '腹'].map((value, index) => normalizeBodyLocationSelection(value, index)).filter((value) => value !== undefined)
+  assert.deepEqual(bodyLocationSelectionLabels(values), ['颈', '肩', '腹'])
 })

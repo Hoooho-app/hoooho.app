@@ -1,79 +1,57 @@
-import { FileText, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { HealthCard, HealthTag, HohoButton, HohoInput, Typography } from '../../../components/design-system'
-import type { HealthEventSummaryApiDto } from '../../../types'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { HealthCard, HealthTag, Typography } from '../../../components/design-system'
+import type { HealthEventSummaryApiDto, HealthEventSummaryTag } from '../../../types'
+import { countVisibleSummaryTags } from './summaryTagLayout'
 
 interface EventSummarySectionProps {
   summary: HealthEventSummaryApiDto
-  onSave: (input: { title: string; summary: string }) => Promise<unknown>
 }
 
-export function EventSummarySection({ summary, onSave }: EventSummarySectionProps) {
-  const displayed = summary.displayedResult
-  const [editing, setEditing] = useState(false)
-  const [title, setTitle] = useState(displayed.title)
-  const [content, setContent] = useState(displayed.summary)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+function tagTone(tag: HealthEventSummaryTag) {
+  return tag.kind === 'diagnosis' ? 'primary' : tag.kind === 'assessment' ? 'warning' : 'neutral'
+}
 
-  useEffect(() => {
-    setTitle(displayed.title)
-    setContent(displayed.summary)
-  }, [displayed.summary, displayed.title])
+function SummaryTagRow({ tags }: { tags: HealthEventSummaryTag[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [visibleCount, setVisibleCount] = useState(tags.length)
 
-  const save = async () => {
-    if (!title.trim() || !content.trim() || saving) return
-    setSaving(true)
-    setError('')
-    try {
-      await onSave({ title: title.trim(), summary: content.trim() })
-      setEditing(false)
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : '保存校对失败，请稍后重试')
-    } finally {
-      setSaving(false)
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const measure = measureRef.current
+    if (!container || !measure) return
+    const update = () => {
+      const widths = [...measure.children].map((child) => (child as HTMLElement).offsetWidth)
+      setVisibleCount(countVisibleSummaryTags(widths, container.clientWidth))
     }
-  }
+    update()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    observer?.observe(container)
+    window.addEventListener('resize', update)
+    return () => { observer?.disconnect(); window.removeEventListener('resize', update) }
+  }, [tags])
 
+  if (!tags.length) return null
+  return (
+    <div className="relative min-w-0 overflow-hidden" ref={containerRef}>
+      <div aria-hidden="true" className="pointer-events-none absolute invisible flex w-max flex-nowrap gap-2" ref={measureRef}>
+        {tags.map((tag) => <HealthTag className="shrink-0 whitespace-nowrap" key={`${tag.kind}-${tag.label}`} tone={tagTone(tag)}>{tag.label}</HealthTag>)}
+      </div>
+      <div aria-label="事件摘要标签" className="event-summary-tags flex flex-nowrap gap-2 overflow-hidden">
+        {tags.slice(0, visibleCount).map((tag) => <HealthTag className="shrink-0 whitespace-nowrap" key={`${tag.kind}-${tag.label}`} tone={tagTone(tag)}>{tag.label}</HealthTag>)}
+      </div>
+    </div>
+  )
+}
+
+export function EventSummarySection({ summary }: EventSummarySectionProps) {
+  const displayed = summary.displayedResult
   return (
     <section aria-labelledby="event-summary-title">
-      <HealthCard className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <Typography id="event-summary-title" variant="sectionTitle">事件摘要</Typography>
-          {!editing && <HohoButton variant="text" onClick={() => setEditing(true)}>手动校对</HohoButton>}
-        </div>
-        <HealthTag tone="primary"><Sparkles size={14} />自动整理</HealthTag>
-
-        {editing ? (
-          <div className="space-y-3">
-            <HohoInput label="事件名称" maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} />
-            <label className="hoho-field">
-              <span className="hoho-text-label">摘要</span>
-              <textarea className="hoho-textarea" maxLength={1000} value={content} onChange={(event) => setContent(event.target.value)} />
-            </label>
-            {error && <p className="text-sm text-danger">{error}</p>}
-            <div className="flex justify-end gap-2">
-              <HohoButton variant="text" onClick={() => { setEditing(false); setTitle(displayed.title); setContent(displayed.summary) }}>取消</HohoButton>
-              <HohoButton disabled={saving || !title.trim() || !content.trim()} onClick={() => void save()}>{saving ? '保存中…' : '保存校对'}</HohoButton>
-            </div>
-          </div>
-        ) : (
-          <>
-            <Typography className="break-words" variant="sectionTitle">{displayed.title}</Typography>
-            <Typography className="whitespace-pre-wrap break-words" variant="body">{displayed.summary}</Typography>
-            <div className="flex items-start gap-2 text-text-secondary">
-              <FileText className="mt-0.5 shrink-0" size={17} />
-              <Typography variant="caption">依据：{displayed.evidence.join(' · ')}</Typography>
-            </div>
-            <div className="border-t border-border/70 pt-3">
-              <Typography variant="caption">
-                {summary.hasNewEvidenceAfterCorrection
-                  ? '新的关键记录已纳入系统摘要；当前仍保留你的校对表达。'
-                  : '系统会根据后续记录自动更新，你也可以手动校对。'}
-              </Typography>
-            </div>
-          </>
-        )}
+      <HealthCard className="event-summary-card">
+        <Typography id="event-summary-title" variant="sectionTitle">事件摘要</Typography>
+        <SummaryTagRow tags={displayed.tags ?? []} />
+        <Typography className="event-summary-description" variant="body">{displayed.summary}</Typography>
       </HealthCard>
     </section>
   )

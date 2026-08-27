@@ -1,10 +1,25 @@
 import { Menu } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { SideDrawer } from './SideDrawer'
+import type { MemberSwitchResultState } from './navigationState'
 
 export function MainAppHeader({ title, action }: { title: string; action?: ReactNode }) {
-  const [open, setOpen] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const switchResult = (location.state as MemberSwitchResultState | null)?.memberSwitchResult
+  const [open, setOpen] = useState(() => switchResult?.reopenDrawer ?? false)
+  const [switchedMemberName, setSwitchedMemberName] = useState(() => switchResult?.memberName ?? '')
+
+  useEffect(() => {
+    if (!switchedMemberName) return
+    const timer = window.setTimeout(() => {
+      setSwitchedMemberName('')
+      navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null })
+    }, 1800)
+    return () => window.clearTimeout(timer)
+  }, [location.hash, location.pathname, location.search, navigate, switchedMemberName])
 
   return (
     <>
@@ -16,6 +31,13 @@ export function MainAppHeader({ title, action }: { title: string; action?: React
         <div className="justify-self-end">{action}</div>
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />
+      {switchedMemberName && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[max(24px,env(safe-area-inset-bottom))] z-[60] mx-auto flex w-full max-w-[402px] justify-center px-4" aria-live="polite" role="status">
+          <p className="rounded-pill bg-text-primary px-4 py-2.5 text-sm font-medium text-surface shadow-floating">
+            已切换至 {switchedMemberName}
+          </p>
+        </div>
+      )}
     </>
   )
 }

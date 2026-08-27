@@ -16,6 +16,7 @@ import type {
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
 import { createVirtualAvatarId } from '../utils/virtualAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
+import { getExactTemperatureMeasurement } from '../utils/temperatureMeasurement'
 import { compareHealthChronologyDesc } from './healthChronology'
 
 const relationLabels: Record<FamilyMemberApiDto['relationship'], MemberRelation> = {
@@ -176,20 +177,20 @@ function buildTemperatureRecords(facts: FactContext[]) {
       { id: left.fact.id, occurredAt: factTime(left), createdAt: factCreatedAt(left) },
       { id: right.fact.id, occurredAt: factTime(right), createdAt: factCreatedAt(right) }
     ))
-    .map((item) => {
-    const temperature = item.fact.temperature!
-    const time = factTime(item)
-    const label = temperature.min === temperature.max
-      ? `${temperature.min}℃`
-      : `${temperature.min}-${temperature.max}℃`
-    return {
-      time,
-      value: (temperature.min + temperature.max) / 2,
-      min: temperature.min,
-      max: temperature.max,
-      label,
-      periodLabel: factPeriodLabel(item.fact, time)
-    }
+    .flatMap((item) => {
+      const temperature = item.fact.temperature!
+      const exactValue = getExactTemperatureMeasurement(temperature.min, temperature.max)
+      if (exactValue === null) return []
+      const time = factTime(item)
+      return {
+        time,
+        value: exactValue,
+        min: exactValue,
+        max: exactValue,
+        label: `${exactValue.toFixed(1)}℃`,
+        periodLabel: factPeriodLabel(item.fact, time),
+        measurementSite: item.fact.bodyPart ?? undefined
+      }
     })
 }
 
@@ -245,7 +246,23 @@ function buildFactTimeline(
     })
   })
 
-  return [...factEntries, ...attachmentOnlyEntries].sort((left, right) => compareHealthChronologyDesc(
+  const rawRecordEntries = records.filter((record) => (
+    !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) === 0
+  )).map((record): TimelineEntry => ({
+    id: `${record.id}-raw`,
+    time: record.occurredAt,
+    createdAt: record.createdAt,
+    periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
+    content: record.content,
+    recordType: record.type,
+    kind: record.type === 'medication' ? 'medication' : 'text',
+    sourceRecordId: record.id,
+    sequence: 0,
+    segments: [{ label: '记录', content: record.content }],
+    attachments: []
+  }))
+
+  return [...factEntries, ...attachmentOnlyEntries, ...rawRecordEntries].sort((left, right) => compareHealthChronologyDesc(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
     { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))

@@ -15,6 +15,8 @@ import {
 import { AtlasSelectionCount, BodyLocationAtlas } from './body-location/BodyLocationAtlas'
 
 export interface BodyLocationPickerProps {
+  buttonLabel?: string
+  compact?: boolean
   label?: string
   member?: BodyLocationMember
   value: BodyLocationSelection[]
@@ -56,7 +58,7 @@ function OptionGrid({ options, selectedIds, onToggle }: { options: readonly Body
   })}</div>
 }
 
-export function BodyLocationPicker({ label = '身体部位（可多选）', member, value, onChange }: BodyLocationPickerProps) {
+export function BodyLocationPicker({ buttonLabel, compact = false, label = '身体部位（可多选）', member, value, onChange }: BodyLocationPickerProps) {
   const [open, setOpen] = useState(false)
   const [activeRegionId, setActiveRegionId] = useState('')
   const [activeView, setActiveView] = useState<BodyLocationView>('front')
@@ -83,9 +85,9 @@ export function BodyLocationPicker({ label = '身体部位（可多选）', memb
   const activeRegionSelectionCount = activeRegion ? draft.filter((item) => item.parentId === activeRegion.id).length : 0
 
   return <fieldset className="min-w-0"><legend className="hoho-text-label mb-2">{label}</legend>
-    <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-control border bg-background p-3">
-      <SelectionChips onRemove={removeCommitted} values={value} />
-      <button className="inline-flex min-h-10 items-center gap-1 rounded-control border border-dashed border-primary/55 bg-surface px-3 text-xs font-semibold text-primary" onClick={beginEditing} type="button">{value.length ? '修改位置' : '+ 选择位置'}</button>
+    <div className={`flex min-w-0 items-center gap-2 rounded-control border bg-background p-3 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+      <span className="min-w-0 flex-1 overflow-hidden"><SelectionChips compact={compact} onRemove={removeCommitted} values={value} /></span>
+      <button className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-control border border-dashed border-primary/55 bg-surface px-3 text-xs font-semibold text-primary" onClick={beginEditing} type="button">{buttonLabel ?? (value.length ? '修改位置' : '+ 选择位置')}</button>
     </div>
     <BottomSheetSurface
       className="body-location-sheet"

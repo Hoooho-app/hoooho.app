@@ -8,6 +8,7 @@ export interface OpsResource {
   monthlyBudget:number|null; alertThreshold:number; notes:string; nextAction:string; impact:string; runway:string; enabled:boolean;
   lastSyncAt:string|null; lastSuccessfulSyncAt:string|null; syncStatus:'normal'|'failed'|'not-configured'|'stale'; updatedAt:string
 }
-export const getOpsResources = (token:string, signal?:AbortSignal) => apiRequest<{resources:OpsResource[]}>('/api/ops/resources',{token,signal})
+export type OpsAccessMode = 'allowlist'|'temporary-authenticated'
+export const getOpsResources = (token:string, signal?:AbortSignal) => apiRequest<{resources:OpsResource[];accessMode:OpsAccessMode}>('/api/ops/resources',{token,signal})
 export const updateOpsResource = (token:string,id:string,body:Partial<OpsResource>) => apiRequest<OpsResource>(`/api/ops/resources/${encodeURIComponent(id)}`,{token,method:'PATCH',body})
 export const syncOpsResources = (token:string) => apiRequest<{resources:OpsResource[]}>('/api/ops/sync',{token,method:'POST'})

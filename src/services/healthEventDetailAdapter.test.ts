@@ -67,7 +67,7 @@ test('详情页完全由 HealthFact 生成时间线、标签和体温记录', ()
   assert.deepEqual(view.event.medications, ['退烧药'])
 })
 
-test('无对应 Fact 时隐藏健康模块，并忽略旧 organizedHealthData 假数据', () => {
+test('无对应 Fact 时保留原始记录、隐藏派生健康模块，并忽略旧 organizedHealthData 假数据', () => {
   const sourceRecord = record('record-2', '北京')
   const legacyData: OrganizedHealthData = {
     ...emptyOrganizedData,
@@ -75,7 +75,9 @@ test('无对应 Fact 时隐藏健康模块，并忽略旧 organizedHealthData �
     temperature: { min: 39, max: 39, unit: '℃' }
   }
   const invalid = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, [], legacyData)])
-  assert.equal(invalid.event.timeline.length, 0)
+  assert.equal(invalid.event.timeline.length, 1)
+  assert.equal(invalid.event.timeline[0].content, '北京')
+  assert.equal(invalid.event.timeline[0].segments?.[0].label, '记录')
   assert.equal(invalid.event.temperatureRecords.length, 0)
   assert.deepEqual(invalid.event.symptoms, [])
 
@@ -90,10 +92,24 @@ test('无对应 Fact 时隐藏健康模块，并忽略旧 organizedHealthData �
   assert.equal(noFever.event.temperatureRecords.length, 0)
 })
 
+test('体温趋势只使用真实单次测量值，并保留已有测量部位', () => {
+  const sourceRecord = record('record-temperature-chart', '腋下体温38.5度，参考范围35到36.9度')
+  const exact = fact('fact-temperature-exact', 'temperature', '38.5℃', null, sourceRecord.occurredAt, '腋下')
+  const range = fact('fact-temperature-range', 'temperature', '35–36.9℃', null, sourceRecord.occurredAt)
+  range.temperature = { min: 35, max: 36.9, unit: '℃' }
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, [exact, range])])
+
+  assert.equal(view.event.temperatureRecords.length, 1)
+  assert.equal(view.event.temperatureRecords[0].value, 38.5)
+  assert.equal(view.event.temperatureRecords[0].label, '38.5℃')
+  assert.equal(view.event.temperatureRecords[0].measurementSite, '腋下')
+})
+
 test('真实附件只跟随所属记录，没有图片时不生成附件时间线', () => {
   const sourceRecord = record('record-3', '上传图片')
   const withoutAttachment = adaptHealthEventDetail(eventDto, [sourceRecord], [], [])
-  assert.equal(withoutAttachment.event.timeline.length, 0)
+  assert.equal(withoutAttachment.event.timeline.length, 1)
+  assert.equal(withoutAttachment.event.timeline[0].content, '上传图片')
 
   const attachment: EventAttachmentApiDto = {
     id: 'attachment-1', accountId: 'account-1', eventId: 'event-1', recordId: sourceRecord.id,

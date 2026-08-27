@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { HealthEventSubject } from '../../../services/healthEventPersonalization'
-import { Avatar } from '../../../components/common'
+import { RecordSubjectCard } from '../../../components/health'
 
 export function EventIdentitySection({ subject }: { subject: HealthEventSubject }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -16,22 +16,18 @@ export function EventIdentitySection({ subject }: { subject: HealthEventSubject 
   ]
 
   return (
-    <section className="space-y-3">
-      <h2 className="section-title">记录对象</h2>
+    <section>
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-surface/55">
-        <button
-          aria-expanded={isExpanded}
-          className="flex min-h-[64px] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-primary/5"
+        <RecordSubjectCard
+          action={<ChevronDown className={`text-text-secondary transition-transform ${isExpanded ? '' : 'rotate-180'}`} size={19} />}
+          age={subject.displayAge}
+          avatar={subject.avatar}
+          className="border-0 shadow-none"
+          expanded={isExpanded}
+          gender={subject.genderLabel}
+          name={subject.name}
           onClick={() => setIsExpanded((current) => !current)}
-          type="button"
-        >
-          <Avatar name={subject.name} src={subject.avatar} size="sm" />
-          <span className="min-w-0 flex-1">
-            <strong className="block text-sm">{subject.name}</strong>
-            <span className="mt-1 block truncate text-xs text-text-secondary">{subject.genderLabel} · {subject.displayAge}</span>
-          </span>
-          <ChevronDown className={`shrink-0 text-text-secondary transition-transform ${isExpanded ? '' : 'rotate-180'}`} size={19} />
-        </button>
+        />
 
         {isExpanded && (
           <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 px-4 py-4">

@@ -15,8 +15,8 @@ export function opsApiPlugin(options = {}) {
       const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
       const payload = token ? tokens.verify(token) : null
       if (!payload) throw Object.assign(new Error('登录状态无效或已过期'),{status:401,code:'UNAUTHORIZED'})
-      assertOpsAccess(payload)
-      if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response,200,await service.list())
+      const access = assertOpsAccess(payload)
+      if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response,200,{...await service.list(),accessMode:access.mode})
       if (pathname === '/api/ops/resources' && request.method === 'POST') return send(response,201,await service.create(await readJson(request)))
       const match = /^\/api\/ops\/resources\/([^/]+)$/.exec(pathname)
       if (match && request.method === 'PATCH') return send(response,200,await service.update(decodeURIComponent(match[1]),await readJson(request)))

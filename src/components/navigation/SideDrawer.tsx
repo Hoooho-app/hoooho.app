@@ -7,6 +7,7 @@ import { Avatar } from '../common'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useAppStore } from '../../store/useAppStore'
+import { getCurrentPath } from './navigationState'
 
 interface SideDrawerProps {
   open: boolean
@@ -54,7 +55,14 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const openPage = (to: string) => {
     onClose()
     if (to === '/login') clearAuthSession()
-    navigate(to)
+    navigate(to, to === '/family' ? {
+      state: {
+        familyEntry: {
+          returnTo: getCurrentPath(location.pathname, location.search, location.hash),
+          reopenDrawer: true
+        }
+      }
+    } : undefined)
   }
 
   return (
