@@ -38,7 +38,7 @@ export function RecordSubjectCard({
       {action && <span className="flex shrink-0 items-center">{action}</span>}
     </>
   )
-  const classes = `flex min-h-[60px] min-w-0 items-center gap-3 rounded-card border bg-surface px-3.5 py-2 text-left shadow-card ${className}`
+  const classes = `record-subject-card flex min-h-[64px] min-w-0 items-center gap-3 rounded-card border bg-surface px-4 py-2.5 text-left ${className}`
 
   if (onClick) {
     return <button aria-expanded={expanded} aria-label={`${label}：${name}`} className={`${classes} w-full transition hover:bg-primary-soft/40`} onClick={onClick} type="button">{content}</button>

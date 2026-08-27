@@ -12,6 +12,7 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
+  { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
   {
     element: <RequireAuth />,
     children: [
@@ -32,12 +33,14 @@ export const router = createBrowserRouter([
       { path: '/settings/notification', lazy: lazyPage(() => import('../pages/Settings'), 'NotificationSettingsPage') },
       { path: '/settings/privacy', lazy: lazyPage(() => import('../pages/Settings'), 'PrivacySettingsPage') },
       { path: '/messages', lazy: lazyPage(() => import('../pages/Messages'), 'MessageCenterPage') },
-      { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
       { path: '/feedback', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackPage') },
       { path: '/feedback/submitted', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackSubmittedPage') },
+      { path: '/feedback/mine', lazy: lazyPage(() => import('../pages/Feedback'), 'MyFeedbackPage') },
+      { path: '/feedback/:feedbackId', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackDetailPage') },
       { path: '/ops', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
+      { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') },
       { path: '/about', lazy: lazyPage(() => import('../pages/About'), 'AboutPage') }
     ]
   },
-  { path: '*', element: <Navigate to="/login" replace /> }
+  { path: '*', lazy: lazyPage(() => import('../pages/NotFound'), 'NotFoundPage') }
 ])

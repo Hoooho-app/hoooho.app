@@ -100,7 +100,7 @@ export function ProfileSetupPage() {
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
         <div className="text-center">
-          <h1 className="hoho-text-page-title">添加第一个家人</h1>
+          <h1 className="hoho-text-page-title">添加家人</h1>
           <p className="mt-3 text-sm leading-7 text-text-secondary">
             先添加第一个家人，
             <br />
@@ -165,7 +165,7 @@ export function ProfileSetupPage() {
             {error && <p className="text-xs text-danger">{error}</p>}
           </div>
           <Button className="mt-2" disabled={loading || submitting || !selfMember} fullWidth type="submit">
-            {loading ? '正在准备…' : submitting ? '正在添加…' : '添加家人，开始记录'}
+            {loading ? '正在准备…' : submitting ? '正在保存…' : '完成'}
           </Button>
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">
             <LockKeyhole size={12} strokeWidth={1.8} />

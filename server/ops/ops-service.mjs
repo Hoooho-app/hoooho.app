@@ -97,11 +97,15 @@ export class OpsService {
   }
 }
 
-export function assertOpsAccess(payload) {
+export function assertOpsAccess(payload, options = {}) {
   const ids = (process.env.OPS_ALLOWED_ACCOUNT_IDS ?? '').split(',').map((v) => v.trim()).filter(Boolean)
   const phones = (process.env.OPS_ALLOWED_PHONES ?? '').split(',').map((v) => v.trim()).filter(Boolean)
-  if (ids.length === 0 && phones.length === 0) return { mode: 'temporary-authenticated' }
-  const allowed = ids.includes(payload.sub) || phones.includes(payload.phone)
+  const emails = (process.env.OPS_ALLOWED_EMAILS ?? '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean)
+  if (ids.length === 0 && phones.length === 0 && emails.length === 0) {
+    if (options.requireAllowlist) { const error = new Error('反馈管理未配置内部账号白名单'); error.status = 403; error.code = 'OPS_ALLOWLIST_REQUIRED'; throw error }
+    return { mode: 'temporary-authenticated' }
+  }
+  const allowed = ids.includes(payload.sub) || phones.includes(payload.phone) || emails.includes(String(payload.email ?? '').toLowerCase())
   if (!allowed) { const error = new Error('当前账号没有运营总控台权限'); error.status = 403; error.code = 'OPS_FORBIDDEN'; throw error }
   return { mode: 'allowlist' }
 }

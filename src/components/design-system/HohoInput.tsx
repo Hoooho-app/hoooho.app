@@ -24,7 +24,7 @@ export const HohoInput = forwardRef<HTMLInputElement, HohoInputProps>(function H
         ref={ref}
         {...props}
       />
-      {(error || hint) && <span className="hoho-field__message" data-error={Boolean(error)} id={messageId}>{error || hint}</span>}
+      {(error || hint) && <span aria-live={error ? 'polite' : undefined} className="hoho-field__message" data-error={Boolean(error)} id={messageId} role={error ? 'alert' : undefined}>{error || hint}</span>}
     </label>
   )
 })

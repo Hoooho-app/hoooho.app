@@ -70,7 +70,7 @@ export function HealthEventFilterSheet({ open, filters, years, onClose, onApply 
   }))
 
   return (
-    <div className="fixed inset-0 z-50 mx-auto w-full max-w-[402px]" role="dialog" aria-modal="true" aria-label="健康事件筛选">
+    <div className="health-events-filter-layer fixed inset-0 z-50 mx-auto w-full" role="dialog" aria-modal="true" aria-label="健康事件筛选">
       <button className="absolute inset-0 bg-text-primary/40" aria-label="关闭筛选" type="button" onClick={onClose} />
       <aside className="absolute inset-y-0 right-0 flex w-[84%] max-w-[338px] flex-col overflow-y-auto bg-surface px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] shadow-floating">
         <header className="flex items-center justify-between">

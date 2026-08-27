@@ -16,6 +16,7 @@ import { ChronicProfilePage } from './ChronicProfilePage'
 import { SurgeryProfilePage } from './SurgeryProfilePage'
 import { FamilyHistoryProfilePage } from './FamilyHistoryProfilePage'
 import { profileSectionExperienceMap } from '../../features/health-profile/config/profileSectionExperiences'
+import { getHealthProfileType } from '../../features/health-profile/utils/getHealthProfileProfile'
 import { HealthProfileExperiencePage } from './profile-sections/HealthProfileExperiencePage'
 import { ProfileChoiceGroup } from './profile-sections/ProfileSectionPatterns'
 
@@ -95,6 +96,9 @@ export function HealthProfileSectionPage() {
   const experience = profileSectionExperienceMap[section.id as keyof typeof profileSectionExperienceMap]
   if (experience) return <main className="app-shell health-profile-detail-shell"><WebPageHeader fallback="/health-profile" title={section.title} /><HealthProfileExperiencePage definition={experience} member={member} storageKey={storageKey} title={section.title} /></main>
   const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
+  const visibleFields = section.id === 'basic'
+    ? section.fields.filter((field) => field.id !== 'headCircumference' || ['infant', 'child'].includes(getHealthProfileType(member.birthday, member.gender)))
+    : section.fields
 
   const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
   const resetForm = () => { setValues(section.id === 'basic' ? getBasicHealthProfileValues(member) : {}); setEditingIndex(null) }
@@ -146,11 +150,11 @@ export function HealthProfileSectionPage() {
         <Typography variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography>
         {section.id === 'basic' && <BasicMetrics
           bmi={bmi}
-          fields={section.fields.slice(0, 3)}
+          fields={visibleFields.slice(0, 3)}
           onChange={(id, value) => setValues((current) => ({ ...current, [id]: value }))}
           values={values}
         />}
-        {(section.id === 'basic' ? section.fields.slice(3) : section.fields).map((field) => <Field
+        {(section.id === 'basic' ? visibleFields.slice(3) : visibleFields).map((field) => <Field
           field={field}
           key={field.id}
           value={values[field.id] ?? ''}

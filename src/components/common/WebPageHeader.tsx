@@ -6,23 +6,24 @@ interface WebPageHeaderProps {
   title: string
   action?: ReactNode
   fallback?: string
+  onBack?: () => void
 }
 
-export function WebPageHeader({ title, action, fallback }: WebPageHeaderProps) {
+export function WebPageHeader({ title, action, fallback, onBack }: WebPageHeaderProps) {
   const navigate = useNavigate()
 
   return (
-    <header className="hoho-page-header sticky top-0 z-20 grid h-14 shrink-0 grid-cols-[7rem_1fr_7rem] items-center">
+    <header className="hoho-page-header sticky top-0 z-20 grid min-h-14 shrink-0 grid-cols-[minmax(52px,1fr)_minmax(0,3fr)_minmax(52px,1fr)] items-center pt-[env(safe-area-inset-top)]">
       <button
-        className="flex h-14 items-center pl-5 text-text-primary"
+        className="flex h-14 min-w-11 items-center pl-4 text-text-primary"
         type="button"
         aria-label="返回"
-        onClick={() => fallback ? navigate(fallback) : navigate(-1)}
+        onClick={() => onBack ? onBack() : fallback ? navigate(fallback) : navigate(-1)}
       >
         <ChevronLeft size={23} strokeWidth={1.7} />
       </button>
-      <h1 className="hoho-text-section-title whitespace-nowrap text-center">{title}</h1>
-      <div className="flex h-14 items-center justify-end pr-4">{action}</div>
+      <h1 className="hoho-text-section-title truncate px-1 text-center">{title}</h1>
+      <div className="flex min-h-14 min-w-0 items-center justify-end pr-4">{action}</div>
     </header>
   )
 }

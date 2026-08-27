@@ -16,6 +16,7 @@ import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
+import { FeedbackService } from './help/feedback-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -39,6 +40,7 @@ const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
+const feedback = new FeedbackService(sharedOptions)
 
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -149,6 +151,51 @@ async function handleOps(request, response, pathname) {
   else {
     const match = /^\/api\/ops\/resources\/([^/]+)$/.exec(pathname)
     if (match && request.method === 'PATCH') sendJson(response, 200, await ops.update(decodeRouteValue(match[1]), await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  }
+  return true
+}
+
+async function handleOpsFeedback(request, response, pathname, searchParams) {
+  if (!pathname.startsWith('/api/ops/feedback')) return false
+  const payload = readAuthPayload(request)
+  assertOpsAccess(payload, { requireAllowlist: true })
+  if (pathname === '/api/ops/feedback' && request.method === 'GET') {
+    sendJson(response, 200, await feedback.listForOps(Object.fromEntries(searchParams)))
+    return true
+  }
+  const match = /^\/api\/ops\/feedback\/([^/]+)$/.exec(pathname)
+  const messagesMatch = /^\/api\/ops\/feedback\/([^/]+)\/messages$/.exec(pathname)
+  if (messagesMatch && request.method === 'POST') sendJson(response, 201, await feedback.addOpsMessage(payload.sub, decodeRouteValue(messagesMatch[1]), await readJson(request)))
+  else if (match && request.method === 'GET') sendJson(response, 200, await feedback.getForOps(decodeRouteValue(match[1])))
+  else if (match && request.method === 'PATCH') sendJson(response, 200, await feedback.updateFromOps(payload.sub, decodeRouteValue(match[1]), await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
+async function handleFeedback(request, response, pathname, searchParams) {
+  const attachmentMatch = /^\/api\/feedback\/attachments\/([^/]+)$/.exec(pathname)
+  if (attachmentMatch && request.method === 'GET') {
+    const attachment = await feedback.readAttachmentWithAccess(decodeRouteValue(attachmentMatch[1]), searchParams.get('expires'), searchParams.get('access'))
+    setCommonHeaders(response)
+    response.statusCode = 200
+    response.setHeader('Content-Type', attachment.type)
+    response.setHeader('Content-Length', String(attachment.buffer.length))
+    response.setHeader('Content-Disposition', `inline; filename="feedback-image.${path.extname(attachment.storageKey).slice(1)}"`)
+    response.setHeader('Cache-Control', 'private, no-store')
+    response.end(attachment.buffer)
+    return true
+  }
+  if (!pathname.startsWith('/api/feedback')) return false
+  const accountId = readAccountId(request)
+  if (pathname === '/api/feedback' && request.method === 'POST') sendJson(response, 201, await feedback.create(accountId, await readJson(request, 29_000_000)))
+  else if (pathname === '/api/feedback' && request.method === 'GET') sendJson(response, 200, await feedback.listForAccount(accountId))
+  else {
+    const match = /^\/api\/feedback\/([^/]+)$/.exec(pathname)
+    const messagesMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname)
+    if (messagesMatch && request.method === 'POST') sendJson(response, 201, await feedback.addUserMessage(accountId, decodeRouteValue(messagesMatch[1]), await readJson(request, 29_000_000)))
+    else if (match && request.method === 'GET') sendJson(response, 200, await feedback.getForAccount(accountId, decodeRouteValue(match[1])))
+    else if (match && request.method === 'DELETE') sendJson(response, 200, await feedback.deleteForAccount(accountId, decodeRouteValue(match[1])))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   }
   return true
@@ -330,7 +377,7 @@ async function handleOnlineConsultations(request, response, pathname) {
   return true
 }
 
-async function handleApi(request, response, pathname) {
+async function handleApi(request, response, pathname, searchParams) {
   if (request.method === 'OPTIONS') {
     sendEmpty(response)
     return true
@@ -340,7 +387,9 @@ async function handleApi(request, response, pathname) {
     return true
   }
   if (await handleAuth(request, response, pathname)) return true
+  if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
+  if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOnlineConsultations(request, response, pathname)) return true
@@ -418,8 +467,9 @@ const server = createServer(async (request, response) => {
       response.end()
       return
     }
-    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-    if (await handleApi(request, response, pathname)) return
+    const url = new URL(request.url ?? '/', 'http://localhost')
+    const pathname = url.pathname
+    if (await handleApi(request, response, pathname, url.searchParams)) return
     await handleStatic(request, response, pathname)
   } catch (error) {
     const status = Number.isInteger(error?.status) ? error.status : 500

@@ -10,6 +10,6 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ children, variant = 'primary', fullWidth, className = '', ...props }: ButtonProps) {
-  const mappedVariant = variant === 'ghost' ? 'text' : variant
+  const mappedVariant = variant === 'ghost' ? 'ghost' : variant
   return <HohoButton className={className} fullWidth={fullWidth} variant={mappedVariant} {...props}>{children}</HohoButton>
 }

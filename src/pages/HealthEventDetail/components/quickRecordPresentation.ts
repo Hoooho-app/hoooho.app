@@ -18,7 +18,7 @@ export function isValidVoiceRecording(seconds: number, transcript: string, recor
 export function classifyMicrophoneFailure(code?: string): MicrophoneFailure {
   const normalized = code?.toLowerCase()
   if (normalized === 'notallowederror' || normalized === 'not-allowed' || normalized === 'service-not-allowed') {
-    return { canRetry: true, detail: '请允许 HOOOHO 使用麦克风后重新尝试。', kind: 'permission_denied', title: '麦克风权限未开启' }
+    return { canRetry: true, detail: '请允许 Hoooho 使用麦克风后重新尝试。', kind: 'permission_denied', title: '麦克风权限未开启' }
   }
   if (normalized === 'notfounderror' || normalized === 'audio-capture') {
     return { canRetry: true, detail: '请检查设备麦克风后重试。', kind: 'device_unavailable', title: '未检测到可用麦克风' }
