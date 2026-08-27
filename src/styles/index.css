@@ -80,7 +80,9 @@
     @apply space-y-6 pt-4;
     padding-inline: var(--hoho-page-gutter);
     padding-bottom: calc(7rem + max(var(--hoho-space-4), env(safe-area-inset-bottom)));
+    scrollbar-width: none;
   }
+  .health-event-detail .page-content::-webkit-scrollbar { display: none; }
   .health-event-detail[data-first-record='true'] .page-content {
     padding: var(--hoho-space-4) var(--hoho-page-gutter);
     padding-bottom: calc(5.5rem + max(var(--hoho-space-3), env(safe-area-inset-bottom)));
