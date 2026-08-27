@@ -18,6 +18,7 @@ const summary = (tags: HealthEventSummaryTag[]): HealthEventSummaryResult => ({
 
 test('没有可追溯确认诊断时统一显示未明确，症状和 AI 判断都不会被当成诊断', () => {
   assert.equal(getHealthEventDefinitionTitle(null), '未明确')
+  assert.equal(getHealthEventDefinitionTitle({ title: '旧摘要', summary: '旧数据', evidence: [], updatedAt } as HealthEventSummaryResult), '未明确')
   assert.equal(getHealthEventDefinitionTitle(summary([
     tag({ label: '发热', kind: 'symptom' }),
     tag({ label: '疑似皮炎', kind: 'assessment', source: 'ai_consultation', certainty: 'suspected' })

@@ -59,7 +59,7 @@ export function getHealthEventDayLabel(startTime: string | null | undefined, now
 }
 
 export function getHealthEventDefinitionTitle(summary?: HealthEventSummaryResult | null) {
-  const confirmedDiagnosis = summary?.tags.find((tag) => (
+  const confirmedDiagnosis = (summary?.tags ?? []).find((tag) => (
     tag.kind === 'diagnosis'
     && tag.certainty === 'confirmed'
     && confirmedDiagnosisSources.has(tag.source)
