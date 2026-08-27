@@ -17,7 +17,7 @@ const recordTypeForFact = (fact: HealthFact): HealthEventRecordType => {
   return 'note'
 }
 
-const titleForFact = (fact: HealthFact) => ({ temperature: '体温', medication: '用药', symptom: '症状', visit: '就诊', examination: '检查', concern: '备注', status_change: '状态变化' }[fact.type])
+const titleForFact = (fact: HealthFact) => ({ temperature: '体温', medication: '用药', symptom: '症状', visit: '就诊', examination: '检查', diagnosis: '问诊结论', concern: '备注', status_change: '状态变化', other: '记录' }[fact.type])
 const temperatureText = (fact: HealthFact) => fact.temperature ? (fact.temperature.min === fact.temperature.max ? `${fact.temperature.min} ℃` : `${fact.temperature.min}～${fact.temperature.max} ℃`) : fact.name
 const dosageFrom = (value: string) => value.match(/\d+(?:\.\d+)?\s*(?:毫升|ml|mL|片|粒|袋|滴|喷)/)?.[0] ?? ''
 

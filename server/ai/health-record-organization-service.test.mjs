@@ -60,9 +60,9 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const cough = await organize('咳嗽三天，没有发烧')
     assert.equal(cough.rawInput, '咳嗽三天，没有发烧')
     assert.equal(cough.confirmedData, null)
-    assert.equal(cough.schemaVersion, 5)
-    assert.equal(cough.healthAIOutput.parserVersion, '1.1.0')
-    assert.equal(cough.healthAIOutput.promptVersion, 'health-facts-v2-status-change')
+    assert.equal(cough.schemaVersion, 6)
+    assert.equal(cough.healthAIOutput.parserVersion, '2.0.0')
+    assert.equal(cough.healthAIOutput.promptVersion, 'health-facts-v3-context-and-provenance')
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.id && fact.sourceText && typeof fact.confidence === 'number'))
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.time.source === 'selected_time'))
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.time.resolvedStart === '2026-08-09T10:00:00+08:00'))
@@ -77,11 +77,8 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
 
     const progression = await organize('今天早上7点感冒，晚上好一点，体温37到38度。')
     assert.deepEqual(progression.organizedHealthData.temperature, { min: 37, max: 38, unit: '℃' })
-    assert.equal(progression.organizedHealthData.timeline.length, 2)
-    assert.equal(progression.organizedHealthData.timeline[0].time, '07:00')
-    assert.match(progression.organizedHealthData.timeline[0].content, /感冒/)
-    assert.equal(progression.organizedHealthData.timeline[1].time, '晚上')
-    assert.match(progression.organizedHealthData.timeline[1].content, /好一点/)
+    assert.ok(progression.organizedHealthData.timeline.some((item) => item.time === '07:00' && /感冒/.test(item.content)))
+    assert.ok(progression.healthAIOutput.facts.some((fact) => fact.type === 'status_change' && fact.time.raw === '晚上' && fact.change === 'improved'))
 
     const detailedProgression = await organize('今天早上7点的时候，有一点感冒的前兆，然后脚有点凉，到了今天晚上就好一点了，但是手脚还是有点冷，目前感觉身体稍微有点发虚，体温一直在37度到38度之间，没有高烧')
     assert.deepEqual(detailedProgression.organizedHealthData.temperature, { min: 37, max: 38, unit: '℃' })
@@ -93,8 +90,9 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.doesNotMatch(detailedProgression.organizedHealthData.symptoms[0].content, /发热/)
 
     const spokenPeriods = await organize('今早开始咳嗽，夜里感觉好一些，半夜又有点冷')
-    assert.equal(spokenPeriods.organizedHealthData.timeline.length, 3)
-    assert.deepEqual(spokenPeriods.organizedHealthData.timeline.map((item) => item.time), ['今早', '夜里', '半夜'])
+    assert.ok(spokenPeriods.healthAIOutput.facts.some((fact) => fact.time.raw === '今早'))
+    assert.ok(spokenPeriods.healthAIOutput.facts.some((fact) => fact.type === 'status_change' && fact.time.raw === '夜里'))
+    assert.ok(spokenPeriods.healthAIOutput.facts.some((fact) => fact.time.raw === '半夜'))
 
     const concern = await organize('担心是不是严重疾病')
     assert.deepEqual(concern.organizedHealthData.symptoms, [])
@@ -194,7 +192,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
 
     const list = await organizations.list(accountId, event.id)
     assert.equal(list.length, 7)
-    assert.ok(list.every((organization) => organization.schemaVersion === 5))
+    assert.ok(list.every((organization) => organization.schemaVersion === 6))
     await assert.rejects(() => organizations.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })

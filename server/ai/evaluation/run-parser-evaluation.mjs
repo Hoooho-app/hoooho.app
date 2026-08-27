@@ -212,7 +212,7 @@ function buildMarkdown(summary) {
       + `- Reasons:\n${result.failures.map((failure) => `  - ${failure}`).join('\n')}\n`
     )).join('\n')
 
-  return `# LocalFactProvider Baseline Report
+  return (`# LocalFactProvider Baseline Report
 
 This report is generated from the P0 parser evaluation dataset. It measures the current implementation without changing parser behavior.
 
@@ -256,7 +256,7 @@ ${failureRows}
 ## Failed Cases
 
 ${failedCases || 'No failed cases.'}
-`
+`).trimEnd() + '\n'
 }
 
 export async function runEvaluation(options = {}) {

@@ -8,9 +8,10 @@ const expressionMatchers = [
   new RegExp(`\\d{4}年(?:\\s*\\d{1,2}月(?:\\s*\\d{1,2}日?)?)?${timeSuffix}`),
   new RegExp(`(?:上周|本周|这周|周|星期)[一二三四五六日天]${timeSuffix}`),
   new RegExp(`(?:今天|昨天|前天)${timeSuffix}`),
+  /昨晚|前两天|前几个月|三年前|\d{1,2}月初/,
   new RegExp(`(?:第二天|第三天|第四天|第五天|第六天|第七天|隔天)${timeSuffix}`),
   new RegExp(`${periodExpression}(?:${clockExpression})?|${clockExpression}`),
-  /上周|去年|小时候|几年前|以前|从前|很久以前|后来|之后/
+  /上周|去年|小时候|几年前|\d+年前|以前|从前|很久以前|后来|之后/
 ]
 
 function splitClauses(rawInput) {
