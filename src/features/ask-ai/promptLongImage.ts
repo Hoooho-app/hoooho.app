@@ -23,9 +23,9 @@ export function downloadPromptLongImage(prompt: string, filename = 'Hoooho-健�
   const lineHeight = 56
   canvas.width = width
   canvas.height = Math.max(900, padding * 2 + 150 + lines.length * lineHeight)
-  context.fillStyle = '#f7faf9'; context.fillRect(0, 0, canvas.width, canvas.height)
-  context.fillStyle = '#167068'; context.font = '700 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('Hoooho', padding, padding)
-  context.fillStyle = '#1d292d'; context.font = '700 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('健康信息整理', padding, padding + 72)
+  context.fillStyle = '#F5F8F6'; context.fillRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#1B7A6E'; context.font = '600 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('Hoooho', padding, padding)
+  context.fillStyle = '#18312F'; context.font = '600 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'; context.fillText('健康信息整理', padding, padding + 72)
   context.font = '34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   lines.forEach((line, index) => { context.fillText(line, padding, padding + 150 + index * lineHeight) })
   const link = document.createElement('a')

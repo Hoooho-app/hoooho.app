@@ -1,38 +1,38 @@
 :root {
   /* Hoooho Design System V2: quiet, trustworthy and information-first. */
-  --hoho-color-primary: 22 112 104;
-  --hoho-color-primary-hover: 17 91 85;
-  --hoho-color-primary-active: 13 74 70;
-  --hoho-color-primary-soft: 234 246 243;
-  --hoho-color-primary-border: 177 218 211;
-  --hoho-color-secondary: 76 101 109;
-  --hoho-color-background: 246 248 247;
+  --hoho-color-primary: 27 122 110;
+  --hoho-color-primary-hover: 22 103 94;
+  --hoho-color-primary-active: 17 82 76;
+  --hoho-color-primary-soft: 233 246 242;
+  --hoho-color-primary-border: 181 220 211;
+  --hoho-color-secondary: 82 105 102;
+  --hoho-color-background: 245 248 246;
   --hoho-color-surface: 255 255 255;
-  --hoho-color-surface-subtle: 250 252 251;
+  --hoho-color-surface-subtle: 248 251 249;
   --hoho-color-surface-elevated: 255 255 255;
-  --hoho-color-border: 220 228 225;
-  --hoho-color-border-strong: 190 205 200;
-  --hoho-color-text-primary: 24 39 45;
-  --hoho-color-text-secondary: 77 96 103;
-  --hoho-color-text-weak: 111 128 133;
+  --hoho-color-border: 219 228 224;
+  --hoho-color-border-strong: 187 205 198;
+  --hoho-color-text-primary: 24 49 47;
+  --hoho-color-text-secondary: 82 105 102;
+  --hoho-color-text-weak: 117 135 131;
   --hoho-color-success: 42 120 82;
   --hoho-color-warning: 166 105 34;
   --hoho-color-error: 174 62 67;
   --hoho-color-info: 48 103 152;
   --hoho-color-disabled: 153 166 169;
 
-  --hoho-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
-  --hoho-font-size-display: 1.75rem;
+  --hoho-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  --hoho-font-size-display: 1.5rem;
   --hoho-line-height-display: 1.25;
   --hoho-font-size-page-title: 1.375rem;
   --hoho-line-height-page-title: 1.35;
-  --hoho-font-size-section-title: 1.0625rem;
+  --hoho-font-size-section-title: 1.125rem;
   --hoho-line-height-section-title: 1.55;
-  --hoho-font-size-card-title: 0.9375rem;
+  --hoho-font-size-card-title: 1rem;
   --hoho-line-height-card-title: 1.5;
-  --hoho-font-size-body: 0.875rem;
+  --hoho-font-size-body: 0.9375rem;
   --hoho-line-height-body: 1.6;
-  --hoho-font-size-caption: 0.75rem;
+  --hoho-font-size-caption: 0.8125rem;
   --hoho-line-height-caption: 1.5;
   --hoho-font-size-label: 0.8125rem;
   --hoho-line-height-label: 1.4;
@@ -48,19 +48,19 @@
   --hoho-space-8: 32px;
   --hoho-space-10: 40px;
 
-  --hoho-radius-small: 6px;
-  --hoho-radius-control: 10px;
+  --hoho-radius-small: 8px;
+  --hoho-radius-control: 12px;
   --hoho-radius-card: 16px;
-  --hoho-radius-overlay: 22px;
+  --hoho-radius-overlay: 26px;
   --hoho-radius-medium: var(--hoho-radius-control);
   --hoho-radius-large: var(--hoho-radius-card);
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-card: 0 1px 2px rgb(24 39 45 / 0.035);
+  --hoho-shadow-card: 0 1px 2px rgb(18 92 85 / 0.035), 0 8px 24px rgb(18 92 85 / 0.035);
   --hoho-shadow-soft: var(--hoho-shadow-card);
-  --hoho-shadow-floating: 0 12px 36px rgb(24 39 45 / 0.11);
-  --hoho-shadow-overlay: 0 24px 64px rgb(24 39 45 / 0.16);
+  --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / 0.12);
+  --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / 0.18);
 
   --hoho-motion-fast: 140ms;
   --hoho-motion-base: 200ms;

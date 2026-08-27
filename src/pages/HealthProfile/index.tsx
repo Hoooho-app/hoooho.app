@@ -33,19 +33,21 @@ function getSectionSummary(section: HealthProfileSectionConfig, records: Array<R
   return visible.join(' · ') || `已记录 ${records.length} 项`
 }
 
-function ProfileSectionRows({ sections, summaries }: { sections: HealthProfileSectionConfig[]; summaries: ReadonlyMap<string, string> }) {
+function ProfileSectionRows({ recordedIds, sections, summaries }: { recordedIds: ReadonlySet<string>; sections: HealthProfileSectionConfig[]; summaries: ReadonlyMap<string, string> }) {
   const navigate = useNavigate()
-  return <div className="overflow-hidden rounded-card border bg-surface">{sections.map((section) => {
+  return <div className="profile-directory-group">{sections.map((section) => {
     const Icon = icons[section.icon]
     return <button className="hoho-surface-row" key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={19} strokeWidth={1.75} /></span>
       <span className="min-w-0 flex-1 text-left"><Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography><Typography className="mt-0.5 block truncate" variant="caption">{summaries.get(section.id) ?? section.description}</Typography></span>
+      <span className="profile-directory-status" data-filled={recordedIds.has(section.id)}>{recordedIds.has(section.id) ? '已填写' : '待补充'}</span>
       <ChevronRight className="shrink-0 text-text-secondary" size={18} />
     </button>
   })}</div>
 }
 
 export function HealthProfilePage() {
+  const navigate = useNavigate()
   const member = useCurrentMember()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<HealthProfileViewStatus>('all')
@@ -69,10 +71,15 @@ export function HealthProfilePage() {
     query,
     status
   ), [profileType, query, recordedIds, status])
+  const quickSections = useMemo(() => directory.priority.filter((section) => !recordedIds.has(section.id)).slice(0, 3), [directory.priority, recordedIds])
+  const directorySections = useMemo(() => {
+    const quickIds = new Set(quickSections.map(({ id }) => id))
+    return [...directory.priority.filter(({ id }) => !quickIds.has(id)), ...directory.remaining]
+  }, [directory.priority, directory.remaining, quickSections])
   const grouped = useMemo(() => categoryOrder.flatMap((category) => {
-    const sections = directory.remaining.filter((section) => section.category === category)
+    const sections = directorySections.filter((section) => section.category === category)
     return sections.length ? [{ category, sections }] : []
-  }), [directory.remaining])
+  }), [directorySections])
   const filtering = Boolean(query.trim()) || status !== 'all'
 
   return <main className="app-shell">
@@ -80,7 +87,7 @@ export function HealthProfilePage() {
     <div className="page-content pb-10">
       <MemberIdentityCard member={member} />
 
-      <section className="grid grid-cols-[minmax(0,1fr)_100px] items-center gap-2" aria-label="搜索和查看状态">
+      <section className="health-profile-search grid grid-cols-[minmax(0,1fr)_104px] items-center gap-2" aria-label="搜索和查看状态">
         <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} /><span className="sr-only">搜索健康档案</span><input className="hoho-input w-full pl-10" placeholder="搜索健康档案" type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <label className="min-w-0">
           <span className="sr-only">查看状态</span>
@@ -96,8 +103,8 @@ export function HealthProfilePage() {
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
-        {directory.priority.length > 0 && <section className="mt-5"><ProfileSectionRows sections={directory.priority} summaries={summaries} /></section>}
-        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows sections={sections} summaries={summaries} /></section>)}
+        {quickSections.length > 0 && <section className="profile-priority mt-5" aria-label="建议优先补充"><Typography variant="label">建议优先补充</Typography><div>{quickSections.map((section) => <button key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">{section.title}<ChevronRight size={14} /></button>)}</div></section>}
+        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows recordedIds={recordedIds} sections={sections} summaries={summaries} /></section>)}
         {filtering && directory.remaining.length === 0 && directory.priority.length > 0 && <Typography className="mt-4 text-center" variant="caption">已显示全部匹配项目</Typography>}
       </>}
     </div>

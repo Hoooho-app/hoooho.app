@@ -85,9 +85,9 @@ export function BodyLocationPicker({ buttonLabel, compact = false, label = '身�
   const activeRegionSelectionCount = activeRegion ? draft.filter((item) => item.parentId === activeRegion.id).length : 0
 
   return <fieldset className="min-w-0"><legend className="hoho-text-label mb-2">{label}</legend>
-    <div className={`flex min-w-0 items-center gap-2 rounded-control border bg-background p-3 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+    <div className={`body-location-picker-row flex min-w-0 items-center gap-3 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
       <span className="min-w-0 flex-1 overflow-hidden"><SelectionChips compact={compact} onRemove={removeCommitted} values={value} /></span>
-      <button className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-control border border-dashed border-primary/55 bg-surface px-3 text-xs font-semibold text-primary" onClick={beginEditing} type="button">{buttonLabel ?? (value.length ? '修改位置' : '+ 选择位置')}</button>
+      <button className="body-location-picker-action inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-2 text-sm font-medium text-primary" onClick={beginEditing} type="button">{buttonLabel ?? (value.length ? '修改位置' : '选择位置')}</button>
     </div>
     <BottomSheetSurface
       className="body-location-sheet"

@@ -43,6 +43,7 @@ export function getBasicHealthProfileValues(
     weight: asText(member.weightKg) || String(fallback.weight ?? ''),
     waistCircumference: asText(member.waistCircumferenceCm) || String(fallback.waistCircumference ?? ''),
     bodyFatPercentage: asText(member.bodyFatPercentage) || String(fallback.bodyFatPercentage ?? ''),
+    headCircumference: asText(member.headCircumferenceCm) || String(fallback.headCircumference ?? ''),
     aboBloodType: bloodType,
     rhBloodType,
     otherBloodTypeInfo: String(fallback.otherBloodTypeInfo ?? ''),
@@ -99,6 +100,7 @@ export function toFamilyMemberHealthUpdate(values: BasicHealthProfileValues) {
     weightKg: optionalNumber(values.weight),
     waistCircumferenceCm: optionalNumber(values.waistCircumference),
     bodyFatPercentage: optionalNumber(values.bodyFatPercentage),
+    headCircumferenceCm: optionalNumber(values.headCircumference),
     bloodType: bloodType as 'A' | 'B' | 'AB' | 'O' | null,
     rhBloodType: rhBloodType as 'positive' | 'negative' | null
   }

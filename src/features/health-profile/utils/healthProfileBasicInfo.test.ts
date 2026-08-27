@@ -25,6 +25,7 @@ test('成员已有基础健康字段会完整映射，并兼容原 ABO 血型字
     weight: '56',
     waistCircumference: '72',
     bodyFatPercentage: '21.5',
+    headCircumference: '55',
     aboBloodType: 'A',
     rhBloodType: 'negative',
     otherBloodTypeInfo: '',
@@ -40,7 +41,7 @@ test('旧本地基础档案值仅作为成员字段缺失时的兼容回填', ()
   assert.deepEqual(
     getInitialHealthProfileRecords('basic', stored, { heightCm: 168 }),
     [{
-      height: '168', weight: '60', waistCircumference: '80', bodyFatPercentage: '',
+      height: '168', weight: '60', waistCircumference: '80', bodyFatPercentage: '', headCircumference: '',
       aboBloodType: 'B', rhBloodType: '', otherBloodTypeInfo: '', combinedBloodType: '',
       _originalBloodType: 'B', _originalRhBloodType: '', _savedAt: 'member-health-profile'
     }]
@@ -53,6 +54,7 @@ test('所有基础健康字段均可留空并保存为 null', () => {
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
+    headCircumferenceCm: null,
     bloodType: null,
     rhBloodType: null
   })
@@ -66,6 +68,7 @@ test('组合血型映射为兼容的 ABO 与 Rh(D) 字段', () => {
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
+    headCircumferenceCm: null,
     bloodType: 'AB',
     rhBloodType: 'positive'
   })
@@ -86,6 +89,7 @@ test('新 ABO 与 RhD 独立选择保存到现有 API 字段', () => {
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
+    headCircumferenceCm: null,
     bloodType: 'AB',
     rhBloodType: 'negative'
   })
@@ -110,6 +114,7 @@ test('只有旧 ABO 数据时保存其他字段不会清空原血型', () => {
     weightKg: null,
     waistCircumferenceCm: null,
     bodyFatPercentage: null,
+    headCircumferenceCm: null,
     bloodType: 'B',
     rhBloodType: null
   })

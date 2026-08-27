@@ -12,6 +12,19 @@ test('V2 exposes the required design foundations', async () => {
     '--hoho-radius-overlay', '--hoho-motion-fast', '--hoho-motion-base', '--hoho-motion-slow',
     '--hoho-app-shell-max', '--hoho-content-compact', '--hoho-content-wide'
   ]) assert.match(tokens, new RegExp(token))
+  assert.match(tokens, /--hoho-color-primary:\s*27 122 110/)
+  assert.match(tokens, /--hoho-color-background:\s*245 248 246/)
+  assert.match(tokens, /--hoho-color-text-primary:\s*24 49 47/)
+  assert.match(tokens, /--hoho-radius-control:\s*12px/)
+})
+
+test('product polish keeps shared navigation and grouped rows on one visual system', async () => {
+  const styles = await read('./product-polish.css')
+  assert.match(styles, /\.profile-directory-group/)
+  assert.match(styles, /\.settings-group/)
+  assert.match(styles, /\.hoho-drawer\.hoho-drawer/)
+  assert.match(styles, /\.health-action-tab/)
+  assert.match(styles, /\.event-identity-details/)
 })
 
 test('global UI supports reduced motion and responsive desktop content', async () => {

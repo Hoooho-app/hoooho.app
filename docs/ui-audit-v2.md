@@ -27,12 +27,17 @@ The audit was generated from `src/app/router.tsx` and the rendered component tre
 - Help disclosure motion, reduced-motion behavior, and message tabs were inconsistent.
 - Visible brand strings used mixed `Hoho` and `HOOOHO` spellings.
 - Unknown routes redirected to login instead of explaining that the page was missing.
+- The visual baseline still felt like a generic component template: default teal, many isolated rounded rows, nested identity cards, and inconsistent sheet tabs.
+- Global brand colors, typography weights, form controls, header treatment, grouped lists, drawer hierarchy, bottom-sheet navigation and generated share imagery now use one deliberate visual language.
+- The health profile directory now distinguishes completed and incomplete sections with text, promotes a small personalized priority set, and preserves the complete directory below it.
+- Basic health information now exposes the existing head-circumference model only for infants and children; it is not shown to adult profiles.
 
 ## Intentionally unchanged
 
 - Route ownership, authentication guard behavior, event/member/profile data contracts, API paths, persistence keys, health chronology, save/delete semantics, and AI organization logic.
 - Existing Lucide icon dependency remains the single general-purpose icon source. Domain SVG body maps and generated avatars remain domain assets rather than a competing icon library.
 - The operations page remains denser than consumer pages while inheriting global typography, color, radius, elevation and motion tokens.
+- Product information architecture and desktop shell widths remain unchanged; this pass refines global visual and interaction consistency rather than introducing a new navigation model.
 
 ## State coverage
 
