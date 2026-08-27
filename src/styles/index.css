@@ -183,6 +183,14 @@
   .quick-record-transcript { @apply col-span-3 max-h-24 min-w-0 overflow-y-auto text-sm leading-6; }
   .quick-record-transcript > p:first-child { @apply break-words; }
   .quick-record-error { @apply mt-1 text-xs leading-5 text-danger; }
+  .quick-record-panel-error { @apply grid-cols-[44px_minmax(0,1fr)]; }
+  .quick-record-failure { @apply min-w-0 text-sm leading-6; }
+  .quick-record-failure strong { @apply block font-semibold text-text-primary; }
+  .quick-record-failure p { @apply text-text-secondary; }
+  .quick-record-browser-hint { @apply mt-1 text-xs; }
+  .quick-record-error-actions { @apply col-span-2 flex flex-wrap items-center justify-end gap-2 pt-1; }
+  .quick-record-error-actions .hoho-button { @apply min-h-11 px-4; }
+  .quick-record-text-title { @apply col-span-2 text-sm font-semibold; }
   .quick-record-actions { @apply col-span-3 flex min-h-12 items-center justify-between; }
   .quick-record-cancel { @apply min-h-11 rounded-pill border px-5 text-sm font-medium; }
   .quick-record-retry { @apply grid h-11 w-11 place-items-center rounded-full text-primary; }

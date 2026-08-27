@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Mic, RotateCcw } from 'lucide-react'
+import { Check, Mic } from 'lucide-react'
 import { HohoButton } from '../../../components/design-system'
-import { formatRecordingDuration, recognitionErrorMessage } from './quickRecordPresentation'
+import { classifyMicrophoneFailure, formatRecordingDuration, isEmbeddedBrowserUserAgent, isValidVoiceRecording, type MicrophoneFailure } from './quickRecordPresentation'
 
-type FlowState = 'starting' | 'listening' | 'error' | 'saving' | 'saved'
+type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'saving' | 'saved'
 interface RecognitionEvent { results: ArrayLike<{ 0: { transcript: string } }> }
 interface RecognitionErrorEvent { error?: string }
 interface Recognition {
@@ -23,6 +23,7 @@ interface QuickVoiceRecordFlowProps {
   onClose: () => void
   onConfirm: (transcript: string, occurredAt: string) => Promise<void>
   open: boolean
+  recognitionApi?: RecognitionConstructor | null
 }
 
 const recognitionConstructor = () => {
@@ -30,11 +31,12 @@ const recognitionConstructor = () => {
   return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
 }
 
-export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRecordFlowProps) {
-  const RecognitionApi = useMemo(recognitionConstructor, [])
-  const [state, setState] = useState<FlowState>('starting')
+export function QuickVoiceRecordFlow({ onClose, onConfirm, open, recognitionApi }: QuickVoiceRecordFlowProps) {
+  const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
+  const embeddedBrowser = useMemo(() => isEmbeddedBrowserUserAgent(window.navigator.userAgent), [])
+  const [state, setState] = useState<FlowState>('requesting_permission')
   const [transcript, setTranscriptState] = useState('')
-  const [error, setError] = useState('')
+  const [failure, setFailure] = useState<MicrophoneFailure | null>(null)
   const [seconds, setSeconds] = useState(0)
   const recognitionRef = useRef<Recognition | null>(null)
   const transcriptRef = useRef('')
@@ -50,18 +52,18 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRec
 
   const save = useCallback(async () => {
     const value = transcriptRef.current.trim()
-    if (!value) { setState('error'); setError('没有听清，请再说一次'); return }
+    if (!value) { setState('error'); setFailure(classifyMicrophoneFailure('no-speech')); return }
     if (submittingRef.current) return
     submittingRef.current = true
     setState('saving')
-    setError('')
+    setFailure(null)
     try {
       await onConfirmRef.current(value, new Date().toISOString())
       setState('saved')
       window.setTimeout(() => onCloseRef.current(), 560)
     } catch (reason) {
       setState('error')
-      setError(reason instanceof Error ? reason.message : '保存失败，请重试')
+      setFailure({ canRetry: true, detail: reason instanceof Error ? reason.message : '请重新尝试。', kind: 'recording_failed', title: '保存失败' })
       submittingRef.current = false
     }
   }, [])
@@ -73,14 +75,16 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRec
   }, [])
 
   const startListening = useCallback(() => {
-    if (!RecognitionApi || recognitionRef.current || submittingRef.current) return
+    if (!RecognitionApi || submittingRef.current) return
+    sessionRef.current += 1
+    stopSession(true)
     const currentSession = sessionRef.current + 1
     sessionRef.current = currentSession
     confirmRequestedRef.current = false
-    setError('')
+    setFailure(null)
     setSeconds(0)
     setTranscript('')
-    setState('starting')
+    setState('requesting_permission')
     const recognition = new RecognitionApi()
     recognition.lang = 'zh-CN'
     recognition.continuous = true
@@ -90,35 +94,40 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRec
       let next = ''
       for (let index = 0; index < event.results.length; index += 1) next += event.results[index][0].transcript
       setTranscript(next)
-      setState('listening')
+      setState('recording')
     }
     recognition.onerror = (event) => {
       if (sessionRef.current !== currentSession || confirmRequestedRef.current) return
+      sessionRef.current += 1
       recognitionRef.current = null
       setState('error')
-      setError(recognitionErrorMessage(event.error))
+      setFailure(classifyMicrophoneFailure(event.error))
     }
     recognition.onend = () => {
       if (sessionRef.current !== currentSession) return
       recognitionRef.current = null
       if (confirmRequestedRef.current) void save()
+      else {
+        setState('error')
+        setFailure(classifyMicrophoneFailure('recording-ended'))
+      }
     }
     recognitionRef.current = recognition
     try {
       recognition.start()
-      setState('listening')
-    } catch {
+      setState('recording')
+    } catch (reason) {
       recognitionRef.current = null
       setState('error')
-      setError('无法启动麦克风，请稍后重试')
+      setFailure(classifyMicrophoneFailure(reason instanceof DOMException ? reason.name : undefined))
     }
-  }, [RecognitionApi, save])
+  }, [RecognitionApi, save, stopSession])
 
   useEffect(() => {
     if (!open) return
     submittingRef.current = false
     if (RecognitionApi) startListening()
-    else { setState('error'); setError('当前浏览器不支持语音识别，可改用文字记录') }
+    else { setState('error'); setFailure(classifyMicrophoneFailure('unsupported')) }
     return () => {
       sessionRef.current += 1
       stopSession(true)
@@ -126,7 +135,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRec
   }, [RecognitionApi, open, startListening, stopSession])
 
   useEffect(() => {
-    if (!open || state !== 'listening') return
+    if (!open || state !== 'recording') return
     const timer = window.setInterval(() => setSeconds((current) => current + 1), 1000)
     return () => window.clearInterval(timer)
   }, [open, state])
@@ -146,21 +155,52 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, open }: QuickVoiceRec
     else void save()
   }
 
+  const useTextEntry = () => {
+    sessionRef.current += 1
+    stopSession(true)
+    setFailure(null)
+    setSeconds(0)
+    setTranscript('')
+    setState('text_entry')
+  }
+
+  if (state === 'error') {
+    const visibleFailure = failure ?? classifyMicrophoneFailure()
+    return (
+      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-error">
+        <div aria-hidden="true" className="quick-record-pulse"><Mic size={19} /></div>
+        <div className="quick-record-failure" role="alert">
+          <strong>{visibleFailure.title}</strong>
+          <p>{visibleFailure.detail}</p>
+          {embeddedBrowser && <p className="quick-record-browser-hint">建议使用 Safari 或 Chrome 打开 HOOOHO 后重试。</p>}
+        </div>
+        <div className="quick-record-error-actions">
+          <button className="quick-record-cancel" onClick={cancel} type="button">取消</button>
+          {visibleFailure.canRetry && <HohoButton onClick={startListening} variant="secondary">重新尝试</HohoButton>}
+          <HohoButton onClick={useTextEntry}>改用文字记录</HohoButton>
+        </div>
+      </section>
+    )
+  }
+
+  const textEntry = state === 'text_entry'
+  const validRecording = isValidVoiceRecording(seconds, transcript, state === 'recording')
+
   return (
     <section aria-label="快捷记录" aria-live="polite" className={`quick-record-panel ${state === 'saved' ? 'is-saved' : ''}`}>
-      <div aria-hidden="true" className={`quick-record-pulse ${state === 'listening' ? 'is-listening' : ''}`}><Mic size={19} /></div>
-      <div className={`quick-record-wave ${state === 'listening' ? 'is-listening' : ''}`} aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <span key={index} />)}</div>
-      <span className="quick-record-duration" aria-label={`录音时长 ${formatRecordingDuration(seconds)}`}>{formatRecordingDuration(seconds)}</span>
+      <div aria-hidden="true" className={`quick-record-pulse ${state === 'recording' ? 'is-listening' : ''}`}><Mic size={19} /></div>
+      {textEntry ? <strong className="quick-record-text-title">文字记录</strong> : <>
+        <div className={`quick-record-wave ${state === 'recording' ? 'is-listening' : ''}`} aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <span key={index} />)}</div>
+        <span className="quick-record-duration" aria-label={`录音时长 ${formatRecordingDuration(seconds)}`}>{formatRecordingDuration(seconds)}</span>
+      </>}
       <div className="quick-record-transcript">
-        {RecognitionApi
-          ? <p>{transcript || (state === 'starting' ? '正在启动麦克风…' : error || '请开始说话')}</p>
-          : <textarea aria-label="快捷记录文字" className="hoho-textarea" onChange={(event) => { setTranscript(event.target.value); setError('') }} placeholder="输入要记录的内容" value={transcript} />}
-        {error && RecognitionApi && <p className="quick-record-error" role="alert">{error}</p>}
+        {textEntry
+          ? <textarea aria-label="快捷记录文字" className="hoho-textarea" onChange={(event) => setTranscript(event.target.value)} placeholder="输入要记录的内容" value={transcript} />
+          : <p>{transcript || (state === 'requesting_permission' ? '正在启动麦克风…' : '请开始说话')}</p>}
       </div>
       <div className="quick-record-actions">
         <button className="quick-record-cancel" disabled={state === 'saving' || state === 'saved'} onClick={cancel} type="button">取消</button>
-        {state === 'error' && RecognitionApi && <button aria-label="重新录音" className="quick-record-retry" onClick={startListening} type="button"><RotateCcw size={18} /></button>}
-        <HohoButton aria-label="确认快捷记录" className="quick-record-confirm" disabled={!transcript.trim() || state === 'saving' || state === 'saved'} onClick={confirm}><Check size={21} /></HohoButton>
+        <HohoButton aria-label="确认快捷记录" className="quick-record-confirm" disabled={textEntry ? !transcript.trim() : !validRecording} onClick={confirm}><Check size={21} /></HohoButton>
       </div>
     </section>
   )
