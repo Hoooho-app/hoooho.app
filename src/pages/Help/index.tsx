@@ -1,43 +1,46 @@
-import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { WebPageHeader } from '../../components/common'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { HohoButton, HohoSection } from '../../components/design-system'
+import { helpAssistant, type HelpAssistantResult } from '../../features/help/assistant'
+import { PUBLISHED_HELP_ARTICLES } from '../../features/help/articles'
+import { getArticle, searchHelpArticles } from '../../features/help/search'
+import { HELP_CATEGORIES, type HelpArticle, type HelpCategory } from '../../features/help/types'
 
-const faqs = [
-  ['如何创建健康事件？', '在健康事件首页点击右下角新增按钮，选择记录对象后即可开始记录。'],
-  ['如何添加家庭成员？', '进入侧边栏的“切换角色”，在“我的家人”页面点击“+ 添加家人”。'],
-  ['如何记录健康数据？', '进入健康事件详情，点击症状、时间线、体温或附件模块进行补充。'],
-  ['数据安全吗？', '当前版本数据仅保存在本设备 Mock 存储中，不会用于医疗诊断。'],
-  ['如何导出我的健康数据？', '进入设置—隐私设置，点击“导出健康数据”。']
-]
+const QUICK_QUERIES = ['收不到验证码', '记录写错人', '附件上传失败']
+const FREQUENT_IDS = ['continue-health-event','record-for-family','email-code-missing','change-record-time','change-record-member','add-attachment','data-not-showing','delete-record','no-diagnosis','export-data']
+
+function Header({ onBack }: { onBack: () => void }) { return <header className="help-header"><button type="button" onClick={onBack}>返回</button><h1>帮助中心</h1><span /></header> }
+function ArticleRow({ article, onOpen }: { article: HelpArticle; onOpen: (article: HelpArticle) => void }) { return <button className="help-article-row" type="button" onClick={() => onOpen(article)}><strong>{article.title}</strong><span>{article.summary}</span><small>{article.category}</small></button> }
 
 export function HelpCenterPage() {
-  const [query, setQuery] = useState('')
-  const [openQuestion, setOpenQuestion] = useState('')
-  const filtered = useMemo(() => faqs.filter(([question]) => question.includes(query.trim())), [query])
-
-  return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="帮助中心" fallback="/health-events" />
-      <div className="space-y-3 px-4 py-4">
-        <label className="flex h-12 items-center gap-2 rounded-control border bg-surface px-4">
-          <Search size={17} strokeWidth={1.7} className="text-text-secondary" />
-          <input className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-text-secondary" placeholder="搜索问题" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </label>
-        <h2 className="pt-1 text-base font-medium">常见问题</h2>
-        {filtered.map(([question, answer]) => {
-          const open = openQuestion === question
-          return (
-            <button key={question} className="block w-full border-b bg-transparent p-4 text-left last:border-b-0" type="button" aria-expanded={open} onClick={() => setOpenQuestion(open ? '' : question)}>
-              <strong className="block text-sm font-medium">{question}</strong>
-              <span className="mt-1.5 block text-xs leading-6 text-text-secondary">{open ? answer : '点击查看详细说明  ›'}</span>
-            </button>
-          )
-        })}
-        <section className="rounded-card border bg-surface p-4">
-          <h2 className="text-sm font-medium">需要更多帮助？</h2>
-          <p className="mt-1.5 text-xs leading-6 text-text-secondary">可以查阅使用说明，快速了解 Hoooho 的记录流程。</p>
-        </section>
-      </div>
-    </main>
-  )
+  const navigate = useNavigate(); const [params, setParams] = useSearchParams()
+  const [query, setQuery] = useState(params.get('q') ?? ''); const [debouncedQuery, setDebouncedQuery] = useState(query)
+  const [category, setCategory] = useState<HelpCategory | null>(params.get('category') as HelpCategory | null)
+  const [articleId, setArticleId] = useState(params.get('article') ?? ''); const [result, setResult] = useState<HelpAssistantResult | null>(null)
+  const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [active, setActive] = useState(-1)
+  const [resolved, setResolved] = useState<'yes'|'no'|null>(null); const [composing, setComposing] = useState(false); const requestId = useRef(0)
+  useEffect(() => { if (composing) return; const timer = window.setTimeout(() => setDebouncedQuery(query), 180); return () => window.clearTimeout(timer) }, [composing, query])
+  const suggestions = useMemo(() => searchHelpArticles(debouncedQuery, {category:category ?? undefined,limit:5}), [category,debouncedQuery])
+  const article = getArticle(articleId); const categoryArticles = category ? PUBLISHED_HELP_ARTICLES.filter((item) => item.category === category) : []
+  const frequent = FREQUENT_IDS.map(getArticle).filter((item): item is HelpArticle => Boolean(item))
+  const sync = (next:{q?:string;category?:HelpCategory|null;article?:string}) => { const value=new URLSearchParams(); if(next.q)value.set('q',next.q); if(next.category)value.set('category',next.category); if(next.article)value.set('article',next.article); setParams(value) }
+  const openArticle=(item:HelpArticle)=>{setArticleId(item.id);setResolved(null);setResult(null);sync({article:item.id})}
+  const search=async(value=query,chosenCategory=category)=>{const clean=value.trim();if(!clean)return;const current=++requestId.current;setQuery(clean);setDebouncedQuery(clean);setLoading(true);setError('');setArticleId('');sync({q:clean,category:chosenCategory});try{const next=await helpAssistant.resolve({query:clean,category:chosenCategory??undefined});if(current===requestId.current)setResult(next)}catch{if(current===requestId.current)setError('暂时无法完成搜索，请稍后重试。')}finally{if(current===requestId.current)setLoading(false)}}
+  const home=()=>{requestId.current+=1;setQuery('');setDebouncedQuery('');setCategory(null);setArticleId('');setResult(null);setError('');setParams({})}
+  const keyDown=(event:KeyboardEvent<HTMLInputElement>)=>{if(!suggestions.length||composing)return;if(event.key==='ArrowDown'){event.preventDefault();setActive((v)=>Math.min(v+1,suggestions.length))}else if(event.key==='ArrowUp'){event.preventDefault();setActive((v)=>Math.max(v-1,-1))}else if(event.key==='Enter'&&active>=0&&active<suggestions.length){event.preventDefault();openArticle(suggestions[active].article)}}
+  return <main className="app-shell help-center pb-0"><Header onBack={()=>article||result||category?home():navigate('/health-events')}/><div className="help-content">
+    {!article&&<section className="help-search" aria-labelledby="help-search-title"><h2 id="help-search-title">遇到什么问题？</h2><form role="search" onSubmit={(e:FormEvent)=>{e.preventDefault();void search()}}><label className="sr-only" htmlFor="help-query">描述你遇到的问题</label><div className="help-search-controls"><input id="help-query" value={query} placeholder="描述你遇到的问题，例如：一直收不到邮箱验证码" autoComplete="off" aria-controls="help-suggestions" aria-expanded={Boolean(debouncedQuery&&!result)} aria-activedescendant={active>=0?`help-suggestion-${active}`:undefined} onCompositionStart={()=>setComposing(true)} onCompositionEnd={(e)=>{setComposing(false);setDebouncedQuery(e.currentTarget.value)}} onKeyDown={keyDown} onChange={(e)=>{setQuery(e.target.value);setResult(null);setActive(-1)}}/><HohoButton type="submit" disabled={!query.trim()||loading}>{loading?'搜索中':'搜索'}</HohoButton></div></form>
+      {!result&&debouncedQuery&&<div id="help-suggestions" className="help-suggestions" role="listbox">{suggestions.map(({article:item},index)=><button id={`help-suggestion-${index}`} role="option" aria-selected={active===index} key={item.id} type="button" onClick={()=>openArticle(item)}><strong>{item.title}</strong><span>{item.summary}</span></button>)}<button id={`help-suggestion-${suggestions.length}`} role="option" aria-selected={active===suggestions.length} type="button" onClick={()=>void search()}>都不是，继续描述</button></div>}
+      {!result&&!debouncedQuery&&<div className="help-quick-links">{QUICK_QUERIES.map((item)=><button type="button" key={item} onClick={()=>void search(item)}>{item}</button>)}</div>}<div className="help-search-status" aria-live="polite">{loading?'正在查找相关帮助…':error}</div></section>}
+    {article?<ArticleDetail article={article} resolved={resolved} onResolved={setResolved} onOpen={openArticle}/>:result?<ResultView result={result} onSearch={(v)=>void search(v)} onOpen={openArticle} onCategory={(v)=>{setCategory(v);setResult(null);sync({category:v})}} onHome={home}/>:category?<HohoSection title={category} description="选择一个问题查看具体步骤。"><div className="help-list">{categoryArticles.map((item)=><ArticleRow key={item.id} article={item} onOpen={openArticle}/>)}</div></HohoSection>:<><HohoSection title="快速找到帮助"><div className="help-category-grid">{HELP_CATEGORIES.map((item)=><button type="button" key={item} onClick={()=>{setCategory(item);sync({category:item})}}>{item}</button>)}</div></HohoSection><HohoSection title="常见问题"><div className="help-list">{frequent.map((item)=><ArticleRow key={item.id} article={item} onOpen={openArticle}/>)}</div></HohoSection><HohoSection title="还没有解决？" description="继续描述你遇到的情况，我们会帮你进一步定位。"><div className="help-footer-actions"><button type="button" onClick={()=>document.getElementById('help-query')?.focus()}>继续描述问题</button><Link to="/feedback?category=故障排查&page=帮助中心">反馈产品问题</Link></div></HohoSection></>}
+  </div></main>
 }
+
+function ResultView({result,onSearch,onOpen,onCategory,onHome}:{result:HelpAssistantResult;onSearch:(v:string)=>void;onOpen:(a:HelpArticle)=>void;onCategory:(c:HelpCategory)=>void;onHome:()=>void}){
+  if(result.kind==='medical-boundary')return <section className="help-result"><h2>这类问题需要专业医疗支持</h2><p>帮助中心主要解决 Hoooho 的使用问题，不能提供诊断或用药建议。你可以先记录当前情况并整理相关信息；如果情况紧急，请及时联系当地急救服务或专业医疗人员。</p><div className="help-footer-actions"><Link to="/health-events/new">记录当前情况</Link><Link to="/health-events">查看健康事件</Link></div></section>
+  if(result.kind==='clarify')return <section className="help-result"><p className="help-query-label">你描述的是：{result.query}</p><h2>{result.clarification.question}</h2><div className="help-choice-list">{result.clarification.options.map((item)=><button type="button" key={item.label} onClick={()=>onSearch(item.query)}>{item.label}</button>)}</div><button className="help-text-action" type="button" onClick={()=>onCategory('故障排查')}>都不是，选择问题分类</button></section>
+  if(result.kind==='fallback')return <section className="help-result"><h2>暂时没有找到足够确定的答案</h2><p>可以选择问题分类，或补充发生问题的页面和具体现象。请不要填写验证码或完整健康信息。</p><div className="help-category-grid">{HELP_CATEGORIES.map((item)=><button type="button" key={item} onClick={()=>onCategory(item)}>{item}</button>)}</div><div className="help-footer-actions"><Link to="/feedback?category=故障排查&page=帮助中心">反馈产品问题</Link><button type="button" onClick={onHome}>返回帮助首页</button></div></section>
+  const [best,...others]=result.results;return <section className="help-result"><p className="help-query-label">搜索内容：{result.query}</p><h2>最相关结果</h2>{best&&<ArticleRow article={best.article} onOpen={onOpen}/>} {others.length>0&&<><h3>其他可能相关的问题</h3><div className="help-list">{others.slice(0,4).map(({article:item})=><ArticleRow key={item.id} article={item} onOpen={onOpen}/>)}</div></>}<button className="help-text-action" type="button" onClick={()=>onSearch(`${result.query} 继续排查`)}>继续描述</button></section>
+}
+
+function ArticleDetail({article,resolved,onResolved,onOpen}:{article:HelpArticle;resolved:'yes'|'no'|null;onResolved:(v:'yes'|'no')=>void;onOpen:(a:HelpArticle)=>void}){const related=(article.relatedArticleIds??[]).map(getArticle).filter((item):item is HelpArticle=>Boolean(item));return <article className="help-detail"><p className="help-query-label">{article.category}</p><h2>{article.title}</h2><p className="help-conclusion">{article.conclusion}</p><h3>操作步骤</h3><ol>{article.steps.map((step)=><li key={step}>{step}</li>)}</ol>{article.actions?.length?<div className="help-footer-actions">{article.actions.map((action)=><Link key={action.label} to={action.to}>{action.label}</Link>)}</div>:null}{article.commonCauses?.length?<><h3>常见失败原因</h3><ul>{article.commonCauses.map((cause)=><li key={cause}>{cause}</li>)}</ul></>:null}{related.length?<><h3>相关问题</h3><div className="help-list">{related.map((item)=><ArticleRow key={item.id} article={item} onOpen={onOpen}/>)}</div></>:null}<section className="help-resolution"><h3>这个回答解决了你的问题吗？</h3>{resolved?<p aria-live="polite">{resolved==='yes'?'感谢你的反馈。':'我们已记录为未解决，你可以继续排查或反馈产品问题。'}</p>:<div><button type="button" onClick={()=>onResolved('yes')}>解决了</button><button type="button" onClick={()=>onResolved('no')}>没有</button></div>}<div className="help-footer-actions"><Link to={`/help?q=${encodeURIComponent(article.title+' 继续排查')}`}>继续排查</Link>{resolved==='no'&&<Link to={`/feedback?category=${encodeURIComponent(article.category)}&page=帮助中心`}>反馈产品问题</Link>}</div></section></article>}

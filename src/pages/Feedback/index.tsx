@@ -1,61 +1,14 @@
-import { ImagePlus } from 'lucide-react'
 import { FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
+import { submitFeedback } from '../../services/feedback'
+import { useAppStore } from '../../store/useAppStore'
 
-export function FeedbackPage() {
-  const navigate = useNavigate()
-  const [content, setContent] = useState('')
-  const [files, setFiles] = useState<File[]>([])
-  const [error, setError] = useState('')
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    if (!content.trim()) {
-      setError('请先描述你遇到的问题或建议')
-      return
-    }
-    navigate('/feedback/submitted', { state: { title: content.trim().slice(0, 16) } })
-  }
-
-  return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="反馈意见" fallback="/health-events" />
-      <form className="space-y-3 px-4 py-4" onSubmit={submit}>
-        <section className="border-b pb-4">
-          <h2 className="text-sm font-medium">我要反馈</h2>
-          <p className="mt-1.5 text-xs leading-6 text-text-secondary">告诉我们你的问题或建议，帮助我们持续改进。</p>
-        </section>
-        <textarea className="hoho-textarea h-[150px] resize-none" placeholder="请描述你遇到的问题或建议…" value={content} onChange={(event) => { setContent(event.target.value); setError('') }} />
-        <label className="flex min-h-[91px] cursor-pointer items-center gap-3 rounded-card border bg-surface p-4">
-          <ImagePlus className="text-primary" size={22} strokeWidth={1.7} />
-          <span className="min-w-0 flex-1"><strong className="block text-sm font-medium">上传图片</strong><span className="mt-1.5 block text-xs text-text-secondary">{files.length ? `已选择 ${files.length} 张图片` : '支持 JPG、PNG，最多 3 张'}</span></span>
-          <input className="sr-only" type="file" accept="image/jpeg,image/png" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 3))} />
-        </label>
-        <div className="min-h-5">{error && <p className="text-xs text-danger">{error}</p>}</div>
-        <Button fullWidth type="submit">提交</Button>
-      </form>
-    </main>
-  )
+export function FeedbackPage(){
+  const token=useAppStore((state)=>state.authToken);const navigate=useNavigate();const [params]=useSearchParams()
+  const [category,setCategory]=useState(params.get('category')??'故障排查');const [description,setDescription]=useState('');const [page,setPage]=useState(params.get('page')??'');const [device,setDevice]=useState<'手机'|'电脑'>('手机');const [contact,setContact]=useState('');const [includeDiagnostics,setIncludeDiagnostics]=useState(false);const [error,setError]=useState('');const [submitting,setSubmitting]=useState(false)
+  const submit=async(event:FormEvent)=>{event.preventDefault();if(description.trim().length<10){setError('请至少用 10 个字符描述问题');return}if(!token){setError('登录状态已失效，请重新登录');return}setSubmitting(true);setError('');try{const result=await submitFeedback(token,{category,description:description.trim(),page:page.trim(),device,contact:contact.trim(),includeDiagnostics});navigate('/feedback/submitted',{state:{id:result.id,createdAt:result.createdAt}})}catch(cause){setError(cause instanceof Error?cause.message:'提交失败，请稍后重试')}finally{setSubmitting(false)}}
+  return <main className="app-shell pb-0"><WebPageHeader title="反馈产品问题" fallback="/help"/><form className="space-y-4 px-4 py-4" onSubmit={submit}><p className="text-sm leading-6 text-text-secondary">请勿填写验证码、密码或完整健康详情。截图上传将在后续版本提供。</p><label className="hoho-field"><span className="hoho-text-label">问题分类</span><select className="hoho-input" value={category} onChange={(e)=>setCategory(e.target.value)}>{['账号与登录','家庭成员','健康事件','记录与时间线','健康档案','图片与附件','数据与隐私','故障排查'].map((item)=><option key={item}>{item}</option>)}</select></label><label className="hoho-field"><span className="hoho-text-label">问题描述</span><textarea className="hoho-textarea min-h-36" maxLength={2000} value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="说明发生了什么、你期望看到什么结果"/></label><label className="hoho-field"><span className="hoho-text-label">出现问题的页面（选填）</span><input className="hoho-input" maxLength={100} value={page} onChange={(e)=>setPage(e.target.value)}/></label><fieldset><legend className="hoho-text-label mb-2">使用设备</legend><div className="flex gap-2">{(['手机','电脑'] as const).map((item)=><button className="min-h-11 rounded-control border bg-surface px-4 text-sm" aria-pressed={device===item} type="button" key={item} onClick={()=>setDevice(item)}>{item}</button>)}</div></fieldset><label className="hoho-field"><span className="hoho-text-label">联系方式（选填）</span><input className="hoho-input" maxLength={120} value={contact} onChange={(e)=>setContact(e.target.value)} placeholder="便于需要时联系你"/></label><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={includeDiagnostics} onChange={(e)=>setIncludeDiagnostics(e.target.checked)}/><span>允许附带非敏感设备和应用版本信息</span></label><div className="min-h-5" aria-live="polite">{error&&<p className="text-xs text-danger">{error}</p>}</div><Button fullWidth type="submit" disabled={submitting}>{submitting?'提交中…':'提交反馈'}</Button></form></main>
 }
 
-export function FeedbackSubmittedPage() {
-  const feedbacks = [
-    ['无法添加附件', '提交于 2026年8月2日', '待处理', 'text-warning'],
-    ['身份切换显示异常', '提交于 2026年8月2日', '处理中', 'text-primary'],
-    ['隐私设置说明建议', '提交于 2026年8月2日', '已解决', 'text-success']
-  ]
-
-  return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="反馈意见" fallback="/feedback" />
-      <div className="space-y-3 px-4 py-4">
-        <section className="border-b pb-4"><h2 className="text-sm font-medium">反馈已提交</h2><p className="mt-1.5 text-xs leading-6 text-text-secondary">我们会尽快处理，你可以在“我的反馈”中查看进度。</p></section>
-        <h2 className="pt-1 text-base font-medium">我的反馈</h2>
-        {feedbacks.map(([title, date, status, color]) => (
-          <article key={title} className="border-b p-4 last:border-b-0"><h3 className="text-sm font-medium">{title}</h3><p className="mt-1.5 text-xs text-text-secondary">{date}</p><p className={`mt-3 text-xs font-medium ${color}`}>{status}</p></article>
-        ))}
-      </div>
-    </main>
-  )
-}
+export function FeedbackSubmittedPage(){const location=useLocation();const data=location.state as {id?:string;createdAt?:string}|null;return <main className="app-shell pb-0"><WebPageHeader title="反馈产品问题" fallback="/help"/><div className="space-y-4 px-4 py-5"><h2 className="text-lg font-semibold">反馈已收到</h2>{data?.id?<><p className="text-sm leading-6 text-text-secondary">反馈已真实保存，我们会根据问题影响安排处理。</p><p className="text-xs text-text-secondary">反馈编号：{data.id}</p></>:<p className="text-sm leading-6 text-text-secondary">无法确认本次反馈已经保存，请返回反馈页面重新提交。</p>}<Button fullWidth type="button" onClick={()=>history.back()}>返回</Button></div></main>}

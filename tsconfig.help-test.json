@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "strict": true, "skipLibCheck": true, "outDir": ".codex-tmp/help-tests",
+    "rootDir": "src/features/help"
+  },
+  "include": ["src/features/help/articles.ts", "src/features/help/assistant.ts", "src/features/help/search.ts", "src/features/help/types.ts"]
+}
