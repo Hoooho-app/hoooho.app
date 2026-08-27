@@ -116,12 +116,10 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return () => controller.abort()
   }, [load])
 
-  const addRecord = useCallback(async (input: CreateHealthEventRecordInput) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
-    const created = await healthEventRecordService.create(eventId, input, token)
+  const commitRecord = useCallback((record: HealthEventRecordApiDto) => {
     setState((current) => {
-      if (current.status !== 'success') return current
-      const records = [...current.data.records, created]
+      if (current.status !== 'success' || current.data.records.some(({ id }) => id === record.id)) return current
+      const records = [...current.data.records, record]
       return {
         status: 'success',
         data: {
@@ -131,8 +129,14 @@ export function useHealthEventDetail(eventId: string | undefined) {
         }
       }
     })
+  }, [])
+
+  const addRecord = useCallback(async (input: CreateHealthEventRecordInput, options?: { deferCommit?: boolean }) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const created = await healthEventRecordService.create(eventId, input, token)
+    if (!options?.deferCommit) commitRecord(created)
     return created
-  }, [eventId, token])
+  }, [commitRecord, eventId, token])
 
   const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string }) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
@@ -234,5 +238,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, correctSummary, retry }
+  return { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, correctSummary, retry }
 }

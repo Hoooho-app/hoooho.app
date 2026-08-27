@@ -72,6 +72,10 @@
     @apply space-y-6 px-6 pt-4;
     padding-bottom: calc(7rem + max(var(--hoho-space-4), env(safe-area-inset-bottom)));
   }
+  .health-event-detail[data-first-record='true'] .page-content {
+    padding: var(--hoho-space-4);
+    padding-bottom: calc(5.5rem + max(var(--hoho-space-3), env(safe-area-inset-bottom)));
+  }
   .health-event-detail .section-title { font-size: var(--hoho-font-size-section-title); line-height: var(--hoho-line-height-section-title); }
   .health-event-detail-fixed { @apply relative z-20 shrink-0; background: rgb(var(--hoho-color-background) / 0.96); backdrop-filter: blur(12px); }
   .health-event-detail-fixed .hoho-page-header { position: static; }
@@ -133,11 +137,17 @@
     }
   }
 
-  .first-record-form-row { @apply grid grid-cols-[5.75rem_minmax(0,1fr)] gap-2; }
-  .first-record-form-label,
-  .first-record-form-field { min-width: 0; max-width: 100%; }
+  .first-record-composer { min-width: 0; }
+  .first-record-fields { display: grid; gap: var(--hoho-space-4); }
+  .first-record-field { display: grid; min-width: 0; gap: var(--hoho-space-2); }
   .first-record-datetime { @apply relative block min-w-0 max-w-full overflow-hidden; }
   .first-record-datetime input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .first-record-description { min-height: 120px; height: 120px; }
+  .first-record-attachments { display: flex; min-width: 0; gap: var(--hoho-space-2); overflow-x: auto; scrollbar-width: none; }
+  .first-record-attachments::-webkit-scrollbar { display: none; }
+  .first-record-error { @apply mt-3 flex items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-danger; }
+  .first-record-error button { @apply min-h-9 shrink-0 font-semibold text-primary; }
+  .first-record-quick-trigger { background: rgb(var(--hoho-color-surface) / 0.88); box-shadow: var(--hoho-shadow-soft); }
 
   .event-summary-card { @apply p-4; }
   .event-summary-tags { @apply mt-3 flex min-w-0 flex-nowrap gap-2 overflow-hidden; }
@@ -187,11 +197,8 @@
     .quick-record-panel.is-saved { transform: translateX(-50%); }
   }
 
-  @media (max-width: 480px) {
-    .first-record-composer__card { padding-inline: var(--hoho-space-4); }
-    .first-record-form-row { @apply block; }
-    .first-record-form-label { @apply mb-2 block w-full p-0; }
-    .first-record-form-field { @apply block w-full; }
+  @media (max-height: 620px) {
+    .first-record-composer:focus-within .first-record-quick-trigger { display: none; }
   }
 
   .hoho-page-header {

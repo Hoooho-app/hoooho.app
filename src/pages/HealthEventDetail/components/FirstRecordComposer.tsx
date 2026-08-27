@@ -1,13 +1,20 @@
-import { useRef, useState } from 'react'
-import { CalendarDays, ImagePlus, Sparkles, X } from 'lucide-react'
-import { Button, Card } from '../../../components/common'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { CalendarDays, Mic, Paperclip, X } from 'lucide-react'
 import { BodyLocationPicker } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
+import { appendQuickRecordTranscript } from './quickRecordPresentation'
+import { QuickVoiceRecordFlow } from './QuickVoiceRecordFlow'
 
 interface FirstRecordComposerProps {
+  onAvailabilityChange?: (available: boolean, saving: boolean) => void
+  onRecorded?: () => void
   onSave: (input: CreateHealthEventRecordInput) => Promise<void>
+}
+
+export interface FirstRecordComposerHandle {
+  submit: () => void
 }
 
 interface LabeledAttachment extends CreateEventAttachmentInput {
@@ -22,15 +29,21 @@ function inferImageLabel(name: string, selectedLocations: string[]) {
   return selectedLocations[0] || '图片'
 }
 
-export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
+export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRecordComposerProps>(function FirstRecordComposer({ onAvailabilityChange, onRecorded, onSave }, ref) {
   const [text, setText] = useState('')
   const [occurredAt, setOccurredAt] = useState(localDateTimeValue)
   const [selectedLocations, setSelectedLocations] = useState<BodyLocationSelection[]>([])
   const [attachments, setAttachments] = useState<LabeledAttachment[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const savingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
+  const hasContent = Boolean(text.trim() || attachments.length || selectedLocations.length)
+  const canSave = hasContent && Boolean(occurredAt) && !isFutureOccurredAt(occurredAt) && !saving
+
+  useEffect(() => { onAvailabilityChange?.(canSave, saving) }, [canSave, onAvailabilityChange, saving])
 
   const selectImages = async (files: FileList | null) => {
     if (!files?.length) return
@@ -42,27 +55,22 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
           reader.onload = () => resolve(String(reader.result))
-          reader.onerror = () => reject(new Error('图片读取失败'))
+          reader.onerror = () => reject(new Error('附件读取失败'))
           reader.readAsDataURL(file)
         })
-        return {
-          name: file.name,
-          originalName: file.name,
-          mimeType: file.type,
-          dataUrl,
-          label: inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations))
-        }
+        return { name: file.name, originalName: file.name, mimeType: file.type, dataUrl, label: inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations)) }
       }))
       setAttachments((current) => [...current, ...selected].slice(0, 8))
     } catch (selectError) {
-      setError(selectError instanceof Error ? selectError.message : '图片读取失败')
+      setError(selectError instanceof Error ? selectError.message : '附件读取失败，请重试')
     }
   }
 
   const save = async () => {
+    if (savingRef.current) return
     const rawInput = text.trim()
     if (!rawInput && !attachments.length && !selectedLocations.length) {
-      setError('请先描述发生了什么、选择身体部位或添加相关图片')
+      setError('请先描述发生了什么、选择身体部位或添加相关附件')
       return
     }
     if (isFutureOccurredAt(occurredAt)) {
@@ -70,7 +78,7 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
       setError(FUTURE_OCCURRED_AT_MESSAGE)
       return
     }
-
+    savingRef.current = true
     setSaving(true)
     setError('')
     try {
@@ -79,79 +87,62 @@ export function FirstRecordComposer({ onSave }: FirstRecordComposerProps) {
         content: rawInput,
         occurredAt: new Date(occurredAt).toISOString(),
         bodyLocations: bodyLocationSelectionLabels(selectedLocations),
-        attachments: attachments.map(({ label, originalName, ...attachment }) => ({
-          ...attachment,
-          name: `[${label}] ${originalName}`
-        }))
+        attachments: attachments.map(({ label, originalName, ...attachment }) => ({ ...attachment, name: `[${label}] ${originalName}` }))
       })
+      onRecorded?.()
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : '保存失败，请稍后重试')
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
+  useImperativeHandle(ref, () => ({ submit: () => { void save() } }))
+
   return (
-    <section aria-labelledby="first-record-title" className="first-record-composer">
-      <Card className="first-record-composer__card">
-        <h2 className="section-title text-heading" id="first-record-title">记录情况</h2>
+    <section aria-label="记录情况表单" className="first-record-composer">
+      <div className="first-record-fields">
+        <label className="first-record-field">
+          <span className="hoho-text-label">最早开始时间</span>
+          <span className="first-record-datetime">
+            <input className="hoho-input pr-10" max={localDateTimeValue()} onChange={(event) => {
+              const nextValue = clampOccurredAtToNow(event.target.value)
+              setOccurredAt(nextValue)
+              setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
+            }} type="datetime-local" value={occurredAt} />
+            <CalendarDays className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+          </span>
+        </label>
 
-        <div className="mt-5 space-y-5">
-          <label className="first-record-form-row items-center">
-            <span className="first-record-form-label text-sm font-medium text-heading">最早开始时间</span>
-            <span className="first-record-form-field first-record-datetime">
-              <input className="hoho-input min-w-0 max-w-full pr-10" max={localDateTimeValue()} onChange={(event) => {
-                const nextValue = clampOccurredAtToNow(event.target.value)
-                setOccurredAt(nextValue)
-                setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
-              }} type="datetime-local" value={occurredAt} />
-              <CalendarDays className="pointer-events-none absolute right-3 top-1/2 shrink-0 -translate-y-1/2 text-text-secondary" size={18} />
-            </span>
-          </label>
+        <div className="first-record-field"><BodyLocationPicker buttonLabel="身体部位选择器" compact label="身体部位（选填）" onChange={setSelectedLocations} value={selectedLocations} /></div>
 
-          <div className="first-record-form-row">
-            <span aria-hidden="true" className="first-record-form-label" />
-            <div className="first-record-form-field"><BodyLocationPicker label="身体部位" onChange={setSelectedLocations} value={selectedLocations} /></div>
-          </div>
+        <label className="first-record-field">
+          <span className="hoho-text-label">描述情况</span>
+          <span className="relative overflow-hidden">
+            <textarea aria-label="描述健康情况" className="hoho-textarea first-record-description resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder="请描述发生了什么…" ref={textAreaRef} value={text} />
+            <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
+          </span>
+        </label>
 
-          <label className="first-record-form-row">
-            <span className="first-record-form-label pt-3 text-sm font-medium text-heading">描述情况</span>
-            <span className="first-record-form-field relative overflow-hidden">
-              <textarea aria-label="描述健康情况" autoFocus className="hoho-textarea h-36 min-w-0 max-w-full resize-y pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder={'请直接描述发生了什么，例如：\n8月6日晚开始发烧，早上体温38.5℃，吃了一次退烧药。'} ref={textAreaRef} value={text} />
-              <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
-            </span>
-          </label>
-
-          <div className="first-record-form-row">
-            <p className="first-record-form-label pt-2 text-sm font-medium text-heading">添加图片</p>
-            <div className="first-record-form-field min-w-0">
-              <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
-              <button className="inline-flex min-h-10 max-w-full flex-wrap items-center gap-2 rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus className="shrink-0" size={18} />添加图片</button>
-              {attachments.length > 0 && (
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {attachments.map((attachment, index) => (
-                    <figure className="relative aspect-square overflow-hidden rounded-lg bg-primary-soft" key={`${attachment.originalName}-${index}`}>
-                      <img alt={attachment.originalName} className="h-full w-full object-cover" src={attachment.dataUrl} />
-                      <figcaption className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-pill bg-surface/90 px-1.5 py-0.5 text-[10px] font-medium text-primary">{attachment.label}</figcaption>
-                      <button aria-label={`删除图片 ${attachment.originalName}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-text-primary/75 text-surface" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
-                    </figure>
-                  ))}
-                </div>
-              )}
-            </div>
+        <div className="first-record-field min-w-0">
+          <div className="flex min-w-0 items-baseline justify-between gap-2"><p className="hoho-text-label shrink-0">添加附件（选填）</p><p className="truncate text-[11px] text-text-weak">检查报告、处方、药品或身体部位照片</p></div>
+          <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
+          <div className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden">
+            <button className="inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={17} />添加附件</button>
+            {attachments.length > 0 && <div className="first-record-attachments">{attachments.map((attachment, index) => (
+              <figure className="relative h-12 w-12 shrink-0 overflow-hidden rounded-control bg-primary-soft" key={`${attachment.originalName}-${index}`}>
+                <img alt={attachment.originalName} className="h-full w-full object-cover" src={attachment.dataUrl} />
+                <button aria-label={`删除附件 ${attachment.originalName}`} className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-text-primary/75 text-surface" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
+              </figure>
+            ))}</div>}
           </div>
         </div>
+      </div>
 
-        {error && (
-          <div className="mt-4 rounded-control bg-warning/10 px-3 py-3" role="alert">
-            <p className="text-sm font-semibold text-heading">{error.includes('暂未识别') ? '未识别到健康事件关键信息' : error}</p>
-            {error.includes('暂未识别') && <p className="mt-1 text-xs leading-5 text-text-secondary">请重新描述哪里不舒服、什么时候开始，以及有什么变化。</p>}
-            <button className="mt-2 text-sm font-semibold text-primary" onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button>
-          </div>
-        )}
-
-        <Button className="mt-5" disabled={saving || (!text.trim() && !attachments.length && !selectedLocations.length)} fullWidth onClick={() => void save()} type="button"><Sparkles size={18} strokeWidth={1.8} />{saving ? '正在整理…' : '保存，自动整理'}</Button>
-      </Card>
+      {error && <div className="first-record-error" role="alert"><p>{error.includes('暂未识别') ? '未识别到健康事件关键信息' : error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}
+      {!voiceOpen && <button className="quick-record-trigger first-record-quick-trigger" onClick={() => setVoiceOpen(true)} type="button"><Mic size={18} />快捷记录</button>}
+      <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setError('') }} open={voiceOpen} />
     </section>
   )
-}
+})

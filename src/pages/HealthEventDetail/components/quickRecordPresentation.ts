@@ -8,6 +8,15 @@ export function recognitionErrorMessage(code?: string) {
   return '没有听清，请再说一次'
 }
 
+export function appendQuickRecordTranscript(current: string, transcript: string) {
+  const existing = current.trimEnd()
+  const addition = transcript.trim()
+  if (!addition) return current
+  if (!existing) return addition
+  if (existing.endsWith(addition)) return existing
+  return `${existing}\n${addition}`
+}
+
 export function needsNewQuickRecord(
   pending: { recordId: string; transcript: string } | null,
   transcript: string

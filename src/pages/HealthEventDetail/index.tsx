@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Check, Mic } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
-import type { CreateHealthEventRecordInput } from '../../types'
+import type { CreateHealthEventRecordInput, EventAttachmentApiDto, HealthEventRecordApiDto } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
@@ -15,6 +15,7 @@ import {
   EventDetailStickyHeader,
   EventSummarySection,
   FirstRecordComposer,
+  type FirstRecordComposerHandle,
   QuickVoiceRecordFlow,
   TemperatureChartSection,
   TimelineSection
@@ -24,12 +25,20 @@ import { needsNewQuickRecord } from './components/quickRecordPresentation'
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
+  const [firstRecordCanSave, setFirstRecordCanSave] = useState(false)
+  const [firstRecordSaving, setFirstRecordSaving] = useState(false)
+  const firstRecordRef = useRef<FirstRecordComposerHandle>(null)
+  const pendingFirstRecordRef = useRef<{ attachmentIndexes: Set<number>; fingerprint: string; organized: boolean; record: HealthEventRecordApiDto; savedAttachments: EventAttachmentApiDto[] } | null>(null)
   const pendingQuickRecordRef = useRef<{ recordId: string; transcript: string } | null>(null)
+  const updateFirstRecordAvailability = useCallback((available: boolean, saving: boolean) => {
+    setFirstRecordCanSave(available)
+    setFirstRecordSaving(saving)
+  }, [])
 
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
@@ -95,17 +104,30 @@ export function HealthEventDetailPage() {
       throw new Error('暂未识别到健康相关信息。请描述哪里不舒服、什么时候开始或有什么症状，然后重新编辑。')
     }
 
-    const created = await addRecord({
-      type: recordText ? input.type : 'note',
-      content: recordText || '图片记录',
-      occurredAt: input.occurredAt
-    })
-    if (recordText) await organizeRecord(created.id, organizationContext)
-    const savedAttachments = []
-    for (const attachment of attachments) savedAttachments.push(await addAttachment({ ...attachment, recordId: created.id }))
-    if (!state.data.eventDto.title && !preview?.hasHealthFacts && attachments.length > 0) {
-      await updateTitle(getImageRecordTitle(savedAttachments))
+    const fingerprint = JSON.stringify(input)
+    let pending = pendingFirstRecordRef.current
+    if (!pending || pending.fingerprint !== fingerprint) {
+      const created = await addRecord(
+        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt },
+        { deferCommit: true }
+      )
+      pending = { attachmentIndexes: new Set(), fingerprint, organized: false, record: created, savedAttachments: [] }
+      pendingFirstRecordRef.current = pending
     }
+    if (recordText && !pending.organized) {
+      await organizeRecord(pending.record.id, organizationContext)
+      pending.organized = true
+    }
+    for (let index = 0; index < attachments.length; index += 1) {
+      if (pending.attachmentIndexes.has(index)) continue
+      pending.savedAttachments.push(await addAttachment({ ...attachments[index], recordId: pending.record.id }))
+      pending.attachmentIndexes.add(index)
+    }
+    if (!state.data.eventDto.title && !preview?.hasHealthFacts && attachments.length > 0) {
+      await updateTitle(getImageRecordTitle(pending.savedAttachments))
+    }
+    commitRecord(pending.record)
+    pendingFirstRecordRef.current = null
   }
 
   const saveQuickRecord = async (transcript: string, occurredAt: string) => {
@@ -124,9 +146,9 @@ export function HealthEventDetailPage() {
   }
 
   return (
-    <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0">
+    <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0" data-first-record={!hasRecords}>
       <div className="health-event-detail-fixed">
-        <EventHeader />
+        <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '健康事件详情' : '记录情况'} />
         <EventDetailStickyHeader
           onAction={() => setActionOpen(true)}
           showActions={hasRecords}
@@ -135,7 +157,7 @@ export function HealthEventDetailPage() {
       </div>
       <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {!hasRecords ? (
-          <FirstRecordComposer onSave={addHealthRecord} />
+          <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={() => { setRecordedMessage('已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
         ) : (
           <>
             {state.data.eventDto.eventSummary && (
