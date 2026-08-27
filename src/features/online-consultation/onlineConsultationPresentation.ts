@@ -1,6 +1,5 @@
 import type { HealthEvent, Member } from '../../types'
 import type { StoredHealthProfileSnapshot } from '../health-profile/utils/healthProfileHomeLogic'
-import { healthProfileSectionMap } from '../health-profile/config/healthProfileSections'
 
 export type ConsultationSectionId = 'condition' | 'actions' | 'medications' | 'examinations' | 'history' | 'concerns'
 export interface ConsultationSection { id: ConsultationSectionId; title: string; content: string }
@@ -10,22 +9,35 @@ export interface PreparedDoctorReply { reply: string; missing: string[]; sources
 const unique = (values: readonly string[]) => [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 const dateTime = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const dateOnly = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(value))
+const relevantProfileLabels: Record<string, string> = {
+  allergy: '过敏与不良反应',
+  medication: '长期用药',
+  chronic: '慢性病史',
+  surgery: '手术史',
+  hospitalization: '住院 / 急诊史'
+}
+const relevantProfileFieldLabels: Record<string, Record<string, string>> = {
+  allergy: { type: '类型', name: '名称', reaction: '出现过什么反应', firstFoundAt: '首次发现时间', active: '是否仍需注意', note: '补充说明' },
+  medication: { name: '药物名称', reason: '使用原因 / 对症', dose: '每次用量', frequency: '使用频率', route: '用药方式', startedAt: '开始日期', endedAt: '结束日期' },
+  chronic: { name: '疾病 / 问题名称', firstFoundAt: '首次发现时间', status: '当前状态', impact: '主要影响 / 表现', management: '当前管理情况', note: '补充说明' },
+  surgery: { name: '手术名称', date: '手术时间', hospital: '医院', reason: '手术原因', recovery: '恢复情况', note: '补充说明' },
+  hospitalization: { type: '类型', reason: '原因', hospital: '医院', date: '时间', treatment: '主要处理', result: '结果', note: '补充说明' }
+}
 
 function profileSummary(profiles: StoredHealthProfileSnapshot[]) {
-  const relevant = new Set(['allergy', 'medication', 'chronic', 'surgery', 'hospitalization'])
-  return profiles.filter(({ id }) => relevant.has(id)).flatMap(({ id, records }) => {
-    const section = healthProfileSectionMap[id as keyof typeof healthProfileSectionMap]
-    if (!section) return []
-    const fields = new Map(section.fields.map((field) => [field.id, field.label]))
+  return profiles.flatMap(({ id, records }) => {
+    const sectionLabel = relevantProfileLabels[id]
+    if (!sectionLabel) return []
+    const fieldLabels = relevantProfileFieldLabels[id]
     const lines = records.flatMap((record) => {
       const details = Object.entries(record).flatMap(([key, value]) => {
         if (key.startsWith('_') || key === 'id' || key === 'sequence' || !value) return []
-        const label = fields.get(key)
-        if (!label) return []
+        const fieldLabel = fieldLabels[key]
+        if (!fieldLabel) return []
         const display = Array.isArray(value) ? value.map(String).filter(Boolean).join('、') : String(value)
-        return display ? [`${label}：${display}`] : []
+        return display ? [`${fieldLabel}：${display}`] : []
       })
-      return details.length ? [`${section.title}：${details.join('；')}`] : []
+      return details.length ? [`${sectionLabel}：${details.join('；')}`] : []
     })
     return lines
   })

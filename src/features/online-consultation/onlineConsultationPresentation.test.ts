@@ -16,10 +16,11 @@ const event: HealthEvent = {
 }
 
 test('当前健康事件直接生成六个可分别复制的资料模块', () => {
-  const sections = buildConsultationSections({ event, member, profiles: [] })
+  const sections = buildConsultationSections({ event, member, profiles: [{ id: 'allergy', updatedAt: '2026-08-20T00:00:00.000Z', records: [{ name: '青霉素', reaction: '皮疹' }] }] })
   assert.deepEqual(sections.map(({ title }) => title), ['病情描述', '已经做过什么', '用药情况', '检查结果', '相关病史', '我想问医生'])
   assert.match(sections[0].content, /8月23日开始发热/)
   assert.equal(sections.find(({ id }) => id === 'examinations')?.content, '')
+  assert.equal(sections.find(({ id }) => id === 'history')?.content, '过敏与不良反应：名称：青霉素；出现过什么反应：皮疹')
   assert.match(consultationCopyAll(sections), /【用药情况】\n布洛芬 1 次/)
   assert.equal(consultationCopyAll(sections).includes('【检查结果】'), false)
 })
