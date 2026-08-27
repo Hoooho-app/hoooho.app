@@ -65,6 +65,24 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
 
+    const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+      birthday: '1990'
+    })
+    assert.equal(yearOnlyResponse.status, 200)
+    assert.equal((await yearOnlyResponse.json()).birthday, '1990')
+
+    const futureYearResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+      birthday: String(new Date().getUTCFullYear() + 1)
+    })
+    assert.equal(futureYearResponse.status, 400)
+    assert.equal((await futureYearResponse.json()).error.code, 'INVALID_BIRTHDAY')
+
+    const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+      birthday: '1990-01'
+    })
+    assert.equal(incompleteDateResponse.status, 400)
+    assert.equal((await incompleteDateResponse.json()).error.code, 'INVALID_BIRTHDAY')
+
     const listResponse = await requestJson(`${baseUrl}/api/members`, 'GET', first.token)
     const list = await listResponse.json()
     assert.equal(list.length, 2)

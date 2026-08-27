@@ -1,4 +1,4 @@
-import { ChevronLeft, LockKeyhole, Sparkles } from 'lucide-react'
+import { ChevronLeft, LockKeyhole } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '../../components/common'
@@ -8,6 +8,8 @@ import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { createVirtualAvatarId } from '../../utils/virtualAvatar'
 
+type BirthdayPrecision = 'year' | 'date'
+
 export function ProfileSetupPage() {
   const navigate = useNavigate()
   const token = useAppStore((state) => state.authToken)
@@ -16,6 +18,7 @@ export function ProfileSetupPage() {
   const [selfMember, setSelfMember] = useState<FamilyMemberApiDto | null>(null)
   const [name, setName] = useState('')
   const [birthday, setBirthday] = useState('')
+  const [birthdayPrecision, setBirthdayPrecision] = useState<BirthdayPrecision>('year')
   const [gender, setGender] = useState<ProfileGender>('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -29,7 +32,10 @@ export function ProfileSetupPage() {
         const self = members.find((member) => member.isSelf) ?? null
         setSelfMember(self)
         if (self && self.name !== '我') setName(self.name)
-        if (self?.birthday) setBirthday(self.birthday)
+        if (self?.birthday) {
+          setBirthday(self.birthday)
+          setBirthdayPrecision(/^\d{4}$/.test(self.birthday) ? 'year' : 'date')
+        }
         if (self?.gender === 'male' || self?.gender === 'female') setGender(self.gender)
       })
       .catch((requestError) => {
@@ -53,8 +59,12 @@ export function ProfileSetupPage() {
       setError('请输入 1–20 个字符的姓名')
       return
     }
-    if (!birthday) {
-      setError('请选择出生日期')
+    const currentYear = new Date().getUTCFullYear()
+    if (
+      !birthday
+      || (birthdayPrecision === 'year' && (!/^\d{4}$/.test(birthday) || Number(birthday) > currentYear))
+    ) {
+      setError(birthdayPrecision === 'year' ? '请输入有效且不晚于今年的出生年份' : '请选择出生日期')
       return
     }
     if (gender !== 'male' && gender !== 'female') {
@@ -100,22 +110,10 @@ export function ProfileSetupPage() {
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
         <div className="text-center">
-          <h1 className="hoho-text-page-title">添加家人</h1>
-          <p className="mt-3 text-sm leading-7 text-text-secondary">
-            先添加第一个家人，
-            <br />
-            方便开始记录健康事件
-          </p>
+          <h1 className="hoho-text-page-title">添加第一个家人</h1>
         </div>
 
-        <div className="mt-6 flex items-start gap-3 rounded-card border bg-surface px-4 py-3.5 text-left">
-          <Sparkles className="mt-0.5 shrink-0 text-primary" size={18} strokeWidth={1.8} />
-          <p className="text-xs leading-5 text-text-secondary">
-            无需上传照片。系统会根据年龄和性别，自动分配一个卡通头像。
-          </p>
-        </div>
-
-        <div className="mt-7 space-y-5">
+        <div className="mt-8 space-y-5">
           <Input
             label="姓名 *"
             name="name"
@@ -130,19 +128,64 @@ export function ProfileSetupPage() {
             }}
           />
 
-          <Input
-            label="出生日期 *"
-            name="birthday"
-            type="date"
-            max={new Date().toISOString().slice(0, 10)}
-            hint="系统将根据出生日期自动计算年龄"
-            value={birthday}
-            disabled={loading || submitting}
-            onChange={(event) => {
-              setBirthday(event.target.value)
-              setError('')
-            }}
-          />
+          <fieldset disabled={loading || submitting}>
+            <legend className="text-sm font-medium">出生信息精度</legend>
+            <div aria-label="出生信息精度" className="hoho-segmented-control mt-3 !grid w-full grid-cols-2" role="group">
+              {([
+                ['year', '仅年份'],
+                ['date', '完整日期']
+              ] as const).map(([value, label]) => (
+                <button
+                  aria-pressed={birthdayPrecision === value}
+                  className="!min-h-11"
+                  data-selected={birthdayPrecision === value}
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setBirthdayPrecision(value)
+                    setBirthday(value === 'year' ? birthday.slice(0, 4) : '')
+                    setError('')
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          {birthdayPrecision === 'year' ? (
+            <Input
+              autoComplete="bday-year"
+              hint="填写出生年份即可，系统将计算大致年龄"
+              inputMode="numeric"
+              label="出生年份 *"
+              maxLength={4}
+              name="birth-year"
+              pattern="[0-9]{4}"
+              placeholder="例如：1990"
+              value={birthday}
+              disabled={loading || submitting}
+              onChange={(event) => {
+                setBirthday(event.target.value.replace(/\D/g, '').slice(0, 4))
+                setError('')
+              }}
+            />
+          ) : (
+            <Input
+              autoComplete="bday"
+              hint="系统将根据出生日期自动计算年龄"
+              label="出生日期 *"
+              max={new Date().toISOString().slice(0, 10)}
+              name="birthday"
+              type="date"
+              value={birthday}
+              disabled={loading || submitting}
+              onChange={(event) => {
+                setBirthday(event.target.value)
+                setError('')
+              }}
+            />
+          )}
 
           <fieldset disabled={loading || submitting}>
             <legend className="text-sm font-medium">性别 *</legend>
