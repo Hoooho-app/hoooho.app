@@ -8,6 +8,7 @@ import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
 import { getImageRecordTitle } from '../../services/imageAnalysisPresentation'
+import { createQuickRecordCandidates } from '../../features/quick-record'
 import {
   EventHeader,
   ActionSheet,
@@ -145,6 +146,12 @@ export function HealthEventDetailPage() {
     window.setTimeout(() => setRecordedMessage(''), 3000)
   }
 
+  const previewQuickRecord = async (transcript: string, occurredAt: string) => {
+    const preview = await previewRecord(transcript, { selectedOccurredAt: occurredAt })
+    if (!preview.hasHealthFacts) throw new Error('暂未识别到健康记录，请补充发生了什么、时间或数值。')
+    return createQuickRecordCandidates(preview, occurredAt)
+  }
+
   return (
     <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0" data-first-record={!hasRecords}>
       <div className="health-event-detail-fixed">
@@ -172,6 +179,7 @@ export function HealthEventDetailPage() {
       {hasRecords && <QuickVoiceRecordFlow
         onClose={() => setVoiceRecordOpen(false)}
         onConfirm={saveQuickRecord}
+        onPreview={previewQuickRecord}
         open={voiceRecordOpen}
       />}
       {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}

@@ -36,6 +36,17 @@ test('录音面板提供取消确认和防重复提交边界', () => {
   assert.match(stylesSource, /prefers-reduced-motion/)
 })
 
+test('微信说一句使用文字降级并复用现有预览和保存管线', () => {
+  assert.match(recorderSource, /capability\.isWechat/)
+  assert.match(recorderSource, /写下发生了什么/)
+  assert.match(recorderSource, /自动整理/)
+  assert.match(recorderSource, /微信内暂不支持语音记录/)
+  assert.match(recorderSource, /如何在浏览器打开/)
+  assert.match(recorderSource, /onPreviewRef\.current/)
+  assert.match(pageSource, /createQuickRecordCandidates/)
+  assert.match(pageSource, /onPreview=\{previewQuickRecord\}/)
+})
+
 test('首次记录使用紧凑表单、顶部保存和明确的选填文案', () => {
   assert.match(pageSource, /title=\{hasRecords \? '健康事件详情' : '记录情况'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)

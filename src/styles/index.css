@@ -191,6 +191,28 @@
   .quick-record-error-actions { @apply col-span-2 flex flex-wrap items-center justify-end gap-2 pt-1; }
   .quick-record-error-actions .hoho-button { @apply min-h-11 px-4; }
   .quick-record-text-title { @apply col-span-2 text-sm font-semibold; }
+  .quick-record-panel-text,
+  .quick-record-panel-review,
+  .quick-record-panel-help { @apply block; }
+  .quick-record-wechat-hint { @apply mb-3 rounded-control bg-primary-soft px-3 py-2 text-xs leading-5 text-text-secondary; }
+  .quick-record-wechat-hint strong { @apply mr-2 text-primary; }
+  .quick-record-natural-input { @apply block; }
+  .quick-record-natural-input > strong { @apply mb-2 block text-sm font-semibold; }
+  .quick-record-natural-input .hoho-textarea { min-height: 112px; }
+  .quick-record-input-error { @apply mt-2 text-xs leading-5 text-danger; }
+  .quick-record-text-actions { @apply mt-3 flex flex-wrap items-center justify-end gap-2; }
+  .quick-record-voice-link { @apply inline-flex min-h-11 items-center gap-1.5 rounded-pill px-2 text-xs font-semibold text-primary; }
+  .quick-record-help-copy { @apply text-sm leading-6; }
+  .quick-record-help-copy strong { @apply block font-semibold; }
+  .quick-record-help-copy p { @apply mt-1 text-text-secondary; }
+  .quick-record-review-heading strong { @apply block font-semibold text-primary; }
+  .quick-record-review-heading p { @apply mt-1 line-clamp-2 text-xs leading-5 text-text-secondary; }
+  .quick-record-candidates { @apply mt-3 grid max-h-64 gap-2 overflow-y-auto; }
+  .quick-record-candidates article { @apply rounded-control border bg-background px-3 py-2; }
+  .quick-record-candidates article > strong { @apply block text-sm font-semibold; }
+  .quick-record-candidates article p { @apply mt-1 flex justify-between gap-4 text-xs leading-5; }
+  .quick-record-candidates article p span { @apply text-text-secondary; }
+  .quick-record-panel-status { @apply flex min-h-20 items-center justify-center gap-2 text-primary; }
   .quick-record-actions { @apply col-span-3 flex min-h-12 items-center justify-between; }
   .quick-record-cancel { @apply min-h-11 rounded-pill border px-5 text-sm font-medium; }
   .quick-record-retry { @apply grid h-11 w-11 place-items-center rounded-full text-primary; }

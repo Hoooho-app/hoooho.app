@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appendQuickRecordTranscript, classifyMicrophoneFailure, formatRecordingDuration, isEmbeddedBrowserUserAgent, isValidVoiceRecording, needsNewQuickRecord, recognitionErrorMessage } from './quickRecordPresentation.ts'
+import { appendQuickRecordTranscript, classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, needsNewQuickRecord, recognitionErrorMessage } from './quickRecordPresentation.ts'
 
 test('快捷记录显示稳定的分钟和秒数', () => {
   assert.equal(formatRecordingDuration(0), '00:00')
@@ -8,7 +8,7 @@ test('快捷记录显示稳定的分钟和秒数', () => {
 })
 
 test('麦克风权限和无声音错误使用明确反馈', () => {
-  assert.match(recognitionErrorMessage('not-allowed'), /没有获得麦克风权限/)
+  assert.match(recognitionErrorMessage('not-allowed'), /麦克风权限未开启/)
   assert.match(recognitionErrorMessage('no-speech'), /录音启动失败/)
 })
 
@@ -19,12 +19,6 @@ test('录音错误分类覆盖权限、设备占用、无设备和不支持环�
   assert.equal(classifyMicrophoneFailure('unsupported').kind, 'unsupported_environment')
   assert.equal(classifyMicrophoneFailure('unsupported').canRetry, false)
   assert.equal(classifyMicrophoneFailure('network').kind, 'recording_failed')
-})
-
-test('只用轻量 UA 判断改善内置浏览器失败提示', () => {
-  assert.equal(isEmbeddedBrowserUserAgent('Mozilla/5.0 MicroMessenger/8.0'), true)
-  assert.equal(isEmbeddedBrowserUserAgent('Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Mobile/15E148'), true)
-  assert.equal(isEmbeddedBrowserUserAgent('Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1'), false)
 })
 
 test('只有已经录音、有转录且超过一秒才允许完成', () => {
