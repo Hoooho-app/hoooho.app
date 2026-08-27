@@ -9,7 +9,7 @@ const fact = (id: string, type: HealthFact['type'], name: string, raw: string, r
   ...(temperature ? { temperature: { min: temperature, max: temperature, unit: '℃' as const } } : {})
 })
 
-test('一句复合输入拆成多条既有 HealthEventRecord 候选', () => {
+test('一句复合输入只形成一条记录候选并在其中保留多项事实', () => {
   const preview = {
     hasHealthFacts: true, provider: 'test',
     organizedHealthData: { symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: [] },
@@ -19,10 +19,10 @@ test('一句复合输入拆成多条既有 HealthEventRecord 候选', () => {
     }
   } satisfies HealthRecordOrganizationPreviewApiDto
   const candidates = createQuickRecordCandidates(preview, '2026-08-25T21:05:00.000Z')
-  assert.equal(candidates.length, 2)
-  assert.equal(candidates[0].type, 'medication')
-  assert.deepEqual(candidates[0].fields.map((field) => field.value), ['晚上九点', '美林 5 毫升', '5 毫升'])
-  assert.equal(candidates[1].fields[1].value, '38.5 ℃')
+  assert.equal(candidates.length, 1)
+  assert.equal(candidates[0].type, 'note')
+  assert.equal(candidates[0].title, '本次记录')
+  assert.deepEqual(candidates[0].fields.map((field) => field.value), ['晚上九点', '美林 5 毫升', '38.5 ℃'])
 })
 
 test('未来解析时间回退到用户提交时刻', () => {

@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const summarySource = readFileSync(new URL('./EventSummarySection.tsx', import.meta.url), 'utf8')
 const recorderSource = readFileSync(new URL('./QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
+const timelineSource = readFileSync(new URL('./TimelineSection.tsx', import.meta.url), 'utf8')
 const firstRecordSource = readFileSync(new URL('./FirstRecordComposer.tsx', import.meta.url), 'utf8')
 const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url), 'utf8')
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
@@ -65,4 +66,21 @@ test('首次记录快捷录音只追加描述，不直接保存整张表单', ()
   assert.match(firstRecordSource, /first-record-quick-trigger/)
   assert.match(stylesSource, /first-record-description[^}]*120px/)
   assert.match(stylesSource, /first-record-attachments[^}]*overflow-x:\s*auto/)
+})
+
+test('时间线详情只在原地展开“发生了什么”和可选措施', () => {
+  assert.match(timelineSource, /aria-expanded/)
+  assert.match(timelineSource, /timeline-record-details/)
+  assert.match(timelineSource, /发生了什么/)
+  assert.match(timelineSource, /采取的措施/)
+  assert.match(timelineSource, /展开详情/)
+  assert.match(timelineSource, /收起详情/)
+  assert.equal(timelineSource.includes('后续变化'), false)
+  assert.match(stylesSource, /grid-template-rows:\s*0fr/)
+  assert.match(stylesSource, /overflow-wrap:\s*anywhere/)
+})
+
+test('快捷记录预览明确一次输入只是一条记录', () => {
+  assert.match(recorderSource, /识别到 1 条记录/)
+  assert.equal(recorderSource.includes('识别到 {candidates.length} 条记录'), false)
 })
