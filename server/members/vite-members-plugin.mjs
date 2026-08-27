@@ -9,7 +9,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
   request.on('data', (chunk) => {
     if (settled) return
     body += chunk
-    if (body.length > 16_384) {
+    if (body.length > 310_000) {
       settled = true
       reject(new FamilyMemberError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
     }
