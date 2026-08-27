@@ -15,6 +15,7 @@ import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
+import { FeedbackService } from './help/feedback-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -37,6 +38,7 @@ const organizations = new HealthRecordOrganizationService(sharedOptions)
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
+const feedback = new FeedbackService(sharedOptions)
 
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -320,6 +322,10 @@ async function handleApi(request, response, pathname) {
   }
   if (pathname === '/api/health' && request.method === 'GET') {
     sendJson(response, 200, { status: 'ok' })
+    return true
+  }
+  if (pathname === '/api/feedback' && request.method === 'POST') {
+    sendJson(response, 201, await feedback.create(readAccountId(request), await readJson(request)))
     return true
   }
   if (await handleAuth(request, response, pathname)) return true
