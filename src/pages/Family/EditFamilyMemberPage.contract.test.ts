@@ -9,7 +9,7 @@ test('人物编辑页提供清晰的头像类型切换和对齐描边', () => {
   assert.match(pageSource, /\['cartoon', '卡通头像'\]/)
   assert.match(pageSource, /\['photo', '照片头像'\]/)
   assert.match(pageSource, /overflow-hidden rounded-full border-2 border-primary bg-surface p-0\.5/)
-  assert.match(pageSource, /\[&_img\]:-translate-x-0\.5 \[&_img\]:scale-\[1\.12\]/)
+  assert.match(pageSource, /\[&_img\]:-translate-x-0\.5 \[&_img\]:scale-\[1\.28\]/)
   assert.equal(pageSource.includes('>更换头像<'), false)
 })
 

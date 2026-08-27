@@ -171,7 +171,7 @@ export function EditFamilyMemberPage() {
               type="button"
               onClick={avatarMode === 'cartoon' ? changeCartoonAvatar : () => photoInputRef.current?.click()}
             >
-              <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card ${avatarMode === 'cartoon' ? '[&_img]:-translate-x-0.5 [&_img]:scale-[1.12]' : ''}`}>
+              <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card ${avatarMode === 'cartoon' ? '[&_img]:-translate-x-0.5 [&_img]:scale-[1.28]' : ''}`}>
                 {avatarMode === 'photo' && !photoAvatar ? (
                   <span className="inline-flex h-28 w-28 items-center justify-center rounded-full bg-primary-soft text-primary">
                     <Camera aria-hidden="true" size={34} strokeWidth={1.6} />
