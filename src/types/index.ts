@@ -94,7 +94,7 @@ export interface HealthEventSummaryResult {
 
 export interface HealthEventSummaryTag {
   label: string
-  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement'
+  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement' | 'change'
   source: 'doctor_statement' | 'test_result' | 'ai_consultation' | 'user_report' | 'measurement'
   certainty: 'confirmed' | 'suspected' | null
   priority: number
@@ -112,7 +112,8 @@ export interface HealthEventListItemViewModel {
   memberId: string
   memberName: string
   title: string
-  summary: string | null
+  definitionTitle: string
+  quickFacts: string[]
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string

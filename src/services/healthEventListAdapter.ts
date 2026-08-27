@@ -1,5 +1,6 @@
 import type { EventAttachmentApiDto, FamilyMemberApiDto, HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
-import { deriveHealthEventListSummary, normalizeHealthEventTitle } from './healthEventFacts'
+import { buildHealthEventQuickFacts, getHealthEventDefinitionTitle } from './healthEventCardPresentation'
+import { normalizeHealthEventTitle } from './healthEventFacts'
 import { getEventOccurredAt, getPrimaryRecord } from './healthEventListPresentation'
 import { getImageRecordSummary, getImageRecordTitle, isLegacyAttachmentTitle } from './imageAnalysisPresentation'
 
@@ -7,7 +8,8 @@ export function adaptHealthEventList(
   events: HealthEventApiDto[],
   members: FamilyMemberApiDto[],
   recordsByEventId: ReadonlyMap<string, readonly HealthEventRecordApiDto[]> = new Map(),
-  attachmentsByEventId: ReadonlyMap<string, readonly EventAttachmentApiDto[]> = new Map()
+  attachmentsByEventId: ReadonlyMap<string, readonly EventAttachmentApiDto[]> = new Map(),
+  now = new Date()
 ): HealthEventListItemViewModel[] {
   const memberNames = new Map(members.map((member) => [member.id, member.name]))
   return events.map((event) => {
@@ -24,9 +26,13 @@ export function adaptHealthEventList(
     memberId: event.memberId,
     memberName: memberNames.get(event.memberId) ?? '未知成员',
     title,
-    summary: projectedSummary
-      ? projectedSummary.summary.slice(0, 52)
-      : getImageRecordSummary(attachments) ?? deriveHealthEventListSummary(title, primaryRecord?.content),
+    definitionTitle: getHealthEventDefinitionTitle(projectedSummary),
+    quickFacts: buildHealthEventQuickFacts({
+      startTime: event.startTime,
+      summary: projectedSummary,
+      fallbackFeature: projectedSummary ? null : getImageRecordSummary(attachments) ?? title,
+      now
+    }),
     category: event.category,
     status: event.status,
     startTime: event.startTime,

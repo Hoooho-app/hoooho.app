@@ -20,7 +20,15 @@ test('新增健康事件按钮恢复主绿色单色样式', () => {
   assert.doesNotMatch(pageStylesSource, /\.health-events-fab\s*{[^}]*linear-gradient/s)
 })
 
-test('事件状态标签跟随摘要标题同行显示', () => {
-  assert.match(cardSource, /flex min-w-0 items-center gap-2[^]*Typography[^]*HealthTag tone=\{statusTone\}/)
-  assert.doesNotMatch(cardSource, /<div><HealthTag tone=\{statusTone\}>/)
+test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {
+  assert.match(cardSource, /flex min-w-0 items-center gap-2[^]*event\.definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
+  assert.match(cardSource, /className="block truncate"[^]*event\.quickFacts\.join\(' · '\)/)
+  assert.doesNotMatch(cardSource, /event\.summary/)
+  assert.doesNotMatch(cardSource, /<div><HealthTag/)
+})
+
+test('长标题和速览在箭头前截断且整张卡片保持单一点击入口', () => {
+  assert.match(cardSource, /Typography className="min-w-0 flex-1 truncate"/)
+  assert.match(cardSource, /ChevronRight className="shrink-0/)
+  assert.match(cardSource, /navigate\(`\/health-events\/\$\{event\.id\}`\)/)
 })

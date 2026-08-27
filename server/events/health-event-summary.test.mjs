@@ -63,6 +63,8 @@ test('状态变化纳入摘要，后续新证据触发动态摘要而不删除�
     ], '2026-08-10T03:00:00.000Z')]
   })
   assert.match(generated.displayedResult.summary, /发热有所好转/)
+  assert.equal(generated.displayedResult.tags[0].label, '发热好转')
+  assert.equal(generated.displayedResult.tags[0].kind, 'change')
   const corrected = correctHealthEventSummary(generated, { title: '8月发热', summary: '校对后的摘要。' }, new Date('2026-08-10T05:00:00.000Z'))
   const refreshed = buildHealthEventSummary({
     event: { ...event, eventSummary: corrected },
@@ -138,7 +140,7 @@ test('后续明确否定会撤销诊断，症状消失会撤销当前症状标�
     ],
     now: new Date('2026-08-11T04:00:00.000Z')
   })
-  assert.deepEqual(summary.displayedResult.tags.map(({ label }) => label), ['脚痛'])
+  assert.deepEqual(summary.displayedResult.tags.map(({ label }) => label), ['头痛消失', '脚痛'])
   assert.doesNotMatch(summary.displayedResult.summary, /皮炎/)
   assert.match(summary.displayedResult.summary, /头痛已消失/)
 })

@@ -33,31 +33,6 @@ export function normalizeHealthEventTitle(title: string, sourceText?: string) {
   return normalizeSymptomTitle(title, sourceText)
 }
 
-export function deriveHealthEventListSummary(title: string, sourceText?: string) {
-  const content = sourceText?.trim()
-  if (!content) return null
-  const comparable = (value: string) => value.replace(/[\s，。；;、：:]/g, '')
-  if (comparable(content) === comparable(title)) return null
-
-  const extras: string[] = []
-  const temperature = content.match(/(?:最高)?\s*(\d{2}(?:\.\d+)?)\s*(?:℃|度)/)
-  if (temperature) extras.push(`体温${temperature[1]}℃`)
-  if (/冒汗|出汗/.test(content) && title !== '出汗') extras.push('伴出汗')
-  for (const [, symptom] of conciseSymptomTitles) {
-    if (symptom === title || extras.some((item) => item.includes(symptom))) continue
-    const pattern = conciseSymptomTitles.find(([, value]) => value === symptom)?.[0]
-    if (pattern?.test(content)) extras.push(`伴${symptom}`)
-  }
-  if (extras.length) return [...new Set(extras)].join('，')
-
-  const cleaned = content
-    .replace(/^(?:当时|就是|感觉|有点|稍微)+/, '')
-    .replace(/^(?:今天|昨天|前天)?(?:早上|上午|中午|下午|晚上|夜里)?/, '')
-    .trim()
-  if (!cleaned || comparable(cleaned) === comparable(title)) return null
-  return cleaned.length > 36 ? `${cleaned.slice(0, 36)}…` : cleaned
-}
-
 export function deriveHealthEventTitleFromFacts(output: HealthAIOutput, hasAttachments = false) {
   const facts = output.facts ?? []
   const symptom = facts.find((fact) => fact.type === 'symptom')
