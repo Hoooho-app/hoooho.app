@@ -5,6 +5,6 @@ import { actionCategoryLabels, actionCategoryOrder } from './actionSheetPresenta
 test('health event actions keep the frozen mobile display order', () => {
   assert.deepEqual(
     actionCategoryOrder.map((category) => actionCategoryLabels[category]),
-    ['问 AI', '去医院', '重点观察', '求助'],
+    ['问 AI', '在线问诊', '去医院', '重点观察', '求助'],
   )
 })

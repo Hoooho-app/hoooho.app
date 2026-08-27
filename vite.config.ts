@@ -8,6 +8,7 @@ import { eventRecordsApiPlugin } from './server/events/vite-event-records-plugin
 import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachments-plugin.mjs'
 import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
+import { onlineConsultationsApiPlugin } from './server/consultations/vite-online-consultations-plugin.mjs'
 
 export default defineConfig({
   server: {
@@ -21,6 +22,7 @@ export default defineConfig({
     eventAttachmentsApiPlugin(),
     aiApiPlugin(),
     opsApiPlugin(),
+    onlineConsultationsApiPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
