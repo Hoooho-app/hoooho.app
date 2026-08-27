@@ -1,6 +1,7 @@
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { FamilyMemberError, FamilyMemberService } from './family-member-service.mjs'
+import { validTimeZone } from '../time/local-calendar.mjs'
 
 const readJson = (request) => new Promise((resolve, reject) => {
   let body = ''
@@ -57,12 +58,13 @@ export function membersApiPlugin(options = {}) {
 
         try {
           const accountId = readAccountId(request, tokens)
+          const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
           const memberId = match[1] ? decodeURIComponent(match[1]) : null
 
           if (!memberId && request.method === 'GET') return sendJson(response, 200, await members.list(accountId))
-          if (!memberId && request.method === 'POST') return sendJson(response, 201, await members.create(accountId, await readJson(request)))
+          if (!memberId && request.method === 'POST') return sendJson(response, 201, await members.create(accountId, await readJson(request), new Date(), timeZone))
           if (memberId && request.method === 'GET') return sendJson(response, 200, await members.get(accountId, memberId))
-          if (memberId && request.method === 'PATCH') return sendJson(response, 200, await members.update(accountId, memberId, await readJson(request)))
+          if (memberId && request.method === 'PATCH') return sendJson(response, 200, await members.update(accountId, memberId, await readJson(request), new Date(), timeZone))
           if (memberId && request.method === 'DELETE') return sendJson(response, 200, await members.delete(accountId, memberId))
           return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
         } catch (error) {

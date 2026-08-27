@@ -1,4 +1,5 @@
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
+import { localDateKey } from '../time/local-calendar.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
@@ -37,19 +38,19 @@ function validateGender(value) {
   return value
 }
 
-function validateBirthday(value) {
+function validateBirthday(value, now = new Date(), timeZone) {
   if (value === undefined || value === null || value === '') return null
   if (typeof value !== 'string' || !/^\d{4}(?:-\d{2}-\d{2})?$/.test(value)) {
     throw new FamilyMemberError('出生日期格式应为 YYYY 或 YYYY-MM-DD', 400, 'INVALID_BIRTHDAY')
   }
   if (/^\d{4}$/.test(value)) {
-    if (value > new Date().toISOString().slice(0, 4)) {
+    if (value > String(localDateKey(now, timeZone)).slice(0, 4)) {
       throw new FamilyMemberError('请输入有效且不晚于今年的出生年份', 400, 'INVALID_BIRTHDAY')
     }
     return value
   }
   const date = new Date(`${value}T00:00:00Z`)
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > new Date().toISOString().slice(0, 10)) {
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > localDateKey(now, timeZone)) {
     throw new FamilyMemberError('请输入有效且不晚于今天的出生日期', 400, 'INVALID_BIRTHDAY')
   }
   return value
@@ -100,19 +101,19 @@ export class FamilyMemberService {
     return member
   }
 
-  async create(accountId, input, now = new Date()) {
+  async create(accountId, input, now = new Date(), timeZone) {
     return this.repository.create({
       accountId,
       name: validateName(input.name),
       relationship: validateRelationship(input.relationship),
       gender: validateGender(input.gender),
-      birthday: validateBirthday(input.birthday),
+      birthday: validateBirthday(input.birthday, now, timeZone),
       avatar: validateAvatar(input.avatar),
       isSelf: false
     }, now)
   }
 
-  async update(accountId, id, input, now = new Date()) {
+  async update(accountId, id, input, now = new Date(), timeZone) {
     const member = await this.get(accountId, id)
     const changes = {}
     for (const key of Object.keys(input)) {
@@ -123,7 +124,7 @@ export class FamilyMemberService {
         changes.relationship = validateRelationship(input.relationship)
       }
       if (key === 'gender') changes.gender = validateGender(input.gender)
-      if (key === 'birthday') changes.birthday = validateBirthday(input.birthday)
+      if (key === 'birthday') changes.birthday = validateBirthday(input.birthday, now, timeZone)
       if (key === 'avatar') changes.avatar = validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)

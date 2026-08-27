@@ -17,6 +17,7 @@ import { HealthRecordOrganizationService } from './ai/health-record-organization
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
+import { validTimeZone } from './time/local-calendar.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -265,11 +266,12 @@ async function handleMembers(request, response, pathname) {
   if (!match) return false
 
   const accountId = readAccountId(request)
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
   if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
-  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000)))
+  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000), new Date(), timeZone))
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
-  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000)))
+  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000), new Date(), timeZone))
   else if (memberId && request.method === 'DELETE') sendJson(response, 200, await members.delete(accountId, memberId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true

@@ -7,6 +7,7 @@ import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { createVirtualAvatarId } from '../../utils/virtualAvatar'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
 
 type BirthdayPrecision = 'year' | 'date'
 
@@ -168,7 +169,7 @@ export function ProfileSetupPage() {
                 autoComplete="bday"
                 className="hoho-input"
                 id="profile-birthday"
-                max={new Date().toISOString().slice(0, 10)}
+                max={getLocalDateKey(new Date()) ?? undefined}
                 name="birthday"
                 type="date"
                 value={birthday}

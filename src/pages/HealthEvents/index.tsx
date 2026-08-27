@@ -10,6 +10,7 @@ import { ApiRequestError } from '../../services/apiClient'
 import { healthEventService } from '../../services/healthEvents'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
+import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -44,19 +45,21 @@ function hasActiveFilters(filters: HealthEventFilters) {
   return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.categories.length > 0
 }
 
-function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters) {
-  const now = new Date()
+export function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters, now = new Date()) {
   return events.filter((event) => {
     const eventDate = new Date(event.occurredAt)
+    const localDate = getLocalCalendarParts(eventDate)
+    const localDateKey = getLocalDateKey(eventDate)
+    if (!localDate || !localDateKey) return false
     if (filters.range === '7d' && eventDate < new Date(now.getTime() - 7 * 86_400_000)) return false
     if (filters.range === '30d' && eventDate < new Date(now.getTime() - 30 * 86_400_000)) return false
-    if (filters.range === 'year' && eventDate.getFullYear() !== now.getFullYear()) return false
+    if (filters.range === 'year' && localDate.year !== now.getFullYear()) return false
     if (filters.range === 'custom') {
-      if (filters.customStart && event.occurredAt.slice(0, 10) < filters.customStart) return false
-      if (filters.customEnd && event.occurredAt.slice(0, 10) > filters.customEnd) return false
+      if (filters.customStart && localDateKey < filters.customStart) return false
+      if (filters.customEnd && localDateKey > filters.customEnd) return false
     }
-    if (filters.year !== null && eventDate.getFullYear() !== filters.year) return false
-    if (filters.months.length > 0 && !filters.months.includes(eventDate.getMonth() + 1)) return false
+    if (filters.year !== null && localDate.year !== filters.year) return false
+    if (filters.months.length > 0 && !filters.months.includes(localDate.month)) return false
     const displayStatus = event.status === 'handling' ? 'observing' : event.status
     if (filters.statuses.length > 0 && !filters.statuses.includes(displayStatus)) return false
     if (filters.categories.length > 0 && !filters.categories.includes(event.category)) return false
@@ -91,12 +94,15 @@ export function HealthEventsPage() {
         && event.title.trim().length > 0
       ))
     : []
-  const years = [...new Set(memberEvents.map((event) => new Date(event.occurredAt).getFullYear()))].sort((left, right) => right - left)
+  const years = [...new Set(memberEvents
+    .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
+    .filter((year): year is number => year !== undefined))]
+    .sort((left, right) => right - left)
   const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
   const filteredEvents = filterEvents(memberEvents, filters)
   const visibleEvents = activeYear === null
     ? filteredEvents
-    : filteredEvents.filter((event) => new Date(event.occurredAt).getFullYear() === activeYear)
+    : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
 
   const selectYear = (year: number) => {
     setSelectedYear(year)

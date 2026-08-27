@@ -10,6 +10,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { createVirtualAvatarId } from '../../utils/virtualAvatar'
 
 export { EditFamilyMemberPage } from './EditFamilyMemberPage'
@@ -135,7 +136,7 @@ export function AddFamilyMemberPage() {
       <form className="flex flex-1 flex-col px-4 py-5" onSubmit={submit}>
         <div className="space-y-5 rounded-card bg-surface p-4 shadow-card">
           <Input label="姓名 *" name="name" maxLength={20} placeholder="请输入姓名" value={name} disabled={submitting} onChange={(event) => { setName(event.target.value); setError('') }} />
-          <Input label="出生日期 *" name="birthday" type="date" max={new Date().toISOString().slice(0, 10)} hint="系统将根据出生日期自动计算年龄" value={birthday} disabled={submitting} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
+          <Input label="出生日期 *" name="birthday" type="date" max={getLocalDateKey(new Date()) ?? undefined} hint="系统将根据出生日期自动计算年龄" value={birthday} disabled={submitting} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
           <fieldset disabled={submitting}>
             <legend className="text-sm font-medium">性别 *</legend>
             <div className="mt-3 grid grid-cols-2 gap-3">

@@ -24,10 +24,12 @@ interface ApiRequestOptions {
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const response = await fetch(path, {
     method: options.method ?? 'GET',
     headers: {
       Authorization: `Bearer ${options.token}`,
+      ...(browserTimeZone ? { 'X-Hoooho-Timezone': browserTimeZone } : {}),
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' })
     },
     ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),

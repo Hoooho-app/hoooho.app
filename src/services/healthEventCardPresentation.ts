@@ -1,4 +1,5 @@
 import type { HealthEventStage, HealthEventSummaryResult, HealthEventSummaryTag } from '../types'
+import { getLocalCalendarDaySerial } from '../utils/localCalendarDate'
 
 const confirmedDiagnosisSources = new Set<HealthEventSummaryTag['source']>(['doctor_statement', 'test_result'])
 const millisecondsPerDay = 86_400_000
@@ -7,25 +8,6 @@ const statusPresentations: Record<HealthEventStage, { label: string; tone: 'prim
   observing: { label: '观察中', tone: 'primary' },
   handling: { label: '处理中', tone: 'warning' },
   recovered: { label: '已康复', tone: 'success' }
-}
-
-function calendarParts(date: Date, timeZone?: string) {
-  if (!timeZone) {
-    return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() }
-  }
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(date)
-  const values = new Map(parts.map((part) => [part.type, Number(part.value)]))
-  return { year: values.get('year') ?? 0, month: values.get('month') ?? 0, day: values.get('day') ?? 0 }
-}
-
-function calendarSerial(date: Date, timeZone?: string) {
-  const { year, month, day } = calendarParts(date, timeZone)
-  return Date.UTC(year, month - 1, day)
 }
 
 function comparableLabel(value: string) {
@@ -53,7 +35,10 @@ export function getHealthEventDayLabel(startTime: string | null | undefined, now
   if (!startTime) return null
   const start = new Date(startTime)
   if (Number.isNaN(start.getTime()) || Number.isNaN(now.getTime())) return null
-  const elapsedCalendarDays = Math.round((calendarSerial(now, timeZone) - calendarSerial(start, timeZone)) / millisecondsPerDay)
+  const startDay = getLocalCalendarDaySerial(start, timeZone)
+  const currentDay = getLocalCalendarDaySerial(now, timeZone)
+  if (startDay === null || currentDay === null) return null
+  const elapsedCalendarDays = Math.round((currentDay - startDay) / millisecondsPerDay)
   if (elapsedCalendarDays < 0) return null
   return `第${elapsedCalendarDays + 1}天`
 }

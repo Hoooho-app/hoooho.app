@@ -8,6 +8,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { prepareAvatarPhoto } from '../../utils/prepareAvatarPhoto'
 import { createVirtualAvatarId, cycleVirtualAvatarId, parseVirtualAvatarId, remapVirtualAvatarId } from '../../utils/virtualAvatar'
 
@@ -214,7 +215,7 @@ export function EditFamilyMemberPage() {
               <CalendarDays className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
               <span className="text-sm font-medium">出生日期</span>
               <span className="ml-auto text-right">
-                <input className={`${fieldClass} block`} type="date" max={new Date().toISOString().slice(0, 10)} value={birthday} onChange={(event) => setBirthday(event.target.value)} />
+                <input className={`${fieldClass} block`} type="date" max={getLocalDateKey(new Date()) ?? undefined} value={birthday} onChange={(event) => setBirthday(event.target.value)} />
                 {age && <span className="mt-1 block text-[11px] text-text-secondary">系统自动计算：{age}</span>}
               </span>
             </label>

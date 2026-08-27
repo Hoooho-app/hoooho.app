@@ -6,6 +6,7 @@ import test from 'node:test'
 import { createServer } from 'vite'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './vite-members-plugin.mjs'
+import { localDateKey } from '../time/local-calendar.mjs'
 
 const postJson = (url, body, token) => fetch(url, {
   method: 'POST',
@@ -17,6 +18,12 @@ const requestJson = (url, method, token, body) => fetch(url, {
   method,
   headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), Authorization: `Bearer ${token}` },
   ...(body ? { body: JSON.stringify(body) } : {})
+})
+
+test('服务端纯日期上限按客户端有效时区的自然日计算', () => {
+  const instant = new Date('2026-08-27T16:00:00.000Z')
+  assert.equal(localDateKey(instant, 'Asia/Shanghai'), '2026-08-28')
+  assert.equal(localDateKey(instant, 'America/Los_Angeles'), '2026-08-27')
 })
 
 async function login(baseUrl, phone) {

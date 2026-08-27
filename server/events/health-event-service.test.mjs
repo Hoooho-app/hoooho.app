@@ -7,7 +7,7 @@ import { createServer } from 'vite'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from '../members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './vite-events-plugin.mjs'
-import { validateStartTime } from './health-event-service.mjs'
+import { HealthEventService, validateStartTime } from './health-event-service.mjs'
 
 const jsonRequest = (url, method, token, body) => fetch(url, {
   method,
@@ -39,6 +39,22 @@ test('健康事件开始时间不能晚于服务端当前时刻', () => {
     () => validateStartTime('2026-08-12T18:00:00+08:00', serverNow),
     (error) => error.code === 'FUTURE_START_TIME' && error.message === '发生时间不能晚于现在'
   )
+})
+
+test('北京时间跨日窗口创建事件仍保存标准 UTC 时间点', async () => {
+  const now = new Date('2026-08-27T16:00:00.000Z')
+  const service = new HealthEventService({
+    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) },
+    repository: {
+      create: async (input, createdAt) => ({ ...input, createdAt: createdAt.toISOString(), updatedAt: createdAt.toISOString() })
+    }
+  })
+  const created = await service.create('account-1', {
+    memberId: 'member-1', title: '', category: 'other'
+  }, now)
+
+  assert.equal(created.startTime, '2026-08-27T16:00:00.000Z')
+  assert.equal(created.createdAt, '2026-08-27T16:00:00.000Z')
 })
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
