@@ -16,7 +16,7 @@ interface ActionFeature {
   splitActions?: string[]
 }
 
-const categoryContent: Record<Exclude<ActionCategory, 'observation' | 'consultation'>, { description: string; label: string; features: ActionFeature[] }> = {
+const categoryContent: Record<Exclude<ActionCategory, 'observation' | 'consultation' | 'online-consultation'>, { description: string; label: string; features: ActionFeature[] }> = {
   hospital: {
     label: '去医院',
     description: '为线下就医整理当前健康事件信息，方便挂号、候诊和现场沟通。',
@@ -43,12 +43,13 @@ interface ActionSheetProps {
   context: HealthEventPromptContext
   onClose: () => void
   onComingSoon: () => void
+  onOnlineConsultation: () => void
   open: boolean
 }
 
 type AskAIState = 'select' | 'preview' | 'edit' | 'revised'
 
-export function ActionSheet({ context, onClose, onComingSoon, open }: ActionSheetProps) {
+export function ActionSheet({ context, onClose, onComingSoon, onOnlineConsultation, open }: ActionSheetProps) {
   const options = useMemo(() => getPromptInformationOptions(context), [context])
   const [category, setCategory] = useState<ActionCategory>('consultation')
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export function ActionSheet({ context, onClose, onComingSoon, open }: ActionShee
   const selectedFeature = current?.features.find((feature) => feature.id === selectedFeatureId) ?? null
 
   const selectCategory = (next: ActionCategory) => {
+    if (next === 'online-consultation') { onOnlineConsultation(); return }
     setCategory(next)
     setSelectedFeatureId(null)
     if (next === 'consultation') setAskState(prompt ? 'preview' : 'select')
@@ -80,7 +82,7 @@ export function ActionSheet({ context, onClose, onComingSoon, open }: ActionShee
   }, [open, options])
 
   const navigation = (
-    <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="行动分类">
+    <div className="health-action-tabs" role="tablist" aria-label="行动分类">
       {actionCategoryOrder.map((key) => (
         <button aria-selected={category === key} className="health-action-tab" data-selected={category === key} key={key} onClick={() => selectCategory(key)} role="tab" type="button">
           {actionCategoryLabels[key]}

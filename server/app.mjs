@@ -15,6 +15,7 @@ import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
+import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -37,6 +38,7 @@ const organizations = new HealthRecordOrganizationService(sharedOptions)
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
+const onlineConsultations = new OnlineConsultationService(sharedOptions)
 
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -313,6 +315,21 @@ async function handleEvents(request, response, pathname) {
   return true
 }
 
+async function handleOnlineConsultations(request, response, pathname) {
+  const match = /^\/api\/events\/([^/]+)\/online-consultation(?:\/(questions|refresh|complete))?$/.exec(pathname)
+  if (!match) return false
+  const accountId = readAccountId(request)
+  const eventId = decodeRouteValue(match[1])
+  const action = match[2]
+  if (!action && request.method === 'GET') sendJson(response, 200, await onlineConsultations.get(accountId, eventId))
+  else if (!action && request.method === 'PATCH') sendJson(response, 200, await onlineConsultations.updateStatus(accountId, eventId, await readJson(request)))
+  else if (action === 'questions' && request.method === 'POST') sendJson(response, 201, await onlineConsultations.addQuestion(accountId, eventId, await readJson(request)))
+  else if (action === 'refresh' && request.method === 'POST') sendJson(response, 200, await onlineConsultations.touchWaiting(accountId, eventId))
+  else if (action === 'complete' && request.method === 'POST') sendJson(response, 200, await onlineConsultations.complete(accountId, eventId, await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleApi(request, response, pathname) {
   if (request.method === 'OPTIONS') {
     sendEmpty(response)
@@ -326,6 +343,7 @@ async function handleApi(request, response, pathname) {
   if (await handleOps(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
+  if (await handleOnlineConsultations(request, response, pathname)) return true
   if (await handleOrganizations(request, response, pathname)) return true
   if (await handleEventRecords(request, response, pathname)) return true
   if (await handleEvents(request, response, pathname)) return true

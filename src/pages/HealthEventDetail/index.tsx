@@ -182,7 +182,7 @@ export function HealthEventDetailPage() {
         onPreview={previewQuickRecord}
         open={voiceRecordOpen}
       />}
-      {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} open={actionOpen} />}
+      {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} onOnlineConsultation={() => { setActionOpen(false); navigate(`/health-events/${event.id}/online-consultation`) }} open={actionOpen} />}
       {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
       {recordedMessage && <div aria-live="polite" className="quick-record-toast" role="status"><Check size={17} />{recordedMessage}</div>}
     </main>
