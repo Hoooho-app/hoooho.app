@@ -150,6 +150,17 @@
     outline-offset: -3px;
   }
 
+  .health-events-list-title {
+    font-size: var(--hoho-font-size-card-title);
+    line-height: var(--hoho-line-height-card-title);
+  }
+
+  .health-events-year-tabs .hoho-year-tabs__item {
+    min-width: 96px;
+    flex-grow: 0;
+    text-align: left;
+  }
+
   .hoho-button {
     display: inline-flex;
     min-height: 44px;

@@ -33,7 +33,7 @@ function UserIdentity({ member }: { member: Member | null }) {
         age={member?.age ?? (member ? '' : '健康数据加载中')}
         avatar={member?.avatar}
         gender={member ? genderLabels[member.gender ?? ''] : ''}
-        label="当前成员"
+        label="当前家人"
         name={member?.name ?? '家庭成员'}
       />
     </div>
@@ -156,7 +156,7 @@ export function HealthEventsPage() {
       <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
           <div className="flex min-h-11 items-center justify-between">
-            <Typography variant="sectionTitle">事件列表</Typography>
+            <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>
             <button
               className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
               type="button"
@@ -171,7 +171,7 @@ export function HealthEventsPage() {
 
           {state.status === 'success' && years.length > 0 && (
             <div
-              className="hoho-year-tabs"
+              className="hoho-year-tabs health-events-year-tabs"
               role="tablist"
               aria-label="按年份切换健康事件"
             >
