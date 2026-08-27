@@ -98,3 +98,35 @@ test('真实场景：无效输入不产生健康事实', async () => {
   assert.equal(hasHealthFacts(output.healthAIOutput), false)
   assert.deepEqual(output.healthAIOutput.facts, [])
 })
+
+test('动态摘要输入：脚痛、脚部发红和瘙痒拆成独立事实', async () => {
+  const output = await parse('我的脚也疼，而且脚上有点红，还有些痒。')
+  const symptoms = factsOf(output, 'symptom')
+  assert.ok(symptoms.some((fact) => fact.name === '疼痛' && fact.bodyPart === '脚'))
+  assert.ok(symptoms.some((fact) => fact.name === '脚部发红' && fact.bodyPart === '脚'))
+  assert.ok(symptoms.some((fact) => fact.name === '瘙痒'))
+})
+
+test('动态摘要输入：AI 初步判断与医生诊断保留不同来源和确定程度', async () => {
+  const aiOutput = await parse('昨晚做了一次AI问诊，AI认为大概率是皮炎。')
+  const aiDiagnosis = factsOf(aiOutput, 'diagnosis').find((fact) => fact.name === '皮炎')
+  assert.equal(aiDiagnosis?.source, 'ai_consultation')
+  assert.equal(aiDiagnosis?.diagnosisCertainty, 'suspected')
+
+  const doctorOutput = await parse('今天去医院看了，医生诊断为皮炎。')
+  const doctorDiagnosis = factsOf(doctorOutput, 'diagnosis').find((fact) => fact.name === '皮炎')
+  assert.equal(doctorDiagnosis?.source, 'doctor_statement')
+  assert.equal(doctorDiagnosis?.diagnosisCertainty, 'confirmed')
+})
+
+test('动态摘要输入：医生否定结论和症状消失保留撤销事实', async () => {
+  const ruledOut = await parse('医生说不是皮炎。')
+  const diagnosis = factsOf(ruledOut, 'diagnosis').find((fact) => fact.diagnosisCertainty === 'ruled_out')
+  assert.equal(diagnosis?.polarity, 'negated')
+  assert.equal(diagnosis?.diagnosisCertainty, 'ruled_out')
+  assert.match(diagnosis?.originalText ?? '', /皮炎/)
+
+  const resolved = await parse('头已经不疼了，但脚还是疼。')
+  assert.ok(factsOf(resolved, 'status_change').some((fact) => fact.target === '头痛' && fact.change === 'resolved'))
+  assert.ok(factsOf(resolved, 'symptom').some((fact) => fact.bodyPart === '脚'))
+})

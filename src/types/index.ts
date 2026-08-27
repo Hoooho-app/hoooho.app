@@ -86,9 +86,18 @@ export interface CreateHealthEventInput {
 export interface HealthEventSummaryResult {
   title: string
   summary: string
+  tags: HealthEventSummaryTag[]
   evidence: string[]
   updatedAt: string
   source?: 'system' | 'user_corrected'
+}
+
+export interface HealthEventSummaryTag {
+  label: string
+  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement'
+  source: 'doctor_statement' | 'test_result' | 'ai_consultation' | 'user_report' | 'measurement'
+  certainty: 'confirmed' | 'suspected' | null
+  priority: number
 }
 
 export interface HealthEventSummaryApiDto {
@@ -195,8 +204,8 @@ export interface OrganizedHealthData {
   timeline: OrganizedTimelineItem[]
 }
 
-export type HealthFactType = 'symptom' | 'temperature' | 'medication' | 'visit' | 'examination' | 'concern' | 'status_change'
-export type HealthStatusChange = 'improved' | 'worsened' | 'persistent'
+export type HealthFactType = 'symptom' | 'temperature' | 'medication' | 'visit' | 'examination' | 'diagnosis' | 'concern' | 'status_change' | 'other'
+export type HealthStatusChange = 'improved' | 'worsened' | 'persistent' | 'recurred' | 'resolved'
 export type HealthFactTimePrecision = 'exact' | 'period' | 'day' | 'month' | 'year' | 'fuzzy' | 'unknown'
 export type HealthFactTimeSource = 'user_text' | 'selected_time' | 'document'
 
@@ -214,6 +223,12 @@ export interface HealthFact {
     source: HealthFactTimeSource
   }
   confidence: number
+  polarity?: 'affirmed' | 'negated' | 'uncertain'
+  temporality?: 'current' | 'historical' | 'future' | 'conditional' | 'unknown'
+  status?: 'active' | 'improving' | 'resolved' | 'recurrent' | 'planned' | 'not_applicable' | 'unknown'
+  subject?: 'event_subject' | 'family_member' | 'other_person' | 'unknown'
+  source?: 'user_report' | 'measurement' | 'doctor_statement' | 'test_result' | 'ai_consultation' | 'structured_input' | 'quoted_text' | 'internet_information' | 'unknown'
+  diagnosisCertainty?: 'confirmed' | 'suspected' | 'ruled_out' | 'pending' | 'unknown'
   temperature?: OrganizedTemperature
   target?: string | null
   change?: HealthStatusChange | null

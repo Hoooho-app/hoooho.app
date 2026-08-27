@@ -1,9 +1,25 @@
+import {
+  HEALTH_DIAGNOSIS_CERTAINTIES,
+  HEALTH_FACT_CATEGORIES,
+  HEALTH_FACT_POLARITIES,
+  HEALTH_FACT_SOURCES,
+  HEALTH_FACT_STATUSES,
+  HEALTH_FACT_SUBJECTS,
+  HEALTH_FACT_TEMPORALITIES,
+  HEALTH_MEDICATION_ACTIONS,
+  isConsumedMedication,
+  isCurrentPositiveSymptom,
+  isDisplayableFact,
+  isUsableMeasurement,
+  normalizeEnum
+} from './health-fact-policy.mjs'
+
 const maxTextLength = 500
 
-export const HEALTH_PARSER_VERSION = '1.1.0'
-export const HEALTH_PROMPT_VERSION = 'health-facts-v2-status-change'
-export const HEALTH_FACT_TYPES = ['symptom', 'temperature', 'medication', 'visit', 'examination', 'concern', 'status_change']
-export const HEALTH_STATUS_CHANGES = ['improved', 'worsened', 'persistent']
+export const HEALTH_PARSER_VERSION = '2.0.0'
+export const HEALTH_PROMPT_VERSION = 'health-facts-v3-context-and-provenance'
+export const HEALTH_FACT_TYPES = ['symptom', 'temperature', 'medication', 'visit', 'examination', 'diagnosis', 'concern', 'status_change', 'other']
+export const HEALTH_STATUS_CHANGES = ['improved', 'worsened', 'persistent', 'recurred', 'resolved']
 export const HEALTH_TIME_PRECISIONS = ['exact', 'period', 'day', 'month', 'year', 'fuzzy', 'unknown']
 export const HEALTH_TIME_SOURCES = ['user_text', 'selected_time', 'document']
 
@@ -94,15 +110,46 @@ function normalizeHealthFact(value, index) {
   const target = source.type === 'status_change' ? normalizeNullableText(source.target) : null
   const change = source.type === 'status_change' && HEALTH_STATUS_CHANGES.includes(source.change) ? source.change : null
   if (source.type === 'status_change' && (!target || !change)) return null
+  const category = normalizeEnum(
+    source.category,
+    HEALTH_FACT_CATEGORIES,
+    source.type === 'temperature' ? 'measurement' : source.type
+  )
   return {
     id: normalizeText(source.id) || `fact-${index + 1}`,
     type: source.type,
+    category,
+    concept: normalizeText(source.concept) || name,
     name,
     bodyPart: normalizeNullableText(source.bodyPart),
-    sourceText: normalizeText(source.sourceText) || name,
+    originalText: normalizeText(source.originalText ?? source.sourceText) || name,
+    sourceText: normalizeText(source.sourceText ?? source.originalText) || name,
+    sourceRecordId: normalizeNullableText(source.sourceRecordId),
+    organizationRevision: Number.isInteger(source.organizationRevision) && source.organizationRevision >= 0
+      ? source.organizationRevision
+      : null,
+    polarity: normalizeEnum(source.polarity, HEALTH_FACT_POLARITIES, 'affirmed'),
+    temporality: normalizeEnum(source.temporality, HEALTH_FACT_TEMPORALITIES, 'current'),
+    status: normalizeEnum(source.status, HEALTH_FACT_STATUSES, 'active'),
+    subject: normalizeEnum(source.subject, HEALTH_FACT_SUBJECTS, 'event_subject'),
+    source: normalizeEnum(source.source, HEALTH_FACT_SOURCES, source.type === 'temperature' ? 'measurement' : 'user_report'),
     time: normalizeFactTime(source.time),
     confidence: normalizeConfidence(source.confidence),
     ...(temperature ? { temperature } : {}),
+    ...(source.type === 'temperature' ? {
+      value: Number.isFinite(Number(source.value)) ? Number(source.value) : temperature?.max ?? null,
+      unit: normalizeText(source.unit) || temperature?.unit || '℃',
+      measurementType: normalizeText(source.measurementType) || 'body_temperature',
+      measurementMethod: normalizeNullableText(source.measurementMethod)
+    } : {}),
+    ...(source.type === 'medication' ? {
+      medicationAction: normalizeEnum(source.medicationAction, HEALTH_MEDICATION_ACTIONS, 'unknown')
+    } : {}),
+    ...(source.type === 'diagnosis' ? {
+      diagnosisCertainty: normalizeEnum(source.diagnosisCertainty, HEALTH_DIAGNOSIS_CERTAINTIES, 'unknown')
+    } : {}),
+    ...(normalizeNullableText(source.resolvedAt) ? { resolvedAt: normalizeNullableText(source.resolvedAt) } : {}),
+    ...(normalizeNullableText(source.revisionOfFactId) ? { revisionOfFactId: normalizeNullableText(source.revisionOfFactId) } : {}),
     ...(source.type === 'status_change' ? { target, change } : {})
   }
 }
@@ -146,8 +193,8 @@ function legacyFact(fact) {
 export function projectOrganizedHealthData(value) {
   const output = normalizeHealthAIOutput(value)
   const factsByType = (type) => output.facts.filter((fact) => fact.type === type)
-  const temperatures = factsByType('temperature').map((fact) => fact.temperature).filter(Boolean)
-  const sourceSymptoms = factsByType('symptom')
+  const temperatures = output.facts.filter(isUsableMeasurement).map((fact) => fact.temperature).filter(Boolean)
+  const sourceSymptoms = output.facts.filter(isCurrentPositiveSymptom)
   const symptomFacts = sourceSymptoms.length ? [{
     content: [...new Set(sourceSymptoms.map((fact) => fact.name))].join('、'),
     keywords: [...new Set(sourceSymptoms.flatMap((fact) => [fact.name, fact.bodyPart]).filter(Boolean))]
@@ -156,7 +203,13 @@ export function projectOrganizedHealthData(value) {
     symptomFacts.push({ content: '发热', keywords: ['发热'] })
   }
   const groupedTimeline = new Map()
-  for (const fact of output.facts) {
+  for (const fact of output.facts.filter((item) => (
+    item.subject === 'event_subject'
+    && item.polarity === 'affirmed'
+    && !['quoted_text', 'internet_information'].includes(item.source)
+    && item.temporality !== 'future'
+    && item.temporality !== 'conditional'
+  ))) {
     if (fact.type === 'status_change') continue
     if (!fact.time.raw) continue
     const item = groupedTimeline.get(fact.time.raw) ?? { time: fact.time.raw, content: [], relatedSymptoms: [] }
@@ -171,10 +224,13 @@ export function projectOrganizedHealthData(value) {
       max: Math.max(...temperatures.map((item) => item.max)),
       unit: '℃'
     } : null,
-    medications: factsByType('medication').map(legacyFact),
-    visits: factsByType('visit').map(legacyFact),
-    examinations: factsByType('examination').map(legacyFact),
-    concerns: factsByType('concern').map(legacyFact),
+    medications: output.facts.filter(isConsumedMedication).map(legacyFact),
+    visits: factsByType('visit').filter(isDisplayableFact).map(legacyFact),
+    examinations: factsByType('examination').filter(isDisplayableFact).map(legacyFact),
+    concerns: factsByType('concern').filter((fact) => fact.subject === 'event_subject').map((fact) => ({
+      content: fact.sourceText || fact.originalText || fact.name,
+      keywords: [fact.concept || fact.name]
+    })),
     attachments: [],
     timeline: [...groupedTimeline.values()].map((item) => ({
       time: item.time.replace(/^(?:今天|昨天|前天)?(?:早上|上午|下午|晚上|夜里|夜间|凌晨|半夜)?\s*(\d{1,2})点(?:\s*(\d{1,2})分?)?.*$/, (_, hour, minute) => `${String(hour).padStart(2, '0')}:${String(minute ?? '00').padStart(2, '0')}`),

@@ -109,7 +109,7 @@ export function HealthEventDetailPage() {
     let pending = pendingFirstRecordRef.current
     if (!pending || pending.fingerprint !== fingerprint) {
       const created = await addRecord(
-        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt },
+        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt, bodyLocations },
         { deferCommit: true }
       )
       pending = { attachmentIndexes: new Set(), fingerprint, organized: false, record: created, savedAttachments: [] }

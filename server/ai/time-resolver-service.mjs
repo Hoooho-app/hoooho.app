@@ -129,11 +129,12 @@ function resolveExplicit(raw, timezone) {
 }
 
 function resolveFuzzy(raw) {
-  if (!/小时候|几年前|以前|从前|很久以前/.test(raw)) return null
+  if (!/小时候|几年前|\d+年前|前几个月|前两天|以前|从前|很久以前/.test(raw)) return null
   return { raw, resolvedStart: null, resolvedEnd: null, precision: 'fuzzy', source: 'user_text' }
 }
 
 function relativeDate(raw, referenceParts) {
+  if (/昨晚/.test(raw)) return addDays(referenceParts, -1)
   if (/前天/.test(raw)) return addDays(referenceParts, -2)
   if (/昨天/.test(raw)) return addDays(referenceParts, -1)
   if (/今天|今早/.test(raw)) return { year: referenceParts.year, month: referenceParts.month, day: referenceParts.day }
@@ -171,6 +172,17 @@ function weekdayIndex(value) {
 }
 
 function resolveRelative(raw, referenceParts, timezone) {
+  const monthStart = /(\d{1,2})月初/.exec(raw)
+  if (monthStart) {
+    const month = Number(monthStart[1])
+    return {
+      raw,
+      resolvedStart: isoInTimezone({ year: referenceParts.year, month, day: 1, hour: 0, minute: 0, second: 0 }, timezone),
+      resolvedEnd: isoInTimezone({ year: referenceParts.year, month, day: 10, hour: 23, minute: 59, second: 59 }, timezone),
+      precision: 'month',
+      source: 'user_text'
+    }
+  }
   if (/去年/.test(raw)) {
     const year = referenceParts.year - 1
     return {
