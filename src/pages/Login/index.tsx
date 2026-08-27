@@ -98,6 +98,27 @@ export function LoginPage() {
 
   return (
     <main className="app-shell auth-shell relative flex flex-col pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(32px,env(safe-area-inset-top))]">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-y-0 left-1/2 z-0 w-full max-w-[var(--hoho-app-shell-max)] -translate-x-1/2 overflow-hidden bg-background">
+        <img
+          alt=""
+          className="h-full w-full object-cover"
+          src="/media/login-family-care-poster.webp"
+        />
+        <video
+          autoPlay
+          className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
+          loop
+          muted
+          playsInline
+          poster="/media/login-family-care-poster.webp"
+          preload="auto"
+          tabIndex={-1}
+        >
+          <source src="/media/login-family-care.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-surface/60 via-background/70 to-background/90" />
+      </div>
+
       <div className="auth-panel relative z-10 flex flex-1 flex-col">
         <header className="flex flex-col items-center pt-6 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
