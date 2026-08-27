@@ -103,6 +103,17 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(updated.headCircumferenceCm, 51)
     assert.equal(updated.rhBloodType, 'negative')
 
+    const photoAvatar = `data:image/webp;base64,${'A'.repeat(20_000)}`
+    const photoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { avatar: photoAvatar })
+    assert.equal(photoResponse.status, 200)
+    assert.equal((await photoResponse.json()).avatar, photoAvatar)
+
+    const invalidPhotoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      avatar: `data:text/html;base64,${'A'.repeat(600)}`
+    })
+    assert.equal(invalidPhotoResponse.status, 400)
+    assert.equal((await invalidPhotoResponse.json()).error.code, 'INVALID_AVATAR')
+
     const clearedResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
       heightCm: null, weightKg: null, bloodType: null, waistCircumferenceCm: null,
       bodyFatPercentage: null, headCircumferenceCm: null, rhBloodType: null

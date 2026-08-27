@@ -57,7 +57,10 @@ function validateBirthday(value) {
 
 function validateAvatar(value) {
   if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'string' || value.length > 500) throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  if (typeof value !== 'string' || value.length > 300_000) throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  if (value.length > 500 && !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+    throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  }
   return value
 }
 

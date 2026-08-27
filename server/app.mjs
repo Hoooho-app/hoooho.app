@@ -267,9 +267,9 @@ async function handleMembers(request, response, pathname) {
   const accountId = readAccountId(request)
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
   if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
-  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request)))
+  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000)))
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
-  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request)))
+  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000)))
   else if (memberId && request.method === 'DELETE') sendJson(response, 200, await members.delete(accountId, memberId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
