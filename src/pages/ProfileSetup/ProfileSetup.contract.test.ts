@@ -5,7 +5,8 @@ import test from 'node:test'
 const pageSource = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 
 test('首次添加家人页面将出生信息精度合并到出生日期字段', () => {
-  assert.match(pageSource, />添加第一个家人</)
+  assert.match(pageSource, /<WebPageHeader title="添加第一个家人" \/>/)
+  assert.equal(pageSource.includes('<h1 className="hoho-text-page-title">添加第一个家人</h1>'), false)
   assert.equal(pageSource.includes('先添加第一个家人，'), false)
   assert.equal(pageSource.includes('无需上传照片。'), false)
   assert.equal(pageSource.includes('>出生信息精度</legend>'), false)
