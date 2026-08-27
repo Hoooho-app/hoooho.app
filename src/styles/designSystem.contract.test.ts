@@ -29,6 +29,15 @@ test('product polish keeps shared navigation and grouped rows on one visual syst
   assert.match(styles, /\.event-identity-details/)
 })
 
+test('short mobile drawers keep the member summary compact', async () => {
+  const styles = await read('./product-polish.css')
+  const drawer = await read('../components/navigation/SideDrawer.tsx')
+  assert.match(styles, /\.hoho-drawer__member\s*\{[^}]*padding:\s*0 var\(--hoho-space-2\) var\(--hoho-space-2\)/s)
+  assert.match(drawer, /hoho-drawer__member mt-2/)
+  assert.match(drawer, /<Avatar[^>]*size="md"/)
+  assert.match(drawer, /hoho-drawer__switch mt-1/)
+})
+
 test('global UI supports reduced motion and responsive desktop content', async () => {
   const tokens = await read('./tokens.css')
   const styles = await read('./index.css')

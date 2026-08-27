@@ -102,7 +102,7 @@
   .hoho-drawer__close:hover { background: rgb(var(--hoho-color-primary-soft)); }
   .hoho-drawer__member {
     border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.76);
-    padding: 0 var(--hoho-space-2) var(--hoho-space-4);
+    padding: 0 var(--hoho-space-2) var(--hoho-space-2);
   }
   .hoho-drawer__switch { border-radius: var(--hoho-radius-small); }
   .hoho-drawer__switch:hover { background: rgb(var(--hoho-color-primary-soft)); }

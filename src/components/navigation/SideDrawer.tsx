@@ -83,16 +83,16 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           <X size={24} strokeWidth={1.7} />
         </button>
 
-        <section className="hoho-drawer__member mt-4" aria-label="当前角色">
+        <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的基本信息`} onClick={() => openPage(`/family/${encodeURIComponent(member.id)}/edit`)}>
-            <Avatar name={member.name} src={member.avatar} size="lg" />
+            <Avatar name={member.name} src={member.avatar} size="md" />
             <span className="min-w-0 flex-1">
               <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
               <span className="mt-1 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
             </span>
             <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
           </button>
-          <button className="hoho-drawer__switch mt-3 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
+          <button className="hoho-drawer__switch mt-1 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
             切换人物
           </button>
         </section>
