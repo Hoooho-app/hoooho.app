@@ -16,6 +16,7 @@ import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
+import { getStaticContentType } from './static-mime-types.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -39,21 +40,6 @@ const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const feedback = new FeedbackService(sharedOptions)
-
-const mimeTypes = new Map([
-  ['.css', 'text/css; charset=utf-8'],
-  ['.html', 'text/html; charset=utf-8'],
-  ['.ico', 'image/x-icon'],
-  ['.js', 'text/javascript; charset=utf-8'],
-  ['.json', 'application/json; charset=utf-8'],
-  ['.map', 'application/json; charset=utf-8'],
-  ['.png', 'image/png'],
-  ['.svg', 'image/svg+xml'],
-  ['.txt', 'text/plain; charset=utf-8'],
-  ['.webmanifest', 'application/manifest+json'],
-  ['.woff', 'font/woff'],
-  ['.woff2', 'font/woff2']
-])
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -404,7 +390,7 @@ async function sendFile(request, response, filePath) {
 
   setCommonHeaders(response)
   response.statusCode = 200
-  response.setHeader('Content-Type', mimeTypes.get(path.extname(filePath).toLowerCase()) || 'application/octet-stream')
+  response.setHeader('Content-Type', getStaticContentType(filePath))
   const fileName = path.basename(filePath)
   response.setHeader(
     'Cache-Control',
