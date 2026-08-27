@@ -9,6 +9,7 @@ const firstRecordSource = readFileSync(new URL('./FirstRecordComposer.tsx', impo
 const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url), 'utf8')
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
+const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
 
 test('紧凑摘要不再渲染旧说明和校对入口', () => {
   for (const removed of ['手动校对', '自动整理', '依据：', '系统会根据后续记录自动更新']) {
@@ -48,16 +49,23 @@ test('微信说一句使用文字降级并复用现有预览和保存管线', ()
   assert.match(pageSource, /onPreview=\{previewQuickRecord\}/)
 })
 
-test('首次记录使用紧凑表单、顶部保存和明确的选填文案', () => {
+test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺序', () => {
   assert.match(pageSource, /title=\{hasRecords \? '健康事件详情' : '记录情况'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)
   assert.equal(firstRecordSource.includes('<h2'), false)
   assert.equal(firstRecordSource.includes('保存，自动整理'), false)
-  assert.match(firstRecordSource, /身体部位（选填）/)
-  assert.match(firstRecordSource, /buttonLabel="身体部位选择器"/)
-  assert.match(firstRecordSource, /添加附件（选填）/)
+  assert.match(firstRecordSource, />开始时间</)
+  assert.match(firstRecordSource, />描述症状</)
+  assert.match(firstRecordSource, /症状部位（选填）/)
+  assert.match(firstRecordSource, /buttonLabel="身体部位定位器"/)
+  assert.match(firstRecordSource, /inputLike/)
+  assert.match(firstRecordSource, /showEmptyState=\{false\}/)
+  assert.match(firstRecordSource, /附件补充（选填）/)
+  assert.match(firstRecordSource, />上传图片</)
   assert.match(firstRecordSource, /检查报告、处方、药品或身体部位照片/)
   assert.match(firstRecordSource, /placeholder="请描述发生了什么…"/)
+  assert.ok(firstRecordSource.indexOf('描述症状') < firstRecordSource.indexOf('症状部位（选填）'))
+  assert.match(polishStylesSource, /body-location-picker-row--input/)
 })
 
 test('首次记录快捷录音只追加描述，不直接保存整张表单', () => {
