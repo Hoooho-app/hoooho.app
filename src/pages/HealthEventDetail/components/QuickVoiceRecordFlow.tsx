@@ -212,7 +212,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
           <strong>{browserHelp ? '在系统浏览器中继续' : capability.isWechat ? '微信内暂不支持语音记录' : capability.availability === 'insecure_context' ? '当前页面无法安全访问麦克风' : '当前浏览器暂不支持语音记录'}</strong>
           {browserHelp
             ? <p>点击微信右上角 ···，选择“在默认浏览器中打开”或相近选项。打开后即可使用语音记录。</p>
-            : <><p>你可以直接输入文字，HOOOHO 会按同样的方式自动整理成记录。</p><p>使用 Safari 或 Chrome 打开 HOOOHO 后，可以使用语音记录。</p></>}
+            : <><p>你可以直接输入文字，Hoooho 会按同样的方式自动整理成记录。</p><p>使用 Safari 或 Chrome 打开 Hoooho 后，可以使用语音记录。</p></>}
         </div>
         <div className="quick-record-error-actions">
           <button className="quick-record-cancel" onClick={cancel} type="button">取消</button>
