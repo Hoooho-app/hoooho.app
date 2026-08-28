@@ -1,9 +1,8 @@
-import { CheckCircle2, ChevronRight, RotateCcw, Trash2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
-import { getHealthEventStatusPresentation } from '../../services/healthEventCardPresentation'
-import { HealthCard, HealthTag, Typography } from '../design-system'
+import { HealthEventCardSurface } from './HealthEventCardSurface'
 
 const actionWidth = 148
 
@@ -21,7 +20,6 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
   const [translateX, setTranslateX] = useState(0)
   const [busy, setBusy] = useState(false)
   const isRecovered = event.status === 'recovered'
-  const statusPresentation = getHealthEventStatusPresentation(event.status)
 
   const finishSwipe = () => {
     setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
@@ -105,20 +103,13 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerUp={finishSwipe}
         onPointerCancel={finishSwipe}
       >
-        <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Typography className="min-w-0 truncate" variant="cardTitle">{event.definitionTitle}</Typography>
-              <HealthTag className="shrink-0" tone={statusPresentation.tone}>{statusPresentation.label}</HealthTag>
-            </div>
-            {event.quickFacts.length > 0 && (
-              <Typography className="block truncate" title={event.quickFacts.join(' · ')} variant="caption">
-                {event.quickFacts.join(' · ')}
-              </Typography>
-            )}
-          </div>
-          <ChevronRight className="shrink-0 text-[rgb(var(--hoho-color-text-weak))]" size={18} />
-        </HealthCard>
+        <HealthEventCardSurface
+          definitionTitle={event.definitionTitle}
+          interactive
+          quickFacts={event.quickFacts}
+          showChevron
+          status={event.status}
+        />
       </button>
     </div>
   )
