@@ -104,6 +104,7 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerCancel={finishSwipe}
       >
         <HealthEventCardSurface
+          className={isRecovered ? 'health-event-list-card health-event-list-card--recovered' : 'health-event-list-card'}
           definitionTitle={event.definitionTitle}
           interactive
           quickFacts={event.quickFacts}

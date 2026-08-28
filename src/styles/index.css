@@ -436,6 +436,52 @@
   .app-shell-toast,
   .health-events-filter-layer { max-width: none; }
 
+  .hoho-health-card.health-event-list-card--recovered {
+    border-color: rgb(var(--hoho-color-success) / 0.16);
+    background: color-mix(in srgb, rgb(var(--hoho-color-success)) 5%, rgb(var(--hoho-color-surface)));
+  }
+
+  .hoho-health-card.health-event-list-card--recovered[data-interactive='true']:hover {
+    border-color: rgb(var(--hoho-color-success) / 0.24);
+    background: color-mix(in srgb, rgb(var(--hoho-color-success)) 7%, rgb(var(--hoho-color-surface)));
+  }
+
+  .health-events-month-reset {
+    min-height: 36px;
+    border-radius: var(--hoho-radius-control);
+    padding-inline: var(--hoho-space-2);
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+  }
+
+  .health-events-month-reset[aria-pressed='true'] {
+    background: rgb(var(--hoho-color-primary-soft));
+    color: rgb(var(--hoho-color-primary));
+  }
+
+  .health-events-month-row {
+    display: grid;
+    width: calc(100% + 8px);
+    margin-inline: -4px;
+    grid-template-columns: repeat(12, minmax(24px, 1fr));
+    gap: 0;
+  }
+
+  .health-events-month-option {
+    min-width: 24px;
+    min-height: 36px;
+    border-radius: var(--hoho-radius-small);
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .health-events-month-option[aria-pressed='true'] {
+    background: rgb(var(--hoho-color-primary-soft));
+    box-shadow: inset 0 0 0 1px rgb(var(--hoho-color-primary) / 0.16);
+    color: rgb(var(--hoho-color-primary));
+  }
+
   .hoho-drawer {
     position: relative;
     display: flex;

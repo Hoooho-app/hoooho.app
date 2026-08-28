@@ -7,6 +7,7 @@ const stylesSource = readFileSync(new URL('../../styles/design-system.css', impo
 const pageStylesSource = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 const cardSource = readFileSync(new URL('../../components/health/HealthEventCard.tsx', import.meta.url), 'utf8')
 const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEventCardSurface.tsx', import.meta.url), 'utf8')
+const filterSource = readFileSync(new URL('../../components/health/HealthEventFilterSheet.tsx', import.meta.url), 'utf8')
 
 test('健康事件首页使用紧凑标题、家人文案和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前家人"/)
@@ -35,4 +36,19 @@ test('长标题和速览在箭头前截断且整张卡片保持单一点击入�
   assert.match(cardSurfaceSource, /Typography className="min-w-0 truncate"/)
   assert.match(cardSurfaceSource, /ChevronRight className="shrink-0/)
   assert.match(cardSource, /navigate\(`\/health-events\/\$\{event\.id\}`\)/)
+})
+
+test('已康复事件使用低饱和成功色卡片背景', () => {
+  assert.match(cardSource, /health-event-list-card--recovered/)
+  assert.match(pageStylesSource, /\.hoho-health-card\.health-event-list-card--recovered\s*{[^}]*--hoho-color-success[^}]*5%/s)
+})
+
+test('月份筛选以单行数字呈现且事件类型来自列表定性标题', () => {
+  assert.match(filterSource, /health-events-month-row[^]*Array\.from\(\{ length: 12 \}/)
+  assert.match(filterSource, />\{month\}<\/button>/)
+  assert.doesNotMatch(filterSource, />\{`\$\{month\}月`\}<\/button>/)
+  assert.match(pageStylesSource, /\.health-events-month-row\s*{[^}]*grid-template-columns:\s*repeat\(12,/s)
+  assert.match(pageSource, /getHealthEventDefinitionTitleOptions\(memberEvents\)/)
+  assert.match(pageSource, /filters\.definitionTitles\.includes\(event\.definitionTitle\)/)
+  assert.doesNotMatch(filterSource, /\['fever', '发烧'\]/)
 })

@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
-import type { HealthEventCategory, HealthEventStage } from '../../types'
+import type { HealthEventStage } from '../../types'
 import { Button } from '../common'
 
 export type EventRangeFilter = 'all' | '7d' | '30d' | 'year' | 'custom'
@@ -11,7 +11,7 @@ export interface HealthEventFilters {
   year: number | null
   months: number[]
   statuses: HealthEventStage[]
-  categories: HealthEventCategory[]
+  definitionTitles: string[]
   customStart: string
   customEnd: string
 }
@@ -21,7 +21,7 @@ export const emptyHealthEventFilters: HealthEventFilters = {
   year: null,
   months: [],
   statuses: [],
-  categories: [],
+  definitionTitles: [],
   customStart: '',
   customEnd: ''
 }
@@ -30,13 +30,13 @@ interface Props {
   open: boolean
   filters: HealthEventFilters
   years: number[]
+  definitionTitles: string[]
   onClose: () => void
   onApply: (filters: HealthEventFilters) => void
 }
 
 const ranges: Array<[EventRangeFilter, string]> = [['all', '全部'], ['7d', '最近7天'], ['30d', '最近30天'], ['year', '今年'], ['custom', '自定义']]
 const statuses: Array<[HealthEventStage, string]> = [['observing', '观察中'], ['recovered', '已康复']]
-const categories: Array<[HealthEventCategory, string]> = [['fever', '发烧'], ['cough', '咳嗽'], ['pain', '疼痛'], ['injury', '外伤'], ['allergy', '过敏'], ['other', '其他']]
 
 function ChoiceButton({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
   return (
@@ -46,7 +46,7 @@ function ChoiceButton({ active, children, onClick }: { active: boolean; children
   )
 }
 
-export function HealthEventFilterSheet({ open, filters, years, onClose, onApply }: Props) {
+export function HealthEventFilterSheet({ open, filters, years, definitionTitles, onClose, onApply }: Props) {
   const [draft, setDraft] = useState(filters)
   usePageScrollLock(open)
 
@@ -64,9 +64,11 @@ export function HealthEventFilterSheet({ open, filters, years, onClose, onApply 
     ...current,
     statuses: current.statuses.includes(status) ? current.statuses.filter((item) => item !== status) : [...current.statuses, status]
   }))
-  const toggleCategory = (category: HealthEventCategory) => setDraft((current) => ({
+  const toggleDefinitionTitle = (definitionTitle: string) => setDraft((current) => ({
     ...current,
-    categories: current.categories.includes(category) ? current.categories.filter((item) => item !== category) : [...current.categories, category]
+    definitionTitles: current.definitionTitles.includes(definitionTitle)
+      ? current.definitionTitles.filter((item) => item !== definitionTitle)
+      : [...current.definitionTitles, definitionTitle]
   }))
 
   return (
@@ -99,10 +101,26 @@ export function HealthEventFilterSheet({ open, filters, years, onClose, onApply 
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold">选择月份</h3>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              <ChoiceButton active={draft.months.length === 0} onClick={() => setDraft((current) => ({ ...current, months: [] }))}>全部</ChoiceButton>
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <ChoiceButton active={draft.months.includes(month)} key={month} onClick={() => toggleMonth(month)}>{`${month}月`}</ChoiceButton>)}
+            <div className="flex min-h-9 items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold">选择月份</h3>
+              <button
+                aria-pressed={draft.months.length === 0}
+                className="health-events-month-reset"
+                type="button"
+                onClick={() => setDraft((current) => ({ ...current, months: [] }))}
+              >全部</button>
+            </div>
+            <div className="health-events-month-row mt-2" role="group" aria-label="按月份筛选">
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                <button
+                  aria-label={`${month}月`}
+                  aria-pressed={draft.months.includes(month)}
+                  className="health-events-month-option"
+                  key={month}
+                  type="button"
+                  onClick={() => toggleMonth(month)}
+                >{month}</button>
+              ))}
             </div>
           </section>
 
@@ -117,8 +135,8 @@ export function HealthEventFilterSheet({ open, filters, years, onClose, onApply 
           <section>
             <h3 className="text-sm font-semibold">事件类型</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              <ChoiceButton active={draft.categories.length === 0} onClick={() => setDraft((current) => ({ ...current, categories: [] }))}>全部</ChoiceButton>
-              {categories.map(([value, label]) => <ChoiceButton active={draft.categories.includes(value)} key={value} onClick={() => toggleCategory(value)}>{label}</ChoiceButton>)}
+              <ChoiceButton active={draft.definitionTitles.length === 0} onClick={() => setDraft((current) => ({ ...current, definitionTitles: [] }))}>全部</ChoiceButton>
+              {definitionTitles.map((title) => <ChoiceButton active={draft.definitionTitles.includes(title)} key={title} onClick={() => toggleDefinitionTitle(title)}>{title}</ChoiceButton>)}
             </div>
           </section>
         </div>

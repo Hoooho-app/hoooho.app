@@ -4,6 +4,7 @@ import { getHealthEventStatusPresentation } from '../../services/healthEventCard
 import { HealthCard, HealthTag, Typography } from '../design-system'
 
 interface HealthEventCardSurfaceProps {
+  className?: string
   definitionTitle: string
   quickFacts: string[]
   status: HealthEventStage
@@ -12,6 +13,7 @@ interface HealthEventCardSurfaceProps {
 }
 
 export function HealthEventCardSurface({
+  className = '',
   definitionTitle,
   quickFacts,
   status,
@@ -21,7 +23,7 @@ export function HealthEventCardSurface({
   const statusPresentation = getHealthEventStatusPresentation(status)
 
   return (
-    <HealthCard interactive={interactive} className="flex min-h-[96px] items-center gap-3">
+    <HealthCard interactive={interactive} className={`${className} flex min-h-[96px] items-center gap-3`}>
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <Typography className="min-w-0 truncate" variant="cardTitle">{definitionTitle}</Typography>
