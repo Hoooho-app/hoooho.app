@@ -70,22 +70,6 @@
     font-weight: 500;
   }
   .profile-directory-status[data-filled='true'] { color: rgb(var(--hoho-color-success)); }
-  .profile-priority { display: grid; gap: var(--hoho-space-2); }
-  .profile-priority > div { display: flex; gap: var(--hoho-space-2); overflow-x: auto; }
-  .profile-priority button {
-    display: inline-flex;
-    min-height: 36px;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: var(--hoho-space-1);
-    border: 1px solid rgb(var(--hoho-color-primary-border) / 0.7);
-    border-radius: var(--hoho-radius-pill);
-    background: rgb(var(--hoho-color-primary-soft) / 0.72);
-    padding: 0 var(--hoho-space-3);
-    color: rgb(var(--hoho-color-primary));
-    font-size: 13px;
-    font-weight: 500;
-  }
 
   .settings-group > label {
     border-color: rgb(var(--hoho-color-border) / 0.8);
