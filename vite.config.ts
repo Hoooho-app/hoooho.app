@@ -10,6 +10,7 @@ import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
 import { feedbackApiPlugin } from './server/help/vite-feedback-plugin.mjs'
 import { onlineConsultationsApiPlugin } from './server/consultations/vite-online-consultations-plugin.mjs'
+import { accountEntryStateApiPlugin } from './server/onboarding/vite-account-entry-state-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
@@ -22,6 +23,7 @@ export default defineConfig({
   },
   plugins: [
     authApiPlugin(),
+    accountEntryStateApiPlugin(),
     membersApiPlugin(),
     eventsApiPlugin(),
     eventRecordsApiPlugin(),

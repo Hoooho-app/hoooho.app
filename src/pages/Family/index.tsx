@@ -6,9 +6,10 @@ import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
+import { healthEventService } from '../../services/healthEvents'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { Member, ProfileGender } from '../../types'
+import type { FamilyMemberApiDto, Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { createVirtualAvatarId } from '../../utils/virtualAvatar'
@@ -94,14 +95,17 @@ type RequiredGender = Extract<ProfileGender, 'male' | 'female'> | ''
 
 export function AddFamilyMemberPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const addMember = useAppStore((state) => state.addMember)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [name, setName] = useState('')
   const [gender, setGender] = useState<RequiredGender>('')
   const [birthday, setBirthday] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [createdMember, setCreatedMember] = useState<FamilyMemberApiDto | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -115,9 +119,22 @@ export function AddFamilyMemberPage() {
     setSubmitting(true)
     try {
       const avatar = createVirtualAvatarId(birthday, gender)
-      const created = await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
-      addMember(adaptFamilyMember(created) as Member)
-      navigate('/family', { replace: true })
+      const created = createdMember ?? await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
+      if (!createdMember) {
+        setCreatedMember(created)
+        addMember(adaptFamilyMember(created) as Member)
+      }
+      const firstUseEntry = (location.state as { firstUseEntry?: { continueToRecord?: boolean; returnTo?: string } } | null)?.firstUseEntry
+      if (firstUseEntry?.continueToRecord) {
+        const healthEvent = await healthEventService.create({ memberId: created.id, title: '', category: 'other' }, token)
+        setCurrentMemberId(created.id)
+        navigate(`/health-events/${healthEvent.id}`, { replace: true, state: { allowFirstRecord: true } })
+      } else if (firstUseEntry?.returnTo === '/health-events') {
+        setCurrentMemberId(created.id)
+        navigate('/health-events', { replace: true })
+      } else {
+        navigate('/family', { replace: true })
+      }
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()

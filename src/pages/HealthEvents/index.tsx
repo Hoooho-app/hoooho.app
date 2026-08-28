@@ -9,9 +9,12 @@ import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { healthEventService } from '../../services/healthEvents'
+import { familyMemberService } from '../../services/familyMembers'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
+import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
+import { FirstUseHome } from './FirstUseHome'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -70,9 +73,10 @@ export function filterEvents(events: HealthEventListItemViewModel[], filters: He
 
 export function HealthEventsPage() {
   const navigate = useNavigate()
-  const profile = useAppStore((state) => state.profile)
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const addMember = useAppStore((state) => state.addMember)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
@@ -80,8 +84,6 @@ export function HealthEventsPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
-
-  if (!profile) return <Navigate to="/onboarding/profile" replace />
 
   const currentMember = state.status === 'success'
     ? state.data.members.find((member) => member.id === currentMemberId) ?? state.data.members[0] ?? null
@@ -116,17 +118,39 @@ export function HealthEventsPage() {
     if (nextFilters.year !== null) setSelectedYear(nextFilters.year)
   }
 
-  const createEmptyEvent = async () => {
-    if (!token || !currentMemberDto || creating) return
+  const createEmptyEvent = async (member = currentMemberDto) => {
+    if (!token || !member || creating) return
     setCreating(true)
     setCreateError('')
     try {
       const created = await healthEventService.create({
-        memberId: currentMemberDto.id,
+        memberId: member.id,
         title: '',
         category: 'other'
       }, token)
-      navigate(`/health-events/${created.id}`)
+      setCurrentMemberId(member.id)
+      navigate(`/health-events/${created.id}`, { state: { allowFirstRecord: true } })
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        return
+      }
+      setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const createSelfAndRecord = async () => {
+    if (!token || creating) return
+    setCreating(true)
+    setCreateError('')
+    try {
+      const createdMember = await familyMemberService.createSelf({}, token)
+      addMember(adaptFamilyMember(createdMember))
+      const createdEvent = await healthEventService.create({ memberId: createdMember.id, title: '', category: 'other' }, token)
+      setCurrentMemberId(createdMember.id)
+      navigate(`/health-events/${createdEvent.id}`, { state: { allowFirstRecord: true } })
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -154,6 +178,22 @@ export function HealthEventsPage() {
     } catch (requestError) {
       setCreateError(requestError instanceof Error ? requestError.message : '删除失败，请稍后重试')
     }
+  }
+
+  if (state.status === 'success' && (state.data.entryState.familyMemberCount === 0 || !state.data.entryState.hasValidHealthRecord)) {
+    return (
+      <FirstUseHome
+        creating={creating}
+        error={createError}
+        members={state.data.memberDtos}
+        onAddFamily={(continueToRecord) => navigate('/family/new', {
+          state: { firstUseEntry: { continueToRecord, returnTo: '/health-events' } }
+        })}
+        onCreateSelf={() => void createSelfAndRecord()}
+        onOpenGuide={() => navigate('/guide')}
+        onSelectMember={(member: FamilyMemberApiDto) => void createEmptyEvent(member)}
+      />
+    )
   }
 
   return (

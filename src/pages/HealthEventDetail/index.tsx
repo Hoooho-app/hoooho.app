@@ -138,6 +138,7 @@ export function HealthEventDetailPage() {
     }
     commitRecord(pending.record)
     pendingFirstRecordRef.current = null
+    navigate('/health-events', { replace: true })
     return organizationMessage
   }
 

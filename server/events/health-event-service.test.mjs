@@ -22,7 +22,10 @@ async function login(baseUrl, phone) {
   await jsonRequest(`${baseUrl}/api/auth/send-code`, 'POST', null, { phone })
   const response = await jsonRequest(`${baseUrl}/api/auth/login`, 'POST', null, { phone, code: '123456' })
   assert.equal(response.status, 200)
-  return response.json()
+  const session = await response.json()
+  const selfResponse = await jsonRequest(`${baseUrl}/api/members/self`, 'POST', session.token, {})
+  assert.equal(selfResponse.status, 201)
+  return session
 }
 
 async function listMembers(baseUrl, token) {

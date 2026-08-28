@@ -11,6 +11,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:auth": "node --test server/auth/auth-service.test.mjs",
     "test:members": "node --test server/members/family-member-service.test.mjs",
+    "test:onboarding": "node --test server/onboarding/account-entry-state-service.test.mjs",
     "test:events": "node --test server/events/health-event-service.test.mjs",
     "test:records": "node --test server/events/health-event-record-service.test.mjs",
     "test:ai": "node --test server/ai/health-record-organization-service.test.mjs",

@@ -72,7 +72,7 @@ export function ProfileSetupPage() {
       setError('请选择性别')
       return
     }
-    if (!token || !selfMember) {
+    if (!token) {
       setError('暂时无法创建家庭成员，请重新登录后再试')
       return
     }
@@ -81,12 +81,12 @@ export function ProfileSetupPage() {
     setSubmitting(true)
     const avatar = createVirtualAvatarId(birthday, gender)
     try {
-      const member = await familyMemberService.update(selfMember.id, {
+      const member = selfMember ? await familyMemberService.update(selfMember.id, {
         name: cleanName,
         birthday,
         gender,
         avatar
-      }, token)
+      }, token) : await familyMemberService.createSelf({ name: cleanName, birthday, gender, avatar }, token)
       setProfile({ nickname: member.name, birthday: member.birthday ?? birthday, gender, avatar: member.avatar ?? avatar }, member.id)
       navigate('/health-events', { replace: true })
     } catch (requestError) {
@@ -204,9 +204,12 @@ export function ProfileSetupPage() {
           <div className="min-h-5" aria-live="polite">
             {error && <p className="text-xs text-danger">{error}</p>}
           </div>
-          <Button className="mt-2" disabled={loading || submitting || !selfMember} fullWidth type="submit">
+          <Button className="mt-2" disabled={loading || submitting} fullWidth type="submit">
             {loading ? '正在准备…' : submitting ? '正在保存…' : '完成'}
           </Button>
+          <button className="mt-3 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/health-events', { replace: true })}>
+            跳过，稍后再添加
+          </button>
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">
             <LockKeyhole size={12} strokeWidth={1.8} />
             信息仅用于健康管理，不会对外公开

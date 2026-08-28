@@ -5,6 +5,7 @@ import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { authService, AuthApiError } from '../../services/auth'
 import { familyMemberService } from '../../services/familyMembers'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -21,6 +22,7 @@ export function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
   const setProfile = useAppStore((state) => state.setProfile)
+  const setMembers = useAppStore((state) => state.setMembers)
   const normalizedEmail = email.trim().toLowerCase()
   const emailIsValid = normalizedEmail.length <= 254 && EMAIL_PATTERN.test(normalizedEmail)
   const codeIsValid = CODE_PATTERN.test(code)
@@ -71,6 +73,7 @@ export function LoginPage() {
       const session = await authService.loginWithEmail(normalizedEmail, code)
       setAuthSession(session)
       const members = await familyMemberService.list(session.token)
+      setMembers(members.map(adaptFamilyMember))
       const self = members.find((member) => member.isSelf)
       const completed = self
         && self.name.trim() !== '我'
@@ -85,10 +88,8 @@ export function LoginPage() {
           gender: self.gender!,
           avatar: self.avatar ?? undefined
         }, self.id)
-        navigate('/health-events', { replace: true })
-      } else {
-        navigate('/onboarding/profile', { replace: true })
       }
+      navigate(members.length > 0 ? '/health-events' : '/onboarding/profile', { replace: true })
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
     } finally {

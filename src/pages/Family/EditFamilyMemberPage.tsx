@@ -26,6 +26,7 @@ export function EditFamilyMemberPage() {
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const setMembers = useAppStore((state) => state.setMembers)
   const setProfile = useAppStore((state) => state.setProfile)
+  const clearProfile = useAppStore((state) => state.clearProfile)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const cachedMember = members.find((item) => item.id === memberId)
 
@@ -148,8 +149,9 @@ export function EditFamilyMemberPage() {
       await familyMemberService.delete(memberId, token)
       const remaining = members.filter((member) => member.id !== memberId)
       setMembers(remaining)
+      if (sourceMember?.isSelf || remaining.length === 0) clearProfile()
       if (currentMemberId === memberId && remaining[0]) setCurrentMemberId(remaining[0].id)
-      navigate(remaining.length ? '/family' : '/onboarding/profile', { replace: true })
+      navigate(remaining.length ? '/family' : '/health-events', { replace: true })
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : '删除失败，请稍后重试')
     } finally {

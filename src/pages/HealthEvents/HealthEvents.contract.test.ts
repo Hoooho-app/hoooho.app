@@ -8,6 +8,7 @@ const pageStylesSource = readFileSync(new URL('../../styles/index.css', import.m
 const cardSource = readFileSync(new URL('../../components/health/HealthEventCard.tsx', import.meta.url), 'utf8')
 const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEventCardSurface.tsx', import.meta.url), 'utf8')
 const filterSource = readFileSync(new URL('../../components/health/HealthEventFilterSheet.tsx', import.meta.url), 'utf8')
+const firstUseSource = readFileSync(new URL('./FirstUseHome.tsx', import.meta.url), 'utf8')
 
 test('健康事件首页使用紧凑标题、家人文案和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前家人"/)
@@ -20,6 +21,18 @@ test('健康事件首页使用紧凑标题、家人文案和左对齐年份导�
 test('新增健康事件按钮恢复主绿色单色样式', () => {
   assert.match(pageSource, /className="health-events-fab[^\"]*bg-primary[^\"]*shadow-floating/)
   assert.doesNotMatch(pageStylesSource, /\.health-events-fab\s*{[^}]*linear-gradient/s)
+})
+
+test('首次使用首页保留侧边栏导航且只展示指定行动与能力说明', () => {
+  assert.match(firstUseSource, /<MainAppHeader title="Hoooho" \/>/)
+  assert.match(firstUseSource, /今天想记录什么？/)
+  assert.match(firstUseSource, /记录一件健康情况/)
+  assert.match(firstUseSource, /添加家人/)
+  assert.match(firstUseSource, /看看怎么使用/)
+  assert.match(firstUseSource, /症状和变化/)
+  assert.match(firstUseSource, /用药、检查与就诊/)
+  assert.match(firstUseSource, /就诊前摘要/)
+  assert.doesNotMatch(firstUseSource, /BottomNav|Bell|消息中心|个人中心/)
 })
 
 test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {

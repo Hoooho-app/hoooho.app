@@ -113,6 +113,17 @@ export class FamilyMemberService {
     }, now)
   }
 
+  async createSelf(accountId, input = {}, now = new Date(), timeZone) {
+    const existing = (await this.repository.findByAccountId(accountId)).find((member) => member.isSelf)
+    const member = existing ?? await this.repository.ensureSelf(accountId, now)
+    const changes = {}
+    if (input.name !== undefined) changes.name = validateName(input.name)
+    if (input.gender !== undefined) changes.gender = validateGender(input.gender)
+    if (input.birthday !== undefined) changes.birthday = validateBirthday(input.birthday, now, timeZone)
+    if (input.avatar !== undefined) changes.avatar = validateAvatar(input.avatar)
+    return Object.keys(changes).length ? this.repository.update(member.id, changes, now) : member
+  }
+
   async update(accountId, id, input, now = new Date(), timeZone) {
     const member = await this.get(accountId, id)
     const changes = {}
@@ -139,8 +150,7 @@ export class FamilyMemberService {
   }
 
   async delete(accountId, id) {
-    const member = await this.get(accountId, id)
-    if (member.isSelf) throw new FamilyMemberError('不能删除本人家庭成员', 400, 'CANNOT_DELETE_SELF')
+    await this.get(accountId, id)
     await this.repository.delete(id)
     return { success: true }
   }

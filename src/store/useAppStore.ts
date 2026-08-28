@@ -15,6 +15,7 @@ interface AppState {
   addMember: (member: Member) => void
   setMembers: (members: Member[]) => void
   setProfile: (profile: UserProfile, memberId: string) => void
+  clearProfile: () => void
   setNotification: (key: keyof Omit<NotificationPreferences, 'quietHours'>, value: boolean) => void
   setQuietHours: (quietHours: string) => void
 }
@@ -44,7 +45,11 @@ export const useAppStore = create<AppState>()(
           : {})
       })),
       clearAuthSession: () => set({ authToken: null, authUser: null, profile: null, currentMemberId: 'self' }),
-      addMember: (member) => set((state) => ({ members: [...state.members, member] })),
+      addMember: (member) => set((state) => ({
+        members: state.members.some((item) => item.id === member.id)
+          ? state.members.map((item) => item.id === member.id ? member : item)
+          : [...state.members, member]
+      })),
       setMembers: (members) => set({ members }),
       setProfile: (profile, memberId) => set((state) => ({
         profile,
@@ -55,6 +60,7 @@ export const useAppStore = create<AppState>()(
             : member)
           : [{ id: memberId, name: profile.nickname, age: '', relation: '本人', birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }, ...state.members]
       })),
+      clearProfile: () => set({ profile: null, currentMemberId: 'self' }),
       setNotification: (key, value) => set((state) => ({
         notifications: { ...state.notifications, [key]: value }
       })),

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RequireAuth } from '../components/auth/RequireAuth'
+import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
 
 function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string) {
   return async () => {
@@ -20,10 +21,15 @@ export const router = createBrowserRouter([
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
-      { path: '/health-events/:eventId', lazy: lazyPage(() => import('../pages/HealthEventDetail'), 'HealthEventDetailPage') },
-      { path: '/health-events/:eventId/online-consultation', lazy: lazyPage(() => import('../pages/OnlineConsultation'), 'OnlineConsultationPage') },
-      { path: '/health-profile', lazy: lazyPage(() => import('../pages/HealthProfile'), 'HealthProfilePage') },
-      { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') },
+      {
+        element: <RequireEstablishedHealthData />,
+        children: [
+          { path: '/health-events/:eventId', lazy: lazyPage(() => import('../pages/HealthEventDetail'), 'HealthEventDetailPage') },
+          { path: '/health-events/:eventId/online-consultation', lazy: lazyPage(() => import('../pages/OnlineConsultation'), 'OnlineConsultationPage') },
+          { path: '/health-profile', lazy: lazyPage(() => import('../pages/HealthProfile'), 'HealthProfilePage') },
+          { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') }
+        ]
+      },
       { path: '/family', lazy: lazyPage(() => import('../pages/Family'), 'FamilyPage') },
       { path: '/family/new', lazy: lazyPage(() => import('../pages/Family'), 'AddFamilyMemberPage') },
       { path: '/family/:memberId/edit', lazy: lazyPage(() => import('../pages/Family'), 'EditFamilyMemberPage') },

@@ -33,7 +33,7 @@ async function login(baseUrl, phone) {
   return response.json()
 }
 
-test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () => {
+test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-members-api-'))
   const sharedOptions = { dataDirectory, tokenSecret: 'members-test-secret' }
   const server = await createServer({
@@ -60,9 +60,15 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     const initialList = await requestJson(`${baseUrl}/api/members`, 'GET', first.token)
     assert.equal(initialList.status, 200)
     const initialMembers = await initialList.json()
-    assert.equal(initialMembers.length, 1)
-    assert.equal(initialMembers[0].relationship, 'self')
-    assert.equal(initialMembers[0].isSelf, true)
+    assert.equal(initialMembers.length, 0)
+
+    const selfResponse = await postJson(`${baseUrl}/api/members/self`, {
+      name: '我', gender: 'female', birthday: '1990'
+    }, first.token)
+    assert.equal(selfResponse.status, 201)
+    const self = await selfResponse.json()
+    assert.equal(self.relationship, 'self')
+    assert.equal(self.isSelf, true)
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
       name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02'
@@ -72,19 +78,19 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
 
-    const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990'
     })
     assert.equal(yearOnlyResponse.status, 200)
     assert.equal((await yearOnlyResponse.json()).birthday, '1990')
 
-    const futureYearResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const futureYearResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: String(new Date().getUTCFullYear() + 1)
     })
     assert.equal(futureYearResponse.status, 400)
     assert.equal((await futureYearResponse.json()).error.code, 'INVALID_BIRTHDAY')
 
-    const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990-01'
     })
     assert.equal(incompleteDateResponse.status, 400)
@@ -143,7 +149,7 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(finalMembers[0].isSelf, true)
 
     const deleteSelfResponse = await requestJson(`${baseUrl}/api/members/${finalMembers[0].id}`, 'DELETE', first.token)
-    assert.equal(deleteSelfResponse.status, 400)
+    assert.equal(deleteSelfResponse.status, 200)
   } finally {
     await server.close()
     await rm(dataDirectory, { recursive: true, force: true })

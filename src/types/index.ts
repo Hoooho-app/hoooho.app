@@ -38,6 +38,11 @@ export interface AuthSession {
   user: AuthUser
 }
 
+export interface AccountEntryState {
+  familyMemberCount: number
+  hasValidHealthRecord: boolean
+}
+
 export type ApiMemberRelationship = 'self' | 'child' | 'parent' | 'spouse' | 'other'
 export type ApiMemberGender = 'male' | 'female' | 'undisclosed' | null
 

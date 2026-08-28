@@ -63,6 +63,7 @@ export function membersApiPlugin(options = {}) {
 
           if (!memberId && request.method === 'GET') return sendJson(response, 200, await members.list(accountId))
           if (!memberId && request.method === 'POST') return sendJson(response, 201, await members.create(accountId, await readJson(request), new Date(), timeZone))
+          if (memberId === 'self' && request.method === 'POST') return sendJson(response, 201, await members.createSelf(accountId, await readJson(request), new Date(), timeZone))
           if (memberId && request.method === 'GET') return sendJson(response, 200, await members.get(accountId, memberId))
           if (memberId && request.method === 'PATCH') return sendJson(response, 200, await members.update(accountId, memberId, await readJson(request), new Date(), timeZone))
           if (memberId && request.method === 'DELETE') return sendJson(response, 200, await members.delete(accountId, memberId))
