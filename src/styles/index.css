@@ -96,15 +96,19 @@
   .health-event-detail-sticky__identity > * { width: 100%; }
   .health-event-next-button { min-width: 104px; min-height: 50px; padding-inline: var(--hoho-space-3); }
 
-  .timeline-date-row { @apply grid min-w-0 grid-cols-[60px_minmax(0,1fr)] gap-3; }
-  .timeline-date-row > time { @apply pt-0.5 text-right text-sm font-semibold leading-5 text-text-primary; }
-  .timeline-date-track { @apply min-w-0 border-l border-border-calm pl-4; }
+  .timeline-date-group { @apply min-w-0 space-y-4; }
+  .timeline-date-entries { @apply min-w-0; }
+  .timeline-entry-row { @apply grid min-w-0 grid-cols-[112px_minmax(0,1fr)]; }
+  .timeline-entry-time { @apply whitespace-nowrap pr-3 pt-1 text-left text-xs font-semibold leading-5 tabular-nums text-text-primary; }
+  .timeline-entry-track { @apply relative min-w-0 border-l border-border-calm pb-6 pl-4; }
+  .timeline-entry-row:last-child .timeline-entry-track { @apply pb-1; }
+  .timeline-entry-marker { @apply absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background; }
   .timeline-record-card { @apply min-w-0 overflow-hidden rounded-card border bg-surface shadow-calm; }
   .timeline-record-main { @apply block min-h-11 w-full min-w-0 px-4 pb-3 pt-4 text-left; }
   button.timeline-record-main { @apply cursor-pointer; }
-  .timeline-record-time { @apply flex min-w-0 items-center justify-between gap-3 text-[15px] text-heading; }
-  .timeline-record-time > svg { @apply shrink-0 text-text-secondary; }
-  .timeline-record-facts { @apply mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2; }
+  .timeline-record-heading { @apply flex min-w-0 items-start justify-between gap-2; }
+  .timeline-record-expand-icon { @apply shrink-0 text-text-secondary; }
+  .timeline-record-facts { @apply flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2; }
   .timeline-record-fact { @apply inline-flex min-w-0 items-center gap-1.5 text-sm text-text-primary; }
   .timeline-record-fact > span:last-child:not(:first-child) { overflow-wrap: anywhere; }
   .timeline-record-summary { @apply mt-3 block whitespace-normal text-sm leading-6 text-text-primary; overflow-wrap: anywhere; }
@@ -208,9 +212,9 @@
   }
 
   @media (max-width: 360px) {
-    .timeline-date-row { @apply grid-cols-[48px_minmax(0,1fr)] gap-2; }
-    .timeline-date-track { @apply pl-3; }
-    .timeline-date-track > article > span { left: -17px; }
+    .timeline-entry-row { @apply grid-cols-[104px_minmax(0,1fr)]; }
+    .timeline-entry-time { @apply pr-2 text-[11px]; }
+    .timeline-entry-track { @apply pl-3; }
   }
 
   @media (min-width: 768px) {
@@ -245,16 +249,6 @@
   .first-record-error { @apply mt-3 flex items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-danger; }
   .first-record-error button { @apply min-h-9 shrink-0 font-semibold text-primary; }
   .first-record-quick-trigger { background: rgb(var(--hoho-color-surface) / 0.88); box-shadow: var(--hoho-shadow-soft); }
-
-  .event-summary-card { @apply p-4; }
-  .event-summary-tags { @apply mt-3 flex min-w-0 flex-nowrap gap-2 overflow-hidden; }
-  .event-summary-tags .hoho-health-tag { @apply min-w-0 shrink truncate; }
-  .event-summary-description {
-    @apply mt-3 overflow-hidden break-words;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
 
   .quick-record-trigger {
     @apply fixed left-1/2 z-30 inline-flex min-h-[52px] -translate-x-1/2 items-center justify-center gap-2 rounded-pill border border-primary/35 bg-surface/95 text-sm font-semibold text-primary shadow-card backdrop-blur;
