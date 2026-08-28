@@ -2,12 +2,14 @@ import { LockKeyhole } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
+import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
-import { createVirtualAvatarId } from '../../utils/virtualAvatar'
+import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
+import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
 
 type BirthdayPrecision = 'year' | 'date'
 
@@ -21,9 +23,14 @@ export function ProfileSetupPage() {
   const [birthday, setBirthday] = useState('')
   const [birthdayPrecision, setBirthdayPrecision] = useState<BirthdayPrecision>('year')
   const [gender, setGender] = useState<ProfileGender>('')
+  const [avatarMode, setAvatarMode] = useState<FamilyAvatarMode>('cartoon')
+  const [avatarConfig, setAvatarConfig] = useState<ClayAvatarConfig | null>(null)
+  const [photoAvatar, setPhotoAvatar] = useState('')
+  const [avatarTouched, setAvatarTouched] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const hasAvatarProfile = Boolean(name.trim() && birthday && (gender === 'male' || gender === 'female'))
 
   useEffect(() => {
     if (!token) return
@@ -38,6 +45,12 @@ export function ProfileSetupPage() {
           setBirthdayPrecision(/^\d{4}$/.test(self.birthday) ? 'year' : 'date')
         }
         if (self?.gender === 'male' || self?.gender === 'female') setGender(self.gender)
+        const savedConfig = parseClayAvatar(self?.avatar)
+        if (savedConfig) setAvatarConfig(savedConfig)
+        else if (self?.avatar && !parseVirtualAvatarId(self.avatar)) {
+          setAvatarMode('photo')
+          setPhotoAvatar(self.avatar)
+        }
       })
       .catch((requestError) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
@@ -51,6 +64,18 @@ export function ProfileSetupPage() {
       .finally(() => setLoading(false))
     return () => controller.abort()
   }, [clearAuthSession, navigate, token])
+
+  useEffect(() => {
+    const cleanName = name.trim()
+    if (!cleanName || !birthday || (gender !== 'male' && gender !== 'female')) {
+      if (!avatarTouched) setAvatarConfig(null)
+      return
+    }
+    setAvatarConfig((current) => {
+      if (!current || !avatarTouched) return createClayAvatarConfig(cleanName, birthday, gender, selfMember?.id)
+      return remapClayAvatarRole(current, birthday, gender)
+    })
+  }, [avatarTouched, birthday, gender, name, selfMember?.id])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -79,7 +104,15 @@ export function ProfileSetupPage() {
 
     setError('')
     setSubmitting(true)
-    const avatar = createVirtualAvatarId(birthday, gender)
+    if (avatarMode === 'photo' && !photoAvatar) {
+      setError('请先点击相机上传照片头像')
+      return
+    }
+    if (avatarMode === 'cartoon' && !avatarConfig) {
+      setError('请完整填写姓名、出生日期和性别')
+      return
+    }
+    const avatar = avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(avatarConfig!)
     try {
       const member = selfMember ? await familyMemberService.update(selfMember.id, {
         name: cleanName,
@@ -106,6 +139,21 @@ export function ProfileSetupPage() {
       <WebPageHeader title="添加第一个家人" />
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
+        {avatarConfig && hasAvatarProfile && (
+          <div className="mx-auto mt-5 w-full max-w-sm">
+            <FamilyAvatarEditor
+              config={avatarConfig}
+              disabled={loading || submitting}
+              mode={avatarMode}
+              name={name.trim() || '家人'}
+              onConfigChange={(next) => { setAvatarConfig(next); setAvatarTouched(true) }}
+              onError={setError}
+              onModeChange={setAvatarMode}
+              onPhotoChange={setPhotoAvatar}
+              photo={photoAvatar}
+            />
+          </div>
+        )}
         <div className="mt-5 space-y-5">
           <Input
             label="姓名 *"

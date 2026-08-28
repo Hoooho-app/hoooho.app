@@ -1,4 +1,5 @@
 export * from './Avatar'
+export * from './ClayAvatar'
 export * from './Button'
 export * from './Card'
 export * from './Header'
