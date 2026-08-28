@@ -7,6 +7,7 @@ import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
+import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { healthEventService } from '../../services/healthEvents'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
@@ -42,7 +43,7 @@ function UserIdentity({ member }: { member: Member | null }) {
 }
 
 function hasActiveFilters(filters: HealthEventFilters) {
-  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.categories.length > 0
+  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.definitionTitles.length > 0
 }
 
 export function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters, now = new Date()) {
@@ -62,7 +63,7 @@ export function filterEvents(events: HealthEventListItemViewModel[], filters: He
     if (filters.months.length > 0 && !filters.months.includes(localDate.month)) return false
     const displayStatus = event.status === 'handling' ? 'observing' : event.status
     if (filters.statuses.length > 0 && !filters.statuses.includes(displayStatus)) return false
-    if (filters.categories.length > 0 && !filters.categories.includes(event.category)) return false
+    if (filters.definitionTitles.length > 0 && !filters.definitionTitles.includes(event.definitionTitle)) return false
     return true
   })
 }
@@ -98,6 +99,7 @@ export function HealthEventsPage() {
     .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
     .filter((year): year is number => year !== undefined))]
     .sort((left, right) => right - left)
+  const definitionTitles = getHealthEventDefinitionTitleOptions(memberEvents)
   const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
   const filteredEvents = filterEvents(memberEvents, filters)
   const visibleEvents = activeYear === null
@@ -248,7 +250,7 @@ export function HealthEventsPage() {
         <Plus size={30} strokeWidth={1.8} />
       </button>
 
-      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
     </main>
   )
 }

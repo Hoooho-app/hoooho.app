@@ -105,7 +105,7 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerUp={finishSwipe}
         onPointerCancel={finishSwipe}
       >
-        <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
+        <HealthCard interactive className={`health-event-list-card flex min-h-[96px] items-center gap-3${isRecovered ? ' health-event-list-card--recovered' : ''}`}>
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <Typography className="min-w-0 truncate" variant="cardTitle">{event.definitionTitle}</Typography>
