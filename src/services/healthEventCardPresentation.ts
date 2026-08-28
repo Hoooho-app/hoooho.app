@@ -3,8 +3,8 @@ import { getLocalCalendarDaySerial } from '../utils/localCalendarDate'
 
 const millisecondsPerDay = 86_400_000
 
-const statusPresentations: Record<HealthEventStage, { label: string; tone: 'primary' | 'warning' | 'success' }> = {
-  observing: { label: '观察中', tone: 'primary' },
+const statusPresentations: Record<HealthEventStage, { label: string; tone: 'info' | 'warning' | 'success' }> = {
+  observing: { label: '观察中', tone: 'info' },
   handling: { label: '处理中', tone: 'warning' },
   recovered: { label: '已康复', tone: 'success' }
 }

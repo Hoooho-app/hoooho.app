@@ -91,6 +91,9 @@ test('两个症状可平行显示，同义症状去重且空数据不补占位',
 
 test('生命周期状态完整保留现有状态机含义', () => {
   assert.equal(getHealthEventStatusPresentation('observing').label, '观察中')
+  assert.equal(getHealthEventStatusPresentation('observing').tone, 'info')
   assert.equal(getHealthEventStatusPresentation('handling').label, '处理中')
+  assert.equal(getHealthEventStatusPresentation('handling').tone, 'warning')
   assert.equal(getHealthEventStatusPresentation('recovered').label, '已康复')
+  assert.equal(getHealthEventStatusPresentation('recovered').tone, 'success')
 })

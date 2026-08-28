@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 
-export type HealthTagTone = 'neutral' | 'primary' | 'success' | 'warning' | 'error'
+export type HealthTagTone = 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'error'
 
 export interface HealthTagProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode

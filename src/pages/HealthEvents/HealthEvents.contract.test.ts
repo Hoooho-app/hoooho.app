@@ -23,14 +23,16 @@ test('新增健康事件按钮恢复主绿色单色样式', () => {
 
 test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {
   assert.match(cardSource, /HealthEventCardSurface/)
-  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-2[^]*definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
+  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-1\.5[^]*definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
+  assert.doesNotMatch(cardSurfaceSource, /Typography className="min-w-0 flex-1 truncate"/)
+  assert.match(stylesSource, /\.hoho-health-tag\[data-tone='info'\][^}]*--hoho-color-info/s)
   assert.match(cardSurfaceSource, /className="block truncate"[^]*quickFacts\.join\(' · '\)/)
   assert.doesNotMatch(cardSource, /event\.summary/)
   assert.doesNotMatch(cardSource, /<div><HealthTag/)
 })
 
 test('长标题和速览在箭头前截断且整张卡片保持单一点击入口', () => {
-  assert.match(cardSurfaceSource, /Typography className="min-w-0 flex-1 truncate"/)
+  assert.match(cardSurfaceSource, /Typography className="min-w-0 truncate"/)
   assert.match(cardSurfaceSource, /ChevronRight className="shrink-0/)
   assert.match(cardSource, /navigate\(`\/health-events\/\$\{event\.id\}`\)/)
 })
