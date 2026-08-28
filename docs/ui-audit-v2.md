@@ -11,7 +11,7 @@ The audit was generated from `src/app/router.tsx` and the rendered component tre
 | Health events | `/health-events`, `/health-events/new`, `/health-events/:eventId` | member identity, event timeline, filters, record composer, charts, recorder, action sheet |
 | Health profile | `/health-profile`, `/health-profile/:sectionId` | search, directory rows, detail forms, action bar, tags |
 | Family | `/family`, `/family/new`, `/family/:memberId/edit` | member rows, forms, avatar |
-| Settings and support | `/settings`, `/settings/account`, `/settings/notification`, `/settings/privacy`, `/messages`, `/guide`, `/help`, `/feedback`, `/feedback/submitted`, `/about` | grouped rows, toggles, search, segmented controls, forms, disclosure rows |
+| Settings and support | `/settings`, `/settings/personalization`, `/settings/care`, `/settings/account`, `/settings/privacy`, legacy redirect `/settings/notification`, `/messages`, `/guide`, `/help`, `/feedback`, `/feedback/submitted`, `/about` | grouped rows, toggles, choice sheets, permission status, forms, disclosure rows |
 | Internal operations | `/ops` | dense summary, table, filters, edit drawer |
 | Fallback | unmatched routes | dedicated 404 surface |
 

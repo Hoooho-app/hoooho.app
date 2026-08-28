@@ -1,121 +1,459 @@
-import { useState } from 'react'
+import {
+  Camera, FileImage, HeartHandshake, Info, KeyRound, Languages, LockKeyhole,
+  LogOut, Mail, Mic, ShieldCheck, UserRound
+} from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SettingsRow, ToggleSwitch, WebPageHeader } from '../../components/common'
-import { useCurrentMember } from '../../hooks/useCurrentMember'
+import {
+  BottomSheetSurface, HohoButton, HohoSurfaceRow, HohoToggle, StatusNotice, Typography
+} from '../../components/design-system'
+import { WebPageHeader } from '../../components/common'
+import {
+  permissionStatusLabels,
+  mapBrowserPermissionState,
+  type DevicePermissionKind,
+  type DevicePermissionStatus
+} from '../../features/settings/permissions'
+import {
+  getAccountPreferences,
+  type CarePreferences,
+  type HomeDefaultView,
+  type RecordSubjectBehavior
+} from '../../features/settings/preferences'
+import { ApiRequestError } from '../../services/apiClient'
+import { familyMemberService } from '../../services/familyMembers'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import { makeFeedbackState } from '../../features/feedback/navigation'
+import { useSettingsStore } from '../../store/useSettingsStore'
+
+interface ChoiceOption<T extends string> {
+  description?: string
+  label: string
+  value: T
+}
+
+function SettingsLayout({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <main className="settings-page app-shell pb-0">
+      <WebPageHeader title={title} fallback={title === '设置' ? '/health-events' : '/settings'} />
+      <div className="settings-content">{children}</div>
+    </main>
+  )
+}
+
+function SettingsGroup({ children, title }: { children: ReactNode; title?: string }) {
+  return <section>{title && <h2 className="settings-section-label">{title}</h2>}<div className="settings-list">{children}</div></section>
+}
+
+function LeadingIcon({ children }: { children: ReactNode }) {
+  return <span aria-hidden="true" className="settings-leading">{children}</span>
+}
+
+function ChoiceSheet<T extends string>({
+  description,
+  onClose,
+  onSelect,
+  open,
+  options,
+  selected,
+  title
+}: {
+  description?: string
+  onClose: () => void
+  onSelect: (value: T) => void
+  open: boolean
+  options: ChoiceOption<T>[]
+  selected: T
+  title: string
+}) {
+  return (
+    <BottomSheetSurface
+      footer={<HohoButton fullWidth size="large" onClick={onClose}>完成</HohoButton>}
+      label={title}
+      onClose={onClose}
+      open={open}
+      title={title}
+    >
+      <div className="grid gap-4">
+        <div className="settings-choice-list" role="radiogroup" aria-label={title}>
+          {options.map((option) => (
+            <button
+              aria-checked={selected === option.value}
+              className="settings-choice"
+              data-selected={selected === option.value}
+              key={option.value}
+              onClick={() => onSelect(option.value)}
+              role="radio"
+              type="button"
+            >
+              <span className="min-w-0">
+                <strong className="block text-sm font-medium">{option.label}</strong>
+                {option.description && <span className="mt-0.5 block text-xs leading-5 text-text-secondary">{option.description}</span>}
+              </span>
+              <span aria-hidden="true" className="settings-choice__mark" />
+            </button>
+          ))}
+        </div>
+        {description && <p className="settings-note">{description}</p>}
+      </div>
+    </BottomSheetSurface>
+  )
+}
+
+function ToggleSettingRow({ checked, description, label, onChange }: {
+  checked: boolean
+  description?: string
+  label: string
+  onChange: (checked: boolean) => void
+}) {
+  return <HohoSurfaceRow action={<HohoToggle checked={checked} label={label} onChange={onChange} />} description={description} title={label} />
+}
 
 export function SettingsPage() {
   const navigate = useNavigate()
-  const rows = [
-    ['账号设置', '头像、昵称与登录安全', '/settings/account'],
-    ['通知设置', '提醒与免打扰', '/settings/notification'],
-    ['隐私设置', '健康数据与授权', '/settings/privacy'],
-    ['消息中心', '健康提醒与系统消息', '/messages'],
-    ['帮助中心', '查找使用方法和常见问题', '/help'],
-    ['我的反馈', '查看反馈记录和处理进度', '/feedback/mine'],
-    ['反馈意见', '告诉我们哪里不好用', '/feedback'],
-    ['数据管理', '导出与删除健康数据', '/settings/privacy'],
-    ['关于 Hoooho', '版本、协议与隐私政策', '/about']
-  ] as const
+  const accountId = useAppStore((state) => state.authUser?.id)
+  const accounts = useSettingsStore((state) => state.accounts)
+  const care = useSettingsStore((state) => state.care)
+  const setCareEnabled = useSettingsStore((state) => state.setCareEnabled)
+  const setAccountPreferences = useSettingsStore((state) => state.setAccountPreferences)
+  const preferences = getAccountPreferences(accounts, accountId)
+  const [languageOpen, setLanguageOpen] = useState(false)
 
   return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="设置" fallback="/health-events" />
-      <div className="settings-group mx-4 my-5">
-        {rows.map(([title, description, to]) => <SettingsRow key={title} title={title} description={description} onClick={() => navigate(to, to === '/feedback' ? { state: makeFeedbackState('/settings', '我的', window.scrollY) } : undefined)} />)}
-      </div>
-    </main>
+    <SettingsLayout title="设置">
+      <SettingsGroup>
+        <HohoSurfaceRow
+          description="默认成员、查看方式与外观"
+          leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>}
+          onActivate={() => navigate('/settings/personalization')}
+          title="个性化"
+        />
+        <div className="settings-split-row">
+          <button className="settings-split-row__main" onClick={() => navigate('/settings/care')} type="button">
+            <LeadingIcon><HeartHandshake size={18} strokeWidth={1.7} /></LeadingIcon>
+            <span className="min-w-0 flex-1">
+              <strong className="hoho-text-body block font-medium text-text-primary">关怀模式</strong>
+              <span className="hoho-text-caption mt-0.5 block">让文字、按钮和提示更加清晰</span>
+            </span>
+          </button>
+          <span className="settings-split-row__toggle">
+            <HohoToggle checked={care.enabled} label="关怀模式" onChange={setCareEnabled} />
+          </span>
+        </div>
+        <HohoSurfaceRow
+          description="界面显示语言"
+          leading={<LeadingIcon><Languages size={18} strokeWidth={1.7} /></LeadingIcon>}
+          onActivate={() => setLanguageOpen(true)}
+          title="语言"
+          value="简体中文"
+        />
+        <HohoSurfaceRow
+          description="管理设备功能的使用权限"
+          leading={<LeadingIcon><ShieldCheck size={18} strokeWidth={1.7} /></LeadingIcon>}
+          onActivate={() => navigate('/settings/privacy')}
+          title="隐私与权限"
+        />
+        <HohoSurfaceRow
+          description="登录方式、设备与账号管理"
+          leading={<LeadingIcon><LockKeyhole size={18} strokeWidth={1.7} /></LeadingIcon>}
+          onActivate={() => navigate('/settings/account')}
+          title="账号与安全"
+        />
+      </SettingsGroup>
+
+      <ChoiceSheet
+        description="语言设置只改变页面和系统文案，不会自动翻译已记录的健康内容。"
+        onClose={() => setLanguageOpen(false)}
+        onSelect={() => accountId && setAccountPreferences(accountId, { interfaceLanguage: 'zh-CN' })}
+        open={languageOpen}
+        options={[{ label: '简体中文', value: 'zh-CN' }]}
+        selected={preferences.interfaceLanguage}
+        title="界面语言"
+      />
+    </SettingsLayout>
+  )
+}
+
+type PersonalizationChoice = 'home' | 'record' | null
+
+export function PersonalizationSettingsPage() {
+  const accountId = useAppStore((state) => state.authUser?.id)
+  const token = useAppStore((state) => state.authToken)
+  const members = useAppStore((state) => state.members)
+  const setMembers = useAppStore((state) => state.setMembers)
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const accounts = useSettingsStore((state) => state.accounts)
+  const setAccountPreferences = useSettingsStore((state) => state.setAccountPreferences)
+  const preferences = getAccountPreferences(accounts, accountId)
+  const [choice, setChoice] = useState<PersonalizationChoice>(null)
+  const [membersLoading, setMembersLoading] = useState(members.length === 0)
+  const [membersError, setMembersError] = useState('')
+
+  useEffect(() => {
+    if (!token) return
+    const controller = new AbortController()
+    let active = true
+    familyMemberService.list(token, controller.signal)
+      .then((items) => {
+        if (active) setMembers(items.map(adaptFamilyMember))
+      })
+      .catch((error) => {
+        if (!active) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (error instanceof ApiRequestError && error.status === 401) {
+          clearAuthSession()
+          return
+        }
+        setMembersError(error instanceof Error ? error.message : '家庭成员加载失败')
+      })
+      .finally(() => {
+        if (active) setMembersLoading(false)
+      })
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [clearAuthSession, setMembers, token])
+
+  const homeDefaultView = preferences.homeDefaultView
+  const selectedMember = homeDefaultView.mode === 'member'
+    ? members.find((member) => member.id === homeDefaultView.memberId)
+    : null
+  const homeValue = homeDefaultView.mode === 'all' ? '全部家人' : selectedMember?.name ?? '需重新选择'
+  const homeSelection = homeDefaultView.mode === 'all' ? 'all' : `member:${homeDefaultView.memberId}`
+  const homeOptions: ChoiceOption<string>[] = [
+    { label: '全部家人', value: 'all' },
+    ...members.map((member) => ({ label: member.name, description: member.relation, value: `member:${member.id}` }))
+  ]
+  const recordOptions: ChoiceOption<RecordSubjectBehavior>[] = [
+    { label: '每次确认记录对象', description: '家人较多时，新增记录前先确认', value: 'confirm' },
+    { label: '记住上次选择', description: '直接使用最近查看的家人', value: 'remember-last' }
+  ]
+
+  const selectHome = (value: string) => {
+    if (!accountId) return
+    const homeDefaultView: HomeDefaultView = value === 'all'
+      ? { mode: 'all' }
+      : { mode: 'member', memberId: value.replace(/^member:/, '') }
+    setAccountPreferences(accountId, { homeDefaultView })
+  }
+
+  return (
+    <SettingsLayout title="个性化">
+      <SettingsGroup title="使用习惯">
+        <HohoSurfaceRow description="进入健康事件首页时" onActivate={() => setChoice('home')} title="首页默认查看" value={homeValue} />
+        <HohoSurfaceRow description="避免把健康记录记错人" onActivate={() => setChoice('record')} title="新建记录时" value={preferences.recordSubjectBehavior === 'confirm' ? '每次确认记录对象' : '记住上次选择'} />
+      </SettingsGroup>
+
+      {membersLoading && <StatusNotice title="正在读取家庭成员">选项会使用当前账号中的真实家庭成员。</StatusNotice>}
+      {membersError && <StatusNotice title="家庭成员读取失败" tone="error">{membersError}</StatusNotice>}
+
+      <SettingsGroup title="外观">
+        <HohoSurfaceRow description="当前产品仅完整支持浅色界面" title="外观模式" value="浅色" />
+      </SettingsGroup>
+
+      <p className="settings-note px-2">家庭成员的头像与资料，请在对应成员页面修改。</p>
+
+      <ChoiceSheet onClose={() => setChoice(null)} onSelect={selectHome} open={choice === 'home'} options={homeOptions} selected={homeSelection} title="首页默认查看" />
+      <ChoiceSheet
+        onClose={() => setChoice(null)}
+        onSelect={(value) => accountId && setAccountPreferences(accountId, { recordSubjectBehavior: value })}
+        open={choice === 'record'}
+        options={recordOptions}
+        selected={preferences.recordSubjectBehavior}
+        title="新建记录时"
+      />
+    </SettingsLayout>
+  )
+}
+
+const careTextOptions = [['standard', '标准'], ['large', '大'], ['extra-large', '特大']] as const
+
+export function CareModeSettingsPage() {
+  const care = useSettingsStore((state) => state.care)
+  const setCareEnabled = useSettingsStore((state) => state.setCareEnabled)
+  const setCarePreferences = useSettingsStore((state) => state.setCarePreferences)
+  const change = <K extends keyof Omit<CarePreferences, 'enabled' | 'hasConfigured'>>(key: K, value: CarePreferences[K]) => {
+    setCarePreferences({ [key]: value } as Partial<Omit<CarePreferences, 'enabled' | 'hasConfigured'>>)
+  }
+
+  return (
+    <SettingsLayout title="关怀模式">
+      <section className="settings-care-master">
+        <div>
+          <Typography className="text-text-primary" variant="cardTitle">关怀模式</Typography>
+          <Typography className="mt-1" variant="caption">更大、更清晰、更容易操作</Typography>
+        </div>
+        <HohoToggle checked={care.enabled} label="关怀模式总开关" onChange={setCareEnabled} />
+      </section>
+
+      <section>
+        <h2 className="settings-section-label">实时预览</h2>
+        <div className="settings-care-preview" data-contrast={care.highContrast} data-size={care.textSize} data-targets={care.largerTargets}>
+          <div><strong className="block font-semibold">健康记录</strong><span className="mt-1 block text-text-secondary">今天感觉怎么样？</span></div>
+          <button className="settings-care-preview__button" type="button">添加记录</button>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="settings-section-label">显示与操作</h2>
+        <div className="settings-list">
+          <div className="border-b px-4 py-3">
+            <span className="hoho-text-body block font-medium text-text-primary">文字大小</span>
+            <div className="settings-segmented mt-3" role="group" aria-label="文字大小">
+              {careTextOptions.map(([value, label]) => <button aria-pressed={care.textSize === value} key={value} onClick={() => change('textSize', value)} type="button">{label}</button>)}
+            </div>
+          </div>
+          <ToggleSettingRow checked={care.largerTargets} label="放大操作区域" onChange={(value) => change('largerTargets', value)} />
+          <ToggleSettingRow checked={care.highContrast} label="增强颜色对比" onChange={(value) => change('highContrast', value)} />
+          <ToggleSettingRow checked={care.simplifyInformation} label="简化页面信息" onChange={(value) => change('simplifyInformation', value)} />
+          <ToggleSettingRow checked={care.reduceMotion} label="减少动态效果" onChange={(value) => change('reduceMotion', value)} />
+        </div>
+      </section>
+
+      <SettingsGroup title="理解辅助">
+        <ToggleSettingRow checked={care.plainLanguage} label="使用通俗表达" onChange={(value) => change('plainLanguage', value)} />
+        <ToggleSettingRow checked={care.explainTerms} label="解释专业词语" onChange={(value) => change('explainTerms', value)} />
+        <ToggleSettingRow checked={care.showActionHints} label="加强操作提示" onChange={(value) => change('showActionHints', value)} />
+      </SettingsGroup>
+
+      {!care.enabled && <p className="settings-note px-2">细分选择会保留，并在下次开启关怀模式时生效。</p>}
+      <p className="settings-note px-2">仅影响当前设备的显示与操作，不会改变健康数据。</p>
+    </SettingsLayout>
+  )
+}
+
+const permissionCopy: Record<DevicePermissionKind, { description: string; icon: ReactNode; title: string }> = {
+  camera: { description: '拍摄检查单、药品及健康资料', icon: <Camera size={19} strokeWidth={1.7} />, title: '相机' },
+  microphone: { description: '使用语音记录健康情况', icon: <Mic size={19} strokeWidth={1.7} />, title: '麦克风' },
+  files: { description: '上传报告、图片和其他资料', icon: <FileImage size={19} strokeWidth={1.7} />, title: '照片与文件' }
+}
+
+function useDevicePermissions(refreshKey: number) {
+  const [states, setStates] = useState<Record<DevicePermissionKind, DevicePermissionStatus>>({ camera: 'checking', files: 'unsupported', microphone: 'checking' })
+
+  useEffect(() => {
+    let active = true
+    const permissionResults: globalThis.PermissionStatus[] = []
+    const query = async (kind: 'camera' | 'microphone') => {
+      if (!navigator.permissions?.query) {
+        if (active) setStates((current) => ({ ...current, [kind]: 'unsupported' }))
+        return
+      }
+      try {
+        const result = await navigator.permissions.query({ name: kind } as unknown as PermissionDescriptor)
+        if (!active) return
+        permissionResults.push(result)
+        const update = () => active && setStates((current) => ({ ...current, [kind]: mapBrowserPermissionState(result.state) }))
+        update()
+        result.onchange = update
+      } catch {
+        if (active) setStates((current) => ({ ...current, [kind]: 'unsupported' }))
+      }
+    }
+    void query('camera')
+    void query('microphone')
+    return () => {
+      active = false
+      permissionResults.forEach((result) => { result.onchange = null })
+    }
+  }, [refreshKey])
+
+  return states
+}
+
+export function PrivacySettingsPage() {
+  const [selected, setSelected] = useState<DevicePermissionKind | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [requesting, setRequesting] = useState(false)
+  const [requestMessage, setRequestMessage] = useState('')
+  const permissions = useDevicePermissions(refreshKey)
+  const selectedStatus = selected ? permissions[selected] : null
+  const selectedCopy = selected ? permissionCopy[selected] : null
+
+  const requestPermission = async () => {
+    if (!selected || selected === 'files' || !navigator.mediaDevices?.getUserMedia) return
+    setRequesting(true)
+    setRequestMessage('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(selected === 'camera' ? { video: true } : { audio: true })
+      stream.getTracks().forEach((track) => track.stop())
+      setRequestMessage('已获得权限。Hoooho 仅会在你主动使用相关功能时访问设备。')
+      setRefreshKey((value) => value + 1)
+    } catch {
+      setRequestMessage('未能获得权限。请在浏览器地址栏的网站设置中允许后再重试。')
+      setRefreshKey((value) => value + 1)
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  return (
+    <SettingsLayout title="隐私与权限">
+      <SettingsGroup title="设备权限">
+        {(Object.keys(permissionCopy) as DevicePermissionKind[]).map((kind) => (
+          <HohoSurfaceRow
+            className="min-w-0"
+            description={permissionCopy[kind].description}
+            key={kind}
+            leading={<LeadingIcon>{permissionCopy[kind].icon}</LeadingIcon>}
+            onActivate={() => { setSelected(kind); setRequestMessage('') }}
+            title={permissionCopy[kind].title}
+            value={<span className="settings-permission-status">{permissionStatusLabels[permissions[kind]]}</span>}
+          />
+        ))}
+      </SettingsGroup>
+
+      <section className="settings-info-card">
+        <Info aria-hidden="true" className="mt-0.5 text-primary" size={19} strokeWidth={1.7} />
+        <div><Typography className="text-text-primary" variant="cardTitle">权限由当前设备管理</Typography><Typography className="mt-1" variant="caption">修改权限时，Hoooho 将引导你前往浏览器或系统设置。</Typography></div>
+      </section>
+
+      <BottomSheetSurface
+        footer={selected && selected !== 'files' && selectedStatus === 'prompt'
+          ? <HohoButton fullWidth loading={requesting} size="large" onClick={() => void requestPermission()}>请求使用权限</HohoButton>
+          : undefined}
+        label="设备权限说明"
+        onClose={() => setSelected(null)}
+        open={selected !== null}
+        title={selectedCopy?.title ?? '设备权限'}
+      >
+        {selectedCopy && (
+          <div className="grid gap-4">
+            <StatusNotice title={`当前状态：${permissionStatusLabels[selectedStatus ?? 'unsupported']}`}>
+              {selected === 'files'
+                ? '浏览器不会公开照片与文件的持续权限状态。只有在你主动选择上传时，Hoooho 才会读取你选中的文件。'
+                : selectedStatus === 'denied'
+                  ? '请打开浏览器地址栏旁的网站设置，找到权限并改为允许。'
+                  : selectedStatus === 'granted'
+                    ? '权限已允许。如需关闭，请前往浏览器或系统的网站权限设置。'
+                    : selectedStatus === 'unsupported'
+                      ? '当前浏览器无法查询这项权限。你仍可在实际使用相关功能时按浏览器提示操作。'
+                      : 'Hoooho 会在你点击下方按钮后请求权限，不会在页面加载时自动申请。'}
+            </StatusNotice>
+            {requestMessage && <p aria-live="polite" className="settings-note">{requestMessage}</p>}
+          </div>
+        )}
+      </BottomSheetSurface>
+    </SettingsLayout>
   )
 }
 
 export function AccountSettingsPage() {
-  const member = useCurrentMember()
-  const profile = useAppStore((state) => state.profile)
-  const phone = useAppStore((state) => state.authUser?.phone)
-  const email = useAppStore((state) => state.authUser?.email)
-  const maskedPhone = phone ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : '未登录'
-  const accountIdentifier = email ?? maskedPhone
-  const loginMethod = email ? '邮箱验证码登录' : '手机号登录'
-  const rows = [
-    ['头像', member.name],
-    ['昵称', member.name],
-    [email ? '邮箱' : '手机号', accountIdentifier],
-    ['登录方式', loginMethod],
-    ['修改密码', '']
-  ] as const
-
-  return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="账号设置" fallback="/settings" />
-      <div className="settings-group mx-4 my-5">
-        {rows.map(([title, value]) => <SettingsRow key={title} title={title} description={value || undefined} />)}
-        {!profile && <p className="px-1 text-xs leading-5 text-text-secondary">首次完善个人资料后，昵称与头像信息会同步显示在这里。</p>}
-      </div>
-    </main>
-  )
-}
-
-export function NotificationSettingsPage() {
-  const notifications = useAppStore((state) => state.notifications)
-  const setNotification = useAppStore((state) => state.setNotification)
-  const setQuietHours = useAppStore((state) => state.setQuietHours)
-  const rows = [
-    ['healthEvent', '健康事件提醒', '事件更新与阶段变化'],
-    ['medication', '用药提醒', '按记录时间进行提醒'],
-    ['followUp', '复查提醒', '复查日期临近时提醒'],
-    ['familyHealth', '家庭成员健康提醒', '关注家人的重要变化'],
-    ['system', '系统通知', '产品服务与安全消息']
-  ] as const
-
-  return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="通知设置" fallback="/settings" />
-      <div className="settings-group mx-4 my-5">
-        {rows.map(([key, title, description]) => (
-          <SettingsRow key={key} title={title} description={description} action={<ToggleSwitch label={title} checked={notifications[key]} onChange={(checked) => setNotification(key, checked)} />} />
-        ))}
-        <label className="flex min-h-16 items-center gap-3 border-t bg-surface px-4 py-3">
-          <span className="min-w-0 flex-1"><strong className="block text-sm font-medium">免打扰时间</strong><span className="mt-0.5 block text-xs text-text-secondary">夜间不发送普通提醒</span></span>
-          <select className="bg-transparent text-xs text-text-secondary outline-none" value={notifications.quietHours} onChange={(event) => setQuietHours(event.target.value)}>
-            <option>22:00 - 07:00</option><option>23:00 - 08:00</option><option>关闭</option>
-          </select>
-        </label>
-      </div>
-    </main>
-  )
-}
-
-export function PrivacySettingsPage() {
   const navigate = useNavigate()
-  const [permissions, setPermissions] = useState({ health: true, family: true, ai: true })
-  const exportData = () => {
-    const data = localStorage.getItem('hoooho-app') ?? '{}'
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'hoooho-health-data.json'
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-  const deleteData = () => {
-    if (!window.confirm('确认删除本设备上的 Hoooho 健康数据？此操作无法撤销。')) return
-    localStorage.removeItem('hoooho-app')
-    navigate('/login', { replace: true })
-    window.location.reload()
-  }
+  const email = useAppStore((state) => state.authUser?.email)
+  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const logout = () => { clearAuthSession(); navigate('/login', { replace: true }) }
 
   return (
-    <main className="app-shell pb-0">
-      <WebPageHeader title="隐私设置" fallback="/settings" />
-      <div className="settings-group mx-4 my-5">
-        <SettingsRow title="健康数据授权" description="允许本地保存健康信息" action={<ToggleSwitch label="健康数据授权" checked={permissions.health} onChange={(health) => setPermissions((state) => ({ ...state, health }))} />} />
-        <SettingsRow title="家庭成员数据共享" description="在家庭成员间共享相关记录" action={<ToggleSwitch label="家庭成员数据共享" checked={permissions.family} onChange={(family) => setPermissions((state) => ({ ...state, family }))} />} />
-        <SettingsRow title="AI分析授权" description="允许整理用户主动提交的信息" action={<ToggleSwitch label="AI分析授权" checked={permissions.ai} onChange={(ai) => setPermissions((state) => ({ ...state, ai }))} />} />
-        <SettingsRow title="导出健康数据" description="导出本设备的 Mock 数据" onClick={exportData} />
-        <SettingsRow title="删除健康数据" description="删除本设备保存的数据" onClick={deleteData} />
-      </div>
-    </main>
+    <SettingsLayout title="账号与安全">
+      <SettingsGroup title="登录账号">
+        <HohoSurfaceRow leading={<LeadingIcon><Mail size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录邮箱" value={email ?? '当前账号未提供邮箱'} />
+        <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={email ? '邮箱验证码' : '当前登录方式'} />
+      </SettingsGroup>
+      <section className="settings-account-actions" aria-label="账号操作">
+        <HohoButton fullWidth size="large" variant="secondary" onClick={logout}><LogOut aria-hidden="true" size={18} strokeWidth={1.7} />退出登录</HohoButton>
+      </section>
+    </SettingsLayout>
   )
 }
