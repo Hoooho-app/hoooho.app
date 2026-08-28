@@ -8,9 +8,10 @@ interface HealthEventTimelineProps {
   events: HealthEventListItemViewModel[]
   onStatusChange?: (eventId: string, status: HealthEventStage) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
+  showMemberName?: boolean
 }
 
-export function HealthEventTimeline({ events, onStatusChange, onDelete }: HealthEventTimelineProps) {
+export function HealthEventTimeline({ events, onStatusChange, onDelete, showMemberName = false }: HealthEventTimelineProps) {
   const items = groupHealthEventsByLocalDate(events).map((dateGroup) => ({
     id: dateGroup.date,
     label: (
@@ -29,6 +30,7 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete }: Health
             key={event.id}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
+            showMemberName={showMemberName}
           />
         ))}
       </div>
@@ -38,7 +40,7 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete }: Health
   return (
     <div>
       <HealthTimeline ariaLabel="按日期分组的健康事件" items={items} level="list" />
-      <p className="hoho-text-caption py-5 text-center">没有更多事件了</p>
+      <p className="care-optional-detail hoho-text-caption py-5 text-center">没有更多事件了</p>
     </div>
   )
 }

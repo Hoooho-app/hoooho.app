@@ -6,7 +6,7 @@ export interface HohoToggleProps {
 
 export function HohoToggle({ checked, label, onChange }: HohoToggleProps) {
   return (
-    <button aria-label={label} aria-pressed={checked} className="hoho-toggle" data-checked={checked} type="button" onClick={() => onChange(!checked)}>
+    <button aria-checked={checked} aria-label={label} className="hoho-toggle" data-checked={checked} role="switch" type="button" onClick={() => onChange(!checked)}>
       <span className="hoho-toggle__thumb" />
     </button>
   )

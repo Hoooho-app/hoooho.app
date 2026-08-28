@@ -10,8 +10,10 @@ const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEv
 const filterSource = readFileSync(new URL('../../components/health/HealthEventFilterSheet.tsx', import.meta.url), 'utf8')
 const firstUseSource = readFileSync(new URL('./FirstUseHome.tsx', import.meta.url), 'utf8')
 
-test('健康事件首页使用紧凑标题、家人文案和左对齐年份导航', () => {
-  assert.match(pageSource, /label="当前家人"/)
+test('健康事件首页使用设置驱动的查看范围、紧凑标题和左对齐年份导航', () => {
+  assert.match(pageSource, /label="首页查看"/)
+  assert.match(pageSource, /name=\{viewingAll \? '全部家人'/)
+  assert.match(pageSource, /viewingAll \|\| !currentMemberDto \|\| event\.memberId === currentMemberDto\.id/)
   assert.match(pageSource, /className="health-events-list-title" variant="sectionTitle">事件列表/)
   assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
   assert.match(stylesSource, /\.health-events-list-title\s*{[^}]*var\(--hoho-font-size-card-title\)/s)
@@ -33,6 +35,13 @@ test('首次使用首页保留侧边栏导航且只展示指定行动与能力�
   assert.match(firstUseSource, /用药、检查与就诊/)
   assert.match(firstUseSource, /就诊前摘要/)
   assert.doesNotMatch(firstUseSource, /BottomNav|Bell|消息中心|个人中心/)
+})
+
+test('首次使用首页在 iPhone SE 使用紧凑但可触控的行动区', () => {
+  assert.match(firstUseSource, /min-h-\[104px\]/)
+  assert.equal(firstUseSource.match(/min-h-\[76px\]/g)?.length, 2)
+  assert.match(firstUseSource, /min-h-\[54px\]/)
+  assert.doesNotMatch(firstUseSource, /min-h-\[(?:148|112|72)px\]/)
 })
 
 test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {

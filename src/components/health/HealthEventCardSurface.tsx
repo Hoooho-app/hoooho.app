@@ -9,6 +9,7 @@ interface HealthEventCardSurfaceProps {
   quickFacts: string[]
   status: HealthEventStage
   interactive?: boolean
+  memberName?: string
   showChevron?: boolean
 }
 
@@ -18,6 +19,7 @@ export function HealthEventCardSurface({
   quickFacts,
   status,
   interactive = false,
+  memberName,
   showChevron = false
 }: HealthEventCardSurfaceProps) {
   const statusPresentation = getHealthEventStatusPresentation(status)
@@ -25,6 +27,7 @@ export function HealthEventCardSurface({
   return (
     <HealthCard interactive={interactive} className={`${className} flex min-h-[96px] items-center gap-3`}>
       <div className="min-w-0 flex-1 space-y-2">
+        {memberName && <Typography className="block truncate text-primary" variant="caption">{memberName}</Typography>}
         <div className="flex min-w-0 items-center gap-1.5">
           <Typography className="min-w-0 truncate" variant="cardTitle">{definitionTitle}</Typography>
           <HealthTag className="shrink-0" tone={statusPresentation.tone}>{statusPresentation.label}</HealthTag>
