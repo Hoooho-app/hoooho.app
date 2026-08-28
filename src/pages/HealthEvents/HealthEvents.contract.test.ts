@@ -35,6 +35,13 @@ test('首次使用首页保留侧边栏导航且只展示指定行动与能力�
   assert.doesNotMatch(firstUseSource, /BottomNav|Bell|消息中心|个人中心/)
 })
 
+test('首次使用首页在 iPhone SE 使用紧凑但可触控的行动区', () => {
+  assert.match(firstUseSource, /min-h-\[104px\]/)
+  assert.equal(firstUseSource.match(/min-h-\[76px\]/g)?.length, 2)
+  assert.match(firstUseSource, /min-h-\[54px\]/)
+  assert.doesNotMatch(firstUseSource, /min-h-\[(?:148|112|72)px\]/)
+})
+
 test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {
   assert.match(cardSource, /HealthEventCardSurface/)
   assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-1\.5[^]*definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
