@@ -1,4 +1,4 @@
-import { getClayAvatarAssetPath, type ClayAvatarConfig } from '../../utils/clayAvatar'
+import { getClayAvatarAssetPath, getClayAvatarViewport, type ClayAvatarConfig } from '../../utils/clayAvatar'
 
 interface ClayAvatarProps {
   config: ClayAvatarConfig
@@ -16,15 +16,17 @@ export function ClayAvatar({ config, className = '', language, name }: ClayAvata
       : `${name}的3D黏土卡通头像`
 
   const source = getClayAvatarAssetPath(config)
+  const viewport = getClayAvatarViewport(config)
   return (
-    <span className={`inline-flex shrink-0 overflow-hidden rounded-full bg-primary-soft ${className}`} role="img" aria-label={ariaLabel}>
+    <span className={`relative inline-flex shrink-0 overflow-hidden rounded-full bg-primary-soft ${className}`} role="img" aria-label={ariaLabel}>
       <img
         alt=""
         aria-hidden="true"
-        className="h-full w-full object-cover motion-safe:animate-[avatar-swap_180ms_ease-out]"
+        className="absolute max-w-none object-cover motion-safe:animate-[avatar-swap_180ms_ease-out]"
         draggable={false}
         key={source}
         src={source}
+        style={viewport}
       />
     </span>
   )

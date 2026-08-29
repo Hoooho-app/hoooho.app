@@ -67,10 +67,8 @@ export function FamilyAvatarEditor({ config, disabled = false, language: languag
   return (
     <section className="flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'} aria-label={mode === 'cartoon' ? text.cartoon : text.photo}>
       {mode === 'cartoon' ? (
-        <div className="relative">
-          <span className="inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card">
-            <ClayAvatar className="h-28 w-28" config={config} language={language} name={name || text.cartoon} />
-          </span>
+        <div className="relative h-28 w-28">
+          <ClayAvatar className="h-28 w-28 border-2 border-primary bg-surface shadow-card" config={config} language={language} name={name || text.cartoon} />
           <button
             aria-label={text.change}
             className="absolute bottom-0 end-0 grid min-h-11 min-w-11 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
@@ -90,9 +88,9 @@ export function FamilyAvatarEditor({ config, disabled = false, language: languag
           type="button"
           onClick={() => photoInputRef.current?.click()}
         >
-          <span className="inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card">
+          <span className="inline-flex h-28 w-28 overflow-hidden rounded-full border-2 border-primary bg-surface shadow-card">
             {photo ? (
-              <img alt={text.photoAlt} className="h-28 w-28 rounded-full object-cover" src={photo} />
+              <img alt={text.photoAlt} className="h-full w-full object-cover" src={photo} />
             ) : (
               <span className="inline-flex h-28 w-28 items-center justify-center rounded-full bg-primary-soft text-primary">
                 <Camera aria-hidden="true" size={34} strokeWidth={1.6} />

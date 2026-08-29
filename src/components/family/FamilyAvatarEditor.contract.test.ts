@@ -17,6 +17,12 @@ test('family avatar editor exposes only a complete avatar switch and photo mode'
   assert.equal(source.includes('ChevronRight'), false)
 })
 
+test('avatar artwork and border share one fixed circular frame', () => {
+  assert.match(source, /relative h-28 w-28/)
+  assert.match(source, /h-28 w-28 border-2 border-primary/)
+  assert.equal(source.includes('bg-surface p-0.5 shadow-card'), false)
+})
+
 test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {
   assert.match(source, /language\.toLowerCase\(\)\.startsWith\('ar'\)/)
   assert.match(source, /dir=\{isRtl \? 'rtl' : 'ltr'\}/)

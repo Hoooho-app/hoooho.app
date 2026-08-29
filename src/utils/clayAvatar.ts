@@ -48,6 +48,29 @@ export const clayAvatarAssetManifest = {
   appearances: appearancePresets
 } as const
 
+// The approved sprite sheets place each portrait circle at a slightly different
+// point inside its 512px cell. These focal points keep the complete, pre-rendered
+// artwork centred in a single circular viewport without modifying the assets.
+const clayAvatarFocalPoints = {
+  'east-asian': [57.3, 50.4],
+  'south-asian': [53.5, 50.5],
+  african: [40.2, 50.7],
+  european: [56.9, 44.5],
+  'middle-eastern-north-african': [53.4, 44.7],
+  'latin-mixed': [40.1, 44.7]
+} as const satisfies Record<AppearancePreset, readonly [number, number]>
+
+export function getClayAvatarViewport(config: ClayAvatarConfig) {
+  const [focusX, focusY] = clayAvatarFocalPoints[config.appearance]
+  const scale = 1.2
+  return {
+    height: `${scale * 100}%`,
+    left: `${50 - scale * focusX}%`,
+    top: `${50 - scale * focusY}%`,
+    width: `${scale * 100}%`
+  }
+}
+
 export function getClayAvatarAssetPath(config: ClayAvatarConfig) {
   return `${clayAvatarAssetManifest.basePath}/${config.role}-${config.appearance}.png`
 }
