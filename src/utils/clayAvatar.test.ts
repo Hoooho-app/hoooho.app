@@ -7,6 +7,7 @@ import {
   createClayAvatarConfig,
   cycleClayAvatar,
   getClayAvatarAssetPath,
+  getClayAvatarViewport,
   parseClayAvatar,
   remapClayAvatarRole,
   resolveClayAvatarRole,
@@ -64,6 +65,14 @@ test('all role and appearance pairs resolve to versioned complete-avatar assets'
   assert.equal(new Set(paths).size, 60)
   assert.ok(paths.every((path) => /^\/avatars\/clay\/v1\/.+\.png$/.test(path)))
   assert.ok(paths.every((path) => existsSync(new URL(`../../public${path}`, import.meta.url))))
+})
+
+test('approved avatar sheets use focal-point viewports that centre every appearance', () => {
+  const viewports = appearancePresets.map((appearance) => getClayAvatarViewport({ version: 1, role: 'adult-male', appearance }))
+  assert.ok(viewports.every((viewport) => viewport.height === '120%' && viewport.width === '120%'))
+  assert.equal(new Set(viewports.map((viewport) => viewport.left)).size, appearancePresets.length)
+  assert.ok(viewports.every((viewport) => Number.parseFloat(viewport.left) >= -20 && Number.parseFloat(viewport.left) <= 2))
+  assert.ok(viewports.every((viewport) => Number.parseFloat(viewport.top) >= -12 && Number.parseFloat(viewport.top) <= -2))
 })
 
 test('previous layered avatar values migrate safely while photos and virtual ids remain separate', () => {
