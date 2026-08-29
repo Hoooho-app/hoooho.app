@@ -1,10 +1,8 @@
 export type CareTextSize = 'standard' | 'large' | 'extra-large'
-export type RecordSubjectBehavior = 'confirm' | 'remember-last'
 export type InterfaceLanguage = 'zh-CN'
 
 export interface AccountPreferences {
   interfaceLanguage: InterfaceLanguage
-  recordSubjectBehavior: RecordSubjectBehavior
 }
 
 export interface CarePreferences {
@@ -21,8 +19,7 @@ export interface CarePreferences {
 }
 
 export const defaultAccountPreferences: AccountPreferences = {
-  interfaceLanguage: 'zh-CN',
-  recordSubjectBehavior: 'confirm'
+  interfaceLanguage: 'zh-CN'
 }
 
 export const defaultCarePreferences: CarePreferences = {
@@ -46,10 +43,7 @@ export function getAccountPreferences(
   const stored = accounts[accountId]
   if (!stored) return defaultAccountPreferences
   return {
-    interfaceLanguage: stored.interfaceLanguage === 'zh-CN' ? stored.interfaceLanguage : defaultAccountPreferences.interfaceLanguage,
-    recordSubjectBehavior: stored.recordSubjectBehavior === 'remember-last' || stored.recordSubjectBehavior === 'confirm'
-      ? stored.recordSubjectBehavior
-      : defaultAccountPreferences.recordSubjectBehavior
+    interfaceLanguage: stored.interfaceLanguage === 'zh-CN' ? stored.interfaceLanguage : defaultAccountPreferences.interfaceLanguage
   }
 }
 

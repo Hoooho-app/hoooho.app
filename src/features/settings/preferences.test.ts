@@ -8,34 +8,26 @@ import {
   nextCareModePreferences
 } from './preferences'
 
-test('account preferences are isolated by the real account id', () => {
-  const accounts = {
-    'account-a': {
-      ...defaultAccountPreferences,
-      recordSubjectBehavior: 'remember-last' as const
-    }
-  }
-
-  assert.equal(getAccountPreferences(accounts, 'account-a').recordSubjectBehavior, 'remember-last')
+test('account preferences use supported defaults for an unknown account', () => {
+  const accounts = { 'account-a': { ...defaultAccountPreferences } }
   assert.deepEqual(getAccountPreferences(accounts, 'account-b'), defaultAccountPreferences)
 })
 
 test('legacy account fields are ignored without changing supported preferences', () => {
-  const obsoletePreference = ['home', 'Default', 'View'].join('')
+  const obsoleteHomePreference = ['home', 'Default', 'View'].join('')
+  const obsoleteRecordPreference = ['record', 'Subject', 'Behavior'].join('')
   const accounts = {
     'account-a': {
       interfaceLanguage: 'zh-CN' as const,
-      recordSubjectBehavior: 'remember-last' as const,
-      [obsoletePreference]: { mode: 'all' }
+      [obsoleteHomePreference]: { mode: 'all' },
+      [obsoleteRecordPreference]: 'confirm'
     }
   }
 
   const preferences = getAccountPreferences(accounts, 'account-a')
-  assert.deepEqual(preferences, {
-    interfaceLanguage: 'zh-CN',
-    recordSubjectBehavior: 'remember-last'
-  })
-  assert.equal(Object.hasOwn(preferences, obsoletePreference), false)
+  assert.deepEqual(preferences, { interfaceLanguage: 'zh-CN' })
+  assert.equal(Object.hasOwn(preferences, obsoleteHomePreference), false)
+  assert.equal(Object.hasOwn(preferences, obsoleteRecordPreference), false)
 })
 
 test('care mode applies defaults once and preserves detailed choices after disabling', () => {
