@@ -1,7 +1,7 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { BottomSheetSurface, EmptyState, HealthCard, HohoButton, HohoSurfaceRow, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
+import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
@@ -13,10 +13,8 @@ import { healthEventService } from '../../services/healthEvents'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import { useSettingsStore } from '../../store/useSettingsStore'
 import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
-import { getAccountPreferences } from '../../features/settings/preferences'
 import { FirstUseHome } from './FirstUseHome'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
@@ -79,18 +77,14 @@ export function filterEvents(events: HealthEventListItemViewModel[], filters: He
 export function HealthEventsPage() {
   const navigate = useNavigate()
   const token = useAppStore((state) => state.authToken)
-  const accountId = useAppStore((state) => state.authUser?.id)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const addMember = useAppStore((state) => state.addMember)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
-  const accounts = useSettingsStore((state) => state.accounts)
-  const preferences = getAccountPreferences(accounts, accountId)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
-  const [recordSubjectOpen, setRecordSubjectOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
@@ -148,11 +142,6 @@ export function HealthEventsPage() {
   }
 
   const beginNewRecord = () => {
-    if (state.status !== 'success') return
-    if (preferences.recordSubjectBehavior === 'confirm' && state.data.memberDtos.length > 1) {
-      setRecordSubjectOpen(true)
-      return
-    }
     void createEmptyEvent()
   }
 
@@ -305,14 +294,6 @@ export function HealthEventsPage() {
         <Plus size={30} strokeWidth={1.8} />
       </button>
 
-      <BottomSheetSurface label="确认记录对象" onClose={() => setRecordSubjectOpen(false)} open={recordSubjectOpen} title="这次为谁记录？">
-        <div className="settings-choice-list">
-          {state.status === 'success' && state.data.memberDtos.map((member) => {
-            const adapted = state.data.members.find((item) => item.id === member.id)
-            return <HohoSurfaceRow key={member.id} description={adapted?.relation} onActivate={() => { setRecordSubjectOpen(false); void createEmptyEvent(member) }} title={member.name} />
-          })}
-        </div>
-      </BottomSheetSurface>
       <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
     </main>
   )

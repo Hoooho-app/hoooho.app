@@ -12,6 +12,7 @@ const firstUseSource = readFileSync(new URL('./FirstUseHome.tsx', import.meta.ur
 const settingsSource = readFileSync(new URL('../Settings/index.tsx', import.meta.url), 'utf8')
 const preferencesSource = readFileSync(new URL('../../features/settings/preferences.ts', import.meta.url), 'utf8')
 const timelineSource = readFileSync(new URL('../../components/health/HealthEventTimeline.tsx', import.meta.url), 'utf8')
+const helpSource = readFileSync(new URL('../../features/help/articles.ts', import.meta.url), 'utf8')
 
 test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前人物"/)
@@ -40,6 +41,41 @@ test('个性化设置不再提供跨人物首页范围且偏好层不再声明�
   assert.equal(settingsSource.includes(obsoleteAllLabel), false)
   assert.equal(settingsSource.includes(obsoletePreference), false)
   assert.equal(preferencesSource.includes(obsoletePreference), false)
+})
+
+test('普通健康事件页直接为当前人物创建记录且不再二次确认', () => {
+  const obsoleteNames = [
+    ['record', 'Subject', 'Open'].join(''),
+    ['record', 'Subject', 'Behavior'].join(''),
+    ['Record', 'Subject', 'Behavior'].join(''),
+    ['确认', '记录对象'].join(''),
+    ['这次', '为谁记录'].join(''),
+    ['使用', '习惯'].join(''),
+    ['新建', '记录时'].join(''),
+    ['每次', '确认记录对象'].join(''),
+    ['记住', '上次选择'].join(''),
+    ['避免把健康记录', '记错人'].join('')
+  ]
+
+  obsoleteNames.forEach((name) => {
+    assert.equal(pageSource.includes(name), false)
+    assert.equal(settingsSource.includes(name), false)
+    assert.equal(preferencesSource.includes(name), false)
+  })
+  assert.match(pageSource, /const createEmptyEvent = async \(member = currentMemberDto\)/)
+  assert.match(pageSource, /memberId: member\.id/)
+  assert.match(pageSource, /const beginNewRecord = \(\) => \{\s*void createEmptyEvent\(\)\s*\}/s)
+  assert.doesNotMatch(pageSource, /<BottomSheetSurface|<HohoSurfaceRow/)
+  assert.match(pageSource, /onClick=\{beginNewRecord\}/)
+})
+
+test('帮助说明指向顶部当前人物且首次使用页保留必要的起始对象选择', () => {
+  assert.match(helpSource, /从健康事件首页为当前人物开始记录/)
+  assert.match(helpSource, /确认顶部显示的是正确人物/)
+  assert.doesNotMatch(helpSource, /选择记录对象并描述情况|确认记录对象并描述情况/)
+  assert.match(firstUseSource, /title="这件事发生在谁身上？"/)
+  assert.match(firstUseSource, /title="我自己"/)
+  assert.match(firstUseSource, /title="家人"/)
 })
 
 test('新增健康事件按钮恢复主绿色单色样式', () => {

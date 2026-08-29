@@ -16,8 +16,7 @@ import {
 } from '../../features/settings/permissions'
 import {
   getAccountPreferences,
-  type CarePreferences,
-  type RecordSubjectBehavior
+  type CarePreferences
 } from '../../features/settings/preferences'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
@@ -119,7 +118,7 @@ export function SettingsPage() {
     <SettingsLayout title="设置">
       <SettingsGroup>
         <HohoSurfaceRow
-          description="记录习惯与外观"
+          description="外观与显示"
           leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>}
           onActivate={() => navigate('/settings/personalization')}
           title="个性化"
@@ -170,39 +169,14 @@ export function SettingsPage() {
   )
 }
 
-type PersonalizationChoice = 'record' | null
-
 export function PersonalizationSettingsPage() {
-  const accountId = useAppStore((state) => state.authUser?.id)
-  const accounts = useSettingsStore((state) => state.accounts)
-  const setAccountPreferences = useSettingsStore((state) => state.setAccountPreferences)
-  const preferences = getAccountPreferences(accounts, accountId)
-  const [choice, setChoice] = useState<PersonalizationChoice>(null)
-  const recordOptions: ChoiceOption<RecordSubjectBehavior>[] = [
-    { label: '每次确认记录对象', description: '家人较多时，新增记录前先确认', value: 'confirm' },
-    { label: '记住上次选择', description: '直接使用最近查看的家人', value: 'remember-last' }
-  ]
-
   return (
     <SettingsLayout title="个性化">
-      <SettingsGroup title="使用习惯">
-        <HohoSurfaceRow description="避免把健康记录记错人" onActivate={() => setChoice('record')} title="新建记录时" value={preferences.recordSubjectBehavior === 'confirm' ? '每次确认记录对象' : '记住上次选择'} />
-      </SettingsGroup>
-
       <SettingsGroup title="外观">
         <HohoSurfaceRow description="当前产品仅完整支持浅色界面" title="外观模式" value="浅色" />
       </SettingsGroup>
 
       <p className="settings-note px-2">家庭成员的头像与资料，请在对应成员页面修改。</p>
-
-      <ChoiceSheet
-        onClose={() => setChoice(null)}
-        onSelect={(value) => accountId && setAccountPreferences(accountId, { recordSubjectBehavior: value })}
-        open={choice === 'record'}
-        options={recordOptions}
-        selected={preferences.recordSubjectBehavior}
-        title="新建记录时"
-      />
     </SettingsLayout>
   )
 }
