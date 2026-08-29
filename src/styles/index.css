@@ -435,6 +435,150 @@
     right: var(--hoho-page-gutter);
     bottom: max(var(--hoho-space-6), env(safe-area-inset-bottom));
   }
+  .health-events-view-actions {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--hoho-space-1);
+  }
+
+  .health-events-view-switcher {
+    display: grid;
+    grid-template-columns: repeat(2, 40px);
+    gap: 2px;
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-surface-subtle));
+    padding: 2px;
+  }
+
+  .health-events-view-switcher button {
+    display: grid;
+    min-height: 40px;
+    place-items: center;
+    border-radius: calc(var(--hoho-radius-control) - 3px);
+    color: rgb(var(--hoho-color-text-secondary));
+    transition: background-color 180ms var(--hoho-ease-emphasized), color 180ms var(--hoho-ease-emphasized), box-shadow 180ms var(--hoho-ease-emphasized);
+  }
+
+  .health-events-view-switcher button[data-selected='true'] {
+    background: rgb(var(--hoho-color-primary-soft));
+    box-shadow: inset 0 0 0 1px rgb(var(--hoho-color-primary) / 0.08);
+    color: rgb(var(--hoho-color-primary));
+  }
+
+  .health-events-view-switcher button:focus-visible {
+    outline: 2px solid rgb(var(--hoho-color-primary) / 0.35);
+    outline-offset: 1px;
+  }
+
+  .nurse-triage-recorder {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--hoho-space-3) 0 calc(var(--hoho-space-8) + env(safe-area-inset-bottom));
+  }
+
+  .nurse-triage-desk {
+    position: relative;
+    width: 76%;
+    max-width: 340px;
+    aspect-ratio: 498 / 442;
+    flex: none;
+    overflow: hidden;
+    margin: var(--hoho-space-2) auto 0;
+    background: rgb(var(--hoho-color-background));
+    isolation: isolate;
+  }
+
+  .nurse-triage-desk__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    filter: brightness(calc(1 + (var(--nurse-audio-level, 0) * 0.012)));
+    transform: translateY(2px) scale(0.995);
+    transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1), filter 240ms linear;
+  }
+
+  .nurse-triage-desk__image[data-active='true'] {
+    z-index: 1;
+    opacity: 1;
+    transform: none;
+  }
+
+  .nurse-triage-status {
+    display: grid;
+    min-height: 72px;
+    align-content: start;
+    gap: var(--hoho-space-2);
+    margin-top: var(--hoho-space-6);
+    text-align: center;
+  }
+
+  .nurse-triage-status h3 {
+    margin: 0;
+    color: rgb(var(--hoho-color-text-primary));
+    font: 600 var(--hoho-font-size-section-title) / var(--hoho-line-height-section-title) var(--hoho-font-family);
+    letter-spacing: -0.015em;
+  }
+
+  .nurse-triage-status p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .nurse-triage-recorder > .hoho-status-notice {
+    margin: 0 0 var(--hoho-space-3);
+  }
+
+  .nurse-triage-transcript-card {
+    display: grid;
+    gap: var(--hoho-space-2);
+    margin-bottom: var(--hoho-space-3);
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-card);
+    background: rgb(var(--hoho-color-surface));
+    padding: var(--hoho-space-3);
+    box-shadow: var(--hoho-shadow-card);
+  }
+
+  .nurse-triage-transcript-card > span {
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+  }
+
+  .nurse-triage-transcript-card textarea {
+    min-height: 92px;
+    resize: vertical;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: rgb(var(--hoho-color-text-primary));
+    font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+  }
+
+  .nurse-triage-transcript-card:focus-within {
+    border-color: rgb(var(--hoho-color-primary) / 0.45);
+    box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.09);
+  }
+
+  .nurse-triage-actions {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: var(--hoho-space-2);
+    min-height: 44px;
+  }
   .hoho-health-events-page .health-events-member,
   .hoho-health-events-page .health-events-content { width: calc(100% - 32px); margin-inline: auto; }
   .hoho-health-events-page .health-events-content { padding-inline: 0; }
@@ -584,4 +728,5 @@
 @media (prefers-reduced-motion: reduce) {
   html:focus-within { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .nurse-triage-desk__image { transform: none; transition: opacity 90ms linear !important; }
 }

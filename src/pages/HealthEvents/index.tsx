@@ -1,5 +1,5 @@
-import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, ClipboardList, Ellipsis, Filter, List, Plus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
@@ -8,14 +8,20 @@ import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
+import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
 import { healthEventService } from '../../services/healthEvents'
+import { healthEventRecordService } from '../../services/healthEventRecords'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
 import { FirstUseHome } from './FirstUseHome'
+import { NurseTriageRecorder } from './NurseTriageRecorder'
+import { preloadNurseTriageAssets } from './NurseTriageDesk'
+import { shouldShowHealthEventFilters, type HealthEventsViewMode } from './nurseTriageMachine'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -81,12 +87,29 @@ export function HealthEventsPage() {
   const addMember = useAppStore((state) => state.addMember)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
+  const carePreferences = useSettingsStore((state) => state.care)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [viewMode, setViewMode] = useState<HealthEventsViewMode>('list')
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false)
+  const pendingTriageEventRef = useRef<{ eventId: string; memberId: string } | null>(null)
+
+  useEffect(() => {
+    preloadNurseTriageAssets()
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updatePreference = () => setSystemReducedMotion(mediaQuery.matches)
+    updatePreference()
+    mediaQuery.addEventListener('change', updatePreference)
+    return () => mediaQuery.removeEventListener('change', updatePreference)
+  }, [])
+
+  useEffect(() => {
+    if (viewMode === 'triage') setFilterOpen(false)
+  }, [viewMode])
 
   const currentMember = state.status === 'success'
     ? state.data.members.find((member) => member.id === currentMemberId) ?? null
@@ -107,6 +130,7 @@ export function HealthEventsPage() {
   const visibleEvents = activeYear === null
     ? filteredEvents
     : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
+  const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
 
   const selectYear = (year: number) => {
     setSelectedYear(year)
@@ -184,6 +208,36 @@ export function HealthEventsPage() {
     }
   }
 
+  const saveTriageRecord = async (transcript: string, occurredAt: string) => {
+    if (!token || !currentMemberDto || currentMemberDto.id !== currentMemberId) throw new Error('当前人物信息尚未准备好，请稍后重试。')
+    try {
+      let pending = pendingTriageEventRef.current
+      if (!pending || pending.memberId !== currentMemberDto.id) {
+        const event = await healthEventService.create({
+          memberId: currentMemberDto.id,
+          title: normalizeHealthEventTitle('', transcript),
+          category: 'other',
+          startTime: occurredAt
+        }, token)
+        pending = { eventId: event.id, memberId: currentMemberDto.id }
+        pendingTriageEventRef.current = pending
+      }
+      await healthEventRecordService.create(pending.eventId, {
+        type: 'note',
+        content: transcript,
+        occurredAt
+      }, token)
+      pendingTriageEventRef.current = null
+      void retry()
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        throw new Error('登录状态已失效，请重新登录。')
+      }
+      throw requestError
+    }
+  }
+
   if (state.status === 'success' && (state.data.entryState.familyMemberCount === 0 || !state.data.entryState.hasValidHealthRecord)) {
     return (
       <FirstUseHome
@@ -207,21 +261,33 @@ export function HealthEventsPage() {
 
       <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
-          <div className="flex min-h-11 items-center justify-between">
+          <div className="flex min-h-11 items-center justify-between gap-2">
             <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>
-            <button
-              className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
-              type="button"
-              aria-label="筛选事件列表"
-              onClick={() => setFilterOpen(true)}
-            >
-              <Filter size={17} strokeWidth={1.8} />
-              筛选
-              {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-            </button>
+            <div className="health-events-view-actions">
+              {shouldShowHealthEventFilters(viewMode) && (
+                <button
+                  className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-2.5 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
+                  type="button"
+                  aria-label="筛选事件列表"
+                  onClick={() => setFilterOpen(true)}
+                >
+                  <Filter size={17} strokeWidth={1.8} />
+                  筛选
+                  {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                </button>
+              )}
+              <div aria-label="健康事件查看方式" className="health-events-view-switcher" role="group">
+                <button aria-label="列表视图" aria-pressed={viewMode === 'list'} data-selected={viewMode === 'list'} onClick={() => setViewMode('list')} type="button">
+                  <List aria-hidden="true" size={20} strokeWidth={1.8} />
+                </button>
+                <button aria-label="智能记录视图" aria-pressed={viewMode === 'triage'} data-selected={viewMode === 'triage'} onClick={() => setViewMode('triage')} type="button">
+                  <Ellipsis aria-hidden="true" size={22} strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {state.status === 'success' && years.length > 0 && (
+          {viewMode === 'list' && state.status === 'success' && years.length > 0 && (
             <div
               className="hoho-year-tabs health-events-year-tabs"
               role="tablist"
@@ -246,15 +312,15 @@ export function HealthEventsPage() {
             </div>
           )}
         </div>
-        {state.status === 'loading' && (
+        {viewMode === 'list' && state.status === 'loading' && (
           <ListSkeleton rows={3} />
         )}
 
-        {state.status === 'error' && (
+        {viewMode === 'list' && state.status === 'error' && (
           <StatusNotice action={<HohoButton size="small" variant="secondary" onClick={retry}>重新加载</HohoButton>} title="健康事件加载失败" tone="error">{state.message}</StatusNotice>
         )}
 
-        {state.status === 'success' && memberEvents.length === 0 && (
+        {viewMode === 'list' && state.status === 'success' && memberEvents.length === 0 && (
           <HealthCard className="flex min-h-[360px] items-center justify-center">
             <EmptyState
               action={<HohoButton disabled={creating} onClick={beginNewRecord}>
@@ -268,11 +334,11 @@ export function HealthEventsPage() {
           </HealthCard>
         )}
 
-        {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
+        {viewMode === 'list' && state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
           <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
         )}
 
-        {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
+        {viewMode === 'list' && state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
           <HealthCard>
             <EmptyState
               action={<HohoButton variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</HohoButton>}
@@ -281,10 +347,19 @@ export function HealthEventsPage() {
             />
           </HealthCard>
         )}
-        {createError && <p className="mt-3 text-center text-xs text-danger">{createError}</p>}
+        {viewMode === 'triage' && (
+          <NurseTriageRecorder
+            currentMemberId={currentMemberId}
+            disabled={!token || !currentMemberDto}
+            key={currentMemberId}
+            onSave={saveTriageRecord}
+            reducedMotion={reducedMotion}
+          />
+        )}
+        {viewMode === 'list' && createError && <p className="mt-3 text-center text-xs text-danger">{createError}</p>}
       </div>
 
-      <button
+      {viewMode === 'list' && <button
         className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="新增健康事件"
@@ -292,7 +367,7 @@ export function HealthEventsPage() {
         onClick={beginNewRecord}
       >
         <Plus size={30} strokeWidth={1.8} />
-      </button>
+      </button>}
 
       <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
     </main>

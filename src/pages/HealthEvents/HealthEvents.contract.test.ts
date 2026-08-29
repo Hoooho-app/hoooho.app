@@ -13,6 +13,8 @@ const settingsSource = readFileSync(new URL('../Settings/index.tsx', import.meta
 const preferencesSource = readFileSync(new URL('../../features/settings/preferences.ts', import.meta.url), 'utf8')
 const timelineSource = readFileSync(new URL('../../components/health/HealthEventTimeline.tsx', import.meta.url), 'utf8')
 const helpSource = readFileSync(new URL('../../features/help/articles.ts', import.meta.url), 'utf8')
+const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
+const nurseRecorderSource = readFileSync(new URL('./NurseTriageRecorder.tsx', import.meta.url), 'utf8')
 
 test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前人物"/)
@@ -30,6 +32,39 @@ test('健康事件首页始终使用当前人物范围、紧凑标题和左对�
   assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
   assert.match(stylesSource, /\.health-events-list-title\s*{[^}]*var\(--hoho-font-size-card-title\)/s)
   assert.match(stylesSource, /\.health-events-year-tabs \.hoho-year-tabs__item\s*{[^}]*flex-grow:\s*0[^}]*text-align:\s*left/s)
+})
+
+test('同一健康事件页提供纯 Icon 查看切换且智能记录视图隐藏筛选', () => {
+  assert.match(pageSource, /aria-label="列表视图"/)
+  assert.match(pageSource, /aria-label="智能记录视图"/)
+  assert.match(pageSource, /shouldShowHealthEventFilters\(viewMode\)/)
+  assert.match(pageSource, /viewMode === 'triage'[^]*<NurseTriageRecorder/s)
+  assert.doesNotMatch(pageSource, /智能模式|护士模式|陪伴模式/)
+})
+
+test('护士记录严格绑定当前人物并走真实事件和记录保存接口', () => {
+  assert.match(pageSource, /currentMemberDto\.id !== currentMemberId/)
+  assert.match(pageSource, /memberId: currentMemberDto\.id/)
+  assert.match(pageSource, /title: normalizeHealthEventTitle\('', transcript\)/)
+  assert.match(pageSource, /healthEventRecordService\.create\(pending\.eventId/)
+  assert.match(pageSource, /void retry\(\)/)
+  assert.doesNotMatch(pageSource, /mock/i)
+})
+
+test('护士状态资产预加载、固定画框、清理计时器并支持 Reduced Motion', () => {
+  assert.match(nurseDeskSource, /preloadNurseTriageAssets/)
+  assert.match(nurseDeskSource, /Object\.values\(nurseTriageAssets\)/)
+  assert.match(nurseDeskSource, /document\.addEventListener\('visibilitychange'/)
+  assert.match(nurseDeskSource, /window\.clearTimeout\(nextTimer\)/)
+  assert.match(nurseRecorderSource, /prefers-reduced-motion|reducedMotion/)
+  assert.match(pageStylesSource, /\.nurse-triage-desk\s*{[^}]*aspect-ratio:\s*498\s*\/\s*442/s)
+})
+
+test('麦克风失败提供文字输入且保存成功后不自动切回列表', () => {
+  assert.match(nurseRecorderSource, /navigator\.mediaDevices\.getUserMedia/)
+  assert.match(nurseRecorderSource, /aria-label="原始转写"/)
+  assert.match(nurseRecorderSource, /move\('saveSucceeded'\)/)
+  assert.doesNotMatch(nurseRecorderSource, /setViewMode\('list'\)/)
 })
 
 test('个性化设置不再提供跨人物首页范围且偏好层不再声明该字段', () => {
