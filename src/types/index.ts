@@ -38,6 +38,11 @@ export interface AuthSession {
   user: AuthUser
 }
 
+export interface AccountEntryState {
+  familyMemberCount: number
+  hasValidHealthRecord: boolean
+}
+
 export type ApiMemberRelationship = 'self' | 'child' | 'parent' | 'spouse' | 'other'
 export type ApiMemberGender = 'male' | 'female' | 'undisclosed' | null
 
@@ -94,13 +99,16 @@ export interface HealthEventSummaryResult {
 
 export interface HealthEventSummaryTag {
   label: string
-  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement'
+  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement' | 'change'
   source: 'doctor_statement' | 'test_result' | 'ai_consultation' | 'user_report' | 'measurement'
   certainty: 'confirmed' | 'suspected' | null
   priority: number
+  sourceRecordId?: string | null
+  factUpdatedAt?: string | null
 }
 
 export interface HealthEventSummaryApiDto {
+  aggregationVersion?: number
   systemGenerated: HealthEventSummaryResult
   userCorrection: { title: string; summary: string; updatedAt: string } | null
   displayedResult: HealthEventSummaryResult
@@ -112,7 +120,8 @@ export interface HealthEventListItemViewModel {
   memberId: string
   memberName: string
   title: string
-  summary: string | null
+  definitionTitle: string
+  quickFacts: string[]
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string
@@ -140,6 +149,30 @@ export interface CreateHealthEventRecordInput {
   occurredAt: string
   attachments?: CreateEventAttachmentInput[]
   bodyLocations?: string[]
+}
+
+export type OnlineConsultationStatus = 'preparing' | 'waiting' | 'doctor_questions' | 'completed'
+
+export interface OnlineConsultationQuestionApiDto {
+  id: string
+  question: string
+  reply: string
+  missing: string[]
+  sources: string[]
+  supplements: string[]
+  createdAt: string
+}
+
+export interface OnlineConsultationApiDto {
+  id: string
+  accountId: string
+  eventId: string
+  status: OnlineConsultationStatus
+  questions: OnlineConsultationQuestionApiDto[]
+  finalDoctorInstructions: string | null
+  finalRecordId: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateEventAttachmentInput {

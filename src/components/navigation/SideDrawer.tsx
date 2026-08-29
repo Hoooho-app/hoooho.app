@@ -43,6 +43,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const member = useCurrentMember()
+  const members = useAppStore((state) => state.members)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
@@ -58,6 +59,10 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
 
   const openPage = (to: string) => {
     onClose()
+    if (members.length === 0 && to === '/health-profile') {
+      navigate('/health-events', { replace: true })
+      return
+    }
     if (to === '/login') clearAuthSession()
     navigate(to, to === '/feedback' ? {
       state: makeFeedbackState(
@@ -84,17 +89,26 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         </button>
 
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
-          <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的基本信息`} onClick={() => openPage(`/family/${encodeURIComponent(member.id)}/edit`)}>
-            <Avatar name={member.name} src={member.avatar} size="md" />
-            <span className="min-w-0 flex-1">
-              <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
-              <span className="mt-1 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
-            </span>
-            <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
-          </button>
-          <button className="hoho-drawer__switch mt-1 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
-            切换人物
-          </button>
+          {members.length > 0 ? (
+            <>
+              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的基本信息`} onClick={() => openPage(`/family/${encodeURIComponent(member.id)}/edit`)}>
+                <Avatar name={member.name} src={member.avatar} size="md" />
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
+                  <span className="mt-1 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
+                </span>
+                <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
+              </button>
+              <button className="hoho-drawer__switch mt-1 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
+                切换人物
+              </button>
+            </>
+          ) : (
+            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => openPage('/family/new')}>
+              <span><strong className="block text-base font-semibold text-heading">尚未添加家人</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
+              <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
+            </button>
+          )}
         </section>
 
         <nav className="mt-5 flex-1 space-y-5" aria-label="侧边栏导航">

@@ -34,10 +34,7 @@ test('手机号验证码可以完成注册登录并且验证码仅可使用一�
     assert.equal(session.user.phone, '13812345678')
     assert.equal(session.token.split('.').length, 3)
     const members = await context.service.members.findByAccountId(session.user.id)
-    assert.equal(members.length, 1)
-    assert.equal(members[0].name, '我')
-    assert.equal(members[0].relationship, 'self')
-    assert.equal(members[0].isSelf, true)
+    assert.equal(members.length, 0)
 
     await assert.rejects(
       context.service.login('13812345678', '123456', 3_000),
@@ -121,7 +118,7 @@ test('Vite 同源 API 可以完成发送验证码与登录', async () => {
   }
 })
 
-test('邮箱验证码会标准化邮箱、首次自动注册并创建本人档案', async () => {
+test('邮箱验证码会标准化邮箱并首次自动注册，但不会伪造本人档案', async () => {
   const context = await createService()
   try {
     const result = await context.service.sendEmailCode(' Test.User@Example.COM ', 1_000)
@@ -134,8 +131,7 @@ test('邮箱验证码会标准化邮箱、首次自动注册并创建本人档�
     assert.equal(session.user.email, 'test.user@example.com')
     assert.equal(session.user.phone, undefined)
     const members = await context.service.members.findByAccountId(session.user.id)
-    assert.equal(members.length, 1)
-    assert.equal(members[0].name, '我')
+    assert.equal(members.length, 0)
     assert.equal(context.messages.some((message) => message.includes('123456')), false)
     assert.equal(context.messages.some((message) => message.includes('Test.User')), false)
   } finally {

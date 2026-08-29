@@ -22,3 +22,8 @@ test('首次添加家人页面将出生信息精度合并到出生日期字段',
   assert.equal(pageSource.includes('填写出生年份即可，系统将计算大致年龄'), false)
   assert.equal(pageSource.includes('placeholder="例如：1990"'), false)
 })
+
+test('首次添加家人允许跳过且使用路由替换进入兜底首页', () => {
+  assert.match(pageSource, /跳过，稍后再添加/)
+  assert.match(pageSource, /navigate\('\/health-events', \{ replace: true \}\)/)
+})

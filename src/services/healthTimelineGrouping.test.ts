@@ -82,3 +82,17 @@ test('occurredAt 相同时按 createdAt 和 id 稳定切换完整条目顺序', 
     'record-c'
   ])
 })
+
+test('详情时间线按指定用户时区的自然日与年份分组', () => {
+  const timeline = [
+    entry('before-midnight', '2026-08-27T15:59:59.000Z', '午夜前', '23:59'),
+    entry('after-midnight', '2026-08-27T16:00:00.000Z', '午夜后', '00:00')
+  ]
+  const groups = sortAndGroupTimeline(timeline, 'desc', 'Asia/Shanghai')
+
+  assert.equal(groups[0]?.year, 2026)
+  assert.deepEqual(groups[0]?.dates.map(({ date, entries }) => [date, entries.map(({ id }) => id)]), [
+    ['8月28日', ['after-midnight']],
+    ['8月27日', ['before-midnight']]
+  ])
+})

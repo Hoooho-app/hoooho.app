@@ -1,5 +1,6 @@
 import type { TimelineEntry } from '../types'
 import { formatHealthTimelineDate } from '../utils/formatHealthTimePeriod'
+import { getLocalCalendarParts } from '../utils/localCalendarDate'
 import { compareHealthChronologyAsc, compareHealthChronologyDesc } from './healthChronology'
 
 export type TimelineOrder = 'desc' | 'asc'
@@ -33,16 +34,18 @@ export function sortTimelineEntries(
 
 export function sortAndGroupTimeline(
   timeline: readonly TimelineEntry[],
-  order: TimelineOrder
+  order: TimelineOrder,
+  timeZone?: string
 ): TimelineYearGroup[] {
-  return groupTimelineByYearAndDate(sortTimelineEntries(timeline, order))
+  return groupTimelineByYearAndDate(sortTimelineEntries(timeline, order), timeZone)
 }
 
-export function groupTimelineByYearAndDate(timeline: TimelineEntry[]): TimelineYearGroup[] {
+export function groupTimelineByYearAndDate(timeline: TimelineEntry[], timeZone?: string): TimelineYearGroup[] {
   return timeline.reduce<TimelineYearGroup[]>((years, entry) => {
-    const parsedTime = new Date(entry.time)
-    const year = parsedTime.getFullYear()
-    const date = formatHealthTimelineDate(entry.time)
+    const parts = getLocalCalendarParts(entry.time, timeZone)
+    if (!parts) return years
+    const year = parts.year
+    const date = formatHealthTimelineDate(entry.time, timeZone)
     const currentYear = years[years.length - 1]
 
     if (currentYear?.year !== year) {

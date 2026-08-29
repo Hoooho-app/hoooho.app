@@ -1,18 +1,19 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Camera, RefreshCw, Trash2, UserRound } from 'lucide-react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { CalendarDays, Trash2, UserRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Button, WebPageHeader } from '../../components/common'
+import { Button, WebPageHeader } from '../../components/common'
+import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { prepareAvatarPhoto } from '../../utils/prepareAvatarPhoto'
-import { createVirtualAvatarId, cycleVirtualAvatarId, parseVirtualAvatarId, remapVirtualAvatarId } from '../../utils/virtualAvatar'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
+import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
+import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
 
 type RequiredGender = Extract<ProfileGender, 'male' | 'female'>
-type AvatarMode = 'cartoon' | 'photo'
 const fieldClass = 'min-w-0 flex-1 bg-transparent text-right text-[15px] text-heading outline-none placeholder:text-text-secondary/70'
 
 export function EditFamilyMemberPage() {
@@ -25,6 +26,7 @@ export function EditFamilyMemberPage() {
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const setMembers = useAppStore((state) => state.setMembers)
   const setProfile = useAppStore((state) => state.setProfile)
+  const clearProfile = useAppStore((state) => state.clearProfile)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const cachedMember = members.find((item) => item.id === memberId)
 
@@ -33,14 +35,15 @@ export function EditFamilyMemberPage() {
   const [birthday, setBirthday] = useState(cachedMember?.birthday ?? '')
   const [gender, setGender] = useState<RequiredGender>(cachedMember?.gender === 'female' ? 'female' : 'male')
   const cachedAvatar = cachedMember?.avatar ?? ''
-  const [avatarMode, setAvatarMode] = useState<AvatarMode>(cachedAvatar && !parseVirtualAvatarId(cachedAvatar) ? 'photo' : 'cartoon')
-  const [cartoonAvatar, setCartoonAvatar] = useState(parseVirtualAvatarId(cachedAvatar) ? cachedAvatar : '')
-  const [photoAvatar, setPhotoAvatar] = useState(cachedAvatar && !parseVirtualAvatarId(cachedAvatar) ? cachedAvatar : '')
+  const cachedClayAvatar = parseClayAvatar(cachedAvatar)
+  const cachedIsPhoto = Boolean(cachedAvatar && !cachedClayAvatar && !parseVirtualAvatarId(cachedAvatar))
+  const [avatarMode, setAvatarMode] = useState<FamilyAvatarMode>(cachedIsPhoto ? 'photo' : 'cartoon')
+  const [avatarConfig, setAvatarConfig] = useState<ClayAvatarConfig | null>(cachedClayAvatar)
+  const [photoAvatar, setPhotoAvatar] = useState(cachedIsPhoto ? cachedAvatar : '')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
-  const photoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!token || !memberId) return
@@ -52,13 +55,19 @@ export function EditFamilyMemberPage() {
         setBirthday(member.birthday ?? '')
         setGender(member.gender === 'female' ? 'female' : 'male')
         const nextAvatar = member.avatar ?? ''
-        if (nextAvatar && !parseVirtualAvatarId(nextAvatar)) {
+        const nextClayAvatar = parseClayAvatar(nextAvatar)
+        if (nextAvatar && !nextClayAvatar && !parseVirtualAvatarId(nextAvatar)) {
           setAvatarMode('photo')
           setPhotoAvatar(nextAvatar)
-          setCartoonAvatar(member.birthday && member.gender ? createVirtualAvatarId(member.birthday, member.gender) : '')
+          if (member.birthday && (member.gender === 'male' || member.gender === 'female')) {
+            setAvatarConfig(createClayAvatarConfig(member.name, member.birthday, member.gender, member.id))
+          }
         } else {
           setAvatarMode('cartoon')
-          setCartoonAvatar(nextAvatar || (member.birthday && member.gender ? createVirtualAvatarId(member.birthday, member.gender) : ''))
+          if (nextClayAvatar) setAvatarConfig(nextClayAvatar)
+          else if (member.birthday && (member.gender === 'male' || member.gender === 'female')) {
+            setAvatarConfig(createClayAvatarConfig(member.name, member.birthday, member.gender, member.id))
+          }
           setPhotoAvatar('')
         }
       })
@@ -76,35 +85,9 @@ export function EditFamilyMemberPage() {
   }, [clearAuthSession, memberId, navigate, token])
 
   const age = useMemo(() => birthday ? formatAgeFromBirthday(birthday) : '', [birthday])
-  const previewCartoonAvatar = birthday ? remapVirtualAvatarId(cartoonAvatar || undefined, birthday, gender) : cartoonAvatar || undefined
-  const previewAvatar = avatarMode === 'photo' ? photoAvatar || undefined : previewCartoonAvatar
-
-  const changeCartoonAvatar = () => {
-    if (!birthday) {
-      setError('请先填写出生日期，再更换虚拟头像')
-      return
-    }
-    setCartoonAvatar(cycleVirtualAvatarId(previewCartoonAvatar, birthday, gender))
-    setError('')
-  }
-
-  const selectAvatarMode = (mode: AvatarMode) => {
-    setError('')
-    setAvatarMode(mode)
-  }
-
-  const selectPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    try {
-      setPhotoAvatar(await prepareAvatarPhoto(file))
-      setAvatarMode('photo')
-      setError('')
-    } catch (photoError) {
-      setError(photoError instanceof Error ? photoError.message : '照片处理失败，请重新选择')
-    }
-  }
+  const previewConfig = useMemo(() => avatarConfig && birthday
+    ? remapClayAvatarRole(avatarConfig, birthday, gender)
+    : avatarConfig, [avatarConfig, birthday, gender])
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -123,7 +106,7 @@ export function EditFamilyMemberPage() {
         name: name.trim(),
         birthday,
         gender,
-        avatar: previewAvatar ?? null
+        avatar: avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(previewConfig!)
       }, token)
       const adapted = adaptFamilyMember(saved)
       setMembers(members.map((member) => member.id === saved.id ? adapted : member))
@@ -147,8 +130,9 @@ export function EditFamilyMemberPage() {
       await familyMemberService.delete(memberId, token)
       const remaining = members.filter((member) => member.id !== memberId)
       setMembers(remaining)
+      if (sourceMember?.isSelf || remaining.length === 0) clearProfile()
       if (currentMemberId === memberId && remaining[0]) setCurrentMemberId(remaining[0].id)
-      navigate(remaining.length ? '/family' : '/onboarding/profile', { replace: true })
+      navigate(remaining.length ? '/family' : '/health-events', { replace: true })
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : '删除失败，请稍后重试')
     } finally {
@@ -164,44 +148,21 @@ export function EditFamilyMemberPage() {
         <p className="py-20 text-center text-sm text-text-secondary">正在加载基本信息…</p>
       ) : sourceMember ? (
         <form className="flex flex-1 flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-5" onSubmit={save}>
-          <div className="mx-auto flex flex-col items-center">
-            <button
-              aria-label={avatarMode === 'cartoon' ? '更换卡通头像' : photoAvatar ? '更换照片头像' : '上传照片头像'}
-              className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
-              type="button"
-              onClick={avatarMode === 'cartoon' ? changeCartoonAvatar : () => photoInputRef.current?.click()}
-            >
-              <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface p-0.5 shadow-card ${avatarMode === 'cartoon' ? '[&_img]:-translate-x-0.5 [&_img]:scale-[1.28]' : ''}`}>
-                {avatarMode === 'photo' && !photoAvatar ? (
-                  <span className="inline-flex h-28 w-28 items-center justify-center rounded-full bg-primary-soft text-primary">
-                    <Camera aria-hidden="true" size={34} strokeWidth={1.6} />
-                    <span className="sr-only">上传照片</span>
-                  </span>
-                ) : (
-                  <Avatar name={name || '角色'} src={previewAvatar} size="xl" />
-                )}
-              </span>
-              {(avatarMode === 'cartoon' || photoAvatar) && (
-                <span className="absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card">
-                  {avatarMode === 'cartoon' ? <RefreshCw size={18} strokeWidth={1.8} /> : <Camera size={18} strokeWidth={1.8} />}
-                </span>
-              )}
-            </button>
-            <input ref={photoInputRef} accept="image/jpeg,image/png,image/webp" className="hidden" type="file" onChange={(event) => void selectPhoto(event)} />
-            <div className="mt-3 grid w-48 grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface" aria-label="头像类型">
-              {([['cartoon', '卡通头像'], ['photo', '照片头像']] as const).map(([mode, label]) => (
-                <button
-                  aria-pressed={avatarMode === mode}
-                  className={`min-h-10 text-sm ${avatarMode === mode ? 'bg-primary-soft font-semibold text-primary' : 'text-text-secondary'}`}
-                  key={mode}
-                  type="button"
-                  onClick={() => selectAvatarMode(mode)}
-                >
-                  {label}
-                </button>
-              ))}
+          {previewConfig && (
+            <div className="mx-auto w-full max-w-sm">
+              <FamilyAvatarEditor
+                config={previewConfig}
+                disabled={submitting || deleting}
+                mode={avatarMode}
+                name={name || '角色'}
+                onConfigChange={setAvatarConfig}
+                onError={setError}
+                onModeChange={setAvatarMode}
+                onPhotoChange={setPhotoAvatar}
+                photo={photoAvatar}
+              />
             </div>
-          </div>
+          )}
 
           <section className="mt-7 overflow-hidden rounded-card border border-border-calm bg-surface px-4 shadow-calm" aria-label="基础信息">
             <label className="flex min-h-[66px] items-center gap-3 border-b border-border">
@@ -214,7 +175,7 @@ export function EditFamilyMemberPage() {
               <CalendarDays className="shrink-0 text-primary" size={21} strokeWidth={1.7} />
               <span className="text-sm font-medium">出生日期</span>
               <span className="ml-auto text-right">
-                <input className={`${fieldClass} block`} type="date" max={new Date().toISOString().slice(0, 10)} value={birthday} onChange={(event) => setBirthday(event.target.value)} />
+                <input className={`${fieldClass} block`} type="date" max={getLocalDateKey(new Date()) ?? undefined} value={birthday} onChange={(event) => setBirthday(event.target.value)} />
                 {age && <span className="mt-1 block text-[11px] text-text-secondary">系统自动计算：{age}</span>}
               </span>
             </label>
@@ -224,7 +185,7 @@ export function EditFamilyMemberPage() {
               <span className="text-sm font-medium">性别</span>
               <div className="ml-auto grid w-36 grid-cols-2 overflow-hidden rounded-control border border-border">
                 {([['male', '男'], ['female', '女']] as const).map(([value, label]) => (
-                  <button key={value} className={`min-h-10 text-sm ${gender === value ? 'bg-primary-soft font-semibold text-primary' : 'bg-surface text-text-secondary'}`} type="button" onClick={() => { setGender(value); if (birthday) setCartoonAvatar(remapVirtualAvatarId(cartoonAvatar || undefined, birthday, value)) }}>
+                  <button key={value} className={`min-h-10 text-sm ${gender === value ? 'bg-primary-soft font-semibold text-primary' : 'bg-surface text-text-secondary'}`} type="button" onClick={() => setGender(value)}>
                     {label}
                   </button>
                 ))}

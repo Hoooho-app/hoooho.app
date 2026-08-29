@@ -1,15 +1,23 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
-import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
+import { useEffect, useState } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { BottomSheetSurface, EmptyState, HealthCard, HohoButton, HohoSurfaceRow, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
+import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { healthEventService } from '../../services/healthEvents'
+import { familyMemberService } from '../../services/familyMembers'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
+import { useSettingsStore } from '../../store/useSettingsStore'
+import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
+import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
+import { getAccountPreferences } from '../../features/settings/preferences'
+import type { MemberSwitchResultState } from '../../components/navigation/navigationState'
+import { FirstUseHome } from './FirstUseHome'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -21,7 +29,7 @@ function HeaderActions({ onMessages }: { onMessages: () => void }) {
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
-function UserIdentity({ member }: { member: Member | null }) {
+function UserIdentity({ member, memberCount, viewingAll }: { member: Member | null; memberCount: number; viewingAll: boolean }) {
   const navigate = useNavigate()
 
   return (
@@ -30,73 +38,101 @@ function UserIdentity({ member }: { member: Member | null }) {
         action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
         })}>切换人物</button>}
-        age={member?.age ?? (member ? '' : '健康数据加载中')}
-        avatar={member?.avatar}
-        gender={member ? genderLabels[member.gender ?? ''] : ''}
-        label="当前家人"
-        name={member?.name ?? '家庭成员'}
+        age={viewingAll ? `${memberCount} 位家人` : member?.age ?? (member ? '' : '健康数据加载中')}
+        avatar={viewingAll ? undefined : member?.avatar}
+        gender={viewingAll ? '' : member ? genderLabels[member.gender ?? ''] : ''}
+        label="首页查看"
+        name={viewingAll ? '全部家人' : member?.name ?? '家庭成员'}
       />
+      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康事件”指一次不舒服、就诊或康复的完整过程。</p>
+      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，点击右下角的加号按钮。</p>
     </div>
   )
 }
 
 function hasActiveFilters(filters: HealthEventFilters) {
-  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.categories.length > 0
+  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.definitionTitles.length > 0
 }
 
-function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters) {
-  const now = new Date()
+export function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters, now = new Date()) {
   return events.filter((event) => {
     const eventDate = new Date(event.occurredAt)
+    const localDate = getLocalCalendarParts(eventDate)
+    const localDateKey = getLocalDateKey(eventDate)
+    if (!localDate || !localDateKey) return false
     if (filters.range === '7d' && eventDate < new Date(now.getTime() - 7 * 86_400_000)) return false
     if (filters.range === '30d' && eventDate < new Date(now.getTime() - 30 * 86_400_000)) return false
-    if (filters.range === 'year' && eventDate.getFullYear() !== now.getFullYear()) return false
+    if (filters.range === 'year' && localDate.year !== now.getFullYear()) return false
     if (filters.range === 'custom') {
-      if (filters.customStart && event.occurredAt.slice(0, 10) < filters.customStart) return false
-      if (filters.customEnd && event.occurredAt.slice(0, 10) > filters.customEnd) return false
+      if (filters.customStart && localDateKey < filters.customStart) return false
+      if (filters.customEnd && localDateKey > filters.customEnd) return false
     }
-    if (filters.year !== null && eventDate.getFullYear() !== filters.year) return false
-    if (filters.months.length > 0 && !filters.months.includes(eventDate.getMonth() + 1)) return false
+    if (filters.year !== null && localDate.year !== filters.year) return false
+    if (filters.months.length > 0 && !filters.months.includes(localDate.month)) return false
     const displayStatus = event.status === 'handling' ? 'observing' : event.status
     if (filters.statuses.length > 0 && !filters.statuses.includes(displayStatus)) return false
-    if (filters.categories.length > 0 && !filters.categories.includes(event.category)) return false
+    if (filters.definitionTitles.length > 0 && !filters.definitionTitles.includes(event.definitionTitle)) return false
     return true
   })
 }
 
 export function HealthEventsPage() {
   const navigate = useNavigate()
-  const profile = useAppStore((state) => state.profile)
+  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
+  const accountId = useAppStore((state) => state.authUser?.id)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const addMember = useAppStore((state) => state.addMember)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
+  const accounts = useSettingsStore((state) => state.accounts)
+  const preferences = getAccountPreferences(accounts, accountId)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [recordSubjectOpen, setRecordSubjectOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [viewScope] = useState(() => {
+    const switched = Boolean((location.state as MemberSwitchResultState | null)?.memberSwitchResult)
+    if (switched) return { mode: 'member' as const, memberId: currentMemberId }
+    return preferences.homeDefaultView
+  })
 
-  if (!profile) return <Navigate to="/onboarding/profile" replace />
+  const preferredMemberExists = state.status === 'success' && viewScope.mode === 'member'
+    ? state.data.members.some((member) => member.id === viewScope.memberId)
+    : false
+  const viewingAll = viewScope.mode === 'all' || !preferredMemberExists
+  const activeMemberId = viewingAll ? currentMemberId : viewScope.memberId
 
   const currentMember = state.status === 'success'
-    ? state.data.members.find((member) => member.id === currentMemberId) ?? state.data.members[0] ?? null
+    ? state.data.members.find((member) => member.id === activeMemberId) ?? state.data.members[0] ?? null
     : null
   const currentMemberDto = state.status === 'success'
     ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? state.data.memberDtos[0] ?? null
     : null
   const memberEvents = state.status === 'success'
     ? state.data.events.filter((event) => (
-        (!currentMemberDto || event.memberId === currentMemberDto.id)
+        (viewingAll || !currentMemberDto || event.memberId === currentMemberDto.id)
         && event.title.trim().length > 0
       ))
     : []
-  const years = [...new Set(memberEvents.map((event) => new Date(event.occurredAt).getFullYear()))].sort((left, right) => right - left)
+  const years = [...new Set(memberEvents
+    .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
+    .filter((year): year is number => year !== undefined))]
+    .sort((left, right) => right - left)
+  const definitionTitles = getHealthEventDefinitionTitleOptions(memberEvents)
   const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
   const filteredEvents = filterEvents(memberEvents, filters)
   const visibleEvents = activeYear === null
     ? filteredEvents
-    : filteredEvents.filter((event) => new Date(event.occurredAt).getFullYear() === activeYear)
+    : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
+
+  useEffect(() => {
+    if (state.status !== 'success' || viewingAll || currentMemberId === activeMemberId) return
+    if (state.data.members.some((member) => member.id === activeMemberId)) setCurrentMemberId(activeMemberId)
+  }, [activeMemberId, currentMemberId, setCurrentMemberId, state, viewingAll])
 
   const selectYear = (year: number) => {
     setSelectedYear(year)
@@ -108,17 +144,48 @@ export function HealthEventsPage() {
     if (nextFilters.year !== null) setSelectedYear(nextFilters.year)
   }
 
-  const createEmptyEvent = async () => {
-    if (!token || !currentMemberDto || creating) return
+  const createEmptyEvent = async (member = currentMemberDto) => {
+    if (!token || !member || creating) return
     setCreating(true)
     setCreateError('')
     try {
       const created = await healthEventService.create({
-        memberId: currentMemberDto.id,
+        memberId: member.id,
         title: '',
         category: 'other'
       }, token)
-      navigate(`/health-events/${created.id}`)
+      setCurrentMemberId(member.id)
+      navigate(`/health-events/${created.id}`, { state: { allowFirstRecord: true } })
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        return
+      }
+      setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const beginNewRecord = () => {
+    if (state.status !== 'success') return
+    if (preferences.recordSubjectBehavior === 'confirm' && state.data.memberDtos.length > 1) {
+      setRecordSubjectOpen(true)
+      return
+    }
+    void createEmptyEvent()
+  }
+
+  const createSelfAndRecord = async () => {
+    if (!token || creating) return
+    setCreating(true)
+    setCreateError('')
+    try {
+      const createdMember = await familyMemberService.createSelf({}, token)
+      addMember(adaptFamilyMember(createdMember))
+      const createdEvent = await healthEventService.create({ memberId: createdMember.id, title: '', category: 'other' }, token)
+      setCurrentMemberId(createdMember.id)
+      navigate(`/health-events/${createdEvent.id}`, { state: { allowFirstRecord: true } })
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -148,10 +215,26 @@ export function HealthEventsPage() {
     }
   }
 
+  if (state.status === 'success' && (state.data.entryState.familyMemberCount === 0 || !state.data.entryState.hasValidHealthRecord)) {
+    return (
+      <FirstUseHome
+        creating={creating}
+        error={createError}
+        members={state.data.memberDtos}
+        onAddFamily={(continueToRecord) => navigate('/family/new', {
+          state: { firstUseEntry: { continueToRecord, returnTo: '/health-events' } }
+        })}
+        onCreateSelf={() => void createSelfAndRecord()}
+        onOpenGuide={() => navigate('/guide')}
+        onSelectMember={(member: FamilyMemberApiDto) => void createEmptyEvent(member)}
+      />
+    )
+  }
+
   return (
     <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0">
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
-      <UserIdentity member={currentMember} />
+      <UserIdentity member={currentMember} memberCount={state.status === 'success' ? state.data.members.length : 0} viewingAll={viewingAll} />
 
       <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
@@ -205,11 +288,11 @@ export function HealthEventsPage() {
         {state.status === 'success' && memberEvents.length === 0 && (
           <HealthCard className="flex min-h-[360px] items-center justify-center">
             <EmptyState
-              action={<HohoButton disabled={creating} onClick={() => void createEmptyEvent()}>
+              action={<HohoButton disabled={creating} onClick={beginNewRecord}>
               <Plus size={19} strokeWidth={1.8} />
               {creating ? '正在开始记录…' : '记录一次健康事件'}
               </HohoButton>}
-              description={<>心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</>}
+              description={<><span className="care-standard-language">心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</span><span className="care-plain-language">身体不舒服时，把发生的事记下来。</span></>}
               icon={<ClipboardList size={28} strokeWidth={1.6} />}
               title="不舒服？记一下"
             />
@@ -217,7 +300,7 @@ export function HealthEventsPage() {
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
-          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
+          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} showMemberName={viewingAll} />
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
@@ -233,16 +316,24 @@ export function HealthEventsPage() {
       </div>
 
       <button
-        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full text-surface transition active:scale-95"
+        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="新增健康事件"
         disabled={creating || !currentMemberDto}
-        onClick={() => void createEmptyEvent()}
+        onClick={beginNewRecord}
       >
         <Plus size={30} strokeWidth={1.8} />
       </button>
 
-      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      <BottomSheetSurface label="确认记录对象" onClose={() => setRecordSubjectOpen(false)} open={recordSubjectOpen} title="这次为谁记录？">
+        <div className="settings-choice-list">
+          {state.status === 'success' && state.data.memberDtos.map((member) => {
+            const adapted = state.data.members.find((item) => item.id === member.id)
+            return <HohoSurfaceRow key={member.id} description={adapted?.relation} onActivate={() => { setRecordSubjectOpen(false); void createEmptyEvent(member) }} title={member.name} />
+          })}
+        </div>
+      </BottomSheetSurface>
+      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
     </main>
   )
 }

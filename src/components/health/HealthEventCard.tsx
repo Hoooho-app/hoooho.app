@@ -1,8 +1,8 @@
-import { CheckCircle2, ChevronRight, RotateCcw, Trash2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
-import { HealthCard, HealthTag, Typography } from '../design-system'
+import { HealthEventCardSurface } from './HealthEventCardSurface'
 
 const actionWidth = 148
 
@@ -10,9 +10,10 @@ interface HealthEventCardProps {
   event: HealthEventListItemViewModel
   onStatusChange?: (eventId: string, status: HealthEventStage) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
+  showMemberName?: boolean
 }
 
-export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEventCardProps) {
+export function HealthEventCard({ event, onStatusChange, onDelete, showMemberName = false }: HealthEventCardProps) {
   const navigate = useNavigate()
   const startX = useRef(0)
   const startTranslate = useRef(0)
@@ -20,8 +21,6 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
   const [translateX, setTranslateX] = useState(0)
   const [busy, setBusy] = useState(false)
   const isRecovered = event.status === 'recovered'
-  const statusLabel = isRecovered ? '已康复' : '观察中'
-  const statusTone = isRecovered ? 'success' : 'primary'
 
   const finishSwipe = () => {
     setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
@@ -75,7 +74,7 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       </div>
 
       <button
-        aria-label={`查看健康事件：${event.title}`}
+        aria-label={`查看健康事件：${event.definitionTitle}${event.quickFacts.length ? `，${event.quickFacts.join('，')}` : ''}`}
         className="relative block w-full touch-pan-y text-left transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${translateX}px)` }}
         type="button"
@@ -105,14 +104,15 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
         onPointerUp={finishSwipe}
         onPointerCancel={finishSwipe}
       >
-        <HealthCard interactive className="flex min-h-[96px] items-center gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <Typography className="line-clamp-1 break-words" variant="cardTitle">{event.title}</Typography>
-            {event.summary && <Typography className="line-clamp-2 break-words" variant="caption">{event.summary}</Typography>}
-            <div><HealthTag tone={statusTone}>{statusLabel}</HealthTag></div>
-          </div>
-          <ChevronRight className="shrink-0 text-[rgb(var(--hoho-color-text-weak))]" size={18} />
-        </HealthCard>
+        <HealthEventCardSurface
+          className={isRecovered ? 'health-event-list-card health-event-list-card--recovered' : 'health-event-list-card'}
+          definitionTitle={event.definitionTitle}
+          interactive
+          memberName={showMemberName ? event.memberName : undefined}
+          quickFacts={event.quickFacts}
+          showChevron
+          status={event.status}
+        />
       </button>
     </div>
   )

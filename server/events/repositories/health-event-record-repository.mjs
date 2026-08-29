@@ -42,6 +42,11 @@ export class HealthEventRecordRepository {
       .sort(compareRecords)
   }
 
+  async findByAccountId(accountId) {
+    const data = await this.#store.read()
+    return data.records.filter((record) => record.accountId === accountId)
+  }
+
   async update(id, changes, now = new Date()) {
     let updated = null
     await this.#store.update((data) => ({

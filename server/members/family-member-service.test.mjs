@@ -6,6 +6,7 @@ import test from 'node:test'
 import { createServer } from 'vite'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './vite-members-plugin.mjs'
+import { localDateKey } from '../time/local-calendar.mjs'
 
 const postJson = (url, body, token) => fetch(url, {
   method: 'POST',
@@ -19,6 +20,12 @@ const requestJson = (url, method, token, body) => fetch(url, {
   ...(body ? { body: JSON.stringify(body) } : {})
 })
 
+test('服务端纯日期上限按客户端有效时区的自然日计算', () => {
+  const instant = new Date('2026-08-27T16:00:00.000Z')
+  assert.equal(localDateKey(instant, 'Asia/Shanghai'), '2026-08-28')
+  assert.equal(localDateKey(instant, 'America/Los_Angeles'), '2026-08-27')
+})
+
 async function login(baseUrl, phone) {
   await postJson(`${baseUrl}/api/auth/send-code`, { phone })
   const response = await postJson(`${baseUrl}/api/auth/login`, { phone, code: '123456' })
@@ -26,7 +33,7 @@ async function login(baseUrl, phone) {
   return response.json()
 }
 
-test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () => {
+test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-members-api-'))
   const sharedOptions = { dataDirectory, tokenSecret: 'members-test-secret' }
   const server = await createServer({
@@ -53,31 +60,39 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     const initialList = await requestJson(`${baseUrl}/api/members`, 'GET', first.token)
     assert.equal(initialList.status, 200)
     const initialMembers = await initialList.json()
-    assert.equal(initialMembers.length, 1)
-    assert.equal(initialMembers[0].relationship, 'self')
-    assert.equal(initialMembers[0].isSelf, true)
+    assert.equal(initialMembers.length, 0)
+
+    const selfResponse = await postJson(`${baseUrl}/api/members/self`, {
+      name: '我', gender: 'female', birthday: '1990'
+    }, first.token)
+    assert.equal(selfResponse.status, 201)
+    const self = await selfResponse.json()
+    assert.equal(self.relationship, 'self')
+    assert.equal(self.isSelf, true)
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
-      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02'
+      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02',
+      avatar: 'clay:v1:boy:warm:brown-side-part:teal'
     }, first.token)
     assert.equal(createdResponse.status, 201)
     const child = await createdResponse.json()
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
+    assert.equal(child.avatar, 'clay:v1:boy:warm:brown-side-part:teal')
 
-    const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990'
     })
     assert.equal(yearOnlyResponse.status, 200)
     assert.equal((await yearOnlyResponse.json()).birthday, '1990')
 
-    const futureYearResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const futureYearResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: String(new Date().getUTCFullYear() + 1)
     })
     assert.equal(futureYearResponse.status, 400)
     assert.equal((await futureYearResponse.json()).error.code, 'INVALID_BIRTHDAY')
 
-    const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${initialMembers[0].id}`, 'PATCH', first.token, {
+    const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990-01'
     })
     assert.equal(incompleteDateResponse.status, 400)
@@ -102,6 +117,11 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(updated.bodyFatPercentage, 18.5)
     assert.equal(updated.headCircumferenceCm, 51)
     assert.equal(updated.rhBloodType, 'negative')
+
+    const clayAvatar = 'clay:v1:boy:warm:brown-side-part:teal'
+    const clayResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { avatar: clayAvatar })
+    assert.equal(clayResponse.status, 200)
+    assert.equal((await clayResponse.json()).avatar, clayAvatar)
 
     const photoAvatar = `data:image/webp;base64,${'A'.repeat(20_000)}`
     const photoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { avatar: photoAvatar })
@@ -136,7 +156,7 @@ test('FamilyMember API 支持本人初始化、CRUD 和账号隔离', async () =
     assert.equal(finalMembers[0].isSelf, true)
 
     const deleteSelfResponse = await requestJson(`${baseUrl}/api/members/${finalMembers[0].id}`, 'DELETE', first.token)
-    assert.equal(deleteSelfResponse.status, 400)
+    assert.equal(deleteSelfResponse.status, 200)
   } finally {
     await server.close()
     await rm(dataDirectory, { recursive: true, force: true })

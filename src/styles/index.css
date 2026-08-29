@@ -1,6 +1,8 @@
 @import './tokens.css';
 @import './design-system.css';
+@import './settings.css';
 @import './product-polish.css';
+@import './guide.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -96,15 +98,19 @@
   .health-event-detail-sticky__identity > * { width: 100%; }
   .health-event-next-button { min-width: 104px; min-height: 50px; padding-inline: var(--hoho-space-3); }
 
-  .timeline-date-row { @apply grid min-w-0 grid-cols-[60px_minmax(0,1fr)] gap-3; }
-  .timeline-date-row > time { @apply pt-0.5 text-right text-sm font-semibold leading-5 text-text-primary; }
-  .timeline-date-track { @apply min-w-0 border-l border-border-calm pl-4; }
+  .timeline-date-group { @apply min-w-0 space-y-4; }
+  .timeline-date-entries { @apply min-w-0; }
+  .timeline-entry-row { @apply grid min-w-0 grid-cols-[112px_minmax(0,1fr)]; }
+  .timeline-entry-time { @apply whitespace-nowrap pr-3 pt-1 text-left text-xs font-semibold leading-5 tabular-nums text-text-primary; }
+  .timeline-entry-track { @apply relative min-w-0 border-l border-border-calm pb-6 pl-4; }
+  .timeline-entry-row:last-child .timeline-entry-track { @apply pb-1; }
+  .timeline-entry-marker { @apply absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background; }
   .timeline-record-card { @apply min-w-0 overflow-hidden rounded-card border bg-surface shadow-calm; }
   .timeline-record-main { @apply block min-h-11 w-full min-w-0 px-4 pb-3 pt-4 text-left; }
   button.timeline-record-main { @apply cursor-pointer; }
-  .timeline-record-time { @apply flex min-w-0 items-center justify-between gap-3 text-[15px] text-heading; }
-  .timeline-record-time > svg { @apply shrink-0 text-text-secondary; }
-  .timeline-record-facts { @apply mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2; }
+  .timeline-record-heading { @apply flex min-w-0 items-start justify-between gap-2; }
+  .timeline-record-expand-icon { @apply shrink-0 text-text-secondary; }
+  .timeline-record-facts { @apply flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2; }
   .timeline-record-fact { @apply inline-flex min-w-0 items-center gap-1.5 text-sm text-text-primary; }
   .timeline-record-fact > span:last-child:not(:first-child) { overflow-wrap: anywhere; }
   .timeline-record-summary { @apply mt-3 block whitespace-normal text-sm leading-6 text-text-primary; overflow-wrap: anywhere; }
@@ -118,7 +124,9 @@
   .timeline-record-details p { @apply mt-2 whitespace-pre-wrap text-sm leading-7 text-text-primary; overflow-wrap: anywhere; }
   .timeline-record-detail-toggle { @apply mx-auto flex min-h-11 items-center justify-center gap-1 px-4 text-sm font-semibold text-primary; }
 
-  .health-action-tab { @apply min-h-11 min-w-0 rounded-control border px-1 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
+  .health-action-tabs { @apply flex min-w-0 gap-1.5 overflow-x-auto; scrollbar-width: none; overscroll-behavior-inline: contain; }
+  .health-action-tabs::-webkit-scrollbar { display: none; }
+  .health-action-tab { @apply min-h-11 min-w-[76px] shrink-0 rounded-control border px-2 text-xs font-medium text-text-secondary transition; background: rgb(var(--hoho-color-surface)); }
   .health-action-tab[data-selected='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
   .health-action-list .hoho-surface-row { min-height: 68px; gap: var(--hoho-space-3); padding: var(--hoho-space-2) var(--hoho-space-3); }
   .health-recorder-choice { @apply min-w-0 rounded-card border bg-surface p-2.5 text-left; }
@@ -140,6 +148,58 @@
   .ask-ai-mic[data-listening='true'] { background: rgb(var(--hoho-color-danger)); }
   .ask-ai-keyboard { @apply grid h-11 w-11 place-items-center rounded-control border bg-surface text-primary; }
 
+  .online-consultation-page { min-height: 100dvh; background: rgb(var(--hoho-color-background)); }
+  .online-consultation-content { @apply mx-auto grid w-full min-w-0 max-w-[640px] gap-4 overflow-x-hidden px-4 pt-4; padding-bottom: calc(var(--hoho-space-8) + env(safe-area-inset-bottom)); }
+  .online-consultation-loading { @apply grid min-h-56 place-items-center gap-3 text-center text-sm text-text-secondary; }
+  .online-consultation-tabs { @apply sticky top-14 z-10 grid grid-cols-2 rounded-control border bg-surface p-1; }
+  .online-consultation-tabs button { @apply min-h-11 rounded-control px-3 text-sm font-semibold text-text-secondary; }
+  .online-consultation-tabs button[aria-selected='true'] { @apply bg-primary-soft text-primary; box-shadow: inset 0 -2px 0 rgb(var(--hoho-color-primary)); }
+  .online-consultation-status { @apply flex items-start gap-3 rounded-card border px-4 py-3; }
+  .online-consultation-status > svg { @apply mt-0.5 shrink-0 text-primary; }
+  .online-consultation-status strong { @apply block text-sm font-semibold; }
+  .online-consultation-status small { @apply mt-1 block text-xs leading-5 text-text-secondary; }
+  .online-consultation-status[data-tone='success'] { background: rgb(var(--hoho-color-primary-soft) / 0.55); }
+  .online-consultation-status[data-tone='waiting'] { background: rgb(var(--hoho-color-surface)); }
+  .consultation-section-list { @apply overflow-hidden rounded-card border bg-surface; }
+  .consultation-copy-section { @apply border-b px-4 py-3 last:border-b-0; }
+  .consultation-copy-section > div { @apply flex min-w-0 items-center justify-between gap-3; }
+  .consultation-copy-section button { @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-pill px-3 text-xs font-semibold text-primary; }
+  .consultation-copy-section p { @apply whitespace-pre-wrap break-words text-sm leading-6 text-text-primary; }
+  .consultation-copy-section p[data-empty='true'] { @apply text-text-secondary; opacity: 0.72; }
+  .online-consultation-actions { @apply grid grid-cols-2 gap-2; }
+  .online-consultation-actions > .w-full { @apply col-span-2; }
+  .online-consultation-actions .hoho-button { @apply min-h-11; }
+  .online-consultation-state { @apply grid gap-4; }
+  .consultation-progress { @apply grid divide-y; }
+  .consultation-progress > div { @apply flex min-h-12 items-center justify-between gap-4 py-2 text-sm; }
+  .consultation-progress dt { @apply text-text-secondary; }
+  .consultation-progress dd { @apply text-right font-medium; }
+  .consultation-question-input { @apply relative mt-3; }
+  .consultation-question-input textarea { min-height: 132px; padding-bottom: 52px; }
+  .consultation-question-input button { @apply absolute bottom-2 right-2 inline-flex min-h-11 items-center gap-1.5 rounded-pill border bg-surface px-3 text-xs font-semibold text-primary; }
+  .consultation-question-input button[data-listening='true'] { @apply border-danger text-danger; }
+  .consultation-reply { @apply rounded-card border bg-surface p-4; }
+  .consultation-reply > div:first-child { @apply flex items-center justify-between gap-3; }
+  .consultation-reply > p { @apply mt-3 whitespace-pre-wrap break-words text-sm leading-7; }
+  .consultation-missing { @apply mt-4 grid gap-2 rounded-control px-3 py-3 text-sm; background: rgb(var(--hoho-color-warning) / 0.08); }
+  .consultation-missing strong { @apply text-text-primary; }
+  .consultation-missing span { @apply text-text-secondary; }
+  .consultation-missing textarea { min-height: 88px; }
+  .consultation-sources { @apply mt-4 grid gap-1.5 border-t pt-3 text-xs leading-5 text-text-secondary; }
+  .consultation-sources strong { @apply text-text-primary; }
+  .consultation-history { @apply grid gap-3; }
+  .consultation-history article { @apply relative grid gap-1 rounded-card border border-border bg-surface p-3 pr-24; }
+  .consultation-history article small { @apply text-xs text-text-secondary; }
+  .consultation-history article strong { @apply break-words text-sm leading-6 text-text-primary; }
+  .consultation-history article p { @apply whitespace-pre-wrap break-words text-sm leading-6 text-text-secondary; }
+  .consultation-history article button { @apply absolute right-2 top-2 inline-flex min-h-11 items-center gap-1 rounded-control px-3 text-xs font-semibold text-primary; }
+  .consultation-end-button { @apply mx-auto inline-flex min-h-11 items-center gap-1.5 px-3 text-sm font-medium text-text-secondary; }
+  .online-consultation-ending { @apply rounded-card border bg-surface p-4 shadow-floating; }
+  .online-consultation-ending textarea { min-height: 132px; }
+  .online-consultation-error { @apply flex items-center justify-between gap-3 rounded-control bg-danger/10 px-3 py-2 text-xs text-danger; }
+  .online-consultation-error button { @apply min-h-11 shrink-0 px-2 font-semibold; }
+  .online-consultation-toast { @apply fixed left-1/2 top-5 z-[60] inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-pill bg-primary px-4 text-sm font-semibold text-surface shadow-floating; }
+
   @media (max-width: 480px) {
     .timeline-record-main { @apply px-3; }
     .timeline-record-attachments { @apply px-3; }
@@ -154,9 +214,9 @@
   }
 
   @media (max-width: 360px) {
-    .timeline-date-row { @apply grid-cols-[48px_minmax(0,1fr)] gap-2; }
-    .timeline-date-track { @apply pl-3; }
-    .timeline-date-track > article > span { left: -17px; }
+    .timeline-entry-row { @apply grid-cols-[104px_minmax(0,1fr)]; }
+    .timeline-entry-time { @apply pr-2 text-[11px]; }
+    .timeline-entry-track { @apply pl-3; }
   }
 
   @media (min-width: 768px) {
@@ -191,16 +251,6 @@
   .first-record-error { @apply mt-3 flex items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-danger; }
   .first-record-error button { @apply min-h-9 shrink-0 font-semibold text-primary; }
   .first-record-quick-trigger { background: rgb(var(--hoho-color-surface) / 0.88); box-shadow: var(--hoho-shadow-soft); }
-
-  .event-summary-card { @apply p-4; }
-  .event-summary-tags { @apply mt-3 flex min-w-0 flex-nowrap gap-2 overflow-hidden; }
-  .event-summary-tags .hoho-health-tag { @apply min-w-0 shrink truncate; }
-  .event-summary-description {
-    @apply mt-3 overflow-hidden break-words;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
 
   .quick-record-trigger {
     @apply fixed left-1/2 z-30 inline-flex min-h-[52px] -translate-x-1/2 items-center justify-center gap-2 rounded-pill border border-primary/35 bg-surface/95 text-sm font-semibold text-primary shadow-card backdrop-blur;
@@ -379,20 +429,6 @@
   .health-events-fab {
     right: var(--hoho-page-gutter);
     bottom: max(var(--hoho-space-6), env(safe-area-inset-bottom));
-    border: 1px solid rgb(var(--hoho-color-primary-hover) / 0.12);
-    background: linear-gradient(
-      145deg,
-      rgb(var(--hoho-color-primary-border)) -18%,
-      rgb(var(--hoho-color-primary)) 52%,
-      rgb(var(--hoho-color-primary-hover)) 100%
-    );
-    box-shadow:
-      inset 0 1px 0 rgb(var(--hoho-color-surface) / 0.58),
-      0 12px 28px rgb(var(--hoho-color-primary) / 0.22);
-  }
-  .health-events-fab:disabled {
-    opacity: 0.5;
-    box-shadow: inset 0 1px 0 rgb(var(--hoho-color-surface) / 0.4);
   }
   .hoho-health-events-page .health-events-member,
   .hoho-health-events-page .health-events-content { width: calc(100% - 32px); margin-inline: auto; }
@@ -400,6 +436,52 @@
 
   .app-shell-toast,
   .health-events-filter-layer { max-width: none; }
+
+  .hoho-health-card.health-event-list-card--recovered {
+    border-color: rgb(var(--hoho-color-success) / 0.16);
+    background: color-mix(in srgb, rgb(var(--hoho-color-success)) 5%, rgb(var(--hoho-color-surface)));
+  }
+
+  .hoho-health-card.health-event-list-card--recovered[data-interactive='true']:hover {
+    border-color: rgb(var(--hoho-color-success) / 0.24);
+    background: color-mix(in srgb, rgb(var(--hoho-color-success)) 7%, rgb(var(--hoho-color-surface)));
+  }
+
+  .health-events-month-reset {
+    min-height: 36px;
+    border-radius: var(--hoho-radius-control);
+    padding-inline: var(--hoho-space-2);
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+  }
+
+  .health-events-month-reset[aria-pressed='true'] {
+    background: rgb(var(--hoho-color-primary-soft));
+    color: rgb(var(--hoho-color-primary));
+  }
+
+  .health-events-month-row {
+    display: grid;
+    width: calc(100% + 8px);
+    margin-inline: -4px;
+    grid-template-columns: repeat(12, minmax(24px, 1fr));
+    gap: 0;
+  }
+
+  .health-events-month-option {
+    min-width: 24px;
+    min-height: 36px;
+    border-radius: var(--hoho-radius-small);
+    color: rgb(var(--hoho-color-text-secondary));
+    font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .health-events-month-option[aria-pressed='true'] {
+    background: rgb(var(--hoho-color-primary-soft));
+    box-shadow: inset 0 0 0 1px rgb(var(--hoho-color-primary) / 0.16);
+    color: rgb(var(--hoho-color-primary));
+  }
 
   .hoho-drawer {
     position: relative;

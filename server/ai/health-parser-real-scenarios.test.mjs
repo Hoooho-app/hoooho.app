@@ -92,6 +92,59 @@ test('真实场景：否定发烧不产生体温事实', async () => {
   assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热'), false)
 })
 
+test('手机无标点转写按局部语义识别皮疹、瘙痒、确诊和已用药物', async () => {
+  const output = await parse('刚刚那个出现的那个皮疹那个确诊是荨麻疹然后挺痒的然后那个用那些芦柑石洗剂然后洗了一下然后那个现在还在等医生然后发烧倒是没发烧')
+  const symptoms = factsOf(output, 'symptom')
+  const diagnoses = factsOf(output, 'diagnosis')
+  const medications = factsOf(output, 'medication')
+
+  assert.equal(hasHealthFacts(output.healthAIOutput), true)
+  assert.ok(symptoms.some((fact) => fact.name === '皮疹' && fact.polarity === 'affirmed'))
+  assert.ok(symptoms.some((fact) => fact.name === '瘙痒' && fact.polarity === 'affirmed'))
+  assert.ok(diagnoses.some((fact) => fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed'))
+  assert.ok(medications.some((fact) => fact.name === '炉甘石洗剂' && fact.medicationAction === 'taken'))
+  assert.equal(symptoms.some((fact) => fact.name === '发热' && fact.polarity === 'affirmed'), false)
+})
+
+test('无标点连接词不会把后一个症状的否定扩散到前一个事实', async () => {
+  for (const input of ['有皮疹但是没有发烧', '有皮疹，但是没有发烧', '挺痒的但是没发烧']) {
+    const output = await parse(input)
+    assert.equal(hasHealthFacts(output.healthAIOutput), true, input)
+    assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热'), false, input)
+  }
+
+  const negatedRash = await parse('没有皮疹')
+  assert.equal(factsOf(negatedRash, 'symptom').some((fact) => fact.name === '皮疹'), false)
+
+  const switched = await parse('没有皮疹但是发烧了')
+  assert.equal(factsOf(switched, 'symptom').some((fact) => fact.name === '皮疹'), false)
+  assert.ok(factsOf(switched, 'symptom').some((fact) => fact.name === '发热'))
+})
+
+test('荨麻疹确定性和炉甘石使用动作保持安全边界', async () => {
+  for (const input of ['已经确诊荨麻疹', '今天确诊了荨麻疹', '确诊了那个荨麻疹']) {
+    const confirmed = await parse(input)
+    assert.ok(factsOf(confirmed, 'diagnosis').some((fact) => (
+      fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed' && fact.source === 'user_report'
+    )), input)
+  }
+
+  const doctorConfirmed = await parse('医生确诊是荨麻疹')
+  assert.ok(factsOf(doctorConfirmed, 'diagnosis').some((fact) => fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed' && fact.source === 'doctor_statement'))
+
+  const suspected = await parse('疑似荨麻疹')
+  assert.equal(factsOf(suspected, 'diagnosis').some((fact) => fact.diagnosisCertainty === 'confirmed'), false)
+
+  const mentionOnly = await parse('荨麻疹')
+  assert.equal(factsOf(mentionOnly, 'diagnosis').some((fact) => fact.diagnosisCertainty === 'confirmed'), false)
+
+  const taken = await parse('用了炉甘石洗剂')
+  assert.ok(factsOf(taken, 'medication').some((fact) => fact.name === '炉甘石洗剂' && fact.medicationAction === 'taken'))
+
+  const planned = await parse('准备买炉甘石洗剂')
+  assert.equal(factsOf(planned, 'medication').some((fact) => fact.medicationAction === 'taken'), false)
+})
+
 test('真实场景：无效输入不产生健康事实', async () => {
   const output = await parse('北京旅游')
 

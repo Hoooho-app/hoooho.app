@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../types'
+import type { AccountEntryState, FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../types'
 import { ApiRequestError } from '../services/apiClient'
+import { accountEntryStateService } from '../services/accountEntryState'
 import { familyMemberService } from '../services/familyMembers'
 import { adaptFamilyMember } from '../services/healthEventDetailAdapter'
 import { adaptHealthEventList } from '../services/healthEventListAdapter'
@@ -10,6 +11,7 @@ import { eventAttachmentService } from '../services/eventAttachments'
 import { useAppStore } from '../store/useAppStore'
 
 interface LoadedHealthEvents {
+  entryState: AccountEntryState
   events: HealthEventListItemViewModel[]
   memberDtos: FamilyMemberApiDto[]
   members: Member[]
@@ -31,10 +33,25 @@ export function useHealthEventsList() {
     if (!token) return
     setState((current) => current.status === 'loading' ? current : { status: 'loading' })
     try {
-      const [eventDtos, memberDtos] = await Promise.all([
-        healthEventService.list(token, signal),
+      const [entryState, memberDtos] = await Promise.all([
+        accountEntryStateService.get(token, signal),
         familyMemberService.list(token, signal)
       ])
+      const adaptedMembers = memberDtos.map(adaptFamilyMember)
+      setMembers(adaptedMembers)
+      const currentId = useAppStore.getState().currentMemberId
+      if (!adaptedMembers.some((member) => member.id === currentId)) {
+        setCurrentMemberId(adaptedMembers[0]?.id ?? 'self')
+      }
+      if (entryState.familyMemberCount === 0 || !entryState.hasValidHealthRecord) {
+        if (signal?.aborted) return
+        setState({
+          status: 'success',
+          data: { entryState, events: [], memberDtos, members: adaptedMembers }
+        })
+        return
+      }
+      const eventDtos = await healthEventService.list(token, signal)
       const eventsWithoutSummary = eventDtos.filter((event) => !event.eventSummary)
       const [recordEntries, attachmentEntries] = await Promise.all([
         Promise.all(eventDtos.map(async (event) => (
@@ -47,15 +64,10 @@ export function useHealthEventsList() {
       if (signal?.aborted) return
       const recordsByEventId = new Map(recordEntries)
       const attachmentsByEventId = new Map(attachmentEntries)
-      const adaptedMembers = memberDtos.map(adaptFamilyMember)
-      setMembers(adaptedMembers)
-      const currentId = useAppStore.getState().currentMemberId
-      if (!adaptedMembers.some((member) => member.id === currentId) && adaptedMembers[0]) {
-        setCurrentMemberId(adaptedMembers[0].id)
-      }
       setState({
         status: 'success',
         data: {
+          entryState,
           events: adaptHealthEventList(eventDtos, memberDtos, recordsByEventId, attachmentsByEventId),
           memberDtos,
           members: adaptedMembers

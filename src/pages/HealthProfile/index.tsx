@@ -47,7 +47,6 @@ function ProfileSectionRows({ recordedIds, sections, summaries }: { recordedIds:
 }
 
 export function HealthProfilePage() {
-  const navigate = useNavigate()
   const member = useCurrentMember()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<HealthProfileViewStatus>('all')
@@ -103,7 +102,7 @@ export function HealthProfilePage() {
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
-        {quickSections.length > 0 && <section className="profile-priority mt-5" aria-label="建议优先补充"><Typography variant="label">建议优先补充</Typography><div>{quickSections.map((section) => <button key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">{section.title}<ChevronRight size={14} /></button>)}</div></section>}
+        {quickSections.length > 0 && <section className="mt-5 grid gap-3" aria-label="建议优先补充"><Typography variant="sectionTitle">建议优先补充</Typography><ProfileSectionRows recordedIds={recordedIds} sections={quickSections} summaries={summaries} /></section>}
         {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows recordedIds={recordedIds} sections={sections} summaries={summaries} /></section>)}
         {filtering && directory.remaining.length === 0 && directory.priority.length > 0 && <Typography className="mt-4 text-center" variant="caption">已显示全部匹配项目</Typography>}
       </>}

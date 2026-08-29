@@ -14,7 +14,7 @@ import type {
   TimelineEntry
 } from '../types'
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
-import { createVirtualAvatarId } from '../utils/virtualAvatar'
+import { createClayAvatarConfig, serializeClayAvatar } from '../utils/clayAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
 import { getExactTemperatureMeasurement } from '../utils/temperatureMeasurement'
 import { compareHealthChronologyDesc } from './healthChronology'
@@ -44,7 +44,8 @@ interface FactContext {
 }
 
 export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
-  const canGenerateAvatar = Boolean(member.birthday && (member.gender === 'male' || member.gender === 'female'))
+  const avatarGender = member.gender === 'male' || member.gender === 'female' ? member.gender : null
+  const canGenerateAvatar = Boolean(member.birthday && avatarGender)
 
   return {
     id: member.id,
@@ -53,7 +54,7 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     birthday: member.birthday ?? undefined,
     gender: member.gender ?? '',
     avatar: member.avatar ?? (canGenerateAvatar
-      ? createVirtualAvatarId(member.birthday!, member.gender!)
+      ? serializeClayAvatar(createClayAvatarConfig(member.name, member.birthday!, avatarGender!, member.id))
       : undefined),
     heightCm: member.heightCm ?? undefined,
     weightKg: member.weightKg ?? undefined,

@@ -2,15 +2,18 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
+import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
+import { healthEventService } from '../../services/healthEvents'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { Member, ProfileGender } from '../../types'
+import type { FamilyMemberApiDto, Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { createVirtualAvatarId } from '../../utils/virtualAvatar'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
+import { createClayAvatarConfig, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 
 export { EditFamilyMemberPage } from './EditFamilyMemberPage'
 
@@ -93,14 +96,34 @@ type RequiredGender = Extract<ProfileGender, 'male' | 'female'> | ''
 
 export function AddFamilyMemberPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const addMember = useAppStore((state) => state.addMember)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [name, setName] = useState('')
   const [gender, setGender] = useState<RequiredGender>('')
   const [birthday, setBirthday] = useState('')
+  const [avatarMode, setAvatarMode] = useState<FamilyAvatarMode>('cartoon')
+  const [avatarConfig, setAvatarConfig] = useState<ClayAvatarConfig | null>(null)
+  const [photoAvatar, setPhotoAvatar] = useState('')
+  const [avatarTouched, setAvatarTouched] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [createdMember, setCreatedMember] = useState<FamilyMemberApiDto | null>(null)
+  const hasAvatarProfile = Boolean(name.trim() && birthday && gender)
+
+  useEffect(() => {
+    const cleanName = name.trim()
+    if (!cleanName || !birthday || !gender) {
+      if (!avatarTouched) setAvatarConfig(null)
+      return
+    }
+    setAvatarConfig((current) => {
+      if (!current || !avatarTouched) return createClayAvatarConfig(cleanName, birthday, gender)
+      return remapClayAvatarRole(current, birthday, gender)
+    })
+  }, [avatarTouched, birthday, gender, name])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -113,10 +136,31 @@ export function AddFamilyMemberPage() {
     setError('')
     setSubmitting(true)
     try {
-      const avatar = createVirtualAvatarId(birthday, gender)
-      const created = await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
-      addMember(adaptFamilyMember(created) as Member)
-      navigate('/family', { replace: true })
+      if (avatarMode === 'photo' && !photoAvatar) {
+        setError('请先点击相机上传照片头像')
+        return
+      }
+      if (avatarMode === 'cartoon' && !avatarConfig) {
+        setError('请完整填写姓名、出生日期和性别')
+        return
+      }
+      const avatar = avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(avatarConfig!)
+      const created = createdMember ?? await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
+      if (!createdMember) {
+        setCreatedMember(created)
+        addMember(adaptFamilyMember(created) as Member)
+      }
+      const firstUseEntry = (location.state as { firstUseEntry?: { continueToRecord?: boolean; returnTo?: string } } | null)?.firstUseEntry
+      if (firstUseEntry?.continueToRecord) {
+        const healthEvent = await healthEventService.create({ memberId: created.id, title: '', category: 'other' }, token)
+        setCurrentMemberId(created.id)
+        navigate(`/health-events/${healthEvent.id}`, { replace: true, state: { allowFirstRecord: true } })
+      } else if (firstUseEntry?.returnTo === '/health-events') {
+        setCurrentMemberId(created.id)
+        navigate('/health-events', { replace: true })
+      } else {
+        navigate('/family', { replace: true })
+      }
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -133,9 +177,24 @@ export function AddFamilyMemberPage() {
     <main className="app-shell flex flex-col pb-0">
       <WebPageHeader title="添加家庭成员" fallback="/family" />
       <form className="flex flex-1 flex-col px-4 py-5" onSubmit={submit}>
+        {avatarConfig && hasAvatarProfile && (
+          <div className="mx-auto mb-5 w-full max-w-sm">
+            <FamilyAvatarEditor
+              config={avatarConfig}
+              disabled={submitting}
+              mode={avatarMode}
+              name={name.trim() || '家人'}
+              onConfigChange={(next) => { setAvatarConfig(next); setAvatarTouched(true) }}
+              onError={setError}
+              onModeChange={setAvatarMode}
+              onPhotoChange={setPhotoAvatar}
+              photo={photoAvatar}
+            />
+          </div>
+        )}
         <div className="space-y-5 rounded-card bg-surface p-4 shadow-card">
           <Input label="姓名 *" name="name" maxLength={20} placeholder="请输入姓名" value={name} disabled={submitting} onChange={(event) => { setName(event.target.value); setError('') }} />
-          <Input label="出生日期 *" name="birthday" type="date" max={new Date().toISOString().slice(0, 10)} hint="系统将根据出生日期自动计算年龄" value={birthday} disabled={submitting} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
+          <Input label="出生日期 *" name="birthday" type="date" max={getLocalDateKey(new Date()) ?? undefined} hint="系统将根据出生日期自动计算年龄" value={birthday} disabled={submitting} onChange={(event) => { setBirthday(event.target.value); setError('') }} />
           <fieldset disabled={submitting}>
             <legend className="text-sm font-medium">性别 *</legend>
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -147,7 +206,6 @@ export function AddFamilyMemberPage() {
               ))}
             </div>
           </fieldset>
-          <p className="text-xs leading-5 text-text-secondary">保存后将根据年龄和性别自动生成虚拟头像，无需上传照片。</p>
         </div>
 
         <div className="mt-auto pb-[max(20px,env(safe-area-inset-bottom))] pt-6">

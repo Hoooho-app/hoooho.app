@@ -1,4 +1,6 @@
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
+import { parseClayAvatar } from '../../utils/clayAvatar'
+import { ClayAvatar } from './ClayAvatar'
 import { VirtualAvatar } from './VirtualAvatar'
 
 interface AvatarProps {
@@ -10,7 +12,12 @@ interface AvatarProps {
 const sizes = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-16 w-16 text-lg', xl: 'h-28 w-28 text-2xl' }
 
 export function Avatar({ name, src, size = 'md' }: AvatarProps) {
+  const clayAvatar = parseClayAvatar(src)
   const virtualAvatar = parseVirtualAvatarId(src)
+
+  if (clayAvatar) {
+    return <ClayAvatar className={sizes[size]} config={clayAvatar} name={name} />
+  }
 
   if (virtualAvatar) {
     return <VirtualAvatar className={sizes[size]} kind={virtualAvatar.kind} name={name} variant={virtualAvatar.variant} />

@@ -17,6 +17,9 @@ import { HealthRecordOrganizationService } from './ai/health-record-organization
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
+import { validTimeZone } from './time/local-calendar.mjs'
+import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
+import { AccountEntryStateService } from './onboarding/account-entry-state-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -33,13 +36,15 @@ const sharedOptions = {
 
 const auth = new AuthService(sharedOptions)
 const members = new FamilyMemberService(sharedOptions)
-const events = new HealthEventService(sharedOptions)
-const records = new HealthEventRecordService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
+const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
+const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const feedback = new FeedbackService(sharedOptions)
+const onlineConsultations = new OnlineConsultationService(sharedOptions)
+const accountEntryState = new AccountEntryStateService(sharedOptions)
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -265,12 +270,21 @@ async function handleMembers(request, response, pathname) {
   if (!match) return false
 
   const accountId = readAccountId(request)
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
   if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
-  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000)))
+  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000), new Date(), timeZone))
+  else if (memberId === 'self' && request.method === 'POST') sendJson(response, 201, await members.createSelf(accountId, await readJson(request, 310_000), new Date(), timeZone))
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
-  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000)))
+  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000), new Date(), timeZone))
   else if (memberId && request.method === 'DELETE') sendJson(response, 200, await members.delete(accountId, memberId))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
+async function handleAccountEntryState(request, response, pathname) {
+  if (pathname !== '/api/account/entry-state') return false
+  if (request.method === 'GET') sendJson(response, 200, await accountEntryState.get(readAccountId(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -346,6 +360,21 @@ async function handleEvents(request, response, pathname) {
   return true
 }
 
+async function handleOnlineConsultations(request, response, pathname) {
+  const match = /^\/api\/events\/([^/]+)\/online-consultation(?:\/(questions|refresh|complete))?$/.exec(pathname)
+  if (!match) return false
+  const accountId = readAccountId(request)
+  const eventId = decodeRouteValue(match[1])
+  const action = match[2]
+  if (!action && request.method === 'GET') sendJson(response, 200, await onlineConsultations.get(accountId, eventId))
+  else if (!action && request.method === 'PATCH') sendJson(response, 200, await onlineConsultations.updateStatus(accountId, eventId, await readJson(request)))
+  else if (action === 'questions' && request.method === 'POST') sendJson(response, 201, await onlineConsultations.addQuestion(accountId, eventId, await readJson(request)))
+  else if (action === 'refresh' && request.method === 'POST') sendJson(response, 200, await onlineConsultations.touchWaiting(accountId, eventId))
+  else if (action === 'complete' && request.method === 'POST') sendJson(response, 200, await onlineConsultations.complete(accountId, eventId, await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleApi(request, response, pathname, searchParams) {
   if (request.method === 'OPTIONS') {
     sendEmpty(response)
@@ -359,8 +388,10 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true
+  if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
+  if (await handleOnlineConsultations(request, response, pathname)) return true
   if (await handleOrganizations(request, response, pathname)) return true
   if (await handleEventRecords(request, response, pathname)) return true
   if (await handleEvents(request, response, pathname)) return true

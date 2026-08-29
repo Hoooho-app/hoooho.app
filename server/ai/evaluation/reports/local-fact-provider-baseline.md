@@ -9,19 +9,19 @@ This report is generated from the P0 parser evaluation dataset. It measures the 
 - Parser version: 2.0.0
 - Prompt version: health-facts-v3-context-and-provenance
 - Total cases: 30
-- Passed: 24
-- Failed: 6
-- Case pass rate: 80.0%
+- Passed: 25
+- Failed: 5
+- Case pass rate: 83.3%
 
 ## Capability Metrics
 
 | Capability | Passed | Total | Rate |
 | --- | ---: | ---: | ---: |
-| Health fact validity | 29 | 30 | 96.7% |
-| Expected fact matching | 41 | 48 | 85.4% |
+| Health fact validity | 30 | 30 | 100.0% |
+| Expected fact matching | 42 | 48 | 87.5% |
 | Temperature | 3 | 3 | 100.0% |
-| Time | 12 | 17 | 70.6% |
-| Forbidden fact avoidance | 14 | 15 | 93.3% |
+| Time | 13 | 17 | 76.5% |
+| Forbidden fact avoidance | 15 | 15 | 100.0% |
 
 ## Results By Category
 
@@ -29,7 +29,7 @@ This report is generated from the P0 parser evaluation dataset. It measures the 
 | --- | ---: | ---: | ---: |
 | time | 9 | 10 | 90.0% |
 | symptom_status | 8 | 10 | 80.0% |
-| negation_complex | 7 | 10 | 70.0% |
+| negation_complex | 8 | 10 | 80.0% |
 
 ## Results By Difficulty
 
@@ -37,7 +37,7 @@ This report is generated from the P0 parser evaluation dataset. It measures the 
 | --- | ---: | ---: | ---: |
 | easy | 10 | 10 | 100.0% |
 | hard | 6 | 8 | 75.0% |
-| medium | 8 | 12 | 66.7% |
+| medium | 9 | 12 | 75.0% |
 
 ## Failure Category Frequency
 
@@ -47,10 +47,9 @@ Failure categories are dataset annotations. A failed case can contribute to more
 | --- | ---: |
 | status_change_missing | 4 |
 | relation_error | 3 |
-| entity_missing | 2 |
-| negation_error | 2 |
 | time_error | 2 |
-| body_part_error | 1 |
+| entity_missing | 1 |
+| negation_error | 1 |
 
 ## Failed Cases
 
@@ -87,20 +86,10 @@ Failure categories are dataset annotations. A failed case can contribute to more
 - Reasons:
   - missing: status_change change=persistent target=咳嗽
 
-### complex-007
-
-- Category: negation_complex
-- Difficulty: medium
-- Failure categories: negation_error, entity_missing, body_part_error
-- Reasons:
-  - forbidden: symptom name=疼痛
-
 ### complex-009
 
 - Category: negation_complex
 - Difficulty: hard
 - Failure categories: time_error, status_change_missing, negation_error
 - Reasons:
-  - hasHealthFacts expected=true actual=false
-  - missing: symptom name=咳嗽 time.raw=前两天
   - missing: status_change change=improved target=咳嗽

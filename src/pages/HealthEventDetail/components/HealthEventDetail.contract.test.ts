@@ -9,15 +9,31 @@ const firstRecordSource = readFileSync(new URL('./FirstRecordComposer.tsx', impo
 const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url), 'utf8')
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
+const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
 
-test('紧凑摘要不再渲染旧说明和校对入口', () => {
+test('详情概览直接复用列表卡片内容且不保留旧摘要结构', () => {
   for (const removed of ['手动校对', '自动整理', '依据：', '系统会根据后续记录自动更新']) {
     assert.equal(summarySource.includes(removed), false)
   }
-  assert.match(summarySource, /event-summary-tags/)
-  assert.match(summarySource, /event-summary-description/)
-  assert.match(stylesSource, /event-summary-tags[^}]*flex-nowrap/)
-  assert.match(stylesSource, /-webkit-line-clamp:\s*2/)
+  assert.match(summarySource, /HealthEventCardSurface/)
+  assert.match(summarySource, /getHealthEventDefinitionTitle/)
+  assert.match(summarySource, /buildHealthEventQuickFacts/)
+  assert.equal(summarySource.includes('事件摘要'), false)
+})
+
+test('时间线以日期作为分组标题、时段作为左侧锚点且不显示年份标题', () => {
+  assert.match(timelineSource, /timeline-date-group/)
+  assert.match(timelineSource, /timeline-entry-time/)
+  assert.match(timelineSource, /dateGroup\.date/)
+  assert.equal(timelineSource.includes('{yearGroup.year}年'), false)
+  assert.match(stylesSource, /timeline-entry-row[^}]*grid-cols-\[112px_minmax\(0,1fr\)\]/)
+})
+
+test('时间线排序入口复用设计系统图标按钮', () => {
+  assert.match(timelineSource, /<HohoButton/)
+  assert.match(timelineSource, /size="icon"/)
+  assert.match(timelineSource, /variant="ghost"/)
+  assert.match(timelineSource, /strokeWidth=\{1\.7\}/)
 })
 
 test('详情页使用悬浮快捷记录且不保留说一句中间流程', () => {
@@ -48,16 +64,23 @@ test('微信说一句使用文字降级并复用现有预览和保存管线', ()
   assert.match(pageSource, /onPreview=\{previewQuickRecord\}/)
 })
 
-test('首次记录使用紧凑表单、顶部保存和明确的选填文案', () => {
+test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺序', () => {
   assert.match(pageSource, /title=\{hasRecords \? '健康事件详情' : '记录情况'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)
   assert.equal(firstRecordSource.includes('<h2'), false)
   assert.equal(firstRecordSource.includes('保存，自动整理'), false)
-  assert.match(firstRecordSource, /身体部位（选填）/)
-  assert.match(firstRecordSource, /buttonLabel="身体部位选择器"/)
-  assert.match(firstRecordSource, /添加附件（选填）/)
+  assert.match(firstRecordSource, />开始时间</)
+  assert.match(firstRecordSource, />描述症状</)
+  assert.match(firstRecordSource, /症状部位（选填）/)
+  assert.match(firstRecordSource, /buttonLabel="身体部位定位器"/)
+  assert.match(firstRecordSource, /inputLike/)
+  assert.match(firstRecordSource, /showEmptyState=\{false\}/)
+  assert.match(firstRecordSource, /附件补充（选填）/)
+  assert.match(firstRecordSource, />上传图片</)
   assert.match(firstRecordSource, /检查报告、处方、药品或身体部位照片/)
   assert.match(firstRecordSource, /placeholder="请描述发生了什么…"/)
+  assert.ok(firstRecordSource.indexOf('描述症状') < firstRecordSource.indexOf('症状部位（选填）'))
+  assert.match(polishStylesSource, /body-location-picker-row--input/)
 })
 
 test('首次记录快捷录音只追加描述，不直接保存整张表单', () => {
@@ -83,4 +106,36 @@ test('时间线详情只在原地展开“发生了什么”和可选措施', ()
 test('快捷记录预览明确一次输入只是一条记录', () => {
   assert.match(recorderSource, /识别到 1 条记录/)
   assert.equal(recorderSource.includes('识别到 {candidates.length} 条记录'), false)
+})
+
+test('自动整理无事实或失败时仍允许按原文确认保存', () => {
+  assert.match(pageSource, /if \(!preview\.hasHealthFacts\) return \[\]/)
+  assert.equal(pageSource.includes("throw new Error('暂未识别到健康记录"), false)
+  assert.match(recorderSource, /暂未自动整理，可先按原文保存/)
+  assert.match(recorderSource, /自动整理失败，可先按原文保存/)
+  assert.match(recorderSource, /setState\('review'\)/)
+  assert.match(recorderSource, /onConfirmRef\.current\(value/)
+})
+
+test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', () => {
+  assert.match(pageSource, /content: recordText \|\| '图片记录'/)
+  assert.match(pageSource, /原始记录已保存，暂未自动整理/)
+  assert.match(pageSource, /commitRecord\(pending\.record\)/)
+  assert.equal(pageSource.includes("throw new Error('暂未识别到健康相关信息"), false)
+  assert.equal(firstRecordSource.includes('未识别到健康事件关键信息'), false)
+})
+
+test('降级保存保留空内容、未来时间和重复提交安全边界', () => {
+  assert.match(firstRecordSource, /if \(!rawInput && !attachments\.length && !selectedLocations\.length\)/)
+  assert.match(firstRecordSource, /isFutureOccurredAt\(occurredAt\)/)
+  assert.match(firstRecordSource, /savingRef\.current/)
+  assert.match(recorderSource, /submittingRef\.current/)
+  assert.match(pageSource, /needsNewQuickRecord\(pending, transcript\)/)
+  assert.match(pageSource, /pendingQuickRecordRef\.current = null/)
+})
+
+test('原文已保存后自动整理失败使用部分成功提示而不是整条保存失败', () => {
+  assert.match(pageSource, /原始记录已保存，自动整理失败/)
+  assert.match(recorderSource, /setSavedMessage\(message \|\| '已记录'\)/)
+  assert.match(recorderSource, /state === 'saved' \? savedMessage/)
 })

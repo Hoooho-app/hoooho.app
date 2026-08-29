@@ -18,6 +18,14 @@ export const familyMemberService = {
     })
   },
 
+  createSelf(input: { name?: string; birthday?: string; gender?: 'male' | 'female'; avatar?: string } = {}, token: string) {
+    return apiRequest<FamilyMemberApiDto>('/api/members/self', {
+      token,
+      method: 'POST',
+      body: input
+    })
+  },
+
   update(
     memberId: string,
     input: Partial<Pick<FamilyMemberApiDto,

@@ -94,7 +94,6 @@ export class AuthService {
     }
 
     const user = await this.users.findOrCreateByPhone(phone, new Date(now))
-    await this.members.ensureSelf(user.id, new Date(now))
     await this.codes.consume(phone)
     return { token: this.tokens.create(user, now), user }
   }
@@ -155,7 +154,6 @@ export class AuthService {
     }
 
     const user = await this.users.findOrCreateByEmail(email, new Date(now))
-    await this.members.ensureSelf(user.id, new Date(now))
     await this.codes.consume('email', email)
     return { token: this.tokens.create(user, now), user }
   }

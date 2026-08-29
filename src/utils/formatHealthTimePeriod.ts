@@ -1,3 +1,5 @@
+import { formatLocalMonthDay } from './localCalendarDate'
+
 const periods = [
   { start: 0, end: 6, label: '凌晨 00:00–06:00' },
   { start: 6, end: 9, label: '早上 06:00–09:00' },
@@ -29,7 +31,6 @@ export function formatHealthTimePeriod(spokenTime: string | undefined, occurredA
   return periods.find((period) => hour >= period.start && hour < period.end)?.label ?? periods[0].label
 }
 
-export function formatHealthTimelineDate(value: string) {
-  const date = new Date(value)
-  return `${date.getMonth() + 1}月${date.getDate()}日`
+export function formatHealthTimelineDate(value: string, timeZone?: string) {
+  return formatLocalMonthDay(value, timeZone)
 }
