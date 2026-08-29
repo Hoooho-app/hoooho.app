@@ -1,21 +1,26 @@
-# Hoooho Clay Avatar V1
+# Complete clay avatars v1
 
-Family avatars use the versioned `clay:v1` configuration stored in the existing
-`FamilyMember.avatar` field. The serialized order is role, face, hair, and
-outfit. Legacy `virtual:*` identifiers and photo data URLs remain readable.
+Family avatars use pre-rendered 512×512 PNG files from
+`public/avatars/clay/v1`. The client never assembles facial features, hair, or
+outfits and does not call an online image-generation service.
 
-The project-bound source sheets live under `public/avatars/clay/v1/source/`:
+## Roles and assets
 
-- `faces-v1.png`: 3 skin variants by 6 age/gender roles.
-- `hair-v1.png`: 12 hair overlays in a 4 by 3 grid.
-- `outfits-v1.png`: 3 brand colors by 6 age/gender roles.
+The base set contains boy, girl, adult male, adult female, elder male, and
+elder female roles. The early-childhood extension adds baby and toddler roles.
+Every role has six internal appearance presets. These identifiers are never
+shown in the interface and are independent of name, language, locale, and
+country.
 
-The source sheets were created with the built-in image generation tool from the
-approved Hoooho hand-molded 3D clay references. They are static application
-assets; changing an avatar never calls an image-generation service or uploads
-profile data.
+`src/utils/clayAvatar.ts` is the single manifest and behavior boundary. It:
 
-`ClayAvatar` removes the uniform light source-sheet background locally, caches
-each selected cell, and draws face, outfit, then hair on one fixed 256 by 256
-canvas. Cell coordinates, grids, options, and source paths are centralized in
-`src/utils/clayAvatar.ts`.
+- maps birth date and gender to a role;
+- derives a stable default from normalized family details;
+- cycles the six complete images without repetition within a round;
+- preserves the appearance preset when birth date or gender changes;
+- serializes `clay:v1:<role>:<appearance>`;
+- maps the previous layered `clay:v1:<role>:<face>:<hair>:<outfit>` format to
+  a stable complete avatar.
+
+Photo data URLs and legacy `virtual:*` values remain readable. A cartoon or
+photo avatar is persisted only with the surrounding family-member save action.

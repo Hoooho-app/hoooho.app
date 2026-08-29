@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "style": "hoooho-clay-3d",
+  "assetType": "complete-avatar",
+  "dimensions": {
+    "width": 512,
+    "height": 512,
+    "format": "png",
+    "colorMode": "rgba",
+    "transparentCorners": true
+  },
+  "filenamePattern": "avatars/{role}-{appearance}.png",
+  "roles": [
+    { "id": "boy", "ageGroup": "child", "gender": "male" },
+    { "id": "girl", "ageGroup": "child", "gender": "female" },
+    { "id": "adult-male", "ageGroup": "adult", "gender": "male" },
+    { "id": "adult-female", "ageGroup": "adult", "gender": "female" },
+    { "id": "elder-male", "ageGroup": "elder", "gender": "male" },
+    { "id": "elder-female", "ageGroup": "elder", "gender": "female" }
+  ],
+  "appearances": [
+    { "id": "east-asian", "userFacingLabel": false },
+    { "id": "south-asian", "userFacingLabel": false },
+    { "id": "african", "userFacingLabel": false },
+    { "id": "european", "userFacingLabel": false },
+    { "id": "middle-eastern-north-african", "userFacingLabel": false },
+    { "id": "latin-mixed", "userFacingLabel": false }
+  ],
+  "appearanceCycleOrder": [
+    "east-asian",
+    "south-asian",
+    "african",
+    "european",
+    "middle-eastern-north-african",
+    "latin-mixed"
+  ],
+  "ageRules": {
+    "child": { "minimum": 0, "maximum": 17 },
+    "adult": { "minimum": 18, "maximum": 59 },
+    "elder": { "minimum": 60, "maximum": null }
+  },
+  "interaction": {
+    "mode": "cycle-complete-avatar",
+    "showAppearanceLabels": false,
+    "preserveRoleWhileCycling": true,
+    "persistOnSaveOnly": true,
+    "onlineGenerationRequired": false
+  }
+}

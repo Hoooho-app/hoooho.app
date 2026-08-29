@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const pageSource = readFileSync(new URL('./EditFamilyMemberPage.tsx', import.meta.url), 'utf8')
 
-test('人物编辑页复用组件化黏土头像编辑器', () => {
+test('人物编辑页复用完整黏土头像编辑器', () => {
   assert.match(pageSource, /title="编辑家人信息"/)
   assert.match(pageSource, /<FamilyAvatarEditor/)
   assert.match(pageSource, /parseClayAvatar/)

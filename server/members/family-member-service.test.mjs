@@ -72,13 +72,13 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
       name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02',
-      avatar: 'clay:v1:boy:warm:brown-side-part:teal'
+      avatar: 'clay:v1:boy:east-asian'
     }, first.token)
     assert.equal(createdResponse.status, 201)
     const child = await createdResponse.json()
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
-    assert.equal(child.avatar, 'clay:v1:boy:warm:brown-side-part:teal')
+    assert.equal(child.avatar, 'clay:v1:boy:east-asian')
 
     const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990'
@@ -118,7 +118,7 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(updated.headCircumferenceCm, 51)
     assert.equal(updated.rhBloodType, 'negative')
 
-    const clayAvatar = 'clay:v1:boy:warm:brown-side-part:teal'
+    const clayAvatar = 'clay:v1:boy:east-asian'
     const clayResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { avatar: clayAvatar })
     assert.equal(clayResponse.status, 200)
     assert.equal((await clayResponse.json()).avatar, clayAvatar)

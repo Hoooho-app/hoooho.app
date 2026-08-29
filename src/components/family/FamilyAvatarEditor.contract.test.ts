@@ -4,20 +4,23 @@ import test from 'node:test'
 
 const source = readFileSync(new URL('./FamilyAvatarEditor.tsx', import.meta.url), 'utf8')
 
-test('family avatar editor keeps the fixed hair-face-outfit order and independent controls', () => {
-  const hair = source.indexOf("part: 'hairVariant'")
-  const face = source.indexOf("part: 'faceVariant'")
-  const outfit = source.indexOf("part: 'outfitVariant'")
-  assert.ok(hair > 0 && hair < face && face < outfit)
-  assert.match(source, /cycleClayAvatarPart\(config, part, direction\)/)
-  assert.equal(source.includes('RefreshCw'), false)
+test('family avatar editor exposes only a complete avatar switch and photo mode', () => {
+  assert.match(source, /cycleClayAvatar\(config\)/)
+  assert.match(source, /RefreshCw/)
+  assert.match(source, /换一个头像/)
+  assert.match(source, /aria-label=\{text\.change\}/)
   assert.match(source, /min-h-11 min-w-11/)
+  assert.equal(source.includes('hairVariant'), false)
+  assert.equal(source.includes('faceVariant'), false)
+  assert.equal(source.includes('outfitVariant'), false)
+  assert.equal(source.includes('ChevronLeft'), false)
+  assert.equal(source.includes('ChevronRight'), false)
 })
 
-test('family avatar editor provides localized text and RTL-safe previous-next semantics', () => {
+test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {
   assert.match(source, /language\.toLowerCase\(\)\.startsWith\('ar'\)/)
   assert.match(source, /dir=\{isRtl \? 'rtl' : 'ltr'\}/)
-  assert.match(source, /上一个/)
-  assert.match(source, /السابق/)
-  assert.match(source, /isRtl \? <ChevronRight/)
+  assert.match(source, /Choose another avatar/)
+  assert.match(source, /تغيير الصورة الكرتونية/)
+  assert.match(source, /onModeChange\('photo'\)/)
 })
