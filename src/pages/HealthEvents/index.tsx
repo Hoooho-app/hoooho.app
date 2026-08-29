@@ -1,6 +1,6 @@
 import { Bell, ClipboardList, Filter, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, EmptyState, HealthCard, HohoButton, HohoSurfaceRow, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
@@ -8,6 +8,7 @@ import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
+import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
 import { healthEventService } from '../../services/healthEvents'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
@@ -16,7 +17,6 @@ import { useSettingsStore } from '../../store/useSettingsStore'
 import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
 import { getAccountPreferences } from '../../features/settings/preferences'
-import type { MemberSwitchResultState } from '../../components/navigation/navigationState'
 import { FirstUseHome } from './FirstUseHome'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
@@ -29,7 +29,7 @@ function HeaderActions({ onMessages }: { onMessages: () => void }) {
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
-function UserIdentity({ member, memberCount, viewingAll }: { member: Member | null; memberCount: number; viewingAll: boolean }) {
+function UserIdentity({ member }: { member: Member | null }) {
   const navigate = useNavigate()
 
   return (
@@ -38,11 +38,11 @@ function UserIdentity({ member, memberCount, viewingAll }: { member: Member | nu
         action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
         })}>切换人物</button>}
-        age={viewingAll ? `${memberCount} 位家人` : member?.age ?? (member ? '' : '健康数据加载中')}
-        avatar={viewingAll ? undefined : member?.avatar}
-        gender={viewingAll ? '' : member ? genderLabels[member.gender ?? ''] : ''}
-        label="首页查看"
-        name={viewingAll ? '全部家人' : member?.name ?? '家庭成员'}
+        age={member?.age ?? (member ? '' : '健康数据加载中')}
+        avatar={member?.avatar}
+        gender={member ? genderLabels[member.gender ?? ''] : ''}
+        label="当前人物"
+        name={member?.name ?? '家庭成员'}
       />
       <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康事件”指一次不舒服、就诊或康复的完整过程。</p>
       <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，点击右下角的加号按钮。</p>
@@ -78,7 +78,6 @@ export function filterEvents(events: HealthEventListItemViewModel[], filters: He
 
 export function HealthEventsPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const accountId = useAppStore((state) => state.authUser?.id)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
@@ -94,29 +93,15 @@ export function HealthEventsPage() {
   const [recordSubjectOpen, setRecordSubjectOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
-  const [viewScope] = useState(() => {
-    const switched = Boolean((location.state as MemberSwitchResultState | null)?.memberSwitchResult)
-    if (switched) return { mode: 'member' as const, memberId: currentMemberId }
-    return preferences.homeDefaultView
-  })
-
-  const preferredMemberExists = state.status === 'success' && viewScope.mode === 'member'
-    ? state.data.members.some((member) => member.id === viewScope.memberId)
-    : false
-  const viewingAll = viewScope.mode === 'all' || !preferredMemberExists
-  const activeMemberId = viewingAll ? currentMemberId : viewScope.memberId
 
   const currentMember = state.status === 'success'
-    ? state.data.members.find((member) => member.id === activeMemberId) ?? state.data.members[0] ?? null
+    ? state.data.members.find((member) => member.id === currentMemberId) ?? null
     : null
   const currentMemberDto = state.status === 'success'
-    ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? state.data.memberDtos[0] ?? null
+    ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? null
     : null
   const memberEvents = state.status === 'success'
-    ? state.data.events.filter((event) => (
-        (viewingAll || !currentMemberDto || event.memberId === currentMemberDto.id)
-        && event.title.trim().length > 0
-      ))
+    ? getMemberHealthEvents(state.data.events, currentMemberDto?.id)
     : []
   const years = [...new Set(memberEvents
     .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
@@ -128,11 +113,6 @@ export function HealthEventsPage() {
   const visibleEvents = activeYear === null
     ? filteredEvents
     : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
-
-  useEffect(() => {
-    if (state.status !== 'success' || viewingAll || currentMemberId === activeMemberId) return
-    if (state.data.members.some((member) => member.id === activeMemberId)) setCurrentMemberId(activeMemberId)
-  }, [activeMemberId, currentMemberId, setCurrentMemberId, state, viewingAll])
 
   const selectYear = (year: number) => {
     setSelectedYear(year)
@@ -234,7 +214,7 @@ export function HealthEventsPage() {
   return (
     <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0">
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
-      <UserIdentity member={currentMember} memberCount={state.status === 'success' ? state.data.members.length : 0} viewingAll={viewingAll} />
+      <UserIdentity member={currentMember} />
 
       <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
         <div className="mb-4 space-y-3">
@@ -300,7 +280,7 @@ export function HealthEventsPage() {
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
-          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} showMemberName={viewingAll} />
+          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
         )}
 
         {state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (

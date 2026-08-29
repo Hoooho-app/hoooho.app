@@ -12,13 +12,30 @@ test('account preferences are isolated by the real account id', () => {
   const accounts = {
     'account-a': {
       ...defaultAccountPreferences,
-      homeDefaultView: { mode: 'member' as const, memberId: 'member-a' },
       recordSubjectBehavior: 'remember-last' as const
     }
   }
 
-  assert.deepEqual(getAccountPreferences(accounts, 'account-a').homeDefaultView, { mode: 'member', memberId: 'member-a' })
+  assert.equal(getAccountPreferences(accounts, 'account-a').recordSubjectBehavior, 'remember-last')
   assert.deepEqual(getAccountPreferences(accounts, 'account-b'), defaultAccountPreferences)
+})
+
+test('legacy account fields are ignored without changing supported preferences', () => {
+  const obsoletePreference = ['home', 'Default', 'View'].join('')
+  const accounts = {
+    'account-a': {
+      interfaceLanguage: 'zh-CN' as const,
+      recordSubjectBehavior: 'remember-last' as const,
+      [obsoletePreference]: { mode: 'all' }
+    }
+  }
+
+  const preferences = getAccountPreferences(accounts, 'account-a')
+  assert.deepEqual(preferences, {
+    interfaceLanguage: 'zh-CN',
+    recordSubjectBehavior: 'remember-last'
+  })
+  assert.equal(Object.hasOwn(preferences, obsoletePreference), false)
 })
 
 test('care mode applies defaults once and preserves detailed choices after disabling', () => {

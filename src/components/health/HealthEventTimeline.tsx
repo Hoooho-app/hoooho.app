@@ -8,10 +8,9 @@ interface HealthEventTimelineProps {
   events: HealthEventListItemViewModel[]
   onStatusChange?: (eventId: string, status: HealthEventStage) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
-  showMemberName?: boolean
 }
 
-export function HealthEventTimeline({ events, onStatusChange, onDelete, showMemberName = false }: HealthEventTimelineProps) {
+export function HealthEventTimeline({ events, onStatusChange, onDelete }: HealthEventTimelineProps) {
   const items = groupHealthEventsByLocalDate(events).map((dateGroup) => ({
     id: dateGroup.date,
     label: (
@@ -30,7 +29,6 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete, showMemb
             key={event.id}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
-            showMemberName={showMemberName}
           />
         ))}
       </div>

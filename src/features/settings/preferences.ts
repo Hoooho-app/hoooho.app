@@ -1,10 +1,8 @@
 export type CareTextSize = 'standard' | 'large' | 'extra-large'
-export type HomeDefaultView = { mode: 'all' } | { mode: 'member'; memberId: string }
 export type RecordSubjectBehavior = 'confirm' | 'remember-last'
 export type InterfaceLanguage = 'zh-CN'
 
 export interface AccountPreferences {
-  homeDefaultView: HomeDefaultView
   interfaceLanguage: InterfaceLanguage
   recordSubjectBehavior: RecordSubjectBehavior
 }
@@ -23,7 +21,6 @@ export interface CarePreferences {
 }
 
 export const defaultAccountPreferences: AccountPreferences = {
-  homeDefaultView: { mode: 'all' },
   interfaceLanguage: 'zh-CN',
   recordSubjectBehavior: 'confirm'
 }
@@ -47,13 +44,13 @@ export function getAccountPreferences(
 ): AccountPreferences {
   if (!accountId) return defaultAccountPreferences
   const stored = accounts[accountId]
-  return stored
-    ? {
-        ...defaultAccountPreferences,
-        ...stored,
-        homeDefaultView: stored.homeDefaultView ?? defaultAccountPreferences.homeDefaultView
-      }
-    : defaultAccountPreferences
+  if (!stored) return defaultAccountPreferences
+  return {
+    interfaceLanguage: stored.interfaceLanguage === 'zh-CN' ? stored.interfaceLanguage : defaultAccountPreferences.interfaceLanguage,
+    recordSubjectBehavior: stored.recordSubjectBehavior === 'remember-last' || stored.recordSubjectBehavior === 'confirm'
+      ? stored.recordSubjectBehavior
+      : defaultAccountPreferences.recordSubjectBehavior
+  }
 }
 
 export function nextCareModePreferences(current: CarePreferences, enabled: boolean): CarePreferences {

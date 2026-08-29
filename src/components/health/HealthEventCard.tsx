@@ -10,10 +10,9 @@ interface HealthEventCardProps {
   event: HealthEventListItemViewModel
   onStatusChange?: (eventId: string, status: HealthEventStage) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
-  showMemberName?: boolean
 }
 
-export function HealthEventCard({ event, onStatusChange, onDelete, showMemberName = false }: HealthEventCardProps) {
+export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEventCardProps) {
   const navigate = useNavigate()
   const startX = useRef(0)
   const startTranslate = useRef(0)
@@ -108,7 +107,6 @@ export function HealthEventCard({ event, onStatusChange, onDelete, showMemberNam
           className={isRecovered ? 'health-event-list-card health-event-list-card--recovered' : 'health-event-list-card'}
           definitionTitle={event.definitionTitle}
           interactive
-          memberName={showMemberName ? event.memberName : undefined}
           quickFacts={event.quickFacts}
           showChevron
           status={event.status}
