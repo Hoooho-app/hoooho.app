@@ -17,12 +17,8 @@ import {
 import {
   getAccountPreferences,
   type CarePreferences,
-  type HomeDefaultView,
   type RecordSubjectBehavior
 } from '../../features/settings/preferences'
-import { ApiRequestError } from '../../services/apiClient'
-import { familyMemberService } from '../../services/familyMembers'
-import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 
@@ -123,7 +119,7 @@ export function SettingsPage() {
     <SettingsLayout title="设置">
       <SettingsGroup>
         <HohoSurfaceRow
-          description="默认成员、查看方式与外观"
+          description="记录习惯与外观"
           leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>}
           onActivate={() => navigate('/settings/personalization')}
           title="个性化"
@@ -174,79 +170,24 @@ export function SettingsPage() {
   )
 }
 
-type PersonalizationChoice = 'home' | 'record' | null
+type PersonalizationChoice = 'record' | null
 
 export function PersonalizationSettingsPage() {
   const accountId = useAppStore((state) => state.authUser?.id)
-  const token = useAppStore((state) => state.authToken)
-  const members = useAppStore((state) => state.members)
-  const setMembers = useAppStore((state) => state.setMembers)
-  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const accounts = useSettingsStore((state) => state.accounts)
   const setAccountPreferences = useSettingsStore((state) => state.setAccountPreferences)
   const preferences = getAccountPreferences(accounts, accountId)
   const [choice, setChoice] = useState<PersonalizationChoice>(null)
-  const [membersLoading, setMembersLoading] = useState(members.length === 0)
-  const [membersError, setMembersError] = useState('')
-
-  useEffect(() => {
-    if (!token) return
-    const controller = new AbortController()
-    let active = true
-    familyMemberService.list(token, controller.signal)
-      .then((items) => {
-        if (active) setMembers(items.map(adaptFamilyMember))
-      })
-      .catch((error) => {
-        if (!active) return
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        if (error instanceof ApiRequestError && error.status === 401) {
-          clearAuthSession()
-          return
-        }
-        setMembersError(error instanceof Error ? error.message : '家庭成员加载失败')
-      })
-      .finally(() => {
-        if (active) setMembersLoading(false)
-      })
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [clearAuthSession, setMembers, token])
-
-  const homeDefaultView = preferences.homeDefaultView
-  const selectedMember = homeDefaultView.mode === 'member'
-    ? members.find((member) => member.id === homeDefaultView.memberId)
-    : null
-  const homeValue = homeDefaultView.mode === 'all' ? '全部家人' : selectedMember?.name ?? '需重新选择'
-  const homeSelection = homeDefaultView.mode === 'all' ? 'all' : `member:${homeDefaultView.memberId}`
-  const homeOptions: ChoiceOption<string>[] = [
-    { label: '全部家人', value: 'all' },
-    ...members.map((member) => ({ label: member.name, description: member.relation, value: `member:${member.id}` }))
-  ]
   const recordOptions: ChoiceOption<RecordSubjectBehavior>[] = [
     { label: '每次确认记录对象', description: '家人较多时，新增记录前先确认', value: 'confirm' },
     { label: '记住上次选择', description: '直接使用最近查看的家人', value: 'remember-last' }
   ]
 
-  const selectHome = (value: string) => {
-    if (!accountId) return
-    const homeDefaultView: HomeDefaultView = value === 'all'
-      ? { mode: 'all' }
-      : { mode: 'member', memberId: value.replace(/^member:/, '') }
-    setAccountPreferences(accountId, { homeDefaultView })
-  }
-
   return (
     <SettingsLayout title="个性化">
       <SettingsGroup title="使用习惯">
-        <HohoSurfaceRow description="进入健康事件首页时" onActivate={() => setChoice('home')} title="首页默认查看" value={homeValue} />
         <HohoSurfaceRow description="避免把健康记录记错人" onActivate={() => setChoice('record')} title="新建记录时" value={preferences.recordSubjectBehavior === 'confirm' ? '每次确认记录对象' : '记住上次选择'} />
       </SettingsGroup>
-
-      {membersLoading && <StatusNotice title="正在读取家庭成员">选项会使用当前账号中的真实家庭成员。</StatusNotice>}
-      {membersError && <StatusNotice title="家庭成员读取失败" tone="error">{membersError}</StatusNotice>}
 
       <SettingsGroup title="外观">
         <HohoSurfaceRow description="当前产品仅完整支持浅色界面" title="外观模式" value="浅色" />
@@ -254,7 +195,6 @@ export function PersonalizationSettingsPage() {
 
       <p className="settings-note px-2">家庭成员的头像与资料，请在对应成员页面修改。</p>
 
-      <ChoiceSheet onClose={() => setChoice(null)} onSelect={selectHome} open={choice === 'home'} options={homeOptions} selected={homeSelection} title="首页默认查看" />
       <ChoiceSheet
         onClose={() => setChoice(null)}
         onSelect={(value) => accountId && setAccountPreferences(accountId, { recordSubjectBehavior: value })}

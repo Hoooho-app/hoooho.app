@@ -9,15 +9,37 @@ const cardSource = readFileSync(new URL('../../components/health/HealthEventCard
 const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEventCardSurface.tsx', import.meta.url), 'utf8')
 const filterSource = readFileSync(new URL('../../components/health/HealthEventFilterSheet.tsx', import.meta.url), 'utf8')
 const firstUseSource = readFileSync(new URL('./FirstUseHome.tsx', import.meta.url), 'utf8')
+const settingsSource = readFileSync(new URL('../Settings/index.tsx', import.meta.url), 'utf8')
+const preferencesSource = readFileSync(new URL('../../features/settings/preferences.ts', import.meta.url), 'utf8')
+const timelineSource = readFileSync(new URL('../../components/health/HealthEventTimeline.tsx', import.meta.url), 'utf8')
 
-test('健康事件首页使用设置驱动的查看范围、紧凑标题和左对齐年份导航', () => {
-  assert.match(pageSource, /label="首页查看"/)
-  assert.match(pageSource, /name=\{viewingAll \? '全部家人'/)
-  assert.match(pageSource, /viewingAll \|\| !currentMemberDto \|\| event\.memberId === currentMemberDto\.id/)
+test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
+  assert.match(pageSource, /label="当前人物"/)
+  assert.match(pageSource, /getMemberHealthEvents\(state\.data\.events, currentMemberDto\?\.id\)/)
+  assert.match(pageSource, /state\.data\.members\.find\(\(member\) => member\.id === currentMemberId\) \?\? null/)
+  assert.match(pageSource, /state: \{ familyEntry: \{ returnTo: '\/health-events'/)
+  const obsoleteRuntimeNames = [
+    ['viewing', 'All'].join(''),
+    ['view', 'Scope'].join(''),
+    ['member', 'Count'].join('')
+  ]
+  obsoleteRuntimeNames.forEach((name) => assert.equal(pageSource.includes(name), false))
+  assert.equal(`${pageSource}\n${timelineSource}\n${cardSource}`.includes(['show', 'Member', 'Name'].join('')), false)
   assert.match(pageSource, /className="health-events-list-title" variant="sectionTitle">事件列表/)
   assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
   assert.match(stylesSource, /\.health-events-list-title\s*{[^}]*var\(--hoho-font-size-card-title\)/s)
   assert.match(stylesSource, /\.health-events-year-tabs \.hoho-year-tabs__item\s*{[^}]*flex-grow:\s*0[^}]*text-align:\s*left/s)
+})
+
+test('个性化设置不再提供跨人物首页范围且偏好层不再声明该字段', () => {
+  const obsoleteSettingLabel = ['首页', '默认', '查看'].join('')
+  const obsoleteAllLabel = ['全部', '家人'].join('')
+  const obsoletePreference = ['home', 'Default', 'View'].join('')
+
+  assert.equal(settingsSource.includes(obsoleteSettingLabel), false)
+  assert.equal(settingsSource.includes(obsoleteAllLabel), false)
+  assert.equal(settingsSource.includes(obsoletePreference), false)
+  assert.equal(preferencesSource.includes(obsoletePreference), false)
 })
 
 test('新增健康事件按钮恢复主绿色单色样式', () => {

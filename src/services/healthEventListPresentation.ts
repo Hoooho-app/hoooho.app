@@ -1,4 +1,12 @@
-import type { HealthEventApiDto, HealthEventRecordApiDto } from '../types'
+import type { HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
+
+export function getMemberHealthEvents(
+  events: readonly HealthEventListItemViewModel[],
+  memberId: string | null | undefined
+) {
+  if (!memberId) return []
+  return events.filter((event) => event.memberId === memberId && event.title.trim().length > 0)
+}
 
 export function getEventOccurredAt(event: HealthEventApiDto, records: readonly HealthEventRecordApiDto[]) {
   if (records.length === 0) return event.startTime
