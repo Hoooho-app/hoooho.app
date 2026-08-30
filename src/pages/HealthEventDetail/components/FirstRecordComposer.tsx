@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Mic, Paperclip, X } from 'lucide-react'
-import { BodyLocationPicker } from '../../../components/health'
+import { Paperclip, X } from 'lucide-react'
+import { BodyLocationPicker, QuickRecordTrigger } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
@@ -140,7 +140,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
       </div>
 
       {error && <div className="first-record-error" role="alert"><p>{error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}
-      {!voiceOpen && <button className="quick-record-trigger first-record-quick-trigger" onClick={() => setVoiceOpen(true)} type="button"><Mic size={18} />快捷记录</button>}
+      {!voiceOpen && <QuickRecordTrigger className="first-record-quick-trigger" onClick={() => setVoiceOpen(true)} />}
       <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setError(''); return '已加入描述' }} open={voiceOpen} />
     </section>
   )

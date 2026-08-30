@@ -15,7 +15,8 @@ const preferencesSource = readFileSync(new URL('../../features/settings/preferen
 const timelineSource = readFileSync(new URL('../../components/health/HealthEventTimeline.tsx', import.meta.url), 'utf8')
 const helpSource = readFileSync(new URL('../../features/help/articles.ts', import.meta.url), 'utf8')
 const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
-const nurseRecorderSource = readFileSync(new URL('./NurseTriageRecorder.tsx', import.meta.url), 'utf8')
+const nurseQuickRecordSource = readFileSync(new URL('./NurseQuickRecord.tsx', import.meta.url), 'utf8')
+const quickRecordFlowSource = readFileSync(new URL('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
 const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
 const idleSchedulerSource = readFileSync(new URL('./idleNurseAnimation.ts', import.meta.url), 'utf8')
 const animationControllerSource = readFileSync(new URL('./nurseAnimationController.ts', import.meta.url), 'utf8')
@@ -42,7 +43,10 @@ test('同一健康事件页提供纯 Icon 查看切换且智能记录视图隐�
   assert.match(pageSource, /aria-label="列表视图"/)
   assert.match(pageSource, /aria-label="智能记录视图"/)
   assert.match(pageSource, /shouldShowHealthEventFilters\(viewMode\)/)
-  assert.match(pageSource, /viewMode === 'triage'[^]*<NurseTriageRecorder/s)
+  assert.match(pageSource, /viewMode === 'triage'[^]*<NurseQuickRecord/s)
+  assert.match(nurseQuickRecordSource, /<QuickVoiceRecordFlow/)
+  assert.match(nurseQuickRecordSource, /<QuickRecordTrigger/)
+  assert.doesNotMatch(nurseQuickRecordSource, /开始说话/)
   assert.doesNotMatch(pageSource, /智能模式|护士模式|陪伴模式/)
 })
 
@@ -63,7 +67,7 @@ test('护士状态资产预加载、固定画框、待机调度清理并支持 R
   assert.match(idleSchedulerSource, /this\.clearPendingTimer\(\)/)
   assert.match(idleVisualSource, /window\.clearTimeout\(specialLoadTimerRef\.current\)/)
   assert.match(idleVisualSource, /removeEventListener\('ended'/)
-  assert.match(nurseRecorderSource, /prefers-reduced-motion|reducedMotion/)
+  assert.match(nurseQuickRecordSource, /reducedMotion/)
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*{[^}]*aspect-ratio:\s*1\s*\/\s*1/s)
 })
 
@@ -142,11 +146,35 @@ test('双待机资产内容正确且旧静态素材已删除', () => {
   })
 })
 
-test('麦克风失败提供文字输入且保存成功后不自动切回列表', () => {
-  assert.match(nurseRecorderSource, /navigator\.mediaDevices\.getUserMedia/)
-  assert.match(nurseRecorderSource, /aria-label="原始转写"/)
-  assert.match(nurseRecorderSource, /move\('saveSucceeded'\)/)
-  assert.doesNotMatch(nurseRecorderSource, /setViewMode\('list'\)/)
+test('智能查看直接复用详情快捷记录并在完成后停留当前视图', () => {
+  assert.match(quickRecordFlowSource, /getBrowserVoiceCapability/)
+  assert.match(quickRecordFlowSource, /aria-label="确认快捷记录"/)
+  assert.match(pageSource, /onPreview=\{previewTriageRecord\}/)
+  assert.match(pageSource, /onConfirm=\{saveTriageRecord\}/)
+  assert.doesNotMatch(nurseQuickRecordSource, /SpeechRecognition|setInterval|navigator\.mediaDevices/)
+  assert.doesNotMatch(nurseQuickRecordSource, /setViewMode\('list'\)/)
+})
+
+test('智能查看快捷记录严格绑定当前人物、复用真实预览保存链路并刷新列表', () => {
+  assert.match(pageSource, /currentMemberDto\.id !== currentMemberId/)
+  assert.match(pageSource, /memberId: currentMemberDto\.id/)
+  assert.match(pageSource, /healthRecordOrganizationService\.preview\(pending\.eventId/)
+  assert.match(pageSource, /healthEventRecordService\.create\(pending\.eventId/)
+  assert.match(pageSource, /healthRecordOrganizationService\.organize\(pending\.eventId/)
+  assert.match(pageSource, /pendingTriageEventRef\.current = null/)
+  assert.match(pageSource, /retry\(\)/)
+})
+
+test('智能查看使用动态视口单屏布局且快捷记录面板为键盘保留操作区', () => {
+  assert.match(pageSource, /data-view-mode=\{viewMode\}/)
+  assert.match(pageSource, /health-events-content--triage overflow-hidden/)
+  assert.match(pageStylesSource, /data-view-mode='triage'[^}]*height:\s*100dvh[^}]*min-height:\s*0/s)
+  assert.match(pageStylesSource, /health-events-content--triage[^}]*display:\s*flex[^}]*min-height:\s*0[^}]*flex-direction:\s*column/s)
+  assert.match(pageStylesSource, /nurse-triage-visual-slot[^}]*min-height:\s*0/s)
+  assert.match(pageStylesSource, /nurse-triage-recorder \.nurse-quick-record-trigger[^}]*position:\s*static[^}]*width:\s*100%/s)
+  assert.match(quickRecordFlowSource, /window\.visualViewport/)
+  assert.match(pageStylesSource, /quick-record-viewport-height/)
+  assert.match(pageStylesSource, /quick-record-panel-review[^}]*flex-direction:\s*column/s)
 })
 
 test('个性化设置不再提供跨人物首页范围且偏好层不再声明该字段', () => {
