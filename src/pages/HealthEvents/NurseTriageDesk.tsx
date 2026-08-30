@@ -6,8 +6,6 @@ import { resolveNurseAnimationKind } from './nurseAnimationController'
 import type { NurseTriageState } from './nurseTriageMachine'
 
 const nurseTriageAssets = {
-  idle: '/nurse-triage/idle.png',
-  idleWorking: '/nurse-triage/idle-working.png',
   attention: '/nurse-triage/attention.png',
   preparing: '/nurse-triage/preparing.png',
   listening: '/nurse-triage/listening.png',
@@ -22,8 +20,7 @@ const nurseTriageAssets = {
 
 type NurseTriageAsset = (typeof nurseTriageAssets)[keyof typeof nurseTriageAssets]
 
-const visualAssetByState: Record<NurseTriageState, NurseTriageAsset> = {
-  idle: nurseTriageAssets.idleWorking,
+const visualAssetByState: Partial<Record<NurseTriageState, NurseTriageAsset>> = {
   attention: nurseTriageAssets.attention,
   preparing: nurseTriageAssets.preparing,
   listening: nurseTriageAssets.listening,
@@ -33,8 +30,7 @@ const visualAssetByState: Record<NurseTriageState, NurseTriageAsset> = {
   saving: nurseTriageAssets.saving,
   saved: nurseTriageAssets.saved,
   handoff: nurseTriageAssets.handoff,
-  shifted: nurseTriageAssets.shifted,
-  error: nurseTriageAssets.idleWorking
+  shifted: nurseTriageAssets.shifted
 }
 
 const allNurseTriageAssets = [...new Set(Object.values(nurseTriageAssets))]
@@ -77,7 +73,9 @@ export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, redu
           ? 'error'
           : 'processing'
   const animationKind = resolveNurseAnimationKind(businessKind, false, false)
-  const activeAsset = state === 'idle' ? null : visualAssetByState[state]
+  const activeAsset = visualAssetByState[state] ?? null
+  const idleVideoActive = state === 'idle' || state === 'error'
+  const specialActionsEnabled = animationKind === 'idle' && canRunIdleNurseAnimation(state, pageVisible, reducedMotion)
   const style = useMemo(() => ({ '--nurse-audio-level': Math.max(0, Math.min(1, audioLevel)) } as CSSProperties), [audioLevel])
 
   return (
@@ -89,10 +87,10 @@ export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, redu
       style={style}
     >
       <IdleNurseVisual
-        active={animationKind === 'idle' && canRunIdleNurseAnimation(state, pageVisible, reducedMotion)}
+        active={idleVideoActive && pageVisible}
         reducedMotion={reducedMotion}
         resetKey={idleAnimationResetKey}
-        staticSource="/nurse-triage/idle-video-first-frame.png"
+        specialActionsEnabled={specialActionsEnabled}
       />
       {allNurseTriageAssets.map((source) => (
         <img
@@ -101,6 +99,7 @@ export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, redu
           className="nurse-triage-desk__image"
           data-active={source === activeAsset}
           decoding="async"
+          draggable={false}
           key={source}
           src={source}
         />

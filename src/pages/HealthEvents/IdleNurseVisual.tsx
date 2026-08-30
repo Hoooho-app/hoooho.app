@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import idleVideoSource from '../../assets/nurse-triage/nurses-idle-loop.mp4'
 import {
   IdleAnimationScheduler,
   idleNurseActions,
@@ -7,7 +8,6 @@ import {
 } from './idleNurseAnimation'
 import { createIdleNurseAnimationState, transitionNurseAnimation } from './nurseAnimationController'
 
-const idleVideoSource = '/nurse-triage/nurses-idle-loop.mp4'
 const videoSourceByAction = Object.fromEntries(
   idleNurseActions.map((action) => [action.id, action.source])
 ) as Record<IdleNurseAction, string>
@@ -21,14 +21,13 @@ interface IdleNurseVisualProps {
   active: boolean
   reducedMotion: boolean
   resetKey: string
-  staticSource: string
+  specialActionsEnabled: boolean
 }
 
-export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource }: IdleNurseVisualProps) {
+export function IdleNurseVisual({ active, reducedMotion, resetKey, specialActionsEnabled }: IdleNurseVisualProps) {
   const [animation, dispatch] = useReducer(transitionNurseAnimation, undefined, () => createIdleNurseAnimationState())
   const [idleReady, setIdleReady] = useState(false)
   const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
-  const [idleUnavailable, setIdleUnavailable] = useState(false)
   const [pendingSpecial, setPendingSpecial] = useState<PendingSpecialAction | null>(null)
   const [specialReady, setSpecialReady] = useState(false)
   const [specialRequested, setSpecialRequested] = useState(false)
@@ -37,11 +36,12 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
   const mountedRef = useRef(true)
   const specialVideoRef = useRef<HTMLVideoElement | null>(null)
   const requestIdRef = useRef(0)
+  const idleRetryTimerRef = useRef(0)
   const specialLoadTimerRef = useRef(0)
 
   const playIdle = useCallback(async () => {
     const video = idleVideoRef.current
-    if (!video || !active || reducedMotion || idleUnavailable) return
+    if (!video || !active || reducedMotion) return
     if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
       video.currentTime = 0
     }
@@ -49,7 +49,25 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
     if (!mountedRef.current) return
     setIdlePlaybackBlocked(Boolean(reason))
     if (!reason) setIdleReady(true)
-  }, [active, idleUnavailable, reducedMotion])
+  }, [active, reducedMotion])
+
+  const retryIdleVideo = useCallback(() => {
+    if (!mountedRef.current) return
+    setIdleReady(false)
+    window.clearTimeout(idleRetryTimerRef.current)
+    idleRetryTimerRef.current = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      const video = idleVideoRef.current
+      if (!video) return
+      video.load()
+      if (reducedMotion) {
+        video.pause()
+        video.currentTime = 0
+        return
+      }
+      void playIdle()
+    }, 2_000)
+  }, [playIdle, reducedMotion])
 
   const returnToIdle = useCallback((requestId: number, completed: boolean) => {
     if (!mountedRef.current || requestId !== requestIdRef.current) return
@@ -73,6 +91,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      window.clearTimeout(idleRetryTimerRef.current)
     }
   }, [])
 
@@ -100,7 +119,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
       }
     })
     schedulerRef.current = scheduler
-    if (active && !reducedMotion) scheduler.start()
+    if (specialActionsEnabled && !reducedMotion) scheduler.start()
 
     return () => {
       scheduler.stop()
@@ -109,7 +128,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
       requestIdRef.current += 1
       specialVideoRef.current?.pause()
     }
-  }, [active, reducedMotion, resetKey])
+  }, [reducedMotion, resetKey, specialActionsEnabled])
 
   useEffect(() => {
     if (!active || reducedMotion) {
@@ -175,53 +194,66 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource 
   }, [pendingSpecial, returnToIdle])
 
   const specialSource = pendingSpecial ? videoSourceByAction[pendingSpecial.action] : undefined
-  const showStatic = reducedMotion || idleUnavailable || !idleReady
-
   return (
     <div
       className="idle-nurse-visual"
       data-action={animation.action ?? 'none'}
-      data-idle-ready={idleReady && !idleUnavailable}
+      data-idle-ready={idleReady}
       data-mode={animation.kind}
       data-reduced-motion={reducedMotion}
     >
-      <img alt="" aria-hidden="true" className="idle-nurse-visual__static" data-active={showStatic} decoding="async" src={staticSource} />
       <video
         aria-hidden="true"
         autoPlay={active && !reducedMotion}
         className="idle-nurse-visual__idle-video"
         controls={false}
-        controlsList="nodownload noplaybackrate nofullscreen"
+        controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
         disablePictureInPicture
+        disableRemotePlayback
         draggable={false}
         loop
         muted
         onCanPlay={() => {
+          window.clearTimeout(idleRetryTimerRef.current)
+          idleRetryTimerRef.current = 0
           setIdleReady(true)
+          if (reducedMotion) {
+            const video = idleVideoRef.current
+            if (video) {
+              video.pause()
+              video.currentTime = 0
+            }
+            return
+          }
           void playIdle()
         }}
         onContextMenu={(event) => event.preventDefault()}
-        onError={() => setIdleUnavailable(true)}
+        onDragStart={(event) => event.preventDefault()}
+        onError={retryIdleVideo}
         playsInline
         preload="auto"
         ref={idleVideoRef}
         src={idleVideoSource}
+        tabIndex={-1}
       />
       <video
         aria-hidden="true"
         className="idle-nurse-visual__special-video"
         controls={false}
-        controlsList="nodownload noplaybackrate nofullscreen"
+        controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
         disablePictureInPicture
+        disableRemotePlayback
         draggable={false}
         loop={false}
         muted
         onCanPlay={() => setSpecialReady(true)}
         onContextMenu={(event) => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
         playsInline
         preload={specialSource ? 'auto' : 'none'}
         ref={specialVideoRef}
         src={specialSource}
+        tabIndex={-1}
       />
     </div>
   )
