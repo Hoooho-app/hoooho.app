@@ -43,6 +43,7 @@ export function EditFamilyMemberPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export function EditFamilyMemberPage() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
+    if (photoProcessing) return
     if (!token || !memberId || !name.trim() || !birthday) {
       setError('请完整填写姓名、出生日期和性别')
       return
@@ -159,6 +161,7 @@ export function EditFamilyMemberPage() {
                 onError={setError}
                 onModeChange={setAvatarMode}
                 onPhotoChange={setPhotoAvatar}
+                onProcessingChange={setPhotoProcessing}
                 photo={photoAvatar}
               />
             </div>
@@ -196,8 +199,8 @@ export function EditFamilyMemberPage() {
 
           <div className="mt-auto pt-7">
             <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
-            <Button className="mt-2" disabled={submitting || deleting} fullWidth type="submit">{submitting ? '正在保存…' : '保存'}</Button>
-            <button className="hoho-button mt-4 w-full" data-variant="danger" disabled={submitting || deleting} type="button" onClick={remove}>
+            <Button className="mt-2" disabled={submitting || deleting || photoProcessing} fullWidth type="submit">{submitting ? '正在保存…' : '保存'}</Button>
+            <button className="hoho-button mt-4 w-full" data-variant="danger" disabled={submitting || deleting || photoProcessing} type="button" onClick={remove}>
               <Trash2 size={18} strokeWidth={1.7} />
               {deleting ? '正在删除…' : '删除此角色'}
             </button>

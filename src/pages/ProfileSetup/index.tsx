@@ -29,6 +29,7 @@ export function ProfileSetupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
   const hasAvatarProfile = Boolean(name.trim() && birthday && (gender === 'male' || gender === 'female'))
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function ProfileSetupPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (photoProcessing) return
     const cleanName = name.trim()
 
     if (!cleanName || cleanName.length > 20) {
@@ -101,8 +103,6 @@ export function ProfileSetupPage() {
       return
     }
 
-    setError('')
-    setSubmitting(true)
     if (avatarMode === 'photo' && !photoAvatar) {
       setError('请先点击相机上传照片头像')
       return
@@ -111,6 +111,8 @@ export function ProfileSetupPage() {
       setError('请完整填写姓名、出生日期和性别')
       return
     }
+    setError('')
+    setSubmitting(true)
     const avatar = avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(avatarConfig!)
     try {
       const member = selfMember ? await familyMemberService.update(selfMember.id, {
@@ -150,6 +152,7 @@ export function ProfileSetupPage() {
               onError={setError}
               onModeChange={setAvatarMode}
               onPhotoChange={setPhotoAvatar}
+              onProcessingChange={setPhotoProcessing}
               photo={photoAvatar}
             />
           </div>
@@ -253,7 +256,7 @@ export function ProfileSetupPage() {
           <div aria-live="polite">
             {error && <p className="mb-2 text-xs text-danger">{error}</p>}
           </div>
-          <Button disabled={loading || submitting} fullWidth type="submit">
+          <Button disabled={loading || submitting || photoProcessing} fullWidth type="submit">
             {loading ? '正在准备…' : submitting ? '正在保存…' : '完成'}
           </Button>
           <button className="mt-1 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/health-events', { replace: true })}>

@@ -110,6 +110,7 @@ export function AddFamilyMemberPage() {
   const [avatarTouched, setAvatarTouched] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
   const [createdMember, setCreatedMember] = useState<FamilyMemberApiDto | null>(null)
   const hasAvatarProfile = Boolean(name.trim() && birthday && gender)
 
@@ -127,6 +128,7 @@ export function AddFamilyMemberPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    if (photoProcessing) return
     const cleanName = name.trim()
     if (!cleanName || cleanName.length > 20 || !birthday || !gender || !token) {
       setError('请完整填写姓名、出生日期和性别')
@@ -188,6 +190,7 @@ export function AddFamilyMemberPage() {
               onError={setError}
               onModeChange={setAvatarMode}
               onPhotoChange={setPhotoAvatar}
+              onProcessingChange={setPhotoProcessing}
               photo={photoAvatar}
             />
           </div>
@@ -210,7 +213,7 @@ export function AddFamilyMemberPage() {
 
         <div className="mt-auto pb-[max(20px,env(safe-area-inset-bottom))] pt-6">
           <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
-          <Button className="mt-2" disabled={submitting} fullWidth type="submit">{submitting ? '正在添加…' : '添加家庭成员'}</Button>
+          <Button className="mt-2" disabled={submitting || photoProcessing} fullWidth type="submit">{submitting ? '正在添加…' : '添加家庭成员'}</Button>
         </div>
       </form>
     </main>
