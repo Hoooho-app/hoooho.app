@@ -171,6 +171,7 @@ test('智能查看使用动态视口单屏布局且快捷记录面板为键盘�
   assert.match(pageStylesSource, /data-view-mode='triage'[^}]*height:\s*100dvh[^}]*min-height:\s*0/s)
   assert.match(pageStylesSource, /health-events-content--triage[^}]*display:\s*flex[^}]*min-height:\s*0[^}]*flex-direction:\s*column/s)
   assert.match(pageStylesSource, /nurse-triage-visual-slot[^}]*min-height:\s*0/s)
+  assert.match(pageStylesSource, /nurse-triage-visual-slot \.nurse-triage-desk[^}]*width:\s*min\(76%, 340px\)[^}]*height:\s*auto/s)
   assert.match(pageStylesSource, /nurse-triage-recorder \.nurse-quick-record-trigger[^}]*position:\s*static[^}]*width:\s*100%/s)
   assert.match(quickRecordFlowSource, /window\.visualViewport/)
   assert.match(pageStylesSource, /quick-record-viewport-height/)

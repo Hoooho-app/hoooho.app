@@ -537,9 +537,8 @@
   }
 
   .nurse-triage-visual-slot .nurse-triage-desk {
-    width: auto;
-    height: 100%;
-    max-width: 76%;
+    width: min(76%, 340px);
+    height: auto;
     max-height: 340px;
     margin: 0 auto;
   }
