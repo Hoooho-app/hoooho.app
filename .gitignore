@@ -1,4 +1,7 @@
 node_modules
+tests/health-timeline-multimodal/fixtures/
+tests/health-timeline-multimodal/evidence/
+tests/health-timeline-multimodal/.artifacts/
 dist
 build
 coverage
