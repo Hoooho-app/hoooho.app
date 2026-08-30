@@ -63,10 +63,10 @@ export function TimelineSection({ event }: TimelineSectionProps) {
           <p className="mt-2 text-sm leading-6 text-text-secondary">直接描述什么时候开始、有哪些变化，以及做过什么处理。</p>
         </Card>
       ) : (
-        <div className="space-y-8" aria-label="健康过程记录">
+        <div className="timeline-groups" aria-label="健康过程记录">
           {timelineGroups.flatMap((yearGroup) => yearGroup.dates.map((dateGroup) => (
             <section className="timeline-date-group" key={`${yearGroup.year}-${dateGroup.date}`} aria-label={`${dateGroup.date}健康记录`}>
-              <h3 className="hoho-text-section-title text-primary">{dateGroup.date}</h3>
+              <h3 className="timeline-date-heading hoho-text-section-title text-primary">{dateGroup.date}</h3>
               <div className="timeline-date-entries">
                 {dateGroup.entries.map((entry) => (
                   <TimelineRow
@@ -109,10 +109,9 @@ function TimelineRow({
 
   return (
     <article className="timeline-entry-row">
+      <span aria-hidden="true" className="timeline-entry-marker" />
       <time className="timeline-entry-time">{entry.periodLabel ?? entry.displayTime ?? formatTimelineClock(entry.time)}</time>
-      <div className="timeline-entry-track">
-        <span className="timeline-entry-marker" />
-        <div className="timeline-record-card">
+      <div className="timeline-record-card">
         <Main
           {...(hasDetails ? { 'aria-expanded': detailsExpanded, onClick: onToggleDetails, type: 'button' as const } : {})}
           className="timeline-record-main"
@@ -166,7 +165,6 @@ function TimelineRow({
             {detailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         )}
-        </div>
       </div>
     </article>
   )
