@@ -8,6 +8,7 @@ const timelineSource = readFileSync(new URL('./TimelineSection.tsx', import.meta
 const firstRecordSource = readFileSync(new URL('./FirstRecordComposer.tsx', import.meta.url), 'utf8')
 const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url), 'utf8')
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
+const quickRecordTriggerSource = readFileSync(new URL('../../../components/health/QuickRecordTrigger.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
 const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
 
@@ -43,8 +44,9 @@ test('时间线排序入口复用设计系统图标按钮', () => {
 })
 
 test('详情页使用悬浮快捷记录且不保留说一句中间流程', () => {
-  assert.match(pageSource, /quick-record-trigger/)
-  assert.match(pageSource, />快捷记录</)
+  assert.match(pageSource, /<QuickRecordTrigger/)
+  assert.match(quickRecordTriggerSource, /quick-record-trigger/)
+  assert.match(quickRecordTriggerSource, /快捷记录/)
   assert.equal(pageSource.includes('继续说'), false)
   assert.equal(recorderSource.includes('说一句'), false)
   assert.match(stylesSource, /quick-record-trigger[^}]*fixed/)
