@@ -1,7 +1,7 @@
 import { ArrowRight, ChevronRight, Search, X } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { WebPageHeader } from '../../components/common'
+import { MainAppHeader } from '../../components/navigation'
 import {
   getGuideTutorial,
   guideFilters,
@@ -43,7 +43,7 @@ export function UsageGuidePage() {
   const openDetail = (tutorial: GuideTutorial) => updateParams({ tutorial: tutorial.id }, false)
 
   return <main className="app-shell guide-shell pb-0">
-    <WebPageHeader title="使用说明" fallback="/health-events" />
+    <MainAppHeader compact title="使用说明" />
     <div className="guide-content">
       <header className="guide-intro">
         <p className="guide-kicker">真实操作案例</p>

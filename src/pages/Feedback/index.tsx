@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
+import { MainAppHeader } from '../../components/navigation'
 import { appVersion, collectFeedbackDevice } from '../../features/feedback/environment'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { resolveFeedbackSource, type FeedbackSource } from '../../features/feedback/navigation'
@@ -33,7 +34,7 @@ export function FeedbackPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败，请检查网络后重试。你的文字和图片仍保留在这里。') }
     finally { setSubmitting(false) }
   }
-  return <main className="app-shell feedback-page pb-0"><WebPageHeader title="反馈意见" fallback={source.path} onBack={goBack} action={<button className="feedback-header-action" type="button" onClick={() => navigate('/feedback/mine')}>我的反馈</button>} />
+  return <main className="app-shell feedback-page pb-0"><MainAppHeader compact title="反馈意见" action={<button className="feedback-header-action" type="button" onClick={() => navigate('/feedback/mine')}>我的反馈</button>} />
     <form onSubmit={submit} className="feedback-form"><div className="feedback-intro"><p>发现哪里不好用，直接说给我们听。</p><p>每条反馈都会进入改进清单，处理进度可以回来查看。</p></div>
       <fieldset className="feedback-categories"><legend>快捷分类（选填）</legend><div>{feedbackCategories.map((item) => <button type="button" key={item} aria-pressed={category === item} onClick={() => setCategory((value) => value === item ? null : item)}>{item}</button>)}</div></fieldset>
       <FeedbackComposer text={description} onTextChange={setDescription} images={images} onImagesChange={setImages}/>

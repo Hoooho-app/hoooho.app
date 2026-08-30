@@ -1,11 +1,11 @@
 import { ChevronRight } from 'lucide-react'
-import { WebPageHeader } from '../../components/common'
+import { MainAppHeader } from '../../components/navigation'
 import logoUrl from '../../assets/logo.svg'
 
 export function AboutPage() {
   return (
     <main className="app-shell pb-0">
-      <WebPageHeader title="关于" fallback="/health-events" />
+      <MainAppHeader compact title="关于" />
       <div className="flex flex-col items-center gap-3 px-4 py-4">
         <div className="flex w-28 flex-col items-center py-4">
           <img className="h-20 w-20" src={logoUrl} alt="Hoooho Logo" />

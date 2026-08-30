@@ -1,6 +1,8 @@
 import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { WebPageHeader } from '../../components/common'
 import { HohoButton, HohoSection } from '../../components/design-system'
+import { MainAppHeader } from '../../components/navigation'
 import { helpAssistant, type HelpAssistantResult } from '../../features/help/assistant'
 import { PUBLISHED_HELP_ARTICLES } from '../../features/help/articles'
 import { getArticle, searchHelpArticles } from '../../features/help/search'
@@ -10,12 +12,11 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 const QUICK_QUERIES = ['收不到验证码', '记录写错人', '附件上传失败']
 const FREQUENT_IDS = ['continue-health-event','record-for-family','email-code-missing','change-record-time','change-record-member','add-attachment','data-not-showing','delete-record','no-diagnosis','export-data']
 
-function Header({ onBack }: { onBack: () => void }) { return <header className="help-header"><button type="button" onClick={onBack}>返回</button><h1>帮助中心</h1><span /></header> }
 function ArticleRow({ article, onOpen }: { article: HelpArticle; onOpen: (article: HelpArticle) => void }) { return <button className="help-article-row" type="button" onClick={() => onOpen(article)}><strong>{article.title}</strong><span>{article.summary}</span><small>{article.category}</small></button> }
 function FeedbackLink({ to, children }: { to: string; children: ReactNode }) { const current = `${window.location.pathname}${window.location.search}${window.location.hash}`; return <Link to={to} state={makeFeedbackState(current, '帮助中心', window.scrollY)}>{children}</Link> }
 
 export function HelpCenterPage() {
-  const navigate = useNavigate(); const [params, setParams] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState(params.get('q') ?? ''); const [debouncedQuery, setDebouncedQuery] = useState(query)
   const [category, setCategory] = useState<HelpCategory | null>(params.get('category') as HelpCategory | null)
   const [articleId, setArticleId] = useState(params.get('article') ?? ''); const [result, setResult] = useState<HelpAssistantResult | null>(null)
@@ -30,7 +31,8 @@ export function HelpCenterPage() {
   const search=async(value=query,chosenCategory=category)=>{const clean=value.trim();if(!clean)return;const current=++requestId.current;setQuery(clean);setDebouncedQuery(clean);setLoading(true);setError('');setArticleId('');sync({q:clean,category:chosenCategory});try{const next=await helpAssistant.resolve({query:clean,category:chosenCategory??undefined});if(current===requestId.current)setResult(next)}catch{if(current===requestId.current)setError('暂时无法完成搜索，请稍后重试。')}finally{if(current===requestId.current)setLoading(false)}}
   const home=()=>{requestId.current+=1;setQuery('');setDebouncedQuery('');setCategory(null);setArticleId('');setResult(null);setError('');setParams({})}
   const keyDown=(event:KeyboardEvent<HTMLInputElement>)=>{if(!suggestions.length||composing)return;if(event.key==='ArrowDown'){event.preventDefault();setActive((v)=>Math.min(v+1,suggestions.length))}else if(event.key==='ArrowUp'){event.preventDefault();setActive((v)=>Math.max(v-1,-1))}else if(event.key==='Enter'&&active>=0&&active<suggestions.length){event.preventDefault();openArticle(suggestions[active].article)}}
-  return <main className="app-shell help-center pb-0"><Header onBack={()=>article||result||category?home():navigate('/health-events')}/><div className="help-content">
+  const nested = Boolean(article || result || category)
+  return <main className="app-shell help-center pb-0">{nested ? <WebPageHeader title="帮助中心" onBack={home} /> : <MainAppHeader compact title="帮助中心" />}<div className="help-content">
     {!article&&<section className="help-search" aria-labelledby="help-search-title"><h2 id="help-search-title">遇到什么问题？</h2><form role="search" onSubmit={(e:FormEvent)=>{e.preventDefault();void search()}}><label className="sr-only" htmlFor="help-query">描述你遇到的问题</label><div className="help-search-controls"><input id="help-query" value={query} placeholder="描述你遇到的问题，例如：一直收不到邮箱验证码" autoComplete="off" aria-controls="help-suggestions" aria-expanded={Boolean(debouncedQuery&&!result)} aria-activedescendant={active>=0?`help-suggestion-${active}`:undefined} onCompositionStart={()=>setComposing(true)} onCompositionEnd={(e)=>{setComposing(false);setDebouncedQuery(e.currentTarget.value)}} onKeyDown={keyDown} onChange={(e)=>{setQuery(e.target.value);setResult(null);setActive(-1)}}/><HohoButton type="submit" disabled={!query.trim()||loading}>{loading?'搜索中':'搜索'}</HohoButton></div></form>
       {!result&&debouncedQuery&&<div id="help-suggestions" className="help-suggestions" role="listbox">{suggestions.map(({article:item},index)=><button id={`help-suggestion-${index}`} role="option" aria-selected={active===index} key={item.id} type="button" onClick={()=>openArticle(item)}><strong>{item.title}</strong><span>{item.summary}</span></button>)}<button id={`help-suggestion-${suggestions.length}`} role="option" aria-selected={active===suggestions.length} type="button" onClick={()=>void search()}>都不是，继续描述</button></div>}
       {!result&&!debouncedQuery&&<div className="help-quick-links">{QUICK_QUERIES.map((item)=><button type="button" key={item} onClick={()=>void search(item)}>{item}</button>)}</div>}<div className="help-search-status" aria-live="polite">{loading?'正在查找相关帮助…':error}</div></section>}

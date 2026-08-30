@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { SideDrawer } from './SideDrawer'
 import type { MemberSwitchResultState } from './navigationState'
 
-export function MainAppHeader({ title, action }: { title: string; action?: ReactNode }) {
+export function MainAppHeader({ title, action, compact = false }: { title: string; action?: ReactNode; compact?: boolean }) {
   const location = useLocation()
   const navigate = useNavigate()
   const switchResult = (location.state as MemberSwitchResultState | null)?.memberSwitchResult
@@ -23,12 +23,12 @@ export function MainAppHeader({ title, action }: { title: string; action?: React
 
   return (
     <>
-      <header className="hoho-page-header grid min-h-16 shrink-0 grid-cols-[1fr_minmax(0,2fr)_1fr] items-center px-3 pt-[env(safe-area-inset-top)]">
+      <header className={`hoho-page-header grid shrink-0 grid-cols-[1fr_minmax(0,2fr)_1fr] items-center px-3 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
         <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} />
         </button>
         <h1 className="hoho-text-section-title truncate px-2 text-center">{title}</h1>
-        <div className="justify-self-end">{action}</div>
+        <div className={`justify-self-end ${compact ? 'flex min-h-14 min-w-0 items-center pr-1' : ''}`}>{action}</div>
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />
       {switchedMemberName && (
