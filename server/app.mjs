@@ -20,6 +20,7 @@ import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
 import { AccountEntryStateService } from './onboarding/account-entry-state-service.mjs'
+import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
@@ -273,10 +274,10 @@ async function handleMembers(request, response, pathname) {
   const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
   if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
-  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, 310_000), new Date(), timeZone))
-  else if (memberId === 'self' && request.method === 'POST') sendJson(response, 201, await members.createSelf(accountId, await readJson(request, 310_000), new Date(), timeZone))
+  else if (!memberId && request.method === 'POST') sendJson(response, 201, await members.create(accountId, await readJson(request, AVATAR_PHOTO_MAX_REQUEST_LENGTH), new Date(), timeZone))
+  else if (memberId === 'self' && request.method === 'POST') sendJson(response, 201, await members.createSelf(accountId, await readJson(request, AVATAR_PHOTO_MAX_REQUEST_LENGTH), new Date(), timeZone))
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
-  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, 310_000), new Date(), timeZone))
+  else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, AVATAR_PHOTO_MAX_REQUEST_LENGTH), new Date(), timeZone))
   else if (memberId && request.method === 'DELETE') sendJson(response, 200, await members.delete(accountId, memberId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true

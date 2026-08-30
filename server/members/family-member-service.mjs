@@ -1,5 +1,11 @@
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
+import sharp from 'sharp'
+import {
+  AVATAR_PHOTO_MAX_BINARY_BYTES,
+  AVATAR_PHOTO_MAX_DATA_URL_LENGTH,
+  AVATAR_PHOTO_MIME_TYPES
+} from '../../shared/avatar-photo-policy.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
@@ -56,10 +62,30 @@ function validateBirthday(value, now = new Date(), timeZone) {
   return value
 }
 
-function validateAvatar(value) {
+async function validateAvatar(value) {
   if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'string' || value.length > 300_000) throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
-  if (value.length > 500 && !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+  if (typeof value !== 'string' || value.length > AVATAR_PHOTO_MAX_DATA_URL_LENGTH) {
+    throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  }
+  if (!value.startsWith('data:')) {
+    if (value.length > 500) throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+    return value
+  }
+
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value)
+  if (!match || !AVATAR_PHOTO_MIME_TYPES.includes(match[1]) || match[2].length % 4 !== 0) {
+    throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  }
+  const buffer = Buffer.from(match[2], 'base64')
+  if (!buffer.length || buffer.length > AVATAR_PHOTO_MAX_BINARY_BYTES) {
+    throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
+  }
+
+  try {
+    const metadata = await sharp(buffer, { failOn: 'error', limitInputPixels: 4096 * 4096 }).metadata()
+    const expectedFormat = match[1].slice('image/'.length)
+    if (!metadata.width || !metadata.height || metadata.format !== expectedFormat) throw new Error('MIME mismatch')
+  } catch {
     throw new FamilyMemberError('头像字段格式错误', 400, 'INVALID_AVATAR')
   }
   return value
@@ -108,7 +134,7 @@ export class FamilyMemberService {
       relationship: validateRelationship(input.relationship),
       gender: validateGender(input.gender),
       birthday: validateBirthday(input.birthday, now, timeZone),
-      avatar: validateAvatar(input.avatar),
+      avatar: await validateAvatar(input.avatar),
       isSelf: false
     }, now)
   }
@@ -120,7 +146,7 @@ export class FamilyMemberService {
     if (input.name !== undefined) changes.name = validateName(input.name)
     if (input.gender !== undefined) changes.gender = validateGender(input.gender)
     if (input.birthday !== undefined) changes.birthday = validateBirthday(input.birthday, now, timeZone)
-    if (input.avatar !== undefined) changes.avatar = validateAvatar(input.avatar)
+    if (input.avatar !== undefined) changes.avatar = await validateAvatar(input.avatar)
     return Object.keys(changes).length ? this.repository.update(member.id, changes, now) : member
   }
 
@@ -136,7 +162,7 @@ export class FamilyMemberService {
       }
       if (key === 'gender') changes.gender = validateGender(input.gender)
       if (key === 'birthday') changes.birthday = validateBirthday(input.birthday, now, timeZone)
-      if (key === 'avatar') changes.avatar = validateAvatar(input.avatar)
+      if (key === 'avatar') changes.avatar = await validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
       if (key === 'bloodType') changes.bloodType = validateBloodType(input.bloodType)

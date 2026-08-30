@@ -5,11 +5,11 @@
   "dimensions": {
     "width": 512,
     "height": 512,
-    "format": "png",
+    "format": "webp",
     "colorMode": "rgba",
     "transparentCorners": true
   },
-  "filenamePattern": "avatars/{role}-{appearance}.png",
+  "filenamePattern": "avatars/{role}-{appearance}.{contentHash}.webp",
   "roles": [
     { "id": "boy", "ageGroup": "child", "gender": "male" },
     { "id": "girl", "ageGroup": "child", "gender": "female" },

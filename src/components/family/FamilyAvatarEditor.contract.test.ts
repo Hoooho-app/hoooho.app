@@ -23,9 +23,19 @@ test('avatar artwork and border share one fixed circular frame', () => {
   assert.equal(source.includes('bg-surface p-0.5 shadow-card'), false)
 })
 
+test('cartoon avatar keeps the old frame until the complete next asset is decoded', () => {
+  const clayAvatarSource = readFileSync(new URL('../common/ClayAvatar.tsx', import.meta.url), 'utf8')
+  assert.match(clayAvatarSource, /decodeImageAsset\(source, 'high'\)/)
+  assert.match(clayAvatarSource, /setDisplayed\(\{ source, viewport \}\)/)
+  assert.match(clayAvatarSource, /requestIdleCallback/)
+  assert.match(clayAvatarSource, /decodeImageAsset\(nextSource, 'low'\)/)
+  assert.match(clayAvatarSource, /Keep the last completely decoded avatar/)
+  assert.equal(clayAvatarSource.includes('key={source}'), false)
+})
+
 test('family avatar editor offers a compact onboarding layout without shrinking touch targets', () => {
   assert.match(source, /compact\?: boolean/)
-  assert.match(source, /compact \? 'mt-2 w-44' : 'mt-3 w-48'/)
+  assert.match(source, /compact \? 'mt-1 w-44' : 'mt-2 w-48'/)
   assert.match(source, /min-h-11/)
   assert.match(source, /compact \? 'h-8 w-8' : 'h-11 w-11'/)
   assert.match(source, /size=\{compact \? 16 : 20\}/)
@@ -37,4 +47,14 @@ test('family avatar editor keeps localized, RTL-safe cartoon and photo controls'
   assert.match(source, /Choose another avatar/)
   assert.match(source, /تغيير الصورة الكرتونية/)
   assert.match(source, /onModeChange\('photo'\)/)
+})
+
+test('photo processing is progressive, cancellable, localized and blocks duplicate actions', () => {
+  assert.match(source, /正在处理照片…/)
+  assert.match(source, /暂不支持这种照片格式/)
+  assert.match(source, /无法读取这张照片，请选择其他照片/)
+  assert.match(source, /requestRef\.current/)
+  assert.match(source, /onProcessingChange/)
+  assert.match(source, /disabled=\{disabled \|\| processing\}/)
+  assert.match(source, /image\/heic,image\/heif/)
 })
