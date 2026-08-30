@@ -28,3 +28,10 @@ test('首次添加家人允许跳过且使用路由替换进入兜底首页', ()
   assert.match(pageSource, /跳过，稍后再添加/)
   assert.match(pageSource, /navigate\('\/health-events', \{ replace: true \}\)/)
 })
+
+test('首次添加家人页面压缩空白但保留辅助操作触控高度', () => {
+  assert.match(pageSource, /<div className="mt-auto pt-2">/)
+  assert.equal(pageSource.includes('className="min-h-5" aria-live="polite"'), false)
+  assert.match(pageSource, /className="mt-1 min-h-11 w-full/)
+  assert.match(pageSource, /className="mt-3 flex items-center justify-center/)
+})
