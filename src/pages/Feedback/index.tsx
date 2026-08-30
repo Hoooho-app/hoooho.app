@@ -1,16 +1,23 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
-import { MainAppHeader } from '../../components/navigation'
 import { appVersion, collectFeedbackDevice } from '../../features/feedback/environment'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { resolveFeedbackSource, type FeedbackSource } from '../../features/feedback/navigation'
-import { addFeedbackMessage, feedbackCategories, feedbackStatusLabels, getMyFeedback, listMyFeedback, submitFeedback, type FeedbackCategory, type FeedbackRecord } from '../../services/feedback'
+import { addFeedbackMessage, feedbackCategories, feedbackProblemPages, feedbackStatusLabels, getMyFeedback, listMyFeedback, submitFeedback, type FeedbackProblemPage, type FeedbackProblemType, type FeedbackRecord } from '../../services/feedback'
 import { useAppStore } from '../../store/useAppStore'
 import { FeedbackComposer } from './FeedbackComposer'
 
 const sourceStorageKey = 'hoooho-feedback-source'
-const categoryFromQuery = (value: string | null): FeedbackCategory | null => !value ? null : value.includes('隐私') || value.includes('数据') ? '隐私与数据' : value.includes('故障') || value.includes('错误') ? '出现错误' : value.includes('新增') ? '希望新增' : feedbackCategories.includes(value as FeedbackCategory) ? value as FeedbackCategory : '其他'
+const categoryFromQuery = (value: string | null): FeedbackProblemType | null => !value ? null : value.includes('隐私') || value.includes('数据') ? '隐私与数据' : value.includes('故障') || value.includes('错误') ? '功能异常' : value.includes('新增') ? '希望新增' : feedbackCategories.includes(value as FeedbackProblemType) ? value as FeedbackProblemType : '其他'
+const problemPageFromPath = (path: string): FeedbackProblemPage | null => {
+  if (path === '/') return '首页'
+  if (path.startsWith('/health-events')) return '健康事件'
+  if (path.startsWith('/health-profile')) return '健康档案'
+  if (path.startsWith('/family')) return '家人管理'
+  if (path.startsWith('/login') || path.startsWith('/account')) return '登录与账户'
+  return null
+}
 const readPersistedSource = () => { try { return JSON.parse(sessionStorage.getItem(sourceStorageKey) ?? 'null') as FeedbackSource | null } catch { return null } }
 const isReload = () => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })
@@ -18,29 +25,29 @@ const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { 
 export function FeedbackPage() {
   const token = useAppStore((state) => state.authToken), navigate = useNavigate(), location = useLocation(), [params] = useSearchParams()
   const source = useMemo(() => resolveFeedbackSource(location.state, readPersistedSource(), isReload()), [location.state])
-  const [category, setCategory] = useState<FeedbackCategory | null>(() => categoryFromQuery(params.get('category'))), [description, setDescription] = useState(''), [images, setImages] = useState<PendingFeedbackImage[]>([])
+  const [problemPage, setProblemPage] = useState<FeedbackProblemPage | null>(() => problemPageFromPath(source.path)), [problemType, setProblemType] = useState<FeedbackProblemType | null>(() => categoryFromQuery(params.get('category'))), [description, setDescription] = useState(''), [images, setImages] = useState<PendingFeedbackImage[]>([])
   const [error, setError] = useState(''), [submitting, setSubmitting] = useState(false), submissionKey = useRef(crypto.randomUUID()), imagesRef = useRef(images)
   imagesRef.current = images
   useEffect(() => { sessionStorage.setItem(sourceStorageKey, JSON.stringify(source)); return () => revokeFeedbackImages(imagesRef.current) }, [source])
-  const processing = images.some((image) => image.status === 'processing'), failed = images.some((image) => image.status === 'failed'), canSubmit = Boolean(description.trim() || images.some((image) => image.status === 'ready')) && !processing && !failed && !submitting
+  const processing = images.some((image) => image.status === 'processing'), failed = images.some((image) => image.status === 'failed'), canSubmit = Boolean(problemPage && problemType && (description.trim() || images.some((image) => image.status === 'ready'))) && !processing && !failed && !submitting
   const goBack = () => { sessionStorage.removeItem(sourceStorageKey); navigate(source.path, { replace: true }); window.setTimeout(() => window.scrollTo({ top: source.scrollY ?? 0 }), 0) }
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!token || !canSubmit) return
     setSubmitting(true); setError('')
     try {
-      const result = await submitFeedback(token, { category: category ?? '其他', description: description.trim(), sourcePath: source.path, sourceName: source.name, appVersion, idempotencyKey: submissionKey.current, device: collectFeedbackDevice(), attachments: images.filter((image) => image.status === 'ready' && image.dataUrl).map((image) => ({ name: image.name, type: image.type, dataUrl: image.dataUrl! })) })
+      const result = await submitFeedback(token, { category: problemType!, problemPage, problemType, description: description.trim(), sourcePath: source.path, sourceName: source.name, appVersion, idempotencyKey: submissionKey.current, device: collectFeedbackDevice(), attachments: images.filter((image) => image.status === 'ready' && image.dataUrl).map((image) => ({ name: image.name, type: image.type, dataUrl: image.dataUrl! })) })
       sessionStorage.removeItem(sourceStorageKey)
       navigate('/feedback/submitted', { replace: true, state: { id: result.id, createdAt: result.createdAt, source } })
     } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败，请检查网络后重试。你的文字和图片仍保留在这里。') }
     finally { setSubmitting(false) }
   }
-  return <main className="app-shell feedback-page pb-0"><MainAppHeader compact title="反馈意见" action={<button className="feedback-header-action" type="button" onClick={() => navigate('/feedback/mine')}>我的反馈</button>} />
-    <form onSubmit={submit} className="feedback-form"><div className="feedback-intro"><p>发现哪里不好用，直接说给我们听。</p><p>每条反馈都会进入改进清单，处理进度可以回来查看。</p></div>
-      <fieldset className="feedback-categories"><legend>快捷分类（选填）</legend><div>{feedbackCategories.map((item) => <button type="button" key={item} aria-pressed={category === item} onClick={() => setCategory((value) => value === item ? null : item)}>{item}</button>)}</div></fieldset>
+  return <main className="app-shell feedback-page pb-0"><WebPageHeader title="反馈意见" onBack={goBack} action={<button className="feedback-header-action" type="button" onClick={() => navigate('/feedback/mine')}>我的反馈</button>} />
+    <form onSubmit={submit} className="feedback-form">
+      <fieldset className="feedback-categories"><legend>问题页面</legend><div>{feedbackProblemPages.map((item) => <button type="button" key={item} aria-pressed={problemPage === item} onClick={() => setProblemPage((value) => value === item ? null : item)}>{item}</button>)}</div></fieldset>
+      <fieldset className="feedback-categories"><legend>问题类型</legend><div>{feedbackCategories.map((item) => <button type="button" key={item} aria-pressed={problemType === item} onClick={() => setProblemType((value) => value === item ? null : item)}>{item}</button>)}</div></fieldset>
       <FeedbackComposer text={description} onTextChange={setDescription} images={images} onImagesChange={setImages}/>
-      <p className="feedback-privacy">为了帮助定位问题，将同时提交当前页面、设备类型和版本信息，不包含你的健康记录内容。图片会在本机压缩并清除可读取的定位元数据，原始语音不会保存。</p>
       {error && <p className="feedback-error" role="alert">{error}</p>}
-      <div className="feedback-submit-bar"><Button fullWidth type="submit" disabled={!canSubmit}>{submitting ? '正在提交…' : processing ? '图片处理中…' : failed ? '请处理失败的图片' : '提交反馈'}</Button><button type="button" className="feedback-cancel" onClick={goBack}>取消并返回{source.name}</button></div>
+      <div className="feedback-submit-bar"><Button fullWidth type="submit" disabled={!canSubmit}>{submitting ? '正在提交…' : processing ? '图片处理中…' : failed ? '请处理失败的图片' : '提交反馈'}</Button></div>
     </form></main>
 }
 

@@ -11,13 +11,21 @@ function setup() {
   const storage = { save: async (key, value) => { files.set(key, value) }, read: async (key) => files.get(key), remove: async (key) => files.delete(key) }
   return { service: new FeedbackService({ store, storage, tokenSecret: 'test-secret' }), get data() { return data }, files }
 }
-const input = (overrides = {}) => ({ category: '出现错误', description: '帮助中心搜索后页面没有响应', sourcePath: '/help?q=test', sourceName: '帮助中心', appVersion: '1.0.0', device: { type: 'mobile', os: 'iOS', browser: 'Safari', screen: '390×844' }, idempotencyKey: 'request-123456', attachments: [], ...overrides })
+const input = (overrides = {}) => ({ category: '功能异常', problemPage: '健康事件', problemType: '功能异常', description: '帮助中心搜索后页面没有响应', sourcePath: '/help?q=test', sourceName: '帮助中心', appVersion: '1.0.0', device: { type: 'mobile', os: 'iOS', browser: 'Safari', screen: '390×844' }, idempotencyKey: 'request-123456', attachments: [], ...overrides })
 
 test('text feedback persists privacy-limited environment and idempotent retries do not duplicate', async () => {
   const state = setup(), first = await state.service.create('account-1', input(), new Date('2026-08-27T00:00:00Z')), second = await state.service.create('account-1', input(), new Date('2026-08-27T00:01:00Z'))
   assert.equal(first.id, second.id); assert.equal(second.duplicate, true); assert.equal(state.data.feedback.length, 1)
   assert.deepEqual(state.data.feedback[0].device, { type: 'mobile', os: 'iOS', browser: 'Safari', screen: '390×844' })
+  assert.deepEqual({ problemPage: state.data.feedback[0].problemPage, problemType: state.data.feedback[0].problemType }, { problemPage: '健康事件', problemType: '功能异常' })
   assert.equal('healthRecord' in state.data.feedback[0], false)
+})
+
+test('legacy feedback remains readable without the two-dimensional classification fields', async () => {
+  const state = setup(), created = await state.service.create('account-1', input({ category: '出现错误', problemPage: undefined, problemType: undefined }))
+  const record = await state.service.getForAccount('account-1', created.id)
+  assert.equal(record.problemPage, null)
+  assert.equal(record.problemType, '出现错误')
 })
 
 test('image-only feedback accepts the tenth image and rejects the eleventh', async () => {

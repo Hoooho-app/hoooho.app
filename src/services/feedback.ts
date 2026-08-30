@@ -1,6 +1,8 @@
 import { apiRequest } from './apiClient'
 
-export type FeedbackCategory = '不好用' | '出现错误' | '内容有误' | '希望新增' | '隐私与数据' | '其他'
+export type FeedbackCategory = '不好用' | '出现错误' | '功能异常' | '内容有误' | '希望新增' | '隐私与数据' | '其他'
+export type FeedbackProblemPage = '首页' | '健康事件' | '健康档案' | '家人管理' | '登录与账户' | '其他'
+export type FeedbackProblemType = '不好用' | '功能异常' | '内容有误' | '希望新增' | '隐私与数据' | '其他'
 export type FeedbackStatus = 'received' | 'viewed' | 'evaluating' | 'improving' | 'resolved' | 'merged' | 'declined'
 export type FeedbackPriority = 'low' | 'normal' | 'high' | 'urgent'
 export interface FeedbackAttachmentInput { name: string; type: string; dataUrl: string }
@@ -8,13 +10,13 @@ export interface FeedbackAttachment { id: string; messageId: string | null; name
 export interface FeedbackMessage { id: string; feedbackId: string; authorAccountId: string; kind: 'user-supplement' | 'user-reply' | 'internal-note'; text: string; createdAt: string }
 export interface FeedbackHistory { id: string; feedbackId: string; status: FeedbackStatus; createdAt: string }
 export interface FeedbackRecord {
-  id: string; category: FeedbackCategory; description: string; summary: string; sourcePath: string | null; sourceName: string | null;
+  id: string; category: FeedbackCategory; problemPage: FeedbackProblemPage | null; problemType: FeedbackProblemType | null; description: string; summary: string; sourcePath: string | null; sourceName: string | null;
   appVersion: string | null; status: FeedbackStatus; handledVersion: string | null; noActionReason: string | null; mergedIntoId: string | null;
   createdAt: string; updatedAt: string; latestReply: string | null; attachmentCount: number;
   attachments?: FeedbackAttachment[]; messages?: FeedbackMessage[]; statusHistory?: FeedbackHistory[]
 }
 export interface FeedbackInput {
-  category: FeedbackCategory; description: string; sourcePath: string; sourceName: string; appVersion: string; idempotencyKey: string;
+  category: FeedbackCategory; problemPage: FeedbackProblemPage | null; problemType: FeedbackProblemType | null; description: string; sourcePath: string; sourceName: string; appVersion: string; idempotencyKey: string;
   device: { type: string; os: string; browser: string; screen: string }; attachments: FeedbackAttachmentInput[]
 }
 export interface OpsFeedbackRecord extends Omit<FeedbackRecord, 'messages'> {
@@ -24,7 +26,8 @@ export interface OpsFeedbackRecord extends Omit<FeedbackRecord, 'messages'> {
 export interface OpsFeedbackOverview { new: number; pendingView: number; viewed: number; evaluating: number; improving: number; resolved: number; duplicates: number; withSupplements: number; averageFirstViewMs: number | null }
 
 export const feedbackStatusLabels: Record<FeedbackStatus, string> = { received: '已收到', viewed: '已查看', evaluating: '评估中', improving: '改进中', resolved: '已处理', merged: '已合并', declined: '暂不处理' }
-export const feedbackCategories: FeedbackCategory[] = ['不好用', '出现错误', '内容有误', '希望新增', '隐私与数据', '其他']
+export const feedbackCategories: FeedbackProblemType[] = ['不好用', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他']
+export const feedbackProblemPages: FeedbackProblemPage[] = ['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他']
 
 export const submitFeedback = (token: string, input: FeedbackInput) => apiRequest<{ id: string; status: FeedbackStatus; createdAt: string; duplicate?: boolean }>('/api/feedback', { token, method: 'POST', body: input })
 export const listMyFeedback = (token: string, signal?: AbortSignal) => apiRequest<FeedbackRecord[]>('/api/feedback', { token, signal })

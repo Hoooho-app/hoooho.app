@@ -14,8 +14,6 @@ export function getSpeechRecognitionConstructor(): SpeechConstructor | null {
 }
 
 export function speechErrorMessage(code: string) {
-  if (code === 'not-allowed' || code === 'service-not-allowed') return '麦克风权限未开启。请在浏览器网站设置中允许麦克风，然后重试。'
-  if (code === 'no-speech') return '没有听到清晰语音，已有文字和图片不会丢失。'
-  if (code === 'audio-capture') return '没有找到可用麦克风，请检查设备设置。'
-  return '语音识别失败，已有文字和图片不会丢失。'
+  if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') return '无法使用麦克风，请检查浏览器权限'
+  return '没有听清，请再试一次'
 }

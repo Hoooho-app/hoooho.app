@@ -3,7 +3,8 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
-const CATEGORIES = new Set(['不好用', '出现错误', '内容有误', '希望新增', '隐私与数据', '其他'])
+const CATEGORIES = new Set(['不好用', '出现错误', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他'])
+const PROBLEM_PAGES = new Set(['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他'])
 const STATUSES = new Set(['received', 'viewed', 'evaluating', 'improving', 'resolved', 'merged', 'declined'])
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent'])
 const IMAGE_TYPES = new Map([
@@ -69,7 +70,10 @@ export class FeedbackService {
   }
 
   async create(accountId, input, now = new Date()) {
-    const category = cleanText(input.category, 30)
+    const problemType = cleanText(input.problemType ?? input.category, 30)
+    const category = problemType || cleanText(input.category, 30)
+    const suppliedProblemPage = cleanText(input.problemPage, 30)
+    const problemPage = PROBLEM_PAGES.has(suppliedProblemPage) ? suppliedProblemPage : null
     const description = cleanText(input.description, 5_000)
     const idempotencyKey = cleanText(input.idempotencyKey, 80)
     const prepared = this.#prepareAttachments(input.attachments)
@@ -82,7 +86,7 @@ export class FeedbackService {
 
     const createdAt = iso(now), feedbackId = randomUUID()
     const feedback = {
-      id: feedbackId, accountId, idempotencyKey, category, description,
+      id: feedbackId, accountId, idempotencyKey, category, problemPage, problemType: category, description,
       summary: summarize(description, category),
       sourcePath: cleanNullable(input.sourcePath, 300), sourceName: cleanNullable(input.sourceName, 100),
       appVersion: cleanNullable(input.appVersion, 60), device: this.#cleanDevice(input.device),
@@ -255,7 +259,7 @@ export class FeedbackService {
     const attachments = data.attachments.filter((entry) => entry.feedbackId === item.id).map((entry) => this.#attachmentView(entry))
     const visibleMessages = data.messages.filter((entry) => entry.feedbackId === item.id && entry.kind !== 'internal-note')
     const latestReply = [...visibleMessages].reverse().find((entry) => entry.kind === 'user-reply')?.text ?? null
-    const base = { id: item.id, category: item.category, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: item.status, handledVersion: item.handledVersion, noActionReason: item.noActionReason, mergedIntoId: item.mergedIntoId, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, attachmentCount: attachments.length }
+    const base = { id: item.id, category: item.category, problemPage: item.problemPage ?? null, problemType: item.problemType ?? item.category ?? null, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: item.status, handledVersion: item.handledVersion, noActionReason: item.noActionReason, mergedIntoId: item.mergedIntoId, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, attachmentCount: attachments.length }
     return detailed ? { ...base, attachments, messages: visibleMessages, statusHistory: data.statusHistory.filter((entry) => entry.feedbackId === item.id).map(({ actorAccountId: _actor, ...entry }) => entry) } : base
   }
 
