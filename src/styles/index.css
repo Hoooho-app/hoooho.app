@@ -47,6 +47,7 @@
     max-width: none;
     -webkit-overflow-scrolling: touch;
   }
+  .app-shell.hoho-health-events-page { background: #fff; }
   .page-content { width: 100%; margin-inline: auto; padding: var(--hoho-space-5) var(--hoho-page-gutter); }
   .auth-shell { padding-inline: var(--hoho-page-gutter); }
   .auth-panel { width: min(100%, 440px); margin-inline: auto; }
