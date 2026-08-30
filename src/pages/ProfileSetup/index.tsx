@@ -249,17 +249,17 @@ export function ProfileSetupPage() {
           </fieldset>
         </div>
 
-        <div className="mt-auto pt-6">
-          <div className="min-h-5" aria-live="polite">
-            {error && <p className="text-xs text-danger">{error}</p>}
+        <div className="mt-auto pt-2">
+          <div aria-live="polite">
+            {error && <p className="mb-2 text-xs text-danger">{error}</p>}
           </div>
-          <Button className="mt-2" disabled={loading || submitting} fullWidth type="submit">
+          <Button disabled={loading || submitting} fullWidth type="submit">
             {loading ? '正在准备…' : submitting ? '正在保存…' : '完成'}
           </Button>
-          <button className="mt-3 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/health-events', { replace: true })}>
+          <button className="mt-1 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/health-events', { replace: true })}>
             跳过，稍后再添加
           </button>
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">
             <LockKeyhole size={12} strokeWidth={1.8} />
             信息仅用于健康管理，不会对外公开
           </p>
