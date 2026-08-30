@@ -71,8 +71,21 @@ test('approved avatar sheets use focal-point viewports that centre every appeara
   const viewports = appearancePresets.map((appearance) => getClayAvatarViewport({ version: 1, role: 'adult-male', appearance }))
   assert.ok(viewports.every((viewport) => viewport.height === '120%' && viewport.width === '120%'))
   assert.equal(new Set(viewports.map((viewport) => viewport.left)).size, appearancePresets.length)
-  assert.ok(viewports.every((viewport) => Number.parseFloat(viewport.left) >= -20 && Number.parseFloat(viewport.left) <= 2))
+  assert.ok(viewports.every((viewport) => Number.parseFloat(viewport.left) >= -22 && Number.parseFloat(viewport.left) <= 2))
   assert.ok(viewports.every((viewport) => Number.parseFloat(viewport.top) >= -12 && Number.parseFloat(viewport.top) <= -2))
+})
+
+test('each role uses its own horizontal subject focal point', () => {
+  const appearance = 'middle-eastern-north-african' as const
+  const adultMale = getClayAvatarViewport({ version: 1, role: 'adult-male', appearance })
+  const boy = getClayAvatarViewport({ version: 1, role: 'boy', appearance })
+  const elderMale = getClayAvatarViewport({ version: 1, role: 'elder-male', appearance })
+
+  assert.equal(adultMale.left, '-9.88%')
+  assert.equal(boy.left, '-9.4%')
+  assert.equal(elderMale.left, '-11.68%')
+  assert.equal(adultMale.top, boy.top)
+  assert.equal(adultMale.top, elderMale.top)
 })
 
 test('previous layered avatar values migrate safely while photos and virtual ids remain separate', () => {
