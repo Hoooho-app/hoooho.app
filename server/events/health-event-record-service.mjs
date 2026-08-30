@@ -5,7 +5,7 @@ import { HealthRecordOrganizationService } from '../ai/health-record-organizatio
 const recordTypes = new Set(['note', 'symptom', 'medication', 'visit', 'examination', 'other'])
 const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note'])
 const immutableFields = new Set(['id', 'accountId', 'eventId', 'createdAt', 'updatedAt'])
-const sourceTypes = new Set(['user_record', 'measurement', 'medical_file', 'doctor_confirmation', 'other'])
+const sourceTypes = new Set(['user_record', 'voice_record', 'text_record', 'measurement', 'medical_file', 'doctor_confirmation', 'other'])
 const measurementMethods = new Set(['unspecified', 'oral', 'axillary', 'ear', 'forehead', 'other'])
 
 export class HealthEventRecordError extends Error {

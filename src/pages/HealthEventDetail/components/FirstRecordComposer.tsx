@@ -37,6 +37,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [inputSourceType, setInputSourceType] = useState<CreateHealthEventRecordInput['sourceType']>('text_record')
   const savingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -86,6 +87,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
         type: 'symptom',
         content: rawInput,
         occurredAt: new Date(occurredAt).toISOString(),
+        sourceType: inputSourceType,
         bodyLocations: bodyLocationSelectionLabels(selectedLocations),
         attachments: attachments.map(({ label, originalName, ...attachment }) => ({ ...attachment, name: `[${label}] ${originalName}` }))
       })
@@ -117,7 +119,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
         <label className="first-record-field">
           <span className="hoho-text-label">描述症状</span>
           <span className="relative overflow-hidden">
-            <textarea aria-label="描述症状" className="hoho-textarea first-record-description resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setError('') }} placeholder="请描述发生了什么…" ref={textAreaRef} value={text} />
+            <textarea aria-label="描述症状" className="hoho-textarea first-record-description resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setInputSourceType('text_record'); setError('') }} placeholder="请描述发生了什么…" ref={textAreaRef} value={text} />
             <span className="absolute bottom-2 right-3 text-[11px] text-text-secondary">{text.length}/1000</span>
           </span>
         </label>
@@ -141,7 +143,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
 
       {error && <div className="first-record-error" role="alert"><p>{error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}
       {!voiceOpen && <QuickRecordTrigger className="first-record-quick-trigger" onClick={() => setVoiceOpen(true)} />}
-      <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setError(''); return '已加入描述' }} open={voiceOpen} />
+      <QuickVoiceRecordFlow onClose={() => setVoiceOpen(false)} onConfirm={async (transcript, _occurredAt, _candidates, inputChannel) => { setText((current) => appendQuickRecordTranscript(current, transcript)); setInputSourceType(inputChannel === 'voice' ? 'voice_record' : 'text_record'); setError(''); return '已加入描述' }} open={voiceOpen} />
     </section>
   )
 })

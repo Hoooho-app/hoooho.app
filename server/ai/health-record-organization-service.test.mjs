@@ -101,7 +101,14 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
 
     const invalidPreview = await organizations.preview(accountId, event.id, { rawInput: '北京' })
     assert.equal(invalidPreview.hasHealthFacts, false)
+    assert.equal(invalidPreview.intent, 'irrelevant_or_chat')
     assert.deepEqual(invalidPreview.organizedHealthData.symptoms, [])
+
+    const commandPreview = await organizations.preview(accountId, event.id, { rawInput: '类型来源改一下，不是用户记录，是语音记录。' })
+    assert.equal(commandPreview.hasHealthFacts, false)
+    assert.equal(commandPreview.intent, 'correction_or_command')
+    assert.equal(commandPreview.provider, 'intent-gate')
+    assert.deepEqual(commandPreview.healthAIOutput.facts, [])
 
     const structuredBodyPartPreview = await organizations.preview(accountId, event.id, {
       rawInput: '颈部不舒服',
@@ -109,6 +116,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
       selectedOccurredAt: '2026-08-09T10:00:00+08:00'
     })
     assert.equal(structuredBodyPartPreview.hasHealthFacts, true)
+    assert.equal(structuredBodyPartPreview.intent, 'health_fact')
     assert.ok(structuredBodyPartPreview.healthAIOutput.facts.some((fact) => (
       fact.type === 'symptom'
       && fact.name === '颈部不舒服'

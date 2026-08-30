@@ -345,6 +345,8 @@ function timelineSource(
 ): TimelineEntry['source'] {
   const labels: Record<HealthRecordSourceType, string> = {
     user_record: '用户记录',
+    voice_record: '语音记录',
+    text_record: '文字记录',
     measurement: '体温测量',
     medical_file: '医疗文件',
     doctor_confirmation: '医生确认',

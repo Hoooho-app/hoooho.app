@@ -23,12 +23,15 @@ type RecognitionConstructor = new () => Recognition
 
 interface QuickVoiceRecordFlowProps {
   onClose: () => void
-  onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[]) => Promise<string | void>
+  onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel) => Promise<string | void>
+  onIgnored?: (message: string) => void
   onPreview?: (transcript: string, occurredAt: string) => Promise<QuickRecordCandidate[]>
   open: boolean
   recognitionApi?: RecognitionConstructor | null
   voiceCapability?: BrowserVoiceCapability
 }
+
+export type QuickRecordInputChannel = 'voice' | 'text'
 
 const recognitionConstructor = () => {
   const speechWindow = window as typeof window & { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor }
@@ -37,7 +40,7 @@ const recognitionConstructor = () => {
 
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 
-export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview, open, recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -47,7 +50,6 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   const [seconds, setSeconds] = useState(0)
   const [candidates, setCandidates] = useState<QuickRecordCandidate[]>([])
   const candidatesRef = useRef<QuickRecordCandidate[]>([])
-  const [previewNotice, setPreviewNotice] = useState('')
   const [savedMessage, setSavedMessage] = useState('已记录')
   const [showWechatHint, setShowWechatHint] = useState(false)
   const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 0 : (window.visualViewport?.height ?? window.innerHeight))
@@ -59,21 +61,24 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   const sessionRef = useRef(0)
   const onCloseRef = useRef(onClose)
   const onConfirmRef = useRef(onConfirm)
+  const onIgnoredRef = useRef(onIgnored)
   const onPreviewRef = useRef(onPreview)
+  const inputChannelRef = useRef<QuickRecordInputChannel>('voice')
   onCloseRef.current = onClose
   onConfirmRef.current = onConfirm
+  onIgnoredRef.current = onIgnored
   onPreviewRef.current = onPreview
 
   const setTranscript = (value: string) => { transcriptRef.current = value; setTranscriptState(value) }
 
   const saveFinal = useCallback(async () => {
     const value = transcriptRef.current.trim()
-    if (!value || submittingRef.current) return
+    if (!value || submittingRef.current || (onPreviewRef.current && !candidatesRef.current.length)) return
     submittingRef.current = true
     setState('saving')
     setInputError('')
     try {
-      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current)
+      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current)
       setSavedMessage(message || '已记录')
       setState('saved')
       window.setTimeout(() => onCloseRef.current(), 560)
@@ -95,16 +100,25 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     setInputError('')
     try {
       const preview = await onPreviewRef.current(value, occurredAt)
-      if (preview.length) occurredAtRef.current = preview[0].occurredAt
+      if (!preview.length) {
+        const message = '未识别到健康信息，本次未记录'
+        candidatesRef.current = []
+        setCandidates([])
+        setSavedMessage(message)
+        onIgnoredRef.current?.(message)
+        setState('saved')
+        window.setTimeout(() => onCloseRef.current(), 900)
+        return
+      }
+      occurredAtRef.current = preview[0].occurredAt
       candidatesRef.current = preview
       setCandidates(preview)
-      setPreviewNotice(preview.length ? '' : '暂未自动整理，可先按原文保存')
       setState('review')
     } catch {
       candidatesRef.current = []
       setCandidates([])
-      setPreviewNotice('自动整理失败，可先按原文保存')
-      setState('review')
+      setInputError('暂时无法识别健康信息，请稍后重试。')
+      setState('text_entry')
     } finally {
       submittingRef.current = false
     }
@@ -124,6 +138,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     const currentSession = sessionRef.current + 1
     sessionRef.current = currentSession
     confirmRequestedRef.current = false
+    inputChannelRef.current = 'voice'
     setFailure(null)
     setInputError('')
     setSeconds(0)
@@ -169,9 +184,9 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     submittingRef.current = false
     candidatesRef.current = []
     setCandidates([])
-    setPreviewNotice('')
     setSavedMessage('已记录')
     setInputError('')
+    inputChannelRef.current = capability.canAttemptMicrophone && !capability.isWechat ? 'voice' : 'text'
     if (capability.isWechat) {
       setState('text_entry')
       try {
@@ -230,6 +245,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     setFailure(null)
     setInputError('')
     setSeconds(0)
+    inputChannelRef.current = 'text'
     setState('text_entry')
   }
 
@@ -270,7 +286,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   if (state === 'review') {
     return (
       <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-review" style={panelStyle}>
-        <div className="quick-record-review-heading"><strong>{candidates.length ? `识别到 ${candidates.length} 条症状记录` : previewNotice}</strong><p>{transcript}</p></div>
+        <div className="quick-record-review-heading"><strong>{`识别到 ${candidates.length} 条症状记录`}</strong><p>{transcript}</p></div>
         <div className="quick-record-candidates">{candidates.map((candidate) => <article key={candidate.id}><strong>{candidate.title}</strong>{candidate.fields.map((field, index) => <p key={`${field.label}-${index}`}><span>{field.label}</span>{field.value}</p>)}</article>)}</div>
         <div className="quick-record-error-actions"><button className="quick-record-cancel" onClick={useTextEntry} type="button">修改</button><HohoButton onClick={() => void saveFinal()}>确认记录</HohoButton></div>
       </section>

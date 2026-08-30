@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpDown, ChevronRight, Clock3, Pencil, Trash2 } from 'lucide-react'
 import type { HealthEvent, HealthEventRecordApiDto, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
 import { Card } from '../../../components/common'
@@ -11,14 +11,20 @@ interface TimelineSectionProps {
   memberName: string
   records: HealthEventRecordApiDto[]
   onDeleteRecord: (recordId: string) => Promise<void>
+  onDetailOpenChange?: (open: boolean) => void
   onUpdateRecord: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
 }
 
-export function TimelineSection({ event, memberName, records, onDeleteRecord, onUpdateRecord }: TimelineSectionProps) {
+export function TimelineSection({ event, memberName, records, onDeleteRecord, onDetailOpenChange, onUpdateRecord }: TimelineSectionProps) {
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [selection, setSelection] = useState<{ editing: boolean; entry: TimelineEntry } | null>(null)
   const recordsById = useMemo(() => new Map(records.map((record) => [record.id, record])), [records])
   const timelineGroups = useMemo(() => sortAndGroupTimeline(event.timeline, order), [event.timeline, order])
+
+  useEffect(() => {
+    onDetailOpenChange?.(Boolean(selection))
+    return () => onDetailOpenChange?.(false)
+  }, [onDetailOpenChange, selection])
 
   return (
     <section className="space-y-3">

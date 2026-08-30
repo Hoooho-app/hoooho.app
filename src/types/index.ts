@@ -131,7 +131,8 @@ export interface HealthEventListItemViewModel {
 }
 
 export type HealthEventRecordType = 'note' | 'symptom' | 'medication' | 'visit' | 'examination' | 'other'
-export type HealthRecordSourceType = 'user_record' | 'measurement' | 'medical_file' | 'doctor_confirmation' | 'other'
+export type HealthRecordSourceType = 'user_record' | 'voice_record' | 'text_record' | 'measurement' | 'medical_file' | 'doctor_confirmation' | 'other'
+export type HealthInputIntent = 'health_fact' | 'correction_or_command' | 'irrelevant_or_chat' | 'uncertain_health_fact'
 export type HealthMeasurementMethod = 'unspecified' | 'oral' | 'axillary' | 'ear' | 'forehead' | 'other'
 
 export interface HealthEventRecordApiDto {
@@ -317,6 +318,7 @@ export interface HealthRecordOrganizationApiDto {
 
 export interface HealthRecordOrganizationPreviewApiDto {
   hasHealthFacts: boolean
+  intent: HealthInputIntent
   healthAIOutput: HealthAIOutput
   organizedHealthData: OrganizedHealthData
   provider: string

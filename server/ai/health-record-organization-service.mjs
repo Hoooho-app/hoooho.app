@@ -3,7 +3,8 @@ import { HealthEventRepository } from '../events/repositories/health-event-repos
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
 import { HealthOrganizationStateRepository } from './repositories/health-organization-state-repository.mjs'
-import { hasHealthFacts, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
+import { emptyHealthAIOutput, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
+import { classifyExtractedHealthInput, classifyHealthInputBeforeExtraction, eligibleHealthFacts } from './health-input-intent.mjs'
 import { buildHealthEventSummary, healthEventSummaryAggregationVersion } from '../events/health-event-summary.mjs'
 
 function normalizeBodyLocations(value) {
@@ -126,10 +127,19 @@ export class HealthRecordOrganizationService {
 
   async preview(accountId, eventId, input) {
     await this.assertEventOwnership(accountId, eventId)
+    const intentBeforeExtraction = classifyHealthInputBeforeExtraction(input?.rawInput)
+    if (intentBeforeExtraction) {
+      const healthAIOutput = emptyHealthAIOutput()
+      return { hasHealthFacts: false, intent: intentBeforeExtraction, healthAIOutput,
+        organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: 'intent-gate' }
+    }
     const organized = await this.ai.organizeHealthRecord(input?.rawInput, { selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone })
-    const healthAIOutput = mergeStructuredHealthFacts(organized.healthAIOutput, {
+    const extracted = mergeStructuredHealthFacts(organized.healthAIOutput, {
       bodyLocations: readBodyLocations(input), rawInput: input?.rawInput, occurredAt: input?.selectedOccurredAt })
-    return { hasHealthFacts: hasHealthFacts(healthAIOutput), healthAIOutput,
+    const intent = classifyExtractedHealthInput(input?.rawInput, extracted)
+    const healthAIOutput = normalizeHealthAIOutput({ ...extracted, facts: eligibleHealthFacts(extracted) })
+    const hasHealthFacts = ['health_fact', 'uncertain_health_fact'].includes(intent) && healthAIOutput.facts.length > 0
+    return { hasHealthFacts, intent, healthAIOutput,
       organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider }
   }
 

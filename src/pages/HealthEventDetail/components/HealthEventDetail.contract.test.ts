@@ -11,6 +11,8 @@ const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8'
 const quickRecordTriggerSource = readFileSync(new URL('../../../components/health/QuickRecordTrigger.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
 const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
+const designSystemStylesSource = readFileSync(new URL('../../../styles/design-system.css', import.meta.url), 'utf8')
+const bottomSheetSource = readFileSync(new URL('../../../components/design-system/BottomSheetSurface.tsx', import.meta.url), 'utf8')
 
 test('详情页收敛为症状跟踪且移除旧摘要和体温图表', () => {
   assert.match(pageSource, /title=\{hasRecords \? '症状跟踪'/)
@@ -94,6 +96,9 @@ test('首次记录快捷录音只追加描述，不直接保存整张表单', ()
   assert.match(firstRecordSource, /appendQuickRecordTranscript/)
   assert.match(firstRecordSource, /setText\(\(current\) => appendQuickRecordTranscript/)
   assert.match(firstRecordSource, /first-record-quick-trigger/)
+  assert.match(firstRecordSource, /inputChannel === 'voice' \? 'voice_record' : 'text_record'/)
+  assert.match(pageSource, /input\.sourceType === 'voice_record'/)
+  assert.match(pageSource, /return '未识别到健康信息，本次未记录'/)
   assert.match(stylesSource, /first-record-description[^}]*120px/)
   assert.match(stylesSource, /first-record-attachments[^}]*overflow-x:\s*auto/)
 })
@@ -118,19 +123,38 @@ test('症状记录使用轻量行、详情抽屉和左滑编辑删除', () => {
   assert.match(stylesSource, /overflow-wrap:\s*anywhere/)
 })
 
+test('详情抽屉打开时移除页面快捷记录并保留安全区、滚动锁与可滚动正文', () => {
+  assert.match(pageSource, /recordSheetOpen/)
+  assert.match(pageSource, /onDetailOpenChange=\{setRecordSheetOpen\}/)
+  assert.match(pageSource, /!recordSheetOpen && <QuickRecordTrigger/)
+  assert.match(timelineSource, /onDetailOpenChange\?\.\(Boolean\(selection\)\)/)
+  assert.match(bottomSheetSource, /usePageScrollLock\(open\)/)
+  assert.match(designSystemStylesSource, /hoho-bottom-sheet__body[^}]*overflow-y:\s*auto/)
+  assert.match(designSystemStylesSource, /hoho-bottom-sheet__footer[^}]*safe-area-inset-bottom/)
+})
+
 test('快捷记录预览按识别结果展示多条独立记录', () => {
   assert.match(recorderSource, /识别到 \$\{candidates\.length\} 条症状记录/)
   assert.match(pageSource, /for \(const item of items\)/)
   assert.match(pageSource, /已整理为 \$\{items\.length\} 条症状记录/)
 })
 
-test('自动整理无事实或失败时仍允许按原文确认保存', () => {
-  assert.match(pageSource, /if \(!preview\.hasHealthFacts\) return \[\]/)
-  assert.equal(pageSource.includes("throw new Error('暂未识别到健康记录"), false)
-  assert.match(recorderSource, /暂未自动整理，可先按原文保存/)
-  assert.match(recorderSource, /自动整理失败，可先按原文保存/)
-  assert.match(recorderSource, /setState\('review'\)/)
-  assert.match(recorderSource, /onConfirmRef\.current\(value, occurredAtRef\.current \|\| new Date\(\)\.toISOString\(\), candidatesRef\.current\)/)
+test('自动整理无事实时不再原文兜底入库，只显示低打扰提示', () => {
+  assert.match(pageSource, /if \(!candidates\.length\) return '未识别到健康信息，本次未记录'/)
+  assert.equal(pageSource.includes("id: 'raw-record'"), false)
+  assert.match(recorderSource, /未识别到健康信息，本次未记录/)
+  assert.match(recorderSource, /if \(!preview\.length\)/)
+  assert.match(recorderSource, /onIgnoredRef\.current\?\.\(message\)/)
+  assert.doesNotMatch(recorderSource, /可先按原文保存/)
+  assert.match(pageSource, /preview\.intent/)
+})
+
+test('快捷记录来源由真实输入通道决定且与事实类型分离', () => {
+  assert.match(recorderSource, /QuickRecordInputChannel = 'voice' \| 'text'/)
+  assert.match(recorderSource, /inputChannelRef\.current = 'voice'/)
+  assert.match(recorderSource, /inputChannelRef\.current = 'text'/)
+  assert.match(pageSource, /inputChannel === 'voice' \? 'voice_record' : 'text_record'/)
+  assert.match(recordSheetSource, /症状变化/)
 })
 
 test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', () => {

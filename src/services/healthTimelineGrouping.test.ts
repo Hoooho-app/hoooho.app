@@ -96,3 +96,36 @@ test('详情时间线按指定用户时区的自然日与年份分组', () => {
     ['8月27日', ['before-midnight']]
   ])
 })
+
+test('日期组固定按本地自然日倒序，同一天按发生时间正序且不依赖接口顺序', () => {
+  const timeline = [
+    entry('aug-29', '2026-08-29T14:27:00.000Z', '8月29日 22:27', '22:27'),
+    entry('aug-31', '2026-08-30T16:27:00.000Z', '8月31日 00:27', '00:27'),
+    entry('aug-30-late', '2026-08-30T09:41:00.000Z', '8月30日 17:41', '17:41'),
+    entry('aug-30-early', '2026-08-30T01:00:00.000Z', '8月30日 09:00', '09:00')
+  ]
+
+  const expected = [
+    ['8月31日', ['aug-31']],
+    ['8月30日', ['aug-30-early', 'aug-30-late']],
+    ['8月29日', ['aug-29']]
+  ]
+  const grouped = sortAndGroupTimeline(timeline, 'desc', 'Asia/Shanghai')
+  const refreshed = sortAndGroupTimeline([timeline[2], timeline[0], timeline[3], timeline[1]], 'desc', 'Asia/Shanghai')
+  const snapshot = (groups: typeof grouped) => groups[0]?.dates.map(({ date, entries }) => [date, entries.map(({ id }) => id)])
+
+  assert.deepEqual(snapshot(grouped), expected)
+  assert.deepEqual(snapshot(refreshed), expected)
+})
+
+test('UTC 时间在上海本地零点前后使用同一有效时间完成排序与分组', () => {
+  const groups = sortAndGroupTimeline([
+    entry('local-midnight', '2026-08-30T16:00:00.000Z', '本地零点', '00:00'),
+    entry('local-before-midnight', '2026-08-30T15:59:59.000Z', '本地零点前', '23:59')
+  ], 'desc', 'Asia/Shanghai')
+
+  assert.deepEqual(groups[0]?.dates.map(({ date, entries }) => [date, entries.map(({ id }) => id)]), [
+    ['8月31日', ['local-midnight']],
+    ['8月30日', ['local-before-midnight']]
+  ])
+})

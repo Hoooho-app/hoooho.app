@@ -27,6 +27,7 @@ export function HealthEventDetailPage() {
   const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
+  const [recordSheetOpen, setRecordSheetOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const [firstRecordCanSave, setFirstRecordCanSave] = useState(false)
@@ -98,20 +99,25 @@ export function HealthEventDetailPage() {
     const recordText = originalText || (bodyLocations.length ? `${bodyLocations.join('、')}不舒服` : '')
     let preview = null
     let organizationMessage = ''
+    let previewFailed = false
     if (recordText) {
       try {
         preview = await previewRecord(recordText, { bodyLocations, selectedOccurredAt: input.occurredAt })
         if (!preview.hasHealthFacts) organizationMessage = '原始记录已保存，暂未自动整理'
       } catch {
+        previewFailed = true
         organizationMessage = '原始记录已保存，暂未自动整理'
       }
+    }
+    if (input.sourceType === 'voice_record' && (previewFailed || !preview?.hasHealthFacts || !['health_fact', 'uncertain_health_fact'].includes(preview.intent))) {
+      return '未识别到健康信息，本次未记录'
     }
 
     const fingerprint = JSON.stringify(input)
     let pending = pendingFirstRecordRef.current
     if (!pending || pending.fingerprint !== fingerprint) {
       const created = await addRecord(
-        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt, bodyLocations },
+        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt, sourceType: input.sourceType, bodyLocations },
         { deferCommit: true }
       )
       pending = { attachmentIndexes: new Set(), fingerprint, organized: false, record: created, savedAttachments: [] }
@@ -140,16 +146,19 @@ export function HealthEventDetailPage() {
     return organizationMessage
   }
 
-  const saveQuickRecord = async (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[]) => {
+  const showRecordedMessage = (message: string) => {
+    setRecordedMessage(message)
+    window.setTimeout(() => setRecordedMessage(''), 3000)
+  }
+
+  const saveQuickRecord = async (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: 'voice' | 'text') => {
+    if (!candidates.length) return '未识别到健康信息，本次未记录'
     let pending = pendingQuickRecordRef.current
     if (!pending || pending.transcript !== transcript) {
       pending = { records: {}, transcript }
       pendingQuickRecordRef.current = pending
     }
-    const items = candidates.length ? candidates : [{
-      id: 'raw-record', type: 'note' as const, title: transcript, content: transcript, occurredAt,
-      sourceType: 'user_record' as const, measurementMethod: 'unspecified' as const, fields: []
-    }]
+    const items = candidates
     let message = '已记录'
     for (const item of items) {
       const key = `${item.id}:${item.occurredAt}:${item.content}`
@@ -159,7 +168,7 @@ export function HealthEventDetailPage() {
           type: item.type,
           content: item.content,
           occurredAt: item.occurredAt,
-          sourceType: item.sourceType,
+          sourceType: inputChannel === 'voice' ? 'voice_record' : 'text_record',
           sourceText: transcript,
           measurementMethod: item.measurementMethod
         })
@@ -174,14 +183,13 @@ export function HealthEventDetailPage() {
     }
     pendingQuickRecordRef.current = null
     if (message === '已记录' && items.length > 1) message = `已整理为 ${items.length} 条症状记录`
-    setRecordedMessage(message)
-    window.setTimeout(() => setRecordedMessage(''), 3000)
+    showRecordedMessage(message)
     return message
   }
 
   const previewQuickRecord = async (transcript: string, occurredAt: string) => {
     const preview = await previewRecord(transcript, { selectedOccurredAt: occurredAt })
-    if (!preview.hasHealthFacts) return []
+    if (!preview.hasHealthFacts || !['health_fact', 'uncertain_health_fact'].includes(preview.intent)) return []
     return createQuickRecordCandidates(preview, occurredAt)
   }
 
@@ -204,16 +212,18 @@ export function HealthEventDetailPage() {
               event={event}
               memberName={state.data.member.name}
               onDeleteRecord={deleteRecord}
+              onDetailOpenChange={setRecordSheetOpen}
               onUpdateRecord={updateRecord}
               records={state.data.records}
             />
           </>
         )}
       </div>
-      {hasRecords && !voiceRecordOpen && <QuickRecordTrigger onClick={() => setVoiceRecordOpen(true)} />}
+      {hasRecords && !voiceRecordOpen && !recordSheetOpen && <QuickRecordTrigger onClick={() => setVoiceRecordOpen(true)} />}
       {hasRecords && <QuickVoiceRecordFlow
         onClose={() => setVoiceRecordOpen(false)}
         onConfirm={saveQuickRecord}
+        onIgnored={showRecordedMessage}
         onPreview={previewQuickRecord}
         open={voiceRecordOpen}
       />}

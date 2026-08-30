@@ -37,7 +37,16 @@ export function sortAndGroupTimeline(
   order: TimelineOrder,
   timeZone?: string
 ): TimelineYearGroup[] {
-  return groupTimelineByYearAndDate(sortTimelineEntries(timeline, order), timeZone)
+  const dateDirection = order === 'desc' ? -1 : 1
+  const sorted = [...timeline].sort((left, right) => {
+    const leftParts = getLocalCalendarParts(left.time, timeZone)
+    const rightParts = getLocalCalendarParts(right.time, timeZone)
+    const leftDate = leftParts ? leftParts.year * 10_000 + leftParts.month * 100 + leftParts.day : 0
+    const rightDate = rightParts ? rightParts.year * 10_000 + rightParts.month * 100 + rightParts.day : 0
+    if (leftDate !== rightDate) return (leftDate - rightDate) * dateDirection
+    return compareHealthChronologyAsc(chronologyItem(left), chronologyItem(right))
+  })
+  return groupTimelineByYearAndDate(sorted, timeZone)
 }
 
 export function groupTimelineByYearAndDate(timeline: TimelineEntry[], timeZone?: string): TimelineYearGroup[] {
