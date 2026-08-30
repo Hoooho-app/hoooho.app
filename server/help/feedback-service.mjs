@@ -4,6 +4,8 @@ import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
 const CATEGORIES = new Set(['不好用', '出现错误', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他'])
+const CATEGORY_VALUES = new Set(['function_error', 'display_issue', 'usability_issue', 'content_error', 'performance_issue', 'login_issue', 'voice_issue', 'image_issue', 'feature_request', 'experience_suggestion'])
+const CATEGORY_LABELS = new Map([['function_error', '功能异常'], ['display_issue', '页面显示'], ['usability_issue', '操作不便'], ['content_error', '内容有误'], ['performance_issue', '加载缓慢'], ['login_issue', '登录问题'], ['voice_issue', '语音问题'], ['image_issue', '图片问题'], ['feature_request', '希望新增'], ['experience_suggestion', '体验建议']])
 const PROBLEM_PAGES = new Set(['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他'])
 const STATUSES = new Set(['received', 'reviewing', 'needs_more_info', 'planned', 'in_progress', 'improved', 'not_planned', 'merged'])
 const STATUS_ALIASES = new Map([['viewed', 'reviewing'], ['evaluating', 'reviewing'], ['improving', 'in_progress'], ['resolved', 'improved'], ['declined', 'not_planned']])
@@ -57,7 +59,7 @@ function decodeAttachment(input) {
 
 function summarize(description, category) {
   const first = cleanText(description, 120).split(/[。！？\n]/)[0]
-  return first || `${category} · 图片反馈`
+  return first || `${CATEGORY_LABELS.get(category) ?? category ?? '反馈'} · 图片反馈`
 }
 
 export class FeedbackService {
@@ -73,13 +75,13 @@ export class FeedbackService {
 
   async create(accountId, input, now = new Date()) {
     const problemType = cleanText(input.problemType ?? input.category, 30)
-    const category = problemType || cleanText(input.category, 30)
+    const category = problemType || cleanText(input.category, 30) || null
     const suppliedProblemPage = cleanText(input.problemPage, 30)
     const problemPage = PROBLEM_PAGES.has(suppliedProblemPage) ? suppliedProblemPage : null
     const description = cleanText(input.description, 5_000)
     const idempotencyKey = cleanText(input.idempotencyKey, 80)
     const prepared = this.#prepareAttachments(input.attachments)
-    if (!CATEGORIES.has(category)) throw new FeedbackError('请选择反馈分类', 400, 'INVALID_FEEDBACK_CATEGORY')
+    if (category && !CATEGORIES.has(category) && !CATEGORY_VALUES.has(category)) throw new FeedbackError('反馈类型无效', 400, 'INVALID_FEEDBACK_CATEGORY')
     if (!description && prepared.length === 0) throw new FeedbackError('请填写反馈或添加图片', 400, 'EMPTY_FEEDBACK')
     if (!idempotencyKey) throw new FeedbackError('缺少提交标识，请重新提交', 400, 'MISSING_IDEMPOTENCY_KEY')
     const current = normalizeData(await this.#store.read())

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/common'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
-import { addFeedbackMessage, feedbackStatusLabels, type FeedbackAttachment, type FeedbackRecord } from '../../services/feedback'
+import { addFeedbackMessage, feedbackProblemTypeLabel, feedbackStatusLabels, type FeedbackAttachment, type FeedbackRecord } from '../../services/feedback'
 import { FeedbackComposer } from './FeedbackComposer'
 
 const compactDate = (value: string) => new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
@@ -38,7 +38,7 @@ export function MyFeedbackCard({ token, item, detail, expanded, loading, onToggl
     } catch (cause) { setError(cause instanceof Error ? cause.message : '回复失败，内容仍保留在这里。') }
     finally { setSubmitting(false) }
   }
-  const meta = [item.problemPage, item.problemType, compactDate(item.createdAt)].filter(Boolean).join(' · ')
+  const meta = [item.problemPage, feedbackProblemTypeLabel(item.problemType), compactDate(item.createdAt)].filter(Boolean).join(' · ')
   return <article className="my-feedback-card" data-expanded={expanded}>
     <button className="my-feedback-card-summary" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span className="my-feedback-card-heading"><strong>{item.summary}</strong><em data-status={item.status}>{feedbackStatusLabels[item.status]}</em></span>

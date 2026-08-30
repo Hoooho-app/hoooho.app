@@ -24,7 +24,7 @@ test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /<MainAppHeader compact title="使用说明" \/>/)
   assert.match(help, /<MainAppHeader compact title="帮助中心" \/>/)
-  assert.match(feedback, /<WebPageHeader title="反馈意见" onBack=\{goBack\} action=/)
+  assert.match(feedback, /<MainAppHeader compact title="反馈意见" action=/)
   assert.match(about, /<MainAppHeader compact title="关于" \/>/)
 })
 

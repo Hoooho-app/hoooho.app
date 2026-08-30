@@ -63,6 +63,14 @@ test('feedback ownership, official not-planned replies and merge targets are enf
   assert.equal(declined.noActionReason, '当前版本暂不支持该设备'); assert.equal(declined.messages.at(-1).kind, 'user-reply')
 })
 
+test('new optional problem types persist while source route remains system context', async () => {
+  const state = setup(), created = await state.service.create('account-1', input({ category: null, problemPage: null, problemType: 'voice_issue', sourcePath: '/health-events/123' }))
+  const record = await state.service.getForAccount('account-1', created.id)
+  assert.equal(record.problemType, 'voice_issue'); assert.equal(record.problemPage, null); assert.equal(record.sourcePath, '/health-events/123')
+  const unclassified = await state.service.create('account-1', input({ category: null, problemPage: null, problemType: null, idempotencyKey: 'optional-category', description: '未选类型也能提交' }))
+  assert.equal((await state.service.getForAccount('account-1', unclassified.id)).problemType, null)
+})
+
 test('unread team replies persist until the owner expands and marks them read', async () => {
   const state = setup(), created = await state.service.create('account-1', input())
   await state.service.addOpsMessage('operator', created.id, { kind: 'user-reply', text: '请补充复现步骤' })

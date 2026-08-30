@@ -11,7 +11,7 @@ export interface PendingFeedbackImage {
 }
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
-const MAX_SOURCE_BYTES = 15 * 1024 * 1024
+const MAX_SOURCE_BYTES = 50 * 1024 * 1024
 const TARGET_BYTES = 2 * 1024 * 1024
 const MAX_EDGE = 2048
 
@@ -37,7 +37,7 @@ const canvasBlob = (canvas: HTMLCanvasElement, quality: number) => new Promise<B
 
 export async function processFeedbackImage(file: File): Promise<Omit<PendingFeedbackImage, 'id' | 'file' | 'previewUrl' | 'status' | 'error'>> {
   if (!allowedTypes.has(file.type.toLowerCase())) throw new Error('仅支持 JPG、PNG、WebP、HEIC 图片')
-  if (!file.size || file.size > MAX_SOURCE_BYTES) throw new Error('单张原图不能超过 15MB')
+  if (!file.size || file.size > MAX_SOURCE_BYTES) throw new Error('这张原图过大，请换一张重试')
   let image: ImageBitmap | HTMLImageElement
   try { image = await loadImage(file) } catch { throw new Error(file.type.includes('heic') || file.type.includes('heif') ? '当前浏览器无法解码这张 HEIC 图片，请在系统相册中转为 JPG 后重试' : '图片无法读取，请换一张重试') }
   const scale = Math.min(1, MAX_EDGE / Math.max(image.width, image.height))

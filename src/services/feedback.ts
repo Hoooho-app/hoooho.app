@@ -1,8 +1,8 @@
 import { apiRequest } from './apiClient'
 
-export type FeedbackCategory = '不好用' | '出现错误' | '功能异常' | '内容有误' | '希望新增' | '隐私与数据' | '其他'
+export type FeedbackCategory = string | null
 export type FeedbackProblemPage = '首页' | '健康事件' | '健康档案' | '家人管理' | '登录与账户' | '其他'
-export type FeedbackProblemType = '不好用' | '功能异常' | '内容有误' | '希望新增' | '隐私与数据' | '其他'
+export type FeedbackProblemType = 'function_error' | 'display_issue' | 'usability_issue' | 'content_error' | 'performance_issue' | 'login_issue' | 'voice_issue' | 'image_issue' | 'feature_request' | 'experience_suggestion'
 export type FeedbackStatus = 'received' | 'reviewing' | 'needs_more_info' | 'planned' | 'in_progress' | 'improved' | 'not_planned' | 'merged'
 export type FeedbackPriority = 'low' | 'normal' | 'high' | 'urgent'
 export interface FeedbackAttachmentInput { name: string; type: string; dataUrl: string }
@@ -26,7 +26,12 @@ export interface OpsFeedbackRecord extends Omit<FeedbackRecord, 'messages'> {
 export interface OpsFeedbackOverview { new: number; pendingView: number; viewed: number; evaluating: number; improving: number; resolved: number; duplicates: number; withSupplements: number; averageFirstViewMs: number | null }
 
 export const feedbackStatusLabels: Record<FeedbackStatus, string> = { received: '已收到', reviewing: '正在了解', needs_more_info: '等你补充', planned: '已加入计划', in_progress: '正在改进', improved: '已改进', not_planned: '暂不调整', merged: '已合并处理' }
-export const feedbackCategories: FeedbackProblemType[] = ['不好用', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他']
+export const feedbackCategoryOptions: { value: FeedbackProblemType; label: string }[] = [
+  { value: 'function_error', label: '功能异常' }, { value: 'display_issue', label: '页面显示' }, { value: 'usability_issue', label: '操作不便' }, { value: 'content_error', label: '内容有误' }, { value: 'performance_issue', label: '加载缓慢' },
+  { value: 'login_issue', label: '登录问题' }, { value: 'voice_issue', label: '语音问题' }, { value: 'image_issue', label: '图片问题' }, { value: 'feature_request', label: '希望新增' }, { value: 'experience_suggestion', label: '体验建议' }
+]
+export const feedbackCategories = feedbackCategoryOptions.map((item) => item.label)
+export const feedbackProblemTypeLabel = (value: string | null | undefined) => feedbackCategoryOptions.find((item) => item.value === value)?.label ?? value ?? null
 export const feedbackProblemPages: FeedbackProblemPage[] = ['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他']
 
 export const submitFeedback = (token: string, input: FeedbackInput) => apiRequest<{ id: string; status: FeedbackStatus; createdAt: string; duplicate?: boolean }>('/api/feedback', { token, method: 'POST', body: input })
