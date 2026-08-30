@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { nextAmbientNurseDelay, type NurseTriageState } from './nurseTriageMachine'
+import { IdleNurseVisual } from './IdleNurseVisual'
+import { canRunIdleNurseAnimation } from './idleNurseAnimation'
+import type { NurseTriageState } from './nurseTriageMachine'
 
 const nurseTriageAssets = {
   idle: '/nurse-triage/idle.png',
@@ -45,56 +47,26 @@ export function preloadNurseTriageAssets() {
   })
 }
 
-function useAmbientIdlePose(active: boolean) {
-  const [alternate, setAlternate] = useState(false)
-
+function usePageVisible() {
+  const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden)
   useEffect(() => {
-    if (!active) {
-      setAlternate(false)
-      return
-    }
-
-    let nextTimer = 0
-    let settleTimer = 0
-    const schedule = () => {
-      window.clearTimeout(nextTimer)
-      if (document.hidden) return
-      nextTimer = window.setTimeout(() => {
-        setAlternate(true)
-        settleTimer = window.setTimeout(() => {
-          setAlternate(false)
-          schedule()
-        }, 900)
-      }, nextAmbientNurseDelay())
-    }
-    const handleVisibility = () => {
-      window.clearTimeout(nextTimer)
-      window.clearTimeout(settleTimer)
-      setAlternate(false)
-      if (!document.hidden) schedule()
-    }
-
-    schedule()
+    const handleVisibility = () => setVisible(!document.hidden)
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.clearTimeout(nextTimer)
-      window.clearTimeout(settleTimer)
-    }
-  }, [active])
-
-  return alternate
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+  return visible
 }
 
 interface NurseTriageDeskProps {
   state: NurseTriageState
   audioLevel: number
+  idleAnimationResetKey: string
   reducedMotion: boolean
 }
 
-export function NurseTriageDesk({ state, audioLevel, reducedMotion }: NurseTriageDeskProps) {
-  const alternateIdlePose = useAmbientIdlePose(state === 'idle' && !reducedMotion)
-  const activeAsset = state === 'idle' && alternateIdlePose ? nurseTriageAssets.idle : visualAssetByState[state]
+export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, reducedMotion }: NurseTriageDeskProps) {
+  const pageVisible = usePageVisible()
+  const activeAsset = state === 'idle' ? null : visualAssetByState[state]
   const style = useMemo(() => ({ '--nurse-audio-level': Math.max(0, Math.min(1, audioLevel)) } as CSSProperties), [audioLevel])
 
   return (
@@ -105,6 +77,11 @@ export function NurseTriageDesk({ state, audioLevel, reducedMotion }: NurseTriag
       data-state={state}
       style={style}
     >
+      <IdleNurseVisual
+        active={canRunIdleNurseAnimation(state, pageVisible, reducedMotion)}
+        resetKey={idleAnimationResetKey}
+        staticSource="/nurse-triage/idle-video-first-frame.png"
+      />
       {allNurseTriageAssets.map((source) => (
         <img
           alt=""

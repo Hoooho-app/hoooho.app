@@ -506,9 +506,54 @@
   }
 
   .nurse-triage-desk__image[data-active='true'] {
-    z-index: 1;
+    z-index: 2;
     opacity: 1;
     transform: none;
+  }
+
+  .idle-nurse-visual {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    overflow: hidden;
+    background: rgb(var(--hoho-color-background));
+    pointer-events: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .idle-nurse-visual__static,
+  .idle-nurse-visual__video {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border: 0;
+    background: rgb(var(--hoho-color-background));
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  .idle-nurse-visual__video {
+    z-index: 1;
+    opacity: 0;
+    transition: opacity var(--idle-video-fade-duration, 200ms) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .idle-nurse-visual[data-phase='playing'] .idle-nurse-visual__video,
+  .idle-nurse-visual[data-phase='holding'] .idle-nurse-visual__video {
+    opacity: 1;
+  }
+
+  .idle-nurse-visual__video::-webkit-media-controls,
+  .idle-nurse-visual__video::-webkit-media-controls-start-playback-button {
+    display: none !important;
+    -webkit-appearance: none;
   }
 
   .nurse-triage-status {
@@ -729,4 +774,5 @@
   html:focus-within { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .nurse-triage-desk__image { transform: none; transition: opacity 90ms linear !important; }
+  .idle-nurse-visual__video { display: none !important; }
 }

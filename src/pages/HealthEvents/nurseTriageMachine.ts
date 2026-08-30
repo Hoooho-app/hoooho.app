@@ -57,7 +57,3 @@ export function canStartNurseHandoff(state: NurseTriageState) {
 export function shouldShowHealthEventFilters(view: HealthEventsViewMode) {
   return view === 'list'
 }
-
-export function nextAmbientNurseDelay(randomValue = Math.random()) {
-  return 6_000 + Math.round(Math.max(0, Math.min(1, randomValue)) * 6_000)
-}

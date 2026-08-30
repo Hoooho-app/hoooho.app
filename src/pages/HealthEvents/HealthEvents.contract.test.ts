@@ -15,6 +15,8 @@ const timelineSource = readFileSync(new URL('../../components/health/HealthEvent
 const helpSource = readFileSync(new URL('../../features/help/articles.ts', import.meta.url), 'utf8')
 const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
 const nurseRecorderSource = readFileSync(new URL('./NurseTriageRecorder.tsx', import.meta.url), 'utf8')
+const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
+const idleSchedulerSource = readFileSync(new URL('./idleNurseAnimation.ts', import.meta.url), 'utf8')
 
 test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前人物"/)
@@ -51,13 +53,29 @@ test('护士记录严格绑定当前人物并走真实事件和记录保存接�
   assert.doesNotMatch(pageSource, /mock/i)
 })
 
-test('护士状态资产预加载、固定画框、清理计时器并支持 Reduced Motion', () => {
+test('护士状态资产预加载、固定画框、待机调度清理并支持 Reduced Motion', () => {
   assert.match(nurseDeskSource, /preloadNurseTriageAssets/)
   assert.match(nurseDeskSource, /Object\.values\(nurseTriageAssets\)/)
   assert.match(nurseDeskSource, /document\.addEventListener\('visibilitychange'/)
-  assert.match(nurseDeskSource, /window\.clearTimeout\(nextTimer\)/)
+  assert.match(idleSchedulerSource, /class IdleAnimationScheduler/)
+  assert.match(idleSchedulerSource, /this\.clearPendingTimer\(\)/)
+  assert.match(idleVisualSource, /clearVisualTimers/)
   assert.match(nurseRecorderSource, /prefers-reduced-motion|reducedMotion/)
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*{[^}]*aspect-ratio:\s*498\s*\/\s*442/s)
+})
+
+test('待机动作复用三份视频且只渲染单一静音内联播放器', () => {
+  assert.match(idleSchedulerSource, /idle-blonde-chair-spin\.mp4/)
+  assert.match(idleSchedulerSource, /idle-blonde-stretch\.mp4/)
+  assert.match(idleSchedulerSource, /idle-blonde-water-plant\.mp4/)
+  assert.equal(idleVisualSource.match(/<video/g)?.length, 1)
+  assert.match(idleVisualSource, /muted/)
+  assert.match(idleVisualSource, /playsInline/)
+  assert.match(idleVisualSource, /disablePictureInPicture/)
+  assert.match(idleVisualSource, /controls=\{false\}/)
+  assert.match(idleVisualSource, /playIdleVideoSafely\(\(\) => video\.play\(\)\)/)
+  assert.doesNotMatch(idleVisualSource, /\bloop\b/)
+  assert.doesNotMatch(idleVisualSource, /createObjectURL|requestAnimationFrame|setInterval/)
 })
 
 test('麦克风失败提供文字输入且保存成功后不自动切回列表', () => {

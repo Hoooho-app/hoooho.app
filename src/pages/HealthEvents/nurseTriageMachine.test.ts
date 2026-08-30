@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   canStartNurseHandoff,
-  nextAmbientNurseDelay,
   shouldShowHealthEventFilters,
   transitionNurseTriage,
   type NurseTriageState
@@ -28,10 +27,4 @@ test('录音、核对和保存期间不允许换班', () => {
   })
   assert.equal(canStartNurseHandoff('idle'), true)
   assert.equal(canStartNurseHandoff('saved'), true)
-})
-
-test('待机微动作使用 6 到 12 秒的非固定间隔', () => {
-  assert.equal(nextAmbientNurseDelay(0), 6_000)
-  assert.equal(nextAmbientNurseDelay(0.5), 9_000)
-  assert.equal(nextAmbientNurseDelay(1), 12_000)
 })

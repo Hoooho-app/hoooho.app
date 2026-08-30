@@ -293,7 +293,12 @@ export function NurseTriageRecorder({ currentMemberId, disabled = false, onSave,
 
   return (
     <section aria-label="健康事件语音记录" className="nurse-triage-recorder">
-      <NurseTriageDesk audioLevel={audioLevel} reducedMotion={reducedMotion} state={visualState} />
+      <NurseTriageDesk
+        audioLevel={audioLevel}
+        idleAnimationResetKey={currentMemberId}
+        reducedMotion={reducedMotion}
+        state={visualState}
+      />
       <div aria-live="polite" className="nurse-triage-status">
         <h3>{statusCopy.title}</h3>
         {statusCopy.detail && <p>{statusCopy.detail}</p>}
