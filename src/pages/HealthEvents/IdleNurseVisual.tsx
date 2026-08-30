@@ -23,6 +23,7 @@ import { createIdleNurseAnimationState, transitionNurseAnimation } from './nurse
 
 const idlePlaylist = [idleVideoOneSource, idleVideoTwoSource] as const
 const idleRetryLimit = 3
+const specialPlaybackStartTimeoutMs = 5_000
 
 const videoSourceByAction = Object.fromEntries(
   idleNurseActions.map((action) => [action.id, action.source])
@@ -159,6 +160,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
     window.clearTimeout(specialLoadTimerRef.current)
     specialLoadTimerRef.current = 0
     dispatch({ type: 'RETURN_TO_IDLE', requestId })
+    requestIdRef.current = requestId + 1
     const video = specialVideoRef.current
     if (video) {
       video.pause()
@@ -338,8 +340,14 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
     window.clearTimeout(specialLoadTimerRef.current)
     video.currentTime = 0
     stopIdlePlaylist()
+    specialLoadTimerRef.current = window.setTimeout(
+      () => returnToIdle(requestId, false),
+      specialPlaybackStartTimeoutMs
+    )
     void playIdleVideoSafely(() => video.play()).then((reason) => {
       if (!mountedRef.current || requestId !== requestIdRef.current) return
+      window.clearTimeout(specialLoadTimerRef.current)
+      specialLoadTimerRef.current = 0
       if (reason) {
         returnToIdle(requestId, false)
         return
