@@ -8,6 +8,7 @@ import {
   BottomSheetSurface, HohoButton, HohoSurfaceRow, HohoToggle, StatusNotice, Typography
 } from '../../components/design-system'
 import { WebPageHeader } from '../../components/common'
+import { MainAppHeader } from '../../components/navigation'
 import {
   permissionStatusLabels,
   mapBrowserPermissionState,
@@ -28,9 +29,10 @@ interface ChoiceOption<T extends string> {
 }
 
 function SettingsLayout({ children, title }: { children: ReactNode; title: string }) {
+  const topLevel = title === '设置'
   return (
     <main className="settings-page app-shell pb-0">
-      <WebPageHeader title={title} fallback={title === '设置' ? '/health-events' : '/settings'} />
+      {topLevel ? <MainAppHeader compact title={title} /> : <WebPageHeader title={title} fallback="/settings" />}
       <div className="settings-content">{children}</div>
     </main>
   )
