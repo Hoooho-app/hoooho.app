@@ -18,9 +18,17 @@ test('family avatar editor exposes only a complete avatar switch and photo mode'
 })
 
 test('avatar artwork and border share one fixed circular frame', () => {
-  assert.match(source, /relative h-28 w-28/)
-  assert.match(source, /h-28 w-28 border-2 border-primary/)
+  assert.match(source, /compact \? 'h-20 w-20' : 'h-28 w-28'/)
+  assert.match(source, /border-2 border-primary bg-surface shadow-card/)
   assert.equal(source.includes('bg-surface p-0.5 shadow-card'), false)
+})
+
+test('family avatar editor offers a compact onboarding layout without shrinking touch targets', () => {
+  assert.match(source, /compact\?: boolean/)
+  assert.match(source, /compact \? 'mt-2 w-44' : 'mt-3 w-48'/)
+  assert.match(source, /min-h-11/)
+  assert.match(source, /compact \? 'h-8 w-8' : 'h-11 w-11'/)
+  assert.match(source, /size=\{compact \? 16 : 20\}/)
 })
 
 test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {

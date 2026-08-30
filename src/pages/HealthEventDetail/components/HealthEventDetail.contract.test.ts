@@ -22,12 +22,18 @@ test('详情概览直接复用列表卡片内容且不保留旧摘要结构', ()
   assert.equal(summarySource.includes('事件摘要'), false)
 })
 
-test('时间线以日期作为分组标题、时段作为左侧锚点且不显示年份标题', () => {
+test('时间线从日期节点开始、时段使用空心节点且卡片位于时段下方', () => {
+  assert.match(timelineSource, /timeline-groups/)
   assert.match(timelineSource, /timeline-date-group/)
+  assert.match(timelineSource, /timeline-date-heading/)
   assert.match(timelineSource, /timeline-entry-time/)
+  assert.match(timelineSource, /timeline-entry-marker/)
   assert.match(timelineSource, /dateGroup\.date/)
   assert.equal(timelineSource.includes('{yearGroup.year}年'), false)
-  assert.match(stylesSource, /timeline-entry-row[^}]*grid-cols-\[112px_minmax\(0,1fr\)\]/)
+  assert.match(stylesSource, /timeline-groups::before[^}]*border-l/)
+  assert.match(stylesSource, /timeline-entry-marker[^}]*border-2[^}]*bg-background/)
+  assert.match(stylesSource, /timeline-entry-row[^}]*space-y-3/)
+  assert.equal(stylesSource.includes('grid-cols-[112px_minmax(0,1fr)]'), false)
 })
 
 test('时间线排序入口复用设计系统图标按钮', () => {

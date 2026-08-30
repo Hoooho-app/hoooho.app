@@ -18,7 +18,8 @@ test('首次添加家人页面将出生信息精度合并到出生日期字段',
   assert.match(pageSource, /\['date', '完整日期'\]/)
   assert.match(pageSource, /autoComplete="bday-year"/)
   assert.match(pageSource, /autoComplete="bday"/)
-  assert.match(pageSource, /自动计算年龄/)
+  assert.match(pageSource, /getBirthdayAgeMessage\(birthday, birthdayPrecision\)/)
+  assert.match(pageSource, /<FamilyAvatarEditor\s+compact/)
   assert.equal(pageSource.includes('填写出生年份即可，系统将计算大致年龄'), false)
   assert.equal(pageSource.includes('placeholder="例如：1990"'), false)
 })
@@ -26,4 +27,11 @@ test('首次添加家人页面将出生信息精度合并到出生日期字段',
 test('首次添加家人允许跳过且使用路由替换进入兜底首页', () => {
   assert.match(pageSource, /跳过，稍后再添加/)
   assert.match(pageSource, /navigate\('\/health-events', \{ replace: true \}\)/)
+})
+
+test('首次添加家人页面压缩空白但保留辅助操作触控高度', () => {
+  assert.match(pageSource, /<div className="mt-auto pt-2">/)
+  assert.equal(pageSource.includes('className="min-h-5" aria-live="polite"'), false)
+  assert.match(pageSource, /className="mt-1 min-h-11 w-full/)
+  assert.match(pageSource, /className="mt-3 flex items-center justify-center/)
 })

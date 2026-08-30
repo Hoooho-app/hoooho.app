@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/useAppStore'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
+const SHOW_PHONE_LOGIN = false
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -117,14 +118,14 @@ export function LoginPage() {
         >
           <source src="/media/login-family-care.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-surface/60 via-background/70 to-background/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-surface/50 via-background/60 to-background/80" />
       </div>
 
       <div className="auth-panel relative z-10 flex flex-1 flex-col">
         <header className="flex flex-col items-center pt-6 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
           <h1 className="hoho-text-page-title mt-7">欢迎使用 Hoooho</h1>
-          <p className="hoho-text-body mt-2">家庭健康事件管理平台</p>
+          <p className="hoho-text-body mt-2">家庭健康事件的事实记录系统与就诊前台</p>
         </header>
 
         <form className="mt-10 space-y-3" noValidate onSubmit={login}>
@@ -181,18 +182,20 @@ export function LoginPage() {
           <HohoButton fullWidth loading={isLoggingIn} size="large" type="submit" disabled={!emailIsValid || !codeIsValid}>登录</HohoButton>
         </form>
 
-        <HohoButton
-          className="mt-3"
-          fullWidth
-          variant="secondary"
-          onClick={() => {
-            setError('')
-            setNotice('该功能暂未开放')
-          }}
-        >
-          <Smartphone aria-hidden="true" size={17} strokeWidth={1.8} />
-          手机号登录
-        </HohoButton>
+        {SHOW_PHONE_LOGIN && (
+          <HohoButton
+            className="mt-3"
+            fullWidth
+            variant="secondary"
+            onClick={() => {
+              setError('')
+              setNotice('该功能暂未开放')
+            }}
+          >
+            <Smartphone aria-hidden="true" size={17} strokeWidth={1.8} />
+            手机号登录
+          </HohoButton>
+        )}
 
         <p className="mt-4 text-center text-[11px] leading-5 text-text-secondary">
           登录即表示同意
@@ -201,11 +204,6 @@ export function LoginPage() {
           <button className="ml-1 text-primary" type="button">《隐私政策》</button>
         </p>
 
-        <div className="mt-9 flex items-center gap-4 text-xs text-text-secondary/80">
-          <span className="h-px flex-1 bg-border" />
-          <span>陪伴家人每一次健康时刻</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
       </div>
 
     </main>
