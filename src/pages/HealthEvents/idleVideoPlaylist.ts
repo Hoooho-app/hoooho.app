@@ -102,3 +102,16 @@ export function chooseAvailableIdle(
   const fallback = otherIdleIndex(preferred);
   return unavailable[fallback] ? null : fallback;
 }
+
+export function isIdlePlayerVisible(state: IdlePlaylistState, player: IdlePlayer) {
+  return state.hasPlayed && state.activePlayer === player;
+}
+
+export async function playIdleVideoSafely(play: () => Promise<void>) {
+  try {
+    await play();
+    return null;
+  } catch (reason) {
+    return reason;
+  }
+}

@@ -1,54 +1,34 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import idleVideoOneSource from '../../assets/nurse-triage/nurses-idle-loop-1.mp4'
 import idleVideoTwoSource from '../../assets/nurse-triage/nurses-idle-loop-2.mp4'
-import {
-  IdleAnimationScheduler,
-  idleNurseActions,
-  playIdleVideoSafely,
-  type IdleNurseAction
-} from './idleNurseAnimation'
 import {
   beginIdlePlayback,
   chooseAvailableIdle,
   commitIdlePlayback,
   createIdlePlaylistState,
+  isIdlePlayerVisible,
   otherIdleIndex,
+  playIdleVideoSafely,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
   suspendIdlePlaylist,
   type IdleIndex,
   type IdlePlaylistState
 } from './idleVideoPlaylist'
-import { createIdleNurseAnimationState, transitionNurseAnimation } from './nurseAnimationController'
 
-const idlePlaylist = [idleVideoOneSource, idleVideoTwoSource] as const
+export const idlePlaylist = [idleVideoOneSource, idleVideoTwoSource] as const
+
 const idleRetryLimit = 3
-const specialPlaybackStartTimeoutMs = 5_000
-
-const videoSourceByAction = Object.fromEntries(
-  idleNurseActions.map((action) => [action.id, action.source])
-) as Record<IdleNurseAction, string>
-
-interface PendingSpecialAction {
-  action: IdleNurseAction
-  requestId: number
-}
 
 interface IdleNurseVisualProps {
   active: boolean
   reducedMotion: boolean
   resetKey: string
-  specialActionsEnabled: boolean
 }
 
-export function IdleNurseVisual({ active, reducedMotion, resetKey, specialActionsEnabled }: IdleNurseVisualProps) {
-  const [animation, dispatch] = useReducer(transitionNurseAnimation, undefined, () => createIdleNurseAnimationState())
+export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVisualProps) {
   const [playlist, setPlaylist] = useState<IdlePlaylistState>(() => createIdlePlaylistState())
   const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
-  const [pendingSpecial, setPendingSpecial] = useState<PendingSpecialAction | null>(null)
-  const [specialReady, setSpecialReady] = useState(false)
-  const [specialRequested, setSpecialRequested] = useState(false)
-  const schedulerRef = useRef<IdleAnimationScheduler | null>(null)
   const playlistRef = useRef(playlist)
   const idleVideoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null])
   const idleReadyRef = useRef<[boolean, boolean]>([false, false])
@@ -59,11 +39,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
   const mountedRef = useRef(true)
   const idlePlaybackAllowedRef = useRef(false)
   const reducedMotionRef = useRef(reducedMotion)
-  const specialVideoRef = useRef<HTMLVideoElement | null>(null)
-  const requestIdRef = useRef(0)
-  const specialLoadTimerRef = useRef(0)
 
-  idlePlaybackAllowedRef.current = active && animation.kind === 'idle'
+  idlePlaybackAllowedRef.current = active
   reducedMotionRef.current = reducedMotion
 
   const updatePlaylist = useCallback((next: IdlePlaylistState) => {
@@ -155,25 +132,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
     setIdlePlaybackBlocked(false)
   }, [pauseIdlePlayers, updatePlaylist])
 
-  const returnToIdle = useCallback((requestId: number, completed: boolean) => {
-    if (!mountedRef.current || requestId !== requestIdRef.current) return
-    window.clearTimeout(specialLoadTimerRef.current)
-    specialLoadTimerRef.current = 0
-    dispatch({ type: 'RETURN_TO_IDLE', requestId })
-    requestIdRef.current = requestId + 1
-    const video = specialVideoRef.current
-    if (video) {
-      video.pause()
-      video.currentTime = 0
-    }
-    setPendingSpecial(null)
-    setSpecialReady(false)
-    setSpecialRequested(false)
-    if (completed) schedulerRef.current?.completeAction()
-    else schedulerRef.current?.skipPreparedAction()
-    startOrResumeIdle()
-  }, [startOrResumeIdle])
-
   const retryIdleVideo = useCallback((player: IdleIndex) => {
     idleReadyRef.current[player] = false
     idleFailedRef.current[player] = true
@@ -215,8 +173,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
 
   const handleIdlePlaying = useCallback((player: IdleIndex) => {
     let current = playlistRef.current
-    // The first player's autoplay may win the race against the mount effect.
-    // Adopt that playback into a normal session so it cannot remain invisible.
     if (current.suspended && !current.hasPlayed && player === 0 && idlePlaybackAllowedRef.current) {
       current = beginIdlePlayback(current, player)
       idlePlayerSessionRef.current[player] = current.playbackSessionId
@@ -250,64 +206,27 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
     return () => {
       mountedRef.current = false
       idleRetryTimerRef.current.forEach((timer) => window.clearTimeout(timer))
-      window.clearTimeout(specialLoadTimerRef.current)
       playlistRef.current = suspendIdlePlaylist(playlistRef.current)
       pauseIdlePlayers()
-      specialVideoRef.current?.pause()
     }
   }, [pauseIdlePlayers])
 
   useEffect(() => {
-    requestIdRef.current += 1
-    dispatch({ type: 'FORCE_IDLE', requestId: requestIdRef.current })
-    setPendingSpecial(null)
-    setSpecialReady(false)
-    setSpecialRequested(false)
-    specialVideoRef.current?.pause()
-
-    const scheduler = new IdleAnimationScheduler({
-      onPrepare: (action) => {
-        const requestId = ++requestIdRef.current
-        setPendingSpecial({ action, requestId })
-        setSpecialReady(false)
-        setSpecialRequested(false)
-      },
-      onPlay: (action) => {
-        setPendingSpecial((current) => {
-          if (!current || current.action !== action) return current
-          setSpecialRequested(true)
-          return current
-        })
-      }
-    })
-    schedulerRef.current = scheduler
-    if (specialActionsEnabled && !reducedMotion) scheduler.start()
-
-    return () => {
-      scheduler.stop()
-      if (schedulerRef.current === scheduler) schedulerRef.current = null
-      window.clearTimeout(specialLoadTimerRef.current)
-      requestIdRef.current += 1
-      specialVideoRef.current?.pause()
-    }
-  }, [reducedMotion, resetKey, specialActionsEnabled])
-
-  useEffect(() => {
-    if (!active || animation.kind !== 'idle') {
+    if (!active) {
       stopIdlePlaylist()
       return
     }
     startOrResumeIdle()
-  }, [active, animation.kind, reducedMotion, resetKey, startOrResumeIdle, stopIdlePlaylist])
+  }, [active, reducedMotion, resetKey, startOrResumeIdle, stopIdlePlaylist])
 
   useEffect(() => {
-    if (!playlist.hasPlayed || playlist.pendingPlayer !== null || animation.kind !== 'idle') return
+    if (!playlist.hasPlayed || playlist.pendingPlayer !== null) return
     const inactivePlayer = otherIdleIndex(playlist.activePlayer)
     const inactiveVideo = idleVideoRefs.current[inactivePlayer]
     if (!inactiveVideo) return
     inactiveVideo.pause()
     if (inactiveVideo.currentTime > 0) inactiveVideo.currentTime = 0
-  }, [animation.kind, playlist.activePlayer, playlist.hasPlayed, playlist.pendingPlayer])
+  }, [playlist.activePlayer, playlist.hasPlayed, playlist.pendingPlayer])
 
   useEffect(() => {
     if (!active || !idlePlaybackBlocked) return
@@ -325,63 +244,10 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
     }
   }, [active, idlePlaybackBlocked, tryPlayPreparedIdle])
 
-  useEffect(() => {
-    if (!pendingSpecial || specialReady) return
-    window.clearTimeout(specialLoadTimerRef.current)
-    specialLoadTimerRef.current = window.setTimeout(() => returnToIdle(pendingSpecial.requestId, false), 10_000)
-    return () => window.clearTimeout(specialLoadTimerRef.current)
-  }, [pendingSpecial, returnToIdle, specialReady])
-
-  useEffect(() => {
-    if (!active || !pendingSpecial || !specialReady || !specialRequested) return
-    const video = specialVideoRef.current
-    if (!video) return
-    const { action, requestId } = pendingSpecial
-    window.clearTimeout(specialLoadTimerRef.current)
-    video.currentTime = 0
-    stopIdlePlaylist()
-    specialLoadTimerRef.current = window.setTimeout(
-      () => returnToIdle(requestId, false),
-      specialPlaybackStartTimeoutMs
-    )
-    void playIdleVideoSafely(() => video.play()).then((reason) => {
-      if (!mountedRef.current || requestId !== requestIdRef.current) return
-      window.clearTimeout(specialLoadTimerRef.current)
-      specialLoadTimerRef.current = 0
-      if (reason) {
-        returnToIdle(requestId, false)
-        return
-      }
-      dispatch({ type: 'PLAY', kind: 'special', action, requestId })
-    })
-  }, [active, pendingSpecial, returnToIdle, specialReady, specialRequested, stopIdlePlaylist])
-
-  useEffect(() => {
-    if (!pendingSpecial) return
-    const video = specialVideoRef.current
-    if (!video) return
-    const requestId = pendingSpecial.requestId
-    const complete = () => returnToIdle(requestId, true)
-    const fail = () => returnToIdle(requestId, false)
-    video.addEventListener('ended', complete, { once: true })
-    video.addEventListener('error', fail, { once: true })
-    video.addEventListener('abort', fail, { once: true })
-    video.addEventListener('stalled', fail, { once: true })
-    return () => {
-      video.removeEventListener('ended', complete)
-      video.removeEventListener('error', fail)
-      video.removeEventListener('abort', fail)
-      video.removeEventListener('stalled', fail)
-    }
-  }, [pendingSpecial, returnToIdle])
-
-  const specialSource = pendingSpecial ? videoSourceByAction[pendingSpecial.action] : undefined
   return (
     <div
       className="idle-nurse-visual"
-      data-action={animation.action ?? 'none'}
       data-active-idle={playlist.hasPlayed ? playlist.activeIdleIndex + 1 : 'none'}
-      data-mode={animation.kind}
       data-playback-session={playlist.playbackSessionId}
       data-reduced-motion={reducedMotion}
     >
@@ -394,7 +260,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
             className="idle-nurse-visual__idle-video"
             controls={false}
             controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
-            data-active={animation.kind === 'idle' && playlist.hasPlayed && playlist.activePlayer === idlePlayer}
+            data-active={isIdlePlayerVisible(playlist, idlePlayer)}
             data-idle-index={idlePlayer + 1}
             disablePictureInPicture
             disableRemotePlayback
@@ -417,25 +283,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, specialAction
           />
         )
       })}
-      <video
-        aria-hidden="true"
-        className="idle-nurse-visual__special-video"
-        controls={false}
-        controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
-        disablePictureInPicture
-        disableRemotePlayback
-        draggable={false}
-        loop={false}
-        muted
-        onCanPlay={() => setSpecialReady(true)}
-        onContextMenu={(event) => event.preventDefault()}
-        onDragStart={(event) => event.preventDefault()}
-        playsInline
-        preload={specialSource ? 'auto' : 'none'}
-        ref={specialVideoRef}
-        src={specialSource}
-        tabIndex={-1}
-      />
     </div>
   )
 }

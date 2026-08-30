@@ -6,6 +6,8 @@ import {
   chooseAvailableIdle,
   commitIdlePlayback,
   createIdlePlaylistState,
+  isIdlePlayerVisible,
+  playIdleVideoSafely,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
   suspendIdlePlaylist,
@@ -31,7 +33,7 @@ describe('idle video playlist', () => {
     assert.equal(state.pendingPlayer, 1)
   });
 
-  it('resumes with the next idle after a special animation', () => {
+  it('resumes with the next idle after business-state suspension', () => {
     let state = resumeIdlePlaylist(createIdlePlaylistState());
     state = commitIdlePlayback(state, 0, state.playbackSessionId);
     state = suspendIdlePlaylist(state);
@@ -63,6 +65,20 @@ describe('idle video playlist', () => {
     assert.equal(duplicate.pendingPlayer, 1)
   });
 
+  it('keeps the current video visible until the next video is actually playing', () => {
+    let state = resumeIdlePlaylist(createIdlePlaylistState());
+    state = commitIdlePlayback(state, 0, state.playbackSessionId);
+    state = requestNextIdlePlayback(state, 0, state.playbackSessionId);
+
+    assert.equal(state.pendingPlayer, 1)
+    assert.equal(isIdlePlayerVisible(state, 0), true)
+    assert.equal(isIdlePlayerVisible(state, 1), false)
+
+    state = commitIdlePlayback(state, 1, state.playbackSessionId)
+    assert.equal(isIdlePlayerVisible(state, 0), false)
+    assert.equal(isIdlePlayerVisible(state, 1), true)
+  });
+
   it('falls back to the healthy idle and restores alternation when available', () => {
     assert.equal(chooseAvailableIdle(1, [false, true]), 0)
     assert.equal(chooseAvailableIdle(0, [true, false]), 1)
@@ -78,5 +94,11 @@ describe('idle video playlist', () => {
 
     assert.equal(state.activePlayer, 0)
     assert.equal(state.nextIdleIndex, 1)
+  });
+
+  it('catches play promise failures without an unhandled rejection', async () => {
+    const failure = new Error('blocked')
+    assert.equal(await playIdleVideoSafely(() => Promise.reject(failure)), failure)
+    assert.equal(await playIdleVideoSafely(() => Promise.resolve()), null)
   });
 });
