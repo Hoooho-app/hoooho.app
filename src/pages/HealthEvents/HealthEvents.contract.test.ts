@@ -18,8 +18,6 @@ const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.met
 const nurseQuickRecordSource = readFileSync(new URL('./NurseQuickRecord.tsx', import.meta.url), 'utf8')
 const quickRecordFlowSource = readFileSync(new URL('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
 const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
-const idleSchedulerSource = readFileSync(new URL('./idleNurseAnimation.ts', import.meta.url), 'utf8')
-const animationControllerSource = readFileSync(new URL('./nurseAnimationController.ts', import.meta.url), 'utf8')
 
 test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前人物"/)
@@ -59,14 +57,12 @@ test('护士记录严格绑定当前人物并走真实事件和记录保存接�
   assert.doesNotMatch(pageSource, /mock/i)
 })
 
-test('护士状态资产预加载、固定画框、待机调度清理并支持 Reduced Motion', () => {
+test('护士状态资产预加载、固定画框、双待机清理并支持 Reduced Motion', () => {
   assert.match(nurseDeskSource, /preloadNurseTriageAssets/)
   assert.match(nurseDeskSource, /Object\.values\(nurseTriageAssets\)/)
   assert.match(nurseDeskSource, /document\.addEventListener\('visibilitychange'/)
-  assert.match(idleSchedulerSource, /class IdleAnimationScheduler/)
-  assert.match(idleSchedulerSource, /this\.clearPendingTimer\(\)/)
-  assert.match(idleVisualSource, /window\.clearTimeout\(specialLoadTimerRef\.current\)/)
-  assert.match(idleVisualSource, /removeEventListener\('ended'/)
+  assert.match(idleVisualSource, /idleRetryTimerRef\.current\.forEach\(\(timer\) => window\.clearTimeout\(timer\)\)/)
+  assert.doesNotMatch(idleVisualSource, /setInterval|requestAnimationFrame|createObjectURL/)
   assert.match(nurseQuickRecordSource, /reducedMotion/)
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*{[^}]*aspect-ratio:\s*1\s*\/\s*1/s)
 })
@@ -76,14 +72,13 @@ test('健康事件页继承全局底板且不维护页面级颜色补丁', () =>
   assert.doesNotMatch(pageStylesSource, /\.app-shell\.hoho-health-events-page\s*{[^}]*background:/s)
 })
 
-test('双待机循环与趣味动作由单一控制器管理且最多只有一个可见播放器', () => {
+test('默认待机严格使用两项白名单且切换期间最多只有一个可见播放器', () => {
   assert.match(idleVisualSource, /import idleVideoOneSource from '\.\.\/\.\.\/assets\/nurse-triage\/nurses-idle-loop-1\.mp4'/)
   assert.match(idleVisualSource, /import idleVideoTwoSource from '\.\.\/\.\.\/assets\/nurse-triage\/nurses-idle-loop-2\.mp4'/)
-  assert.match(idleVisualSource, /const idlePlaylist = \[idleVideoOneSource, idleVideoTwoSource\] as const/)
-  assert.match(idleSchedulerSource, /idle-blonde-chair-spin\.mp4/)
-  assert.match(idleSchedulerSource, /idle-blonde-stretch\.mp4/)
-  assert.match(idleSchedulerSource, /idle-blonde-water-plant\.mp4/)
-  assert.equal(idleVisualSource.match(/<video/g)?.length, 2)
+  const playlistMatch = idleVisualSource.match(/const idlePlaylist = \[([^\]]+)\] as const/)
+  assert.ok(playlistMatch)
+  assert.deepEqual(playlistMatch[1].split(',').map((item) => item.trim()), ['idleVideoOneSource', 'idleVideoTwoSource'])
+  assert.equal(idleVisualSource.match(/<video/g)?.length, 1)
   assert.match(idleVisualSource, /autoPlay=\{idlePlayer === 0 && active && !reducedMotion\}/)
   assert.match(idleVisualSource, /preload="auto"/)
   assert.match(idleVisualSource, /loop=\{false\}/)
@@ -96,16 +91,9 @@ test('双待机循环与趣味动作由单一控制器管理且最多只有一�
   assert.match(idleVisualSource, /controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"/)
   assert.match(idleVisualSource, /tabIndex=\{-1\}/)
   assert.match(idleVisualSource, /onDragStart=\{\(event\) => event\.preventDefault\(\)\}/)
-  assert.match(idleVisualSource, /addEventListener\('ended'/)
-  assert.match(idleVisualSource, /addEventListener\('error'/)
-  assert.match(idleVisualSource, /addEventListener\('abort'/)
-  assert.match(idleVisualSource, /addEventListener\('stalled'/)
-  assert.match(idleVisualSource, /specialPlaybackStartTimeoutMs = 5_000/)
-  assert.match(idleVisualSource, /requestIdRef\.current = requestId \+ 1/)
-  assert.match(animationControllerSource, /RETURN_TO_IDLE/)
-  assert.match(animationControllerSource, /event\.requestId < current\.requestId/)
   assert.doesNotMatch(idleVisualSource, /createObjectURL|requestAnimationFrame|setInterval/)
-  assert.doesNotMatch(idleVisualSource, /<img|poster=|staticSource/)
+  assert.doesNotMatch(idleVisualSource, /<img|poster=|staticSource|special|src=\{undefined\}|src=""/)
+  assert.doesNotMatch(idleVisualSource, /import\.meta\.glob|Object\.values|includes\([^)]*idle/)
   const obsoleteIdleNames = [
     ['idle', 'video', 'first', 'frame'].join('-') + '.png',
     ['idle', 'working'].join('-') + '.png',
@@ -119,11 +107,9 @@ test('双待机循环与趣味动作由单一控制器管理且最多只有一�
   assert.match(idleVisualSource, /(?:video|idleVideoRefs\.current\[player\]\?)\.load\(\)/)
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*\{[^}]*background:\s*#fff[^}]*border:\s*0[^}]*outline:\s*0[^}]*box-shadow:\s*none[^}]*pointer-events:\s*none/s)
   assert.match(pageStylesSource, /\.nurse-triage-desk::after\s*\{[^}]*transparent 10px[^}]*#fff 100%/s)
-  assert.match(pageStylesSource, /\.idle-nurse-visual__idle-video,[^}]*\.idle-nurse-visual__special-video\s*\{[^}]*pointer-events:\s*none[^}]*user-select:\s*none/s)
-  assert.match(pageStylesSource, /\.idle-nurse-visual__special-video\s*{[^}]*opacity:\s*0/s)
+  assert.match(pageStylesSource, /\.idle-nurse-visual__idle-video\s*\{[^}]*pointer-events:\s*none[^}]*user-select:\s*none/s)
   assert.match(pageStylesSource, /idle-video\[data-active='true'\][^}]*opacity:\s*1/s)
-  assert.match(pageStylesSource, /data-mode='special'[^}]*opacity:\s*1/s)
-  assert.match(pageStylesSource, /data-mode='special'[^}]*idle-video[^}]*opacity:\s*0/s)
+  assert.doesNotMatch(pageStylesSource, /idle-nurse-visual__special-video|data-mode='special'/)
 })
 
 test('双待机资产内容正确且旧静态素材已删除', () => {
@@ -138,7 +124,10 @@ test('双待机资产内容正确且旧静态素材已删除', () => {
     ['nurses', 'idle', 'loop'].join('-') + '.mp4',
     ['idle', 'video', 'first', 'frame'].join('-') + '.png',
     ['idle', 'working'].join('-') + '.png',
-    'idle' + '.png'
+    'idle' + '.png',
+    ['idle', 'blonde', 'chair', 'spin'].join('-') + '.mp4',
+    ['idle', 'blonde', 'stretch'].join('-') + '.mp4',
+    ['idle', 'blonde', 'water', 'plant'].join('-') + '.mp4'
   ]
   removedAssets.forEach((name) => {
     const publicAsset = new URL(`../../../public/nurse-triage/${name}`, import.meta.url)
