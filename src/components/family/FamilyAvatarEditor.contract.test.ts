@@ -27,6 +27,8 @@ test('family avatar editor offers a compact onboarding layout without shrinking 
   assert.match(source, /compact\?: boolean/)
   assert.match(source, /compact \? 'mt-2 w-44' : 'mt-3 w-48'/)
   assert.match(source, /min-h-11/)
+  assert.match(source, /compact \? 'h-8 w-8' : 'h-11 w-11'/)
+  assert.match(source, /size=\{compact \? 16 : 20\}/)
 })
 
 test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {

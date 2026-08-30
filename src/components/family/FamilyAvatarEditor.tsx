@@ -72,13 +72,15 @@ export function FamilyAvatarEditor({ compact = false, config, disabled = false, 
           <ClayAvatar className={`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-surface shadow-card`} config={config} language={language} name={name || text.cartoon} />
           <button
             aria-label={text.change}
-            className="absolute bottom-0 end-0 grid min-h-11 min-w-11 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+            className="absolute bottom-0 end-0 grid min-h-11 min-w-11 place-items-center rounded-full text-white transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
             disabled={disabled}
             title={text.change}
             type="button"
             onClick={changeAvatar}
           >
-            <RefreshCw aria-hidden="true" size={20} strokeWidth={1.9} />
+            <span className={`grid place-items-center rounded-full border-2 border-surface bg-primary shadow-card ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
+              <RefreshCw aria-hidden="true" size={compact ? 16 : 20} strokeWidth={1.9} />
+            </span>
           </button>
         </div>
       ) : (
