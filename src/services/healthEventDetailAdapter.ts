@@ -144,10 +144,10 @@ export function adaptHealthEventDetail(
       concerns: uniqueFactNames(facts, 'concern'),
       personalizedModules: [],
       medicalInfo: emptyMedicalInfo,
-      ...(eventDto.status === 'recovered'
+      ...(eventDto.status === 'recovered' && eventDto.recoveredAt
         ? {
             recoveryInfo: {
-              recoveredAt: eventDto.updatedAt,
+              recoveredAt: eventDto.recoveredAt,
               result: '已恢复',
               note: ''
             }

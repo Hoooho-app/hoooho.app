@@ -40,7 +40,9 @@ test('旧事件标题仍可作为未结构化数据的速览特征，但不会�
   const [adapted] = adaptHealthEventList([feverEvent], [member], new Map([[event.id, [feverRecord]]]), new Map(), now)
 
   assert.equal(adapted.definitionTitle, '未定性')
-  assert.deepEqual(adapted.quickFacts, ['第1天', '发热'])
+  assert.equal(adapted.displayTitle, '发热')
+  assert.equal(adapted.durationLabel, '已持续1天')
+  assert.deepEqual(adapted.summaryFragments, [{ label: '发热', sourceRecordId: record.id, kind: 'legacy' }])
 })
 
 test('旧长描述只提炼一个真实特征，不再拼接自然语言伪摘要', () => {
@@ -49,7 +51,8 @@ test('旧长描述只提炼一个真实特征，不再拼接自然语言伪摘�
   const [adapted] = adaptHealthEventList([longEvent], [member], new Map([[event.id, [longRecord]]]), new Map(), now)
 
   assert.equal(adapted.title, '头痛')
-  assert.deepEqual(adapted.quickFacts, ['第1天', '头痛'])
+  assert.equal(adapted.displayTitle, '头痛')
+  assert.deepEqual(adapted.summaryFragments, [{ label: '头痛', sourceRecordId: record.id, kind: 'legacy' }])
 })
 
 test('事件标题保持简短并作为未结构化速览特征', () => {
@@ -81,14 +84,15 @@ test('一级列表只从可追溯的确认诊断标签读取定性标题', () =>
   }
   const [adapted] = adaptHealthEventList([summarizedEvent], [member], new Map([[event.id, [record]]]), new Map(), now)
   assert.equal(adapted.definitionTitle, '甲型流感')
-  assert.deepEqual(adapted.quickFacts, ['第1天', '发热', '头痛'])
+  assert.equal(adapted.displayTitle, '甲型流感')
+  assert.deepEqual(adapted.summaryFragments.map(({ label }) => label), ['发热', '头痛', '最高39℃'])
 })
 
 test('一级列表显示用户明确记录的 confirmed 诊断名称', () => {
   const diagnosedEvent: HealthEventApiDto = {
     ...event,
     eventSummary: {
-      aggregationVersion: 2,
+      aggregationVersion: 3,
       systemGenerated: { title: '荨麻疹', summary: '系统摘要', tags: [], evidence: ['诊断记录'], updatedAt: event.updatedAt },
       userCorrection: null,
       displayedResult: {
@@ -126,8 +130,8 @@ test('图片-only 事件用分析结果生成标题摘要，不展示健康附�
   )
 
   assert.equal(adapted.title, '检查结果')
-  assert.deepEqual(adapted.quickFacts, ['第1天', '血常规报告'])
-  assert.equal(`${adapted.title}${adapted.quickFacts.join('')}`.includes('image.jpg'), false)
+  assert.deepEqual(adapted.summaryFragments.map(({ label }) => label), ['血常规报告'])
+  assert.equal(`${adapted.title}${adapted.summaryFragments.map(({ label }) => label).join('')}`.includes('image.jpg'), false)
 })
 
 test('Vision 不可用时图片-only 事件稳定降级为图片记录', () => {
@@ -145,5 +149,5 @@ test('Vision 不可用时图片-only 事件稳定降级为图片记录', () => {
     [imageEvent], [member], new Map([[event.id, [imageRecord]]]), new Map([[event.id, [attachment]]]), now
   )
   assert.equal(adapted.title, '图片记录')
-  assert.deepEqual(adapted.quickFacts, ['第1天', '图片记录'])
+  assert.deepEqual(adapted.summaryFragments.map(({ label }) => label), ['图片记录'])
 })

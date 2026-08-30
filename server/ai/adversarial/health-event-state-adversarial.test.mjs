@@ -231,7 +231,7 @@ test('SUMMARY-VERSION: listing events refreshes a stale persisted summary withou
     })
     const eventsWithRefresh = new HealthEventService({ dataDirectory: f.dataDirectory, summaryRefresher: f.organizations })
     const [listed] = await eventsWithRefresh.list(f.accountId)
-    assert.equal(listed.eventSummary.aggregationVersion, 2)
+    assert.equal(listed.eventSummary.aggregationVersion, 3)
     assert.equal(listed.eventSummary.displayedResult.title, '荨麻疹')
   } finally { await rm(f.dataDirectory, { recursive: true, force: true }) }
 })

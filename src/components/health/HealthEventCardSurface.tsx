@@ -6,25 +6,25 @@ import { HealthCard, HealthTag, Typography } from '../design-system'
 interface HealthEventCardSurfaceProps {
   className?: string
   dateLabel?: string
-  definitionTitle: string
-  quickFacts: string[]
+  displayTitle: string
+  durationLabel?: string | null
+  summaryFragments: string[]
   status: HealthEventStage
   interactive?: boolean
   memberName?: string
   showChevron?: boolean
-  weekdayLabel?: string
 }
 
 export function HealthEventCardSurface({
   className = '',
   dateLabel,
-  definitionTitle,
-  quickFacts,
+  displayTitle,
+  durationLabel,
+  summaryFragments,
   status,
   interactive = false,
   memberName,
-  showChevron = false,
-  weekdayLabel
+  showChevron = false
 }: HealthEventCardSurfaceProps) {
   const statusPresentation = getHealthEventStatusPresentation(status)
 
@@ -33,18 +33,18 @@ export function HealthEventCardSurface({
       <div className={`min-w-0 flex-1 ${dateLabel ? 'space-y-1.5' : 'space-y-2'}`}>
         {memberName && <Typography className="block truncate text-primary" variant="caption">{memberName}</Typography>}
         {dateLabel && (
-          <div className="health-event-list-card__date flex items-baseline gap-2 text-[rgb(var(--hoho-color-text-weak))]">
-            <Typography className="font-medium tabular-nums" variant="caption">{dateLabel}</Typography>
-            {weekdayLabel && <Typography variant="caption">{weekdayLabel}</Typography>}
+          <div className="health-event-list-card__date flex min-w-0 items-baseline justify-between gap-3 text-[rgb(var(--hoho-color-text-weak))]">
+            <Typography className="min-w-0 truncate tabular-nums" variant="caption">{dateLabel}</Typography>
+            {durationLabel && <Typography className="shrink-0 tabular-nums" variant="caption">{durationLabel}</Typography>}
           </div>
         )}
         <div className="flex min-w-0 items-center gap-1.5">
-          <Typography className="min-w-0 truncate" variant="cardTitle">{definitionTitle}</Typography>
+          <Typography className="min-w-0 truncate" variant="cardTitle">{displayTitle}</Typography>
           <HealthTag className="shrink-0" tone={statusPresentation.tone}>{statusPresentation.label}</HealthTag>
         </div>
-        {quickFacts.length > 0 && (
-          <Typography className="block truncate" title={quickFacts.join(' · ')} variant="caption">
-            {quickFacts.join(' · ')}
+        {summaryFragments.length > 0 && (
+          <Typography className="block truncate" title={summaryFragments.join(' · ')} variant="caption">
+            {summaryFragments.join(' · ')}
           </Typography>
         )}
       </div>

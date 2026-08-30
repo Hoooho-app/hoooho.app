@@ -16,7 +16,7 @@ interface SideDrawerProps {
   onClose: () => void
 }
 
-const menuGroups = [
+export const sidebarMenuGroups = [
   {
     title: '健康管理',
     items: [
@@ -112,7 +112,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         </section>
 
         <nav className="mt-5 flex-1 space-y-5" aria-label="侧边栏导航">
-          {menuGroups.map((group) => (
+          {sidebarMenuGroups.map((group) => (
             <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
               <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
               <div className="hoho-drawer__menu">

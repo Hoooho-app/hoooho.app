@@ -76,6 +76,7 @@ export interface HealthEventApiDto {
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string
+  recoveredAt?: string | null
   eventSummary?: HealthEventSummaryApiDto | null
   createdAt: string
   updatedAt: string
@@ -99,12 +100,13 @@ export interface HealthEventSummaryResult {
 
 export interface HealthEventSummaryTag {
   label: string
-  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement' | 'change'
+  kind: 'diagnosis' | 'assessment' | 'symptom' | 'measurement' | 'change' | 'medication' | 'visit' | 'examination'
   source: 'doctor_statement' | 'test_result' | 'ai_consultation' | 'user_report' | 'measurement'
   certainty: 'confirmed' | 'suspected' | null
   priority: number
   sourceRecordId?: string | null
   factUpdatedAt?: string | null
+  occurredAt?: string | null
 }
 
 export interface HealthEventSummaryApiDto {
@@ -120,14 +122,23 @@ export interface HealthEventListItemViewModel {
   memberId: string
   memberName: string
   title: string
+  displayTitle: string
   definitionTitle: string
-  quickFacts: string[]
+  durationLabel: string | null
+  summaryFragments: HealthEventCardSummaryFragment[]
   category: HealthEventCategory
   status: HealthEventStage
   startTime: string
+  recoveredAt: string | null
   occurredAt: string
   createdAt: string
   updatedAt: string
+}
+
+export interface HealthEventCardSummaryFragment {
+  label: string
+  sourceRecordId: string | null
+  kind: HealthEventSummaryTag['kind'] | 'legacy'
 }
 
 export type HealthEventRecordType = 'note' | 'symptom' | 'medication' | 'visit' | 'examination' | 'other'

@@ -34,7 +34,7 @@ test('纯症状只生成保守标题，不凭空诊断', () => {
   })
   assert.equal(summary.displayedResult.title, '发热伴头痛')
   assert.match(summary.displayedResult.summary, /最高体温38.5℃/)
-  assert.deepEqual(summary.displayedResult.tags.map(({ label }) => label), ['头痛', '发热', '最高38.5℃'])
+  assert.deepEqual(summary.displayedResult.tags.map(({ label }) => label), ['当前38.5℃', '头痛', '发热', '最高38.5℃'])
   assert.doesNotMatch(summary.displayedResult.summary, /流感|肺炎/)
 })
 
@@ -64,13 +64,30 @@ test('用户明确陈述的 confirmed 诊断进入事件摘要并保留记录级
     ], '2026-08-10T03:00:00.000Z')],
     now: new Date('2026-08-10T04:00:00.000Z')
   })
-  assert.equal(summary.aggregationVersion, 2)
+  assert.equal(summary.aggregationVersion, 3)
   assert.equal(summary.displayedResult.title, '荨麻疹')
   assert.match(summary.displayedResult.summary, /已记录明确诊断为荨麻疹/)
   assert.deepEqual(summary.displayedResult.tags[0], {
     label: '荨麻疹', kind: 'diagnosis', source: 'user_report', certainty: 'confirmed', priority: 220,
     sourceRecordId: 'record-1', factUpdatedAt: '2026-08-10T03:00:00.000Z'
   })
+})
+
+test('列表摘要标签保留记录级来源并只从明确事实生成处置和结果', () => {
+  const summary = buildHealthEventSummary({
+    event: { ...event, status: 'recovered' },
+    records,
+    organizations: [organization('o1', 'record-1', [
+      fact('symptom', '发热'),
+      fact('temperature', '38.3℃', { measurementType: 'body_temperature', source: 'measurement', temperature: { min: 38.3, max: 38.3 } }),
+      fact('medication', '退热药', { medicationAction: 'taken' }),
+      fact('status_change', '发热消失', { change: 'resolved', status: 'resolved' })
+    ], '2026-08-10T03:00:00.000Z')]
+  })
+  const byLabel = new Map(summary.displayedResult.tags.map((item) => [item.label, item]))
+  assert.equal(byLabel.get('最高38.3℃').sourceRecordId, 'record-1')
+  assert.equal(byLabel.get('发热消失').sourceRecordId, 'record-1')
+  assert.equal(summary.displayedResult.tags.some(({ label }) => label === '未就医' || label === '未用药'), false)
 })
 
 test('症状提及和用户猜测不能升级为明确诊断', () => {

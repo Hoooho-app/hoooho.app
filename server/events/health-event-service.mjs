@@ -77,7 +77,8 @@ export class HealthEventService {
       title: validateInitialTitle(input.title),
       category: validateCategory(input.category),
       status: 'observing',
-      startTime
+      startTime,
+      recoveredAt: null
     }, now)
   }
 
@@ -100,13 +101,17 @@ export class HealthEventService {
   }
 
   async update(accountId, id, input, now = new Date()) {
-    await this.get(accountId, id)
+    const event = await this.get(accountId, id)
     const changes = {}
     for (const key of Object.keys(input)) {
       if (!editableFields.has(key)) continue
       if (key === 'title') changes.title = validateTitle(input.title)
       if (key === 'category') changes.category = validateCategory(input.category)
-      if (key === 'status') changes.status = validateStatus(input.status)
+      if (key === 'status') {
+        changes.status = validateStatus(input.status)
+        if (changes.status === 'recovered' && event.status !== 'recovered') changes.recoveredAt = now.toISOString()
+        if (changes.status !== 'recovered' && event.status === 'recovered') changes.recoveredAt = null
+      }
       if (key === 'startTime') changes.startTime = validateStartTime(input.startTime, now)
     }
     if (!Object.keys(changes).length) throw new HealthEventError('没有可更新的事件字段', 400, 'NO_EVENT_CHANGES')
