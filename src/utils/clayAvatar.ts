@@ -1,5 +1,6 @@
 import { differenceInMonths, differenceInYears, isValid, parseISO } from 'date-fns'
 import type { ProfileGender } from '../types'
+import { clayAvatarAssetPaths } from '../generated/clayAvatarAssets'
 
 export type ClayAvatarRole =
   | 'baby-boy'
@@ -120,7 +121,8 @@ export function getClayAvatarViewport(config: ClayAvatarConfig) {
 }
 
 export function getClayAvatarAssetPath(config: ClayAvatarConfig) {
-  return `${clayAvatarAssetManifest.basePath}/${config.role}-${config.appearance}.png`
+  const id = `${config.role}-${config.appearance}` as keyof typeof clayAvatarAssetPaths
+  return clayAvatarAssetPaths[id]
 }
 
 export function resolveClayAvatarRole(birthday: string, gender: ProfileGender, today = new Date()): ClayAvatarRole {
