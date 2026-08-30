@@ -8,7 +8,9 @@ import type {
   HealthEventRecordApiDto,
   HealthFact,
   HealthFactType,
+  HealthMeasurementMethod,
   HealthRecordOrganizationApiDto,
+  HealthRecordSourceType,
   Member,
   MemberRelation,
   TimelineEntry
@@ -225,6 +227,8 @@ function buildFactTimeline(
       || segments.map((segment) => segment.content).join('；')
     const fallbackSummary = segments.map((segment) => segment.content).join('；')
     const firstFact = items[0].fact
+    const recordAttachments = record ? attachmentsByRecord.get(record.id) ?? [] : []
+    const sourceType = timelineSourceType(record, items, recordAttachments)
     return {
       id: record ? `${record.id}-timeline` : `${sourceKey}-timeline`,
       time,
@@ -237,9 +241,16 @@ function buildFactTimeline(
       recordType: record?.type ?? factRecordType(firstFact.type),
       kind: firstFact.type === 'temperature' ? 'temperature' : firstFact.type === 'medication' ? 'medication' : 'text',
       sourceRecordId: record?.id ?? (items[0].organization.recordId || undefined),
+      source: timelineSource(sourceType, {
+        originalText: record?.sourceText?.trim() || originalText,
+        measurementMethod: record?.measurementMethod ?? firstFact.measurementMethod ?? null,
+        measurementDevice: record?.measurementDevice ?? firstFact.measurementDevice ?? null,
+        fileName: recordAttachments[0]?.name ?? null,
+        note: record?.note ?? null
+      }),
       sequence: 0,
       segments,
-      attachments: record ? attachmentsByRecord.get(record.id) ?? [] : []
+      attachments: recordAttachments
     }
   })
 
@@ -260,6 +271,13 @@ function buildFactTimeline(
     recordType: 'note',
     kind: 'text',
     sourceRecordId: record.id,
+    source: timelineSource('medical_file', {
+      originalText: record.sourceText?.trim() || record.content,
+      measurementMethod: record.measurementMethod,
+      measurementDevice: record.measurementDevice,
+      fileName: recordAttachments[0]?.name ?? null,
+      note: record.note
+    }),
     sequence: 0,
     segments: [{ label: presentation.label, content: presentation.content }],
     attachments: recordAttachments
@@ -279,6 +297,13 @@ function buildFactTimeline(
     recordType: record.type,
     kind: record.type === 'medication' ? 'medication' : 'text',
     sourceRecordId: record.id,
+    source: timelineSource(record.sourceType ?? 'user_record', {
+      originalText: record.sourceText?.trim() || record.content,
+      measurementMethod: record.measurementMethod,
+      measurementDevice: record.measurementDevice,
+      fileName: null,
+      note: record.note
+    }),
     sequence: 0,
     segments: [{ label: '记录', content: record.content }],
     attachments: []
@@ -288,6 +313,46 @@ function buildFactTimeline(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
     { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))
+}
+
+function timelineSourceType(
+  record: HealthEventRecordApiDto | undefined,
+  items: FactContext[],
+  attachments: EventAttachment[]
+): HealthRecordSourceType {
+  if (record?.sourceType) return record.sourceType
+  if (attachments.length || items.some((item) => item.fact.time.source === 'document')) return 'medical_file'
+  if (items.some((item) => item.fact.source === 'doctor_statement')) return 'doctor_confirmation'
+  if (items.some((item) => item.fact.type === 'temperature' || item.fact.source === 'measurement')) return 'measurement'
+  return 'user_record'
+}
+
+function timelineSource(
+  type: HealthRecordSourceType,
+  details: {
+    originalText: string
+    measurementMethod?: HealthMeasurementMethod | null
+    measurementDevice?: string | null
+    fileName?: string | null
+    note?: string | null
+  }
+): TimelineEntry['source'] {
+  const labels: Record<HealthRecordSourceType, string> = {
+    user_record: '用户记录',
+    measurement: '体温测量',
+    medical_file: '医疗文件',
+    doctor_confirmation: '医生确认',
+    other: '其他来源'
+  }
+  return {
+    type,
+    label: labels[type],
+    originalText: details.originalText,
+    measurementMethod: details.measurementMethod ?? 'unspecified',
+    measurementDevice: details.measurementDevice?.trim() || null,
+    fileName: details.fileName?.trim() || null,
+    note: details.note?.trim() || null
+  }
 }
 
 function uniqueSegments(segments: NonNullable<TimelineEntry['segments']>) {

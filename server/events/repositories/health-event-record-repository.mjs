@@ -23,6 +23,11 @@ export class HealthEventRecordRepository {
       type: input.type,
       content: input.content,
       occurredAt: input.occurredAt,
+      sourceType: input.sourceType ?? 'user_record',
+      sourceText: input.sourceText ?? null,
+      measurementMethod: input.measurementMethod ?? null,
+      measurementDevice: input.measurementDevice ?? null,
+      note: input.note ?? null,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
     }

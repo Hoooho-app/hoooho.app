@@ -109,7 +109,11 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const morningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'symptom',
       content: '体温 38.5℃',
-      occurredAt: '2026-08-09T09:00:00+08:00'
+      occurredAt: '2026-08-09T09:00:00+08:00',
+      sourceType: 'measurement',
+      sourceText: '刚刚量了体温 38.5℃',
+      measurementMethod: 'axillary',
+      measurementDevice: '电子体温计'
     })
     const eveningResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'note',
@@ -130,6 +134,10 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     assert.equal(morning.accountId, first.user.id)
     assert.equal(morning.eventId, event.id)
     assert.equal(morning.content, '体温 38.5℃')
+    assert.equal(morning.sourceType, 'measurement')
+    assert.equal(morning.sourceText, '刚刚量了体温 38.5℃')
+    assert.equal(morning.measurementMethod, 'axillary')
+    assert.equal(morning.measurementDevice, '电子体温计')
 
     const beforeFirstRecordResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'note',
@@ -170,12 +178,18 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const updateResponse = await jsonRequest(`${baseUrl}/api/records/${noon.id}`, 'PATCH', first.token, {
       type: 'medication',
       content: '12:00 服用一次退烧药',
-      occurredAt: '2026-08-09T12:05:00+08:00'
+      occurredAt: '2026-08-09T12:05:00+08:00',
+      sourceType: 'doctor_confirmation',
+      sourceText: '遵医嘱服用一次退烧药',
+      note: '服药后继续观察'
     })
     assert.equal(updateResponse.status, 200)
     const updated = await updateResponse.json()
     assert.equal(updated.content, '12:00 服用一次退烧药')
     assert.equal(updated.occurredAt, '2026-08-09T04:05:00.000Z')
+    assert.equal(updated.sourceType, 'doctor_confirmation')
+    assert.equal(updated.sourceText, '遵医嘱服用一次退烧药')
+    assert.equal(updated.note, '服药后继续观察')
 
     const futureUpdateResponse = await jsonRequest(`${baseUrl}/api/records/${noon.id}`, 'PATCH', first.token, {
       occurredAt: '2037-01-01T00:00:00+08:00'

@@ -2,23 +2,20 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const summarySource = readFileSync(new URL('./EventSummarySection.tsx', import.meta.url), 'utf8')
 const recorderSource = readFileSync(new URL('./QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
 const timelineSource = readFileSync(new URL('./TimelineSection.tsx', import.meta.url), 'utf8')
+const recordSheetSource = readFileSync(new URL('./SymptomRecordSheet.tsx', import.meta.url), 'utf8')
 const firstRecordSource = readFileSync(new URL('./FirstRecordComposer.tsx', import.meta.url), 'utf8')
 const headerSource = readFileSync(new URL('./EventHeader.tsx', import.meta.url), 'utf8')
 const pageSource = readFileSync(new URL('../index.tsx', import.meta.url), 'utf8')
 const stylesSource = readFileSync(new URL('../../../styles/index.css', import.meta.url), 'utf8')
 const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
 
-test('详情概览直接复用列表卡片内容且不保留旧摘要结构', () => {
-  for (const removed of ['手动校对', '自动整理', '依据：', '系统会根据后续记录自动更新']) {
-    assert.equal(summarySource.includes(removed), false)
-  }
-  assert.match(summarySource, /HealthEventCardSurface/)
-  assert.match(summarySource, /getHealthEventDefinitionTitle/)
-  assert.match(summarySource, /buildHealthEventQuickFacts/)
-  assert.equal(summarySource.includes('事件摘要'), false)
+test('详情页收敛为症状跟踪且移除旧摘要和体温图表', () => {
+  assert.match(pageSource, /title=\{hasRecords \? '症状跟踪'/)
+  assert.match(timelineSource, />症状跟踪</)
+  assert.equal(pageSource.includes('<EventSummarySection'), false)
+  assert.equal(pageSource.includes('<TemperatureChartSection'), false)
 })
 
 test('时间线从日期节点开始、时段使用空心节点且卡片位于时段下方', () => {
@@ -71,7 +68,7 @@ test('微信说一句使用文字降级并复用现有预览和保存管线', ()
 })
 
 test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺序', () => {
-  assert.match(pageSource, /title=\{hasRecords \? '健康事件详情' : '记录情况'\}/)
+  assert.match(pageSource, /title=\{hasRecords \? '症状跟踪' : '记录情况'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)
   assert.equal(firstRecordSource.includes('<h2'), false)
   assert.equal(firstRecordSource.includes('保存，自动整理'), false)
@@ -97,21 +94,29 @@ test('首次记录快捷录音只追加描述，不直接保存整张表单', ()
   assert.match(stylesSource, /first-record-attachments[^}]*overflow-x:\s*auto/)
 })
 
-test('时间线详情只在原地展开“发生了什么”和可选措施', () => {
-  assert.match(timelineSource, /aria-expanded/)
-  assert.match(timelineSource, /timeline-record-details/)
-  assert.match(timelineSource, /发生了什么/)
-  assert.match(timelineSource, /采取的措施/)
-  assert.match(timelineSource, /展开详情/)
-  assert.match(timelineSource, /收起详情/)
-  assert.equal(timelineSource.includes('后续变化'), false)
-  assert.match(stylesSource, /grid-template-rows:\s*0fr/)
+test('症状记录使用轻量行、详情抽屉和左滑编辑删除', () => {
+  assert.match(timelineSource, /symptom-record-row/)
+  assert.match(timelineSource, /symptom-record-source/)
+  assert.match(timelineSource, /SymptomRecordSheet/)
+  assert.match(timelineSource, /onPointerMove/)
+  assert.match(timelineSource, /编辑症状记录/)
+  assert.match(timelineSource, /删除症状记录/)
+  assert.match(recordSheetSource, /症状记录详情/)
+  assert.match(recordSheetSource, /来源信息/)
+  assert.match(recordSheetSource, /原始记录/)
+  assert.match(recordSheetSource, /未说明/)
+  assert.match(recordSheetSource, /发生时间/)
+  assert.match(recordSheetSource, /测量设备/)
+  assert.match(recordSheetSource, /测量方式/)
+  assert.match(recordSheetSource, /备注（可选）/)
+  assert.match(stylesSource, /symptom-record-swipe__actions/)
   assert.match(stylesSource, /overflow-wrap:\s*anywhere/)
 })
 
-test('快捷记录预览明确一次输入只是一条记录', () => {
-  assert.match(recorderSource, /识别到 1 条记录/)
-  assert.equal(recorderSource.includes('识别到 {candidates.length} 条记录'), false)
+test('快捷记录预览按识别结果展示多条独立记录', () => {
+  assert.match(recorderSource, /识别到 \$\{candidates\.length\} 条症状记录/)
+  assert.match(pageSource, /for \(const item of items\)/)
+  assert.match(pageSource, /已整理为 \$\{items\.length\} 条症状记录/)
 })
 
 test('自动整理无事实或失败时仍允许按原文确认保存', () => {
@@ -120,7 +125,7 @@ test('自动整理无事实或失败时仍允许按原文确认保存', () => {
   assert.match(recorderSource, /暂未自动整理，可先按原文保存/)
   assert.match(recorderSource, /自动整理失败，可先按原文保存/)
   assert.match(recorderSource, /setState\('review'\)/)
-  assert.match(recorderSource, /onConfirmRef\.current\(value/)
+  assert.match(recorderSource, /onConfirmRef\.current\(value, occurredAtRef\.current \|\| new Date\(\)\.toISOString\(\), candidatesRef\.current\)/)
 })
 
 test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', () => {
@@ -136,7 +141,7 @@ test('降级保存保留空内容、未来时间和重复提交安全边界', ()
   assert.match(firstRecordSource, /isFutureOccurredAt\(occurredAt\)/)
   assert.match(firstRecordSource, /savingRef\.current/)
   assert.match(recorderSource, /submittingRef\.current/)
-  assert.match(pageSource, /needsNewQuickRecord\(pending, transcript\)/)
+  assert.match(pageSource, /pending\.transcript !== transcript/)
   assert.match(pageSource, /pendingQuickRecordRef\.current = null/)
 })
 

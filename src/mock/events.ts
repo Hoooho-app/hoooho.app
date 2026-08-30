@@ -8,6 +8,16 @@ const medicalInfo = {
   familyHistory: ['暂无重要家族健康史']
 }
 
+const mockSource = (originalText: string, measurement = false) => ({
+  type: measurement ? 'measurement' as const : 'user_record' as const,
+  label: measurement ? '体温测量' : '用户记录',
+  originalText,
+  measurementMethod: 'unspecified' as const,
+  measurementDevice: null,
+  fileName: null,
+  note: null
+})
+
 export const healthEvents: HealthEvent[] = [
   {
     id: 'event-empty',
@@ -39,9 +49,9 @@ export const healthEvents: HealthEvent[] = [
     examinations: [],
     summary: '体温反复，伴随轻微咳嗽，已补水并在家观察。',
     timeline: [
-      { id: 't1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃，精神状态尚可。', recordType: 'symptom', kind: 'temperature' },
-      { id: 't2', time: '2026-07-20T16:10:00+08:00', content: '体温升至 38.5℃，开始出现轻微咳嗽。', recordType: 'symptom', kind: 'text' },
-      { id: 't3', time: '2026-07-20T19:40:00+08:00', content: '补充温水并休息，继续观察体温变化。', recordType: 'note', kind: 'text' }
+      { id: 't1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃，精神状态尚可。', recordType: 'symptom', kind: 'temperature', source: mockSource('发现体温 37.8℃，精神状态尚可。', true) },
+      { id: 't2', time: '2026-07-20T16:10:00+08:00', content: '体温升至 38.5℃，开始出现轻微咳嗽。', recordType: 'symptom', kind: 'text', source: mockSource('体温升至 38.5℃，开始出现轻微咳嗽。') },
+      { id: 't3', time: '2026-07-20T19:40:00+08:00', content: '补充温水并休息，继续观察体温变化。', recordType: 'note', kind: 'text', source: mockSource('补充温水并休息，继续观察体温变化。') }
     ],
     temperatureRecords: [
       { time: '2026-07-20T14:30:00+08:00', value: 37.8 },
@@ -69,10 +79,10 @@ export const healthEvents: HealthEvent[] = [
     examinations: [],
     summary: '本次发热持续约两天，休息并补充水分后体温逐渐恢复。',
     timeline: [
-      { id: 'r1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃。', recordType: 'symptom', kind: 'temperature' },
-      { id: 'r2', time: '2026-07-20T19:40:00+08:00', content: '体温最高 38.5℃，补水并居家观察。', recordType: 'symptom', kind: 'temperature' },
-      { id: 'r3', time: '2026-07-21T20:30:00+08:00', content: '体温回落至 37.2℃，精神状态好转。', recordType: 'symptom', kind: 'temperature' },
-      { id: 'r4', time: '2026-07-22T08:30:00+08:00', content: '体温恢复正常，未再出现明显不适。', recordType: 'note', kind: 'text' }
+      { id: 'r1', time: '2026-07-20T14:30:00+08:00', content: '发现体温 37.8℃。', recordType: 'symptom', kind: 'temperature', source: mockSource('发现体温 37.8℃。', true) },
+      { id: 'r2', time: '2026-07-20T19:40:00+08:00', content: '体温最高 38.5℃，补水并居家观察。', recordType: 'symptom', kind: 'temperature', source: mockSource('体温最高 38.5℃，补水并居家观察。', true) },
+      { id: 'r3', time: '2026-07-21T20:30:00+08:00', content: '体温回落至 37.2℃，精神状态好转。', recordType: 'symptom', kind: 'temperature', source: mockSource('体温回落至 37.2℃，精神状态好转。', true) },
+      { id: 'r4', time: '2026-07-22T08:30:00+08:00', content: '体温恢复正常，未再出现明显不适。', recordType: 'note', kind: 'text', source: mockSource('体温恢复正常，未再出现明显不适。') }
     ],
     temperatureRecords: [
       { time: '2026-07-20T14:30:00+08:00', value: 37.8 },

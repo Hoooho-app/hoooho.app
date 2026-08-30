@@ -131,6 +131,8 @@ export interface HealthEventListItemViewModel {
 }
 
 export type HealthEventRecordType = 'note' | 'symptom' | 'medication' | 'visit' | 'examination' | 'other'
+export type HealthRecordSourceType = 'user_record' | 'measurement' | 'medical_file' | 'doctor_confirmation' | 'other'
+export type HealthMeasurementMethod = 'unspecified' | 'oral' | 'axillary' | 'ear' | 'forehead' | 'other'
 
 export interface HealthEventRecordApiDto {
   id: string
@@ -139,6 +141,11 @@ export interface HealthEventRecordApiDto {
   type: HealthEventRecordType
   content: string
   occurredAt: string
+  sourceType?: HealthRecordSourceType
+  sourceText?: string | null
+  measurementMethod?: HealthMeasurementMethod | null
+  measurementDevice?: string | null
+  note?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -147,9 +154,18 @@ export interface CreateHealthEventRecordInput {
   type: HealthEventRecordType
   content: string
   occurredAt: string
+  sourceType?: HealthRecordSourceType
+  sourceText?: string | null
+  measurementMethod?: HealthMeasurementMethod | null
+  measurementDevice?: string | null
+  note?: string | null
   attachments?: CreateEventAttachmentInput[]
   bodyLocations?: string[]
 }
+
+export type UpdateHealthEventRecordInput = Partial<Pick<HealthEventRecordApiDto,
+  'type' | 'content' | 'occurredAt' | 'sourceType' | 'sourceText' | 'measurementMethod' | 'measurementDevice' | 'note'
+>>
 
 export type OnlineConsultationStatus = 'preparing' | 'waiting' | 'doctor_questions' | 'completed'
 
@@ -263,6 +279,8 @@ export interface HealthFact {
   source?: 'user_report' | 'measurement' | 'doctor_statement' | 'test_result' | 'ai_consultation' | 'structured_input' | 'quoted_text' | 'internet_information' | 'unknown'
   diagnosisCertainty?: 'confirmed' | 'suspected' | 'ruled_out' | 'pending' | 'unknown'
   temperature?: OrganizedTemperature
+  measurementMethod?: Exclude<HealthMeasurementMethod, 'unspecified'> | null
+  measurementDevice?: string | null
   target?: string | null
   change?: HealthStatusChange | null
 }
@@ -331,6 +349,15 @@ export interface TimelineEntry {
   recordType: HealthEventRecordType
   kind: 'text' | 'temperature' | 'medication'
   sourceRecordId?: string
+  source: {
+    type: HealthRecordSourceType
+    label: string
+    originalText: string
+    measurementMethod: HealthMeasurementMethod
+    measurementDevice: string | null
+    fileName: string | null
+    note: string | null
+  }
   sequence?: number
   segments?: Array<{
     label: '症状' | '体温' | '用药' | '检查' | '就诊' | '担心' | '状态' | '部位' | '附件' | '记录'

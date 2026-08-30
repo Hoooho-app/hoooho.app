@@ -22,7 +22,7 @@ type RecognitionConstructor = new () => Recognition
 
 interface QuickVoiceRecordFlowProps {
   onClose: () => void
-  onConfirm: (transcript: string, occurredAt: string) => Promise<string | void>
+  onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[]) => Promise<string | void>
   onPreview?: (transcript: string, occurredAt: string) => Promise<QuickRecordCandidate[]>
   open: boolean
   recognitionApi?: RecognitionConstructor | null
@@ -45,6 +45,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   const [inputError, setInputError] = useState('')
   const [seconds, setSeconds] = useState(0)
   const [candidates, setCandidates] = useState<QuickRecordCandidate[]>([])
+  const candidatesRef = useRef<QuickRecordCandidate[]>([])
   const [previewNotice, setPreviewNotice] = useState('')
   const [savedMessage, setSavedMessage] = useState('已记录')
   const [showWechatHint, setShowWechatHint] = useState(false)
@@ -70,7 +71,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     setState('saving')
     setInputError('')
     try {
-      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString())
+      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current)
       setSavedMessage(message || '已记录')
       setState('saved')
       window.setTimeout(() => onCloseRef.current(), 560)
@@ -93,10 +94,12 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     try {
       const preview = await onPreviewRef.current(value, occurredAt)
       if (preview.length) occurredAtRef.current = preview[0].occurredAt
+      candidatesRef.current = preview
       setCandidates(preview)
       setPreviewNotice(preview.length ? '' : '暂未自动整理，可先按原文保存')
       setState('review')
     } catch {
+      candidatesRef.current = []
       setCandidates([])
       setPreviewNotice('自动整理失败，可先按原文保存')
       setState('review')
@@ -162,6 +165,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   useEffect(() => {
     if (!open) return
     submittingRef.current = false
+    candidatesRef.current = []
     setCandidates([])
     setPreviewNotice('')
     setSavedMessage('已记录')
@@ -247,7 +251,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   if (state === 'review') {
     return (
       <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-review">
-        <div className="quick-record-review-heading"><strong>{candidates.length ? `识别到 1 条记录 · ${Math.max(0, (candidates[0]?.fields.length ?? 1) - 1)} 项信息` : previewNotice}</strong><p>{transcript}</p></div>
+        <div className="quick-record-review-heading"><strong>{candidates.length ? `识别到 ${candidates.length} 条症状记录` : previewNotice}</strong><p>{transcript}</p></div>
         <div className="quick-record-candidates">{candidates.map((candidate) => <article key={candidate.id}><strong>{candidate.title}</strong>{candidate.fields.map((field, index) => <p key={`${field.label}-${index}`}><span>{field.label}</span>{field.value}</p>)}</article>)}</div>
         <div className="quick-record-error-actions"><button className="quick-record-cancel" onClick={useTextEntry} type="button">修改</button><HohoButton onClick={() => void saveFinal()}>确认记录</HohoButton></div>
       </section>

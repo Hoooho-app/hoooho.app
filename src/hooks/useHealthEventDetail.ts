@@ -8,7 +8,8 @@ import type {
   HealthEventDetailViewModel,
   HealthEventRecordApiDto,
   HealthRecordOrganizationApiDto,
-  Member
+  Member,
+  UpdateHealthEventRecordInput
 } from '../types'
 import { ApiRequestError } from '../services/apiClient'
 import { familyMemberService } from '../services/familyMembers'
@@ -138,6 +139,41 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return created
   }, [commitRecord, eventId, token])
 
+  const refreshAfterRecordMutation = useCallback(async () => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const [eventDto, records, organizations] = await Promise.all([
+      healthEventService.getById(eventId, token),
+      healthEventRecordService.list(eventId, token),
+      healthRecordOrganizationService.list(eventId, token)
+    ])
+    setState((current) => current.status === 'success'
+      ? {
+          status: 'success',
+          data: {
+            ...current.data,
+            eventDto,
+            records,
+            organizations,
+            viewModel: adaptHealthEventDetail(eventDto, records, organizations, current.data.attachments)
+          }
+        }
+      : current)
+    return records
+  }, [eventId, token])
+
+  const updateRecord = useCallback(async (recordId: string, input: UpdateHealthEventRecordInput) => {
+    if (!token) throw new Error('登录状态无效')
+    await healthEventRecordService.update(recordId, input, token)
+    const records = await refreshAfterRecordMutation()
+    return records.find((record) => record.id === recordId)
+  }, [refreshAfterRecordMutation, token])
+
+  const deleteRecord = useCallback(async (recordId: string) => {
+    if (!token) throw new Error('登录状态无效')
+    await healthEventRecordService.delete(recordId, token)
+    await refreshAfterRecordMutation()
+  }, [refreshAfterRecordMutation, token])
+
   const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string }) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     return healthRecordOrganizationService.preview(eventId, rawInput, token, options)
@@ -238,5 +274,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateStage, updateTitle, correctSummary, retry }
+  return { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
 }

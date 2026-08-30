@@ -8,25 +8,22 @@ import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
 import { getImageRecordTitle } from '../../services/imageAnalysisPresentation'
-import { createQuickRecordCandidates } from '../../features/quick-record'
+import { createQuickRecordCandidates, type QuickRecordCandidate } from '../../features/quick-record'
 import {
   EventHeader,
   ActionSheet,
   ComingSoonPrompt,
   EventDetailStickyHeader,
-  EventSummarySection,
   FirstRecordComposer,
   type FirstRecordComposerHandle,
   QuickVoiceRecordFlow,
-  TemperatureChartSection,
   TimelineSection
 } from './components'
-import { needsNewQuickRecord } from './components/quickRecordPresentation'
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
@@ -35,7 +32,7 @@ export function HealthEventDetailPage() {
   const [firstRecordSaving, setFirstRecordSaving] = useState(false)
   const firstRecordRef = useRef<FirstRecordComposerHandle>(null)
   const pendingFirstRecordRef = useRef<{ attachmentIndexes: Set<number>; fingerprint: string; organized: boolean; record: HealthEventRecordApiDto; savedAttachments: EventAttachmentApiDto[] } | null>(null)
-  const pendingQuickRecordRef = useRef<{ recordId: string; transcript: string } | null>(null)
+  const pendingQuickRecordRef = useRef<{ records: Record<string, HealthEventRecordApiDto>; transcript: string } | null>(null)
   const updateFirstRecordAvailability = useCallback((available: boolean, saving: boolean) => {
     setFirstRecordCanSave(available)
     setFirstRecordSaving(saving)
@@ -142,22 +139,40 @@ export function HealthEventDetailPage() {
     return organizationMessage
   }
 
-  const saveQuickRecord = async (transcript: string, occurredAt: string) => {
+  const saveQuickRecord = async (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[]) => {
     let pending = pendingQuickRecordRef.current
-    if (needsNewQuickRecord(pending, transcript)) {
-      const created = await addRecord({ type: 'note', content: transcript, occurredAt })
-      pending = { recordId: created.id, transcript }
+    if (!pending || pending.transcript !== transcript) {
+      pending = { records: {}, transcript }
       pendingQuickRecordRef.current = pending
     }
-    if (!pending) throw new Error('保存失败，请重试')
+    const items = candidates.length ? candidates : [{
+      id: 'raw-record', type: 'note' as const, title: transcript, content: transcript, occurredAt,
+      sourceType: 'user_record' as const, measurementMethod: 'unspecified' as const, fields: []
+    }]
     let message = '已记录'
-    try {
-      const organization = await organizeRecord(pending.recordId)
-      if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
-    } catch {
-      message = '原始记录已保存，自动整理失败'
+    for (const item of items) {
+      const key = `${item.id}:${item.occurredAt}:${item.content}`
+      let record = pending.records[key]
+      if (!record) {
+        record = await addRecord({
+          type: item.type,
+          content: item.content,
+          occurredAt: item.occurredAt,
+          sourceType: item.sourceType,
+          sourceText: transcript,
+          measurementMethod: item.measurementMethod
+        })
+        pending.records[key] = record
+      }
+      try {
+        const organization = await organizeRecord(record.id)
+        if (organization.status !== 'completed') message = '记录已保存，部分内容暂未整理'
+      } catch {
+        message = '记录已保存，部分内容暂未整理'
+      }
     }
     pendingQuickRecordRef.current = null
+    if (message === '已记录' && items.length > 1) message = `已整理为 ${items.length} 条症状记录`
     setRecordedMessage(message)
     window.setTimeout(() => setRecordedMessage(''), 3000)
     return message
@@ -172,7 +187,7 @@ export function HealthEventDetailPage() {
   return (
     <main className="app-shell health-event-detail flex flex-col overflow-hidden pb-0" data-first-record={!hasRecords}>
       <div className="health-event-detail-fixed">
-        <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '健康事件详情' : '记录情况'} />
+        <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '症状跟踪' : '记录情况'} />
         <EventDetailStickyHeader
           onAction={() => setActionOpen(true)}
           showActions={hasRecords}
@@ -184,11 +199,13 @@ export function HealthEventDetailPage() {
           <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={(message) => { setRecordedMessage(message || '已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
         ) : (
           <>
-            {state.data.eventDto.eventSummary && (
-              <EventSummarySection event={state.data.eventDto} />
-            )}
-            <TimelineSection event={event} />
-            {event.temperatureRecords.length > 0 && <TemperatureChartSection event={event} />}
+            <TimelineSection
+              event={event}
+              memberName={state.data.member.name}
+              onDeleteRecord={deleteRecord}
+              onUpdateRecord={updateRecord}
+              records={state.data.records}
+            />
           </>
         )}
       </div>
