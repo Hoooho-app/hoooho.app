@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { IdleNurseVisual } from './IdleNurseVisual'
 import { canRunIdleNurseAnimation } from './idleNurseAnimation'
+import { resolveNurseAnimationKind } from './nurseAnimationController'
 import type { NurseTriageState } from './nurseTriageMachine'
 
 const nurseTriageAssets = {
@@ -66,6 +67,16 @@ interface NurseTriageDeskProps {
 
 export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, reducedMotion }: NurseTriageDeskProps) {
   const pageVisible = usePageVisible()
+  const businessKind = state === 'idle'
+    ? null
+    : state === 'listening' || state === 'speechPaused' || state === 'attention' || state === 'preparing'
+      ? 'listening'
+      : state === 'saved'
+        ? 'success'
+        : state === 'error'
+          ? 'error'
+          : 'processing'
+  const animationKind = resolveNurseAnimationKind(businessKind, false, false)
   const activeAsset = state === 'idle' ? null : visualAssetByState[state]
   const style = useMemo(() => ({ '--nurse-audio-level': Math.max(0, Math.min(1, audioLevel)) } as CSSProperties), [audioLevel])
 
@@ -78,7 +89,8 @@ export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, redu
       style={style}
     >
       <IdleNurseVisual
-        active={canRunIdleNurseAnimation(state, pageVisible, reducedMotion)}
+        active={animationKind === 'idle' && canRunIdleNurseAnimation(state, pageVisible, reducedMotion)}
+        reducedMotion={reducedMotion}
         resetKey={idleAnimationResetKey}
         staticSource="/nurse-triage/idle-video-first-frame.png"
       />

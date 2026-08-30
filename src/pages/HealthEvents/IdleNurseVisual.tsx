@@ -1,165 +1,227 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import {
   IdleAnimationScheduler,
   idleNurseActions,
   playIdleVideoSafely,
   type IdleNurseAction
 } from './idleNurseAnimation'
+import { createIdleNurseAnimationState, transitionNurseAnimation } from './nurseAnimationController'
 
-type IdleVideoPhase = 'static' | 'loading' | 'playing' | 'holding' | 'fadingOut'
-
-const fadeOutDurationByAction: Record<IdleNurseAction, number> = {
-  chairSpin: 200,
-  stretch: 650,
-  waterPlant: 700
-}
-
+const idleVideoSource = '/nurse-triage/nurses-idle-loop.mp4'
 const videoSourceByAction = Object.fromEntries(
   idleNurseActions.map((action) => [action.id, action.source])
 ) as Record<IdleNurseAction, string>
 
+interface PendingSpecialAction {
+  action: IdleNurseAction
+  requestId: number
+}
+
 interface IdleNurseVisualProps {
   active: boolean
+  reducedMotion: boolean
   resetKey: string
   staticSource: string
 }
 
-export function IdleNurseVisual({ active, resetKey, staticSource }: IdleNurseVisualProps) {
-  const [action, setAction] = useState<IdleNurseAction | null>(null)
-  const [lastMediaError, setLastMediaError] = useState('')
-  const [phase, setPhase] = useState<IdleVideoPhase>('static')
-  const [playRequested, setPlayRequested] = useState(false)
-  const [ready, setReady] = useState(false)
+export function IdleNurseVisual({ active, reducedMotion, resetKey, staticSource }: IdleNurseVisualProps) {
+  const [animation, dispatch] = useReducer(transitionNurseAnimation, undefined, () => createIdleNurseAnimationState())
+  const [idleReady, setIdleReady] = useState(false)
+  const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
+  const [idleUnavailable, setIdleUnavailable] = useState(false)
+  const [pendingSpecial, setPendingSpecial] = useState<PendingSpecialAction | null>(null)
+  const [specialReady, setSpecialReady] = useState(false)
+  const [specialRequested, setSpecialRequested] = useState(false)
   const schedulerRef = useRef<IdleAnimationScheduler | null>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const loadTimerRef = useRef(0)
-  const holdTimerRef = useRef(0)
-  const playAttemptRef = useRef<IdleNurseAction | null>(null)
+  const idleVideoRef = useRef<HTMLVideoElement | null>(null)
+  const mountedRef = useRef(true)
+  const specialVideoRef = useRef<HTMLVideoElement | null>(null)
+  const requestIdRef = useRef(0)
+  const specialLoadTimerRef = useRef(0)
 
-  const fadeDuration = action ? fadeOutDurationByAction[action] : 200
-  const videoStyle = useMemo(() => ({ '--idle-video-fade-duration': `${fadeDuration}ms` } as CSSProperties), [fadeDuration])
+  const playIdle = useCallback(async () => {
+    const video = idleVideoRef.current
+    if (!video || !active || reducedMotion || idleUnavailable) return
+    if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
+      video.currentTime = 0
+    }
+    const reason = await playIdleVideoSafely(() => video.play())
+    if (!mountedRef.current) return
+    setIdlePlaybackBlocked(Boolean(reason))
+    if (!reason) setIdleReady(true)
+  }, [active, idleUnavailable, reducedMotion])
 
-  const clearVisualTimers = () => {
-    window.clearTimeout(loadTimerRef.current)
-    window.clearTimeout(holdTimerRef.current)
-    loadTimerRef.current = 0
-    holdTimerRef.current = 0
-  }
-
-  const returnToStatic = (completed: boolean) => {
-    clearVisualTimers()
-    const video = videoRef.current
+  const returnToIdle = useCallback((requestId: number, completed: boolean) => {
+    if (!mountedRef.current || requestId !== requestIdRef.current) return
+    window.clearTimeout(specialLoadTimerRef.current)
+    specialLoadTimerRef.current = 0
+    dispatch({ type: 'RETURN_TO_IDLE', requestId })
+    const video = specialVideoRef.current
     if (video) {
       video.pause()
       video.currentTime = 0
     }
-    playAttemptRef.current = null
-    setAction(null)
-    setPhase('static')
-    setPlayRequested(false)
-    setReady(false)
+    setPendingSpecial(null)
+    setSpecialReady(false)
+    setSpecialRequested(false)
     if (completed) schedulerRef.current?.completeAction()
     else schedulerRef.current?.skipPreparedAction()
-  }
+    void playIdle()
+  }, [playIdle])
 
   useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    requestIdRef.current += 1
+    dispatch({ type: 'FORCE_IDLE', requestId: requestIdRef.current })
+    setPendingSpecial(null)
+    setSpecialReady(false)
+    setSpecialRequested(false)
+    specialVideoRef.current?.pause()
+
     const scheduler = new IdleAnimationScheduler({
-      onPrepare: (nextAction) => {
-        playAttemptRef.current = null
-        setAction(nextAction)
-        setPhase('loading')
-        setPlayRequested(false)
-        setReady(false)
+      onPrepare: (action) => {
+        const requestId = ++requestIdRef.current
+        setPendingSpecial({ action, requestId })
+        setSpecialReady(false)
+        setSpecialRequested(false)
       },
-      onPlay: () => setPlayRequested(true)
+      onPlay: (action) => {
+        setPendingSpecial((current) => {
+          if (!current || current.action !== action) return current
+          setSpecialRequested(true)
+          return current
+        })
+      }
     })
     schedulerRef.current = scheduler
-    if (active) scheduler.start()
+    if (active && !reducedMotion) scheduler.start()
 
     return () => {
       scheduler.stop()
       if (schedulerRef.current === scheduler) schedulerRef.current = null
-      clearVisualTimers()
-      const video = videoRef.current
-      if (video) {
-        video.pause()
-        video.removeAttribute('src')
-        video.load()
-      }
+      window.clearTimeout(specialLoadTimerRef.current)
+      requestIdRef.current += 1
+      specialVideoRef.current?.pause()
     }
-  }, [active, resetKey])
+  }, [active, reducedMotion, resetKey])
 
   useEffect(() => {
-    if (!active) {
-      returnToStatic(false)
+    if (!active || reducedMotion) {
+      idleVideoRef.current?.pause()
       return
     }
-    if (!action || ready) return
-
-    window.clearTimeout(loadTimerRef.current)
-    loadTimerRef.current = window.setTimeout(() => {
-      if (!ready) returnToStatic(false)
-    }, 10_000)
-    return () => window.clearTimeout(loadTimerRef.current)
-  }, [action, active, ready])
+    void playIdle()
+  }, [active, playIdle, reducedMotion])
 
   useEffect(() => {
-    if (!active || !action || !playRequested || !ready || playAttemptRef.current === action) return
-    const video = videoRef.current
+    if (!active || !idlePlaybackBlocked) return
+    const resume = () => void playIdle()
+    document.addEventListener('pointerdown', resume, { once: true })
+    document.addEventListener('keydown', resume, { once: true })
+    return () => {
+      document.removeEventListener('pointerdown', resume)
+      document.removeEventListener('keydown', resume)
+    }
+  }, [active, idlePlaybackBlocked, playIdle])
+
+  useEffect(() => {
+    if (!pendingSpecial || specialReady) return
+    window.clearTimeout(specialLoadTimerRef.current)
+    specialLoadTimerRef.current = window.setTimeout(() => returnToIdle(pendingSpecial.requestId, false), 10_000)
+    return () => window.clearTimeout(specialLoadTimerRef.current)
+  }, [pendingSpecial, returnToIdle, specialReady])
+
+  useEffect(() => {
+    if (!active || !pendingSpecial || !specialReady || !specialRequested) return
+    const video = specialVideoRef.current
     if (!video) return
-    playAttemptRef.current = action
-    window.clearTimeout(loadTimerRef.current)
+    const { action, requestId } = pendingSpecial
+    window.clearTimeout(specialLoadTimerRef.current)
     video.currentTime = 0
-    setPhase('playing')
+    idleVideoRef.current?.pause()
     void playIdleVideoSafely(() => video.play()).then((reason) => {
-      if (!reason) {
-        setLastMediaError('')
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
+      if (reason) {
+        returnToIdle(requestId, false)
         return
       }
-      setLastMediaError(reason instanceof DOMException ? `${reason.name}: ${reason.message}` : 'play rejected')
-      returnToStatic(true)
+      dispatch({ type: 'PLAY', kind: 'special', action, requestId })
     })
-  }, [action, active, playRequested, ready])
+  }, [active, pendingSpecial, returnToIdle, specialReady, specialRequested])
 
-  const handleEnded = () => {
-    if (!action) return
-    if (action === 'waterPlant') {
-      setPhase('holding')
-      holdTimerRef.current = window.setTimeout(() => setPhase('fadingOut'), 250)
-      return
+  useEffect(() => {
+    if (!pendingSpecial) return
+    const video = specialVideoRef.current
+    if (!video) return
+    const requestId = pendingSpecial.requestId
+    const complete = () => returnToIdle(requestId, true)
+    const fail = () => returnToIdle(requestId, false)
+    video.addEventListener('ended', complete, { once: true })
+    video.addEventListener('error', fail, { once: true })
+    video.addEventListener('abort', fail, { once: true })
+    video.addEventListener('stalled', fail, { once: true })
+    return () => {
+      video.removeEventListener('ended', complete)
+      video.removeEventListener('error', fail)
+      video.removeEventListener('abort', fail)
+      video.removeEventListener('stalled', fail)
     }
-    setPhase('fadingOut')
-  }
+  }, [pendingSpecial, returnToIdle])
+
+  const specialSource = pendingSpecial ? videoSourceByAction[pendingSpecial.action] : undefined
+  const showStatic = reducedMotion || idleUnavailable || !idleReady
 
   return (
-    <div className="idle-nurse-visual" data-action={action ?? 'none'} data-last-media-error={lastMediaError} data-phase={phase}>
-      <img alt="" aria-hidden="true" className="idle-nurse-visual__static" decoding="async" src={staticSource} />
+    <div
+      className="idle-nurse-visual"
+      data-action={animation.action ?? 'none'}
+      data-idle-ready={idleReady && !idleUnavailable}
+      data-mode={animation.kind}
+      data-reduced-motion={reducedMotion}
+    >
+      <img alt="" aria-hidden="true" className="idle-nurse-visual__static" data-active={showStatic} decoding="async" src={staticSource} />
       <video
         aria-hidden="true"
-        className="idle-nurse-visual__video"
+        autoPlay={active && !reducedMotion}
+        className="idle-nurse-visual__idle-video"
         controls={false}
         controlsList="nodownload noplaybackrate nofullscreen"
         disablePictureInPicture
         draggable={false}
+        loop
         muted
         onCanPlay={() => {
-          window.clearTimeout(loadTimerRef.current)
-          setReady(true)
+          setIdleReady(true)
+          void playIdle()
         }}
         onContextMenu={(event) => event.preventDefault()}
-        onEnded={handleEnded}
-        onError={(event) => {
-          if (action && event.currentTarget.error) returnToStatic(false)
-        }}
-        onTransitionEnd={(event) => {
-          if (event.propertyName === 'opacity' && phase === 'fadingOut') returnToStatic(true)
-        }}
+        onError={() => setIdleUnavailable(true)}
         playsInline
-        preload={action ? 'auto' : 'none'}
-        ref={videoRef}
-        src={action ? videoSourceByAction[action] : undefined}
-        style={videoStyle}
+        preload="auto"
+        ref={idleVideoRef}
+        src={idleVideoSource}
+      />
+      <video
+        aria-hidden="true"
+        className="idle-nurse-visual__special-video"
+        controls={false}
+        controlsList="nodownload noplaybackrate nofullscreen"
+        disablePictureInPicture
+        draggable={false}
+        loop={false}
+        muted
+        onCanPlay={() => setSpecialReady(true)}
+        onContextMenu={(event) => event.preventDefault()}
+        playsInline
+        preload={specialSource ? 'auto' : 'none'}
+        ref={specialVideoRef}
+        src={specialSource}
       />
     </div>
   )
