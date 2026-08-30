@@ -16,7 +16,6 @@
     --shadow-card: var(--hoho-shadow-soft);
     --shadow-floating: var(--hoho-shadow-floating);
 
-    background: rgb(var(--hoho-color-background));
     color: rgb(var(--hoho-color-text-primary));
   }
 

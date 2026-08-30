@@ -1,7 +1,6 @@
 @layer components {
   .settings-page {
     overflow-x: hidden;
-    background: rgb(var(--hoho-color-background));
   }
 
   .settings-content {

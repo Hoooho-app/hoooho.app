@@ -47,7 +47,7 @@ export function HealthEventDetailPage() {
 
   if (state.status === 'loading') {
     return (
-      <main className="app-shell bg-background pb-8">
+      <main className="app-shell pb-8">
         <EventHeader />
         <div className="page-content">
           <Card className="py-12 text-center">
@@ -60,7 +60,7 @@ export function HealthEventDetailPage() {
 
   if (state.status === 'not-found') {
     return (
-      <main className="app-shell bg-background pb-8">
+      <main className="app-shell pb-8">
         <EventHeader />
         <div className="page-content">
           <Card className="py-10 text-center">
@@ -74,7 +74,7 @@ export function HealthEventDetailPage() {
 
   if (state.status === 'error') {
     return (
-      <main className="app-shell bg-background pb-8">
+      <main className="app-shell pb-8">
         <EventHeader />
         <div className="page-content">
           <Card className="py-10 text-center">
@@ -170,7 +170,7 @@ export function HealthEventDetailPage() {
   }
 
   return (
-    <main className="app-shell health-event-detail flex flex-col overflow-hidden bg-background pb-0" data-first-record={!hasRecords}>
+    <main className="app-shell health-event-detail flex flex-col overflow-hidden pb-0" data-first-record={!hasRecords}>
       <div className="health-event-detail-fixed">
         <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '健康事件详情' : '记录情况'} />
         <EventDetailStickyHeader

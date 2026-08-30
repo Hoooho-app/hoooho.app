@@ -99,7 +99,7 @@ export function LoginPage() {
 
   return (
     <main className="app-shell auth-shell relative flex flex-col pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(32px,env(safe-area-inset-top))]">
-      <div aria-hidden="true" className="pointer-events-none fixed inset-y-0 left-1/2 z-0 w-full max-w-[var(--hoho-app-shell-max)] -translate-x-1/2 overflow-hidden bg-background">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-y-0 left-1/2 z-0 w-full max-w-[var(--hoho-app-shell-max)] -translate-x-1/2 overflow-hidden bg-page-background">
         <img
           alt=""
           className="h-full w-full object-cover"

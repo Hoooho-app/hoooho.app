@@ -6,6 +6,7 @@
   --hoho-color-primary-soft: 233 246 242;
   --hoho-color-primary-border: 181 220 211;
   --hoho-color-secondary: 82 105 102;
+  --hoho-color-page-background: 255 255 255;
   --hoho-color-background: 245 248 246;
   --hoho-color-surface: 255 255 255;
   --hoho-color-surface-subtle: 248 251 249;
@@ -77,6 +78,7 @@
   --color-primary: var(--hoho-color-primary);
   --color-primary-soft: var(--hoho-color-primary-soft);
   --color-surface: var(--hoho-color-surface);
+  --color-page-background: var(--hoho-color-page-background);
   --color-background: var(--hoho-color-background);
   --color-border: var(--hoho-color-border);
   --color-text-primary: var(--hoho-color-text-primary);

@@ -67,9 +67,9 @@ test('护士状态资产预加载、固定画框、待机调度清理并支持 R
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*{[^}]*aspect-ratio:\s*1\s*\/\s*1/s)
 })
 
-test('健康事件页单独使用纯白背景且不改变全局 app shell', () => {
+test('健康事件页继承全局底板且不维护页面级颜色补丁', () => {
   assert.match(pageSource, /className="hoho-health-events-page app-shell/)
-  assert.match(pageStylesSource, /\.app-shell\.hoho-health-events-page\s*{[^}]*background:\s*#fff/s)
+  assert.doesNotMatch(pageStylesSource, /\.app-shell\.hoho-health-events-page\s*{[^}]*background:/s)
 })
 
 test('待机循环与趣味动作由单一控制器管理且最多只有一个可见播放器', () => {

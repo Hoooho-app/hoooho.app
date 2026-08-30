@@ -6,23 +6,11 @@
 }
 
 @layer components {
-  .app-shell {
-    background:
-      radial-gradient(circle at 12% -8%, rgb(var(--hoho-color-primary-soft) / 0.62), transparent 30rem),
-      rgb(var(--hoho-color-background));
-  }
-
   body .hoho-page-header {
     border-bottom-color: rgb(var(--hoho-color-border) / 0.62);
     background: rgb(var(--hoho-color-surface) / 0.88);
     box-shadow: 0 1px rgb(255 255 255 / 0.72);
     backdrop-filter: blur(18px) saturate(1.15);
-  }
-
-  .auth-shell {
-    background:
-      radial-gradient(circle at 50% 6%, rgb(var(--hoho-color-primary-soft) / 0.95), transparent 15rem),
-      linear-gradient(180deg, rgb(var(--hoho-color-surface-subtle)), rgb(var(--hoho-color-background)) 58%);
   }
 
   .auth-panel header img { filter: saturate(0.9); }

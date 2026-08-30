@@ -34,7 +34,7 @@ export function FirstUseHome({ creating, error, members, onAddFamily, onCreateSe
   }
 
   return (
-    <main className="app-shell flex min-h-dvh flex-col overflow-x-hidden bg-background pb-[max(12px,env(safe-area-inset-bottom))]">
+    <main className="app-shell flex min-h-dvh flex-col overflow-x-hidden pb-[max(12px,env(safe-area-inset-bottom))]">
       <MainAppHeader title="Hoooho" />
       <div className="flex-1 px-4 pb-2 pt-4 sm:px-6">
         <section aria-labelledby="first-use-title">

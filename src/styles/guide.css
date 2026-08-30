@@ -1,4 +1,4 @@
-.guide-shell { overflow-x: hidden; background: rgb(var(--hoho-color-background)); }
+.guide-shell { overflow-x: hidden; }
 .guide-content { width: min(100%, var(--hoho-content-wide)); margin-inline: auto; padding: 0 var(--hoho-page-gutter) calc(48px + env(safe-area-inset-bottom)); }
 .guide-intro { padding: 28px 0 22px; }
 .guide-kicker { color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 700; letter-spacing: .11em; line-height: 1.4; text-transform: uppercase; }

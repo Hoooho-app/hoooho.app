@@ -8,16 +8,33 @@ test('V2 exposes the required design foundations', async () => {
   const tokens = await read('./tokens.css')
   const html = await read('../../index.html')
   for (const token of [
-    '--hoho-color-primary-active', '--hoho-color-primary-border', '--hoho-color-surface-elevated',
+    '--hoho-color-primary-active', '--hoho-color-primary-border', '--hoho-color-page-background', '--hoho-color-surface-elevated',
     '--hoho-color-info', '--hoho-color-disabled', '--hoho-font-size-data', '--hoho-space-5',
     '--hoho-radius-overlay', '--hoho-motion-fast', '--hoho-motion-base', '--hoho-motion-slow',
     '--hoho-app-shell-max', '--hoho-content-compact', '--hoho-content-wide'
   ]) assert.match(tokens, new RegExp(token))
   assert.match(tokens, /--hoho-color-primary:\s*27 122 110/)
+  assert.match(tokens, /--hoho-color-page-background:\s*255 255 255/)
   assert.match(tokens, /--hoho-color-background:\s*245 248 246/)
   assert.match(tokens, /--hoho-color-text-primary:\s*24 49 47/)
   assert.match(tokens, /--hoho-radius-control:\s*12px/)
   assert.match(html, /name="theme-color" content="#1B7A6E"/)
+})
+
+test('global user page foundation is pure white without changing functional background surfaces', async () => {
+  const tokens = await read('./tokens.css')
+  const styles = await read('./index.css')
+  const polish = await read('./product-polish.css')
+  const settings = await read('./settings.css')
+  const guide = await read('./guide.css')
+  assert.match(tokens, /--hoho-color-page-background:\s*255 255 255/)
+  assert.match(tokens, /--hoho-color-background:\s*245 248 246/)
+  assert.match(tokens, /--hoho-color-surface:\s*255 255 255/)
+  assert.match(styles, /html, body, #root\s*\{[^}]*background:\s*rgb\(var\(--hoho-color-page-background\)\)/s)
+  assert.match(styles, /\.app-shell\s*\{[^}]*background:\s*rgb\(var\(--hoho-color-page-background\)\)/s)
+  assert.doesNotMatch(polish, /\.app-shell\s*\{[^}]*background:/s)
+  assert.doesNotMatch(settings, /\.settings-page\s*\{[^}]*background:/s)
+  assert.doesNotMatch(guide, /\.guide-shell\s*\{[^}]*background:/s)
 })
 
 test('product polish keeps shared navigation and grouped rows on one visual system', async () => {
