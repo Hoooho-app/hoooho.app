@@ -63,7 +63,7 @@ test('all role and appearance pairs resolve to versioned complete-avatar assets'
   const paths = clayAvatarRoles.flatMap((role) => appearancePresets.map((appearance) => getClayAvatarAssetPath({ version: 1, role, appearance })))
   assert.equal(paths.length, 60)
   assert.equal(new Set(paths).size, 60)
-  assert.ok(paths.every((path) => /^\/avatars\/clay\/v1\/.+\.png$/.test(path)))
+  assert.ok(paths.every((path) => /^\/avatars\/clay\/v1\/.+\.[a-f0-9]{10}\.webp$/.test(path)))
   assert.ok(paths.every((path) => existsSync(new URL(`../../public${path}`, import.meta.url))))
 })
 
