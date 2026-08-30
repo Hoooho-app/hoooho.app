@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { createServer } from 'vite'
+import sharp from 'sharp'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './vite-members-plugin.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
@@ -123,7 +124,10 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(clayResponse.status, 200)
     assert.equal((await clayResponse.json()).avatar, clayAvatar)
 
-    const photoAvatar = `data:image/webp;base64,${'A'.repeat(20_000)}`
+    const photoBuffer = await sharp({
+      create: { width: 32, height: 32, channels: 3, background: '#1B7A6E' }
+    }).webp().toBuffer()
+    const photoAvatar = `data:image/webp;base64,${photoBuffer.toString('base64')}`
     const photoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { avatar: photoAvatar })
     assert.equal(photoResponse.status, 200)
     assert.equal((await photoResponse.json()).avatar, photoAvatar)
@@ -133,6 +137,24 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     })
     assert.equal(invalidPhotoResponse.status, 400)
     assert.equal((await invalidPhotoResponse.json()).error.code, 'INVALID_AVATAR')
+
+    const mimeMismatchResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      avatar: `data:image/jpeg;base64,${photoBuffer.toString('base64')}`
+    })
+    assert.equal(mimeMismatchResponse.status, 400)
+    assert.equal((await mimeMismatchResponse.json()).error.code, 'INVALID_AVATAR')
+
+    const corruptPhotoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      avatar: `data:image/webp;base64,${Buffer.from('not an image').toString('base64')}`
+    })
+    assert.equal(corruptPhotoResponse.status, 400)
+    assert.equal((await corruptPhotoResponse.json()).error.code, 'INVALID_AVATAR')
+
+    const oversizedPhotoResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      avatar: `data:image/webp;base64,${'A'.repeat(300_000)}`
+    })
+    assert.equal(oversizedPhotoResponse.status, 400)
+    assert.equal((await oversizedPhotoResponse.json()).error.code, 'INVALID_AVATAR')
 
     const clearedResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
       heightCm: null, weightKg: null, bloodType: null, waistCircumferenceCm: null,

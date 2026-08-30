@@ -2,6 +2,7 @@ import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { FamilyMemberError, FamilyMemberService } from './family-member-service.mjs'
 import { validTimeZone } from '../time/local-calendar.mjs'
+import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../../shared/avatar-photo-policy.mjs'
 
 const readJson = (request) => new Promise((resolve, reject) => {
   let body = ''
@@ -10,7 +11,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
   request.on('data', (chunk) => {
     if (settled) return
     body += chunk
-    if (body.length > 310_000) {
+    if (body.length > AVATAR_PHOTO_MAX_REQUEST_LENGTH) {
       settled = true
       reject(new FamilyMemberError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
     }
