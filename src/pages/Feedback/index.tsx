@@ -4,9 +4,10 @@ import { Button, WebPageHeader } from '../../components/common'
 import { appVersion, collectFeedbackDevice } from '../../features/feedback/environment'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { resolveFeedbackSource, type FeedbackSource } from '../../features/feedback/navigation'
-import { addFeedbackMessage, feedbackCategories, feedbackProblemPages, feedbackStatusLabels, getMyFeedback, listMyFeedback, submitFeedback, type FeedbackProblemPage, type FeedbackProblemType, type FeedbackRecord } from '../../services/feedback'
+import { addFeedbackMessage, feedbackCategories, feedbackProblemPages, feedbackStatusLabels, getMyFeedback, listMyFeedback, markFeedbackRead, submitFeedback, type FeedbackProblemPage, type FeedbackProblemType, type FeedbackRecord } from '../../services/feedback'
 import { useAppStore } from '../../store/useAppStore'
 import { FeedbackComposer } from './FeedbackComposer'
+import { MyFeedbackCard } from './MyFeedbackCard'
 
 const sourceStorageKey = 'hoooho-feedback-source'
 const categoryFromQuery = (value: string | null): FeedbackProblemType | null => !value ? null : value.includes('隐私') || value.includes('数据') ? '隐私与数据' : value.includes('故障') || value.includes('错误') ? '功能异常' : value.includes('新增') ? '希望新增' : feedbackCategories.includes(value as FeedbackProblemType) ? value as FeedbackProblemType : '其他'
@@ -58,10 +59,19 @@ export function FeedbackSubmittedPage() {
 }
 
 export function MyFeedbackPage() {
-  const token = useAppStore((state) => state.authToken)!, [items, setItems] = useState<FeedbackRecord[]>([]), [loading, setLoading] = useState(true), [error, setError] = useState('')
+  const token = useAppStore((state) => state.authToken)!, [items, setItems] = useState<FeedbackRecord[]>([]), [details, setDetails] = useState<Record<string, FeedbackRecord>>({}), [expandedId, setExpandedId] = useState<string | null>(null), [loadingId, setLoadingId] = useState<string | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState('')
   useEffect(() => { const controller = new AbortController(); listMyFeedback(token, controller.signal).then(setItems).catch((cause) => { if (cause.name !== 'AbortError') setError(cause.message) }).finally(() => setLoading(false)); return () => controller.abort() }, [token])
-  const completed = items.filter((item) => item.status === 'resolved').length, improving = items.filter((item) => item.status === 'improving').length, valid = completed + improving
-  return <main className="app-shell feedback-page pb-0"><WebPageHeader title="我的反馈" fallback="/settings" action={<Link className="feedback-header-action" to="/feedback">提反馈</Link>}/><div className="feedback-list-content"><section className="feedback-contribution"><h2>共建记录</h2><p>你已经帮助 Hoooho 改进了 {valid} 个问题</p><small>其中 {completed} 个已经完成，{improving} 个正在改进。只统计已确认进入改进或已处理的反馈。</small></section>{loading ? <p className="feedback-state">正在读取反馈记录…</p> : error ? <p className="feedback-error" role="alert">{error}</p> : items.length === 0 ? <section className="feedback-empty"><h2>还没有反馈记录</h2><p>发现哪里不好用，可以直接告诉我们。</p><Link to="/feedback">提交反馈</Link></section> : <div className="feedback-record-list">{items.map((item) => <Link key={item.id} to={`/feedback/${item.id}`}><div><strong>{item.summary}</strong><span>{formatTime(item.createdAt)} · {item.sourceName ?? '直接提交'}</span>{item.latestReply && <p>{item.latestReply}</p>}</div><div><em>{feedbackStatusLabels[item.status]}</em><small>{item.attachmentCount} 张图片</small></div></Link>)}</div>}</div></main>
+  const improved = items.filter((item) => item.status === 'improved').length
+  const updateRecord = (next: FeedbackRecord) => { setDetails((value) => ({ ...value, [next.id]: next })); setItems((value) => value.map((item) => item.id === next.id ? { ...item, ...next } : item)) }
+  const toggle = async (item: FeedbackRecord) => {
+    if (expandedId === item.id) { setExpandedId(null); return }
+    setExpandedId(item.id); if (details[item.id]) return
+    setLoadingId(item.id); setError('')
+    try { const detail = await getMyFeedback(token, item.id); updateRecord(item.unreadReplyCount > 0 ? await markFeedbackRead(token, item.id) : detail) }
+    catch (cause) { setError(cause instanceof Error ? cause.message : '反馈详情读取失败'); setExpandedId(null) }
+    finally { setLoadingId(null) }
+  }
+  return <main className="app-shell feedback-page my-feedback-page pb-0"><WebPageHeader title="我的反馈" fallback="/feedback" action={<Link className="feedback-header-action" to="/feedback">提反馈</Link>}/><div className="feedback-list-content"><section className="my-feedback-stats"><p>你已帮助 Hoooho 提交了 <strong>{items.length}</strong> 个问题</p><p>其中 <strong>{improved}</strong> 个已经完成改进</p></section>{loading ? <p className="feedback-state">正在读取反馈记录…</p> : error && items.length === 0 ? <p className="feedback-error" role="alert">{error}</p> : items.length === 0 ? <section className="feedback-empty"><h2>还没有反馈记录</h2><p>发现哪里不好用，可以直接告诉我们。</p><Link to="/feedback">提交反馈</Link></section> : <div className="my-feedback-list">{error && <p className="feedback-error" role="alert">{error}</p>}{items.map((item) => <MyFeedbackCard key={item.id} token={token} item={item} detail={details[item.id]} expanded={expandedId === item.id} loading={loadingId === item.id} onToggle={() => void toggle(item)} onUpdated={updateRecord}/>)}</div>}</div></main>
 }
 
 export function FeedbackDetailPage() {

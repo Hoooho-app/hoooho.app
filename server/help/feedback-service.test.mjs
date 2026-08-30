@@ -50,17 +50,34 @@ test('users see replies and supplements but never internal notes or internal pri
   await state.service.updateFromOps('operator-1', created.id, { status: 'evaluating', priority: 'high' })
   const user = await state.service.getForAccount('account-1', created.id), ops = await state.service.getForOps(created.id)
   assert.deepEqual(user.messages.map((item) => item.kind), ['user-supplement', 'user-reply'])
-  assert.equal('priority' in user, false); assert.equal(ops.messages.some((item) => item.kind === 'internal-note'), true); assert.equal(user.status, 'evaluating')
+  assert.equal('priority' in user, false); assert.equal(ops.messages.some((item) => item.kind === 'internal-note'), true); assert.equal(user.status, 'reviewing'); assert.equal(user.unreadReplyCount, 1)
 })
 
-test('feedback ownership, decline reasons and merge targets are enforced', async () => {
+test('feedback ownership, official not-planned replies and merge targets are enforced', async () => {
   const state = setup(), created = await state.service.create('account-1', input())
   await assert.rejects(() => state.service.getForAccount('account-2', created.id), /不存在/)
-  await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'declined' }), /必须填写/)
+  await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'declined' }), /必须同时提供/)
   await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'merged' }), /必须关联/)
   await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'merged', mergedIntoId: 'missing' }), /不存在或不能关联自身/)
-  const declined = await state.service.updateFromOps('operator', created.id, { status: 'declined', noActionReason: '当前版本暂不支持该设备' })
-  assert.equal(declined.noActionReason, '当前版本暂不支持该设备')
+  const declined = await state.service.updateFromOps('operator', created.id, { status: 'not_planned', officialReply: '当前版本暂不支持该设备' })
+  assert.equal(declined.noActionReason, '当前版本暂不支持该设备'); assert.equal(declined.messages.at(-1).kind, 'user-reply')
+})
+
+test('unread team replies persist until the owner expands and marks them read', async () => {
+  const state = setup(), created = await state.service.create('account-1', input())
+  await state.service.addOpsMessage('operator', created.id, { kind: 'user-reply', text: '请补充复现步骤' })
+  assert.equal((await state.service.listForAccount('account-1'))[0].unreadReplyCount, 1)
+  await assert.rejects(() => state.service.markTeamMessagesRead('account-2', created.id), /不存在/)
+  const read = await state.service.markTeamMessagesRead('account-1', created.id, new Date('2026-08-31T08:00:00Z'))
+  assert.equal(read.unreadReplyCount, 0); assert.equal(read.messages.at(-1).readByUserAt, '2026-08-31T08:00:00.000Z')
+  assert.equal((await state.service.listForAccount('account-1'))[0].unreadReplyCount, 0)
+})
+
+test('supplementing a needs-more-info feedback returns it to reviewing', async () => {
+  const state = setup(), created = await state.service.create('account-1', input())
+  await state.service.updateFromOps('operator', created.id, { status: 'needs_more_info' })
+  const updated = await state.service.addUserMessage('account-1', created.id, { text: '补充后的复现步骤', attachments: [] })
+  assert.equal(updated.status, 'reviewing')
 })
 
 test('attachment links are short lived and invalid signatures are rejected', async () => {

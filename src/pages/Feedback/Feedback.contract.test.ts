@@ -4,6 +4,8 @@ import test from 'node:test'
 
 const page = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const composer = readFileSync(new URL('./FeedbackComposer.tsx', import.meta.url), 'utf8')
+const myCard = readFileSync(new URL('./MyFeedbackCard.tsx', import.meta.url), 'utf8')
+const service = readFileSync(new URL('../../services/feedback.ts', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 
 test('feedback keeps problem page and problem type as separate required submission fields', () => {
@@ -12,6 +14,20 @@ test('feedback keeps problem page and problem type as separate required submissi
   assert.match(page, /problemPage, problemType/)
   assert.match(page, /问题页面/)
   assert.match(page, /问题类型/)
+})
+
+test('my feedback uses inline expansion, persistent unread replies and inline supplements', () => {
+  assert.match(page, /expandedId/)
+  assert.match(page, /markFeedbackRead/)
+  assert.match(page, /fallback="\/feedback"/)
+  assert.match(myCard, /继续回复/)
+  assert.match(myCard, /showVoice=\{false\}/)
+  assert.match(myCard, /unreadReplyCount/)
+  assert.doesNotMatch(myCard, /进度轴|progress/)
+})
+
+test('feedback status contract exposes every user-facing workflow state', () => {
+  for (const status of ['received', 'reviewing', 'needs_more_info', 'planned', 'in_progress', 'improved', 'not_planned', 'merged']) assert.match(service, new RegExp(status))
 })
 
 test('voice feedback is click based and never uses press-and-hold pointer events', () => {

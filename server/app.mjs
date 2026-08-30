@@ -183,7 +183,9 @@ async function handleFeedback(request, response, pathname, searchParams) {
   else {
     const match = /^\/api\/feedback\/([^/]+)$/.exec(pathname)
     const messagesMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname)
+    const readMatch = /^\/api\/feedback\/([^/]+)\/read$/.exec(pathname)
     if (messagesMatch && request.method === 'POST') sendJson(response, 201, await feedback.addUserMessage(accountId, decodeRouteValue(messagesMatch[1]), await readJson(request, 29_000_000)))
+    else if (readMatch && request.method === 'POST') sendJson(response, 200, await feedback.markTeamMessagesRead(accountId, decodeRouteValue(readMatch[1])))
     else if (match && request.method === 'GET') sendJson(response, 200, await feedback.getForAccount(accountId, decodeRouteValue(match[1])))
     else if (match && request.method === 'DELETE') sendJson(response, 200, await feedback.deleteForAccount(accountId, decodeRouteValue(match[1])))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

@@ -31,7 +31,7 @@ test('top-level utility pages use the shared compact sidebar header', () => {
 test('nested settings, help and feedback pages retain back navigation', () => {
   assert.match(settings, /<WebPageHeader title=\{title\} fallback="\/settings" \/>/)
   assert.match(help, /nested \? <WebPageHeader title="帮助中心" onBack=\{home\} \/>/)
-  assert.match(feedback, /<WebPageHeader title="我的反馈" fallback="\/settings"/)
+  assert.match(feedback, /<WebPageHeader title="我的反馈" fallback="\/feedback"/)
   assert.match(feedback, /<WebPageHeader title="反馈详情" fallback="\/feedback\/mine"/)
   assert.match(feedback, />我的反馈<\/button>/)
 })

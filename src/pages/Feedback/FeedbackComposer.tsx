@@ -3,10 +3,10 @@ import { getBrowserVoiceCapability } from '../../features/quick-record/browserVo
 import { processFeedbackImage, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { getSpeechRecognitionConstructor, speechErrorMessage, type SpeechRecognitionLike } from '../../features/feedback/speechInput'
 
-interface Props { text: string; onTextChange: (value: string) => void; images: PendingFeedbackImage[]; onImagesChange: (value: PendingFeedbackImage[]) => void; maxImages?: number }
+interface Props { text: string; onTextChange: (value: string) => void; images: PendingFeedbackImage[]; onImagesChange: (value: PendingFeedbackImage[]) => void; maxImages?: number; showVoice?: boolean; textLabel?: string; placeholder?: string }
 type VoiceState = 'idle' | 'requesting' | 'listening' | 'processing'
 
-export function FeedbackComposer({ text, onTextChange, images, onImagesChange, maxImages = 10 }: Props) {
+export function FeedbackComposer({ text, onTextChange, images, onImagesChange, maxImages = 10, showVoice = true, textLabel = '反馈内容', placeholder = '哪里不好用，或者你希望怎么改？' }: Props) {
   const recognition = useRef<SpeechRecognitionLike | null>(null), permissionStream = useRef<MediaStream | null>(null), timer = useRef<number | null>(null)
   const voiceStateRef = useRef<VoiceState>('idle'), transcriptRef = useRef(''), textRef = useRef(text), imagesRef = useRef(images)
   const [voiceState, setVoiceStateValue] = useState<VoiceState>('idle'), [voiceMessage, setVoiceMessage] = useState('')
@@ -54,8 +54,8 @@ export function FeedbackComposer({ text, onTextChange, images, onImagesChange, m
   }
   const voiceLabel = voiceState === 'listening' ? '正在聆听 · 点击结束' : voiceState === 'processing' ? '正在整理…' : voiceState === 'requesting' ? '正在请求麦克风…' : '快捷反馈'
   return <>
-    <label className="hoho-field feedback-content-field"><span className="hoho-text-label">反馈内容</span><textarea className="hoho-textarea feedback-textarea" maxLength={5000} value={text} onChange={(event) => onTextChange(event.target.value)} placeholder="哪里不好用，或者你希望怎么改？" /></label>
-    <button className="feedback-voice-button" type="button" data-state={voiceState} disabled={voiceState === 'requesting' || voiceState === 'processing'} onClick={voiceState === 'listening' ? finishVoice : () => void startVoice()}>{voiceLabel}</button>
+    <label className="hoho-field feedback-content-field"><span className="hoho-text-label">{textLabel}</span><textarea className="hoho-textarea feedback-textarea" maxLength={5000} value={text} onChange={(event) => onTextChange(event.target.value)} placeholder={placeholder} /></label>
+    {showVoice && <button className="feedback-voice-button" type="button" data-state={voiceState} disabled={voiceState === 'requesting' || voiceState === 'processing'} onClick={voiceState === 'listening' ? finishVoice : () => void startVoice()}>{voiceLabel}</button>}
     <section className="feedback-images" aria-label="上传图片"><label className="feedback-file-button">上传图片<input accept="image/*" multiple type="file" disabled={images.length >= maxImages} onChange={(event) => { addFiles(event.target.files); event.target.value = '' }} /></label>
       {images.length > 0 && <ol className="feedback-image-grid">{images.map((image, index) => <li key={image.id}><img alt={`反馈图片 ${index + 1}`} src={image.previewUrl}/><span>{image.status === 'processing' ? '压缩中…' : image.status === 'failed' ? image.error : '已就绪'}</span>{image.status === 'failed' && <button type="button" onClick={() => void process(image)}>重试</button>}<button type="button" aria-label={`删除反馈图片 ${index + 1}`} onClick={() => remove(image.id)}>删除</button></li>)}</ol>}
     </section>
