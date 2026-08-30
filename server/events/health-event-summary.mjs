@@ -10,7 +10,7 @@ const confirmedDiagnosisSources = new Set(['doctor_statement', 'test_result', 'u
 const suspectedDiagnosisSources = new Set(['doctor_statement', 'test_result', 'ai_consultation'])
 const summaryTagSources = new Set(['doctor_statement', 'test_result', 'ai_consultation', 'user_report', 'measurement'])
 
-export const healthEventSummaryAggregationVersion = 2
+export const healthEventSummaryAggregationVersion = 3
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))]
@@ -18,6 +18,14 @@ function unique(values) {
 
 function factTime(item) {
   return item.fact.time?.resolvedStart ?? item.record?.occurredAt ?? item.organization.createdAt
+}
+
+function sourceRecordId(item) {
+  return item.fact.sourceRecordId ?? item.record?.id ?? item.organization.recordId ?? null
+}
+
+function factUpdatedAt(item) {
+  return item.organization.updatedAt ?? item.record?.updatedAt ?? factTime(item)
 }
 
 function normalizedBodyPart(value) {
@@ -51,14 +59,20 @@ function collectCurrentSymptoms(chronological) {
       const label = canonicalSymptom(fact)
       if (!label) continue
       if (fact.polarity === 'affirmed' && fact.temporality === 'current' && ['active', 'improving', 'recurrent'].includes(fact.status)) {
-        if (!symptoms.has(label)) symptoms.set(label, { label, firstAt: factTime(item), latestAt: factTime(item) })
-        else symptoms.get(label).latestAt = factTime(item)
+        if (!symptoms.has(label)) symptoms.set(label, {
+          label, firstAt: factTime(item), latestAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
+        })
+        else symptoms.set(label, {
+          ...symptoms.get(label), latestAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
+        })
       } else if (fact.polarity === 'negated' || fact.status === 'resolved') symptoms.delete(label)
     }
     if (fact.type === 'status_change' && fact.polarity === 'affirmed') {
       const target = canonicalTarget(fact.target)
       if (fact.change === 'resolved') symptoms.delete(target)
-      else if (fact.change === 'recurred' && target) symptoms.set(target, { label: target, firstAt: factTime(item), latestAt: factTime(item) })
+      else if (fact.change === 'recurred' && target) symptoms.set(target, {
+        label: target, firstAt: factTime(item), latestAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
+      })
     }
   }
   return [...symptoms.values()]
@@ -113,13 +127,21 @@ function collectStatusChanges(chronological) {
       label: `${target}${suffix}`,
       source: summaryTagSources.has(fact.source) ? fact.source : 'user_report',
       priority,
-      occurredAt: factTime(item)
+      occurredAt: factTime(item),
+      sourceRecordId: sourceRecordId(item),
+      factUpdatedAt: factUpdatedAt(item)
     })
   }
   return [...changes.values()].sort((left, right) => right.priority - left.priority || right.occurredAt.localeCompare(left.occurredAt))
 }
 
-function buildTags({ diagnoses, symptoms, maxTemperature, changes }) {
+function compactFactLabel(prefix, value) {
+  const label = String(value ?? '').trim()
+  if (!label) return null
+  return label.startsWith(prefix) ? label : `${prefix}${label}`
+}
+
+function buildTags({ diagnoses, symptoms, temperatures, changes, interventions }) {
   const tags = []
   for (const diagnosis of diagnoses) {
     const suspected = diagnosis.certainty === 'suspected'
@@ -134,14 +156,25 @@ function buildTags({ diagnoses, symptoms, maxTemperature, changes }) {
     })
   }
   symptoms.forEach((symptom, index) => tags.push({
-    label: symptom.label, kind: 'symptom', source: 'user_report', certainty: null, priority: index === 0 ? 70 : 60
+    label: symptom.label, kind: 'symptom', source: 'user_report', certainty: null, priority: index === 0 ? 70 : 60,
+    sourceRecordId: symptom.sourceRecordId, factUpdatedAt: symptom.factUpdatedAt, occurredAt: symptom.latestAt
   }))
   changes.forEach((change) => tags.push({
-    label: change.label, kind: 'change', source: change.source, certainty: null, priority: change.priority
+    label: change.label, kind: 'change', source: change.source, certainty: null, priority: change.priority,
+    sourceRecordId: change.sourceRecordId, factUpdatedAt: change.factUpdatedAt, occurredAt: change.occurredAt
   }))
-  if (maxTemperature !== null) tags.push({
-    label: `最高${maxTemperature}℃`, kind: 'measurement', source: 'measurement', certainty: null, priority: 50
+  if (temperatures.max) tags.push({
+    label: `最高${temperatures.max.value}℃`, kind: 'measurement', source: 'measurement', certainty: null, priority: 50,
+    sourceRecordId: temperatures.max.sourceRecordId, factUpdatedAt: temperatures.max.factUpdatedAt, occurredAt: temperatures.max.occurredAt
   })
+  if (temperatures.latest) tags.push({
+    label: `当前${temperatures.latest.value}℃`, kind: 'measurement', source: 'measurement', certainty: null, priority: 75,
+    sourceRecordId: temperatures.latest.sourceRecordId, factUpdatedAt: temperatures.latest.factUpdatedAt, occurredAt: temperatures.latest.occurredAt
+  })
+  interventions.forEach(({ item, kind, label, priority }) => tags.push({
+    label, kind, source: summaryTagSources.has(item.fact.source) ? item.fact.source : 'user_report', certainty: null, priority,
+    sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item), occurredAt: factTime(item)
+  }))
   return tags.filter((tag, index) => tags.findIndex((candidate) => candidate.label === tag.label) === index)
     .sort((left, right) => right.priority - left.priority)
 }
@@ -204,14 +237,35 @@ export function buildHealthEventSummary({ event, records, organizations, now = n
   const symptoms = collectCurrentSymptoms(chronological)
   const diagnoses = collectDiagnoses(chronological)
   const changes = collectStatusChanges(chronological)
-  const temperatures = facts.filter(({ fact }) => isUsableMeasurement(fact) && fact.temperature)
-    .flatMap(({ fact }) => [fact.temperature.min, fact.temperature.max]).filter(Number.isFinite)
-  const maxTemperature = temperatures.length ? Math.max(...temperatures) : null
+  const temperatureReadings = facts.filter(({ fact }) => isUsableMeasurement(fact) && fact.temperature)
+    .map((item) => ({
+      value: Number(item.fact.temperature.max), occurredAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
+    }))
+    .filter(({ value }) => Number.isFinite(value))
+  const latestTemperature = [...temperatureReadings].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))[0] ?? null
+  const maxTemperatureReading = [...temperatureReadings].sort((left, right) => right.value - left.value || right.occurredAt.localeCompare(left.occurredAt))[0] ?? null
+  const maxTemperature = maxTemperatureReading?.value ?? null
+  const interventionFacts = facts.filter(({ fact }) => (
+    (fact.type === 'medication' && isConsumedMedication(fact))
+    || (fact.type === 'visit' && isCurrentPositiveFact(fact))
+    || (fact.type === 'examination' && isCurrentPositiveFact(fact))
+  ))
+  const interventions = interventionFacts.map((item) => {
+    if (item.fact.type === 'medication') return { item, kind: 'medication', label: compactFactLabel('使用', item.fact.name), priority: 45 }
+    if (item.fact.type === 'visit') return { item, kind: 'visit', label: compactFactLabel('就诊', item.fact.name), priority: 44 }
+    return { item, kind: 'examination', label: compactFactLabel('检查', item.fact.name), priority: 43 }
+  }).filter(({ label }) => label)
   const updatedAt = now.toISOString()
   const systemGenerated = {
     title: buildTitle(diagnoses, symptoms, maxTemperature, facts),
     summary: buildSummary({ diagnoses, symptoms, maxTemperature, facts, event }),
-    tags: buildTags({ diagnoses, symptoms, maxTemperature, changes }),
+    tags: buildTags({
+      diagnoses,
+      symptoms,
+      temperatures: { max: maxTemperatureReading, latest: latestTemperature },
+      changes,
+      interventions
+    }),
     evidence: unique(facts.filter(({ fact }) => isCurrentPositiveFact(fact)).map(({ fact }) => evidenceLabels[fact.type])),
     updatedAt
   }

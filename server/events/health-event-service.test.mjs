@@ -58,6 +58,28 @@ test('北京时间跨日窗口创建事件仍保存标准 UTC 时间点', async 
 
   assert.equal(created.startTime, '2026-08-27T16:00:00.000Z')
   assert.equal(created.createdAt, '2026-08-27T16:00:00.000Z')
+  assert.equal(created.recoveredAt, null)
+})
+
+test('事件只在进入康复状态时写入语义明确的结束时间，重新观察时清空', async () => {
+  let stored = {
+    id: 'event-1', accountId: 'account-1', memberId: 'member-1', title: '发热', category: 'fever',
+    status: 'observing', startTime: '2026-08-29T01:00:00.000Z', recoveredAt: null,
+    createdAt: '2026-08-29T01:00:00.000Z', updatedAt: '2026-08-29T01:00:00.000Z'
+  }
+  const service = new HealthEventService({
+    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) },
+    repository: {
+      findById: async () => stored,
+      update: async (_id, changes, now) => (stored = { ...stored, ...changes, updatedAt: now.toISOString() })
+    }
+  })
+  const recoveredAt = new Date('2026-08-30T02:00:00.000Z')
+  const recovered = await service.update('account-1', stored.id, { status: 'recovered' }, recoveredAt)
+  assert.equal(recovered.recoveredAt, recoveredAt.toISOString())
+
+  const reopened = await service.update('account-1', stored.id, { status: 'observing' }, new Date('2026-08-31T00:00:00.000Z'))
+  assert.equal(reopened.recoveredAt, null)
 })
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
@@ -154,6 +176,15 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     const updated = await updateResponse.json()
     assert.equal(updated.title, '发热')
     assert.equal(updated.status, 'handling')
+    assert.equal(updated.recoveredAt, null)
+
+    const recoveredResponse = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}`, 'PATCH', first.token, {
+      status: 'recovered'
+    })
+    assert.equal(recoveredResponse.status, 200)
+    const recovered = await recoveredResponse.json()
+    assert.equal(recovered.status, 'recovered')
+    assert.ok(recovered.recoveredAt)
 
     const futureUpdateResponse = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}`, 'PATCH', first.token, {
       startTime: '2037-01-01T00:00:00+08:00'

@@ -248,23 +248,22 @@ test('首次使用首页在 iPhone SE 使用紧凑但可触控的行动区', () 
   assert.doesNotMatch(firstUseSource, /min-h-\[(?:148|112|72)px\]/)
 })
 
-test('事件定性标题与生命周期状态同行，速览为单行轻量文本', () => {
+test('事件识别名称与生命周期状态同行，病程摘要为单行轻量文本', () => {
   assert.match(cardSource, /HealthEventCardSurface/)
-  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-1\.5[^]*definitionTitle[^]*HealthTag[^]*statusPresentation\.label/)
+  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-1\.5[^]*displayTitle[^]*HealthTag[^]*statusPresentation\.label/)
   assert.doesNotMatch(cardSurfaceSource, /Typography className="min-w-0 flex-1 truncate"/)
   assert.match(stylesSource, /\.hoho-health-tag\[data-tone='info'\][^}]*--hoho-color-info/s)
-  assert.match(cardSurfaceSource, /className="block truncate"[^]*quickFacts\.join\(' · '\)/)
-  assert.doesNotMatch(cardSource, /event\.summary/)
+  assert.match(cardSurfaceSource, /className="block truncate"[^]*summaryFragments\.join\(' · '\)/)
+  assert.doesNotMatch(cardSource, /event\.summary(?:\W|$)/)
   assert.doesNotMatch(cardSource, /<div><HealthTag/)
 })
 
-test('列表移除日期轴并把弱化后的日期放入每张事件卡片', () => {
+test('列表移除日期轴并把开始日期与持续时间放入每张事件卡片首行', () => {
   assert.doesNotMatch(timelineSource, /HealthTimeline|hoho-timeline/)
   assert.match(timelineSource, /aria-label="按日期排序的健康事件"/)
-  assert.match(timelineSource, /dateLabel=\{formatPlainMonthDay\(dateGroup\.date\)\}/)
-  assert.match(timelineSource, /weekdayLabel=\{formatPlainWeekday\(dateGroup\.date\)\}/)
+  assert.match(timelineSource, /dateLabel=\{formatHealthEventDate\(event\.startTime\)/)
   assert.match(cardSource, /dateLabel=\{dateLabel\}/)
-  assert.match(cardSurfaceSource, /health-event-list-card__date[^]*dateLabel[^]*weekdayLabel[^]*definitionTitle/)
+  assert.match(cardSurfaceSource, /health-event-list-card__date[^]*dateLabel[^]*durationLabel[^]*displayTitle/)
   assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
 })
 

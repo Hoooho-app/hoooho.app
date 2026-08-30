@@ -1,5 +1,5 @@
 import { HealthEventCardSurface } from '../../../components/health/HealthEventCardSurface'
-import { buildHealthEventQuickFacts, getHealthEventDefinitionTitle } from '../../../services/healthEventCardPresentation'
+import { getHealthEventDisplayTitle, getHealthEventSummaryFragments } from '../../../services/healthEventCardPresentation'
 import type { HealthEventApiDto } from '../../../types'
 
 interface EventSummarySectionProps {
@@ -13,8 +13,8 @@ export function EventSummarySection({ event }: EventSummarySectionProps) {
   return (
     <section aria-label="健康事件概览">
       <HealthEventCardSurface
-        definitionTitle={getHealthEventDefinitionTitle(displayed)}
-        quickFacts={buildHealthEventQuickFacts({ startTime: event.startTime, summary: displayed })}
+        displayTitle={getHealthEventDisplayTitle(event.title, displayed)}
+        summaryFragments={getHealthEventSummaryFragments({ status: event.status, summary: displayed }).map(({ label }) => label)}
         status={event.status}
       />
     </section>
