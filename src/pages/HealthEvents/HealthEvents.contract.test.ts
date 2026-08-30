@@ -96,6 +96,8 @@ test('双待机循环与趣味动作由单一控制器管理且最多只有一�
   assert.match(idleVisualSource, /addEventListener\('error'/)
   assert.match(idleVisualSource, /addEventListener\('abort'/)
   assert.match(idleVisualSource, /addEventListener\('stalled'/)
+  assert.match(idleVisualSource, /specialPlaybackStartTimeoutMs = 5_000/)
+  assert.match(idleVisualSource, /requestIdRef\.current = requestId \+ 1/)
   assert.match(animationControllerSource, /RETURN_TO_IDLE/)
   assert.match(animationControllerSource, /event\.requestId < current\.requestId/)
   assert.doesNotMatch(idleVisualSource, /createObjectURL|requestAnimationFrame|setInterval/)
