@@ -36,6 +36,18 @@ export function symptomRecordTitle(entry: TimelineEntry) {
   return entry.summary?.trim() || entry.content.trim()
 }
 
+export function symptomRecordTypeLabel(entry: TimelineEntry) {
+  const label = entry.segments?.find((segment) => segment.label !== '部位' && segment.label !== '附件')?.label
+  if (label === '体温') return '体温测量'
+  if (label === '状态') return '症状变化'
+  if (label === '用药') return '处理记录'
+  if (label === '检查') return '检查记录'
+  if (label === '就诊') return '就诊记录'
+  if (label === '记录' && entry.source.type === 'medical_file') return '医疗文件'
+  if (label === '记录') return '待确认'
+  return entry.source.label
+}
+
 export function SymptomRecordSheet({ entry, memberName, record, initialEditing = false, onClose, onDelete, onUpdate }: SymptomRecordSheetProps) {
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)

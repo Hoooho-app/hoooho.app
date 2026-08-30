@@ -4,7 +4,7 @@ import type { HealthEvent, HealthEventRecordApiDto, TimelineEntry, UpdateHealthE
 import { Card } from '../../../components/common'
 import { HohoButton } from '../../../components/design-system'
 import { sortAndGroupTimeline, type TimelineOrder } from '../../../services/healthTimelineGrouping'
-import { SymptomRecordSheet, symptomRecordTitle } from './SymptomRecordSheet'
+import { SymptomRecordSheet, symptomRecordTitle, symptomRecordTypeLabel } from './SymptomRecordSheet'
 
 interface TimelineSectionProps {
   event: HealthEvent
@@ -130,7 +130,7 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
           style={{ transform: `translateX(${translateX}px)` }}
           type="button"
         >
-          <span className="symptom-record-row__content"><strong>{symptomRecordTitle(entry)}</strong><span className="symptom-record-source" data-source={entry.source.type}>{entry.source.label}</span></span>
+          <span className="symptom-record-row__content"><strong>{symptomRecordTitle(entry)}</strong><span className="symptom-record-source" data-source={entry.source.type}>{symptomRecordTypeLabel(entry)}</span></span>
           <ChevronRight aria-hidden="true" size={18} />
         </button>
       </div>

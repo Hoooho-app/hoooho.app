@@ -106,23 +106,23 @@
 
   .timeline-groups { @apply relative grid min-w-0 gap-8 pl-7; }
   .timeline-groups::before { @apply absolute bottom-2 left-[5px] top-2 border-l border-border-calm; content: ''; }
-  .timeline-date-group { @apply grid min-w-0 gap-4; }
+  .timeline-date-group { @apply grid min-w-0 gap-3; }
   .timeline-date-heading { @apply relative; }
   .timeline-date-heading::before { @apply absolute -left-7 top-1 h-3 w-3 rounded-full border-2 border-primary bg-primary; content: ''; }
-  .timeline-date-entries { @apply grid min-w-0 gap-6; }
-  .timeline-entry-row { @apply relative min-w-0 space-y-3; }
+  .timeline-date-entries { @apply grid min-w-0 gap-3; }
+  .timeline-entry-row { @apply relative grid min-w-0 grid-cols-[44px_minmax(0,1fr)] items-center gap-2; }
   .timeline-entry-time { @apply block whitespace-nowrap text-left text-xs font-semibold leading-5 tabular-nums text-text-primary; }
-  .timeline-entry-marker { @apply absolute -left-7 top-1 h-3 w-3 rounded-full border-2 border-primary bg-background; }
+  .timeline-entry-marker { @apply absolute -left-7 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background; }
   .symptom-record-swipe { @apply relative min-w-0 overflow-hidden rounded-card; }
   .symptom-record-swipe__actions { @apply absolute inset-y-0 right-0 flex w-32 overflow-hidden rounded-r-card; }
   .symptom-record-swipe__actions button { @apply grid w-16 place-content-center justify-items-center gap-1 text-xs font-medium disabled:opacity-60; }
   .symptom-record-swipe__actions button:first-child { color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
   .symptom-record-swipe__actions button:last-child { color: rgb(var(--hoho-color-danger)); background: rgb(var(--hoho-color-danger) / 0.08); }
-  .symptom-record-row { @apply relative z-[1] flex min-h-16 w-full touch-pan-y items-center justify-between gap-3 rounded-card border bg-surface px-3 py-3 text-left transition-transform duration-200 ease-out; box-shadow: var(--hoho-shadow-card); }
+  .symptom-record-row { @apply relative z-[1] flex min-h-11 w-full touch-pan-y items-center justify-between gap-2 rounded-control border bg-surface px-2.5 py-1.5 text-left transition-transform duration-200 ease-out; }
   .symptom-record-row > svg { @apply shrink-0; color: rgb(var(--hoho-color-text-weak)); }
   .symptom-record-row__content { @apply flex min-w-0 flex-1 items-center justify-between gap-2; }
-  .symptom-record-row__content > strong { @apply min-w-0 flex-1 text-sm font-medium leading-6 text-text-primary; overflow-wrap: anywhere; }
-  .symptom-record-source { @apply inline-flex shrink-0 rounded-pill px-2 py-1 text-[11px] font-medium leading-4; color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-surface-subtle)); }
+  .symptom-record-row__content > strong { @apply line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-5 text-text-primary; overflow-wrap: anywhere; }
+  .symptom-record-source { @apply inline-flex shrink-0 rounded-pill px-1.5 py-0.5 text-[10px] font-medium leading-4; color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-surface-subtle)); }
   .symptom-record-source[data-source='measurement'] { color: rgb(var(--hoho-color-info)); background: rgb(var(--hoho-color-info) / 0.08); }
   .symptom-record-source[data-source='medical_file'] { color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-primary) / 0.06); }
   .symptom-record-source[data-source='doctor_confirmation'] { color: rgb(var(--hoho-color-success)); background: rgb(var(--hoho-color-success) / 0.08); }

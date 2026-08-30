@@ -215,44 +215,44 @@ function buildFactTimeline(
   }
   const recordsWithFacts = new Set([...factGroups.keys()].filter((key) => !key.startsWith('organization:')))
 
-  const factEntries = [...factGroups.entries()].map(([sourceKey, items]): TimelineEntry => {
-    const record = items.find((item) => item.record)?.record
-    const primary = items.find((item) => item.fact.time.resolvedStart && item.fact.time.source === 'user_text')
-      ?? items.find((item) => item.fact.time.resolvedStart)
-      ?? items[0]
-    const time = primary ? factTime(primary) : record?.occurredAt ?? items[0].organization.createdAt
-    const segments = uniqueSegments(items.flatMap((item) => factSegments(item.fact)))
-    const originalText = record?.content.trim()
-      || items.find((item) => item.organization.rawInput.trim())?.organization.rawInput.trim()
-      || segments.map((segment) => segment.content).join('；')
-    const fallbackSummary = segments.map((segment) => segment.content).join('；')
-    const firstFact = items[0].fact
+  const factEntries = [...factGroups.entries()].flatMap(([sourceKey, items]) => items.map((item, index): TimelineEntry => {
+    const record = item.record
+    const fact = item.fact
+    const time = fact.time.precision === 'year'
+      ? record?.occurredAt ?? item.organization.createdAt
+      : factTime(item)
+    const segments = uniqueSegments(factSegments(fact))
+    const factSummary = segments.filter((segment) => segment.label !== '部位').map((segment) => segment.content).join('；')
+    const originalText = record?.sourceText?.trim()
+      || record?.content.trim()
+      || item.organization.rawInput.trim()
+      || factSummary
     const recordAttachments = record ? attachmentsByRecord.get(record.id) ?? [] : []
-    const sourceType = timelineSourceType(record, items, recordAttachments)
+    const sourceType = timelineSourceType(record, [item], recordAttachments)
     return {
-      id: record ? `${record.id}-timeline` : `${sourceKey}-timeline`,
+      id: `${sourceKey}-${fact.id}-timeline`,
       time,
-      createdAt: record?.createdAt ?? items[0].organization.createdAt,
-      displayTime: primary?.fact.time.raw ?? undefined,
-      periodLabel: primary ? factPeriodLabel(primary.fact, time) : formatHealthTimePeriod(undefined, time),
-      content: originalText,
-      summary: createTimelineRecordSummary(originalText, fallbackSummary),
+      createdAt: record?.createdAt ?? item.organization.createdAt,
+      displayTime: fact.time.raw ?? undefined,
+      periodLabel: factPeriodLabel(fact, time),
+      content: factSummary,
+      summary: factSummary,
       details: createTimelineRecordDetails(originalText),
-      recordType: record?.type ?? factRecordType(firstFact.type),
-      kind: firstFact.type === 'temperature' ? 'temperature' : firstFact.type === 'medication' ? 'medication' : 'text',
-      sourceRecordId: record?.id ?? (items[0].organization.recordId || undefined),
+      recordType: record?.type ?? factRecordType(fact.type),
+      kind: fact.type === 'temperature' ? 'temperature' : fact.type === 'medication' ? 'medication' : 'text',
+      sourceRecordId: record?.id ?? (item.organization.recordId || undefined),
       source: timelineSource(sourceType, {
-        originalText: record?.sourceText?.trim() || originalText,
-        measurementMethod: record?.measurementMethod ?? firstFact.measurementMethod ?? null,
-        measurementDevice: record?.measurementDevice ?? firstFact.measurementDevice ?? null,
+        originalText,
+        measurementMethod: record?.measurementMethod ?? fact.measurementMethod ?? null,
+        measurementDevice: record?.measurementDevice ?? fact.measurementDevice ?? null,
         fileName: recordAttachments[0]?.name ?? null,
         note: record?.note ?? null
       }),
-      sequence: 0,
+      sequence: index,
       segments,
       attachments: recordAttachments
     }
-  })
+  }))
 
   const attachmentOnlyEntries = records.filter((record) => (
     !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) > 0
@@ -291,8 +291,8 @@ function buildFactTimeline(
     time: record.occurredAt,
     createdAt: record.createdAt,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
-    content: record.content,
-    summary: createTimelineRecordSummary(record.content),
+    content: compactUnstructuredRecord(record.content),
+    summary: compactUnstructuredRecord(record.content),
     details: createTimelineRecordDetails(record.content),
     recordType: record.type,
     kind: record.type === 'medication' ? 'medication' : 'text',
@@ -305,7 +305,7 @@ function buildFactTimeline(
       note: record.note
     }),
     sequence: 0,
-    segments: [{ label: '记录', content: record.content }],
+    segments: [{ label: '记录', content: compactUnstructuredRecord(record.content) }],
     attachments: []
   }))
 
@@ -313,6 +313,12 @@ function buildFactTimeline(
     { id: left.id, occurredAt: left.time, createdAt: left.createdAt ?? left.time },
     { id: right.id, occurredAt: right.time, createdAt: right.createdAt ?? right.time }
   ))
+}
+
+function compactUnstructuredRecord(value: string) {
+  const summary = createTimelineRecordSummary(value)
+  const clause = summary.split(/[，,；;。！？!?]/u).find((item) => item.trim())?.trim() || '健康记录'
+  return clause.length > 22 ? `${clause.slice(0, 22).trimEnd()}…` : clause
 }
 
 function timelineSourceType(

@@ -19,7 +19,7 @@ test('详情页收敛为症状跟踪且移除旧摘要和体温图表', () => {
   assert.equal(pageSource.includes('<TemperatureChartSection'), false)
 })
 
-test('时间线从日期节点开始、时段使用空心节点且卡片位于时段下方', () => {
+test('时间线保留日期节点且时间、摘要、标签在同一紧凑行', () => {
   assert.match(timelineSource, /timeline-groups/)
   assert.match(timelineSource, /timeline-date-group/)
   assert.match(timelineSource, /timeline-date-heading/)
@@ -29,8 +29,10 @@ test('时间线从日期节点开始、时段使用空心节点且卡片位于�
   assert.equal(timelineSource.includes('{yearGroup.year}年'), false)
   assert.match(stylesSource, /timeline-groups::before[^}]*border-l/)
   assert.match(stylesSource, /timeline-entry-marker[^}]*border-2[^}]*bg-background/)
-  assert.match(stylesSource, /timeline-entry-row[^}]*space-y-3/)
-  assert.equal(stylesSource.includes('grid-cols-[112px_minmax(0,1fr)]'), false)
+  assert.match(stylesSource, /timeline-entry-row[^}]*grid-cols-\[44px_minmax\(0,1fr\)\][^}]*items-center/)
+  assert.match(stylesSource, /symptom-record-row[^}]*min-h-11/)
+  assert.match(stylesSource, /timeline-date-entries[^}]*gap-3/)
+  assert.doesNotMatch(stylesSource, /timeline-entry-row[^}]*space-y-/)
 })
 
 test('时间线排序入口复用设计系统图标按钮', () => {
@@ -99,6 +101,7 @@ test('首次记录快捷录音只追加描述，不直接保存整张表单', ()
 test('症状记录使用轻量行、详情抽屉和左滑编辑删除', () => {
   assert.match(timelineSource, /symptom-record-row/)
   assert.match(timelineSource, /symptom-record-source/)
+  assert.match(timelineSource, /symptomRecordTypeLabel/)
   assert.match(timelineSource, /SymptomRecordSheet/)
   assert.match(timelineSource, /onPointerMove/)
   assert.match(timelineSource, /编辑症状记录/)
