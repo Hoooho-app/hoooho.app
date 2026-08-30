@@ -10,8 +10,7 @@ import type { FamilyMemberApiDto, ProfileGender } from '../../types'
 import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
-
-type BirthdayPrecision = 'year' | 'date'
+import { getBirthdayAgeMessage, type BirthdayPrecision } from './birthdayAgeMessage'
 
 export function ProfileSetupPage() {
   const navigate = useNavigate()
@@ -140,8 +139,9 @@ export function ProfileSetupPage() {
 
       <form className="flex flex-1 flex-col px-5" noValidate onSubmit={submit}>
         {avatarConfig && hasAvatarProfile && (
-          <div className="mx-auto mt-5 w-full max-w-sm">
+          <div className="mx-auto mt-3 w-full max-w-sm">
             <FamilyAvatarEditor
+              compact
               config={avatarConfig}
               disabled={loading || submitting}
               mode={avatarMode}
@@ -154,7 +154,7 @@ export function ProfileSetupPage() {
             />
           </div>
         )}
-        <div className="mt-5 space-y-5">
+        <div className="mt-4 space-y-4">
           <Input
             label="姓名 *"
             name="name"
@@ -229,7 +229,7 @@ export function ProfileSetupPage() {
               )}
             </div>
             <span className="hoho-field__message" id="profile-birthday-message">
-              自动计算年龄
+              {getBirthdayAgeMessage(birthday, birthdayPrecision)}
             </span>
           </fieldset>
 
