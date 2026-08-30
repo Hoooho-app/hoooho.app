@@ -57,11 +57,12 @@ function usePageVisible() {
 interface NurseTriageDeskProps {
   state: NurseTriageState
   audioLevel: number
+  idleActive?: boolean
   idleAnimationResetKey: string
   reducedMotion: boolean
 }
 
-export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, reducedMotion }: NurseTriageDeskProps) {
+export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnimationResetKey, reducedMotion }: NurseTriageDeskProps) {
   const pageVisible = usePageVisible()
   const businessKind = state === 'idle'
     ? null
@@ -74,8 +75,8 @@ export function NurseTriageDesk({ state, audioLevel, idleAnimationResetKey, redu
           : 'processing'
   const animationKind = resolveNurseAnimationKind(businessKind, false, false)
   const activeAsset = visualAssetByState[state] ?? null
-  const idleVideoActive = state === 'idle' || state === 'error'
-  const specialActionsEnabled = animationKind === 'idle' && canRunIdleNurseAnimation(state, pageVisible, reducedMotion)
+  const idleVideoActive = idleActive && (state === 'idle' || state === 'error')
+  const specialActionsEnabled = idleActive && animationKind === 'idle' && canRunIdleNurseAnimation(state, pageVisible, reducedMotion)
   const style = useMemo(() => ({ '--nurse-audio-level': Math.max(0, Math.min(1, audioLevel)) } as CSSProperties), [audioLevel])
 
   return (

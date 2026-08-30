@@ -279,6 +279,11 @@
     @apply fixed left-1/2 z-40 grid -translate-x-1/2 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-t-card border bg-surface/95 px-4 pt-4 shadow-floating backdrop-blur;
     bottom: 0;
     width: min(100vw, 402px);
+    max-height: min(
+      calc(100dvh - env(safe-area-inset-top)),
+      calc(var(--quick-record-viewport-height, 100dvh) - env(safe-area-inset-top))
+    );
+    overflow: hidden;
     padding-bottom: max(var(--hoho-space-4), env(safe-area-inset-bottom));
     transition: transform 560ms ease, opacity 560ms ease;
   }
@@ -305,6 +310,11 @@
   .quick-record-panel-text,
   .quick-record-panel-review,
   .quick-record-panel-help { @apply block; }
+  .quick-record-panel-review {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
   .quick-record-wechat-hint { @apply mb-3 rounded-control bg-primary-soft px-3 py-2 text-xs leading-5 text-text-secondary; }
   .quick-record-wechat-hint strong { @apply mr-2 text-primary; }
   .quick-record-natural-input { @apply block; }
@@ -318,7 +328,8 @@
   .quick-record-help-copy p { @apply mt-1 text-text-secondary; }
   .quick-record-review-heading strong { @apply block font-semibold text-primary; }
   .quick-record-review-heading p { @apply mt-1 line-clamp-2 text-xs leading-5 text-text-secondary; }
-  .quick-record-candidates { @apply mt-3 grid max-h-64 gap-2 overflow-y-auto; }
+  .quick-record-candidates { @apply mt-3 grid min-h-0 max-h-64 gap-2 overflow-y-auto; }
+  .quick-record-panel-review .quick-record-error-actions { flex: none; }
   .quick-record-candidates article { @apply rounded-control border bg-background px-3 py-2; }
   .quick-record-candidates article > strong { @apply block text-sm font-semibold; }
   .quick-record-candidates article p { @apply mt-1 flex justify-between gap-4 text-xs leading-5; }
@@ -487,11 +498,18 @@
   }
 
   .nurse-triage-recorder {
-    display: flex;
+    display: grid;
     min-height: 0;
-    flex-direction: column;
-    align-items: stretch;
-    padding: var(--hoho-space-3) 0 calc(var(--hoho-space-8) + env(safe-area-inset-bottom));
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    gap: clamp(var(--hoho-space-2), 1.8dvh, var(--hoho-space-4));
+    padding: 0 0 max(var(--hoho-space-2), env(safe-area-inset-bottom));
+  }
+
+  .nurse-triage-visual-slot {
+    display: grid;
+    min-height: 0;
+    place-items: center;
   }
 
   .nurse-triage-desk {
@@ -516,6 +534,14 @@
     -webkit-user-drag: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .nurse-triage-visual-slot .nurse-triage-desk {
+    width: auto;
+    height: 100%;
+    max-width: 76%;
+    max-height: 340px;
+    margin: 0 auto;
   }
 
   .nurse-triage-desk::after {
@@ -637,6 +663,17 @@
     text-align: center;
   }
 
+  .nurse-triage-recorder .nurse-triage-status {
+    min-height: 0;
+    margin-top: 0;
+  }
+
+  .nurse-triage-recorder .nurse-quick-record-trigger {
+    position: static;
+    width: 100%;
+    transform: none;
+  }
+
   .nurse-triage-status h3 {
     margin: 0;
     color: rgb(var(--hoho-color-text-primary));
@@ -699,6 +736,43 @@
   .hoho-health-events-page .health-events-member,
   .hoho-health-events-page .health-events-content { width: calc(100% - 32px); margin-inline: auto; }
   .hoho-health-events-page .health-events-content { padding-inline: 0; }
+
+  .hoho-health-events-page[data-view-mode='triage'] {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .health-events-content--triage {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    margin-top: clamp(var(--hoho-space-2), 2dvh, var(--hoho-space-5));
+    padding-bottom: 0;
+  }
+
+  .health-events-content--triage .health-events-toolbar {
+    flex: none;
+    margin-bottom: clamp(var(--hoho-space-1), 1.2dvh, var(--hoho-space-3));
+  }
+
+  @media (max-height: 620px) {
+    .health-events-content--triage {
+      margin-top: var(--hoho-space-2);
+    }
+
+    .health-events-content--triage .health-events-toolbar {
+      margin-bottom: var(--hoho-space-1);
+    }
+
+    .nurse-triage-recorder {
+      gap: var(--hoho-space-2);
+    }
+
+    .nurse-triage-status h3 {
+      font-size: var(--hoho-font-size-card-title);
+      line-height: var(--hoho-line-height-card-title);
+    }
+  }
 
   .app-shell-toast,
   .health-events-filter-layer { max-width: none; }

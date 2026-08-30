@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Check, Mic } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
+import { QuickRecordTrigger } from '../../components/health'
 import type { CreateHealthEventRecordInput, EventAttachmentApiDto, HealthEventRecordApiDto } from '../../types'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
 import { createHealthEventSubject } from '../../services/healthEventPersonalization'
@@ -209,7 +210,7 @@ export function HealthEventDetailPage() {
           </>
         )}
       </div>
-      {hasRecords && !voiceRecordOpen && <button className="quick-record-trigger" onClick={() => setVoiceRecordOpen(true)} type="button"><Mic size={18} />快捷记录</button>}
+      {hasRecords && !voiceRecordOpen && <QuickRecordTrigger onClick={() => setVoiceRecordOpen(true)} />}
       {hasRecords && <QuickVoiceRecordFlow
         onClose={() => setVoiceRecordOpen(false)}
         onConfirm={saveQuickRecord}

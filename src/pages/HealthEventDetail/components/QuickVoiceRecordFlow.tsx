@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Check, Mic } from 'lucide-react'
 import { HohoButton } from '../../../components/design-system'
 import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecordCandidate } from '../../../features/quick-record'
@@ -49,6 +50,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   const [previewNotice, setPreviewNotice] = useState('')
   const [savedMessage, setSavedMessage] = useState('已记录')
   const [showWechatHint, setShowWechatHint] = useState(false)
+  const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 0 : (window.visualViewport?.height ?? window.innerHeight))
   const recognitionRef = useRef<Recognition | null>(null)
   const transcriptRef = useRef('')
   const occurredAtRef = useRef('')
@@ -191,7 +193,24 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
     return () => window.clearInterval(timer)
   }, [open, state])
 
+  useEffect(() => {
+    if (!open) return
+    const viewport = window.visualViewport
+    const updateViewportHeight = () => setViewportHeight(viewport?.height ?? window.innerHeight)
+    updateViewportHeight()
+    viewport?.addEventListener('resize', updateViewportHeight)
+    viewport?.addEventListener('scroll', updateViewportHeight)
+    window.addEventListener('resize', updateViewportHeight)
+    return () => {
+      viewport?.removeEventListener('resize', updateViewportHeight)
+      viewport?.removeEventListener('scroll', updateViewportHeight)
+      window.removeEventListener('resize', updateViewportHeight)
+    }
+  }, [open])
+
   if (!open) return null
+
+  const panelStyle = { '--quick-record-viewport-height': `${viewportHeight}px` } as CSSProperties
 
   const cancel = () => {
     sessionRef.current += 1
@@ -217,7 +236,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   if (state === 'voice_help' || state === 'browser_help') {
     const browserHelp = state === 'browser_help'
     return (
-      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-help">
+      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-help" style={panelStyle}>
         <div className="quick-record-help-copy">
           <strong>{browserHelp ? '在系统浏览器中继续' : capability.isWechat ? '微信内暂不支持语音记录' : capability.availability === 'insecure_context' ? '当前页面无法安全访问麦克风' : '当前浏览器暂不支持语音记录'}</strong>
           {browserHelp
@@ -236,7 +255,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   if (state === 'error') {
     const visibleFailure = failure ?? classifyMicrophoneFailure()
     return (
-      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-error">
+      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-error" style={panelStyle}>
         <div aria-hidden="true" className="quick-record-pulse"><Mic size={19} /></div>
         <div className="quick-record-failure" role="alert"><strong>{visibleFailure.title}</strong><p>{visibleFailure.detail}</p></div>
         <div className="quick-record-error-actions">
@@ -250,7 +269,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
 
   if (state === 'review') {
     return (
-      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-review">
+      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-review" style={panelStyle}>
         <div className="quick-record-review-heading"><strong>{candidates.length ? `识别到 ${candidates.length} 条症状记录` : previewNotice}</strong><p>{transcript}</p></div>
         <div className="quick-record-candidates">{candidates.map((candidate) => <article key={candidate.id}><strong>{candidate.title}</strong>{candidate.fields.map((field, index) => <p key={`${field.label}-${index}`}><span>{field.label}</span>{field.value}</p>)}</article>)}</div>
         <div className="quick-record-error-actions"><button className="quick-record-cancel" onClick={useTextEntry} type="button">修改</button><HohoButton onClick={() => void saveFinal()}>确认记录</HohoButton></div>
@@ -259,14 +278,14 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   }
 
   if (state === 'saving' || state === 'saved') {
-    return <section aria-label="快捷记录" aria-live="polite" className={`quick-record-panel quick-record-panel-status ${state === 'saved' ? 'is-saved' : ''}`}><Check aria-hidden="true" size={21} /><strong>{state === 'saved' ? savedMessage : '正在保存…'}</strong></section>
+    return <section aria-label="快捷记录" aria-live="polite" className={`quick-record-panel quick-record-panel-status ${state === 'saved' ? 'is-saved' : ''}`} style={panelStyle}><Check aria-hidden="true" size={21} /><strong>{state === 'saved' ? savedMessage : '正在保存…'}</strong></section>
   }
 
   const textEntry = state === 'text_entry' || state === 'previewing'
   const validRecording = isValidVoiceRecording(seconds, transcript, state === 'recording')
   if (textEntry) {
     return (
-      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-text">
+      <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel quick-record-panel-text" style={panelStyle}>
         {showWechatHint && <p className="quick-record-wechat-hint"><strong>正在微信内打开</strong>文字记录可正常使用，语音记录需要使用系统浏览器。</p>}
         <label className="quick-record-natural-input"><strong>写下发生了什么</strong><textarea aria-label="快捷记录文字" className="hoho-textarea" disabled={state === 'previewing'} onChange={(event) => { setTranscript(event.target.value); setInputError('') }} placeholder="例如：晚上九点给她吃了5毫升美林，刚刚量了38.5度" value={transcript} /></label>
         {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
@@ -276,7 +295,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onPreview, open, reco
   }
 
   return (
-    <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel">
+    <section aria-label="快捷记录" aria-live="polite" className="quick-record-panel" style={panelStyle}>
       <div aria-hidden="true" className={`quick-record-pulse ${state === 'recording' ? 'is-listening' : ''}`}><Mic size={19} /></div>
       <div className={`quick-record-wave ${state === 'recording' ? 'is-listening' : ''}`} aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <span key={index} />)}</div>
       <span className="quick-record-duration" aria-label={`录音时长 ${formatRecordingDuration(seconds)}`}>{formatRecordingDuration(seconds)}</span>

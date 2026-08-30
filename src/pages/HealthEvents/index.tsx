@@ -1,5 +1,5 @@
 import { Bell, ClipboardList, Ellipsis, Filter, List, Plus } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
@@ -12,14 +12,16 @@ import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
 import { healthEventService } from '../../services/healthEvents'
 import { healthEventRecordService } from '../../services/healthEventRecords'
+import { healthRecordOrganizationService } from '../../services/healthRecordOrganization'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
+import { createQuickRecordCandidates } from '../../features/quick-record'
 import { FirstUseHome } from './FirstUseHome'
-import { NurseTriageRecorder } from './NurseTriageRecorder'
+import { NurseQuickRecord } from './NurseQuickRecord'
 import { preloadNurseTriageAssets } from './NurseTriageDesk'
 import { shouldShowHealthEventFilters, type HealthEventsViewMode } from './nurseTriageMachine'
 
@@ -95,8 +97,9 @@ export function HealthEventsPage() {
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<HealthEventsViewMode>('list')
+  const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
-  const pendingTriageEventRef = useRef<{ eventId: string; memberId: string } | null>(null)
+  const pendingTriageEventRef = useRef<{ eventId: string; memberId: string; recordId?: string; transcript?: string } | null>(null)
 
   useEffect(() => {
     preloadNurseTriageAssets()
@@ -131,6 +134,20 @@ export function HealthEventsPage() {
     ? filteredEvents
     : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
   const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
+
+  const discardPendingTriageEvent = useCallback(() => {
+    const pending = pendingTriageEventRef.current
+    if (!pending || pending.recordId || !token) return
+    pendingTriageEventRef.current = null
+    void healthEventService.delete(pending.eventId, token).catch(() => undefined)
+  }, [token])
+
+  useEffect(() => {
+    setQuickRecordOpen(false)
+    discardPendingTriageEvent()
+  }, [currentMemberId, discardPendingTriageEvent, viewMode])
+
+  useEffect(() => () => discardPendingTriageEvent(), [discardPendingTriageEvent])
 
   const selectYear = (year: number) => {
     setSelectedYear(year)
@@ -208,7 +225,7 @@ export function HealthEventsPage() {
     }
   }
 
-  const saveTriageRecord = async (transcript: string, occurredAt: string) => {
+  const ensurePendingTriageEvent = async (transcript: string, occurredAt: string) => {
     if (!token || !currentMemberDto || currentMemberDto.id !== currentMemberId) throw new Error('当前人物信息尚未准备好，请稍后重试。')
     try {
       let pending = pendingTriageEventRef.current
@@ -222,13 +239,7 @@ export function HealthEventsPage() {
         pending = { eventId: event.id, memberId: currentMemberDto.id }
         pendingTriageEventRef.current = pending
       }
-      await healthEventRecordService.create(pending.eventId, {
-        type: 'note',
-        content: transcript,
-        occurredAt
-      }, token)
-      pendingTriageEventRef.current = null
-      void retry()
+      return pending
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -236,6 +247,52 @@ export function HealthEventsPage() {
       }
       throw requestError
     }
+  }
+
+  // Preview requires an event id. Reuse the intelligent view's existing rule of
+  // creating one event for the current member, then remove it if the user cancels.
+  const previewTriageRecord = async (transcript: string, occurredAt: string) => {
+    if (!token) throw new Error('登录状态已失效，请重新登录。')
+    const pending = await ensurePendingTriageEvent(transcript, occurredAt)
+    const preview = await healthRecordOrganizationService.preview(pending.eventId, transcript, token, { selectedOccurredAt: occurredAt })
+    return createQuickRecordCandidates(preview, occurredAt)
+  }
+
+  const saveTriageRecord = async (transcript: string, occurredAt: string) => {
+    if (!token) throw new Error('登录状态已失效，请重新登录。')
+    const pending = await ensurePendingTriageEvent(transcript, occurredAt)
+    try {
+      if (!pending.recordId || pending.transcript !== transcript) {
+        const record = await healthEventRecordService.create(pending.eventId, {
+          type: 'note',
+          content: transcript,
+          occurredAt
+        }, token)
+        pending.recordId = record.id
+        pending.transcript = transcript
+      }
+      let message = '已记录'
+      try {
+        const organization = await healthRecordOrganizationService.organize(pending.eventId, pending.recordId, token)
+        if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
+      } catch {
+        message = '原始记录已保存，自动整理失败'
+      }
+      pendingTriageEventRef.current = null
+      void retry()
+      return message
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        throw new Error('登录状态已失效，请重新登录。')
+      }
+      throw requestError
+    }
+  }
+
+  const closeQuickRecord = () => {
+    setQuickRecordOpen(false)
+    discardPendingTriageEvent()
   }
 
   if (state.status === 'success' && (state.data.entryState.familyMemberCount === 0 || !state.data.entryState.hasValidHealthRecord)) {
@@ -255,12 +312,12 @@ export function HealthEventsPage() {
   }
 
   return (
-    <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0">
+    <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
       <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
       <UserIdentity member={currentMember} />
 
-      <div className="health-events-content mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-24">
-        <div className="mb-4 space-y-3">
+      <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
+        <div className="health-events-toolbar mb-4 space-y-3">
           <div className="flex min-h-11 items-center justify-between gap-2">
             <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>
             <div className="health-events-view-actions">
@@ -348,11 +405,15 @@ export function HealthEventsPage() {
           </HealthCard>
         )}
         {viewMode === 'triage' && (
-          <NurseTriageRecorder
+          <NurseQuickRecord
             currentMemberId={currentMemberId}
             disabled={!token || !currentMemberDto}
             key={currentMemberId}
-            onSave={saveTriageRecord}
+            onClose={closeQuickRecord}
+            onConfirm={saveTriageRecord}
+            onOpen={() => setQuickRecordOpen(true)}
+            onPreview={previewTriageRecord}
+            open={quickRecordOpen}
             reducedMotion={reducedMotion}
           />
         )}

@@ -7,12 +7,14 @@ import { HealthEventCardSurface } from './HealthEventCardSurface'
 const actionWidth = 148
 
 interface HealthEventCardProps {
+  dateLabel: string
   event: HealthEventListItemViewModel
   onStatusChange?: (eventId: string, status: HealthEventStage) => Promise<void>
   onDelete?: (eventId: string) => Promise<void>
+  weekdayLabel: string
 }
 
-export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEventCardProps) {
+export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete, weekdayLabel }: HealthEventCardProps) {
   const navigate = useNavigate()
   const startX = useRef(0)
   const startTranslate = useRef(0)
@@ -73,7 +75,7 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       </div>
 
       <button
-        aria-label={`查看健康事件：${event.definitionTitle}${event.quickFacts.length ? `，${event.quickFacts.join('，')}` : ''}`}
+        aria-label={`查看${dateLabel}${weekdayLabel}的健康事件：${event.definitionTitle}${event.quickFacts.length ? `，${event.quickFacts.join('，')}` : ''}`}
         className="relative block w-full touch-pan-y text-left transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${translateX}px)` }}
         type="button"
@@ -105,11 +107,13 @@ export function HealthEventCard({ event, onStatusChange, onDelete }: HealthEvent
       >
         <HealthEventCardSurface
           className={isRecovered ? 'health-event-list-card health-event-list-card--recovered' : 'health-event-list-card'}
+          dateLabel={dateLabel}
           definitionTitle={event.definitionTitle}
           interactive
           quickFacts={event.quickFacts}
           showChevron
           status={event.status}
+          weekdayLabel={weekdayLabel}
         />
       </button>
     </div>
