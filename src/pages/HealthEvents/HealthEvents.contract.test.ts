@@ -257,6 +257,16 @@ test('事件定性标题与生命周期状态同行，速览为单行轻量文�
   assert.doesNotMatch(cardSource, /<div><HealthTag/)
 })
 
+test('列表移除日期轴并把弱化后的日期放入每张事件卡片', () => {
+  assert.doesNotMatch(timelineSource, /HealthTimeline|hoho-timeline/)
+  assert.match(timelineSource, /aria-label="按日期排序的健康事件"/)
+  assert.match(timelineSource, /dateLabel=\{formatPlainMonthDay\(dateGroup\.date\)\}/)
+  assert.match(timelineSource, /weekdayLabel=\{formatPlainWeekday\(dateGroup\.date\)\}/)
+  assert.match(cardSource, /dateLabel=\{dateLabel\}/)
+  assert.match(cardSurfaceSource, /health-event-list-card__date[^]*dateLabel[^]*weekdayLabel[^]*definitionTitle/)
+  assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
+})
+
 test('长标题和速览在箭头前截断且整张卡片保持单一点击入口', () => {
   assert.match(cardSurfaceSource, /Typography className="min-w-0 truncate"/)
   assert.match(cardSurfaceSource, /ChevronRight className="shrink-0/)
