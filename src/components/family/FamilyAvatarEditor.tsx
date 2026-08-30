@@ -7,6 +7,7 @@ import { ClayAvatar } from '../common/ClayAvatar'
 export type FamilyAvatarMode = 'cartoon' | 'photo'
 
 interface FamilyAvatarEditorProps {
+  compact?: boolean
   config: ClayAvatarConfig
   disabled?: boolean
   language?: string
@@ -40,7 +41,7 @@ export function getFamilyAvatarCopy(language: string) {
   return copy.zh
 }
 
-export function FamilyAvatarEditor({ config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, photo }: FamilyAvatarEditorProps) {
+export function FamilyAvatarEditor({ compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, photo }: FamilyAvatarEditorProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const language = languageOverride ?? (typeof document === 'undefined' ? 'zh' : document.documentElement.lang || navigator.language || 'zh')
   const text = useMemo(() => getFamilyAvatarCopy(language), [language])
@@ -67,8 +68,8 @@ export function FamilyAvatarEditor({ config, disabled = false, language: languag
   return (
     <section className="flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'} aria-label={mode === 'cartoon' ? text.cartoon : text.photo}>
       {mode === 'cartoon' ? (
-        <div className="relative h-28 w-28">
-          <ClayAvatar className="h-28 w-28 border-2 border-primary bg-surface shadow-card" config={config} language={language} name={name || text.cartoon} />
+        <div className={`relative ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+          <ClayAvatar className={`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-surface shadow-card`} config={config} language={language} name={name || text.cartoon} />
           <button
             aria-label={text.change}
             className="absolute bottom-0 end-0 grid min-h-11 min-w-11 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
@@ -88,12 +89,12 @@ export function FamilyAvatarEditor({ config, disabled = false, language: languag
           type="button"
           onClick={() => photoInputRef.current?.click()}
         >
-          <span className="inline-flex h-28 w-28 overflow-hidden rounded-full border-2 border-primary bg-surface shadow-card">
+          <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface shadow-card ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
             {photo ? (
               <img alt={text.photoAlt} className="h-full w-full object-cover" src={photo} />
             ) : (
-              <span className="inline-flex h-28 w-28 items-center justify-center rounded-full bg-primary-soft text-primary">
-                <Camera aria-hidden="true" size={34} strokeWidth={1.6} />
+              <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+                <Camera aria-hidden="true" size={compact ? 28 : 34} strokeWidth={1.6} />
               </span>
             )}
           </span>
@@ -102,7 +103,7 @@ export function FamilyAvatarEditor({ config, disabled = false, language: languag
       )}
       <input ref={photoInputRef} accept="image/jpeg,image/png,image/webp" className="hidden" disabled={disabled} type="file" onChange={(event) => void selectPhoto(event)} />
 
-      <div className="mt-3 grid w-48 grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface" aria-label={text.cartoon}>
+      <div className={`${compact ? 'mt-2 w-44' : 'mt-3 w-48'} grid grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface`} aria-label={text.cartoon}>
         {([['cartoon', text.cartoon], ['photo', text.photo]] as const).map(([value, label]) => (
           <button
             aria-pressed={mode === value}
