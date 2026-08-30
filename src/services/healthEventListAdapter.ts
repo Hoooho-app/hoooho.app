@@ -1,5 +1,11 @@
 import type { EventAttachmentApiDto, FamilyMemberApiDto, HealthEventApiDto, HealthEventListItemViewModel, HealthEventRecordApiDto } from '../types'
-import { buildHealthEventQuickFacts, getHealthEventDefinitionTitle } from './healthEventCardPresentation'
+import {
+  formatHealthEventDuration,
+  getHealthEventDefinitionTitle,
+  getHealthEventDisplayTitle,
+  getHealthEventStartDate,
+  getHealthEventSummaryFragments
+} from './healthEventCardPresentation'
 import { normalizeHealthEventTitle } from './healthEventFacts'
 import { getEventOccurredAt, getPrimaryRecord } from './healthEventListPresentation'
 import { getImageRecordSummary, getImageRecordTitle, isLegacyAttachmentTitle } from './imageAnalysisPresentation'
@@ -21,21 +27,30 @@ export function adaptHealthEventList(
       ?? (attachments.length && isLegacyAttachmentTitle(event.title)
         ? getImageRecordTitle(attachments)
         : normalizeHealthEventTitle(event.title, primaryRecord?.content))
+    const startTime = getHealthEventStartDate(event.startTime, records.map((record) => record.occurredAt)) ?? event.startTime
     return ({
     id: event.id,
     memberId: event.memberId,
     memberName: memberNames.get(event.memberId) ?? '未知成员',
     title,
+    displayTitle: getHealthEventDisplayTitle(title, projectedSummary),
     definitionTitle: getHealthEventDefinitionTitle(projectedSummary),
-    quickFacts: buildHealthEventQuickFacts({
-      startTime: event.startTime,
+    durationLabel: formatHealthEventDuration({
+      startTime,
+      recoveredAt: event.recoveredAt,
+      status: event.status,
+      now
+    }),
+    summaryFragments: getHealthEventSummaryFragments({
+      status: event.status,
       summary: projectedSummary,
       fallbackFeature: projectedSummary ? null : getImageRecordSummary(attachments) ?? title,
-      now
+      fallbackRecordId: primaryRecord?.id
     }),
     category: event.category,
     status: event.status,
-    startTime: event.startTime,
+    startTime,
+    recoveredAt: event.recoveredAt ?? null,
     occurredAt: getEventOccurredAt(event, records),
     createdAt: event.createdAt,
     updatedAt: event.updatedAt

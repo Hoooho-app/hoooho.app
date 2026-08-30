@@ -93,6 +93,15 @@ test('无对应 Fact 时保留原始记录、隐藏派生健康模块，并忽�
   assert.equal(noFever.event.temperatureRecords.length, 0)
 })
 
+test('康复详情只使用语义结束时间，旧事件不会把 updatedAt 冒充康复时间', () => {
+  const recoveredAt = '2026-08-12T02:00:00.000Z'
+  const recovered = adaptHealthEventDetail({ ...eventDto, status: 'recovered', recoveredAt }, [], [])
+  assert.equal(recovered.event.recoveryInfo?.recoveredAt, recoveredAt)
+
+  const legacy = adaptHealthEventDetail({ ...eventDto, status: 'recovered', recoveredAt: null, updatedAt: '2030-01-01T00:00:00.000Z' }, [], [])
+  assert.equal(legacy.event.recoveryInfo, undefined)
+})
+
 test('无法结构化的旧长文本只在时间线显示短摘录且完整原文仍可追溯', () => {
   const original = '现在原有的问题逐渐好转，但是体温还是有波动，而且除了头痛还有手脚出汗的感觉。'
   const sourceRecord = record('record-unstructured-long', original)

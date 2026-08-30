@@ -3,8 +3,14 @@ import test from 'node:test'
 import type { HealthEventSummaryResult, HealthEventSummaryTag } from '../types/index.ts'
 import {
   buildHealthEventQuickFacts,
+  formatHealthEventDate,
+  formatHealthEventDuration,
+  getHealthEventDisplayTitle,
+  getHealthEventDuration,
   getHealthEventDayLabel,
   getHealthEventDefinitionTitle,
+  getHealthEventStartDate,
+  getHealthEventSummaryFragments,
   getHealthEventStatusPresentation
 } from './healthEventCardPresentation.ts'
 
@@ -96,4 +102,65 @@ test('生命周期状态完整保留现有状态机含义', () => {
   assert.equal(getHealthEventStatusPresentation('handling').tone, 'warning')
   assert.equal(getHealthEventStatusPresentation('recovered').label, '已康复')
   assert.equal(getHealthEventStatusPresentation('recovered').tone, 'success')
+})
+
+test('开始时间优先使用事件语义字段，无效时才回退最早记录且不使用审计时间', () => {
+  assert.equal(getHealthEventStartDate('2026-08-29T01:00:00.000Z', ['2026-08-28T02:00:00.000Z']), '2026-08-29T01:00:00.000Z')
+  assert.equal(getHealthEventStartDate(null, ['2026-08-29T02:00:00.000Z', '2026-08-28T02:00:00.000Z']), '2026-08-28T02:00:00.000Z')
+  assert.equal(getHealthEventStartDate('invalid', []), null)
+})
+
+test('持续天数按本地自然日包含开始当天并覆盖同日、跨月、跨年和时区边界', () => {
+  const base = { status: 'recovered' as const, timeZone: 'Asia/Shanghai' }
+  assert.equal(getHealthEventDuration({ ...base, startTime: '2026-08-29T01:00:00+08:00', recoveredAt: '2026-08-29T23:00:00+08:00' }), 1)
+  assert.equal(getHealthEventDuration({ ...base, startTime: '2026-08-29T23:59:00+08:00', recoveredAt: '2026-08-30T00:01:00+08:00' }), 2)
+  assert.equal(getHealthEventDuration({ ...base, startTime: '2026-08-31T23:59:00+08:00', recoveredAt: '2026-09-01T00:01:00+08:00' }), 2)
+  assert.equal(getHealthEventDuration({ ...base, startTime: '2025-12-31T23:59:00+08:00', recoveredAt: '2026-01-01T00:01:00+08:00' }), 2)
+  assert.equal(getHealthEventDuration({ ...base, startTime: '2026-08-27T15:59:59Z', recoveredAt: '2026-08-27T16:00:00Z' }), 2)
+})
+
+test('观察中使用今天显示已持续，历史康复缺少结束时间时不伪造持续天数', () => {
+  assert.equal(formatHealthEventDuration({
+    status: 'observing', startTime: '2026-08-28T23:59:00+08:00', now: new Date('2026-08-30T00:01:00+08:00'), timeZone: 'Asia/Shanghai'
+  }), '已持续3天')
+  assert.equal(formatHealthEventDuration({
+    status: 'recovered', startTime: '2026-08-28T23:59:00+08:00', recoveredAt: null, now: new Date('2030-01-01T00:00:00Z')
+  }), null)
+})
+
+test('开始日期使用本地日期和周几，跨年份时补充年份', () => {
+  assert.equal(formatHealthEventDate('2026-08-27T16:00:00Z', new Date('2026-08-31T00:00:00Z'), 'Asia/Shanghai'), '开始于 8月28日 周五')
+  assert.equal(formatHealthEventDate('2025-12-30T16:00:00Z', new Date('2026-08-31T00:00:00Z'), 'Asia/Shanghai'), '开始于 2025年12月31日 周三')
+})
+
+test('展示标题保留明确标题，占位标题只用已确认症状生成紧凑识别名称', () => {
+  const symptomSummary = summary([
+    tag({ label: '发热', kind: 'symptom', priority: 70, sourceRecordId: 'record-1' }),
+    tag({ label: '头痛', kind: 'symptom', priority: 60, sourceRecordId: 'record-2' })
+  ])
+  assert.equal(getHealthEventDisplayTitle('家长确认的夜间发热', symptomSummary), '家长确认的夜间发热')
+  assert.equal(getHealthEventDisplayTitle('未定性', symptomSummary), '发热伴头痛')
+  assert.equal(getHealthEventDisplayTitle('未明确', summary([])), '未定性')
+})
+
+test('病程摘要按状态选择可追溯事实、最多三项且不从缺失数据生成否定结论', () => {
+  const richSummary = summary([
+    tag({ label: '当前37.8℃', kind: 'measurement', source: 'measurement', priority: 75, sourceRecordId: 'temperature-latest' }),
+    tag({ label: '最高38.3℃', kind: 'measurement', source: 'measurement', priority: 50, sourceRecordId: 'temperature-max' }),
+    tag({ label: '发热', kind: 'symptom', priority: 70, sourceRecordId: 'symptom-fever' }),
+    tag({ label: '头痛减轻', kind: 'change', priority: 80, sourceRecordId: 'change-headache' }),
+    tag({ label: '使用退热药', kind: 'medication', priority: 45, sourceRecordId: 'medication-1' })
+  ])
+  assert.deepEqual(getHealthEventSummaryFragments({ status: 'observing', summary: richSummary }), [
+    { label: '当前37.8℃', sourceRecordId: 'temperature-latest', kind: 'measurement' },
+    { label: '发热', sourceRecordId: 'symptom-fever', kind: 'symptom' },
+    { label: '头痛减轻', sourceRecordId: 'change-headache', kind: 'change' }
+  ])
+  assert.deepEqual(getHealthEventSummaryFragments({ status: 'recovered', summary: richSummary }), [
+    { label: '最高38.3℃', sourceRecordId: 'temperature-max', kind: 'measurement' },
+    { label: '使用退热药', sourceRecordId: 'medication-1', kind: 'medication' },
+    { label: '头痛减轻', sourceRecordId: 'change-headache', kind: 'change' }
+  ])
+  const labels = getHealthEventSummaryFragments({ status: 'recovered', summary: summary([]) }).map(({ label }) => label)
+  assert.equal(labels.some((label) => /未就医|未用药|消失|已退热/.test(label)), false)
 })
