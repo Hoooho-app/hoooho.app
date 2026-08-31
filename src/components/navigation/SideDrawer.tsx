@@ -91,7 +91,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
             <>
-              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的基本信息`} onClick={() => openPage(`/family/${encodeURIComponent(member.id)}/edit`)}>
+              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的资料`} onClick={() => { onClose(); navigate(`/family/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
                 <Avatar name={member.name} src={member.avatar} size="md" />
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
