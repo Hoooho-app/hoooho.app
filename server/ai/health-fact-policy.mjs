@@ -3,7 +3,7 @@ export const HEALTH_FACT_CATEGORIES = [
 ]
 export const HEALTH_FACT_POLARITIES = ['affirmed', 'negated', 'uncertain']
 export const HEALTH_FACT_TEMPORALITIES = ['current', 'historical', 'future', 'conditional', 'unknown']
-export const HEALTH_FACT_STATUSES = ['active', 'improving', 'resolved', 'recurrent', 'planned', 'not_applicable', 'unknown']
+export const HEALTH_FACT_STATUSES = ['active', 'persistent', 'improving', 'worsened', 'resolved', 'recurrent', 'stable', 'not_worsened', 'corrected', 'superseded', 'planned', 'not_applicable', 'unknown']
 export const HEALTH_FACT_SUBJECTS = ['event_subject', 'family_member', 'other_person', 'unknown']
 export const HEALTH_FACT_SOURCES = [
   'user_report', 'measurement', 'doctor_statement', 'test_result', 'ai_consultation', 'structured_input', 'quoted_text', 'internet_information', 'unknown'
@@ -11,7 +11,7 @@ export const HEALTH_FACT_SOURCES = [
 export const HEALTH_MEDICATION_ACTIONS = ['taken', 'not_taken', 'planned', 'available', 'stopped', 'unknown']
 export const HEALTH_DIAGNOSIS_CERTAINTIES = ['confirmed', 'suspected', 'ruled_out', 'pending', 'unknown']
 
-const currentStatuses = new Set(['active', 'improving', 'recurrent'])
+const currentStatuses = new Set(['active', 'persistent', 'improving', 'worsened', 'recurrent', 'stable', 'not_worsened'])
 const excludedSources = new Set(['quoted_text', 'internet_information'])
 
 export function isCurrentPositiveFact(fact) {

@@ -24,15 +24,16 @@ const measurementMethods: Array<{ label: string; value: HealthMeasurementMethod 
 ]
 
 export function symptomRecordTitle(entry: TimelineEntry) {
+  const location = entry.segments?.find((segment) => segment.label === '部位')?.content.trim()
   const segments = (entry.segments ?? []).filter((segment) => segment.label !== '部位' && segment.label !== '附件')
   if (segments.length === 1) {
     const segment = segments[0]
     if (segment.label === '体温') return segment.content.startsWith('体温') ? segment.content : `体温 ${segment.content}`
     if (segment.label === '用药') return /服用|使用|用药/.test(segment.content) ? segment.content : `服用${segment.content}`
     if (segment.label === '记录') return segment.content
-    return segment.content
+    return [location, segment.content].filter(Boolean).join(' ')
   }
-  if (segments.length > 1) return segments.map((segment) => segment.content).join('；')
+  if (segments.length > 1) return [location, ...segments.map((segment) => segment.content)].filter(Boolean).join('；')
   return entry.summary?.trim() || entry.content.trim()
 }
 

@@ -1,14 +1,14 @@
 import { TimeResolverService } from './time-resolver-service.mjs'
 
 const periodExpression = '(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)'
-const clockExpression = '(?:\\d{1,2}(?:点(?:(?:半)|\\d{1,2}分?)?|:\\d{1,2}))'
+const clockExpression = '(?:[一二两三四五六七八九十\\d]{1,3}(?:点(?:(?:半)|[一二两三四五六七八九十\\d]{1,3}分?)?|:\\d{1,2}))'
 const timeSuffix = `(?:${periodExpression})?(?:${clockExpression})?`
 
 const expressionMatchers = [
   new RegExp(`\\d{4}年(?:\\s*\\d{1,2}月(?:\\s*\\d{1,2}日?)?)?${timeSuffix}`),
   new RegExp(`(?:上周|本周|这周|周|星期)[一二三四五六日天]${timeSuffix}`),
   new RegExp(`(?:今天|昨天|前天|今朝)${timeSuffix}`),
-  new RegExp(`昨晚(?:${clockExpression})?|\\d{1,2}月\\s*\\d{1,2}[日号]${timeSuffix}|前两天|前几个月|三年前|\\d{1,2}月初`),
+  new RegExp(`昨晚(?:${clockExpression})?|\\d{1,2}月\\s*\\d{1,2}[日号]?${timeSuffix}|前两天|前几个月|[一二两三四五六七八九十\\d]+天前|三年前|\\d{1,2}月初`),
   new RegExp(`(?:第二天|第三天|第四天|第五天|第六天|第七天|隔天)${timeSuffix}`),
   new RegExp(`${periodExpression}(?:${clockExpression})?|${clockExpression}`),
   /目前|现在|刚才|刚刚|上周|去年|小时候|几年前|\d+年前|以前|从前|很久以前|后来|之后/
@@ -21,7 +21,12 @@ function splitClauses(rawInput) {
 function findExpression(sourceText) {
   for (const matcher of expressionMatchers) {
     const match = matcher.exec(sourceText)
-    if (match?.[0]) return match[0].trim()
+    if (match?.[0]) {
+      const value = match[0].trim()
+      const prefix = sourceText.slice(Math.max(0, match.index - 2), match.index)
+      if (value === '一点' && /(?:退了|好了|轻了|有)$/.test(prefix)) continue
+      return value
+    }
   }
   return null
 }
@@ -124,7 +129,9 @@ export class TimeContextResolver {
         ))
         return {
           ...baseline.facts[index],
-          time: fact?.time?.raw && !partial?.time?.raw ? baseline.facts[index].time : partial?.time ?? baseline.facts[index].time
+          time: fact?.time?.raw && fact.assertionType === 'correction'
+            ? baseline.facts[index].time
+            : partial?.time ?? baseline.facts[index].time
         }
       })
     }

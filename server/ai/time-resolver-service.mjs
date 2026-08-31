@@ -99,7 +99,7 @@ function resolveExplicit(raw, timezone, referenceParts) {
   const fullDate = /(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日?/.exec(raw)
   if (fullDate) {
     const parts = { year: Number(fullDate[1]), month: Number(fullDate[2]), day: Number(fullDate[3]) }
-    return rangeForDay(parts, timezone, fullDate[0], 'day')
+    return resolveClockOrPeriod(raw, parts, timezone) ?? rangeForDay(parts, timezone, fullDate[0], 'day')
   }
   const monthDay = /(?<!\d)(\d{1,2})月\s*(\d{1,2})[日号]?/.exec(raw)
   if (monthDay) {
@@ -147,12 +147,20 @@ function relativeDate(raw, referenceParts) {
 }
 
 function resolveClockOrPeriod(raw, parts, timezone) {
-  const exactTime = /(\d{1,2})(?:点(?:(半)|(\d{1,2})分?)?|:(\d{1,2}))/.exec(raw)
+  const chineseNumber = (value) => {
+    if (/^\d+$/.test(value)) return Number(value)
+    const digits = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
+    if (value === '十') return 10
+    if (value.startsWith('十')) return 10 + (digits[value[1]] ?? 0)
+    if (value.endsWith('十')) return (digits[value[0]] ?? 0) * 10
+    return digits[value] ?? Number.NaN
+  }
+  const exactTime = /([一二两三四五六七八九十\d]{1,3})(?:点(?:(半)|([一二两三四五六七八九十\d]{1,3})分?)?|:(\d{1,2}))/.exec(raw)
   if (exactTime) {
-    let hour = Number(exactTime[1])
-    if (/下午|晚上|夜里|夜间/.test(raw) && hour < 12) hour += 12
+    let hour = chineseNumber(exactTime[1])
+    if (/下午|晚上|昨晚|夜里|夜间/.test(raw) && hour < 12) hour += 12
     if (/凌晨|半夜/.test(raw) && hour === 12) hour = 0
-    const minute = exactTime[2] ? 30 : Number(exactTime[3] ?? exactTime[4] ?? 0)
+    const minute = exactTime[2] ? 30 : exactTime[3] ? chineseNumber(exactTime[3]) : Number(exactTime[4] ?? 0)
     return {
       raw,
       resolvedStart: isoInTimezone({ ...parts, hour, minute, second: 0 }, timezone),
@@ -179,6 +187,12 @@ function weekdayIndex(value) {
 }
 
 function resolveRelative(raw, referenceParts, timezone) {
+  const daysAgo = /([一二两三四五六七八九十\d]+)天前/.exec(raw)
+  if (daysAgo) {
+    const numbers = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
+    const amount = Number(daysAgo[1]) || numbers[daysAgo[1]]
+    if (amount) return rangeForDay(addDays(referenceParts, -amount), timezone, raw)
+  }
   const monthStart = /(\d{1,2})月初/.exec(raw)
   if (monthStart) {
     const month = Number(monthStart[1])
@@ -226,7 +240,7 @@ function resolveRelative(raw, referenceParts, timezone) {
   }
 
   const parts = relativeDate(raw, referenceParts)
-  if (/昨晚/.test(raw) && !/\d{1,2}(?:点|:)/.test(raw)) {
+  if (/昨晚/.test(raw) && !/[一二两三四五六七八九十\d]{1,3}(?:点|:)/.test(raw)) {
     return { ...resolveClockOrPeriod('晚上', parts, timezone), raw }
   }
   const clockOrPeriod = resolveClockOrPeriod(raw, parts, timezone)
@@ -267,6 +281,11 @@ export class TimeResolverService {
         precision: 'exact',
         source: 'selected_time'
       }
+    }
+
+    if (/^(?:刚才|刚刚)$/.test(raw)) {
+      const instant = selected?.date ?? referenceDate
+      return { raw, resolvedStart: instant.toISOString(), resolvedEnd: null, precision: 'exact', source: 'user_text' }
     }
 
     return resolveExplicit(raw, timezone, referenceParts)

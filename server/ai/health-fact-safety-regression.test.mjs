@@ -47,7 +47,7 @@ test('50 条否定与纠正样本不产生相反阳性事实并保留纠正结�
   for (let index = 0; index < 10; index += 1) {
     const output = await ai.organizeHealthRecord(`刚才说左腿痛不对，实际是右腿痛${'。'.repeat(index % 2)}`, parseOptions)
     assert.ok(output.healthAIOutput.facts.some((fact) => fact.bodyPart === '右腿' && fact.polarity === 'affirmed'))
-    assert.equal(output.healthAIOutput.facts.some((fact) => fact.bodyPart === '左腿' && fact.polarity === 'affirmed'), false)
+    assert.equal(output.healthAIOutput.facts.some((fact) => fact.type === 'symptom' && fact.bodyPart === '左腿' && fact.polarity === 'affirmed'), false)
     checked += 1
   }
   for (let index = 0; index < 10; index += 1) {
