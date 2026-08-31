@@ -277,7 +277,7 @@ export interface OrganizedHealthData {
 }
 
 export type HealthFactType = 'symptom' | 'temperature' | 'medication' | 'visit' | 'examination' | 'diagnosis' | 'concern' | 'status_change' | 'other'
-export type HealthStatusChange = 'improved' | 'worsened' | 'persistent' | 'recurred' | 'resolved'
+export type HealthStatusChange = 'improved' | 'worsened' | 'persistent' | 'recurred' | 'resolved' | 'unchanged' | 'corrected'
 export type HealthFactTimePrecision = 'exact' | 'period' | 'day' | 'month' | 'year' | 'fuzzy' | 'unknown'
 export type HealthFactTimeSource = 'user_text' | 'selected_time' | 'document'
 
@@ -286,6 +286,13 @@ export interface HealthFact {
   type: HealthFactType
   name: string
   bodyPart: string | null
+  bodyRegion?: string | null
+  laterality?: string | null
+  severity?: string | null
+  severityScale?: string | null
+  frequency?: string | null
+  occurrenceCount?: number | null
+  duration?: string | null
   sourceText: string
   time: {
     raw: string | null
@@ -305,11 +312,15 @@ export interface HealthFact {
   count?: number
   requiresConfirmation?: boolean
   supersedesFactId?: string
-  revisionOfFactId?: string
+  revisionOfFactId?: string | null
   polarity?: 'affirmed' | 'negated' | 'uncertain'
   temporality?: 'current' | 'historical' | 'future' | 'conditional' | 'unknown'
   status?: 'active' | 'improving' | 'resolved' | 'recurrent' | 'planned' | 'not_applicable' | 'unknown'
   subject?: 'event_subject' | 'family_member' | 'other_person' | 'unknown'
+  subjectMemberId?: string | null
+  subjectKind?: string | null
+  subjectText?: string | null
+  assertionType?: string | null
   source?: 'user_report' | 'measurement' | 'doctor_statement' | 'test_result' | 'ai_consultation' | 'structured_input' | 'quoted_text' | 'internet_information' | 'unknown'
   diagnosisCertainty?: 'confirmed' | 'suspected' | 'ruled_out' | 'pending' | 'unknown'
   medicationAction?: 'taken' | 'prescribed' | 'planned' | 'stopped' | 'unknown'
@@ -318,6 +329,7 @@ export interface HealthFact {
   measurementDevice?: string | null
   target?: string | null
   change?: HealthStatusChange | null
+  targetFactId?: string | null
 }
 
 export interface HealthAIOutput {
@@ -356,6 +368,23 @@ export interface HealthRecordOrganizationPreviewApiDto {
   healthAIOutput: HealthAIOutput
   organizedHealthData: OrganizedHealthData
   provider: string
+  previewId?: string
+  eventId: string
+  memberId: string
+  memberName: string
+  rawInput?: string
+  inputChannel?: 'voice' | 'text'
+  parserVersion?: string
+  createdAt?: string
+  expiresAt?: string
+  checksum?: string
+}
+
+export interface HealthRecordOrganizationConfirmApiDto {
+  previewId: string
+  record: HealthEventRecordApiDto
+  organization: HealthRecordOrganizationApiDto
+  idempotent: boolean
 }
 
 export interface NotificationPreferences {

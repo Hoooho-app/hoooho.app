@@ -174,10 +174,17 @@ export function useHealthEventDetail(eventId: string | undefined) {
     await refreshAfterRecordMutation()
   }, [refreshAfterRecordMutation, token])
 
-  const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string }) => {
+  const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string; inputChannel?: 'voice' | 'text' }) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     return healthRecordOrganizationService.preview(eventId, rawInput, token, options)
   }, [eventId, token])
+
+  const confirmPreview = useCallback(async (previewId: string, idempotencyKey: string) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    const result = await healthRecordOrganizationService.confirm(eventId, previewId, idempotencyKey, token)
+    await refreshAfterRecordMutation()
+    return result
+  }, [eventId, refreshAfterRecordMutation, token])
 
   const organizeRecord = useCallback(async (recordId: string, context?: string) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
@@ -279,5 +286,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, commitRecord, previewRecord, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
+  return { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
 }

@@ -25,7 +25,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, commitRecord, previewRecord, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordSheetOpen, setRecordSheetOpen] = useState(false)
@@ -36,7 +36,7 @@ export function HealthEventDetailPage() {
   const firstRecordRef = useRef<FirstRecordComposerHandle>(null)
   const pendingFirstRecordRef = useRef<{ attachmentIndexes: Set<number>; fingerprint: string; organized: boolean; record: HealthEventRecordApiDto; savedAttachments: EventAttachmentApiDto[] } | null>(null)
   const pendingImageConfirmationRef = useRef<string | null>(null)
-  const pendingQuickRecordRef = useRef<{ records: Record<string, HealthEventRecordApiDto>; transcript: string } | null>(null)
+  const pendingQuickRecordRef = useRef<{ idempotencyKey: string; previewId: string } | null>(null)
   const updateFirstRecordAvailability = useCallback((available: boolean, saving: boolean) => {
     setFirstRecordCanSave(available)
     setFirstRecordSaving(saving)
@@ -172,42 +172,23 @@ export function HealthEventDetailPage() {
 
   const saveQuickRecord = async (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: 'voice' | 'text') => {
     if (!candidates.length) return '未识别到健康信息，本次未记录'
+    const previewIds = [...new Set(candidates.map((item) => item.previewId).filter(Boolean))]
+    if (previewIds.length !== 1) throw new Error('预览已失效，请重新整理后再保存。')
+    const previewId = previewIds[0]
     let pending = pendingQuickRecordRef.current
-    if (!pending || pending.transcript !== transcript) {
-      pending = { records: {}, transcript }
+    if (!pending || pending.previewId !== previewId) {
+      pending = { previewId, idempotencyKey: crypto.randomUUID().replaceAll('-', '') }
       pendingQuickRecordRef.current = pending
     }
-    const items = candidates
-    let message = '已记录'
-    for (const item of items) {
-      const key = `${item.id}:${item.occurredAt}:${item.content}`
-      let record = pending.records[key]
-      if (!record) {
-        record = await addRecord({
-          type: item.type,
-          content: item.content,
-          occurredAt: item.occurredAt,
-          sourceType: inputChannel === 'voice' ? 'voice_record' : 'text_record',
-          sourceText: transcript,
-          measurementMethod: item.measurementMethod
-        })
-        pending.records[key] = record
-      }
-      try {
-        const organization = await organizeRecord(record.id)
-        if (organization.status !== 'completed') message = '记录已保存，部分内容暂未整理'
-      } catch {
-        message = '记录已保存，部分内容暂未整理'
-      }
-    }
+    await confirmPreview(previewId, pending.idempotencyKey)
     pendingQuickRecordRef.current = null
-    if (message === '已记录' && items.length > 1) message = `已整理为 ${items.length} 条症状记录`
+    const message = candidates.length > 1 ? `已整理为 ${candidates.length} 条症状记录` : '已记录'
     showRecordedMessage(message)
     return message
   }
 
-  const previewQuickRecord = async (transcript: string, occurredAt: string) => {
-    const preview = await previewRecord(transcript, { selectedOccurredAt: occurredAt })
+  const previewQuickRecord = async (transcript: string, occurredAt: string, inputChannel: 'voice' | 'text') => {
+    const preview = await previewRecord(transcript, { selectedOccurredAt: occurredAt, inputChannel })
     if (!preview.hasHealthFacts || !['health_fact', 'uncertain_health_fact'].includes(preview.intent)) return []
     return createQuickRecordCandidates(preview, occurredAt)
   }

@@ -2,28 +2,29 @@ import { normalizeHealthAIOutput } from '../ai-types.mjs'
 
 const symptomPatterns = [
   ['咳嗽', /咳嗽|(?<!呛到)咳/], ['发热', /发热|发烧|低烧|高烧|又烧|不烧/], ['喉咙痛', /喉咙痛|喉咙疼|咽痛|嗓子疼/],
-  ['手脚发凉', /手脚(?:有点)?(?:冷|凉)|手(?:有点)?(?:冷|凉)|脚(?:有点)?(?:冷|凉)/], ['腰痛', /腰疼|腰痛/],
+  ['手脚发凉', /手脚(?:有点)?(?:发)?(?:冷|凉)|手(?:有点)?(?:发)?(?:冷|凉)|脚(?:有点)?(?:发)?(?:冷|凉)/], ['腰痛', /腰疼|腰痛/],
   ['头痛', /头痛|头疼/], ['腹痛', /腹痛|肚子疼|肚脐周围疼/], ['胃痛', /胃痛|胃疼/], ['疼痛', /疼|痛/],
   ['乏力', /乏力|没精神|精神不好|身体(?:稍微|有点)?发虚|发虚/], ['哮喘', /哮喘/], ['胸闷', /胸闷/],
-  ['流鼻涕', /流鼻涕/], ['鼻塞', /鼻子堵|鼻塞/], ['腹泻', /腹泻|拉肚子/], ['呕吐', /呕吐|吐(?:了|过)?/], ['发冷', /(?:有点|感觉)?(?:发冷|冷)/],
+  ['流鼻涕', /流鼻涕/], ['鼻塞', /鼻子堵|鼻塞/], ['腹泻', /腹泻|拉(?:了)?[一二两三四五六七八九十\d]*次?肚子|拉肚子/], ['呕吐', /呕吐|吐(?:了|过)?/], ['发冷', /(?:有点|感觉)?(?:发冷|冷)/],
+  ['麻木', /发麻|麻木|小腿麻|腿麻|手麻|有点麻/], ['喘息', /喘息|轻微喘|有点喘|有一点喘|气喘/],
   ['精神状态差', /蔫巴巴|有点蔫|没精神|精神不好/], ['进食减少', /奶喝得比平时少|吃得比平时少|进食减少/], ['持续哭闹', /一直哭|持续哭闹/],
-  ['手臂发红', /(?:右边|左边|右侧|左侧)?(?:这个)?(?:胳膊|手臂)[^，。；]{0,8}(?:有点)?红|有点红|发红/], ['抓挠', /老挠|抓挠/],
-  ['脚部发红', /脚(?:上|部)?(?:有点)?(?:发红|红)/], ['皮肤红肿', /皮肤(?:开始)?红肿|红肿/], ['皮疹', /皮疹|红疹/], ['瘙痒', /瘙痒|发痒|很痒|有点痒|有些痒|挺痒|特别痒|非常痒/],
+  ['手臂发红', /(?:右边|左边|右侧|左侧)?(?:这个)?(?:胳膊|手臂)[^，。；]{0,8}(?:有点)?(?:红|发红)/], ['抓挠', /老挠|抓挠/],
+  ['脚部发红', /脚(?:上|部)?(?:有点)?(?:发红|红)/], ['皮肤红肿', /皮肤(?:开始)?红肿|红肿/], ['皮疹', /皮疹|红疹|疹子/], ['瘙痒', /瘙痒|发痒|很痒|有点痒|有些痒|挺痒|特别痒|非常痒/],
   ['腹胀', /肚脐周围发胀|腹胀/], ['头晕', /头(?:有点)?晕|头晕/],
   ['感冒表现', /像感冒|感冒症状|感冒的?前兆|感觉感冒|感冒/]
 ]
-const bodyParts = ['肚脐周围', '左手腕', '右手腕', '左手掌', '右手掌', '左手臂', '右手臂', '左胳膊', '右胳膊', '左手', '右手', '左腿', '右腿', '左脚', '右脚', '喉咙', '咽喉', '头', '颈', '肩', '胸', '腹', '腰', '手臂', '胳膊', '手掌', '手腕', '手', '腿', '脚', '皮肤']
+const bodyParts = ['右下腹', '左下腹', '右眼周围', '左眼周围', '右侧小腿', '左侧小腿', '右小腿', '左小腿', '右手臂', '左手臂', '右胳膊', '左胳膊', '右肩', '左肩', '肚脐周围', '左手腕', '右手腕', '左手掌', '右手掌', '左手', '右手', '左腿', '右腿', '左脚', '右脚', '喉咙', '咽喉', '头', '颈', '肩', '胸', '腹', '腰', '小腿', '手臂', '胳膊', '手掌', '手腕', '手', '腿', '脚', '皮肤']
 const medications = [
   ...['退烧药', '止痛药', '感冒药', '美林', '布洛芬', '对乙酰氨基酚', '抗过敏药', '青霉素'].map((name) => ({ name, pattern: new RegExp(name) })),
   { name: '炉甘石洗剂', pattern: /炉甘石(?:洗剂)?|芦柑石(?:洗剂)?/ }
 ]
 const diagnosisPatterns = ['甲型流感', '乙型流感', '流感', '新冠', '肺炎', '支气管炎', '扁桃体炎', '阑尾炎', '皮炎', '湿疹', '荨麻疹']
-const timePattern = /\d{4}年(?:\s*\d{1,2}月(?:\s*\d{1,2}日?)?)?|\d{1,2}月初|上周[一二三四五六日天](?:凌晨|半夜|早上|上午|下午|晚上|夜里|夜间)?|第[二三四五六七]天|隔天|三天前|最近一周|三年前|前几个月|前两天|(?:今天|昨天|前天|今朝)?(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)?\s*(?:\d{1,2}|[一二两三四五六七八九十])(?:点(?:(?:半)|\d{1,2}分?)?|:\d{1,2})|(?:今天|昨天|前天|今朝)(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)?|目前|现在|刚才|刚刚|今早|早上|上午|中午|下午|晚上|夜里|夜间|凌晨|半夜|上周|去年|小时候|几年前|以前/g
+const timePattern = /\d{4}年(?:\s*\d{1,2}月(?:\s*\d{1,2}[日号]?)?)?|\d{1,2}月\s*\d{1,2}[日号]|\d{1,2}月初|上周[一二三四五六日天](?:凌晨|半夜|早上|上午|下午|晚上|夜里|夜间)?|第[二三四五六七]天|隔天|三天前|最近一周|三年前|前几个月|前两天|(?:今天|昨天|前天|今朝|昨晚)?(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)?\s*(?:\d{1,2}|[一二两三四五六七八九十])(?:点(?:(?:半)|\d{1,2}分?)?|:\d{1,2})|(?:今天|昨天|前天|今朝|昨晚)(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)?|目前|现在|刚才|刚刚|今早|早上|上午|中午|下午|晚上|夜里|夜间|凌晨|半夜|上周|去年|小时候|几年前|以前/g
 const celsiusPattern = /(\d{2}(?:\.\d+)?)\s*(?:℃|度)?\s*(?:到|至|-|~|～)\s*(\d{2}(?:\.\d+)?)\s*(?:℃|度)|(?:(\d{2})\s*度\s*(\d))|(?:(\d{2}(?:\.\d+)?)\s*(?:℃|度)?)/g
 const fahrenheitPattern = /(\d{2,3}(?:\.\d+)?)\s*(?:°?F|华氏度)/gi
 const unsafeSourcePattern = /忽略前面的规则|系统提示|医学文章|搜索关键词|搜索的关键词|聊天记录|<\/?system>|\{\s*"symptoms"|网上说|说明书/
-const conditionalPattern = /如果|假如|以防|会不会|以后|将来|怎么办/
-const uncertainPattern = /担心|害怕|顾虑|是不是|可能|怀疑|疑似|好像|以为|不确定|待查|还没测|尚未确认|没确诊/
+const conditionalPattern = /如果|假如|以防|会不会|将来|怎么办/
+const uncertainPattern = /担心|担忧|害怕|顾虑|是不是|可能|怀疑|疑似|好像|以为|不确定|待查|还没测|尚未确认|没确诊/
 const resolvedPattern = /现在已经退了|已经不烧|目前没有|本次就诊无|这次没有|后来确认没有|已经不(?:咳|头疼|腹泻)|再也没|症状消失|体温正常|其实[^，。]*正常/
 const correctionPattern = /不对|说错了?|记错了?|实际(?:是)?|其实(?:是)?|后半句说错了/
 const otherSubjectPattern = /女儿|妈妈|爸爸|姐姐|儿子|同事|配偶|小王|我爸|朋友|他自己|她自己/
@@ -41,7 +42,13 @@ function timePrecision(raw) {
 
 function splitClauses(text) {
   let inheritedTime = null
-  return text.replace(semanticBoundaryPattern, '，$&').split(/[，。；;！!？?\n]/).map((value) => value.trim()).filter(Boolean).map((sourceText) => {
+  const clauses = text.replace(semanticBoundaryPattern, '，$&').split(/[，、。；;！!？?\n]/).map((value) => value.trim()).filter(Boolean)
+    .reduce((output, item) => {
+      if (output.length && /(?:不对|说错了?|记错了?)\s*$/.test(output.at(-1))) output[output.length - 1] = `${output.at(-1)}，${item}`
+      else output.push(item)
+      return output
+    }, [])
+  return clauses.map((sourceText) => {
     const capturedTime = [...sourceText.matchAll(timePattern)][0]?.[0]?.trim()
     const rawTime = capturedTime?.replace(/^十点$/, '10点') || inheritedTime
     if (rawTime) inheritedTime = rawTime
@@ -52,7 +59,7 @@ function splitClauses(text) {
 function sourceFor(text) {
   if (/AI(?:问诊)?|人工智能(?:问诊)?/.test(text)) return 'ai_consultation'
   if (/网上|医学文章|搜索关键词|搜索的关键词/.test(text)) return 'internet_information'
-  if (/系统提示|聊天记录|<\/?system>|药品说明书|说明书写|病历里写|检查单写/.test(text)) return 'quoted_text'
+  if (/系统提示|聊天记录|<\/?system>|药品说明书|说明书写|病历里写|检查单写|(?:医生|妈妈|爸爸|家人)问/.test(text)) return 'quoted_text'
   if (/医生(?:说|表示|判断|诊断|确诊|排除|怀疑)/.test(text)) return 'doctor_statement'
   if (/检查|化验|检测|报告|胸片|血常规/.test(text)) return 'test_result'
   return 'user_report'
@@ -96,12 +103,14 @@ function semanticsFor(clause, fullText, matchIndex = 0, matchText = '') {
   const negated = !lexicalState && (matchNegated || prefixNegated || suffixNegated || (!matchText && /(?:没有|并没有|没|无|未|不是|不再|排除|阴性|未见|正常|不高)/.test(scope.text)))
   const conditional = conditionalPattern.test(scope.text)
   const uncertain = uncertainPattern.test(scope.text)
-  const historical = /去年|上个月|上次|以前|小时候|几年前|\d+年前|前几个月|前两天|病历/.test(scope.text)
-  const future = /以后|将来|准备|计划|预约|建议备|以防/.test(scope.text)
+  const historical = /去年|上个月|上次|以前|小时候|几年前|[一二两三四五六七八九十\d]+年前|前几个月|前两天|病历/.test(scope.text)
+  const future = /将来|(?:^|[:：，。；\s])(?:我|本人|妈妈|爸爸|孩子)?以后(?:会|有|要|可能)|准备|计划|预约|建议备|以防/.test(scope.text)
   const absoluteMatchIndex = fullText.indexOf(text) + matchIndex
   const trailingText = absoluteMatchIndex >= 0 ? fullText.slice(absoluteMatchIndex + matchText.length) : ''
   const resolvedLater = /现在已经退了|目前没有|本次就诊无|这次没有|后来确认没有|再也没|症状消失|体温正常|其实[^，。]*正常/.test(trailingText)
-  const polarity = negated ? 'negated' : uncertain || conditional ? 'uncertain' : 'affirmed'
+  const correctionIndex = Math.max(fullText.lastIndexOf('不对'), fullText.lastIndexOf('说错'), fullText.lastIndexOf('记错'))
+  const correctedAway = correctionIndex >= 0 && absoluteMatchIndex >= 0 && absoluteMatchIndex < correctionIndex
+  const polarity = negated || correctedAway ? 'negated' : uncertain || conditional ? 'uncertain' : 'affirmed'
   const temporality = conditional ? 'conditional' : future ? 'future' : historical ? 'historical' : 'current'
   const status = polarity === 'negated' ? 'not_applicable' : future ? 'planned'
     : resolvedPattern.test(scope.text) || resolvedLater ? 'resolved' : /又(?:烧|咳|疼)|复发|重新/.test(scope.text) ? 'recurrent'
@@ -110,19 +119,47 @@ function semanticsFor(clause, fullText, matchIndex = 0, matchText = '') {
 }
 
 function shouldExtractPositive(semantics) {
-  return semantics.subject === 'event_subject' && semantics.polarity === 'affirmed'
+  return ['event_subject', 'family_member'].includes(semantics.subject) && semantics.polarity === 'affirmed'
     && semantics.temporality !== 'conditional' && semantics.temporality !== 'future'
     && !['quoted_text', 'internet_information'].includes(semantics.source) && semantics.status !== 'resolved'
+}
+
+function shouldExtractObservation(semantics) {
+  return ['event_subject', 'family_member'].includes(semantics.subject)
+    && !['conditional', 'future'].includes(semantics.temporality)
+    && !['quoted_text', 'internet_information'].includes(semantics.source)
+}
+
+function structuredAttributes(text, bodyPart) {
+  const laterality = /右(?:侧)?/.test(bodyPart ?? text) ? 'right' : /左(?:侧)?/.test(bodyPart ?? text) ? 'left' : null
+  const bodyRegion = bodyPart ? bodyPart.replace(/^(?:左|右)(?:侧)?/, '') : null
+  const severity = /严重|剧烈|很疼|特别疼/.test(text) ? 'severe' : /轻微|有点|稍微/.test(text) ? 'mild' : /中度/.test(text) ? 'moderate' : null
+  const severityScore = /(?:疼痛?|痛)(?:评分)?\s*([0-9]|10)\s*分?/.exec(text)?.[1] ?? null
+  const frequency = /偶尔|有时|间歇/.test(text) ? 'occasional' : /频繁|经常/.test(text) ? 'frequent' : /一直|持续/.test(text) ? 'continuous' : null
+  const countMatch = /([一二两三四五六七八九十\d]+)\s*(?:次|声)/.exec(text)
+  const numberMap = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
+  const occurrenceCount = countMatch ? (Number(countMatch[1]) || numberMap[countMatch[1]] || null) : null
+  const duration = /([一二两三四五六七八九十\d]+)\s*(小时|天|周|个月)/.exec(text)?.[0] ?? null
+  return {
+    bodyRegion,
+    laterality,
+    severity,
+    severityScale: severityScore ? `${severityScore}/10` : null,
+    frequency,
+    occurrenceCount,
+    duration
+  }
 }
 
 function fact(type, name, clause, fullText, extra = {}) {
   const semantics = extra.semantics ?? semanticsFor(clause, fullText, extra.matchIndex ?? 0)
   return {
     type, category: type === 'temperature' ? 'measurement' : type, concept: extra.concept ?? name, name,
-    bodyPart: extra.bodyPart ?? null, originalText: clause.sourceText, sourceText: clause.sourceText,
+    bodyPart: extra.bodyPart ?? null, ...structuredAttributes(clause.sourceText, extra.bodyPart), originalText: clause.sourceText, sourceText: clause.sourceText,
     polarity: semantics.polarity, temporality: semantics.temporality, status: extra.status ?? semantics.status,
     subject: semantics.subject, source: extra.source ?? semantics.source,
     time: { raw: clause.rawTime, resolvedStart: null, resolvedEnd: null, precision: timePrecision(clause.rawTime) },
+    assertionType: semantics.polarity === 'negated' ? 'negative_observation' : correctionPattern.test(clause.sourceText) ? 'correction' : type === 'status_change' ? 'state_change' : 'observation',
     confidence: extra.confidence ?? 0.9,
     ...(Number.isFinite(extra.value) ? { value: extra.value } : {}),
     ...(extra.unit ? { unit: extra.unit } : {}),
@@ -140,6 +177,14 @@ function extractBodyPart(text) {
   if (/说左手错了，?实际是右手/.test(text)) return '右手'
   if (/右边(?:这个)?(?:胳膊|手臂)|右侧(?:胳膊|手臂)/.test(text)) return '右手臂'
   if (/左边(?:这个)?(?:胳膊|手臂)|左侧(?:胳膊|手臂)/.test(text)) return '左手臂'
+  if (correctionPattern.test(text)) {
+    const corrected = bodyParts.filter((part) => text.includes(part)).sort((left, right) => {
+      const rightEnd = text.lastIndexOf(right) + right.length
+      const leftEnd = text.lastIndexOf(left) + left.length
+      return rightEnd - leftEnd || right.length - left.length
+    })[0]
+    if (corrected) return corrected.replace('胳膊', '手臂')
+  }
   return bodyParts.find((part) => text.includes(part))?.replace('胳膊', '手臂') ?? null
 }
 
@@ -165,7 +210,7 @@ function extractSymptoms(clause, fullText) {
     const match = occurrences.at(-1)
     if (!match) continue
     const semantics = semanticsFor(clause, fullText, match.index, match[0])
-    if (semantics.subject !== 'event_subject' || ['future', 'conditional'].includes(semantics.temporality) || ['quoted_text', 'internet_information'].includes(semantics.source)) continue
+    if (!shouldExtractObservation(semantics)) continue
     if (name === '疼痛' && matches.some((item) => item.name.endsWith('痛'))) continue
     if (name === '发冷' && /房间太热|衣服|天气/.test(clause.sourceText)) continue
     matches.push(fact('symptom', name, clause, fullText, { bodyPart, semantics, count: countFor(clause.sourceText), matchIndex: match.index }))
@@ -175,6 +220,8 @@ function extractSymptoms(clause, fullText) {
 
 function correctedTemperatureText(text) {
   if (!correctionPattern.test(text)) return text
+  const correctionIndex = Math.max(text.lastIndexOf('不对'), text.lastIndexOf('说错'), text.lastIndexOf('记错'))
+  if (correctionIndex >= 0) return text.slice(correctionIndex)
   const index = Math.max(...['其实', '实际', '是三十', '是36', '是 36'].map((marker) => text.lastIndexOf(marker)))
   return index >= 0 ? text.slice(index) : text
 }
@@ -186,7 +233,7 @@ function extractTemperatures(clause, fullText) {
   const add = (min, max, index, method = null) => {
     if (!Number.isFinite(min) || min < 30 || min > 45 || !Number.isFinite(max) || max < 30 || max > 45) return
     const semantics = semanticsFor({ ...clause, sourceText: text }, fullText, index)
-    if (semantics.subject !== 'event_subject' || semantics.polarity !== 'affirmed' || ['quoted_text', 'internet_information'].includes(semantics.source)) return
+    if (!['event_subject', 'family_member'].includes(semantics.subject) || semantics.polarity !== 'affirmed' || ['quoted_text', 'internet_information'].includes(semantics.source)) return
     const temperature = { min: Math.min(min, max), max: Math.max(min, max), unit: '℃' }
     const name = temperature.min === temperature.max ? `${temperature.min}℃` : `${temperature.min}-${temperature.max}℃`
     output.push(fact('temperature', name, { ...clause, sourceText: text }, fullText, { temperature, measurementMethod: method, semantics, source: 'measurement', confidence: 0.98, matchIndex: index }))
@@ -325,6 +372,9 @@ function changeTarget(text) {
   if (/胃痛|胃疼/.test(text)) return '胃痛'
   if (/头痛|头疼|头[^，。]{0,5}不(?:疼|痛)/.test(text)) return '头痛'
   if (/喉咙痛|喉咙疼|咽痛/.test(text)) return '喉咙痛'
+  if (/皮疹|红疹|疹子/.test(text)) return '皮疹'
+  if (/呕吐|吐/.test(text)) return '呕吐'
+  if (/腹泻|拉肚子|拉了.*肚子/.test(text)) return '腹泻'
   if (/疼|痛/.test(text)) return '疼痛'
   return null
 }
@@ -332,16 +382,20 @@ function changeTarget(text) {
 function extractStatusChanges(clause, fullText, recentTarget) {
   const text = clause.sourceText
   let change = null
-  if (/已经不(?:疼|痛|咳|烧)|不再(?:疼|痛|咳|发烧|发热)|不烧了|没吐了|症状(?:已经)?消失|完全好了|已经退烧/.test(text)) change = 'resolved'
-  else if (/退了一点|退了一些|退下来|降下来|好多了|好一点了?|好一些了?|好转|缓解|没有之前那么疼|没那么疼|烧退了一些|烧退了/.test(text)) change = 'improved'
-  else if (/越来越疼|越来越严重|烧(?:得)?更高了|比昨天严重|加重/.test(text)) change = 'worsened'
-  else if (/又(?:开始)?(?:发烧|烧起来|咳|疼)|复发|重新/.test(text)) change = 'recurred'
-  else if (/一直(?:在)?(?:咳嗽|咳|腹痛|肚子疼|胃痛|胃疼|头痛|头疼|不舒服)|还是不舒服|持续没有改善|一直没有缓解/.test(text)) change = 'persistent'
-  if (!change || /没有发烧/.test(text) || (!recentTarget && resolvedPattern.test(text) && !/烧到\s*\d/.test(text))) return []
-  const target = changeTarget(text) ?? recentTarget ?? '当前症状'
-  const label = change === 'improved' ? '好转' : change === 'worsened' ? '加重' : change === 'recurred' ? '复发' : change === 'resolved' ? '消失' : '持续'
+  if (/没(?:有)?继续加重|没加重|没有加重|不比之前严重/.test(text)) change = 'unchanged'
+  else if (/已经不(?:疼|痛|咳|烧|吐)|不(?:烧|吐|咳)了|不再(?:疼|痛|咳|发烧|发热|吐)|没(?:有)?再(?:发烧|发热|咳|吐)|未再(?:发烧|发热|咳|吐)|没吐了|红疹退了|皮疹退了|症状(?:已经)?消失|完全好了|已经退烧/.test(text)) change = 'resolved'
+  else if (/轻多了|轻了一些|退了一点|退了一些|退下来|降下来|好多了|好一点了?|好一些了?|好转|缓解|没有之前那么疼|没那么疼|烧退了一些|烧退了/.test(text)) change = 'improved'
+  else if (/更疼|越来越疼|越来越严重|烧(?:得)?更高了|比昨天严重|加重/.test(text)) change = 'worsened'
+  else if (/又(?:开始)?(?:发烧|烧(?:起来)?|咳|疼)|复发|重新/.test(text)) change = 'recurred'
+  else if (/(?:咳嗽|咳|腹痛|肚子疼|胃痛|胃疼|头痛|头疼|皮疹|红疹|不舒服)(?:还在|仍在)|一直(?:在)?(?:咳嗽|咳|腹痛|肚子疼|胃痛|胃疼|头痛|头疼|不舒服)|还是不舒服|还是没有改善|持续没有改善|一直没有缓解/.test(text)) change = 'persistent'
+  if (!change || (!recentTarget && resolvedPattern.test(text) && !/烧到\s*\d/.test(text))) return []
+  const directTarget = changeTarget(text)
+  const target = directTarget === '疼痛' && recentTarget?.endsWith('痛')
+    ? recentTarget
+    : (directTarget ?? recentTarget ?? '当前症状')
+  const label = change === 'improved' ? '好转' : change === 'worsened' ? '加重' : change === 'recurred' ? '复发' : change === 'resolved' ? '消失' : change === 'unchanged' ? '未加重' : '持续'
   return [fact('status_change', `${target}${label}`, clause, fullText, {
-    target, change, semantics: { ...semanticsFor(clause, fullText), polarity: 'affirmed', status: change === 'recurred' ? 'recurrent' : change === 'resolved' ? 'resolved' : 'active', subject: 'event_subject' }, confidence: 0.92
+    target, change, semantics: { ...semanticsFor(clause, fullText), polarity: change === 'unchanged' ? 'negated' : 'affirmed', status: change === 'recurred' ? 'recurrent' : change === 'resolved' ? 'resolved' : change === 'improved' ? 'improving' : 'active', subject: 'event_subject' }, confidence: 0.92
   })]
 }
 
@@ -383,12 +437,15 @@ export class LocalFactProvider {
     const extracted = []
     let recentTarget = null
     for (const clause of splitClauses(rawInput)) {
-      recentTarget = changeTarget(clause.sourceText) ?? recentTarget
+      const previousTarget = recentTarget
+      const clauseTarget = changeTarget(clause.sourceText)
       const symptoms = extractSymptoms(clause, rawInput)
-      if (symptoms.length) recentTarget = symptoms[0].name
+      const statusTarget = clauseTarget === '疼痛' && previousTarget?.endsWith('痛') ? previousTarget : (clauseTarget ?? previousTarget)
       const temperatures = extractTemperatures(clause, rawInput)
-      if (temperatures.length) recentTarget = '发热'
-      extracted.push(...symptoms, ...temperatures, ...extractMedications(clause, rawInput), ...extractUnidentifiedDosage(clause, rawInput), ...extractAdditionalMeasurements(clause, rawInput), ...extractClinicalFacts(clause, rawInput), ...extractStatusChanges(clause, rawInput, recentTarget))
+      extracted.push(...symptoms, ...temperatures, ...extractMedications(clause, rawInput), ...extractUnidentifiedDosage(clause, rawInput), ...extractAdditionalMeasurements(clause, rawInput), ...extractClinicalFacts(clause, rawInput), ...extractStatusChanges(clause, rawInput, statusTarget))
+      if (symptoms.length) recentTarget = symptoms[0].name
+      else if (temperatures.length) recentTarget = '发热'
+      else if (clauseTarget && clauseTarget !== '疼痛') recentTarget = clauseTarget
     }
     const corrected = resolveSameTimeContradictions(applyCorrections(extracted, rawInput), rawInput)
     const facts = corrected.filter((item, index) => corrected.findIndex((candidate) => candidate.type === item.type && candidate.name === item.name && candidate.sourceText === item.sourceText && candidate.time.raw === item.time.raw) === index)

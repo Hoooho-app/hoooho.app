@@ -6,38 +6,38 @@ This report is generated from the P0 parser evaluation dataset. It measures the 
 
 - Dataset: parser-p0-v1
 - Provider: local-fact-extractor
-- Parser version: 2.0.0
-- Prompt version: health-facts-v3-context-and-provenance
+- Parser version: 3.0.0
+- Prompt version: health-facts-v4-subject-state-contract
 - Total cases: 30
-- Passed: 25
-- Failed: 5
-- Case pass rate: 83.3%
+- Passed: 30
+- Failed: 0
+- Case pass rate: 100.0%
 
 ## Capability Metrics
 
 | Capability | Passed | Total | Rate |
 | --- | ---: | ---: | ---: |
 | Health fact validity | 30 | 30 | 100.0% |
-| Expected fact matching | 42 | 48 | 87.5% |
+| Expected fact matching | 48 | 48 | 100.0% |
 | Temperature | 3 | 3 | 100.0% |
-| Time | 13 | 17 | 76.5% |
+| Time | 17 | 17 | 100.0% |
 | Forbidden fact avoidance | 15 | 15 | 100.0% |
 
 ## Results By Category
 
 | Category | Passed | Total | Rate |
 | --- | ---: | ---: | ---: |
-| time | 9 | 10 | 90.0% |
-| symptom_status | 8 | 10 | 80.0% |
-| negation_complex | 8 | 10 | 80.0% |
+| time | 10 | 10 | 100.0% |
+| symptom_status | 10 | 10 | 100.0% |
+| negation_complex | 10 | 10 | 100.0% |
 
 ## Results By Difficulty
 
 | Difficulty | Passed | Total | Rate |
 | --- | ---: | ---: | ---: |
 | easy | 10 | 10 | 100.0% |
-| hard | 6 | 8 | 75.0% |
-| medium | 9 | 12 | 75.0% |
+| hard | 8 | 8 | 100.0% |
+| medium | 12 | 12 | 100.0% |
 
 ## Failure Category Frequency
 
@@ -45,51 +45,8 @@ Failure categories are dataset annotations. A failed case can contribute to more
 
 | Failure category | Failed cases |
 | --- | ---: |
-| status_change_missing | 4 |
-| relation_error | 3 |
-| time_error | 2 |
-| entity_missing | 1 |
-| negation_error | 1 |
+| none | 0 |
 
 ## Failed Cases
 
-### time-002
-
-- Category: time
-- Difficulty: hard
-- Failure categories: time_error, entity_missing
-- Reasons:
-  - missing: visit name~手术 time.raw=三年前
-
-### status-004
-
-- Category: symptom_status
-- Difficulty: medium
-- Failure categories: status_change_missing, relation_error
-- Reasons:
-  - missing: status_change change=improved target=头痛 time.raw=今天
-
-### status-005
-
-- Category: symptom_status
-- Difficulty: medium
-- Failure categories: status_change_missing, relation_error
-- Reasons:
-  - missing: symptom name=手脚发凉 time.raw=昨晚
-  - missing: status_change change=improved target=手脚发凉 time.raw=今天早上
-
-### complex-006
-
-- Category: negation_complex
-- Difficulty: medium
-- Failure categories: status_change_missing, relation_error
-- Reasons:
-  - missing: status_change change=persistent target=咳嗽
-
-### complex-009
-
-- Category: negation_complex
-- Difficulty: hard
-- Failure categories: time_error, status_change_missing, negation_error
-- Reasons:
-  - missing: status_change change=improved target=咳嗽
+No failed cases.

@@ -13,12 +13,21 @@ const irrelevantPatterns = [
   /麦克风(?:好用|能用|测试)/u
 ]
 
+const nonFactPatterns = [
+  /(?:如果|假如|要是|倘若|万一).*(?:怎么办|如何|麻烦|会怎样|需要)/u,
+  /(?:发热|发烧|咳嗽|头痛|疼痛).*(?:一般|通常|应该|需要).*(?:怎么办|怎么处理|去医院|多少度|吗|？|\?)/u,
+  /(?:我)?担心.*(?:会|可能|以后|明天).*(?:发热|发烧|咳嗽|头痛|生病)/u,
+  /(?:网上|电视里|文章里|别人).{0,12}(?:说|写|提到)/u,
+  /医生(?:问|询问).*(?:有没有|是否|吗|？|\?)/u
+]
+
 const healthLanguagePattern = /(?:体温|发热|发烧|咳嗽|头痛|疼|痒|皮疹|出汗|呕吐|腹泻|不舒服|好转|加重|服用|吃了|用了|检查|就医|看医生|毫升|℃|度)/u
 
 export function classifyHealthInputBeforeExtraction(rawInput) {
   const text = typeof rawInput === 'string' ? rawInput.trim() : ''
   if (correctionPatterns.some((pattern) => pattern.test(text))) return 'correction_or_command'
   if (irrelevantPatterns.some((pattern) => pattern.test(text))) return 'irrelevant_or_chat'
+  if (nonFactPatterns.some((pattern) => pattern.test(text))) return 'irrelevant_or_chat'
   return null
 }
 
