@@ -24,6 +24,14 @@ test('所有正式案例完成刷新核验，已持久化记录均来自文字�
   assert.ok(records.every(({ sourceType }) => sourceType === 'text_record'))
 })
 
+test('结构化结果包含完整逐案证据和核心指标', () => {
+  assert.ok(results.formal.every(({ input, expectedChecks, negativeChecks, timeChecks, durationMs }) =>
+    input && Array.isArray(expectedChecks) && Array.isArray(negativeChecks) && Array.isArray(timeChecks) && Number.isFinite(durationMs)))
+  assert.equal(results.metrics.expectedFactTotal, results.formal.reduce((sum, item) => sum + item.expectedChecks.length + item.negativeChecks.length, 0))
+  assert.equal(results.metrics.timeFactTotal, results.formal.reduce((sum, item) => sum + item.timeChecks.length, 0))
+  assert.equal(results.metrics.uiFreezeOrTimeoutCount, 0)
+})
+
 test('P0 人物归属和非事实安全门槛未被误报为通过', () => {
   assert.equal(results.byGroup.F.pass, 5)
   assert.equal(results.byGroup.G.pass, 5)
@@ -36,4 +44,6 @@ test('报告明确排除真实语音、ASR 和生产写入', async () => {
   assert.match(report, /不是真实语音\/ASR 测试/)
   assert.match(report, /未向 Production 写入任何测试数据/)
   assert.match(report, /产品判定：FAIL/)
+  assert.match(report, /核心指标与公式/)
+  assert.match(report, /正式 PARTIAL 明细/)
 })

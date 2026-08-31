@@ -46,6 +46,30 @@ function factMatches(expected, contents, negated) {
   })
 }
 
+function factContent(fact) {
+  return [fact.concept, fact.name, fact.bodyPart, fact.bodyRegion, fact.laterality, fact.value, fact.unit, fact.dose, fact.occurrenceCount, fact.frequency, fact.status, fact.polarity === 'negated' ? '：无' : '', fact.time?.raw]
+    .filter((value) => value !== null && value !== undefined)
+    .join(' ')
+}
+
+function timeMatches(expected, facts, negated) {
+  if (!expected.time) return true
+  const expectedTime = compact(expected.time)
+  return facts.some((fact) => {
+    if (!factMatches(expected, [factContent(fact)], negated)) return false
+    const actualTime = compact(fact.time?.raw)
+    if (!actualTime) return false
+    if (actualTime.includes(expectedTime) || expectedTime.includes(actualTime)) return true
+
+    const equivalentTokens = {
+      目前: ['现在', '当前'], 现在: ['目前', '当前'], 刚才: ['刚刚', '一会儿前'], 刚刚: ['刚才', '一会儿前'],
+      昨晚: ['昨天晚上'], 昨天晚上: ['昨晚'], 今天早上: ['今早'], 昨天早上: ['昨早'],
+      中午: ['午间'], 晚上: ['夜间'], 半夜: ['凌晨'], 凌晨: ['半夜']
+    }
+    return (equivalentTokens[expected.time] ?? []).some((token) => actualTime.includes(compact(token)))
+  })
+}
+
 function forbiddenMatches(label, contents, item) {
   const cleaned = label.replace(/事件人物|本人|妈妈|奶奶|孩子|明确|最终值|存在|确诊|精确|已用|已服|疼痛/g, '')
   const chunks = cleaned.split(/[:：]/).filter((item) => item.length >= 2)
@@ -63,7 +87,7 @@ function evaluateCase(item) {
   const records = recordStore.records.filter((record) => record.eventId === eventId && record.sourceText === item.input)
   const organizations = organizationStore.organizations.filter((organization) => records.some(({ id }) => id === organization.recordId))
   const facts = organizations.flatMap((organization) => organization.healthAIOutput?.facts ?? [])
-  const contents = facts.map((fact) => [fact.concept, fact.name, fact.bodyPart, fact.bodyRegion, fact.laterality, fact.value, fact.unit, fact.dose, fact.occurrenceCount, fact.frequency, fact.status, fact.polarity === 'negated' ? '：无' : '', fact.time?.raw].filter((value) => value !== null && value !== undefined).join(' '))
+  const contents = facts.map(factContent)
   const expectedChecks = item.expectedFacts.map((fact) => ({ fact, matched: factMatches(fact, contents, false) }))
   const negativeChecks = item.expectedNegatedFacts.map((fact) => ({ fact, matched: factMatches(fact, contents, true) }))
   const forbiddenHits = item.forbiddenFacts.filter((label) => forbiddenMatches(label, contents, item))
@@ -98,6 +122,8 @@ function evaluateCase(item) {
     previewOfferedConfirmation, confirmed: uiResult.confirmed, refreshed: uiResult.reloaded, recordCount: records.length,
     sourceIntegrity, expectedChecks, negativeChecks, forbiddenHits,
     actualRecords: records.map(({ id, content, occurredAt, sourceType }) => ({ id, content, occurredAt, sourceType })),
+    durationMs: uiResult.durationMs,
+    timeChecks: [...item.expectedFacts.map((fact) => ({ fact, matched: timeMatches(fact, facts, false) })), ...item.expectedNegatedFacts.map((fact) => ({ fact, matched: timeMatches(fact, facts, true) }))].filter(({ fact }) => fact.time),
     actualFacts: facts.map(({ id, concept, name, polarity, status, subject, subjectMemberId, bodyPart, bodyRegion, laterality, value, unit, dose, occurrenceCount, frequency, time }) => ({ id, concept, name, polarity, status, subject, subjectMemberId, bodyPart, bodyRegion, laterality, value, unit, dose, occurrenceCount, frequency, time })), reasons
   }
 }
@@ -145,5 +171,59 @@ const summary = {
 }
 summary.memberScopePass = results.filter(({ group, status }) => group === 'F' && status === 'PASS').length
 
-await writeFile(path.join(artifacts, 'evaluation.json'), JSON.stringify({ generatedAt: new Date().toISOString(), rubric: 'strict-record-level-v1', summary, byGroup, results, variants }, null, 2))
-console.info(JSON.stringify({ summary, byGroup }, null, 2))
+const expectedChecks = results.flatMap(({ expectedChecks, negativeChecks }) => [...expectedChecks, ...negativeChecks])
+const negativeChecks = results.flatMap(({ negativeChecks }) => negativeChecks)
+const timeChecks = results.flatMap(({ timeChecks }) => timeChecks)
+const persisted = results.filter(({ recordCount }) => recordCount > 0)
+const shouldPersist = results.filter((item) => item.shouldPersist)
+const zeroPersistence = results.filter((item) => !item.shouldPersist)
+const duplicateCases = results.filter(({ actualFacts }) => {
+  const signatures = actualFacts.map(({ concept, polarity, value, unit }) => `${concept}|${polarity}|${value ?? ''}|${unit ?? ''}`)
+  return new Set(signatures).size < signatures.length
+})
+const actualFactCount = results.reduce((total, { actualFacts }) => total + actualFacts.length, 0)
+const matchedActualFactCount = results.reduce((total, result) => {
+  const expected = [...formalCases.find(({ caseId }) => caseId === result.caseId).expectedFacts, ...formalCases.find(({ caseId }) => caseId === result.caseId).expectedNegatedFacts]
+  return total + result.actualFacts.filter((fact) => expected.some((candidate) => factMatches(candidate, [factContent(fact)], candidate.polarity === 'negated'))).length
+}, 0)
+const durations = results.map(({ durationMs }) => durationMs).filter(Number.isFinite).sort((a, b) => a - b)
+const percentile = (values, p) => values.length ? values[Math.ceil(values.length * p) - 1] : null
+const longDurations = results.filter(({ group }) => group === 'J').map(({ durationMs }) => durationMs).filter(Number.isFinite)
+const percent = (numerator, denominator) => denominator ? Number((numerator / denominator * 100).toFixed(2)) : null
+
+const metrics = {
+  expectedFactTotal: expectedChecks.length,
+  correctlyRecalledFacts: expectedChecks.filter(({ matched }) => matched).length,
+  factRecallRate: percent(expectedChecks.filter(({ matched }) => matched).length, expectedChecks.length),
+  persistedFactTotal: actualFactCount,
+  matchedPersistedFacts: matchedActualFactCount,
+  erroneousPersistedFacts: actualFactCount - matchedActualFactCount,
+  persistedFactPrecisionRate: percent(matchedActualFactCount, actualFactCount),
+  negatedFactTotal: negativeChecks.length,
+  correctlyRecalledNegatedFacts: negativeChecks.filter(({ matched }) => matched).length,
+  negatedFactPassRate: percent(negativeChecks.filter(({ matched }) => matched).length, negativeChecks.length),
+  timeFactTotal: timeChecks.length,
+  correctlyMatchedTimeFacts: timeChecks.filter(({ matched }) => matched).length,
+  timeFactPassRate: percent(timeChecks.filter(({ matched }) => matched).length, timeChecks.length),
+  correctionCasePassRate: percent(byGroup.C.pass, byGroup.C.total),
+  memberScopePassRate: percent(byGroup.F.pass, byGroup.F.total),
+  zeroPersistenceTotal: zeroPersistence.length,
+  safeZeroPersistenceCases: zeroPersistence.filter(({ status }) => status === 'PASS').length,
+  zeroPersistenceRate: percent(zeroPersistence.filter(({ status }) => status === 'PASS').length, zeroPersistence.length),
+  shouldPersistTotal: shouldPersist.length,
+  savedExpectedCases: shouldPersist.filter(({ recordCount }) => recordCount > 0).length,
+  saveSuccessRate: percent(shouldPersist.filter(({ recordCount }) => recordCount > 0).length, shouldPersist.length),
+  refreshedPersistedCases: persisted.filter(({ refreshed }) => refreshed).length,
+  refreshPersistenceRate: percent(persisted.filter(({ refreshed }) => refreshed).length, persisted.length),
+  duplicateCaseCount: duplicateCases.length,
+  duplicateCaseRate: percent(duplicateCases.length, persisted.length),
+  crossMemberContaminationCases: ['C12', 'F07', 'J08'].filter((caseId) => results.find((item) => item.caseId === caseId)?.status === 'FAIL'),
+  averageDraftDurationMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : null,
+  p95DraftDurationMs: percentile(durations, 0.95),
+  maxLongTextDurationMs: longDurations.length ? Math.max(...longDurations) : null,
+  uiFreezeOrTimeoutCount: summary.uiExecutionErrors,
+  variantConsistencyRate: percent(summary.variantPass, summary.variantTotal)
+}
+
+await writeFile(path.join(artifacts, 'evaluation.json'), JSON.stringify({ generatedAt: new Date().toISOString(), rubric: 'strict-record-level-v1', summary, metrics, byGroup, results, variants }, null, 2))
+console.info(JSON.stringify({ summary, metrics, byGroup }, null, 2))

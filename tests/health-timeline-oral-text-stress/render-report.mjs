@@ -9,9 +9,10 @@ const compactResults = {
   scope: 'transcribed oral-style text through the real text-record UI path; excludes microphone, ASR, Vision and image upload',
   rubric: evaluation.rubric,
   summary: evaluation.summary,
+  metrics: evaluation.metrics,
   byGroup: evaluation.byGroup,
-  formal: evaluation.results.map(({ caseId, group, risk, status, shouldPersist, previewOfferedConfirmation, confirmed, refreshed, recordCount, sourceIntegrity, forbiddenHits, actualRecords, actualFacts, reasons }) => ({
-    caseId, group, risk, status, shouldPersist, previewOfferedConfirmation, confirmed, refreshed, recordCount, sourceIntegrity, forbiddenHits,
+  formal: evaluation.results.map(({ caseId, group, risk, status, input, shouldPersist, previewOfferedConfirmation, confirmed, refreshed, recordCount, sourceIntegrity, expectedChecks, negativeChecks, timeChecks, forbiddenHits, durationMs, actualRecords, actualFacts, reasons }) => ({
+    caseId, group, risk, status, input, shouldPersist, previewOfferedConfirmation, confirmed, refreshed, recordCount, sourceIntegrity, expectedChecks, negativeChecks, timeChecks, forbiddenHits, durationMs,
     actual: actualRecords.map(({ content, occurredAt, sourceType }) => ({ content, occurredAt, sourceType })), actualFacts, reasons
   })),
   variants: evaluation.variants
@@ -21,6 +22,9 @@ await writeFile(path.join(here, 'results-2026-08-31.json'), `${JSON.stringify(co
 
 const groupRows = Object.entries(evaluation.byGroup).map(([group, value]) => `| ${group} | ${value.total} | ${value.pass} | ${value.partial} | ${value.fail} |`).join('\n')
 const failures = evaluation.results.filter(({ status }) => status === 'FAIL').map(({ caseId, group, reasons, actualFacts }) =>
+  `| ${caseId} | ${group} | ${actualFacts.map(({ concept, polarity }) => `${concept}${polarity === 'negated' ? '：无' : ''}`).join(' / ') || '未生成事实'} | ${reasons.join('；')} |`
+).join('\n')
+const partials = evaluation.results.filter(({ status }) => status === 'PARTIAL').map(({ caseId, group, reasons, actualFacts }) =>
   `| ${caseId} | ${group} | ${actualFacts.map(({ concept, polarity }) => `${concept}${polarity === 'negated' ? '：无' : ''}`).join(' / ') || '未生成事实'} | ${reasons.join('；')} |`
 ).join('\n')
 const duplicateCases = evaluation.results.filter(({ actualFacts }) => {
@@ -68,6 +72,22 @@ const report = `# Hoooho 健康时间线口语化文本专项压力测试报告
 |---|---:|---:|---:|---:|
 ${groupRows}
 
+## 核心指标与公式
+
+- 事实召回率：${evaluation.metrics.correctlyRecalledFacts}/${evaluation.metrics.expectedFactTotal} = ${evaluation.metrics.factRecallRate}%（匹配的期望肯定/否定事实 ÷ 全部期望事实）。
+- 已持久化事实精确率：${evaluation.metrics.matchedPersistedFacts}/${evaluation.metrics.persistedFactTotal} = ${evaluation.metrics.persistedFactPrecisionRate}%；未匹配持久化事实 ${evaluation.metrics.erroneousPersistedFacts} 条。该指标只统计已确认保存的 HealthFact；错误草稿被取消的 G 组案例另计为零入库失败，不进入该分母。
+- 否定事实召回：${evaluation.metrics.correctlyRecalledNegatedFacts}/${evaluation.metrics.negatedFactTotal} = ${evaluation.metrics.negatedFactPassRate}%。
+- 时间事实匹配：${evaluation.metrics.correctlyMatchedTimeFacts}/${evaluation.metrics.timeFactTotal} = ${evaluation.metrics.timeFactPassRate}%（概念/极性/数值先匹配，再比较解析器保留的 time.raw；同义相对时间按显式等价词表匹配）。
+- 自我纠正严格通过率：${evaluation.byGroup.C.pass}/${evaluation.byGroup.C.total} = ${evaluation.metrics.correctionCasePassRate}%。
+- 主体识别严格通过率：${evaluation.byGroup.F.pass}/${evaluation.byGroup.F.total} = ${evaluation.metrics.memberScopePassRate}%。
+- 非事实安全零入库率：${evaluation.metrics.safeZeroPersistenceCases}/${evaluation.metrics.zeroPersistenceTotal} = ${evaluation.metrics.zeroPersistenceRate}%。
+- 应保存案例保存成功率：${evaluation.metrics.savedExpectedCases}/${evaluation.metrics.shouldPersistTotal} = ${evaluation.metrics.saveSuccessRate}%。
+- 已保存案例刷新持久化率：${evaluation.metrics.refreshedPersistedCases}/${evaluation.summary.persistedCases} = ${evaluation.metrics.refreshPersistenceRate}%。
+- 重复事实案例率：${evaluation.metrics.duplicateCaseCount}/${evaluation.summary.persistedCases} = ${evaluation.metrics.duplicateCaseRate}%。
+- 跨人物污染：${evaluation.metrics.crossMemberContaminationCases.length} 个案例（${evaluation.metrics.crossMemberContaminationCases.join('、')}）。
+- 草稿生成平均耗时：${evaluation.metrics.averageDraftDurationMs} ms；P95：${evaluation.metrics.p95DraftDurationMs} ms；J 组最长：${evaluation.metrics.maxLongTextDurationMs} ms。
+- 页面卡死/超时：${evaluation.metrics.uiFreezeOrTimeoutCount}；语义变体严格一致率：${evaluation.summary.variantPass}/${evaluation.summary.variantTotal} = ${evaluation.metrics.variantConsistencyRate}%。
+
 ## 关键缺陷
 
 1. **P0 人物归属仍未达到门槛。** F01、F03、F12 对已明确指出当前人物的多人物表达整段漏识别；F07 把奶奶发烧带入孩子事件。F 组仅 ${evaluation.summary.memberScopePass}/12 完整通过。
@@ -96,6 +116,14 @@ ${groupRows}
 | Case | 组 | 实际保存 | 原因 |
 |---|---|---|---|
 ${failures}
+
+## 正式 PARTIAL 明细
+
+| Case | 组 | 实际保存 | 原因 |
+|---|---|---|---|
+${partials}
+
+完整逐案证据（包含 120 条输入、预期事实/否定事实、时间检查、实际 HealthFact、确认/刷新/来源、耗时和判定理由）见 [results-2026-08-31.json](results-2026-08-31.json)。
 
 ## 结论
 
