@@ -320,6 +320,7 @@ function matchExpectedFact(actual, expected, context) {
     if (distance > expected.resolvedNearNowMinutes) missing.push(`时间距提交:${expected.resolvedNearNowMinutes}分钟内`)
   }
   if (expected.relation && !(actual?.supersedesFactId || actual?.revisionOfFactId || actual?.targetFactId)) missing.push('纠正关系')
+  if (expected.current === true && ['corrected', 'superseded'].includes(actual?.status)) missing.push('当前有效事实')
   if (expected.subjectText && !includesNormalized(actual?.subjectText, expected.subjectText)) missing.push(`主体文本:${expected.subjectText}`)
   if (context.memberId && actual?.subjectMemberId !== context.memberId) missing.push(`人物:${context.memberAlias}`)
   return { matches: missing.length === 0, missing }

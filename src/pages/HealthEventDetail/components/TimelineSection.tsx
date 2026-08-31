@@ -104,7 +104,7 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
   return (
     <article className="timeline-entry-row">
       <span aria-hidden="true" className="timeline-entry-marker" />
-      <time className="timeline-entry-time">{formatTimelineClock(entry.time)}</time>
+      <time className="timeline-entry-time">{formatTimelineEntryTime(entry)}</time>
       <div className="symptom-record-swipe">
         {canEdit && <div className="symptom-record-swipe__actions">
           <button aria-label={`编辑症状记录：${symptomRecordTitle(entry)}`} disabled={busy} onClick={() => { setTranslateX(0); onEdit() }} type="button"><Pencil size={17} />编辑</button>
@@ -142,6 +142,10 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
       </div>
     </article>
   )
+}
+
+export function formatTimelineEntryTime(entry: TimelineEntry) {
+  return entry.displayTime?.trim() || formatTimelineClock(entry.time)
 }
 
 function formatTimelineClock(value: string) {

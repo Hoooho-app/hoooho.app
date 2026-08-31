@@ -68,6 +68,35 @@ test('一次原始提交的多个 HealthFact 拆成可扫读的原子时间线�
   assert.deepEqual(view.event.medications, ['退烧药'])
 })
 
+test('日期级事实保留自然语言日期且部位侧别进入紧凑摘要', () => {
+  const sourceRecord = record('record-day-location', '今天右边小腿疼')
+  const located = fact('fact-day-location', 'symptom', '疼痛', '今天', '2026-08-10T00:00:00+08:00', '小腿')
+  located.laterality = 'right'
+  located.time.precision = 'day'
+  const view = adaptHealthEventDetail(eventDto, [sourceRecord], [organization(sourceRecord.id, [located])])
+  const [entry] = view.event.timeline
+
+  assert.equal(entry.displayTime, '今天')
+  assert.equal(entry.content, '右小腿；疼痛')
+  assert.deepEqual(entry.segments, [{ label: '部位', content: '右小腿' }, { label: '症状', content: '疼痛' }])
+})
+
+test('当前症状投影排除阴性和已消失事实但保留完整历史时间线', () => {
+  const first = record('record-current-1', '今天头痛')
+  const second = record('record-current-2', '后来头不疼了', '2026-08-10T13:00:00.000Z')
+  const resolved: HealthFact = {
+    ...fact('fact-current-resolved', 'status_change', '头痛消失', null, second.occurredAt),
+    target: '头痛', change: 'resolved', status: 'resolved', polarity: 'affirmed'
+  }
+  const view = adaptHealthEventDetail(eventDto, [first, second], [
+    organization(first.id, [fact('fact-current-headache', 'symptom', '头痛', null, first.occurredAt)]),
+    organization(second.id, [resolved])
+  ])
+
+  assert.deepEqual(view.event.symptoms, [])
+  assert.equal(view.event.timeline.length, 2)
+})
+
 test('无对应 Fact 时保留原始记录、隐藏派生健康模块，并忽略旧 organizedHealthData 假数据', () => {
   const sourceRecord = record('record-2', '北京')
   const legacyData: OrganizedHealthData = {

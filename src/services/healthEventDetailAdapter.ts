@@ -162,7 +162,25 @@ function uniqueText(values: string[]) {
 }
 
 function uniqueFactNames(facts: FactContext[], type: HealthFactType) {
+  if (type === 'symptom') return currentSymptomNames(facts)
   return uniqueText(facts.filter((item) => item.fact.type === type).map((item) => item.fact.name))
+}
+
+function currentSymptomNames(facts: FactContext[]) {
+  const active = new Map<string, boolean>()
+  const ordered = facts.slice().sort((left, right) => new Date(factTime(left)).getTime() - new Date(factTime(right)).getTime())
+  for (const { fact } of ordered) {
+    if (fact.type === 'symptom') {
+      const polarity = fact.polarity ?? 'affirmed'
+      const status = fact.status ?? 'active'
+      active.set(fact.name, polarity === 'affirmed' && !['resolved', 'corrected', 'superseded'].includes(status))
+      continue
+    }
+    if (fact.type !== 'status_change' || !fact.target || ['当前症状', '症状'].includes(fact.target)) continue
+    if ((fact.change ?? fact.status) === 'resolved') active.set(fact.target, false)
+    else if (['improved', 'worsened', 'persistent', 'recurred', 'unchanged'].includes(fact.change ?? '')) active.set(fact.target, true)
+  }
+  return [...active].filter(([, isActive]) => isActive).map(([name]) => name)
 }
 
 function factTime(item: FactContext) {
@@ -222,7 +240,7 @@ function buildFactTimeline(
       ? record?.occurredAt ?? item.organization.createdAt
       : factTime(item)
     const segments = uniqueSegments(factSegments(fact))
-    const factSummary = segments.filter((segment) => segment.label !== '部位').map((segment) => segment.content).join('；')
+    const factSummary = segments.map((segment) => segment.content).join('；')
     const originalText = record?.sourceText?.trim()
       || record?.content.trim()
       || item.organization.rawInput.trim()
@@ -233,7 +251,7 @@ function buildFactTimeline(
       id: `${sourceKey}-${fact.id}-timeline`,
       time,
       createdAt: record?.createdAt ?? item.organization.createdAt,
-      displayTime: fact.time.raw ?? undefined,
+      displayTime: fact.time.precision === 'day' || fact.time.precision === 'fuzzy' ? fact.time.raw ?? undefined : undefined,
       periodLabel: factPeriodLabel(fact, time),
       content: factSummary,
       summary: factSummary,
@@ -411,6 +429,8 @@ function statusChangeContent(fact: HealthFact) {
   if (fact.change === 'persistent') return isGeneric ? '症状仍在持续' : `${target}持续`
   if (fact.change === 'unchanged') return isGeneric ? '症状未继续加重' : `${target}未加重`
   if (fact.change === 'resolved') return isGeneric ? '症状已消失' : `${target}已消失`
+  if (fact.change === 'recurred') return isGeneric ? '症状再次出现' : `${target}再次出现`
+  if (fact.change === 'corrected') return isGeneric ? '记录已纠正' : `${target}记录已纠正`
   return fact.name
 }
 
@@ -420,7 +440,7 @@ function factDisplayContent(fact: HealthFact) {
   const attributes = [
     fact.severity === 'severe' ? '严重' : fact.severity === 'moderate' ? '中度' : fact.severity === 'mild' ? '轻微' : null,
     fact.severityScale,
-    fact.frequency === 'occasional' ? '偶尔' : fact.frequency === 'frequent' ? '频繁' : fact.frequency === 'continuous' ? '持续' : null,
+    fact.frequency === 'occasional' ? '偶尔' : fact.frequency === 'frequent' ? '频繁' : fact.frequency === 'continuous' ? '持续' : fact.frequency,
     fact.occurrenceCount ? `${fact.occurrenceCount}次` : null,
     fact.duration
   ].filter(Boolean)
@@ -428,8 +448,15 @@ function factDisplayContent(fact: HealthFact) {
 }
 
 function factSegments(fact: HealthFact): NonNullable<TimelineEntry['segments']> {
+  const laterality = fact.laterality === 'right' ? '右' : fact.laterality === 'left' ? '左' : ''
+  const bodyPart = fact.bodyPart && !fact.bodyPart.startsWith(laterality) ? `${laterality}${fact.bodyPart}` : fact.bodyPart
+  const redundantBodyPart = bodyPart && (
+    (/头痛|头疼/.test(fact.name) && /头/.test(bodyPart))
+    || (/腹痛|肚子疼/.test(fact.name) && /腹|肚/.test(bodyPart))
+    || (/咽喉痛|喉咙痛|嗓子疼/.test(fact.name) && /咽|喉|嗓/.test(bodyPart))
+  )
   return [
-    ...(fact.bodyPart ? [{ label: '部位' as const, content: fact.bodyPart }] : []),
+    ...(bodyPart && !redundantBodyPart ? [{ label: '部位' as const, content: bodyPart }] : []),
     { label: factLabel(fact.type), content: factDisplayContent(fact) }
   ]
 }

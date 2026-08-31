@@ -315,7 +315,7 @@ export interface HealthFact {
   revisionOfFactId?: string | null
   polarity?: 'affirmed' | 'negated' | 'uncertain'
   temporality?: 'current' | 'historical' | 'future' | 'conditional' | 'unknown'
-  status?: 'active' | 'improving' | 'resolved' | 'recurrent' | 'planned' | 'not_applicable' | 'unknown'
+  status?: 'active' | 'persistent' | 'improving' | 'worsened' | 'resolved' | 'recurrent' | 'stable' | 'not_worsened' | 'corrected' | 'superseded' | 'planned' | 'not_applicable' | 'unknown'
   subject?: 'event_subject' | 'family_member' | 'other_person' | 'unknown'
   subjectMemberId?: string | null
   subjectKind?: string | null

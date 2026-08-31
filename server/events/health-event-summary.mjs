@@ -58,7 +58,7 @@ function collectCurrentSymptoms(chronological) {
     if (fact.type === 'symptom') {
       const label = canonicalSymptom(fact)
       if (!label) continue
-      if (fact.polarity === 'affirmed' && fact.temporality === 'current' && ['active', 'improving', 'recurrent'].includes(fact.status)) {
+      if (fact.polarity === 'affirmed' && fact.temporality === 'current' && ['active', 'persistent', 'stable', 'not_worsened', 'improving', 'worsened', 'recurrent'].includes(fact.status)) {
         if (!symptoms.has(label)) symptoms.set(label, {
           label, firstAt: factTime(item), latestAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
         })
@@ -70,7 +70,7 @@ function collectCurrentSymptoms(chronological) {
     if (fact.type === 'status_change' && fact.polarity === 'affirmed') {
       const target = canonicalTarget(fact.target)
       if (fact.change === 'resolved') symptoms.delete(target)
-      else if (fact.change === 'recurred' && target) symptoms.set(target, {
+      else if (['improved', 'worsened', 'persistent', 'recurred', 'unchanged'].includes(fact.change) && target) symptoms.set(target, {
         label: target, firstAt: factTime(item), latestAt: factTime(item), sourceRecordId: sourceRecordId(item), factUpdatedAt: factUpdatedAt(item)
       })
     }

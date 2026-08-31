@@ -195,6 +195,18 @@ test('后续明确否定会撤销诊断，症状消失会撤销当前症状标�
   assert.match(summary.displayedResult.summary, /头痛已消失/)
 })
 
+test('只有状态变化时仍形成当前症状投影，纠正状态不会被当作症状消失', () => {
+  const summary = buildHealthEventSummary({
+    event, records,
+    organizations: [organization('o1', 'record-1', [
+      fact('status_change', '咳嗽加重', { target: '咳嗽', change: 'worsened', status: 'worsened' }),
+      fact('status_change', '侧别已纠正', { target: '咳嗽', change: 'corrected', status: 'corrected' })
+    ], '2026-08-10T03:00:00.000Z')]
+  })
+  assert.match(summary.displayedResult.summary, /目前记录有咳嗽/)
+  assert.equal(summary.displayedResult.tags.some(({ label }) => label === '咳嗽'), true)
+})
+
 test('没有 HealthFact 时不生成空摘要', () => {
   assert.equal(buildHealthEventSummary({ event, records, organizations: [] }), null)
 })

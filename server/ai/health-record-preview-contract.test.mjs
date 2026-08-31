@@ -73,7 +73,7 @@ test('preview-confirm 单原始记录原子保存完整 facts，刷新一致且�
     const pain = preview.healthAIOutput.facts.find((fact) => fact.bodyPart === '右侧小腿')
     assert.equal(pain?.laterality, 'right')
     assert.equal(pain?.severity, 'severe')
-    assert.equal(pain?.duration, '两小时')
+    assert.equal(pain?.duration, '2小时')
     assert.ok(preview.healthAIOutput.facts.some((fact) => fact.name === '呕吐' && fact.occurrenceCount === 3))
     assert.ok(preview.healthAIOutput.facts.every((fact) => !fact.time.raw || fact.time.resolvedStart))
 
