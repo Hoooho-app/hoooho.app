@@ -220,6 +220,11 @@ export function useHealthEventDetail(eventId: string | undefined) {
     return attachment
   }, [eventId, token])
 
+  const previewAttachment = useCallback(async (input: CreateEventAttachmentInput) => {
+    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    return eventAttachmentService.preview(eventId, input, token)
+  }, [eventId, token])
+
   const updateStage = useCallback(async (stage: HealthEventApiDto['status']) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     const updatedEvent = await healthEventService.updateStatus(eventId, stage, token)
@@ -274,5 +279,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
+  return { state, addRecord, commitRecord, previewRecord, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
 }

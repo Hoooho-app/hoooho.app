@@ -1,6 +1,7 @@
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthRecordOrganizationError, HealthRecordOrganizationService } from './health-record-organization-service.mjs'
+import { AudioTranscriptionService } from './audio-transcription-service.mjs'
 
 const readJson = (request) => new Promise((resolve, reject) => {
   let body = ''
@@ -45,12 +46,23 @@ export function aiApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
   const service = options.service ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
+  const audio = options.audio ?? new AudioTranscriptionService(options)
 
   return {
     name: 'hoooho-local-ai-api',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (pathname === '/api/ai/audio/transcriptions') {
+          try {
+            readAccountId(request, tokens)
+            if (request.method === 'POST') return sendJson(response, 200, await audio.transcribe(await readJson(request, 21_000_000)))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          } catch (error) {
+            const status = Number.isInteger(error?.status) ? error.status : 500
+            return sendJson(response, status, { error: { code: error?.code ?? 'INTERNAL_ERROR', message: status >= 500 ? '服务器暂时不可用' : error.message } })
+          }
+        }
         const previewMatch = /^\/api\/events\/([^/]+)\/organizations\/preview$/.exec(pathname)
         const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
         if (!previewMatch && !match) return next()

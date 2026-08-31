@@ -29,8 +29,7 @@ export function eligibleHealthFacts(healthAIOutput) {
     && ['event_subject', 'family_member'].includes(fact.subject)
     && !['quoted_text', 'internet_information'].includes(fact.source)
     && !['future', 'conditional'].includes(fact.temporality)
-    && fact.status !== 'not_applicable'
-    && ['affirmed', 'uncertain'].includes(fact.polarity)
+    && ['affirmed', 'negated', 'uncertain'].includes(fact.polarity)
   ))
 }
 

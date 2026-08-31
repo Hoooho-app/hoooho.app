@@ -1,4 +1,4 @@
-import type { CreateEventAttachmentInput, EventAttachmentApiDto } from '../types'
+import type { CreateEventAttachmentInput, EventAttachmentApiDto, EventAttachmentPreviewApiDto } from '../types'
 import { apiRequest } from './apiClient'
 
 export const eventAttachmentService = {
@@ -7,6 +7,13 @@ export const eventAttachmentService = {
   },
   create(eventId: string, input: CreateEventAttachmentInput, token: string) {
     return apiRequest<EventAttachmentApiDto>(`/api/events/${encodeURIComponent(eventId)}/attachments`, {
+      token,
+      method: 'POST',
+      body: input
+    })
+  },
+  preview(eventId: string, input: CreateEventAttachmentInput, token: string) {
+    return apiRequest<EventAttachmentPreviewApiDto>(`/api/events/${encodeURIComponent(eventId)}/attachments/preview`, {
       token,
       method: 'POST',
       body: input

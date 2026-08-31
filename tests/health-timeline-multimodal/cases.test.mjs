@@ -35,23 +35,36 @@ test('语音、照片和多模态结果必须分开统计', () => {
   assert.deepEqual([...modalities].sort(), ['controlled_audio', 'photo', 'photo_plus_audio', 'transcript_text'])
 })
 
-test('当前普通时间轴快捷记录没有照片入口，不能伪报 P/M 完整 E2E', async () => {
+test('普通时间轴图片先经首次记录表单进入统一预处理，快捷语音仍不伪装成图片 E2E', async () => {
   const quick = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/QuickVoiceRecordFlow.tsx'), 'utf8')
   const first = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/FirstRecordComposer.tsx'), 'utf8')
   assert.doesNotMatch(quick, /type="file"|accept="image/)
   assert.doesNotMatch(quick, /onAttachment|attachments|addAttachment/)
-  assert.match(first, /accept="image\/jpeg,image\/png,image\/webp"/)
+  assert.match(first, /prepareHealthImage/)
+  assert.match(first, /image\/heic,image\/heif/)
 })
 
-test('当前图片路径拒绝 HEIC 和超过 5MB 文件且没有压缩实现', async () => {
+test('当前图片路径使用统一压缩并为 HEIC 提供转换或明确降级', async () => {
   const first = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/FirstRecordComposer.tsx'), 'utf8')
-  assert.match(first, /仅支持 JPG、PNG 或 WebP 图片/)
-  assert.match(first, /file\.size > 5 \* 1024 \* 1024/)
-  assert.doesNotMatch(first, /canvas|getImageData|toBlob|createImageBitmap|compression/i)
+  const processing = await readFile(path.join(root, 'src/features/health-attachments/prepareHealthImage.ts'), 'utf8')
+  assert.match(first, /prepareHealthImage/)
+  assert.match(processing, /createImageBitmap/)
+  assert.match(processing, /imageOrientation: 'from-image'/)
+  assert.match(processing, /HEIC\/HEIF/)
+  assert.match(processing, /canvasBlob/)
 })
 
 test('浏览器语音链路依赖 Web Speech API，不上传原始音频', async () => {
   const quick = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/QuickVoiceRecordFlow.tsx'), 'utf8')
   assert.match(quick, /SpeechRecognition|webkitSpeechRecognition/)
   assert.doesNotMatch(quick, /MediaRecorder|audio\/|Blob/)
+})
+
+test('服务端提供真实音频文件 ASR 适配器并保留未配置降级', async () => {
+  const service = await readFile(path.join(root, 'server/ai/audio-transcription-service.mjs'), 'utf8')
+  const provider = await readFile(path.join(root, 'server/ai/providers/openai-provider.mjs'), 'utf8')
+  assert.match(service, /AUDIO_DECODE_FAILED/)
+  assert.match(service, /ASR_NOT_CONFIGURED/)
+  assert.match(provider, /audio\/transcriptions/)
+  assert.match(provider, /FormData/)
 })

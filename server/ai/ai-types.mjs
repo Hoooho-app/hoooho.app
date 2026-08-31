@@ -135,6 +135,10 @@ function normalizeHealthFact(value, index) {
     source: normalizeEnum(source.source, HEALTH_FACT_SOURCES, source.type === 'temperature' ? 'measurement' : 'user_report'),
     time: normalizeFactTime(source.time),
     confidence: normalizeConfidence(source.confidence),
+    ...(Number.isFinite(Number(source.value)) ? { value: Number(source.value) } : {}),
+    ...(normalizeNullableText(source.unit) ? { unit: normalizeNullableText(source.unit) } : {}),
+    ...(Number.isFinite(Number(source.count)) && Number(source.count) > 0 ? { count: Number(source.count) } : {}),
+    requiresConfirmation: Boolean(source.requiresConfirmation),
     ...(temperature ? { temperature } : {}),
     ...(source.type === 'temperature' ? {
       value: Number.isFinite(Number(source.value)) ? Number(source.value) : temperature?.max ?? null,
@@ -150,6 +154,7 @@ function normalizeHealthFact(value, index) {
     } : {}),
     ...(normalizeNullableText(source.resolvedAt) ? { resolvedAt: normalizeNullableText(source.resolvedAt) } : {}),
     ...(normalizeNullableText(source.revisionOfFactId) ? { revisionOfFactId: normalizeNullableText(source.revisionOfFactId) } : {}),
+    ...(normalizeNullableText(source.supersedesFactId) ? { supersedesFactId: normalizeNullableText(source.supersedesFactId) } : {}),
     ...(source.type === 'status_change' ? { target, change } : {})
   }
 }
