@@ -2,9 +2,7 @@ export type ActionCategory = 'observation' | 'hospital' | 'consultation' | 'onli
 
 export const actionCategoryOrder: readonly ActionCategory[] = [
   'consultation',
-  'online-consultation',
   'hospital',
-  'observation',
   'help',
 ]
 

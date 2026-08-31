@@ -7,11 +7,11 @@ const actionSheet = readFileSync(new URL('../HealthEventDetail/components/Action
 const router = readFileSync(new URL('../../app/router.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 
-test('在线问诊从下一步横向一级 Tab 直接进入独立页面', () => {
+test('在线问诊不再出现在下一步入口，但历史独立页面仍保持兼容', () => {
   assert.match(actionSheet, /health-action-tabs/)
-  assert.match(actionSheet, /onOnlineConsultation\(\)/)
+  assert.doesNotMatch(actionSheet, /onOnlineConsultation/)
   assert.match(router, /:eventId\/online-consultation/)
-  assert.match(styles, /health-action-tabs[^}]*overflow-x-auto/)
+  assert.doesNotMatch(actionSheet, />在线问诊</)
 })
 
 test('页面包含资料复制、手动状态、医生问题和结束写回流程', () => {

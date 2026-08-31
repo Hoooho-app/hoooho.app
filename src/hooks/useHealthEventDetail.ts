@@ -26,6 +26,7 @@ interface LoadedDetailData {
   records: HealthEventRecordApiDto[]
   organizations: HealthRecordOrganizationApiDto[]
   attachments: EventAttachmentApiDto[]
+  relatedEvents: HealthEventApiDto[]
   member: Member
   viewModel: HealthEventDetailViewModel
 }
@@ -59,10 +60,11 @@ export function useHealthEventDetail(eventId: string | undefined) {
     setState((current) => current.status === 'loading' ? current : { status: 'loading' })
     try {
       const eventDto = await healthEventService.getById(eventId, token, signal)
-      const [records, memberDto, organizations] = await Promise.all([
+      const [records, memberDto, organizations, allEvents] = await Promise.all([
         healthEventRecordService.list(eventId, token, signal),
         familyMemberService.getById(eventDto.memberId, token, signal),
-        healthRecordOrganizationService.list(eventId, token, signal)
+        healthRecordOrganizationService.list(eventId, token, signal),
+        healthEventService.list(token, signal)
       ])
       if (signal?.aborted) return
       setState({
@@ -73,6 +75,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
           records,
           organizations,
           attachments: [],
+          relatedEvents: allEvents.filter((event) => event.memberId === eventDto.memberId && event.id !== eventDto.id),
           member: adaptFamilyMember(memberDto),
           viewModel: adaptHealthEventDetail(eventDto, records, organizations, [])
         }

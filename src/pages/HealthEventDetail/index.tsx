@@ -10,6 +10,9 @@ import { createHealthEventSubject } from '../../services/healthEventPersonalizat
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
 import { getImageRecordTitle } from '../../services/imageAnalysisPresentation'
 import { createQuickRecordCandidates, type QuickRecordCandidate } from '../../features/quick-record'
+import { createHealthProfilePromptSections } from '../../features/ask-ai'
+import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
+import { useAppStore } from '../../store/useAppStore'
 import {
   EventHeader,
   ActionSheet,
@@ -24,6 +27,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
+  const currentMemberId = useAppStore((appState) => appState.currentMemberId)
   const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
@@ -43,6 +47,9 @@ export function HealthEventDetailPage() {
   const subject = useMemo(() => state.status === 'success'
     ? createHealthEventSubject(state.data.member)
     : null, [state])
+  const promptHealthProfile = useMemo(() => state.status === 'success'
+    ? createHealthProfilePromptSections(getStoredHealthProfileSectionSnapshots(state.data.member.id))
+    : [], [state])
 
   if (state.status === 'loading') {
     return (
@@ -227,7 +234,21 @@ export function HealthEventDetailPage() {
         onPreview={previewQuickRecord}
         open={voiceRecordOpen}
       />}
-      {hasRecords && <ActionSheet context={{ event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary }, member: state.data.member }} onClose={() => setActionOpen(false)} onComingSoon={() => setComingSoonOpen(true)} onOnlineConsultation={() => { setActionOpen(false); navigate(`/health-events/${event.id}/online-consultation`) }} open={actionOpen} />}
+      {hasRecords && <ActionSheet
+        context={{
+          attachments: state.data.attachments,
+          currentMemberId,
+          event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary },
+          healthProfile: promptHealthProfile,
+          member: state.data.member,
+          organizations: state.data.organizations,
+          records: state.data.records,
+          relatedEvents: state.data.relatedEvents,
+        }}
+        onClose={() => setActionOpen(false)}
+        onComingSoon={() => setComingSoonOpen(true)}
+        open={actionOpen}
+      />}
       {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
       {recordedMessage && <div aria-live="polite" className="quick-record-toast" role="status"><Check size={17} />{recordedMessage}</div>}
     </main>

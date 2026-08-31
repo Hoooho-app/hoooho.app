@@ -1,8 +1,9 @@
-import { ArrowLeft, Bell, Check, ChevronRight, ClipboardList, Copy, FileImage, FileText, HelpCircle, Keyboard, Link, ListChecks, Mic, PencilLine, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HealthCard, HohoButton, HohoToggle, Typography } from '../../../components/design-system'
-import { buildHealthEventPrompt, downloadPromptLongImage, getPromptInformationOptions, type HealthEventPromptContext, type HealthEventPromptSection } from '../../../features/ask-ai'
+import type { HealthEventPromptContext } from '../../../features/ask-ai'
 import { actionCategoryLabels, actionCategoryOrder, type ActionCategory } from './actionSheetPresentation'
+import { AskAIWorkspace } from './AskAIWorkspace'
 
 type Recorder = 'self' | 'family'
 
@@ -43,43 +44,25 @@ interface ActionSheetProps {
   context: HealthEventPromptContext
   onClose: () => void
   onComingSoon: () => void
-  onOnlineConsultation: () => void
   open: boolean
 }
 
-type AskAIState = 'select' | 'preview' | 'edit' | 'revised'
-
-export function ActionSheet({ context, onClose, onComingSoon, onOnlineConsultation, open }: ActionSheetProps) {
-  const options = useMemo(() => getPromptInformationOptions(context), [context])
+export function ActionSheet({ context, onClose, onComingSoon, open }: ActionSheetProps) {
   const [category, setCategory] = useState<ActionCategory>('consultation')
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
   const [recorder, setRecorder] = useState<Recorder>('self')
-  const [askState, setAskState] = useState<AskAIState>('select')
-  const [selectedSections, setSelectedSections] = useState<HealthEventPromptSection[]>(options.map(({ id }) => id))
-  const [prompt, setPrompt] = useState('')
-  const [instruction, setInstruction] = useState('')
-  const [revisionInstructions, setRevisionInstructions] = useState<string[]>([])
-  const [feedback, setFeedback] = useState('')
   const current = category === 'hospital' || category === 'help' ? categoryContent[category] : null
   const selectedFeature = current?.features.find((feature) => feature.id === selectedFeatureId) ?? null
 
   const selectCategory = (next: ActionCategory) => {
-    if (next === 'online-consultation') { onOnlineConsultation(); return }
     setCategory(next)
     setSelectedFeatureId(null)
-    if (next === 'consultation') setAskState(prompt ? 'preview' : 'select')
   }
 
   useEffect(() => {
     if (!open) return
     setCategory('consultation')
-    setAskState('select')
-    setSelectedSections(options.map(({ id }) => id))
-    setPrompt('')
-    setInstruction('')
-    setRevisionInstructions([])
-    setFeedback('')
-  }, [open, options])
+  }, [open])
 
   const navigation = (
     <div className="health-action-tabs" role="tablist" aria-label="行动分类">
@@ -91,41 +74,10 @@ export function ActionSheet({ context, onClose, onComingSoon, onOnlineConsultati
     </div>
   )
 
-  const generate = () => {
-    if (!selectedSections.length) { setFeedback('至少选择一项信息'); return }
-    try { setPrompt(buildHealthEventPrompt(context, selectedSections)); setRevisionInstructions([]); setAskState('preview'); setFeedback('') }
-    catch { setFeedback('生成失败，请重试') }
-  }
-  const revise = () => {
-    if (!instruction.trim()) { setFeedback('请先说出或输入修改要求'); return }
-    try {
-      const nextInstructions = [...revisionInstructions, instruction.trim()]
-      setPrompt(buildHealthEventPrompt(context, selectedSections, nextInstructions.join('；')))
-      setRevisionInstructions(nextInstructions)
-      setAskState('revised')
-      setFeedback('')
-    }
-    catch { setFeedback('重新整理失败，请重试') }
-  }
-  const copyPrompt = async () => {
-    try { await navigator.clipboard.writeText(prompt); setFeedback('已复制') }
-    catch { setFeedback('复制失败，请长按选择文字复制') }
-  }
-  const exportImage = () => {
-    try { downloadPromptLongImage(prompt); setFeedback('长图已生成') }
-    catch (reason) { setFeedback(reason instanceof Error ? reason.message : '长图生成失败') }
-  }
-
   const footer = category === 'observation'
     ? <ObservationFooter onComingSoon={onComingSoon} recorder={recorder} />
     : category === 'consultation'
-      ? askState === 'select'
-        ? <HohoButton disabled={!selectedSections.length} fullWidth onClick={generate}>生成提示词</HohoButton>
-        : askState === 'preview'
-          ? <div className="grid gap-2"><HohoButton fullWidth onClick={() => void copyPrompt()}><Copy size={17} />复制提示词</HohoButton><div className="grid grid-cols-2 gap-2"><HohoButton onClick={exportImage} variant="secondary"><FileImage size={17} />生成长图</HohoButton><HohoButton onClick={() => { setAskState('edit'); setInstruction(''); setFeedback('') }} variant="secondary"><PencilLine size={17} />编辑</HohoButton></div></div>
-          : askState === 'edit'
-            ? <HohoButton disabled={!instruction.trim()} fullWidth onClick={revise}>确认编辑</HohoButton>
-            : <div className="grid gap-2"><HohoButton fullWidth onClick={() => setAskState('preview')}><Check size={17} />确定</HohoButton><HohoButton fullWidth onClick={() => { setAskState('edit'); setInstruction('') }} variant="secondary">继续编辑</HohoButton></div>
+      ? null
       : selectedFeature && (
         <div className="grid gap-2">
           {(selectedFeature.splitActions ?? [selectedFeature.actionLabel]).map((label) => (
@@ -135,12 +87,12 @@ export function ActionSheet({ context, onClose, onComingSoon, onOnlineConsultati
       )
 
   return (
-    <BottomSheetSurface className="health-action-sheet" footer={footer} label="下一步" navigation={navigation} onClose={onClose} open={open} size={category === 'consultation' && askState !== 'select' ? 'workspace' : 'default'} title="下一步">
+    <BottomSheetSurface className="health-action-sheet" footer={footer} label="下一步" navigation={navigation} onClose={onClose} open={open} size={category === 'consultation' ? 'workspace' : 'default'} title="下一步">
       <div>
         {category === 'observation' ? (
           <ObservationContent onComingSoon={onComingSoon} recorder={recorder} setRecorder={setRecorder} />
         ) : category === 'consultation' ? (
-          <AskAIContent feedback={feedback} instruction={instruction} onInstructionChange={setInstruction} options={options} prompt={prompt} selected={selectedSections} setSelected={setSelectedSections} state={askState} />
+          <AskAIWorkspace context={context} />
         ) : selectedFeature ? (
           <div>
             <button className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary" onClick={() => setSelectedFeatureId(null)} type="button">
@@ -178,39 +130,6 @@ export function ActionSheet({ context, onClose, onComingSoon, onOnlineConsultati
       </div>
     </BottomSheetSurface>
   )
-}
-
-interface RecognitionEvent { results: ArrayLike<{ 0: { transcript: string } }> }
-interface Recognition { continuous: boolean; interimResults: boolean; lang: string; onend: null | (() => void); onerror: null | (() => void); onresult: null | ((event: RecognitionEvent) => void); start: () => void; stop: () => void }
-type RecognitionConstructor = new () => Recognition
-const recognitionConstructor = () => {
-  const speechWindow = window as typeof window & { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor }
-  return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
-}
-
-function AskAIContent({ feedback, instruction, onInstructionChange, options, prompt, selected, setSelected, state }: { feedback: string; instruction: string; onInstructionChange: (value: string) => void; options: ReturnType<typeof getPromptInformationOptions>; prompt: string; selected: HealthEventPromptSection[]; setSelected: (value: HealthEventPromptSection[]) => void; state: AskAIState }) {
-  const [listening, setListening] = useState(false)
-  const [keyboardOpen, setKeyboardOpen] = useState(false)
-  const [voiceError, setVoiceError] = useState('')
-  const recognitionRef = useRef<Recognition | null>(null)
-  const toggle = (id: HealthEventPromptSection) => setSelected(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id])
-  const toggleListening = () => {
-    if (listening) { recognitionRef.current?.stop(); setListening(false); return }
-    const Constructor = recognitionConstructor()
-    if (!Constructor) { setVoiceError('当前浏览器不支持语音识别，请输入修改要求'); setKeyboardOpen(true); return }
-    const recognition = new Constructor()
-    recognition.lang = 'zh-CN'; recognition.continuous = true; recognition.interimResults = true
-    recognition.onresult = (event) => { let next = ''; for (let index = 0; index < event.results.length; index += 1) next += event.results[index][0].transcript; onInstructionChange(next) }
-    recognition.onerror = () => { setListening(false); setVoiceError('没有听清，请再试一次或输入文字'); setKeyboardOpen(true) }
-    recognition.onend = () => setListening(false)
-    recognitionRef.current = recognition; setVoiceError(''); recognition.start(); setListening(true)
-  }
-
-  useEffect(() => () => recognitionRef.current?.stop(), [])
-
-  if (state === 'select') return <div className="grid gap-3"><Typography variant="sectionTitle">问 AI</Typography><Typography variant="body">选择要带给 AI 的信息</Typography><div className="ask-ai-options">{options.map((option) => <button aria-pressed={selected.includes(option.id)} className="ask-ai-option" data-selected={selected.includes(option.id)} key={option.id} onClick={() => toggle(option.id)} type="button"><span><strong>{option.label}</strong><small>{option.description}</small></span><span className="ask-ai-option__check"><Check size={15} /></span></button>)}</div>{feedback && <p aria-live="polite" className="text-sm text-danger">{feedback}</p>}</div>
-
-  return <div className="grid gap-3">{state === 'preview' && <p className="ask-ai-status"><Check size={15} />提示词已生成</p>}{state === 'revised' && <p className="ask-ai-status"><Check size={15} />已根据你的修改重新整理</p>}<article className="ask-ai-prompt" aria-label="提示词预览">{prompt}</article>{state === 'edit' && <section className="ask-ai-editor"><Typography variant="label">说说怎么改</Typography><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><button aria-pressed={listening} className="ask-ai-mic" data-listening={listening} onClick={toggleListening} type="button"><Mic size={20} />{listening ? '正在听，再点完成' : '点击开始说'}</button><button aria-label="切换键盘输入" className="ask-ai-keyboard" onClick={() => setKeyboardOpen((current) => !current)} type="button"><Keyboard size={20} /></button></div>{voiceError && <p className="mt-2 text-xs text-danger">{voiceError}</p>}{(keyboardOpen || instruction) && <textarea autoFocus={keyboardOpen} className="hoho-textarea mt-2" onChange={(event) => onInstructionChange(event.target.value)} placeholder="例如：把最高体温改成 38.5℃" rows={3} value={instruction} />}</section>}{feedback && <p aria-live="polite" className={feedback === '已复制' || feedback === '长图已生成' ? 'text-sm text-success' : 'text-sm text-danger'}>{feedback}</p>}</div>
 }
 
 const focusOptions = ['血压', '头晕', '用药', '饮食作息', '睡眠', '照片']

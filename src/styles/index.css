@@ -162,18 +162,49 @@
   .health-observation-chip[data-selected='true'] { border-color: rgb(var(--hoho-color-primary) / 0.35); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
   .health-observation-content { display: grid; gap: var(--hoho-space-3); }
   .health-recorder-choice__description { display: -webkit-box; min-height: 2rem; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .ask-ai-options { @apply overflow-hidden rounded-card border bg-surface; }
-  .ask-ai-option { @apply flex min-h-14 w-full items-center justify-between gap-3 border-b px-3 py-2 text-left last:border-b-0; }
-  .ask-ai-option strong { @apply block text-sm font-semibold; }
-  .ask-ai-option small { @apply mt-0.5 block text-xs leading-4 text-text-secondary; }
+  .ask-ai-workspace { @apply grid min-w-0 gap-4 bg-white; }
+  .ask-ai-intro { @apply grid gap-1; }
+  .ask-ai-question { @apply grid gap-3; }
+  .ask-ai-question__input { min-height: 112px; resize: vertical; }
+  .ask-ai-quick-questions { @apply flex min-w-0 flex-wrap gap-2; }
+  .ask-ai-quick-questions button { @apply min-h-11 rounded-pill border bg-white px-3 text-xs font-medium text-text-secondary; }
+  .ask-ai-quick-questions button:focus-visible,
+  .ask-ai-adjust-trigger:focus-visible,
+  .ask-ai-adjust-group button:focus-visible,
+  .ask-ai-secondary-actions button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary) / 0.38); outline-offset: 2px; }
+  .ask-ai-summary-card { @apply grid gap-3 bg-white; }
+  .ask-ai-summary-card__heading { @apply flex items-start gap-3; }
+  .ask-ai-summary-card__heading > span:last-child { @apply min-w-0 flex-1; }
+  .ask-ai-summary-card__heading strong { @apply block text-sm font-semibold text-text-primary; }
+  .ask-ai-summary-card__heading small { @apply mt-1 block text-xs leading-5 text-text-secondary; }
+  .ask-ai-summary-card__icon { @apply grid h-8 w-8 shrink-0 place-items-center rounded-full text-primary; background: rgb(var(--hoho-color-primary-soft)); }
+  .ask-ai-summary-counts { @apply grid gap-0.5 border-y py-2; }
+  .ask-ai-summary-counts > div { @apply flex min-h-8 items-center justify-between gap-3 text-xs; }
+  .ask-ai-summary-counts dt { @apply min-w-0 text-text-secondary; }
+  .ask-ai-summary-counts dd { @apply shrink-0 font-semibold text-text-primary; }
+  .ask-ai-adjust-trigger { @apply flex min-h-11 w-full items-center justify-center gap-2 rounded-control text-sm font-semibold text-primary; background: rgb(var(--hoho-color-primary-soft)); }
+  .ask-ai-adjust-trigger svg:last-child { @apply ml-auto; }
+  .ask-ai-adjust-panel { @apply grid min-w-0 gap-3; }
+  .ask-ai-adjust-group { @apply min-w-0 overflow-hidden rounded-card border bg-white; }
+  .ask-ai-adjust-group__toggle,
+  .ask-ai-adjust-items > button { @apply flex min-h-14 w-full min-w-0 items-center justify-between gap-3 px-3 py-2 text-left; }
+  .ask-ai-adjust-group__toggle { @apply border-b; background: rgb(var(--hoho-color-surface-subtle)); }
+  .ask-ai-adjust-items > button { @apply border-b pl-5 last:border-b-0; }
+  .ask-ai-adjust-group button > span:first-child { @apply min-w-0 flex-1; }
+  .ask-ai-adjust-group strong { @apply block break-words text-sm font-semibold; }
+  .ask-ai-adjust-group small { @apply mt-0.5 block break-words text-xs leading-5 text-text-secondary; }
   .ask-ai-option__check { @apply grid h-6 w-6 shrink-0 place-items-center rounded-control border text-transparent; }
-  .ask-ai-option[data-selected='true'] .ask-ai-option__check { @apply border-primary bg-primary text-surface; }
-  .ask-ai-status { @apply inline-flex w-fit items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-semibold text-primary; background: rgb(var(--hoho-color-primary-soft)); }
-  .ask-ai-prompt { @apply whitespace-pre-wrap rounded-card border bg-surface p-4 text-sm leading-7 text-text-primary; overflow-wrap: anywhere; }
-  .ask-ai-editor { @apply rounded-card border bg-surface p-3; }
-  .ask-ai-mic { @apply flex min-h-11 items-center justify-center gap-2 rounded-control bg-primary px-3 text-sm font-semibold text-surface; }
-  .ask-ai-mic[data-listening='true'] { background: rgb(var(--hoho-color-danger)); }
-  .ask-ai-keyboard { @apply grid h-11 w-11 place-items-center rounded-control border bg-surface text-primary; }
+  .ask-ai-adjust-group button[data-selected='true'] .ask-ai-option__check { @apply border-primary bg-primary text-white; }
+  .ask-ai-attachment-reminder { @apply rounded-control border px-3 py-2 text-xs leading-5 text-text-secondary; border-color: rgb(var(--hoho-color-warning) / 0.3); background: rgb(var(--hoho-color-warning) / 0.06); }
+  .ask-ai-preview { @apply grid min-w-0 gap-3; }
+  .ask-ai-preview__heading strong { @apply block text-sm font-semibold text-text-primary; }
+  .ask-ai-preview__heading small { @apply mt-1 block text-xs leading-5 text-text-secondary; }
+  .ask-ai-preview pre { @apply min-w-0 whitespace-pre-wrap rounded-card border bg-white p-4 text-sm leading-7 text-text-primary; max-height: 52dvh; overflow: auto; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+  .ask-ai-secondary-actions { @apply grid grid-cols-3 gap-2; }
+  .ask-ai-secondary-actions button { @apply flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-control border bg-white px-2 text-xs font-semibold text-text-secondary; }
+  .ask-ai-feedback { @apply rounded-control px-3 py-2 text-sm leading-5 text-danger; background: rgb(var(--hoho-color-danger) / 0.06); }
+  .ask-ai-feedback[data-success='true'] { @apply text-success; background: rgb(var(--hoho-color-success) / 0.06); }
+  .ask-ai-actions { @apply sticky bottom-0 z-10 grid gap-2 border-t bg-white pt-3; padding-bottom: max(var(--hoho-space-2), env(safe-area-inset-bottom)); }
 
   .online-consultation-page { min-height: 100dvh; }
   .online-consultation-content { @apply mx-auto grid w-full min-w-0 max-w-[640px] gap-4 overflow-x-hidden px-4 pt-4; padding-bottom: calc(var(--hoho-space-8) + env(safe-area-inset-bottom)); }
