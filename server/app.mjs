@@ -367,9 +367,9 @@ async function handleEvents(request, response, pathname) {
 
   const accountId = readAccountId(request)
   const eventId = match[1] ? decodeRouteValue(match[1]) : null
-  if (!eventId && request.method === 'GET') sendJson(response, 200, await events.list(accountId))
+  if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.list(accountId)))
   else if (!eventId && request.method === 'POST') sendJson(response, 201, await events.create(accountId, await readJson(request)))
-  else if (eventId && request.method === 'GET') sendJson(response, 200, await events.get(accountId, eventId))
+  else if (eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.get(accountId, eventId)))
   else if (eventId && request.method === 'PATCH') sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))
   else if (eventId && request.method === 'DELETE') sendJson(response, 200, await events.delete(accountId, eventId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
@@ -397,7 +397,10 @@ async function handleApi(request, response, pathname, searchParams) {
     return true
   }
   if (pathname === '/api/health' && request.method === 'GET') {
-    sendJson(response, 200, { status: 'ok' })
+    sendJson(response, 200, {
+      status: 'ok',
+      features: { quickRecordStructuredMode: organizations.structuredModeStatus() }
+    })
     return true
   }
   if (await handleAuth(request, response, pathname)) return true

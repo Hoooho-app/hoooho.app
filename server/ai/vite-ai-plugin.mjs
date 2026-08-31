@@ -44,7 +44,7 @@ function readAccountId(request, tokens) {
 
 export function aiApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
-  const service = options.service ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory })
+  const service = options.service ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory, structuredMode: 'enabled' })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
   const audio = options.audio ?? new AudioTranscriptionService(options)
 

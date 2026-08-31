@@ -15,7 +15,7 @@ async function fixture() {
   const accountId = 'adversarial-account'
   const members = new FamilyMemberService({ dataDirectory })
   const events = new HealthEventService({ dataDirectory })
-  const organizations = new HealthRecordOrganizationService({ dataDirectory })
+  const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
   const records = new HealthEventRecordService({ dataDirectory, organizations })
   const member = await members.create(accountId, { name: '测试对象', relationship: 'other', gender: 'male', birthday: '1990-01-01' })
   const event = await events.create(accountId, {
@@ -97,7 +97,7 @@ test('SEQ-G: a failed organization keeps the raw record and marks the event fail
     const events = new HealthEventService({ dataDirectory })
     const member = await members.create(accountId, { name: '测试对象', relationship: 'other', gender: 'male', birthday: '1990-01-01' })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-20T08:00:00+08:00' })
-    const organizations = new HealthRecordOrganizationService({ dataDirectory, ai: { organizeHealthRecord: async () => { throw Object.assign(new Error('failed'), { code: 'TEST_AI_FAILED' }) } } })
+    const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled', ai: { organizeHealthRecord: async () => { throw Object.assign(new Error('failed'), { code: 'TEST_AI_FAILED' }) } } })
     const records = new HealthEventRecordService({ dataDirectory, organizations })
     const record = await records.create(accountId, event.id, { type: 'symptom', content: '咳嗽。', occurredAt: '2026-08-20T09:00:00+08:00' })
     assert.equal((await records.list(accountId, event.id))[0].id, record.id)
@@ -121,7 +121,7 @@ test('SEQ-H: an older asynchronous recompute cannot become the displayed revisio
     const seen = new Promise((resolve) => { started = resolve })
     let calls = 0
     const actualAI = new AIService({ primaryProvider: null })
-    const delayed = new HealthRecordOrganizationService({ dataDirectory: f.dataDirectory, ai: {
+    const delayed = new HealthRecordOrganizationService({ dataDirectory: f.dataDirectory, structuredMode: 'enabled', ai: {
       organizeHealthRecord: async (...args) => {
         calls += 1
         if (calls === 1) { started(); await gate }
@@ -242,6 +242,7 @@ test('SUMMARY-FAILURE: a failed recompute preserves the last completed summary a
     await f.records.create(f.accountId, f.event.id, { type: 'symptom', content: '头疼。', occurredAt: '2026-08-20T09:00:00+08:00' })
     const completedSummary = (await f.events.get(f.accountId, f.event.id)).eventSummary
     const failingOrganizations = new HealthRecordOrganizationService({
+      structuredMode: 'enabled',
       dataDirectory: f.dataDirectory,
       ai: { organizeHealthRecord: async () => { throw Object.assign(new Error('failed'), { code: 'TEST_AI_FAILED' }) } }
     })

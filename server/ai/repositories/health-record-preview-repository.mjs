@@ -24,6 +24,8 @@ export class HealthRecordPreviewRepository {
       parserVersion: input.parserVersion,
       provider: input.provider,
       checksum: input.checksum,
+      rawRecordOnly: Boolean(input.rawRecordOnly),
+      structuredMode: input.structuredMode ?? 'disabled',
       healthAIOutput: normalizeHealthAIOutput(input.healthAIOutput),
       status: 'pending',
       idempotencyKey: null,

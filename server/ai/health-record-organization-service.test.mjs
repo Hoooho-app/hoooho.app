@@ -48,7 +48,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const members = new FamilyMemberService({ dataDirectory })
     const events = new HealthEventService({ dataDirectory })
     const records = new HealthEventRecordService({ dataDirectory })
-    const organizations = new HealthRecordOrganizationService({ dataDirectory })
+    const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
     const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
 
@@ -208,6 +208,54 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     assert.equal(list.length, 7)
     assert.ok(list.every((organization) => organization.schemaVersion === 7))
     await assert.rejects(() => organizations.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test('disabled quick-record mode keeps gates and idempotency while persisting raw input only', async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-ai-disabled-'))
+  const accountId = 'account-disabled'
+  const now = new Date('2026-08-31T12:00:00.000Z')
+  try {
+    const members = new FamilyMemberService({ dataDirectory })
+    const events = new HealthEventService({ dataDirectory })
+    const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'disabled' })
+    const member = await members.create(accountId, { name: '小安', relationship: 'child', gender: 'female', birthday: '2019-08-31' })
+    const event = await events.create(accountId, { memberId: member.id, title: '健康记录', category: 'other', startTime: '2026-08-31T10:00:00.000Z' }, now)
+    const command = await organizations.preview(accountId, event.id, { rawInput: '把来源改成语音记录。' }, now)
+    assert.equal(command.hasHealthFacts, false)
+    assert.equal(command.previewId, undefined)
+
+    const preview = await organizations.preview(accountId, event.id, {
+      rawInput: '孩子晚上没有再发烧，咳嗽还是很多。',
+      inputChannel: 'voice',
+      selectedOccurredAt: '2026-08-31T11:00:00.000Z',
+      timezone: 'Asia/Shanghai'
+    }, now)
+    assert.equal(preview.hasHealthFacts, true)
+    assert.equal(preview.rawRecordOnly, true)
+    assert.equal(preview.structuredMode, 'disabled')
+    assert.deepEqual(preview.healthAIOutput.facts, [])
+    assert.ok(preview.previewId)
+
+    const confirmed = await organizations.confirm(accountId, event.id, {
+      previewId: preview.previewId,
+      idempotencyKey: 'disabled-confirm-one'
+    }, now)
+    assert.equal(confirmed.rawRecordOnly, true)
+    assert.equal(confirmed.record.content, preview.rawInput)
+    assert.equal(confirmed.record.sourceType, 'voice_record')
+    assert.equal(confirmed.record.occurredAt, '2026-08-31T11:00:00.000Z')
+    assert.deepEqual(confirmed.organization.healthAIOutput.facts, [])
+
+    const retry = await organizations.confirm(accountId, event.id, {
+      previewId: preview.previewId,
+      idempotencyKey: 'disabled-confirm-one'
+    }, now)
+    assert.equal(retry.idempotent, true)
+    assert.equal(retry.record.id, confirmed.record.id)
+    assert.deepEqual((await organizations.list(accountId, event.id)).flatMap((item) => item.healthAIOutput.facts), [])
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
   }

@@ -24,7 +24,7 @@ const members = new FamilyMemberService({ dataDirectory })
 const member = await members.createSelf(user.id, {
   name: '多模态测试宝宝', birthday: '2023-08-31', gender: 'female', avatar: '👶'
 }, now, 'Asia/Shanghai')
-const organizations = new HealthRecordOrganizationService({ dataDirectory })
+const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
 const events = new HealthEventService({ dataDirectory, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ dataDirectory, organizations })
 

@@ -187,9 +187,11 @@ export function HealthEventDetailPage() {
       pending = { previewId, idempotencyKey: crypto.randomUUID().replaceAll('-', '') }
       pendingQuickRecordRef.current = pending
     }
-    await confirmPreview(previewId, pending.idempotencyKey)
+    const confirmed = await confirmPreview(previewId, pending.idempotencyKey)
     pendingQuickRecordRef.current = null
-    const message = candidates.length > 1 ? `已整理为 ${candidates.length} 条症状记录` : '已记录'
+    const message = confirmed.rawRecordOnly
+      ? '已保存原话，自动整理暂时不可用。'
+      : candidates.length > 1 ? `已整理为 ${candidates.length} 条症状记录` : '已记录'
     showRecordedMessage(message)
     return message
   }

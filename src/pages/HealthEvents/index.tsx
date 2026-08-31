@@ -395,7 +395,8 @@ export function HealthEventsPage() {
       let message = '已记录'
       try {
         const organization = await healthRecordOrganizationService.organize(pending.eventId, pending.recordId, token)
-        if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
+        if (organization.rawRecordOnly) message = '已保存原话，自动整理暂时不可用。'
+        else if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
       } catch {
         message = '原始记录已保存，自动整理失败'
       }

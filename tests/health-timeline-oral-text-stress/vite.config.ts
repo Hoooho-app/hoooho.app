@@ -16,7 +16,7 @@ import { HealthRecordOrganizationService } from '../../server/ai/health-record-o
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const dataDirectory = path.join(projectRoot, 'tests/health-timeline-oral-text-stress/.artifacts/data')
-const organizationService = new HealthRecordOrganizationService({ dataDirectory })
+const organizationService = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
 const tokenService = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 
 const readJson = (request: import('node:http').IncomingMessage) => new Promise<Record<string, unknown>>((resolve, reject) => {

@@ -22,7 +22,7 @@ test('原 65 个症状跟踪正式用例形成可重复服务端回归集', asyn
   try {
     const members = new FamilyMemberService({ dataDirectory })
     const events = new HealthEventService({ dataDirectory })
-    const organizations = new HealthRecordOrganizationService({ dataDirectory })
+    const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
     const memberByKind = {
       self: await members.createSelf(accountId, { name: '测试成人B' }, fixedNow),
       child: await members.create(accountId, { name: '测试宝宝A', relationship: 'child', gender: 'female', birthday: '2020-01-01' }, fixedNow),

@@ -42,6 +42,27 @@ const displayTimeFor = (fact: HealthFact, occurredAt: string) => {
 const attributeLabel = (value?: string | null) => ({ left: '左侧', right: '右侧', mild: '轻微', moderate: '中度', severe: '严重', occasional: '偶尔', frequent: '频繁', continuous: '持续' }[value ?? ''] ?? value ?? '')
 
 export function createQuickRecordCandidates(preview: HealthRecordOrganizationPreviewApiDto, fallbackOccurredAt: string): QuickRecordCandidate[] {
+  if (preview.rawRecordOnly && preview.previewId && preview.rawInput?.trim()) {
+    const sourceType: HealthRecordSourceType = preview.inputChannel === 'voice' ? 'voice_record' : 'text_record'
+    return [{
+      id: `quick-record-raw-${preview.previewId}`,
+      type: 'note',
+      title: '原话记录',
+      occurredAt: fallbackOccurredAt,
+      content: preview.rawInput.trim(),
+      sourceType,
+      measurementMethod: 'unspecified',
+      fields: [
+        { label: '记录对象', value: preview.memberName },
+        { label: '发生时间', value: new Date(fallbackOccurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) },
+        { label: '记录类型', value: '原话记录' },
+        { label: '来源', value: sourceType === 'voice_record' ? '语音记录' : '文字记录' }
+      ],
+      previewId: preview.previewId,
+      memberId: preview.memberId,
+      memberName: preview.memberName
+    }]
+  }
   const facts = preview.healthAIOutput.facts
   if (!facts.length) return []
   return facts.map((fact) => {

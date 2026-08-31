@@ -16,7 +16,7 @@ async function fixture() {
   const members = new FamilyMemberService({ dataDirectory })
   const events = new HealthEventService({ dataDirectory })
   const records = new HealthEventRecordService({ dataDirectory })
-  const organizations = new HealthRecordOrganizationService({ dataDirectory })
+  const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
   const self = await members.createSelf(accountId, { name: '测试成人' }, fixedNow)
   const child = await members.create(accountId, { name: '测试宝宝', relationship: 'child', gender: 'female', birthday: '2020-01-01' }, fixedNow)
   const childEvent = await events.create(accountId, { memberId: child.id, title: '', category: 'other', startTime: '2026-08-30T09:00:00+08:00' }, fixedNow)
