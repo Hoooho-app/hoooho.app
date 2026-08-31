@@ -37,15 +37,24 @@ test('健康事件首页始终使用当前人物范围、紧凑标题和左对�
   assert.match(stylesSource, /\.health-events-year-tabs \.hoho-year-tabs__item\s*{[^}]*flex-grow:\s*0[^}]*text-align:\s*left/s)
 })
 
-test('同一健康事件页提供纯 Icon 查看切换且智能记录视图隐藏筛选', () => {
-  assert.match(pageSource, /aria-label="列表视图"/)
-  assert.match(pageSource, /aria-label="智能记录视图"/)
+test('健康事件页默认前台视图并使用文字下拉切换', () => {
+  assert.match(pageSource, /useState<HealthEventsViewMode>\(DEFAULT_HEALTH_EVENTS_VIEW_MODE\)/)
+  assert.match(pageSource, /aria-haspopup="menu"/)
+  assert.match(pageSource, /aria-expanded=\{open\}/)
+  assert.match(pageSource, /role="menuitemradio"/)
+  assert.match(pageSource, /healthEventsViewLabels\[value\]/)
+  assert.match(pageSource, /healthEventsViewLabels\[option\]/)
+  assert.match(pageSource, /document\.addEventListener\('pointerdown', closeOnOutsidePointer\)/)
+  assert.match(pageSource, /document\.addEventListener\('keydown', closeOnEscape\)/)
+  assert.match(pageSource, /event\.key !== 'Escape'/)
   assert.match(pageSource, /shouldShowHealthEventFilters\(viewMode\)/)
+  assert.match(pageSource, /viewMode === 'list' && <Typography className="health-events-list-title"/)
   assert.match(pageSource, /viewMode === 'triage'[^]*<NurseQuickRecord/s)
   assert.match(nurseQuickRecordSource, /<QuickVoiceRecordFlow/)
   assert.match(nurseQuickRecordSource, /<QuickRecordTrigger/)
   assert.doesNotMatch(nurseQuickRecordSource, /开始说话/)
-  assert.doesNotMatch(pageSource, /智能模式|护士模式|陪伴模式/)
+  assert.doesNotMatch(pageSource, /智能体模式|护士台模式|动态流模式|智能记录视图/)
+  assert.doesNotMatch(pageSource, /health-events-view-switcher|aria-pressed=\{viewMode/)
 })
 
 test('护士记录严格绑定当前人物并走真实事件和记录保存接口', () => {
@@ -135,7 +144,7 @@ test('双待机资产内容正确且旧静态素材已删除', () => {
   })
 })
 
-test('智能查看直接复用详情快捷记录并在完成后停留当前视图', () => {
+test('前台视图直接复用详情快捷记录并在完成后停留当前视图', () => {
   assert.match(quickRecordFlowSource, /getBrowserVoiceCapability/)
   assert.match(quickRecordFlowSource, /aria-label="确认快捷记录"/)
   assert.match(pageSource, /onPreview=\{previewTriageRecord\}/)
@@ -144,7 +153,7 @@ test('智能查看直接复用详情快捷记录并在完成后停留当前视�
   assert.doesNotMatch(nurseQuickRecordSource, /setViewMode\('list'\)/)
 })
 
-test('智能查看快捷记录严格绑定当前人物、复用真实预览保存链路并刷新列表', () => {
+test('前台视图快捷记录严格绑定当前人物、复用真实预览保存链路并刷新列表', () => {
   assert.match(pageSource, /currentMemberDto\.id !== currentMemberId/)
   assert.match(pageSource, /memberId: currentMemberDto\.id/)
   assert.match(pageSource, /healthRecordOrganizationService\.preview\(pending\.eventId/)
@@ -154,7 +163,7 @@ test('智能查看快捷记录严格绑定当前人物、复用真实预览保�
   assert.match(pageSource, /retry\(\)/)
 })
 
-test('智能查看使用动态视口单屏布局且快捷记录面板为键盘保留操作区', () => {
+test('前台视图使用动态视口单屏布局且快捷记录面板为键盘保留操作区', () => {
   assert.match(pageSource, /data-view-mode=\{viewMode\}/)
   assert.match(pageSource, /health-events-content--triage overflow-hidden/)
   assert.match(pageStylesSource, /data-view-mode='triage'[^}]*height:\s*100dvh[^}]*min-height:\s*0/s)

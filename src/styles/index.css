@@ -493,32 +493,87 @@
     gap: var(--hoho-space-1);
   }
 
-  .health-events-view-switcher {
-    display: grid;
-    grid-template-columns: repeat(2, 40px);
-    gap: 2px;
+  .health-events-view-select {
+    position: relative;
+    flex: none;
+  }
+
+  .health-events-view-select__trigger {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    gap: var(--hoho-space-1);
     border: 1px solid rgb(var(--hoho-color-border));
     border-radius: var(--hoho-radius-control);
-    background: rgb(var(--hoho-color-surface-subtle));
-    padding: 2px;
+    background: rgb(var(--hoho-color-surface));
+    padding-inline: 10px;
+    color: rgb(var(--hoho-color-text-primary));
+    font-size: var(--hoho-font-size-body-small);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition: border-color 160ms var(--hoho-ease-emphasized), background-color 160ms var(--hoho-ease-emphasized);
   }
 
-  .health-events-view-switcher button {
+  .health-events-view-select__trigger:hover,
+  .health-events-view-select__trigger[aria-expanded='true'] {
+    border-color: rgb(var(--hoho-color-primary) / 0.28);
+    background: rgb(var(--hoho-color-primary-soft) / 0.45);
+  }
+
+  .health-events-view-select__trigger svg {
+    transition: transform 160ms var(--hoho-ease-emphasized);
+  }
+
+  .health-events-view-select__trigger svg[data-open='true'] {
+    transform: rotate(180deg);
+  }
+
+  .health-events-view-select__menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
     display: grid;
-    min-height: 40px;
-    place-items: center;
-    border-radius: calc(var(--hoho-radius-control) - 3px);
-    color: rgb(var(--hoho-color-text-secondary));
-    transition: background-color 180ms var(--hoho-ease-emphasized), color 180ms var(--hoho-ease-emphasized), box-shadow 180ms var(--hoho-ease-emphasized);
+    width: 132px;
+    gap: 2px;
+    border: 1px solid rgb(var(--hoho-color-border) / 0.85);
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-surface));
+    padding: 4px;
+    box-shadow: 0 10px 26px rgb(var(--hoho-color-text-primary) / 0.09);
   }
 
-  .health-events-view-switcher button[data-selected='true'] {
+  .health-events-view-select__option {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: calc(var(--hoho-radius-control) - 4px);
+    padding-inline: 10px 8px;
+    color: rgb(var(--hoho-color-text-secondary));
+    font-size: var(--hoho-font-size-body-small);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .health-events-view-select__option:hover,
+  .health-events-view-select__option:focus-visible,
+  .health-events-view-select__option[data-selected='true'] {
     background: rgb(var(--hoho-color-primary-soft));
-    box-shadow: inset 0 0 0 1px rgb(var(--hoho-color-primary) / 0.08);
     color: rgb(var(--hoho-color-primary));
   }
 
-  .health-events-view-switcher button:focus-visible {
+  .health-events-view-select__option svg {
+    opacity: 0;
+  }
+
+  .health-events-view-select__option[data-selected='true'] svg {
+    opacity: 1;
+  }
+
+  .health-events-view-select__trigger:focus-visible,
+  .health-events-view-select__option:focus-visible {
     outline: 2px solid rgb(var(--hoho-color-primary) / 0.35);
     outline-offset: 1px;
   }
