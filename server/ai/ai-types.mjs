@@ -16,10 +16,10 @@ import {
 
 const maxTextLength = 500
 
-export const HEALTH_PARSER_VERSION = '2.0.0'
-export const HEALTH_PROMPT_VERSION = 'health-facts-v3-context-and-provenance'
+export const HEALTH_PARSER_VERSION = '3.0.0'
+export const HEALTH_PROMPT_VERSION = 'health-facts-v4-subject-state-contract'
 export const HEALTH_FACT_TYPES = ['symptom', 'temperature', 'medication', 'visit', 'examination', 'diagnosis', 'concern', 'status_change', 'other']
-export const HEALTH_STATUS_CHANGES = ['improved', 'worsened', 'persistent', 'recurred', 'resolved']
+export const HEALTH_STATUS_CHANGES = ['improved', 'worsened', 'persistent', 'recurred', 'resolved', 'unchanged', 'corrected']
 export const HEALTH_TIME_PRECISIONS = ['exact', 'period', 'day', 'month', 'year', 'fuzzy', 'unknown']
 export const HEALTH_TIME_SOURCES = ['user_text', 'selected_time', 'document']
 
@@ -122,6 +122,13 @@ function normalizeHealthFact(value, index) {
     concept: normalizeText(source.concept) || name,
     name,
     bodyPart: normalizeNullableText(source.bodyPart),
+    bodyRegion: normalizeNullableText(source.bodyRegion),
+    laterality: normalizeNullableText(source.laterality),
+    severity: normalizeNullableText(source.severity),
+    severityScale: normalizeNullableText(source.severityScale),
+    frequency: normalizeNullableText(source.frequency),
+    occurrenceCount: source.occurrenceCount !== null && source.occurrenceCount !== undefined && source.occurrenceCount !== '' && Number.isFinite(Number(source.occurrenceCount)) ? Number(source.occurrenceCount) : null,
+    duration: normalizeNullableText(source.duration),
     originalText: normalizeText(source.originalText ?? source.sourceText) || name,
     sourceText: normalizeText(source.sourceText ?? source.originalText) || name,
     sourceRecordId: normalizeNullableText(source.sourceRecordId),
@@ -132,6 +139,10 @@ function normalizeHealthFact(value, index) {
     temporality: normalizeEnum(source.temporality, HEALTH_FACT_TEMPORALITIES, 'current'),
     status: normalizeEnum(source.status, HEALTH_FACT_STATUSES, 'active'),
     subject: normalizeEnum(source.subject, HEALTH_FACT_SUBJECTS, 'event_subject'),
+    subjectMemberId: normalizeNullableText(source.subjectMemberId),
+    subjectKind: normalizeNullableText(source.subjectKind) ?? 'event_subject',
+    subjectText: normalizeNullableText(source.subjectText),
+    assertionType: normalizeNullableText(source.assertionType) ?? 'observation',
     source: normalizeEnum(source.source, HEALTH_FACT_SOURCES, source.type === 'temperature' ? 'measurement' : 'user_report'),
     time: normalizeFactTime(source.time),
     confidence: normalizeConfidence(source.confidence),
@@ -155,6 +166,7 @@ function normalizeHealthFact(value, index) {
     ...(normalizeNullableText(source.resolvedAt) ? { resolvedAt: normalizeNullableText(source.resolvedAt) } : {}),
     ...(normalizeNullableText(source.revisionOfFactId) ? { revisionOfFactId: normalizeNullableText(source.revisionOfFactId) } : {}),
     ...(normalizeNullableText(source.supersedesFactId) ? { supersedesFactId: normalizeNullableText(source.supersedesFactId) } : {}),
+    ...(normalizeNullableText(source.targetFactId) ? { targetFactId: normalizeNullableText(source.targetFactId) } : {}),
     ...(source.type === 'status_change' ? { target, change } : {})
   }
 }

@@ -13,6 +13,7 @@ const stylesSource = readFileSync(new URL('../../../styles/index.css', import.me
 const polishStylesSource = readFileSync(new URL('../../../styles/product-polish.css', import.meta.url), 'utf8')
 const designSystemStylesSource = readFileSync(new URL('../../../styles/design-system.css', import.meta.url), 'utf8')
 const bottomSheetSource = readFileSync(new URL('../../../components/design-system/BottomSheetSurface.tsx', import.meta.url), 'utf8')
+const organizationServiceSource = readFileSync(new URL('../../../../server/ai/health-record-organization-service.mjs', import.meta.url), 'utf8')
 
 test('详情页收敛为症状跟踪且移除旧摘要和体温图表', () => {
   assert.match(pageSource, /title=\{hasRecords \? '症状跟踪'/)
@@ -135,8 +136,9 @@ test('详情抽屉打开时移除页面快捷记录并保留安全区、滚动�
 
 test('快捷记录预览按识别结果展示多条独立记录', () => {
   assert.match(recorderSource, /识别到 \$\{candidates\.length\} 条症状记录/)
-  assert.match(pageSource, /for \(const item of items\)/)
-  assert.match(pageSource, /已整理为 \$\{items\.length\} 条症状记录/)
+  assert.match(pageSource, /new Set\(candidates\.map\(\(item\) => item\.previewId\)/)
+  assert.match(pageSource, /confirmPreview\(previewId, pending\.idempotencyKey\)/)
+  assert.match(pageSource, /已整理为 \$\{candidates\.length\} 条症状记录/)
 })
 
 test('自动整理无事实时不再原文兜底入库，只显示低打扰提示', () => {
@@ -153,7 +155,8 @@ test('快捷记录来源由真实输入通道决定且与事实类型分离', ()
   assert.match(recorderSource, /QuickRecordInputChannel = 'voice' \| 'text'/)
   assert.match(recorderSource, /inputChannelRef\.current = 'voice'/)
   assert.match(recorderSource, /inputChannelRef\.current = 'text'/)
-  assert.match(pageSource, /inputChannel === 'voice' \? 'voice_record' : 'text_record'/)
+  assert.match(pageSource, /previewRecord\(transcript, \{ selectedOccurredAt: occurredAt, inputChannel \}\)/)
+  assert.match(organizationServiceSource, /draft\.inputChannel === 'voice' \? 'voice_record' : 'text_record'/)
   assert.match(recordSheetSource, /症状变化/)
 })
 
@@ -165,12 +168,13 @@ test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', (
   assert.equal(firstRecordSource.includes('未识别到健康事件关键信息'), false)
 })
 
-test('降级保存保留空内容、未来时间和重复提交安全边界', () => {
+test('保存保留空内容、未来时间和预览确认幂等安全边界', () => {
   assert.match(firstRecordSource, /if \(!rawInput && !attachments\.length && !selectedLocations\.length\)/)
   assert.match(firstRecordSource, /isFutureOccurredAt\(occurredAt\)/)
   assert.match(firstRecordSource, /savingRef\.current/)
   assert.match(recorderSource, /submittingRef\.current/)
-  assert.match(pageSource, /pending\.transcript !== transcript/)
+  assert.match(pageSource, /pending\.previewId !== previewId/)
+  assert.match(pageSource, /idempotencyKey: crypto\.randomUUID\(\)/)
   assert.match(pageSource, /pendingQuickRecordRef\.current = null/)
 })
 

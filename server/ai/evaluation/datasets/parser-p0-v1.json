@@ -190,7 +190,7 @@
             "time": {
               "raw": "2024年5月10日",
               "resolvedStart": "2024-05-10T00:00:00+08:00",
-              "precision": "exact"
+              "precision": "day"
             }
           }
         ]
@@ -554,7 +554,7 @@
         "hasHealthFacts": true,
         "facts": [
           { "type": "symptom", "name": "咳嗽", "time": { "raw": "前两天" } },
-          { "type": "status_change", "change": "improved", "target": "咳嗽" }
+          { "type": "status_change", "change": "resolved", "target": "咳嗽" }
         ]
       },
       "mustNotContain": []

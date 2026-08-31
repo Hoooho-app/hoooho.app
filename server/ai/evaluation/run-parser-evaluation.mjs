@@ -48,6 +48,13 @@ function matchesFact(fact, rule) {
   return true
 }
 
+function isCurrentPositiveFact(fact) {
+  return fact?.polarity === 'affirmed'
+    && fact?.temporality === 'current'
+    && !['not_applicable', 'resolved', 'corrected', 'superseded'].includes(fact?.status)
+    && fact?.subject === 'event_subject'
+}
+
 function describeRule(rule) {
   const parts = [rule.type]
   if (rule.name) parts.push(`name=${rule.name}`)
@@ -85,7 +92,7 @@ function increment(map, key, passed) {
   map.set(key, current)
 }
 
-function evaluateCase(item, output) {
+export function evaluateCase(item, output) {
   const facts = output.healthAIOutput.facts
   const failures = []
   const expectedHealthFacts = item.expected.hasHealthFacts
@@ -101,7 +108,7 @@ function evaluateCase(item, output) {
   })
 
   const forbiddenFactChecks = item.mustNotContain.map((rule) => {
-    const matched = facts.some((fact) => matchesFact(fact, rule))
+    const matched = facts.some((fact) => isCurrentPositiveFact(fact) && matchesFact(fact, rule))
     if (matched) failures.push(`forbidden: ${describeRule(rule)}`)
     return { rule, passed: !matched }
   })

@@ -144,8 +144,9 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
       content: '早于首次记录的新增情况',
       occurredAt: '2026-08-09T08:00:00+08:00'
     })
-    assert.equal(beforeFirstRecordResponse.status, 400)
-    assert.equal((await beforeFirstRecordResponse.json()).error.code, 'RECORD_BEFORE_EVENT_START')
+    assert.equal(beforeFirstRecordResponse.status, 201)
+    const beforeFirstRecord = await beforeFirstRecordResponse.json()
+    assert.equal(beforeFirstRecord.occurredAt, '2026-08-09T00:00:00.000Z')
 
     const invalidTypeResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'diagnosis',
@@ -158,7 +159,7 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const listResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', first.token)
     assert.equal(listResponse.status, 200)
     const records = await listResponse.json()
-    assert.deepEqual(records.map((record) => record.id), [morning.id, noon.id, evening.id])
+    assert.deepEqual(records.map((record) => record.id), [beforeFirstRecord.id, morning.id, noon.id, evening.id])
 
     const sameTimeFirstResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
       type: 'note', content: '同一时间第一条', occurredAt: '2026-08-09T19:00:00+08:00'

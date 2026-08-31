@@ -1,11 +1,27 @@
+import { createHash } from 'node:crypto'
 import { AIService } from './ai-service.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationRepository } from './repositories/health-record-organization-repository.mjs'
 import { HealthOrganizationStateRepository } from './repositories/health-organization-state-repository.mjs'
+import { HealthRecordPreviewRepository } from './repositories/health-record-preview-repository.mjs'
+import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { emptyHealthAIOutput, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
 import { classifyExtractedHealthInput, classifyHealthInputBeforeExtraction, eligibleHealthFacts } from './health-input-intent.mjs'
 import { buildHealthEventSummary, healthEventSummaryAggregationVersion } from '../events/health-event-summary.mjs'
+import { resolveFactSubjects } from './health-subject-resolver.mjs'
+import { applyEventHealthContext } from './health-event-context.mjs'
+
+function assertPastOccurrence(value, now = new Date()) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) throw new HealthRecordOrganizationError('发生时间格式错误', 400, 'INVALID_OCCURRED_AT')
+  if (parsed.getTime() > now.getTime()) throw new HealthRecordOrganizationError('发生时间不能晚于现在，请修改后重试。', 400, 'FUTURE_OCCURRED_AT')
+  return parsed.toISOString()
+}
+
+function checksumFor(value) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
 
 function normalizeBodyLocations(value) {
   if (!Array.isArray(value)) return []
@@ -49,6 +65,9 @@ export class HealthRecordOrganizationService {
     this.records = options.records ?? new HealthEventRecordRepository(options.dataDirectory)
     this.repository = options.repository ?? new HealthRecordOrganizationRepository(options.dataDirectory)
     this.state = options.state ?? (options.dataDirectory ? new HealthOrganizationStateRepository(options.dataDirectory) : null)
+    this.previews = options.previews ?? (options.dataDirectory ? new HealthRecordPreviewRepository(options.dataDirectory) : null)
+    this.members = options.members ?? (options.dataDirectory ? new FamilyMemberRepository(options.dataDirectory) : null)
+    this.confirming = new Map()
   }
 
   async assertEventOwnership(accountId, eventId) {
@@ -125,22 +144,118 @@ export class HealthRecordOrganizationService {
     return result.organizations?.find((item) => item.recordId === recordId) ?? null
   }
 
-  async preview(accountId, eventId, input) {
-    await this.assertEventOwnership(accountId, eventId)
+  async preview(accountId, eventId, input, now = new Date()) {
+    const event = await this.assertEventOwnership(accountId, eventId)
+    if (!this.members) throw new HealthRecordOrganizationError('记录对象服务不可用', 503, 'SUBJECT_SERVICE_UNAVAILABLE')
+    const eventMember = await this.members.findById(event.memberId)
+    if (!eventMember || eventMember.accountId !== accountId) throw new HealthRecordOrganizationError('记录对象不存在', 404, 'SUBJECT_MEMBER_NOT_FOUND')
+    const accountMembers = await this.members.findByAccountId(accountId)
     const intentBeforeExtraction = classifyHealthInputBeforeExtraction(input?.rawInput)
     if (intentBeforeExtraction) {
       const healthAIOutput = emptyHealthAIOutput()
       return { hasHealthFacts: false, intent: intentBeforeExtraction, healthAIOutput,
+        eventId, memberId: event.memberId, memberName: eventMember.name,
         organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: 'intent-gate' }
     }
-    const organized = await this.ai.organizeHealthRecord(input?.rawInput, { selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone })
-    const extracted = mergeStructuredHealthFacts(organized.healthAIOutput, {
+    const organized = await this.ai.organizeHealthRecord(input?.rawInput, { selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone, referenceNow: now })
+    const merged = mergeStructuredHealthFacts(organized.healthAIOutput, {
       bodyLocations: readBodyLocations(input), rawInput: input?.rawInput, occurredAt: input?.selectedOccurredAt })
-    const intent = classifyExtractedHealthInput(input?.rawInput, extracted)
-    const healthAIOutput = normalizeHealthAIOutput({ ...extracted, facts: eligibleHealthFacts(extracted) })
+    const priorOrganizations = await this.repository.findByEventId(eventId)
+    const extracted = applyEventHealthContext(input?.rawInput, merged, priorOrganizations, {
+      selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone, referenceNow: now, timeResolver: this.ai.timeResolver
+    })
+    const subjectFacts = resolveFactSubjects(input?.rawInput, extracted.facts, eventMember, accountMembers)
+    const intent = classifyExtractedHealthInput(input?.rawInput, { ...extracted, facts: subjectFacts })
+    const healthAIOutput = normalizeHealthAIOutput({ ...extracted, facts: eligibleHealthFacts({ facts: subjectFacts }) })
+    for (const fact of healthAIOutput.facts) {
+      if (fact.time.resolvedStart) assertPastOccurrence(fact.time.resolvedStart, now)
+    }
     const hasHealthFacts = ['health_fact', 'uncertain_health_fact'].includes(intent) && healthAIOutput.facts.length > 0
-    return { hasHealthFacts, intent, healthAIOutput,
+    if (!hasHealthFacts || !this.previews) return { hasHealthFacts, intent, healthAIOutput,
+      eventId, memberId: event.memberId, memberName: eventMember.name,
       organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider }
+    const inputChannel = input?.inputChannel === 'voice' ? 'voice' : 'text'
+    const selectedOccurredAt = assertPastOccurrence(input?.selectedOccurredAt ?? now.toISOString(), now)
+    const draft = await this.previews.create({
+      accountId, eventId, memberId: event.memberId, memberName: eventMember.name,
+      rawInput: input.rawInput.trim(), inputChannel, selectedOccurredAt,
+      parserVersion: healthAIOutput.parserVersion, provider: organized.provider, healthAIOutput,
+      checksum: checksumFor({ accountId, eventId, memberId: event.memberId, rawInput: input.rawInput.trim(), inputChannel, healthAIOutput })
+    }, now)
+    return { hasHealthFacts, intent, previewId: draft.id, eventId, memberId: event.memberId, memberName: eventMember.name,
+      rawInput: draft.rawInput, inputChannel, parserVersion: draft.parserVersion, createdAt: draft.createdAt,
+      expiresAt: draft.expiresAt, checksum: draft.checksum, healthAIOutput,
+      organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider }
+  }
+
+  async confirm(accountId, eventId, input, now = new Date()) {
+    const previewId = typeof input?.previewId === 'string' ? input.previewId.trim() : ''
+    const idempotencyKey = typeof input?.idempotencyKey === 'string' ? input.idempotencyKey.trim() : ''
+    if (!previewId) throw new HealthRecordOrganizationError('预览标识不能为空', 400, 'PREVIEW_ID_REQUIRED')
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(idempotencyKey)) throw new HealthRecordOrganizationError('确认请求标识无效', 400, 'INVALID_IDEMPOTENCY_KEY')
+    if (!this.previews) throw new HealthRecordOrganizationError('预览确认不可用', 503, 'PREVIEW_CONFIRM_UNAVAILABLE')
+    if (this.confirming.has(previewId)) return this.confirming.get(previewId)
+    const operation = this.#confirmDraft(accountId, eventId, previewId, idempotencyKey, now)
+    this.confirming.set(previewId, operation)
+    try { return await operation } finally { this.confirming.delete(previewId) }
+  }
+
+  async #confirmDraft(accountId, eventId, previewId, idempotencyKey, now) {
+    const event = await this.assertEventOwnership(accountId, eventId)
+    const draft = await this.previews.findById(previewId)
+    if (!draft || draft.accountId !== accountId || draft.eventId !== eventId) throw new HealthRecordOrganizationError('预览不存在或无权访问', 404, 'PREVIEW_NOT_FOUND')
+    if (draft.status === 'confirmed') {
+      const [record, organizations] = await Promise.all([this.records.findById(draft.recordId), this.repository.findByEventId(eventId)])
+      return { previewId, record, organization: organizations.find((item) => item.id === draft.organizationId) ?? null, idempotent: true }
+    }
+    const committedOrganization = await this.repository.findByPreviewId(eventId, previewId)
+    if (committedOrganization) {
+      const record = await this.records.findById(committedOrganization.recordId)
+      if (record) {
+        await this.previews.markConfirmed(previewId, {
+          idempotencyKey,
+          recordId: record.id,
+          organizationId: committedOrganization.id
+        }, now)
+        return { previewId, record, organization: committedOrganization, idempotent: true }
+      }
+    }
+    if (new Date(draft.expiresAt).getTime() <= now.getTime()) throw new HealthRecordOrganizationError('本次预览已过期，请重新整理。', 409, 'PREVIEW_EXPIRED')
+    if (event.memberId !== draft.memberId || draft.healthAIOutput.facts.some((fact) => fact.subjectMemberId !== event.memberId)) {
+      throw new HealthRecordOrganizationError('记录对象与预览不一致', 409, 'PREVIEW_MEMBER_MISMATCH')
+    }
+    const occurredAt = assertPastOccurrence(draft.selectedOccurredAt, now)
+    for (const fact of draft.healthAIOutput.facts) if (fact.time.resolvedStart) assertPastOccurrence(fact.time.resolvedStart, now)
+    let record = null
+    let organization = null
+    try {
+      record = await this.records.create({
+        accountId, eventId, type: 'note', content: draft.rawInput, occurredAt,
+        sourceType: draft.inputChannel === 'voice' ? 'voice_record' : 'text_record',
+        sourceText: draft.rawInput, measurementMethod: null, measurementDevice: null,
+        note: `preview:${previewId}`
+      }, now)
+      const state = await this.invalidate(eventId, now)
+      const output = withProvenance(draft.healthAIOutput, record, state.revision)
+      organization = await this.repository.upsert({
+        accountId, eventId, recordId: record.id, rawInput: draft.rawInput,
+        healthAIOutput: output, status: 'completed', provider: draft.provider,
+        inputChannel: draft.inputChannel, previewId, checksum: draft.checksum,
+        sourceRevision: state.revision, sourceRecordUpdatedAt: record.updatedAt
+      }, now)
+      await this.refreshEventSummary(eventId, now)
+      if (this.state) {
+        await this.state.transition(eventId, state.revision, { status: 'completed', errorCode: null, completedAt: now.toISOString() }, now)
+        await this.events.update(eventId, { organizationState: { revision: state.revision, status: 'completed', errorCode: null } }, now)
+      }
+      await this.previews.markConfirmed(previewId, { idempotencyKey, recordId: record.id, organizationId: organization.id }, now)
+      return { previewId, record, organization, idempotent: false }
+    } catch (error) {
+      // Once the organization exists, the preview id is a durable commit marker.
+      // A retry will recover it above and finish marking the preview confirmed.
+      if (record && !organization) await this.records.delete(record.id)
+      throw error
+    }
   }
 
   async list(accountId, eventId) {
@@ -148,15 +263,15 @@ export class HealthRecordOrganizationService {
     if (!this.state) return this.repository.findByEventId(eventId)
     let state = await this.state.get(eventId)
     const records = await this.records.findByEventId(eventId)
-    let organizations = state?.status === 'completed' ? await this.repository.findByEventId(eventId, { revision: state.revision }) : []
+    let organizations = await this.repository.findByEventId(eventId)
     const current = organizations.length === records.length && organizations.every((item) => records.some((record) => record.id === item.recordId && record.updatedAt === item.sourceRecordUpdatedAt))
-    if (!state || state.status !== 'completed' || !current) {
+    if (!current) {
       const result = await this.invalidateAndRecompute(accountId, eventId)
       state = await this.state.get(eventId); organizations = result.organizations ?? []
     } else if (event.eventSummary && event.eventSummary.aggregationVersion !== healthEventSummaryAggregationVersion) {
       await this.refreshEventSummary(eventId, new Date(), event, organizations, records)
     }
-    return state?.status === 'completed' ? organizations.filter((item) => item.sourceRevision === state.revision) : []
+    return current || state?.status === 'completed' ? organizations : []
   }
 
   async ensureSummaryCurrent(accountId, eventId, now = new Date()) {

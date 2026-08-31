@@ -11,8 +11,14 @@ const provider = new LocalFactProvider()
 function generatedFactText(fact) {
   return [fact.name, fact.bodyPart, fact.target, fact.change, fact.temperature && JSON.stringify(fact.temperature)].filter(Boolean).join(' ')
 }
+function isCurrentPositiveFact(fact) {
+  return fact.polarity === 'affirmed'
+    && fact.temporality === 'current'
+    && !['not_applicable', 'resolved', 'corrected', 'superseded'].includes(fact.status)
+    && fact.subject === 'event_subject'
+}
 function isCurrentFever(output) {
-  return output.facts.some((fact) => fact.type === 'symptom' && /发热|发烧|高烧|低烧/.test(fact.name))
+  return output.facts.some((fact) => isCurrentPositiveFact(fact) && fact.type === 'symptom' && /发热|发烧|高烧|低烧/.test(fact.name))
 }
 
 async function execute(testCase) {
@@ -21,12 +27,12 @@ async function execute(testCase) {
     const organizedHealthData = projectOrganizedHealthData(healthAIOutput)
     const failures = []
     for (const forbidden of testCase.forbiddenFacts ?? []) {
-      if (healthAIOutput.facts.some((fact) => (!forbidden.type || fact.type === forbidden.type) && generatedFactText(fact).includes(forbidden.name))) {
+      if (healthAIOutput.facts.some((fact) => isCurrentPositiveFact(fact) && (!forbidden.type || fact.type === forbidden.type) && generatedFactText(fact).includes(forbidden.name))) {
         failures.push(`forbidden fact generated: ${forbidden.name}`)
       }
     }
     for (const text of testCase.mustNotInclude ?? []) {
-      if (healthAIOutput.facts.some((fact) => generatedFactText(fact).includes(text))) failures.push(`forbidden text generated: ${text}`)
+      if (healthAIOutput.facts.some((fact) => isCurrentPositiveFact(fact) && generatedFactText(fact).includes(text))) failures.push(`forbidden text generated: ${text}`)
     }
     if (testCase.forbiddenCurrentFever && (isCurrentFever(healthAIOutput) || organizedHealthData.symptoms.some((x) => x.content === '发热'))) {
       failures.push('current fever generated')
@@ -70,7 +76,7 @@ const executiveSummary = failed.length
 const riskConclusion = failed.length
   ? '当前结果仍存在阻断性事实反转，不应作为可信事实直接展示。'
   : '本地 Provider 已通过当前冻结攻击集；仍应保留原始输入、版本追踪与失败状态，并继续以新增真实案例做回归。'
-const markdown = `# HOOOHO 健康事件 AI 攻击性测试报告
+const markdown = `# Hoooho 健康事件 AI 攻击性测试报告
 
 ## Executive Summary
 

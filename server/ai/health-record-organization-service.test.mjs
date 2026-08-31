@@ -60,9 +60,9 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const cough = await organize('咳嗽三天，没有发烧')
     assert.equal(cough.rawInput, '咳嗽三天，没有发烧')
     assert.equal(cough.confirmedData, null)
-    assert.equal(cough.schemaVersion, 6)
-    assert.equal(cough.healthAIOutput.parserVersion, '2.0.0')
-    assert.equal(cough.healthAIOutput.promptVersion, 'health-facts-v3-context-and-provenance')
+    assert.equal(cough.schemaVersion, 7)
+    assert.equal(cough.healthAIOutput.parserVersion, '3.0.0')
+    assert.equal(cough.healthAIOutput.promptVersion, 'health-facts-v4-subject-state-contract')
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.id && fact.sourceText && typeof fact.confidence === 'number'))
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.time.source === 'selected_time'))
     assert.ok(cough.healthAIOutput.facts.every((fact) => fact.time.resolvedStart === '2026-08-09T10:00:00+08:00'))
@@ -163,13 +163,18 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const temperaturePreview = await organizations.preview(accountId, event.id, { rawInput: '38.5度' })
     assert.equal(temperaturePreview.hasHealthFacts, true)
 
-    const mixedPreview = await organizations.preview(accountId, event.id, { rawInput: '今天早上喉咙痛，晚上38.5度，吃一次退烧药' })
+    const mixedPreview = await organizations.preview(accountId, event.id, {
+      rawInput: '今天早上喉咙痛，晚上38.5度，吃一次退烧药',
+      selectedOccurredAt: '2026-08-11T23:00:00+08:00'
+    }, new Date('2026-08-12T06:00:00.000Z'))
     assert.ok(mixedPreview.healthAIOutput.facts.length >= 3)
     assert.ok(mixedPreview.healthAIOutput.facts.some((fact) => fact.type === 'symptom' && fact.name === '喉咙痛'))
     assert.ok(mixedPreview.healthAIOutput.facts.some((fact) => fact.type === 'temperature' && fact.temperature?.min === 38.5))
     assert.ok(mixedPreview.healthAIOutput.facts.some((fact) => fact.type === 'medication' && fact.name === '退烧药一次'))
 
-    const timePreview = await organizations.preview(accountId, event.id, { rawInput: '昨天头痛，今天发烧' })
+    const timePreview = await organizations.preview(accountId, event.id, {
+      rawInput: '昨天头痛，今天发烧', selectedOccurredAt: '2026-08-11T23:00:00+08:00'
+    }, new Date('2026-08-12T06:00:00.000Z'))
     const timedSymptoms = timePreview.healthAIOutput.facts.filter((fact) => fact.type === 'symptom')
     assert.ok(timedSymptoms.some((fact) => fact.name === '头痛' && fact.time.raw === '昨天'))
     assert.ok(timedSymptoms.some((fact) => fact.name === '发热' && fact.time.raw === '今天'))
@@ -201,7 +206,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
 
     const list = await organizations.list(accountId, event.id)
     assert.equal(list.length, 7)
-    assert.ok(list.every((organization) => organization.schemaVersion === 6))
+    assert.ok(list.every((organization) => organization.schemaVersion === 7))
     await assert.rejects(() => organizations.list('other-account', event.id), (error) => error.code === 'HEALTH_EVENT_NOT_FOUND')
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
