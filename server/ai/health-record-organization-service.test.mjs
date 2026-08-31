@@ -82,8 +82,8 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
 
     const detailedProgression = await organize('今天早上7点的时候，有一点感冒的前兆，然后脚有点凉，到了今天晚上就好一点了，但是手脚还是有点冷，目前感觉身体稍微有点发虚，体温一直在37度到38度之间，没有高烧')
     assert.deepEqual(detailedProgression.organizedHealthData.temperature, { min: 37, max: 38, unit: '℃' })
-    assert.equal(detailedProgression.organizedHealthData.timeline.length, 2)
-    assert.deepEqual(detailedProgression.organizedHealthData.timeline.map((item) => item.time), ['07:00', '今天晚上'])
+    assert.equal(detailedProgression.organizedHealthData.timeline.length, 3)
+    assert.deepEqual(detailedProgression.organizedHealthData.timeline.map((item) => item.time), ['07:00', '今天晚上', '目前'])
     assert.match(detailedProgression.organizedHealthData.symptoms[0].content, /感冒表现/)
     assert.match(detailedProgression.organizedHealthData.symptoms[0].content, /手脚发凉/)
     assert.match(detailedProgression.organizedHealthData.symptoms[0].content, /乏力/)
@@ -180,7 +180,8 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const negatedTemperaturePreview = await organizations.preview(accountId, event.id, { rawInput: '没有发烧' })
     assert.equal(negatedTemperaturePreview.healthAIOutput.facts.some((fact) => fact.type === 'temperature'), false)
     assert.equal(negatedTemperaturePreview.healthAIOutput.facts.some((fact) => fact.type === 'status_change'), false)
-    assert.equal(negatedTemperaturePreview.hasHealthFacts, false)
+    assert.equal(negatedTemperaturePreview.hasHealthFacts, true)
+    assert.ok(negatedTemperaturePreview.healthAIOutput.facts.some((fact) => fact.type === 'symptom' && fact.name === '发热' && fact.polarity === 'negated'))
 
     const improvedPreview = await organizations.preview(accountId, event.id, { rawInput: '昨晚发烧，今天好多了' })
     const improvement = improvedPreview.healthAIOutput.facts.find((fact) => fact.type === 'status_change')

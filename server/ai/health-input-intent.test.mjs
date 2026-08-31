@@ -31,9 +31,10 @@ test('只有当前记录对象的真实健康事实可以进入保存候选', ()
     fact(),
     fact({ name: '引用的头痛', source: 'quoted_text' }),
     fact({ name: '他人头痛', subject: 'other_person' }),
-    fact({ name: '计划服药', temporality: 'future' })
+    fact({ name: '计划服药', temporality: 'future' }),
+    fact({ name: '无呕吐', polarity: 'negated', status: 'not_applicable' })
   ] }
-  assert.deepEqual(eligibleHealthFacts(output).map(({ name }) => name), ['头痛'])
+  assert.deepEqual(eligibleHealthFacts(output).map(({ name }) => name), ['头痛', '无呕吐'])
   assert.equal(classifyExtractedHealthInput('我现在头痛', output), 'health_fact')
   assert.equal(classifyExtractedHealthInput('好像有点不舒服', { facts: [fact({ polarity: 'uncertain', confidence: 0.5 })] }), 'uncertain_health_fact')
   assert.equal(classifyExtractedHealthInput('今天天气不错', { facts: [] }), 'irrelevant_or_chat')

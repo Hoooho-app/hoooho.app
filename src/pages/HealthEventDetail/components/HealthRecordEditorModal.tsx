@@ -3,6 +3,7 @@ import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'luci
 import { Button, Card } from '../../../components/common'
 import { BodyLocationPicker } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
+import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
@@ -178,16 +179,9 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
     setSaveError('')
     try {
       const selected = await Promise.all([...files].map(async (file) => {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('仅支持 JPG、PNG 或 WebP 图片')
-        if (file.size > 5 * 1024 * 1024) throw new Error('单张图片不能超过 5MB')
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(String(reader.result))
-          reader.onerror = () => reject(new Error('图片读取失败'))
-          reader.readAsDataURL(file)
-        })
+        const prepared = await prepareHealthImage(file)
         const label = inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations))
-        return { name: `[${label}] ${file.name}`, mimeType: file.type, dataUrl }
+        return { ...prepared, name: `[${label}] ${prepared.name}` }
       }))
       setAttachments((current) => [...current, ...selected].slice(0, 8))
     } catch (error) {
@@ -273,7 +267,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
 
             <div>
               <p className="mb-2 text-xs font-semibold text-heading">添加图片</p>
-              <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
+              <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
               <button className="inline-flex min-h-10 items-center gap-2 rounded-control border border-primary/25 px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus size={17} />添加图片</button>
               {attachments.length > 0 && (
                 <div className="mt-3 grid grid-cols-4 gap-2">
@@ -363,7 +357,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               <span className="text-[11px] text-text-secondary">{text.length}/1000</span>
               <div className="flex gap-2">
                 <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="语音功能准备中" type="button"><Mic size={15} />语音准备中</button>
-                <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => void selectImages(event.target.files)} ref={fileInputRef} type="file" />
+                <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" multiple onChange={(event) => void selectImages(event.target.files)} ref={fileInputRef} type="file" />
                 <button className="flex min-h-9 items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={15} />添加图片{attachments.length ? ` (${attachments.length})` : ''}</button>
               </div>
             </div>
