@@ -1,6 +1,6 @@
-import { Bell, ClipboardList, Ellipsis, Filter, List, Plus } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Bell, Check, ChevronDown, ClipboardList, Filter, Plus } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
 import type { HealthEventFilters } from '../../components/health'
@@ -23,7 +23,12 @@ import { createQuickRecordCandidates } from '../../features/quick-record'
 import { FirstUseHome } from './FirstUseHome'
 import { NurseQuickRecord } from './NurseQuickRecord'
 import { preloadNurseTriageAssets } from './NurseTriageDesk'
-import { shouldShowHealthEventFilters, type HealthEventsViewMode } from './nurseTriageMachine'
+import {
+  DEFAULT_HEALTH_EVENTS_VIEW_MODE,
+  healthEventsViewLabels,
+  shouldShowHealthEventFilters,
+  type HealthEventsViewMode
+} from './nurseTriageMachine'
 
 function HeaderActions({ onMessages }: { onMessages: () => void }) {
   return (
@@ -58,6 +63,122 @@ function UserIdentity({ member }: { member: Member | null }) {
 
 function hasActiveFilters(filters: HealthEventFilters) {
   return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.definitionTitles.length > 0
+}
+
+const healthEventsViewOptions: HealthEventsViewMode[] = ['triage', 'list']
+
+function HealthEventsViewSelect({ onChange, value }: { onChange: (view: HealthEventsViewMode) => void; value: HealthEventsViewMode }) {
+  const location = useLocation()
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+  useEffect(() => {
+    setOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  const focusOption = (index: number) => optionRefs.current[index]?.focus()
+  const openWithFocus = (index: number) => {
+    setOpen(true)
+    queueMicrotask(() => focusOption(index))
+  }
+  const selectView = (nextView: HealthEventsViewMode) => {
+    if (nextView !== value) onChange(nextView)
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      openWithFocus(0)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      openWithFocus(healthEventsViewOptions.length - 1)
+    }
+  }
+  const handleOptionKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusOption((index + 1) % healthEventsViewOptions.length)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusOption((index - 1 + healthEventsViewOptions.length) % healthEventsViewOptions.length)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusOption(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusOption(healthEventsViewOptions.length - 1)
+    }
+  }
+
+  return (
+    <div
+      className="health-events-view-select"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false)
+      }}
+      ref={rootRef}
+    >
+      <button
+        aria-controls="health-events-view-menu"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="health-events-view-select__trigger"
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={handleTriggerKeyDown}
+        ref={triggerRef}
+        type="button"
+      >
+        <span>{healthEventsViewLabels[value]}</span>
+        <ChevronDown aria-hidden="true" data-open={open} size={16} strokeWidth={1.8} />
+      </button>
+      {open && (
+        <div aria-label="选择健康事件视图" className="health-events-view-select__menu" id="health-events-view-menu" role="menu">
+          {healthEventsViewOptions.map((option, index) => {
+            const selected = option === value
+            return (
+              <button
+                aria-checked={selected}
+                className="health-events-view-select__option"
+                data-selected={selected}
+                key={option}
+                onClick={() => selectView(option)}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
+                ref={(node) => { optionRefs.current[index] = node }}
+                role="menuitemradio"
+                tabIndex={selected ? 0 : -1}
+                type="button"
+              >
+                <span>{healthEventsViewLabels[option]}</span>
+                <Check aria-hidden="true" size={15} strokeWidth={2} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters, now = new Date()) {
@@ -96,7 +217,7 @@ export function HealthEventsPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
-  const [viewMode, setViewMode] = useState<HealthEventsViewMode>('list')
+  const [viewMode, setViewMode] = useState<HealthEventsViewMode>(DEFAULT_HEALTH_EVENTS_VIEW_MODE)
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const pendingTriageEventRef = useRef<{ eventId: string; memberId: string; recordId?: string; transcript?: string } | null>(null)
@@ -318,8 +439,8 @@ export function HealthEventsPage() {
 
       <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
         <div className="health-events-toolbar mb-4 space-y-3">
-          <div className="flex min-h-11 items-center justify-between gap-2">
-            <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>
+          <div className={`flex min-h-11 items-center gap-2 ${viewMode === 'list' ? 'justify-between' : 'justify-end'}`}>
+            {viewMode === 'list' && <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>}
             <div className="health-events-view-actions">
               {shouldShowHealthEventFilters(viewMode) && (
                 <button
@@ -333,14 +454,7 @@ export function HealthEventsPage() {
                   {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
                 </button>
               )}
-              <div aria-label="健康事件查看方式" className="health-events-view-switcher" role="group">
-                <button aria-label="列表视图" aria-pressed={viewMode === 'list'} data-selected={viewMode === 'list'} onClick={() => setViewMode('list')} type="button">
-                  <List aria-hidden="true" size={20} strokeWidth={1.8} />
-                </button>
-                <button aria-label="智能记录视图" aria-pressed={viewMode === 'triage'} data-selected={viewMode === 'triage'} onClick={() => setViewMode('triage')} type="button">
-                  <Ellipsis aria-hidden="true" size={22} strokeWidth={2.2} />
-                </button>
-              </div>
+              <HealthEventsViewSelect onChange={setViewMode} value={viewMode} />
             </div>
           </div>
 
