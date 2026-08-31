@@ -360,6 +360,10 @@ export interface HealthRecordOrganizationApiDto {
   provider: string
   createdAt: string
   updatedAt: string
+  inputChannel?: 'voice' | 'text' | null
+  previewId?: string | null
+  rawRecordOnly?: boolean
+  structuredMode?: 'disabled' | 'enabled'
 }
 
 export interface HealthRecordOrganizationPreviewApiDto {
@@ -378,6 +382,8 @@ export interface HealthRecordOrganizationPreviewApiDto {
   createdAt?: string
   expiresAt?: string
   checksum?: string
+  rawRecordOnly?: boolean
+  structuredMode?: 'disabled' | 'enabled'
 }
 
 export interface HealthRecordOrganizationConfirmApiDto {
@@ -385,6 +391,8 @@ export interface HealthRecordOrganizationConfirmApiDto {
   record: HealthEventRecordApiDto
   organization: HealthRecordOrganizationApiDto
   idempotent: boolean
+  rawRecordOnly?: boolean
+  structuredMode?: 'disabled' | 'enabled'
 }
 
 export interface NotificationPreferences {

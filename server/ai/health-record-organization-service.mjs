@@ -11,6 +11,11 @@ import { classifyExtractedHealthInput, classifyHealthInputBeforeExtraction, elig
 import { buildHealthEventSummary, healthEventSummaryAggregationVersion } from '../events/health-event-summary.mjs'
 import { resolveFactSubjects } from './health-subject-resolver.mjs'
 import { applyEventHealthContext } from './health-event-context.mjs'
+import {
+  isQuickRecordStructuredModeEnabled,
+  readQuickRecordStructuredMode,
+  redactUnconfirmedQuickRecordOrganization
+} from './quick-record-structured-mode.mjs'
 
 function assertPastOccurrence(value, now = new Date()) {
   const parsed = new Date(value)
@@ -67,7 +72,23 @@ export class HealthRecordOrganizationService {
     this.state = options.state ?? (options.dataDirectory ? new HealthOrganizationStateRepository(options.dataDirectory) : null)
     this.previews = options.previews ?? (options.dataDirectory ? new HealthRecordPreviewRepository(options.dataDirectory) : null)
     this.members = options.members ?? (options.dataDirectory ? new FamilyMemberRepository(options.dataDirectory) : null)
+    this.structuredMode = readQuickRecordStructuredMode(options.structuredMode)
     this.confirming = new Map()
+  }
+
+  structuredModeStatus() {
+    return this.structuredMode
+  }
+
+  publicEventPayload(event) {
+    if (isQuickRecordStructuredModeEnabled(this.structuredMode) || !event) return event
+    if (Array.isArray(event)) return event.map((item) => this.publicEventPayload(item))
+    if (event.eventSummary?.displayedResult?.source === 'user_corrected') return event
+    return { ...event, eventSummary: null }
+  }
+
+  #publicOrganizations(organizations) {
+    return organizations.map((organization) => redactUnconfirmedQuickRecordOrganization(organization, this.structuredMode))
   }
 
   async assertEventOwnership(accountId, eventId) {
@@ -83,6 +104,10 @@ export class HealthRecordOrganizationService {
 
   async recomputeEvent(accountId, eventId, options = {}, now = new Date()) {
     const event = await this.assertEventOwnership(accountId, eventId)
+    if (!isQuickRecordStructuredModeEnabled(this.structuredMode)) {
+      const organizations = this.#publicOrganizations(await this.repository.findByEventId(eventId))
+      return { stale: false, revision: null, organizations, rawRecordOnly: true, structuredMode: this.structuredMode }
+    }
     let state = this.state ? await this.state.get(eventId) : null
     if (!state) state = await this.invalidate(eventId, now)
     const revision = options.revision ?? state.revision
@@ -137,6 +162,9 @@ export class HealthRecordOrganizationService {
     const recordId = typeof input?.recordId === 'string' ? input.recordId : ''
     const record = recordId ? await this.records.findById(recordId) : null
     if (!record || record.accountId !== accountId || record.eventId !== eventId) throw new HealthRecordOrganizationError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
+    if (!isQuickRecordStructuredModeEnabled(this.structuredMode)) {
+      return { status: 'completed', recordId, rawRecordOnly: true, structuredMode: this.structuredMode }
+    }
     const bodyLocations = readBodyLocations(input)
     const result = await this.invalidateAndRecompute(accountId, eventId, now, {
       bodyLocationsByRecord: bodyLocations.length ? { [recordId]: bodyLocations } : undefined
@@ -166,26 +194,31 @@ export class HealthRecordOrganizationService {
     })
     const subjectFacts = resolveFactSubjects(input?.rawInput, extracted.facts, eventMember, accountMembers)
     const intent = classifyExtractedHealthInput(input?.rawInput, { ...extracted, facts: subjectFacts })
-    const healthAIOutput = normalizeHealthAIOutput({ ...extracted, facts: eligibleHealthFacts({ facts: subjectFacts }) })
-    for (const fact of healthAIOutput.facts) {
+    const extractedHealthAIOutput = normalizeHealthAIOutput({ ...extracted, facts: eligibleHealthFacts({ facts: subjectFacts }) })
+    for (const fact of extractedHealthAIOutput.facts) {
       if (fact.time.resolvedStart) assertPastOccurrence(fact.time.resolvedStart, now)
     }
-    const hasHealthFacts = ['health_fact', 'uncertain_health_fact'].includes(intent) && healthAIOutput.facts.length > 0
-    if (!hasHealthFacts || !this.previews) return { hasHealthFacts, intent, healthAIOutput,
+    const hasHealthFacts = ['health_fact', 'uncertain_health_fact'].includes(intent) && extractedHealthAIOutput.facts.length > 0
+    if (!hasHealthFacts || !this.previews) return { hasHealthFacts, intent, healthAIOutput: extractedHealthAIOutput,
       eventId, memberId: event.memberId, memberName: eventMember.name,
-      organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider }
+      organizedHealthData: projectOrganizedHealthData(extractedHealthAIOutput), provider: organized.provider,
+      structuredMode: this.structuredMode, rawRecordOnly: false }
     const inputChannel = input?.inputChannel === 'voice' ? 'voice' : 'text'
     const selectedOccurredAt = assertPastOccurrence(input?.selectedOccurredAt ?? now.toISOString(), now)
+    const rawRecordOnly = !isQuickRecordStructuredModeEnabled(this.structuredMode)
+    const healthAIOutput = rawRecordOnly ? emptyHealthAIOutput() : extractedHealthAIOutput
     const draft = await this.previews.create({
       accountId, eventId, memberId: event.memberId, memberName: eventMember.name,
       rawInput: input.rawInput.trim(), inputChannel, selectedOccurredAt,
-      parserVersion: healthAIOutput.parserVersion, provider: organized.provider, healthAIOutput,
-      checksum: checksumFor({ accountId, eventId, memberId: event.memberId, rawInput: input.rawInput.trim(), inputChannel, healthAIOutput })
+      parserVersion: extractedHealthAIOutput.parserVersion, provider: organized.provider, healthAIOutput,
+      rawRecordOnly, structuredMode: this.structuredMode,
+      checksum: checksumFor({ accountId, eventId, memberId: event.memberId, rawInput: input.rawInput.trim(), inputChannel, healthAIOutput, rawRecordOnly })
     }, now)
     return { hasHealthFacts, intent, previewId: draft.id, eventId, memberId: event.memberId, memberName: eventMember.name,
       rawInput: draft.rawInput, inputChannel, parserVersion: draft.parserVersion, createdAt: draft.createdAt,
       expiresAt: draft.expiresAt, checksum: draft.checksum, healthAIOutput,
-      organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider }
+      organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: organized.provider,
+      structuredMode: this.structuredMode, rawRecordOnly }
   }
 
   async confirm(accountId, eventId, input, now = new Date()) {
@@ -206,7 +239,7 @@ export class HealthRecordOrganizationService {
     if (!draft || draft.accountId !== accountId || draft.eventId !== eventId) throw new HealthRecordOrganizationError('预览不存在或无权访问', 404, 'PREVIEW_NOT_FOUND')
     if (draft.status === 'confirmed') {
       const [record, organizations] = await Promise.all([this.records.findById(draft.recordId), this.repository.findByEventId(eventId)])
-      return { previewId, record, organization: organizations.find((item) => item.id === draft.organizationId) ?? null, idempotent: true }
+      return { previewId, record, organization: redactUnconfirmedQuickRecordOrganization(organizations.find((item) => item.id === draft.organizationId) ?? null, this.structuredMode), idempotent: true, structuredMode: this.structuredMode, rawRecordOnly: Boolean(draft.rawRecordOnly) }
     }
     const committedOrganization = await this.repository.findByPreviewId(eventId, previewId)
     if (committedOrganization) {
@@ -217,7 +250,7 @@ export class HealthRecordOrganizationService {
           recordId: record.id,
           organizationId: committedOrganization.id
         }, now)
-        return { previewId, record, organization: committedOrganization, idempotent: true }
+        return { previewId, record, organization: redactUnconfirmedQuickRecordOrganization(committedOrganization, this.structuredMode), idempotent: true, structuredMode: this.structuredMode, rawRecordOnly: Boolean(draft.rawRecordOnly) }
       }
     }
     if (new Date(draft.expiresAt).getTime() <= now.getTime()) throw new HealthRecordOrganizationError('本次预览已过期，请重新整理。', 409, 'PREVIEW_EXPIRED')
@@ -243,13 +276,13 @@ export class HealthRecordOrganizationService {
         inputChannel: draft.inputChannel, previewId, checksum: draft.checksum,
         sourceRevision: state.revision, sourceRecordUpdatedAt: record.updatedAt
       }, now)
-      await this.refreshEventSummary(eventId, now)
+      if (isQuickRecordStructuredModeEnabled(this.structuredMode)) await this.refreshEventSummary(eventId, now)
       if (this.state) {
         await this.state.transition(eventId, state.revision, { status: 'completed', errorCode: null, completedAt: now.toISOString() }, now)
         await this.events.update(eventId, { organizationState: { revision: state.revision, status: 'completed', errorCode: null } }, now)
       }
       await this.previews.markConfirmed(previewId, { idempotencyKey, recordId: record.id, organizationId: organization.id }, now)
-      return { previewId, record, organization, idempotent: false }
+      return { previewId, record, organization: redactUnconfirmedQuickRecordOrganization(organization, this.structuredMode), idempotent: false, structuredMode: this.structuredMode, rawRecordOnly: Boolean(draft.rawRecordOnly) }
     } catch (error) {
       // Once the organization exists, the preview id is a durable commit marker.
       // A retry will recover it above and finish marking the preview confirmed.
@@ -260,6 +293,9 @@ export class HealthRecordOrganizationService {
 
   async list(accountId, eventId) {
     const event = await this.assertEventOwnership(accountId, eventId)
+    if (!isQuickRecordStructuredModeEnabled(this.structuredMode)) {
+      return this.#publicOrganizations(await this.repository.findByEventId(eventId))
+    }
     if (!this.state) return this.repository.findByEventId(eventId)
     let state = await this.state.get(eventId)
     const records = await this.records.findByEventId(eventId)
@@ -292,7 +328,8 @@ export class HealthRecordOrganizationService {
     const event = knownEvent ?? await this.events.findById(eventId)
     if (!event) return null
     const records = knownRecords ?? await this.records.findByEventId(eventId)
-    const organizations = knownOrganizations ?? await this.repository.findByEventId(eventId)
+    const rawOrganizations = knownOrganizations ?? await this.repository.findByEventId(eventId)
+    const organizations = this.#publicOrganizations(rawOrganizations)
     const eventSummary = buildHealthEventSummary({ event, records, organizations, now })
     if (!eventSummary) {
       if (!event.eventSummary && !event.title) return event

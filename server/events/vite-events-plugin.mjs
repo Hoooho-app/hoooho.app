@@ -45,7 +45,7 @@ function readAccountId(request, tokenService) {
 
 export function eventsApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
-  const summaryRefresher = options.summaryRefresher ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory })
+  const summaryRefresher = options.summaryRefresher ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory, structuredMode: 'enabled' })
   const events = options.service ?? new HealthEventService({ dataDirectory: config.dataDirectory, summaryRefresher })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
 
