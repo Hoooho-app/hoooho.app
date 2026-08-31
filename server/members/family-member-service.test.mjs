@@ -93,11 +93,29 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(futureYearResponse.status, 400)
     assert.equal((await futureYearResponse.json()).error.code, 'INVALID_BIRTHDAY')
 
+    const tooOldYearResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
+      birthday: '1800'
+    })
+    assert.equal(tooOldYearResponse.status, 400)
+    assert.equal((await tooOldYearResponse.json()).error.code, 'INVALID_BIRTHDAY')
+
     const incompleteDateResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990-01'
     })
     assert.equal(incompleteDateResponse.status, 400)
     assert.equal((await incompleteDateResponse.json()).error.code, 'INVALID_BIRTHDAY')
+
+    const tooOldDateResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
+      birthday: '1800-01-01'
+    })
+    assert.equal(tooOldDateResponse.status, 400)
+    assert.equal((await tooOldDateResponse.json()).error.code, 'INVALID_BIRTHDAY')
+
+    const clearBirthdayResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
+      birthday: null
+    })
+    assert.equal(clearBirthdayResponse.status, 200)
+    assert.equal((await clearBirthdayResponse.json()).birthday, null)
 
     const listResponse = await requestJson(`${baseUrl}/api/members`, 'GET', first.token)
     const list = await listResponse.json()

@@ -50,13 +50,18 @@ function validateBirthday(value, now = new Date(), timeZone) {
     throw new FamilyMemberError('出生日期格式应为 YYYY 或 YYYY-MM-DD', 400, 'INVALID_BIRTHDAY')
   }
   if (/^\d{4}$/.test(value)) {
-    if (value > String(localDateKey(now, timeZone)).slice(0, 4)) {
-      throw new FamilyMemberError('请输入有效且不晚于今年的出生年份', 400, 'INVALID_BIRTHDAY')
+    const currentYear = Number(String(localDateKey(now, timeZone)).slice(0, 4))
+    if (Number(value) > currentYear || Number(value) < currentYear - 120) {
+      throw new FamilyMemberError('请输入最近 120 年内且不晚于今年的出生年份', 400, 'INVALID_BIRTHDAY')
     }
     return value
   }
   const date = new Date(`${value}T00:00:00Z`)
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > localDateKey(now, timeZone)) {
+  const maximum = localDateKey(now, timeZone)
+  const maximumParts = maximum.split('-').map(Number)
+  const minimumDay = maximumParts[1] === 2 && maximumParts[2] === 29 ? 28 : maximumParts[2]
+  const minimum = `${String(maximumParts[0] - 120).padStart(4, '0')}-${String(maximumParts[1]).padStart(2, '0')}-${String(minimumDay).padStart(2, '0')}`
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > maximum || value < minimum) {
     throw new FamilyMemberError('请输入有效且不晚于今天的出生日期', 400, 'INVALID_BIRTHDAY')
   }
   return value

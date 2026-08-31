@@ -17,6 +17,18 @@ type DecodedImage = {
   release: () => void
 }
 
+export interface AvatarPhotoCropSelection {
+  offsetX: number
+  offsetY: number
+  zoom: number
+}
+
+export interface AvatarPhotoPreview {
+  height: number
+  src: string
+  width: number
+}
+
 export type AvatarPhotoFailure = 'unsupported' | 'unreadable' | 'processing'
 
 export class AvatarPhotoError extends Error {
@@ -40,6 +52,21 @@ export function isSupportedAvatarPhoto(file: Pick<File, 'name' | 'type'>) {
 export function getCenteredSquareCrop(width: number, height: number) {
   const side = Math.min(width, height)
   return { sx: (width - side) / 2, sy: (height - side) / 2, side }
+}
+
+export function getSquareCrop(width: number, height: number, selection: AvatarPhotoCropSelection = { offsetX: 0, offsetY: 0, zoom: 1 }) {
+  const baseSide = Math.min(width, height)
+  const zoom = Math.min(Math.max(selection.zoom, 1), 3)
+  const side = baseSide / zoom
+  const availableX = Math.max(width - side, 0)
+  const availableY = Math.max(height - side, 0)
+  const offsetX = Math.min(Math.max(selection.offsetX, -1), 1)
+  const offsetY = Math.min(Math.max(selection.offsetY, -1), 1)
+  return {
+    sx: availableX * (offsetX + 1) / 2,
+    sy: availableY * (offsetY + 1) / 2,
+    side
+  }
 }
 
 async function decodePhoto(file: File): Promise<DecodedImage> {
@@ -97,14 +124,46 @@ async function encodePreferred(canvas: HTMLCanvasElement, quality: number) {
   return canvasToBlob(canvas, 'image/jpeg', quality)
 }
 
-export async function prepareAvatarPhoto(file: File) {
+export async function createAvatarPhotoPreview(file: File): Promise<AvatarPhotoPreview> {
+  if (!isSupportedAvatarPhoto(file)) throw new AvatarPhotoError('unsupported')
+  let decoded: DecodedImage | null = null
+  try {
+    decoded = await decodePhoto(file)
+    if (!decoded.width || !decoded.height) throw new AvatarPhotoError('unreadable')
+    const scale = Math.min(1024 / Math.max(decoded.width, decoded.height), 1)
+    const width = Math.max(1, Math.round(decoded.width * scale))
+    const height = Math.max(1, Math.round(decoded.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: false })
+    if (!context) throw new AvatarPhotoError('processing')
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, width, height)
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(decoded.source, 0, 0, width, height)
+    const blob = await encodePreferred(canvas, 0.84)
+    canvas.width = 1
+    canvas.height = 1
+    if (!blob) throw new AvatarPhotoError('processing')
+    return { height: decoded.height, src: await blobToDataUrl(blob), width: decoded.width }
+  } catch (error) {
+    if (error instanceof AvatarPhotoError) throw error
+    throw new AvatarPhotoError('processing')
+  } finally {
+    decoded?.release()
+  }
+}
+
+export async function prepareAvatarPhoto(file: File, selection: AvatarPhotoCropSelection = { offsetX: 0, offsetY: 0, zoom: 1 }) {
   if (!isSupportedAvatarPhoto(file)) throw new AvatarPhotoError('unsupported')
 
   let decoded: DecodedImage | null = null
   try {
     decoded = await decodePhoto(file)
     if (!decoded.width || !decoded.height) throw new AvatarPhotoError('unreadable')
-    const crop = getCenteredSquareCrop(decoded.width, decoded.height)
+    const crop = getSquareCrop(decoded.width, decoded.height, selection)
 
     for (const step of AVATAR_PHOTO_OUTPUT_STEPS) {
       const canvas = document.createElement('canvas')
