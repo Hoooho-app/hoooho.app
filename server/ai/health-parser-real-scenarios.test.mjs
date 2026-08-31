@@ -84,7 +84,7 @@ test('真实场景：历史补录产生选择时间冲突', async () => {
   })
 })
 
-test('真实场景：否定发烧不产生体温事实', async () => {
+test('真实场景：否定发烧保留阴性观察但不产生阳性或体温事实', async () => {
   const output = await parse('咳嗽三天，没有发烧。')
 
   assert.ok(factsOf(output, 'symptom').some((fact) => fact.name === '咳嗽'))

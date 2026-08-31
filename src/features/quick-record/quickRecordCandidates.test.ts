@@ -12,6 +12,7 @@ const fact = (id: string, type: HealthFact['type'], name: string, raw: string, r
 test('一句复合输入按事实拆成可独立编辑的多条记录候选', () => {
   const preview = {
     hasHealthFacts: true, intent: 'health_fact', provider: 'test',
+    previewId: 'preview-123', eventId: 'event-123', memberId: 'member-123', memberName: '刘磊',
     organizedHealthData: { symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: [] },
     healthAIOutput: {
       facts: [fact('medication', 'medication', '美林 5 毫升', '晚上九点', '2026-08-25T21:00:00+08:00'), fact('temperature', 'temperature', '38.5℃', '刚刚', '2026-08-25T21:05:00+08:00', 38.5)],
@@ -24,9 +25,10 @@ test('一句复合输入按事实拆成可独立编辑的多条记录候选', ()
   assert.deepEqual(candidates.map((candidate) => candidate.content), ['美林 5 毫升', '体温 38.5℃'])
   assert.deepEqual(candidates.map((candidate) => candidate.sourceType), ['user_record', 'measurement'])
   assert.deepEqual(candidates.map((candidate) => candidate.fields.map((field) => field.value)), [
-    ['晚上九点', '已陈述', '用户描述', '美林 5 毫升'],
-    ['刚刚', '已陈述', '用户描述', '38.5℃']
+    ['刘磊', '晚上九点', '已陈述', '用户描述', '美林 5 毫升'],
+    ['刘磊', '刚刚', '已陈述', '用户描述', '38.5℃']
   ])
+  assert.ok(candidates.every((candidate) => candidate.previewId === 'preview-123' && candidate.memberId === 'member-123'))
 })
 
 test('否定事实作为待确认草稿显式呈现而不是反转为阳性', () => {
@@ -49,15 +51,16 @@ test('机器 ISO 时间在草稿中转为本地可读时间', () => {
     organizedHealthData: { symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: [] },
     healthAIOutput: { facts: [isoFact], confidence: 0.95, parserVersion: 'test', promptVersion: 'test', timeConflict: { hasConflict: false, conflict: null } }
   } satisfies HealthRecordOrganizationPreviewApiDto
-  assert.doesNotMatch(createQuickRecordCandidates(preview, isoFact.time.resolvedStart!)[0].fields[0].value, /^2026-08-25T/u)
+  assert.doesNotMatch(createQuickRecordCandidates(preview, isoFact.time.resolvedStart!)[0].fields.find((field) => field.label === '发生时间')?.value ?? '', /^2026-08-25T/u)
 })
 
-test('未来解析时间回退到用户提交时刻', () => {
+test('客户端不把未来解析时间静默改写为提交时刻', () => {
   const fallback = '2026-08-25T08:00:00.000Z'
   const preview = {
     hasHealthFacts: true, intent: 'health_fact', provider: 'test',
+    previewId: 'preview-456', eventId: 'event-123', memberId: 'member-123', memberName: '刘磊',
     organizedHealthData: { symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: [] },
     healthAIOutput: { facts: [fact('symptom', 'symptom', '咳嗽', '明天', '2099-01-01T12:00:00.000Z')], confidence: 0.9, parserVersion: 'test', promptVersion: 'test', timeConflict: { hasConflict: false, conflict: null } }
   } satisfies HealthRecordOrganizationPreviewApiDto
-  assert.equal(createQuickRecordCandidates(preview, fallback)[0].occurredAt, fallback)
+  assert.equal(createQuickRecordCandidates(preview, fallback)[0].occurredAt, '2099-01-01T12:00:00.000Z')
 })

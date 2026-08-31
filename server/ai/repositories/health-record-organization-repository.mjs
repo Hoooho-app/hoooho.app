@@ -16,7 +16,7 @@ export class HealthRecordOrganizationRepository {
       const existing = data.organizations.find((item) => item.recordId === input.recordId)
       saved = {
         id: existing?.id ?? randomUUID(),
-        schemaVersion: 6,
+        schemaVersion: 7,
         accountId: input.accountId,
         eventId: input.eventId,
         recordId: input.recordId,
@@ -28,6 +28,9 @@ export class HealthRecordOrganizationRepository {
         confirmedData: existing?.confirmedData ? normalizeOrganizedHealthData(existing.confirmedData) : null,
         status: input.status,
         provider: input.provider,
+        inputChannel: input.inputChannel ?? existing?.inputChannel ?? null,
+        previewId: input.previewId ?? existing?.previewId ?? null,
+        checksum: input.checksum ?? existing?.checksum ?? null,
         sourceRevision: input.sourceRevision ?? existing?.sourceRevision ?? null,
         sourceRecordUpdatedAt: input.sourceRecordUpdatedAt ?? existing?.sourceRecordUpdatedAt ?? null,
         createdAt: existing?.createdAt ?? now.toISOString(),
@@ -51,10 +54,13 @@ export class HealthRecordOrganizationRepository {
         const existing = existingByRecord.get(input.recordId)
         const healthAIOutput = normalizeHealthAIOutput(input.healthAIOutput)
         return {
-          id: existing?.id ?? randomUUID(), schemaVersion: 6, accountId: input.accountId, eventId, recordId: input.recordId,
+          id: existing?.id ?? randomUUID(), schemaVersion: 7, accountId: input.accountId, eventId, recordId: input.recordId,
           rawInput: input.rawInput, healthAIOutput, organizedHealthData: projectOrganizedHealthData(healthAIOutput),
           confirmedData: existing?.confirmedData ? normalizeOrganizedHealthData(existing.confirmedData) : null,
           status: 'completed', provider: input.provider, sourceRevision: revision,
+          inputChannel: input.inputChannel ?? existing?.inputChannel ?? null,
+          previewId: input.previewId ?? existing?.previewId ?? null,
+          checksum: input.checksum ?? existing?.checksum ?? null,
           bodyLocations: Array.isArray(input.bodyLocations) ? input.bodyLocations : (existing?.bodyLocations ?? []),
           sourceRecordUpdatedAt: input.sourceRecordUpdatedAt, createdAt: existing?.createdAt ?? now.toISOString(), updatedAt: now.toISOString()
         }
@@ -75,5 +81,17 @@ export class HealthRecordOrganizationRepository {
         organizedHealthData: normalizeOrganizedHealthData(item.organizedHealthData ?? item.aiOutput),
         confirmedData: item.confirmedData ? normalizeOrganizedHealthData(item.confirmedData) : null
       }))
+  }
+
+  async findByPreviewId(eventId, previewId) {
+    const data = await this.#store.read()
+    const item = data.organizations.find((organization) => organization.eventId === eventId && organization.previewId === previewId)
+    if (!item) return null
+    return {
+      ...item,
+      healthAIOutput: normalizeHealthAIOutput(item.healthAIOutput),
+      organizedHealthData: normalizeOrganizedHealthData(item.organizedHealthData ?? item.aiOutput),
+      confirmedData: item.confirmedData ? normalizeOrganizedHealthData(item.confirmedData) : null
+    }
   }
 }

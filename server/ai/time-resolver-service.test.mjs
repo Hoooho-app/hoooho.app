@@ -20,7 +20,7 @@ test('Time Resolver 解析明确、相对与模糊时间，并检测选择时间
   assert.equal(lastNight.resolvedEnd, '2026-08-10T00:00:00+08:00')
 
   const exactDate = resolver.resolve('2024年5月10日', context)
-  assert.equal(exactDate.precision, 'exact')
+  assert.equal(exactDate.precision, 'day')
   assert.equal(exactDate.resolvedStart, '2024-05-10T00:00:00+08:00')
 
   const year = resolver.resolve('2020年', context)

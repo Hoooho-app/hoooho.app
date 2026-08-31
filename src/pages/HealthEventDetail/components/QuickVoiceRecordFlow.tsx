@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { Check, Mic } from 'lucide-react'
 import { HohoButton } from '../../../components/design-system'
 import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecordCandidate } from '../../../features/quick-record'
-import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, type MicrophoneFailure } from './quickRecordPresentation'
+import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, quickRecordSaveErrorMessage, type MicrophoneFailure } from './quickRecordPresentation'
 
 type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'previewing' | 'review' | 'voice_help' | 'browser_help' | 'saving' | 'saved'
 interface RecognitionEvent { results: ArrayLike<{ 0: { transcript: string } }> }
@@ -25,7 +25,7 @@ interface QuickVoiceRecordFlowProps {
   onClose: () => void
   onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel) => Promise<string | void>
   onIgnored?: (message: string) => void
-  onPreview?: (transcript: string, occurredAt: string) => Promise<QuickRecordCandidate[]>
+  onPreview?: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<QuickRecordCandidate[]>
   open: boolean
   recognitionApi?: RecognitionConstructor | null
   voiceCapability?: BrowserVoiceCapability
@@ -84,7 +84,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
       window.setTimeout(() => onCloseRef.current(), 560)
     } catch (reason) {
       setState('text_entry')
-      setInputError(reason instanceof Error ? reason.message : '保存失败，请重新尝试。')
+      setInputError(quickRecordSaveErrorMessage(reason))
       submittingRef.current = false
     }
   }, [])
@@ -99,7 +99,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
     setState('previewing')
     setInputError('')
     try {
-      const preview = await onPreviewRef.current(value, occurredAt)
+      const preview = await onPreviewRef.current(value, occurredAt, inputChannelRef.current)
       if (!preview.length) {
         const message = '未识别到健康信息，本次未记录'
         candidatesRef.current = []
@@ -114,10 +114,10 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
       candidatesRef.current = preview
       setCandidates(preview)
       setState('review')
-    } catch {
+    } catch (reason) {
       candidatesRef.current = []
       setCandidates([])
-      setInputError('暂时无法识别健康信息，请稍后重试。')
+      setInputError(quickRecordSaveErrorMessage(reason))
       setState('text_entry')
     } finally {
       submittingRef.current = false

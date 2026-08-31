@@ -409,11 +409,22 @@ function statusChangeContent(fact: HealthFact) {
   }
   if (fact.change === 'worsened') return isGeneric ? '症状较之前加重' : `${target}加重`
   if (fact.change === 'persistent') return isGeneric ? '症状仍在持续' : `${target}持续`
+  if (fact.change === 'unchanged') return isGeneric ? '症状未继续加重' : `${target}未加重`
+  if (fact.change === 'resolved') return isGeneric ? '症状已消失' : `${target}已消失`
   return fact.name
 }
 
 function factDisplayContent(fact: HealthFact) {
-  return fact.type === 'status_change' ? statusChangeContent(fact) : fact.name
+  if (fact.type === 'status_change') return statusChangeContent(fact)
+  const name = fact.polarity === 'negated' ? `未出现${fact.name}` : fact.name
+  const attributes = [
+    fact.severity === 'severe' ? '严重' : fact.severity === 'moderate' ? '中度' : fact.severity === 'mild' ? '轻微' : null,
+    fact.severityScale,
+    fact.frequency === 'occasional' ? '偶尔' : fact.frequency === 'frequent' ? '频繁' : fact.frequency === 'continuous' ? '持续' : null,
+    fact.occurrenceCount ? `${fact.occurrenceCount}次` : null,
+    fact.duration
+  ].filter(Boolean)
+  return [name, ...attributes].join(' · ')
 }
 
 function factSegments(fact: HealthFact): NonNullable<TimelineEntry['segments']> {

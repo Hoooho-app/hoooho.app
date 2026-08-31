@@ -37,6 +37,13 @@ export function recognitionErrorMessage(code?: string) {
   return `${failure.title}。${failure.detail}`
 }
 
+export function quickRecordSaveErrorMessage(reason: unknown) {
+  const message = reason instanceof Error ? reason.message : ''
+  return /Failed to fetch|NetworkError|网络请求失败/i.test(message)
+    ? '网络连接失败，本次内容尚未保存，请恢复网络后重试。'
+    : message || '保存失败，请重新尝试。'
+}
+
 export function appendQuickRecordTranscript(current: string, transcript: string) {
   const existing = current.trimEnd()
   const addition = transcript.trim()

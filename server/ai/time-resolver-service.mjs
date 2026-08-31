@@ -95,11 +95,16 @@ function rangeForDay(parts, timezone, raw, precision = 'day', source = 'user_tex
   }
 }
 
-function resolveExplicit(raw, timezone) {
+function resolveExplicit(raw, timezone, referenceParts) {
   const fullDate = /(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日?/.exec(raw)
   if (fullDate) {
     const parts = { year: Number(fullDate[1]), month: Number(fullDate[2]), day: Number(fullDate[3]) }
-    return rangeForDay(parts, timezone, fullDate[0], 'exact')
+    return rangeForDay(parts, timezone, fullDate[0], 'day')
+  }
+  const monthDay = /(?<!\d)(\d{1,2})月\s*(\d{1,2})[日号]?/.exec(raw)
+  if (monthDay) {
+    const parts = { year: referenceParts.year, month: Number(monthDay[1]), day: Number(monthDay[2]) }
+    return resolveClockOrPeriod(raw, parts, timezone) ?? rangeForDay(parts, timezone, monthDay[0], 'day')
   }
   const month = /(\d{4})年\s*(\d{1,2})月/.exec(raw)
   if (month) {
@@ -129,7 +134,7 @@ function resolveExplicit(raw, timezone) {
 }
 
 function resolveFuzzy(raw) {
-  if (!/小时候|几年前|\d+年前|前几个月|前两天|以前|从前|很久以前/.test(raw)) return null
+  if (!/小时候|几年前|[一二两三四五六七八九十\d]+年前|前几个月|前两天|以前|从前|很久以前/.test(raw)) return null
   return { raw, resolvedStart: null, resolvedEnd: null, precision: 'fuzzy', source: 'user_text' }
 }
 
@@ -144,7 +149,9 @@ function relativeDate(raw, referenceParts) {
 function resolveClockOrPeriod(raw, parts, timezone) {
   const exactTime = /(\d{1,2})(?:点(?:(半)|(\d{1,2})分?)?|:(\d{1,2}))/.exec(raw)
   if (exactTime) {
-    const hour = Number(exactTime[1])
+    let hour = Number(exactTime[1])
+    if (/下午|晚上|夜里|夜间/.test(raw) && hour < 12) hour += 12
+    if (/凌晨|半夜/.test(raw) && hour === 12) hour = 0
     const minute = exactTime[2] ? 30 : Number(exactTime[3] ?? exactTime[4] ?? 0)
     return {
       raw,
@@ -219,6 +226,9 @@ function resolveRelative(raw, referenceParts, timezone) {
   }
 
   const parts = relativeDate(raw, referenceParts)
+  if (/昨晚/.test(raw) && !/\d{1,2}(?:点|:)/.test(raw)) {
+    return { ...resolveClockOrPeriod('晚上', parts, timezone), raw }
+  }
   const clockOrPeriod = resolveClockOrPeriod(raw, parts, timezone)
   if (clockOrPeriod) return clockOrPeriod
 
@@ -259,7 +269,7 @@ export class TimeResolverService {
       }
     }
 
-    return resolveExplicit(raw, timezone)
+    return resolveExplicit(raw, timezone, referenceParts)
       ?? resolveFuzzy(raw)
       ?? resolveRelative(raw, referenceParts, timezone)
       ?? emptyResolvedTime(raw)

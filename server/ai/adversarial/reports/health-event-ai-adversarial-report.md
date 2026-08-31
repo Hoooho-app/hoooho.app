@@ -1,4 +1,4 @@
-# HOOOHO 健康事件 AI 攻击性测试报告
+# Hoooho 健康事件 AI 攻击性测试报告
 
 ## Executive Summary
 

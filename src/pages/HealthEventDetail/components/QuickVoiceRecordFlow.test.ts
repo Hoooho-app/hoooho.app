@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appendQuickRecordTranscript, classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, needsNewQuickRecord, recognitionErrorMessage } from './quickRecordPresentation.ts'
+import { appendQuickRecordTranscript, classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, needsNewQuickRecord, quickRecordSaveErrorMessage, recognitionErrorMessage } from './quickRecordPresentation.ts'
 
 test('快捷记录显示稳定的分钟和秒数', () => {
   assert.equal(formatRecordingDuration(0), '00:00')
@@ -39,4 +39,10 @@ test('表单快捷记录追加转录且不会重复插入同一段', () => {
   assert.equal(appendQuickRecordTranscript('', ' 下午开始发热。 '), '下午开始发热。')
   assert.equal(appendQuickRecordTranscript('上午有点咳嗽。', '下午开始发热。'), '上午有点咳嗽。\n下午开始发热。')
   assert.equal(appendQuickRecordTranscript('上午有点咳嗽。\n下午开始发热。', '下午开始发热。'), '上午有点咳嗽。\n下午开始发热。')
+})
+
+test('离线保存错误使用中文可恢复提示，不暴露 Failed to fetch', () => {
+  const message = quickRecordSaveErrorMessage(new TypeError('Failed to fetch'))
+  assert.equal(message, '网络连接失败，本次内容尚未保存，请恢复网络后重试。')
+  assert.doesNotMatch(message, /Failed to fetch/)
 })
