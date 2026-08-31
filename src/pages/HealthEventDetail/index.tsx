@@ -10,6 +10,7 @@ import { createHealthEventSubject } from '../../services/healthEventPersonalizat
 import { hasPersistedHealthEventRecords } from '../../services/healthEventDetailState'
 import { getImageRecordTitle } from '../../services/imageAnalysisPresentation'
 import { createQuickRecordCandidates, type QuickRecordCandidate } from '../../features/quick-record'
+import { findMultimodalConflicts } from '../../features/health-attachments/multimodalConflict'
 import {
   EventHeader,
   ActionSheet,
@@ -24,7 +25,7 @@ import {
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { state, addRecord, commitRecord, previewRecord, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordSheetOpen, setRecordSheetOpen] = useState(false)
@@ -34,6 +35,7 @@ export function HealthEventDetailPage() {
   const [firstRecordSaving, setFirstRecordSaving] = useState(false)
   const firstRecordRef = useRef<FirstRecordComposerHandle>(null)
   const pendingFirstRecordRef = useRef<{ attachmentIndexes: Set<number>; fingerprint: string; organized: boolean; record: HealthEventRecordApiDto; savedAttachments: EventAttachmentApiDto[] } | null>(null)
+  const pendingImageConfirmationRef = useRef<string | null>(null)
   const pendingQuickRecordRef = useRef<{ records: Record<string, HealthEventRecordApiDto>; transcript: string } | null>(null)
   const updateFirstRecordAvailability = useCallback((available: boolean, saving: boolean) => {
     setFirstRecordCanSave(available)
@@ -95,6 +97,7 @@ export function HealthEventDetailPage() {
     const bodyLocations = input.bodyLocations ?? []
     const organizationContext = bodyLocations.length ? `身体部位：${bodyLocations.join('、')}` : ''
     if (!originalText && !attachments.length && !bodyLocations.length) throw new Error('请先输入健康记录内容、选择身体部位或添加图片')
+    const fingerprint = JSON.stringify(input)
 
     const recordText = originalText || (bodyLocations.length ? `${bodyLocations.join('、')}不舒服` : '')
     let preview = null
@@ -113,7 +116,22 @@ export function HealthEventDetailPage() {
       return '未识别到健康信息，本次未记录'
     }
 
-    const fingerprint = JSON.stringify(input)
+    // Images remain ephemeral until every item passes server-side decode, safety and health-relevance checks.
+    if (attachments.length) {
+      const drafts = await Promise.all(attachments.map((attachment) => previewAttachment(attachment)))
+      if (drafts.some((draft) => !draft.canConfirm)) throw new Error('图片未通过健康相关性或安全检查，本次未创建记录')
+      const conflicts = findMultimodalConflicts(preview?.healthAIOutput.facts ?? [], drafts)
+      if (conflicts.length) {
+        const conflict = conflicts[0]
+        throw new Error(`${conflict.concept}存在来源冲突：${conflict.imageSource} ${conflict.imageValue}，${conflict.textSource} ${conflict.textValue}。请修改描述或移除图片后确认。`)
+      }
+      if (pendingImageConfirmationRef.current !== fingerprint) {
+        pendingImageConfirmationRef.current = fingerprint
+        const summaries = drafts.map((draft) => draft.analysis.summary).filter(Boolean).join('；')
+        throw new Error(`图片检查结果：${summaries || '检测到健康相关内容'}。请再次点击保存，确认写入时间线。`)
+      }
+    }
+
     let pending = pendingFirstRecordRef.current
     if (!pending || pending.fingerprint !== fingerprint) {
       const created = await addRecord(
@@ -134,7 +152,7 @@ export function HealthEventDetailPage() {
     }
     for (let index = 0; index < attachments.length; index += 1) {
       if (pending.attachmentIndexes.has(index)) continue
-      pending.savedAttachments.push(await addAttachment({ ...attachments[index], recordId: pending.record.id }))
+      pending.savedAttachments.push(await addAttachment({ ...attachments[index], recordId: pending.record.id, confirmed: true }))
       pending.attachmentIndexes.add(index)
     }
     if (!state.data.eventDto.title && !preview?.hasHealthFacts && attachments.length > 0) {
@@ -142,6 +160,7 @@ export function HealthEventDetailPage() {
     }
     commitRecord(pending.record)
     pendingFirstRecordRef.current = null
+    pendingImageConfirmationRef.current = null
     navigate('/health-events', { replace: true })
     return organizationMessage
   }

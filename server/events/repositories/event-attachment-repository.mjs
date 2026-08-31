@@ -15,6 +15,18 @@ export class EventAttachmentRepository {
     return attachment
   }
 
+  async createUnique(input, now = new Date()) {
+    let attachment = null
+    let duplicate = false
+    await this.#store.update((data) => {
+      const existing = data.attachments.find((item) => item.accountId === input.accountId && item.eventId === input.eventId && item.contentHash === input.contentHash)
+      if (existing) { attachment = existing; duplicate = true; return data }
+      attachment = { id: randomUUID(), ...input, createdAt: now.toISOString() }
+      return { ...data, attachments: [...data.attachments, attachment] }
+    })
+    return { attachment, duplicate }
+  }
+
   async findByEventId(eventId) {
     const data = await this.#store.read()
     return data.attachments.filter((item) => item.eventId === eventId)

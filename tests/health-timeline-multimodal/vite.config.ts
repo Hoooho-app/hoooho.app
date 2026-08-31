@@ -12,22 +12,24 @@ import { aiApiPlugin } from '../../server/ai/vite-ai-plugin.mjs'
 import { accountEntryStateApiPlugin } from '../../server/onboarding/vite-account-entry-state-plugin.mjs'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const dataDirectory = path.join(projectRoot, 'tests/health-timeline-multimodal/.artifacts/data')
 
 export default defineConfig({
   root: projectRoot,
   server: { host: '127.0.0.1', watch: { ignored: ['**/tests/health-timeline-multimodal/.artifacts/**'] } },
   plugins: [
     authApiPlugin({
+      dataDirectory,
       codeGenerator: () => '123456',
       emailProvider: { sendVerificationCode: async () => undefined },
       logger: () => undefined
     }),
-    accountEntryStateApiPlugin(),
-    membersApiPlugin(),
-    eventsApiPlugin(),
-    eventRecordsApiPlugin(),
-    eventAttachmentsApiPlugin(),
-    aiApiPlugin(),
+    accountEntryStateApiPlugin({ dataDirectory }),
+    membersApiPlugin({ dataDirectory }),
+    eventsApiPlugin({ dataDirectory }),
+    eventRecordsApiPlugin({ dataDirectory }),
+    eventAttachmentsApiPlugin({ dataDirectory }),
+    aiApiPlugin({ dataDirectory }),
     react(),
     VitePWA({ registerType: 'autoUpdate', manifest: false })
   ]

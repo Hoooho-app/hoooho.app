@@ -47,6 +47,9 @@ export function normalizeImageAnalysis(value, attachment, providerName, now = ne
   const medicationName = cleanText(source.medicationName, 80)
   const examinationName = cleanText(source.examinationName, 100)
   const observedText = cleanText(source.observedText, 300)
+  const relevance = ['health', 'irrelevant', 'unsafe', 'uncertain'].includes(source.relevance)
+    ? source.relevance
+    : (category === 'other' ? 'irrelevant' : confidence < 0.65 ? 'uncertain' : 'health')
   const facts = []
 
   if (temperatureValue !== null) {
@@ -70,7 +73,8 @@ export function normalizeImageAnalysis(value, attachment, providerName, now = ne
   }
 
   return {
-    status: 'completed',
+    status: relevance === 'unsafe' ? 'unsafe' : relevance === 'irrelevant' ? 'irrelevant' : relevance === 'uncertain' || confidence < 0.65 ? 'needs_confirmation' : 'completed',
+    relevance,
     category,
     summary: cleanText(source.summary) || fallbackSummaries[category],
     observedText,
@@ -114,7 +118,7 @@ export class ImageAnalysisService {
       })
       return normalizeImageAnalysis(result, attachment, this.provider.name, now)
     } catch (error) {
-      console.warn('[Hoooho Vision] image analysis failed after attachment was saved', error?.code ?? error?.message)
+      console.warn('[Hoooho Vision] draft analysis failed', error?.code ?? 'VISION_ANALYSIS_FAILED')
       return {
         status: 'failed',
         category: 'other',

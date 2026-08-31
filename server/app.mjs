@@ -14,6 +14,7 @@ import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
+import { AudioTranscriptionService } from './ai/audio-transcription-service.mjs'
 import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
@@ -38,6 +39,7 @@ const sharedOptions = {
 const auth = new AuthService(sharedOptions)
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
+const audioTranscription = new AudioTranscriptionService(sharedOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
@@ -327,12 +329,21 @@ async function handleOrganizations(request, response, pathname) {
   return true
 }
 
+async function handleAudioTranscription(request, response, pathname) {
+  if (pathname !== '/api/ai/audio/transcriptions') return false
+  readAccountId(request)
+  if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleAttachments(request, response, pathname) {
-  const match = /^\/api\/events\/([^/]+)\/attachments$/.exec(pathname)
+  const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
   if (!match) return false
   const accountId = readAccountId(request)
   const eventId = decodeRouteValue(match[1])
-  if (request.method === 'GET') sendJson(response, 200, await attachments.list(accountId, eventId))
+  if (request.method === 'POST' && match[2] === 'preview') sendJson(response, 200, await attachments.preview(accountId, eventId, await readJson(request, 7_100_000)))
+  else if (request.method === 'GET') sendJson(response, 200, await attachments.list(accountId, eventId))
   else if (request.method === 'POST') sendJson(response, 201, await attachments.create(accountId, eventId, await readJson(request, 7_100_000)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
@@ -391,6 +402,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
+  if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOnlineConsultations(request, response, pathname)) return true
   if (await handleOrganizations(request, response, pathname)) return true

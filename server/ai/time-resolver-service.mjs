@@ -137,7 +137,7 @@ function relativeDate(raw, referenceParts) {
   if (/昨晚/.test(raw)) return addDays(referenceParts, -1)
   if (/前天/.test(raw)) return addDays(referenceParts, -2)
   if (/昨天/.test(raw)) return addDays(referenceParts, -1)
-  if (/今天|今早/.test(raw)) return { year: referenceParts.year, month: referenceParts.month, day: referenceParts.day }
+  if (/今天|今早|今朝|目前|现在|刚才|刚刚/.test(raw)) return { year: referenceParts.year, month: referenceParts.month, day: referenceParts.day }
   return { year: referenceParts.year, month: referenceParts.month, day: referenceParts.day }
 }
 
@@ -222,7 +222,7 @@ function resolveRelative(raw, referenceParts, timezone) {
   const clockOrPeriod = resolveClockOrPeriod(raw, parts, timezone)
   if (clockOrPeriod) return clockOrPeriod
 
-  if (/今天|昨天|前天/.test(raw)) return rangeForDay(parts, timezone, raw)
+  if (/今天|昨天|前天|今朝|目前|现在|刚才|刚刚/.test(raw)) return rangeForDay(parts, timezone, raw)
   return null
 }
 

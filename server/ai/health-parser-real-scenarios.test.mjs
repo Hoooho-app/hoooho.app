@@ -89,7 +89,8 @@ test('真实场景：否定发烧不产生体温事实', async () => {
 
   assert.ok(factsOf(output, 'symptom').some((fact) => fact.name === '咳嗽'))
   assert.equal(factsOf(output, 'temperature').length, 0)
-  assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热'), false)
+  assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热' && fact.polarity === 'affirmed'), false)
+  assert.ok(factsOf(output, 'symptom').some((fact) => fact.name === '发热' && fact.polarity === 'negated'))
 })
 
 test('手机无标点转写按局部语义识别皮疹、瘙痒、确诊和已用药物', async () => {
@@ -104,20 +105,22 @@ test('手机无标点转写按局部语义识别皮疹、瘙痒、确诊和已�
   assert.ok(diagnoses.some((fact) => fact.name === '荨麻疹' && fact.diagnosisCertainty === 'confirmed'))
   assert.ok(medications.some((fact) => fact.name === '炉甘石洗剂' && fact.medicationAction === 'taken'))
   assert.equal(symptoms.some((fact) => fact.name === '发热' && fact.polarity === 'affirmed'), false)
+  assert.ok(symptoms.some((fact) => fact.name === '发热' && fact.polarity === 'negated'))
 })
 
 test('无标点连接词不会把后一个症状的否定扩散到前一个事实', async () => {
   for (const input of ['有皮疹但是没有发烧', '有皮疹，但是没有发烧', '挺痒的但是没发烧']) {
     const output = await parse(input)
     assert.equal(hasHealthFacts(output.healthAIOutput), true, input)
-    assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热'), false, input)
+    assert.equal(factsOf(output, 'symptom').some((fact) => fact.name === '发热' && fact.polarity === 'affirmed'), false, input)
   }
 
   const negatedRash = await parse('没有皮疹')
-  assert.equal(factsOf(negatedRash, 'symptom').some((fact) => fact.name === '皮疹'), false)
+  assert.equal(factsOf(negatedRash, 'symptom').some((fact) => fact.name === '皮疹' && fact.polarity === 'affirmed'), false)
+  assert.ok(factsOf(negatedRash, 'symptom').some((fact) => fact.name === '皮疹' && fact.polarity === 'negated'))
 
   const switched = await parse('没有皮疹但是发烧了')
-  assert.equal(factsOf(switched, 'symptom').some((fact) => fact.name === '皮疹'), false)
+  assert.equal(factsOf(switched, 'symptom').some((fact) => fact.name === '皮疹' && fact.polarity === 'affirmed'), false)
   assert.ok(factsOf(switched, 'symptom').some((fact) => fact.name === '发热'))
 })
 

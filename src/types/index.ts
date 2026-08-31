@@ -208,9 +208,10 @@ export interface CreateEventAttachmentInput {
   mimeType: string
   dataUrl: string
   recordId?: string
+  confirmed?: boolean
 }
 
-export type ImageAnalysisStatus = 'completed' | 'unavailable' | 'failed'
+export type ImageAnalysisStatus = 'completed' | 'needs_confirmation' | 'irrelevant' | 'unsafe' | 'unavailable' | 'failed'
 export type ImageAnalysisCategory = 'temperature' | 'report' | 'medication' | 'prescription' | 'receipt' | 'body_photo' | 'other'
 
 export interface ImageAnalysisResult {
@@ -227,6 +228,16 @@ export interface ImageAnalysisResult {
   sourceAttachmentId?: string
   analyzedAt: string
   errorCode?: string
+  relevance?: 'health' | 'irrelevant' | 'unsafe' | 'uncertain'
+}
+
+export interface EventAttachmentPreviewApiDto {
+  status: ImageAnalysisStatus
+  analysis: ImageAnalysisResult
+  contentHash: string
+  width: number
+  height: number
+  canConfirm: boolean
 }
 
 export interface EventAttachmentApiDto extends CreateEventAttachmentInput {
@@ -284,12 +295,24 @@ export interface HealthFact {
     source: HealthFactTimeSource
   }
   confidence: number
+  category?: string
+  concept?: string
+  originalText?: string
+  sourceRecordId?: string | null
+  organizationRevision?: number | null
+  value?: number
+  unit?: string
+  count?: number
+  requiresConfirmation?: boolean
+  supersedesFactId?: string
+  revisionOfFactId?: string
   polarity?: 'affirmed' | 'negated' | 'uncertain'
   temporality?: 'current' | 'historical' | 'future' | 'conditional' | 'unknown'
   status?: 'active' | 'improving' | 'resolved' | 'recurrent' | 'planned' | 'not_applicable' | 'unknown'
   subject?: 'event_subject' | 'family_member' | 'other_person' | 'unknown'
   source?: 'user_report' | 'measurement' | 'doctor_statement' | 'test_result' | 'ai_consultation' | 'structured_input' | 'quoted_text' | 'internet_information' | 'unknown'
   diagnosisCertainty?: 'confirmed' | 'suspected' | 'ruled_out' | 'pending' | 'unknown'
+  medicationAction?: 'taken' | 'prescribed' | 'planned' | 'stopped' | 'unknown'
   temperature?: OrganizedTemperature
   measurementMethod?: Exclude<HealthMeasurementMethod, 'unspecified'> | null
   measurementDevice?: string | null

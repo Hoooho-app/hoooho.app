@@ -38,13 +38,14 @@ export function eventAttachmentsApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-        const match = /^\/api\/events\/([^/]+)\/attachments$/.exec(pathname)
+        const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
         if (!match) return next()
         try {
           const tokenMatch = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')
           const payload = tokenMatch ? tokens.verify(tokenMatch[1]) : null
           if (!payload) throw new EventAttachmentError('登录状态无效或已过期', 401, 'UNAUTHORIZED')
           const eventId = decodeURIComponent(match[1])
+          if (request.method === 'POST' && match[2] === 'preview') return sendJson(response, 200, await service.preview(payload.sub, eventId, await readJson(request)))
           if (request.method === 'GET') return sendJson(response, 200, await service.list(payload.sub, eventId))
           if (request.method === 'POST') return sendJson(response, 201, await service.create(payload.sub, eventId, await readJson(request)))
           return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

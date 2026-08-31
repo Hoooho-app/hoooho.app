@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Paperclip, X } from 'lucide-react'
 import { BodyLocationPicker, QuickRecordTrigger } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
+import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'
 import type { CreateEventAttachmentInput, CreateHealthEventRecordInput } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
 import { appendQuickRecordTranscript } from './quickRecordPresentation'
@@ -51,15 +52,8 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
     setError('')
     try {
       const selected = await Promise.all([...files].map(async (file) => {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('仅支持 JPG、PNG 或 WebP 图片')
-        if (file.size > 5 * 1024 * 1024) throw new Error('单张图片不能超过 5MB')
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(String(reader.result))
-          reader.onerror = () => reject(new Error('附件读取失败'))
-          reader.readAsDataURL(file)
-        })
-        return { name: file.name, originalName: file.name, mimeType: file.type, dataUrl, label: inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations)) }
+        const prepared = await prepareHealthImage(file)
+        return { ...prepared, originalName: file.name, label: inferImageLabel(file.name, bodyLocationSelectionLabels(selectedLocations)) }
       }))
       setAttachments((current) => [...current, ...selected].slice(0, 8))
     } catch (selectError) {
@@ -128,7 +122,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
 
         <div className="first-record-field min-w-0">
           <div className="flex min-w-0 items-baseline justify-between gap-2"><p className="hoho-text-label shrink-0">附件补充（选填）</p><p className="truncate text-[11px] text-text-weak">检查报告、处方、药品或身体部位照片</p></div>
-          <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
+          <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
           <div className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden">
             <button className="inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={17} />上传图片</button>
             {attachments.length > 0 && <div className="first-record-attachments">{attachments.map((attachment, index) => (
