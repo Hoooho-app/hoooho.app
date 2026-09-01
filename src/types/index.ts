@@ -486,15 +486,6 @@ export interface HealthInformationCandidateApiDto {
   sourceRecords: Array<{ id: string; occurredAt: string; sourceType: HealthRecordSourceType; content: string }>
 }
 
-export interface NotificationPreferences {
-  healthEvent: boolean
-  medication: boolean
-  followUp: boolean
-  familyHealth: boolean
-  system: boolean
-  quietHours: string
-}
-
 export type HealthEventStatus = 'empty' | 'ongoing' | 'recovered'
 export type HealthEventStage = 'observing' | 'handling' | 'recovered'
 

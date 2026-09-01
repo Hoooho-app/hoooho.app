@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AuthSession, AuthUser, Member, NotificationPreferences, UserProfile } from '../types'
+import type { AuthSession, AuthUser, Member, UserProfile } from '../types'
 
 interface AppState {
   authToken: string | null
@@ -8,7 +8,6 @@ interface AppState {
   currentMemberId: string
   members: Member[]
   profile: UserProfile | null
-  notifications: NotificationPreferences
   setCurrentMemberId: (memberId: string) => void
   setAuthSession: (session: AuthSession) => void
   clearAuthSession: () => void
@@ -16,8 +15,6 @@ interface AppState {
   setMembers: (members: Member[]) => void
   setProfile: (profile: UserProfile, memberId: string) => void
   clearProfile: () => void
-  setNotification: (key: keyof Omit<NotificationPreferences, 'quietHours'>, value: boolean) => void
-  setQuietHours: (quietHours: string) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -28,14 +25,6 @@ export const useAppStore = create<AppState>()(
       currentMemberId: 'self',
       members: [],
       profile: null,
-      notifications: {
-        healthEvent: true,
-        medication: true,
-        followUp: true,
-        familyHealth: true,
-        system: true,
-        quietHours: '22:00 - 07:00'
-      },
       setCurrentMemberId: (currentMemberId) => set({ currentMemberId }),
       setAuthSession: ({ token, user }) => set((state) => ({
         authToken: token,
@@ -60,19 +49,16 @@ export const useAppStore = create<AppState>()(
             : member)
           : [{ id: memberId, name: profile.nickname, age: '', relation: '本人', birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }, ...state.members]
       })),
-      clearProfile: () => set({ profile: null, currentMemberId: 'self' }),
-      setNotification: (key, value) => set((state) => ({
-        notifications: { ...state.notifications, [key]: value }
-      })),
-      setQuietHours: (quietHours) => set((state) => ({
-        notifications: { ...state.notifications, quietHours }
-      }))
+      clearProfile: () => set({ profile: null, currentMemberId: 'self' })
     }),
     {
       name: 'hoooho-app',
-      version: 2,
-      migrate: (persisted) => ({ ...(persisted as AppState), members: [] }),
-      partialize: ({ authToken, authUser, currentMemberId, members, profile, notifications }) => ({ authToken, authUser, currentMemberId, members, profile, notifications })
+      version: 3,
+      migrate: (persisted) => {
+        const { notifications: _removedNotifications, ...state } = persisted as AppState & { notifications?: unknown }
+        return { ...state, members: [] }
+      },
+      partialize: ({ authToken, authUser, currentMemberId, members, profile }) => ({ authToken, authUser, currentMemberId, members, profile })
     }
   )
 )

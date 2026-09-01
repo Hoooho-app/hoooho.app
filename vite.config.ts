@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import packageMetadata from './package.json'
 import { authApiPlugin } from './server/auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './server/members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './server/events/vite-events-plugin.mjs'
@@ -15,10 +16,12 @@ import { healthProfileFactsApiPlugin } from './server/health-profile/vite-health
 import { healthInformationCandidatesApiPlugin } from './server/health-information/vite-health-information-candidates-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
+const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
 
 export default defineConfig({
   define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildEnvironment.VITE_APP_VERSION || buildEnvironment.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) || 'web')
+    'import.meta.env.VITE_APP_UPDATED_AT': JSON.stringify(buildTimestamp),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildEnvironment.VITE_APP_VERSION || packageMetadata.version)
   },
   server: {
     host: true

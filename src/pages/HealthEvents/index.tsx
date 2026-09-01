@@ -1,4 +1,4 @@
-import { Bell, Check, ChevronDown, ClipboardList, Filter, Plus } from 'lucide-react'
+import { Check, ChevronDown, ClipboardList, Filter, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
@@ -31,14 +31,6 @@ import {
   shouldShowHealthEventFilters,
   type HealthEventsViewMode
 } from './nurseTriageMachine'
-
-function HeaderActions({ onMessages }: { onMessages: () => void }) {
-  return (
-    <button className="grid h-11 w-11 place-items-center rounded-full text-text-primary transition hover:bg-primary-soft" type="button" aria-label="消息中心" onClick={onMessages}>
-      <Bell size={21} strokeWidth={1.8} />
-    </button>
-  )
-}
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
@@ -440,7 +432,7 @@ export function HealthEventsPage() {
 
   return (
     <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
-      <MainAppHeader title="健康事件" action={<HeaderActions onMessages={() => navigate('/messages')} />} />
+      <MainAppHeader title="健康事件" />
       <UserIdentity member={currentMember} />
 
       <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>

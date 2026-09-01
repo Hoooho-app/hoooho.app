@@ -1,6 +1,6 @@
-import { ArrowLeft, Bell, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { BottomSheetSurface, HealthCard, HohoButton, HohoToggle, Typography } from '../../../components/design-system'
+import { BottomSheetSurface, HealthCard, HohoButton, Typography } from '../../../components/design-system'
 import type { HealthEventPromptContext } from '../../../features/ask-ai'
 import { actionCategoryLabels, actionCategoryOrder, type ActionCategory } from './actionSheetPresentation'
 import { AskAIWorkspace } from './AskAIWorkspace'
@@ -136,7 +136,6 @@ const focusOptions = ['血压', '头晕', '用药', '饮食作息', '睡眠', '�
 
 function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingSoon: () => void; recorder: Recorder; setRecorder: (recorder: Recorder) => void }) {
   const [focuses, setFocuses] = useState(['头晕', '用药'])
-  const [following, setFollowing] = useState(true)
 
   const toggleFocus = (focus: string) => setFocuses((current) => current.includes(focus)
     ? current.filter((item) => item !== focus)
@@ -177,14 +176,6 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
         </div>
       </section>
 
-      <section className="flex items-center gap-2.5 rounded-card border bg-surface px-3 py-2">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Bell size={17} /></span>
-        <span className="min-w-0 flex-1">
-          <strong className="block text-sm">关注此事件</strong>
-          <span className="mt-0.5 block text-xs leading-4 text-text-secondary">有新的协作记录或事件更新时提醒我</span>
-        </span>
-        <HohoToggle checked={following} label="关注此事件" onChange={setFollowing} />
-      </section>
     </div>
   )
 }

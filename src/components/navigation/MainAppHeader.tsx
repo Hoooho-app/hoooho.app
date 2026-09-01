@@ -1,11 +1,10 @@
 import { Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { SideDrawer } from './SideDrawer'
 import type { MemberSwitchResultState } from './navigationState'
 
-export function MainAppHeader({ title, action, compact = false }: { title: string; action?: ReactNode; compact?: boolean }) {
+export function MainAppHeader({ title, compact = false }: { title: string; compact?: boolean }) {
   const location = useLocation()
   const navigate = useNavigate()
   const switchResult = (location.state as MemberSwitchResultState | null)?.memberSwitchResult
@@ -23,12 +22,11 @@ export function MainAppHeader({ title, action, compact = false }: { title: strin
 
   return (
     <>
-      <header className={`hoho-page-header grid shrink-0 grid-cols-[1fr_minmax(0,2fr)_1fr] items-center px-3 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
-        <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
+      <header className={`hoho-page-header relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
+        <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} />
         </button>
-        <h1 className="hoho-text-section-title truncate px-2 text-center">{title}</h1>
-        <div className={`justify-self-end ${compact ? 'flex min-h-14 min-w-0 items-center pr-1' : ''}`}>{action}</div>
+        <h1 className="hoho-text-section-title w-full truncate text-center">{title}</h1>
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />
       {switchedMemberName && (

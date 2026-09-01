@@ -899,10 +899,9 @@ async function main() {
         authUser: user,
         currentMemberId: selfId,
         members: [],
-        profile: null,
-        notifications: { healthEvent: true, medication: true, followUp: true, familyHealth: true, system: true, quietHours: '22:00 - 07:00' }
+        profile: null
       },
-      version: 2
+      version: 3
     }))
   }, { token: secrets.token, user: secrets.user, selfId: secrets.members.self.id })
   const page = await context.newPage()
