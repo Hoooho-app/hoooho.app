@@ -11,6 +11,7 @@ function event(id: string, occurredAt: string, createdAt = occurredAt): HealthEv
     title: '测试事件',
     displayTitle: '测试事件',
     definitionTitle: '未定性',
+    icon: { kind: 'general', label: '综合健康事件', source: 'general' },
     durationLabel: '已持续1天',
     summaryFragments: [],
     category: 'other',

@@ -11,6 +11,7 @@ function event(definitionTitle: string): HealthEventListItemViewModel {
     title: '原始事件标题',
     displayTitle: '原始事件标题',
     definitionTitle,
+    icon: { kind: 'general', label: '综合健康事件', source: 'general' },
     durationLabel: '已持续1天',
     summaryFragments: [],
     category: 'other',
