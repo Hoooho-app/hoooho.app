@@ -8,7 +8,7 @@ import {
   commitIdlePlayback,
   createIdlePlaylistState,
   isVideoVisible,
-  playIdleVideoSafely,
+  loadAndPlayIdleVideo,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
   suspendIdlePlaylist,
@@ -32,7 +32,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
   const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
   const playlistRef = useRef(playlist)
   const idleVideoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null, HTMLVideoElement | null]>([null, null, null])
-  const idleReadyRef = useRef<[boolean, boolean, boolean]>([false, false, false])
   const idleFailedRef = useRef<[boolean, boolean, boolean]>([false, false, false])
   const idleRetryCountRef = useRef<[number, number, number]>([0, 0, 0])
   const idleRetryTimerRef = useRef<[number, number, number]>([0, 0, 0])
@@ -68,12 +67,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     }
 
     const video = idleVideoRefs.current[videoIndex]
-    if (!video || !idleReadyRef.current[videoIndex]) return
-    if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
-      video.currentTime = 0
-    }
-
-    const reason = await playIdleVideoSafely(() => video.play())
+    if (!video) return
+    const reason = await loadAndPlayIdleVideo(video)
     if (!mountedRef.current) return
     const latest = playlistRef.current
     if (latest.pendingVideoIndex !== videoIndex || latest.playbackSessionId !== playbackSessionId) return
@@ -85,7 +80,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     if (videoIndex === null) return
     videoSessionRef.current[videoIndex] = state.playbackSessionId
     const video = idleVideoRefs.current[videoIndex]
-    if (!video || !idleReadyRef.current[videoIndex] || !idlePlaybackAllowedRef.current) return
+    if (!video || !idlePlaybackAllowedRef.current) return
 
     if (reducedMotionRef.current) {
       video.pause()
@@ -134,7 +129,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
   }, [pauseIdlePlayers, updatePlaylist])
 
   const retryIdleVideo = useCallback((videoIndex: NurseVideoIndex) => {
-    idleReadyRef.current[videoIndex] = false
     idleFailedRef.current[videoIndex] = true
     window.clearTimeout(idleRetryTimerRef.current[videoIndex])
 
@@ -161,7 +155,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     window.clearTimeout(idleRetryTimerRef.current[videoIndex])
     idleRetryTimerRef.current[videoIndex] = 0
     idleRetryCountRef.current[videoIndex] = 0
-    idleReadyRef.current[videoIndex] = true
     idleFailedRef.current[videoIndex] = false
 
     const current = playlistRef.current
@@ -204,6 +197,9 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
 
   useEffect(() => {
     mountedRef.current = true
+    idleVideoRefs.current.forEach((video) => {
+      if (video && video.networkState === HTMLMediaElement.NETWORK_EMPTY) video.load()
+    })
     return () => {
       mountedRef.current = false
       idleRetryTimerRef.current.forEach((timer) => window.clearTimeout(timer))

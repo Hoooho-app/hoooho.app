@@ -7,6 +7,7 @@ import {
   commitIdlePlayback,
   createIdlePlaylistState,
   isVideoVisible,
+  loadAndPlayIdleVideo,
   playIdleVideoSafely,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
@@ -105,5 +106,36 @@ describe('idle video playlist', () => {
     const failure = new Error('blocked')
     assert.equal(await playIdleVideoSafely(() => Promise.reject(failure)), failure)
     assert.equal(await playIdleVideoSafely(() => Promise.resolve()), null)
+  });
+
+  it('loads an empty media element and starts it without waiting for canplay', async () => {
+    const calls: string[] = []
+    const video = {
+      currentTime: 0,
+      duration: Number.NaN,
+      ended: false,
+      networkState: 0,
+      load: () => { calls.push('load') },
+      play: async () => { calls.push('play') }
+    }
+
+    assert.equal(await loadAndPlayIdleVideo(video), null)
+    assert.deepEqual(calls, ['load', 'play'])
+  });
+
+  it('rewinds an ended media element before immediately replaying it', async () => {
+    const calls: string[] = []
+    const video = {
+      currentTime: 6.04,
+      duration: 6.04,
+      ended: true,
+      networkState: 1,
+      load: () => { calls.push('load') },
+      play: async () => { calls.push('play') }
+    }
+
+    assert.equal(await loadAndPlayIdleVideo(video), null)
+    assert.equal(video.currentTime, 0)
+    assert.deepEqual(calls, ['play'])
   });
 });
