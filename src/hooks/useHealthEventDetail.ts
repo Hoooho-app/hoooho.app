@@ -7,6 +7,7 @@ import type {
   HealthEventApiDto,
   HealthEventDetailViewModel,
   HealthEventRecordApiDto,
+  HealthChangeType,
   HealthRecordOrganizationApiDto,
   Member,
   UpdateHealthEventRecordInput
@@ -177,6 +178,18 @@ export function useHealthEventDetail(eventId: string | undefined) {
     await refreshAfterRecordMutation()
   }, [refreshAfterRecordMutation, token])
 
+  const updateChangeAnnotation = useCallback(async (recordId: string, annotationId: string, changeType: HealthChangeType) => {
+    if (!token) throw new Error('登录状态无效')
+    await healthEventRecordService.updateChangeAnnotation(recordId, annotationId, changeType, token)
+    await refreshAfterRecordMutation()
+  }, [refreshAfterRecordMutation, token])
+
+  const deleteChangeAnnotation = useCallback(async (recordId: string, annotationId: string) => {
+    if (!token) throw new Error('登录状态无效')
+    await healthEventRecordService.deleteChangeAnnotation(recordId, annotationId, token)
+    await refreshAfterRecordMutation()
+  }, [refreshAfterRecordMutation, token])
+
   const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string; inputChannel?: 'voice' | 'text' }) => {
     if (!eventId || !token) throw new Error('登录状态或健康事件无效')
     return healthRecordOrganizationService.preview(eventId, rawInput, token, options)
@@ -289,5 +302,5 @@ export function useHealthEventDetail(eventId: string | undefined) {
     void load()
   }, [load])
 
-  return { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateStage, updateTitle, correctSummary, retry }
+  return { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateStage, updateTitle, correctSummary, retry }
 }

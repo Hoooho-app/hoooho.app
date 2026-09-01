@@ -118,7 +118,9 @@
   .symptom-record-swipe__actions button { @apply grid w-16 place-content-center justify-items-center gap-1 text-xs font-medium disabled:opacity-60; }
   .symptom-record-swipe__actions button:first-child { color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
   .symptom-record-swipe__actions button:last-child { color: rgb(var(--hoho-color-danger)); background: rgb(var(--hoho-color-danger) / 0.08); }
-  .symptom-record-row { @apply relative z-[1] flex min-h-11 w-full touch-pan-y items-center justify-between gap-2 rounded-control border bg-surface px-2.5 py-1.5 text-left transition-transform duration-200 ease-out; }
+  .symptom-record-row-shell { @apply relative z-[1] min-w-0 rounded-control bg-surface transition-transform duration-200 ease-out; }
+  .symptom-record-row { @apply flex min-h-11 w-full touch-pan-y items-center justify-between gap-2 rounded-control border bg-surface px-2.5 py-1.5 text-left; }
+  .symptom-record-row-shell[data-has-changes='true'] .symptom-record-row { @apply rounded-b-none border-b-0 pb-1; }
   .symptom-record-row > svg { @apply shrink-0; color: rgb(var(--hoho-color-text-weak)); }
   .symptom-record-row__content { @apply flex min-w-0 flex-1 items-center justify-between gap-2; }
   .symptom-record-row__content > strong { @apply line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-5 text-text-primary; overflow-wrap: anywhere; }
@@ -126,6 +128,20 @@
   .symptom-record-source[data-source='measurement'] { color: rgb(var(--hoho-color-info)); background: rgb(var(--hoho-color-info) / 0.08); }
   .symptom-record-source[data-source='medical_file'] { color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-primary) / 0.06); }
   .symptom-record-source[data-source='doctor_confirmation'] { color: rgb(var(--hoho-color-success)); background: rgb(var(--hoho-color-success) / 0.08); }
+  .health-change-tags { @apply flex min-w-0 flex-wrap gap-1 border border-t-0 px-2.5 pb-2 pt-1; border-radius: 0 0 var(--hoho-radius-control) var(--hoho-radius-control); }
+  .health-change-tag { @apply inline-flex min-h-9 items-center rounded-pill px-2 text-[11px] font-medium leading-4 outline-none focus-visible:ring-2 focus-visible:ring-primary/30; color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-surface-subtle)); }
+  .health-change-tag[data-change='new'] { color: rgb(var(--hoho-color-info)); background: rgb(var(--hoho-color-info) / 0.08); }
+  .health-change-tag[data-change='worsened'] { color: rgb(var(--hoho-color-danger)); background: rgb(var(--hoho-color-danger) / 0.07); }
+  .health-change-tag[data-change='improved'] { color: rgb(var(--hoho-color-success)); background: rgb(var(--hoho-color-success) / 0.08); }
+  .health-change-tag[data-change='resolved'] { color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-primary) / 0.06); }
+
+  .health-change-sheet .hoho-bottom-sheet__body { @apply py-3; }
+  .health-change-sheet__content { @apply grid gap-3; }
+  .health-change-sheet__choices { @apply overflow-hidden rounded-card border bg-surface; }
+  .health-change-sheet__choices button { @apply flex min-h-12 w-full items-center justify-between border-b px-3 text-left text-sm font-medium text-text-primary last:border-b-0 disabled:opacity-60; }
+  .health-change-sheet__choices button[aria-checked='true'] { color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft) / 0.52); }
+  .health-change-sheet__error { @apply text-xs leading-5; color: rgb(var(--hoho-color-danger)); }
+  .health-change-sheet__content > button:last-child { justify-self: start; color: rgb(var(--hoho-color-danger)); }
 
   .symptom-record-sheet .hoho-bottom-sheet__body { @apply py-3; }
   .symptom-record-detail { @apply grid gap-5; }
@@ -956,7 +972,7 @@
   .health-information-destination { display: flex; min-height: 48px; align-items: center; gap: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 0 var(--hoho-space-3); color: rgb(var(--hoho-color-text-primary)); }
   .health-information-destination:has(input:checked) { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft) / 0.5); }
   .health-information-destination input { width: 18px; height: 18px; accent-color: rgb(var(--hoho-color-primary)); }
-  .timeline-entry-row:target .symptom-record-row { box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary) / 0.24); }
+  .timeline-entry-row:target .symptom-record-row-shell { box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary) / 0.24); }
 
   .hoho-skeleton {
     overflow: hidden;

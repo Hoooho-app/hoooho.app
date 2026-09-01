@@ -28,6 +28,7 @@ export class HealthEventRecordRepository {
       measurementMethod: input.measurementMethod ?? null,
       measurementDevice: input.measurementDevice ?? null,
       note: input.note ?? null,
+      changeAnnotations: [],
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
     }
@@ -84,5 +85,33 @@ export class HealthEventRecordRepository {
       })
     }))
     return deleted
+  }
+
+  async replaceEventChangeAnnotations(eventId, annotationsByRecordId) {
+    await this.#store.update((data) => ({
+      ...data,
+      records: data.records.map((record) => record.eventId === eventId
+        ? { ...record, changeAnnotations: annotationsByRecordId.get(record.id) ?? [] }
+        : record)
+    }))
+  }
+
+  async setChangeAnnotation(id, annotation) {
+    let updated = null
+    await this.#store.update((data) => ({
+      ...data,
+      records: data.records.map((record) => {
+        if (record.id !== id) return record
+        const annotations = record.changeAnnotations ?? []
+        updated = {
+          ...record,
+          changeAnnotations: annotations.some((item) => item.id === annotation.id)
+            ? annotations.map((item) => item.id === annotation.id ? annotation : item)
+            : [...annotations, annotation]
+        }
+        return updated
+      })
+    }))
+    return updated
   }
 }

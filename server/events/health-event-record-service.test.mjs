@@ -232,6 +232,28 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     })
     assert.equal(secondOwnRecordResponse.status, 201)
 
+    const coughStartResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
+      type: 'symptom', content: '今天第一次开始咳嗽', occurredAt: '2026-08-11T09:00:00+08:00'
+    })
+    const coughStart = await coughStartResponse.json()
+    assert.equal(coughStart.changeAnnotations[0].changeType, 'new')
+    const coughWorseResponse = await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'POST', first.token, {
+      type: 'symptom', content: '晚上咳嗽比昨天严重', occurredAt: '2026-08-12T09:00:00+08:00'
+    })
+    const coughWorse = await coughWorseResponse.json()
+    assert.equal(coughWorse.changeAnnotations[0].changeType, 'worsened')
+    assert.equal(coughWorse.changeAnnotations[0].comparedRecordId, coughStart.id)
+
+    const crossAnnotationUpdate = await jsonRequest(`${baseUrl}/api/records/${coughWorse.id}/change-annotations/${coughWorse.changeAnnotations[0].id}`, 'PATCH', second.token, { changeType: 'improved' })
+    assert.equal(crossAnnotationUpdate.status, 404)
+    const annotationUpdate = await jsonRequest(`${baseUrl}/api/records/${coughWorse.id}/change-annotations/${coughWorse.changeAnnotations[0].id}`, 'PATCH', first.token, { changeType: 'improved' })
+    assert.equal(annotationUpdate.status, 200)
+    assert.equal((await annotationUpdate.json()).changeAnnotations[0].source, 'user')
+    const annotationDelete = await jsonRequest(`${baseUrl}/api/records/${coughWorse.id}/change-annotations/${coughWorse.changeAnnotations[0].id}`, 'DELETE', first.token)
+    assert.equal(annotationDelete.status, 200)
+    const afterAnnotationDelete = await (await jsonRequest(`${baseUrl}/api/events/${event.id}/records`, 'GET', first.token)).json()
+    assert.equal(afterAnnotationDelete.find((record) => record.id === coughWorse.id).changeAnnotations[0].hidden, true)
+
     const deleteResponse = await jsonRequest(`${baseUrl}/api/records/${evening.id}`, 'DELETE', first.token)
     assert.equal(deleteResponse.status, 200)
     assert.deepEqual(await deleteResponse.json(), { success: true })

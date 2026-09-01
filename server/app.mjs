@@ -299,13 +299,23 @@ async function handleAccountEntryState(request, response, pathname) {
 async function handleEventRecords(request, response, pathname) {
   const eventRecordsMatch = /^\/api\/events\/([^/]+)\/records$/.exec(pathname)
   const recordMatch = /^\/api\/records\/([^/]+)$/.exec(pathname)
-  if (!eventRecordsMatch && !recordMatch) return false
+  const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
+  if (!eventRecordsMatch && !recordMatch && !annotationMatch) return false
 
   const accountId = readAccountId(request)
   if (eventRecordsMatch) {
     const eventId = decodeRouteValue(eventRecordsMatch[1])
     if (request.method === 'GET') sendJson(response, 200, await records.list(accountId, eventId))
     else if (request.method === 'POST') sendJson(response, 201, await records.create(accountId, eventId, await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
+
+  if (annotationMatch) {
+    const recordId = decodeRouteValue(annotationMatch[1])
+    const annotationId = decodeRouteValue(annotationMatch[2])
+    if (request.method === 'PATCH') sendJson(response, 200, await records.updateChangeAnnotation(accountId, recordId, annotationId, await readJson(request)))
+    else if (request.method === 'DELETE') sendJson(response, 200, await records.deleteChangeAnnotation(accountId, recordId, annotationId))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
     return true
   }

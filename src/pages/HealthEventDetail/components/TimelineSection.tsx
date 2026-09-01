@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpDown, ChevronRight, Clock3, Pencil, Trash2 } from 'lucide-react'
-import type { HealthEvent, HealthEventRecordApiDto, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
+import type { HealthChangeAnnotationApiDto, HealthChangeType, HealthEvent, HealthEventRecordApiDto, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
 import { Card } from '../../../components/common'
 import { HohoButton } from '../../../components/design-system'
 import { sortAndGroupTimeline, type TimelineOrder } from '../../../services/healthTimelineGrouping'
 import { SymptomRecordSheet, symptomRecordTitle, symptomRecordTypeLabel } from './SymptomRecordSheet'
+import { HealthChangeAnnotationSheet, healthChangeTypeLabel } from './HealthChangeAnnotationSheet'
 
 interface TimelineSectionProps {
   event: HealthEvent
@@ -12,13 +13,18 @@ interface TimelineSectionProps {
   memberName: string
   records: HealthEventRecordApiDto[]
   onDeleteRecord: (recordId: string) => Promise<void>
+  onDeleteChangeAnnotation: (recordId: string, annotationId: string) => Promise<void>
   onDetailOpenChange?: (open: boolean) => void
   onUpdateRecord: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
+  onUpdateChangeAnnotation: (recordId: string, annotationId: string, changeType: HealthChangeType) => Promise<void>
 }
 
-export function TimelineSection({ event, focusedRecordId, memberName, records, onDeleteRecord, onDetailOpenChange, onUpdateRecord }: TimelineSectionProps) {
+export function TimelineSection({ event, focusedRecordId, memberName, records, onDeleteRecord, onDeleteChangeAnnotation, onDetailOpenChange, onUpdateRecord, onUpdateChangeAnnotation }: TimelineSectionProps) {
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [selection, setSelection] = useState<{ editing: boolean; entry: TimelineEntry } | null>(null)
+  const [changeSelection, setChangeSelection] = useState<{ annotation: HealthChangeAnnotationApiDto; recordId: string } | null>(null)
+  const [changeBusy, setChangeBusy] = useState(false)
+  const [changeError, setChangeError] = useState('')
   const recordsById = useMemo(() => new Map(records.map((record) => [record.id, record])), [records])
   const timelineGroups = useMemo(() => sortAndGroupTimeline(event.timeline, order), [event.timeline, order])
   const openedFocusedRecord = useRef<string | null>(null)
@@ -32,9 +38,9 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
   }, [event.timeline, focusedRecordId])
 
   useEffect(() => {
-    onDetailOpenChange?.(Boolean(selection))
+    onDetailOpenChange?.(Boolean(selection || changeSelection))
     return () => onDetailOpenChange?.(false)
-  }, [onDetailOpenChange, selection])
+  }, [changeSelection, onDetailOpenChange, selection])
 
   useEffect(() => {
     const targetId = decodeURIComponent(window.location.hash.replace(/^#/, ''))
@@ -74,11 +80,13 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
                     canEdit={Boolean(entry.sourceRecordId && recordsById.has(entry.sourceRecordId))}
                     entry={entry}
                     key={entry.id}
+                    annotations={entry.changeAnnotations ?? []}
                     onDelete={async () => {
                       if (!entry.sourceRecordId || !window.confirm('删除这条症状记录？')) return
                       await onDeleteRecord(entry.sourceRecordId)
                     }}
                     onEdit={() => setSelection({ editing: true, entry })}
+                    onOpenAnnotation={(annotation) => { setSelection(null); setChangeError(''); setChangeSelection({ annotation, recordId: entry.sourceRecordId! }) }}
                     onOpen={() => setSelection({ editing: false, entry })}
                   />
                 ))}
@@ -97,18 +105,41 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
         onUpdate={onUpdateRecord}
         record={selection?.entry.sourceRecordId ? recordsById.get(selection.entry.sourceRecordId) ?? null : null}
       />
+      <HealthChangeAnnotationSheet
+        annotation={changeSelection?.annotation ?? null}
+        busy={changeBusy}
+        error={changeError}
+        onClose={() => { if (!changeBusy) setChangeSelection(null) }}
+        onDelete={async () => {
+          if (!changeSelection) return
+          setChangeBusy(true); setChangeError('')
+          try { await onDeleteChangeAnnotation(changeSelection.recordId, changeSelection.annotation.id); setChangeSelection(null) }
+          catch { setChangeError('标签删除失败，请稍后重试') }
+          finally { setChangeBusy(false) }
+        }}
+        onSelect={async (changeType) => {
+          if (!changeSelection) return
+          if (changeType === changeSelection.annotation.changeType) { setChangeSelection(null); return }
+          setChangeBusy(true); setChangeError('')
+          try { await onUpdateChangeAnnotation(changeSelection.recordId, changeSelection.annotation.id, changeType); setChangeSelection(null) }
+          catch { setChangeError('标签修改失败，原状态已保留') }
+          finally { setChangeBusy(false) }
+        }}
+      />
     </section>
   )
 }
 
 const actionWidth = 128
 
-function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
+function TimelineRow({ annotations, canEdit, entry, onDelete, onEdit, onOpen, onOpenAnnotation }: {
+  annotations: HealthChangeAnnotationApiDto[]
   canEdit: boolean
   entry: TimelineEntry
   onDelete: () => Promise<void>
   onEdit: () => void
   onOpen: () => void
+  onOpenAnnotation: (annotation: HealthChangeAnnotationApiDto) => void
 }) {
   const startX = useRef(0)
   const startTranslate = useRef(0)
@@ -126,7 +157,8 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
           <button aria-label={`编辑症状记录：${symptomRecordTitle(entry)}`} disabled={busy} onClick={() => { setTranslateX(0); onEdit() }} type="button"><Pencil size={17} />编辑</button>
           <button aria-label={`删除症状记录：${symptomRecordTitle(entry)}`} disabled={busy} onClick={async () => { setBusy(true); try { await onDelete() } finally { setBusy(false) } }} type="button"><Trash2 size={17} />删除</button>
         </div>}
-        <button
+        <div className="symptom-record-row-shell" data-has-changes={annotations.length > 0} style={{ transform: `translateX(${translateX}px)` }}>
+          <button
           aria-label={`查看症状记录：${symptomRecordTitle(entry)}`}
           className="symptom-record-row"
           onClick={() => {
@@ -149,12 +181,15 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
             setTranslateX(Math.max(-actionWidth, Math.min(0, startTranslate.current + delta)))
           }}
           onPointerUp={finishSwipe}
-          style={{ transform: `translateX(${translateX}px)` }}
           type="button"
         >
           <span className="symptom-record-row__content"><strong>{symptomRecordTitle(entry)}</strong><span className="symptom-record-source" data-source={entry.source.type}>{symptomRecordTypeLabel(entry)}</span></span>
           <ChevronRight aria-hidden="true" size={18} />
-        </button>
+          </button>
+          {annotations.length > 0 && <div aria-label="自动识别的变化" className="health-change-tags">
+            {annotations.map((annotation) => <button className="health-change-tag" data-change={annotation.changeType} key={annotation.id} onClick={() => onOpenAnnotation(annotation)} type="button">{annotation.factLabel}<span aria-hidden="true"> · </span>{healthChangeTypeLabel[annotation.changeType]}</button>)}
+          </div>}
+        </div>
       </div>
     </article>
   )

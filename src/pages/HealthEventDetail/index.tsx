@@ -32,7 +32,7 @@ export function HealthEventDetailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const currentMemberId = useAppStore((appState) => appState.currentMemberId)
-  const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateTitle, retry } = useHealthEventDetail(eventId)
   const healthInformation = useHealthInformationCandidates(eventId, state.status === 'success' && hasPersistedHealthEventRecords(state.data.records))
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
@@ -226,8 +226,10 @@ export function HealthEventDetailPage() {
               focusedRecordId={searchParams.get('recordId')}
               memberName={state.data.member.name}
               onDeleteRecord={deleteRecord}
+              onDeleteChangeAnnotation={deleteChangeAnnotation}
               onDetailOpenChange={setRecordSheetOpen}
               onUpdateRecord={updateRecord}
+              onUpdateChangeAnnotation={updateChangeAnnotation}
               records={state.data.records}
             />
             <HealthInformationDiscoveryCard eventId={event.id} items={healthInformation.items} />
