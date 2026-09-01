@@ -9,8 +9,11 @@ import './NurseQuickRecord.css'
 interface NurseQuickRecordProps {
   currentMemberId: string
   disabled?: boolean
+  nextActionDisabled?: boolean
+  nextActionOpen: boolean
   onClose: () => void
   onConfirm: (transcript: string, occurredAt: string) => Promise<string | void>
+  onNextActionOpen: () => void
   onOpen: () => void
   onPreview: (transcript: string, occurredAt: string) => Promise<QuickRecordCandidate[]>
   open: boolean
@@ -20,8 +23,11 @@ interface NurseQuickRecordProps {
 export function NurseQuickRecord({
   currentMemberId,
   disabled = false,
+  nextActionDisabled = false,
+  nextActionOpen,
   onClose,
   onConfirm,
+  onNextActionOpen,
   onOpen,
   onPreview,
   open,
@@ -62,12 +68,31 @@ export function NurseQuickRecord({
       </div>
       <div className="nurse-quick-record-anchor" data-open={open}>
         {savedNotice && <div aria-live="polite" className="nurse-quick-record-saved"><Check aria-hidden="true" size={18} /><strong>{savedNotice}</strong></div>}
-        <div className="nurse-quick-record-entry" data-visible={!open}>
-          <QuickRecordTrigger
-            className="nurse-quick-record-trigger"
-            disabled={disabled}
-            onClick={openQuickRecord}
-          />
+        <div className="nurse-quick-record-controls">
+          <div className="nurse-quick-record-entry" data-visible={!open}>
+            <QuickRecordTrigger
+              className="nurse-quick-record-trigger"
+              disabled={disabled}
+              onClick={openQuickRecord}
+            />
+          </div>
+          <button
+            aria-haspopup="dialog"
+            aria-label="打开当前健康事件的下一步"
+            aria-pressed={nextActionOpen}
+            className="nurse-next-action-trigger"
+            data-active={nextActionOpen}
+            disabled={nextActionDisabled}
+            onClick={onNextActionOpen}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 80 80">
+              <path d="M 13 65 Q 40 28 67 13" />
+              <circle className="nurse-next-action-mark__start" cx="13" cy="65" r="6" />
+              <circle cx="40" cy="38" r="11" />
+              <circle className="nurse-next-action-mark__end" cx="67" cy="13" r="8" />
+            </svg>
+          </button>
         </div>
         <QuickVoiceRecordFlow
           onClose={onClose}

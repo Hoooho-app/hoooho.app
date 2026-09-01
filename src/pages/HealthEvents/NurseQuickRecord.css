@@ -4,10 +4,77 @@
   isolation: isolate;
 }
 
+.nurse-quick-record-controls {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: stretch;
+  gap: var(--hoho-space-3);
+}
+
 .nurse-quick-record-entry {
+  min-width: 0;
   min-height: 52px;
   opacity: 1;
   transition: opacity var(--hoho-motion-fast) var(--hoho-ease-standard);
+}
+
+.nurse-next-action-trigger {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  width: 52px;
+  min-height: 52px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--hoho-radius-control);
+  background: linear-gradient(135deg, rgb(var(--hoho-color-primary-hover)), rgb(var(--hoho-color-primary)) 58%, rgb(39 139 126));
+  color: rgb(var(--hoho-color-surface));
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.22), 0 8px 20px rgb(var(--hoho-color-primary) / 0.17);
+  transition: background-color var(--hoho-motion-fast) var(--hoho-ease-standard), border-color var(--hoho-motion-fast) var(--hoho-ease-standard), box-shadow var(--hoho-motion-fast) var(--hoho-ease-standard), color var(--hoho-motion-fast) var(--hoho-ease-standard), transform var(--hoho-motion-fast) var(--hoho-ease-standard);
+}
+
+.nurse-next-action-trigger svg {
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+  fill: currentColor;
+}
+
+.nurse-next-action-trigger path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+
+.nurse-next-action-trigger .nurse-next-action-mark__start {
+  opacity: 0.58;
+}
+
+.nurse-next-action-trigger .nurse-next-action-mark__end {
+  opacity: 0.78;
+}
+
+.nurse-next-action-trigger[data-active='true'] {
+  border-color: rgb(var(--hoho-color-primary-border));
+  background: rgb(var(--hoho-color-surface));
+  color: rgb(var(--hoho-color-primary));
+  box-shadow: var(--hoho-shadow-card);
+}
+
+.nurse-next-action-trigger:focus-visible {
+  outline: 2px solid rgb(var(--hoho-color-primary) / 0.35);
+  outline-offset: 2px;
+}
+
+.nurse-next-action-trigger:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.nurse-next-action-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .nurse-quick-record-entry[data-visible='false'] {
@@ -19,10 +86,10 @@
 .nurse-triage-recorder .quick-record-panel--nurse {
   position: absolute;
   z-index: 8;
-  right: 0;
+  right: calc(52px + var(--hoho-space-3));
   bottom: 0;
   left: 0;
-  width: 100%;
+  width: auto;
   max-height: min(410px, calc(var(--quick-record-viewport-height, 100dvh) - 176px - env(safe-area-inset-bottom)));
   transform: none;
   border: 1px solid rgb(var(--hoho-color-primary) / 0.26);
@@ -130,7 +197,7 @@
 .nurse-quick-record-saved {
   position: absolute;
   z-index: 9;
-  right: 0;
+  right: calc(52px + var(--hoho-space-3));
   bottom: calc(100% + var(--hoho-space-2));
   display: inline-flex;
   min-height: 44px;
