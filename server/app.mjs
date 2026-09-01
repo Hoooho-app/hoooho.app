@@ -22,6 +22,7 @@ import { validTimeZone } from './time/local-calendar.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
 import { AccountEntryStateService } from './onboarding/account-entry-state-service.mjs'
 import { HealthProfileFactService } from './health-profile/health-profile-fact-service.mjs'
+import { HealthInformationCandidateService } from './health-information/health-information-candidate-service.mjs'
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,6 +51,7 @@ const feedback = new FeedbackService(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
 const healthProfileFacts = new HealthProfileFactService(sharedOptions)
+const healthInformationCandidates = new HealthInformationCandidateService({ ...sharedOptions, profileFacts: healthProfileFacts })
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -369,6 +371,23 @@ async function handleAudioTranscription(request, response, pathname) {
   return true
 }
 
+async function handleHealthInformationCandidates(request, response, pathname) {
+  const eventMatch = /^\/api\/events\/([^/]+)\/health-information-candidates(?:\/(discover))?$/.exec(pathname)
+  const candidateMatch = /^\/api\/health-information-candidates\/([^/]+)$/.exec(pathname)
+  if (!eventMatch && !candidateMatch) return false
+  const accountId = readAccountId(request)
+  if (eventMatch) {
+    const eventId = decodeRouteValue(eventMatch[1])
+    if (!eventMatch[2] && request.method === 'GET') sendJson(response, 200, await healthInformationCandidates.list(accountId, eventId))
+    else if (eventMatch[2] === 'discover' && request.method === 'POST') sendJson(response, 200, await healthInformationCandidates.discover(accountId, eventId))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
+  if (request.method === 'PATCH') sendJson(response, 200, await healthInformationCandidates.update(accountId, decodeRouteValue(candidateMatch[1]), await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleAttachments(request, response, pathname) {
   const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
   if (!match) return false
@@ -441,6 +460,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOnlineConsultations(request, response, pathname)) return true
   if (await handleHealthProfileFacts(request, response, pathname, searchParams)) return true
+  if (await handleHealthInformationCandidates(request, response, pathname)) return true
   if (await handleOrganizations(request, response, pathname)) return true
   if (await handleEventRecords(request, response, pathname)) return true
   if (await handleEvents(request, response, pathname)) return true

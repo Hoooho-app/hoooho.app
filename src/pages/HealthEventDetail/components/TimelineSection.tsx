@@ -36,6 +36,12 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
     return () => onDetailOpenChange?.(false)
   }, [onDetailOpenChange, selection])
 
+  useEffect(() => {
+    const targetId = decodeURIComponent(window.location.hash.replace(/^#/, ''))
+    if (!targetId.startsWith('record-')) return
+    window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ block: 'center' }))
+  }, [timelineGroups])
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -112,7 +118,7 @@ function TimelineRow({ canEdit, entry, onDelete, onEdit, onOpen }: {
   const finishSwipe = () => setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
 
   return (
-    <article className="timeline-entry-row">
+    <article className="timeline-entry-row" id={entry.sourceRecordId ? `record-${entry.sourceRecordId}` : undefined}>
       <span aria-hidden="true" className="timeline-entry-marker" />
       <time className="timeline-entry-time">{formatTimelineEntryTime(entry)}</time>
       <div className="symptom-record-swipe">

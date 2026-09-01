@@ -109,3 +109,27 @@ test('已移除事实保留来源且同一候选不能重复归档', async () =>
     await f.cleanup()
   }
 })
+
+test('单次普通症状不会被误当成长期健康候选', async () => {
+  const f = await fixture()
+  try {
+    const organizations = new HealthRecordOrganizationRepository(f.dataDirectory)
+    await organizations.upsert({
+      accountId: f.accountId,
+      eventId: f.event.id,
+      recordId: f.organization.recordId,
+      rawInput: '今天有点头痛',
+      status: 'completed',
+      provider: 'test',
+      healthAIOutput: {
+        confidence: 0.9,
+        facts: [{
+          id: 'ordinary-symptom', type: 'symptom', name: '头痛', sourceText: '今天有点头痛', originalText: '今天有点头痛',
+          time: { raw: null, resolvedStart: '2026-08-30T09:10:00.000Z', resolvedEnd: null, precision: 'exact', source: 'selected_time' },
+          confidence: 0.9, polarity: 'affirmed', temporality: 'current', status: 'active', subject: 'event_subject', source: 'user_report'
+        }]
+      }
+    })
+    assert.deepEqual(await f.service.listCandidates(f.accountId, f.member.id), [])
+  } finally { await f.cleanup() }
+})
