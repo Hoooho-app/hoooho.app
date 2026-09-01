@@ -3,6 +3,7 @@ import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
 import type { QuickRecordCandidate } from '../../features/quick-record'
 import { QuickVoiceRecordFlow } from '../HealthEventDetail/components'
+import { NursePromptCarousel } from './NursePromptCarousel'
 import { NurseTriageDesk } from './NurseTriageDesk'
 import './NurseQuickRecord.css'
 
@@ -63,8 +64,8 @@ export function NurseQuickRecord({
           state="idle"
         />
       </div>
-      <div aria-live="polite" className="nurse-triage-status">
-        <h3>发生什么，都可以告诉我们</h3>
+      <div className="nurse-triage-status">
+        <NursePromptCarousel paused={open} reducedMotion={reducedMotion} />
       </div>
       <div className="nurse-quick-record-anchor" data-open={open}>
         {savedNotice && <div aria-live="polite" className="nurse-quick-record-saved"><Check aria-hidden="true" size={18} /><strong>{savedNotice}</strong></div>}

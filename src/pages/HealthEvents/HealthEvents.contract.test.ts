@@ -18,6 +18,8 @@ const helpSource = readFileSync(new URL('../../features/help/articles.ts', impor
 const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
 const nurseQuickRecordSource = readFileSync(new URL('./NurseQuickRecord.tsx', import.meta.url), 'utf8')
 const nurseQuickRecordStylesSource = readFileSync(new URL('./NurseQuickRecord.css', import.meta.url), 'utf8')
+const nursePromptCarouselSource = readFileSync(new URL('./NursePromptCarousel.tsx', import.meta.url), 'utf8')
+const nursePromptCarouselConfigSource = readFileSync(new URL('./nursePromptMessages.ts', import.meta.url), 'utf8')
 const nurseNextActionSource = readFileSync(new URL('./NurseNextAction.tsx', import.meta.url), 'utf8')
 const nurseNextActionContextSource = readFileSync(new URL('./nurseNextActionContext.ts', import.meta.url), 'utf8')
 const quickRecordFlowSource = readFileSync(new URL('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
@@ -180,6 +182,31 @@ test('前台快捷记录在原锚点使用专用听写、核对和保存完成�
   assert.match(quickRecordFlowSource, />保存记录<\/HohoButton>/)
   assert.match(quickRecordFlowSource, /presentation === 'nurse-inline' \? '记录已保存'/)
   assert.doesNotMatch(quickRecordFlowSource, /开始听写|点击结束|<Square|<Pause/)
+})
+
+test('前台提示轮播严格使用指定顺序并由真实快捷记录打开状态暂停', () => {
+  const prompts = [
+    '不舒服就记下来',
+    '不用一次说完，有空了再补上',
+    '症状加重还是减轻，我们帮你记清',
+    '把重要信息整理清楚，去医院不慌',
+    '让AI或医生一分钟看懂发生了什么'
+  ]
+  prompts.forEach((prompt) => assert.match(nursePromptCarouselConfigSource, new RegExp(prompt)))
+  assert.match(nurseQuickRecordSource, /<NursePromptCarousel paused=\{open\} reducedMotion=\{reducedMotion\} \/>/)
+  assert.doesNotMatch(nurseQuickRecordSource, /发生什么，都可以告诉我们/)
+  assert.match(nursePromptCarouselConfigSource, /nursePromptHoldDuration = 2000/)
+  assert.match(nursePromptCarouselSource, /visibilitychange/)
+  assert.match(nursePromptCarouselSource, /window\.clearTimeout\(timer\)/)
+})
+
+test('前台提示轮播保持固定单行高度并为 Reduced Motion 移除位移', () => {
+  assert.match(nurseQuickRecordStylesSource, /nurse-prompt-carousel[^}]*height:\s*20px[^}]*overflow:\s*hidden[^}]*font:\s*500 14px \/ 20px/s)
+  assert.match(nurseQuickRecordStylesSource, /nurse-prompt-leave 320ms ease-out/)
+  assert.match(nurseQuickRecordStylesSource, /translateY\(-7px\)/)
+  assert.match(nurseQuickRecordStylesSource, /translateY\(7px\)/)
+  assert.match(nurseQuickRecordStylesSource, /max-width:\s*340px[^}]*font-size:\s*13px/s)
+  assert.match(nurseQuickRecordStylesSource, /prefers-reduced-motion:\s*reduce[^]*nurse-prompt-fade-out 120ms linear/s)
 })
 
 test('前台快捷记录保留真实保存、失败重试和资源清理边界', () => {
