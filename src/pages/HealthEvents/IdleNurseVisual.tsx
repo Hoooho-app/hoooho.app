@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import idleIntroZeroSource from '../../assets/nurse-triage/nurses-idle-intro-0.mp4'
 import idleVideoOneSource from '../../assets/nurse-triage/nurses-idle-loop-1.mp4'
 import idleVideoTwoSource from '../../assets/nurse-triage/nurses-idle-loop-2.mp4'
 import {
   beginIdlePlayback,
-  chooseAvailableIdle,
+  chooseAvailableVideo,
   commitIdlePlayback,
   createIdlePlaylistState,
-  isIdlePlayerVisible,
-  otherIdleIndex,
+  isVideoVisible,
   playIdleVideoSafely,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
   suspendIdlePlaylist,
-  type IdleIndex,
-  type IdlePlaylistState
+  type IdlePlaylistState,
+  type NurseVideoIndex
 } from './idleVideoPlaylist'
 
-export const idlePlaylist = [idleVideoOneSource, idleVideoTwoSource] as const
+export const idlePlaylist = [idleIntroZeroSource, idleVideoOneSource, idleVideoTwoSource] as const
 
 const idleRetryLimit = 3
+const videoPhaseNames = ['intro0', 'idle1', 'idle2'] as const
 
 interface IdleNurseVisualProps {
   active: boolean
@@ -30,12 +31,12 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
   const [playlist, setPlaylist] = useState<IdlePlaylistState>(() => createIdlePlaylistState())
   const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
   const playlistRef = useRef(playlist)
-  const idleVideoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null])
-  const idleReadyRef = useRef<[boolean, boolean]>([false, false])
-  const idleFailedRef = useRef<[boolean, boolean]>([false, false])
-  const idleRetryCountRef = useRef<[number, number]>([0, 0])
-  const idleRetryTimerRef = useRef<[number, number]>([0, 0])
-  const idlePlayerSessionRef = useRef<[number, number]>([0, 0])
+  const idleVideoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null, HTMLVideoElement | null]>([null, null, null])
+  const idleReadyRef = useRef<[boolean, boolean, boolean]>([false, false, false])
+  const idleFailedRef = useRef<[boolean, boolean, boolean]>([false, false, false])
+  const idleRetryCountRef = useRef<[number, number, number]>([0, 0, 0])
+  const idleRetryTimerRef = useRef<[number, number, number]>([0, 0, 0])
+  const videoSessionRef = useRef<[number, number, number]>([0, 0, 0])
   const mountedRef = useRef(true)
   const idlePlaybackAllowedRef = useRef(false)
   const reducedMotionRef = useRef(reducedMotion)
@@ -53,21 +54,21 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     idleVideoRefs.current.forEach((video) => video?.pause())
   }, [])
 
-  const tryPlayPreparedIdle = useCallback(async (player: IdleIndex, playbackSessionId: number) => {
+  const tryPlayPreparedVideo = useCallback(async (videoIndex: NurseVideoIndex, playbackSessionId: number) => {
     const current = playlistRef.current
     if (
       !mountedRef.current ||
       !idlePlaybackAllowedRef.current ||
       reducedMotionRef.current ||
       current.suspended ||
-      current.pendingPlayer !== player ||
+      current.pendingVideoIndex !== videoIndex ||
       current.playbackSessionId !== playbackSessionId
     ) {
       return
     }
 
-    const video = idleVideoRefs.current[player]
-    if (!video || !idleReadyRef.current[player]) return
+    const video = idleVideoRefs.current[videoIndex]
+    if (!video || !idleReadyRef.current[videoIndex]) return
     if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
       video.currentTime = 0
     }
@@ -75,56 +76,56 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     const reason = await playIdleVideoSafely(() => video.play())
     if (!mountedRef.current) return
     const latest = playlistRef.current
-    if (latest.pendingPlayer !== player || latest.playbackSessionId !== playbackSessionId) return
+    if (latest.pendingVideoIndex !== videoIndex || latest.playbackSessionId !== playbackSessionId) return
     setIdlePlaybackBlocked(Boolean(reason))
   }, [])
 
-  const startPreparedIdle = useCallback((state: IdlePlaylistState) => {
-    const player = state.pendingPlayer
-    if (player === null) return
-    idlePlayerSessionRef.current[player] = state.playbackSessionId
-    const video = idleVideoRefs.current[player]
-    if (!video || !idleReadyRef.current[player] || !idlePlaybackAllowedRef.current) return
+  const startPreparedVideo = useCallback((state: IdlePlaylistState) => {
+    const videoIndex = state.pendingVideoIndex
+    if (videoIndex === null) return
+    videoSessionRef.current[videoIndex] = state.playbackSessionId
+    const video = idleVideoRefs.current[videoIndex]
+    if (!video || !idleReadyRef.current[videoIndex] || !idlePlaybackAllowedRef.current) return
 
     if (reducedMotionRef.current) {
       video.pause()
       video.currentTime = 0
-      updatePlaylist(commitIdlePlayback(state, player, state.playbackSessionId))
+      updatePlaylist(commitIdlePlayback(state, videoIndex, state.playbackSessionId))
       return
     }
 
-    void tryPlayPreparedIdle(player, state.playbackSessionId)
-  }, [tryPlayPreparedIdle, updatePlaylist])
+    void tryPlayPreparedVideo(videoIndex, state.playbackSessionId)
+  }, [tryPlayPreparedVideo, updatePlaylist])
 
-  const beginPreferredIdle = useCallback((preferred: IdleIndex) => {
+  const beginPreferredVideo = useCallback((preferred: NurseVideoIndex) => {
     const current = playlistRef.current
-    const player = chooseAvailableIdle(preferred, idleFailedRef.current)
-    if (player === null) {
+    const videoIndex = chooseAvailableVideo(preferred, idleFailedRef.current)
+    if (videoIndex === null) {
       updatePlaylist(suspendIdlePlaylist(current))
       return
     }
 
-    const next = beginIdlePlayback(current, player)
+    const next = beginIdlePlayback(current, videoIndex)
     updatePlaylist(next)
-    startPreparedIdle(next)
-  }, [startPreparedIdle, updatePlaylist])
+    startPreparedVideo(next)
+  }, [startPreparedVideo, updatePlaylist])
 
   const startOrResumeIdle = useCallback(() => {
     const current = playlistRef.current
     if (!idlePlaybackAllowedRef.current) return
 
     if (!current.suspended) {
-      if (current.pendingPlayer !== null) startPreparedIdle(current)
+      if (current.pendingVideoIndex !== null) startPreparedVideo(current)
       return
     }
 
     const resumed = resumeIdlePlaylist(current)
-    const player = chooseAvailableIdle(resumed.pendingPlayer ?? 0, idleFailedRef.current)
-    if (player === null) return
-    const next = player === resumed.pendingPlayer ? resumed : beginIdlePlayback(current, player)
+    const videoIndex = chooseAvailableVideo(resumed.pendingVideoIndex ?? 0, idleFailedRef.current)
+    if (videoIndex === null) return
+    const next = videoIndex === resumed.pendingVideoIndex ? resumed : beginIdlePlayback(current, videoIndex)
     updatePlaylist(next)
-    startPreparedIdle(next)
-  }, [startPreparedIdle, updatePlaylist])
+    startPreparedVideo(next)
+  }, [startPreparedVideo, updatePlaylist])
 
   const stopIdlePlaylist = useCallback(() => {
     updatePlaylist(suspendIdlePlaylist(playlistRef.current))
@@ -132,74 +133,74 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     setIdlePlaybackBlocked(false)
   }, [pauseIdlePlayers, updatePlaylist])
 
-  const retryIdleVideo = useCallback((player: IdleIndex) => {
-    idleReadyRef.current[player] = false
-    idleFailedRef.current[player] = true
-    window.clearTimeout(idleRetryTimerRef.current[player])
+  const retryIdleVideo = useCallback((videoIndex: NurseVideoIndex) => {
+    idleReadyRef.current[videoIndex] = false
+    idleFailedRef.current[videoIndex] = true
+    window.clearTimeout(idleRetryTimerRef.current[videoIndex])
 
-    if (idleRetryCountRef.current[player] < idleRetryLimit) {
-      idleRetryCountRef.current[player] += 1
-      idleRetryTimerRef.current[player] = window.setTimeout(() => {
+    if (idleRetryCountRef.current[videoIndex] < idleRetryLimit) {
+      idleRetryCountRef.current[videoIndex] += 1
+      idleRetryTimerRef.current[videoIndex] = window.setTimeout(() => {
         if (!mountedRef.current) return
-        idleVideoRefs.current[player]?.load()
+        idleVideoRefs.current[videoIndex]?.load()
       }, 2_000)
     }
 
     const current = playlistRef.current
-    if (current.pendingPlayer === player || (current.hasPlayed && current.activePlayer === player)) {
-      const fallback = chooseAvailableIdle(otherIdleIndex(player), idleFailedRef.current)
+    if (current.pendingVideoIndex === videoIndex || (current.hasPlayed && current.activeVideoIndex === videoIndex)) {
+      const fallback = chooseAvailableVideo(current.nextVideoIndex, idleFailedRef.current)
       if (fallback === null) {
         stopIdlePlaylist()
         return
       }
-      beginPreferredIdle(fallback)
+      beginPreferredVideo(fallback)
     }
-  }, [beginPreferredIdle, stopIdlePlaylist])
+  }, [beginPreferredVideo, stopIdlePlaylist])
 
-  const handleIdleCanPlay = useCallback((player: IdleIndex) => {
-    window.clearTimeout(idleRetryTimerRef.current[player])
-    idleRetryTimerRef.current[player] = 0
-    idleRetryCountRef.current[player] = 0
-    idleReadyRef.current[player] = true
-    idleFailedRef.current[player] = false
+  const handleIdleCanPlay = useCallback((videoIndex: NurseVideoIndex) => {
+    window.clearTimeout(idleRetryTimerRef.current[videoIndex])
+    idleRetryTimerRef.current[videoIndex] = 0
+    idleRetryCountRef.current[videoIndex] = 0
+    idleReadyRef.current[videoIndex] = true
+    idleFailedRef.current[videoIndex] = false
 
     const current = playlistRef.current
-    if (current.pendingPlayer === player) {
-      startPreparedIdle(current)
+    if (current.pendingVideoIndex === videoIndex) {
+      startPreparedVideo(current)
       return
     }
     if (current.suspended && idlePlaybackAllowedRef.current) startOrResumeIdle()
-  }, [startOrResumeIdle, startPreparedIdle])
+  }, [startOrResumeIdle, startPreparedVideo])
 
-  const handleIdlePlaying = useCallback((player: IdleIndex) => {
+  const handleIdlePlaying = useCallback((videoIndex: NurseVideoIndex) => {
     let current = playlistRef.current
-    if (current.suspended && !current.hasPlayed && player === 0 && idlePlaybackAllowedRef.current) {
-      current = beginIdlePlayback(current, player)
-      idlePlayerSessionRef.current[player] = current.playbackSessionId
+    if (current.suspended && !current.hasPlayed && videoIndex === 0 && idlePlaybackAllowedRef.current) {
+      current = beginIdlePlayback(current, videoIndex)
+      videoSessionRef.current[videoIndex] = current.playbackSessionId
       updatePlaylist(current)
     }
-    const next = commitIdlePlayback(current, player, idlePlayerSessionRef.current[player])
+    const next = commitIdlePlayback(current, videoIndex, videoSessionRef.current[videoIndex])
     if (next === current) return
     updatePlaylist(next)
     setIdlePlaybackBlocked(false)
   }, [updatePlaylist])
 
-  const handleIdleEnded = useCallback((player: IdleIndex) => {
+  const handleIdleEnded = useCallback((videoIndex: NurseVideoIndex) => {
     const current = playlistRef.current
-    const requested = requestNextIdlePlayback(current, player, idlePlayerSessionRef.current[player])
-    if (requested === current || requested.pendingPlayer === null) return
+    const requested = requestNextIdlePlayback(current, videoIndex, videoSessionRef.current[videoIndex])
+    if (requested === current || requested.pendingVideoIndex === null) return
 
-    const nextPlayer = chooseAvailableIdle(requested.pendingPlayer, idleFailedRef.current)
-    if (nextPlayer === null) {
+    const nextVideoIndex = chooseAvailableVideo(requested.pendingVideoIndex, idleFailedRef.current)
+    if (nextVideoIndex === null) {
       stopIdlePlaylist()
       return
     }
-    const next = nextPlayer === requested.pendingPlayer
+    const next = nextVideoIndex === requested.pendingVideoIndex
       ? requested
-      : beginIdlePlayback(current, nextPlayer)
+      : beginIdlePlayback(current, nextVideoIndex)
     updatePlaylist(next)
-    startPreparedIdle(next)
-  }, [startPreparedIdle, stopIdlePlaylist, updatePlaylist])
+    startPreparedVideo(next)
+  }, [startPreparedVideo, stopIdlePlaylist, updatePlaylist])
 
   useEffect(() => {
     mountedRef.current = true
@@ -220,20 +221,20 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
   }, [active, reducedMotion, resetKey, startOrResumeIdle, stopIdlePlaylist])
 
   useEffect(() => {
-    if (!playlist.hasPlayed || playlist.pendingPlayer !== null) return
-    const inactivePlayer = otherIdleIndex(playlist.activePlayer)
-    const inactiveVideo = idleVideoRefs.current[inactivePlayer]
-    if (!inactiveVideo) return
-    inactiveVideo.pause()
-    if (inactiveVideo.currentTime > 0) inactiveVideo.currentTime = 0
-  }, [playlist.activePlayer, playlist.hasPlayed, playlist.pendingPlayer])
+    if (!playlist.hasPlayed || playlist.pendingVideoIndex !== null) return
+    idleVideoRefs.current.forEach((video, videoIndex) => {
+      if (!video || videoIndex === playlist.activeVideoIndex) return
+      video.pause()
+      if (video.currentTime > 0) video.currentTime = 0
+    })
+  }, [playlist.activeVideoIndex, playlist.hasPlayed, playlist.pendingVideoIndex])
 
   useEffect(() => {
     if (!active || !idlePlaybackBlocked) return
     const resume = () => {
       const current = playlistRef.current
-      if (current.pendingPlayer !== null) {
-        void tryPlayPreparedIdle(current.pendingPlayer, current.playbackSessionId)
+      if (current.pendingVideoIndex !== null) {
+        void tryPlayPreparedVideo(current.pendingVideoIndex, current.playbackSessionId)
       }
     }
     document.addEventListener('pointerdown', resume, { once: true })
@@ -242,41 +243,41 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
       document.removeEventListener('pointerdown', resume)
       document.removeEventListener('keydown', resume)
     }
-  }, [active, idlePlaybackBlocked, tryPlayPreparedIdle])
+  }, [active, idlePlaybackBlocked, tryPlayPreparedVideo])
 
   return (
     <div
       className="idle-nurse-visual"
-      data-active-idle={playlist.hasPlayed ? playlist.activeIdleIndex + 1 : 'none'}
+      data-active-video={videoPhaseNames[playlist.activeVideoIndex]}
       data-playback-session={playlist.playbackSessionId}
       data-reduced-motion={reducedMotion}
     >
-      {idlePlaylist.map((source, player) => {
-        const idlePlayer = player as IdleIndex
+      {idlePlaylist.map((source, videoIndexValue) => {
+        const videoIndex = videoIndexValue as NurseVideoIndex
         return (
           <video
             aria-hidden="true"
-            autoPlay={idlePlayer === 0 && active && !reducedMotion}
+            autoPlay={videoIndex === 0 && active && !reducedMotion}
             className="idle-nurse-visual__idle-video"
             controls={false}
             controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
-            data-active={isIdlePlayerVisible(playlist, idlePlayer)}
-            data-idle-index={idlePlayer + 1}
+            data-active={isVideoVisible(playlist, videoIndex)}
+            data-video-phase={videoPhaseNames[videoIndex]}
             disablePictureInPicture
             disableRemotePlayback
             draggable={false}
             loop={false}
             muted
-            onCanPlay={() => handleIdleCanPlay(idlePlayer)}
+            onCanPlay={() => handleIdleCanPlay(videoIndex)}
             onContextMenu={(event) => event.preventDefault()}
             onDragStart={(event) => event.preventDefault()}
-            onEnded={() => handleIdleEnded(idlePlayer)}
-            onError={() => retryIdleVideo(idlePlayer)}
-            onPlaying={() => handleIdlePlaying(idlePlayer)}
+            onEnded={() => handleIdleEnded(videoIndex)}
+            onError={() => retryIdleVideo(videoIndex)}
+            onPlaying={() => handleIdlePlaying(videoIndex)}
             playsInline
             preload="auto"
             ref={(video) => {
-              idleVideoRefs.current[idlePlayer] = video
+              idleVideoRefs.current[videoIndex] = video
             }}
             src={source}
             tabIndex={-1}

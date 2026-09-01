@@ -87,18 +87,19 @@ test('健康事件页继承全局底板且不维护页面级颜色补丁', () =>
   assert.doesNotMatch(pageStylesSource, /\.app-shell\.hoho-health-events-page\s*{[^}]*background:/s)
 })
 
-test('默认待机严格使用两项白名单且切换期间最多只有一个可见播放器', () => {
+test('护士视频使用欢迎片与双待机显式白名单且切换期间最多只有一个可见播放器', () => {
+  assert.match(idleVisualSource, /import idleIntroZeroSource from '\.\.\/\.\.\/assets\/nurse-triage\/nurses-idle-intro-0\.mp4'/)
   assert.match(idleVisualSource, /import idleVideoOneSource from '\.\.\/\.\.\/assets\/nurse-triage\/nurses-idle-loop-1\.mp4'/)
   assert.match(idleVisualSource, /import idleVideoTwoSource from '\.\.\/\.\.\/assets\/nurse-triage\/nurses-idle-loop-2\.mp4'/)
   const playlistMatch = idleVisualSource.match(/const idlePlaylist = \[([^\]]+)\] as const/)
   assert.ok(playlistMatch)
-  assert.deepEqual(playlistMatch[1].split(',').map((item) => item.trim()), ['idleVideoOneSource', 'idleVideoTwoSource'])
+  assert.deepEqual(playlistMatch[1].split(',').map((item) => item.trim()), ['idleIntroZeroSource', 'idleVideoOneSource', 'idleVideoTwoSource'])
   assert.equal(idleVisualSource.match(/<video/g)?.length, 1)
-  assert.match(idleVisualSource, /autoPlay=\{idlePlayer === 0 && active && !reducedMotion\}/)
+  assert.match(idleVisualSource, /autoPlay=\{videoIndex === 0 && active && !reducedMotion\}/)
   assert.match(idleVisualSource, /preload="auto"/)
   assert.match(idleVisualSource, /loop=\{false\}/)
-  assert.match(idleVisualSource, /onEnded=\{\(\) => handleIdleEnded\(idlePlayer\)\}/)
-  assert.match(idleVisualSource, /onPlaying=\{\(\) => handleIdlePlaying\(idlePlayer\)\}/)
+  assert.match(idleVisualSource, /onEnded=\{\(\) => handleIdleEnded\(videoIndex\)\}/)
+  assert.match(idleVisualSource, /onPlaying=\{\(\) => handleIdlePlaying\(videoIndex\)\}/)
   assert.match(idleVisualSource, /muted/)
   assert.match(idleVisualSource, /playsInline/)
   assert.match(idleVisualSource, /disablePictureInPicture/)
@@ -118,8 +119,8 @@ test('默认待机严格使用两项白名单且切换期间最多只有一个�
     assert.equal(idleVisualSource.includes(name), false)
     assert.equal(nurseDeskSource.includes(name), false)
   })
-  assert.match(idleVisualSource, /onError=\{\(\) => retryIdleVideo\(idlePlayer\)\}/)
-  assert.match(idleVisualSource, /(?:video|idleVideoRefs\.current\[player\]\?)\.load\(\)/)
+  assert.match(idleVisualSource, /onError=\{\(\) => retryIdleVideo\(videoIndex\)\}/)
+  assert.match(idleVisualSource, /idleVideoRefs\.current\[videoIndex\]\?\.load\(\)/)
   assert.match(pageStylesSource, /\.nurse-triage-desk\s*\{[^}]*background:\s*#fff[^}]*border:\s*0[^}]*outline:\s*0[^}]*box-shadow:\s*none[^}]*pointer-events:\s*none/s)
   assert.match(pageStylesSource, /\.nurse-triage-desk::after\s*\{[^}]*transparent 10px[^}]*#fff 100%/s)
   assert.match(pageStylesSource, /\.idle-nurse-visual__idle-video\s*\{[^}]*pointer-events:\s*none[^}]*user-select:\s*none/s)
@@ -127,11 +128,14 @@ test('默认待机严格使用两项白名单且切换期间最多只有一个�
   assert.doesNotMatch(pageStylesSource, /idle-nurse-visual__special-video|data-mode='special'/)
 })
 
-test('双待机资产内容正确且旧静态素材已删除', () => {
+test('欢迎片与双待机资产内容正确且旧静态素材已删除', () => {
+  const idleIntroZero = new URL('../../assets/nurse-triage/nurses-idle-intro-0.mp4', import.meta.url)
   const idleVideoOne = new URL('../../assets/nurse-triage/nurses-idle-loop-1.mp4', import.meta.url)
   const idleVideoTwo = new URL('../../assets/nurse-triage/nurses-idle-loop-2.mp4', import.meta.url)
+  const idleIntroZeroHash = createHash('sha256').update(readFileSync(idleIntroZero)).digest('hex')
   const idleVideoOneHash = createHash('sha256').update(readFileSync(idleVideoOne)).digest('hex')
   const idleVideoTwoHash = createHash('sha256').update(readFileSync(idleVideoTwo)).digest('hex')
+  assert.equal(idleIntroZeroHash, 'a50a8a14038cb16530bc5474b30f729012a6896398f3cc8aeba3b7fb22cc7b03')
   assert.equal(idleVideoOneHash, '7b33746af4e7a2f1281c00b2c66ddabe0e834eac433135a9ec058ec07a243be1')
   assert.equal(idleVideoTwoHash, '5e533b30a78f901f5431004efd723bc624da3122fe3d749ea39efc3c6aca5082')
 
