@@ -1,20 +1,16 @@
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from './repositories/health-event-record-repository.mjs'
 import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
+import { HealthChangeAnnotationService } from './health-change-annotation-service.mjs'
+import { HealthEventRecordError } from './health-event-record-error.mjs'
+
+export { HealthEventRecordError } from './health-event-record-error.mjs'
 
 const recordTypes = new Set(['note', 'symptom', 'medication', 'visit', 'examination', 'other'])
 const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note'])
 const immutableFields = new Set(['id', 'accountId', 'eventId', 'createdAt', 'updatedAt'])
 const sourceTypes = new Set(['user_record', 'voice_record', 'text_record', 'measurement', 'medical_file', 'doctor_confirmation', 'other'])
 const measurementMethods = new Set(['unspecified', 'oral', 'axillary', 'ear', 'forehead', 'other'])
-
-export class HealthEventRecordError extends Error {
-  constructor(message, status = 400, code = 'HEALTH_EVENT_RECORD_ERROR') {
-    super(message)
-    this.status = status
-    this.code = code
-  }
-}
 
 function validateType(value) {
   if (!recordTypes.has(value)) {
@@ -79,6 +75,7 @@ export class HealthEventRecordService {
     this.repository = options.repository ?? new HealthEventRecordRepository(options.dataDirectory)
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
     this.organizations = options.organizations ?? new HealthRecordOrganizationService(options)
+    this.changeAnnotations = options.changeAnnotations ?? new HealthChangeAnnotationService({ repository: this.repository, events: this.events })
   }
 
   async recomputeAfterMutation(accountId, eventId, now, options = {}) {
@@ -86,6 +83,11 @@ export class HealthEventRecordService {
       await this.organizations.invalidateAndRecompute(accountId, eventId, now, options)
     } catch (error) {
       console.warn('[Hoooho AI] record saved but organization recompute failed', eventId, error?.code ?? error?.message)
+    }
+    try {
+      await this.changeAnnotations.recompute(accountId, eventId, now)
+    } catch (error) {
+      console.warn('[Hoooho] record saved but change annotation recompute failed', eventId, error?.code ?? error?.message)
     }
   }
 
@@ -128,7 +130,7 @@ export class HealthEventRecordService {
     await this.recomputeAfterMutation(accountId, eventId, now, bodyLocations.length
       ? { bodyLocationsByRecord: { [created.id]: bodyLocations } }
       : {})
-    return created
+    return this.repository.findById(created.id)
   }
 
   async list(accountId, eventId) {
@@ -156,7 +158,7 @@ export class HealthEventRecordService {
     }
     const updated = await this.repository.update(id, changes, now)
     await this.recomputeAfterMutation(accountId, record.eventId, now)
-    return updated
+    return this.repository.findById(updated.id)
   }
 
   async delete(accountId, id) {
@@ -164,5 +166,13 @@ export class HealthEventRecordService {
     await this.repository.delete(id)
     await this.recomputeAfterMutation(accountId, record.eventId, new Date())
     return { success: true }
+  }
+
+  updateChangeAnnotation(accountId, recordId, annotationId, input) {
+    return this.changeAnnotations.update(accountId, recordId, annotationId, input)
+  }
+
+  deleteChangeAnnotation(accountId, recordId, annotationId) {
+    return this.changeAnnotations.delete(accountId, recordId, annotationId)
   }
 }

@@ -1,4 +1,4 @@
-import type { CreateHealthEventRecordInput, HealthEventRecordApiDto, UpdateHealthEventRecordInput } from '../types'
+import type { CreateHealthEventRecordInput, HealthChangeType, HealthEventRecordApiDto, UpdateHealthEventRecordInput } from '../types'
 import { apiRequest } from './apiClient'
 
 export const healthEventRecordService = {
@@ -24,6 +24,21 @@ export const healthEventRecordService = {
 
   delete(recordId: string, token: string) {
     return apiRequest<{ success: true }>(`/api/records/${encodeURIComponent(recordId)}`, {
+      token,
+      method: 'DELETE'
+    })
+  },
+
+  updateChangeAnnotation(recordId: string, annotationId: string, changeType: HealthChangeType, token: string) {
+    return apiRequest<HealthEventRecordApiDto>(`/api/records/${encodeURIComponent(recordId)}/change-annotations/${encodeURIComponent(annotationId)}`, {
+      token,
+      method: 'PATCH',
+      body: { changeType }
+    })
+  },
+
+  deleteChangeAnnotation(recordId: string, annotationId: string, token: string) {
+    return apiRequest<{ success: true }>(`/api/records/${encodeURIComponent(recordId)}/change-annotations/${encodeURIComponent(annotationId)}`, {
       token,
       method: 'DELETE'
     })

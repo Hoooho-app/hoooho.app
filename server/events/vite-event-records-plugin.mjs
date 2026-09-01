@@ -54,7 +54,8 @@ export function eventRecordsApiPlugin(options = {}) {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         const eventRecordsMatch = /^\/api\/events\/([^/]+)\/records$/.exec(pathname)
         const recordMatch = /^\/api\/records\/([^/]+)$/.exec(pathname)
-        if (!eventRecordsMatch && !recordMatch) return next()
+        const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
+        if (!eventRecordsMatch && !recordMatch && !annotationMatch) return next()
 
         try {
           const accountId = readAccountId(request, tokens)
@@ -64,6 +65,13 @@ export function eventRecordsApiPlugin(options = {}) {
             if (request.method === 'POST') {
               return sendJson(response, 201, await records.create(accountId, eventId, await readJson(request)))
             }
+          }
+
+          if (annotationMatch) {
+            const recordId = decodeURIComponent(annotationMatch[1])
+            const annotationId = decodeURIComponent(annotationMatch[2])
+            if (request.method === 'PATCH') return sendJson(response, 200, await records.updateChangeAnnotation(accountId, recordId, annotationId, await readJson(request)))
+            if (request.method === 'DELETE') return sendJson(response, 200, await records.deleteChangeAnnotation(accountId, recordId, annotationId))
           }
 
           if (recordMatch) {

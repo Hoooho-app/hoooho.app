@@ -145,6 +145,21 @@ export type HealthEventRecordType = 'note' | 'symptom' | 'medication' | 'visit' 
 export type HealthRecordSourceType = 'user_record' | 'voice_record' | 'text_record' | 'measurement' | 'medical_file' | 'doctor_confirmation' | 'other'
 export type HealthInputIntent = 'health_fact' | 'correction_or_command' | 'irrelevant_or_chat' | 'uncertain_health_fact'
 export type HealthMeasurementMethod = 'unspecified' | 'oral' | 'axillary' | 'ear' | 'forehead' | 'other'
+export type HealthChangeType = 'new' | 'worsened' | 'improved' | 'resolved'
+
+export interface HealthChangeAnnotationApiDto {
+  id: string
+  factKey: string
+  factLabel: string
+  changeType: HealthChangeType
+  sourceRecordId: string
+  comparedRecordId?: string | null
+  source: 'system' | 'user'
+  userEdited: boolean
+  hidden?: boolean
+  createdAt: string
+  updatedAt: string
+}
 
 export interface HealthEventRecordApiDto {
   id: string
@@ -158,6 +173,7 @@ export interface HealthEventRecordApiDto {
   measurementMethod?: HealthMeasurementMethod | null
   measurementDevice?: string | null
   note?: string | null
+  changeAnnotations?: HealthChangeAnnotationApiDto[]
   createdAt: string
   updatedAt: string
 }
@@ -503,6 +519,7 @@ export interface TimelineEntry {
     content: string
   }>
   attachments?: EventAttachment[]
+  changeAnnotations?: HealthChangeAnnotationApiDto[]
 }
 
 export interface HealthEventMedicalInfo {

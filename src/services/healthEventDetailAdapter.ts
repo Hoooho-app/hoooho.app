@@ -267,6 +267,7 @@ function buildFactTimeline(
         note: record?.note ?? null
       }),
       sequence: index,
+      changeAnnotations: index === 0 ? (record?.changeAnnotations ?? []).filter((annotation) => !annotation.hidden) : [],
       segments,
       attachments: recordAttachments
     }
@@ -297,6 +298,7 @@ function buildFactTimeline(
       note: record.note
     }),
     sequence: 0,
+    changeAnnotations: (record.changeAnnotations ?? []).filter((annotation) => !annotation.hidden),
     segments: [{ label: presentation.label, content: presentation.content }],
     attachments: recordAttachments
     })
@@ -323,6 +325,7 @@ function buildFactTimeline(
       note: record.note
     }),
     sequence: 0,
+    changeAnnotations: (record.changeAnnotations ?? []).filter((annotation) => !annotation.hidden),
     segments: [{ label: '记录', content: compactUnstructuredRecord(record.content) }],
     attachments: []
   }))
