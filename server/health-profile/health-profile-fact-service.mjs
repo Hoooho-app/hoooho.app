@@ -55,7 +55,12 @@ function candidateKey(organizationId, sourceFactId) {
 }
 
 function isCandidateFact(fact) {
+  const explicitlyLongTerm = fact.type === 'concern' && /相关反应|长期|重要/.test(fact.name)
+  const confirmedClinicalFact = fact.type === 'diagnosis'
+    && fact.diagnosisCertainty === 'confirmed'
+    && ['doctor_statement', 'test_result'].includes(fact.source)
   return eligibleTypes.has(fact.type)
+    && (explicitlyLongTerm || confirmedClinicalFact)
     && fact.polarity !== 'negated'
     && fact.temporality !== 'future'
     && fact.subject !== 'family_member'
@@ -88,14 +93,14 @@ export class HealthProfileFactService {
     return (await this.repository.findByMemberId(memberId)).filter((fact) => fact.accountId === accountId)
   }
 
-  async #candidateFromSource(accountId, memberId, organizationId, sourceFactId) {
+  async #traceableSource(accountId, memberId, organizationId, sourceFactId) {
     await this.assertMember(accountId, memberId)
     const events = (await this.events.findByAccountId(accountId)).filter((event) => event.memberId === memberId)
     for (const event of events) {
       const organization = (await this.organizations.findByEventId(event.id)).find((item) => item.id === organizationId)
       if (!organization || organization.accountId !== accountId) continue
       const sourceFact = organization.healthAIOutput.facts.find((item) => item.id === sourceFactId)
-      if (!sourceFact || !isCandidateFact(sourceFact)) break
+      if (!sourceFact) break
       const record = await this.records.findById(organization.recordId)
       if (!record || record.accountId !== accountId || record.eventId !== event.id) break
       const firstObservedAt = sourceFact.time?.resolvedStart || record.occurredAt
@@ -159,6 +164,51 @@ export class HealthProfileFactService {
       status: statusValue(input.status ?? 'pending'),
       sources: [candidate.source],
       firstObservedAt: input.firstObservedAt ? dateValue(input.firstObservedAt, '首次发现时间') : dateValue(candidate.firstObservedAt, '首次发现时间'),
+      notes: optionalText(input.notes, 1000)
+    }, now)
+  }
+
+  async #candidateFromSource(accountId, memberId, organizationId, sourceFactId) {
+    const candidate = await this.#traceableSource(accountId, memberId, organizationId, sourceFactId)
+    const events = (await this.events.findByAccountId(accountId)).filter((event) => event.memberId === memberId)
+    for (const event of events) {
+      const organization = (await this.organizations.findByEventId(event.id)).find((item) => item.id === organizationId)
+      const sourceFact = organization?.healthAIOutput.facts.find((item) => item.id === sourceFactId)
+      if (sourceFact && isCandidateFact(sourceFact)) return candidate
+    }
+    throw new HealthProfileFactError('候选健康信息不存在或已失效', 404, 'HEALTH_PROFILE_CANDIDATE_NOT_FOUND')
+  }
+
+  async findBySource(accountId, memberId, source) {
+    await this.assertMember(accountId, memberId)
+    return (await this.repository.findByMemberId(memberId)).find((fact) => (
+      fact.accountId === accountId
+      && fact.sources.some((item) => item.organizationId === source.organizationId && item.sourceFactId === source.sourceFactId)
+    )) ?? null
+  }
+
+  async createFromCandidateSources(accountId, input, now = new Date()) {
+    const memberId = typeof input?.memberId === 'string' ? input.memberId : ''
+    const sources = Array.isArray(input?.sources) ? input.sources : []
+    if (!sources.length) throw new HealthProfileFactError('至少需要一条可追溯来源', 400, 'HEALTH_PROFILE_SOURCE_REQUIRED')
+    const resolved = []
+    for (const source of sources) {
+      const candidate = await this.#traceableSource(accountId, memberId, source.organizationId, source.sourceFactId)
+      if (!resolved.some((item) => item.organizationId === candidate.source.organizationId && item.sourceFactId === candidate.source.sourceFactId)) resolved.push(candidate.source)
+    }
+    const existing = await this.repository.findByMemberId(memberId)
+    if (existing.some((fact) => fact.accountId === accountId && fact.sources.some((stored) => resolved.some((source) => source.organizationId === stored.organizationId && source.sourceFactId === stored.sourceFactId)))) {
+      throw new HealthProfileFactError('候选信息中的来源已经加入健康档案', 409, 'HEALTH_PROFILE_SOURCE_EXISTS')
+    }
+    return this.repository.create({
+      accountId,
+      memberId,
+      category: categoryValue(input.category),
+      title: requiredText(input.title, '事实名称', 120),
+      description: optionalText(input.description, 500),
+      status: 'confirmed',
+      sources: resolved,
+      firstObservedAt: dateValue(input.firstObservedAt, '首次发现时间'),
       notes: optionalText(input.notes, 1000)
     }, now)
   }

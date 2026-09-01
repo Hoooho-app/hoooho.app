@@ -921,6 +921,43 @@
   .hoho-status-notice[data-tone='error'] { border-color: rgb(var(--hoho-color-error) / 0.24); background: rgb(var(--hoho-color-error) / 0.055); }
   .hoho-status-notice[data-tone='info'] { border-color: rgb(var(--hoho-color-info) / 0.23); background: rgb(var(--hoho-color-info) / 0.055); }
 
+  .health-information-discovery {
+    display: grid;
+    width: 100%;
+    min-height: 68px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--hoho-space-3);
+    border: 1px solid rgb(var(--hoho-color-primary) / 0.16);
+    border-radius: var(--hoho-radius-card);
+    background: rgb(var(--hoho-color-surface));
+    padding: var(--hoho-space-3) var(--hoho-space-4);
+    color: rgb(var(--hoho-color-text-primary));
+  }
+  .health-information-discovery__icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .health-information-discovery strong { display: block; font: 650 var(--hoho-font-size-card-title) / var(--hoho-line-height-card-title) var(--hoho-font-family); }
+  .health-information-discovery .min-w-0 > span { display: block; margin-top: 2px; color: rgb(var(--hoho-color-text-secondary)); font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family); }
+  .health-information-discovery__action { display: flex; min-height: 44px; align-items: center; color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 650; }
+
+  .health-information-page { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; overflow: hidden; }
+  .health-information-page__content { min-height: 0; overflow-y: auto; padding-bottom: calc(var(--hoho-space-8) + env(safe-area-inset-bottom)); }
+  .health-information-intro { margin-bottom: var(--hoho-space-4); color: rgb(var(--hoho-color-text-secondary)); font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family); }
+  .health-information-list { display: grid; gap: var(--hoho-space-3); }
+  .health-information-candidate { display: grid; gap: var(--hoho-space-3); box-shadow: none; }
+  .health-information-related { border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-primary-soft) / 0.56); padding: var(--hoho-space-2) var(--hoho-space-3); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
+  .health-information-source-summary { display: grid; gap: var(--hoho-space-2); }
+  .health-information-source-summary > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--hoho-space-2); }
+  .health-information-source-summary dt { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+  .health-information-source-summary dd { color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
+  .health-information-candidate blockquote { border-left: 2px solid rgb(var(--hoho-color-primary) / 0.24); background: rgb(var(--hoho-color-surface-subtle)); padding: var(--hoho-space-2) var(--hoho-space-3); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-body); }
+  .health-information-candidate__actions { display: flex; min-height: 44px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--hoho-space-1); border-top: 1px solid rgb(var(--hoho-color-border)); padding-top: var(--hoho-space-2); }
+  .health-information-source-link { display: inline-flex; min-height: 44px; flex: 1 1 auto; align-items: center; gap: 4px; color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 650; }
+  .health-information-confirm { display: grid; gap: var(--hoho-space-5); }
+  .health-information-destination { display: flex; min-height: 48px; align-items: center; gap: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 0 var(--hoho-space-3); color: rgb(var(--hoho-color-text-primary)); }
+  .health-information-destination:has(input:checked) { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft) / 0.5); }
+  .health-information-destination input { width: 18px; height: 18px; accent-color: rgb(var(--hoho-color-primary)); }
+  .timeline-entry-row:target .symptom-record-row { box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary) / 0.24); }
+
   .hoho-skeleton {
     overflow: hidden;
     border-radius: var(--hoho-radius-small);

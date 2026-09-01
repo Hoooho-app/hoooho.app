@@ -434,6 +434,33 @@ export interface HealthRecordOrganizationConfirmApiDto {
   structuredMode?: 'disabled' | 'enabled'
 }
 
+export type HealthInformationCandidateCategory = 'adverse_reaction' | 'chronic_condition' | 'long_term_medication' | 'important_health_fact'
+export type HealthInformationCandidateStatus = 'pending' | 'confirmed' | 'dismissed'
+export type HealthProfileDestination = 'allergy_adverse_reaction' | 'chronic_condition' | 'long_term_medication' | 'important_health_fact'
+
+export interface HealthInformationCandidateApiDto {
+  id: string
+  memberId: string
+  sourceEventId: string
+  sourceRecordIds: string[]
+  sourceFactIds: string[]
+  category: HealthInformationCandidateCategory
+  title: string
+  description: string
+  status: HealthInformationCandidateStatus
+  destinationProfileSection: HealthProfileDestination | null
+  note: string | null
+  relatedCandidateId: string | null
+  firstDiscoveredAt: string
+  createdAt: string
+  updatedAt: string
+  confirmedAt: string | null
+  dismissedAt: string | null
+  profileFactId: string | null
+  sourceEvent: { id: string; title: string; category: string; startTime: string }
+  sourceRecords: Array<{ id: string; occurredAt: string; sourceType: HealthRecordSourceType; content: string }>
+}
+
 export interface NotificationPreferences {
   healthEvent: boolean
   medication: boolean

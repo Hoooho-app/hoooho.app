@@ -12,6 +12,7 @@ import { feedbackApiPlugin } from './server/help/vite-feedback-plugin.mjs'
 import { onlineConsultationsApiPlugin } from './server/consultations/vite-online-consultations-plugin.mjs'
 import { accountEntryStateApiPlugin } from './server/onboarding/vite-account-entry-state-plugin.mjs'
 import { healthProfileFactsApiPlugin } from './server/health-profile/vite-health-profile-facts-plugin.mjs'
+import { healthInformationCandidatesApiPlugin } from './server/health-information/vite-health-information-candidates-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
@@ -34,6 +35,7 @@ export default defineConfig({
     opsApiPlugin(),
     onlineConsultationsApiPlugin(),
     healthProfileFactsApiPlugin(),
+    healthInformationCandidatesApiPlugin(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
