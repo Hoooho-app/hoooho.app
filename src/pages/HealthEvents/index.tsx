@@ -22,6 +22,8 @@ import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalenda
 import { createQuickRecordCandidates } from '../../features/quick-record'
 import { FirstUseHome } from './FirstUseHome'
 import { NurseQuickRecord } from './NurseQuickRecord'
+import { NurseNextAction } from './NurseNextAction'
+import { getNurseNextActionEventId } from './nurseNextActionContext'
 import { preloadNurseTriageAssets } from './NurseTriageDesk'
 import {
   DEFAULT_HEALTH_EVENTS_VIEW_MODE,
@@ -219,6 +221,7 @@ export function HealthEventsPage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<HealthEventsViewMode>(DEFAULT_HEALTH_EVENTS_VIEW_MODE)
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
+  const [nextActionOpen, setNextActionOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const pendingTriageEventRef = useRef<{ eventId: string; memberId: string; recordId?: string; transcript?: string } | null>(null)
 
@@ -244,6 +247,7 @@ export function HealthEventsPage() {
   const memberEvents = state.status === 'success'
     ? getMemberHealthEvents(state.data.events, currentMemberDto?.id)
     : []
+  const nextActionEventId = getNurseNextActionEventId(memberEvents, currentMemberId)
   const years = [...new Set(memberEvents
     .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
     .filter((year): year is number => year !== undefined))]
@@ -265,6 +269,7 @@ export function HealthEventsPage() {
 
   useEffect(() => {
     setQuickRecordOpen(false)
+    setNextActionOpen(false)
     discardPendingTriageEvent()
   }, [currentMemberId, discardPendingTriageEvent, viewMode])
 
@@ -524,8 +529,11 @@ export function HealthEventsPage() {
             currentMemberId={currentMemberId}
             disabled={!token || !currentMemberDto}
             key={currentMemberId}
+            nextActionDisabled={!nextActionEventId}
+            nextActionOpen={nextActionOpen}
             onClose={closeQuickRecord}
             onConfirm={saveTriageRecord}
+            onNextActionOpen={() => setNextActionOpen(true)}
             onOpen={() => setQuickRecordOpen(true)}
             onPreview={previewTriageRecord}
             open={quickRecordOpen}
@@ -546,6 +554,13 @@ export function HealthEventsPage() {
       </button>}
 
       <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      <NurseNextAction
+        currentMemberId={currentMemberId}
+        eventId={nextActionEventId}
+        key={`${currentMemberId}:${nextActionEventId ?? 'none'}`}
+        onClose={() => setNextActionOpen(false)}
+        open={viewMode === 'triage' && nextActionOpen}
+      />
     </main>
   )
 }
