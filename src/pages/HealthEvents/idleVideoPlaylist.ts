@@ -1,26 +1,24 @@
-export type IdleIndex = 0 | 1;
-export type IdlePlayer = 0 | 1;
+export type NurseVideoIndex = 0 | 1 | 2;
 
 export interface IdlePlaylistState {
-  activeIdleIndex: IdleIndex;
-  nextIdleIndex: IdleIndex;
-  activePlayer: IdlePlayer;
-  pendingPlayer: IdlePlayer | null;
+  activeVideoIndex: NurseVideoIndex;
+  nextVideoIndex: NurseVideoIndex;
+  pendingVideoIndex: NurseVideoIndex | null;
   playbackSessionId: number;
   hasPlayed: boolean;
   suspended: boolean;
 }
 
-export function otherIdleIndex(index: IdleIndex): IdleIndex {
-  return index === 0 ? 1 : 0;
+export function nextNurseVideoIndex(index: NurseVideoIndex): NurseVideoIndex {
+  if (index === 0) return 1;
+  return index === 1 ? 2 : 1;
 }
 
 export function createIdlePlaylistState(): IdlePlaylistState {
   return {
-    activeIdleIndex: 0,
-    nextIdleIndex: 1,
-    activePlayer: 0,
-    pendingPlayer: null,
+    activeVideoIndex: 0,
+    nextVideoIndex: 1,
+    pendingVideoIndex: null,
     playbackSessionId: 0,
     hasPlayed: false,
     suspended: true,
@@ -29,11 +27,11 @@ export function createIdlePlaylistState(): IdlePlaylistState {
 
 export function beginIdlePlayback(
   state: IdlePlaylistState,
-  player: IdlePlayer,
+  videoIndex: NurseVideoIndex,
 ): IdlePlaylistState {
   return {
     ...state,
-    pendingPlayer: player,
+    pendingVideoIndex: videoIndex,
     playbackSessionId: state.playbackSessionId + 1,
     suspended: false,
   };
@@ -41,12 +39,12 @@ export function beginIdlePlayback(
 
 export function commitIdlePlayback(
   state: IdlePlaylistState,
-  player: IdlePlayer,
+  videoIndex: NurseVideoIndex,
   playbackSessionId: number,
 ): IdlePlaylistState {
   if (
     state.suspended ||
-    state.pendingPlayer !== player ||
+    state.pendingVideoIndex !== videoIndex ||
     state.playbackSessionId !== playbackSessionId
   ) {
     return state;
@@ -54,57 +52,58 @@ export function commitIdlePlayback(
 
   return {
     ...state,
-    activeIdleIndex: player,
-    nextIdleIndex: otherIdleIndex(player),
-    activePlayer: player,
-    pendingPlayer: null,
+    activeVideoIndex: videoIndex,
+    nextVideoIndex: nextNurseVideoIndex(videoIndex),
+    pendingVideoIndex: null,
     hasPlayed: true,
   };
 }
 
 export function requestNextIdlePlayback(
   state: IdlePlaylistState,
-  player: IdlePlayer,
+  videoIndex: NurseVideoIndex,
   playbackSessionId: number,
 ): IdlePlaylistState {
   if (
     state.suspended ||
     !state.hasPlayed ||
-    state.pendingPlayer !== null ||
-    state.activePlayer !== player ||
+    state.pendingVideoIndex !== null ||
+    state.activeVideoIndex !== videoIndex ||
     state.playbackSessionId !== playbackSessionId
   ) {
     return state;
   }
 
-  return beginIdlePlayback(state, state.nextIdleIndex);
+  return beginIdlePlayback(state, state.nextVideoIndex);
 }
 
 export function suspendIdlePlaylist(state: IdlePlaylistState): IdlePlaylistState {
   return {
     ...state,
-    pendingPlayer: null,
+    pendingVideoIndex: null,
     playbackSessionId: state.playbackSessionId + 1,
     suspended: true,
   };
 }
 
 export function resumeIdlePlaylist(state: IdlePlaylistState): IdlePlaylistState {
-  return beginIdlePlayback(state, state.hasPlayed ? state.nextIdleIndex : 0);
+  return beginIdlePlayback(state, state.hasPlayed ? state.nextVideoIndex : 0);
 }
 
-export function chooseAvailableIdle(
-  preferred: IdleIndex,
-  unavailable: readonly [boolean, boolean],
-): IdleIndex | null {
-  if (!unavailable[preferred]) return preferred;
-
-  const fallback = otherIdleIndex(preferred);
-  return unavailable[fallback] ? null : fallback;
+export function chooseAvailableVideo(
+  preferred: NurseVideoIndex,
+  unavailable: readonly [boolean, boolean, boolean],
+): NurseVideoIndex | null {
+  const candidates: readonly NurseVideoIndex[] = preferred === 0
+    ? [0, 1, 2]
+    : preferred === 1
+      ? [1, 2]
+      : [2, 1];
+  return candidates.find((index) => !unavailable[index]) ?? null;
 }
 
-export function isIdlePlayerVisible(state: IdlePlaylistState, player: IdlePlayer) {
-  return state.hasPlayed && state.activePlayer === player;
+export function isVideoVisible(state: IdlePlaylistState, videoIndex: NurseVideoIndex) {
+  return state.activeVideoIndex === videoIndex;
 }
 
 export async function playIdleVideoSafely(play: () => Promise<void>) {
