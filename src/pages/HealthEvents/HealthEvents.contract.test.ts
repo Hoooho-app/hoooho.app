@@ -189,12 +189,21 @@ test('前台快捷记录保留真实保存、失败重试和资源清理边界',
   assert.match(pageSource, /void retry\(\)/)
 })
 
-test('前台快捷记录局部覆盖不改变护士台网格和列表视图', () => {
+test('前台快捷记录使用视口级宽幅浮窗且不改变护士台网格和列表视图', () => {
   assert.match(nurseQuickRecordSource, /import '\.\/NurseQuickRecord\.css'/)
-  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*position:\s*absolute/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*position:\s*fixed/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*right:\s*12px[^}]*bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)[^}]*left:\s*12px/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*max-width:\s*calc\(100vw - 24px\)/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse\.is-closing[^}]*translateY\(8px\)[^}]*opacity:\s*0/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-error-actions[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-error-actions > :last-child[^}]*grid-column:\s*1 \/ -1/s)
   assert.match(nurseQuickRecordStylesSource, /nurse-quick-record-anchor[^}]*min-height:\s*52px/s)
   assert.match(nurseQuickRecordStylesSource, /--hoho-color-primary/)
   assert.match(nurseQuickRecordStylesSource, /env\(safe-area-inset-bottom\)/)
+  assert.match(nurseQuickRecordSource, /data-visible=\{!open\}/)
+  assert.match(quickRecordFlowSource, /presentation === 'nurse-inline' \? !renderNursePanel : !open/)
+  assert.match(quickRecordFlowSource, /nursePanelExitDuration = 160/)
+  assert.match(quickRecordFlowSource, /window\.clearTimeout\(nursePanelExitTimerRef\.current\)/)
   assert.doesNotMatch(nurseQuickRecordSource, /NurseTriageDesk[^]*state=(?!"idle")/s)
   assert.match(pageSource, /viewMode === 'list'[^]*<HealthEventTimeline/s)
 })
@@ -211,7 +220,7 @@ test('前台 Logo 原位复用完整下一步且不触发快捷记录', () => {
   assert.match(nurseQuickRecordStylesSource, /nurse-quick-record-controls[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 52px/s)
   assert.match(nurseQuickRecordStylesSource, /nurse-next-action-trigger\s*\{[^}]*linear-gradient[^}]*color:\s*rgb\(var\(--hoho-color-surface\)\)/s)
   assert.match(nurseQuickRecordStylesSource, /nurse-next-action-trigger\[data-active='true'\][^}]*background:\s*rgb\(var\(--hoho-color-surface\)\)[^}]*color:\s*rgb\(var\(--hoho-color-primary\)\)/s)
-  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*right:\s*calc\(52px \+ var\(--hoho-space-3\)\)/s)
+  assert.doesNotMatch(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*right:\s*calc\(52px \+ var\(--hoho-space-3\)\)/s)
 
   assert.match(pageSource, /getNurseNextActionEventId\(memberEvents, currentMemberId\)/)
   assert.match(nurseNextActionContextSource, /filter\(\(event\) => event\.memberId === currentMemberId\)/)

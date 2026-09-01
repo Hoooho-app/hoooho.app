@@ -42,6 +42,7 @@ const recognitionConstructor = () => {
 }
 
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
+const nursePanelExitDuration = 160
 
 export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
@@ -55,6 +56,8 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
   const candidatesRef = useRef<QuickRecordCandidate[]>([])
   const [savedMessage, setSavedMessage] = useState('已记录')
   const [showWechatHint, setShowWechatHint] = useState(false)
+  const [renderNursePanel, setRenderNursePanel] = useState(open)
+  const [nursePanelClosing, setNursePanelClosing] = useState(false)
   const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 0 : (window.visualViewport?.height ?? window.innerHeight))
   const recognitionRef = useRef<Recognition | null>(null)
   const transcriptRef = useRef('')
@@ -63,6 +66,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
   const submittingRef = useRef(false)
   const sessionRef = useRef(0)
   const closeTimerRef = useRef<number | null>(null)
+  const nursePanelExitTimerRef = useRef<number | null>(null)
   const onCloseRef = useRef(onClose)
   const onConfirmRef = useRef(onConfirm)
   const onIgnoredRef = useRef(onIgnored)
@@ -226,6 +230,36 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
   }, [capability.canAttemptMicrophone, capability.isWechat, open, startListening, stopSession])
 
   useEffect(() => {
+    if (presentation !== 'nurse-inline') return
+    if (nursePanelExitTimerRef.current !== null) {
+      window.clearTimeout(nursePanelExitTimerRef.current)
+      nursePanelExitTimerRef.current = null
+    }
+    if (open) {
+      setRenderNursePanel(true)
+      setNursePanelClosing(false)
+      return
+    }
+    if (!renderNursePanel) return
+    setNursePanelClosing(true)
+    nursePanelExitTimerRef.current = window.setTimeout(() => {
+      nursePanelExitTimerRef.current = null
+      setRenderNursePanel(false)
+      setNursePanelClosing(false)
+    }, nursePanelExitDuration)
+    return () => {
+      if (nursePanelExitTimerRef.current !== null) {
+        window.clearTimeout(nursePanelExitTimerRef.current)
+        nursePanelExitTimerRef.current = null
+      }
+    }
+  }, [open, presentation, renderNursePanel])
+
+  useEffect(() => () => {
+    if (nursePanelExitTimerRef.current !== null) window.clearTimeout(nursePanelExitTimerRef.current)
+  }, [])
+
+  useEffect(() => {
     if (!open || state !== 'recording') return
     const timer = window.setInterval(() => setSeconds((current) => current + 1), 1000)
     return () => window.clearInterval(timer)
@@ -246,7 +280,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
     }
   }, [open])
 
-  if (!open) return null
+  if (presentation === 'nurse-inline' ? !renderNursePanel : !open) return null
 
   const panelStyle = { '--quick-record-viewport-height': `${viewportHeight}px` } as CSSProperties
 
@@ -280,6 +314,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
   const panelClassName = (...classes: string[]) => [
     'quick-record-panel',
     presentation === 'nurse-inline' ? 'quick-record-panel--nurse' : '',
+    presentation === 'nurse-inline' && nursePanelClosing ? 'is-closing' : '',
     ...classes
   ].filter(Boolean).join(' ')
 

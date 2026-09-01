@@ -84,21 +84,56 @@
 }
 
 .nurse-triage-recorder .quick-record-panel--nurse {
-  position: absolute;
-  z-index: 8;
-  right: calc(52px + var(--hoho-space-3));
-  bottom: 0;
-  left: 0;
+  position: fixed;
+  z-index: 50;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 12px;
   width: auto;
-  max-height: min(410px, calc(var(--quick-record-viewport-height, 100dvh) - 176px - env(safe-area-inset-bottom)));
-  transform: none;
+  max-width: calc(100vw - 24px);
+  max-height: min(430px, calc(var(--quick-record-viewport-height, 100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  margin-inline: auto;
+  transform: translateY(0);
   border: 1px solid rgb(var(--hoho-color-primary) / 0.26);
   border-radius: var(--hoho-radius-card);
   background: rgb(var(--hoho-color-surface) / 0.98);
   padding: var(--hoho-space-4);
-  box-shadow: var(--hoho-shadow-card);
+  box-shadow: var(--hoho-shadow-floating);
   backdrop-filter: blur(10px);
-  transition: opacity var(--hoho-motion-fast) var(--hoho-ease-standard);
+  animation: nurse-quick-record-float-in var(--hoho-motion-fast) var(--hoho-ease-standard) both;
+  transition: opacity var(--hoho-motion-fast) var(--hoho-ease-standard), transform var(--hoho-motion-fast) var(--hoho-ease-standard);
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse.is-closing {
+  pointer-events: none;
+  transform: translateY(8px);
+  opacity: 0;
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse.quick-record-panel-error,
+.nurse-triage-recorder .quick-record-panel--nurse.quick-record-panel-help {
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--hoho-space-3);
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse .quick-record-error-actions {
+  display: grid;
+  width: 100%;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--hoho-space-2);
+  padding-top: var(--hoho-space-2);
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse .quick-record-error-actions > * {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse .quick-record-error-actions > :last-child {
+  grid-column: 1 / -1;
 }
 
 .nurse-quick-record-heading {
@@ -221,7 +256,7 @@
 
 @media (max-height: 620px) {
   .nurse-triage-recorder .quick-record-panel--nurse {
-    max-height: calc(var(--quick-record-viewport-height, 100dvh) - 132px - env(safe-area-inset-bottom));
+    max-height: calc(var(--quick-record-viewport-height, 100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     padding: var(--hoho-space-3);
   }
 
@@ -235,6 +270,18 @@
 @media (prefers-reduced-motion: reduce) {
   .nurse-quick-record-entry,
   .nurse-triage-recorder .quick-record-panel--nurse {
+    animation: none;
     transition: opacity 90ms linear;
+  }
+}
+
+@keyframes nurse-quick-record-float-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
