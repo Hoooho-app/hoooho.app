@@ -866,6 +866,84 @@
     background: color-mix(in srgb, rgb(var(--hoho-color-success)) 7%, rgb(var(--hoho-color-surface)));
   }
 
+  .health-event-list-card__content {
+    display: grid;
+    min-width: 0;
+    gap: var(--hoho-space-3);
+  }
+
+  .health-event-list-card__date {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .health-event-list-card__time-divider {
+    width: 1px;
+    height: 17px;
+    margin-inline: var(--hoho-space-3);
+    align-self: center;
+    flex: none;
+    background: rgb(var(--hoho-color-border) / 0.82);
+  }
+
+  .health-event-list-card__subject {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--hoho-space-2);
+  }
+
+  .health-event-list-card__subject-copy {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--hoho-space-2);
+  }
+
+  .health-event-card-icon {
+    position: relative;
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    flex: none;
+    color: rgb(var(--hoho-color-text-secondary));
+  }
+
+  .health-event-card-icon--body {
+    color: rgb(var(--hoho-color-text-secondary));
+  }
+
+  .health-event-card-icon__marker {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border: 1.5px solid rgb(var(--hoho-color-surface));
+    border-radius: 999px;
+    background: rgb(var(--hoho-color-primary));
+    box-sizing: content-box;
+  }
+
+  .health-event-card-icon--body[data-location='neck'] .health-event-card-icon__marker { top: 6px; left: 11px; }
+  .health-event-card-icon--body[data-location='abdomen'] .health-event-card-icon__marker { top: 13px; left: 11px; }
+  .health-event-card-icon--body[data-location='waist'] .health-event-card-icon__marker { top: 16px; left: 11px; }
+  .health-event-card-icon--body[data-location='leg'] .health-event-card-icon__marker { top: 20px; left: 9px; }
+
+  .health-event-list-card__chevron {
+    flex: none;
+    color: rgb(var(--hoho-color-text-weak));
+  }
+
+  @media (max-width: 374px) {
+    .health-event-list-card__content { gap: var(--hoho-space-2); }
+    .health-event-list-card__time-divider { margin-inline: var(--hoho-space-2); }
+    .health-event-list-card__subject-copy { gap: var(--hoho-space-1); }
+  }
+
   .health-events-month-reset {
     min-height: 36px;
     border-radius: var(--hoho-radius-control);

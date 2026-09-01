@@ -9,6 +9,7 @@ import {
 import { normalizeHealthEventTitle } from './healthEventFacts'
 import { getEventOccurredAt, getPrimaryRecord } from './healthEventListPresentation'
 import { getImageRecordSummary, getImageRecordTitle, isLegacyAttachmentTitle } from './imageAnalysisPresentation'
+import { getHealthEventCardIconPresentation } from './healthEventCardIcon'
 
 export function adaptHealthEventList(
   events: HealthEventApiDto[],
@@ -28,32 +29,43 @@ export function adaptHealthEventList(
         ? getImageRecordTitle(attachments)
         : normalizeHealthEventTitle(event.title, primaryRecord?.content))
     const startTime = getHealthEventStartDate(event.startTime, records.map((record) => record.occurredAt)) ?? event.startTime
-    return ({
-    id: event.id,
-    memberId: event.memberId,
-    memberName: memberNames.get(event.memberId) ?? '未知成员',
-    title,
-    displayTitle: getHealthEventDisplayTitle(title, projectedSummary),
-    definitionTitle: getHealthEventDefinitionTitle(projectedSummary),
-    durationLabel: formatHealthEventDuration({
-      startTime,
-      recoveredAt: event.recoveredAt,
-      status: event.status,
-      now
-    }),
-    summaryFragments: getHealthEventSummaryFragments({
+    const summaryFragments = getHealthEventSummaryFragments({
       status: event.status,
       summary: projectedSummary,
       fallbackFeature: projectedSummary ? null : getImageRecordSummary(attachments) ?? title,
       fallbackRecordId: primaryRecord?.id
-    }),
-    category: event.category,
-    status: event.status,
-    startTime,
-    recoveredAt: event.recoveredAt ?? null,
-    occurredAt: getEventOccurredAt(event, records),
-    createdAt: event.createdAt,
-    updatedAt: event.updatedAt
     })
+    const structuredBodyParts = attachments.flatMap((attachment) => (
+      attachment.analysis?.extractedFacts.flatMap((fact) => [fact.bodyPart, fact.bodyRegion].filter((value): value is string => Boolean(value))) ?? []
+    ))
+    return {
+      id: event.id,
+      memberId: event.memberId,
+      memberName: memberNames.get(event.memberId) ?? '未知成员',
+      title,
+      displayTitle: getHealthEventDisplayTitle(title, projectedSummary),
+      definitionTitle: getHealthEventDefinitionTitle(projectedSummary),
+      icon: getHealthEventCardIconPresentation({
+        category: event.category,
+        displayTitle: getHealthEventDisplayTitle(title, projectedSummary),
+        fallbackTexts: [event.title, primaryRecord?.content ?? ''],
+        structuredBodyParts,
+        summaryFragments
+      }),
+      durationLabel: formatHealthEventDuration({
+        startTime,
+        recoveredAt: event.recoveredAt,
+        status: event.status,
+        now
+      }),
+      summaryFragments,
+      category: event.category,
+      status: event.status,
+      startTime,
+      recoveredAt: event.recoveredAt ?? null,
+      occurredAt: getEventOccurredAt(event, records),
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt
+    }
   })
 }

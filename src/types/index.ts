@@ -124,6 +124,7 @@ export interface HealthEventListItemViewModel {
   title: string
   displayTitle: string
   definitionTitle: string
+  icon: HealthEventCardIconPresentation
   durationLabel: string | null
   summaryFragments: HealthEventCardSummaryFragment[]
   category: HealthEventCategory
@@ -133,6 +134,14 @@ export interface HealthEventListItemViewModel {
   occurredAt: string
   createdAt: string
   updatedAt: string
+}
+
+export type HealthEventCardIconKind = 'head' | 'neck' | 'chest' | 'abdomen' | 'waist' | 'arm' | 'hand' | 'leg' | 'foot' | 'combined' | 'medication' | 'examination' | 'visit' | 'surgery' | 'report' | 'general'
+
+export interface HealthEventCardIconPresentation {
+  kind: HealthEventCardIconKind
+  label: string
+  source: 'structured' | 'semantic-fallback' | 'general'
 }
 
 export interface HealthEventCardSummaryFragment {

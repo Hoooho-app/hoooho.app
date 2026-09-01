@@ -8,6 +8,7 @@ const stylesSource = readFileSync(new URL('../../styles/design-system.css', impo
 const pageStylesSource = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 const cardSource = readFileSync(new URL('../../components/health/HealthEventCard.tsx', import.meta.url), 'utf8')
 const cardSurfaceSource = readFileSync(new URL('../../components/health/HealthEventCardSurface.tsx', import.meta.url), 'utf8')
+const cardIconSource = readFileSync(new URL('../../components/health/HealthEventCardIcon.tsx', import.meta.url), 'utf8')
 const filterSource = readFileSync(new URL('../../components/health/HealthEventFilterSheet.tsx', import.meta.url), 'utf8')
 const firstUseSource = readFileSync(new URL('./FirstUseHome.tsx', import.meta.url), 'utf8')
 const settingsSource = readFileSync(new URL('../Settings/index.tsx', import.meta.url), 'utf8')
@@ -345,14 +346,13 @@ test('首次使用首页在 iPhone SE 使用紧凑但可触控的行动区', () 
   assert.doesNotMatch(firstUseSource, /min-h-\[(?:148|112|72)px\]/)
 })
 
-test('事件识别名称与生命周期状态同行，病程摘要为单行轻量文本', () => {
+test('列表卡片使用两行结构且事件标题与生命周期状态同行', () => {
   assert.match(cardSource, /HealthEventCardSurface/)
-  assert.match(cardSurfaceSource, /flex min-w-0 items-center gap-1\.5[^]*displayTitle[^]*HealthTag[^]*statusPresentation\.label/)
-  assert.doesNotMatch(cardSurfaceSource, /Typography className="min-w-0 flex-1 truncate"/)
+  assert.match(cardSurfaceSource, /health-event-list-card__subject-copy[^]*displayTitle[^]*HealthTag[^]*statusPresentation\.label/)
   assert.match(stylesSource, /\.hoho-health-tag\[data-tone='info'\][^}]*--hoho-color-info/s)
-  assert.match(cardSurfaceSource, /className="block truncate"[^]*summaryFragments\.join\(' · '\)/)
+  assert.match(cardSurfaceSource, /!dateLabel && summaryFragments\.length > 0/)
+  assert.doesNotMatch(cardSurfaceSource, /\{dateLabel && summaryFragments\.length > 0/)
   assert.doesNotMatch(cardSource, /event\.summary(?:\W|$)/)
-  assert.doesNotMatch(cardSource, /<div><HealthTag/)
 })
 
 test('列表移除日期轴并把开始日期与持续时间放入每张事件卡片首行', () => {
@@ -361,12 +361,18 @@ test('列表移除日期轴并把开始日期与持续时间放入每张事件�
   assert.match(timelineSource, /dateLabel=\{formatHealthEventDate\(event\.startTime\)/)
   assert.match(cardSource, /dateLabel=\{dateLabel\}/)
   assert.match(cardSurfaceSource, /health-event-list-card__date[^]*dateLabel[^]*durationLabel[^]*displayTitle/)
+  assert.match(cardSurfaceSource, /health-event-list-card__time-divider/)
+  assert.match(pageStylesSource, /health-event-list-card__time-divider[^}]*width:\s*1px[^}]*height:\s*17px/s)
+  assert.doesNotMatch(cardSurfaceSource, />\|</)
   assert.match(pageSource, /className="hoho-year-tabs health-events-year-tabs"/)
 })
 
-test('长标题和速览在箭头前截断且整张卡片保持单一点击入口', () => {
-  assert.match(cardSurfaceSource, /Typography className="min-w-0 truncate"/)
-  assert.match(cardSurfaceSource, /ChevronRight className="shrink-0/)
+test('部位图标、长标题、状态和垂直居中箭头共享稳定卡片布局', () => {
+  assert.match(cardSurfaceSource, /HealthEventCardIcon presentation=\{icon\}/)
+  assert.match(cardSurfaceSource, /title=\{displayTitle\} variant="cardTitle"/)
+  assert.match(cardSurfaceSource, /HealthEventCardChevron[^]*health-event-list-card__chevron/)
+  assert.match(cardIconSource, /PersonStanding[^]*health-event-card-icon__marker/)
+  assert.match(pageStylesSource, /health-event-list-card__subject[^}]*grid-template-columns:\s*28px minmax\(0, 1fr\)/s)
   assert.match(cardSource, /navigate\(`\/health-events\/\$\{event\.id\}`\)/)
 })
 
