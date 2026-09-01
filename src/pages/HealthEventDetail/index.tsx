@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Check, ChevronRight, FileHeart } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { QuickRecordTrigger } from '../../components/health'
@@ -14,6 +14,7 @@ import { createHealthProfilePromptSections } from '../../features/ask-ai'
 import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
 import { useAppStore } from '../../store/useAppStore'
 import { findMultimodalConflicts } from '../../features/health-attachments/multimodalConflict'
+import { useHealthProfileFacts } from '../../features/health-profile/hooks/useHealthProfileFacts'
 import {
   EventHeader,
   ActionSheet,
@@ -27,9 +28,11 @@ import {
 
 export function HealthEventDetailPage() {
   const { eventId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const currentMemberId = useAppStore((appState) => appState.currentMemberId)
   const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateTitle, retry } = useHealthEventDetail(eventId)
+  const longTermFacts = useHealthProfileFacts(state.status === 'success' ? state.data.member.id : '')
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordSheetOpen, setRecordSheetOpen] = useState(false)
@@ -96,6 +99,7 @@ export function HealthEventDetailPage() {
   }
 
   const event = state.data.viewModel.event
+  const eventCandidates = longTermFacts.candidates.filter((candidate) => candidate.source.eventId === event.id)
   const hasRecords = hasPersistedHealthEventRecords(state.data.records)
   if (!subject) return null
   const addHealthRecord = async (input: CreateHealthEventRecordInput) => {
@@ -219,12 +223,17 @@ export function HealthEventDetailPage() {
           <>
             <TimelineSection
               event={event}
+              focusedRecordId={searchParams.get('recordId')}
               memberName={state.data.member.name}
               onDeleteRecord={deleteRecord}
               onDetailOpenChange={setRecordSheetOpen}
               onUpdateRecord={updateRecord}
               records={state.data.records}
             />
+            {eventCandidates.length > 0 && <section className="grid gap-3" aria-label="可加入健康档案的信息">
+              <div className="flex items-center justify-between gap-3"><h2 className="section-title">可长期保留的信息</h2><span className="text-xs text-text-secondary">需你确认</span></div>
+              <div className="health-fact-inbox"><div className="flex items-start gap-3"><span className="health-fact-inbox__icon"><FileHeart size={20} /></span><div className="min-w-0 flex-1"><strong className="block text-sm">发现 {eventCandidates.length} 条候选信息</strong><p className="mt-1 text-xs leading-5 text-text-secondary">不会自动写入健康档案；请逐条查看来源后决定。</p></div></div><div className="mt-3 grid gap-1">{eventCandidates.map((candidate) => <button className="health-fact-candidate-row" key={candidate.id} onClick={() => navigate(`/health-profile/facts/candidates/${encodeURIComponent(candidate.id)}`)} type="button"><span className="min-w-0"><strong>{candidate.title}</strong><small>查看来源并决定是否加入</small></span><ChevronRight size={18} /></button>)}</div></div>
+            </section>}
           </>
         )}
       </div>

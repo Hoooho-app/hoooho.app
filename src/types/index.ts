@@ -366,6 +366,45 @@ export interface HealthRecordOrganizationApiDto {
   structuredMode?: 'disabled' | 'enabled'
 }
 
+export type HealthProfileFactCategory = 'important' | 'allergy' | 'medication' | 'chronic' | 'surgery' | 'other'
+export type HealthProfileFactStatus = 'pending' | 'confirmed' | 'removed'
+
+export interface HealthProfileFactSourceApiDto {
+  organizationId: string
+  sourceFactId: string
+  eventId: string
+  eventTitle: string
+  eventStartTime: string
+  recordId: string
+  recordOccurredAt: string
+  originalText: string
+}
+
+export interface CandidateHealthFactApiDto {
+  id: string
+  memberId: string
+  title: string
+  description: string
+  suggestedCategory: HealthProfileFactCategory
+  firstObservedAt: string
+  source: HealthProfileFactSourceApiDto
+}
+
+export interface HealthProfileFactApiDto {
+  id: string
+  accountId: string
+  memberId: string
+  category: HealthProfileFactCategory
+  title: string
+  description: string
+  status: HealthProfileFactStatus
+  sources: HealthProfileFactSourceApiDto[]
+  firstObservedAt: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface HealthRecordOrganizationPreviewApiDto {
   hasHealthFacts: boolean
   intent: HealthInputIntent

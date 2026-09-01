@@ -8,6 +8,7 @@ import { SymptomRecordSheet, symptomRecordTitle, symptomRecordTypeLabel } from '
 
 interface TimelineSectionProps {
   event: HealthEvent
+  focusedRecordId?: string | null
   memberName: string
   records: HealthEventRecordApiDto[]
   onDeleteRecord: (recordId: string) => Promise<void>
@@ -15,11 +16,20 @@ interface TimelineSectionProps {
   onUpdateRecord: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
 }
 
-export function TimelineSection({ event, memberName, records, onDeleteRecord, onDetailOpenChange, onUpdateRecord }: TimelineSectionProps) {
+export function TimelineSection({ event, focusedRecordId, memberName, records, onDeleteRecord, onDetailOpenChange, onUpdateRecord }: TimelineSectionProps) {
   const [order, setOrder] = useState<TimelineOrder>('desc')
   const [selection, setSelection] = useState<{ editing: boolean; entry: TimelineEntry } | null>(null)
   const recordsById = useMemo(() => new Map(records.map((record) => [record.id, record])), [records])
   const timelineGroups = useMemo(() => sortAndGroupTimeline(event.timeline, order), [event.timeline, order])
+  const openedFocusedRecord = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!focusedRecordId || openedFocusedRecord.current === focusedRecordId) return
+    const entry = event.timeline.find((item) => item.sourceRecordId === focusedRecordId)
+    if (!entry) return
+    openedFocusedRecord.current = focusedRecordId
+    setSelection({ editing: false, entry })
+  }, [event.timeline, focusedRecordId])
 
   useEffect(() => {
     onDetailOpenChange?.(Boolean(selection))
