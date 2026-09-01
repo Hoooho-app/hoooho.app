@@ -21,6 +21,7 @@ import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
 import { AccountEntryStateService } from './onboarding/account-entry-state-service.mjs'
+import { HealthProfileFactService } from './health-profile/health-profile-fact-service.mjs'
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -48,6 +49,7 @@ const ops = new OpsService(sharedOptions)
 const feedback = new FeedbackService(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
+const healthProfileFacts = new HealthProfileFactService(sharedOptions)
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -333,6 +335,32 @@ async function handleOrganizations(request, response, pathname) {
   return true
 }
 
+async function handleHealthProfileFacts(request, response, pathname, searchParams) {
+  const candidatesMatch = /^\/api\/health-profile-facts\/candidates$/.exec(pathname)
+  const sourcesMatch = /^\/api\/health-profile-facts\/([^/]+)\/sources$/.exec(pathname)
+  const factMatch = /^\/api\/health-profile-facts\/([^/]+)$/.exec(pathname)
+  const collectionMatch = pathname === '/api/health-profile-facts'
+  if (!candidatesMatch && !sourcesMatch && !factMatch && !collectionMatch) return false
+
+  const accountId = readAccountId(request)
+  if (candidatesMatch && request.method === 'GET') {
+    sendJson(response, 200, await healthProfileFacts.listCandidates(accountId, searchParams.get('memberId') ?? ''))
+  } else if (collectionMatch && request.method === 'GET') {
+    sendJson(response, 200, await healthProfileFacts.list(accountId, searchParams.get('memberId') ?? ''))
+  } else if (collectionMatch && request.method === 'POST') {
+    sendJson(response, 201, await healthProfileFacts.create(accountId, await readJson(request)))
+  } else if (sourcesMatch && request.method === 'POST') {
+    sendJson(response, 200, await healthProfileFacts.addSource(accountId, decodeRouteValue(sourcesMatch[1]), await readJson(request)))
+  } else if (factMatch && request.method === 'GET') {
+    sendJson(response, 200, await healthProfileFacts.get(accountId, decodeRouteValue(factMatch[1])))
+  } else if (factMatch && request.method === 'PATCH') {
+    sendJson(response, 200, await healthProfileFacts.update(accountId, decodeRouteValue(factMatch[1]), await readJson(request)))
+  } else {
+    sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  }
+  return true
+}
+
 async function handleAudioTranscription(request, response, pathname) {
   if (pathname !== '/api/ai/audio/transcriptions') return false
   readAccountId(request)
@@ -412,6 +440,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOnlineConsultations(request, response, pathname)) return true
+  if (await handleHealthProfileFacts(request, response, pathname, searchParams)) return true
   if (await handleOrganizations(request, response, pathname)) return true
   if (await handleEventRecords(request, response, pathname)) return true
   if (await handleEvents(request, response, pathname)) return true

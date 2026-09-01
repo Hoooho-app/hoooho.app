@@ -34,6 +34,133 @@
     margin-top: var(--hoho-space-6);
   }
 
+  .health-fact-home-card {
+    overflow: hidden;
+    border: 1px solid rgb(var(--hoho-color-primary-border) / 0.62);
+    border-radius: var(--hoho-radius-card);
+    background: rgb(var(--hoho-color-surface));
+  }
+  .health-fact-home-card > button:first-child {
+    display: flex;
+    width: 100%;
+    min-height: 78px;
+    align-items: center;
+    gap: var(--hoho-space-3);
+    padding: var(--hoho-space-4);
+  }
+  .health-fact-home-card__icon,
+  .health-fact-inbox__icon {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-primary-soft));
+    color: rgb(var(--hoho-color-primary));
+  }
+  .health-fact-home-card__count { flex: 0 0 auto; color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; font-weight: 600; }
+  .health-fact-home-card__inbox {
+    display: flex;
+    width: 100%;
+    min-height: 42px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--hoho-space-2);
+    border-top: 1px solid rgb(var(--hoho-color-primary-border) / 0.45);
+    padding: 0 var(--hoho-space-4);
+    background: rgb(var(--hoho-color-primary-soft) / 0.46);
+    color: rgb(var(--hoho-color-primary));
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .health-fact-home-card__empty { display: block; border-top: 1px solid rgb(var(--hoho-color-border) / 0.7); padding: var(--hoho-space-3) var(--hoho-space-4); }
+
+  .health-fact-inbox,
+  .health-fact-source-card,
+  .health-fact-detail-heading {
+    border: 1px solid rgb(var(--hoho-color-primary-border) / 0.55);
+    border-radius: var(--hoho-radius-card);
+    padding: var(--hoho-space-4);
+    background: rgb(var(--hoho-color-surface));
+  }
+  .health-fact-candidate-row,
+  .health-fact-related-row {
+    display: flex;
+    min-height: 52px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--hoho-space-3);
+    border-top: 1px solid rgb(var(--hoho-color-border) / 0.7);
+    color: rgb(var(--hoho-color-text-primary));
+    text-align: left;
+  }
+  .health-fact-candidate-row strong,
+  .health-fact-candidate-row small,
+  .health-fact-related-row strong,
+  .health-fact-related-row small { display: block; }
+  .health-fact-candidate-row strong,
+  .health-fact-related-row strong { font-size: 14px; font-weight: 600; }
+  .health-fact-candidate-row small,
+  .health-fact-related-row small { margin-top: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+  .health-fact-related-row { padding-inline: var(--hoho-space-3); }
+  .health-fact-related-row > span:last-child { flex: 0 0 auto; color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 600; }
+  .health-fact-empty { border-block: 1px solid rgb(var(--hoho-color-border) / 0.75); padding: var(--hoho-space-7) var(--hoho-space-4); background: rgb(var(--hoho-color-surface) / 0.6); text-align: center; }
+  .health-fact-list,
+  .health-fact-source-list { overflow: hidden; border-block: 1px solid rgb(var(--hoho-color-border) / 0.8); }
+  .health-fact-list[data-muted='true'] { opacity: 0.78; }
+  .health-fact-row,
+  .health-fact-source-row {
+    display: flex;
+    width: 100%;
+    min-height: 72px;
+    align-items: center;
+    gap: var(--hoho-space-3);
+    border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.72);
+    padding: var(--hoho-space-3) var(--hoho-space-2);
+    background: rgb(var(--hoho-color-surface) / 0.72);
+    text-align: left;
+  }
+  .health-fact-row:last-child,
+  .health-fact-source-row:last-child { border-bottom: 0; }
+  .health-fact-row strong,
+  .health-fact-source-row strong { font-size: 14px; font-weight: 650; }
+  .health-fact-row small,
+  .health-fact-source-row small { display: block; margin-top: 5px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.45; }
+  .health-fact-source-count { display: flex !important; align-items: center; gap: 5px; }
+  .health-fact-status {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    background: rgb(var(--hoho-color-warning) / 0.1);
+    color: rgb(var(--hoho-color-text-secondary));
+    font-size: 11px;
+    font-weight: 650;
+  }
+  .health-fact-status[data-status='confirmed'] { background: rgb(var(--hoho-color-success) / 0.1); color: rgb(var(--hoho-color-success)); }
+  .health-fact-status[data-status='removed'] { background: rgb(var(--hoho-color-surface-subtle)); color: rgb(var(--hoho-color-text-weak)); }
+  .health-fact-provenance {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: var(--hoho-space-3);
+    border-left: 2px solid rgb(var(--hoho-color-primary-border));
+    padding: var(--hoho-space-3) var(--hoho-space-4);
+    background: rgb(var(--hoho-color-surface-subtle) / 0.72);
+    color: rgb(var(--hoho-color-primary));
+  }
+  .health-fact-provenance strong { color: rgb(var(--hoho-color-text-primary)); font-size: 13px; }
+  .health-fact-provenance p { margin-top: 5px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.55; }
+  .health-fact-meta { border-block: 1px solid rgb(var(--hoho-color-border) / 0.8); }
+  .health-fact-meta > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.68); padding: var(--hoho-space-3) var(--hoho-space-2); }
+  .health-fact-meta > div:last-child { border-bottom: 0; }
+  .health-fact-meta dt { color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; }
+  .health-fact-meta dd { margin: 0; color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 1.55; }
+  .health-fact-form { display: grid; gap: var(--hoho-space-4); }
+  .health-fact-form > label { display: grid; gap: var(--hoho-space-2); }
+  .health-fact-form > label > span { color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; font-weight: 600; }
+
   .profile-directory-group,
   .settings-group {
     overflow: hidden;

@@ -11,6 +11,7 @@ import { getHealthProfileType } from '../../features/health-profile/utils/getHea
 import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
 import { buildPersonalizedHealthDirectory, type HealthProfileViewStatus } from '../../features/health-profile/utils/healthProfileHomeLogic'
 import { hasBasicHealthProfileValues } from '../../features/health-profile/utils/healthProfileBasicInfo'
+import { useHealthProfileFacts } from '../../features/health-profile/hooks/useHealthProfileFacts'
 
 const icons: Record<HealthProfileSectionConfig['icon'], LucideIcon> = {
   activity: Activity, allergy: AlertTriangle, baby: Baby, calendar: CalendarDays, care: UserRound,
@@ -48,6 +49,8 @@ function ProfileSectionRows({ recordedIds, sections, summaries }: { recordedIds:
 
 export function HealthProfilePage() {
   const member = useCurrentMember()
+  const navigate = useNavigate()
+  const longTermFacts = useHealthProfileFacts(member.id)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<HealthProfileViewStatus>('all')
   const profileType = getHealthProfileType(member.birthday, member.gender)
@@ -99,6 +102,17 @@ export function HealthProfilePage() {
             {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
+      </section>
+
+      <section className="health-fact-home-card mt-5" aria-label="重要健康事实">
+        <button onClick={() => navigate('/health-profile/facts')} type="button">
+          <span className="health-fact-home-card__icon"><FileHeart size={21} /></span>
+          <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">重要健康事实</Typography><Typography className="mt-1" variant="caption">记录影响长期健康的重要信息</Typography></span>
+          <span className="health-fact-home-card__count">{longTermFacts.status === 'success' ? `${longTermFacts.facts.filter((fact) => fact.status !== 'removed').length} 条` : '—'}</span>
+          <ChevronRight size={18} />
+        </button>
+        {longTermFacts.status === 'success' && longTermFacts.candidates.length > 0 && <button className="health-fact-home-card__inbox" onClick={() => navigate('/health-profile/facts')} type="button"><span>发现 {longTermFacts.candidates.length} 条可长期保留的信息</span><span>需要你确认</span></button>}
+        {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康事件中的重要信息确认后会显示在这里</Typography>}
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
