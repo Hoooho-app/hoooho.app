@@ -1,0 +1,173 @@
+.nurse-quick-record-anchor {
+  position: relative;
+  min-height: 52px;
+  isolation: isolate;
+}
+
+.nurse-quick-record-entry {
+  min-height: 52px;
+  opacity: 1;
+  transition: opacity var(--hoho-motion-fast) var(--hoho-ease-standard);
+}
+
+.nurse-quick-record-entry[data-visible='false'] {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.nurse-triage-recorder .quick-record-panel--nurse {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: min(410px, calc(var(--quick-record-viewport-height, 100dvh) - 176px - env(safe-area-inset-bottom)));
+  transform: none;
+  border: 1px solid rgb(var(--hoho-color-primary) / 0.26);
+  border-radius: var(--hoho-radius-card);
+  background: rgb(var(--hoho-color-surface) / 0.98);
+  padding: var(--hoho-space-4);
+  box-shadow: var(--hoho-shadow-card);
+  backdrop-filter: blur(10px);
+  transition: opacity var(--hoho-motion-fast) var(--hoho-ease-standard);
+}
+
+.nurse-quick-record-heading {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hoho-space-3);
+  color: rgb(var(--hoho-color-text-primary));
+  font: 600 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+}
+
+.nurse-quick-record-listening {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--hoho-space-3);
+}
+
+.nurse-quick-record-listening .nurse-quick-record-heading,
+.nurse-quick-record-listening .quick-record-wave,
+.nurse-quick-record-listening .quick-record-transcript,
+.nurse-quick-record-listening .nurse-quick-record-actions {
+  grid-column: 1 / -1;
+}
+
+.nurse-quick-record-listening .quick-record-wave {
+  height: 34px;
+  gap: 3px;
+}
+
+.nurse-quick-record-listening .quick-record-transcript {
+  min-height: 82px;
+  max-height: 112px;
+  overflow-y: auto;
+  border: 1px solid rgb(var(--hoho-color-border));
+  border-radius: var(--hoho-radius-control);
+  background: rgb(var(--hoho-color-surface));
+  padding: var(--hoho-space-3);
+  color: rgb(var(--hoho-color-text-primary));
+  font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+}
+
+.nurse-quick-record-actions {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: var(--hoho-space-2);
+}
+
+.nurse-quick-record-actions .hoho-button,
+.nurse-quick-record-secondary {
+  min-height: 48px;
+}
+
+.nurse-quick-record-cancel {
+  min-height: 44px;
+  border-radius: var(--hoho-radius-pill);
+  color: rgb(var(--hoho-color-text-secondary));
+  font: 500 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+}
+
+.nurse-quick-record-secondary {
+  border: 1px solid rgb(var(--hoho-color-border));
+  border-radius: var(--hoho-radius-control);
+  background: rgb(var(--hoho-color-surface));
+  color: rgb(var(--hoho-color-text-primary));
+  font: 500 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+}
+
+.nurse-quick-record-review {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--hoho-space-3);
+}
+
+.nurse-quick-record-review-text {
+  min-height: 104px;
+  max-height: 168px;
+  resize: none;
+  overflow-y: auto;
+  border: 1px solid rgb(var(--hoho-color-border));
+  border-radius: var(--hoho-radius-control);
+  background: rgb(var(--hoho-color-surface));
+  padding: var(--hoho-space-3);
+  outline: 0;
+  color: rgb(var(--hoho-color-text-primary));
+  font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family);
+}
+
+.nurse-quick-record-review-text:focus {
+  border-color: rgb(var(--hoho-color-primary) / 0.45);
+  box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.09);
+}
+
+.nurse-quick-record-saved {
+  position: absolute;
+  z-index: 9;
+  right: 0;
+  bottom: calc(100% + var(--hoho-space-2));
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--hoho-space-2);
+  border: 1px solid rgb(var(--hoho-color-primary) / 0.22);
+  border-radius: var(--hoho-radius-control);
+  background: rgb(var(--hoho-color-primary-soft) / 0.72);
+  padding: 0 var(--hoho-space-3);
+  color: rgb(var(--hoho-color-text-primary));
+  box-shadow: var(--hoho-shadow-soft);
+  font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
+}
+
+.nurse-quick-record-saved svg {
+  border-radius: var(--hoho-radius-pill);
+  background: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-surface));
+  padding: 2px;
+}
+
+@media (max-height: 620px) {
+  .nurse-triage-recorder .quick-record-panel--nurse {
+    max-height: calc(var(--quick-record-viewport-height, 100dvh) - 132px - env(safe-area-inset-bottom));
+    padding: var(--hoho-space-3);
+  }
+
+  .nurse-quick-record-listening .quick-record-transcript,
+  .nurse-quick-record-review-text {
+    min-height: 76px;
+    max-height: 104px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nurse-quick-record-entry,
+  .nurse-triage-recorder .quick-record-panel--nurse {
+    transition: opacity 90ms linear;
+  }
+}
