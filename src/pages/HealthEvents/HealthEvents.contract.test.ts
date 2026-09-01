@@ -16,6 +16,7 @@ const timelineSource = readFileSync(new URL('../../components/health/HealthEvent
 const helpSource = readFileSync(new URL('../../features/help/articles.ts', import.meta.url), 'utf8')
 const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
 const nurseQuickRecordSource = readFileSync(new URL('./NurseQuickRecord.tsx', import.meta.url), 'utf8')
+const nurseQuickRecordStylesSource = readFileSync(new URL('./NurseQuickRecord.css', import.meta.url), 'utf8')
 const quickRecordFlowSource = readFileSync(new URL('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
 const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
 
@@ -153,6 +154,42 @@ test('前台视图直接复用详情快捷记录并在完成后停留当前视�
   assert.doesNotMatch(nurseQuickRecordSource, /setViewMode\('list'\)/)
 })
 
+test('前台快捷记录在原锚点使用专用听写、核对和保存完成呈现', () => {
+  assert.match(nurseQuickRecordSource, /className="nurse-quick-record-anchor"/)
+  assert.match(nurseQuickRecordSource, /presentation="nurse-inline"/)
+  assert.match(nurseQuickRecordSource, /<QuickRecordTrigger/)
+  assert.equal(nurseQuickRecordSource.match(/<QuickRecordTrigger/g)?.length, 1)
+  assert.match(quickRecordFlowSource, /<strong>正在听…<\/strong>/)
+  assert.match(quickRecordFlowSource, />结束听写<\/HohoButton>/)
+  assert.match(quickRecordFlowSource, /aria-label="核对原话"/)
+  assert.match(quickRecordFlowSource, /aria-label="编辑识别原话"/)
+  assert.match(quickRecordFlowSource, />重新说<\/button>/)
+  assert.match(quickRecordFlowSource, />保存记录<\/HohoButton>/)
+  assert.match(quickRecordFlowSource, /presentation === 'nurse-inline' \? '记录已保存'/)
+  assert.doesNotMatch(quickRecordFlowSource, /开始听写|点击结束|<Square|<Pause/)
+})
+
+test('前台快捷记录保留真实保存、失败重试和资源清理边界', () => {
+  assert.match(quickRecordFlowSource, /onConfirmRef\.current\(value, occurredAtRef\.current/)
+  assert.match(quickRecordFlowSource, /presentation === 'nurse-inline' \? 'review' : 'text_entry'/)
+  assert.match(quickRecordFlowSource, /stopSession\(true\)/)
+  assert.match(quickRecordFlowSource, /window\.clearTimeout\(closeTimerRef\.current\)/)
+  assert.match(nurseQuickRecordSource, /window\.clearTimeout\(noticeTimerRef\.current\)/)
+  assert.match(pageSource, /setQuickRecordOpen\(false\)[^]*discardPendingTriageEvent\(\)/s)
+  assert.match(pageSource, /healthEventRecordService\.create\(pending\.eventId/)
+  assert.match(pageSource, /void retry\(\)/)
+})
+
+test('前台快捷记录局部覆盖不改变护士台网格和列表视图', () => {
+  assert.match(nurseQuickRecordSource, /import '\.\/NurseQuickRecord\.css'/)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-panel--nurse[^}]*position:\s*absolute/s)
+  assert.match(nurseQuickRecordStylesSource, /nurse-quick-record-anchor[^}]*min-height:\s*52px/s)
+  assert.match(nurseQuickRecordStylesSource, /--hoho-color-primary/)
+  assert.match(nurseQuickRecordStylesSource, /env\(safe-area-inset-bottom\)/)
+  assert.doesNotMatch(nurseQuickRecordSource, /Logo|下一步|NurseTriageDesk[^]*state=(?!"idle")/s)
+  assert.match(pageSource, /viewMode === 'list'[^]*<HealthEventTimeline/s)
+})
+
 test('前台视图快捷记录严格绑定当前人物、复用真实预览保存链路并刷新列表', () => {
   assert.match(pageSource, /currentMemberDto\.id !== currentMemberId/)
   assert.match(pageSource, /memberId: currentMemberDto\.id/)
@@ -173,6 +210,7 @@ test('前台视图使用动态视口单屏布局且快捷记录面板为键盘�
   assert.match(pageStylesSource, /nurse-triage-recorder \.nurse-quick-record-trigger[^}]*position:\s*static[^}]*width:\s*100%/s)
   assert.match(quickRecordFlowSource, /window\.visualViewport/)
   assert.match(pageStylesSource, /quick-record-viewport-height/)
+  assert.match(nurseQuickRecordStylesSource, /quick-record-viewport-height/)
   assert.match(pageStylesSource, /quick-record-panel-review[^}]*flex-direction:\s*column/s)
 })
 
