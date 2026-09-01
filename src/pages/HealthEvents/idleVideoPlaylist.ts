@@ -114,3 +114,20 @@ export async function playIdleVideoSafely(play: () => Promise<void>) {
     return reason;
   }
 }
+
+interface PlayableIdleVideo {
+  currentTime: number;
+  duration: number;
+  ended: boolean;
+  networkState: number;
+  load: () => void;
+  play: () => Promise<void>;
+}
+
+export async function loadAndPlayIdleVideo(video: PlayableIdleVideo) {
+  if (video.networkState === 0) video.load();
+  if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
+    video.currentTime = 0;
+  }
+  return playIdleVideoSafely(() => video.play());
+}
