@@ -42,6 +42,7 @@ test('旧事件标题仍可作为未结构化数据的速览特征，但不会�
   assert.equal(adapted.definitionTitle, '未定性')
   assert.equal(adapted.displayTitle, '发热')
   assert.equal(adapted.durationLabel, '已持续1天')
+  assert.equal(adapted.icon.kind, 'combined')
   assert.deepEqual(adapted.summaryFragments, [{ label: '发热', sourceRecordId: record.id, kind: 'legacy' }])
 })
 
@@ -52,6 +53,7 @@ test('旧长描述只提炼一个真实特征，不再拼接自然语言伪摘�
 
   assert.equal(adapted.title, '头痛')
   assert.equal(adapted.displayTitle, '头痛')
+  assert.deepEqual(adapted.icon, { kind: 'head', label: '头部', source: 'semantic-fallback' })
   assert.deepEqual(adapted.summaryFragments, [{ label: '头痛', sourceRecordId: record.id, kind: 'legacy' }])
 })
 
@@ -130,6 +132,7 @@ test('图片-only 事件用分析结果生成标题摘要，不展示健康附�
   )
 
   assert.equal(adapted.title, '检查结果')
+  assert.equal(adapted.icon.kind, 'examination')
   assert.deepEqual(adapted.summaryFragments.map(({ label }) => label), ['血常规报告'])
   assert.equal(`${adapted.title}${adapted.summaryFragments.map(({ label }) => label).join('')}`.includes('image.jpg'), false)
 })

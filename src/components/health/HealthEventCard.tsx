@@ -74,7 +74,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
       </div>
 
       <button
-        aria-label={`查看${dateLabel}的健康事件：${event.displayTitle}${event.durationLabel ? `，${event.durationLabel}` : ''}${event.summaryFragments.length ? `，${event.summaryFragments.map(({ label }) => label).join('，')}` : ''}`}
+        aria-label={`查看${dateLabel}的健康事件：${event.displayTitle}，${event.icon.label}${event.durationLabel ? `，${event.durationLabel}` : ''}${event.summaryFragments.length ? `，${event.summaryFragments.map(({ label }) => label).join('，')}` : ''}`}
         className="relative block w-full touch-pan-y text-left transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${translateX}px)` }}
         type="button"
@@ -109,6 +109,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
           dateLabel={dateLabel}
           displayTitle={event.displayTitle}
           durationLabel={event.durationLabel}
+          icon={event.icon}
           interactive
           summaryFragments={event.summaryFragments.map(({ label }) => label)}
           showChevron
