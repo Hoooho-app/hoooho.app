@@ -460,6 +460,7 @@
   .feedback-messages span { @apply text-xs text-text-secondary; }
   .feedback-supplement { @apply border-t pt-5; }
   .my-feedback-page .feedback-list-content { @apply space-y-3 px-3 py-3; padding-bottom: max(var(--hoho-space-5), env(safe-area-inset-bottom)); }
+  .feedback-received { @apply m-0 rounded-xl border px-3 py-2 text-sm font-semibold; border-color: rgb(15 118 110 / 18%); background: #edf8f5; color: #0b6f67; }
   .my-feedback-stats { @apply px-2 py-1; }
   .my-feedback-stats p { @apply m-0 text-sm leading-6; }
   .my-feedback-stats p:last-child { @apply text-xs text-text-secondary; }
