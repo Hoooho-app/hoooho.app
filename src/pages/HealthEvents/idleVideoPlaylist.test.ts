@@ -11,6 +11,7 @@ import {
   playIdleVideoSafely,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
+  resumeIdlePlaylistFromLoopStart,
   suspendIdlePlaylist,
 } from './idleVideoPlaylist';
 
@@ -48,6 +49,16 @@ describe('idle video playlist', () => {
 
     assert.equal(state.pendingVideoIndex, 1)
   });
+
+  it('returns save-success playback directly to idle1 without replaying intro0', () => {
+    let state = resumeIdlePlaylist(createIdlePlaylistState())
+    state = commitIdlePlayback(state, 0, state.playbackSessionId)
+    state = suspendIdlePlaylist(state)
+    state = resumeIdlePlaylistFromLoopStart(state)
+
+    assert.equal(state.pendingVideoIndex, 1)
+    assert.equal(state.suspended, false)
+  })
 
   it('ignores late callbacks from an invalidated playback session', () => {
     let state = resumeIdlePlaylist(createIdlePlaylistState());

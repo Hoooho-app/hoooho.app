@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
 import type { QuickRecordCandidate } from '../../features/quick-record'
-import { QuickVoiceRecordFlow } from '../HealthEventDetail/components'
+import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import { NursePromptCarousel } from './NursePromptCarousel'
+import { shouldTriggerNurseSaveSuccess } from './nurseSaveSuccess'
 import { NurseTriageDesk } from './NurseTriageDesk'
 import './NurseQuickRecord.css'
 
@@ -35,13 +36,21 @@ export function NurseQuickRecord({
   reducedMotion
 }: NurseQuickRecordProps) {
   const [savedNotice, setSavedNotice] = useState('')
+  const [saveSuccessSequence, setSaveSuccessSequence] = useState(0)
   const noticeTimerRef = useRef<number | null>(null)
+  const quickRecordSessionRef = useRef(0)
+  const animatedSaveSessionRef = useRef(-1)
   const openQuickRecord = () => {
+    quickRecordSessionRef.current += 1
     setSavedNotice('')
     onOpen()
   }
-  const showSavedNotice = (message: string) => {
+  const showSavedNotice = (message: string, inputChannel: QuickRecordInputChannel) => {
     setSavedNotice(message)
+    if (shouldTriggerNurseSaveSuccess(inputChannel, quickRecordSessionRef.current, animatedSaveSessionRef.current)) {
+      animatedSaveSessionRef.current = quickRecordSessionRef.current
+      setSaveSuccessSequence((sequence) => sequence + 1)
+    }
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current)
     noticeTimerRef.current = window.setTimeout(() => {
       noticeTimerRef.current = null
@@ -61,6 +70,7 @@ export function NurseQuickRecord({
           idleActive={!open}
           idleAnimationResetKey={currentMemberId}
           reducedMotion={reducedMotion}
+          saveSuccessSequence={saveSuccessSequence}
           state="idle"
         />
       </div>

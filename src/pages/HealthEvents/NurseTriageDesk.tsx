@@ -58,9 +58,10 @@ interface NurseTriageDeskProps {
   idleActive?: boolean
   idleAnimationResetKey: string
   reducedMotion: boolean
+  saveSuccessSequence?: number
 }
 
-export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnimationResetKey, reducedMotion }: NurseTriageDeskProps) {
+export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnimationResetKey, reducedMotion, saveSuccessSequence = 0 }: NurseTriageDeskProps) {
   const pageVisible = usePageVisible()
   const activeAsset = visualAssetByState[state] ?? null
   const idleVideoActive = idleActive && (state === 'idle' || state === 'error')
@@ -78,6 +79,7 @@ export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnim
         active={idleVideoActive && pageVisible}
         reducedMotion={reducedMotion}
         resetKey={idleAnimationResetKey}
+        saveSuccessSequence={saveSuccessSequence}
       />
       {allNurseTriageAssets.map((source) => (
         <img

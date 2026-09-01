@@ -90,6 +90,10 @@ export function resumeIdlePlaylist(state: IdlePlaylistState): IdlePlaylistState 
   return beginIdlePlayback(state, state.hasPlayed ? state.nextVideoIndex : 0);
 }
 
+export function resumeIdlePlaylistFromLoopStart(state: IdlePlaylistState): IdlePlaylistState {
+  return beginIdlePlayback(state, 1);
+}
+
 export function chooseAvailableVideo(
   preferred: NurseVideoIndex,
   unavailable: readonly [boolean, boolean, boolean],
