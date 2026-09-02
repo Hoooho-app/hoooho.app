@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Camera, Check, Clock3, ExternalLink, Eye, History, ImageOff, LogIn, Plus, RefreshCw, Settings2, ShieldCheck, Upload, WalletCards, X } from 'lucide-react'
 import { HohoButton } from '../../components/design-system/HohoButton'
+import { OpsAccount } from '../../components/auth/OpsAccount'
 import { useAppStore } from '../../store/useAppStore'
 import {
   createBillingSource, getBillingHistory, getBillingSnapshotImage, getBillingSources, refreshAllBillingSources,
@@ -25,7 +26,7 @@ const formatTime = (value: string | null) => value ? new Intl.DateTimeFormat('zh
 const stale = (source: BillingSource) => Boolean(source.latestSnapshot && source.lastAttemptAt && source.lastSuccessAt && source.lastAttemptAt > source.lastSuccessAt && source.status !== 'success')
 
 export function OpsPage() {
-  const token = useAppStore((state) => state.authToken)!
+  const token = useAppStore((state) => state.opsAuthToken)!
   const [sources, setSources] = useState<BillingSource[]>([])
   const [inactiveSources, setInactiveSources] = useState<string[]>([])
   const [overview, setOverview] = useState(emptyOverview)
@@ -69,6 +70,7 @@ export function OpsPage() {
         <Link className="hoho-button" data-size="medium" data-variant="secondary" to="/ops/feedback">反馈管理</Link>
         <HohoButton variant="secondary" onClick={() => setCreating(true)}><Plus size={16} />新增费用来源</HohoButton>
         <HohoButton loading={refreshingAll} onClick={refreshAll}><RefreshCw size={16} />立即更新全部</HohoButton>
+        <OpsAccount />
       </div>
     </header>
 

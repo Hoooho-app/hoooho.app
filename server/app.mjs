@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
-import { authConfig } from './auth/config.mjs'
+import { assertAuthRuntimeConfig, authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
 import { HealthEventService } from './events/health-event-service.mjs'
@@ -27,6 +27,7 @@ import { HealthInformationCandidateService } from './health-information/health-i
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+assertAuthRuntimeConfig()
 const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(rootDirectory, 'dist'))
 const port = Number.parseInt(process.env.PORT || '3000', 10)
 const host = process.env.HOST || '0.0.0.0'
@@ -143,8 +144,10 @@ function readAuthPayload(request) {
 
 async function handleOps(request, response, pathname) {
   if (!pathname.startsWith('/api/ops')) return false
-  assertOpsAccess(readAuthPayload(request))
-  if (pathname === '/api/ops/sources' && request.method === 'GET') sendJson(response, 200, await ops.list())
+  const payload = readAuthPayload(request)
+  assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
+  if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
+  else if (pathname === '/api/ops/sources' && request.method === 'GET') sendJson(response, 200, await ops.list())
   else if (pathname === '/api/ops/sources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
   else if (pathname === '/api/ops/refresh' && request.method === 'POST') sendJson(response, 200, await ops.refreshAll())
   else {
@@ -175,7 +178,7 @@ async function handleOps(request, response, pathname) {
 async function handleOpsFeedback(request, response, pathname, searchParams) {
   if (!pathname.startsWith('/api/ops/feedback')) return false
   const payload = readAuthPayload(request)
-  assertOpsAccess(payload, { requireAllowlist: true })
+  assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (pathname === '/api/ops/feedback' && request.method === 'GET') {
     sendJson(response, 200, await feedback.listForOps(Object.fromEntries(searchParams)))
     return true
@@ -250,8 +253,8 @@ function logEmailAuthRequest(context, status, errorCategory = 'OK') {
 }
 
 async function handleAuth(request, response, pathname) {
-  if (!pathname.startsWith('/api/auth/')) return false
-  const context = pathname.startsWith('/api/auth/email/')
+  if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/')) return false
+  const context = pathname.startsWith('/api/auth/email/') || pathname.startsWith('/api/ops/auth/email/')
     ? createEmailAuthRequestContext(request, response, pathname)
     : null
 
@@ -279,6 +282,18 @@ async function handleAuth(request, response, pathname) {
     }
     if (pathname === '/api/auth/email/login') {
       const result = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
+      logEmailAuthRequest(context, 200)
+      sendJson(response, 200, result)
+      return true
+    }
+    if (pathname === '/api/ops/auth/email/send') {
+      const result = await auth.sendOpsEmailCode(String(body.email ?? ''))
+      logEmailAuthRequest(context, 200)
+      sendJson(response, 200, result)
+      return true
+    }
+    if (pathname === '/api/ops/auth/email/verify') {
+      const result = await auth.loginOpsWithEmail(String(body.email ?? ''), String(body.code ?? ''))
       logEmailAuthRequest(context, 200)
       sendJson(response, 200, result)
       return true

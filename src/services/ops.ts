@@ -1,4 +1,5 @@
-import { apiRequest } from './apiClient'
+import { ApiRequestError } from './apiClient'
+import { clearOpsSessionForError, opsApiRequest } from './opsAuth'
 
 export type BillingMethod = 'api' | 'automatic-screenshot' | 'manual-screenshot'
 export type BillingFrequency = 'daily' | 'weekly' | 'manual'
@@ -68,17 +69,21 @@ export interface BillingSourceInput {
   enabled?: boolean
 }
 
-export const getBillingSources = (token: string, signal?: AbortSignal) => apiRequest<BillingSourcesResponse>('/api/ops/sources', { token, signal })
-export const createBillingSource = (token: string, body: BillingSourceInput) => apiRequest<BillingSource>('/api/ops/sources', { token, method: 'POST', body })
-export const updateBillingSource = (token: string, id: string, body: Partial<BillingSourceInput>) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}`, { token, method: 'PATCH', body })
-export const refreshBillingSource = (token: string, id: string) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/refresh`, { token, method: 'POST' })
-export const refreshAllBillingSources = (token: string) => apiRequest<BillingSourcesResponse>('/api/ops/refresh', { token, method: 'POST' })
-export const getBillingHistory = (token: string, id: string) => apiRequest<{ snapshots: BillingSnapshot[] }>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token })
-export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string }) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
-export const updateBillingSnapshot = (token: string, sourceId: string, snapshotId: string, important: boolean) => apiRequest<BillingSnapshot>(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}`, { token, method: 'PATCH', body: { important } })
+export const getBillingSources = (token: string, signal?: AbortSignal) => opsApiRequest<BillingSourcesResponse>('/api/ops/sources', { token, signal })
+export const createBillingSource = (token: string, body: BillingSourceInput) => opsApiRequest<BillingSource>('/api/ops/sources', { token, method: 'POST', body })
+export const updateBillingSource = (token: string, id: string, body: Partial<BillingSourceInput>) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}`, { token, method: 'PATCH', body })
+export const refreshBillingSource = (token: string, id: string) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/refresh`, { token, method: 'POST' })
+export const refreshAllBillingSources = (token: string) => opsApiRequest<BillingSourcesResponse>('/api/ops/refresh', { token, method: 'POST' })
+export const getBillingHistory = (token: string, id: string) => opsApiRequest<{ snapshots: BillingSnapshot[] }>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token })
+export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string }) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
+export const updateBillingSnapshot = (token: string, sourceId: string, snapshotId: string, important: boolean) => opsApiRequest<BillingSnapshot>(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}`, { token, method: 'PATCH', body: { important } })
 
 export async function getBillingSnapshotImage(token: string, sourceId: string, snapshotId: string, signal?: AbortSignal) {
   const response = await fetch(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}/image`, { headers: { Authorization: `Bearer ${token}` }, signal })
-  if (!response.ok) throw new Error(response.status === 404 ? '快照图片不存在' : '快照图片加载失败')
+  if (!response.ok) {
+    const error = new ApiRequestError(response.status === 404 ? '快照图片不存在' : '快照图片加载失败', response.status)
+    clearOpsSessionForError(error)
+    throw error
+  }
   return response.blob()
 }

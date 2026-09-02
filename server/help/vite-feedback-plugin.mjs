@@ -19,8 +19,8 @@ const payload = (request, tokens) => {
 }
 
 export function feedbackApiPlugin(options = {}) {
-  const service = new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, tokenSecret: authConfig.tokenSecret })
-  const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
+  const service = new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, tokenSecret: options.tokenSecret ?? authConfig.tokenSecret })
+  const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   return { name: 'hoooho-local-feedback-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://localhost'), pathname = url.pathname
     if (!pathname.startsWith('/api/feedback') && !pathname.startsWith('/api/ops/feedback')) return next()
@@ -32,7 +32,7 @@ export function feedbackApiPlugin(options = {}) {
       }
       const auth = payload(request, tokens)
       if (pathname.startsWith('/api/ops/feedback')) {
-        assertOpsAccess(auth, { requireAllowlist: true })
+        assertOpsAccess(auth, { ownerEmail: options.opsOwnerEmail ?? authConfig.opsOwnerEmail })
         if (pathname === '/api/ops/feedback' && request.method === 'GET') return send(response, 200, await service.listForOps(Object.fromEntries(url.searchParams)))
         const messageMatch = /^\/api\/ops\/feedback\/([^/]+)\/messages$/.exec(pathname), itemMatch = /^\/api\/ops\/feedback\/([^/]+)$/.exec(pathname)
         if (messageMatch && request.method === 'POST') return send(response, 201, await service.addOpsMessage(auth.sub, decodeURIComponent(messageMatch[1]), await readJson(request)))

@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
-export const OPS_OWNER_EMAIL = 'wenxiaodaoray@gmail.com'
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
 export const OPS_SNAPSHOT_REQUEST_MAX_LENGTH = 17_000_000
 
@@ -272,10 +271,12 @@ export class OpsService {
   }
 }
 
-export function assertOpsAccess(payload) {
-  const owner = cleanText(process.env.OPS_OWNER_EMAIL || OPS_OWNER_EMAIL, 200).toLowerCase()
-  if (String(payload?.email ?? '').trim().toLowerCase() !== owner) throw new OpsError('当前账号没有费用总控台权限', 403, 'OPS_FORBIDDEN')
-  return { mode: 'owner', email: owner }
+export function assertOpsAccess(payload, options = {}) {
+  if (!payload || typeof payload !== 'object') throw new OpsError('登录状态无效或已过期', 401, 'UNAUTHORIZED')
+  const owner = cleanText(options.ownerEmail ?? process.env.OPS_OWNER_EMAIL, 200).toLowerCase()
+  if (!owner || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) throw new OpsError('费用总控台唯一管理员尚未配置', 503, 'OPS_OWNER_NOT_CONFIGURED')
+  if (String(payload.email ?? '').trim().toLowerCase() !== owner) throw new OpsError('当前账号没有费用总控台权限', 403, 'OPS_FORBIDDEN')
+  return { mode: 'owner' }
 }
 
 export function startOpsScheduler(service, options = {}) {

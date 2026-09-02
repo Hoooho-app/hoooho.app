@@ -5,7 +5,7 @@
 ## 权限与存储
 
 - 所有 `/api/ops/*` 请求都需要有效的 Hoooho Bearer Session，并由服务端再次校验唯一管理员邮箱。
-- 默认管理员为 `wenxiaodaoray@gmail.com`，可以通过仅服务端可见的 `OPS_OWNER_EMAIL` 覆盖。
+- Railway 的服务端变量 `OPS_OWNER_EMAIL` 必须配置为唯一管理员 `wenxiaodaoray@gmail.com`；缺失或格式错误时所有 Operations 数据接口关闭。
 - 元数据存放在 `DATA_DIRECTORY/ops/billing-sources.json`。
 - 图片存放在 `DATA_DIRECTORY/ops/snapshots/`，该目录必须位于 Railway 私有持久化卷。
 - 图片没有公开 URL。浏览器带管理员令牌请求图片后，只在当前页面创建临时 Blob URL。

@@ -14,7 +14,7 @@ test('manual refresh never attempts a connector', async () => {
   assert.equal(result.status, 'manual')
 })
 
-test('an unconfigured collector is explicit and does not claim a successful update', async () => {
+test('an unconfigured connector is explicit and does not claim a successful update', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'hoho-billing-regression-'))
   const service = new OpsService({ dataDirectory: directory })
   const result = await service.refresh('openai')
