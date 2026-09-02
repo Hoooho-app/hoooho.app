@@ -74,7 +74,7 @@ export function NurseQuickRecord({
   }, [])
 
   return (
-    <section aria-label="健康事件快捷记录" className="nurse-triage-recorder">
+    <section aria-label="健康随记快捷记录" className="nurse-triage-recorder">
       <div className="nurse-triage-visual-slot">
         <NurseTriageDesk
           audioLevel={0}
@@ -100,7 +100,7 @@ export function NurseQuickRecord({
           </div>
           <button
             aria-haspopup="dialog"
-            aria-label="打开当前健康事件的下一步"
+            aria-label="打开当前健康随记的下一步"
             aria-pressed={nextActionOpen}
             className="nurse-next-action-trigger"
             data-active={nextActionOpen}

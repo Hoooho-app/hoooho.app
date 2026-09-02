@@ -26,7 +26,7 @@ export class EventAttachmentService {
 
   async assertEventOwnership(accountId, eventId) {
     const event = await this.events.findById(eventId)
-    if (!event || event.accountId !== accountId) throw new EventAttachmentError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new EventAttachmentError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
   }
 
   async preview(accountId, eventId, input, now = new Date()) {
@@ -62,7 +62,7 @@ export class EventAttachmentService {
     if (recordId) {
       const record = await this.records.findById(recordId)
       if (!record || record.accountId !== accountId || record.eventId !== eventId) {
-        throw new EventAttachmentError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
+        throw new EventAttachmentError('未找到这条随记内容', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
       }
     }
     const result = await this.repository.createUnique({ accountId, eventId, recordId: recordId || null, ...prepared, analysis: preview.analysis }, now)

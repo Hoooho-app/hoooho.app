@@ -51,7 +51,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
     <div className="relative overflow-hidden rounded-[var(--hoho-radius-large)]" data-event-id={event.id}>
       <div className="absolute inset-y-0 right-0 flex w-[148px] overflow-hidden rounded-r-[var(--hoho-radius-large)] text-surface">
         <button
-          aria-label={isRecovered ? '重新观察该健康事件' : '标记该健康事件为已康复'}
+          aria-label={isRecovered ? '重新观察这条健康随记' : '标记这条健康随记为已康复'}
           className="grid w-[74px] place-items-center bg-primary px-1 text-center text-xs font-medium disabled:opacity-70"
           disabled={busy}
           type="button"
@@ -63,7 +63,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
           </span>
         </button>
         <button
-          aria-label="删除该健康事件"
+          aria-label="删除这条健康随记"
           className="grid w-[74px] place-items-center bg-danger px-1 text-center text-xs font-medium disabled:opacity-70"
           disabled={busy}
           type="button"
@@ -74,7 +74,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
       </div>
 
       <button
-        aria-label={`查看${dateLabel}的健康事件：${event.displayTitle}，${event.icon.label}${event.durationLabel ? `，${event.durationLabel}` : ''}${event.summaryFragments.length ? `，${event.summaryFragments.map(({ label }) => label).join('，')}` : ''}`}
+        aria-label={`查看${dateLabel}的健康随记：${event.displayTitle}，${event.icon.label}${event.durationLabel ? `，${event.durationLabel}` : ''}${event.summaryFragments.length ? `，${event.summaryFragments.map(({ label }) => label).join('，')}` : ''}`}
         className="relative block w-full touch-pan-y text-left transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${translateX}px)` }}
         type="button"

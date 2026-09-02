@@ -20,7 +20,7 @@ export const sidebarMenuGroups = [
   {
     title: '健康管理',
     items: [
-    { label: '健康事件', icon: House, to: '/health-events' },
+    { label: '健康随记', icon: House, to: '/health-events' },
     { label: '健康档案', icon: Folder, to: '/health-profile' }
     ]
   },
@@ -67,7 +67,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
     navigate(to, to === '/feedback' ? {
       state: makeFeedbackState(
         getCurrentPath(location.pathname, location.search, location.hash),
-        location.pathname.startsWith('/health-events/') ? '健康事件详情' : location.pathname === '/health-events' ? '健康事件' : location.pathname === '/settings' ? '我的' : '原页面',
+        location.pathname.startsWith('/health-events/') ? '健康随记详情' : location.pathname === '/health-events' ? '健康随记' : location.pathname === '/settings' ? '我的' : '原页面',
         window.scrollY
       )
     } : to === '/family' ? {

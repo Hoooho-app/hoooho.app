@@ -166,7 +166,7 @@ test('首次记录先保存完整原文且不再受 hasHealthFacts 硬阻断', (
   assert.match(pageSource, /原始记录已保存，暂未自动整理/)
   assert.match(pageSource, /commitRecord\(pending\.record\)/)
   assert.equal(pageSource.includes("throw new Error('暂未识别到健康相关信息"), false)
-  assert.equal(firstRecordSource.includes('未识别到健康事件关键信息'), false)
+  assert.equal(firstRecordSource.includes('未识别到健康随记关键信息'), false)
 })
 
 test('保存保留空内容、未来时间和预览确认幂等安全边界', () => {

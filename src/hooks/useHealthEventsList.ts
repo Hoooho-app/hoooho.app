@@ -81,7 +81,7 @@ export function useHealthEventsList() {
       }
       setState({
         status: 'error',
-        message: error instanceof Error ? error.message : '健康事件加载失败，请稍后重试'
+        message: error instanceof Error ? error.message : '健康随记加载失败，请稍后重试'
       })
     }
   }, [clearAuthSession, setCurrentMemberId, setMembers, token])

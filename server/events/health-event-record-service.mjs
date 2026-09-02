@@ -94,7 +94,7 @@ export class HealthEventRecordService {
   async assertEventOwnership(accountId, eventId) {
     const event = await this.events.findById(eventId)
     if (!event || event.accountId !== accountId) {
-      throw new HealthEventRecordError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+      throw new HealthEventRecordError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     }
     return event
   }
@@ -102,7 +102,7 @@ export class HealthEventRecordService {
   async getOwnedRecord(accountId, id) {
     const record = await this.repository.findById(id)
     if (!record || record.accountId !== accountId) {
-      throw new HealthEventRecordError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
+      throw new HealthEventRecordError('未找到这条随记内容', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
     }
     await this.assertEventOwnership(accountId, record.eventId)
     return record

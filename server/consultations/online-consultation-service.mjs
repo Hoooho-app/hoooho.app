@@ -34,7 +34,7 @@ export class OnlineConsultationService {
 
   async assertEventOwnership(accountId, eventId) {
     const event = await this.events.findById(eventId)
-    if (!event || event.accountId !== accountId) throw new OnlineConsultationError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new OnlineConsultationError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     return event
   }
 
