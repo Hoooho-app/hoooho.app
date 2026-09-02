@@ -45,7 +45,7 @@ const templates: Record<HealthRecordTemplateType, EditorTemplate> = {
     title: '新增健康情况',
     guidance: '按时间顺序描述事情发生的过程，包括症状变化、体温变化、用药或就医等重要节点。',
     example: '7月20日20:00开始发热，22:00体温38.5℃并服用退烧药，第二天08:00体温37.2℃。',
-    placeholder: '请按时间顺序描述事件过程……',
+    placeholder: '请按时间顺序描述这段健康情况……',
     previewLabels: ['第一个节点', '第二个节点', '第三个节点']
   },
   temperature: {
@@ -57,7 +57,7 @@ const templates: Record<HealthRecordTemplateType, EditorTemplate> = {
   },
   attachment: {
     title: '添加附件',
-    guidance: '上传与此次健康事件相关的图片，例如检查报告、化验单、药品包装或医生记录。',
+    guidance: '上传与这条健康随记相关的图片，例如检查报告、化验单、药品包装或医生记录。',
     example: '当前仅支持 JPG、PNG 等图片格式，暂不支持 PDF。',
     placeholder: '可以补充说明图片内容……',
     previewLabels: ['图片数量', '图片内容', '识别状态']
@@ -73,7 +73,7 @@ const templates: Record<HealthRecordTemplateType, EditorTemplate> = {
   feeding: { title: '记录喂养情况', guidance: '描述饮食或喂养类型、摄入量、食欲和特殊情况。', example: '今天辅食正常，奶量约600ml，食欲比平时稍差。', placeholder: '请描述喂养情况……', previewLabels: ['饮食类型', '摄入情况', '食欲状况', '特殊情况'] },
   growth: { title: '记录成长变化', guidance: '描述近期身高、体重和生长变化。', example: '本月身高增加1cm，体重保持稳定。', placeholder: '请描述成长变化……', previewLabels: ['身高变化', '体重变化', '整体趋势'] },
   exercise: { title: '记录运动情况', guidance: '描述近期运动类型、频率、时长和身体反应。', example: '每周快走3次，每次30分钟，运动后没有不适。', placeholder: '请描述运动情况……', previewLabels: ['运动类型', '运动频率', '单次时长', '身体反应'] },
-  'female-health': { title: '记录女性健康', guidance: '描述与当前事件相关的女性健康情况，内容仅用于本次健康记录。', example: '可以描述周期变化、经期异常或其他相关情况。', placeholder: '请描述相关情况……', previewLabels: ['当前情况', '发生时间', '伴随变化'] },
+  'female-health': { title: '记录女性健康', guidance: '描述与这条健康随记相关的女性健康情况，内容仅用于本次记录。', example: '可以描述周期变化、经期异常或其他相关情况。', placeholder: '请描述相关情况……', previewLabels: ['当前情况', '发生时间', '伴随变化'] },
   lifestyle: { title: '记录生活方式', guidance: '描述近期饮酒、吸烟、作息等生活方式变化。', example: '最近一周睡眠较晚，没有饮酒，运动次数减少。', placeholder: '请描述生活方式变化……', previewLabels: ['作息', '饮酒', '吸烟', '其他变化'] },
   emotion: { title: '记录情绪状态', guidance: '描述近期情绪、压力和日常状态变化。', example: '最近两天情绪有些低落，学习压力较大，睡眠一般。', placeholder: '请描述情绪变化……', previewLabels: ['主要情绪', '持续时间', '可能原因', '日常影响'] },
   'medication-change': { title: '记录用药变化', guidance: '描述近期药品、剂量、服用时间和变化。', example: '今天早上开始服用新药，每次一片，暂时没有不适。', placeholder: '请描述用药变化……', previewLabels: ['药品', '剂量', '服用时间', '变化或反应'] },
@@ -242,7 +242,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
               {minOccurredAt && (
                 <div className="mt-2 flex items-start gap-2 rounded-control bg-background px-3 py-2 text-[11px] leading-4 text-text-secondary">
                   <Info className="mt-0.5 shrink-0 text-primary" size={13} />
-                  <span>时间不可早于本次健康事件的首次记录时间：<br />{formatConstraintTime(minOccurredAt)}</span>
+                  <span>时间不可早于这条健康随记的首次记录时间：<br />{formatConstraintTime(minOccurredAt)}</span>
                 </div>
               )}
             </div>

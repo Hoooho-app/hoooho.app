@@ -61,7 +61,7 @@ test('护士视觉由业务状态驱动并只请求当前图片', () => {
 
 test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {
   assert.match(nurse, /nurse-next-action-trigger/)
-  assert.match(nurse, /aria-label="打开当前健康事件的下一步"/)
+  assert.match(nurse, /aria-label="打开当前健康随记的下一步"/)
   assert.match(nurse, /<svg/)
   assert.doesNotMatch(nurse, /nurse-next-action-link|查看当前事件下一步/)
   assert.match(styles, /health-events-content--triage[\s\S]*min-height:\s*0/)

@@ -53,7 +53,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
       setState({ status: 'not-found' })
       return
     }
-    setState({ status: 'error', message: error instanceof Error ? error.message : '健康事件加载失败，请稍后重试' })
+    setState({ status: 'error', message: error instanceof Error ? error.message : '健康随记加载失败，请稍后重试' })
   }, [clearAuthSession])
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -137,14 +137,14 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [])
 
   const addRecord = useCallback(async (input: CreateHealthEventRecordInput, options?: { deferCommit?: boolean }) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const created = await healthEventRecordService.create(eventId, input, token)
     if (!options?.deferCommit) commitRecord(created)
     return created
   }, [commitRecord, eventId, token])
 
   const refreshAfterRecordMutation = useCallback(async () => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const [eventDto, records, organizations] = await Promise.all([
       healthEventService.getById(eventId, token),
       healthEventRecordService.list(eventId, token),
@@ -191,19 +191,19 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [refreshAfterRecordMutation, token])
 
   const previewRecord = useCallback(async (rawInput: string, options?: { bodyLocations?: string[]; selectedOccurredAt?: string; inputChannel?: 'voice' | 'text' }) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     return healthRecordOrganizationService.preview(eventId, rawInput, token, options)
   }, [eventId, token])
 
   const confirmPreview = useCallback(async (previewId: string, idempotencyKey: string) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const result = await healthRecordOrganizationService.confirm(eventId, previewId, idempotencyKey, token)
     await refreshAfterRecordMutation()
     return result
   }, [eventId, refreshAfterRecordMutation, token])
 
   const organizeRecord = useCallback(async (recordId: string, context?: string) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const organization = await healthRecordOrganizationService.organize(eventId, recordId, token, context)
     const refreshedEvent = await healthEventService.getById(eventId, token)
     setState((current) => {
@@ -226,7 +226,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [eventId, token])
 
   const addAttachment = useCallback(async (input: CreateEventAttachmentInput) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const attachment = await eventAttachmentService.create(eventId, input, token)
     setState((current) => {
       if (current.status !== 'success') return current
@@ -244,12 +244,12 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [eventId, token])
 
   const previewAttachment = useCallback(async (input: CreateEventAttachmentInput) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     return eventAttachmentService.preview(eventId, input, token)
   }, [eventId, token])
 
   const updateStage = useCallback(async (stage: HealthEventApiDto['status']) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const updatedEvent = await healthEventService.updateStatus(eventId, stage, token)
     setState((current) => {
       if (current.status !== 'success') return current
@@ -266,7 +266,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [eventId, token])
 
   const updateTitle = useCallback(async (title: string) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const updatedEvent = await healthEventService.updateTitle(eventId, title, token)
     setState((current) => {
       if (current.status !== 'success') return current
@@ -283,7 +283,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   }, [eventId, token])
 
   const correctSummary = useCallback(async (input: { title: string; summary: string }) => {
-    if (!eventId || !token) throw new Error('登录状态或健康事件无效')
+    if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const updatedEvent = await healthEventService.correctSummary(eventId, input, token)
     setState((current) => current.status === 'success'
       ? {

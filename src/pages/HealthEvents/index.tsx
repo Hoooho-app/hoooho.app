@@ -46,7 +46,7 @@ function UserIdentity({ member }: { member: Member | null }) {
         label="当前人物"
         name={member?.name ?? ' '}
       />
-      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康事件”指一次不舒服、就诊或康复的完整过程。</p>
+      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
       <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p>
     </div>
   )
@@ -60,7 +60,7 @@ const healthEventsViewOptions: HealthEventsViewMode[] = ['triage', 'list']
 
 function HealthEventsViewSelect({ onChange, value }: { onChange: (view: HealthEventsViewMode) => void; value: HealthEventsViewMode }) {
   return (
-    <div aria-label="健康事件视图" className="health-events-view-switch" role="group">
+    <div aria-label="健康随记视图" className="health-events-view-switch" role="group">
       {healthEventsViewOptions.map((option) => <button
         aria-pressed={option === value}
         data-selected={option === value}
@@ -290,19 +290,19 @@ export function HealthEventsPage() {
 
   return (
     <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
-      <MainAppHeader title="健康事件" />
+      <MainAppHeader title="健康随记" />
       <UserIdentity member={currentMember} />
 
       <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
         <div className="health-events-toolbar mb-4 space-y-3">
           <div className={`flex min-h-11 items-center gap-2 ${viewMode === 'list' ? 'justify-between' : 'justify-end'}`}>
-            {viewMode === 'list' && <Typography className="health-events-list-title" variant="sectionTitle">事件列表</Typography>}
+            {viewMode === 'list' && <Typography className="health-events-list-title" variant="sectionTitle">健康随记</Typography>}
             <div className="health-events-view-actions">
               {shouldShowHealthEventFilters(viewMode) && (
                 <button
                   className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-2.5 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
                   type="button"
-                  aria-label="筛选事件列表"
+                  aria-label="筛选健康随记"
                   onClick={() => setFilterOpen(true)}
                 >
                   <Filter size={17} strokeWidth={1.8} />
@@ -318,7 +318,7 @@ export function HealthEventsPage() {
             <div
               className="hoho-year-tabs health-events-year-tabs"
               role="tablist"
-              aria-label="按年份切换健康事件"
+              aria-label="按年份切换健康随记"
             >
               {years.map((year) => {
                 const selected = year === activeYear
@@ -344,7 +344,7 @@ export function HealthEventsPage() {
         )}
 
         {viewMode === 'list' && state.status === 'error' && (
-          <StatusNotice action={<HohoButton size="small" variant="secondary" onClick={retry}>重新加载</HohoButton>} title="健康事件加载失败" tone="error">{state.message}</StatusNotice>
+          <StatusNotice action={<HohoButton size="small" variant="secondary" onClick={retry}>重新加载</HohoButton>} title="健康随记加载失败" tone="error">{state.message}</StatusNotice>
         )}
 
         {viewMode === 'list' && state.status === 'success' && memberEvents.length === 0 && (
@@ -352,11 +352,11 @@ export function HealthEventsPage() {
             <EmptyState
               action={<HohoButton disabled={creating} onClick={beginNewRecord}>
               <Plus size={19} strokeWidth={1.8} />
-              {creating ? '正在开始记录…' : '记录一次健康事件'}
+              {creating ? '正在开始记录…' : '记录新情况'}
               </HohoButton>}
               description={<><span className="care-standard-language">心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</span><span className="care-plain-language">身体不舒服时，把发生的事记下来。</span></>}
               icon={<ClipboardList size={28} strokeWidth={1.6} />}
-              title="不舒服？记一下"
+              title="还没有健康随记"
             />
           </HealthCard>
         )}
@@ -370,7 +370,7 @@ export function HealthEventsPage() {
             <EmptyState
               action={<HohoButton variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</HohoButton>}
               description="可以调整或重置筛选条件"
-              title="没有符合条件的健康事件"
+              title="没有符合条件的健康随记"
             />
           </HealthCard>
         )}
@@ -395,7 +395,7 @@ export function HealthEventsPage() {
       {viewMode === 'list' && <button
         className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
-        aria-label="新增健康事件"
+        aria-label="记录新情况"
         disabled={creating || !currentMember}
         onClick={beginNewRecord}
       >

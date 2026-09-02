@@ -63,7 +63,7 @@ export function HealthEventDetailPage() {
         <EventHeader />
         <div className="page-content">
           <Card className="py-12 text-center">
-            <p className="text-sm text-text-secondary">正在加载健康事件…</p>
+            <p className="text-sm text-text-secondary">正在加载健康随记…</p>
           </Card>
         </div>
       </main>
@@ -76,8 +76,8 @@ export function HealthEventDetailPage() {
         <EventHeader />
         <div className="page-content">
           <Card className="py-10 text-center">
-            <h2 className="font-semibold">健康事件不存在或已删除</h2>
-            <Button className="mt-5" onClick={() => navigate('/health-events')}>返回健康事件</Button>
+            <h2 className="font-semibold">未找到这条健康随记</h2>
+            <Button className="mt-5" onClick={() => navigate('/health-events')}>返回健康随记</Button>
           </Card>
         </div>
       </main>
@@ -90,7 +90,7 @@ export function HealthEventDetailPage() {
         <EventHeader />
         <div className="page-content">
           <Card className="py-10 text-center">
-            <h2 className="font-semibold">健康事件加载失败</h2>
+            <h2 className="font-semibold">健康随记加载失败</h2>
             <p className="mt-2 text-sm text-text-secondary">{state.message}</p>
             <Button className="mt-5" onClick={retry}>重新加载</Button>
           </Card>

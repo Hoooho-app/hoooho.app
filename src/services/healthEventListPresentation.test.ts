@@ -11,7 +11,7 @@ function event(id: string, memberId: string, title: string): HealthEventListItem
     title,
     displayTitle: title,
     definitionTitle: '未定性',
-    icon: { kind: 'general', label: '综合健康事件', source: 'general' },
+    icon: { kind: 'general', label: '综合健康随记', source: 'general' },
     durationLabel: '已持续1天',
     summaryFragments: [],
     category: 'other',

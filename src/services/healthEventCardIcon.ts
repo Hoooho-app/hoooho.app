@@ -21,11 +21,11 @@ const bodyRegionRules: Array<{ kind: HealthEventCardIconKind; label: string; pat
 ]
 
 const eventTypeRules: Array<{ kind: HealthEventCardIconKind; label: string; pattern: RegExp }> = [
-  { kind: 'medication', label: '用药事件', pattern: /用药|服药|药物|药品|药片|药膏/ },
-  { kind: 'examination', label: '检查事件', pattern: /检查|化验|检验|血常规|影像|CT|核磁|超声/i },
-  { kind: 'visit', label: '就诊事件', pattern: /就诊|看医生|医院|门诊|急诊/ },
-  { kind: 'surgery', label: '手术事件', pattern: /手术|术后|术前/ },
-  { kind: 'report', label: '报告事件', pattern: /报告|报告单/ }
+  { kind: 'medication', label: '用药随记', pattern: /用药|服药|药物|药品|药片|药膏/ },
+  { kind: 'examination', label: '检查随记', pattern: /检查|化验|检验|血常规|影像|CT|核磁|超声/i },
+  { kind: 'visit', label: '就诊随记', pattern: /就诊|看医生|医院|门诊|急诊/ },
+  { kind: 'surgery', label: '手术随记', pattern: /手术|术后|术前/ },
+  { kind: 'report', label: '报告随记', pattern: /报告|报告单/ }
 ]
 
 function uniqueRegions(values: readonly string[]) {
@@ -54,7 +54,7 @@ export function getHealthEventCardIconPresentation({
     const regions = uniqueRegions(explicitParts)
     if (regions.length === 1) return presentation(regions[0].kind, regions[0].label, 'structured')
     if (regions.length > 1 || explicitParts.length > 1) return presentation('combined', '多部位或组合症状', 'structured')
-    return presentation('general', '综合健康事件', 'structured')
+    return presentation('general', '综合健康随记', 'structured')
   }
 
   const labels = [displayTitle, ...fallbackTexts, ...summaryFragments.map(({ label }) => label)].map((label) => label.trim()).filter(Boolean)
@@ -78,5 +78,5 @@ export function getHealthEventCardIconPresentation({
   const categoryFallback: Partial<Record<HealthEventCategory, HealthEventCardIconPresentation>> = {
     allergy: presentation('combined', '全身或组合症状', 'semantic-fallback')
   }
-  return categoryFallback[category] ?? presentation('general', '综合健康事件', 'general')
+  return categoryFallback[category] ?? presentation('general', '综合健康随记', 'general')
 }

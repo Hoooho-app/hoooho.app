@@ -15,7 +15,7 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete }: Health
 
   return (
     <div>
-      <div aria-label="按日期排序的健康事件" className="health-event-list space-y-3">
+      <div aria-label="按日期排序的健康随记" className="health-event-list space-y-3">
         {dateGroups.flatMap((dateGroup) => dateGroup.events.map((event) => (
           <HealthEventCard
             dateLabel={formatHealthEventDate(event.startTime) ?? `开始于 ${formatPlainMonthDay(dateGroup.date)} ${formatPlainWeekday(dateGroup.date)}`}
@@ -26,7 +26,7 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete }: Health
           />
         )))}
       </div>
-      <p className="care-optional-detail hoho-text-caption py-5 text-center">没有更多事件了</p>
+      <p className="care-optional-detail hoho-text-caption py-5 text-center">没有更多健康随记了</p>
     </div>
   )
 }

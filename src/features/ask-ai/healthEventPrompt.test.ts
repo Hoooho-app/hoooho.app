@@ -96,7 +96,7 @@ test('does not fabricate normal findings for an empty profile', () => {
 
 test('renders the complete professional prompt structure and the user question', () => {
   const prompt = buildHealthEventPrompt(baseContext, getAllPromptItemIds(baseContext), '应该挂什么科')
-  for (const title of ['# 我的健康问题', '## 这次我主要想问', '# 对象基本信息', '# 当前健康事件', '# 完整时间线', '# 用户原始记录', '# 已采取的措施及效果', '# 健康档案', '# 相关历史健康事件', '# 检查结果与附件说明']) assert.match(prompt, new RegExp(title.replace('#', '\\#')))
+  for (const title of ['# 我的健康问题', '## 这次我主要想问', '# 对象基本信息', '# 当前健康随记', '# 完整时间线', '# 用户原始记录', '# 已采取的措施及效果', '# 健康档案', '# 相关历史健康随记', '# 检查结果与附件说明']) assert.match(prompt, new RegExp(title.replace('#', '\\#')))
   assert.match(prompt, /应该挂什么科/)
   assert.match(prompt, /不要擅自建议开始、停止或改变处方药/)
 })

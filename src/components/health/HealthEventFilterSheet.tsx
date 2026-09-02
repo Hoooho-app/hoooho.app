@@ -72,7 +72,7 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
   }))
 
   return (
-    <div className="health-events-filter-layer fixed inset-0 z-50 mx-auto w-full" role="dialog" aria-modal="true" aria-label="健康事件筛选">
+    <div className="health-events-filter-layer fixed inset-0 z-50 mx-auto w-full" role="dialog" aria-modal="true" aria-label="健康随记筛选">
       <button className="absolute inset-0 bg-text-primary/40" aria-label="关闭筛选" type="button" onClick={onClose} />
       <aside className="absolute inset-y-0 right-0 flex w-[84%] max-w-[338px] flex-col overflow-y-auto bg-surface px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] shadow-floating">
         <header className="flex items-center justify-between">
@@ -125,7 +125,7 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold">事件状态</h3>
+            <h3 className="text-sm font-semibold">随记状态</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               <ChoiceButton active={draft.statuses.length === 0} onClick={() => setDraft((current) => ({ ...current, statuses: [] }))}>全部</ChoiceButton>
               {statuses.map(([value, label]) => <ChoiceButton active={draft.statuses.includes(value)} key={value} onClick={() => toggleStatus(value)}>{label}</ChoiceButton>)}
@@ -133,7 +133,7 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold">事件类型</h3>
+            <h3 className="text-sm font-semibold">随记类型</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               <ChoiceButton active={draft.definitionTitles.length === 0} onClick={() => setDraft((current) => ({ ...current, definitionTitles: [] }))}>全部</ChoiceButton>
               {definitionTitles.map((title) => <ChoiceButton active={draft.definitionTitles.includes(title)} key={title} onClick={() => toggleDefinitionTitle(title)}>{title}</ChoiceButton>)}

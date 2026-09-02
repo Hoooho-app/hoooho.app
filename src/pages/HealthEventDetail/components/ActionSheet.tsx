@@ -20,21 +20,21 @@ interface ActionFeature {
 const categoryContent: Record<Exclude<ActionCategory, 'observation' | 'consultation' | 'online-consultation'>, { description: string; label: string; features: ActionFeature[] }> = {
   hospital: {
     label: '去医院',
-    description: '为线下就医整理当前健康事件信息，方便挂号、候诊和现场沟通。',
+    description: '为线下就医整理这条健康随记，方便挂号、候诊和现场沟通。',
     features: [
       { id: 'registration', title: '挂号前整理', description: '整理症状、既往情况、用药等基础信息。', actionLabel: '生成挂号信息', icon: ClipboardList, preview: ['主要症状与持续时间', '既往情况与当前用药', '需要补充的信息'] },
       { id: 'medical-summary', title: '生成就医摘要', description: '生成就医时间线和关键健康信息摘要。', actionLabel: '生成就医摘要', icon: FileText, preview: ['主要症状', '时间线', '体温与用药', '检查与状态变化'] },
       { id: 'doctor-questions', title: '整理想问医生的问题', description: '根据当前记录整理重点疑问和问题清单。', actionLabel: '生成问题清单', icon: HelpCircle, preview: ['症状持续多久', '哪些变化需要重点说明', '是否还需补充信息'] },
-      { id: 'medical-list', title: '检查 / 用药清单', description: '整理当前事件中已经记录的检查和用药情况。', actionLabel: '生成清单', icon: ListChecks, preview: ['检查记录', '用药名称与时间', '待确认内容'] }
+      { id: 'medical-list', title: '检查 / 用药清单', description: '整理这条健康随记中已经记录的检查和用药情况。', actionLabel: '生成清单', icon: ListChecks, preview: ['检查记录', '用药名称与时间', '待确认内容'] }
     ]
   },
   help: {
     label: '求助',
     description: '快速整理关键信息，方便向家人、朋友或其他人求助。',
     features: [
-      { id: 'help-summary', title: '生成求助摘要', description: '整理当前健康事件的关键情况。', actionLabel: '生成求助摘要', icon: FileText, preview: ['发生了什么', '当前状态', '需要什么帮助'] },
+      { id: 'help-summary', title: '生成求助摘要', description: '整理这条健康随记的关键情况。', actionLabel: '生成求助摘要', icon: FileText, preview: ['发生了什么', '当前状态', '需要什么帮助'] },
       { id: 'help-poster', title: '生成求助海报', description: '将关键信息整理成便于转发的图文形式。', actionLabel: '生成求助海报', icon: Send, preview: ['关键信息卡片', '适合分享的图文布局'] },
-      { id: 'key-information', title: '整理关键信息', description: '提炼当前事件中最重要的信息。', actionLabel: '整理关键信息', icon: ListChecks, preview: ['重要时间', '主要症状', '当前处理'] },
+      { id: 'key-information', title: '整理关键信息', description: '提炼这条健康随记中最重要的信息。', actionLabel: '整理关键信息', icon: ListChecks, preview: ['重要时间', '主要症状', '当前处理'] },
       { id: 'share-contact', title: '分享给家人 / 朋友', description: '将整理后的内容发送给指定联系人。', actionLabel: '分享', icon: Share2, preview: ['选择联系人', '分享内容预览'] }
     ]
   }
@@ -143,11 +143,11 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
 
   return (
     <div className="health-observation-content">
-      <Typography variant="body">持续收集当前健康事件中值得关注的变化。</Typography>
+      <Typography variant="body">持续收集这条健康随记中值得关注的变化。</Typography>
       <section>
         <Typography variant="label">1. 谁来记录</Typography>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <RecorderChoice active={recorder === 'self'} description="由我继续补充这个健康事件的变化" icon={UserRound} label="自己记录" onClick={() => setRecorder('self')} />
+          <RecorderChoice active={recorder === 'self'} description="由我继续补充这条健康随记的变化" icon={UserRound} label="自己记录" onClick={() => setRecorder('self')} />
           <RecorderChoice active={recorder === 'family'} description="邀请家人通过链接一起补充" icon={UsersRound} label="家人协作" onClick={() => setRecorder('family')} />
         </div>
       </section>
@@ -157,7 +157,7 @@ function ObservationContent({ onComingSoon, recorder, setRecorder }: { onComingS
           <Typography variant="label">2. 协作链接</Typography>
           <HealthCard className="mt-2 shadow-none">
             <div className="flex items-center gap-2 text-sm font-medium"><Link className="text-primary" size={18} />hoho.app/care/8K2F...</div>
-            <Typography className="mt-2" variant="caption">家人可通过链接补充本事件的相关情况，例如测量数据、症状变化、作息和图片。</Typography>
+            <Typography className="mt-2" variant="caption">家人可通过链接补充这条健康随记的相关情况，例如测量数据、症状变化、作息和图片。</Typography>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <HohoButton onClick={onComingSoon} variant="secondary"><Copy size={16} />复制链接</HohoButton>
               <HohoButton onClick={onComingSoon} variant="secondary"><Send size={16} />发送给家人</HohoButton>

@@ -8,7 +8,7 @@ interface EventHeaderProps {
   title?: string
 }
 
-export function EventHeader({ confirmDisabled = false, confirming = false, onConfirm, title = '健康事件详情' }: EventHeaderProps) {
+export function EventHeader({ confirmDisabled = false, confirming = false, onConfirm, title = '健康随记详情' }: EventHeaderProps) {
   const navigate = useNavigate()
 
   return (

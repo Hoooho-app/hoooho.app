@@ -11,7 +11,7 @@ export function EventSummarySection({ event }: EventSummarySectionProps) {
   if (!displayed) return null
 
   return (
-    <section aria-label="健康事件概览">
+    <section aria-label="健康随记概览">
       <HealthEventCardSurface
         displayTitle={getHealthEventDisplayTitle(event.title, displayed)}
         summaryFragments={getHealthEventSummaryFragments({ status: event.status, summary: displayed }).map(({ label }) => label)}

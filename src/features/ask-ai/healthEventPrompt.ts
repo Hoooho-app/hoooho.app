@@ -86,10 +86,10 @@ function assertMemberScope(context: HealthEventPromptContext) {
   const memberId = context.currentMemberId.trim()
   if (!memberId || memberId === 'self') throw new Error('当前对象无法确认，请先选择人物')
   if (context.member.id !== memberId || context.event.memberId !== memberId) {
-    throw new Error('当前健康事件与所选人物不一致，请返回后重新选择人物')
+    throw new Error('当前健康随记与所选人物不一致，请返回后重新选择人物')
   }
   if (context.relatedEvents.some((event) => event.memberId !== memberId)) {
-    throw new Error('发现不属于当前人物的历史事件，已停止生成')
+    throw new Error('发现不属于当前人物的历史健康随记，已停止生成')
   }
 }
 
@@ -146,15 +146,15 @@ export function getPromptInformationGroups(context: HealthEventPromptContext): P
   const historyItems = context.relatedEvents
     .filter((event) => event.memberId === context.currentMemberId && event.id !== context.event.id)
     .sort((left, right) => (validTime(right.startTime)?.getTime() ?? 0) - (validTime(left.startTime)?.getTime() ?? 0))
-    .map((event) => ({ id: `history:${event.id}`, label: event.title || '未命名健康事件', detail: `${formatTime(event.startTime)} · ${eventStatus(event.status)}` }))
+    .map((event) => ({ id: `history:${event.id}`, label: event.title || '未命名健康随记', detail: `${formatTime(event.startTime)} · ${eventStatus(event.status)}` }))
 
   return [
     { id: 'basic', label: '对象基本信息', description: '姓名、年龄、性别及已填写的基础资料', items: [{ id: 'basic:member', label: context.member.name, detail: [context.member.age, genderLabel(context.member.gender)].filter(Boolean).join(' · ') }] },
-    { id: 'event', label: '当前健康事件', description: '事件标题、开始时间、状态和当前摘要', items: [{ id: 'event:overview', label: context.event.title || '未命名健康事件', detail: `${formatTime(context.event.startDate)} · ${eventStatus(context.event.status)}` }] },
+    { id: 'event', label: '当前健康随记', description: '随记标题、开始时间、状态和当前摘要', items: [{ id: 'event:overview', label: context.event.title || '未命名健康随记', detail: `${formatTime(context.event.startDate)} · ${eventStatus(context.event.status)}` }] },
     { id: 'timeline', label: '完整结构化时间线', description: '保留时间、否定、假设、变化和来源原文', items: facts.map((item) => ({ id: item.id, label: item.fact.name, detail: factLine(item) })) },
-    { id: 'raw', label: '用户原始记录', description: '当前事件中的完整原话，不做截断', items: [...context.records].sort((left, right) => (validTime(left.occurredAt)?.getTime() ?? 0) - (validTime(right.occurredAt)?.getTime() ?? 0)).map((record) => ({ id: `raw:${record.id}`, label: formatTime(record.occurredAt), detail: record.sourceText?.trim() || record.content })) },
+    { id: 'raw', label: '用户原始记录', description: '这条健康随记中的完整原话，不做截断', items: [...context.records].sort((left, right) => (validTime(left.occurredAt)?.getTime() ?? 0) - (validTime(right.occurredAt)?.getTime() ?? 0)).map((record) => ({ id: `raw:${record.id}`, label: formatTime(record.occurredAt), detail: record.sourceText?.trim() || record.content })) },
     { id: 'profile', label: '健康档案', description: '只包含当前人物已填写的档案', items: profileItems },
-    { id: 'history', label: '相关历史事件', description: '当前人物的其他健康事件', items: historyItems },
+    { id: 'history', label: '相关历史随记', description: '当前人物的其他健康随记', items: historyItems },
     { id: 'attachments', label: '检查结果与附件', description: '识别文字会写入提示词，原文件仍需手动上传', items: context.attachments.map((attachment) => ({ id: `attachment:${attachment.id}`, label: attachment.name, detail: attachmentText(attachment) })) },
   ]
 }
@@ -271,7 +271,7 @@ ${questionText}
 说明主要不确定性。若引用医学指南、研究或权威机构资料，请提供可核查的来源名称和链接；无法确认时请直接说明，不要编造引用。`
 
   const currentEvent = selected.has('event:overview') ? [
-    `- 事件标题：${context.event.title || '未命名健康事件'}`,
+    `- 随记标题：${context.event.title || '未命名健康随记'}`,
     `- 开始时间：${formatTime(context.event.startDate)}`,
     `- 当前状态：${eventStatus(context.event.status)}`,
     `- 当前摘要：${context.event.summary || '未提供'}`,
@@ -289,20 +289,20 @@ ${questionText}
     ...unique(context.event.visits).map((item) => `- 就诊：${item}`),
   ] : []
   const actions = [...measures.map((record) => `- ${formatTime(record.occurredAt)}：${record.content}${record.note ? `；效果或备注：${record.note}` : ''}`), ...structuredActions].join('\n') || '未提供'
-  const historyText = history.length ? history.map((event) => `- ${event.title || '未命名健康事件'}｜${formatTime(event.startTime)}｜${eventStatus(event.status)}`).join('\n') : '未提供或已由用户排除'
+  const historyText = history.length ? history.map((event) => `- ${event.title || '未命名健康随记'}｜${formatTime(event.startTime)}｜${eventStatus(event.status)}`).join('\n') : '未提供或已由用户排除'
   const attachmentTextContent = attachments.length ? attachments.map((attachment) => `- ${attachmentText(attachment).replace(/\n/g, '\n  ')}`).join('\n') : '未提供或已由用户排除'
   const manualUploads = [...attachments.map((attachment) => `- ${attachment.name}（${attachment.mimeType}）`), ...profileManualUploads].join('\n') || '无'
 
   return [
     heading('我的健康问题', instructions),
     heading('对象基本信息', selected.has('basic:member') ? basicInformation(context) : '已由用户排除'),
-    heading('当前健康事件', currentEvent),
+    heading('当前健康随记', currentEvent),
     heading('完整时间线', timeline),
     heading('用户原始记录', `以下内容与结构化时间线分区展示，避免被误认为重复发生。\n\n${originals}`),
     heading('已采取的措施及效果', actions),
     heading('健康档案', profileItems.join('\n\n') || '未提供或已由用户排除；未填写不代表没有异常。'),
-    heading('相关历史健康事件', historyText),
+    heading('相关历史健康随记', historyText),
     heading('检查结果与附件说明', `${attachmentTextContent}\n\n以下附件无法随文字复制，需要我另外上传：\n\n${manualUploads}`),
-    `---\n\n资料范围说明：以上内容仅包含「${context.member.name}」的信息；共汇集 ${summary.totalCount} 项，其中当前事件原始记录 ${summary.recordCount} 条。结构化整理结果与用户原话均已保留。`,
+    `---\n\n资料范围说明：以上内容仅包含「${context.member.name}」的信息；共汇集 ${summary.totalCount} 项，其中当前随记原始记录 ${summary.recordCount} 条。结构化整理结果与用户原话均已保留。`,
   ].join('\n\n')
 }
