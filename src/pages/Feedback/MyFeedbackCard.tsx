@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/common'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { addFeedbackMessage, feedbackProblemTypeLabel, feedbackStatusLabels, type FeedbackAttachment, type FeedbackRecord } from '../../services/feedback'
@@ -21,14 +21,10 @@ export function MyFeedbackCard({ token, item, detail, expanded, loading, onToggl
   const [replying, setReplying] = useState(false), [text, setText] = useState(''), [images, setImages] = useState<PendingFeedbackImage[]>([]), [submitting, setSubmitting] = useState(false), [error, setError] = useState('')
   const imagesRef = useRef(images); imagesRef.current = images
   useEffect(() => () => revokeFeedbackImages(imagesRef.current), [])
-  const timeline = useMemo(() => {
-    if (!detail) return []
-    return [
-      { id: `original-${detail.id}`, at: detail.createdAt, type: 'original', title: '我的反馈', text: detail.description },
-      ...(detail.statusHistory ?? []).slice(1).map((entry) => ({ id: entry.id, at: entry.createdAt, type: 'status', title: '处理状态', text: feedbackStatusLabels[entry.status] })),
-      ...(detail.messages ?? []).map((message) => ({ id: message.id, at: message.createdAt, type: message.senderType, title: message.senderType === 'team' ? 'Hoooho 回复' : '我的回复', text: message.text }))
-    ].sort((a, b) => a.at.localeCompare(b.at))
-  }, [detail])
+  const messages = detail ? [
+    { id: `original-${detail.id}`, at: detail.createdAt, type: 'original', title: '我的反馈', text: detail.description },
+    ...(detail.messages ?? []).map((message) => ({ id: message.id, at: message.createdAt, type: message.senderType, title: message.senderType === 'team' ? 'Hoooho 回复' : '我的补充', text: message.text }))
+  ].sort((a, b) => a.at.localeCompare(b.at)) : []
   const send = async () => {
     if (!detail || submitting || (!text.trim() && images.length === 0) || images.some((image) => image.status !== 'ready')) return
     setSubmitting(true); setError('')
@@ -43,11 +39,10 @@ export function MyFeedbackCard({ token, item, detail, expanded, loading, onToggl
     <button className="my-feedback-card-summary" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span className="my-feedback-card-heading"><strong>{item.summary}</strong><em data-status={item.status}>{feedbackStatusLabels[item.status]}</em></span>
       <span className="my-feedback-card-meta">{meta}</span>
-      <span className="my-feedback-card-text">{item.description || '已上传图片反馈'}</span>
-      <span className="my-feedback-card-latest">{item.unreadReplyCount > 0 && <i aria-label="有未读回复"/>}<span>{item.latestReply ? `Hoooho：${item.latestReply}` : `Hoooho：${feedbackStatusLabels[item.status]}`}</span><b>{loading ? '读取中…' : expanded ? '收起⌃' : '展开⌄'}</b></span>
+      <span className="my-feedback-card-toggle">{item.unreadReplyCount > 0 && <i aria-label="有未读回复"/>}<b>{loading ? '读取中…' : expanded ? '收起⌃' : '展开⌄'}</b></span>
     </button>
     {expanded && detail && <div className="my-feedback-expanded">
-      <div className="my-feedback-timeline">{timeline.map((entry) => <article key={entry.id} data-kind={entry.type}><header><strong>{entry.title}</strong><time>{fullTime(entry.at)}</time></header><p>{entry.text || '图片反馈'}</p>{entry.type === 'original' && <AttachmentList attachments={(detail.attachments ?? []).filter((attachment) => !attachment.messageId)}/>}<AttachmentList attachments={(detail.attachments ?? []).filter((attachment) => attachment.messageId === entry.id)}/></article>)}</div>
+      <div className="my-feedback-timeline">{messages.map((entry) => <article key={entry.id} data-kind={entry.type}><header><strong>{entry.title}</strong><time>{fullTime(entry.at)}</time></header><p>{entry.text || '图片反馈'}</p>{entry.type === 'original' && <AttachmentList attachments={(detail.attachments ?? []).filter((attachment) => !attachment.messageId)}/>}<AttachmentList attachments={(detail.attachments ?? []).filter((attachment) => attachment.messageId === entry.id)}/></article>)}</div>
       {!replying ? <button className="my-feedback-reply-trigger" type="button" onClick={() => setReplying(true)}>继续回复</button> : <section className="my-feedback-reply"><FeedbackComposer text={text} onTextChange={setText} images={images} onImagesChange={setImages} maxImages={Math.max(0, 10 - detail.attachmentCount)} showVoice={false} textLabel="回复内容" placeholder="补充情况，或者回复 Hoooho"/>{error && <p className="feedback-error" role="alert">{error}</p>}<div><button type="button" onClick={() => setReplying(false)}>取消</button><Button type="button" disabled={submitting || (!text.trim() && images.length === 0) || images.some((image) => image.status !== 'ready')} onClick={() => void send()}>{submitting ? '发送中…' : '发送回复'}</Button></div></section>}
     </div>}
   </article>

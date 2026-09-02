@@ -12,7 +12,7 @@ export interface FeedbackMessage { id: string; feedbackId: string; authorAccount
 export interface FeedbackHistory { id: string; feedbackId: string; status: FeedbackStatus; createdAt: string }
 export interface FeedbackRecord {
   id: string; category: FeedbackCategory; problemPage: FeedbackProblemPage | null; problemType: FeedbackProblemType | null; description: string; summary: string; sourcePath: string | null; sourceName: string | null;
-  appVersion: string | null; status: FeedbackStatus; handledVersion: string | null; noActionReason: string | null; mergedIntoId: string | null;
+  appVersion: string | null; status: FeedbackStatus; handledVersion?: string | null; noActionReason?: string | null; mergedIntoId?: string | null;
   createdAt: string; updatedAt: string; statusUpdatedAt: string; latestReply: string | null; unreadReplyCount: number; attachmentCount: number;
   attachments?: FeedbackAttachment[]; messages?: FeedbackMessage[]; statusHistory?: FeedbackHistory[]
 }
@@ -22,7 +22,7 @@ export interface FeedbackInput {
 }
 export interface OpsFeedbackRecord extends Omit<FeedbackRecord, 'messages'> {
   accountId: string; priority: FeedbackPriority; device: { type: string; os: string | null; browser: string | null; screen: string | null };
-  supplementCount: number; mergedCount: number; lastOpsViewedAt: string | null; hasUnreadSupplement: boolean; messages?: FeedbackMessage[]
+  supplementCount: number; mergedCount: number; lastOpsViewedAt: string | null; hasUnreadSupplement: boolean; messages?: FeedbackMessage[]; statusHistory?: FeedbackHistory[]
 }
 export interface OpsFeedbackOverview { new: number; pendingView: number; viewed: number; evaluating: number; improving: number; resolved: number; duplicates: number; withSupplements: number; unreadSupplements: number; averageFirstViewMs: number | null }
 
