@@ -46,6 +46,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
   const handledSaveSuccessSequenceRef = useRef(0)
   const saveSuccessSessionRef = useRef(0)
   const activeSaveSuccessSessionRef = useRef(0)
+  const returningFromSaveSuccessRef = useRef(0)
+  const saveSuccessVisibleRef = useRef(false)
   const reducedMotionRef = useRef(reducedMotion)
 
   idlePlaybackAllowedRef.current = active
@@ -149,15 +151,34 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
     startPreparedVideo(next)
   }, [startPreparedVideo, updatePlaylist])
 
-  const finishSaveSuccess = useCallback((sessionId: number) => {
+  const completeSaveSuccessReturn = useCallback((sessionId: number) => {
     if (sessionId <= 0 || sessionId !== activeSaveSuccessSessionRef.current) return
     activeSaveSuccessSessionRef.current = 0
+    returningFromSaveSuccessRef.current = 0
+    saveSuccessVisibleRef.current = false
     const video = saveSuccessVideoRef.current
     video?.pause()
     if (video) video.currentTime = 0
     if (mountedRef.current) setSaveSuccessPlaying(false)
+  }, [])
+
+  const returnFromSaveSuccess = useCallback((sessionId: number) => {
+    if (sessionId <= 0 || sessionId !== activeSaveSuccessSessionRef.current) return
+    returningFromSaveSuccessRef.current = sessionId
     startLoopFromIdleOne()
   }, [startLoopFromIdleOne])
+
+  const cancelSaveSuccessAttempt = useCallback((sessionId: number) => {
+    if (sessionId <= 0 || sessionId !== activeSaveSuccessSessionRef.current) return
+    activeSaveSuccessSessionRef.current = 0
+    returningFromSaveSuccessRef.current = 0
+    saveSuccessVisibleRef.current = false
+    const video = saveSuccessVideoRef.current
+    video?.pause()
+    if (video) video.currentTime = 0
+    if (mountedRef.current) setSaveSuccessPlaying(false)
+    startOrResumeIdle()
+  }, [startOrResumeIdle])
 
   const playSaveSuccess = useCallback(async (sessionId: number) => {
     const video = saveSuccessVideoRef.current
@@ -168,9 +189,9 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
     try {
       await video.play()
     } catch {
-      finishSaveSuccess(sessionId)
+      cancelSaveSuccessAttempt(sessionId)
     }
-  }, [finishSaveSuccess])
+  }, [cancelSaveSuccessAttempt])
 
   const retryIdleVideo = useCallback((videoIndex: NurseVideoIndex) => {
     idleFailedRef.current[videoIndex] = true
@@ -220,7 +241,9 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
     if (next === current) return
     updatePlaylist(next)
     setIdlePlaybackBlocked(false)
-  }, [updatePlaylist])
+    const saveSuccessSessionId = returningFromSaveSuccessRef.current
+    if (saveSuccessSessionId > 0) completeSaveSuccessReturn(saveSuccessSessionId)
+  }, [completeSaveSuccessReturn, updatePlaylist])
 
   const handleIdleEnded = useCallback((videoIndex: NurseVideoIndex) => {
     const current = playlistRef.current
@@ -260,6 +283,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
       playlistRef.current = suspendIdlePlaylist(playlistRef.current)
       saveSuccessSessionRef.current += 1
       activeSaveSuccessSessionRef.current = 0
+      returningFromSaveSuccessRef.current = 0
+      saveSuccessVisibleRef.current = false
       saveSuccessVideoRef.current?.pause()
       pauseIdlePlayers()
     }
@@ -279,14 +304,15 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
     saveSuccessSessionRef.current += 1
     const sessionId = saveSuccessSessionRef.current
     activeSaveSuccessSessionRef.current = sessionId
-    stopIdlePlaylist()
     void playSaveSuccess(sessionId)
-  }, [active, playSaveSuccess, saveSuccessSequence, stopIdlePlaylist])
+  }, [active, playSaveSuccess, saveSuccessSequence])
 
   useEffect(() => {
     if (!active) {
       saveSuccessSessionRef.current += 1
       activeSaveSuccessSessionRef.current = 0
+      returningFromSaveSuccessRef.current = 0
+      saveSuccessVisibleRef.current = false
       saveSuccessVideoRef.current?.pause()
       setSaveSuccessPlaying(false)
       stopIdlePlaylist()
@@ -386,8 +412,12 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
         muted
         onContextMenu={(event) => event.preventDefault()}
         onDragStart={(event) => event.preventDefault()}
-        onEnded={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
-        onError={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
+        onEnded={() => returnFromSaveSuccess(activeSaveSuccessSessionRef.current)}
+        onError={() => {
+          const sessionId = activeSaveSuccessSessionRef.current
+          if (saveSuccessVisibleRef.current) returnFromSaveSuccess(sessionId)
+          else cancelSaveSuccessAttempt(sessionId)
+        }}
         onLoadedData={() => {
           const video = saveSuccessVideoRef.current
           if (video) {
@@ -397,7 +427,10 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
           }
         }}
         onPlaying={() => {
-          if (activeSaveSuccessSessionRef.current > 0) setSaveSuccessPlaying(true)
+          if (activeSaveSuccessSessionRef.current <= 0) return
+          saveSuccessVisibleRef.current = true
+          setSaveSuccessPlaying(true)
+          stopIdlePlaylist()
         }}
         playsInline
         poster="/nurse-triage/attention.png"

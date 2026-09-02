@@ -43,13 +43,16 @@ test('快速记录留在前台核对并只在确认保存时调用原子接口',
   assert.match(flow, />结束听写</)
   assert.match(page, /quickRecordService\.create/)
   assert.match(page, /idempotencyKey: submissionKeyRef\.current/)
-  assert.match(page, /已为 \$\{currentMember\.name\} 保存/)
+  assert.match(page, /return '已记录'/)
+  assert.doesNotMatch(page, /已为 \$\{currentMember\.name\} 保存/)
+  assert.match(nurse, /setSavedNotice\('已记录'\)/)
   assert.doesNotMatch(nurse, /onPreview=/)
 })
 
-test('护士视觉由业务状态驱动并只请求当前图片', () => {
-  assert.match(nurse, /onActivityChange=\{setActivity\}/)
-  assert.match(nurse, /state=\{triageState\}/)
+test('快捷记录全过程保留连续待机视频且成功视频就绪后再交接', () => {
+  assert.match(nurse, /idleActive\s*\n/)
+  assert.match(nurse, /state="idle"/)
+  assert.doesNotMatch(nurse, /idleActive=\{!open\}|state=\{triageState\}/)
   assert.match(desk, /\{activeAsset && <img/)
   assert.doesNotMatch(desk, /allNurseTriageAssets\.map|preloadNurseTriageAssets/)
   assert.match(idleVisual, /idle-nurse-visual__poster/)
@@ -57,6 +60,10 @@ test('护士视觉由业务状态驱动并只请求当前图片', () => {
   assert.match(idleVisual, /onLoadedData=\{\(\) => handleIdleCanPlay\(videoIndex\)\}/)
   assert.match(idleVisual, /preload="auto"/)
   assert.match(idleVisual, /window\.addEventListener\('pageshow'/)
+  assert.doesNotMatch(idleVisual, /activeSaveSuccessSessionRef\.current = sessionId\s*\n\s*stopIdlePlaylist\(\)/)
+  assert.match(idleVisual, /onPlaying=\{\(\) => \{[\s\S]*setSaveSuccessPlaying\(true\)[\s\S]*stopIdlePlaylist\(\)/)
+  assert.match(idleVisual, /onEnded=\{\(\) => returnFromSaveSuccess/)
+  assert.match(idleVisual, /if \(saveSuccessSessionId > 0\) completeSaveSuccessReturn/)
 })
 
 test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {

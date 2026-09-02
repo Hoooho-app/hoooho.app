@@ -256,11 +256,9 @@ export function HealthEventsPage() {
         idempotencyKey: submissionKeyRef.current,
         title: normalizeHealthEventTitle('', transcript)
       }, token)
-      const summary = transcript.trim().replace(/\s+/g, ' ').slice(0, 30)
-      const message = `已为 ${currentMember.name} 保存：${summary}${transcript.trim().length > 30 ? '…' : ''}`
       submissionKeyRef.current = ''
       void retry()
-      return message
+      return '已记录'
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
