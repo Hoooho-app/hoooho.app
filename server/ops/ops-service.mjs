@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
@@ -66,12 +66,12 @@ function decodeSnapshot(input) {
     : type === 'image/png' ? buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
       : buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
   if (!validMagic) throw new OpsError('截图内容与文件类型不一致', 400, 'OPS_SNAPSHOT_TYPE_MISMATCH')
-  return { name, type, extension, buffer }
+  return { name, type, extension, buffer, contentHash: createHash('sha256').update(buffer).digest('hex') }
 }
 
 function publicSnapshot(snapshot) {
   if (!snapshot) return null
-  const { storageKey: _storageKey, ...view } = snapshot
+  const { storageKey: _storageKey, contentHash: _contentHash, ...view } = snapshot
   return view
 }
 
@@ -106,6 +106,8 @@ export class OpsService {
   #store
   #storage
   #collectors
+  #refreshes = new Map()
+  #refreshAllPromise = null
   constructor(options = {}) {
     const directory = options.dataDirectory ?? process.cwd()
     this.#store = options.store ?? new JsonStore(path.join(directory, 'ops', 'billing-sources.json'), emptyData)
@@ -126,7 +128,8 @@ export class OpsService {
   async #prune(now = new Date()) {
     const data = await this.#readAndRepair()
     const cutoff = new Date(now.getTime() - 30 * 86_400_000).toISOString()
-    const expired = data.snapshots.filter((item) => !item.important && item.createdAt < cutoff)
+    const latestIds = new Set(data.sources.map((item) => item.latestSnapshotId).filter(Boolean))
+    const expired = data.snapshots.filter((item) => !item.important && !latestIds.has(item.id) && item.createdAt < cutoff)
     if (!expired.length) return data
     const expiredIds = new Set(expired.map((item) => item.id))
     const next = normalizeData(await this.#store.update((raw) => {
@@ -169,12 +172,24 @@ export class OpsService {
   }
 
   async addManualSnapshot(id, input, now = new Date()) {
+    const snapshotMethod = METHODS.has(input.method) ? input.method : 'manual-screenshot'
+    if (snapshotMethod === 'manual-screenshot' && input.privacyConfirmed !== true) {
+      throw new OpsError('保存前必须确认截图已裁除无关隐私信息', 400, 'OPS_SNAPSHOT_PRIVACY_CONFIRMATION_REQUIRED')
+    }
     const prepared = decodeSnapshot(input), createdAt = iso(now), snapshotId = randomUUID()
     const storageKey = `${id}-${snapshotId}.${prepared.extension}`
-    const snapshotMethod = METHODS.has(input.method) ? input.method : 'manual-screenshot'
-    const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, important: false, failureReason: null }
+    const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, contentHash: prepared.contentHash, important: false, failureReason: null }
     const data = await this.#readAndRepair()
-    if (!data.sources.some((item) => item.id === id)) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    const selected = data.sources.find((item) => item.id === id)
+    if (!selected) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    const latest = data.snapshots.find((item) => item.id === selected.latestSnapshotId && item.result === 'success')
+    if (latest?.contentHash === prepared.contentHash) {
+      await this.#store.update((raw) => {
+        const current = normalizeData(raw)
+        return { ...current, sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastFailureReason: null, updatedAt: createdAt } : item) }
+      })
+      return this.get(id)
+    }
     await this.#storage.save(storageKey, prepared.buffer)
     try {
       await this.#store.update((raw) => {
@@ -194,7 +209,7 @@ export class OpsService {
     })
   }
 
-  async refresh(id, now = new Date()) {
+  async #refresh(id, now = new Date()) {
     const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
     if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
     if (!item.enabled) return publicSource(item, data.snapshots)
@@ -220,10 +235,26 @@ export class OpsService {
     }
   }
 
+  async refresh(id, now = new Date()) {
+    const pending = this.#refreshes.get(id)
+    if (pending) return pending
+    const operation = this.#refresh(id, now)
+    this.#refreshes.set(id, operation)
+    try { return await operation } finally { if (this.#refreshes.get(id) === operation) this.#refreshes.delete(id) }
+  }
+
   async refreshAll(now = new Date()) {
-    const data = await this.#readAndRepair()
-    for (const item of data.sources) if (item.enabled && item.frequency !== 'manual') await this.refresh(item.id, now)
-    return this.list(now)
+    if (this.#refreshAllPromise) return this.#refreshAllPromise
+    const operation = (async () => {
+      const data = await this.#readAndRepair()
+      for (const item of data.sources) {
+        if (!item.enabled || item.frequency === 'manual') continue
+        try { await this.refresh(item.id, now) } catch { /* isolate a single source/storage failure */ }
+      }
+      return this.list(now)
+    })()
+    this.#refreshAllPromise = operation
+    try { return await operation } finally { if (this.#refreshAllPromise === operation) this.#refreshAllPromise = null }
   }
 
   async refreshScheduled(now = new Date()) {
@@ -234,7 +265,7 @@ export class OpsService {
       const attemptedToday = item.lastAttemptAt && new Date(item.lastAttemptAt).toLocaleDateString('en-CA') === today
       const attemptedRecently = item.lastAttemptAt && now.getTime() - new Date(item.lastAttemptAt).getTime() < 7 * 86_400_000
       if (attemptedToday || (item.frequency === 'weekly' && attemptedRecently)) continue
-      await this.refresh(item.id, now)
+      try { await this.refresh(item.id, now) } catch { /* keep later sources running */ }
     }
     return this.list(now)
   }
@@ -282,11 +313,11 @@ export function assertOpsAccess(payload, options = {}) {
 export function startOpsScheduler(service, options = {}) {
   const hour = Number.isInteger(options.hour) ? options.hour : 8
   const minute = Number.isInteger(options.minute) ? options.minute : 0
+  const timeZone = cleanText(options.timeZone ?? process.env.OPS_SCHEDULER_TIME_ZONE ?? 'Asia/Shanghai', 100)
+  new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date())
   let timer
   const schedule = () => {
-    const current = new Date(), next = new Date(current)
-    next.setHours(hour, minute, 0, 0)
-    if (next <= current) next.setDate(next.getDate() + 1)
+    const current = new Date(), next = getNextOpsRunAt(current, { hour, minute, timeZone })
     timer = setTimeout(async () => {
       try { await service.refreshScheduled(new Date()) } catch { /* keep the next daily run scheduled */ }
       schedule()
@@ -295,4 +326,17 @@ export function startOpsScheduler(service, options = {}) {
   }
   schedule()
   return () => clearTimeout(timer)
+}
+
+export function getNextOpsRunAt(now = new Date(), options = {}) {
+  const hour = Number.isInteger(options.hour) ? options.hour : 8
+  const minute = Number.isInteger(options.minute) ? options.minute : 0
+  const timeZone = cleanText(options.timeZone ?? 'Asia/Shanghai', 100)
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
+  const candidate = new Date(Math.floor(now.getTime() / 60_000) * 60_000 + 60_000)
+  for (let index = 0; index < 2_880; index += 1, candidate.setTime(candidate.getTime() + 60_000)) {
+    const parts = Object.fromEntries(formatter.formatToParts(candidate).map((part) => [part.type, part.value]))
+    if (Number(parts.hour) === hour && Number(parts.minute) === minute) return new Date(candidate)
+  }
+  throw new OpsError('无法计算费用快照定时任务的下一次执行时间', 500, 'OPS_SCHEDULER_TIME_INVALID')
 }
