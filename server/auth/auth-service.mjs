@@ -100,7 +100,28 @@ export class AuthService {
 
   async sendEmailCode(rawEmail, now = Date.now()) {
     const email = this.normalizeEmail(rawEmail)
-    const previous = await this.codes.find('email', email)
+    return this.sendEmailCodeForChannel('email', email, now)
+  }
+
+  opsOwnerEmail() {
+    const email = String(this.config.opsOwnerEmail ?? '').trim().toLowerCase()
+    if (!email || !emailPattern.test(email)) {
+      throw new AuthError('运营后台暂时不可用', 503, 'OPS_OWNER_NOT_CONFIGURED')
+    }
+    return email
+  }
+
+  async sendOpsEmailCode(rawEmail, now = Date.now()) {
+    const email = this.normalizeEmail(rawEmail)
+    const ownerEmail = this.opsOwnerEmail()
+    if (email !== ownerEmail) {
+      return { success: true, expiresIn: Math.floor(this.config.codeTtlMs / 1000), retryAfter: Math.floor(this.config.resendIntervalMs / 1000) }
+    }
+    return this.sendEmailCodeForChannel('ops-email', email, now)
+  }
+
+  async sendEmailCodeForChannel(channel, email, now) {
+    const previous = await this.codes.find(channel, email)
     if (previous && previous.sentAt + this.config.resendIntervalMs > now) {
       const retryAfter = Math.ceil((previous.sentAt + this.config.resendIntervalMs - now) / 1000)
       throw new AuthError(`请在 ${retryAfter} 秒后重新获取`, 429, 'CODE_RATE_LIMITED', { retryAfter })
@@ -123,9 +144,9 @@ export class AuthService {
     }
 
     await this.codes.save({
-      channel: 'email',
+      channel,
       identifier: email,
-      codeHash: hashCode('email', email, code, salt),
+      codeHash: hashCode(channel, email, code, salt),
       salt,
       sentAt: now,
       expiresAt: now + this.config.codeTtlMs,
@@ -137,25 +158,37 @@ export class AuthService {
 
   async loginWithEmail(rawEmail, code, now = Date.now()) {
     const email = this.normalizeEmail(rawEmail)
+    return this.loginWithEmailForChannel('email', email, code, now)
+  }
+
+  async loginOpsWithEmail(rawEmail, code, now = Date.now()) {
+    const email = this.normalizeEmail(rawEmail)
+    if (email !== this.opsOwnerEmail()) {
+      throw new AuthError('邮箱或验证码无效', 403, 'OPS_FORBIDDEN')
+    }
+    return this.loginWithEmailForChannel('ops-email', email, code, now)
+  }
+
+  async loginWithEmailForChannel(channel, email, code, now) {
     if (!/^\d{6}$/.test(code)) throw new AuthError('请输入 6 位数字验证码', 400, 'INVALID_CODE_FORMAT')
 
-    const entry = await this.codes.find('email', email)
+    const entry = await this.codes.find(channel, email)
     if (!entry) throw new AuthError('请先获取验证码', 400, 'CODE_NOT_FOUND')
     if (entry.expiresAt <= now) {
-      await this.codes.consume('email', email)
+      await this.codes.consume(channel, email)
       throw new AuthError('验证码已过期，请重新获取', 400, 'CODE_EXPIRED')
     }
 
-    const provided = Buffer.from(hashCode('email', email, code, entry.salt), 'hex')
+    const provided = Buffer.from(hashCode(channel, email, code, entry.salt), 'hex')
     const expected = Buffer.from(entry.codeHash, 'hex')
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
-      const failed = await this.codes.recordFailedAttempt('email', email, this.config.maxFailedAttempts)
+      const failed = await this.codes.recordFailedAttempt(channel, email, this.config.maxFailedAttempts)
       if (failed.invalidated) throw new AuthError('验证码错误次数过多，请重新获取', 401, 'CODE_ATTEMPTS_EXCEEDED')
       throw new AuthError('验证码错误', 401, 'CODE_INCORRECT')
     }
 
     const user = await this.users.findOrCreateByEmail(email, new Date(now))
-    await this.codes.consume('email', email)
+    await this.codes.consume(channel, email)
     return { token: this.tokens.create(user, now), user }
   }
 }

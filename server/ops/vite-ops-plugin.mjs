@@ -7,15 +7,15 @@ const send = (response,status,data) => { response.statusCode=status; response.se
 
 export function opsApiPlugin(options = {}) {
   const service = new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
-  const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
+  const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   return { name:'hoooho-local-ops-api', configureServer(server) { server.middlewares.use(async (request,response,next) => {
     const pathname = new URL(request.url ?? '/','http://localhost').pathname
     if (!pathname.startsWith('/api/ops')) return next()
     try {
       const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
       const payload = token ? tokens.verify(token) : null
-      if (!payload) throw Object.assign(new Error('登录状态无效或已过期'),{status:401,code:'UNAUTHORIZED'})
-      const access = assertOpsAccess(payload)
+      const access = assertOpsAccess(payload, { ownerEmail: options.opsOwnerEmail ?? authConfig.opsOwnerEmail })
+      if (pathname === '/api/ops/session' && request.method === 'GET') return send(response,200,{authenticated:true,authorized:true,email:payload.email})
       if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response,200,{...await service.list(),accessMode:access.mode})
       if (pathname === '/api/ops/resources' && request.method === 'POST') return send(response,201,await service.create(await readJson(request)))
       const match = /^\/api\/ops\/resources\/([^/]+)$/.exec(pathname)

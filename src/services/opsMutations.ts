@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient'
+import { opsApiRequest } from './opsAuth'
 import type { OpsResource } from './ops'
 
 export interface CreateOpsResourceInput {
@@ -9,4 +9,4 @@ export interface CreateOpsResourceInput {
 }
 
 export const createOpsResource = (token: string, body: CreateOpsResourceInput) =>
-  apiRequest<OpsResource>('/api/ops/resources', { token, method: 'POST', body })
+  opsApiRequest<OpsResource>('/api/ops/resources', { token, method: 'POST', body })

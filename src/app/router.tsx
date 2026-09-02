@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RequireAuth } from '../components/auth/RequireAuth'
 import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
+import { RequireOpsAuth } from '../components/auth/RequireOpsAuth'
 
 function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string) {
   return async () => {
@@ -14,6 +15,14 @@ export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/health-events" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
+  { path: '/ops/login', lazy: lazyPage(() => import('../pages/Ops/Login'), 'OpsLoginPage') },
+  {
+    element: <RequireOpsAuth />,
+    children: [
+      { path: '/ops', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
+      { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') }
+    ]
+  },
   {
     element: <RequireAuth />,
     children: [
@@ -52,8 +61,6 @@ export const router = createBrowserRouter([
       { path: '/feedback/submitted', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackSubmittedPage') },
       { path: '/feedback/mine', lazy: lazyPage(() => import('../pages/Feedback'), 'MyFeedbackPage') },
       { path: '/feedback/:feedbackId', lazy: lazyPage(() => import('../pages/Feedback'), 'FeedbackDetailPage') },
-      { path: '/ops', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
-      { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') },
       { path: '/about', lazy: lazyPage(() => import('../pages/About'), 'AboutPage') }
     ]
   },

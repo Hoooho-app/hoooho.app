@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import { opsApiRequest } from './opsAuth'
 
 export type FeedbackCategory = string | null
 export type FeedbackProblemPage = '首页' | '健康事件' | '健康档案' | '家人管理' | '登录与账户' | '其他'
@@ -49,7 +50,7 @@ export const getMyFeedback = (token: string, id: string, signal?: AbortSignal) =
 export const addFeedbackMessage = (token: string, id: string, input: { text: string; attachments: FeedbackAttachmentInput[] }) => apiRequest<FeedbackRecord>(`/api/feedback/${encodeURIComponent(id)}/messages`, { token, method: 'POST', body: input })
 export const markFeedbackRead = (token: string, id: string) => apiRequest<FeedbackRecord>(`/api/feedback/${encodeURIComponent(id)}/read`, { token, method: 'POST' })
 
-export const listOpsFeedback = (token: string, params: URLSearchParams, signal?: AbortSignal) => apiRequest<{ overview: OpsFeedbackOverview; feedback: OpsFeedbackRecord[] }>(`/api/ops/feedback?${params}`, { token, signal })
-export const getOpsFeedback = (token: string, id: string, signal?: AbortSignal) => apiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, signal })
-export const updateOpsFeedback = (token: string, id: string, input: Partial<Pick<OpsFeedbackRecord, 'status' | 'priority' | 'handledVersion' | 'noActionReason' | 'mergedIntoId'>> & { officialReply?: string }) => apiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, method: 'PATCH', body: input })
-export const addOpsFeedbackMessage = (token: string, id: string, input: { kind: 'internal-note' | 'user-reply'; text: string }) => apiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}/messages`, { token, method: 'POST', body: input })
+export const listOpsFeedback = (token: string, params: URLSearchParams, signal?: AbortSignal) => opsApiRequest<{ overview: OpsFeedbackOverview; feedback: OpsFeedbackRecord[] }>(`/api/ops/feedback?${params}`, { token, signal })
+export const getOpsFeedback = (token: string, id: string, signal?: AbortSignal) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, signal })
+export const updateOpsFeedback = (token: string, id: string, input: Partial<Pick<OpsFeedbackRecord, 'status' | 'priority' | 'handledVersion' | 'noActionReason' | 'mergedIntoId'>> & { officialReply?: string }) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, method: 'PATCH', body: input })
+export const addOpsFeedbackMessage = (token: string, id: string, input: { kind: 'internal-note' | 'user-reply'; text: string }) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}/messages`, { token, method: 'POST', body: input })

@@ -11,15 +11,24 @@ Hoho 当前默认使用邮箱验证码登录，同时保留原手机号认证 AP
 
 原手机号接口 `/api/auth/send-code` 与 `/api/auth/login` 保留，但当前登录页不调用。
 
+Operations 使用独立入口 `/ops/login` 和独立验证码通道：
+
+- `POST /api/ops/auth/email/send`
+- `POST /api/ops/auth/email/verify`
+- `GET /api/ops/session`
+
+运营登录不会加载家庭成员、个人档案或 onboarding。验证码发送接口始终使用通用成功提示，不公开唯一管理员地址或白名单判断结果。
+
 ## 环境变量
 
 - `RESEND_API_KEY`：Resend API 密钥，必须作为 secret 配置。
 - `AUTH_EMAIL_FROM`：Resend 已验证的发件地址，例如 `Hoooho <login@example.com>`。
 - `AUTH_TOKEN_SECRET`：会话签名密钥，必须作为 secret 配置。
+- `OPS_OWNER_EMAIL`：唯一 Operations 管理员邮箱；服务端执行 `trim` 和小写标准化后做完整字符串精确匹配。
 
 缺少 Resend 配置时，发送接口返回 `EMAIL_PROVIDER_NOT_CONFIGURED`，不会把验证码输出到控制台，也不会保存可用于登录的验证码。
 
-这些变量必须按 Railway Environment 隔离配置，不得提交到 Git。Staging 与 Production 使用不同的 `AUTH_TOKEN_SECRET`。
+这些变量必须按 Railway Environment 隔离配置，不得提交到 Git。Staging 与 Production 使用不同的 `AUTH_TOKEN_SECRET`。Railway 或 Production 运行时缺少 `AUTH_TOKEN_SECRET` 会拒绝启动；缺少 `OPS_OWNER_EMAIL` 时所有 Operations 数据接口返回 `OPS_OWNER_NOT_CONFIGURED`，不会降级放行。
 
 ## 发布策略
 
@@ -38,5 +47,6 @@ Hoho 尚未正式对外开放时，邮箱验证码登录采用快速 Production 
 - 验证码只保存带随机 salt 的 SHA-256 摘要，成功后一次性消费。
 - 连续错误 5 次后当前验证码失效。
 - 邮箱与手机号验证码按 `channel + identifier` 隔离。
+- 普通邮箱登录与 Operations 邮箱登录使用不同验证码 channel，不能交叉消费。
 - 邮件 provider 成功后才保存验证码；发送失败不会留下有效验证码。
 - 邮箱日志只使用脱敏值，禁止记录验证码明文。

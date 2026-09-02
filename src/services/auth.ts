@@ -105,5 +105,7 @@ export const authService = {
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),
   login: (phone: string, code: string) => postAuthRequest<AuthSession>('/api/auth/login', { phone, code }),
   sendEmailCode: (email: string) => postAuthRequest<SendCodeResponse>('/api/auth/email/send-code', { email }),
-  loginWithEmail: (email: string, code: string) => postAuthRequest<AuthSession>('/api/auth/email/login', { email, code })
+  loginWithEmail: (email: string, code: string) => postAuthRequest<AuthSession>('/api/auth/email/login', { email, code }),
+  sendOpsEmailCode: (email: string) => postAuthRequest<SendCodeResponse>('/api/ops/auth/email/send', { email }),
+  loginOpsWithEmail: (email: string, code: string) => postAuthRequest<AuthSession>('/api/ops/auth/email/verify', { email, code })
 }
