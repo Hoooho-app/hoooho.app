@@ -88,6 +88,59 @@ test('supplementing a needs-more-info feedback returns it to reviewing', async (
   assert.equal(updated.status, 'reviewing')
 })
 
+test('ops unread supplements track the latest user follow-up and tolerate legacy records', async () => {
+  const state = setup(), created = await state.service.create('account-1', input(), new Date('2026-09-02T01:00:00Z'))
+  delete state.data.feedback[0].lastOpsViewedAt
+  assert.equal((await state.service.listForOps()).feedback[0].status, 'received')
+  assert.equal((await state.service.listForOps()).feedback[0].lastOpsViewedAt, null)
+  const firstOpen = await state.service.getForOps(created.id, new Date('2026-09-02T01:01:00Z'))
+  assert.equal(firstOpen.lastOpsViewedAt, '2026-09-02T01:01:00.000Z')
+  assert.equal(firstOpen.hasUnreadSupplement, false)
+
+  await state.service.addUserMessage('account-1', created.id, { text: '这是用户刚刚补充的内容', attachments: [] }, new Date('2026-09-02T01:02:00Z'))
+  const unread = await state.service.listForOps()
+  assert.equal(unread.feedback[0].hasUnreadSupplement, true)
+  assert.equal(unread.overview.unreadSupplements, 1)
+  assert.equal((await state.service.listForOps({ unreadSupplement: 'true' })).feedback.length, 1)
+
+  const secondOpen = await state.service.getForOps(created.id, new Date('2026-09-02T01:03:00Z'))
+  assert.equal(secondOpen.hasUnreadSupplement, false)
+  assert.equal((await state.service.listForOps()).overview.unreadSupplements, 0)
+})
+
+test('ops notes and replies do not create unread user supplements', async () => {
+  const state = setup(), created = await state.service.create('account-1', input())
+  await state.service.getForOps(created.id, new Date('2026-09-02T02:00:00Z'))
+  await state.service.addOpsMessage('operator', created.id, { kind: 'internal-note', text: '仅供内部排查' }, new Date('2026-09-02T02:01:00Z'))
+  await state.service.addOpsMessage('operator', created.id, { kind: 'user-reply', text: '请更新后重试' }, new Date('2026-09-02T02:02:00Z'))
+  const result = await state.service.listForOps()
+  assert.equal(result.feedback[0].hasUnreadSupplement, false)
+  assert.equal(result.overview.unreadSupplements, 0)
+})
+
+test('user feedback views never expose ops view time, notes or priority', async () => {
+  const state = setup(), created = await state.service.create('account-1', input())
+  await state.service.getForOps(created.id, new Date('2026-09-02T03:00:00Z'))
+  await state.service.addOpsMessage('operator', created.id, { kind: 'internal-note', text: '内部优先排查' })
+  const user = await state.service.getForAccount('account-1', created.id)
+  assert.equal('lastOpsViewedAt' in user, false)
+  assert.equal('hasUnreadSupplement' in user, false)
+  assert.equal('priority' in user, false)
+  assert.equal(user.messages.some((message) => message.kind === 'internal-note'), false)
+})
+
+test('ops list search, category grouping and stable ordering use real feedback fields', async () => {
+  const state = setup()
+  const first = await state.service.create('account-1', input({ problemType: 'usability_issue', category: 'usability_issue', description: '按钮很难找到', idempotencyKey: 'search-first' }), new Date('2026-09-02T04:00:00Z'))
+  const second = await state.service.create('account-2', input({ problemType: 'function_error', category: 'function_error', description: '上传图片后页面报错', sourcePath: '/feedback', idempotencyKey: 'search-second' }), new Date('2026-09-02T04:00:00Z'))
+  const search = await state.service.listForOps({ search: 'account-2' })
+  assert.equal(search.feedback.length, 1)
+  assert.equal(search.feedback[0].description, '上传图片后页面报错')
+  assert.equal((await state.service.listForOps({ category: '不好用' })).feedback[0].id, first.id)
+  const all = await state.service.listForOps()
+  assert.deepEqual(all.feedback.map((item) => item.id), [first.id, second.id].sort((left, right) => right.localeCompare(left)))
+})
+
 test('attachment links are short lived and invalid signatures are rejected', async () => {
   const state = setup(), created = await state.service.create('account-1', input({ attachments: [image()] })), detail = await state.service.getForAccount('account-1', created.id)
   const url = new URL(detail.attachments[0].url, 'https://hoooho.test'), expires = url.searchParams.get('expires'), access = url.searchParams.get('access')

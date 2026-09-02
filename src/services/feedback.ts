@@ -21,9 +21,9 @@ export interface FeedbackInput {
 }
 export interface OpsFeedbackRecord extends Omit<FeedbackRecord, 'messages'> {
   accountId: string; priority: FeedbackPriority; device: { type: string; os: string | null; browser: string | null; screen: string | null };
-  supplementCount: number; mergedCount: number; messages?: FeedbackMessage[]
+  supplementCount: number; mergedCount: number; lastOpsViewedAt: string | null; hasUnreadSupplement: boolean; messages?: FeedbackMessage[]
 }
-export interface OpsFeedbackOverview { new: number; pendingView: number; viewed: number; evaluating: number; improving: number; resolved: number; duplicates: number; withSupplements: number; averageFirstViewMs: number | null }
+export interface OpsFeedbackOverview { new: number; pendingView: number; viewed: number; evaluating: number; improving: number; resolved: number; duplicates: number; withSupplements: number; unreadSupplements: number; averageFirstViewMs: number | null }
 
 export const feedbackStatusLabels: Record<FeedbackStatus, string> = { received: '已收到', reviewing: '正在了解', needs_more_info: '等你补充', planned: '已加入计划', in_progress: '正在改进', improved: '已改进', not_planned: '暂不调整', merged: '已合并处理' }
 export const feedbackCategoryOptions: { value: FeedbackProblemType; label: string }[] = [
@@ -32,6 +32,15 @@ export const feedbackCategoryOptions: { value: FeedbackProblemType; label: strin
 ]
 export const feedbackCategories = feedbackCategoryOptions.map((item) => item.label)
 export const feedbackProblemTypeLabel = (value: string | null | undefined) => feedbackCategoryOptions.find((item) => item.value === value)?.label ?? value ?? null
+export const opsFeedbackCategories = ['不好用', '出现错误', '内容有误', '希望新增', '隐私与数据', '其他'] as const
+export const opsFeedbackCategoryLabel = (value: string | null | undefined) => {
+  if (['usability_issue', 'experience_suggestion', '不好用'].includes(value ?? '')) return '不好用'
+  if (['function_error', 'display_issue', 'performance_issue', 'login_issue', 'voice_issue', 'image_issue', '功能异常', '出现错误'].includes(value ?? '')) return '出现错误'
+  if (['content_error', '内容有误'].includes(value ?? '')) return '内容有误'
+  if (['feature_request', '希望新增'].includes(value ?? '')) return '希望新增'
+  if (value === '隐私与数据') return '隐私与数据'
+  return '其他'
+}
 export const feedbackProblemPages: FeedbackProblemPage[] = ['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他']
 
 export const submitFeedback = (token: string, input: FeedbackInput) => apiRequest<{ id: string; status: FeedbackStatus; createdAt: string; duplicate?: boolean }>('/api/feedback', { token, method: 'POST', body: input })
