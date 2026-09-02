@@ -38,7 +38,7 @@ export function StageDetailSection({ event, stage }: StageDetailSectionProps) {
           <h2 className="section-title">恢复与总结</h2>
           <Card className="space-y-4">
             <div className="flex gap-3"><RefreshCw className="shrink-0 text-success" size={20} /><div><h3 className="font-semibold">恢复情况</h3><p className="mt-1 text-sm leading-6 text-text-secondary">{event.recoveryInfo?.note || '补充恢复时间和当前身体情况。'}</p></div></div>
-            <div className="flex gap-3 border-t pt-4"><ClipboardCheck className="shrink-0 text-primary" size={20} /><div><h3 className="font-semibold">事件总结</h3><p className="mt-1 text-sm leading-6 text-text-secondary">整理本次健康事件的过程与结果。</p></div></div>
+            <div className="flex gap-3 border-t pt-4"><ClipboardCheck className="shrink-0 text-primary" size={20} /><div><h3 className="font-semibold">随记总结</h3><p className="mt-1 text-sm leading-6 text-text-secondary">整理这条健康随记的过程与结果。</p></div></div>
           </Card>
         </section>
       )}

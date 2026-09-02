@@ -137,7 +137,7 @@ export function OnlineConsultationPage() {
   }
 
   if (state.status === 'loading' || !consultation) return <ConsultationShell eventId={eventId}><div className="online-consultation-loading">{loadError ? <><p>{loadError}</p><HohoButton onClick={() => void loadConsultation()} variant="secondary">重新加载</HohoButton></> : '正在整理问诊资料…'}</div></ConsultationShell>
-  if (state.status !== 'success' || !context) return <ConsultationShell eventId={eventId}><div className="online-consultation-loading">健康事件加载失败，请返回后重试。</div></ConsultationShell>
+  if (state.status !== 'success' || !context) return <ConsultationShell eventId={eventId}><div className="online-consultation-loading">健康随记加载失败，请返回后重试。</div></ConsultationShell>
 
   const activeStatus = consultation.status === 'preparing' ? null : consultation.status === 'completed' ? 'completed' : consultation.status
   return (
@@ -150,7 +150,7 @@ export function OnlineConsultationPage() {
       {consultation.status === 'waiting' && <WaitingView busy={busy} consultation={consultation} onDoctorReply={() => void changeStatus('doctor_questions')} onRefresh={() => void refreshWaiting()} />}
       {consultation.status === 'doctor_questions' && <DoctorQuestionsView busy={busy} history={consultation.questions} listening={listening} onCopy={copyText} onEnd={() => setEnding(true)} onNext={() => { setQuestion(''); setSupplement(''); setPrepared(null) }} onPrepare={() => void prepareReply()} onQuestion={setQuestion} onSupplement={setSupplement} onVoice={toggleVoice} prepared={prepared} question={question} supplement={supplement} />}
       {consultation.status === 'completed' && <CompletedView instructions={consultation.finalDoctorInstructions ?? ''} onBack={() => navigate(`/health-events/${eventId}`)} />}
-      {ending && consultation.status !== 'completed' && <section className="online-consultation-ending"><Typography variant="sectionTitle">保存医生交代</Typography><Typography className="mt-2" variant="body">内容会以“在线医生回复”标记后写回当前健康事件。</Typography><textarea aria-label="医生最终交代" className="hoho-textarea mt-4" maxLength={5000} onChange={(event) => setFinalInstructions(event.target.value)} placeholder="粘贴医生最终回复或建议" value={finalInstructions} /><div className="mt-3 grid grid-cols-2 gap-2"><HohoButton onClick={() => setEnding(false)} variant="secondary">取消</HohoButton><HohoButton disabled={!finalInstructions.trim() || busy} onClick={() => void complete()}>{busy ? '保存中…' : '保存并结束'}</HohoButton></div></section>}
+      {ending && consultation.status !== 'completed' && <section className="online-consultation-ending"><Typography variant="sectionTitle">保存医生交代</Typography><Typography className="mt-2" variant="body">内容会以“在线医生回复”标记后写回这条健康随记。</Typography><textarea aria-label="医生最终交代" className="hoho-textarea mt-4" maxLength={5000} onChange={(event) => setFinalInstructions(event.target.value)} placeholder="粘贴医生最终回复或建议" value={finalInstructions} /><div className="mt-3 grid grid-cols-2 gap-2"><HohoButton onClick={() => setEnding(false)} variant="secondary">取消</HohoButton><HohoButton disabled={!finalInstructions.trim() || busy} onClick={() => void complete()}>{busy ? '保存中…' : '保存并结束'}</HohoButton></div></section>}
       {loadError && <div className="online-consultation-error" role="alert"><span>{loadError}</span><button onClick={() => setLoadError('')} type="button">关闭</button></div>}
       {feedback && <div aria-live="polite" className="online-consultation-toast" role="status"><Check size={17} />{feedback}</div>}
     </ConsultationShell>
@@ -175,5 +175,5 @@ function DoctorQuestionsView({ busy, history, listening, onCopy, onEnd, onNext, 
 }
 
 function CompletedView({ instructions, onBack }: { instructions: string; onBack: () => void }) {
-  return <div className="online-consultation-state"><div className="online-consultation-status" data-tone="success"><Check size={20} /><span><strong>问诊已结束</strong><small>医生交代已写回当前健康事件。</small></span></div><section className="consultation-reply"><Typography variant="cardTitle">在线医生回复</Typography><p>{instructions}</p></section><HohoButton fullWidth onClick={onBack}>返回健康事件</HohoButton></div>
+  return <div className="online-consultation-state"><div className="online-consultation-status" data-tone="success"><Check size={20} /><span><strong>问诊已结束</strong><small>医生交代已写回这条健康随记。</small></span></div><section className="consultation-reply"><Typography variant="cardTitle">在线医生回复</Typography><p>{instructions}</p></section><HohoButton fullWidth onClick={onBack}>返回健康随记</HohoButton></div>
 }

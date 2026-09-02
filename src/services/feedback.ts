@@ -2,7 +2,7 @@ import { apiRequest } from './apiClient'
 import { opsApiRequest } from './opsAuth'
 
 export type FeedbackCategory = string | null
-export type FeedbackProblemPage = '首页' | '健康事件' | '健康档案' | '家人管理' | '登录与账户' | '其他'
+export type FeedbackProblemPage = '首页' | '健康随记' | '健康档案' | '家人管理' | '登录与账户' | '其他'
 export type FeedbackProblemType = 'function_error' | 'display_issue' | 'usability_issue' | 'content_error' | 'performance_issue' | 'login_issue' | 'voice_issue' | 'image_issue' | 'feature_request' | 'experience_suggestion'
 export type FeedbackStatus = 'received' | 'reviewing' | 'needs_more_info' | 'planned' | 'in_progress' | 'improved' | 'not_planned' | 'merged'
 export type FeedbackPriority = 'low' | 'normal' | 'high' | 'urgent'
@@ -42,7 +42,7 @@ export const opsFeedbackCategoryLabel = (value: string | null | undefined) => {
   if (value === '隐私与数据') return '隐私与数据'
   return '其他'
 }
-export const feedbackProblemPages: FeedbackProblemPage[] = ['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他']
+export const feedbackProblemPages: FeedbackProblemPage[] = ['首页', '健康随记', '健康档案', '家人管理', '登录与账户', '其他']
 
 export const submitFeedback = (token: string, input: FeedbackInput) => apiRequest<{ id: string; status: FeedbackStatus; createdAt: string; duplicate?: boolean }>('/api/feedback', { token, method: 'POST', body: input })
 export const listMyFeedback = (token: string, signal?: AbortSignal) => apiRequest<FeedbackRecord[]>('/api/feedback', { token, signal })

@@ -47,7 +47,7 @@ export default defineConfig({
       manifest: {
         name: 'Hoooho 家庭健康',
         short_name: 'Hoooho',
-        description: '家庭健康事件管理与就诊准备工具',
+        description: '家庭健康随记与就诊准备工具',
         theme_color: '#1B7A6E',
         background_color: '#F5F8F6',
         display: 'standalone',

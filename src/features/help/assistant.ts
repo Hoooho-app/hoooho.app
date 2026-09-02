@@ -18,7 +18,7 @@ export class LocalHelpAssistantProvider {
     const results = searchHelpArticles(query, { category: input.category })
     if (missingRecordPattern.test(query) && !input.category) {
       return { kind:'clarify', query, results, clarification:{ question:'你找不到的是哪类内容？', options:[
-        {label:'健康事件',query:`${query} 健康事件`},{label:'时间线记录',query:`${query} 时间线记录`},
+        {label:'健康随记',query:`${query} 健康随记`},{label:'时间线记录',query:`${query} 时间线记录`},
         {label:'健康档案',query:`${query} 健康档案`},{label:'图片或检查结果',query:`${query} 图片附件`}
       ] } }
     }

@@ -54,14 +54,16 @@ test('护士视觉由业务状态驱动并只请求当前图片', () => {
   assert.doesNotMatch(desk, /allNurseTriageAssets\.map|preloadNurseTriageAssets/)
   assert.match(idleVisual, /idle-nurse-visual__poster/)
   assert.match(idleVisual, /fetchPriority="high"/)
-  assert.match(idleVisual, /preload=\{videoIndex === 0 \? 'metadata' : 'none'\}/)
-  assert.match(idleVisual, /preload="none"/)
+  assert.match(idleVisual, /onLoadedData=\{\(\) => handleIdleCanPlay\(videoIndex\)\}/)
+  assert.match(idleVisual, /preload="auto"/)
+  assert.match(idleVisual, /window\.addEventListener\('pageshow'/)
 })
 
-test('底部只保留完整宽度主动作，下一步入口有文字标签', () => {
-  assert.match(nurse, /nurse-next-action-link/)
-  assert.match(nurse, /查看当前事件下一步/)
-  assert.doesNotMatch(nurse, /nurse-next-action-trigger|<svg/)
+test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {
+  assert.match(nurse, /nurse-next-action-trigger/)
+  assert.match(nurse, /aria-label="打开当前健康随记的下一步"/)
+  assert.match(nurse, /<svg/)
+  assert.doesNotMatch(nurse, /nurse-next-action-link|查看当前事件下一步/)
   assert.match(styles, /health-events-content--triage[\s\S]*min-height:\s*0/)
 })
 

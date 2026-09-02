@@ -51,7 +51,7 @@ export function HealthInformationCandidatesPage() {
     <main className="app-shell health-information-page pb-0">
       <WebPageHeader fallback={eventId ? `/health-events/${encodeURIComponent(eventId)}` : '/health-events'} title="待确认健康信息" />
       <div className="page-content health-information-page__content">
-        <p className="health-information-intro">这里汇总本次事件中可能值得长期保存的信息。只有你确认后，才会加入健康档案。</p>
+        <p className="health-information-intro">这里汇总这条健康随记中可能值得长期保存的信息。只有你确认后，才会加入健康档案。</p>
         {error && <StatusNotice title="健康信息暂时无法加载" tone="error">{error}</StatusNotice>}
         {actionError && !selection && <StatusNotice title="操作未完成" tone="error">{actionError}</StatusNotice>}
         {loading && <HealthCard><p className="hoho-text-body text-text-secondary">正在整理可确认的信息…</p></HealthCard>}
@@ -64,7 +64,7 @@ export function HealthInformationCandidatesPage() {
             </div>
             {candidate.relatedCandidateId && <p className="health-information-related">发现已有相关健康信息，请由你决定是否继续加入。</p>}
             <dl className="health-information-source-summary">
-              <div><dt>来源</dt><dd>{formatDate(candidate.firstDiscoveredAt)} {candidate.sourceEvent.title || '健康事件'}</dd></div>
+              <div><dt>来源</dt><dd>{formatDate(candidate.firstDiscoveredAt)} {candidate.sourceEvent.title || '健康随记'}</dd></div>
               <div><dt>发现原因</dt><dd>{candidate.description}</dd></div>
             </dl>
             {candidate.sourceRecords[0] && <blockquote>“{candidate.sourceRecords[0].content}”</blockquote>}

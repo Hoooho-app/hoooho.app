@@ -28,7 +28,7 @@ export function NurseNextAction({ currentMemberId, eventId, onClose, open }: Nur
   if (!eventId || state.status === 'loading') {
     return (
       <NextActionStatusSheet onClose={onClose}>
-        <StatusNotice title="正在准备下一步">正在读取当前健康事件…</StatusNotice>
+        <StatusNotice title="正在准备下一步">正在读取当前健康随记…</StatusNotice>
       </NextActionStatusSheet>
     )
   }
@@ -44,7 +44,7 @@ export function NurseNextAction({ currentMemberId, eventId, onClose, open }: Nur
   if (state.status === 'not-found' || state.data.eventDto.memberId !== currentMemberId) {
     return (
       <NextActionStatusSheet onClose={onClose}>
-        <StatusNotice title="当前健康事件不可用" tone="error">请关闭后重试，或先在列表中确认当前人物的健康事件。</StatusNotice>
+        <StatusNotice title="当前健康随记不可用" tone="error">请关闭后重试，或先在列表中确认当前人物的健康随记。</StatusNotice>
       </NextActionStatusSheet>
     )
   }

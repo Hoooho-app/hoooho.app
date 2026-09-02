@@ -38,7 +38,7 @@ export function EventStatus({ stage, onStageChange }: EventStatusProps) {
   return (
     <>
       <section className="space-y-3">
-        <h2 className="section-title">事件阶段</h2>
+        <h2 className="section-title">随记阶段</h2>
         <Card className="px-4 py-5">
           <div className="grid grid-cols-3">
             {stages.map((item, index) => {
@@ -67,7 +67,7 @@ export function EventStatus({ stage, onStageChange }: EventStatusProps) {
       {pendingStage && (
         <div className="fixed inset-0 z-50 flex touch-none items-end justify-center overscroll-none bg-black/35 px-6 pb-[max(16px,env(safe-area-inset-bottom))]" role="presentation" onClick={cancelChange}>
           <section aria-modal="true" className="w-full max-w-[354px] touch-auto rounded-t-[24px] bg-surface p-5 shadow-floating" role="dialog" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-lg font-semibold">确认该健康事件已经恢复？</h2>
+            <h2 className="text-lg font-semibold">确认这条健康随记已经恢复？</h2>
             <p className="mt-2 text-sm leading-6 text-text-secondary">
               确认后将进入恢复总结阶段，页面内容会同步调整。
             </p>

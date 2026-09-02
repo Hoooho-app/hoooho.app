@@ -112,7 +112,7 @@ export function HealthProfilePage() {
           <ChevronRight size={18} />
         </button>
         {longTermFacts.status === 'success' && longTermFacts.candidates.length > 0 && <button className="health-fact-home-card__inbox" onClick={() => navigate('/health-profile/facts')} type="button"><span>发现 {longTermFacts.candidates.length} 条可长期保留的信息</span><span>需要你确认</span></button>}
-        {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康事件中的重要信息确认后会显示在这里</Typography>}
+        {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康随记中的重要信息确认后会显示在这里</Typography>}
       </section>
 
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>

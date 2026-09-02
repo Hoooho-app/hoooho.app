@@ -6,7 +6,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 const CATEGORIES = new Set(['不好用', '出现错误', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他'])
 const CATEGORY_VALUES = new Set(['function_error', 'display_issue', 'usability_issue', 'content_error', 'performance_issue', 'login_issue', 'voice_issue', 'image_issue', 'feature_request', 'experience_suggestion'])
 const CATEGORY_LABELS = new Map([['function_error', '功能异常'], ['display_issue', '页面显示'], ['usability_issue', '操作不便'], ['content_error', '内容有误'], ['performance_issue', '加载缓慢'], ['login_issue', '登录问题'], ['voice_issue', '语音问题'], ['image_issue', '图片问题'], ['feature_request', '希望新增'], ['experience_suggestion', '体验建议']])
-const PROBLEM_PAGES = new Set(['首页', '健康事件', '健康档案', '家人管理', '登录与账户', '其他'])
+const PROBLEM_PAGES = new Set(['首页', '健康随记', '健康档案', '家人管理', '登录与账户', '其他'])
 const STATUSES = new Set(['received', 'reviewing', 'needs_more_info', 'planned', 'in_progress', 'improved', 'not_planned', 'merged'])
 const STATUS_ALIASES = new Map([['viewed', 'reviewing'], ['evaluating', 'reviewing'], ['improving', 'in_progress'], ['resolved', 'improved'], ['declined', 'not_planned']])
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent'])

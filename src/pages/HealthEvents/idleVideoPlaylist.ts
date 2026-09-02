@@ -121,14 +121,20 @@ export async function playIdleVideoSafely(play: () => Promise<void>) {
 
 interface PlayableIdleVideo {
   currentTime: number;
+  defaultMuted: boolean;
   duration: number;
   ended: boolean;
+  muted: boolean;
   networkState: number;
+  playsInline: boolean;
   load: () => void;
   play: () => Promise<void>;
 }
 
 export async function loadAndPlayIdleVideo(video: PlayableIdleVideo) {
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
   if (video.networkState === 0) video.load();
   if (video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05)) {
     video.currentTime = 0;

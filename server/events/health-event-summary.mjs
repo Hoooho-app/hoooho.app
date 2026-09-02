@@ -222,7 +222,7 @@ function buildSummary({ diagnoses, symptoms, maxTemperature, facts, event }) {
   else if (latestChange?.change === 'persistent') sentences.push(`${changeTarget}仍在持续`)
   else if (latestChange?.change === 'recurred') sentences.push(`${changeTarget}再次出现`)
   else if (latestChange?.change === 'resolved') sentences.push(`${changeTarget}已消失`)
-  if (event.status === 'recovered') sentences.push('当前事件已标记为康复')
+  if (event.status === 'recovered') sentences.push('这条健康随记已标记为康复')
   return sentences.length ? `${sentences.join('；')}。`.slice(0, 600) : '当前记录中暂无可用于摘要的有效健康事实。'
 }
 
@@ -279,10 +279,10 @@ export function buildHealthEventSummary({ event, records, organizations, now = n
 }
 
 export function correctHealthEventSummary(eventSummary, input, now = new Date()) {
-  if (!eventSummary?.systemGenerated) throw new Error('当前事件尚未生成摘要')
+  if (!eventSummary?.systemGenerated) throw new Error('这条健康随记尚未生成摘要')
   const title = typeof input?.title === 'string' ? input.title.trim() : ''
   const summary = typeof input?.summary === 'string' ? input.summary.trim() : ''
-  if (!title || title.length > 120) throw new Error('事件名称应为 1–120 个字符')
+  if (!title || title.length > 120) throw new Error('随记标题应为 1–120 个字符')
   if (!summary || summary.length > 1000) throw new Error('摘要应为 1–1000 个字符')
   const updatedAt = now.toISOString()
   const userCorrection = { title, summary, updatedAt }

@@ -16,26 +16,26 @@ export class HealthEventError extends Error {
 
 function validateTitle(value) {
   const title = typeof value === 'string' ? value.trim() : ''
-  if (!title || title.length > 120) throw new HealthEventError('事件名称应为 1–120 个字符', 400, 'INVALID_EVENT_TITLE')
+  if (!title || title.length > 120) throw new HealthEventError('随记标题应为 1–120 个字符', 400, 'INVALID_EVENT_TITLE')
   return title
 }
 
 function validateInitialTitle(value) {
   const title = typeof value === 'string' ? value.trim() : ''
-  if (title.length > 120) throw new HealthEventError('事件名称不能超过 120 个字符', 400, 'INVALID_EVENT_TITLE')
+  if (title.length > 120) throw new HealthEventError('随记标题不能超过 120 个字符', 400, 'INVALID_EVENT_TITLE')
   return title
 }
 
 function validateCategory(value) {
   if (!categories.has(value)) {
-    throw new HealthEventError('事件分类必须是 fever、cough、pain、injury、allergy 或 other', 400, 'INVALID_EVENT_CATEGORY')
+    throw new HealthEventError('随记分类无效', 400, 'INVALID_EVENT_CATEGORY')
   }
   return value
 }
 
 function validateStatus(value) {
   if (!statuses.has(value)) {
-    throw new HealthEventError('事件状态必须是 observing、handling 或 recovered', 400, 'INVALID_EVENT_STATUS')
+    throw new HealthEventError('随记状态无效', 400, 'INVALID_EVENT_STATUS')
   }
   return value
 }
@@ -96,7 +96,7 @@ export class HealthEventService {
 
   async get(accountId, id) {
     const event = await this.repository.findById(id)
-    if (!event || event.accountId !== accountId) throw new HealthEventError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new HealthEventError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     return event
   }
 
@@ -114,7 +114,7 @@ export class HealthEventService {
       }
       if (key === 'startTime') changes.startTime = validateStartTime(input.startTime, now)
     }
-    if (!Object.keys(changes).length) throw new HealthEventError('没有可更新的事件字段', 400, 'NO_EVENT_CHANGES')
+    if (!Object.keys(changes).length) throw new HealthEventError('没有可更新的随记内容', 400, 'NO_EVENT_CHANGES')
     return this.repository.update(id, changes, now)
   }
 

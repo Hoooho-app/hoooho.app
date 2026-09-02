@@ -118,7 +118,13 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
     if (!idlePlaybackAllowedRef.current) return
 
     if (!current.suspended) {
-      if (current.pendingVideoIndex !== null) startPreparedVideo(current)
+      if (current.pendingVideoIndex !== null) {
+        startPreparedVideo(current)
+      } else if (current.hasPlayed) {
+        const recovered = beginIdlePlayback(current, current.activeVideoIndex)
+        updatePlaylist(recovered)
+        startPreparedVideo(recovered)
+      }
       return
     }
 
@@ -235,6 +241,19 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
 
   useEffect(() => {
     mountedRef.current = true
+    idleVideoRefs.current.forEach((video) => {
+      if (!video) return
+      video.muted = true
+      video.defaultMuted = true
+      video.playsInline = true
+      if (video.networkState === HTMLMediaElement.NETWORK_EMPTY) video.load()
+    })
+    if (saveSuccessVideoRef.current) {
+      saveSuccessVideoRef.current.muted = true
+      saveSuccessVideoRef.current.defaultMuted = true
+      saveSuccessVideoRef.current.playsInline = true
+      if (saveSuccessVideoRef.current.networkState === HTMLMediaElement.NETWORK_EMPTY) saveSuccessVideoRef.current.load()
+    }
     return () => {
       mountedRef.current = false
       idleRetryTimerRef.current.forEach((timer) => window.clearTimeout(timer))
@@ -245,6 +264,14 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
       pauseIdlePlayers()
     }
   }, [pauseIdlePlayers])
+
+  useEffect(() => {
+    const recoverPlayback = () => {
+      if (!document.hidden && active && activeSaveSuccessSessionRef.current === 0) startOrResumeIdle()
+    }
+    window.addEventListener('pageshow', recoverPlayback)
+    return () => window.removeEventListener('pageshow', recoverPlayback)
+  }, [active, startOrResumeIdle])
 
   useEffect(() => {
     if (!active || saveSuccessSequence <= 0 || saveSuccessSequence === handledSaveSuccessSequenceRef.current) return
@@ -328,6 +355,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
             loop={false}
             muted
             onCanPlay={() => handleIdleCanPlay(videoIndex)}
+            onLoadedData={() => handleIdleCanPlay(videoIndex)}
             onContextMenu={(event) => event.preventDefault()}
             onDragStart={(event) => event.preventDefault()}
             onEnded={() => handleIdleEnded(videoIndex)}
@@ -335,7 +363,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
             onPlaying={() => handleIdlePlaying(videoIndex)}
             playsInline
             poster="/nurse-triage/attention.png"
-            preload={videoIndex === 0 ? 'metadata' : 'none'}
+            preload="auto"
             ref={(video) => {
               idleVideoRefs.current[videoIndex] = video
             }}
@@ -360,12 +388,20 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
         onDragStart={(event) => event.preventDefault()}
         onEnded={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
         onError={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
+        onLoadedData={() => {
+          const video = saveSuccessVideoRef.current
+          if (video) {
+            video.muted = true
+            video.defaultMuted = true
+            video.playsInline = true
+          }
+        }}
         onPlaying={() => {
           if (activeSaveSuccessSessionRef.current > 0) setSaveSuccessPlaying(true)
         }}
         playsInline
         poster="/nurse-triage/attention.png"
-        preload="none"
+        preload="auto"
         ref={saveSuccessVideoRef}
         src={saveSuccessVideoSource}
         tabIndex={-1}

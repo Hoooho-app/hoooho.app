@@ -118,7 +118,7 @@ function createProposals(event, records, organizations) {
       sourceLinks: byRecord.map((entry) => ({ organizationId: entry.organization.id, sourceFactId: entry.fact.id })),
       category: 'chronic_condition',
       title: `${name}反复记录`,
-      description: `${name}在本次事件中多次出现，可由你决定是否作为长期健康问题保存。`,
+      description: `${name}在这条健康随记中多次出现，可由你决定是否作为长期健康问题保存。`,
       firstDiscoveredAt: byRecord.map((entry) => effectiveTime(entry.record)).sort()[0]
     })
   }
@@ -154,7 +154,7 @@ export class HealthInformationCandidateService {
 
   async assertEvent(accountId, eventId) {
     const event = await this.events.findById(eventId)
-    if (!event || event.accountId !== accountId) throw new HealthInformationCandidateError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new HealthInformationCandidateError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     return event
   }
 

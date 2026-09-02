@@ -93,7 +93,7 @@ export class HealthRecordOrganizationService {
 
   async assertEventOwnership(accountId, eventId) {
     const event = await this.events.findById(eventId)
-    if (!event || event.accountId !== accountId) throw new HealthRecordOrganizationError('健康事件不存在', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new HealthRecordOrganizationError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     return event
   }
 
@@ -161,7 +161,7 @@ export class HealthRecordOrganizationService {
     await this.assertEventOwnership(accountId, eventId)
     const recordId = typeof input?.recordId === 'string' ? input.recordId : ''
     const record = recordId ? await this.records.findById(recordId) : null
-    if (!record || record.accountId !== accountId || record.eventId !== eventId) throw new HealthRecordOrganizationError('健康事件记录不存在', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
+    if (!record || record.accountId !== accountId || record.eventId !== eventId) throw new HealthRecordOrganizationError('未找到这条随记内容', 404, 'HEALTH_EVENT_RECORD_NOT_FOUND')
     if (!isQuickRecordStructuredModeEnabled(this.structuredMode)) {
       return { status: 'completed', recordId, rawRecordOnly: true, structuredMode: this.structuredMode }
     }

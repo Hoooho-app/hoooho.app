@@ -148,7 +148,7 @@ export function LoginPage() {
         <header className="flex flex-col items-center pt-6 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
           <h1 className="hoho-text-page-title mt-7">欢迎使用 Hoooho</h1>
-          <p className="hoho-text-body mt-2">家庭健康事件的事实记录系统与就诊前台</p>
+          <p className="hoho-text-body mt-2">家庭健康随记与就诊准备工具</p>
         </header>
 
         <form className="mt-10 space-y-3" noValidate onSubmit={login}>
