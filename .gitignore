@@ -6,6 +6,8 @@ tests/health-timeline-oral-text-stress/.artifacts/
 dist
 build
 coverage
+playwright-report
+test-results
 .vite
 .cache
 .vercel

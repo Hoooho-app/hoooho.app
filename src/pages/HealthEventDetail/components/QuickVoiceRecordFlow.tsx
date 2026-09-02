@@ -64,12 +64,15 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const [renderNursePanel, setRenderNursePanel] = useState(open)
   const [nursePanelClosing, setNursePanelClosing] = useState(false)
   const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 0 : (window.visualViewport?.height ?? window.innerHeight))
+  const [viewportOffsetTop, setViewportOffsetTop] = useState(() => typeof window === 'undefined' ? 0 : (window.visualViewport?.offsetTop ?? 0))
+  const [keyboardInset, setKeyboardInset] = useState(() => typeof window === 'undefined' ? 0 : Math.max(0, window.innerHeight - (window.visualViewport?.height ?? window.innerHeight) - (window.visualViewport?.offsetTop ?? 0)))
   const recognitionRef = useRef<Recognition | null>(null)
   const transcriptRef = useRef('')
   const occurredAtRef = useRef('')
   const confirmRequestedRef = useRef(false)
   const submittingRef = useRef(false)
   const sessionRef = useRef(0)
+  const startingSessionRef = useRef<number | null>(null)
   const closeTimerRef = useRef<number | null>(null)
   const nursePanelExitTimerRef = useRef<number | null>(null)
   const onCloseRef = useRef(onClose)
@@ -79,6 +82,8 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const onSavedRef = useRef(onSaved)
   const inputChannelRef = useRef<QuickRecordInputChannel>('voice')
   const photoModel = useQuickRecordPhotos(photoMemberId, photoToken)
+  const photoModelRef = useRef(photoModel)
+  photoModelRef.current = photoModel
   onCloseRef.current = onClose
   onConfirmRef.current = onConfirm
   onIgnoredRef.current = onIgnored
@@ -102,11 +107,11 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setState('saving')
     setInputError('')
     try {
-      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current, photoModel.payload())
+      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current, photoModelRef.current.payload())
       const visibleMessage = message || '已记录'
       setSavedMessage(message || '已记录')
       setState('saved')
-      photoModel.clearAfterSave()
+      photoModelRef.current.clearAfterSave()
       if (presentation === 'nurse-inline') {
         onSavedRef.current?.(visibleMessage, inputChannelRef.current)
         onCloseRef.current()
@@ -116,7 +121,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
       setInputError(quickRecordSaveErrorMessage(reason))
       submittingRef.current = false
     }
-  }, [photoModel, presentation, scheduleClose])
+  }, [presentation, scheduleClose])
 
   const prepareNaturalInput = useCallback(async () => {
     const value = transcriptRef.current.trim()
@@ -156,7 +161,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     } finally {
       submittingRef.current = false
     }
-  }, [saveFinal, scheduleClose])
+  }, [scheduleClose])
 
   const stopSession = useCallback((discard = false) => {
     const recognition = recognitionRef.current
@@ -164,13 +169,14 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     if (recognition) discard ? recognition.abort() : recognition.stop()
   }, [])
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!capability.canAttemptMicrophone) { setState('voice_help'); return }
-    if (!RecognitionApi || submittingRef.current) { setState('error'); setFailure(classifyMicrophoneFailure('unsupported')); return }
-    sessionRef.current += 1
+    if (!RecognitionApi) { setState('error'); setFailure(classifyMicrophoneFailure('unsupported')); return }
+    if (submittingRef.current || startingSessionRef.current !== null || recognitionRef.current) return
     stopSession(true)
     const currentSession = sessionRef.current + 1
     sessionRef.current = currentSession
+    startingSessionRef.current = currentSession
     confirmRequestedRef.current = false
     inputChannelRef.current = 'voice'
     setFailure(null)
@@ -178,38 +184,44 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setSeconds(0)
     setTranscript('')
     setState('requesting_permission')
-    const recognition = new RecognitionApi()
-    recognition.lang = 'zh-CN'
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.onresult = (event) => {
-      if (sessionRef.current !== currentSession) return
-      let next = ''
-      for (let index = 0; index < event.results.length; index += 1) next += event.results[index][0].transcript
-      setTranscript(next)
-      setState('recording')
-    }
-    recognition.onerror = (event) => {
-      if (sessionRef.current !== currentSession || confirmRequestedRef.current) return
-      sessionRef.current += 1
-      recognitionRef.current = null
-      setState('error')
-      setFailure(classifyMicrophoneFailure(event.error))
-    }
-    recognition.onend = () => {
-      if (sessionRef.current !== currentSession) return
-      recognitionRef.current = null
-      if (confirmRequestedRef.current) void prepareNaturalInput()
-      else { setState('error'); setFailure(classifyMicrophoneFailure('recording-ended')) }
-    }
-    recognitionRef.current = recognition
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((track) => track.stop())
+      if (sessionRef.current !== currentSession) return
+      const recognition = new RecognitionApi()
+      recognition.lang = 'zh-CN'
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.onresult = (event) => {
+        if (sessionRef.current !== currentSession) return
+        let next = ''
+        for (let index = 0; index < event.results.length; index += 1) next += event.results[index][0].transcript
+        setTranscript(next)
+        setState('recording')
+      }
+      recognition.onerror = (event) => {
+        if (sessionRef.current !== currentSession || confirmRequestedRef.current) return
+        sessionRef.current += 1
+        recognitionRef.current = null
+        setState('error')
+        setFailure(classifyMicrophoneFailure(event.error))
+      }
+      recognition.onend = () => {
+        if (sessionRef.current !== currentSession) return
+        recognitionRef.current = null
+        if (confirmRequestedRef.current) void prepareNaturalInput()
+        else { setState('error'); setFailure(classifyMicrophoneFailure('recording-ended')) }
+      }
+      recognitionRef.current = recognition
       recognition.start()
       setState('recording')
     } catch (reason) {
       recognitionRef.current = null
+      if (sessionRef.current !== currentSession) return
       setState('error')
       setFailure(classifyMicrophoneFailure(reason instanceof DOMException ? reason.name : undefined))
+    } finally {
+      if (startingSessionRef.current === currentSession) startingSessionRef.current = null
     }
   }, [RecognitionApi, capability.canAttemptMicrophone, prepareNaturalInput, stopSession])
 
@@ -220,8 +232,17 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setCandidates([])
     setSavedMessage('已记录')
     setInputError('')
-    inputChannelRef.current = capability.canAttemptMicrophone && !capability.isWechat ? 'voice' : 'text'
-    if (capability.isWechat) {
+    inputChannelRef.current = 'text'
+    if (presentation === 'nurse-inline') {
+      setState('text_entry')
+      if (capability.isWechat) {
+        try {
+          const unseen = sessionStorage.getItem(wechatHintKey) !== '1'
+          setShowWechatHint(unseen)
+          if (unseen) sessionStorage.setItem(wechatHintKey, '1')
+        } catch { setShowWechatHint(true) }
+      }
+    } else if (capability.isWechat) {
       setState('text_entry')
       try {
         const unseen = sessionStorage.getItem(wechatHintKey) !== '1'
@@ -229,7 +250,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         if (unseen) sessionStorage.setItem(wechatHintKey, '1')
       } catch { setShowWechatHint(true) }
     } else if (!capability.canAttemptMicrophone) setState('text_entry')
-    else startListening()
+    else { inputChannelRef.current = 'voice'; void startListening() }
     return () => {
       sessionRef.current += 1
       stopSession(true)
@@ -238,7 +259,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         closeTimerRef.current = null
       }
     }
-  }, [capability.canAttemptMicrophone, capability.isWechat, open, startListening, stopSession])
+  }, [capability.canAttemptMicrophone, capability.isWechat, open, presentation, startListening, stopSession])
 
   useEffect(() => {
     if (presentation !== 'nurse-inline') return
@@ -279,15 +300,21 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   useEffect(() => {
     if (!open) return
     const viewport = window.visualViewport
-    const updateViewportHeight = () => setViewportHeight(viewport?.height ?? window.innerHeight)
-    updateViewportHeight()
-    viewport?.addEventListener('resize', updateViewportHeight)
-    viewport?.addEventListener('scroll', updateViewportHeight)
-    window.addEventListener('resize', updateViewportHeight)
+    const updateViewport = () => {
+      const height = viewport?.height ?? window.innerHeight
+      const offsetTop = viewport?.offsetTop ?? 0
+      setViewportHeight(height)
+      setViewportOffsetTop(offsetTop)
+      setKeyboardInset(Math.max(0, window.innerHeight - height - offsetTop))
+    }
+    updateViewport()
+    viewport?.addEventListener('resize', updateViewport)
+    viewport?.addEventListener('scroll', updateViewport)
+    window.addEventListener('resize', updateViewport)
     return () => {
-      viewport?.removeEventListener('resize', updateViewportHeight)
-      viewport?.removeEventListener('scroll', updateViewportHeight)
-      window.removeEventListener('resize', updateViewportHeight)
+      viewport?.removeEventListener('resize', updateViewport)
+      viewport?.removeEventListener('scroll', updateViewport)
+      window.removeEventListener('resize', updateViewport)
     }
   }, [open])
 
@@ -312,7 +339,11 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
 
   if (presentation === 'nurse-inline' ? !renderNursePanel : !open) return null
 
-  const panelStyle = { '--quick-record-viewport-height': `${viewportHeight}px` } as CSSProperties
+  const panelStyle = {
+    '--quick-record-viewport-height': `${viewportHeight}px`,
+    '--quick-record-viewport-offset-top': `${viewportOffsetTop}px`,
+    '--quick-record-keyboard-inset': `${keyboardInset}px`
+  } as CSSProperties
 
   const cancel = () => {
     sessionRef.current += 1
@@ -339,7 +370,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const restartListening = () => {
     candidatesRef.current = []
     setCandidates([])
-    startListening()
+    void startListening()
   }
 
   const panelClassName = (...classes: string[]) => [
@@ -428,7 +459,8 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         {showWechatHint && <p className="quick-record-wechat-hint"><strong>正在微信内打开</strong>文字记录可正常使用，语音记录需要使用系统浏览器。</p>}
         <label className="quick-record-natural-input"><strong>写下发生了什么</strong><textarea aria-label="快捷记录文字" className="hoho-textarea" disabled={state === 'previewing'} onChange={(event) => { setTranscript(event.target.value); setInputError('') }} placeholder="例如：晚上九点给她吃了5毫升美林，刚刚量了38.5度" value={transcript} /></label>
         {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
-        <div className="quick-record-text-actions"><button className="quick-record-cancel" disabled={state === 'previewing'} onClick={cancel} type="button">取消</button><button className="quick-record-voice-link" disabled={state === 'previewing'} onClick={() => capability.canAttemptMicrophone ? startListening() : setState('voice_help')} type="button"><Mic size={16} />想用语音记录？</button><HohoButton disabled={!transcript.trim() || state === 'previewing'} onClick={() => void prepareNaturalInput()}>{state === 'previewing' ? '正在核对…' : '继续核对'}</HohoButton></div>
+        <QuickRecordPhotos model={photoModel} />
+        <div className="quick-record-text-actions"><button className="quick-record-cancel" disabled={state === 'previewing'} onClick={cancel} type="button">取消</button><button className="quick-record-voice-link" disabled={state === 'previewing'} onClick={() => capability.canAttemptMicrophone ? void startListening() : setState('voice_help')} type="button"><Mic size={16} />想用语音记录？</button><HohoButton disabled={!transcript.trim() || state === 'previewing' || photoModel.blocked} onClick={() => void prepareNaturalInput()}>{state === 'previewing' ? '正在核对…' : '继续核对'}</HohoButton></div>
       </section>
     )
   }

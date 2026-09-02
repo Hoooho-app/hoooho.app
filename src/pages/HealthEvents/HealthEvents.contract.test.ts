@@ -69,7 +69,12 @@ test('快捷记录全过程保留连续待机视频且成功视频就绪后再�
 })
 
 test('听写与核对态共享同一照片草稿且不改变护士视频状态机', () => {
-  assert.equal((flow.match(/<QuickRecordPhotos model=\{photoModel\}/g) ?? []).length, 2)
+  assert.equal((flow.match(/<QuickRecordPhotos model=\{photoModel\}/g) ?? []).length, 3)
+  assert.match(flow, /presentation === 'nurse-inline'[\s\S]*setState\('text_entry'\)/)
+  assert.match(flow, /navigator\.mediaDevices\.getUserMedia\(\{ audio: true \}\)/)
+  assert.match(flow, /startingSessionRef\.current !== null \|\| recognitionRef\.current/)
+  assert.match(flow, /photoModelRef\.current\.payload\(\)/)
+  assert.doesNotMatch(flow, /\}, \[photoModel, presentation, scheduleClose\]\)/)
   assert.match(flow, /restartListening[\s\S]*startListening\(\)/)
   assert.doesNotMatch(flow, /restartListening[\s\S]{0,180}photoModel\.(cancel|clearAfterSave)/)
   assert.match(flow, /photoModel\.blocked/)
@@ -81,8 +86,12 @@ test('听写与核对态共享同一照片草稿且不改变护士视频状态�
   assert.match(photos, /重试上传/)
   assert.match(photos, /照片预览/)
   assert.match(flow, /catch \(reason\) \{[\s\S]*setState\(presentation === 'nurse-inline' \? 'review' : 'text_entry'\)[\s\S]*setInputError/)
-  assert.match(flow, /setState\('saved'\)[\s\S]*photoModel\.clearAfterSave\(\)/)
+  assert.match(flow, /setState\('saved'\)[\s\S]*photoModelRef\.current\.clearAfterSave\(\)/)
   assert.match(photoStyles, /quick-record-photos__rail[\s\S]*overflow-x:\s*auto/)
+  assert.match(photoStyles, /quick-record-text-actions[\s\S]*grid-column:\s*1 \/ -1/)
+  assert.match(photoStyles, /quick-record-keyboard-inset/)
+  assert.match(nurse, /nurse-quick-record-backdrop/)
+  assert.match(nurse, /data-hidden=\{open\}/)
   assert.doesNotMatch(nurse, /setState\(|pause\(|load\(/)
 })
 

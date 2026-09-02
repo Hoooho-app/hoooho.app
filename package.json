@@ -29,6 +29,7 @@
     "test:parser-evaluation": "node --test server/ai/evaluation/parser-evaluation.test.mjs",
     "test:attachments": "node --test server/events/event-attachment-service.test.mjs",
     "test:quick-record-photos": "node --test server/events/quick-record-photo-service.test.mjs server/events/quick-record-service.test.mjs",
+    "test:e2e:quick-record": "npm run build && playwright test --config tests/quick-record-mobile/playwright.config.ts",
     "test:help": "tsc -p tsconfig.help-test.json && node --test server/help/search.test.mjs server/help/feedback-service.test.mjs",
     "test:client": "node --import ./scripts/register-node-ts-loader.mjs --test \"src/**/*.test.ts\"",
     "test:avatar-assets": "node scripts/check-clay-avatar-assets.mjs",
@@ -49,6 +50,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

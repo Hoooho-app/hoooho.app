@@ -62,6 +62,13 @@ export function NurseQuickRecord({
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current)
   }, [])
 
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [open])
+
   return (
     <section aria-label="健康随记快捷记录" className="nurse-triage-recorder">
       <div className="nurse-triage-visual-slot">
@@ -78,8 +85,9 @@ export function NurseQuickRecord({
         <NursePromptCarousel paused={open} reducedMotion={reducedMotion} />
       </div>
       <div className="nurse-quick-record-anchor" data-open={open}>
+        {open && <div aria-hidden="true" className="nurse-quick-record-backdrop" />}
         {savedNotice && <div aria-live="polite" className="nurse-quick-record-saved"><Check aria-hidden="true" size={18} /><strong>{savedNotice}</strong></div>}
-        <div className="nurse-quick-record-controls">
+        <div aria-hidden={open} className="nurse-quick-record-controls" data-hidden={open}>
           <div className="nurse-quick-record-entry" data-visible={!open}>
             <QuickRecordTrigger
               className="nurse-quick-record-trigger"
