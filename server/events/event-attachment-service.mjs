@@ -3,6 +3,10 @@ import { EventAttachmentRepository } from './repositories/event-attachment-repos
 import { HealthEventRecordRepository } from './repositories/health-event-record-repository.mjs'
 import { ImageAnalysisService } from '../ai/image-analysis-service.mjs'
 import { validateHealthImage } from './image-attachment-policy.mjs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+
+const publicAttachment = ({ storageKey: _storageKey, ...attachment }) => attachment
 
 export class EventAttachmentError extends Error {
   constructor(message, status = 400, code = 'EVENT_ATTACHMENT_ERROR') {
@@ -14,6 +18,7 @@ export class EventAttachmentError extends Error {
 
 export class EventAttachmentService {
   constructor(options = {}) {
+    this.dataDirectory = options.dataDirectory
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
     this.records = options.records ?? new HealthEventRecordRepository(options.dataDirectory)
     this.repository = options.repository ?? new EventAttachmentRepository(options.dataDirectory)
@@ -67,11 +72,20 @@ export class EventAttachmentService {
     }
     const result = await this.repository.createUnique({ accountId, eventId, recordId: recordId || null, ...prepared, analysis: preview.analysis }, now)
     this.drafts.delete(key)
-    return { ...result.attachment, duplicate: result.duplicate }
+    return { ...publicAttachment(result.attachment), duplicate: result.duplicate }
   }
 
   async list(accountId, eventId) {
     await this.assertEventOwnership(accountId, eventId)
-    return this.repository.findByEventId(eventId)
+    return (await this.repository.findByEventId(eventId)).map(publicAttachment)
+  }
+
+  async read(accountId, eventId, attachmentId) {
+    await this.assertEventOwnership(accountId, eventId)
+    const attachment = await this.repository.findById(attachmentId)
+    if (!attachment || attachment.accountId !== accountId || attachment.eventId !== eventId || !attachment.storageKey) {
+      throw new EventAttachmentError('未找到这张照片', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
+    }
+    return { mimeType: attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(attachment.storageKey))) }
   }
 }

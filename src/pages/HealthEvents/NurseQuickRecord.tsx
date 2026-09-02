@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
+import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { NursePromptCarousel } from './NursePromptCarousel'
 import { shouldTriggerNurseSaveSuccess } from './nurseSaveSuccess'
 import { NurseTriageDesk } from './NurseTriageDesk'
@@ -9,11 +10,12 @@ import './NurseQuickRecord.css'
 
 interface NurseQuickRecordProps {
   currentMemberId: string
+  authToken: string
   disabled?: boolean
   nextActionDisabled?: boolean
   nextActionOpen: boolean
   onClose: () => void
-  onConfirm: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<string | void>
+  onConfirm: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => Promise<string | void>
   onNextActionOpen: () => void
   onOpen: () => void
   open: boolean
@@ -21,6 +23,7 @@ interface NurseQuickRecordProps {
 }
 
 export function NurseQuickRecord({
+  authToken,
   currentMemberId,
   disabled = false,
   nextActionDisabled = false,
@@ -104,10 +107,12 @@ export function NurseQuickRecord({
         </div>
         <QuickVoiceRecordFlow
           onClose={onClose}
-          onConfirm={(transcript, occurredAt, _candidates, inputChannel) => onConfirm(transcript, occurredAt, inputChannel)}
+          onConfirm={(transcript, occurredAt, _candidates, inputChannel, photos) => onConfirm(transcript, occurredAt, inputChannel, photos)}
           onSaved={showSavedNotice}
           open={open}
           presentation="nurse-inline"
+          photoMemberId={currentMemberId}
+          photoToken={authToken}
         />
       </div>
     </section>

@@ -4,6 +4,7 @@ import { Check, Mic, Pencil } from 'lucide-react'
 import { HohoButton } from '../../../components/design-system'
 import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecordCandidate } from '../../../features/quick-record'
 import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, quickRecordSaveErrorMessage, type MicrophoneFailure } from './quickRecordPresentation'
+import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from './QuickRecordPhotos'
 
 type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'previewing' | 'review' | 'voice_help' | 'browser_help' | 'saving' | 'saved'
 export type QuickRecordActivity = 'idle' | 'attention' | 'listening' | 'reviewing' | 'saving' | 'saved' | 'error'
@@ -25,7 +26,7 @@ type RecognitionConstructor = new () => Recognition
 
 interface QuickVoiceRecordFlowProps {
   onClose: () => void
-  onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel) => Promise<string | void>
+  onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => Promise<string | void>
   onIgnored?: (message: string) => void
   onActivityChange?: (activity: QuickRecordActivity) => void
   onPreview?: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<QuickRecordCandidate[]>
@@ -34,6 +35,8 @@ interface QuickVoiceRecordFlowProps {
   presentation?: QuickRecordPresentation
   recognitionApi?: RecognitionConstructor | null
   voiceCapability?: BrowserVoiceCapability
+  photoMemberId?: string
+  photoToken?: string
 }
 
 export type QuickRecordInputChannel = 'voice' | 'text'
@@ -46,7 +49,7 @@ const recognitionConstructor = () => {
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
-export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability, photoMemberId, photoToken }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -75,6 +78,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const onPreviewRef = useRef(onPreview)
   const onSavedRef = useRef(onSaved)
   const inputChannelRef = useRef<QuickRecordInputChannel>('voice')
+  const photoModel = useQuickRecordPhotos(photoMemberId, photoToken)
   onCloseRef.current = onClose
   onConfirmRef.current = onConfirm
   onIgnoredRef.current = onIgnored
@@ -98,10 +102,11 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setState('saving')
     setInputError('')
     try {
-      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current)
+      const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current, photoModel.payload())
       const visibleMessage = message || '已记录'
       setSavedMessage(message || '已记录')
       setState('saved')
+      photoModel.clearAfterSave()
       if (presentation === 'nurse-inline') {
         onSavedRef.current?.(visibleMessage, inputChannelRef.current)
         onCloseRef.current()
@@ -111,7 +116,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
       setInputError(quickRecordSaveErrorMessage(reason))
       submittingRef.current = false
     }
-  }, [presentation, scheduleClose])
+  }, [photoModel, presentation, scheduleClose])
 
   const prepareNaturalInput = useCallback(async () => {
     const value = transcriptRef.current.trim()
@@ -313,6 +318,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     sessionRef.current += 1
     stopSession(true)
     setTranscript('')
+    photoModel.cancel()
     onClose()
   }
   const confirmVoice = () => {
@@ -393,9 +399,10 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
             value={transcript}
           />
           {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
+          <QuickRecordPhotos model={photoModel} />
           <div className="nurse-quick-record-actions">
             <button className="nurse-quick-record-secondary" disabled={submittingRef.current} onClick={restartListening} type="button">重新说</button>
-            <HohoButton disabled={!transcript.trim() || submittingRef.current} onClick={() => void saveFinal()}>确认保存</HohoButton>
+            <HohoButton disabled={!transcript.trim() || submittingRef.current || photoModel.blocked} onClick={() => void saveFinal()}>确认保存</HohoButton>
           </div>
         </section>
       )
@@ -435,6 +442,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         </div>
         <div className={`quick-record-wave ${state === 'recording' ? 'is-listening' : ''}`} aria-hidden="true">{Array.from({ length: 21 }, (_, index) => <span key={index} />)}</div>
         <div className="quick-record-transcript"><p>{transcript || (state === 'requesting_permission' ? '正在启动麦克风…' : '请开始说话')}</p></div>
+        <QuickRecordPhotos model={photoModel} />
         <div className="nurse-quick-record-actions">
           <button className="nurse-quick-record-cancel" onClick={cancel} type="button">取消</button>
           <HohoButton disabled={!validRecording} onClick={confirmVoice}>结束听写</HohoButton>

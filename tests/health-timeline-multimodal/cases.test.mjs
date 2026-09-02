@@ -35,11 +35,14 @@ test('语音、照片和多模态结果必须分开统计', () => {
   assert.deepEqual([...modalities].sort(), ['controlled_audio', 'photo', 'photo_plus_audio', 'transcript_text'])
 })
 
-test('普通时间轴图片先经首次记录表单进入统一预处理，快捷语音仍不伪装成图片 E2E', async () => {
+test('普通时间轴与快捷听写照片都复用统一图片预处理并使用真实上传链路', async () => {
   const quick = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/QuickVoiceRecordFlow.tsx'), 'utf8')
+  const quickPhotos = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/QuickRecordPhotos.tsx'), 'utf8')
   const first = await readFile(path.join(root, 'src/pages/HealthEventDetail/components/FirstRecordComposer.tsx'), 'utf8')
-  assert.doesNotMatch(quick, /type="file"|accept="image/)
-  assert.doesNotMatch(quick, /onAttachment|attachments|addAttachment/)
+  assert.match(quick, /QuickRecordPhotos/)
+  assert.match(quickPhotos, /prepareHealthImage/)
+  assert.match(quickPhotos, /quickRecordService\.uploadPhoto/)
+  assert.match(quickPhotos, /accept="image\/jpeg,image\/png,image\/webp"/)
   assert.match(first, /prepareHealthImage/)
   assert.match(first, /image\/heic,image\/heif/)
 })
