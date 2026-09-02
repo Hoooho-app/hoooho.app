@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { QuickRecordService } from './quick-record-service.mjs'
 
-function setup({ failRecord = false, failRequest = false } = {}) {
+function setup({ failRecord = false, failRequest = false, failPhotos = false } = {}) {
   const eventRows = []
   const recordRows = []
   const requestRows = []
@@ -51,7 +51,18 @@ function setup({ failRecord = false, failRequest = false } = {}) {
       return input
     }
   }
-  return { service: new QuickRecordService({ events, records, requests }), eventRows, recordRows, counts: () => ({ eventCreates, recordCreates }) }
+  const photoCalls = []
+  const photos = {
+    prepareForSave: async (_accountId, _memberId, _draftId, photoIds) => photoIds.map((id, sortOrder) => ({ id, sortOrder })),
+    attach: async (_accountId, eventId, recordId, memberId, drafts) => {
+      if (failPhotos) throw new Error('photo attach failed')
+      photoCalls.push({ eventId, recordId, memberId, drafts })
+      return drafts.map((draft) => ({ id: `attachment-${draft.id}` }))
+    },
+    consume: async () => undefined,
+    rollback: async () => undefined
+  }
+  return { service: new QuickRecordService({ events, records, requests, photos }), eventRows, recordRows, photoCalls, counts: () => ({ eventCreates, recordCreates }) }
 }
 
 const input = {
@@ -96,6 +107,25 @@ test('quick record collapses concurrent submissions with the same key', async ()
 test('quick record rolls back both event and record when confirmation persistence fails', async () => {
   const state = setup({ failRequest: true })
   await assert.rejects(() => state.service.create('account-1', input), /request failed/)
+  assert.equal(state.eventRows.length, 0)
+  assert.equal(state.recordRows.length, 0)
+})
+
+test('quick record atomically associates uploaded photos with the created event and record', async () => {
+  const state = setup()
+  const created = await state.service.create('account-1', { ...input, photoDraftId: 'draft_12345678', photoIds: ['photo-1', 'photo-2'] })
+  assert.equal(created.photoCount, 2)
+  assert.deepEqual(state.photoCalls[0], {
+    eventId: created.eventId,
+    recordId: created.recordId,
+    memberId: input.memberId,
+    drafts: [{ id: 'photo-1', sortOrder: 0 }, { id: 'photo-2', sortOrder: 1 }]
+  })
+})
+
+test('quick record photo association failure rolls back text event and record', async () => {
+  const state = setup({ failPhotos: true })
+  await assert.rejects(() => state.service.create('account-1', { ...input, photoDraftId: 'draft_12345678', photoIds: ['photo-1'] }), /photo attach failed/)
   assert.equal(state.eventRows.length, 0)
   assert.equal(state.recordRows.length, 0)
 })

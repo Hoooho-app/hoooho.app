@@ -11,6 +11,7 @@ import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
 import { HealthEventService } from './events/health-event-service.mjs'
 import { QuickRecordService } from './events/quick-record-service.mjs'
+import { QuickRecordPhotoService } from './events/quick-record-photo-service.mjs'
 import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
@@ -46,8 +47,9 @@ const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
-const quickRecords = new QuickRecordService({ ...sharedOptions, events, records })
 const attachments = new EventAttachmentService(sharedOptions)
+const quickRecordPhotos = new QuickRecordPhotoService({ ...sharedOptions, attachments: attachments.repository })
+const quickRecords = new QuickRecordService({ ...sharedOptions, events, records, photos: quickRecordPhotos })
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const stopOpsScheduler = startOpsScheduler(ops)
@@ -329,9 +331,31 @@ async function handleMembers(request, response, pathname) {
 }
 
 async function handleQuickRecords(request, response, pathname) {
-  if (pathname !== '/api/quick-records') return false
+  const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
+  const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
+  if (pathname !== '/api/quick-records' && !photoMatch && !photoContentMatch) return false
   const accountId = readAccountId(request)
-  if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
+  const photoMemberId = String(request.headers['x-hoooho-member-id'] ?? '').trim()
+  if (photoContentMatch) {
+    if (request.method === 'GET') {
+      const file = await quickRecordPhotos.read(accountId, photoMemberId, decodeRouteValue(photoContentMatch[1]), decodeRouteValue(photoContentMatch[2]))
+      setCommonHeaders(response)
+      response.statusCode = 200
+      response.setHeader('Content-Type', file.mimeType)
+      response.setHeader('Content-Length', String(file.buffer.length))
+      response.setHeader('Content-Disposition', 'inline')
+      response.setHeader('Cache-Control', 'private, no-store')
+      response.end(file.buffer)
+    } else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (photoMatch) {
+    const draftId = decodeRouteValue(photoMatch[1])
+    const photoId = photoMatch[2] ? decodeRouteValue(photoMatch[2]) : null
+    if (!photoId && request.method === 'GET') sendJson(response, 200, await quickRecordPhotos.list(accountId, photoMemberId, draftId))
+    else if (!photoId && request.method === 'POST') sendJson(response, 201, await quickRecordPhotos.upload(accountId, draftId, await readJson(request, 7_100_000)))
+    else if (!photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.cancel(accountId, photoMemberId, draftId))
+    else if (photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.delete(accountId, photoMemberId, draftId, photoId))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -446,11 +470,23 @@ async function handleHealthInformationCandidates(request, response, pathname) {
 }
 
 async function handleAttachments(request, response, pathname) {
+  const contentMatch = /^\/api\/events\/([^/]+)\/attachments\/([^/]+)\/content$/.exec(pathname)
   const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
-  if (!match) return false
+  if (!match && !contentMatch) return false
   const accountId = readAccountId(request)
-  const eventId = decodeRouteValue(match[1])
-  if (request.method === 'POST' && match[2] === 'preview') sendJson(response, 200, await attachments.preview(accountId, eventId, await readJson(request, 7_100_000)))
+  const eventId = decodeRouteValue((match ?? contentMatch)[1])
+  if (contentMatch) {
+    if (request.method === 'GET') {
+      const file = await attachments.read(accountId, eventId, decodeRouteValue(contentMatch[2]))
+      setCommonHeaders(response)
+      response.statusCode = 200
+      response.setHeader('Content-Type', file.mimeType)
+      response.setHeader('Content-Length', String(file.buffer.length))
+      response.setHeader('Content-Disposition', 'inline')
+      response.setHeader('Cache-Control', 'private, no-store')
+      response.end(file.buffer)
+    } else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (request.method === 'POST' && match[2] === 'preview') sendJson(response, 200, await attachments.preview(accountId, eventId, await readJson(request, 7_100_000)))
   else if (request.method === 'GET') sendJson(response, 200, await attachments.list(accountId, eventId))
   else if (request.method === 'POST') sendJson(response, 201, await attachments.create(accountId, eventId, await readJson(request, 7_100_000)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

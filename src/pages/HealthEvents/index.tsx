@@ -18,6 +18,7 @@ import { useSettingsStore } from '../../store/useSettingsStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
+import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { FirstMemberFrontDesk } from './FirstMemberFrontDesk'
 import { NurseQuickRecord } from './NurseQuickRecord'
 import { NurseNextAction } from './NurseNextAction'
@@ -244,7 +245,7 @@ export function HealthEventsPage() {
     }
   }
 
-  const saveTriageRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => {
+  const saveTriageRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => {
     if (!token || !currentMember) throw new Error('当前人物信息尚未准备好，请稍后重试。')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     try {
@@ -254,7 +255,8 @@ export function HealthEventsPage() {
         occurredAt,
         inputChannel,
         idempotencyKey: submissionKeyRef.current,
-        title: normalizeHealthEventTitle('', transcript)
+        title: normalizeHealthEventTitle('', transcript),
+        ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {})
       }, token)
       submissionKeyRef.current = ''
       void retry()
@@ -374,6 +376,7 @@ export function HealthEventsPage() {
         )}
         {viewMode === 'triage' && (
           <NurseQuickRecord
+            authToken={token ?? ''}
             currentMemberId={currentMemberId}
             disabled={!token || !currentMember}
             key={currentMemberId}

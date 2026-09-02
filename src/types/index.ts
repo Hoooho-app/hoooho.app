@@ -265,10 +265,20 @@ export interface EventAttachmentPreviewApiDto {
   canConfirm: boolean
 }
 
-export interface EventAttachmentApiDto extends CreateEventAttachmentInput {
+export interface EventAttachmentApiDto {
   id: string
   accountId: string
   eventId: string
+  recordId?: string
+  memberId?: string
+  name: string
+  mimeType: string
+  dataUrl?: string
+  binarySize?: number
+  width?: number
+  height?: number
+  sortOrder?: number
+  uploadStatus?: 'uploaded'
   createdAt: string
   analysis?: ImageAnalysisResult
 }

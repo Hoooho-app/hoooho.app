@@ -41,7 +41,10 @@ function validateInput(input) {
   if (!content) throw new HealthEventError('记录内容不能为空', 400, 'EMPTY_RECORD_CONTENT')
   if (!title) throw new HealthEventError('记录标题不能为空', 400, 'INVALID_EVENT_TITLE')
   if (input.inputChannel !== 'voice' && input.inputChannel !== 'text') throw new HealthEventError('记录来源无效', 400, 'INVALID_INPUT_CHANNEL')
-  return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel }
+  const photoIds = Array.isArray(input.photoIds) ? input.photoIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()) : []
+  const photoDraftId = typeof input.photoDraftId === 'string' ? input.photoDraftId.trim() : ''
+  if (photoIds.length && !photoDraftId) throw new HealthEventError('照片草稿标识不能为空', 400, 'PHOTO_DRAFT_REQUIRED')
+  return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds }
 }
 
 export class QuickRecordService {
@@ -49,6 +52,7 @@ export class QuickRecordService {
     this.events = options.events ?? new HealthEventService(options)
     this.records = options.records ?? new HealthEventRecordService(options)
     this.requests = options.requests ?? new QuickRecordRequestRepository(options.dataDirectory)
+    this.photos = options.photos ?? null
     this.inFlight = new Map()
   }
 
@@ -92,6 +96,10 @@ export class QuickRecordService {
   async createLocked(accountId, input, marker, now) {
     const existing = await this.findExisting(accountId, input.idempotencyKey, marker, now)
     if (existing) return existing
+    const photos = input.photoIds.length
+      ? await this.photos?.prepareForSave(accountId, input.memberId, input.photoDraftId, input.photoIds)
+      : []
+    if (input.photoIds.length && !this.photos) throw new HealthEventError('照片服务暂不可用', 503, 'PHOTO_SERVICE_UNAVAILABLE')
     const event = await this.events.create(accountId, {
       memberId: input.memberId,
       title: input.title,
@@ -99,6 +107,7 @@ export class QuickRecordService {
       startTime: input.occurredAt
     }, now)
     let createdRecord = null
+    let attachedPhotos = []
     try {
       const record = await this.records.create(accountId, event.id, {
         type: 'note',
@@ -110,9 +119,12 @@ export class QuickRecordService {
       }, now)
       createdRecord = record
       await this.requests.save({ accountId, idempotencyKey: input.idempotencyKey, eventId: event.id, recordId: record.id }, now)
+      attachedPhotos = await this.photos?.attach(accountId, event.id, record.id, input.memberId, photos, now) ?? []
       await this.records.repository.update(record.id, { note: null }, now)
-      return { eventId: event.id, recordId: record.id, idempotent: false }
+      await this.photos?.consume(accountId, input.photoDraftId, photos, now)
+      return { eventId: event.id, recordId: record.id, photoCount: attachedPhotos.length, idempotent: false }
     } catch (error) {
+      if (attachedPhotos.length) await this.photos?.rollback(photos).catch(() => undefined)
       if (createdRecord) await this.records.repository.delete(createdRecord.id).catch(() => undefined)
       await this.events.delete(accountId, event.id).catch(() => undefined)
       throw error

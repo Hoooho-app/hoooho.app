@@ -20,6 +20,7 @@ interface ApiRequestOptions {
   token: string
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
+  headers?: Record<string, string>
   signal?: AbortSignal
 }
 
@@ -30,7 +31,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions): P
     headers: {
       Authorization: `Bearer ${options.token}`,
       ...(browserTimeZone ? { 'X-Hoooho-Timezone': browserTimeZone } : {}),
-      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' })
+      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers
     },
     ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     signal: options.signal
