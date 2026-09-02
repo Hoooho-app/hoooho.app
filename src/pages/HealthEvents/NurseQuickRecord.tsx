@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
-import { QuickVoiceRecordFlow, type QuickRecordActivity, type QuickRecordInputChannel } from '../HealthEventDetail/components'
+import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import { NursePromptCarousel } from './NursePromptCarousel'
 import { shouldTriggerNurseSaveSuccess } from './nurseSaveSuccess'
 import { NurseTriageDesk } from './NurseTriageDesk'
@@ -34,30 +34,16 @@ export function NurseQuickRecord({
 }: NurseQuickRecordProps) {
   const [savedNotice, setSavedNotice] = useState('')
   const [saveSuccessSequence, setSaveSuccessSequence] = useState(0)
-  const [activity, setActivity] = useState<QuickRecordActivity>('idle')
   const noticeTimerRef = useRef<number | null>(null)
   const quickRecordSessionRef = useRef(0)
   const animatedSaveSessionRef = useRef(-1)
-  const triageState = activity === 'listening'
-    ? 'listening'
-    : activity === 'reviewing'
-      ? 'reviewing'
-      : activity === 'saving'
-        ? 'saving'
-        : activity === 'saved'
-          ? 'saved'
-          : activity === 'error'
-            ? 'error'
-            : activity === 'attention'
-              ? 'attention'
-              : 'idle'
   const openQuickRecord = () => {
     quickRecordSessionRef.current += 1
     setSavedNotice('')
     onOpen()
   }
-  const showSavedNotice = (message: string, inputChannel: QuickRecordInputChannel) => {
-    setSavedNotice(message)
+  const showSavedNotice = (_message: string, inputChannel: QuickRecordInputChannel) => {
+    setSavedNotice('已记录')
     if (shouldTriggerNurseSaveSuccess(inputChannel, quickRecordSessionRef.current, animatedSaveSessionRef.current)) {
       animatedSaveSessionRef.current = quickRecordSessionRef.current
       setSaveSuccessSequence((sequence) => sequence + 1)
@@ -78,11 +64,11 @@ export function NurseQuickRecord({
       <div className="nurse-triage-visual-slot">
         <NurseTriageDesk
           audioLevel={0}
-          idleActive={!open}
+          idleActive
           idleAnimationResetKey={currentMemberId}
           reducedMotion={reducedMotion}
           saveSuccessSequence={saveSuccessSequence}
-          state={triageState}
+          state="idle"
         />
       </div>
       <div className="nurse-triage-status">
@@ -117,7 +103,6 @@ export function NurseQuickRecord({
           </button>
         </div>
         <QuickVoiceRecordFlow
-          onActivityChange={setActivity}
           onClose={onClose}
           onConfirm={(transcript, occurredAt, _candidates, inputChannel) => onConfirm(transcript, occurredAt, inputChannel)}
           onSaved={showSavedNotice}
