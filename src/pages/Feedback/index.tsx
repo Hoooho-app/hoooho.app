@@ -17,6 +17,10 @@ const readPersistedSource = () => { try { return JSON.parse(sessionStorage.getIt
 const isReload = () => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })
 
+function FeedbackHeader({ onHistory }: { onHistory: () => void }) {
+  return <div className="relative"><MainAppHeader compact title="反馈意见"/><button className="feedback-header-action absolute right-3 top-[env(safe-area-inset-top)] z-30 min-h-14" type="button" onClick={onHistory}>我的反馈</button></div>
+}
+
 export function FeedbackPage() {
   const token = useAppStore((state) => state.authToken), navigate = useNavigate(), location = useLocation(), [params] = useSearchParams()
   const source = useMemo(() => resolveFeedbackSource(location.state, readPersistedSource(), isReload()), [location.state])
@@ -35,7 +39,7 @@ export function FeedbackPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败，请检查网络后重试。你的文字和图片仍保留在这里。') }
     finally { setSubmitting(false) }
   }
-  return <main className="app-shell feedback-page pb-0"><MainAppHeader compact title="反馈意见" action={<button className="feedback-header-action" type="button" onClick={() => navigate('/feedback/mine')}>我的反馈</button>} />
+  return <main className="app-shell feedback-page pb-0"><FeedbackHeader onHistory={() => navigate('/feedback/mine')}/>
     <form onSubmit={submit} className="feedback-form">
       <fieldset className="feedback-categories"><legend>问题类型</legend><div>{feedbackCategoryOptions.map((item) => <button type="button" key={item.value} aria-pressed={problemType === item.value} onClick={() => setProblemType((value) => value === item.value ? null : item.value)}>{item.label}</button>)}</div></fieldset>
       <FeedbackComposer text={description} onTextChange={setDescription} images={images} onImagesChange={setImages} submitAction={<button className="feedback-check-submit" type="submit" aria-label="确认提交反馈" disabled={!canSubmit}>{submitting ? <LoaderCircle className="animate-spin"/> : <Check/>}</button>}/>
