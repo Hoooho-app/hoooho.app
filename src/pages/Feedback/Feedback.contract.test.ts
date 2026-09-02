@@ -22,7 +22,10 @@ test('my feedback uses inline expansion, persistent unread replies and inline su
   assert.match(myCard, /继续回复/)
   assert.match(myCard, /showVoice=\{false\}/)
   assert.match(myCard, /unreadReplyCount/)
-  assert.doesNotMatch(myCard, /进度轴|progress/)
+  assert.match(myCard, /我的反馈/)
+  assert.match(myCard, /Hoooho 回复/)
+  assert.match(myCard, /我的补充/)
+  assert.doesNotMatch(myCard, /statusHistory|处理状态|my-feedback-card-latest|my-feedback-card-text/)
 })
 
 test('feedback status contract exposes every user-facing workflow state', () => {

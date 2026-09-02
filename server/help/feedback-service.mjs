@@ -237,10 +237,10 @@ export class FeedbackService {
       const noActionReason = input.noActionReason === undefined ? current.noActionReason : cleanNullable(input.noActionReason, 800)
       const handledVersion = input.handledVersion === undefined ? current.handledVersion : cleanNullable(input.handledVersion, 80)
       const mergedIntoId = input.mergedIntoId === undefined ? current.mergedIntoId : cleanNullable(input.mergedIntoId, 80)
-      if (status === 'not_planned' && !officialReply && !noActionReason) throw new FeedbackError('暂不调整时必须同时提供 Hoooho 正式回复', 400, 'NOT_PLANNED_REPLY_REQUIRED')
+      if (status === 'not_planned' && !noActionReason) throw new FeedbackError('暂不调整时必须填写内部处理原因', 400, 'NOT_PLANNED_REASON_REQUIRED')
       if (status === 'merged' && !mergedIntoId) throw new FeedbackError('标记已合并时必须关联反馈', 400, 'MERGED_FEEDBACK_REQUIRED')
       if (status === 'merged' && (mergedIntoId === feedbackId || !data.feedback.some((item) => item.id === mergedIntoId))) throw new FeedbackError('关联的反馈不存在或不能关联自身', 400, 'INVALID_MERGED_FEEDBACK')
-      const next = { ...current, status, priority, noActionReason: status === 'not_planned' ? (officialReply || noActionReason) : noActionReason, handledVersion, mergedIntoId, updatedAt: createdAt, statusUpdatedAt: status !== currentStatus ? createdAt : (current.statusUpdatedAt ?? current.updatedAt), closedAt: ['improved', 'merged', 'not_planned'].includes(status) ? createdAt : null }
+      const next = { ...current, status, priority, noActionReason, handledVersion, mergedIntoId, updatedAt: createdAt, statusUpdatedAt: status !== currentStatus ? createdAt : (current.statusUpdatedAt ?? current.updatedAt), closedAt: ['improved', 'merged', 'not_planned'].includes(status) ? createdAt : null }
       const feedback = [...data.feedback]; feedback[index] = next
       const history = status !== currentStatus ? [...data.statusHistory, { id: randomUUID(), feedbackId, status, actorAccountId, createdAt }] : data.statusHistory
       const messages = officialReply ? [...data.messages, { id: randomUUID(), feedbackId, authorAccountId: actorAccountId, kind: 'user-reply', text: officialReply, createdAt, readByUserAt: null }] : data.messages
@@ -306,13 +306,12 @@ export class FeedbackService {
 
   #toUserView(item, data, detailed) {
     const attachments = data.attachments.filter((entry) => entry.feedbackId === item.id).map((entry) => this.#attachmentView(entry))
-    const visibleMessages = data.messages.filter((entry) => entry.feedbackId === item.id && entry.kind !== 'internal-note')
+    const visibleMessages = data.messages.filter((entry) => entry.feedbackId === item.id && entry.kind !== 'internal-note' && !(entry.kind === 'user-reply' && item.noActionReason && entry.text === item.noActionReason && entry.createdAt === item.statusUpdatedAt))
     const latestReply = [...visibleMessages].reverse().find((entry) => entry.kind === 'user-reply')?.text ?? null
     const unreadReplyCount = visibleMessages.filter((entry) => entry.kind === 'user-reply' && !entry.readByUserAt).length
-    const base = { id: item.id, category: item.category, problemPage: item.problemPage ?? null, problemType: item.problemType ?? item.category ?? null, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, handledVersion: item.handledVersion, noActionReason: item.noActionReason, mergedIntoId: item.mergedIntoId, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, unreadReplyCount, attachmentCount: attachments.length }
+    const base = { id: item.id, category: item.category, problemPage: item.problemPage ?? null, problemType: item.problemType ?? item.category ?? null, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, unreadReplyCount, attachmentCount: attachments.length }
     const messages = visibleMessages.map((entry) => ({ ...entry, senderType: entry.kind === 'user-reply' ? 'team' : 'user', readByUserAt: entry.readByUserAt ?? null }))
-    const statusHistory = data.statusHistory.filter((entry) => entry.feedbackId === item.id).map(({ actorAccountId: _actor, ...entry }) => ({ ...entry, status: normalizeStatus(entry.status) }))
-    return detailed ? { ...base, attachments, messages, statusHistory } : base
+    return detailed ? { ...base, attachments, messages } : base
   }
 
   #toOpsView(item, data, detailed) {

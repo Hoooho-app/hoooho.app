@@ -50,17 +50,28 @@ test('users see replies and supplements but never internal notes or internal pri
   await state.service.updateFromOps('operator-1', created.id, { status: 'evaluating', priority: 'high' })
   const user = await state.service.getForAccount('account-1', created.id), ops = await state.service.getForOps(created.id)
   assert.deepEqual(user.messages.map((item) => item.kind), ['user-supplement', 'user-reply'])
-  assert.equal('priority' in user, false); assert.equal(ops.messages.some((item) => item.kind === 'internal-note'), true); assert.equal(user.status, 'reviewing'); assert.equal(user.unreadReplyCount, 1)
+  assert.equal('priority' in user, false); assert.equal('statusHistory' in user, false); assert.equal('noActionReason' in user, false); assert.equal('handledVersion' in user, false)
+  assert.equal(ops.messages.some((item) => item.kind === 'internal-note'), true); assert.equal(Array.isArray(ops.statusHistory), true); assert.equal(user.status, 'reviewing'); assert.equal(user.unreadReplyCount, 1)
 })
 
 test('feedback ownership, official not-planned replies and merge targets are enforced', async () => {
   const state = setup(), created = await state.service.create('account-1', input())
   await assert.rejects(() => state.service.getForAccount('account-2', created.id), /不存在/)
-  await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'declined' }), /必须同时提供/)
+  await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'declined' }), /必须填写内部处理原因/)
   await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'merged' }), /必须关联/)
   await assert.rejects(() => state.service.updateFromOps('operator', created.id, { status: 'merged', mergedIntoId: 'missing' }), /不存在或不能关联自身/)
-  const declined = await state.service.updateFromOps('operator', created.id, { status: 'not_planned', officialReply: '当前版本暂不支持该设备' })
-  assert.equal(declined.noActionReason, '当前版本暂不支持该设备'); assert.equal(declined.messages.at(-1).kind, 'user-reply')
+  const declined = await state.service.updateFromOps('operator', created.id, { status: 'not_planned', noActionReason: '当前版本暂不投入', officialReply: '当前版本暂不支持该设备' })
+  assert.equal(declined.noActionReason, '当前版本暂不投入'); assert.equal(declined.messages.at(-1).kind, 'user-reply')
+})
+
+test('status changes stay out of the user conversation unless ops sends a real reply', async () => {
+  const state = setup(), created = await state.service.create('account-1', input())
+  await state.service.updateFromOps('operator', created.id, { status: 'not_planned', noActionReason: '内部判断暂不投入' }, new Date('2026-09-02T05:00:00Z'))
+  const user = await state.service.getForAccount('account-1', created.id), ops = await state.service.getForOps(created.id)
+  assert.equal(user.status, 'not_planned'); assert.deepEqual(user.messages, []); assert.equal('statusHistory' in user, false)
+  assert.equal(ops.noActionReason, '内部判断暂不投入'); assert.equal(ops.statusHistory.at(-1).status, 'not_planned')
+  await state.service.addOpsMessage('operator', created.id, { kind: 'user-reply', text: '感谢你的反馈。' })
+  assert.deepEqual((await state.service.getForAccount('account-1', created.id)).messages.map((message) => message.text), ['感谢你的反馈。'])
 })
 
 test('new optional problem types persist while source route remains system context', async () => {

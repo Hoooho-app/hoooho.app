@@ -523,14 +523,13 @@
   .my-feedback-card-heading em[data-status='improved'] { color: #17675d; background: #e7f5f1; }
   .my-feedback-card-heading em[data-status='needs_more_info'] { color: #8a542c; background: #fff1e5; }
   .my-feedback-card-meta { @apply mt-0.5 block truncate text-[11px] leading-5 text-text-secondary; }
-  .my-feedback-card-text { @apply mt-1 block overflow-hidden text-sm leading-5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .my-feedback-card-latest { @apply mt-2 flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5; color: #49625e; background: #f0f6f4; }
-  .my-feedback-card-latest i { @apply h-2 w-2 shrink-0 rounded-full; background: #0b7a6c; }
-  .my-feedback-card-latest span { @apply min-w-0 flex-1 truncate text-xs; }
-  .my-feedback-card-latest b { @apply shrink-0 text-xs font-semibold; color: #0b756a; }
+  .my-feedback-card-toggle { @apply mt-1 flex min-h-6 items-center justify-end gap-2; }
+  .my-feedback-card-toggle i { @apply h-2 w-2 shrink-0 rounded-full; background: #0b7a6c; }
+  .my-feedback-card-toggle b { @apply shrink-0 text-[11px] font-semibold; color: #0b756a; }
   .my-feedback-expanded { @apply border-t px-3 pb-3 pt-2.5; animation: my-feedback-open 180ms ease-out; }
-  .my-feedback-timeline { @apply grid gap-1.5; }
-  .my-feedback-timeline article { @apply rounded-md px-2.5 py-2; background: #f6f7f6; }
+  .my-feedback-timeline { @apply grid gap-3; }
+  .my-feedback-timeline article { @apply px-2.5 py-2; background: transparent; }
+  .my-feedback-timeline article[data-kind='user'] { @apply rounded-md; background: #f6f7f6; }
   .my-feedback-timeline article[data-kind='team'] { background: #edf5f3; }
   .my-feedback-timeline article header { @apply flex items-center justify-between gap-2; }
   .my-feedback-timeline article strong { @apply text-xs font-semibold; }
