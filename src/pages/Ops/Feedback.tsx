@@ -14,6 +14,7 @@ import {
   type OpsFeedbackRecord,
 } from '../../services/feedback'
 import { useAppStore } from '../../store/useAppStore'
+import { OpsAccount } from '../../components/auth/OpsAccount'
 import './ops.css'
 import './ops-feedback.css'
 
@@ -47,7 +48,7 @@ const messageLabel = (kind: FeedbackMessage['kind']) => kind === 'internal-note'
 const latestSupplementAt = (item: OpsFeedbackRecord) => [...(item.messages ?? [])].reverse().find((message) => message.kind === 'user-supplement')?.createdAt ?? null
 
 export function OpsFeedbackPage() {
-  const token = useAppStore((state) => state.authToken)!
+  const token = useAppStore((state) => state.opsAuthToken)!
   const [records, setRecords] = useState<OpsFeedbackRecord[]>([])
   const [overview, setOverview] = useState<OpsFeedbackOverview | null>(null)
   const [selected, setSelected] = useState<OpsFeedbackRecord | null>(null)
@@ -129,7 +130,7 @@ export function OpsFeedbackPage() {
   return <main className="ops-page ops-feedback-page">
     <header className="ops-topbar ops-feedback-topbar">
       <div><Link to="/ops">← Operations &amp; Billing</Link><h1>Feedback（反馈管理）</h1><p>在一个工作台里查看反馈、回复用户并记录处理结论</p></div>
-      <button className="ops-feedback-reload" type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button>
+      <div className="ops-feedback-header-actions"><button className="ops-feedback-reload" type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button><OpsAccount /></div>
     </header>
 
     {dataError && <div className="ops-error" role="alert"><span>{dataError}</span><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></div>}

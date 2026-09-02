@@ -5,12 +5,17 @@ import type { AuthSession, AuthUser, Member, UserProfile } from '../types'
 interface AppState {
   authToken: string | null
   authUser: AuthUser | null
+  opsAuthToken: string | null
+  opsAuthUser: { email: string } | null
+  opsAuthFailure: 'expired' | 'forbidden' | 'not-configured' | null
   currentMemberId: string
   members: Member[]
   profile: UserProfile | null
   setCurrentMemberId: (memberId: string) => void
   setAuthSession: (session: AuthSession) => void
   clearAuthSession: () => void
+  setOpsAuthSession: (session: AuthSession) => void
+  clearOpsAuthSession: (reason?: AppState['opsAuthFailure']) => void
   addMember: (member: Member) => void
   setMembers: (members: Member[]) => void
   setProfile: (profile: UserProfile, memberId: string) => void
@@ -22,6 +27,9 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       authToken: null,
       authUser: null,
+      opsAuthToken: null,
+      opsAuthUser: null,
+      opsAuthFailure: null,
       currentMemberId: 'self',
       members: [],
       profile: null,
@@ -34,6 +42,12 @@ export const useAppStore = create<AppState>()(
           : {})
       })),
       clearAuthSession: () => set({ authToken: null, authUser: null, profile: null, currentMemberId: 'self' }),
+      setOpsAuthSession: ({ token, user }) => set({
+        opsAuthToken: token,
+        opsAuthUser: user.email ? { email: user.email.trim().toLowerCase() } : null,
+        opsAuthFailure: null
+      }),
+      clearOpsAuthSession: (opsAuthFailure = null) => set({ opsAuthToken: null, opsAuthUser: null, opsAuthFailure }),
       addMember: (member) => set((state) => ({
         members: state.members.some((item) => item.id === member.id)
           ? state.members.map((item) => item.id === member.id ? member : item)
@@ -53,12 +67,12 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'hoooho-app',
-      version: 3,
+      version: 4,
       migrate: (persisted) => {
         const { notifications: _removedNotifications, ...state } = persisted as AppState & { notifications?: unknown }
         return { ...state, members: [] }
       },
-      partialize: ({ authToken, authUser, currentMemberId, members, profile }) => ({ authToken, authUser, currentMemberId, members, profile })
+      partialize: ({ authToken, authUser, opsAuthToken, opsAuthUser, currentMemberId, members, profile }) => ({ authToken, authUser, opsAuthToken, opsAuthUser, currentMemberId, members, profile })
     }
   )
 )

@@ -2,29 +2,42 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { assertOpsAccess } from './ops-service.mjs'
 
-const original = { nodeEnv: process.env.NODE_ENV, ids: process.env.OPS_ALLOWED_ACCOUNT_IDS, phones: process.env.OPS_ALLOWED_PHONES, emails: process.env.OPS_ALLOWED_EMAILS }
+const original = { owner: process.env.OPS_OWNER_EMAIL, ids: process.env.OPS_ALLOWED_ACCOUNT_IDS, phones: process.env.OPS_ALLOWED_PHONES, emails: process.env.OPS_ALLOWED_EMAILS }
 test.afterEach(() => {
-  for (const [key, value] of [['NODE_ENV', original.nodeEnv], ['OPS_ALLOWED_ACCOUNT_IDS', original.ids], ['OPS_ALLOWED_PHONES', original.phones], ['OPS_ALLOWED_EMAILS', original.emails]]) {
+  for (const [key, value] of [['OPS_OWNER_EMAIL', original.owner], ['OPS_ALLOWED_ACCOUNT_IDS', original.ids], ['OPS_ALLOWED_PHONES', original.phones], ['OPS_ALLOWED_EMAILS', original.emails]]) {
     if (value === undefined) delete process.env[key]; else process.env[key] = value
   }
 })
 
-test('production allows authenticated access temporarily when no general Ops allowlist is configured', () => {
-  process.env.NODE_ENV = 'production'; delete process.env.OPS_ALLOWED_ACCOUNT_IDS; delete process.env.OPS_ALLOWED_PHONES; delete process.env.OPS_ALLOWED_EMAILS
-  assert.deepEqual(assertOpsAccess({ sub: 'account-other', phone: '13800000000' }), { mode: 'temporary-authenticated' })
+test('Operations fails closed when OPS_OWNER_EMAIL is missing', () => {
+  delete process.env.OPS_OWNER_EMAIL
+  assert.throws(() => assertOpsAccess({ sub: 'account-owner', email: 'owner@example.com' }), (error) => error.status === 503 && error.code === 'OPS_OWNER_NOT_CONFIGURED')
 })
 
-test('production accepts account ID, phone and email allowlists', () => {
-  process.env.NODE_ENV = 'production'; process.env.OPS_ALLOWED_ACCOUNT_IDS = 'account-owner'; process.env.OPS_ALLOWED_PHONES = '13900000000'; process.env.OPS_ALLOWED_EMAILS = 'pm@hoooho.com'
-  assert.deepEqual(assertOpsAccess({ sub: 'account-owner', phone: '13800000000' }), { mode: 'allowlist' })
-  assert.deepEqual(assertOpsAccess({ sub: 'account-other', phone: '13900000000' }), { mode: 'allowlist' })
-  assert.deepEqual(assertOpsAccess({ sub: 'account-other', email: 'PM@hoooho.com' }), { mode: 'allowlist' })
-  assert.throws(() => assertOpsAccess({ sub: 'account-other', phone: '13800000000' }), (error) => error.status === 403 && error.code === 'OPS_FORBIDDEN')
+test('Operations fails closed when OPS_OWNER_EMAIL is malformed', () => {
+  process.env.OPS_OWNER_EMAIL = 'not-an-email'
+  assert.throws(() => assertOpsAccess({ sub: 'account-owner', email: 'not-an-email' }), (error) => error.status === 503 && error.code === 'OPS_OWNER_NOT_CONFIGURED')
 })
 
-test('feedback management defaults to deny when no Ops allowlist is configured', () => {
-  delete process.env.OPS_ALLOWED_ACCOUNT_IDS; delete process.env.OPS_ALLOWED_PHONES; delete process.env.OPS_ALLOWED_EMAILS
-  assert.throws(() => assertOpsAccess({ sub: 'account-other' }, { requireAllowlist: true }), (error) => error.status === 403 && error.code === 'OPS_ALLOWLIST_REQUIRED')
+test('Operations only accepts the normalized exact owner email', () => {
+  process.env.OPS_OWNER_EMAIL = ' Owner@Example.com '
+  assert.deepEqual(assertOpsAccess({ sub: 'account-owner', email: ' OWNER@example.COM ' }), { mode: 'owner' })
+  for (const email of ['owner+ops@example.com', 'owner@example.co', 'owners@example.com', '', undefined]) {
+    assert.throws(() => assertOpsAccess({ sub: 'account-other', email }), (error) => error.status === 403 && error.code === 'OPS_FORBIDDEN')
+  }
+})
+
+test('legacy allowlists cannot broaden Operations access', () => {
+  process.env.OPS_OWNER_EMAIL = 'owner@example.com'
+  process.env.OPS_ALLOWED_ACCOUNT_IDS = 'account-other'
+  process.env.OPS_ALLOWED_PHONES = '13900000000'
+  process.env.OPS_ALLOWED_EMAILS = 'other@example.com'
+  assert.throws(() => assertOpsAccess({ sub: 'account-other', phone: '13900000000', email: 'other@example.com' }), (error) => error.status === 403 && error.code === 'OPS_FORBIDDEN')
+})
+
+test('missing or invalid token payload is unauthorized', () => {
+  process.env.OPS_OWNER_EMAIL = 'owner@example.com'
+  assert.throws(() => assertOpsAccess(null), (error) => error.status === 401 && error.code === 'UNAUTHORIZED')
 })
 
 test('temporary Ops release does not switch the shared data root to an unverified Railway volume', async () => {

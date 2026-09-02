@@ -17,15 +17,12 @@ test('Enable and Disable preserve existing cost and budget fields', async () => 
   assert.equal(enabled.monthlyBudget, 30)
 })
 
-test('Ops access uses authenticated-only temporary mode when allowlists are not configured', () => {
-  const previousNodeEnv = process.env.NODE_ENV
-  const previousIds = process.env.OPS_ALLOWED_ACCOUNT_IDS
-  const previousPhones = process.env.OPS_ALLOWED_PHONES
-  delete process.env.NODE_ENV
-  delete process.env.OPS_ALLOWED_ACCOUNT_IDS
-  delete process.env.OPS_ALLOWED_PHONES
-  assert.deepEqual(assertOpsAccess({ sub: 'not-allowed', phone: '13800000000' }), { mode: 'temporary-authenticated' })
-  if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv
-  if (previousIds === undefined) delete process.env.OPS_ALLOWED_ACCOUNT_IDS; else process.env.OPS_ALLOWED_ACCOUNT_IDS = previousIds
-  if (previousPhones === undefined) delete process.env.OPS_ALLOWED_PHONES; else process.env.OPS_ALLOWED_PHONES = previousPhones
+test('Ops access is owner-only and fail-closed', () => {
+  const previousOwner = process.env.OPS_OWNER_EMAIL
+  process.env.OPS_OWNER_EMAIL = 'owner@example.com'
+  assert.deepEqual(assertOpsAccess({ sub: 'owner', email: 'OWNER@example.com' }), { mode: 'owner' })
+  assert.throws(() => assertOpsAccess({ sub: 'other', email: 'other@example.com' }), (error) => error.code === 'OPS_FORBIDDEN')
+  delete process.env.OPS_OWNER_EMAIL
+  assert.throws(() => assertOpsAccess({ sub: 'owner', email: 'owner@example.com' }), (error) => error.code === 'OPS_OWNER_NOT_CONFIGURED')
+  if (previousOwner === undefined) delete process.env.OPS_OWNER_EMAIL; else process.env.OPS_OWNER_EMAIL = previousOwner
 })

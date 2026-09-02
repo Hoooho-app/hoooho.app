@@ -22,6 +22,12 @@
   margin-bottom: var(--hoho-space-3);
 }
 
+.ops-feedback-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--hoho-space-3);
+}
+
 .ops-feedback-topbar a {
   display: inline-block;
   margin-bottom: var(--hoho-space-1);

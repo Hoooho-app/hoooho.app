@@ -31,7 +31,7 @@ export function authApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-        if (!pathname.startsWith('/api/auth/')) return next()
+        if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/')) return next()
         if (request.method !== 'POST') return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求' } })
 
         try {
@@ -47,6 +47,12 @@ export function authApiPlugin(options = {}) {
           }
           if (pathname === '/api/auth/email/login') {
             return sendJson(response, 200, await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? '')))
+          }
+          if (pathname === '/api/ops/auth/email/send') {
+            return sendJson(response, 200, await auth.sendOpsEmailCode(String(body.email ?? '')))
+          }
+          if (pathname === '/api/ops/auth/email/verify') {
+            return sendJson(response, 200, await auth.loginOpsWithEmail(String(body.email ?? ''), String(body.code ?? '')))
           }
           return sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '接口不存在' } })
         } catch (error) {

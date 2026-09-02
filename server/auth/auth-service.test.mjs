@@ -7,6 +7,7 @@ import { createServer } from 'vite'
 import { AuthError, AuthService } from './auth-service.mjs'
 import { authApiPlugin } from './vite-auth-plugin.mjs'
 import { EmailProviderError, ResendEmailVerificationProvider } from './providers/email-verification-provider.mjs'
+import { assertAuthRuntimeConfig } from './config.mjs'
 
 const createService = async (options = {}) => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-auth-'))
@@ -22,6 +23,13 @@ const createService = async (options = {}) => {
   })
   return { service, messages, deliveries, cleanup: () => rm(dataDirectory, { recursive: true, force: true }) }
 }
+
+test('deployed runtime refuses the default token secret while local builds remain possible', () => {
+  assert.doesNotThrow(() => assertAuthRuntimeConfig({ NODE_ENV: 'development' }))
+  assert.throws(() => assertAuthRuntimeConfig({ NODE_ENV: 'production' }), /AUTH_TOKEN_SECRET/)
+  assert.throws(() => assertAuthRuntimeConfig({ RAILWAY_ENVIRONMENT_ID: 'staging-id' }), /AUTH_TOKEN_SECRET/)
+  assert.doesNotThrow(() => assertAuthRuntimeConfig({ RAILWAY_ENVIRONMENT_ID: 'production-id', AUTH_TOKEN_SECRET: 'configured-secret' }))
+})
 
 test('手机号验证码可以完成注册登录并且验证码仅可使用一次', async () => {
   const context = await createService()
@@ -151,6 +159,39 @@ test('同一邮箱重复登录返回同一用户且验证码仅可使用一次',
     await context.service.sendEmailCode('same@example.com', 62_000)
     const second = await context.service.loginWithEmail('same@example.com', '123456', 63_000)
     assert.equal(second.user.id, first.user.id)
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test('Operations 邮箱验证码只发送给规范化后的唯一管理员', async () => {
+  const context = await createService({ opsOwnerEmail: ' Owner@Example.com ' })
+  try {
+    const decoy = await context.service.sendOpsEmailCode('other@example.com', 1_000)
+    assert.deepEqual(decoy, { success: true, expiresIn: 300, retryAfter: 60 })
+    assert.equal(context.deliveries.length, 0)
+    assert.equal(await context.service.codes.find('ops-email', 'other@example.com'), null)
+
+    await context.service.sendOpsEmailCode(' OWNER@example.COM ', 2_000)
+    assert.equal(context.deliveries.length, 1)
+    assert.equal(context.deliveries[0].email, 'owner@example.com')
+    const session = await context.service.loginOpsWithEmail('owner@example.com', '123456', 3_000)
+    assert.equal(session.user.email, 'owner@example.com')
+  } finally {
+    await context.cleanup()
+  }
+})
+
+test('Operations 拒绝加号别名、相似邮箱并在缺少 owner 配置时关闭', async () => {
+  const context = await createService({ opsOwnerEmail: 'owner@example.com' })
+  try {
+    for (const email of ['owner+ops@example.com', 'owners@example.com', 'owner@example.co']) {
+      await context.service.sendOpsEmailCode(email, 1_000)
+      assert.equal(context.deliveries.length, 0)
+      await assert.rejects(context.service.loginOpsWithEmail(email, '123456', 2_000), (error) => error instanceof AuthError && error.code === 'OPS_FORBIDDEN')
+    }
+    context.service.config.opsOwnerEmail = ''
+    await assert.rejects(context.service.sendOpsEmailCode('owner@example.com', 3_000), (error) => error instanceof AuthError && error.status === 503 && error.code === 'OPS_OWNER_NOT_CONFIGURED')
   } finally {
     await context.cleanup()
   }
