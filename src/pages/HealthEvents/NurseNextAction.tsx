@@ -76,9 +76,8 @@ function LoadedNurseNextAction({ context, onClose }: { context: HealthEventPromp
     if (!source?.available || source.required) return
     setSelectedSources((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   }
-  const generate = async () => {
+  const generate = () => {
     setGenerating(true); setFeedback('')
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
     try { setSummary(buildConsultationSummary(context, selectedSources)); setView('result'); setExpanded(false) }
     catch (error) { setFeedback(error instanceof Error ? error.message : '问诊摘要生成失败，请稍后重试') }
     finally { setGenerating(false) }
