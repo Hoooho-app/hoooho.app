@@ -424,30 +424,48 @@
   .help-resolution { @apply mt-8 border-t pt-5; } .help-resolution>div:not(.help-footer-actions) { @apply mt-3 flex gap-2; } .help-resolution>div:not(.help-footer-actions) button { @apply min-h-11 rounded-control border bg-surface px-4 text-sm font-semibold; } .help-resolution p { @apply mt-3 text-sm leading-6 text-text-secondary; }
   .feedback-page { min-height: 100dvh; overflow-x: hidden; }
   .feedback-header-action { @apply inline-flex min-h-11 items-center text-sm font-semibold text-primary; }
-  .feedback-form { display: grid; gap: var(--hoho-space-2); padding: var(--hoho-space-3) var(--hoho-space-4) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
+  .feedback-form { display: grid; gap: 10px; padding: 12px 15px max(10px, env(safe-area-inset-bottom)); }
   .feedback-list-content,.feedback-detail-content { @apply space-y-6 px-4 py-5; padding-bottom: calc(7rem + env(safe-area-inset-bottom)); }
   .feedback-categories legend { @apply mb-1.5 text-sm font-semibold text-text-secondary; }
-  .feedback-categories>div { @apply grid grid-cols-3 gap-1.5; }
-  .feedback-categories button { height: 32px; min-width: 0; @apply truncate rounded-control border bg-surface px-1.5 text-[13px]; }
+  .feedback-categories { order: 2; min-width: 0; }
+  .feedback-categories>div { @apply grid gap-1.5; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .feedback-categories button { height: 36px; min-width: 0; @apply rounded-control border bg-surface px-0.5 text-[12px] whitespace-nowrap; }
   .feedback-categories button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
-  .feedback-content-field { @apply gap-1.5; }
-  .feedback-textarea { height: 88px; min-height: 88px; resize: none; @apply px-3 py-2.5 text-sm leading-5; }
-  .feedback-voice-button { @apply min-h-11 rounded-control border bg-surface px-4 text-sm font-semibold text-primary; touch-action: manipulation; }
+  .feedback-content-field { order: 3; @apply gap-1.5; }
+  .feedback-textarea { height: 140px; min-height: 140px; resize: vertical; @apply px-3 py-2.5 text-sm leading-5; }
+  .feedback-action-row { order: 4; @apply grid min-h-14 grid-cols-[minmax(0,1fr)_48px] items-center gap-2 rounded-control border bg-surface p-1.5 pl-3; box-shadow: 0 2px 10px rgb(var(--hoho-color-text-primary) / .04); }
+  .feedback-voice-button { @apply flex min-h-11 min-w-0 items-center gap-2 text-left text-sm font-medium; color: rgb(var(--hoho-color-text-primary)); touch-action: manipulation; }
+  .feedback-voice-button>svg { @apply h-6 w-6 shrink-0; color: #0b8175; }
+  .feedback-voice-button>span { @apply min-w-0 flex-1 truncate; }
+  .feedback-voice-button>b { @apply inline-flex shrink-0 items-center gap-1 text-xs font-semibold; color: #0b8175; }
+  .feedback-voice-button>b svg { @apply h-4 w-4; }
   .feedback-voice-button[data-state='listening'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
   .feedback-voice-button:disabled { @apply opacity-70; }
-  .feedback-images { @apply grid gap-2; }
-  .feedback-file-button { @apply inline-flex min-h-11 w-fit cursor-pointer items-center rounded-control border bg-surface px-4 text-sm font-semibold text-primary; }
+  .feedback-images { order: 1; min-width: 0; @apply grid; }
+  .feedback-file-button { height: 108px; min-width: 0; @apply flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-control border border-dashed bg-surface px-3 text-sm; border-color: rgb(var(--hoho-color-border-strong)); }
+  .feedback-file-button>svg { @apply h-9 w-9; color: #69aaa2; }
+  .feedback-file-button>strong { @apply text-base font-semibold; color: rgb(var(--hoho-color-text-primary)); }
+  .feedback-file-button>small { @apply block max-w-full truncate text-[11px] font-normal text-text-secondary; }
+  .feedback-file-button[data-has-images='true'] { @apply items-stretch justify-start border-solid py-2; }
   .feedback-file-button input { @apply sr-only; }
   .feedback-file-button:has(input:disabled) { @apply cursor-not-allowed opacity-50; }
-  .feedback-image-grid { @apply grid gap-1.5; }
-  .feedback-image-grid li { @apply grid min-w-0 grid-cols-[48px_1fr_auto] items-center gap-2 rounded-control border bg-surface p-1.5; }
-  .feedback-image-grid img { @apply h-12 w-12 rounded-control object-cover; }
-  .feedback-image-grid span { @apply min-w-0 truncate text-xs text-text-secondary; }
-  .feedback-image-grid button { @apply min-h-8 rounded-control px-2 text-xs font-semibold text-primary; }
+  .feedback-image-grid { @apply flex min-w-0 gap-2 overflow-x-auto pb-0.5; scrollbar-width: none; }
+  .feedback-image-grid::-webkit-scrollbar { display: none; }
+  .feedback-image-grid li { @apply relative h-[66px] w-[66px] shrink-0 overflow-visible rounded-control border bg-surface; }
+  .feedback-image-grid img { @apply h-full w-full rounded-control object-cover; }
+  .feedback-image-grid span { @apply absolute inset-x-0 bottom-0 truncate rounded-b-control bg-black/50 px-1 text-[9px] text-white; }
+  .feedback-image-grid button[aria-label] { @apply absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-text-primary p-0 text-surface; }
+  .feedback-image-grid button[aria-label] svg { @apply h-3 w-3; }
+  .feedback-image-add { @apply grid place-items-center border-dashed text-text-secondary; }
+  .feedback-image-add svg { @apply h-7 w-7; }
   .feedback-image-grid button:disabled { @apply opacity-40; }
-  .feedback-inline-message { min-height: 18px; @apply text-xs leading-[18px] text-text-secondary; }
+  .feedback-inline-message { order: 5; min-height: 0; @apply text-xs leading-[18px] text-text-secondary; }
   .feedback-error { @apply rounded-control border px-3 py-2 text-sm leading-6 text-danger; border-color: rgb(var(--hoho-color-error) / .3); background: rgb(var(--hoho-color-error) / .05); }
   .feedback-submit-bar { @apply grid; }
+  .feedback-check-submit,.feedback-submit-placeholder { @apply grid h-11 w-11 place-items-center rounded-full; }
+  .feedback-check-submit { background: #0b8175; color: white; box-shadow: 0 3px 9px rgb(11 129 117 / .22); }
+  .feedback-check-submit:disabled,.feedback-submit-placeholder { background: #d5d8d8; color: white; box-shadow: none; }
+  .feedback-check-submit svg,.feedback-submit-placeholder svg { @apply h-6 w-6; stroke-width: 2.4; }
   .feedback-success { @apply grid gap-4 px-5 py-12 text-center; padding-bottom: calc(var(--hoho-space-10) + env(safe-area-inset-bottom)); }
   .feedback-success h2 { @apply text-xl font-semibold; }
   .feedback-success p { @apply text-sm leading-6 text-text-secondary; }
@@ -488,6 +506,47 @@
   .feedback-messages p { @apply whitespace-pre-wrap text-sm leading-6; }
   .feedback-messages span { @apply text-xs text-text-secondary; }
   .feedback-supplement { @apply border-t pt-5; }
+  .my-feedback-page .feedback-list-content { @apply space-y-3 px-3 py-3; padding-bottom: max(var(--hoho-space-5), env(safe-area-inset-bottom)); }
+  .feedback-received { @apply m-0 rounded-xl border px-3 py-2 text-sm font-semibold; border-color: rgb(15 118 110 / 18%); background: #edf8f5; color: #0b6f67; }
+  .my-feedback-stats { @apply px-2 py-1; }
+  .my-feedback-stats p { @apply m-0 text-sm leading-6; }
+  .my-feedback-stats p:last-child { @apply text-xs text-text-secondary; }
+  .my-feedback-stats strong { color: rgb(var(--hoho-color-primary)); font-weight: 700; }
+  .my-feedback-list { @apply grid gap-2.5; }
+  .my-feedback-card { @apply overflow-hidden rounded-control border bg-surface; border-color: rgb(var(--hoho-color-border) / .92); box-shadow: 0 2px 10px rgb(var(--hoho-color-text-primary) / .045); }
+  .my-feedback-card-summary { @apply block w-full px-3 py-2.5 text-left; touch-action: manipulation; }
+  .my-feedback-card-heading { @apply flex min-w-0 items-start justify-between gap-2; }
+  .my-feedback-card-heading strong { @apply min-w-0 flex-1 truncate text-[15px] font-semibold leading-6; }
+  .my-feedback-card-heading em { @apply shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold leading-4; color: #34635d; background: #edf5f3; }
+  .my-feedback-card-heading em[data-status='planned'] { color: #40576d; background: #edf2f6; }
+  .my-feedback-card-heading em[data-status='not_planned'] { color: #6d5940; background: #f6f1e9; }
+  .my-feedback-card-heading em[data-status='improved'] { color: #17675d; background: #e7f5f1; }
+  .my-feedback-card-heading em[data-status='needs_more_info'] { color: #8a542c; background: #fff1e5; }
+  .my-feedback-card-meta { @apply mt-0.5 block truncate text-[11px] leading-5 text-text-secondary; }
+  .my-feedback-card-text { @apply mt-1 block overflow-hidden text-sm leading-5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .my-feedback-card-latest { @apply mt-2 flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5; color: #49625e; background: #f0f6f4; }
+  .my-feedback-card-latest i { @apply h-2 w-2 shrink-0 rounded-full; background: #0b7a6c; }
+  .my-feedback-card-latest span { @apply min-w-0 flex-1 truncate text-xs; }
+  .my-feedback-card-latest b { @apply shrink-0 text-xs font-semibold; color: #0b756a; }
+  .my-feedback-expanded { @apply border-t px-3 pb-3 pt-2.5; animation: my-feedback-open 180ms ease-out; }
+  .my-feedback-timeline { @apply grid gap-1.5; }
+  .my-feedback-timeline article { @apply rounded-md px-2.5 py-2; background: #f6f7f6; }
+  .my-feedback-timeline article[data-kind='team'] { background: #edf5f3; }
+  .my-feedback-timeline article header { @apply flex items-center justify-between gap-2; }
+  .my-feedback-timeline article strong { @apply text-xs font-semibold; }
+  .my-feedback-timeline article[data-kind='team'] strong { color: #0b756a; }
+  .my-feedback-timeline article time { @apply text-[10px] text-text-secondary; }
+  .my-feedback-timeline article p { @apply mt-1 whitespace-pre-wrap text-xs leading-[18px]; }
+  .my-feedback-reply-trigger { @apply mt-2.5 min-h-9 w-full rounded-md border text-xs font-semibold; border-color: #0b756a; color: #0b756a; }
+  .my-feedback-reply { @apply mt-2.5 grid gap-2 border-t pt-2.5; }
+  .my-feedback-reply .feedback-textarea { height: 72px; min-height: 72px; }
+  .my-feedback-reply .feedback-inline-message { display: none; }
+  .my-feedback-reply>div:last-child { @apply flex justify-end gap-2; }
+  .my-feedback-reply>div:last-child>button { @apply min-h-9 px-3 text-xs font-semibold; }
+  .my-feedback-attachments { @apply mt-2 flex gap-1.5; }
+  .my-feedback-attachments img { @apply h-14 w-14 rounded-md border object-cover; }
+  @keyframes my-feedback-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .my-feedback-expanded { animation: none; } }
   .hoho-drawer-layer {
     position: fixed;
     inset: 0;

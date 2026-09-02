@@ -24,14 +24,14 @@ test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /<MainAppHeader compact title="使用说明" \/>/)
   assert.match(help, /<MainAppHeader compact title="帮助中心" \/>/)
-  assert.match(feedback, /<WebPageHeader title="反馈意见" onBack=\{goBack\} action=/)
+  assert.match(feedback, /<MainAppHeader compact title="反馈意见" action=/)
   assert.match(about, /<MainAppHeader compact title="关于" \/>/)
 })
 
 test('nested settings, help and feedback pages retain back navigation', () => {
   assert.match(settings, /<WebPageHeader title=\{title\} fallback="\/settings" \/>/)
   assert.match(help, /nested \? <WebPageHeader title="帮助中心" onBack=\{home\} \/>/)
-  assert.match(feedback, /<WebPageHeader title="我的反馈" fallback="\/settings"/)
+  assert.match(feedback, /<WebPageHeader title="我的反馈" fallback="\/feedback"/)
   assert.match(feedback, /<WebPageHeader title="反馈详情" fallback="\/feedback\/mine"/)
   assert.match(feedback, />我的反馈<\/button>/)
 })

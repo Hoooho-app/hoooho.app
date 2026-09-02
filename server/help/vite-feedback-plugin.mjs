@@ -41,8 +41,9 @@ export function feedbackApiPlugin(options = {}) {
       } else {
         if (pathname === '/api/feedback' && request.method === 'GET') return send(response, 200, await service.listForAccount(auth.sub))
         if (pathname === '/api/feedback' && request.method === 'POST') return send(response, 201, await service.create(auth.sub, await readJson(request)))
-        const messageMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname), itemMatch = /^\/api\/feedback\/([^/]+)$/.exec(pathname)
+        const messageMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname), readMatch = /^\/api\/feedback\/([^/]+)\/read$/.exec(pathname), itemMatch = /^\/api\/feedback\/([^/]+)$/.exec(pathname)
         if (messageMatch && request.method === 'POST') return send(response, 201, await service.addUserMessage(auth.sub, decodeURIComponent(messageMatch[1]), await readJson(request)))
+        if (readMatch && request.method === 'POST') return send(response, 200, await service.markTeamMessagesRead(auth.sub, decodeURIComponent(readMatch[1])))
         if (itemMatch && request.method === 'GET') return send(response, 200, await service.getForAccount(auth.sub, decodeURIComponent(itemMatch[1])))
         if (itemMatch && request.method === 'DELETE') return send(response, 200, await service.deleteForAccount(auth.sub, decodeURIComponent(itemMatch[1])))
       }
