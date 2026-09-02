@@ -1,111 +1,297 @@
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
-const now = () => new Date().toISOString()
+export const OPS_OWNER_EMAIL = 'wenxiaodaoray@gmail.com'
+export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
+export const OPS_SNAPSHOT_REQUEST_MAX_LENGTH = 17_000_000
 
-export const initialOpsResources = [
-  ['railway','Railway（云服务器与应用部署平台）','production','P0','manual','warning','Trial / Limited Trial（试用 / 受限试用）',0,'4.66 美元（最近人工记录）','17 天（最近人工记录）','整个 Hoho 网站和后端可能无法使用','确认当前套餐、额度和试用结束日期'],
-  ['railway-volume','Railway Volume（持久化存储）','production','P0','manual','unknown','未录入',0,'Unknown（暂无可靠数据）','Unknown（暂无可靠数据）','重启后需要保留的文件可能丢失或无法写入','录入容量、使用量和预计增长速度'],
-  ['database','Database（数据库，保存 Hoho 用户和业务数据）','production','P0','manual','unknown','未录入',0,'Unknown（未确认）','Unknown（暂无可靠数据）','用户数据和核心功能无法正常读取','确认数据库供应商、容量和备份状态'],
-  ['file-storage','File Storage（用户文件存储）','production','P1','manual','disabled','Not configured（尚未配置）',0,'未启用','未启用','未来的图片、PDF 和报告将无法保存','启用上传功能前选择对象存储服务'],
-  ['cloudflare','Cloudflare（域名解析、HTTPS 与网站加速）','production','P0','manual','normal','Free（免费）',0,'正常（人工记录）','Unknown（暂无可靠数据）','用户可能无法打开 hoooho.com','定期确认 DNS 与 HTTPS 状态'],
-  ['domain','GoDaddy / hoooho.com（域名）','production','P0','manual','warning','未录入',0,'到期日期未录入','Unknown（暂无可靠数据）','用户可能无法打开 hoooho.com','录入域名到期日期、续费费用和自动续费状态'],
-  ['resend','Resend（登录验证码和系统邮件）','production','P0','mixed','normal','未录入',0,'发件域名已验证','Unknown（暂无可靠数据）','用户可能收不到登录验证码邮件','录入月发送额度并接入用量同步'],
-  ['sms','SMS / OTP（手机短信验证码）','production','P1','manual','disabled','Disabled（未启用）',0,'未启用','未启用','当前无影响，未来短信登录会受影响','启用短信登录时再配置供应商'],
-  ['openai','OpenAI API（Hoho 产品内 AI 接口）','production','P1','mixed','unknown','Not configured（尚未配置）',0,'配置状态由服务器检查','Unknown（暂无可靠数据）','AI 功能可能停止，其他功能仍可继续','确认 Production 是否配置 OPENAI_API_KEY'],
-  ['chatgpt','ChatGPT Plus / Codex（产品讨论与代码开发工具）','development','P2','manual','warning','ChatGPT Plus',20,'续费日期未录入','Unknown（暂无可靠数据）','不影响正式用户，只影响内部工作','录入续费日期和实际月费用'],
-  ['github','GitHub（代码仓库与自动化工具）','development','P2','manual','unknown','未录入',0,'Unknown（未确认）','Unknown（暂无可靠数据）','代码协作、自动测试或发布可能受影响','确认套餐和 CI/CD 状态'],
-  ['figma','Figma（产品与界面设计工具）','development','P2','manual','unknown','未录入',0,'续费日期未录入','Unknown（暂无可靠数据）','不影响正式用户，只影响设计工作','录入套餐、费用和续费日期'],
-  ['uptime','Uptime Monitoring（网站与接口在线状态监控）','reliability','P1','api','normal','Built-in（内置检查）',0,'/api/health 正常','持续监控','故障可能无法被及时发现','保持网站与关键接口检查'],
-  ['errors','Error Monitoring（程序错误监控）','reliability','P1','manual','disabled','Future（未来考虑）',0,'未配置','未启用','用户遇到程序错误时可能无法及时发现','用户量增长前选择错误监控服务'],
-  ['logs','Logs / Observability（系统日志与运行监控）','reliability','P1','manual','unknown','Railway Logs（人工确认）',0,'Unknown（未确认）','Unknown（暂无可靠数据）','故障原因可能难以定位','确认日志保存时间和使用上限'],
-  ['backup','Backup（故障后恢复数据的数据备份）','reliability','P0','manual','critical','Unknown（未确认）',0,'最近成功备份未确认','Unknown（暂无可靠数据）','误删除或数据库损坏后可能无法恢复','立即确认数据库备份并执行一次恢复测试'],
-  ['maps','Maps / Places（地图与附近医院服务）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','需要附近医院功能时再评估'],
-  ['ocr','OCR（图片和报告文字识别）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','需要报告识别时再评估'],
-  ['analytics','Analytics（用户行为数据分析）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','有稳定用户量后再评估'],
-  ['vector-db','Vector DB（AI 知识检索数据库）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','需要 RAG（AI 先检索资料再回答）时再评估'],
-  ['other-ai','Other AI Providers（其他 AI 服务商）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','需要供应商冗余时再评估'],
-  ['apple','Apple Developer（苹果开发者账号）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','准备发布 iPhone App 时再购买'],
-  ['google-play','Google Play（安卓应用发布平台）','future','P2','manual','disabled','Future（未来考虑）',0,'未启用','未启用','当前无影响','准备发布 Android App 时再开通']
-].map(([id,name,category,criticality,source,status,plan,monthlyCost,usage,runway,impact,nextAction]) => ({
-  id,name,category,criticality,source,status,plan,monthlyCost,usage,runway,impact,nextAction,
-  billingPeriod: monthlyCost ? 'Monthly（按月）' : 'Unknown（未录入）', balance: '', usageLimit: '', renewalDate: '', expirationDate: '', autoRenew: null,
-  monthlyBudget: null, alertThreshold: 70, notes: '', enabled: status !== 'disabled', lastSyncAt: null, lastSuccessfulSyncAt: null, syncStatus: source === 'api' ? 'normal' : 'not-configured', updatedAt: now()
-}))
+const METHODS = new Set(['api', 'automatic-screenshot', 'manual-screenshot'])
+const FREQUENCIES = new Set(['daily', 'weekly', 'manual'])
+const IMAGE_TYPES = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']])
+const inactiveSources = ['SMS', 'OCR', 'Vector DB', 'Maps', 'Apple Developer', 'Google Play', '其他尚未启用的平台']
+const iso = (value = new Date()) => value.toISOString()
+const cleanText = (value, max = 500) => String(value ?? '').trim().slice(0, max)
+const nullableText = (value, max = 500) => cleanText(value, max) || null
 
-function cleanText(value, max = 500) { return typeof value === 'string' ? value.trim().slice(0, max) : '' }
-function cleanNumber(value) { return value === '' || value === null || value === undefined ? null : Number.isFinite(Number(value)) ? Number(value) : null }
-function deriveStatus(resource) {
-  if (!resource.enabled) return 'disabled'
-  const date = resource.expirationDate || resource.renewalDate
-  if (date) {
-    const days = Math.ceil((new Date(date + 'T00:00:00').getTime() - Date.now()) / 86_400_000)
-    if (days <= 3) return 'critical'
-    if (days <= 14) return 'warning'
+const source = (id, name, icon, platformUrl, method, frequency, notes, status = 'unconfigured') => ({
+  id, name, icon, platformUrl, method, frequency, notes, status, enabled: true,
+  loginUrl: null, targetDescription: null, targetSelector: null, waitCondition: null,
+  lastAttemptAt: null, lastSuccessAt: null, lastFailureReason: null, latestSnapshotId: null,
+  createdAt: iso(), updatedAt: iso()
+})
+
+export const initialBillingSources = [
+  source('railway', 'Railway', 'RW', 'https://railway.com/account/billing', 'automatic-screenshot', 'daily', '待配置已授权的只读登录会话与账单区域。'),
+  source('railway-volume', 'Railway Volume', 'RV', 'https://railway.com/account/billing', 'automatic-screenshot', 'daily', '与 Railway 账单页同源，单独保留存储用量快照。'),
+  source('openai', 'OpenAI API', 'OA', 'https://platform.openai.com/usage', 'api', 'daily', '优先接入官方允许的用量接口；未配置时不读取环境中的密钥内容。'),
+  source('resend', 'Resend', 'RE', 'https://resend.com/settings/billing', 'automatic-screenshot', 'daily', '待确认页面访问条款和登录会话稳定性。'),
+  source('cloudflare', 'Cloudflare', 'CF', 'https://dash.cloudflare.com/', 'automatic-screenshot', 'daily', '待配置只读账单页和截图区域。'),
+  source('godaddy-domain', 'GoDaddy / hoooho.com', 'GD', 'https://account.godaddy.com/billing', 'manual-screenshot', 'manual', '域名账户可能要求 MFA，默认使用手动截图。', 'manual'),
+  source('github', 'GitHub', 'GH', 'https://github.com/settings/billing', 'automatic-screenshot', 'weekly', '待配置已授权会话；出现二次验证时回退手动更新。'),
+  source('figma', 'Figma', 'FG', 'https://www.figma.com/settings', 'manual-screenshot', 'manual', '默认手动上传，避免对登录与团队账单页进行不稳定自动化。', 'manual'),
+  source('chatgpt-codex', 'ChatGPT / Codex', 'AI', 'https://chatgpt.com/', 'manual-screenshot', 'manual', '默认手动上传，不自动处理 MFA、CAPTCHA 或账户安全验证。', 'manual')
+]
+
+const emptyData = { sources: initialBillingSources, snapshots: [], inactiveSources }
+
+export class OpsError extends Error {
+  constructor(message, status = 400, code = 'OPS_ERROR') { super(message); this.status = status; this.code = code }
+}
+
+export class OpsSnapshotStorage {
+  constructor(directory) { this.directory = directory }
+  async save(key, buffer) { await mkdir(this.directory, { recursive: true }); await writeFile(path.join(this.directory, key), buffer, { flag: 'wx' }) }
+  async read(key) { return readFile(path.join(this.directory, key)) }
+  async remove(key) { await rm(path.join(this.directory, key), { force: true }) }
+}
+
+function normalizeData(data) {
+  return {
+    sources: Array.isArray(data?.sources) ? data.sources : [],
+    snapshots: Array.isArray(data?.snapshots) ? data.snapshots : [],
+    inactiveSources: Array.isArray(data?.inactiveSources) ? data.inactiveSources : inactiveSources
   }
-  if (resource.status === 'disabled') return 'unknown'
-  return resource.status
+}
+
+function decodeSnapshot(input) {
+  const name = cleanText(input?.name, 180)
+  const type = cleanText(input?.type, 80).toLowerCase()
+  const extension = IMAGE_TYPES.get(type)
+  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(input?.dataUrl ?? ''))
+  if (!name || !extension || !match || match[1].toLowerCase() !== type) throw new OpsError('仅支持 JPG、PNG 或 WebP 截图', 400, 'INVALID_OPS_SNAPSHOT')
+  const buffer = Buffer.from(match[2], 'base64')
+  if (!buffer.length || buffer.length > OPS_SNAPSHOT_MAX_BYTES) throw new OpsError('单张截图不能超过 12MB', 413, 'OPS_SNAPSHOT_TOO_LARGE')
+  const validMagic = type === 'image/jpeg' ? buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+    : type === 'image/png' ? buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+      : buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  if (!validMagic) throw new OpsError('截图内容与文件类型不一致', 400, 'OPS_SNAPSHOT_TYPE_MISMATCH')
+  return { name, type, extension, buffer }
+}
+
+function publicSnapshot(snapshot) {
+  if (!snapshot) return null
+  const { storageKey: _storageKey, ...view } = snapshot
+  return view
+}
+
+function publicSource(item, snapshots) {
+  const latest = snapshots.find((entry) => entry.id === item.latestSnapshotId && entry.result === 'success')
+  return { ...item, latestSnapshot: publicSnapshot(latest) }
+}
+
+function summary(sources, now = new Date()) {
+  const day = now.toLocaleDateString('en-CA')
+  return {
+    total: sources.filter((item) => item.enabled).length,
+    updatedToday: sources.filter((item) => item.lastSuccessAt && new Date(item.lastSuccessAt).toLocaleDateString('en-CA') === day).length,
+    relogin: sources.filter((item) => item.status === 'relogin').length,
+    failed: sources.filter((item) => item.status === 'failed').length
+  }
+}
+
+function cleanSourceInput(input, current = {}) {
+  const method = METHODS.has(input.method) ? input.method : current.method ?? 'manual-screenshot'
+  const frequency = FREQUENCIES.has(input.frequency) ? input.frequency : current.frequency ?? 'manual'
+  return {
+    name: cleanText(input.name ?? current.name, 120), icon: cleanText(input.icon ?? current.icon, 8).toUpperCase(),
+    platformUrl: cleanText(input.platformUrl ?? current.platformUrl, 500), method, frequency,
+    loginUrl: nullableText(input.loginUrl ?? current.loginUrl, 500), targetDescription: nullableText(input.targetDescription ?? current.targetDescription, 500),
+    targetSelector: nullableText(input.targetSelector ?? current.targetSelector, 300), waitCondition: nullableText(input.waitCondition ?? current.waitCondition, 300),
+    notes: cleanText(input.notes ?? current.notes, 1_000), enabled: typeof input.enabled === 'boolean' ? input.enabled : current.enabled ?? true
+  }
 }
 
 export class OpsService {
-  constructor(options = {}) { this.store = options.store ?? new JsonStore(path.join(options.dataDirectory, 'ops', 'resources.json'), { resources: initialOpsResources }) }
-  async list() {
-    const data = await this.store.read()
-    const resources = Array.isArray(data?.resources) ? data.resources : []
-    const existingIds = new Set(resources.map((item) => item?.id).filter(Boolean))
-    const missing = initialOpsResources.filter((item) => !existingIds.has(item.id))
-    if (missing.length === 0) return { ...data, resources }
-    return this.store.update((current) => {
-      const currentResources = Array.isArray(current?.resources) ? current.resources : []
-      const currentIds = new Set(currentResources.map((item) => item?.id).filter(Boolean))
-      return { ...current, resources: [...currentResources, ...initialOpsResources.filter((item) => !currentIds.has(item.id))] }
-    })
+  #store
+  #storage
+  #collectors
+  constructor(options = {}) {
+    const directory = options.dataDirectory ?? process.cwd()
+    this.#store = options.store ?? new JsonStore(path.join(directory, 'ops', 'billing-sources.json'), emptyData)
+    this.#storage = options.storage ?? new OpsSnapshotStorage(path.join(directory, 'ops', 'snapshots'))
+    this.#collectors = options.collectors ?? {}
   }
-  async update(id, input) {
+
+  async #readAndRepair() {
+    const current = normalizeData(await this.#store.read())
+    const ids = new Set(current.sources.map((item) => item?.id).filter(Boolean))
+    if (initialBillingSources.every((item) => ids.has(item.id))) return current
+    return normalizeData(await this.#store.update((raw) => {
+      const data = normalizeData(raw), currentIds = new Set(data.sources.map((item) => item?.id).filter(Boolean))
+      return { ...data, sources: [...data.sources, ...initialBillingSources.filter((item) => !currentIds.has(item.id))] }
+    }))
+  }
+
+  async #prune(now = new Date()) {
+    const data = await this.#readAndRepair()
+    const cutoff = new Date(now.getTime() - 30 * 86_400_000).toISOString()
+    const expired = data.snapshots.filter((item) => !item.important && item.createdAt < cutoff)
+    if (!expired.length) return data
+    const expiredIds = new Set(expired.map((item) => item.id))
+    const next = normalizeData(await this.#store.update((raw) => {
+      const current = normalizeData(raw)
+      return { ...current, snapshots: current.snapshots.filter((item) => !expiredIds.has(item.id)) }
+    }))
+    await Promise.all(expired.filter((item) => item.storageKey).map((item) => this.#storage.remove(item.storageKey)))
+    return next
+  }
+
+  async list(now = new Date()) {
+    const data = await this.#prune(now)
+    const sources = data.sources.map((item) => publicSource(item, data.snapshots))
+    return { sources, inactiveSources: data.inactiveSources, summary: summary(sources, now) }
+  }
+
+  async create(input, now = new Date()) {
+    const values = cleanSourceInput(input)
+    if (!values.name) throw new OpsError('请输入平台名称', 400, 'OPS_SOURCE_NAME_REQUIRED')
+    if (!values.platformUrl || !/^https:\/\//i.test(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
+    const createdAt = iso(now)
+    const item = { id: randomUUID(), ...values, icon: values.icon || values.name.slice(0, 2).toUpperCase(), status: values.method === 'manual-screenshot' ? 'manual' : 'unconfigured', lastAttemptAt: null, lastSuccessAt: null, lastFailureReason: null, latestSnapshotId: null, createdAt, updatedAt: createdAt }
+    await this.#store.update((raw) => { const data = normalizeData(raw); return { ...data, sources: [...data.sources, item] } })
+    return publicSource(item, [])
+  }
+
+  async update(id, input, now = new Date()) {
     let selected
-    await this.store.update((data) => {
-      const index = data.resources.findIndex((item) => item.id === id)
-      if (index < 0) { const error = new Error('服务不存在'); error.status = 404; error.code = 'OPS_RESOURCE_NOT_FOUND'; throw error }
-      const current = data.resources[index]
-      selected = { ...current,
-        plan: cleanText(input.plan ?? current.plan, 120), billingPeriod: cleanText(input.billingPeriod ?? current.billingPeriod, 80),
-        monthlyCost: input.monthlyCost === undefined ? current.monthlyCost : cleanNumber(input.monthlyCost), balance: cleanText(input.balance ?? current.balance, 120), usage: cleanText(input.usage ?? current.usage, 160), usageLimit: cleanText(input.usageLimit ?? current.usageLimit, 120),
-        renewalDate: cleanText(input.renewalDate ?? current.renewalDate, 10), expirationDate: cleanText(input.expirationDate ?? current.expirationDate, 10), autoRenew: typeof input.autoRenew === 'boolean' ? input.autoRenew : current.autoRenew,
-        monthlyBudget: input.monthlyBudget === undefined ? current.monthlyBudget : cleanNumber(input.monthlyBudget), alertThreshold: cleanNumber(input.alertThreshold) ?? current.alertThreshold,
-        notes: cleanText(input.notes ?? current.notes), nextAction: cleanText(input.nextAction ?? current.nextAction, 300), enabled: typeof input.enabled === 'boolean' ? input.enabled : current.enabled,
-        source: ['api','manual','mixed'].includes(input.source) ? input.source : current.source, updatedAt: now() }
-      selected.status = deriveStatus(selected)
-      const resources = [...data.resources]; resources[index] = selected; return { resources }
+    await this.#store.update((raw) => {
+      const data = normalizeData(raw), index = data.sources.findIndex((item) => item.id === id)
+      if (index < 0) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+      const current = data.sources[index], values = cleanSourceInput(input, current)
+      if (!values.name) throw new OpsError('请输入平台名称', 400, 'OPS_SOURCE_NAME_REQUIRED')
+      if (!values.platformUrl || !/^https:\/\//i.test(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
+      selected = { ...current, ...values, status: values.method === 'manual-screenshot' && current.status === 'unconfigured' ? 'manual' : current.status, updatedAt: iso(now) }
+      const sources = [...data.sources]; sources[index] = selected
+      return { ...data, sources }
     })
-    return selected
+    return this.get(id)
   }
-  async create(input) {
-    const resource = { ...initialOpsResources[0], id: randomUUID(), name: cleanText(input.name, 120), category: input.category ?? 'other', criticality: input.criticality ?? 'P2', source: 'manual', status: 'unknown', plan: '未录入', monthlyCost: 0, usage: '未录入', runway: 'Unknown（暂无可靠数据）', impact: cleanText(input.impact, 300) || '尚未评估', nextAction: '补充服务信息', updatedAt: now() }
-    if (!resource.name) { const error = new Error('请输入服务名称'); error.status = 400; error.code = 'OPS_NAME_REQUIRED'; throw error }
-    await this.store.update((data) => ({ resources: [...data.resources, resource] })); return resource
+
+  async addManualSnapshot(id, input, now = new Date()) {
+    const prepared = decodeSnapshot(input), createdAt = iso(now), snapshotId = randomUUID()
+    const storageKey = `${id}-${snapshotId}.${prepared.extension}`
+    const snapshotMethod = METHODS.has(input.method) ? input.method : 'manual-screenshot'
+    const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, important: false, failureReason: null }
+    const data = await this.#readAndRepair()
+    if (!data.sources.some((item) => item.id === id)) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    await this.#storage.save(storageKey, prepared.buffer)
+    try {
+      await this.#store.update((raw) => {
+        const current = normalizeData(raw)
+        return { ...current, snapshots: [snapshot, ...current.snapshots], sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastSuccessAt: createdAt, lastFailureReason: null, latestSnapshotId: snapshotId, updatedAt: createdAt } : item) }
+      })
+    } catch (error) { await this.#storage.remove(storageKey); throw error }
+    return this.get(id)
   }
-  async sync() {
-    const attemptedAt = now()
-    await this.store.update((data) => ({ resources: data.resources.map((item) => {
-      if (item.id === 'uptime') return { ...item, usage: '/api/health 正常', status: 'normal', syncStatus: 'normal', lastSyncAt: attemptedAt, lastSuccessfulSyncAt: attemptedAt }
-      if (item.id === 'openai') { const configured = Boolean(process.env.OPENAI_API_KEY); return { ...item, plan: configured ? item.plan === 'Not configured（尚未配置）' ? 'Configured（已配置）' : item.plan : 'Not configured（尚未配置）', status: configured ? item.status : 'unknown', usage: configured ? 'Configured（已配置，不显示密钥）' : 'Missing（缺少配置）', syncStatus: 'normal', lastSyncAt: attemptedAt, lastSuccessfulSyncAt: attemptedAt } }
-      if (item.source === 'manual') return item
-      return { ...item, lastSyncAt: attemptedAt, syncStatus: 'failed' }
-    }) }))
-    return this.list()
+
+  async #recordAttempt(id, status, reason, method, now = new Date()) {
+    const attemptedAt = iso(now), record = { id: randomUUID(), sourceId: id, result: 'failed', method, createdAt: attemptedAt, capturedAt: null, fileName: null, mimeType: null, size: 0, storageKey: null, important: false, failureReason: reason }
+    await this.#store.update((raw) => {
+      const data = normalizeData(raw), exists = data.sources.some((item) => item.id === id)
+      if (!exists) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+      return { ...data, snapshots: [record, ...data.snapshots], sources: data.sources.map((item) => item.id === id ? { ...item, status, lastAttemptAt: attemptedAt, lastFailureReason: reason, updatedAt: attemptedAt } : item) }
+    })
+  }
+
+  async refresh(id, now = new Date()) {
+    const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
+    if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    if (!item.enabled) return publicSource(item, data.snapshots)
+    if (item.method === 'manual-screenshot') {
+      await this.#recordAttempt(id, 'manual', '该来源使用手动截图，请上传最新页面截图。', item.method, now)
+      return this.get(id)
+    }
+    const collector = this.#collectors[item.id] ?? this.#collectors[item.method]
+    if (!collector) {
+      await this.#recordAttempt(id, 'unconfigured', item.method === 'api' ? '官方 API 连接器尚未配置。' : '已授权登录会话或截图连接器尚未配置。', item.method, now)
+      return this.get(id)
+    }
+    await this.#store.update((raw) => { const current = normalizeData(raw); return { ...current, sources: current.sources.map((entry) => entry.id === id ? { ...entry, status: 'updating', lastAttemptAt: iso(now) } : entry) } })
+    try {
+      const result = await collector(item)
+      if (!result?.dataUrl) throw Object.assign(new Error('collector did not return an image'), { code: 'COLLECTOR_EMPTY' })
+      return this.addManualSnapshot(id, { name: result.name ?? `${item.name}.png`, type: result.type ?? 'image/png', dataUrl: result.dataUrl, method: item.method }, now)
+    } catch (error) {
+      const status = error?.code === 'AUTH_REQUIRED' ? 'relogin' : error?.code === 'MANUAL_REQUIRED' ? 'manual' : 'failed'
+      const reason = status === 'relogin' ? '登录会话已失效，需要重新授权。' : status === 'manual' ? '平台要求人工验证，请手动上传截图。' : '采集任务失败，已保留上一张成功截图。'
+      await this.#recordAttempt(id, status, reason, item.method, now)
+      return this.get(id)
+    }
+  }
+
+  async refreshAll(now = new Date()) {
+    const data = await this.#readAndRepair()
+    for (const item of data.sources) if (item.enabled && item.frequency !== 'manual') await this.refresh(item.id, now)
+    return this.list(now)
+  }
+
+  async refreshScheduled(now = new Date()) {
+    const data = await this.#readAndRepair()
+    const today = now.toLocaleDateString('en-CA')
+    for (const item of data.sources) {
+      if (!item.enabled || item.frequency === 'manual' || item.status === 'relogin') continue
+      const attemptedToday = item.lastAttemptAt && new Date(item.lastAttemptAt).toLocaleDateString('en-CA') === today
+      const attemptedRecently = item.lastAttemptAt && now.getTime() - new Date(item.lastAttemptAt).getTime() < 7 * 86_400_000
+      if (attemptedToday || (item.frequency === 'weekly' && attemptedRecently)) continue
+      await this.refresh(item.id, now)
+    }
+    return this.list(now)
+  }
+
+  async get(id) {
+    const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
+    if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    return publicSource(item, data.snapshots)
+  }
+
+  async history(id) {
+    const data = await this.#prune()
+    if (!data.sources.some((item) => item.id === id)) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    return { snapshots: data.snapshots.filter((item) => item.sourceId === id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(publicSnapshot) }
+  }
+
+  async updateSnapshot(id, snapshotId, input) {
+    let selected
+    await this.#store.update((raw) => {
+      const data = normalizeData(raw), index = data.snapshots.findIndex((item) => item.id === snapshotId && item.sourceId === id)
+      if (index < 0) throw new OpsError('快照记录不存在', 404, 'OPS_SNAPSHOT_NOT_FOUND')
+      const snapshots = [...data.snapshots]
+      selected = { ...snapshots[index], important: typeof input.important === 'boolean' ? input.important : snapshots[index].important }
+      snapshots[index] = selected
+      return { ...data, snapshots }
+    })
+    return publicSnapshot(selected)
+  }
+
+  async readSnapshot(id, snapshotId) {
+    const data = await this.#readAndRepair(), snapshot = data.snapshots.find((item) => item.id === snapshotId && item.sourceId === id && item.result === 'success' && item.storageKey)
+    if (!snapshot) throw new OpsError('快照图片不存在', 404, 'OPS_SNAPSHOT_NOT_FOUND')
+    return { buffer: await this.#storage.read(snapshot.storageKey), type: snapshot.mimeType, name: snapshot.fileName }
   }
 }
 
-export function assertOpsAccess(payload, options = {}) {
-  const ids = (process.env.OPS_ALLOWED_ACCOUNT_IDS ?? '').split(',').map((v) => v.trim()).filter(Boolean)
-  const phones = (process.env.OPS_ALLOWED_PHONES ?? '').split(',').map((v) => v.trim()).filter(Boolean)
-  const emails = (process.env.OPS_ALLOWED_EMAILS ?? '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean)
-  if (ids.length === 0 && phones.length === 0 && emails.length === 0) {
-    if (options.requireAllowlist) { const error = new Error('反馈管理未配置内部账号白名单'); error.status = 403; error.code = 'OPS_ALLOWLIST_REQUIRED'; throw error }
-    return { mode: 'temporary-authenticated' }
+export function assertOpsAccess(payload) {
+  const owner = cleanText(process.env.OPS_OWNER_EMAIL || OPS_OWNER_EMAIL, 200).toLowerCase()
+  if (String(payload?.email ?? '').trim().toLowerCase() !== owner) throw new OpsError('当前账号没有费用总控台权限', 403, 'OPS_FORBIDDEN')
+  return { mode: 'owner', email: owner }
+}
+
+export function startOpsScheduler(service, options = {}) {
+  const hour = Number.isInteger(options.hour) ? options.hour : 8
+  const minute = Number.isInteger(options.minute) ? options.minute : 0
+  let timer
+  const schedule = () => {
+    const current = new Date(), next = new Date(current)
+    next.setHours(hour, minute, 0, 0)
+    if (next <= current) next.setDate(next.getDate() + 1)
+    timer = setTimeout(async () => {
+      try { await service.refreshScheduled(new Date()) } catch { /* keep the next daily run scheduled */ }
+      schedule()
+    }, next.getTime() - current.getTime())
+    timer.unref?.()
   }
-  const allowed = ids.includes(payload.sub) || phones.includes(payload.phone) || emails.includes(String(payload.email ?? '').toLowerCase())
-  if (!allowed) { const error = new Error('当前账号没有运营总控台权限'); error.status = 403; error.code = 'OPS_FORBIDDEN'; throw error }
-  return { mode: 'allowlist' }
+  schedule()
+  return () => clearTimeout(timer)
 }

@@ -1,14 +1,84 @@
 import { apiRequest } from './apiClient'
 
-export type OpsStatus = 'normal'|'warning'|'critical'|'unknown'|'disabled'
-export type OpsSource = 'api'|'manual'|'mixed'
-export interface OpsResource {
-  id:string; name:string; category:string; criticality:'P0'|'P1'|'P2'; source:OpsSource; status:OpsStatus; plan:string; monthlyCost:number|null;
-  billingPeriod:string; balance:string; usage:string; usageLimit:string; renewalDate:string; expirationDate:string; autoRenew:boolean|null;
-  monthlyBudget:number|null; alertThreshold:number; notes:string; nextAction:string; impact:string; runway:string; enabled:boolean;
-  lastSyncAt:string|null; lastSuccessfulSyncAt:string|null; syncStatus:'normal'|'failed'|'not-configured'|'stale'; updatedAt:string
+export type BillingMethod = 'api' | 'automatic-screenshot' | 'manual-screenshot'
+export type BillingFrequency = 'daily' | 'weekly' | 'manual'
+export type BillingStatus = 'success' | 'updating' | 'relogin' | 'manual' | 'failed' | 'unconfigured'
+
+export interface BillingSnapshot {
+  id: string
+  sourceId: string
+  result: 'success' | 'failed'
+  method: BillingMethod
+  createdAt: string
+  capturedAt: string | null
+  fileName: string | null
+  mimeType: string | null
+  size: number
+  important: boolean
+  failureReason: string | null
 }
-export type OpsAccessMode = 'allowlist'|'temporary-authenticated'
-export const getOpsResources = (token:string, signal?:AbortSignal) => apiRequest<{resources:OpsResource[];accessMode:OpsAccessMode}>('/api/ops/resources',{token,signal})
-export const updateOpsResource = (token:string,id:string,body:Partial<OpsResource>) => apiRequest<OpsResource>(`/api/ops/resources/${encodeURIComponent(id)}`,{token,method:'PATCH',body})
-export const syncOpsResources = (token:string) => apiRequest<{resources:OpsResource[]}>('/api/ops/sync',{token,method:'POST'})
+
+export interface BillingSource {
+  id: string
+  name: string
+  icon: string
+  platformUrl: string
+  method: BillingMethod
+  frequency: BillingFrequency
+  notes: string
+  status: BillingStatus
+  enabled: boolean
+  loginUrl: string | null
+  targetDescription: string | null
+  targetSelector: string | null
+  waitCondition: string | null
+  lastAttemptAt: string | null
+  lastSuccessAt: string | null
+  lastFailureReason: string | null
+  latestSnapshotId: string | null
+  latestSnapshot: BillingSnapshot | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BillingOverview {
+  total: number
+  updatedToday: number
+  relogin: number
+  failed: number
+}
+
+export interface BillingSourcesResponse {
+  sources: BillingSource[]
+  inactiveSources: string[]
+  summary: BillingOverview
+}
+
+export interface BillingSourceInput {
+  name: string
+  icon: string
+  platformUrl: string
+  method: BillingMethod
+  frequency: BillingFrequency
+  notes: string
+  loginUrl?: string | null
+  targetDescription?: string | null
+  targetSelector?: string | null
+  waitCondition?: string | null
+  enabled?: boolean
+}
+
+export const getBillingSources = (token: string, signal?: AbortSignal) => apiRequest<BillingSourcesResponse>('/api/ops/sources', { token, signal })
+export const createBillingSource = (token: string, body: BillingSourceInput) => apiRequest<BillingSource>('/api/ops/sources', { token, method: 'POST', body })
+export const updateBillingSource = (token: string, id: string, body: Partial<BillingSourceInput>) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}`, { token, method: 'PATCH', body })
+export const refreshBillingSource = (token: string, id: string) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/refresh`, { token, method: 'POST' })
+export const refreshAllBillingSources = (token: string) => apiRequest<BillingSourcesResponse>('/api/ops/refresh', { token, method: 'POST' })
+export const getBillingHistory = (token: string, id: string) => apiRequest<{ snapshots: BillingSnapshot[] }>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token })
+export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string }) => apiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
+export const updateBillingSnapshot = (token: string, sourceId: string, snapshotId: string, important: boolean) => apiRequest<BillingSnapshot>(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}`, { token, method: 'PATCH', body: { important } })
+
+export async function getBillingSnapshotImage(token: string, sourceId: string, snapshotId: string, signal?: AbortSignal) {
+  const response = await fetch(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}/image`, { headers: { Authorization: `Bearer ${token}` }, signal })
+  if (!response.ok) throw new Error(response.status === 404 ? '快照图片不存在' : '快照图片加载失败')
+  return response.blob()
+}

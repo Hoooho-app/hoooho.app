@@ -16,7 +16,7 @@ import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
 import { AudioTranscriptionService } from './ai/audio-transcription-service.mjs'
-import { OpsService, assertOpsAccess } from './ops/ops-service.mjs'
+import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
@@ -49,6 +49,7 @@ const quickRecords = new QuickRecordService({ ...sharedOptions, events, records 
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
+const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
@@ -142,13 +143,30 @@ function readAuthPayload(request) {
 
 async function handleOps(request, response, pathname) {
   if (!pathname.startsWith('/api/ops')) return false
-  const access = assertOpsAccess(readAuthPayload(request))
-  if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, { ...await ops.list(), accessMode: access.mode })
-  else if (pathname === '/api/ops/resources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
-  else if (pathname === '/api/ops/sync' && request.method === 'POST') sendJson(response, 200, await ops.sync())
+  assertOpsAccess(readAuthPayload(request))
+  if (pathname === '/api/ops/sources' && request.method === 'GET') sendJson(response, 200, await ops.list())
+  else if (pathname === '/api/ops/sources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
+  else if (pathname === '/api/ops/refresh' && request.method === 'POST') sendJson(response, 200, await ops.refreshAll())
   else {
-    const match = /^\/api\/ops\/resources\/([^/]+)$/.exec(pathname)
-    if (match && request.method === 'PATCH') sendJson(response, 200, await ops.update(decodeRouteValue(match[1]), await readJson(request)))
+    const image = /^\/api\/ops\/sources\/([^/]+)\/snapshots\/([^/]+)\/image$/.exec(pathname)
+    const snapshot = /^\/api\/ops\/sources\/([^/]+)\/snapshots\/([^/]+)$/.exec(pathname)
+    const history = /^\/api\/ops\/sources\/([^/]+)\/snapshots$/.exec(pathname)
+    const refresh = /^\/api\/ops\/sources\/([^/]+)\/refresh$/.exec(pathname)
+    const source = /^\/api\/ops\/sources\/([^/]+)$/.exec(pathname)
+    if (image && request.method === 'GET') {
+      const file = await ops.readSnapshot(decodeRouteValue(image[1]), decodeRouteValue(image[2]))
+      setCommonHeaders(response)
+      response.statusCode = 200
+      response.setHeader('Content-Type', file.type)
+      response.setHeader('Content-Length', String(file.buffer.length))
+      response.setHeader('Content-Disposition', 'inline')
+      response.setHeader('Cache-Control', 'private, no-store')
+      response.end(file.buffer)
+    } else if (snapshot && request.method === 'PATCH') sendJson(response, 200, await ops.updateSnapshot(decodeRouteValue(snapshot[1]), decodeRouteValue(snapshot[2]), await readJson(request)))
+    else if (history && request.method === 'GET') sendJson(response, 200, await ops.history(decodeRouteValue(history[1])))
+    else if (history && request.method === 'POST') sendJson(response, 201, await ops.addManualSnapshot(decodeRouteValue(history[1]), await readJson(request, OPS_SNAPSHOT_REQUEST_MAX_LENGTH)))
+    else if (refresh && request.method === 'POST') sendJson(response, 200, await ops.refresh(decodeRouteValue(refresh[1])))
+    else if (source && request.method === 'PATCH') sendJson(response, 200, await ops.update(decodeRouteValue(source[1]), await readJson(request)))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   }
   return true
@@ -581,6 +599,7 @@ server.listen(port, host, () => {
 
 function shutdown(signal) {
   console.info(`[Hoooho] received ${signal}, shutting down`)
+  stopOpsScheduler()
   server.close((error) => {
     if (error) {
       console.error(error)
