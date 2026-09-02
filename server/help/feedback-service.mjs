@@ -22,6 +22,25 @@ const iso = (value = new Date()) => value.toISOString()
 const cleanText = (value, max = 2_000) => String(value ?? '').trim().slice(0, max)
 const cleanNullable = (value, max) => cleanText(value, max) || null
 const normalizeStatus = (value) => STATUSES.has(value) ? value : STATUS_ALIASES.get(value) ?? 'received'
+const opsCategory = (item) => {
+  const value = item?.problemType ?? item?.category
+  if (['usability_issue', 'experience_suggestion', '不好用'].includes(value)) return '不好用'
+  if (['function_error', 'display_issue', 'performance_issue', 'login_issue', 'voice_issue', 'image_issue', '功能异常', '出现错误'].includes(value)) return '出现错误'
+  if (['content_error', '内容有误'].includes(value)) return '内容有误'
+  if (['feature_request', '希望新增'].includes(value)) return '希望新增'
+  if (value === '隐私与数据') return '隐私与数据'
+  return '其他'
+}
+const latestUserSupplementAt = (feedbackId, data) => data.messages
+  .filter((message) => message.feedbackId === feedbackId && message.kind === 'user-supplement')
+  .reduce((latest, message) => !latest || message.createdAt > latest ? message.createdAt : latest, null)
+const hasUnreadSupplement = (item, data) => {
+  const latest = latestUserSupplementAt(item.id, data)
+  return Boolean(latest && (!item.lastOpsViewedAt || latest > item.lastOpsViewedAt))
+}
+const compareOpsFeedback = (left, right) => right.updatedAt.localeCompare(left.updatedAt)
+  || right.createdAt.localeCompare(left.createdAt)
+  || right.id.localeCompare(left.id)
 const normalizeData = (data) => ({
   ...emptyData, ...data,
   feedback: Array.isArray(data?.feedback) ? data.feedback : [],
@@ -95,7 +114,7 @@ export class FeedbackService {
       sourcePath: cleanNullable(input.sourcePath, 300), sourceName: cleanNullable(input.sourceName, 100),
       appVersion: cleanNullable(input.appVersion, 60), device: this.#cleanDevice(input.device),
       status: 'received', priority: 'normal', mergedIntoId: null, handledVersion: null,
-      noActionReason: null, createdAt, updatedAt: createdAt, statusUpdatedAt: createdAt, closedAt: null
+      noActionReason: null, lastOpsViewedAt: null, createdAt, updatedAt: createdAt, statusUpdatedAt: createdAt, closedAt: null
     }
     const savedAttachments = await this.#saveAttachments(accountId, feedbackId, null, prepared, now)
     try {
@@ -177,7 +196,13 @@ export class FeedbackService {
     const data = normalizeData(await this.#store.read())
     let records = data.feedback
     if (filters.status) records = records.filter((item) => normalizeStatus(item.status) === normalizeStatus(filters.status))
-    for (const [field, value] of [['category', filters.category], ['appVersion', filters.appVersion]]) if (value) records = records.filter((item) => item[field] === value)
+    if (filters.unreadSupplement === 'true') records = records.filter((item) => hasUnreadSupplement(item, data))
+    if (filters.search) {
+      const search = cleanText(filters.search, 200).toLocaleLowerCase('zh-CN')
+      records = records.filter((item) => [item.summary, item.description, item.accountId, item.sourcePath, item.sourceName].some((value) => String(value ?? '').toLocaleLowerCase('zh-CN').includes(search)))
+    }
+    if (filters.category) records = records.filter((item) => opsCategory(item) === filters.category)
+    if (filters.appVersion) records = records.filter((item) => item.appVersion === filters.appVersion)
     if (filters.sourcePath) records = records.filter((item) => item.sourcePath === filters.sourcePath)
     if (filters.deviceType) records = records.filter((item) => item.device?.type === filters.deviceType)
     if (filters.hasAttachments === 'true') records = records.filter((item) => data.attachments.some((attachment) => attachment.feedbackId === item.id))
@@ -185,14 +210,19 @@ export class FeedbackService {
     if (filters.duplicate === 'true') records = records.filter((item) => item.status === 'merged' || item.mergedIntoId)
     if (filters.from) records = records.filter((item) => item.createdAt >= filters.from)
     if (filters.to) records = records.filter((item) => item.createdAt <= `${filters.to}T23:59:59.999Z`)
-    return { overview: this.#overview(data), feedback: records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((item) => this.#toOpsView(item, data, false)) }
+    return { overview: this.#overview(data), feedback: [...records].sort(compareOpsFeedback).map((item) => this.#toOpsView(item, data, false)) }
   }
 
-  async getForOps(feedbackId) {
-    const data = normalizeData(await this.#store.read())
-    const item = data.feedback.find((entry) => entry.id === feedbackId)
-    if (!item) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
-    return this.#toOpsView(item, data, true)
+  async getForOps(feedbackId, now = new Date()) {
+    const viewedAt = iso(now)
+    const data = await this.#store.update((raw) => {
+      const current = normalizeData(raw), index = current.feedback.findIndex((item) => item.id === feedbackId)
+      if (index < 0) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
+      const feedback = [...current.feedback]
+      feedback[index] = { ...feedback[index], lastOpsViewedAt: viewedAt }
+      return { ...current, feedback }
+    })
+    return this.#toOpsView(data.feedback.find((entry) => entry.id === feedbackId), data, true)
   }
 
   async updateFromOps(actorAccountId, feedbackId, input, now = new Date()) {
@@ -207,8 +237,7 @@ export class FeedbackService {
       const noActionReason = input.noActionReason === undefined ? current.noActionReason : cleanNullable(input.noActionReason, 800)
       const handledVersion = input.handledVersion === undefined ? current.handledVersion : cleanNullable(input.handledVersion, 80)
       const mergedIntoId = input.mergedIntoId === undefined ? current.mergedIntoId : cleanNullable(input.mergedIntoId, 80)
-      const hasOfficialReply = data.messages.some((item) => item.feedbackId === feedbackId && item.kind === 'user-reply' && cleanText(item.text))
-      if (status === 'not_planned' && !officialReply && !hasOfficialReply) throw new FeedbackError('暂不调整时必须同时提供 Hoooho 正式回复', 400, 'NOT_PLANNED_REPLY_REQUIRED')
+      if (status === 'not_planned' && !officialReply && !noActionReason) throw new FeedbackError('暂不调整时必须同时提供 Hoooho 正式回复', 400, 'NOT_PLANNED_REPLY_REQUIRED')
       if (status === 'merged' && !mergedIntoId) throw new FeedbackError('标记已合并时必须关联反馈', 400, 'MERGED_FEEDBACK_REQUIRED')
       if (status === 'merged' && (mergedIntoId === feedbackId || !data.feedback.some((item) => item.id === mergedIntoId))) throw new FeedbackError('关联的反馈不存在或不能关联自身', 400, 'INVALID_MERGED_FEEDBACK')
       const next = { ...current, status, priority, noActionReason: status === 'not_planned' ? (officialReply || noActionReason) : noActionReason, handledVersion, mergedIntoId, updatedAt: createdAt, statusUpdatedAt: status !== currentStatus ? createdAt : (current.statusUpdatedAt ?? current.updatedAt), closedAt: ['improved', 'merged', 'not_planned'].includes(status) ? createdAt : null }
@@ -289,7 +318,7 @@ export class FeedbackService {
   #toOpsView(item, data, detailed) {
     const attachments = data.attachments.filter((entry) => entry.feedbackId === item.id).map((entry) => this.#attachmentView(entry))
     const messages = data.messages.filter((entry) => entry.feedbackId === item.id)
-    const base = { ...item, status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, attachmentCount: attachments.length, supplementCount: messages.filter((entry) => entry.kind === 'user-supplement').length, mergedCount: data.feedback.filter((entry) => entry.mergedIntoId === item.id).length }
+    const base = { ...item, lastOpsViewedAt: item.lastOpsViewedAt ?? null, hasUnreadSupplement: hasUnreadSupplement(item, data), status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, attachmentCount: attachments.length, supplementCount: messages.filter((entry) => entry.kind === 'user-supplement').length, mergedCount: data.feedback.filter((entry) => entry.mergedIntoId === item.id).length }
     return detailed ? { ...base, attachments, messages, statusHistory: data.statusHistory.filter((entry) => entry.feedbackId === item.id) } : base
   }
 
@@ -299,7 +328,7 @@ export class FeedbackService {
       const item = data.feedback.find((feedback) => feedback.id === entry.feedbackId)
       return item ? new Date(entry.createdAt).getTime() - new Date(item.createdAt).getTime() : null
     }).filter(Number.isFinite)
-    return { new: count('received'), pendingView: count('received'), viewed: count('reviewing'), evaluating: count('planned'), improving: count('in_progress'), resolved: count('improved'), duplicates: count('merged'), withSupplements: new Set(data.messages.filter((item) => item.kind === 'user-supplement').map((item) => item.feedbackId)).size, averageFirstViewMs: viewed.length ? Math.round(viewed.reduce((sum, value) => sum + value, 0) / viewed.length) : null }
+    return { new: count('received'), pendingView: count('received'), viewed: count('reviewing'), evaluating: count('planned'), improving: count('in_progress'), resolved: count('improved'), duplicates: count('merged'), withSupplements: new Set(data.messages.filter((item) => item.kind === 'user-supplement').map((item) => item.feedbackId)).size, unreadSupplements: data.feedback.filter((item) => hasUnreadSupplement(item, data)).length, averageFirstViewMs: viewed.length ? Math.round(viewed.reduce((sum, value) => sum + value, 0) / viewed.length) : null }
   }
 
   #signature(attachmentId, expires) { return createHmac('sha256', this.#tokenSecret).update(`${attachmentId}.${expires}`).digest('base64url') }
