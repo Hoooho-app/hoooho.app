@@ -123,24 +123,33 @@ describe('idle video playlist', () => {
     const calls: string[] = []
     const video = {
       currentTime: 0,
+      defaultMuted: false,
       duration: Number.NaN,
       ended: false,
+      muted: false,
       networkState: 0,
+      playsInline: false,
       load: () => { calls.push('load') },
       play: async () => { calls.push('play') }
     }
 
     assert.equal(await loadAndPlayIdleVideo(video), null)
     assert.deepEqual(calls, ['load', 'play'])
+    assert.equal(video.muted, true)
+    assert.equal(video.defaultMuted, true)
+    assert.equal(video.playsInline, true)
   });
 
   it('rewinds an ended media element before immediately replaying it', async () => {
     const calls: string[] = []
     const video = {
       currentTime: 6.04,
+      defaultMuted: false,
       duration: 6.04,
       ended: true,
+      muted: false,
       networkState: 1,
+      playsInline: false,
       load: () => { calls.push('load') },
       play: async () => { calls.push('play') }
     }
