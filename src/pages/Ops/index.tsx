@@ -85,7 +85,7 @@ export function OpsPage() {
     </section>
 
     <section className="ops-sources-section">
-      <div className="ops-section-heading"><div><span>Latest snapshots</span><h2>费用来源快照</h2><p>页面只展示最近一次成功截图；失败记录不会覆盖已有快照。</p></div><p><Clock3 size={15} />自动任务每日 08:00 按服务器时区串行执行</p></div>
+      <div className="ops-section-heading"><div><span>Latest snapshots</span><h2>费用来源快照</h2><p>页面只展示最近一次成功截图；失败记录不会覆盖已有快照。</p></div><p><Clock3 size={15} />自动任务每日 08:00（Asia/Shanghai）串行执行</p></div>
       {loading ? <LoadingGrid /> : <div className="ops-source-grid">{sources.map((source) => <SourceCard key={source.id} source={source} token={token} refreshing={refreshingId === source.id} onRefresh={() => refreshOne(source)} onManage={() => setManaging(source)} onUpload={() => setUploading(source)} onLarge={() => setLarge(source)} />)}</div>}
     </section>
 
@@ -185,7 +185,7 @@ function UploadDrawer({ source, token, onClose, onUploaded }: { source: BillingS
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); if (!file || !confirmed) return
     setSaving(true); setError('')
-    try { const dataUrl = await readFileAsDataUrl(file); onUploaded(await uploadBillingSnapshot(token, source.id, { name: file.name, type: file.type, dataUrl })) }
+    try { const dataUrl = await readFileAsDataUrl(file); onUploaded(await uploadBillingSnapshot(token, source.id, { name: file.name, type: file.type, dataUrl, privacyConfirmed: true })) }
     catch (cause) { setError(cause instanceof Error ? cause.message : '上传失败') } finally { setSaving(false) }
   }
   return <Drawer title="上传最新截图" subtitle={source.name} onClose={onClose}><form onSubmit={submit} className="ops-upload-form"><div className="ops-upload-drop"><Upload /><strong>{file ? file.name : '选择费用页面截图'}</strong><span>JPG、PNG 或 WebP，单张不超过 12MB</span><input required type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></div><label className="ops-redaction-check"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>我已检查并裁除邮箱、姓名、银行卡、地址、API Key、Token、订单号等无关隐私信息。</span></label>{error && <p className="ops-form-error">{error}</p>}<DrawerFooter saving={saving} disabled={!file || !confirmed} onClose={onClose} submitLabel="保存为最新快照" /></form></Drawer>

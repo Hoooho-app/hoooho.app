@@ -75,7 +75,7 @@ export const updateBillingSource = (token: string, id: string, body: Partial<Bil
 export const refreshBillingSource = (token: string, id: string) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/refresh`, { token, method: 'POST' })
 export const refreshAllBillingSources = (token: string) => opsApiRequest<BillingSourcesResponse>('/api/ops/refresh', { token, method: 'POST' })
 export const getBillingHistory = (token: string, id: string) => opsApiRequest<{ snapshots: BillingSnapshot[] }>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token })
-export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string }) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
+export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string; privacyConfirmed: true }) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
 export const updateBillingSnapshot = (token: string, sourceId: string, snapshotId: string, important: boolean) => opsApiRequest<BillingSnapshot>(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}`, { token, method: 'PATCH', body: { important } })
 
 export async function getBillingSnapshotImage(token: string, sourceId: string, snapshotId: string, signal?: AbortSignal) {
