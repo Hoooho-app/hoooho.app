@@ -31,17 +31,6 @@ const visualAssetByState: Partial<Record<NurseTriageState, NurseTriageAsset>> = 
   shifted: nurseTriageAssets.shifted
 }
 
-const allNurseTriageAssets = [...new Set(Object.values(nurseTriageAssets))]
-
-export function preloadNurseTriageAssets() {
-  if (typeof Image === 'undefined') return
-  allNurseTriageAssets.forEach((source) => {
-    const image = new Image()
-    image.decoding = 'async'
-    image.src = source
-  })
-}
-
 function usePageVisible() {
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden)
   useEffect(() => {
@@ -81,18 +70,15 @@ export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnim
         resetKey={idleAnimationResetKey}
         saveSuccessSequence={saveSuccessSequence}
       />
-      {allNurseTriageAssets.map((source) => (
-        <img
-          alt=""
-          aria-hidden="true"
-          className="nurse-triage-desk__image"
-          data-active={source === activeAsset}
-          decoding="async"
-          draggable={false}
-          key={source}
-          src={source}
-        />
-      ))}
+      {activeAsset && <img
+        alt=""
+        aria-hidden="true"
+        className="nurse-triage-desk__image"
+        data-active="true"
+        decoding="async"
+        draggable={false}
+        src={activeAsset}
+      />}
     </figure>
   )
 }

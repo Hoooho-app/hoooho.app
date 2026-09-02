@@ -49,7 +49,7 @@ test('时间线排序入口复用设计系统图标按钮', () => {
 test('详情页使用悬浮快捷记录且不保留说一句中间流程', () => {
   assert.match(pageSource, /<QuickRecordTrigger/)
   assert.match(quickRecordTriggerSource, /quick-record-trigger/)
-  assert.match(quickRecordTriggerSource, /快捷记录/)
+  assert.match(quickRecordTriggerSource, /快速记录/)
   assert.equal(pageSource.includes('继续说'), false)
   assert.equal(recorderSource.includes('说一句'), false)
   assert.match(stylesSource, /quick-record-trigger[^}]*fixed/)
@@ -67,7 +67,7 @@ test('录音面板提供取消确认和防重复提交边界', () => {
 test('微信说一句使用文字降级并复用现有预览和保存管线', () => {
   assert.match(recorderSource, /capability\.isWechat/)
   assert.match(recorderSource, /写下发生了什么/)
-  assert.match(recorderSource, /自动整理/)
+  assert.match(recorderSource, /继续核对/)
   assert.match(recorderSource, /微信内暂不支持语音记录/)
   assert.match(recorderSource, /如何在浏览器打开/)
   assert.match(recorderSource, /onPreviewRef\.current/)

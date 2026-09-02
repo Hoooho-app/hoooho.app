@@ -7,7 +7,6 @@ import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
-import { healthEventService } from '../../services/healthEvents'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, Member, ProfileGender } from '../../types'
@@ -154,9 +153,8 @@ export function AddFamilyMemberPage() {
       }
       const firstUseEntry = (location.state as { firstUseEntry?: { continueToRecord?: boolean; returnTo?: string } } | null)?.firstUseEntry
       if (firstUseEntry?.continueToRecord) {
-        const healthEvent = await healthEventService.create({ memberId: created.id, title: '', category: 'other' }, token)
         setCurrentMemberId(created.id)
-        navigate(`/health-events/${healthEvent.id}`, { replace: true, state: { allowFirstRecord: true } })
+        navigate('/health-events', { replace: true, state: { openQuickRecord: true } })
       } else if (firstUseEntry?.returnTo === '/health-events') {
         setCurrentMemberId(created.id)
         navigate('/health-events', { replace: true })

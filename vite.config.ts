@@ -6,6 +6,7 @@ import { authApiPlugin } from './server/auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './server/members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './server/events/vite-events-plugin.mjs'
 import { eventRecordsApiPlugin } from './server/events/vite-event-records-plugin.mjs'
+import { quickRecordsApiPlugin } from './server/events/vite-quick-records-plugin.mjs'
 import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachments-plugin.mjs'
 import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
@@ -32,6 +33,7 @@ export default defineConfig({
     membersApiPlugin(),
     eventsApiPlugin(),
     eventRecordsApiPlugin(),
+    quickRecordsApiPlugin(),
     eventAttachmentsApiPlugin(),
     aiApiPlugin(),
     feedbackApiPlugin(),

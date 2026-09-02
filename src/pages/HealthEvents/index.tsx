@@ -1,5 +1,5 @@
-import { Check, ChevronDown, ClipboardList, Filter, Plus } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { ClipboardList, Filter, Plus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
 import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
@@ -10,21 +10,18 @@ import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
-import { healthEventService } from '../../services/healthEvents'
-import { healthEventRecordService } from '../../services/healthEventRecords'
-import { healthRecordOrganizationService } from '../../services/healthRecordOrganization'
 import { familyMemberService } from '../../services/familyMembers'
+import { quickRecordService } from '../../services/quickRecords'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import type { FamilyMemberApiDto, HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
+import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
-import { createQuickRecordCandidates } from '../../features/quick-record'
-import { FirstUseHome } from './FirstUseHome'
+import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
+import { FirstMemberFrontDesk } from './FirstMemberFrontDesk'
 import { NurseQuickRecord } from './NurseQuickRecord'
 import { NurseNextAction } from './NurseNextAction'
 import { getNurseNextActionEventId } from './nurseNextActionContext'
-import { preloadNurseTriageAssets } from './NurseTriageDesk'
 import {
   DEFAULT_HEALTH_EVENTS_VIEW_MODE,
   healthEventsViewLabels,
@@ -43,14 +40,14 @@ function UserIdentity({ member }: { member: Member | null }) {
         action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
         })}>切换人物</button>}
-        age={member?.age ?? (member ? '' : '健康数据加载中')}
+        age={member?.age ?? ''}
         avatar={member?.avatar}
         gender={member ? genderLabels[member.gender ?? ''] : ''}
         label="当前人物"
-        name={member?.name ?? '家庭成员'}
+        name={member?.name ?? ' '}
       />
       <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康事件”指一次不舒服、就诊或康复的完整过程。</p>
-      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，点击右下角的加号按钮。</p>
+      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p>
     </div>
   )
 }
@@ -62,115 +59,15 @@ function hasActiveFilters(filters: HealthEventFilters) {
 const healthEventsViewOptions: HealthEventsViewMode[] = ['triage', 'list']
 
 function HealthEventsViewSelect({ onChange, value }: { onChange: (view: HealthEventsViewMode) => void; value: HealthEventsViewMode }) {
-  const location = useLocation()
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
-
-  useEffect(() => {
-    setOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (!open) return
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      setOpen(false)
-      triggerRef.current?.focus()
-    }
-    document.addEventListener('pointerdown', closeOnOutsidePointer)
-    document.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePointer)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [open])
-
-  const focusOption = (index: number) => optionRefs.current[index]?.focus()
-  const openWithFocus = (index: number) => {
-    setOpen(true)
-    queueMicrotask(() => focusOption(index))
-  }
-  const selectView = (nextView: HealthEventsViewMode) => {
-    if (nextView !== value) onChange(nextView)
-    setOpen(false)
-    triggerRef.current?.focus()
-  }
-  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      openWithFocus(0)
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      openWithFocus(healthEventsViewOptions.length - 1)
-    }
-  }
-  const handleOptionKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      focusOption((index + 1) % healthEventsViewOptions.length)
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      focusOption((index - 1 + healthEventsViewOptions.length) % healthEventsViewOptions.length)
-    } else if (event.key === 'Home') {
-      event.preventDefault()
-      focusOption(0)
-    } else if (event.key === 'End') {
-      event.preventDefault()
-      focusOption(healthEventsViewOptions.length - 1)
-    }
-  }
-
   return (
-    <div
-      className="health-events-view-select"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false)
-      }}
-      ref={rootRef}
-    >
-      <button
-        aria-controls="health-events-view-menu"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="health-events-view-select__trigger"
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={handleTriggerKeyDown}
-        ref={triggerRef}
+    <div aria-label="健康事件视图" className="health-events-view-switch" role="group">
+      {healthEventsViewOptions.map((option) => <button
+        aria-pressed={option === value}
+        data-selected={option === value}
+        key={option}
+        onClick={() => onChange(option)}
         type="button"
-      >
-        <span>{healthEventsViewLabels[value]}</span>
-        <ChevronDown aria-hidden="true" data-open={open} size={16} strokeWidth={1.8} />
-      </button>
-      {open && (
-        <div aria-label="选择健康事件视图" className="health-events-view-select__menu" id="health-events-view-menu" role="menu">
-          {healthEventsViewOptions.map((option, index) => {
-            const selected = option === value
-            return (
-              <button
-                aria-checked={selected}
-                className="health-events-view-select__option"
-                data-selected={selected}
-                key={option}
-                onClick={() => selectView(option)}
-                onKeyDown={(event) => handleOptionKeyDown(event, index)}
-                ref={(node) => { optionRefs.current[index] = node }}
-                role="menuitemradio"
-                tabIndex={selected ? 0 : -1}
-                type="button"
-              >
-                <span>{healthEventsViewLabels[option]}</span>
-                <Check aria-hidden="true" size={15} strokeWidth={2} />
-              </button>
-            )
-          })}
-        </div>
-      )}
+      >{healthEventsViewLabels[option]}</button>)}
     </div>
   )
 }
@@ -199,11 +96,13 @@ export function filterEvents(events: HealthEventListItemViewModel[], filters: He
 
 export function HealthEventsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const addMember = useAppStore((state) => state.addMember)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
+  const cachedMembers = useAppStore((state) => state.members)
   const carePreferences = useSettingsStore((state) => state.care)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
   const [creating, setCreating] = useState(false)
@@ -215,10 +114,10 @@ export function HealthEventsPage() {
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
-  const pendingTriageEventRef = useRef<{ eventId: string; memberId: string; recordId?: string; transcript?: string } | null>(null)
+  const submissionKeyRef = useRef('')
+  const openAfterMemberLoadRef = useRef(false)
 
   useEffect(() => {
-    preloadNurseTriageAssets()
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     const updatePreference = () => setSystemReducedMotion(mediaQuery.matches)
     updatePreference()
@@ -230,9 +129,12 @@ export function HealthEventsPage() {
     if (viewMode === 'triage') setFilterOpen(false)
   }, [viewMode])
 
-  const currentMember = state.status === 'success'
-    ? state.data.members.find((member) => member.id === currentMemberId) ?? null
-    : null
+  const loadedMembers = state.status === 'success' ? state.data.members : []
+  const currentMember = loadedMembers.find((member) => member.id === currentMemberId)
+    ?? cachedMembers.find((member) => member.id === currentMemberId)
+    ?? loadedMembers[0]
+    ?? cachedMembers[0]
+    ?? null
   const currentMemberDto = state.status === 'success'
     ? state.data.memberDtos.find((member) => member.id === currentMember?.id) ?? null
     : null
@@ -252,20 +154,27 @@ export function HealthEventsPage() {
     : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
   const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
 
-  const discardPendingTriageEvent = useCallback(() => {
-    const pending = pendingTriageEventRef.current
-    if (!pending || pending.recordId || !token) return
-    pendingTriageEventRef.current = null
-    void healthEventService.delete(pending.eventId, token).catch(() => undefined)
-  }, [token])
-
   useEffect(() => {
     setQuickRecordOpen(false)
     setNextActionOpen(false)
-    discardPendingTriageEvent()
-  }, [currentMemberId, discardPendingTriageEvent, viewMode])
+    submissionKeyRef.current = ''
+  }, [currentMemberId, viewMode])
 
-  useEffect(() => () => discardPendingTriageEvent(), [discardPendingTriageEvent])
+  useEffect(() => {
+    const openRequested = (location.state as { openQuickRecord?: boolean } | null)?.openQuickRecord
+    if (!openRequested || !currentMember) return
+    setViewMode('triage')
+    setQuickRecordOpen(true)
+    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
+    navigate('/health-events', { replace: true })
+  }, [currentMember, location.state, navigate])
+
+  useEffect(() => {
+    if (!openAfterMemberLoadRef.current || !currentMember || state.status !== 'success') return
+    openAfterMemberLoadRef.current = false
+    setQuickRecordOpen(true)
+    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
+  }, [currentMember, state.status])
 
   const selectYear = (year: number) => {
     setSelectedYear(year)
@@ -277,31 +186,23 @@ export function HealthEventsPage() {
     if (nextFilters.year !== null) setSelectedYear(nextFilters.year)
   }
 
-  const createEmptyEvent = async (member = currentMemberDto) => {
-    if (!token || !member || creating) return
-    setCreating(true)
-    setCreateError('')
-    try {
-      const created = await healthEventService.create({
-        memberId: member.id,
-        title: '',
-        category: 'other'
-      }, token)
-      setCurrentMemberId(member.id)
-      navigate(`/health-events/${created.id}`, { state: { allowFirstRecord: true } })
-    } catch (requestError) {
-      if (requestError instanceof ApiRequestError && requestError.status === 401) {
-        clearAuthSession()
-        return
-      }
-      setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
-    } finally {
-      setCreating(false)
+  const beginNewRecord = () => {
+    if (!currentMember) {
+      navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
+      return
     }
+    setViewMode('triage')
+    setQuickRecordOpen(true)
+    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
   }
 
-  const beginNewRecord = () => {
-    void createEmptyEvent()
+  const openQuickRecord = () => {
+    if (!currentMember) {
+      navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
+      return
+    }
+    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
+    setQuickRecordOpen(true)
   }
 
   const createSelfAndRecord = async () => {
@@ -311,9 +212,9 @@ export function HealthEventsPage() {
     try {
       const createdMember = await familyMemberService.createSelf({}, token)
       addMember(adaptFamilyMember(createdMember))
-      const createdEvent = await healthEventService.create({ memberId: createdMember.id, title: '', category: 'other' }, token)
       setCurrentMemberId(createdMember.id)
-      navigate(`/health-events/${createdEvent.id}`, { state: { allowFirstRecord: true } })
+      openAfterMemberLoadRef.current = true
+      await retry()
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -343,61 +244,21 @@ export function HealthEventsPage() {
     }
   }
 
-  const ensurePendingTriageEvent = async (transcript: string, occurredAt: string) => {
-    if (!token || !currentMemberDto || currentMemberDto.id !== currentMemberId) throw new Error('当前人物信息尚未准备好，请稍后重试。')
+  const saveTriageRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => {
+    if (!token || !currentMember) throw new Error('当前人物信息尚未准备好，请稍后重试。')
+    if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     try {
-      let pending = pendingTriageEventRef.current
-      if (!pending || pending.memberId !== currentMemberDto.id) {
-        const event = await healthEventService.create({
-          memberId: currentMemberDto.id,
-          title: normalizeHealthEventTitle('', transcript),
-          category: 'other',
-          startTime: occurredAt
-        }, token)
-        pending = { eventId: event.id, memberId: currentMemberDto.id }
-        pendingTriageEventRef.current = pending
-      }
-      return pending
-    } catch (requestError) {
-      if (requestError instanceof ApiRequestError && requestError.status === 401) {
-        clearAuthSession()
-        throw new Error('登录状态已失效，请重新登录。')
-      }
-      throw requestError
-    }
-  }
-
-  // Preview requires an event id. Reuse the intelligent view's existing rule of
-  // creating one event for the current member, then remove it if the user cancels.
-  const previewTriageRecord = async (transcript: string, occurredAt: string) => {
-    if (!token) throw new Error('登录状态已失效，请重新登录。')
-    const pending = await ensurePendingTriageEvent(transcript, occurredAt)
-    const preview = await healthRecordOrganizationService.preview(pending.eventId, transcript, token, { selectedOccurredAt: occurredAt })
-    return createQuickRecordCandidates(preview, occurredAt)
-  }
-
-  const saveTriageRecord = async (transcript: string, occurredAt: string) => {
-    if (!token) throw new Error('登录状态已失效，请重新登录。')
-    const pending = await ensurePendingTriageEvent(transcript, occurredAt)
-    try {
-      if (!pending.recordId || pending.transcript !== transcript) {
-        const record = await healthEventRecordService.create(pending.eventId, {
-          type: 'note',
-          content: transcript,
-          occurredAt
-        }, token)
-        pending.recordId = record.id
-        pending.transcript = transcript
-      }
-      let message = '已记录'
-      try {
-        const organization = await healthRecordOrganizationService.organize(pending.eventId, pending.recordId, token)
-        if (organization.rawRecordOnly) message = '已保存原话，自动整理暂时不可用。'
-        else if (organization.status !== 'completed') message = '原始记录已保存，暂未自动整理'
-      } catch {
-        message = '原始记录已保存，自动整理失败'
-      }
-      pendingTriageEventRef.current = null
+      await quickRecordService.create({
+        memberId: currentMember.id,
+        content: transcript,
+        occurredAt,
+        inputChannel,
+        idempotencyKey: submissionKeyRef.current,
+        title: normalizeHealthEventTitle('', transcript)
+      }, token)
+      const summary = transcript.trim().replace(/\s+/g, ' ').slice(0, 30)
+      const message = `已为 ${currentMember.name} 保存：${summary}${transcript.trim().length > 30 ? '…' : ''}`
+      submissionKeyRef.current = ''
       void retry()
       return message
     } catch (requestError) {
@@ -411,21 +272,18 @@ export function HealthEventsPage() {
 
   const closeQuickRecord = () => {
     setQuickRecordOpen(false)
-    discardPendingTriageEvent()
   }
 
-  if (state.status === 'success' && (state.data.entryState.familyMemberCount === 0 || !state.data.entryState.hasValidHealthRecord)) {
+  if (state.status === 'success' && state.data.entryState.familyMemberCount === 0) {
     return (
-      <FirstUseHome
-        creating={creating}
+      <FirstMemberFrontDesk
+        busy={creating}
         error={createError}
-        members={state.data.memberDtos}
-        onAddFamily={(continueToRecord) => navigate('/family/new', {
-          state: { firstUseEntry: { continueToRecord, returnTo: '/health-events' } }
+        onAddMember={() => navigate('/family/new', {
+          state: { firstUseEntry: { continueToRecord: false, returnTo: '/health-events' } }
         })}
         onCreateSelf={() => void createSelfAndRecord()}
-        onOpenGuide={() => navigate('/guide')}
-        onSelectMember={(member: FamilyMemberApiDto) => void createEmptyEvent(member)}
+        reducedMotion={reducedMotion}
       />
     )
   }
@@ -519,15 +377,14 @@ export function HealthEventsPage() {
         {viewMode === 'triage' && (
           <NurseQuickRecord
             currentMemberId={currentMemberId}
-            disabled={!token || !currentMemberDto}
+            disabled={!token || !currentMember}
             key={currentMemberId}
             nextActionDisabled={!nextActionEventId}
             nextActionOpen={nextActionOpen}
             onClose={closeQuickRecord}
             onConfirm={saveTriageRecord}
             onNextActionOpen={() => setNextActionOpen(true)}
-            onOpen={() => setQuickRecordOpen(true)}
-            onPreview={previewTriageRecord}
+            onOpen={openQuickRecord}
             open={quickRecordOpen}
             reducedMotion={reducedMotion}
           />
@@ -539,7 +396,7 @@ export function HealthEventsPage() {
         className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="新增健康事件"
-        disabled={creating || !currentMemberDto}
+        disabled={creating || !currentMember}
         onClick={beginNewRecord}
       >
         <Plus size={30} strokeWidth={1.8} />
