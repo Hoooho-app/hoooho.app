@@ -4,6 +4,45 @@
   isolation: isolate;
 }
 
+.nurse-prompt-carousel {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  overflow: hidden;
+  color: rgb(var(--hoho-color-text-primary));
+  font: 500 14px / 20px var(--hoho-font-family);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nurse-prompt-carousel__line {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.nurse-prompt-carousel__line.is-current {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.nurse-prompt-carousel__line.is-leaving {
+  animation: nurse-prompt-leave 320ms ease-out both;
+}
+
+.nurse-prompt-carousel__line.is-entering {
+  animation: nurse-prompt-enter 320ms ease-out both;
+}
+
+@media (max-width: 340px) {
+  .nurse-prompt-carousel {
+    font-size: 13px;
+  }
+}
+
 .nurse-quick-record-controls {
   display: grid;
   min-height: 52px;
@@ -273,6 +312,42 @@
     animation: none;
     transition: opacity 90ms linear;
   }
+
+  .nurse-prompt-carousel__line.is-leaving {
+    animation: nurse-prompt-fade-out 120ms linear both;
+  }
+
+  .nurse-prompt-carousel__line.is-entering {
+    animation: nurse-prompt-fade-in 120ms linear both;
+  }
+}
+
+.nurse-prompt-carousel[data-reduced-motion='true'] .nurse-prompt-carousel__line.is-leaving {
+  animation: nurse-prompt-fade-out 120ms linear both;
+}
+
+.nurse-prompt-carousel[data-reduced-motion='true'] .nurse-prompt-carousel__line.is-entering {
+  animation: nurse-prompt-fade-in 120ms linear both;
+}
+
+@keyframes nurse-prompt-leave {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-7px); opacity: 0; }
+}
+
+@keyframes nurse-prompt-enter {
+  from { transform: translateY(7px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes nurse-prompt-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes nurse-prompt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes nurse-quick-record-float-in {

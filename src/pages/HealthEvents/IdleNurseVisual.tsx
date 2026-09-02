@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import idleIntroZeroSource from '../../assets/nurse-triage/nurses-idle-intro-0.mp4'
 import idleVideoOneSource from '../../assets/nurse-triage/nurses-idle-loop-1.mp4'
 import idleVideoTwoSource from '../../assets/nurse-triage/nurses-idle-loop-2.mp4'
+import saveSuccessVideoSource from '../../assets/nurse-triage/nurse-save-success-ok.mp4'
 import {
   beginIdlePlayback,
   chooseAvailableVideo,
@@ -11,6 +12,7 @@ import {
   loadAndPlayIdleVideo,
   requestNextIdlePlayback,
   resumeIdlePlaylist,
+  resumeIdlePlaylistFromLoopStart,
   suspendIdlePlaylist,
   type IdlePlaylistState,
   type NurseVideoIndex
@@ -25,11 +27,13 @@ interface IdleNurseVisualProps {
   active: boolean
   reducedMotion: boolean
   resetKey: string
+  saveSuccessSequence: number
 }
 
-export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVisualProps) {
+export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSequence }: IdleNurseVisualProps) {
   const [playlist, setPlaylist] = useState<IdlePlaylistState>(() => createIdlePlaylistState())
   const [idlePlaybackBlocked, setIdlePlaybackBlocked] = useState(false)
+  const [saveSuccessPlaying, setSaveSuccessPlaying] = useState(false)
   const playlistRef = useRef(playlist)
   const idleVideoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null, HTMLVideoElement | null]>([null, null, null])
   const idleFailedRef = useRef<[boolean, boolean, boolean]>([false, false, false])
@@ -38,6 +42,10 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
   const videoSessionRef = useRef<[number, number, number]>([0, 0, 0])
   const mountedRef = useRef(true)
   const idlePlaybackAllowedRef = useRef(false)
+  const saveSuccessVideoRef = useRef<HTMLVideoElement | null>(null)
+  const handledSaveSuccessSequenceRef = useRef(0)
+  const saveSuccessSessionRef = useRef(0)
+  const activeSaveSuccessSessionRef = useRef(0)
   const reducedMotionRef = useRef(reducedMotion)
 
   idlePlaybackAllowedRef.current = active
@@ -128,6 +136,36 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
     setIdlePlaybackBlocked(false)
   }, [pauseIdlePlayers, updatePlaylist])
 
+  const startLoopFromIdleOne = useCallback(() => {
+    if (!idlePlaybackAllowedRef.current) return
+    const next = resumeIdlePlaylistFromLoopStart(playlistRef.current)
+    updatePlaylist(next)
+    startPreparedVideo(next)
+  }, [startPreparedVideo, updatePlaylist])
+
+  const finishSaveSuccess = useCallback((sessionId: number) => {
+    if (sessionId <= 0 || sessionId !== activeSaveSuccessSessionRef.current) return
+    activeSaveSuccessSessionRef.current = 0
+    const video = saveSuccessVideoRef.current
+    video?.pause()
+    if (video) video.currentTime = 0
+    if (mountedRef.current) setSaveSuccessPlaying(false)
+    startLoopFromIdleOne()
+  }, [startLoopFromIdleOne])
+
+  const playSaveSuccess = useCallback(async (sessionId: number) => {
+    const video = saveSuccessVideoRef.current
+    if (!video || !mountedRef.current || !idlePlaybackAllowedRef.current) return
+    video.pause()
+    video.currentTime = 0
+    if (video.networkState === HTMLMediaElement.NETWORK_EMPTY) video.load()
+    try {
+      await video.play()
+    } catch {
+      finishSaveSuccess(sessionId)
+    }
+  }, [finishSaveSuccess])
+
   const retryIdleVideo = useCallback((videoIndex: NurseVideoIndex) => {
     idleFailedRef.current[videoIndex] = true
     window.clearTimeout(idleRetryTimerRef.current[videoIndex])
@@ -204,15 +242,33 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
       mountedRef.current = false
       idleRetryTimerRef.current.forEach((timer) => window.clearTimeout(timer))
       playlistRef.current = suspendIdlePlaylist(playlistRef.current)
+      saveSuccessSessionRef.current += 1
+      activeSaveSuccessSessionRef.current = 0
+      saveSuccessVideoRef.current?.pause()
       pauseIdlePlayers()
     }
   }, [pauseIdlePlayers])
 
   useEffect(() => {
+    if (!active || saveSuccessSequence <= 0 || saveSuccessSequence === handledSaveSuccessSequenceRef.current) return
+    handledSaveSuccessSequenceRef.current = saveSuccessSequence
+    saveSuccessSessionRef.current += 1
+    const sessionId = saveSuccessSessionRef.current
+    activeSaveSuccessSessionRef.current = sessionId
+    stopIdlePlaylist()
+    void playSaveSuccess(sessionId)
+  }, [active, playSaveSuccess, saveSuccessSequence, stopIdlePlaylist])
+
+  useEffect(() => {
     if (!active) {
+      saveSuccessSessionRef.current += 1
+      activeSaveSuccessSessionRef.current = 0
+      saveSuccessVideoRef.current?.pause()
+      setSaveSuccessPlaying(false)
       stopIdlePlaylist()
       return
     }
+    if (activeSaveSuccessSessionRef.current > 0) return
     startOrResumeIdle()
   }, [active, reducedMotion, resetKey, startOrResumeIdle, stopIdlePlaylist])
 
@@ -247,6 +303,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
       data-active-video={videoPhaseNames[playlist.activeVideoIndex]}
       data-playback-session={playlist.playbackSessionId}
       data-reduced-motion={reducedMotion}
+      data-save-success={saveSuccessPlaying}
     >
       {idlePlaylist.map((source, videoIndexValue) => {
         const videoIndex = videoIndexValue as NurseVideoIndex
@@ -257,7 +314,7 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
             className="idle-nurse-visual__idle-video"
             controls={false}
             controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
-            data-active={isVideoVisible(playlist, videoIndex)}
+            data-active={!saveSuccessPlaying && isVideoVisible(playlist, videoIndex)}
             data-video-phase={videoPhaseNames[videoIndex]}
             disablePictureInPicture
             disableRemotePlayback
@@ -280,6 +337,31 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey }: IdleNurseVi
           />
         )
       })}
+      <video
+        aria-hidden="true"
+        className="idle-nurse-visual__idle-video"
+        controls={false}
+        controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
+        data-active={saveSuccessPlaying}
+        data-video-phase="save_success"
+        disablePictureInPicture
+        disableRemotePlayback
+        draggable={false}
+        loop={false}
+        muted
+        onContextMenu={(event) => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
+        onEnded={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
+        onError={() => finishSaveSuccess(activeSaveSuccessSessionRef.current)}
+        onPlaying={() => {
+          if (activeSaveSuccessSessionRef.current > 0) setSaveSuccessPlaying(true)
+        }}
+        playsInline
+        preload="auto"
+        ref={saveSuccessVideoRef}
+        src={saveSuccessVideoSource}
+        tabIndex={-1}
+      />
     </div>
   )
 }

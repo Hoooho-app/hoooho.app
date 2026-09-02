@@ -18,13 +18,15 @@ const helpSource = readFileSync(new URL('../../features/help/articles.ts', impor
 const nurseDeskSource = readFileSync(new URL('./NurseTriageDesk.tsx', import.meta.url), 'utf8')
 const nurseQuickRecordSource = readFileSync(new URL('./NurseQuickRecord.tsx', import.meta.url), 'utf8')
 const nurseQuickRecordStylesSource = readFileSync(new URL('./NurseQuickRecord.css', import.meta.url), 'utf8')
+const nursePromptCarouselSource = readFileSync(new URL('./NursePromptCarousel.tsx', import.meta.url), 'utf8')
+const nursePromptCarouselConfigSource = readFileSync(new URL('./nursePromptMessages.ts', import.meta.url), 'utf8')
+const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
 const nurseNextActionSource = readFileSync(new URL('./NurseNextAction.tsx', import.meta.url), 'utf8')
 const nurseNextActionContextSource = readFileSync(new URL('./nurseNextActionContext.ts', import.meta.url), 'utf8')
 const quickRecordFlowSource = readFileSync(new URL('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx', import.meta.url), 'utf8')
 const actionSheetSource = readFileSync(new URL('../HealthEventDetail/components/ActionSheet.tsx', import.meta.url), 'utf8')
 const detailPageSource = readFileSync(new URL('../HealthEventDetail/index.tsx', import.meta.url), 'utf8')
 const stickyHeaderSource = readFileSync(new URL('../HealthEventDetail/components/EventDetailStickyHeader.tsx', import.meta.url), 'utf8')
-const idleVisualSource = readFileSync(new URL('./IdleNurseVisual.tsx', import.meta.url), 'utf8')
 
 test('健康事件首页始终使用当前人物范围、紧凑标题和左对齐年份导航', () => {
   assert.match(pageSource, /label="当前人物"/)
@@ -95,7 +97,7 @@ test('护士视频使用欢迎片与双待机显式白名单且切换期间最�
   const playlistMatch = idleVisualSource.match(/const idlePlaylist = \[([^\]]+)\] as const/)
   assert.ok(playlistMatch)
   assert.deepEqual(playlistMatch[1].split(',').map((item) => item.trim()), ['idleIntroZeroSource', 'idleVideoOneSource', 'idleVideoTwoSource'])
-  assert.equal(idleVisualSource.match(/<video/g)?.length, 1)
+  assert.equal(idleVisualSource.match(/<video/g)?.length, 2)
   assert.match(idleVisualSource, /autoPlay=\{videoIndex === 0 && active && !reducedMotion\}/)
   assert.match(idleVisualSource, /preload="auto"/)
   assert.match(idleVisualSource, /loop=\{false\}/)
@@ -180,6 +182,46 @@ test('前台快捷记录在原锚点使用专用听写、核对和保存完成�
   assert.match(quickRecordFlowSource, />保存记录<\/HohoButton>/)
   assert.match(quickRecordFlowSource, /presentation === 'nurse-inline' \? '记录已保存'/)
   assert.doesNotMatch(quickRecordFlowSource, /开始听写|点击结束|<Square|<Pause/)
+})
+
+test('前台提示轮播严格使用指定顺序并由真实快捷记录打开状态暂停', () => {
+  const prompts = [
+    '不舒服就记下来',
+    '不用一次说完，有空了再补上',
+    '症状加重还是减轻，我们帮你记清',
+    '把重要信息整理清楚，去医院不慌',
+    '让AI或医生一分钟看懂发生了什么'
+  ]
+  prompts.forEach((prompt) => assert.match(nursePromptCarouselConfigSource, new RegExp(prompt)))
+  assert.match(nurseQuickRecordSource, /<NursePromptCarousel paused=\{open\} reducedMotion=\{reducedMotion\} \/>/)
+  assert.doesNotMatch(nurseQuickRecordSource, /发生什么，都可以告诉我们/)
+  assert.match(nursePromptCarouselConfigSource, /nursePromptHoldDuration = 2000/)
+  assert.match(nursePromptCarouselSource, /visibilitychange/)
+  assert.match(nursePromptCarouselSource, /window\.clearTimeout\(timer\)/)
+})
+
+test('前台提示轮播保持固定单行高度并为 Reduced Motion 移除位移', () => {
+  assert.match(nurseQuickRecordStylesSource, /nurse-prompt-carousel[^}]*height:\s*20px[^}]*overflow:\s*hidden[^}]*font:\s*500 14px \/ 20px/s)
+  assert.match(nurseQuickRecordStylesSource, /nurse-prompt-leave 320ms ease-out/)
+  assert.match(nurseQuickRecordStylesSource, /translateY\(-7px\)/)
+  assert.match(nurseQuickRecordStylesSource, /translateY\(7px\)/)
+  assert.match(nurseQuickRecordStylesSource, /max-width:\s*340px[^}]*font-size:\s*13px/s)
+  assert.match(nurseQuickRecordStylesSource, /prefers-reduced-motion:\s*reduce[^]*nurse-prompt-fade-out 120ms linear/s)
+})
+
+test('语音记录真实保存成功后只触发一次 OK 手势并回到待机一', () => {
+  assert.match(quickRecordFlowSource, /await onConfirmRef\.current/)
+  assert.match(quickRecordFlowSource, /onSavedRef\.current\?\.\(visibleMessage, inputChannelRef\.current\)/)
+  assert.match(nurseQuickRecordSource, /shouldTriggerNurseSaveSuccess\(inputChannel, quickRecordSessionRef\.current, animatedSaveSessionRef\.current\)/)
+  assert.match(nurseQuickRecordSource, /saveSuccessSequence=\{saveSuccessSequence\}/)
+  assert.match(idleVisualSource, /nurse-save-success-ok\.mp4/)
+  assert.match(idleVisualSource, /data-video-phase="save_success"/)
+  assert.match(idleVisualSource, /data-active=\{!saveSuccessPlaying && isVideoVisible\(playlist, videoIndex\)\}/)
+  assert.match(idleVisualSource, /loop=\{false\}/)
+  assert.match(idleVisualSource, /onEnded=\{\(\) => finishSaveSuccess/)
+  assert.match(idleVisualSource, /onError=\{\(\) => finishSaveSuccess/)
+  assert.match(idleVisualSource, /resumeIdlePlaylistFromLoopStart/)
+  assert.match(idleVisualSource, /preload="auto"/)
 })
 
 test('前台快捷记录保留真实保存、失败重试和资源清理边界', () => {

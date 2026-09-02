@@ -27,7 +27,7 @@ interface QuickVoiceRecordFlowProps {
   onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel) => Promise<string | void>
   onIgnored?: (message: string) => void
   onPreview?: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<QuickRecordCandidate[]>
-  onSaved?: (message: string) => void
+  onSaved?: (message: string, inputChannel: QuickRecordInputChannel) => void
   open: boolean
   presentation?: QuickRecordPresentation
   recognitionApi?: RecognitionConstructor | null
@@ -102,7 +102,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
       else setSavedMessage(message || '已记录')
       setState('saved')
       if (presentation === 'nurse-inline') {
-        onSavedRef.current?.(visibleMessage)
+        onSavedRef.current?.(visibleMessage, inputChannelRef.current)
         onCloseRef.current()
       } else scheduleClose(560)
     } catch (reason) {
