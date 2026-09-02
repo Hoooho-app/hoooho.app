@@ -11,7 +11,7 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
+  { path: '/', element: <Navigate to="/health-events" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
   {

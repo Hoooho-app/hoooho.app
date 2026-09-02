@@ -46,9 +46,22 @@
 .nurse-quick-record-controls {
   display: grid;
   min-height: 52px;
-  grid-template-columns: minmax(0, 1fr) 52px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: var(--hoho-space-3);
+}
+
+.nurse-next-action-link {
+  display: block;
+  min-height: 36px;
+  margin: 4px auto 0;
+  padding-inline: 12px;
+  color: rgb(var(--hoho-color-primary));
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--hoho-color-primary) / 0.3);
+  text-underline-offset: 3px;
 }
 
 .nurse-quick-record-entry {

@@ -6,6 +6,7 @@ import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecor
 import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, quickRecordSaveErrorMessage, type MicrophoneFailure } from './quickRecordPresentation'
 
 type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'previewing' | 'review' | 'voice_help' | 'browser_help' | 'saving' | 'saved'
+export type QuickRecordActivity = 'idle' | 'attention' | 'listening' | 'reviewing' | 'saving' | 'saved' | 'error'
 export type QuickRecordPresentation = 'default' | 'nurse-inline'
 interface RecognitionEvent { results: ArrayLike<{ 0: { transcript: string } }> }
 interface RecognitionErrorEvent { error?: string }
@@ -26,6 +27,7 @@ interface QuickVoiceRecordFlowProps {
   onClose: () => void
   onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel) => Promise<string | void>
   onIgnored?: (message: string) => void
+  onActivityChange?: (activity: QuickRecordActivity) => void
   onPreview?: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<QuickRecordCandidate[]>
   onSaved?: (message: string, inputChannel: QuickRecordInputChannel) => void
   open: boolean
@@ -44,7 +46,7 @@ const recognitionConstructor = () => {
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
-export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -97,9 +99,8 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
     setInputError('')
     try {
       const message = await onConfirmRef.current(value, occurredAtRef.current || new Date().toISOString(), candidatesRef.current, inputChannelRef.current)
-      const visibleMessage = presentation === 'nurse-inline' ? '记录已保存' : (message || '已记录')
-      if (presentation === 'nurse-inline') setSavedMessage(visibleMessage)
-      else setSavedMessage(message || '已记录')
+      const visibleMessage = message || '已记录'
+      setSavedMessage(message || '已记录')
       setState('saved')
       if (presentation === 'nurse-inline') {
         onSavedRef.current?.(visibleMessage, inputChannelRef.current)
@@ -117,7 +118,12 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
     if (!value || submittingRef.current) return
     const occurredAt = new Date().toISOString()
     occurredAtRef.current = occurredAt
-    if (!onPreviewRef.current) { await saveFinal(); return }
+    if (!onPreviewRef.current) {
+      candidatesRef.current = []
+      setCandidates([])
+      setState('review')
+      return
+    }
     submittingRef.current = true
     setState('previewing')
     setInputError('')
@@ -280,6 +286,25 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) {
+      onActivityChange?.('idle')
+      return
+    }
+    const activity: QuickRecordActivity = state === 'recording' || state === 'requesting_permission'
+      ? 'listening'
+      : state === 'review' || state === 'previewing'
+        ? 'reviewing'
+        : state === 'saving'
+          ? 'saving'
+          : state === 'saved'
+            ? 'saved'
+            : state === 'error' || state === 'voice_help' || state === 'browser_help'
+              ? 'error'
+              : 'attention'
+    onActivityChange?.(activity)
+  }, [onActivityChange, open, state])
+
   if (presentation === 'nurse-inline' ? !renderNursePanel : !open) return null
 
   const panelStyle = { '--quick-record-viewport-height': `${viewportHeight}px` } as CSSProperties
@@ -370,7 +395,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
           {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
           <div className="nurse-quick-record-actions">
             <button className="nurse-quick-record-secondary" disabled={submittingRef.current} onClick={restartListening} type="button">重新说</button>
-            <HohoButton disabled={!transcript.trim() || submittingRef.current} onClick={() => void saveFinal()}>保存记录</HohoButton>
+            <HohoButton disabled={!transcript.trim() || submittingRef.current} onClick={() => void saveFinal()}>确认保存</HohoButton>
           </div>
         </section>
       )
@@ -396,7 +421,7 @@ export function QuickVoiceRecordFlow({ onClose, onConfirm, onIgnored, onPreview,
         {showWechatHint && <p className="quick-record-wechat-hint"><strong>正在微信内打开</strong>文字记录可正常使用，语音记录需要使用系统浏览器。</p>}
         <label className="quick-record-natural-input"><strong>写下发生了什么</strong><textarea aria-label="快捷记录文字" className="hoho-textarea" disabled={state === 'previewing'} onChange={(event) => { setTranscript(event.target.value); setInputError('') }} placeholder="例如：晚上九点给她吃了5毫升美林，刚刚量了38.5度" value={transcript} /></label>
         {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
-        <div className="quick-record-text-actions"><button className="quick-record-cancel" disabled={state === 'previewing'} onClick={cancel} type="button">取消</button><button className="quick-record-voice-link" disabled={state === 'previewing'} onClick={() => capability.canAttemptMicrophone ? startListening() : setState('voice_help')} type="button"><Mic size={16} />想用语音记录？</button><HohoButton disabled={!transcript.trim() || state === 'previewing'} onClick={() => void prepareNaturalInput()}>{state === 'previewing' ? '正在整理…' : '自动整理'}</HohoButton></div>
+        <div className="quick-record-text-actions"><button className="quick-record-cancel" disabled={state === 'previewing'} onClick={cancel} type="button">取消</button><button className="quick-record-voice-link" disabled={state === 'previewing'} onClick={() => capability.canAttemptMicrophone ? startListening() : setState('voice_help')} type="button"><Mic size={16} />想用语音记录？</button><HohoButton disabled={!transcript.trim() || state === 'previewing'} onClick={() => void prepareNaturalInput()}>{state === 'previewing' ? '正在核对…' : '继续核对'}</HohoButton></div>
       </section>
     )
   }

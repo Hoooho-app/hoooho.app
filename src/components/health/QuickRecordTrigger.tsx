@@ -15,7 +15,7 @@ export function QuickRecordTrigger({ className = '', disabled = false, onClick }
       type="button"
     >
       <Mic aria-hidden="true" size={18} />
-      快捷记录
+      快速记录
     </button>
   )
 }

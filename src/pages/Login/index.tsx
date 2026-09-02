@@ -1,5 +1,5 @@
 import { Mail, ShieldCheck, Smartphone } from 'lucide-react'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../../components/design-system/HohoButton'
@@ -21,6 +21,9 @@ export function LoginPage() {
   const [notice, setNotice] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [showDeliveryHelp, setShowDeliveryHelp] = useState(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
+  const deliveryHelpTimerRef = useRef<number | null>(null)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
   const setProfile = useAppStore((state) => state.setProfile)
   const setMembers = useAppStore((state) => state.setMembers)
@@ -36,6 +39,22 @@ export function LoginPage() {
     return () => window.clearInterval(timer)
   }, [countdown])
 
+  useEffect(() => {
+    const refocusCode = () => {
+      if (!document.hidden && countdown > 0 && code.length < 6) codeInputRef.current?.focus()
+    }
+    document.addEventListener('visibilitychange', refocusCode)
+    window.addEventListener('pageshow', refocusCode)
+    return () => {
+      document.removeEventListener('visibilitychange', refocusCode)
+      window.removeEventListener('pageshow', refocusCode)
+    }
+  }, [code.length, countdown])
+
+  useEffect(() => () => {
+    if (deliveryHelpTimerRef.current !== null) window.clearTimeout(deliveryHelpTimerRef.current)
+  }, [])
+
   const requestCode = async () => {
     if (!emailIsValid) {
       setError('请输入正确的邮箱地址')
@@ -48,6 +67,10 @@ export function LoginPage() {
       const result = await authService.sendEmailCode(normalizedEmail)
       setCountdown(result.retryAfter)
       setNotice('验证码已发送，请查看邮箱')
+      setShowDeliveryHelp(false)
+      codeInputRef.current?.focus()
+      if (deliveryHelpTimerRef.current !== null) window.clearTimeout(deliveryHelpTimerRef.current)
+      deliveryHelpTimerRef.current = window.setTimeout(() => setShowDeliveryHelp(true), 18_000)
     } catch (requestError) {
       const authError = requestError instanceof AuthApiError ? requestError : null
       setError(authError?.message ?? '验证码发送失败，请稍后重试')
@@ -90,7 +113,7 @@ export function LoginPage() {
           avatar: self.avatar ?? undefined
         }, self.id)
       }
-      navigate(members.length > 0 ? '/health-events' : '/onboarding/profile', { replace: true })
+      navigate('/health-events', { replace: true })
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
     } finally {
@@ -113,7 +136,7 @@ export function LoginPage() {
           muted
           playsInline
           poster="/media/login-family-care-poster.webp"
-          preload="auto"
+          preload="metadata"
           tabIndex={-1}
         >
           <source src="/media/login-family-care.mp4" type="video/mp4" />
@@ -156,6 +179,7 @@ export function LoginPage() {
               className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-text-secondary/60"
               inputMode="numeric"
               autoComplete="one-time-code"
+              ref={codeInputRef}
               maxLength={6}
               placeholder="请输入验证码"
               value={code}
@@ -177,6 +201,7 @@ export function LoginPage() {
           <div className="min-h-5 px-1" aria-live="polite">
             {error && <p className="text-xs text-danger">{error}</p>}
             {!error && notice && <p className="text-xs text-primary">{notice}</p>}
+            {!error && showDeliveryHelp && <p className="mt-1 text-xs text-text-secondary">还没收到？请检查垃圾邮件，倒计时结束后可以重新获取。</p>}
           </div>
 
           <HohoButton fullWidth loading={isLoggingIn} size="large" type="submit" disabled={!emailIsValid || !codeIsValid}>登录</HohoButton>

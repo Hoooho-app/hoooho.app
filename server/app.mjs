@@ -10,6 +10,7 @@ import { authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
 import { HealthEventService } from './events/health-event-service.mjs'
+import { QuickRecordService } from './events/quick-record-service.mjs'
 import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
@@ -44,6 +45,7 @@ const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
+const quickRecords = new QuickRecordService({ ...sharedOptions, events, records })
 const attachments = new EventAttachmentService(sharedOptions)
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
@@ -207,6 +209,7 @@ function createEmailAuthRequestContext(request, response, pathname) {
   const origin = String(request.headers.origin ?? '').slice(0, 200)
   response.setHeader('X-Hoooho-Request-ID', requestId)
   return {
+    startedAt: Date.now(),
     requestId,
     channel: 'email',
     endpoint: pathname,
@@ -221,6 +224,7 @@ function createEmailAuthRequestContext(request, response, pathname) {
 function logEmailAuthRequest(context, status, errorCategory = 'OK') {
   console.info(`[Hoooho auth request] ${JSON.stringify({
     ...context,
+    durationMs: Math.max(0, Date.now() - context.startedAt),
     status,
     errorCategory,
     rateLimited: status === 429 || errorCategory === 'CODE_RATE_LIMITED'
@@ -287,6 +291,14 @@ async function handleMembers(request, response, pathname) {
   else if (memberId && request.method === 'GET') sendJson(response, 200, await members.get(accountId, memberId))
   else if (memberId && request.method === 'PATCH') sendJson(response, 200, await members.update(accountId, memberId, await readJson(request, AVATAR_PHOTO_MAX_REQUEST_LENGTH), new Date(), timeZone))
   else if (memberId && request.method === 'DELETE') sendJson(response, 200, await members.delete(accountId, memberId))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
+async function handleQuickRecords(request, response, pathname) {
+  if (pathname !== '/api/quick-records') return false
+  const accountId = readAccountId(request)
+  if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -468,6 +480,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
+  if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
   if (await handleOnlineConsultations(request, response, pathname)) return true

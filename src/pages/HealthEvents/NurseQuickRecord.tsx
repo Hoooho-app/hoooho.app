@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
-import type { QuickRecordCandidate } from '../../features/quick-record'
-import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
+import { QuickVoiceRecordFlow, type QuickRecordActivity, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import { NursePromptCarousel } from './NursePromptCarousel'
 import { shouldTriggerNurseSaveSuccess } from './nurseSaveSuccess'
 import { NurseTriageDesk } from './NurseTriageDesk'
@@ -14,10 +13,9 @@ interface NurseQuickRecordProps {
   nextActionDisabled?: boolean
   nextActionOpen: boolean
   onClose: () => void
-  onConfirm: (transcript: string, occurredAt: string) => Promise<string | void>
+  onConfirm: (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel) => Promise<string | void>
   onNextActionOpen: () => void
   onOpen: () => void
-  onPreview: (transcript: string, occurredAt: string) => Promise<QuickRecordCandidate[]>
   open: boolean
   reducedMotion: boolean
 }
@@ -31,15 +29,28 @@ export function NurseQuickRecord({
   onConfirm,
   onNextActionOpen,
   onOpen,
-  onPreview,
   open,
   reducedMotion
 }: NurseQuickRecordProps) {
   const [savedNotice, setSavedNotice] = useState('')
   const [saveSuccessSequence, setSaveSuccessSequence] = useState(0)
+  const [activity, setActivity] = useState<QuickRecordActivity>('idle')
   const noticeTimerRef = useRef<number | null>(null)
   const quickRecordSessionRef = useRef(0)
   const animatedSaveSessionRef = useRef(-1)
+  const triageState = activity === 'listening'
+    ? 'listening'
+    : activity === 'reviewing'
+      ? 'reviewing'
+      : activity === 'saving'
+        ? 'saving'
+        : activity === 'saved'
+          ? 'saved'
+          : activity === 'error'
+            ? 'error'
+            : activity === 'attention'
+              ? 'attention'
+              : 'idle'
   const openQuickRecord = () => {
     quickRecordSessionRef.current += 1
     setSavedNotice('')
@@ -71,7 +82,7 @@ export function NurseQuickRecord({
           idleAnimationResetKey={currentMemberId}
           reducedMotion={reducedMotion}
           saveSuccessSequence={saveSuccessSequence}
-          state="idle"
+          state={triageState}
         />
       </div>
       <div className="nurse-triage-status">
@@ -87,28 +98,19 @@ export function NurseQuickRecord({
               onClick={openQuickRecord}
             />
           </div>
-          <button
-            aria-haspopup="dialog"
-            aria-label="打开当前健康事件的下一步"
-            aria-pressed={nextActionOpen}
-            className="nurse-next-action-trigger"
-            data-active={nextActionOpen}
-            disabled={nextActionDisabled}
-            onClick={onNextActionOpen}
-            type="button"
-          >
-            <svg aria-hidden="true" viewBox="0 0 80 80">
-              <path d="M 13 65 Q 40 28 67 13" />
-              <circle className="nurse-next-action-mark__start" cx="13" cy="65" r="6" />
-              <circle cx="40" cy="38" r="11" />
-              <circle className="nurse-next-action-mark__end" cx="67" cy="13" r="8" />
-            </svg>
-          </button>
         </div>
+        {!nextActionDisabled && !open && <button
+          aria-haspopup="dialog"
+          aria-pressed={nextActionOpen}
+          className="nurse-next-action-link"
+          data-active={nextActionOpen}
+          onClick={onNextActionOpen}
+          type="button"
+        >查看当前事件下一步</button>}
         <QuickVoiceRecordFlow
+          onActivityChange={setActivity}
           onClose={onClose}
-          onConfirm={onConfirm}
-          onPreview={onPreview}
+          onConfirm={(transcript, occurredAt, _candidates, inputChannel) => onConfirm(transcript, occurredAt, inputChannel)}
           onSaved={showSavedNotice}
           open={open}
           presentation="nurse-inline"

@@ -235,9 +235,6 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
 
   useEffect(() => {
     mountedRef.current = true
-    idleVideoRefs.current.forEach((video) => {
-      if (video && video.networkState === HTMLMediaElement.NETWORK_EMPTY) video.load()
-    })
     return () => {
       mountedRef.current = false
       idleRetryTimerRef.current.forEach((timer) => window.clearTimeout(timer))
@@ -305,6 +302,15 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
       data-reduced-motion={reducedMotion}
       data-save-success={saveSuccessPlaying}
     >
+      <img
+        alt=""
+        aria-hidden="true"
+        className="idle-nurse-visual__poster"
+        decoding="async"
+        draggable={false}
+        fetchPriority="high"
+        src="/nurse-triage/attention.png"
+      />
       {idlePlaylist.map((source, videoIndexValue) => {
         const videoIndex = videoIndexValue as NurseVideoIndex
         return (
@@ -328,7 +334,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
             onError={() => retryIdleVideo(videoIndex)}
             onPlaying={() => handleIdlePlaying(videoIndex)}
             playsInline
-            preload="auto"
+            poster="/nurse-triage/attention.png"
+            preload={videoIndex === 0 ? 'metadata' : 'none'}
             ref={(video) => {
               idleVideoRefs.current[videoIndex] = video
             }}
@@ -357,7 +364,8 @@ export function IdleNurseVisual({ active, reducedMotion, resetKey, saveSuccessSe
           if (activeSaveSuccessSessionRef.current > 0) setSaveSuccessPlaying(true)
         }}
         playsInline
-        preload="auto"
+        poster="/nurse-triage/attention.png"
+        preload="none"
         ref={saveSuccessVideoRef}
         src={saveSuccessVideoSource}
         tabIndex={-1}

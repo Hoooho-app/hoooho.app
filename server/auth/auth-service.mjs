@@ -109,12 +109,13 @@ export class AuthService {
     const code = this.codeGenerator()
     const salt = randomBytes(16).toString('hex')
     const expiresIn = Math.floor(this.config.codeTtlMs / 1000)
+    const providerStartedAt = Date.now()
     this.logger(`[Hoooho auth] verification email requested email=${maskEmail(email)}`)
     try {
       await this.emailProvider.sendVerificationCode({ email, code, expiresIn })
     } catch (error) {
       const errorCode = error instanceof EmailProviderError ? error.code : 'EMAIL_PROVIDER_NETWORK_ERROR'
-      this.logger(`[Hoooho auth] verification provider error email=${maskEmail(email)} code=${errorCode}`)
+      this.logger(`[Hoooho auth] verification provider error email=${maskEmail(email)} code=${errorCode} providerDurationMs=${Math.max(0, Date.now() - providerStartedAt)}`)
       if (errorCode === 'EMAIL_PROVIDER_NOT_CONFIGURED') {
         throw new AuthError('邮箱验证码服务尚未配置', 503, errorCode)
       }
@@ -130,7 +131,7 @@ export class AuthService {
       expiresAt: now + this.config.codeTtlMs,
       failedAttempts: 0
     })
-    this.logger(`[Hoooho auth] verification email sent email=${maskEmail(email)}`)
+    this.logger(`[Hoooho auth] verification email sent email=${maskEmail(email)} providerDurationMs=${Math.max(0, Date.now() - providerStartedAt)}`)
     return { success: true, expiresIn, retryAfter: Math.floor(this.config.resendIntervalMs / 1000) }
   }
 
