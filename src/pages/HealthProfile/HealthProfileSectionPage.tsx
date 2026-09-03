@@ -140,8 +140,8 @@ export function HealthProfileSectionPage() {
       {section.id !== 'basic' && records.length > 0 && <section className="mt-6 grid gap-3">
         <div className="overflow-hidden rounded-card border bg-surface">{records.map((record, index) => <article className="border-b p-4 last:border-b-0" key={`${String(record._savedAt)}-${index}`}>
           <div className="flex items-start gap-3"><div className="min-w-0 flex-1"><strong className="text-sm">{String(record.name || record.disease || record.type || section.title)}</strong><p className="mt-1 line-clamp-2 text-xs leading-5 text-text-secondary">{summarizeRecord(section.fields, record)}</p></div>
-            <button aria-label="编辑记录" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-primary" onClick={() => editRecord(record, index)} type="button"><Pencil size={17} /></button>
-            <button aria-label="删除记录" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-danger" onClick={() => deleteRecord(index)} type="button"><Trash2 size={17} /></button>
+            <button aria-label="编辑记录" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary" onClick={() => editRecord(record, index)} type="button"><Pencil size={17} /></button>
+            <button aria-label="删除记录" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-danger" onClick={() => deleteRecord(index)} type="button"><Trash2 size={17} /></button>
           </div>
         </article>)}</div>
       </section>}

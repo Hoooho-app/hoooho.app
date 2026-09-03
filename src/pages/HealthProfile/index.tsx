@@ -39,7 +39,7 @@ function ProfileSectionRows({ recordedIds, sections, summaries }: { recordedIds:
   return <div className="profile-directory-group">{sections.map((section) => {
     const Icon = icons[section.icon]
     return <button className="hoho-surface-row" key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Icon size={19} strokeWidth={1.75} /></span>
+      <span className="profile-directory-icon"><Icon size={19} strokeWidth={1.75} /></span>
       <span className="min-w-0 flex-1 text-left"><Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography><Typography className="mt-0.5 block truncate" variant="caption">{summaries.get(section.id) ?? section.description}</Typography></span>
       <span className="profile-directory-status" data-filled={recordedIds.has(section.id)}>{recordedIds.has(section.id) ? '已填写' : '待补充'}</span>
       <ChevronRight className="shrink-0 text-text-secondary" size={18} />

@@ -22,17 +22,8 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
 
       {!event.symptoms.length ? (
         <div className="space-y-2">
-          <Card
-            interactive
-            className="cursor-pointer rounded-b-none border-primary/25 bg-gradient-to-r from-primary-soft to-success-soft"
-            role="button"
-            tabIndex={0}
-            onClick={() => setIsEditorOpen(true)}
-            onKeyDown={(keyEvent) => {
-              if (keyEvent.key === 'Enter' || keyEvent.key === ' ') setIsEditorOpen(true)
-            }}
-          >
-            <div className="flex items-center gap-3">
+          <button className="hoho-health-card block w-full rounded-b-none border-primary/25 bg-gradient-to-r from-primary-soft to-success-soft text-left" data-interactive="true" onClick={() => setIsEditorOpen(true)} type="button">
+            <span className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-surface shadow-card">
                 <Activity size={21} strokeWidth={1.8} />
               </span>
@@ -40,8 +31,8 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
                 <h3 className="font-semibold text-primary">记录一个新情况</h3>
                 <span className="mt-1 block text-xs leading-5 text-text-secondary">例如：昨天晚上开始出现喉咙疼痛和轻微咳嗽，今天上午感觉身体乏力，没有发烧，体温37℃，目前没有明显胸闷或其他不适，已多喝水并服用感冒药，正在观察症状变化。</span>
               </span>
-            </div>
-          </Card>
+            </span>
+          </button>
           <Card className="flex items-start gap-3 rounded-t-none bg-surface/80 py-3 shadow-none">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
               <CircleDashed size={18} />
@@ -63,17 +54,17 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
           />
         </div>
       ) : (
-        <Card interactive className="cursor-pointer p-0" onClick={() => setIsEditorOpen(true)} role="button" tabIndex={0}>
-          <ul className="divide-y">
+        <button className="hoho-health-card block w-full p-0 text-left" data-interactive="true" onClick={() => setIsEditorOpen(true)} type="button">
+          <span className="block divide-y">
             {event.symptoms.map((symptom) => (
-              <li className="flex gap-3 px-4 py-3" key={symptom}>
+              <span className="flex gap-3 px-4 py-3" key={symptom}>
                 <Activity className="mt-0.5 shrink-0 text-primary" size={17} />
                 <span className="text-sm leading-6">{symptom}</span>
-              </li>
+              </span>
             ))}
-          </ul>
-          {event.summary && <p className="border-t px-4 py-3 text-sm leading-7 text-text-secondary">{event.summary}</p>}
-        </Card>
+          </span>
+          {event.summary && <span className="block border-t px-4 py-3 text-sm leading-7 text-text-secondary">{event.summary}</span>}
+        </button>
       )}
       {event.symptoms.length > 0 && (
         <HealthRecordEditorModal

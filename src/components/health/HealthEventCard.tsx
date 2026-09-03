@@ -2,6 +2,7 @@ import { CheckCircle2, RotateCcw, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'
+import { ConfirmDialog } from '../design-system'
 import { HealthEventCardSurface } from './HealthEventCardSurface'
 
 const actionWidth = 148
@@ -20,6 +21,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
   const moved = useRef(false)
   const [translateX, setTranslateX] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const isRecovered = event.status === 'recovered'
 
   const finishSwipe = () => {
@@ -42,6 +44,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
     setBusy(true)
     try {
       await onDelete(event.id)
+      setConfirmDelete(false)
     } finally {
       setBusy(false)
     }
@@ -67,7 +70,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
           className="grid w-[74px] place-items-center bg-danger px-1 text-center text-xs font-medium disabled:opacity-70"
           disabled={busy}
           type="button"
-          onClick={() => void deleteEvent()}
+          onClick={() => setConfirmDelete(true)}
         >
           <span className="grid gap-1.5 justify-items-center"><Trash2 size={19} />删除</span>
         </button>
@@ -116,6 +119,16 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
           status={event.status}
         />
       </button>
+      <ConfirmDialog
+        confirmLabel="确认删除"
+        danger
+        description={`“${event.displayTitle}”删除后无法恢复。`}
+        loading={busy}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => void deleteEvent()}
+        open={confirmDelete}
+        title="删除这条健康随记？"
+      />
     </div>
   )
 }

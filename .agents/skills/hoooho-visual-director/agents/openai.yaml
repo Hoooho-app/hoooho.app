@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hoooho Visual Director"
+  short_description: "Direct Hoooho visual quality and brand consistency"
+  default_prompt: "Use $hoooho-visual-director to audit Hoooho screenshots and code, choose one coherent visual direction, and guide safe design-system improvements."

@@ -5,6 +5,7 @@ import { BodyLocationPicker } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
+import { useDialogFocus } from '../../../hooks/useDialogFocus'
 import type { CreateEventAttachmentInput, HealthEventRecordType } from '../../../types'
 import { clampOccurredAtToNow, FUTURE_OCCURRED_AT_MESSAGE, isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
 
@@ -145,7 +146,16 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   const [selectedLocations, setSelectedLocations] = useState<BodyLocationSelection[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
+  const dialogRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
+  useDialogFocus(open, dialogRef)
+
+  useEffect(() => {
+    if (!open || isSaving) return
+    const closeOnEscape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [isSaving, onClose, open])
 
   useEffect(() => {
     if (!open) return
@@ -217,7 +227,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
   if (templateType === 'timeline') {
     return (
       <div className="fixed inset-0 z-50 flex touch-none items-end justify-center overscroll-none bg-black/35 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]" role="presentation">
-        <section aria-label="新增健康情况" aria-modal="true" className="hoho-modal-surface flex touch-auto flex-col" role="dialog">
+        <section aria-label="新增健康情况" aria-modal="true" className="hoho-modal-surface flex touch-auto flex-col" ref={dialogRef} role="dialog" tabIndex={-1}>
           <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center px-3">
             <button aria-label="关闭" className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" onClick={onClose} type="button"><X size={21} /></button>
             <h2 className="text-center text-base font-semibold text-heading">新增健康情况</h2>
@@ -268,14 +278,14 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
             <div>
               <p className="mb-2 text-xs font-semibold text-heading">添加图片</p>
               <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" multiple onChange={(event) => { void selectImages(event.target.files); event.target.value = '' }} ref={fileInputRef} type="file" />
-              <button className="inline-flex min-h-10 items-center gap-2 rounded-control border border-primary/25 px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus size={17} />添加图片</button>
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-primary/25 px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><ImagePlus size={17} />添加图片</button>
               {attachments.length > 0 && (
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {attachments.map((attachment, index) => (
                     <figure className="relative aspect-square overflow-hidden rounded-lg bg-primary-soft" key={`${attachment.name}-${index}`}>
                       <img alt={attachment.name} className="h-full w-full object-cover" src={attachment.dataUrl} />
                       <figcaption className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-pill bg-surface/90 px-1.5 py-0.5 text-[10px] font-medium text-primary">{attachment.name.match(/^\[([^\]]+)\]/)?.[1] ?? '图片'}</figcaption>
-                      <button aria-label={`删除图片 ${attachment.name}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-text-primary/75 text-surface" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
+                      <button aria-label={`删除图片 ${attachment.name}`} className="absolute -right-2 -top-2 grid h-11 w-11 place-items-center rounded-full text-surface [background:radial-gradient(circle,rgb(var(--hoho-color-text-primary)/.78)_0_26%,transparent_28%)]" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
                     </figure>
                   ))}
                 </div>
@@ -299,9 +309,12 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
       role="presentation"
     >
       <section
+        aria-label={titleOverride || template.title}
         aria-modal="true"
         className="hoho-modal-surface flex max-h-[80dvh] touch-auto flex-col rounded-t-[var(--hoho-radius-large)] bg-background"
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <header className="grid min-h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center border-b bg-surface px-3">
           <button aria-label="关闭" className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" onClick={onClose} type="button"><X size={21} /></button>
@@ -321,7 +334,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
                 <div className="grid grid-cols-5 gap-1.5">
                   {recordTypeOptions.map((option) => (
                     <button
-                      className={`min-h-9 rounded-pill px-2 text-xs font-medium transition ${recordType === option.value ? 'bg-primary text-surface' : 'bg-primary-soft text-text-secondary'}`}
+                      className={`min-h-11 rounded-control px-2 text-xs font-medium transition ${recordType === option.value ? 'bg-primary text-surface' : 'bg-primary-soft text-text-secondary'}`}
                       key={option.value}
                       onClick={() => setRecordType(option.value)}
                       type="button"
@@ -356,9 +369,9 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
             <div className="flex items-center justify-between border-t px-3 py-2">
               <span className="text-[11px] text-text-secondary">{text.length}/1000</span>
               <div className="flex gap-2">
-                <button className="flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary opacity-70" disabled title="语音功能准备中" type="button"><Mic size={15} />语音准备中</button>
+                <button className="flex min-h-11 cursor-not-allowed items-center gap-1.5 rounded-control px-3 text-xs text-text-secondary opacity-70" disabled title="语音功能准备中" type="button"><Mic size={15} />语音准备中</button>
                 <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" multiple onChange={(event) => void selectImages(event.target.files)} ref={fileInputRef} type="file" />
-                <button className="flex min-h-9 items-center gap-1.5 rounded-pill px-3 text-xs text-text-secondary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={15} />添加图片{attachments.length ? ` (${attachments.length})` : ''}</button>
+                <button className="flex min-h-11 items-center gap-1.5 rounded-control px-3 text-xs text-text-secondary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={15} />添加图片{attachments.length ? ` (${attachments.length})` : ''}</button>
               </div>
             </div>
           </Card>

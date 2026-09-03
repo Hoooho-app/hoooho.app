@@ -1,11 +1,9 @@
 import { Mail, ShieldCheck, Smartphone } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { authService, AuthApiError } from '../../services/auth'
-import { familyMemberService } from '../../services/familyMembers'
-import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -14,6 +12,7 @@ const SHOW_PHONE_LOGIN = false
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [countdown, setCountdown] = useState(0)
@@ -25,8 +24,6 @@ export function LoginPage() {
   const codeInputRef = useRef<HTMLInputElement>(null)
   const deliveryHelpTimerRef = useRef<number | null>(null)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
-  const setProfile = useAppStore((state) => state.setProfile)
-  const setMembers = useAppStore((state) => state.setMembers)
   const normalizedEmail = email.trim().toLowerCase()
   const emailIsValid = normalizedEmail.length <= 254 && EMAIL_PATTERN.test(normalizedEmail)
   const codeIsValid = CODE_PATTERN.test(code)
@@ -38,18 +35,6 @@ export function LoginPage() {
     }, 1000)
     return () => window.clearInterval(timer)
   }, [countdown])
-
-  useEffect(() => {
-    const refocusCode = () => {
-      if (!document.hidden && countdown > 0 && code.length < 6) codeInputRef.current?.focus()
-    }
-    document.addEventListener('visibilitychange', refocusCode)
-    window.addEventListener('pageshow', refocusCode)
-    return () => {
-      document.removeEventListener('visibilitychange', refocusCode)
-      window.removeEventListener('pageshow', refocusCode)
-    }
-  }, [code.length, countdown])
 
   useEffect(() => () => {
     if (deliveryHelpTimerRef.current !== null) window.clearTimeout(deliveryHelpTimerRef.current)
@@ -96,24 +81,9 @@ export function LoginPage() {
     try {
       const session = await authService.loginWithEmail(normalizedEmail, code)
       setAuthSession(session)
-      const members = await familyMemberService.list(session.token)
-      setMembers(members.map(adaptFamilyMember))
-      const self = members.find((member) => member.isSelf)
-      const completed = self
-        && self.name.trim() !== '我'
-        && Boolean(self.birthday)
-        && (self.gender === 'male' || self.gender === 'female')
-        && Boolean(self.avatar)
-
-      if (completed) {
-        setProfile({
-          nickname: self.name,
-          birthday: self.birthday!,
-          gender: self.gender!,
-          avatar: self.avatar ?? undefined
-        }, self.id)
-      }
-      navigate('/health-events', { replace: true })
+      const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
+      const safePath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events'
+      navigate(safePath, { replace: true })
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
     } finally {
@@ -224,9 +194,9 @@ export function LoginPage() {
 
         <p className="mt-4 text-center text-[11px] leading-5 text-text-secondary">
           登录即表示同意
-          <button className="mx-1 text-primary" type="button">《用户协议》</button>
+          <span className="mx-1">《用户协议》</span>
           和
-          <button className="ml-1 text-primary" type="button">《隐私政策》</button>
+          <span className="ml-1">《隐私政策》</span>
         </p>
 
       </div>

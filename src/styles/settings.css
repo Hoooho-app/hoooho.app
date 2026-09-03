@@ -36,13 +36,13 @@
 
   .settings-leading {
     display: grid;
-    width: 32px;
+    width: 28px;
     height: 32px;
     flex: 0 0 auto;
     place-items: center;
-    border-radius: var(--hoho-radius-small);
-    background: rgb(var(--hoho-color-primary-soft));
-    color: rgb(var(--hoho-color-primary));
+    border-radius: 0;
+    background: transparent;
+    color: rgb(var(--hoho-color-text-weak));
   }
 
   .settings-split-row {

@@ -22,7 +22,7 @@ export function MainAppHeader({ title, compact = false }: { title: string; compa
 
   return (
     <>
-      <header className={`hoho-page-header relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
+      <header className={`hoho-page-header hoho-main-header relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
         <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} />
         </button>

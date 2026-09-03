@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { HealthEventStage } from '../../../types'
-import { Button, Card } from '../../../components/common'
-import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
+import { Card } from '../../../components/common'
+import { ConfirmDialog } from '../../../components/design-system'
 
 const stages: Array<{ value: HealthEventStage; label: string }> = [
   { value: 'observing', label: '观察中' },
@@ -16,7 +16,6 @@ interface EventStatusProps {
 
 export function EventStatus({ stage, onStageChange }: EventStatusProps) {
   const [pendingStage, setPendingStage] = useState<HealthEventStage | null>(null)
-  usePageScrollLock(Boolean(pendingStage))
 
   const requestChange = (nextStage: HealthEventStage) => {
     if (nextStage === stage) return
@@ -64,20 +63,14 @@ export function EventStatus({ stage, onStageChange }: EventStatusProps) {
         </Card>
       </section>
 
-      {pendingStage && (
-        <div className="fixed inset-0 z-50 flex touch-none items-end justify-center overscroll-none bg-black/35 px-6 pb-[max(16px,env(safe-area-inset-bottom))]" role="presentation" onClick={cancelChange}>
-          <section aria-modal="true" className="w-full max-w-[354px] touch-auto rounded-t-[24px] bg-surface p-5 shadow-floating" role="dialog" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-lg font-semibold">确认这条健康随记已经恢复？</h2>
-            <p className="mt-2 text-sm leading-6 text-text-secondary">
-              确认后将进入恢复总结阶段，页面内容会同步调整。
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <Button variant="secondary" onClick={cancelChange}>取消</Button>
-              <Button onClick={confirmChange}>确认切换</Button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ConfirmDialog
+        confirmLabel="确认切换"
+        description="确认后将进入恢复总结阶段，页面内容会同步调整。"
+        onCancel={cancelChange}
+        onConfirm={confirmChange}
+        open={Boolean(pendingStage)}
+        title="确认这条健康随记已经恢复？"
+      />
     </>
   )
 }

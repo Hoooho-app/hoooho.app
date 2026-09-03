@@ -15,6 +15,7 @@ const photoStyles = read('./NurseQuickRecord.css')
 const family = read('../Family/index.tsx')
 const login = read('../Login/index.tsx')
 const router = read('../../app/router.tsx')
+const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
 
 test('前台视图成为默认主入口并保留显式列表切换', () => {
@@ -98,17 +99,29 @@ test('听写与核对态共享同一照片草稿且不改变护士视频状态�
 test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {
   assert.match(nurse, /nurse-next-action-trigger/)
   assert.match(nurse, /aria-label="打开当前健康随记的下一步"/)
-  assert.match(nurse, /<svg/)
+  assert.match(nurse, /<HealthTrace/)
   assert.doesNotMatch(nurse, /nurse-next-action-link|查看当前事件下一步/)
   assert.match(styles, /health-events-content--triage[\s\S]*min-height:\s*0/)
 })
 
-test('登录等待反馈只在服务端成功后开始并支持返回邮箱后的聚焦', () => {
+test('登录等待反馈只在服务端成功后开始且成功后安全返回原页面', () => {
   assert.match(login, /const result = await authService\.sendEmailCode[\s\S]*setCountdown\(result\.retryAfter\)/)
   assert.match(login, /autoComplete="one-time-code"/)
-  assert.match(login, /visibilitychange/)
   assert.match(login, /18_000/)
   assert.match(login, /检查垃圾邮件/)
-  assert.match(login, /navigate\('\/health-events', \{ replace: true \}\)/)
+  assert.match(login, /location\.state\?\.from/)
+  assert.match(login, /requestedPath\.startsWith\('\/'\)/)
+  assert.doesNotMatch(login, /familyMemberService\.list/)
+  assert.match(requireAuth, /location\.pathname\}\$\{location\.search\}\$\{location\.hash/)
   assert.match(login, /preload="metadata"/)
+})
+
+test('健康随记永久删除必须经过共享确认弹窗', () => {
+  const card = read('../../components/health/HealthEventCard.tsx')
+  const confirm = read('../../components/design-system/ConfirmDialog.tsx')
+  assert.match(card, /<ConfirmDialog/)
+  assert.match(card, /删除后无法恢复/)
+  assert.match(confirm, /useDialogFocus/)
+  assert.match(confirm, /usePageScrollLock/)
+  assert.match(confirm, /Escape/)
 })

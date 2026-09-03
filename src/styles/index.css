@@ -424,26 +424,26 @@
   .help-resolution { @apply mt-8 border-t pt-5; } .help-resolution>div:not(.help-footer-actions) { @apply mt-3 flex gap-2; } .help-resolution>div:not(.help-footer-actions) button { @apply min-h-11 rounded-control border bg-surface px-4 text-sm font-semibold; } .help-resolution p { @apply mt-3 text-sm leading-6 text-text-secondary; }
   .feedback-page { min-height: 100dvh; overflow-x: hidden; }
   .feedback-header-action { @apply inline-flex min-h-11 items-center text-sm font-semibold text-primary; }
-  .feedback-form { display: grid; gap: 10px; padding: 12px 15px max(10px, env(safe-area-inset-bottom)); }
+  .feedback-form { display: grid; gap: var(--hoho-space-3); padding: var(--hoho-space-4) var(--hoho-page-gutter) max(var(--hoho-space-4), env(safe-area-inset-bottom)); }
   .feedback-list-content,.feedback-detail-content { @apply space-y-6 px-4 py-5; padding-bottom: calc(7rem + env(safe-area-inset-bottom)); }
   .feedback-categories legend { @apply mb-1.5 text-sm font-semibold text-text-secondary; }
   .feedback-categories { order: 2; min-width: 0; }
-  .feedback-categories>div { @apply grid gap-1.5; grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .feedback-categories button { height: 36px; min-width: 0; @apply rounded-control border bg-surface px-0.5 text-[12px] whitespace-nowrap; }
+  .feedback-categories>div { @apply grid gap-2; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .feedback-categories button { min-height: var(--hoho-touch-target); min-width: 0; @apply rounded-control border bg-surface px-2 text-[13px]; }
   .feedback-categories button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
   .feedback-content-field { order: 3; @apply gap-1.5; }
   .feedback-textarea { height: 140px; min-height: 140px; resize: vertical; @apply px-3 py-2.5 text-sm leading-5; }
   .feedback-action-row { order: 4; @apply grid min-h-14 grid-cols-[minmax(0,1fr)_48px] items-center gap-2 rounded-control border bg-surface p-1.5 pl-3; box-shadow: 0 2px 10px rgb(var(--hoho-color-text-primary) / .04); }
   .feedback-voice-button { @apply flex min-h-11 min-w-0 items-center gap-2 text-left text-sm font-medium; color: rgb(var(--hoho-color-text-primary)); touch-action: manipulation; }
-  .feedback-voice-button>svg { @apply h-6 w-6 shrink-0; color: #0b8175; }
+  .feedback-voice-button>svg { @apply h-6 w-6 shrink-0; color: rgb(var(--hoho-color-primary)); }
   .feedback-voice-button>span { @apply min-w-0 flex-1 truncate; }
-  .feedback-voice-button>b { @apply inline-flex shrink-0 items-center gap-1 text-xs font-semibold; color: #0b8175; }
+  .feedback-voice-button>b { @apply inline-flex shrink-0 items-center gap-1 text-xs font-semibold; color: rgb(var(--hoho-color-primary)); }
   .feedback-voice-button>b svg { @apply h-4 w-4; }
   .feedback-voice-button[data-state='listening'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
   .feedback-voice-button:disabled { @apply opacity-70; }
   .feedback-images { order: 1; min-width: 0; @apply grid; }
   .feedback-file-button { height: 108px; min-width: 0; @apply flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-control border border-dashed bg-surface px-3 text-sm; border-color: rgb(var(--hoho-color-border-strong)); }
-  .feedback-file-button>svg { @apply h-9 w-9; color: #69aaa2; }
+  .feedback-file-button>svg { @apply h-9 w-9; color: rgb(var(--hoho-color-primary) / 0.72); }
   .feedback-file-button>strong { @apply text-base font-semibold; color: rgb(var(--hoho-color-text-primary)); }
   .feedback-file-button>small { @apply block max-w-full truncate text-[11px] font-normal text-text-secondary; }
   .feedback-file-button[data-has-images='true'] { @apply items-stretch justify-start border-solid py-2; }
@@ -454,7 +454,7 @@
   .feedback-image-grid li { @apply relative h-[66px] w-[66px] shrink-0 overflow-visible rounded-control border bg-surface; }
   .feedback-image-grid img { @apply h-full w-full rounded-control object-cover; }
   .feedback-image-grid span { @apply absolute inset-x-0 bottom-0 truncate rounded-b-control bg-black/50 px-1 text-[9px] text-white; }
-  .feedback-image-grid button[aria-label] { @apply absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-text-primary p-0 text-surface; }
+  .feedback-image-grid button[aria-label] { @apply absolute -right-2 -top-2 grid h-11 w-11 place-items-center rounded-full p-0 text-surface; background: radial-gradient(circle, rgb(var(--hoho-color-text-primary)) 0 26%, transparent 28%); }
   .feedback-image-grid button[aria-label] svg { @apply h-3 w-3; }
   .feedback-image-add { @apply grid place-items-center border-dashed text-text-secondary; }
   .feedback-image-add svg { @apply h-7 w-7; }
@@ -463,10 +463,14 @@
   .feedback-error { @apply rounded-control border px-3 py-2 text-sm leading-6 text-danger; border-color: rgb(var(--hoho-color-error) / .3); background: rgb(var(--hoho-color-error) / .05); }
   .feedback-submit-bar { @apply grid; }
   .feedback-check-submit,.feedback-submit-placeholder { @apply grid h-11 w-11 place-items-center rounded-full; }
-  .feedback-check-submit { background: #0b8175; color: white; box-shadow: 0 3px 9px rgb(11 129 117 / .22); }
+  .feedback-check-submit { background: rgb(var(--hoho-color-primary)); color: white; box-shadow: 0 3px 9px rgb(var(--hoho-color-primary) / .18); }
   .feedback-check-submit:disabled,.feedback-submit-placeholder { background: #d5d8d8; color: white; box-shadow: none; }
   .feedback-check-submit svg,.feedback-submit-placeholder svg { @apply h-6 w-6; stroke-width: 2.4; }
   .feedback-success { @apply grid gap-4 px-5 py-12 text-center; padding-bottom: calc(var(--hoho-space-10) + env(safe-area-inset-bottom)); }
+  .feedback-success__trace { width: 64px; height: 64px; margin: 0 auto var(--hoho-space-2); overflow: visible; fill: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
+  .feedback-success__trace path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
+  .feedback-success__trace .hoho-health-trace__start { opacity: 0.42; }
+  .feedback-success__trace .hoho-health-trace__end { opacity: 0.72; }
   .feedback-success h2 { @apply text-xl font-semibold; }
   .feedback-success p { @apply text-sm leading-6 text-text-secondary; }
   .feedback-success small { @apply break-all text-xs text-text-secondary; }
@@ -507,7 +511,11 @@
   .feedback-messages span { @apply text-xs text-text-secondary; }
   .feedback-supplement { @apply border-t pt-5; }
   .my-feedback-page .feedback-list-content { @apply space-y-3 px-3 py-3; padding-bottom: max(var(--hoho-space-5), env(safe-area-inset-bottom)); }
-  .feedback-received { @apply m-0 rounded-xl border px-3 py-2 text-sm font-semibold; border-color: rgb(15 118 110 / 18%); background: #edf8f5; color: #0b6f67; }
+  .feedback-received { @apply m-0 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold; border-color: rgb(15 118 110 / 18%); background: #edf8f5; color: #0b6f67; }
+  .feedback-received .hoho-health-trace { width: 28px; height: 28px; flex: 0 0 auto; overflow: visible; fill: currentColor; }
+  .feedback-received .hoho-health-trace path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
+  .feedback-received .hoho-health-trace__start { opacity: 0.42; }
+  .feedback-received .hoho-health-trace__end { opacity: 0.72; }
   .my-feedback-stats { @apply px-2 py-1; }
   .my-feedback-stats p { @apply m-0 text-sm leading-6; }
   .my-feedback-stats p:last-child { @apply text-xs text-text-secondary; }
@@ -810,7 +818,7 @@
   }
 
   .health-events-view-switch button {
-    min-height: 34px;
+    min-height: var(--hoho-touch-target);
     border-radius: var(--hoho-radius-pill);
     padding: 0 12px;
     color: rgb(var(--hoho-color-text-secondary));
@@ -1212,12 +1220,30 @@
     .quick-record-panel { width: calc(var(--hoho-app-shell-max) - (2 * var(--hoho-page-gutter))); }
     .auth-shell { align-items: center; justify-content: center; }
     .auth-shell .auth-panel { flex: 0 1 auto; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-overlay); background: rgb(var(--hoho-color-surface)); padding: var(--hoho-space-8); box-shadow: var(--hoho-shadow-floating); }
+    .feedback-categories > div { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .family-page__content { width: min(calc(100% - 48px), 520px); margin-inline: auto; padding-inline: 0; padding-top: var(--hoho-space-6); }
+  }
+
+  .temperature-chart-point__focus { opacity: 0; }
+  .temperature-chart-point:focus-visible .temperature-chart-point__focus { opacity: 1; }
+
+  @media (min-width: 960px) {
+    .app-shell.app-shell--wide { max-width: var(--hoho-content-wide); border-inline: 0; }
+    .app-shell--wide > .hoho-page-header { border-inline: 1px solid rgb(var(--hoho-color-border) / 0.72); }
+    .app-shell--wide > .hoho-main-header > button { left: max(12px, calc((100% - var(--hoho-app-shell-max)) / 2 + 12px)); }
+    .hoho-health-events-page[data-view-mode='list'] .health-events-member,
+    .hoho-health-events-page[data-view-mode='list'] .health-events-content { width: min(calc(100% - 64px), 960px); }
+    .hoho-health-events-page[data-view-mode='triage'] .health-events-member,
+    .hoho-health-events-page[data-view-mode='triage'] .health-events-content { width: min(calc(100% - 48px), calc(var(--hoho-app-shell-max) - 48px)); }
+    .hoho-health-events-page .health-events-filter-layer { max-width: var(--hoho-content-wide); }
+    .hoho-health-events-page .health-events-fab { right: max(var(--hoho-page-gutter), calc((100vw - var(--hoho-content-wide)) / 2 + var(--hoho-page-gutter))); }
   }
 
   @media (max-width: 374px) {
     .page-content { padding-inline: 14px; }
     .hoho-health-card { padding: var(--hoho-space-3); }
     .hoho-timeline-item { grid-template-columns: 58px minmax(0, 1fr); gap: var(--hoho-space-2); }
+    .feedback-categories > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   @media (hover: hover) and (pointer: fine) {

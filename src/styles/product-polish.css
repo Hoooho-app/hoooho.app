@@ -6,6 +6,22 @@
 }
 
 @layer components {
+  .family-page__intro {
+    margin: 0 0 var(--hoho-space-1);
+    color: rgb(var(--hoho-color-text-secondary));
+    font-size: var(--hoho-font-size-caption);
+    line-height: var(--hoho-line-height-caption);
+  }
+
+  .profile-directory-icon {
+    display: grid;
+    width: 32px;
+    height: 40px;
+    flex: 0 0 auto;
+    place-items: center;
+    color: rgb(var(--hoho-color-text-weak));
+  }
+
   body .hoho-page-header {
     border-bottom-color: rgb(var(--hoho-color-border) / 0.62);
     background: rgb(var(--hoho-color-surface) / 0.88);

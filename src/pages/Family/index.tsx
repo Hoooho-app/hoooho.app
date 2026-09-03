@@ -64,11 +64,12 @@ export function FamilyPage() {
   }, [clearAuthSession, navigate, setMembers, token])
 
   return (
-    <main className="app-shell pb-0">
+    <main className="app-shell family-page pb-0">
       <WebPageHeader title="我的家人" fallback="/health-events" action={
         <button className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}><Plus aria-hidden="true" size={16} />添加家人</button>
       } />
-      <div className="space-y-3 px-4 py-4">
+      <div className="family-page__content space-y-3 px-4 py-4">
+        {!loading && !error && <p className="family-page__intro">选择家人即可查看和记录对应的健康情况。</p>}
         {loading && <p className="py-12 text-center text-sm text-text-secondary">正在加载家人…</p>}
         {error && <p className="py-8 text-center text-sm text-danger">{error}</p>}
         {!loading && !error && members.map((member) => {

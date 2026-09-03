@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ImagePlus, LoaderCircle, RotateCcw, X } from 'lucide-react'
 import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'
+import { useDialogFocus } from '../../../hooks/useDialogFocus'
+import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import { quickRecordService, type QuickRecordPhotoDto } from '../../../services/quickRecords'
 
 export type QuickRecordPhotoStatus = 'uploading' | 'uploaded' | 'failed'
@@ -126,12 +128,13 @@ export function useQuickRecordPhotos(memberId?: string, token?: string) {
 
 export function QuickRecordPhotos({ model }: { model: ReturnType<typeof useQuickRecordPhotos> }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const closeRef = useRef<HTMLButtonElement>(null)
+  const lightboxRef = useRef<HTMLDivElement>(null)
   const { photos, notice, previewIndex } = model
   const selected = previewIndex === null ? null : photos[previewIndex] ?? null
+  useDialogFocus(Boolean(selected), lightboxRef)
+  usePageScrollLock(Boolean(selected))
   useEffect(() => {
     if (!selected) return
-    closeRef.current?.focus()
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') model.setPreviewIndex(null) }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
@@ -152,8 +155,8 @@ export function QuickRecordPhotos({ model }: { model: ReturnType<typeof useQuick
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}
       {model.blocked && <p className="quick-record-photo-error" role="alert">请重试或删除上传失败的照片后再保存</p>}
     </div>
-    {selected && <div aria-label="照片预览" aria-modal="true" className="quick-record-photo-lightbox" role="dialog">
-      <button ref={closeRef} aria-label="关闭大图预览" className="quick-record-photo-lightbox__close" onClick={() => model.setPreviewIndex(null)} type="button"><X size={25} /></button>
+    {selected && <div aria-label="照片预览" aria-modal="true" className="quick-record-photo-lightbox" ref={lightboxRef} role="dialog" tabIndex={-1}>
+      <button aria-label="关闭大图预览" className="quick-record-photo-lightbox__close" onClick={() => model.setPreviewIndex(null)} type="button"><X size={25} /></button>
       {photos.length > 1 && <button aria-label="上一张照片" className="quick-record-photo-lightbox__previous" onClick={() => model.setPreviewIndex((previewIndex! - 1 + photos.length) % photos.length)} type="button"><ChevronLeft size={30} /></button>}
       <img alt={`照片 ${previewIndex! + 1}`} src={selected.previewUrl} />
       {photos.length > 1 && <button aria-label="下一张照片" className="quick-record-photo-lightbox__next" onClick={() => model.setPreviewIndex((previewIndex! + 1) % photos.length)} type="button"><ChevronRight size={30} /></button>}

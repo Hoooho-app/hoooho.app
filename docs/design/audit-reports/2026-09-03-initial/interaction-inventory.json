@@ -1,0 +1,5912 @@
+{
+  "generated_at": "2026-09-03T04:49:42.120Z",
+  "app_root": "D:/projects/hoooho/.worktrees/global-design-quality-20260903",
+  "files_scanned": 336,
+  "routes": [
+    {
+      "path": "/",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/login",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/help",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/ops/login",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/ops",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/ops/feedback",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/onboarding/success",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/onboarding/profile",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-events",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-events/new",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-events/:eventId",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-events/:eventId/health-information",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-events/:eventId/online-consultation",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-profile",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-profile/facts",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-profile/facts/candidates/:candidateId",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-profile/facts/:factId",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/health-profile/:sectionId",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/family",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/family/new",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/family/:memberId/edit",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/guide",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings/personalization",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings/care",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings/account",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings/notification",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/settings/privacy",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/messages/*",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/message/*",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/notifications/*",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/notification/*",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/feedback",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/feedback/submitted",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/feedback/mine",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/feedback/:feedbackId",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "/about",
+      "file": "src/app/router.tsx"
+    },
+    {
+      "path": "*",
+      "file": "src/app/router.tsx"
+    }
+  ],
+  "files": [
+    {
+      "file": "postcss.config.js",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/check-clay-avatar-assets.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/generate-independent-symptom-tracking-report.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/independent-symptom-tracking-acceptance.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/independent-symptom-tracking-expectations.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/node-ts-loader.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/optimize-clay-avatar-assets.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/register-node-ts-loader.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/tutorials/encode-tutorial-media.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "scripts/tutorials/validate-guide-page.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/adversarial/health-event-ai-adversarial-cases.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/adversarial/run-health-event-ai-adversarial.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/ai-prompt.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/ai-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/ai-types.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/audio-transcription-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/evaluation/run-parser-evaluation.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/evaluation/symptom-tracking-65-cases.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/health-event-context.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/health-fact-policy.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/health-input-intent.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/health-record-organization-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/health-subject-resolver.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/image-analysis-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/providers/local-fact-provider.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/providers/openai-provider.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/quick-record-structured-mode.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/repositories/health-organization-state-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/repositories/health-record-organization-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/repositories/health-record-preview-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/time-context-resolver.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/time-resolver-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ai/vite-ai-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/app.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/auth-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/config.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/providers/email-verification-provider.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/repositories/user-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/repositories/verification-code-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/storage/json-store.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/token-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/auth/vite-auth-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/consultations/online-consultation-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/consultations/repositories/online-consultation-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/consultations/vite-online-consultations-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/data/cleanup-test-data.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/domain-routing.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/event-attachment-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/health-change-annotation-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/health-event-record-error.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/health-event-record-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/health-event-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/health-event-summary.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/image-attachment-policy.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/quick-record-photo-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/quick-record-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/repositories/event-attachment-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/repositories/health-event-record-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/repositories/health-event-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/vite-event-attachments-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/vite-event-records-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/vite-events-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/events/vite-quick-records-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-information/health-information-candidate-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-information/repositories/health-information-candidate-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-information/vite-health-information-candidates-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-profile/health-profile-fact-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-profile/repositories/health-profile-fact-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/health-profile/vite-health-profile-facts-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/help/feedback-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/help/vite-feedback-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/members/family-member-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/members/repositories/family-member-repository.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/members/vite-members-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/onboarding/account-entry-state-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/onboarding/vite-account-entry-state-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ops/ops-service.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/ops/vite-ops-plugin.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/static-mime-types.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "server/time/local-calendar.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "shared/avatar-photo-policy.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/app/App.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/app/router.tsx",
+      "routes": [
+        "/",
+        "/login",
+        "/help",
+        "/ops/login",
+        "/ops",
+        "/ops/feedback",
+        "/onboarding/success",
+        "/onboarding/profile",
+        "/health-events",
+        "/health-events/new",
+        "/health-events/:eventId",
+        "/health-events/:eventId/health-information",
+        "/health-events/:eventId/online-consultation",
+        "/health-profile",
+        "/health-profile/facts",
+        "/health-profile/facts/candidates/:candidateId",
+        "/health-profile/facts/:factId",
+        "/health-profile/:sectionId",
+        "/family",
+        "/family/new",
+        "/family/:memberId/edit",
+        "/guide",
+        "/settings",
+        "/settings/personalization",
+        "/settings/care",
+        "/settings/account",
+        "/settings/notification",
+        "/settings/privacy",
+        "/messages/*",
+        "/message/*",
+        "/notifications/*",
+        "/notification/*",
+        "/feedback",
+        "/feedback/submitted",
+        "/feedback/mine",
+        "/feedback/:feedbackId",
+        "/about",
+        "*"
+      ],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/auth/OpsAccount.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/auth/RequireAuth.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/auth/RequireEstablishedHealthData.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/components/auth/RequireOpsAuth.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 1,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/components/common/Avatar.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/Button.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/Card.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/ClayAvatar.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/Header.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/common/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/Input.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/SettingsRow.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/Tag.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/ToggleSwitch.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/VirtualAvatar.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/common/WebPageHeader.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/design-system/BottomSheetSurface.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/components/design-system/ConfirmDialog.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/components/design-system/EmptyState.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HealthCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HealthTag.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HealthTimeline.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HealthTrace.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HohoButton.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/components/design-system/HohoInput.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/components/design-system/HohoSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/HohoSurfaceRow.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/design-system/HohoToggle.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/design-system/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/ModalSurface.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/Skeleton.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/StatusNotice.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/design-system/Typography.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/family/FamilyAvatarEditor.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 2,
+        "forms": 0,
+        "click_handlers": 5,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 10
+    },
+    {
+      "file": "src/components/family/FamilyEditorConfirmDialog.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/components/health/body-location/BodyLocationAtlas.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 1,
+        "button_roles": 1,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 3
+    },
+    {
+      "file": "src/components/health/BodyLocationPicker.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 8,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 16
+    },
+    {
+      "file": "src/components/health/HealthEventCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 7
+    },
+    {
+      "file": "src/components/health/HealthEventCardIcon.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/HealthEventCardSurface.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/HealthEventFilterSheet.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 3,
+        "forms": 0,
+        "click_handlers": 12,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 22
+    },
+    {
+      "file": "src/components/health/HealthEventTimeline.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/HealthProfileActionBar.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/MemberIdentityCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/health/QuickRecordTrigger.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/health/RecordSubjectCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/components/health/SmartTagInput.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 1,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 8
+    },
+    {
+      "file": "src/components/navigation/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/navigation/MainAppHeader.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 2,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/components/navigation/navigationState.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/navigation/SideDrawer.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 7,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 14
+    },
+    {
+      "file": "src/components/settings/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/components/settings/SettingsEffects.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/ask-ai/healthEventPrompt.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/ask-ai/healthProfilePrompt.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/ask-ai/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/ask-ai/promptClipboard.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/ask-ai/promptLongImage.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/body-location/bodyLocationCatalog.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/body-location/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/body-location/types.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/feedback/environment.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/feedback/imageProcessing.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/feedback/navigation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/feedback/speechInput.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/guide/tutorials.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-attachments/multimodalConflict.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-attachments/prepareHealthImage.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-information/candidatePresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/config/healthProfileSections.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/config/healthProfileTemplates.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/config/profileSectionExperiences.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/hooks/useHealthProfileFacts.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/allergyProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/chronicProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/familyHistoryProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/getHealthProfileProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/getHealthProfileSectionGroups.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/getPrioritizedSections.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/healthProfileBasicInfo.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/healthProfileHomeLogic.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/healthProfileSectionFlow.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/medicationProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/profileSectionExperience.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/smartTags.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/health-profile/utils/surgeryProfile.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/help/articles.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/help/assistant.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/help/search.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/help/types.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/online-consultation/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/online-consultation/onlineConsultationPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/quick-record/browserVoiceCapability.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/quick-record/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/quick-record/quickRecordCandidates.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/settings/permissions.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/settings/preferences.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/features/temperature/temperatureTrend.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/generated/clayAvatarAssets.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useCurrentMember.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useDialogFocus.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useHealthEventDetail.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useHealthEventPersonalization.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useHealthEventsList.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/useHealthInformationCandidates.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/hooks/usePageScrollLock.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/main.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/mock/events.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/mock/healthProfiles.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/mock/members.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/About/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 1,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/pages/Family/EditFamilyMemberPage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 0,
+        "inputs": 2,
+        "forms": 1,
+        "click_handlers": 3,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 2,
+        "media": 0
+      },
+      "total_signals": 13
+    },
+    {
+      "file": "src/pages/Family/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 3,
+        "forms": 1,
+        "click_handlers": 2,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 10
+    },
+    {
+      "file": "src/pages/Feedback/FeedbackComposer.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 2,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 8
+    },
+    {
+      "file": "src/pages/Feedback/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 6,
+        "links": 1,
+        "inputs": 0,
+        "forms": 1,
+        "click_handlers": 5,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 14
+    },
+    {
+      "file": "src/pages/Feedback/MyFeedbackCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 1,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 4,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 9
+    },
+    {
+      "file": "src/pages/Guide/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 6,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 6,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 14
+    },
+    {
+      "file": "src/pages/Guide/TutorialDetailSheet.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 5
+    },
+    {
+      "file": "src/pages/Guide/TutorialMedia.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 1
+      },
+      "total_signals": 5
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/ActionSheet.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 6,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 12,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 18
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/actionSheetPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/aiConsultationPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/AskAIWorkspace.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 10,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 18
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/AttachmentSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/ComingSoonPrompt.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/ConcernSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventDetailStickyHeader.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventHeader.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventIdentitySection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 1
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventStatus.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 5,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 8
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventSummarySection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/EventTitleSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 1,
+        "forms": 1,
+        "click_handlers": 2,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 8
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/FirstRecordComposer.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 3,
+        "forms": 0,
+        "click_handlers": 4,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 10
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/HealthChangeAnnotationSheet.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 3
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/HealthInformationDiscoveryCard.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/HealthRecordEditorModal.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 11,
+        "links": 0,
+        "inputs": 6,
+        "forms": 0,
+        "click_handlers": 9,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 26
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/MedicalInfoSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 1,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 3
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/NextActionSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 4
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/PersonalizedModulesSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/QuickRecordMenu.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/QuickRecordPhotos.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 7,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 15
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/quickRecordPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/QuickVoiceRecordFlow.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 9,
+        "links": 0,
+        "inputs": 2,
+        "forms": 0,
+        "click_handlers": 19,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 30
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/StageDetailSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/summaryTagLayout.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/SymptomRecordSheet.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 5,
+        "forms": 0,
+        "click_handlers": 5,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 10
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/SymptomSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 1,
+        "button_roles": 1,
+        "overlays": 2,
+        "media": 0
+      },
+      "total_signals": 9
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/TemperatureChartSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 1,
+        "button_roles": 1,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 5
+    },
+    {
+      "file": "src/pages/HealthEventDetail/components/TimelineSection.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 5,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 2,
+        "media": 0
+      },
+      "total_signals": 11
+    },
+    {
+      "file": "src/pages/HealthEventDetail/HealthInformationCandidatesPage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 2,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 5
+    },
+    {
+      "file": "src/pages/HealthEventDetail/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 2,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 6
+    },
+    {
+      "file": "src/pages/HealthEvents/consultationSummary.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/consultationSummaryLongImage.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/FirstMemberFrontDesk.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 3
+    },
+    {
+      "file": "src/pages/HealthEvents/IdleNurseVisual.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 2
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/pages/HealthEvents/idleVideoPlaylist.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 5,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 8,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 14
+    },
+    {
+      "file": "src/pages/HealthEvents/NurseNextAction.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 6,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 12,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 3,
+        "media": 0
+      },
+      "total_signals": 21
+    },
+    {
+      "file": "src/pages/HealthEvents/nurseNextActionContext.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/NursePromptCarousel.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/nursePromptMessages.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/NurseQuickRecord.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 3
+    },
+    {
+      "file": "src/pages/HealthEvents/nurseSaveSuccess.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/NurseTriageDesk.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthEvents/nurseTriageMachine.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthProfile/AllergyProfilePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 6,
+        "links": 0,
+        "inputs": 4,
+        "forms": 1,
+        "click_handlers": 7,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 19
+    },
+    {
+      "file": "src/pages/HealthProfile/ChronicProfilePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 5,
+        "links": 0,
+        "inputs": 3,
+        "forms": 1,
+        "click_handlers": 6,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 16
+    },
+    {
+      "file": "src/pages/HealthProfile/FamilyHistoryProfilePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 3,
+        "forms": 1,
+        "click_handlers": 4,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 12
+    },
+    {
+      "file": "src/pages/HealthProfile/HealthProfileFactCandidatePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 5,
+        "forms": 1,
+        "click_handlers": 1,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 9
+    },
+    {
+      "file": "src/pages/HealthProfile/HealthProfileFactDetailPage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 5,
+        "forms": 1,
+        "click_handlers": 3,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 11
+    },
+    {
+      "file": "src/pages/HealthProfile/healthProfileFactPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/HealthProfile/HealthProfileSectionPage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 0,
+        "inputs": 5,
+        "forms": 1,
+        "click_handlers": 5,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 16
+    },
+    {
+      "file": "src/pages/HealthProfile/ImportantHealthFactsPage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 4,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 7
+    },
+    {
+      "file": "src/pages/HealthProfile/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 2,
+        "forms": 0,
+        "click_handlers": 3,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 8
+    },
+    {
+      "file": "src/pages/HealthProfile/MedicationProfilePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 5,
+        "links": 0,
+        "inputs": 8,
+        "forms": 1,
+        "click_handlers": 6,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 21
+    },
+    {
+      "file": "src/pages/HealthProfile/profile-sections/HealthProfileExperiencePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 2,
+        "forms": 1,
+        "click_handlers": 2,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 6
+    },
+    {
+      "file": "src/pages/HealthProfile/profile-sections/ProfileSectionPatterns.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 9,
+        "links": 0,
+        "inputs": 1,
+        "forms": 0,
+        "click_handlers": 10,
+        "submit_handlers": 0,
+        "keyboard_handlers": 1,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 21
+    },
+    {
+      "file": "src/pages/HealthProfile/SurgeryProfilePage.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 0,
+        "inputs": 3,
+        "forms": 1,
+        "click_handlers": 5,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 14
+    },
+    {
+      "file": "src/pages/Help/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 13,
+        "links": 0,
+        "inputs": 1,
+        "forms": 1,
+        "click_handlers": 13,
+        "submit_handlers": 1,
+        "keyboard_handlers": 1,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 30
+    },
+    {
+      "file": "src/pages/Login/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 2,
+        "forms": 1,
+        "click_handlers": 2,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 1
+      },
+      "total_signals": 10
+    },
+    {
+      "file": "src/pages/NotFound/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 2,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 2
+    },
+    {
+      "file": "src/pages/OnlineConsultation/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 7,
+        "links": 0,
+        "inputs": 3,
+        "forms": 0,
+        "click_handlers": 20,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 30
+    },
+    {
+      "file": "src/pages/Ops/Feedback.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 17,
+        "links": 1,
+        "inputs": 16,
+        "forms": 1,
+        "click_handlers": 22,
+        "submit_handlers": 1,
+        "keyboard_handlers": 1,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 59
+    },
+    {
+      "file": "src/pages/Ops/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 10,
+        "links": 1,
+        "inputs": 19,
+        "forms": 3,
+        "click_handlers": 13,
+        "submit_handlers": 5,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 7,
+        "media": 0
+      },
+      "total_signals": 58
+    },
+    {
+      "file": "src/pages/Ops/Login.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 1,
+        "links": 0,
+        "inputs": 2,
+        "forms": 1,
+        "click_handlers": 1,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 6
+    },
+    {
+      "file": "src/pages/ProfileSetup/birthdayAgeMessage.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/pages/ProfileSetup/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 3,
+        "links": 0,
+        "inputs": 4,
+        "forms": 1,
+        "click_handlers": 2,
+        "submit_handlers": 1,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 11
+    },
+    {
+      "file": "src/pages/Settings/index.tsx",
+      "routes": [],
+      "signals": {
+        "buttons": 4,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 6,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 1,
+        "media": 0
+      },
+      "total_signals": 11
+    },
+    {
+      "file": "src/services/accountEntryState.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/apiClient.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/auth.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/eventAttachments.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/familyMembers.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/feedback.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthChronology.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventCardIcon.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventCardPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventDateGrouping.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventDetailAdapter.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventDetailState.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventFacts.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventFilterOptions.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventListAdapter.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventListPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventPersonalization.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEventRecords.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthEvents.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthInformationCandidates.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthProfileFacts.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthRecordOrganization.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/healthTimelineGrouping.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/imageAnalysisPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/mockService.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/onlineConsultations.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/ops.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/opsAuth.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/quickRecords.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/services/timelineRecordPresentation.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/store/useAppStore.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/store/useSettingsStore.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/types/index.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/clayAvatar.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/decodeImageAsset.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/familyBirthday.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/formatAgeFromBirthday.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/formatDate.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/formatHealthTimePeriod.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/healthOccurredAt.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/localCalendarDate.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/prepareAvatarPhoto.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/temperatureMeasurement.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/utils/virtualAvatar.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "src/vite-env.d.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tailwind.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/design-quality/playwright.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/design-quality/serve.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/design-quality/teardown.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-multimodal/cases.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-multimodal/prepare-local-environment.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-multimodal/results-2026-08-31.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-multimodal/vite.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/cases.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/evaluate-results.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/prepare-local-environment.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/render-report.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/vite.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/health-timeline-oral-text-stress/windows-fs-retry-preload.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/quick-record-mobile/playwright.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/quick-record-mobile/serve.mjs",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "tests/quick-record-mobile/teardown.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    },
+    {
+      "file": "vite.config.ts",
+      "routes": [],
+      "signals": {
+        "buttons": 0,
+        "links": 0,
+        "inputs": 0,
+        "forms": 0,
+        "click_handlers": 0,
+        "submit_handlers": 0,
+        "keyboard_handlers": 0,
+        "button_roles": 0,
+        "overlays": 0,
+        "media": 0
+      },
+      "total_signals": 0
+    }
+  ]
+}

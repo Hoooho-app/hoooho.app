@@ -42,7 +42,7 @@ export function UsageGuidePage() {
   }
   const openDetail = (tutorial: GuideTutorial) => updateParams({ tutorial: tutorial.id }, false)
 
-  return <main className="app-shell guide-shell pb-0">
+  return <main className="app-shell app-shell--wide guide-shell pb-0">
     <MainAppHeader compact title="使用说明" />
     <div className="guide-content">
       <header className="guide-intro">

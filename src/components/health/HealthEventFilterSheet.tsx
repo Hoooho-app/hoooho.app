@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { HealthEventStage } from '../../types'
 import { Button } from '../common'
@@ -40,7 +41,7 @@ const statuses: Array<[HealthEventStage, string]> = [['observing', '观察中'],
 
 function ChoiceButton({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
   return (
-    <button className={`min-h-9 rounded-control border px-3 text-xs font-medium transition ${active ? 'border-primary bg-primary text-surface' : 'bg-surface text-text-primary'}`} type="button" onClick={onClick}>
+    <button className={`min-h-11 rounded-control border px-3 text-xs font-medium transition ${active ? 'border-primary bg-primary text-surface' : 'bg-surface text-text-primary'}`} type="button" onClick={onClick}>
       {children}
     </button>
   )
@@ -48,11 +49,20 @@ function ChoiceButton({ active, children, onClick }: { active: boolean; children
 
 export function HealthEventFilterSheet({ open, filters, years, definitionTitles, onClose, onApply }: Props) {
   const [draft, setDraft] = useState(filters)
+  const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
+  useDialogFocus(open, sheetRef)
 
   useEffect(() => {
     if (open) setDraft(filters)
   }, [filters, open])
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnEscape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose, open])
 
   if (!open) return null
 
@@ -72,12 +82,12 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
   }))
 
   return (
-    <div className="health-events-filter-layer fixed inset-0 z-50 mx-auto w-full" role="dialog" aria-modal="true" aria-label="健康随记筛选">
+    <div className="health-events-filter-layer fixed inset-0 z-50 mx-auto w-full" role="presentation">
       <button className="absolute inset-0 bg-text-primary/40" aria-label="关闭筛选" type="button" onClick={onClose} />
-      <aside className="absolute inset-y-0 right-0 flex w-[84%] max-w-[338px] flex-col overflow-y-auto bg-surface px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] shadow-floating">
+      <aside aria-label="健康随记筛选" aria-modal="true" className="absolute inset-y-0 right-0 flex w-[84%] max-w-[338px] flex-col overflow-y-auto bg-surface px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] shadow-floating" ref={sheetRef} role="dialog" tabIndex={-1}>
         <header className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">筛选</h2>
-          <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-primary-soft" aria-label="关闭" type="button" onClick={onClose}><X size={22} /></button>
+          <button className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" aria-label="关闭" type="button" onClick={onClose}><X size={22} /></button>
         </header>
 
         <div className="mt-5 space-y-6">
@@ -86,8 +96,8 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
             <div className="mt-3 flex flex-wrap gap-2">{ranges.map(([value, label]) => <ChoiceButton active={draft.range === value} key={value} onClick={() => setDraft((current) => ({ ...current, range: value }))}>{label}</ChoiceButton>)}</div>
             {draft.range === 'custom' && (
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <input aria-label="开始日期" className="min-h-10 min-w-0 rounded-control border px-2 text-xs" type="date" value={draft.customStart} onChange={(event) => setDraft((current) => ({ ...current, customStart: event.target.value }))} />
-                <input aria-label="结束日期" className="min-h-10 min-w-0 rounded-control border px-2 text-xs" type="date" value={draft.customEnd} onChange={(event) => setDraft((current) => ({ ...current, customEnd: event.target.value }))} />
+                <input aria-label="开始日期" className="min-h-11 min-w-0 rounded-control border px-2 text-xs" type="date" value={draft.customStart} onChange={(event) => setDraft((current) => ({ ...current, customStart: event.target.value }))} />
+                <input aria-label="结束日期" className="min-h-11 min-w-0 rounded-control border px-2 text-xs" type="date" value={draft.customEnd} onChange={(event) => setDraft((current) => ({ ...current, customEnd: event.target.value }))} />
               </div>
             )}
           </section>
@@ -142,8 +152,8 @@ export function HealthEventFilterSheet({ open, filters, years, definitionTitles,
         </div>
 
         <div className="mt-auto grid gap-2 pt-7">
-          <Button fullWidth type="button" onClick={() => setDraft(emptyHealthEventFilters)}>重置</Button>
-          <Button fullWidth variant="secondary" type="button" onClick={() => { onApply(draft); onClose() }}>确定</Button>
+          <Button fullWidth variant="secondary" type="button" onClick={() => setDraft(emptyHealthEventFilters)}>重置</Button>
+          <Button fullWidth type="button" onClick={() => { onApply(draft); onClose() }}>确定</Button>
         </div>
       </aside>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
+import { HealthTrace } from '../../components/design-system'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { NursePromptCarousel } from './NursePromptCarousel'
@@ -105,12 +106,7 @@ export function NurseQuickRecord({
             onClick={onNextActionOpen}
             type="button"
           >
-            <svg aria-hidden="true" viewBox="0 0 80 80">
-              <path d="M 13 65 Q 40 28 67 13" />
-              <circle className="nurse-next-action-mark__start" cx="13" cy="65" r="6" />
-              <circle cx="40" cy="38" r="11" />
-              <circle className="nurse-next-action-mark__end" cx="67" cy="13" r="8" />
-            </svg>
+            <HealthTrace />
           </button>
         </div>
         <QuickVoiceRecordFlow

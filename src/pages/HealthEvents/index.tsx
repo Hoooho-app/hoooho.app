@@ -289,7 +289,7 @@ export function HealthEventsPage() {
   }
 
   return (
-    <main className="hoho-health-events-page app-shell relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
+    <main className="hoho-health-events-page app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
       <MainAppHeader title="健康随记" />
       <UserIdentity member={currentMember} />
 

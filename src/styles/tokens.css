@@ -15,10 +15,11 @@
   --hoho-color-border-strong: 187 205 198;
   --hoho-color-text-primary: 24 49 47;
   --hoho-color-text-secondary: 82 105 102;
-  --hoho-color-text-weak: 117 135 131;
+  --hoho-color-text-weak: 87 108 104;
   --hoho-color-success: 42 120 82;
   --hoho-color-warning: 166 105 34;
   --hoho-color-error: 174 62 67;
+  --hoho-color-danger: var(--hoho-color-error);
   --hoho-color-info: 48 103 152;
   --hoho-color-disabled: 153 166 169;
 
@@ -32,6 +33,7 @@
   --hoho-font-size-card-title: 1rem;
   --hoho-line-height-card-title: 1.5;
   --hoho-font-size-body: 0.9375rem;
+  --hoho-font-size-body-small: 0.875rem;
   --hoho-line-height-body: 1.6;
   --hoho-font-size-caption: 0.8125rem;
   --hoho-line-height-caption: 1.5;
@@ -46,6 +48,7 @@
   --hoho-space-4: 16px;
   --hoho-space-5: 20px;
   --hoho-space-6: 24px;
+  --hoho-space-7: 28px;
   --hoho-space-8: 32px;
   --hoho-space-10: 40px;
 

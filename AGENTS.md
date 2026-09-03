@@ -99,3 +99,11 @@ Unless the current task explicitly authorizes it, do not add or remove first-lev
 Inside those boundaries, interaction work may repair non-responsive controls and bad event bindings; missing loading, success, failure, disabled, and retry states; duplicate submissions; broken dialog, drawer, focus, scroll, and back behavior; mobile keyboard, safe-area, obstruction, viewport, and touch-target defects; demonstrated motion, media-continuity, flicker, or layout-shift defects; clear cross-page interaction inconsistencies; and necessary accessibility semantics or keyboard behavior.
 
 Repository-wide interaction audits must use `.agents/skills/hoooho-interaction-audit/`. Inventory and classify before remediation; static source inspection cannot substitute for real browser operation. Parallel agents may perform independent read-only review lanes and return structured evidence, but the primary agent owns all source edits so agents do not concurrently modify the same files.
+
+## Hoooho presentation-layer design authority
+
+Business structure is frozen; presentation structure may mature. Within the product boundaries above, `$hoooho-visual-director` and `$hoooho-design-quality` may make professional decisions about internal visual hierarchy, module composition, density, whitespace, alignment, typography, action hierarchy, icon sizing, semantic color balance, radii, borders, shadows, overlays, state feedback, motion timing, responsive layout, touch ergonomics, shared components, and design tokens.
+
+These decisions must improve clarity, trust, accessibility, and task completion; they must not change first-level navigation, business steps, approved copy, backend or data semantics, or frozen media. Do not ask the product owner to decide routine spacing, typography, radius, or button-weight details. Escalate only when alternatives imply different product capability, workflow, copy, data meaning, important production dependency, irreversible action, or fundamental brand strategy.
+
+The long-term design governance sources are `docs/design/hoooho-product-constitution.md`, `docs/design/hoooho-visual-language.md`, `docs/design/hoooho-interaction-language.md`, and their scorecards. Design-system implementation remains governed by `docs/hoooho-design-system-v2.md` and `src/styles/tokens.css`.

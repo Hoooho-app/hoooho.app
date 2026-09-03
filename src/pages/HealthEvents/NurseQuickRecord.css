@@ -80,9 +80,9 @@
   place-items: center;
   border: 1px solid transparent;
   border-radius: var(--hoho-radius-control);
-  background: linear-gradient(135deg, rgb(var(--hoho-color-primary-hover)), rgb(var(--hoho-color-primary)) 58%, rgb(39 139 126));
+  background: rgb(var(--hoho-color-primary));
   color: rgb(var(--hoho-color-surface));
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.22), 0 8px 20px rgb(var(--hoho-color-primary) / 0.17);
+  box-shadow: 0 6px 18px rgb(var(--hoho-color-primary) / 0.16);
   transition: background-color var(--hoho-motion-fast) var(--hoho-ease-standard), border-color var(--hoho-motion-fast) var(--hoho-ease-standard), box-shadow var(--hoho-motion-fast) var(--hoho-ease-standard), color var(--hoho-motion-fast) var(--hoho-ease-standard), transform var(--hoho-motion-fast) var(--hoho-ease-standard);
 }
 
@@ -100,11 +100,11 @@
   stroke-linecap: round;
 }
 
-.nurse-next-action-trigger .nurse-next-action-mark__start {
+.nurse-next-action-trigger .hoho-health-trace__start {
   opacity: 0.58;
 }
 
-.nurse-next-action-trigger .nurse-next-action-mark__end {
+.nurse-next-action-trigger .hoho-health-trace__end {
   opacity: 0.78;
 }
 

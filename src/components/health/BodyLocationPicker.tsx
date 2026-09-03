@@ -45,7 +45,7 @@ const iconForRegion = (region: BodyLocationRegion) => {
 
 function SelectionChips({ values, onRemove, compact = false, showEmptyState = true }: { values: BodyLocationSelection[]; onRemove: (id: string) => void; compact?: boolean; showEmptyState?: boolean }) {
   if (!values.length) return showEmptyState ? <span className="text-xs text-text-weak">尚未选择</span> : null
-  return <div className={compact ? 'body-location-selection-strip' : 'flex flex-wrap gap-2'}>{values.map((item) => <span className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-pill border border-primary/30 bg-primary-soft px-2.5 text-xs font-medium text-primary" key={item.id}>{item.label}<button aria-label={`移除${item.label}`} className="grid h-6 w-6 place-items-center rounded-full" onClick={() => onRemove(item.id)} type="button"><X size={13} /></button></span>)}</div>
+  return <div className={compact ? 'body-location-selection-strip' : 'flex flex-wrap gap-2'}>{values.map((item) => <span className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-pill border border-primary/30 bg-primary-soft pl-3 pr-1 text-xs font-medium text-primary" key={item.id}>{item.label}<button aria-label={`移除${item.label}`} className="grid h-11 w-11 place-items-center rounded-full" onClick={() => onRemove(item.id)} type="button"><X size={13} /></button></span>)}</div>
 }
 
 function SegmentControl({ label, value, options, onChange }: { label: string; value: string; options: readonly { id: string; label: string }[]; onChange: (value: string) => void }) {

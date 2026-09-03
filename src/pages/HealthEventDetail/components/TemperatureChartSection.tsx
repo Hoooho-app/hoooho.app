@@ -55,7 +55,7 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
       </div>
       <div className="border-t border-primary/15 px-1 pt-5">
         <div className="rounded-card border border-border bg-surface px-2 pb-3 pt-2 shadow-calm">
-          <svg aria-label={`体温趋势：${accessibleSummary}`} className="h-auto w-full overflow-visible" viewBox="0 0 320 194" role="img">
+          <svg aria-label={`体温趋势：${accessibleSummary}`} className="temperature-chart h-auto w-full overflow-visible" viewBox="0 0 320 194" role="group">
             {[chart.top, (chart.top + chart.bottom) / 2, chart.bottom].map((y) => (
               <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} className="stroke-border" strokeDasharray="3 5" />
             ))}
@@ -79,7 +79,7 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
               return (
                 <g
                   aria-label={`${formatTemperatureValue(point.value)}，${point.classification.label}，${formatTemperatureDate(point.time)} ${formatTemperatureClock(point.time)}，${getMeasurementSiteLabel(point.measurementSite)}`}
-                  className="cursor-pointer outline-none"
+                  className="temperature-chart-point cursor-pointer outline-none"
                   key={`${point.time}-${index}`}
                   onClick={() => setSelectedIndex(index)}
                   onKeyDown={(event) => {
@@ -91,6 +91,8 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
                   role="button"
                   tabIndex={0}
                 >
+                  <circle className="temperature-chart-point__hit" cx={point.x} cy={point.y} fill="transparent" r="22" />
+                  <circle className="temperature-chart-point__focus" cx={point.x} cy={point.y} fill="none" r="13" stroke="rgb(var(--hoho-color-primary))" strokeWidth="2" />
                   {point.classification.emphasis !== 'standard' && <circle cx={point.x} cy={point.y} r={radius + 5} fill={point.classification.color} opacity={point.classification.emphasis === 'critical' ? 0.16 : 0.09} />}
                   <circle cx={point.x} cy={point.y} r={radius} fill={isLatest ? point.classification.color : 'rgb(var(--hoho-color-surface))'} stroke={point.classification.color} strokeWidth="2.2" />
                 </g>
@@ -118,7 +120,7 @@ export function TemperatureChartSection({ event }: { event: HealthEvent }) {
             <div aria-live="polite" className="mx-2 -mt-1 rounded-control border border-border bg-surface-muted px-3 py-2 text-xs leading-5 text-text-secondary">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <strong className="text-text-primary">{formatTemperatureValue(selected.value)} · {selected.classification.label}</strong>
-                <button className="min-h-8 text-primary" onClick={() => setSelectedIndex(null)} type="button">关闭</button>
+                <button className="min-h-11 px-2 text-primary" onClick={() => setSelectedIndex(null)} type="button">关闭</button>
               </div>
               <p>{formatTemperatureDate(selected.time)} {formatTemperatureClock(selected.time)} · 测量部位：{getMeasurementSiteLabel(selected.measurementSite)}</p>
             </div>
