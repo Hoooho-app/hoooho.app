@@ -116,6 +116,14 @@ The initial independent review rejected the first implementation at 3.47/5 and t
 - Rejected pattern: 620px phone simulation for desktop information pages, parallel teal palettes, unbounded nested cards, universal pills, decorative green gradients, and modal implementations that bypass shared behavior.
 - External references: none adopted. The library intentionally does not invent user taste or copy third-party brand assets.
 
+## Release record
+
+- Runtime commit: `84ce0ee` (`feat: establish global design quality governance`), pushed to `codex/global-design-quality-20260903` and fast-forwarded to canonical `main`.
+- Staging: Railway `creative-nurturing / hoooho.app / staging`, deployment `e359af75-8615-475d-93e4-e688b826ad19`, SUCCESS. Public `/`, `/api/health`, affected routes, and exact JavaScript/CSS assets returned 200; iPhone-sized Chrome showed the real login page with no overflow or console errors.
+- Production: Railway `creative-nurturing / hoooho.app / production`, deployment `22a038ce-ecce-49bc-97e6-17f7e607c0ad`, SUCCESS. `https://hoooho.com/api/health` returned 200, affected routes and exact chunks returned 200, recent deployment HTTP logs contained no 4xx/5xx entries, and iPhone-sized Chrome showed the real login page with no overflow or console errors.
+- The first PowerShell production health request encountered a transient TLS handshake error; an independent curl retry returned HTTP 200 with `status: ok`. This transient was not hidden or counted as a product failure.
+- This release record is documentation-only and does not change the already deployed runtime commit.
+
 ## Remaining governance backlog
 
 The next governance cycle should design route-level retry patterns, audit internal Ops overlays separately from consumer flows, add long-content and slow-network evidence, decide legal-document destinations and browser-Back behavior for local sheet state, and either remove or deliberately reactivate dormant legacy detail components. These items require product scope or separate internal-tool coverage and are not presented as browser-verified here.
