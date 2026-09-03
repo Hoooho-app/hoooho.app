@@ -1,6 +1,8 @@
 import {
   formatChildAgeFromDateKeys,
   getChildBirthdayBounds as getBounds,
+  inferFamilyMemberRelationship as inferRelationship,
+  isChildProfileMember as isChildMember,
   validateChildBirthdayKey,
   type ChildBirthdayError
 } from '../../shared/child-profile-policy.mjs'
@@ -25,4 +27,15 @@ export function childBirthdayErrorMessage(error: ChildBirthdayError | null) {
 
 export function formatChildProfileAge(birthday: string, today = new Date()) {
   return formatChildAgeFromDateKeys(birthday, getLocalDateKey(today) ?? '')
+}
+
+export function inferFamilyMemberRelationship(birthday: string, today = new Date()) {
+  return inferRelationship(birthday, getLocalDateKey(today) ?? '')
+}
+
+export function isChildProfileMember(
+  member: { birthday?: string | null; isSelf?: boolean; relationship?: string } | null | undefined,
+  today = new Date()
+) {
+  return isChildMember(member, getLocalDateKey(today) ?? '')
 }

@@ -24,6 +24,8 @@ test('孩子编辑页只呈现冻结的信息架构', () => {
 })
 
 test('孩子编辑页使用真实数据、统一草稿和服务端回读确认', () => {
+  assert.match(pageSource, /isChildProfileMember/)
+  assert.match(pageSource, /relationship: 'child'/)
   assert.match(pageSource, /member\.caregivers \?\? \[\]/)
   assert.match(pageSource, /member\.otherRelative \?\? ''/)
   assert.match(pageSource, /member\.otherCaregiver \?\? ''/)

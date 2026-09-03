@@ -11,6 +11,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto, Member, ProfileGender } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { inferFamilyMemberRelationship } from '../../utils/childProfile'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { createClayAvatarConfig, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 
@@ -147,7 +148,13 @@ export function AddFamilyMemberPage() {
         return
       }
       const avatar = avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(avatarConfig!)
-      const created = createdMember ?? await familyMemberService.create({ name: cleanName, birthday, gender, avatar }, token)
+      const created = createdMember ?? await familyMemberService.create({
+        name: cleanName,
+        birthday,
+        gender,
+        avatar,
+        relationship: inferFamilyMemberRelationship(birthday)
+      }, token)
       if (!createdMember) {
         setCreatedMember(created)
         addMember(adaptFamilyMember(created) as Member)

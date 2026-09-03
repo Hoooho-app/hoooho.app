@@ -17,6 +17,15 @@ async function preparePage(page: Page, memberId: string) {
   }, { authToken: token, account: accountId, member: memberId })
 }
 
+async function prepareAccount(page: Page, authToken: string, account: string) {
+  await page.addInitScript(({ token, accountId }) => {
+    localStorage.setItem('hoooho-app', JSON.stringify({ state: {
+      authToken: token, authUser: { id: accountId }, opsAuthToken: null, opsAuthUser: null,
+      currentMemberId: 'self', members: [], profile: null
+    }, version: 4 }))
+  }, { token: authToken, accountId: account })
+}
+
 test.beforeAll(async () => {
   await mkdir(evidenceRoot, { recursive: true })
 })
@@ -125,4 +134,48 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await expect(page).toHaveURL(/\/family$|\/health-events$/)
   expect((await request.get(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(404)
   expect(runtimeErrors).toEqual(['Failed to load resource: the server responded with a status of 503 (Service Unavailable)'])
+})
+
+test('真实入口允许编辑在上海当天出生的新建孩子', async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-se', '真实入口边界只需在固定 iPhone SE 执行一次')
+  const account = `child-entry-${testInfo.project.name}`
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  let memberId = ''
+  const runtimeErrors: string[] = []
+  page.on('pageerror', (error) => runtimeErrors.push(error.message))
+  page.on('console', (message) => message.type() === 'error' && runtimeErrors.push(message.text()))
+  await prepareAccount(page, authToken, account)
+
+  try {
+    await page.goto('/family')
+    await page.getByRole('button', { name: /添加家人/ }).click()
+    const localToday = await page.evaluate(() => {
+      const now = new Date()
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    })
+    await page.getByLabel('姓名 *').fill('凌晨宝宝')
+    await page.getByLabel('出生日期 *').fill(localToday)
+    await page.getByLabel('女').check()
+    const createResponsePromise = page.waitForResponse((response) => (
+      response.url().endsWith('/api/members') && response.request().method() === 'POST'
+    ))
+    await page.getByRole('button', { name: '添加家庭成员' }).click()
+    const created = await (await createResponsePromise).json()
+    memberId = created.id
+    expect(created).toMatchObject({ birthday: localToday, relationship: 'child', isSelf: false })
+    await expect(page).toHaveURL(/\/family$/)
+    await expect(page.getByText('未满1个月')).toBeVisible()
+
+    await page.getByRole('button', { name: '切换角色' }).click()
+    await expect(page).toHaveURL(/\/health-events$/)
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    await page.getByRole('button', { name: '编辑凌晨宝宝的资料' }).click()
+    await expect(page).toHaveURL(new RegExp(`/family/${memberId}/edit$`))
+    await expect(page.getByRole('heading', { name: '编辑孩子资料' })).toBeVisible()
+    await expect(page.getByText('该页面仅用于编辑孩子资料')).toHaveCount(0)
+    await expect(page.getByLabel('出生日期')).toHaveValue(localToday)
+    expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([])
+  } finally {
+    if (memberId) await request.delete(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${authToken}` } })
+  }
 })

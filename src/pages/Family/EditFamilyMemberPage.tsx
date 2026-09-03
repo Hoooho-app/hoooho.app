@@ -10,7 +10,7 @@ import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { ChildCaregiver, FamilyMemberApiDto, ProfileGender } from '../../types'
-import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, validateChildBirthday } from '../../utils/childProfile'
+import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, isChildProfileMember, validateChildBirthday } from '../../utils/childProfile'
 import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
 
@@ -79,7 +79,8 @@ function draftFingerprint(draft: ChildEditorDraft) {
 }
 
 function caregiverDataMatches(member: FamilyMemberApiDto, draft: ChildEditorDraft) {
-  return JSON.stringify(member.caregivers ?? []) === JSON.stringify(draft.caregivers)
+  return member.relationship === 'child'
+    && JSON.stringify(member.caregivers ?? []) === JSON.stringify(draft.caregivers)
     && (member.otherRelative ?? '') === draft.otherRelative.trim()
     && (member.otherCaregiver ?? '') === draft.otherCaregiver.trim()
 }
@@ -118,7 +119,7 @@ export function EditFamilyMemberPage() {
     const controller = new AbortController()
     familyMemberService.getById(memberId, token, controller.signal)
       .then((member) => {
-        if (member.isSelf || member.relationship !== 'child') {
+        if (!isChildProfileMember(member)) {
           setError('该页面仅用于编辑孩子资料')
           return
         }
@@ -189,6 +190,7 @@ export function EditFamilyMemberPage() {
     try {
       await familyMemberService.update(memberId, {
         name: draft.name.trim(),
+        relationship: 'child',
         birthday: draft.birthday || null,
         gender: draft.gender || null,
         avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeClayAvatar(previewConfig),
@@ -214,7 +216,7 @@ export function EditFamilyMemberPage() {
   }
 
   const remove = async () => {
-    if (!token || !memberId || deleting || !sourceMember || sourceMember.relationship !== 'child') return
+    if (!token || !memberId || deleting || !isChildProfileMember(sourceMember)) return
     setDeleting(true)
     setError('')
     try {
