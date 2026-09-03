@@ -60,13 +60,27 @@ for (const route of routes) {
   })
 }
 
-test('login records public-state evidence and permits browser zoom', async ({ page }, testInfo) => {
+test('login records public-state evidence and keeps the page scale fixed', async ({ page }, testInfo) => {
   await page.goto('/login')
   await expect(page.getByRole('button', { name: '登录' })).toBeVisible()
   const viewport = await page.locator('meta[name="viewport"]').getAttribute('content')
   if (phase === 'after') {
-    expect(viewport).not.toContain('user-scalable=no')
-    expect(viewport).not.toContain('maximum-scale=1')
+    expect(viewport).toContain('width=device-width')
+    expect(viewport).toContain('initial-scale=1')
+    expect(viewport).toContain('minimum-scale=1')
+    expect(viewport).toContain('maximum-scale=1')
+    expect(viewport).toContain('user-scalable=no')
+    expect(viewport).toContain('viewport-fit=cover')
+  }
+  if (phase === 'after' && testInfo.project.name === 'iphone-se') {
+    const session = await page.context().newCDPSession(page)
+    const initialScale = await page.evaluate(() => window.visualViewport?.scale ?? 1)
+    await session.send('Input.synthesizePinchGesture', { x: 188, y: 334, scaleFactor: 2, relativeSpeed: 800 })
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(initialScale)
+    await session.send('Input.synthesizePinchGesture', { x: 188, y: 334, scaleFactor: 0.5, relativeSpeed: 800 })
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(initialScale)
   }
   await page.screenshot({ path: path.join(evidenceRoot, `${testInfo.project.name}-login.png`), fullPage: true })
 })
