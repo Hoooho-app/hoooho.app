@@ -3,11 +3,13 @@ import { HealthEventRecordRepository } from './repositories/health-event-record-
 import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 import { HealthChangeAnnotationService } from './health-change-annotation-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
+import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
+import { ageInCompletedMonths } from '../children/child-age.mjs'
 
 export { HealthEventRecordError } from './health-event-record-error.mjs'
 
 const recordTypes = new Set(['note', 'symptom', 'medication', 'visit', 'examination', 'other'])
-const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note'])
+const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note', 'category', 'structuredData', 'uncertainFields'])
 const immutableFields = new Set(['id', 'accountId', 'eventId', 'createdAt', 'updatedAt'])
 const sourceTypes = new Set(['user_record', 'voice_record', 'text_record', 'measurement', 'medical_file', 'doctor_confirmation', 'other'])
 const measurementMethods = new Set(['unspecified', 'oral', 'axillary', 'ear', 'forehead', 'other'])
@@ -74,6 +76,7 @@ export class HealthEventRecordService {
   constructor(options = {}) {
     this.repository = options.repository ?? new HealthEventRecordRepository(options.dataDirectory)
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
+    this.members = options.members ?? new FamilyMemberRepository(options.dataDirectory)
     this.organizations = options.organizations ?? new HealthRecordOrganizationService(options)
     this.changeAnnotations = options.changeAnnotations ?? new HealthChangeAnnotationService({ repository: this.repository, events: this.events })
   }
@@ -109,9 +112,10 @@ export class HealthEventRecordService {
   }
 
   async create(accountId, eventId, input, now = new Date()) {
-    await this.assertEventOwnership(accountId, eventId)
+    const event = await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
     const occurredAt = validateOccurredAt(input.occurredAt, now)
+    const member = await this.members.findById(event.memberId)
     const created = await this.repository.create({
       accountId,
       eventId,
@@ -123,6 +127,10 @@ export class HealthEventRecordService {
       measurementMethod: validateMeasurementMethod(input.measurementMethod),
       measurementDevice: validateOptionalText(input.measurementDevice, '测量设备', 200),
       note: validateOptionalText(input.note, '备注', 1000)
+      , category: input.category ?? event.category
+      , structuredData: input.structuredData && typeof input.structuredData === 'object' ? input.structuredData : null
+      , uncertainFields: Array.isArray(input.uncertainFields) ? [...new Set(input.uncertainFields.filter((item) => typeof item === 'string'))].slice(0, 40) : []
+      , ageAtOccurrenceMonths: ageInCompletedMonths(member?.birthday, occurredAt)
     }, now)
     const bodyLocations = Array.isArray(input.bodyLocations)
       ? [...new Set(input.bodyLocations.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean))].slice(0, 12)
@@ -152,6 +160,14 @@ export class HealthEventRecordService {
       if (key === 'measurementMethod') changes.measurementMethod = validateMeasurementMethod(input.measurementMethod)
       if (key === 'measurementDevice') changes.measurementDevice = validateOptionalText(input.measurementDevice, '测量设备', 200)
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
+      if (key === 'category') changes.category = input.category
+      if (key === 'structuredData') changes.structuredData = input.structuredData && typeof input.structuredData === 'object' ? input.structuredData : null
+      if (key === 'uncertainFields') changes.uncertainFields = Array.isArray(input.uncertainFields) ? [...new Set(input.uncertainFields.filter((item) => typeof item === 'string'))].slice(0, 40) : []
+      if (key === 'occurredAt') {
+        const event = await this.events.findById(record.eventId)
+        const member = event ? await this.members.findById(event.memberId) : null
+        changes.ageAtOccurrenceMonths = ageInCompletedMonths(member?.birthday, changes.occurredAt)
+      }
     }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')

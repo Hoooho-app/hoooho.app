@@ -53,7 +53,7 @@ export function createQuickRecordCandidates(preview: HealthRecordOrganizationPre
       sourceType,
       measurementMethod: 'unspecified',
       fields: [
-        { label: '记录对象', value: preview.memberName },
+        { label: '当前孩子', value: preview.memberName },
         { label: '发生时间', value: new Date(fallbackOccurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) },
         { label: '记录类型', value: '原话记录' },
         { label: '来源', value: sourceType === 'voice_record' ? '语音记录' : '文字记录' }
@@ -69,7 +69,7 @@ export function createQuickRecordCandidates(preview: HealthRecordOrganizationPre
     const occurredAt = occurredAtFor(fact, fallbackOccurredAt)
     const timeLabel = displayTimeFor(fact, occurredAt)
     const fields = [
-      { label: '记录对象', value: preview.memberName },
+      { label: '当前孩子', value: preview.memberName },
       { label: '发生时间', value: timeLabel },
       { label: '事实状态', value: fact.polarity === 'negated' ? '明确没有' : fact.polarity === 'uncertain' ? '待确认' : '已陈述' },
       { label: '来源', value: fact.source === 'measurement' ? '测量' : fact.source === 'doctor_statement' ? '医生陈述' : '用户描述' }

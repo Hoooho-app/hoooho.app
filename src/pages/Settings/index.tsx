@@ -178,7 +178,7 @@ export function PersonalizationSettingsPage() {
         <HohoSurfaceRow description="当前产品仅完整支持浅色界面" title="外观模式" value="浅色" />
       </SettingsGroup>
 
-      <p className="settings-note px-2">家庭成员的头像与资料，请在对应成员页面修改。</p>
+      <p className="settings-note px-2">孩子的头像与资料，请在对应孩子页面修改。</p>
     </SettingsLayout>
   )
 }

@@ -31,7 +31,7 @@ export function HealthProfileFactDetailPage() {
     const controller = new AbortController()
     setLoading(true)
     healthProfileFactService.get(factId, token, controller.signal).then((loaded) => {
-      if (loaded.memberId !== member.id) { setError('这条健康事实不属于当前人物'); return }
+      if (loaded.memberId !== member.id) { setError('这条健康事实不属于当前孩子'); return }
       setFact(loaded); setTitle(loaded.title); setCategory(loaded.category); setStatus(loaded.status); setFirstObservedAt(toDateInputValue(loaded.firstObservedAt)); setNotes(loaded.notes); setError('')
     }).catch((caught) => { if (!(caught instanceof DOMException && caught.name === 'AbortError')) setError(caught instanceof Error ? caught.message : '事实详情加载失败') }).finally(() => setLoading(false))
     return () => controller.abort()

@@ -20,7 +20,7 @@ export function RecordSubjectCard({
   className = '',
   expanded,
   gender,
-  label = '记录对象',
+  label = '当前孩子',
   name,
   onClick
 }: RecordSubjectCardProps) {

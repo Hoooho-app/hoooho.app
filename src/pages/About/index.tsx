@@ -19,7 +19,7 @@ export function AboutPage() {
           <span className="mt-1 text-xs text-text-secondary">v{appVersion}</span>
         </div>
         <section className="w-full border-b p-4">
-          <h2 className="text-sm font-medium">家庭健康随记与就诊准备工具</h2>
+          <h2 className="text-sm font-medium">7岁以下儿童健康观察与就诊准备工具</h2>
           <p className="mt-2 text-xs leading-6 text-text-secondary">帮助家庭记录健康随记、整理病情过程，并在就诊前准备清晰信息。</p>
         </section>
         <section className="w-full border-b px-4 py-3" aria-labelledby="about-version-title">

@@ -41,6 +41,7 @@ type HealthEventDetailState =
 export function useHealthEventDetail(eventId: string | undefined) {
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const currentMemberId = useAppStore((state) => state.currentMemberId)
   const [state, setState] = useState<HealthEventDetailState>({ status: 'loading' })
 
   const handleRequestError = useCallback((error: unknown) => {
@@ -60,12 +61,12 @@ export function useHealthEventDetail(eventId: string | undefined) {
     if (!eventId || !token) return
     setState((current) => current.status === 'loading' ? current : { status: 'loading' })
     try {
-      const eventDto = await healthEventService.getById(eventId, token, signal)
+      const eventDto = await healthEventService.getById(eventId, token, signal, currentMemberId)
       const [records, memberDto, organizations, allEvents] = await Promise.all([
         healthEventRecordService.list(eventId, token, signal),
         familyMemberService.getById(eventDto.memberId, token, signal),
         healthRecordOrganizationService.list(eventId, token, signal),
-        healthEventService.list(token, signal)
+        healthEventService.list(token, signal, currentMemberId)
       ])
       if (signal?.aborted) return
       setState({
@@ -113,7 +114,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
     } catch (error) {
       handleRequestError(error)
     }
-  }, [clearAuthSession, eventId, handleRequestError, token])
+  }, [clearAuthSession, currentMemberId, eventId, handleRequestError, token])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -146,7 +147,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   const refreshAfterRecordMutation = useCallback(async () => {
     if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const [eventDto, records, organizations] = await Promise.all([
-      healthEventService.getById(eventId, token),
+      healthEventService.getById(eventId, token, undefined, currentMemberId),
       healthEventRecordService.list(eventId, token),
       healthRecordOrganizationService.list(eventId, token)
     ])
@@ -163,7 +164,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
         }
       : current)
     return records
-  }, [eventId, token])
+  }, [currentMemberId, eventId, token])
 
   const updateRecord = useCallback(async (recordId: string, input: UpdateHealthEventRecordInput) => {
     if (!token) throw new Error('登录状态无效')
@@ -205,7 +206,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
   const organizeRecord = useCallback(async (recordId: string, context?: string) => {
     if (!eventId || !token) throw new Error('登录状态或健康随记无效')
     const organization = await healthRecordOrganizationService.organize(eventId, recordId, token, context)
-    const refreshedEvent = await healthEventService.getById(eventId, token)
+    const refreshedEvent = await healthEventService.getById(eventId, token, undefined, currentMemberId)
     setState((current) => {
       if (current.status !== 'success') return current
       const organizations = [
@@ -223,7 +224,7 @@ export function useHealthEventDetail(eventId: string | undefined) {
       }
     })
     return organization
-  }, [eventId, token])
+  }, [currentMemberId, eventId, token])
 
   const addAttachment = useCallback(async (input: CreateEventAttachmentInput) => {
     if (!eventId || !token) throw new Error('登录状态或健康随记无效')

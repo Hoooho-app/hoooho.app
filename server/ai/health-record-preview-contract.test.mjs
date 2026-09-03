@@ -17,11 +17,11 @@ async function fixture() {
   const events = new HealthEventService({ dataDirectory })
   const records = new HealthEventRecordService({ dataDirectory })
   const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
-  const self = await members.createSelf(accountId, { name: '测试成人' }, fixedNow)
+  const self = await members.createSelf(accountId, { name: '测试照护者' }, fixedNow)
   const child = await members.create(accountId, { name: '测试宝宝', relationship: 'child', gender: 'female', birthday: '2020-01-01' }, fixedNow)
   const childEvent = await events.create(accountId, { memberId: child.id, title: '', category: 'other', startTime: '2026-08-30T09:00:00+08:00' }, fixedNow)
-  const selfEvent = await events.create(accountId, { memberId: self.id, title: '', category: 'other', startTime: '2026-08-30T09:00:00+08:00' }, fixedNow)
-  return { accountId, child, childEvent, dataDirectory, events, organizations, records, self, selfEvent }
+  const otherEvent = await events.create(accountId, { memberId: child.id, title: '', category: 'other', startTime: '2026-08-29T09:00:00+08:00' }, fixedNow)
+  return { accountId, child, childEvent, dataDirectory, events, organizations, records, self, otherEvent }
 }
 
 function comparable(fact) {
@@ -43,7 +43,7 @@ test('P0 主体门禁阻止跨人物污染并允许明确当前人物', async ()
       () => context.organizations.preview(context.accountId, context.childEvent.id, {
         rawInput: '我头痛。', selectedOccurredAt: '2026-08-31T15:00:00+08:00'
       }, fixedNow),
-      (error) => error.code === 'SUBJECT_MEMBER_MISMATCH'
+      (error) => ['SUBJECT_MEMBER_MISMATCH', 'SUBJECT_NEEDS_CONFIRMATION'].includes(error.code)
     )
     const child = await context.organizations.preview(context.accountId, context.childEvent.id, {
       rawInput: '妈妈说宝宝发烧38.5度。', selectedOccurredAt: '2026-08-31T15:00:00+08:00'
@@ -52,10 +52,6 @@ test('P0 主体门禁阻止跨人物污染并允许明确当前人物', async ()
     assert.ok(child.healthAIOutput.facts.length >= 2)
     assert.ok(child.healthAIOutput.facts.every((fact) => fact.subjectMemberId === context.child.id))
 
-    const self = await context.organizations.preview(context.accountId, context.selfEvent.id, {
-      rawInput: '我头痛。', selectedOccurredAt: '2026-08-31T15:00:00+08:00'
-    }, fixedNow)
-    assert.ok(self.healthAIOutput.facts.every((fact) => fact.subjectMemberId === context.self.id))
   } finally {
     await rm(context.dataDirectory, { recursive: true, force: true })
   }
@@ -119,7 +115,7 @@ test('preview 过期、跨事件、模糊人物与未来时间全部 fail-closed
       rawInput: '宝宝昨天咳嗽。', selectedOccurredAt: '2026-08-31T15:00:00+08:00'
     }, fixedNow)
     await assert.rejects(
-      () => context.organizations.confirm(context.accountId, context.selfEvent.id, {
+      () => context.organizations.confirm(context.accountId, context.otherEvent.id, {
         previewId: preview.previewId, idempotencyKey: 'wrong-event-key'
       }, fixedNow),
       (error) => error.code === 'PREVIEW_NOT_FOUND'

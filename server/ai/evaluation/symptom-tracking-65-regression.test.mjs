@@ -24,9 +24,7 @@ test('原 65 个症状跟踪正式用例形成可重复服务端回归集', asyn
     const events = new HealthEventService({ dataDirectory })
     const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
     const memberByKind = {
-      self: await members.createSelf(accountId, { name: '测试成人B' }, fixedNow),
-      child: await members.create(accountId, { name: '测试宝宝A', relationship: 'child', gender: 'female', birthday: '2020-01-01' }, fixedNow),
-      senior: await members.create(accountId, { name: '测试老人C', relationship: 'parent', gender: 'male', birthday: '1950-01-01' }, fixedNow)
+      child: await members.create(accountId, { name: '测试宝宝A', relationship: 'child', gender: 'female', birthday: '2020-01-01' }, fixedNow)
     }
     assert.equal(symptomTracking65Cases.length, 65)
     for (const [caseIndex, item] of symptomTracking65Cases.entries()) {

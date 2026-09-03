@@ -53,7 +53,8 @@ export function eventsApiPlugin(options = {}) {
     name: 'hoooho-local-events-api',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const requestUrl = new URL(request.url ?? '/', 'http://localhost')
+        const pathname = requestUrl.pathname
         const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
         const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
         if (!match && !summaryMatch) return next()
@@ -67,9 +68,9 @@ export function eventsApiPlugin(options = {}) {
           }
           const eventId = match[1] ? decodeURIComponent(match[1]) : null
 
-          if (!eventId && request.method === 'GET') return sendJson(response, 200, await events.list(accountId))
+          if (!eventId && request.method === 'GET') return sendJson(response, 200, await events.list(accountId, requestUrl.searchParams.get('memberId') ?? ''))
           if (!eventId && request.method === 'POST') return sendJson(response, 201, await events.create(accountId, await readJson(request)))
-          if (eventId && request.method === 'GET') return sendJson(response, 200, await events.get(accountId, eventId))
+          if (eventId && request.method === 'GET') return sendJson(response, 200, await events.get(accountId, eventId, requestUrl.searchParams.get('memberId') ?? ''))
           if (eventId && request.method === 'PATCH') return sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))
           if (eventId && request.method === 'DELETE') return sendJson(response, 200, await events.delete(accountId, eventId))
           return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

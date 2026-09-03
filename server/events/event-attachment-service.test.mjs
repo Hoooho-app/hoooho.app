@@ -20,7 +20,7 @@ async function setup(dataDirectory, imageAnalysis) {
   const events = new HealthEventService({ dataDirectory })
   const records = new HealthEventRecordService({ dataDirectory })
   const attachments = new EventAttachmentService({ dataDirectory, imageAnalysis })
-  const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
+  const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2021-08-09' })
   const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
   const record = await records.create(accountId, event.id, { type: 'examination', content: '完成检查', occurredAt: '2026-08-09T10:00:00+08:00' })
   return { accountId, attachments, event, events, member, record }

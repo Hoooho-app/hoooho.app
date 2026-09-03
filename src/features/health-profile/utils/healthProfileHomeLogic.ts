@@ -62,7 +62,7 @@ export function buildPersonalizedHealthDirectory<T extends PersonalizedDirectory
   recordedIds: ReadonlySet<string>,
   query = '',
   status: HealthProfileViewStatus = 'all',
-  priorityLimit = 6
+  priorityLimit = 7
 ) {
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const intentionallyHiddenWhenEmpty = new Set(['diet', 'smoking', 'alcohol'])

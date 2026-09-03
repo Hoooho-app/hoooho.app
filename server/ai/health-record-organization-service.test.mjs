@@ -49,7 +49,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const events = new HealthEventService({ dataDirectory })
     const records = new HealthEventRecordService({ dataDirectory })
     const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
-    const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
+    const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2021-08-09' })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
 
     const organize = async (content) => {
@@ -221,7 +221,7 @@ test('disabled quick-record mode keeps gates and idempotency while persisting ra
     const members = new FamilyMemberService({ dataDirectory })
     const events = new HealthEventService({ dataDirectory })
     const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'disabled' })
-    const member = await members.create(accountId, { name: '小安', relationship: 'child', gender: 'female', birthday: '2019-08-31' })
+    const member = await members.create(accountId, { name: '小安', relationship: 'child', gender: 'female', birthday: '2022-08-31' })
     const event = await events.create(accountId, { memberId: member.id, title: '健康记录', category: 'other', startTime: '2026-08-31T10:00:00.000Z' }, now)
     const command = await organizations.preview(accountId, event.id, { rawInput: '把来源改成语音记录。' }, now)
     assert.equal(command.hasHealthFacts, false)

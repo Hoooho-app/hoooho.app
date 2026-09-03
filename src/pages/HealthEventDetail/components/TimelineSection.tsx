@@ -51,7 +51,7 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="section-title">症状跟踪</h2>
+        <h2 className="section-title">连续记录</h2>
         <HohoButton
           aria-label={order === 'desc' ? '当前最新优先，切换为最早优先' : '当前最早优先，切换为最新优先'}
           onClick={() => setOrder((current) => current === 'desc' ? 'asc' : 'desc')}
@@ -66,11 +66,11 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
       {!event.timeline.length ? (
         <Card className="py-8 text-center">
           <Clock3 className="mx-auto text-primary" size={27} strokeWidth={1.6} />
-          <h3 className="mt-3 font-semibold">添加第一条症状记录</h3>
+          <h3 className="mt-3 font-semibold">添加第一条记录</h3>
           <p className="mt-2 text-sm leading-6 text-text-secondary">记录什么时候开始、有哪些变化，以及做过什么处理。</p>
         </Card>
       ) : (
-        <div className="timeline-groups" aria-label="症状跟踪记录">
+        <div className="timeline-groups" aria-label="健康追踪记录">
           {timelineGroups.flatMap((yearGroup) => yearGroup.dates.map((dateGroup) => (
             <section className="timeline-date-group" key={`${yearGroup.year}-${dateGroup.date}`} aria-label={`${dateGroup.date}症状记录`}>
               <h3 className="timeline-date-heading hoho-text-section-title text-primary">{dateGroup.date}</h3>
@@ -151,7 +151,7 @@ function TimelineRow({ annotations, canEdit, entry, onDelete, onEdit, onOpen, on
   return (
     <article className="timeline-entry-row" id={entry.sourceRecordId ? `record-${entry.sourceRecordId}` : undefined}>
       <span aria-hidden="true" className="timeline-entry-marker" />
-      <time className="timeline-entry-time">{formatTimelineEntryTime(entry)}</time>
+      <time className="timeline-entry-time">{formatTimelineEntryTime(entry)}{entry.ageAtOccurrenceMonths != null && <small className="mt-1 block text-[10px] text-text-secondary">{formatRecordAge(entry.ageAtOccurrenceMonths)}</small>}</time>
       <div className="symptom-record-swipe">
         {canEdit && <div className="symptom-record-swipe__actions">
           <button aria-label={`编辑症状记录：${symptomRecordTitle(entry)}`} disabled={busy} onClick={() => { setTranslateX(0); onEdit() }} type="button"><Pencil size={17} />编辑</button>
@@ -197,6 +197,13 @@ function TimelineRow({ annotations, canEdit, entry, onDelete, onEdit, onOpen, on
 
 export function formatTimelineEntryTime(entry: TimelineEntry) {
   return entry.displayTime?.trim() || formatTimelineClock(entry.time)
+}
+
+function formatRecordAge(months: number) {
+  if (months < 1) return '未满1个月时'
+  if (months < 12) return `${months}个月时`
+  if (months < 36) return `${Math.floor(months / 12)}岁${months % 12}个月时`
+  return `${Math.floor(months / 12)}岁时`
 }
 
 function formatTimelineClock(value: string) {

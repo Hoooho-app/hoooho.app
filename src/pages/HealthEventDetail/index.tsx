@@ -18,8 +18,6 @@ import { useHealthInformationCandidates } from '../../hooks/useHealthInformation
 import {
   EventHeader,
   HealthInformationDiscoveryCard,
-  ActionSheet,
-  ComingSoonPrompt,
   EventDetailStickyHeader,
   FirstRecordComposer,
   type FirstRecordComposerHandle,
@@ -34,11 +32,9 @@ export function HealthEventDetailPage() {
   const currentMemberId = useAppStore((appState) => appState.currentMemberId)
   const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateTitle, retry } = useHealthEventDetail(eventId)
   const healthInformation = useHealthInformationCandidates(eventId, state.status === 'success' && hasPersistedHealthEventRecords(state.data.records))
-  const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
   const [recordSheetOpen, setRecordSheetOpen] = useState(false)
   const [recordedMessage, setRecordedMessage] = useState('')
-  const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const [firstRecordCanSave, setFirstRecordCanSave] = useState(false)
   const [firstRecordSaving, setFirstRecordSaving] = useState(false)
   const firstRecordRef = useRef<FirstRecordComposerHandle>(null)
@@ -146,7 +142,16 @@ export function HealthEventDetailPage() {
     let pending = pendingFirstRecordRef.current
     if (!pending || pending.fingerprint !== fingerprint) {
       const created = await addRecord(
-        { type: recordText ? input.type : 'note', content: recordText || '图片记录', occurredAt: input.occurredAt, sourceType: input.sourceType, bodyLocations },
+        {
+          type: recordText ? input.type : 'note',
+          content: recordText || '图片记录',
+          occurredAt: input.occurredAt,
+          sourceType: input.sourceType,
+          bodyLocations,
+          category: input.category,
+          structuredData: input.structuredData,
+          uncertainFields: input.uncertainFields
+        },
         { deferCommit: true }
       )
       pending = { attachmentIndexes: new Set(), fingerprint, organized: false, record: created, savedAttachments: [] }
@@ -209,9 +214,9 @@ export function HealthEventDetailPage() {
   return (
     <main className="app-shell health-event-detail flex flex-col overflow-hidden pb-0" data-first-record={!hasRecords}>
       <div className="health-event-detail-fixed">
-        <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '症状跟踪' : '记录情况'} />
+        <EventHeader confirmDisabled={!firstRecordCanSave} confirming={firstRecordSaving} onConfirm={hasRecords ? undefined : () => firstRecordRef.current?.submit()} title={hasRecords ? '记录详情' : '添加记录'} />
         <EventDetailStickyHeader
-          onAction={() => setActionOpen(true)}
+          onAction={() => navigate(`/visit-preparation/${event.id}`)}
           showActions={hasRecords}
           subject={subject}
         />
@@ -244,22 +249,6 @@ export function HealthEventDetailPage() {
         onPreview={previewQuickRecord}
         open={voiceRecordOpen}
       />}
-      {hasRecords && <ActionSheet
-        context={{
-          attachments: state.data.attachments,
-          currentMemberId,
-          event: { ...event, summary: state.data.eventDto.eventSummary?.displayedResult.summary ?? event.summary },
-          healthProfile: promptHealthProfile,
-          member: state.data.member,
-          organizations: state.data.organizations,
-          records: state.data.records,
-          relatedEvents: state.data.relatedEvents,
-        }}
-        onClose={() => setActionOpen(false)}
-        onComingSoon={() => setComingSoonOpen(true)}
-        open={actionOpen}
-      />}
-      {hasRecords && <ComingSoonPrompt onClose={() => setComingSoonOpen(false)} open={comingSoonOpen} />}
       {recordedMessage && <div aria-live="polite" className="quick-record-toast" role="status"><Check size={17} />{recordedMessage}</div>}
     </main>
   )

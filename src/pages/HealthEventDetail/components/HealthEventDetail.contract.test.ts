@@ -16,9 +16,9 @@ const designSystemStylesSource = readFileSync(new URL('../../../styles/design-sy
 const bottomSheetSource = readFileSync(new URL('../../../components/design-system/BottomSheetSurface.tsx', import.meta.url), 'utf8')
 const organizationServiceSource = readFileSync(new URL('../../../../server/ai/health-record-organization-service.mjs', import.meta.url), 'utf8')
 
-test('详情页收敛为症状跟踪且移除旧摘要和体温图表', () => {
-  assert.match(pageSource, /title=\{hasRecords \? '症状跟踪'/)
-  assert.match(timelineSource, />症状跟踪</)
+test('详情页使用连续记录语言且移除旧摘要和体温图表', () => {
+  assert.match(pageSource, /title=\{hasRecords \? '记录详情'/)
+  assert.match(timelineSource, />连续记录</)
   assert.equal(pageSource.includes('<EventSummarySection'), false)
   assert.equal(pageSource.includes('<TemperatureChartSection'), false)
 })
@@ -75,8 +75,8 @@ test('微信说一句使用文字降级并复用现有预览和保存管线', ()
   assert.match(pageSource, /onPreview=\{previewQuickRecord\}/)
 })
 
-test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺序', () => {
-  assert.match(pageSource, /title=\{hasRecords \? '症状跟踪' : '记录情况'\}/)
+test('首次记录使用紧凑表单、顶部保存和观察优先的字段顺序', () => {
+  assert.match(pageSource, /title=\{hasRecords \? '记录详情' : '添加记录'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)
   assert.equal(firstRecordSource.includes('<h2'), false)
   assert.equal(firstRecordSource.includes('保存，自动整理'), false)

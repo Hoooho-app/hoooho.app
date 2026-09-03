@@ -37,13 +37,13 @@ test('defaults expose every available item instead of a small preselection', () 
 })
 
 test('strictly stops when current member is missing or does not own the event', () => {
-  assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'self' }, getAllPromptItemIds(baseContext), '是否需要就医'), /先选择人物/)
-  assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'm2' }, getAllPromptItemIds(baseContext), '是否需要就医'), /所选人物不一致/)
+  assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'self' }, getAllPromptItemIds(baseContext), '是否需要就医'), /先选择孩子/)
+  assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'm2' }, getAllPromptItemIds(baseContext), '是否需要就医'), /所选孩子不一致/)
 })
 
 test('strictly stops if another member appears in historical events', () => {
   const mixed = { ...baseContext, relatedEvents: [{ ...baseContext.relatedEvents[0], memberId: 'm2' }] }
-  assert.throws(() => buildHealthEventPrompt(mixed, getAllPromptItemIds(mixed), '是否需要就医'), /不属于当前人物/)
+  assert.throws(() => buildHealthEventPrompt(mixed, getAllPromptItemIds(mixed), '是否需要就医'), /不属于当前孩子/)
 })
 
 test('keeps every original record and all facts from a multi-fact record without truncation', () => {

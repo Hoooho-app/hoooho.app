@@ -65,6 +65,14 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     bodyFatPercentage: member.bodyFatPercentage ?? undefined,
     headCircumferenceCm: member.headCircumferenceCm ?? undefined,
     rhBloodType: member.rhBloodType ?? undefined,
+    premature: member.premature ?? undefined,
+    gestationalWeeks: member.gestationalWeeks ?? undefined,
+    birthWeightKg: member.birthWeightKg ?? undefined,
+    birthLengthCm: member.birthLengthCm ?? undefined,
+    birthHeadCircumferenceCm: member.birthHeadCircumferenceCm ?? undefined,
+    concernFocus: member.concernFocus ?? [],
+    recordingPausedAt: member.recordingPausedAt ?? undefined,
+    archivedAt: member.archivedAt ?? undefined,
     age: member.birthday ? formatAgeFromBirthday(member.birthday) : '未填写年龄'
   }
 }
@@ -117,7 +125,7 @@ export function adaptHealthEventDetail(
   const adaptedAttachments = attachmentDtos.map(adaptAttachment)
   const timeline = buildFactTimeline(facts, recordDtos, adaptedAttachments)
   const temperatureRecords = buildTemperatureRecords(facts)
-  const displayStatus: HealthEvent['status'] = eventDto.status === 'recovered'
+  const displayStatus: HealthEvent['status'] = eventDto.status === 'recovered' || eventDto.status === 'ended'
     ? 'recovered'
     : timeline.length
       ? 'ongoing'
@@ -144,7 +152,7 @@ export function adaptHealthEventDetail(
       concerns: uniqueFactNames(facts, 'concern'),
       personalizedModules: [],
       medicalInfo: emptyMedicalInfo,
-      ...(eventDto.status === 'recovered' && eventDto.recoveredAt
+      ...((eventDto.status === 'recovered' || eventDto.status === 'ended') && eventDto.recoveredAt
         ? {
             recoveryInfo: {
               recoveredAt: eventDto.recoveredAt,
@@ -252,6 +260,7 @@ function buildFactTimeline(
       time,
       createdAt: record?.createdAt ?? item.organization.createdAt,
       displayTime: fact.time.precision === 'day' || fact.time.precision === 'fuzzy' ? fact.time.raw ?? undefined : undefined,
+      ageAtOccurrenceMonths: record?.ageAtOccurrenceMonths ?? null,
       periodLabel: factPeriodLabel(fact, time),
       content: factSummary,
       summary: factSummary,
@@ -283,6 +292,7 @@ function buildFactTimeline(
     id: `${record.id}-attachments`,
     time: record.occurredAt,
     createdAt: record.createdAt,
+    ageAtOccurrenceMonths: record.ageAtOccurrenceMonths ?? null,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
     content: record.content,
     summary: createTimelineRecordSummary(record.content, presentation.content),
@@ -310,6 +320,7 @@ function buildFactTimeline(
     id: `${record.id}-raw`,
     time: record.occurredAt,
     createdAt: record.createdAt,
+    ageAtOccurrenceMonths: record.ageAtOccurrenceMonths ?? null,
     periodLabel: formatHealthTimePeriod(undefined, record.occurredAt),
     content: compactUnstructuredRecord(record.content),
     summary: compactUnstructuredRecord(record.content),

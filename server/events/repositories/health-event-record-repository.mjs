@@ -28,6 +28,10 @@ export class HealthEventRecordRepository {
       measurementMethod: input.measurementMethod ?? null,
       measurementDevice: input.measurementDevice ?? null,
       note: input.note ?? null,
+      category: input.category ?? null,
+      structuredData: input.structuredData ?? null,
+      uncertainFields: Array.isArray(input.uncertainFields) ? input.uncertainFields : [],
+      ageAtOccurrenceMonths: Number.isInteger(input.ageAtOccurrenceMonths) ? input.ageAtOccurrenceMonths : null,
       changeAnnotations: [],
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()

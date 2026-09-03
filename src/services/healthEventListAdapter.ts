@@ -58,6 +58,7 @@ export function adaptHealthEventList(
         status: event.status,
         now
       }),
+      ageAtOccurrenceLabel: primaryRecord?.ageAtOccurrenceMonths == null ? null : formatRecordAge(primaryRecord.ageAtOccurrenceMonths),
       summaryFragments,
       category: event.category,
       status: event.status,
@@ -68,4 +69,11 @@ export function adaptHealthEventList(
       updatedAt: event.updatedAt
     }
   })
+}
+
+function formatRecordAge(months: number) {
+  if (months < 1) return '未满1个月时'
+  if (months < 12) return `${months}个月时`
+  if (months < 36) return `${Math.floor(months / 12)}岁${months % 12}个月时`
+  return `${Math.floor(months / 12)}岁时`
 }

@@ -494,6 +494,7 @@ async function handleAttachments(request, response, pathname) {
 }
 
 async function handleEvents(request, response, pathname) {
+  const searchParams = new URL(request.url ?? '/', 'http://localhost').searchParams
   const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
   if (summaryMatch) {
     const accountId = readAccountId(request)
@@ -507,9 +508,9 @@ async function handleEvents(request, response, pathname) {
 
   const accountId = readAccountId(request)
   const eventId = match[1] ? decodeRouteValue(match[1]) : null
-  if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.list(accountId)))
+  if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.list(accountId, searchParams.get('memberId') ?? '')))
   else if (!eventId && request.method === 'POST') sendJson(response, 201, await events.create(accountId, await readJson(request)))
-  else if (eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.get(accountId, eventId)))
+  else if (eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.get(accountId, eventId, searchParams.get('memberId') ?? '')))
   else if (eventId && request.method === 'PATCH') sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))
   else if (eventId && request.method === 'DELETE') sendJson(response, 200, await events.delete(accountId, eventId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

@@ -22,7 +22,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
   const [translateX, setTranslateX] = useState(0)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const isRecovered = event.status === 'recovered'
+  const isRecovered = event.status === 'recovered' || event.status === 'ended'
 
   const finishSwipe = () => {
     setTranslateX((current) => current < -actionWidth / 2 ? -actionWidth : 0)
@@ -32,7 +32,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
     if (!onStatusChange || busy) return
     setBusy(true)
     try {
-      await onStatusChange(event.id, isRecovered ? 'observing' : 'recovered')
+      await onStatusChange(event.id, isRecovered ? 'observing' : 'ended')
       setTranslateX(0)
     } finally {
       setBusy(false)
@@ -54,7 +54,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
     <div className="relative overflow-hidden rounded-[var(--hoho-radius-large)]" data-event-id={event.id}>
       <div className="absolute inset-y-0 right-0 flex w-[148px] overflow-hidden rounded-r-[var(--hoho-radius-large)] text-surface">
         <button
-          aria-label={isRecovered ? '重新观察这条健康随记' : '标记这条健康随记为已康复'}
+          aria-label={isRecovered ? '重新观察这条健康随记' : '结束这条健康追踪'}
           className="grid w-[74px] place-items-center bg-primary px-1 text-center text-xs font-medium disabled:opacity-70"
           disabled={busy}
           type="button"
@@ -62,7 +62,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
         >
           <span className="grid gap-1.5 justify-items-center">
             {isRecovered ? <RotateCcw size={19} /> : <CheckCircle2 size={19} />}
-            {isRecovered ? '重新观察' : '已康复'}
+            {isRecovered ? '重新观察' : '已结束'}
           </span>
         </button>
         <button
@@ -110,6 +110,7 @@ export function HealthEventCard({ dateLabel, event, onStatusChange, onDelete }: 
         <HealthEventCardSurface
           className={isRecovered ? 'health-event-list-card health-event-list-card--recovered' : 'health-event-list-card'}
           dateLabel={dateLabel}
+          ageAtOccurrenceLabel={event.ageAtOccurrenceLabel}
           displayTitle={event.displayTitle}
           durationLabel={event.durationLabel}
           icon={event.icon}

@@ -12,9 +12,10 @@ const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
 
 test('every direct sidebar destination is represented by the shared top-level header contract', () => {
-  for (const route of ['/health-events', '/health-profile', '/guide', '/settings', '/help', '/feedback', '/about']) {
+  for (const route of ['/home', '/health-events', '/health-tracking', '/health-profile', '/guide', '/settings', '/feedback', '/about']) {
     assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
   }
+  assert.doesNotMatch(drawer, /to: '\/help'/)
   assert.match(header, /aria-label="打开菜单"/)
   assert.match(header, /<SideDrawer open=\{open\}/)
   assert.match(header, /compact \? 'sticky top-0 z-20 min-h-14' : 'min-h-16'/)

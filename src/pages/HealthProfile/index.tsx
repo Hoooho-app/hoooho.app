@@ -20,9 +20,9 @@ const icons: Record<HealthProfileSectionConfig['icon'], LucideIcon> = {
 }
 const statusLabels: Record<HealthProfileViewStatus, string> = { all: '全部', filled: '已填写', empty: '未填写' }
 const groupLabels: Partial<Record<HealthProfileSectionConfig['category'], string>> = {
-  lifestyle: '生活方式', 'long-term': '健康维护', child: '儿童与成长', female: '女性健康', elder: '老年健康', core: '其他健康档案'
+  'long-term': '长期健康背景', child: '出生与成长', core: '需要长期保留'
 }
-const categoryOrder: HealthProfileSectionConfig['category'][] = ['lifestyle', 'long-term', 'child', 'female', 'elder', 'core']
+const categoryOrder: HealthProfileSectionConfig['category'][] = ['child', 'long-term', 'core']
 
 function getSectionSummary(section: HealthProfileSectionConfig, records: Array<Record<string, unknown>> = []) {
   if (!records.length) return section.description
@@ -88,6 +88,7 @@ export function HealthProfilePage() {
     <MainAppHeader title="健康档案" />
     <div className="page-content pb-10">
       <MemberIdentityCard member={member} />
+      <p className="child-profile-note">这里维护孩子相对稳定的健康背景。每次症状、饮食、测量和用药变化请记入健康随记。</p>
 
       <section className="health-profile-search grid grid-cols-[minmax(0,1fr)_104px] items-center gap-2" aria-label="搜索和查看状态">
         <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} /><span className="sr-only">搜索健康档案</span><input className="hoho-input w-full pl-10" placeholder="搜索健康档案" type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
@@ -104,10 +105,10 @@ export function HealthProfilePage() {
         </label>
       </section>
 
-      <section className="health-fact-home-card mt-5" aria-label="重要健康事实">
+      <section className="health-fact-home-card mt-5" aria-label="医生确认与待确认信息">
         <button onClick={() => navigate('/health-profile/facts')} type="button">
           <span className="health-fact-home-card__icon"><FileHeart size={21} /></span>
-          <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">重要健康事实</Typography><Typography className="mt-1" variant="caption">记录影响长期健康的重要信息</Typography></span>
+          <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">医生确认与待确认信息</Typography><Typography className="mt-1" variant="caption">清楚区分已确认结论和系统整理线索</Typography></span>
           <span className="health-fact-home-card__count">{longTermFacts.status === 'success' ? `${longTermFacts.facts.filter((fact) => fact.status !== 'removed').length} 条` : '—'}</span>
           <ChevronRight size={18} />
         </button>

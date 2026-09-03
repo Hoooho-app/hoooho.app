@@ -82,7 +82,7 @@ export function LoginPage() {
       const session = await authService.loginWithEmail(normalizedEmail, code)
       setAuthSession(session)
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
-      const safePath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events'
+      const safePath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/home'
       navigate(safePath, { replace: true })
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
@@ -117,8 +117,8 @@ export function LoginPage() {
       <div className="auth-panel relative z-10 flex flex-1 flex-col">
         <header className="flex flex-col items-center pt-6 text-center">
           <img className="h-[46px] w-40 object-contain" src={logoUrl} alt="Hoooho" />
-          <h1 className="hoho-text-page-title mt-7">欢迎使用 Hoooho</h1>
-          <p className="hoho-text-body mt-2">家庭健康随记与就诊准备工具</p>
+          <h1 className="hoho-text-page-title mt-7">记下孩子的身体变化</h1>
+          <p className="hoho-text-body mt-2 max-w-[19rem]">过敏、饮食、生长和反复不适，随时记下来，需要时整理给医生看。</p>
         </header>
 
         <form className="mt-10 space-y-3" noValidate onSubmit={login}>
@@ -193,6 +193,7 @@ export function LoginPage() {
         )}
 
         <p className="mt-4 text-center text-[11px] leading-5 text-text-secondary">
+          记录包含儿童健康信息，由照护者创建和管理。<br />
           登录即表示同意
           <span className="mx-1">《用户协议》</span>
           和

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { QuickRecordService } from './quick-record-service.mjs'
+import { classifyChildRecord, QuickRecordService } from './quick-record-service.mjs'
 
 function setup({ failRecord = false, failRequest = false, failPhotos = false } = {}) {
   const eventRows = []
@@ -82,6 +82,29 @@ test('quick record creates the event and record only after confirmation', async 
   assert.deepEqual(state.counts(), { eventCreates: 1, recordCreates: 1 })
   assert.equal(state.recordRows[0].sourceType, 'voice_record')
   assert.equal(state.recordRows[0].note, null)
+  assert.equal(state.recordRows[0].category, 'discomfort')
+  assert.equal(state.recordRows[0].structuredData.temperatureC, 38.5)
+})
+
+test('child record classification preserves useful measurements without diagnosing', () => {
+  assert.deepEqual(classifyChildRecord('今天身高 93.5 cm，体重 14 公斤'), {
+    category: 'growth',
+    trackingKey: 'growth:身高',
+    structuredData: { heightCm: 93.5, weightKg: 14 },
+    uncertainFields: []
+  })
+  assert.deepEqual(classifyChildRecord('吃了鸡蛋后起皮疹'), {
+    category: 'reaction',
+    trackingKey: 'reaction:鸡蛋',
+    structuredData: { exposure: '鸡蛋' },
+    uncertainFields: []
+  })
+  assert.deepEqual(classifyChildRecord('用药后精神不太好'), {
+    category: 'medication',
+    trackingKey: 'medication:medication',
+    structuredData: {},
+    uncertainFields: ['药物名称', '剂量']
+  })
 })
 
 test('quick record reuses the persisted result for the same idempotency key', async () => {

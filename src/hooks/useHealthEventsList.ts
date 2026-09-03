@@ -27,6 +27,7 @@ export function useHealthEventsList() {
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const setMembers = useAppStore((state) => state.setMembers)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
+  const currentMemberId = useAppStore((state) => state.currentMemberId)
   const [state, setState] = useState<HealthEventsListState>({ status: 'loading' })
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -39,10 +40,10 @@ export function useHealthEventsList() {
       ])
       const adaptedMembers = memberDtos.map(adaptFamilyMember)
       setMembers(adaptedMembers)
-      const currentId = useAppStore.getState().currentMemberId
-      if (!adaptedMembers.some((member) => member.id === currentId)) {
-        setCurrentMemberId(adaptedMembers[0]?.id ?? 'self')
-      }
+      const scopedMemberId = adaptedMembers.some((member) => member.id === currentMemberId)
+        ? currentMemberId
+        : adaptedMembers[0]?.id ?? ''
+      if (scopedMemberId !== currentMemberId) setCurrentMemberId(scopedMemberId || 'self')
       if (entryState.familyMemberCount === 0 || !entryState.hasValidHealthRecord) {
         if (signal?.aborted) return
         setState({
@@ -51,7 +52,7 @@ export function useHealthEventsList() {
         })
         return
       }
-      const eventDtos = await healthEventService.list(token, signal)
+      const eventDtos = await healthEventService.list(token, signal, scopedMemberId)
       const eventsWithoutSummary = eventDtos.filter((event) => !event.eventSummary)
       const [recordEntries, attachmentEntries] = await Promise.all([
         Promise.all(eventDtos.map(async (event) => (
@@ -84,7 +85,7 @@ export function useHealthEventsList() {
         message: error instanceof Error ? error.message : '健康随记加载失败，请稍后重试'
       })
     }
-  }, [clearAuthSession, setCurrentMemberId, setMembers, token])
+  }, [clearAuthSession, currentMemberId, setCurrentMemberId, setMembers, token])
 
   useEffect(() => {
     const controller = new AbortController()
