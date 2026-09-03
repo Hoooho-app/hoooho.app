@@ -73,13 +73,38 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
       name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02',
-      avatar: 'clay:v1:boy:east-asian'
+      avatar: 'clay:v1:boy:east-asian',
+      caregivers: ['father', 'mother'], otherRelative: ' 姨妈 ', otherCaregiver: ' 王老师 '
     }, first.token)
     assert.equal(createdResponse.status, 201)
     const child = await createdResponse.json()
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
     assert.equal(child.avatar, 'clay:v1:boy:east-asian')
+    assert.deepEqual(child.caregivers, ['father', 'mother'])
+    assert.equal(child.otherRelative, '姨妈')
+    assert.equal(child.otherCaregiver, '王老师')
+
+    const caregiverResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      caregivers: ['mother', 'paternal_grandmother'], otherRelative: '', otherCaregiver: '李老师'
+    })
+    assert.equal(caregiverResponse.status, 200)
+    const caregiverSaved = await caregiverResponse.json()
+    assert.deepEqual(caregiverSaved.caregivers, ['mother', 'paternal_grandmother'])
+    assert.equal(caregiverSaved.otherRelative, null)
+    assert.equal(caregiverSaved.otherCaregiver, '李老师')
+
+    const invalidCaregiverResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      caregivers: ['doctor']
+    })
+    assert.equal(invalidCaregiverResponse.status, 400)
+    assert.equal((await invalidCaregiverResponse.json()).error.code, 'INVALID_CAREGIVERS')
+
+    const boundary = localDateKey(new Date()).split('-').map(Number)
+    const fullEight = `${String(boundary[0] - 8).padStart(4, '0')}-${String(boundary[1]).padStart(2, '0')}-${String(boundary[2]).padStart(2, '0')}`
+    const fullEightResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, { birthday: fullEight })
+    assert.equal(fullEightResponse.status, 400)
+    assert.equal((await fullEightResponse.json()).error.code, 'INVALID_CHILD_BIRTHDAY')
 
     const yearOnlyResponse = await requestJson(`${baseUrl}/api/members/${self.id}`, 'PATCH', first.token, {
       birthday: '1990'

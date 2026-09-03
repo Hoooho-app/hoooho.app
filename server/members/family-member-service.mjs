@@ -6,13 +6,15 @@ import {
   AVATAR_PHOTO_MAX_DATA_URL_LENGTH,
   AVATAR_PHOTO_MIME_TYPES
 } from '../../shared/avatar-photo-policy.mjs'
+import { normalizeChildCaregivers, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
 const editableFields = new Set([
   'name', 'relationship', 'gender', 'birthday', 'avatar',
   'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
-  'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType'
+  'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType',
+  'caregivers', 'otherRelative', 'otherCaregiver'
 ])
 const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
 const rhBloodTypes = new Set(['positive', 'negative'])
@@ -65,6 +67,36 @@ function validateBirthday(value, now = new Date(), timeZone) {
     throw new FamilyMemberError('请输入有效且不晚于今天的出生日期', 400, 'INVALID_BIRTHDAY')
   }
   return value
+}
+
+function validateBirthdayForRelationship(value, relationship, now = new Date(), timeZone) {
+  const birthday = validateBirthday(value, now, timeZone)
+  if (relationship !== 'child' || birthday === null) return birthday
+  const validation = validateChildBirthdayKey(birthday, localDateKey(now, timeZone))
+  if (!validation.valid) {
+    throw new FamilyMemberError(
+      validation.error === 'too-old' ? '孩子应尚未满8周岁' : '请输入有效且不晚于今天的出生日期',
+      400,
+      'INVALID_CHILD_BIRTHDAY'
+    )
+  }
+  return birthday
+}
+
+function validateCaregivers(value) {
+  if (value === undefined || value === null) return []
+  const caregivers = normalizeChildCaregivers(value)
+  if (!caregivers) throw new FamilyMemberError('主要照顾者格式错误', 400, 'INVALID_CAREGIVERS')
+  return caregivers
+}
+
+function validateCaregiverLabel(value, label) {
+  if (value === undefined || value === null || value === '') return null
+  if (typeof value !== 'string') throw new FamilyMemberError(`${label}格式错误`, 400, 'INVALID_CAREGIVER_LABEL')
+  const normalized = value.trim()
+  if (!normalized) return null
+  if (normalized.length > 30) throw new FamilyMemberError(`${label}最多30个字符`, 400, 'INVALID_CAREGIVER_LABEL')
+  return normalized
 }
 
 async function validateAvatar(value) {
@@ -133,13 +165,17 @@ export class FamilyMemberService {
   }
 
   async create(accountId, input, now = new Date(), timeZone) {
+    const relationship = validateRelationship(input.relationship)
     return this.repository.create({
       accountId,
       name: validateName(input.name),
-      relationship: validateRelationship(input.relationship),
+      relationship,
       gender: validateGender(input.gender),
       birthday: validateBirthday(input.birthday, now, timeZone),
       avatar: await validateAvatar(input.avatar),
+      caregivers: validateCaregivers(input.caregivers),
+      otherRelative: validateCaregiverLabel(input.otherRelative, '其他亲属'),
+      otherCaregiver: validateCaregiverLabel(input.otherCaregiver, '其他照看者'),
       isSelf: false
     }, now)
   }
@@ -166,7 +202,7 @@ export class FamilyMemberService {
         changes.relationship = validateRelationship(input.relationship)
       }
       if (key === 'gender') changes.gender = validateGender(input.gender)
-      if (key === 'birthday') changes.birthday = validateBirthday(input.birthday, now, timeZone)
+      if (key === 'birthday') changes.birthday = validateBirthdayForRelationship(input.birthday, member.relationship, now, timeZone)
       if (key === 'avatar') changes.avatar = await validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
@@ -175,6 +211,9 @@ export class FamilyMemberService {
       if (key === 'bodyFatPercentage') changes.bodyFatPercentage = validateOptionalNumber(input.bodyFatPercentage, '体脂率', 0, 100)
       if (key === 'headCircumferenceCm') changes.headCircumferenceCm = validateOptionalNumber(input.headCircumferenceCm, '头围', 1, 100)
       if (key === 'rhBloodType') changes.rhBloodType = validateRhBloodType(input.rhBloodType)
+      if (key === 'caregivers') changes.caregivers = validateCaregivers(input.caregivers)
+      if (key === 'otherRelative') changes.otherRelative = validateCaregiverLabel(input.otherRelative, '其他亲属')
+      if (key === 'otherCaregiver') changes.otherCaregiver = validateCaregiverLabel(input.otherCaregiver, '其他照看者')
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
     return this.repository.update(id, changes, now)

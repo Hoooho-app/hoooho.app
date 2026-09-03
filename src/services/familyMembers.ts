@@ -32,6 +32,7 @@ export const familyMemberService = {
       | 'name' | 'birthday' | 'gender' | 'avatar'
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
+      | 'caregivers' | 'otherRelative' | 'otherCaregiver'
     >>,
     token: string,
     signal?: AbortSignal

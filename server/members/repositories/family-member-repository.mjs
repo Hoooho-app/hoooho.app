@@ -25,6 +25,9 @@ export class FamilyMemberRepository {
       bodyFatPercentage: input.bodyFatPercentage ?? null,
       headCircumferenceCm: input.headCircumferenceCm ?? null,
       rhBloodType: input.rhBloodType ?? null,
+      caregivers: Array.isArray(input.caregivers) ? input.caregivers : [],
+      otherRelative: input.otherRelative ?? null,
+      otherCaregiver: input.otherCaregiver ?? null,
       isSelf: Boolean(input.isSelf),
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()

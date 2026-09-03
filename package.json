@@ -30,6 +30,7 @@
     "test:attachments": "node --test server/events/event-attachment-service.test.mjs",
     "test:quick-record-photos": "node --test server/events/quick-record-photo-service.test.mjs server/events/quick-record-service.test.mjs",
     "test:e2e:quick-record": "npm run build && playwright test --config tests/quick-record-mobile/playwright.config.ts",
+    "test:e2e:child-profile": "npm run build && playwright test --config tests/child-profile/playwright.config.ts",
     "test:e2e:design-quality": "npm run build && cross-env DESIGN_AUDIT_PHASE=after playwright test --config tests/design-quality/playwright.config.ts",
     "audit:design:before": "npm run build && cross-env DESIGN_AUDIT_PHASE=before playwright test --config tests/design-quality/playwright.config.ts",
     "audit:design:after": "npm run test:e2e:design-quality",

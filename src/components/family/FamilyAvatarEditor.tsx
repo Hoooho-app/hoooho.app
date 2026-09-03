@@ -9,6 +9,7 @@ import { BottomSheetSurface, HohoButton } from '../design-system'
 export type FamilyAvatarMode = 'cartoon' | 'photo'
 
 interface FamilyAvatarEditorProps {
+  childProfile?: boolean
   compact?: boolean
   config: ClayAvatarConfig
   disabled?: boolean
@@ -50,7 +51,7 @@ export function getFamilyAvatarCopy(language: string) {
   return copy.zh
 }
 
-export function FamilyAvatarEditor({ compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps) {
+export function FamilyAvatarEditor({ childProfile = false, compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const requestRef = useRef(0)
   const [processing, setProcessing] = useState(false)
@@ -148,22 +149,39 @@ export function FamilyAvatarEditor({ compact = false, config, disabled = false, 
   return (
     <section className="flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'} aria-label={mode === 'cartoon' ? text.cartoon : text.photo}>
       {mode === 'cartoon' ? (
-        <button
-            aria-label={text.change}
-            className="group flex flex-col items-center gap-1.5 rounded-control text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            disabled={disabled || processing}
-            title={text.change}
-            type="button"
-            onClick={changeAvatar}
-          >
-            <span className={`relative block ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
-              <ClayAvatar className={`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-surface shadow-card`} config={config} language={language} name={name || text.cartoon} />
-              <span className={`absolute bottom-0 end-0 grid place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
-              <RefreshCw aria-hidden="true" size={compact ? 16 : 20} strokeWidth={1.9} />
+        childProfile ? (
+          <div className="relative mb-3">
+            <ClayAvatar className="h-32 w-32 border-2 border-primary bg-surface" config={config} language={language} name={name || text.cartoon} />
+            <button
+              aria-label={text.change}
+              className="absolute -bottom-1 -end-8 inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-control border border-primary bg-surface px-4 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              disabled={disabled || processing}
+              title={text.change}
+              type="button"
+              onClick={changeAvatar}
+            >
+              <RefreshCw aria-hidden="true" size={18} strokeWidth={1.8} />
+              <span>{text.change}</span>
+            </button>
+          </div>
+        ) : (
+          <button
+              aria-label={text.change}
+              className="group flex flex-col items-center gap-1.5 rounded-control text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              disabled={disabled || processing}
+              title={text.change}
+              type="button"
+              onClick={changeAvatar}
+            >
+              <span className={`relative block ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+                <ClayAvatar className={`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-surface shadow-card`} config={config} language={language} name={name || text.cartoon} />
+                <span className={`absolute bottom-0 end-0 grid place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
+                <RefreshCw aria-hidden="true" size={compact ? 16 : 20} strokeWidth={1.9} />
+                </span>
               </span>
-            </span>
-            <span>{text.change}</span>
-          </button>
+              <span>{text.change}</span>
+            </button>
+        )
       ) : (
         <button
           aria-label={photo ? text.replace : text.upload}
@@ -173,11 +191,11 @@ export function FamilyAvatarEditor({ compact = false, config, disabled = false, 
           type="button"
           onClick={() => photoInputRef.current?.click()}
         >
-          <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface shadow-card ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+          <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface ${childProfile ? 'h-32 w-32' : compact ? 'h-20 w-20 shadow-card' : 'h-28 w-28 shadow-card'}`}>
             {displayedPhoto ? (
               <img alt={text.photoAlt} className="h-full w-full object-cover" decoding="async" src={displayedPhoto} />
             ) : (
-              <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+              <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${childProfile ? 'h-32 w-32' : compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
                 <Camera aria-hidden="true" size={compact ? 28 : 34} strokeWidth={1.6} />
               </span>
             )}
@@ -191,7 +209,7 @@ export function FamilyAvatarEditor({ compact = false, config, disabled = false, 
         {processing && <p className="mt-1 text-xs text-text-secondary">{text.processing}</p>}
       </div>
 
-      <div className={`${compact ? 'mt-1 w-44' : 'mt-2 w-48'} grid grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface`} aria-label={text.cartoon}>
+      <div className={`${childProfile ? 'mt-1 w-52' : compact ? 'mt-1 w-44' : 'mt-2 w-48'} grid grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface`} aria-label={text.cartoon}>
         {([['cartoon', text.cartoon], ['photo', text.photo]] as const).map(([value, label]) => (
           <button
             aria-pressed={mode === value}

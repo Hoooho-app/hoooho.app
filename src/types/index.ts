@@ -45,6 +45,14 @@ export interface AccountEntryState {
 
 export type ApiMemberRelationship = 'self' | 'child' | 'parent' | 'spouse' | 'other'
 export type ApiMemberGender = 'male' | 'female' | 'undisclosed' | null
+export type ChildCaregiver =
+  | 'father'
+  | 'mother'
+  | 'paternal_grandfather'
+  | 'paternal_grandmother'
+  | 'maternal_grandfather'
+  | 'maternal_grandmother'
+  | 'nanny'
 
 export interface FamilyMemberApiDto {
   id: string
@@ -61,6 +69,9 @@ export interface FamilyMemberApiDto {
   bodyFatPercentage?: number | null
   headCircumferenceCm?: number | null
   rhBloodType?: 'positive' | 'negative' | null
+  caregivers?: ChildCaregiver[]
+  otherRelative?: string | null
+  otherCaregiver?: string | null
   isSelf: boolean
   createdAt: string
   updatedAt: string
