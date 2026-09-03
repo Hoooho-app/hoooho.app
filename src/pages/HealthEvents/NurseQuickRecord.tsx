@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
+import { ArrowUpRight, Check } from 'lucide-react'
 import { QuickRecordTrigger } from '../../components/health'
 import { HealthTrace } from '../../components/design-system'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
@@ -73,6 +73,7 @@ export function NurseQuickRecord({
   return (
     <section aria-label="健康随记快捷记录" className="nurse-triage-recorder">
       <div className="nurse-triage-visual-slot">
+        <HealthTrace className="nurse-triage-brand-path" variant="path" />
         <NurseTriageDesk
           audioLevel={0}
           idleActive
@@ -106,7 +107,7 @@ export function NurseQuickRecord({
             onClick={onNextActionOpen}
             type="button"
           >
-            <HealthTrace />
+            <ArrowUpRight aria-hidden="true" />
           </button>
         </div>
         <QuickVoiceRecordFlow

@@ -1,0 +1,386 @@
+@layer components {
+  .hoho-health-trace {
+    overflow: visible;
+    fill: rgb(var(--hoho-color-primary));
+  }
+
+  .hoho-health-trace path {
+    fill: none;
+    stroke: rgb(var(--hoho-color-primary));
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .hoho-health-trace__start { opacity: 0.32; }
+  .hoho-health-trace__focus { opacity: 1; }
+  .hoho-health-trace__end { opacity: 0.68; }
+
+  /* Triage: one continuous hand-off path, with the existing nurse as the working node. */
+  .hoho-health-events-page[data-view-mode='triage'] .health-events-member .record-subject-card {
+    border-inline: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nurse-triage-visual-slot {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .nurse-triage-brand-path {
+    position: absolute;
+    z-index: 0;
+    width: min(108%, 430px);
+    height: auto;
+    transform: translate(-3%, 4%);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .nurse-triage-brand-path path {
+    stroke-width: 2.25;
+    opacity: 0.34;
+  }
+
+  .nurse-triage-brand-path .hoho-health-trace__focus {
+    fill: rgb(var(--hoho-color-surface));
+    stroke: rgb(var(--hoho-color-primary));
+    stroke-width: 3;
+  }
+
+  .nurse-triage-visual-slot .nurse-triage-desk {
+    z-index: 1;
+    width: min(72%, 330px);
+    margin-left: 17%;
+  }
+
+  .nurse-triage-status {
+    position: relative;
+  }
+
+  .nurse-triage-status::before {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 2px;
+    margin: 0 auto var(--hoho-space-2);
+    background: rgb(var(--hoho-color-primary));
+  }
+
+  .nurse-quick-record-controls {
+    position: relative;
+  }
+
+  .nurse-quick-record-controls::after {
+    content: '';
+    position: absolute;
+    z-index: 11;
+    right: 44px;
+    bottom: 20px;
+    width: 12px;
+    height: 12px;
+    border: 3px solid rgb(var(--hoho-color-surface));
+    border-radius: 50%;
+    background: rgb(var(--hoho-color-primary));
+    pointer-events: none;
+  }
+
+  .nurse-next-action-trigger svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+  }
+
+  /* List: a narrative rail, not a stack of floating CRUD cards. */
+  .health-event-story {
+    position: relative;
+    min-width: 0;
+  }
+
+  .health-event-story__rail {
+    position: absolute;
+    z-index: 0;
+    top: 14px;
+    bottom: 44px;
+    left: 0;
+    width: 28px;
+    height: calc(100% - 58px);
+    pointer-events: none;
+  }
+
+  .health-event-story__rail path {
+    stroke-width: 2;
+    opacity: 0.42;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .health-event-list {
+    display: grid;
+    gap: 0;
+    padding-left: 34px;
+  }
+
+  .health-event-list > div {
+    overflow: hidden;
+    border-radius: 0;
+    border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.8);
+  }
+
+  .health-event-list > div:first-child {
+    border-top: 1px solid rgb(var(--hoho-color-border) / 0.8);
+  }
+
+  .health-event-list .health-event-list-card {
+    border: 0;
+    border-radius: 0;
+    background: rgb(var(--hoho-color-surface));
+    box-shadow: none;
+  }
+
+  .health-event-list .health-event-list-card--recovered {
+    background: rgb(var(--hoho-color-surface));
+  }
+
+  /* Profile: a dossier cover and chapter spine; search remains a tool, not the hero. */
+  .health-profile-dossier {
+    position: relative;
+    margin-top: var(--hoho-space-6);
+    padding-left: 30px;
+  }
+
+  .health-profile-dossier__spine {
+    position: absolute;
+    z-index: 0;
+    top: -8px;
+    bottom: -8px;
+    left: 0;
+    width: 26px;
+    height: calc(100% + 16px);
+    pointer-events: none;
+  }
+
+  .health-profile-dossier__spine path {
+    stroke-width: 2;
+    opacity: 0.48;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .health-profile-dossier .health-fact-home-card {
+    position: relative;
+    z-index: 1;
+    border-inline: 0;
+    border-radius: 0;
+    border-color: rgb(var(--hoho-color-primary-border));
+  }
+
+  .health-profile-dossier .health-fact-home-card > button:first-child {
+    min-height: 92px;
+    padding-inline: var(--hoho-space-2);
+  }
+
+  .health-profile-dossier .health-fact-home-card__icon {
+    width: 28px;
+    background: transparent;
+  }
+
+  .health-profile-home .health-profile-search {
+    margin-top: var(--hoho-space-5);
+  }
+
+  .health-profile-chapter {
+    position: relative;
+    padding-left: 18px;
+  }
+
+  .health-profile-chapter::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: rgb(var(--hoho-color-border-strong) / 0.7);
+  }
+
+  .health-profile-chapter--priority::before {
+    background: rgb(var(--hoho-color-primary));
+  }
+
+  .health-profile-chapter .profile-directory-group {
+    border-top-color: rgb(var(--hoho-color-border-strong));
+    background: transparent;
+  }
+
+  .health-profile-chapter .profile-directory-group .hoho-surface-row {
+    padding-left: 0;
+  }
+
+  .health-profile-chapter .profile-directory-icon {
+    width: 28px;
+    color: rgb(var(--hoho-color-primary));
+  }
+
+  /* Family: one relationship knot and a clear current-care focal point. */
+  .family-page__content {
+    position: relative;
+  }
+
+  .family-page__intro {
+    max-width: 32ch;
+    margin-bottom: var(--hoho-space-5);
+  }
+
+  .family-relationship-index {
+    position: relative;
+    display: grid;
+    gap: 0;
+    padding-top: 18px;
+  }
+
+  .family-relationship-index__bond {
+    position: absolute;
+    z-index: 0;
+    top: -22px;
+    right: 6px;
+    width: 156px;
+    height: auto;
+    pointer-events: none;
+  }
+
+  .family-relationship-index__bond path {
+    stroke-width: 2;
+    opacity: 0.46;
+  }
+
+  .family-member-card {
+    position: relative;
+    z-index: 1;
+    border-inline: 0;
+    border-radius: 0;
+    border-color: rgb(var(--hoho-color-border));
+    background: rgb(var(--hoho-color-surface));
+    box-shadow: none;
+  }
+
+  .family-member-card + .family-member-card {
+    border-top: 0;
+  }
+
+  .family-member-card--current {
+    min-height: 112px;
+    border-top: 2px solid rgb(var(--hoho-color-primary));
+    border-bottom-color: rgb(var(--hoho-color-primary-border));
+    padding-block: var(--hoho-space-5);
+  }
+
+  .family-member-state {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    border-bottom: 1px solid rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-primary));
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .family-member-state--current {
+    border-bottom-color: transparent;
+  }
+
+  @media (min-width: 960px) {
+    .hoho-health-events-page[data-view-mode='triage'] .health-events-member.health-events-member,
+    .hoho-health-events-page[data-view-mode='triage'] .health-events-content.health-events-content {
+      width: min(calc(100% - 64px), 960px);
+    }
+
+    .health-events-content--triage {
+      margin-top: var(--hoho-space-3);
+    }
+
+    .health-events-content--triage .nurse-triage-recorder {
+      grid-template: minmax(0, 1fr) auto / minmax(280px, 5fr) minmax(360px, 7fr);
+      column-gap: clamp(32px, 5vw, 72px);
+      align-items: center;
+    }
+
+    .health-events-content--triage .nurse-triage-visual-slot {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      min-width: 0;
+    }
+
+    .health-events-content--triage .nurse-triage-status {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: end;
+      text-align: left;
+    }
+
+    .health-events-content--triage .nurse-triage-status::before {
+      margin-inline: 0;
+    }
+
+    .health-events-content--triage .nurse-prompt-carousel {
+      height: 48px;
+      text-align: left;
+      white-space: normal;
+    }
+
+    .health-events-content--triage .nurse-prompt-carousel__line {
+      white-space: normal;
+    }
+
+    .health-events-content--triage .nurse-quick-record-anchor {
+      grid-column: 1;
+      grid-row: 2;
+      align-self: start;
+    }
+
+    .health-events-content--triage .nurse-triage-visual-slot .nurse-triage-desk {
+      width: min(72%, 360px);
+      max-width: 360px;
+      max-height: 360px;
+      margin-inline: auto;
+    }
+
+    .health-profile-home {
+      max-width: 760px;
+    }
+
+    .family-page {
+      max-width: 760px;
+    }
+
+    .family-page__content {
+      width: min(calc(100% - 64px), 640px);
+    }
+
+    .family-member-card--current {
+      min-height: 132px;
+      padding-inline: var(--hoho-space-6);
+    }
+  }
+
+  @media (max-height: 700px) and (max-width: 959px) {
+    .nurse-triage-brand-path {
+      width: min(94%, 350px);
+      transform: translate(-2%, 2%);
+    }
+
+    .nurse-triage-visual-slot .nurse-triage-desk {
+      width: min(64%, 250px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nurse-triage-brand-path,
+  .health-event-story__rail,
+  .health-profile-dossier__spine,
+  .family-relationship-index__bond {
+    transform: none;
+  }
+}

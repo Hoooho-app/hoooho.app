@@ -4,6 +4,7 @@ import { Avatar } from '../common'
 interface RecordSubjectCardProps {
   action?: ReactNode
   age?: string
+  avatarSize?: 'sm' | 'md' | 'lg' | 'xl'
   expanded?: boolean
   avatar?: string
   className?: string
@@ -17,17 +18,18 @@ export function RecordSubjectCard({
   action,
   age,
   avatar,
+  avatarSize = 'sm',
   className = '',
   expanded,
   gender,
   label = '记录对象',
   name,
-  onClick
+  onClick,
 }: RecordSubjectCardProps) {
   const meta = [gender, age].filter(Boolean).join(' · ')
   const content = (
     <>
-      <Avatar name={name} src={avatar} size="sm" />
+      <Avatar name={name} src={avatar} size={avatarSize} />
       <span className="min-w-0 flex-1">
         <span className="hoho-text-caption block truncate text-text-secondary">{label}</span>
         <span className="mt-0.5 block min-w-0 truncate leading-5">

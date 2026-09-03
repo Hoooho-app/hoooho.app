@@ -1,7 +1,7 @@
 import { Activity, AlertTriangle, Baby, CalendarDays, ChevronRight, FileHeart, HeartPulse, Moon, Pill, Search, Stethoscope, Syringe, UserRound, UsersRound, Utensils, type LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
-import { Typography } from '../../components/design-system'
+import { HealthTrace, Typography } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { MemberIdentityCard } from '../../components/health'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
@@ -84,10 +84,24 @@ export function HealthProfilePage() {
   }), [directorySections])
   const filtering = Boolean(query.trim()) || status !== 'all'
 
-  return <main className="app-shell">
+  return <main className="app-shell health-profile-home">
     <MainAppHeader title="健康档案" />
     <div className="page-content pb-10">
       <MemberIdentityCard member={member} />
+
+      <section className="health-profile-dossier" aria-label="个人健康卷宗">
+        <HealthTrace className="health-profile-dossier__spine" variant="spine" />
+        <section className="health-fact-home-card" aria-label="重要健康事实">
+          <button onClick={() => navigate('/health-profile/facts')} type="button">
+            <span className="health-fact-home-card__icon"><FileHeart size={21} /></span>
+            <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">重要健康事实</Typography><Typography className="mt-1" variant="caption">记录影响长期健康的重要信息</Typography></span>
+            <span className="health-fact-home-card__count">{longTermFacts.status === 'success' ? `${longTermFacts.facts.filter((fact) => fact.status !== 'removed').length} 条` : '—'}</span>
+            <ChevronRight size={18} />
+          </button>
+          {longTermFacts.status === 'success' && longTermFacts.candidates.length > 0 && <button className="health-fact-home-card__inbox" onClick={() => navigate('/health-profile/facts')} type="button"><span>发现 {longTermFacts.candidates.length} 条可长期保留的信息</span><span>需要你确认</span></button>}
+          {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康随记中的重要信息确认后会显示在这里</Typography>}
+        </section>
+      </section>
 
       <section className="health-profile-search grid grid-cols-[minmax(0,1fr)_104px] items-center gap-2" aria-label="搜索和查看状态">
         <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} /><span className="sr-only">搜索健康档案</span><input className="hoho-input w-full pl-10" placeholder="搜索健康档案" type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
@@ -104,20 +118,9 @@ export function HealthProfilePage() {
         </label>
       </section>
 
-      <section className="health-fact-home-card mt-5" aria-label="重要健康事实">
-        <button onClick={() => navigate('/health-profile/facts')} type="button">
-          <span className="health-fact-home-card__icon"><FileHeart size={21} /></span>
-          <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">重要健康事实</Typography><Typography className="mt-1" variant="caption">记录影响长期健康的重要信息</Typography></span>
-          <span className="health-fact-home-card__count">{longTermFacts.status === 'success' ? `${longTermFacts.facts.filter((fact) => fact.status !== 'removed').length} 条` : '—'}</span>
-          <ChevronRight size={18} />
-        </button>
-        {longTermFacts.status === 'success' && longTermFacts.candidates.length > 0 && <button className="health-fact-home-card__inbox" onClick={() => navigate('/health-profile/facts')} type="button"><span>发现 {longTermFacts.candidates.length} 条可长期保留的信息</span><span>需要你确认</span></button>}
-        {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康随记中的重要信息确认后会显示在这里</Typography>}
-      </section>
-
       {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
-        {quickSections.length > 0 && <section className="mt-5 grid gap-3" aria-label="建议优先补充"><Typography variant="sectionTitle">建议优先补充</Typography><ProfileSectionRows recordedIds={recordedIds} sections={quickSections} summaries={summaries} /></section>}
-        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows recordedIds={recordedIds} sections={sections} summaries={summaries} /></section>)}
+        {quickSections.length > 0 && <section className="health-profile-chapter health-profile-chapter--priority mt-5 grid gap-3" aria-label="建议优先补充"><Typography variant="sectionTitle">建议优先补充</Typography><ProfileSectionRows recordedIds={recordedIds} sections={quickSections} summaries={summaries} /></section>}
+        {grouped.map(({ category, sections }) => <section className="health-profile-chapter mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows recordedIds={recordedIds} sections={sections} summaries={summaries} /></section>)}
         {filtering && directory.remaining.length === 0 && directory.priority.length > 0 && <Typography className="mt-4 text-center" variant="caption">已显示全部匹配项目</Typography>}
       </>}
     </div>

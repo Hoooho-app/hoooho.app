@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
+import { HealthTrace } from '../../components/design-system'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
@@ -68,25 +69,30 @@ export function FamilyPage() {
       <WebPageHeader title="我的家人" fallback="/health-events" action={
         <button className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}><Plus aria-hidden="true" size={16} />添加家人</button>
       } />
-      <div className="family-page__content space-y-3 px-4 py-4">
+      <div className="family-page__content px-4 py-4">
         {!loading && !error && <p className="family-page__intro">选择家人即可查看和记录对应的健康情况。</p>}
         {loading && <p className="py-12 text-center text-sm text-text-secondary">正在加载家人…</p>}
         {error && <p className="py-8 text-center text-sm text-danger">{error}</p>}
-        {!loading && !error && members.map((member) => {
+        {!loading && !error && <div className="family-relationship-index">
+          <HealthTrace className="family-relationship-index__bond" variant="bond" />
+          {members.map((member) => {
           const current = member.id === currentMemberId
           return (
             <RecordSubjectCard
               action={current
-                ? <span className="rounded-pill bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">当前角色</span>
-                : <button className="rounded-pill border border-primary/30 px-2.5 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => switchMember(member)}>切换角色</button>}
+                ? <span className="family-member-state family-member-state--current">当前角色</span>
+                : <button className="family-member-state" type="button" onClick={() => switchMember(member)}>切换角色</button>}
               age={member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}
               avatar={member.avatar}
+              avatarSize={current ? 'lg' : 'sm'}
+              className={current ? 'family-member-card family-member-card--current' : 'family-member-card'}
               gender={genderLabel[member.gender ?? '']}
               key={member.id}
               name={member.name}
             />
           )
         })}
+        </div>}
       </div>
     </main>
   )

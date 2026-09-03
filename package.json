@@ -33,6 +33,8 @@
     "test:e2e:design-quality": "npm run build && cross-env DESIGN_AUDIT_PHASE=after playwright test --config tests/design-quality/playwright.config.ts",
     "audit:design:before": "npm run build && cross-env DESIGN_AUDIT_PHASE=before playwright test --config tests/design-quality/playwright.config.ts",
     "audit:design:after": "npm run test:e2e:design-quality",
+    "audit:brand:before": "npm run build && cross-env BRAND_AUDIT_PHASE=before playwright test --config tests/design-quality/brand-playwright.config.ts",
+    "audit:brand:after": "npm run build && cross-env BRAND_AUDIT_PHASE=after playwright test --config tests/design-quality/brand-playwright.config.ts",
     "test:help": "tsc -p tsconfig.help-test.json && node --test server/help/search.test.mjs server/help/feedback-service.test.mjs",
     "test:client": "node --import ./scripts/register-node-ts-loader.mjs --test \"src/**/*.test.ts\"",
     "test:avatar-assets": "node scripts/check-clay-avatar-assets.mjs",

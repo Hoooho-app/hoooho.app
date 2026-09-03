@@ -96,3 +96,25 @@ test('global quality rules cover responsive choices, stable wide headers, and do
   assert.match(chart, /r="22"/)
   assert.match(detailContract, /includes\('<TemperatureChartSection'\), false/)
 })
+
+test('brand sample pages give HealthTrace one semantic role per page', async () => {
+  const global = await read('./index.css')
+  const brand = await read('./brand-expression.css')
+  const trace = await read('../components/design-system/HealthTrace.tsx')
+  const triage = await read('../pages/HealthEvents/NurseQuickRecord.tsx')
+  const timeline = await read('../components/health/HealthEventTimeline.tsx')
+  const profile = await read('../pages/HealthProfile/index.tsx')
+  const family = await read('../pages/Family/index.tsx')
+
+  assert.match(global, /@import '\.\/brand-expression\.css'/)
+  for (const variant of ['mark', 'path', 'rail', 'spine', 'bond']) {
+    assert.match(trace, new RegExp(`['"]${variant}['"]`))
+  }
+  assert.match(triage, /variant="path"/)
+  assert.match(timeline, /variant="rail"/)
+  assert.match(profile, /variant="spine"/)
+  assert.match(family, /variant="bond"/)
+  assert.match(brand, /a narrative rail, not a stack of floating CRUD cards/)
+  assert.match(brand, /a dossier cover and chapter spine/)
+  assert.match(brand, /one relationship knot and a clear current-care focal point/)
+})

@@ -6,6 +6,18 @@ Hoooho is gentle, trustworthy, lucid, light, restrained, alive, modern, and prec
 
 The signature is the restrained three-point continuous health trace already defined by Design System V2. Use it at selected brand or continuity moments; repetition turns identity into decoration.
 
+## HealthTrace roles
+
+HealthTrace expresses **one continuous path with three meaningful moments**. A page may use at most one primary semantic role:
+
+- `mark`: a compact identity or continuity signature.
+- `path`: a care hand-off between person, Hoooho nurse, and action.
+- `rail`: chronological order and focus; never severity or diagnosis.
+- `spine`: the organizing backbone of a longitudinal dossier.
+- `bond`: a real care relationship between known people; never an inferred family tree.
+
+Choose the role from the page's meaning before drawing it. Do not repeat variants across modules, use the trace as wallpaper, or replace familiar action icons with the brand mark when the action needs a conventional directional affordance.
+
 ## Foundation
 
 `docs/hoooho-design-system-v2.md` and `src/styles/tokens.css` are the implementation source of truth. Prefer semantic tokens and existing components. Ordinary content is flat or quietly bordered; elevation belongs to meaningful separation and floating layers. One primary action leads each view.
