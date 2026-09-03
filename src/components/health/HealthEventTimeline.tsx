@@ -3,7 +3,6 @@ import { HealthEventCard } from './HealthEventCard'
 import { groupHealthEventsByLocalDate } from '../../services/healthEventDateGrouping'
 import { formatHealthEventDate } from '../../services/healthEventCardPresentation'
 import { formatPlainMonthDay, formatPlainWeekday } from '../../utils/localCalendarDate'
-import { HealthTrace } from '../design-system'
 
 interface HealthEventTimelineProps {
   events: HealthEventListItemViewModel[]
@@ -15,9 +14,8 @@ export function HealthEventTimeline({ events, onStatusChange, onDelete }: Health
   const dateGroups = groupHealthEventsByLocalDate(events)
 
   return (
-    <div className="health-event-story">
-      <HealthTrace className="health-event-story__rail" variant="rail" />
-      <div aria-label="按日期排序的健康随记" className="health-event-list">
+    <div>
+      <div aria-label="按日期排序的健康随记" className="health-event-list space-y-3">
         {dateGroups.flatMap((dateGroup) => dateGroup.events.map((event) => (
           <HealthEventCard
             dateLabel={formatHealthEventDate(event.startTime) ?? `开始于 ${formatPlainMonthDay(dateGroup.date)} ${formatPlainWeekday(dateGroup.date)}`}

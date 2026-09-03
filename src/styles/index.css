@@ -3,7 +3,6 @@
 @import './settings.css';
 @import './product-polish.css';
 @import './guide.css';
-@import './brand-expression.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
