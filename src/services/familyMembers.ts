@@ -10,11 +10,17 @@ export const familyMemberService = {
     return apiRequest<FamilyMemberApiDto>(`/api/members/${encodeURIComponent(memberId)}`, { token, signal })
   },
 
-  create(input: { name: string; birthday: string; gender: 'male' | 'female'; avatar: string }, token: string) {
+  create(input: {
+    name: string
+    birthday: string
+    gender: 'male' | 'female'
+    avatar: string
+    relationship: Extract<FamilyMemberApiDto['relationship'], 'child' | 'other'>
+  }, token: string) {
     return apiRequest<FamilyMemberApiDto>('/api/members', {
       token,
       method: 'POST',
-      body: { ...input, relationship: 'other' }
+      body: input
     })
   },
 
@@ -29,7 +35,7 @@ export const familyMemberService = {
   update(
     memberId: string,
     input: Partial<Pick<FamilyMemberApiDto,
-      | 'name' | 'birthday' | 'gender' | 'avatar'
+      | 'name' | 'relationship' | 'birthday' | 'gender' | 'avatar'
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
       | 'caregivers' | 'otherRelative' | 'otherCaregiver'

@@ -8,6 +8,7 @@ import sharp from 'sharp'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from './vite-members-plugin.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
+import { FamilyMemberService } from './family-member-service.mjs'
 
 const postJson = (url, body, token) => fetch(url, {
   method: 'POST',
@@ -25,6 +26,27 @@ test('服务端纯日期上限按客户端有效时区的自然日计算', () =>
   const instant = new Date('2026-08-27T16:00:00.000Z')
   assert.equal(localDateKey(instant, 'Asia/Shanghai'), '2026-08-28')
   assert.equal(localDateKey(instant, 'America/Los_Angeles'), '2026-08-27')
+})
+
+test('服务端在 UTC 前一日接受上海当天出生的纯日期且拒绝无效日历日期', async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-child-midnight-'))
+  const service = new FamilyMemberService({ dataDirectory })
+  const instant = new Date('2026-09-03T16:30:00.000Z')
+  try {
+    const child = await service.create('account-midnight', {
+      name: '凌晨宝宝', relationship: 'child', gender: 'female', birthday: '2026-09-04'
+    }, instant, 'Asia/Shanghai')
+    assert.equal(child.birthday, '2026-09-04')
+    assert.equal(child.relationship, 'child')
+    await assert.rejects(
+      service.create('account-midnight', {
+        name: '无效日期', relationship: 'child', gender: 'male', birthday: '2026-02-30'
+      }, instant, 'Asia/Shanghai'),
+      (error) => error.code === 'INVALID_BIRTHDAY'
+    )
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
 })
 
 async function login(baseUrl, phone) {

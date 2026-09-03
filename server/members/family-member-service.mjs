@@ -6,7 +6,7 @@ import {
   AVATAR_PHOTO_MAX_DATA_URL_LENGTH,
   AVATAR_PHOTO_MIME_TYPES
 } from '../../shared/avatar-photo-policy.mjs'
-import { normalizeChildCaregivers, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
+import { normalizeChildCaregivers, parsePlainDateKey, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
@@ -58,12 +58,11 @@ function validateBirthday(value, now = new Date(), timeZone) {
     }
     return value
   }
-  const date = new Date(`${value}T00:00:00Z`)
   const maximum = localDateKey(now, timeZone)
   const maximumParts = maximum.split('-').map(Number)
   const minimumDay = maximumParts[1] === 2 && maximumParts[2] === 29 ? 28 : maximumParts[2]
   const minimum = `${String(maximumParts[0] - 120).padStart(4, '0')}-${String(maximumParts[1]).padStart(2, '0')}-${String(minimumDay).padStart(2, '0')}`
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value || value > maximum || value < minimum) {
+  if (!parsePlainDateKey(value) || value > maximum || value < minimum) {
     throw new FamilyMemberError('请输入有效且不晚于今天的出生日期', 400, 'INVALID_BIRTHDAY')
   }
   return value
@@ -194,15 +193,18 @@ export class FamilyMemberService {
   async update(accountId, id, input, now = new Date(), timeZone) {
     const member = await this.get(accountId, id)
     const changes = {}
+    const targetRelationship = input.relationship === undefined
+      ? member.relationship
+      : validateRelationship(input.relationship)
     for (const key of Object.keys(input)) {
       if (!editableFields.has(key)) continue
       if (key === 'name') changes.name = validateName(input.name)
       if (key === 'relationship') {
         if (member.isSelf) throw new FamilyMemberError('本人关系不能修改', 400, 'SELF_RELATIONSHIP_IMMUTABLE')
-        changes.relationship = validateRelationship(input.relationship)
+        changes.relationship = targetRelationship
       }
       if (key === 'gender') changes.gender = validateGender(input.gender)
-      if (key === 'birthday') changes.birthday = validateBirthdayForRelationship(input.birthday, member.relationship, now, timeZone)
+      if (key === 'birthday') changes.birthday = validateBirthdayForRelationship(input.birthday, targetRelationship, now, timeZone)
       if (key === 'avatar') changes.avatar = await validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)

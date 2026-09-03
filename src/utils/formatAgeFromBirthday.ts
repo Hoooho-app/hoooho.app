@@ -1,15 +1,20 @@
-import { differenceInMonths, differenceInYears, isValid, parseISO } from 'date-fns'
+import { formatChildAgeFromDateKeys } from '../../shared/child-profile-policy.mjs'
+import { getLocalDateKey } from './localCalendarDate'
 
-export function formatAgeFromBirthday(birthday: string, today = new Date()) {
+export function formatAgeFromBirthday(birthday: string, today = new Date(), timeZone?: string) {
   if (!birthday) return '未填写年龄'
 
-  const birthDate = parseISO(birthday)
-  if (!isValid(birthDate) || birthDate > today) return '未填写年龄'
-  const years = differenceInYears(today, birthDate)
-  const totalMonths = differenceInMonths(today, birthDate)
+  if (/^\d{4}$/.test(birthday)) {
+    const todayKey = getLocalDateKey(today, timeZone)
+    const currentYear = todayKey ? Number(todayKey.slice(0, 4)) : Number.NaN
+    const birthYear = Number(birthday)
+    return Number.isInteger(currentYear) && birthYear <= currentYear
+      ? `${Math.max(currentYear - birthYear, 0)}岁`
+      : '未填写年龄'
+  }
 
-  if (totalMonths < 1) return '未满1个月'
-  if (totalMonths < 12) return `${totalMonths}个月`
-  if (years < 3) return `${years}岁${Math.max(totalMonths - years * 12, 0)}个月`
-  return `${Math.max(years, 0)}岁`
+  const age = formatChildAgeFromDateKeys(birthday, getLocalDateKey(today, timeZone) ?? '')
+  if (!age) return '未填写年龄'
+  const years = /^(\d+)岁/.exec(age)
+  return years && Number(years[1]) >= 3 ? `${years[1]}岁` : age
 }
