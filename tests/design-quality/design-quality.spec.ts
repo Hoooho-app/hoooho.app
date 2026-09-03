@@ -20,17 +20,6 @@ async function preparePage(page: Page) {
 }
 
 test.beforeAll(async ({ request }) => {
-  const existing = await request.get(`/api/events?memberId=${memberId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  if (existing.ok()) {
-    const events = await existing.json()
-    if (Array.isArray(events) && events.length > 0) {
-      eventId = events[0].id
-      await mkdir(evidenceRoot, { recursive: true })
-      return
-    }
-  }
   const created = await request.post('/api/events', {
     headers: { Authorization: `Bearer ${token}` },
     data: { memberId, title: '连续发热观察', category: 'fever', startTime: '2026-08-29T09:20:00+08:00' }
@@ -46,11 +35,9 @@ test.beforeAll(async ({ request }) => {
 })
 
 const routes = [
-  { slug: 'home', path: '/home' },
   { slug: 'health-events', path: '/health-events' },
-  { slug: 'health-tracking', path: '/health-tracking' },
   { slug: 'health-event-detail', path: () => `/health-events/${eventId}` },
-  { slug: 'children', path: '/children' },
+  { slug: 'family', path: '/family' },
   { slug: 'health-profile', path: '/health-profile' },
   { slug: 'guide', path: '/guide' },
   { slug: 'feedback', path: '/feedback' },
@@ -66,11 +53,6 @@ for (const route of routes) {
     const target = typeof route.path === 'function' ? route.path() : route.path
     await page.goto(target)
     await expect(page.locator('main')).toBeVisible()
-    await page.waitForLoadState('networkidle')
-    if (['home', 'health-events', 'health-event-detail', 'children', 'health-profile'].includes(route.slug)) {
-      await expect(page.getByText('安安', { exact: true }).first()).toBeVisible()
-    }
-    if (route.slug === 'health-profile') await expect(page.getByText('资料加载中', { exact: true })).toHaveCount(0)
     expect(new URL(page.url()).pathname).toBe(target)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
     await page.screenshot({ path: path.join(evidenceRoot, `${testInfo.project.name}-${route.slug}.png`), fullPage: true })

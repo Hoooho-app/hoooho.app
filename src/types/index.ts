@@ -15,17 +15,7 @@ export interface Member {
   bodyFatPercentage?: number
   headCircumferenceCm?: number
   rhBloodType?: 'positive' | 'negative'
-  premature?: boolean
-  gestationalWeeks?: number
-  birthWeightKg?: number
-  birthLengthCm?: number
-  birthHeadCircumferenceCm?: number
-  concernFocus?: ChildConcernFocus[]
-  recordingPausedAt?: string
-  archivedAt?: string
 }
-
-export type ChildConcernFocus = 'reaction' | 'growth' | 'recurring_discomfort' | 'none'
 
 export type ProfileGender = 'male' | 'female' | 'undisclosed' | ''
 
@@ -71,20 +61,12 @@ export interface FamilyMemberApiDto {
   bodyFatPercentage?: number | null
   headCircumferenceCm?: number | null
   rhBloodType?: 'positive' | 'negative' | null
-  premature?: boolean | null
-  gestationalWeeks?: number | null
-  birthWeightKg?: number | null
-  birthLengthCm?: number | null
-  birthHeadCircumferenceCm?: number | null
-  concernFocus?: ChildConcernFocus[]
-  recordingPausedAt?: string | null
-  archivedAt?: string | null
   isSelf: boolean
   createdAt: string
   updatedAt: string
 }
 
-export type HealthEventCategory = 'discomfort' | 'reaction' | 'nutrition' | 'growth' | 'medication' | 'visit' | 'other' | 'fever' | 'cough' | 'pain' | 'injury' | 'allergy'
+export type HealthEventCategory = 'fever' | 'cough' | 'pain' | 'injury' | 'allergy' | 'other'
 
 export interface HealthEventApiDto {
   id: string
@@ -95,7 +77,6 @@ export interface HealthEventApiDto {
   status: HealthEventStage
   startTime: string
   recoveredAt?: string | null
-  trackingKey?: string | null
   eventSummary?: HealthEventSummaryApiDto | null
   createdAt: string
   updatedAt: string
@@ -145,7 +126,6 @@ export interface HealthEventListItemViewModel {
   definitionTitle: string
   icon: HealthEventCardIconPresentation
   durationLabel: string | null
-  ageAtOccurrenceLabel: string | null
   summaryFragments: HealthEventCardSummaryFragment[]
   category: HealthEventCategory
   status: HealthEventStage
@@ -202,10 +182,6 @@ export interface HealthEventRecordApiDto {
   measurementMethod?: HealthMeasurementMethod | null
   measurementDevice?: string | null
   note?: string | null
-  category?: HealthEventCategory | null
-  structuredData?: Record<string, string | number | boolean | null | string[]> | null
-  uncertainFields?: string[]
-  ageAtOccurrenceMonths?: number | null
   changeAnnotations?: HealthChangeAnnotationApiDto[]
   createdAt: string
   updatedAt: string
@@ -220,16 +196,37 @@ export interface CreateHealthEventRecordInput {
   measurementMethod?: HealthMeasurementMethod | null
   measurementDevice?: string | null
   note?: string | null
-  category?: HealthEventCategory | null
-  structuredData?: Record<string, string | number | boolean | null | string[]> | null
-  uncertainFields?: string[]
   attachments?: CreateEventAttachmentInput[]
   bodyLocations?: string[]
 }
 
 export type UpdateHealthEventRecordInput = Partial<Pick<HealthEventRecordApiDto,
-  'type' | 'content' | 'occurredAt' | 'sourceType' | 'sourceText' | 'measurementMethod' | 'measurementDevice' | 'note' | 'category' | 'structuredData' | 'uncertainFields'
+  'type' | 'content' | 'occurredAt' | 'sourceType' | 'sourceText' | 'measurementMethod' | 'measurementDevice' | 'note'
 >>
+
+export type OnlineConsultationStatus = 'preparing' | 'waiting' | 'doctor_questions' | 'completed'
+
+export interface OnlineConsultationQuestionApiDto {
+  id: string
+  question: string
+  reply: string
+  missing: string[]
+  sources: string[]
+  supplements: string[]
+  createdAt: string
+}
+
+export interface OnlineConsultationApiDto {
+  id: string
+  accountId: string
+  eventId: string
+  status: OnlineConsultationStatus
+  questions: OnlineConsultationQuestionApiDto[]
+  finalDoctorInstructions: string | null
+  finalRecordId: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 export interface CreateEventAttachmentInput {
   name: string
@@ -500,14 +497,13 @@ export interface HealthInformationCandidateApiDto {
 }
 
 export type HealthEventStatus = 'empty' | 'ongoing' | 'recovered'
-export type HealthEventStage = 'observing' | 'handling' | 'stable' | 'ended' | 'recovered'
+export type HealthEventStage = 'observing' | 'handling' | 'recovered'
 
 export interface TimelineEntry {
   id: string
   time: string
   createdAt?: string
   displayTime?: string
-  ageAtOccurrenceMonths?: number | null
   periodLabel?: string
   content: string
   summary?: string

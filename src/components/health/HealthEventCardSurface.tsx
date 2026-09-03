@@ -6,7 +6,6 @@ import { HealthEventCardChevron, HealthEventCardIcon } from './HealthEventCardIc
 interface HealthEventCardSurfaceProps {
   className?: string
   dateLabel?: string
-  ageAtOccurrenceLabel?: string | null
   displayTitle: string
   durationLabel?: string | null
   icon?: HealthEventCardIconPresentation
@@ -20,7 +19,6 @@ interface HealthEventCardSurfaceProps {
 export function HealthEventCardSurface({
   className = '',
   dateLabel,
-  ageAtOccurrenceLabel,
   displayTitle,
   durationLabel,
   icon,
@@ -41,7 +39,6 @@ export function HealthEventCardSurface({
             <Typography className="shrink-0 whitespace-nowrap tabular-nums" variant="caption">{dateLabel}</Typography>
             {durationLabel && <span aria-hidden="true" className="health-event-list-card__time-divider" />}
             {durationLabel && <Typography className="shrink-0 whitespace-nowrap tabular-nums" variant="caption">{durationLabel}</Typography>}
-            {ageAtOccurrenceLabel && <Typography className="shrink-0 whitespace-nowrap tabular-nums" variant="caption">{ageAtOccurrenceLabel}</Typography>}
           </div>
         )}
         {dateLabel ? (

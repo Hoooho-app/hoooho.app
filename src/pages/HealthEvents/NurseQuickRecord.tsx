@@ -98,7 +98,7 @@ export function NurseQuickRecord({
           </div>
           <button
             aria-haspopup="dialog"
-            aria-label="打开当前孩子的就诊准备"
+            aria-label="打开当前健康随记的下一步"
             aria-pressed={nextActionOpen}
             className="nurse-next-action-trigger"
             data-active={nextActionOpen}

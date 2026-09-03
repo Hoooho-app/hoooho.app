@@ -19,7 +19,6 @@ export class HealthEventRepository {
       status: input.status,
       startTime: input.startTime,
       recoveredAt: input.recoveredAt ?? null,
-      trackingKey: input.trackingKey ?? null,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
     }

@@ -25,14 +25,14 @@ export const guideFilters: Array<{ description: string; id: Exclude<GuideFilterI
   { id: 'first', label: '第一次使用', description: '先看最常用的三个流程' },
   { id: 'record', label: '记录健康问题', description: '新建、补充与更正记录' },
   { id: 'visit', label: '准备去看医生', description: '整理并带走已有资料' },
-  { id: 'family', label: '管理孩子和档案', description: '切换孩子，完善健康背景' }
+  { id: 'family', label: '管理家人和档案', description: '切换人物，完善健康背景' }
 ]
 
 export const guideSectionLabels: Record<GuideSectionId, { description: string; title: string }> = {
   record: { title: '记录健康问题', description: '把刚刚发生的情况，准确地留在对应健康随记里。' },
   observe: { title: '持续观察', description: '从时间线和变化趋势里，看到事情是怎么发展的。' },
   visit: { title: '准备就诊', description: '使用已经整理好的内容，减少临场回忆和重复输入。' },
-  family: { title: '孩子和健康档案', description: '每条记录归到正确的孩子，长期信息慢慢补全。' }
+  family: { title: '家人和健康档案', description: '每条记录归到正确的人，长期信息慢慢补全。' }
 }
 
 const coreMedia = (id: string): GuideMedia => ({
@@ -58,9 +58,9 @@ export const guideTutorials: GuideTutorial[] = [
   {
     id: 'prepare-doctor', title: '准备问医生，怎么带走病情资料？', context: '不想在问诊时从头回忆，可以先使用健康随记中已经整理好的内容。',
     section: 'visit', filterIds: ['first', 'visit'], core: true, media: coreMedia('prepare-doctor'),
-    keywords: ['医生', '就诊', '问诊摘要', '健康记录', '复制', '资料', '就诊准备'],
-    steps: ['打开孩子的一条健康追踪', '进入“就诊准备”', '选择范围并生成问诊摘要'],
-    result: '可以复制纯文字摘要、提示词，或保存长图带去就诊。', actionLabel: '去健康追踪', actionTo: '/health-tracking'
+    keywords: ['医生', '就诊', '在线问诊', '病情描述', '复制', '资料', '下一步'],
+    steps: ['打开健康随记详情的“下一步”', '进入在线问诊资料', '复制病情描述或全部内容'],
+    result: '可以把已整理的病情描述复制到当前问诊渠道继续使用。', actionLabel: '去选择一条健康随记', actionTo: '/health-events'
   },
   {
     id: 'backdate-first-record', title: '昨天开始不舒服，现在还能补记吗？', context: '事情不是刚刚发生，也可以先调整开始时间再保存。',
@@ -93,49 +93,49 @@ export const guideTutorials: GuideTutorial[] = [
     actionLabel: '去记录体温', actionTo: '/health-events'
   },
   {
-    id: 'prepare-visit-summary', title: '就诊前，怎么减少重复回忆？', context: '健康追踪已有内容时，可以生成结构化问诊摘要。',
-    section: 'visit', filterIds: ['visit'], keywords: ['就诊准备', '复制摘要', '保存长图', '资料', '医生'],
-    steps: ['打开一条健康追踪', '进入“就诊准备”并选择时间范围', '生成摘要后复制文字或保存长图'], result: '已有记录会按固定结构整理，缺失内容明确显示暂无记录。',
-    actionLabel: '去健康追踪', actionTo: '/health-tracking'
+    id: 'prepare-online-consultation', title: '在线问诊前，怎么减少重复输入？', context: '健康随记已有内容时，可以从“下一步”进入在线问诊资料。',
+    section: 'visit', filterIds: ['visit'], keywords: ['在线问诊', '复制全部', '复制病情', '资料', '医生'],
+    steps: ['打开健康随记详情', '点“下一步”后进入在线问诊', '按需要复制单项或全部资料'], result: '已有病情描述可以直接带到问诊平台继续使用。',
+    actionLabel: '去选择一条健康随记', actionTo: '/health-events'
   },
   {
-    id: 'add-child', title: '第一次使用，怎么添加孩子？', context: '每个孩子的健康随记、追踪和档案彼此分开。',
-    section: 'family', filterIds: ['family'], keywords: ['孩子', '添加孩子', '出生日期', '关注方向'],
-    steps: ['进入“孩子管理”', '点“添加孩子”', '填写姓名、出生日期和性别，再选择关注方向'], result: '孩子会出现在孩子列表中，可以切换为当前孩子。',
-    actionLabel: '添加孩子', actionTo: '/children/new'
+    id: 'add-family-member', title: '想替孩子记录，先怎么添加家人？', context: '每位家人的健康随记和档案彼此分开。',
+    section: 'family', filterIds: ['family'], keywords: ['孩子', '家人', '添加家人', '家庭成员', '替家人记录'],
+    steps: ['进入“我的家人”', '点“添加家人”', '填写姓名、出生日期和性别'], result: '家人会出现在人物列表中，可以切换为当前记录对象。',
+    actionLabel: '添加家人', actionTo: '/family'
   },
   {
-    id: 'switch-child', title: '记录前，怎么确认写给了正确的孩子？', context: '页面会显示当前孩子，记录前可以先切换。',
-    section: 'family', filterIds: ['family'], keywords: ['切换孩子', '当前孩子', '写错孩子', '孩子管理'],
-    steps: ['查看页面顶部的当前孩子', '点“切换孩子”', '选择要记录的孩子'], result: '之后新增的健康随记只会归到选中的孩子。',
-    actionLabel: '管理孩子', actionTo: '/children'
+    id: 'switch-family-member', title: '记录前，怎么确认写给了正确的人？', context: '健康随记页会显示当前家人，记录前可以先切换人物。',
+    section: 'family', filterIds: ['family'], keywords: ['切换人物', '记录对象', '当前家人', '替家人记录'],
+    steps: ['在健康随记页查看当前家人', '点“切换人物”', '选择要记录的家庭成员'], result: '之后新增的健康随记会归到选中的人物。',
+    actionLabel: '管理家人', actionTo: '/family'
   },
   {
     id: 'record-allergy', title: '有明确过敏，应该记在哪里？', context: '过敏属于长期健康背景，不必混在某条健康随记里。',
     section: 'family', filterIds: ['family'], keywords: ['过敏', '不良反应', '药物过敏', '食物过敏', '档案'],
-    steps: ['进入健康档案', '打开“过敏与不良反应”', '区分明确和疑似信息后保存'], result: '过敏信息会留在当前孩子的健康档案中，以后还可以继续补充。',
+    steps: ['进入健康档案', '打开“过敏与不良反应”', '按已经知道的信息保存'], result: '过敏信息会留在当前家人的健康档案中，以后还可以继续补充。',
     actionLabel: '填写过敏信息', actionTo: '/health-profile/allergy'
   },
   {
     id: 'record-medication', title: '长期在吃的药，怎么留在档案里？', context: '长期用药可以单独维护，不需要一次填完所有字段。',
     section: 'family', filterIds: ['family'], keywords: ['长期用药', '药物', '剂量', '频率', '档案'],
-    steps: ['进入健康档案', '打开“长期用药”', '仅填写医生或照护者已经提供的药名和用法'], result: '长期用药会归到当前孩子的档案，系统不会推荐剂量。',
+    steps: ['进入健康档案', '打开“长期用药”', '填写已知的药名和用法'], result: '长期用药会归到当前家人的档案，之后可以继续完善。',
     actionLabel: '填写长期用药', actionTo: '/health-profile/medication'
   },
   {
     id: 'record-health-history', title: '慢性问题或手术经历，怎么慢慢补全？', context: '健康档案允许按需要逐项补充，不要求首次使用就填完整。',
     section: 'family', filterIds: ['family'], keywords: ['慢性病', '慢性问题', '手术史', '病史', '健康档案'],
-    steps: ['进入健康档案', '选择“长期健康问题”或“住院与手术史”', '只填写已经确认的事实'], result: '保存后的长期背景可以随时回来更新。',
+    steps: ['进入健康档案', '选择慢性病史或手术史', '只填写当前已经确认的信息'], result: '保存后的长期背景可以随时回来更新。',
     actionLabel: '查看健康档案', actionTo: '/health-profile'
   }
 ]
 
 export const guideTips = [
-  '一句话可以同时包含时间、身体变化和测量结果。',
+  '一句话可以同时包含人物、时间、症状和体温。',
   '第一次记录时可以把开始时间改成昨天或更早。',
   '同一条健康随记可以持续补充，不必重复新建。',
   '自动整理不准确时，可以在确认前返回修改。',
-  '切换当前孩子后，新记录只会归到对应孩子。',
+  '切换当前家人后，新记录会归到对应人物。',
   '健康档案不要求一次填完，已知多少就先记多少。'
 ]
 

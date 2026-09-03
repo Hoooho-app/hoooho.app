@@ -2,9 +2,8 @@ import type { CreateHealthEventInput, HealthEventApiDto } from '../types'
 import { apiRequest } from './apiClient'
 
 export const healthEventService = {
-  list(token: string, signal?: AbortSignal, memberId?: string) {
-    const query = memberId ? `?memberId=${encodeURIComponent(memberId)}` : ''
-    return apiRequest<HealthEventApiDto[]>(`/api/events${query}`, { token, signal })
+  list(token: string, signal?: AbortSignal) {
+    return apiRequest<HealthEventApiDto[]>('/api/events', { token, signal })
   },
 
   create(input: CreateHealthEventInput, token: string) {
@@ -15,9 +14,8 @@ export const healthEventService = {
     })
   },
 
-  getById(eventId: string, token: string, signal?: AbortSignal, memberId?: string) {
-    const query = memberId ? `?memberId=${encodeURIComponent(memberId)}` : ''
-    return apiRequest<HealthEventApiDto>(`/api/events/${encodeURIComponent(eventId)}${query}`, { token, signal })
+  getById(eventId: string, token: string, signal?: AbortSignal) {
+    return apiRequest<HealthEventApiDto>(`/api/events/${encodeURIComponent(eventId)}`, { token, signal })
   },
 
   updateStatus(eventId: string, status: HealthEventApiDto['status'], token: string) {

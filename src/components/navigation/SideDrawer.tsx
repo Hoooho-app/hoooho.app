@@ -1,5 +1,5 @@
 import {
-  Activity, BookOpen, ChevronRight, FileClock, Folder, House, Info, LogOut, MessageCircle, Settings, X
+  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, LogOut, MessageCircle, Settings, X
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -18,11 +18,9 @@ interface SideDrawerProps {
 
 export const sidebarMenuGroups = [
   {
-    title: '孩子健康',
+    title: '健康管理',
     items: [
-    { label: '首页', icon: House, to: '/home' },
-    { label: '健康随记', icon: FileClock, to: '/health-events' },
-    { label: '健康追踪', icon: Activity, to: '/health-tracking' },
+    { label: '健康随记', icon: House, to: '/health-events' },
     { label: '健康档案', icon: Folder, to: '/health-profile' }
     ]
   },
@@ -31,6 +29,7 @@ export const sidebarMenuGroups = [
     items: [
     { label: '使用说明', icon: BookOpen, to: '/guide' },
     { label: '设置', icon: Settings, to: '/settings' },
+    { label: '帮助', icon: CircleHelp, to: '/help' },
     { label: '反馈', icon: MessageCircle, to: '/feedback' },
     { label: '关于', icon: Info, to: '/about' }
     ]
@@ -89,10 +88,10 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           <X size={24} strokeWidth={1.7} />
         </button>
 
-        <section className="hoho-drawer__member mt-2" aria-label="当前孩子">
+        <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
             <>
-              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的孩子资料`} onClick={() => { onClose(); navigate(`/children/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
+              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的资料`} onClick={() => { onClose(); navigate(`/family/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
                 <Avatar name={member.name} src={member.avatar} size="md" />
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
@@ -101,12 +100,12 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
                 <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
               </button>
               <button className="hoho-drawer__switch mt-1 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
-                切换孩子
+                切换人物
               </button>
             </>
           ) : (
-            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => openPage('/children/new')}>
-              <span><strong className="block text-base font-semibold text-heading">尚未添加孩子</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
+            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => openPage('/family/new')}>
+              <span><strong className="block text-base font-semibold text-heading">尚未添加家人</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
               <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
             </button>
           )}

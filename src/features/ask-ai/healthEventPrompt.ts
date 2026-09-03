@@ -84,12 +84,12 @@ const selectedOnly = <T extends { id: string }>(items: T[], selected: ReadonlySe
 
 function assertMemberScope(context: HealthEventPromptContext) {
   const memberId = context.currentMemberId.trim()
-  if (!memberId || memberId === 'self') throw new Error('当前孩子无法确认，请先选择孩子')
+  if (!memberId || memberId === 'self') throw new Error('当前对象无法确认，请先选择人物')
   if (context.member.id !== memberId || context.event.memberId !== memberId) {
-    throw new Error('当前健康随记与所选孩子不一致，请返回后重新选择孩子')
+    throw new Error('当前健康随记与所选人物不一致，请返回后重新选择人物')
   }
   if (context.relatedEvents.some((event) => event.memberId !== memberId)) {
-    throw new Error('发现不属于当前孩子的历史健康随记，已停止生成')
+    throw new Error('发现不属于当前人物的历史健康随记，已停止生成')
   }
 }
 
@@ -153,8 +153,8 @@ export function getPromptInformationGroups(context: HealthEventPromptContext): P
     { id: 'event', label: '当前健康随记', description: '随记标题、开始时间、状态和当前摘要', items: [{ id: 'event:overview', label: context.event.title || '未命名健康随记', detail: `${formatTime(context.event.startDate)} · ${eventStatus(context.event.status)}` }] },
     { id: 'timeline', label: '完整结构化时间线', description: '保留时间、否定、假设、变化和来源原文', items: facts.map((item) => ({ id: item.id, label: item.fact.name, detail: factLine(item) })) },
     { id: 'raw', label: '用户原始记录', description: '这条健康随记中的完整原话，不做截断', items: [...context.records].sort((left, right) => (validTime(left.occurredAt)?.getTime() ?? 0) - (validTime(right.occurredAt)?.getTime() ?? 0)).map((record) => ({ id: `raw:${record.id}`, label: formatTime(record.occurredAt), detail: record.sourceText?.trim() || record.content })) },
-    { id: 'profile', label: '健康档案', description: '只包含当前孩子已填写的档案', items: profileItems },
-    { id: 'history', label: '相关历史随记', description: '当前孩子的其他健康随记', items: historyItems },
+    { id: 'profile', label: '健康档案', description: '只包含当前人物已填写的档案', items: profileItems },
+    { id: 'history', label: '相关历史随记', description: '当前人物的其他健康随记', items: historyItems },
     { id: 'attachments', label: '检查结果与附件', description: '识别文字会写入提示词，原文件仍需手动上传', items: context.attachments.map((attachment) => ({ id: `attachment:${attachment.id}`, label: attachment.name, detail: attachmentText(attachment) })) },
   ]
 }

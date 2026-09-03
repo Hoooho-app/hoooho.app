@@ -47,7 +47,7 @@ test('健康事件开始时间不能晚于服务端当前时刻', () => {
 test('北京时间跨日窗口创建事件仍保存标准 UTC 时间点', async () => {
   const now = new Date('2026-08-27T16:00:00.000Z')
   const service = new HealthEventService({
-    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1', relationship: 'child', birthday: '2022-01-01' }) },
+    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) },
     repository: {
       create: async (input, createdAt) => ({ ...input, createdAt: createdAt.toISOString(), updatedAt: createdAt.toISOString() })
     }
@@ -68,7 +68,7 @@ test('事件只在进入康复状态时写入语义明确的结束时间，重�
     createdAt: '2026-08-29T01:00:00.000Z', updatedAt: '2026-08-29T01:00:00.000Z'
   }
   const service = new HealthEventService({
-    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1', relationship: 'child', birthday: '2022-01-01' }) },
+    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) },
     repository: {
       findById: async () => stored,
       update: async (_id, changes, now) => (stored = { ...stored, ...changes, updatedAt: now.toISOString() })
@@ -82,7 +82,7 @@ test('事件只在进入康复状态时写入语义明确的结束时间，重�
   assert.equal(reopened.recoveredAt, null)
 })
 
-test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔离不同账号', async () => {
+test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-events-api-'))
   const sharedOptions = { dataDirectory, tokenSecret: 'events-test-secret' }
   const server = await createServer({
@@ -126,8 +126,9 @@ test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔�
       title: '',
       category: 'other'
     })
-    assert.equal(emptyEventResponse.status, 409)
-    assert.equal((await emptyEventResponse.json()).error.code, 'CHILD_ONLY')
+    assert.equal(emptyEventResponse.status, 201)
+    const emptyEvent = await emptyEventResponse.json()
+    assert.equal(emptyEvent.startTime, emptyEvent.createdAt)
 
     const selfEventResponse = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
       memberId: selfMember.id,
@@ -136,11 +137,15 @@ test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔�
       startTime: '2026-08-08T20:00:00+08:00',
       status: 'recovered'
     })
-    assert.equal(selfEventResponse.status, 409)
-    assert.equal((await selfEventResponse.json()).error.code, 'CHILD_ONLY')
+    assert.equal(selfEventResponse.status, 201)
+    const selfEvent = await selfEventResponse.json()
+    assert.equal(selfEvent.accountId, first.user.id)
+    assert.equal(selfEvent.memberId, selfMember.id)
+    assert.equal(selfEvent.status, 'observing')
+    assert.equal(selfEvent.title, '')
 
     const childResponse = await jsonRequest(`${baseUrl}/api/members`, 'POST', first.token, {
-      name: '小明', relationship: 'child', gender: 'male', birthday: '2021-06-02'
+      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02'
     })
     assert.equal(childResponse.status, 201)
     const child = await childResponse.json()
@@ -157,17 +162,6 @@ test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔�
     const detailResponse = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}`, 'GET', first.token)
     assert.equal(detailResponse.status, 200)
     assert.equal((await detailResponse.json()).id, childEvent.id)
-
-    const siblingResponse = await jsonRequest(`${baseUrl}/api/members`, 'POST', first.token, {
-      name: '小雨', relationship: 'child', gender: 'female', birthday: '2022-04-18'
-    })
-    const sibling = await siblingResponse.json()
-    const scopedDetail = await jsonRequest(`${baseUrl}/api/events/${childEvent.id}?memberId=${encodeURIComponent(sibling.id)}`, 'GET', first.token)
-    assert.equal(scopedDetail.status, 404)
-
-    const scopedList = await jsonRequest(`${baseUrl}/api/events?memberId=${encodeURIComponent(sibling.id)}`, 'GET', first.token)
-    assert.equal(scopedList.status, 200)
-    assert.deepEqual(await scopedList.json(), [])
 
     const listResponse = await jsonRequest(`${baseUrl}/api/events`, 'GET', first.token)
     assert.equal(listResponse.status, 200)
@@ -198,6 +192,16 @@ test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔�
     assert.equal(futureUpdateResponse.status, 400)
     assert.equal((await futureUpdateResponse.json()).error.code, 'FUTURE_START_TIME')
 
+    const namedEmptyEventResponse = await jsonRequest(`${baseUrl}/api/events/${selfEvent.id}`, 'PATCH', first.token, {
+      title: '咳嗽'
+    })
+    assert.equal(namedEmptyEventResponse.status, 200)
+    assert.equal((await namedEmptyEventResponse.json()).title, '咳嗽')
+
+    const afterNamingResponse = await jsonRequest(`${baseUrl}/api/events`, 'GET', first.token)
+    const afterNaming = await afterNamingResponse.json()
+    assert.deepEqual(new Set(afterNaming.map((event) => event.id)), new Set([selfEvent.id, childEvent.id]))
+
     const crossMemberCreate = await jsonRequest(`${baseUrl}/api/events`, 'POST', first.token, {
       memberId: secondSelfMember.id,
       title: '腹痛',
@@ -219,7 +223,8 @@ test('HealthEvent API 仅允许孩子新增、支持当前孩子作用域并隔�
 
     const afterDelete = await jsonRequest(`${baseUrl}/api/events`, 'GET', first.token)
     const remaining = await afterDelete.json()
-    assert.equal(remaining.length, 0)
+    assert.equal(remaining.length, 1)
+    assert.equal(remaining[0].id, selfEvent.id)
   } finally {
     await server.close()
     await rm(dataDirectory, { recursive: true, force: true })

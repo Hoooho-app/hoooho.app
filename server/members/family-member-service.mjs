@@ -13,8 +13,6 @@ const editableFields = new Set([
   'name', 'relationship', 'gender', 'birthday', 'avatar',
   'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
   'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType'
-  , 'premature', 'gestationalWeeks', 'birthWeightKg', 'birthLengthCm', 'birthHeadCircumferenceCm',
-  'concernFocus', 'recordingPausedAt', 'archivedAt'
 ])
 const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
 const rhBloodTypes = new Set(['positive', 'negative'])
@@ -119,25 +117,6 @@ function validateRhBloodType(value) {
   return value
 }
 
-const concernFocusValues = new Set(['reaction', 'growth', 'recurring_discomfort', 'none'])
-function validateConcernFocus(value) {
-  if (value === undefined || value === null) return []
-  if (!Array.isArray(value) || value.some((item) => !concernFocusValues.has(item))) throw new FamilyMemberError('关注问题格式错误', 400, 'INVALID_CONCERN_FOCUS')
-  return [...new Set(value)].slice(0, 4)
-}
-
-function validateOptionalBoolean(value, label) {
-  if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'boolean') throw new FamilyMemberError(`${label}格式错误`, 400, 'INVALID_MEMBER_METADATA')
-  return value
-}
-
-function validateOptionalIso(value, label) {
-  if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'string' || Number.isNaN(new Date(value).getTime())) throw new FamilyMemberError(`${label}格式错误`, 400, 'INVALID_MEMBER_METADATA')
-  return new Date(value).toISOString()
-}
-
 export class FamilyMemberService {
   constructor(options = {}) {
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
@@ -161,8 +140,6 @@ export class FamilyMemberService {
       gender: validateGender(input.gender),
       birthday: validateBirthday(input.birthday, now, timeZone),
       avatar: await validateAvatar(input.avatar),
-      premature: validateOptionalBoolean(input.premature, '早产信息'),
-      concernFocus: validateConcernFocus(input.concernFocus),
       isSelf: false
     }, now)
   }
@@ -198,14 +175,6 @@ export class FamilyMemberService {
       if (key === 'bodyFatPercentage') changes.bodyFatPercentage = validateOptionalNumber(input.bodyFatPercentage, '体脂率', 0, 100)
       if (key === 'headCircumferenceCm') changes.headCircumferenceCm = validateOptionalNumber(input.headCircumferenceCm, '头围', 1, 100)
       if (key === 'rhBloodType') changes.rhBloodType = validateRhBloodType(input.rhBloodType)
-      if (key === 'premature') changes.premature = validateOptionalBoolean(input.premature, '早产信息')
-      if (key === 'gestationalWeeks') changes.gestationalWeeks = validateOptionalNumber(input.gestationalWeeks, '孕周', 20, 45)
-      if (key === 'birthWeightKg') changes.birthWeightKg = validateOptionalNumber(input.birthWeightKg, '出生体重', 0.2, 8)
-      if (key === 'birthLengthCm') changes.birthLengthCm = validateOptionalNumber(input.birthLengthCm, '出生身长', 20, 70)
-      if (key === 'birthHeadCircumferenceCm') changes.birthHeadCircumferenceCm = validateOptionalNumber(input.birthHeadCircumferenceCm, '出生头围', 15, 55)
-      if (key === 'concernFocus') changes.concernFocus = validateConcernFocus(input.concernFocus)
-      if (key === 'recordingPausedAt') changes.recordingPausedAt = validateOptionalIso(input.recordingPausedAt, '停止记录时间')
-      if (key === 'archivedAt') changes.archivedAt = validateOptionalIso(input.archivedAt, '归档时间')
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
     return this.repository.update(id, changes, now)

@@ -2,9 +2,9 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
 
-const categories = new Set(['discomfort', 'reaction', 'nutrition', 'growth', 'medication', 'visit', 'other', 'fever', 'cough', 'pain', 'injury', 'allergy'])
-const statuses = new Set(['observing', 'handling', 'stable', 'ended', 'recovered'])
-const editableFields = new Set(['title', 'category', 'status', 'startTime', 'trackingKey'])
+const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
+const statuses = new Set(['observing', 'handling', 'recovered'])
+const editableFields = new Set(['title', 'category', 'status', 'startTime'])
 
 export class HealthEventError extends Error {
   constructor(message, status = 400, code = 'HEALTH_EVENT_ERROR') {
@@ -67,14 +67,10 @@ export class HealthEventService {
 
   async create(accountId, input, now = new Date()) {
     const memberId = typeof input.memberId === 'string' ? input.memberId : ''
+    await this.assertMemberOwnership(accountId, memberId)
     const startTime = input.startTime === undefined
       ? now.toISOString()
       : validateStartTime(input.startTime, now)
-    const member = await this.assertMemberOwnership(accountId, memberId)
-    const { isChildUnderSeven } = await import('../children/child-age.mjs')
-    if (member.relationship !== 'child') throw new HealthEventError('当前版本仅支持为孩子新增记录', 409, 'CHILD_ONLY')
-    if (member.recordingPausedAt) throw new HealthEventError('这个孩子已停止继续记录，历史内容仍可查看和导出', 409, 'CHILD_RECORDING_PAUSED')
-    if (member.birthday && !isChildUnderSeven(member.birthday, now)) throw new HealthEventError('当前版本主要服务7岁以下儿童，既有记录仍可查看和导出。', 409, 'CHILD_AGE_LIMIT')
     return this.repository.create({
       accountId,
       memberId,
@@ -83,27 +79,24 @@ export class HealthEventService {
       status: 'observing',
       startTime,
       recoveredAt: null
-      , trackingKey: typeof input.trackingKey === 'string' ? input.trackingKey.trim().slice(0, 160) || null : null
     }, now)
   }
 
-  async list(accountId, memberId = '') {
+  async list(accountId) {
     let events = await this.repository.findByAccountId(accountId)
-    if (memberId) events = events.filter((event) => event.memberId === memberId)
     const staleSummaries = events.filter((event) => (
       event.eventSummary && event.eventSummary.aggregationVersion !== healthEventSummaryAggregationVersion
     ))
     if (this.summaryRefresher && staleSummaries.length) {
       await Promise.all(staleSummaries.map((event) => this.summaryRefresher.ensureSummaryCurrent(accountId, event.id)))
       events = await this.repository.findByAccountId(accountId)
-      if (memberId) events = events.filter((event) => event.memberId === memberId)
     }
     return events.filter((event) => event.title.trim())
   }
 
-  async get(accountId, id, memberId = '') {
+  async get(accountId, id) {
     const event = await this.repository.findById(id)
-    if (!event || event.accountId !== accountId || (memberId && event.memberId !== memberId)) throw new HealthEventError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
+    if (!event || event.accountId !== accountId) throw new HealthEventError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')
     return event
   }
 
@@ -120,7 +113,6 @@ export class HealthEventService {
         if (changes.status !== 'recovered' && event.status === 'recovered') changes.recoveredAt = null
       }
       if (key === 'startTime') changes.startTime = validateStartTime(input.startTime, now)
-      if (key === 'trackingKey') changes.trackingKey = typeof input.trackingKey === 'string' ? input.trackingKey.trim().slice(0, 160) || null : null
     }
     if (!Object.keys(changes).length) throw new HealthEventError('没有可更新的随记内容', 400, 'NO_EVENT_CHANGES')
     return this.repository.update(id, changes, now)

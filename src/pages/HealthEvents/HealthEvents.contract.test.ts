@@ -18,21 +18,19 @@ const router = read('../../app/router.tsx')
 const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
 
-test('儿童健康首页成为默认主入口，健康随记保留前台和列表切换', () => {
-  assert.match(router, /path: '\/', element: <Navigate to="\/home" replace/)
-  assert.match(router, /path: '\/home'/)
+test('前台视图成为默认主入口并保留显式列表切换', () => {
+  assert.match(router, /path: '\/', element: <Navigate to="\/health-events" replace/)
   assert.match(page, /DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
   assert.match(page, /health-events-view-switch/)
   assert.match(page, /\['triage', 'list'\]/)
   assert.doesNotMatch(page, /FirstUseHome|health-events-view-select__menu/)
 })
 
-test('零孩子在前台内分流且不会预先创建空健康随记', () => {
-  assert.match(firstMember, /先添加一个孩子/)
-  assert.match(firstMember, /随记、追踪和档案会始终分别保存/)
-  assert.doesNotMatch(firstMember, /onCreateSelf/)
-  assert.match(firstMember, /添加孩子/)
-  assert.doesNotMatch(firstMember, /我是为自己记录/)
+test('零成员在前台内分流且不会预先创建空健康事件', () => {
+  assert.match(firstMember, /先添加一位需要记录健康情况的人/)
+  assert.match(firstMember, /可以是你自己，也可以是家人/)
+  assert.match(firstMember, /添加第一个家人/)
+  assert.match(firstMember, /我是为自己记录/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
   assert.doesNotMatch(page, /!state\.data\.entryState\.hasValidHealthRecord/)
   assert.doesNotMatch(page, /healthEventService\.create|pendingTriageEventRef|ensurePendingTriageEvent/)
@@ -98,9 +96,9 @@ test('听写与核对态共享同一照片草稿且不改变护士视频状态�
   assert.doesNotMatch(nurse, /setState\(|pause\(|load\(/)
 })
 
-test('底部保留快速记录主动作和右侧就诊准备 Logo 按钮', () => {
+test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {
   assert.match(nurse, /nurse-next-action-trigger/)
-  assert.match(nurse, /aria-label="打开当前孩子的就诊准备"/)
+  assert.match(nurse, /aria-label="打开当前健康随记的下一步"/)
   assert.match(nurse, /<HealthTrace/)
   assert.doesNotMatch(nurse, /nurse-next-action-link|查看当前事件下一步/)
   assert.match(styles, /health-events-content--triage[\s\S]*min-height:\s*0/)

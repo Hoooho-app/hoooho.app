@@ -10,7 +10,7 @@ export interface ConsultationSummarySource {
 }
 
 export interface ConsultationSummarySection {
-  id: string
+  id: ConsultationSummarySourceId
   lines: string[]
   title: string
 }
@@ -47,12 +47,12 @@ const unique = (values: string[]) => [...new Set(values.map(compact).filter(Bool
 
 function assertCurrentMember(context: HealthEventPromptContext) {
   const currentMemberId = context.currentMemberId.trim()
-  if (!currentMemberId || currentMemberId === 'self') throw new Error('当前孩子无法确认，请先选择孩子')
+  if (!currentMemberId || currentMemberId === 'self') throw new Error('当前人物无法确认，请先选择人物')
   if (context.member.id !== currentMemberId || context.event.memberId !== currentMemberId) {
-    throw new Error('当前健康随记与所选孩子不一致，请关闭后重试')
+    throw new Error('当前健康随记与所选人物不一致，请关闭后重试')
   }
   if (context.relatedEvents.some((event) => event.memberId !== currentMemberId)) {
-    throw new Error('发现不属于当前孩子的历史随记，已停止生成')
+    throw new Error('发现不属于当前人物的历史随记，已停止生成')
   }
 }
 
@@ -124,28 +124,29 @@ export function buildConsultationSummary(
   const invalid = [...selected].find((id) => !available.get(id)?.available)
   if (invalid) throw new Error(`${available.get(invalid)?.label ?? '所选资料'}暂无内容，请返回调整`)
 
+  const sectionsById: Record<ConsultationSummarySourceId, ConsultationSummarySection> = {
+    basic: {
+      id: 'basic',
+      title: '当前人物',
+      lines: [
+        `姓名：${context.member.name}`,
+        `性别：${genderLabel(context.member.gender)}`,
+        `年龄：${context.member.age || '未填写'}`,
+        context.member.heightCm == null ? '' : `身高：${context.member.heightCm} cm`,
+        context.member.weightKg == null ? '' : `体重：${context.member.weightKg} kg`,
+        context.member.bloodType ? `血型：${context.member.bloodType} 型` : '',
+      ].filter(Boolean),
+    },
+    current: { id: 'current', title: '当前健康随记', lines: currentLines(context) },
+    profile: { id: 'profile', title: '健康档案', lines: profileLines(context.healthProfile) },
+    raw: { id: 'raw', title: '原始记录', lines: rawLines(context) },
+    history: { id: 'history', title: '相关历史随记', lines: historyLines(context) },
+  }
   const selectedSourceIdsInOrder = sourceOrder.filter((id) => selected.has(id))
-  const raw = selected.has('raw') ? rawLines(context) : []
-  const profile = selected.has('profile') ? profileLines(context.healthProfile) : []
-  const history = selected.has('history') ? historyLines(context) : []
-  const matching = (pattern: RegExp) => unique([...raw, ...profile].filter((line) => pattern.test(line)))
-  const firstTime = [...context.records].sort((a,b) => a.occurredAt.localeCompare(b.occurredAt))[0]?.occurredAt ?? context.event.startDate
-  const sections: ConsultationSummarySection[] = [
-    { id:'child', title:'1. 孩子基础信息', lines:[`姓名：${context.member.name}`,`性别：${genderLabel(context.member.gender)}`,`年龄：${context.member.age || '未填写'}`,context.member.birthday ? `出生日期：${context.member.birthday}` : ''].filter(Boolean) },
-    { id:'concern', title:'2. 家长主要担心的问题', lines:[compact(context.event.summary) || compact(context.event.title) || '请家长补充主要担心的问题'] },
-    { id:'duration', title:'3. 首次出现和持续时间', lines:[`首次记录：${formatTime(firstTime)}`,`当前状态：${statusLabel(context.event.status)}`] },
-    { id:'changes', title:'4. 发生次数及变化', lines:[`已记录 ${context.records.length} 次`,...matching(/加重|减轻|缓解|消失|反复|再次|持续/)] },
-    { id:'exposure', title:'5. 可能相关的饮食或接触', lines:matching(/吃|食物|饮食|接触|牛奶|鸡蛋|花生|配料|过敏/) },
-    { id:'handling', title:'6. 已采取的处理', lines:matching(/处理|冷敷|清洗|观察|休息|补液|停用/) },
-    { id:'medication', title:'7. 用药及效果', lines:matching(/药|剂量|服用|外用|缓解|效果|不良反应/) },
-    { id:'growth', title:'8. 生长趋势', lines:matching(/身高|体重|头围|BMI|进食|营养/) },
-    { id:'visits', title:'9. 就诊和检查结果', lines:matching(/就诊|医院|医生|检查|化验|报告|体检/) },
-    { id:'questions', title:'10. 希望医生重点判断的问题', lines:['请结合以上事实判断还需要哪些检查或观察。','请说明哪些变化需要及时再次就医。'] },
-    ...(history.length ? [{ id:'history', title:'相关历史随记', lines:history }] : [])
-  ].map((section) => ({ ...section, lines: section.lines.length ? section.lines : ['暂无记录'] }))
+  const sections = selectedSourceIdsInOrder.map((id) => sectionsById[id]).filter((section) => section.lines.length > 0)
   const generatedAt = formatTime(now.toISOString())
   const text = sections.map((section) => `## ${section.title}\n${section.lines.map((line) => `- ${line}`).join('\n')}`).join('\n\n')
-  const prompt = `以下是孩子的健康记录，请帮助照护者准备与医生沟通。如果还缺少影响判断的重要内容，请继续提问。\n\n${text}\n\n只根据以上记录整理：不要把推测写成事实，不要给出诊断、处方或儿童用药剂量；信息不足时请明确标为待确认。`
+  const prompt = `以下是我的健康相关信息，请先帮我理解和整理这些信息。如果还缺少影响判断的重要内容，请继续向我提问。\n\n${text}\n\n请只根据以上记录进行整理：不要把推测写成事实，不要给出诊断结论或处方；如果信息不足，请明确指出还需要补充什么。`
 
   return {
     generatedAt,

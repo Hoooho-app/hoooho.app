@@ -10,16 +10,18 @@ import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
+import { familyMemberService } from '../../services/familyMembers'
 import { quickRecordService } from '../../services/quickRecords'
+import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
 import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
-import { canChildCreateRecords } from '../../features/children/childAge'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { FirstMemberFrontDesk } from './FirstMemberFrontDesk'
 import { NurseQuickRecord } from './NurseQuickRecord'
+import { NurseNextAction } from './NurseNextAction'
 import { getNurseNextActionEventId } from './nurseNextActionContext'
 import {
   DEFAULT_HEALTH_EVENTS_VIEW_MODE,
@@ -36,16 +38,17 @@ function UserIdentity({ member }: { member: Member | null }) {
   return (
     <div className="health-events-member mx-4 mt-3">
       <RecordSubjectCard
-        action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/children', {
+        action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
           state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
-        })}>切换孩子</button>}
+        })}>切换人物</button>}
         age={member?.age ?? ''}
         avatar={member?.avatar}
         gender={member ? genderLabels[member.gender ?? ''] : ''}
-        label="当前孩子"
+        label="当前人物"
         name={member?.name ?? ' '}
       />
-      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">护士负责聆听、记录和整理，不代表医生，也不会作出诊断。</p>
+      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
+      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p>
     </div>
   )
 }
@@ -97,6 +100,8 @@ export function HealthEventsPage() {
   const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const addMember = useAppStore((state) => state.addMember)
+  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const cachedMembers = useAppStore((state) => state.members)
   const carePreferences = useSettingsStore((state) => state.care)
@@ -111,6 +116,7 @@ export function HealthEventsPage() {
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const submissionKeyRef = useRef('')
+  const openAfterMemberLoadRef = useRef(false)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -148,7 +154,6 @@ export function HealthEventsPage() {
     ? filteredEvents
     : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
   const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
-  const canRecord = Boolean(currentMember && canChildCreateRecords(currentMember.birthday) && !currentMember.recordingPausedAt)
 
   useEffect(() => {
     setQuickRecordOpen(false)
@@ -165,6 +170,13 @@ export function HealthEventsPage() {
     navigate('/health-events', { replace: true })
   }, [currentMember, location.state, navigate])
 
+  useEffect(() => {
+    if (!openAfterMemberLoadRef.current || !currentMember || state.status !== 'success') return
+    openAfterMemberLoadRef.current = false
+    setQuickRecordOpen(true)
+    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
+  }, [currentMember, state.status])
+
   const selectYear = (year: number) => {
     setSelectedYear(year)
     if (filters.year !== null) setFilters((current) => ({ ...current, year: null }))
@@ -177,10 +189,9 @@ export function HealthEventsPage() {
 
   const beginNewRecord = () => {
     if (!currentMember) {
-      navigate('/children/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
+      navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
       return
     }
-    if (!canRecord) { setCreateError('当前版本主要服务7岁以下儿童，既有记录仍可查看和导出。'); return }
     setViewMode('triage')
     setQuickRecordOpen(true)
     submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
@@ -188,12 +199,32 @@ export function HealthEventsPage() {
 
   const openQuickRecord = () => {
     if (!currentMember) {
-      navigate('/children/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
+      navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
       return
     }
-    if (!canRecord) { setCreateError('当前版本主要服务7岁以下儿童，既有记录仍可查看和导出。'); return }
     submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     setQuickRecordOpen(true)
+  }
+
+  const createSelfAndRecord = async () => {
+    if (!token || creating) return
+    setCreating(true)
+    setCreateError('')
+    try {
+      const createdMember = await familyMemberService.createSelf({}, token)
+      addMember(adaptFamilyMember(createdMember))
+      setCurrentMemberId(createdMember.id)
+      openAfterMemberLoadRef.current = true
+      await retry()
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        return
+      }
+      setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const changeEventStatus = async (eventId: string, status: HealthEventStage) => {
@@ -215,7 +246,7 @@ export function HealthEventsPage() {
   }
 
   const saveTriageRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => {
-    if (!token || !currentMember) throw new Error('当前孩子信息尚未准备好，请稍后重试。')
+    if (!token || !currentMember) throw new Error('当前人物信息尚未准备好，请稍后重试。')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     try {
       await quickRecordService.create({
@@ -248,9 +279,10 @@ export function HealthEventsPage() {
       <FirstMemberFrontDesk
         busy={creating}
         error={createError}
-        onAddMember={() => navigate('/children/new', {
+        onAddMember={() => navigate('/family/new', {
           state: { firstUseEntry: { continueToRecord: false, returnTo: '/health-events' } }
         })}
+        onCreateSelf={() => void createSelfAndRecord()}
         reducedMotion={reducedMotion}
       />
     )
@@ -260,7 +292,6 @@ export function HealthEventsPage() {
     <main className="hoho-health-events-page app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
       <MainAppHeader title="健康随记" />
       <UserIdentity member={currentMember} />
-      {!canRecord && currentMember && <p className="child-readonly-note mx-4 mt-3">当前版本主要服务7岁以下儿童，既有记录仍可查看和导出。</p>}
 
       <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
         <div className="health-events-toolbar mb-4 space-y-3">
@@ -323,7 +354,7 @@ export function HealthEventsPage() {
               <Plus size={19} strokeWidth={1.8} />
               {creating ? '正在开始记录…' : '记录新情况'}
               </HohoButton>}
-              description={<><span className="care-standard-language">过敏、饮食、生长和反复不适<br />都可以随时记录</span><span className="care-plain-language">从孩子最近的一次身体变化开始记。</span></>}
+              description={<><span className="care-standard-language">心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</span><span className="care-plain-language">身体不舒服时，把发生的事记下来。</span></>}
               icon={<ClipboardList size={28} strokeWidth={1.6} />}
               title="还没有健康随记"
             />
@@ -347,13 +378,13 @@ export function HealthEventsPage() {
           <NurseQuickRecord
             authToken={token ?? ''}
             currentMemberId={currentMemberId}
-            disabled={!token || !canRecord}
+            disabled={!token || !currentMember}
             key={currentMemberId}
             nextActionDisabled={!nextActionEventId}
             nextActionOpen={nextActionOpen}
             onClose={closeQuickRecord}
             onConfirm={saveTriageRecord}
-            onNextActionOpen={() => nextActionEventId && navigate(`/visit-preparation/${nextActionEventId}`)}
+            onNextActionOpen={() => setNextActionOpen(true)}
             onOpen={openQuickRecord}
             open={quickRecordOpen}
             reducedMotion={reducedMotion}
@@ -366,13 +397,20 @@ export function HealthEventsPage() {
         className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="记录新情况"
-        disabled={creating || !canRecord}
+        disabled={creating || !currentMember}
         onClick={beginNewRecord}
       >
         <Plus size={30} strokeWidth={1.8} />
       </button>}
 
       <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      <NurseNextAction
+        currentMemberId={currentMemberId}
+        eventId={nextActionEventId}
+        key={`${currentMemberId}:${nextActionEventId ?? 'none'}`}
+        onClose={() => setNextActionOpen(false)}
+        open={viewMode === 'triage' && nextActionOpen}
+      />
     </main>
   )
 }

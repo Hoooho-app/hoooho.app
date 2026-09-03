@@ -81,12 +81,12 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     const first = await login(baseUrl, '13212345678')
     const second = await login(baseUrl, '13112345678')
 
-    const firstMembersResponse = await jsonRequest(`${baseUrl}/api/members`, 'POST', first.token, { name: '小一', relationship: 'child', gender: 'male', birthday: '2021-03-12' })
-    const secondMembersResponse = await jsonRequest(`${baseUrl}/api/members`, 'POST', second.token, { name: '小二', relationship: 'child', gender: 'female', birthday: '2022-06-18' })
-    assert.equal(firstMembersResponse.status, 201)
-    assert.equal(secondMembersResponse.status, 201)
-    const firstMember = await firstMembersResponse.json()
-    const secondMember = await secondMembersResponse.json()
+    const firstMembersResponse = await jsonRequest(`${baseUrl}/api/members`, 'GET', first.token)
+    const secondMembersResponse = await jsonRequest(`${baseUrl}/api/members`, 'GET', second.token)
+    assert.equal(firstMembersResponse.status, 200)
+    assert.equal(secondMembersResponse.status, 200)
+    const [firstMember] = await firstMembersResponse.json()
+    const [secondMember] = await secondMembersResponse.json()
     const event = await createEvent(baseUrl, first.token, firstMember.id)
     const secondEvent = await createEvent(baseUrl, second.token, secondMember.id, '其他情况')
 

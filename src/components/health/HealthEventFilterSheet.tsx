@@ -37,7 +37,7 @@ interface Props {
 }
 
 const ranges: Array<[EventRangeFilter, string]> = [['all', '全部'], ['7d', '最近7天'], ['30d', '最近30天'], ['year', '今年'], ['custom', '自定义']]
-const statuses: Array<[HealthEventStage, string]> = [['observing', '正在关注'], ['ended', '已结束']]
+const statuses: Array<[HealthEventStage, string]> = [['observing', '观察中'], ['recovered', '已康复']]
 
 function ChoiceButton({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
   return (

@@ -47,57 +47,6 @@ function validateInput(input) {
   return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds }
 }
 
-export function classifyChildRecord(content) {
-  const originalText = String(content).trim()
-  const text = originalText.toLowerCase()
-  const rules = [
-    ['reaction', /过敏|皮疹|红疹|荨麻疹|吃了.*反应|接触.*反应|牛奶|鸡蛋|花生/],
-    ['growth', /身高|体重|头围|bmi|长高|增重/],
-    ['nutrition', /挑食|进食|吃饭|食欲|喂养|饮食/],
-    ['medication', /吃药|用药|药物|药名|剂量|退烧药/],
-    ['visit', /就诊|看医生|检查|化验|报告|医院|体检/],
-    ['discomfort', /咳嗽|发烧|发热|体温|疼|痛|呕吐|腹泻|鼻塞|不舒服|症状/]
-  ]
-  const category = rules.find(([, pattern]) => pattern.test(text))?.[0] ?? 'other'
-  const anchors = ['牛奶', '鸡蛋', '花生', '皮疹', '咳嗽', '发热', '腹泻', '呕吐', '身高', '体重', '头围', '食欲']
-  const anchor = anchors.find((item) => text.includes(item)) ?? category
-  const structuredData = {}
-  const uncertainFields = []
-  const captureNumber = (pattern) => {
-    const matched = originalText.match(pattern)
-    return matched ? Number(matched[1]) : null
-  }
-  const assignNumber = (key, pattern) => {
-    const value = captureNumber(pattern)
-    if (Number.isFinite(value)) structuredData[key] = value
-  }
-
-  if (category === 'growth') {
-    assignNumber('heightCm', /身高\s*(?:是|约|大约)?\s*(\d+(?:\.\d+)?)\s*(?:cm|厘米|公分)/i)
-    assignNumber('weightKg', /体重\s*(?:是|约|大约)?\s*(\d+(?:\.\d+)?)\s*(?:kg|公斤|千克)/i)
-    assignNumber('headCircumferenceCm', /头围\s*(?:是|约|大约)?\s*(\d+(?:\.\d+)?)\s*(?:cm|厘米|公分)/i)
-    if (!Object.keys(structuredData).length) uncertainFields.push('测量数值或单位')
-  }
-  if (category === 'discomfort') {
-    assignNumber('temperatureC', /(?:体温|温度)\s*(?:是|约|大约)?\s*(\d+(?:\.\d+)?)\s*(?:℃|°c|度)?/i)
-  }
-  if (category === 'reaction') {
-    const exposure = originalText.match(/(?:吃了|喝了|接触(?:了|到)?)([^，。,.；;\s后]{1,16})/)
-    if (exposure) structuredData.exposure = exposure[1]
-    else uncertainFields.push('可能相关的食物或接触物')
-  }
-  if (category === 'medication') {
-    const medication = originalText.match(/(?:吃了|服用|用了|使用)([^，。,.；;\s\d]{1,16})/)
-    const dose = originalText.match(/(\d+(?:\.\d+)?)\s*(毫升|ml|毫克|mg|片|袋|滴)/i)
-    if (medication) structuredData.medication = medication[1]
-    else uncertainFields.push('药物名称')
-    if (dose) structuredData.dose = `${dose[1]}${dose[2]}`
-    else uncertainFields.push('剂量')
-  }
-  if (category === 'other') uncertainFields.push('记录类型')
-  return { category, trackingKey: `${category}:${anchor}`, structuredData, uncertainFields }
-}
-
 export class QuickRecordService {
   constructor(options = {}) {
     this.events = options.events ?? new HealthEventService(options)
@@ -151,17 +100,10 @@ export class QuickRecordService {
       ? await this.photos?.prepareForSave(accountId, input.memberId, input.photoDraftId, input.photoIds)
       : []
     if (input.photoIds.length && !this.photos) throw new HealthEventError('照片服务暂不可用', 503, 'PHOTO_SERVICE_UNAVAILABLE')
-    const classification = classifyChildRecord(input.content)
-    const allEvents = typeof this.events.repository.findByAccountId === 'function'
-      ? await this.events.repository.findByAccountId(accountId)
-      : []
-    let event = allEvents.find((item) => item.memberId === input.memberId && item.trackingKey === classification.trackingKey && !['ended', 'recovered'].includes(item.status)) ?? null
-    const createdEvent = !event
-    if (!event) event = await this.events.create(accountId, {
+    const event = await this.events.create(accountId, {
       memberId: input.memberId,
       title: input.title,
-      category: classification.category,
-      trackingKey: classification.trackingKey,
+      category: 'other',
       startTime: input.occurredAt
     }, now)
     let createdRecord = null
@@ -174,9 +116,6 @@ export class QuickRecordService {
         sourceType: input.inputChannel === 'voice' ? 'voice_record' : 'text_record',
         sourceText: input.content,
         note: marker
-        , category: classification.category
-        , structuredData: classification.structuredData
-        , uncertainFields: classification.uncertainFields
       }, now)
       createdRecord = record
       await this.requests.save({ accountId, idempotencyKey: input.idempotencyKey, eventId: event.id, recordId: record.id }, now)
@@ -187,7 +126,7 @@ export class QuickRecordService {
     } catch (error) {
       if (attachedPhotos.length) await this.photos?.rollback(photos).catch(() => undefined)
       if (createdRecord) await this.records.repository.delete(createdRecord.id).catch(() => undefined)
-      if (createdEvent) await this.events.delete(accountId, event.id).catch(() => undefined)
+      await this.events.delete(accountId, event.id).catch(() => undefined)
       throw error
     }
   }

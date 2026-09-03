@@ -87,7 +87,7 @@ export async function saveConsultationSummaryLongImage(summary: ConsultationSumm
   context.beginPath(); context.moveTo(padding, canvas.height - 108); context.lineTo(width - padding, canvas.height - 108); context.stroke()
   context.fillStyle = textSecondary
   context.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  context.fillText('信息由照护者记录，仅供沟通参考', padding, canvas.height - 54)
+  context.fillText('信息由本人记录，仅供沟通参考', padding, canvas.height - 54)
 
   const blob = await canvasToBlob(canvas)
   canvas.width = 1

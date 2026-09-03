@@ -10,11 +10,11 @@ export const familyMemberService = {
     return apiRequest<FamilyMemberApiDto>(`/api/members/${encodeURIComponent(memberId)}`, { token, signal })
   },
 
-  create(input: { name: string; birthday: string; gender: 'male' | 'female'; avatar?: string; premature?: boolean; concernFocus?: FamilyMemberApiDto['concernFocus'] }, token: string) {
+  create(input: { name: string; birthday: string; gender: 'male' | 'female'; avatar: string }, token: string) {
     return apiRequest<FamilyMemberApiDto>('/api/members', {
       token,
       method: 'POST',
-      body: { ...input, relationship: 'child' }
+      body: { ...input, relationship: 'other' }
     })
   },
 
@@ -32,8 +32,6 @@ export const familyMemberService = {
       | 'name' | 'birthday' | 'gender' | 'avatar'
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
-      | 'premature' | 'gestationalWeeks' | 'birthWeightKg' | 'birthLengthCm' | 'birthHeadCircumferenceCm'
-      | 'concernFocus' | 'recordingPausedAt' | 'archivedAt'
     >>,
     token: string,
     signal?: AbortSignal

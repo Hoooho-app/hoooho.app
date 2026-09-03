@@ -100,9 +100,7 @@ test('生命周期状态完整保留现有状态机含义', () => {
   assert.equal(getHealthEventStatusPresentation('observing').tone, 'info')
   assert.equal(getHealthEventStatusPresentation('handling').label, '处理中')
   assert.equal(getHealthEventStatusPresentation('handling').tone, 'warning')
-  assert.equal(getHealthEventStatusPresentation('stable').label, '暂时稳定')
-  assert.equal(getHealthEventStatusPresentation('ended').label, '已结束')
-  assert.equal(getHealthEventStatusPresentation('recovered').label, '已结束')
+  assert.equal(getHealthEventStatusPresentation('recovered').label, '已康复')
   assert.equal(getHealthEventStatusPresentation('recovered').tone, 'success')
 })
 

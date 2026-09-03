@@ -6,9 +6,7 @@ const millisecondsPerDay = 86_400_000
 const statusPresentations: Record<HealthEventStage, { label: string; tone: 'info' | 'warning' | 'success' }> = {
   observing: { label: '观察中', tone: 'info' },
   handling: { label: '处理中', tone: 'warning' },
-  stable: { label: '暂时稳定', tone: 'success' },
-  ended: { label: '已结束', tone: 'success' },
-  recovered: { label: '已结束', tone: 'success' }
+  recovered: { label: '已康复', tone: 'success' }
 }
 
 function comparableLabel(value: string) {
@@ -61,7 +59,7 @@ interface HealthEventDurationInput {
 
 export function getHealthEventDuration({ startTime, recoveredAt, status, now = new Date(), timeZone }: HealthEventDurationInput) {
   const start = startTime ? new Date(startTime) : null
-  const end = status === 'recovered' ? (recoveredAt ? new Date(recoveredAt) : null) : status === 'ended' ? (recoveredAt ? new Date(recoveredAt) : now) : now
+  const end = status === 'recovered' ? (recoveredAt ? new Date(recoveredAt) : null) : now
   if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
   const startDay = getLocalCalendarDaySerial(start, timeZone)
   const endDay = getLocalCalendarDaySerial(end, timeZone)
@@ -72,7 +70,7 @@ export function getHealthEventDuration({ startTime, recoveredAt, status, now = n
 export function formatHealthEventDuration(input: HealthEventDurationInput) {
   const days = getHealthEventDuration(input)
   if (days === null) return null
-  return `${input.status === 'recovered' || input.status === 'ended' ? '持续' : '已持续'}${days}天`
+  return `${input.status === 'recovered' ? '持续' : '已持续'}${days}天`
 }
 
 export function formatHealthEventDate(startTime: string | null | undefined, now = new Date(), timeZone?: string) {

@@ -33,11 +33,7 @@ function subjectForText(text, eventMember, members) {
   }
   const self = members.find((member) => member.isSelf)
   const selfAlias = containsAlias(sourceText, ['我自己', '本人', '我'])
-  if (selfAlias) return {
-    kind: self?.id === eventMember.id ? 'event_member' : 'account_self',
-    memberId: self?.id ?? '__account_self__',
-    text: selfAlias
-  }
+  if (selfAlias && self) return { kind: self.id === eventMember.id ? 'event_member' : 'account_self', memberId: self.id, text: selfAlias }
   if (eventAlias) return { kind: 'event_member', memberId: eventMember.id, text: eventAlias }
   return { kind: 'event_member', memberId: eventMember.id, text: eventMember.name }
 }

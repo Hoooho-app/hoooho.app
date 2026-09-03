@@ -7,7 +7,7 @@ export function useCurrentMember() {
   const profile = useAppStore((state) => state.profile)
   const member = members.find((item) => item.id === currentMemberId) ?? members[0] ?? {
     id: currentMemberId,
-    name: profile?.nickname ?? '当前孩子',
+    name: profile?.nickname ?? '家庭成员',
     age: profile ? formatAgeFromBirthday(profile.birthday) : '资料加载中',
     relation: '本人' as const,
     birthday: profile?.birthday,

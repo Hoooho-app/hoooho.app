@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { HohoButton, StatusNotice } from '../design-system'
 import { accountEntryStateService } from '../../services/accountEntryState'
-import { familyMemberService } from '../../services/familyMembers'
-import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { ApiRequestError } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -13,9 +11,6 @@ export function RequireEstablishedHealthData() {
   const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
-  const currentMemberId = useAppStore((state) => state.currentMemberId)
-  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
-  const setMembers = useAppStore((state) => state.setMembers)
   const allowFirstRecord = Boolean((location.state as { allowFirstRecord?: boolean } | null)?.allowFirstRecord)
   const [state, setState] = useState<GateState>(allowFirstRecord ? 'allowed' : 'loading')
 
@@ -23,14 +18,8 @@ export function RequireEstablishedHealthData() {
     if (!token || allowFirstRecord) return
     setState('loading')
     try {
-      const [entryState, memberDtos] = await Promise.all([
-        accountEntryStateService.get(token, signal),
-        familyMemberService.list(token, signal)
-      ])
-      const children = memberDtos.filter((member) => member.relationship === 'child').map(adaptFamilyMember)
-      setMembers(children)
-      if (children.length && !children.some((member) => member.id === currentMemberId)) setCurrentMemberId(children[0].id)
-      setState(children.length > 0 && entryState.hasValidHealthRecord ? 'allowed' : 'first-use')
+      const entryState = await accountEntryStateService.get(token, signal)
+      setState(entryState.familyMemberCount > 0 && entryState.hasValidHealthRecord ? 'allowed' : 'first-use')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (error instanceof ApiRequestError && error.status === 401) {
@@ -39,7 +28,7 @@ export function RequireEstablishedHealthData() {
       }
       setState('error')
     }
-  }, [allowFirstRecord, clearAuthSession, currentMemberId, setCurrentMemberId, setMembers, token])
+  }, [allowFirstRecord, clearAuthSession, token])
 
   useEffect(() => {
     const controller = new AbortController()

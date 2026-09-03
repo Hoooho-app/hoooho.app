@@ -17,9 +17,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'iphone-se', use: { viewport: { width: 375, height: 667 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } },
-    { name: 'mobile-390', use: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } },
     { name: 'mobile-430', use: { viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } },
-    { name: 'tablet-768', use: { viewport: { width: 768, height: 1024 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } },
     { name: 'desktop-1280', use: { viewport: { width: 1280, height: 800 } } }
   ],
   webServer: {

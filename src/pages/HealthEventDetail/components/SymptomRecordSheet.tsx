@@ -142,7 +142,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
             <label><span>测量方式</span><select className="hoho-input" onChange={(event) => setMeasurementMethod(event.target.value as HealthMeasurementMethod)} value={measurementMethod}>{measurementMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label>
           </>}
           <label><span>备注（可选）</span><textarea className="hoho-textarea symptom-record-note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="补充这条记录的说明" value={note} /></label>
-          {confirmingDelete && <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条记录？"><strong>删除这条记录？</strong><p>删除后将从当前健康追踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>}
+          {confirmingDelete && <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条症状记录？"><strong>删除这条症状记录？</strong><p>删除后将从当前症状跟踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
         </div>
       ) : (
@@ -151,7 +151,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
           <section><h3>来源信息</h3><dl>
             <div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>
             <div><dt>记录时间</dt><dd>{formatRecordDateTime(entry.time)}</dd></div>
-            <div><dt>记录孩子</dt><dd>{memberName}</dd></div>
+            <div><dt>记录对象</dt><dd>{memberName}</dd></div>
             {isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}
             {isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}
             {entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}
