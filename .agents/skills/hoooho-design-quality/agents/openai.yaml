@@ -1,4 +1,0 @@
-interface:
-  display_name: "Hoooho Design Quality"
-  short_description: "Run Hoooho interaction and visual governance end to end"
-  default_prompt: "Use $hoooho-design-quality to run a full Hoooho interaction and visual quality cycle with parallel read-only review, centralized remediation, browser evidence, and release verification."

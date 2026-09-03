@@ -20,4 +20,4 @@ The operating principle is: **business structure is frozen; presentation structu
 
 ## Decision boundary
 
-Professional micro-decisions remain with the visual director and design-system engineer. Escalate only when a change would alter a product capability, first-level page, navigation, business step, approved copy, stored-data meaning, backend contract, irreversible data, major production dependency, or fundamental brand strategy.
+Professional implementation details inside an explicitly approved visual direction remain with the design-system engineer. Escalate when a change would alter a product capability, first-level page, navigation, business step, approved copy, stored-data meaning, backend contract, irreversible data, major production dependency, fundamental brand strategy, or a visual direction that lacks explicit product-owner acceptance.
