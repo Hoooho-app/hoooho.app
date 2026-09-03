@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hoooho Interaction Audit"
+  short_description: "Audit and safely repair Hoooho frontend interactions"
+  default_prompt: "Use $hoooho-interaction-audit to inventory Hoooho interactions, classify evidence-backed findings, repair authorized issues, and verify them in real browsers."
