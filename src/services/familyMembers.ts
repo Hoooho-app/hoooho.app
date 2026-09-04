@@ -62,7 +62,7 @@ export const familyMemberService = {
   update(
     memberId: string,
     input: Partial<Pick<FamilyMemberApiDto,
-      | 'name' | 'relationship' | 'birthday' | 'gender' | 'avatar'
+      | 'name' | 'relationship' | 'birthday' | 'nationality' | 'gender' | 'avatar'
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
       | 'caregivers' | 'primaryRecorderRelationship' | 'otherRelative' | 'otherCaregiver'

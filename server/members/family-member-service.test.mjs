@@ -94,7 +94,7 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(self.isSelf, true)
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
-      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02',
+      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02', nationality: 'CN',
       avatar: 'clay:v1:boy:east-asian',
       caregivers: ['father', 'mother'], primaryRecorderRelationship: 'mother', otherRelative: ' 姨妈 ', otherCaregiver: ' 王老师 '
     }, first.token)
@@ -103,18 +103,20 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(child.accountId, first.user.id)
     assert.equal(child.isSelf, false)
     assert.equal(child.avatar, 'clay:v1:boy:east-asian')
+    assert.equal(child.nationality, 'CN')
     assert.deepEqual(child.caregivers, ['father', 'mother'])
     assert.equal(child.primaryRecorderRelationship, 'mother')
     assert.equal(child.otherRelative, '姨妈')
     assert.equal(child.otherCaregiver, '王老师')
 
     const caregiverResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
-      caregivers: ['mother', 'paternal_grandmother'], primaryRecorderRelationship: 'father', otherRelative: '', otherCaregiver: '李老师'
+      caregivers: ['mother', 'paternal_grandmother'], primaryRecorderRelationship: 'father', nationality: 'gb', otherRelative: '', otherCaregiver: '李老师'
     })
     assert.equal(caregiverResponse.status, 200)
     const caregiverSaved = await caregiverResponse.json()
     assert.deepEqual(caregiverSaved.caregivers, ['mother', 'paternal_grandmother'])
     assert.equal(caregiverSaved.primaryRecorderRelationship, 'father')
+    assert.equal(caregiverSaved.nationality, 'GB')
     assert.equal(caregiverSaved.otherRelative, null)
     assert.equal(caregiverSaved.otherCaregiver, '李老师')
 
@@ -129,6 +131,12 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     })
     assert.equal(invalidRecorderResponse.status, 400)
     assert.equal((await invalidRecorderResponse.json()).error.code, 'INVALID_PRIMARY_RECORDER_RELATIONSHIP')
+
+    const invalidNationalityResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      nationality: 'China'
+    })
+    assert.equal(invalidNationalityResponse.status, 400)
+    assert.equal((await invalidNationalityResponse.json()).error.code, 'INVALID_NATIONALITY')
 
     const boundary = localDateKey(new Date()).split('-').map(Number)
     const fullEight = `${String(boundary[0] - 8).padStart(4, '0')}-${String(boundary[1]).padStart(2, '0')}-${String(boundary[2]).padStart(2, '0')}`

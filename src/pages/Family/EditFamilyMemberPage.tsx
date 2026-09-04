@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, Globe2, UserRound } from 'lucide-react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
@@ -12,6 +12,7 @@ import type { ChildRecorderRelationship, FamilyMemberApiDto, ProfileGender } fro
 import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, isChildProfileMember, validateChildBirthday } from '../../utils/childProfile'
 import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
+import { NATIONALITY_CODES } from '../../../shared/nationality-policy.mjs'
 
 type ChildGender = Extract<ProfileGender, 'male' | 'female'> | ''
 type SaveState = 'idle' | 'saving' | 'saved'
@@ -22,6 +23,7 @@ interface ChildEditorDraft {
   birthday: string
   gender: ChildGender
   name: string
+  nationality: string
   primaryRecorderRelationship: ChildRecorderRelationship | ''
   photoAvatar: string
 }
@@ -37,6 +39,11 @@ const recorderOptions = [
   ['other', '其他']
 ] as const satisfies readonly (readonly [ChildRecorderRelationship, string])[]
 const recorderValues = new Set<ChildRecorderRelationship>(recorderOptions.map(([value]) => value))
+const nationalityDisplayNames = new Intl.DisplayNames(['zh-CN'], { type: 'region' })
+const nationalityOptions = ['CN', ...NATIONALITY_CODES.filter((code) => code !== 'CN')]
+  .map((code) => [code, nationalityDisplayNames.of(code) ?? code] as const)
+  .concat([['OTHER', '其他'] as const])
+const nationalityValues = new Set(nationalityOptions.map(([value]) => value))
 const rowClass = 'grid min-h-[64px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
 const controlClass = 'h-11 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
 
@@ -59,6 +66,7 @@ function makeDraft(member: FamilyMemberApiDto): ChildEditorDraft {
     birthday,
     gender,
     name: member.name,
+    nationality: member.nationality && nationalityValues.has(member.nationality) ? member.nationality : '',
     primaryRecorderRelationship: member.primaryRecorderRelationship && recorderValues.has(member.primaryRecorderRelationship) ? member.primaryRecorderRelationship : '',
     photoAvatar: isPhoto ? avatar : ''
   }
@@ -73,6 +81,7 @@ function draftFingerprint(draft: ChildEditorDraft) {
 
 function savedDataMatches(member: FamilyMemberApiDto, draft: ChildEditorDraft) {
   return member.relationship === 'child'
+    && (member.nationality ?? '') === draft.nationality
     && (member.primaryRecorderRelationship ?? '') === draft.primaryRecorderRelationship
 }
 
@@ -198,6 +207,7 @@ export function EditFamilyMemberPage() {
         name: draft.name.trim(),
         relationship: 'child',
         birthday: draft.birthday || null,
+        nationality: draft.nationality || null,
         gender: draft.gender || null,
         avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeClayAvatar(previewConfig),
         primaryRecorderRelationship: draft.primaryRecorderRelationship || null
@@ -296,6 +306,22 @@ export function EditFamilyMemberPage() {
               >{label}</button>)}
             </div>
           </fieldset>
+          <label className={rowClass}>
+            <span className="flex items-center gap-2 text-sm font-medium"><Globe2 aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />国籍</span>
+            <span className="relative">
+              <select
+                aria-label="国籍"
+                className={`${controlClass} appearance-none pr-10`}
+                disabled={locked}
+                value={draft.nationality}
+                onChange={(event) => updateDraft({ nationality: event.target.value })}
+              >
+                <option value="">请选择国籍</option>
+                {nationalityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} strokeWidth={1.7} />
+            </span>
+          </label>
         </section>
 
         <section className="mt-4 rounded-card border border-border-calm bg-surface p-4" aria-labelledby="recorder-heading">
