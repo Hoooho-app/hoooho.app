@@ -1,5 +1,5 @@
 import {
-  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, LogOut, MessageCircle, Settings, X
+  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -10,6 +10,9 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { useAppStore } from '../../store/useAppStore'
 import { getCurrentPath } from './navigationState'
 import { makeFeedbackState } from '../../features/feedback/navigation'
+import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
+import { accountService } from '../../services/account'
+import { useState } from 'react'
 
 interface SideDrawerProps {
   open: boolean
@@ -44,7 +47,11 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const location = useLocation()
   const member = useCurrentMember()
   const members = useAppStore((state) => state.members)
-  const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const authToken = useAppStore((state) => state.authToken)
+  const authUser = useAppStore((state) => state.authUser)
+  const accountProfile = useAppStore((state) => state.accountProfile)
+  const setAccountProfile = useAppStore((state) => state.setAccountProfile)
+  const [accountOpen, setAccountOpen] = useState(false)
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
 
@@ -55,6 +62,11 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
     return () => window.removeEventListener('keydown', close)
   }, [open, onClose])
 
+  useEffect(() => {
+    if (!open || !authToken || authUser?.guest || accountProfile) return
+    void accountService.get(authToken).then(setAccountProfile).catch(() => undefined)
+  }, [accountProfile, authToken, authUser?.guest, open, setAccountProfile])
+
   if (!open) return null
 
   const openPage = (to: string) => {
@@ -63,7 +75,6 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
       navigate('/health-events', { replace: true })
       return
     }
-    if (to === '/login') clearAuthSession()
     navigate(to, to === '/feedback' ? {
       state: makeFeedbackState(
         getCurrentPath(location.pathname, location.search, location.hash),
@@ -111,7 +122,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           )}
         </section>
 
-        <nav className="mt-5 flex-1 space-y-5" aria-label="侧边栏导航">
+        <nav className="mt-3 flex-1 space-y-3" aria-label="侧边栏导航">
           {sidebarMenuGroups.map((group) => (
             <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
               <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
@@ -131,12 +142,19 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           ))}
         </nav>
 
-        <button className="hoho-drawer__logout mt-5 flex min-h-[52px] w-full items-center gap-3.5 px-2 text-left text-[15px] font-medium" type="button" onClick={() => openPage('/login')}>
-          <LogOut size={20} strokeWidth={1.7} />
-          <span className="flex-1">退出登录</span>
+        <button className="hoho-drawer__account mt-3 flex min-h-[58px] w-full items-center gap-3 px-2 text-left" type="button" onClick={() => setAccountOpen(true)}>
+          {authUser?.guest
+            ? <span className="account-neutral-avatar"><UserRound size={19} /></span>
+            : <Avatar name={accountProfile?.nickname ?? '用户'} src={accountProfile?.avatar ?? undefined} size="sm" />}
+          <span className="min-w-0 flex-1">
+            <strong className="block truncate text-sm font-semibold">{authUser?.guest ? '未登录' : accountProfile?.nickname ?? 'Hoooho 用户'}</strong>
+            <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '当前为体验模式' : '已同步'}</span>
+          </span>
+          {!authUser?.guest && <MembershipBadge />}
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
         </button>
       </aside>
+      <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
   )
 }

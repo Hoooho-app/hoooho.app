@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AuthSession, AuthUser, Member, UserProfile } from '../types'
+import type { AccountProfile, AuthSession, AuthUser, Member, UserProfile } from '../types'
 
 interface AppState {
   authToken: string | null
   authUser: AuthUser | null
+  accountProfile: AccountProfile | null
   opsAuthToken: string | null
   opsAuthUser: { email: string } | null
   opsAuthFailure: 'expired' | 'forbidden' | 'not-configured' | null
@@ -13,6 +14,7 @@ interface AppState {
   profile: UserProfile | null
   setCurrentMemberId: (memberId: string) => void
   setAuthSession: (session: AuthSession) => void
+  setAccountProfile: (profile: AccountProfile | null) => void
   clearAuthSession: () => void
   setOpsAuthSession: (session: AuthSession) => void
   clearOpsAuthSession: (reason?: AppState['opsAuthFailure']) => void
@@ -27,6 +29,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       authToken: null,
       authUser: null,
+      accountProfile: null,
       opsAuthToken: null,
       opsAuthUser: null,
       opsAuthFailure: null,
@@ -38,10 +41,11 @@ export const useAppStore = create<AppState>()(
         authToken: token,
         authUser: user,
         ...(state.authUser?.id && state.authUser.id !== user.id
-          ? { profile: null, currentMemberId: 'self' }
+          ? { profile: null, accountProfile: null, currentMemberId: 'self' }
           : {})
       })),
-      clearAuthSession: () => set({ authToken: null, authUser: null, profile: null, currentMemberId: 'self' }),
+      setAccountProfile: (accountProfile) => set({ accountProfile }),
+      clearAuthSession: () => set({ authToken: null, authUser: null, accountProfile: null, profile: null, currentMemberId: 'self' }),
       setOpsAuthSession: ({ token, user }) => set({
         opsAuthToken: token,
         opsAuthUser: user.email ? { email: user.email.trim().toLowerCase() } : null,
@@ -72,7 +76,7 @@ export const useAppStore = create<AppState>()(
         const { notifications: _removedNotifications, ...state } = persisted as AppState & { notifications?: unknown }
         return { ...state, members: [] }
       },
-      partialize: ({ authToken, authUser, opsAuthToken, opsAuthUser, currentMemberId, members, profile }) => ({ authToken, authUser, opsAuthToken, opsAuthUser, currentMemberId, members, profile })
+      partialize: ({ authToken, authUser, accountProfile, opsAuthToken, opsAuthUser, currentMemberId, members, profile }) => ({ authToken, authUser, accountProfile, opsAuthToken, opsAuthUser, currentMemberId, members, profile })
     }
   )
 )

@@ -30,12 +30,25 @@ export interface AuthUser {
   id: string
   email?: string
   phone?: string
+  guest?: boolean
   createdAt: string
 }
 
 export interface AuthSession {
   token: string
   user: AuthUser
+  guestMerge?: { merged: boolean; idempotent: boolean }
+}
+
+export type AccountProvider = 'wechat' | 'qq' | 'apple'
+export interface AccountProfile {
+  id: string
+  nickname: string
+  avatar: string | null
+  phone: string | null
+  email: string | null
+  membership: 'free'
+  providers: Array<{ provider: AccountProvider; label: string; bound: boolean; displayName: string | null }>
 }
 
 export interface AccountEntryState {

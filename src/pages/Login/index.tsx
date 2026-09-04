@@ -24,6 +24,8 @@ export function LoginPage() {
   const codeInputRef = useRef<HTMLInputElement>(null)
   const deliveryHelpTimerRef = useRef<number | null>(null)
   const setAuthSession = useAppStore((state) => state.setAuthSession)
+  const guestToken = useAppStore((state) => state.authUser?.guest ? state.authToken ?? '' : '')
+  const [isEnteringGuest, setIsEnteringGuest] = useState(false)
   const normalizedEmail = email.trim().toLowerCase()
   const emailIsValid = normalizedEmail.length <= 254 && EMAIL_PATTERN.test(normalizedEmail)
   const codeIsValid = CODE_PATTERN.test(code)
@@ -79,15 +81,35 @@ export function LoginPage() {
     setNotice('')
     setIsLoggingIn(true)
     try {
-      const session = await authService.loginWithEmail(normalizedEmail, code)
+      const session = await authService.loginWithEmail(normalizedEmail, code, guestToken)
       setAuthSession(session)
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
       const safePath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events'
-      navigate(safePath, { replace: true })
+      navigate(safePath, { replace: true, state: session.guestMerge?.merged ? { accountNotice: '已登录，体验记录已合并' } : null })
     } catch (requestError) {
       setError(requestError instanceof AuthApiError ? requestError.message : '登录失败，请稍后重试')
     } finally {
       setIsLoggingIn(false)
+    }
+  }
+
+  const continueAsGuest = async () => {
+    setError('')
+    setIsEnteringGuest(true)
+    try {
+      let guestId = localStorage.getItem('hoooho-guest-id')
+      if (!guestId) {
+        guestId = crypto.randomUUID()
+        localStorage.setItem('hoooho-guest-id', guestId)
+      }
+      const session = await authService.guest(guestId)
+      setAuthSession(session)
+      const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
+      navigate(requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events', { replace: true })
+    } catch (requestError) {
+      setError(requestError instanceof AuthApiError ? requestError.message : '暂时无法进入体验模式，请稍后重试')
+    } finally {
+      setIsEnteringGuest(false)
     }
   }
 
@@ -175,6 +197,9 @@ export function LoginPage() {
           </div>
 
           <HohoButton fullWidth loading={isLoggingIn} size="large" type="submit" disabled={!emailIsValid || !codeIsValid}>登录</HohoButton>
+          <HohoButton fullWidth loading={isEnteringGuest} size="large" type="button" variant="text" onClick={() => void continueAsGuest()}>
+            暂不登录，先体验
+          </HohoButton>
         </form>
 
         {SHOW_PHONE_LOGIN && (

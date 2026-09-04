@@ -248,6 +248,12 @@
     background:
       linear-gradient(180deg, rgb(var(--hoho-color-surface)), rgb(var(--hoho-color-surface-subtle)));
   }
+  @media (max-height: 700px) {
+    .hoho-drawer.hoho-drawer { padding-top: max(var(--hoho-space-3), env(safe-area-inset-top)); padding-bottom: max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
+    .hoho-drawer__close { width: 36px; height: 36px; }
+    .hoho-drawer__member { margin-top: 0; }
+    .hoho-drawer__item { height: 44px; }
+  }
   .hoho-drawer__close:hover { background: rgb(var(--hoho-color-primary-soft)); }
   .hoho-drawer__member {
     border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.76);
@@ -275,7 +281,8 @@
     background: rgb(var(--hoho-color-primary-soft));
     color: rgb(var(--hoho-color-primary));
   }
-  .hoho-drawer__logout {
+  .hoho-drawer__logout,
+  .hoho-drawer__account {
     border-top: 1px solid rgb(var(--hoho-color-border) / 0.78);
     color: rgb(var(--hoho-color-text-secondary));
   }

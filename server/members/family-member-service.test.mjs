@@ -64,7 +64,7 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     logLevel: 'silent',
     server: { host: '127.0.0.1', port: 5193, strictPort: false },
     plugins: [
-      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined }),
+      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined, smsProvider: { sendVerificationCode: async () => undefined } }),
       membersApiPlugin(sharedOptions)
     ]
   })

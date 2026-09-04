@@ -102,10 +102,11 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 }
 
 export const authService = {
+  guest: (guestId: string) => postAuthRequest<AuthSession>('/api/auth/guest', { guestId }),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),
-  login: (phone: string, code: string) => postAuthRequest<AuthSession>('/api/auth/login', { phone, code }),
+  login: (phone: string, code: string, guestToken = '') => postAuthRequest<AuthSession>('/api/auth/login', { phone, code, guestToken }),
   sendEmailCode: (email: string) => postAuthRequest<SendCodeResponse>('/api/auth/email/send-code', { email }),
-  loginWithEmail: (email: string, code: string) => postAuthRequest<AuthSession>('/api/auth/email/login', { email, code }),
+  loginWithEmail: (email: string, code: string, guestToken = '') => postAuthRequest<AuthSession>('/api/auth/email/login', { email, code, guestToken }),
   sendOpsEmailCode: (email: string) => postAuthRequest<SendCodeResponse>('/api/ops/auth/email/send', { email }),
   loginOpsWithEmail: (email: string, code: string) => postAuthRequest<AuthSession>('/api/ops/auth/email/verify', { email, code })
 }
