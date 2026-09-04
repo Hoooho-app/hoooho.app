@@ -14,7 +14,6 @@ const members = projectNames.map((project, index) => ({
   relationship: 'child',
   gender: 'female',
   birthday: '2023-05-12',
-  nationality: 'CN',
   avatar: 'clay:v1:toddler-girl:east-asian',
   caregivers: ['father', 'mother'],
   primaryRecorderRelationship: 'mother',

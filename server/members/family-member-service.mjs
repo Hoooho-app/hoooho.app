@@ -7,12 +7,11 @@ import {
   AVATAR_PHOTO_MIME_TYPES
 } from '../../shared/avatar-photo-policy.mjs'
 import { normalizeChildCaregivers, normalizeChildRecorderRelationship, parsePlainDateKey, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
-import { normalizeNationality } from '../../shared/nationality-policy.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
 const editableFields = new Set([
-  'name', 'relationship', 'gender', 'birthday', 'nationality', 'avatar',
+  'name', 'relationship', 'gender', 'birthday', 'avatar',
   'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
   'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType',
   'caregivers', 'primaryRecorderRelationship', 'otherRelative', 'otherCaregiver'
@@ -45,12 +44,6 @@ function validateGender(value) {
   if (value === undefined || value === null || value === '') return null
   if (!genders.has(value)) throw new FamilyMemberError('性别字段格式错误', 400, 'INVALID_GENDER')
   return value
-}
-
-function validateNationality(value) {
-  const nationality = normalizeNationality(value)
-  if (nationality === undefined) throw new FamilyMemberError('国籍格式错误', 400, 'INVALID_NATIONALITY')
-  return nationality
 }
 
 function validateBirthday(value, now = new Date(), timeZone) {
@@ -186,7 +179,6 @@ export class FamilyMemberService {
       relationship,
       gender: validateGender(input.gender),
       birthday: validateBirthday(input.birthday, now, timeZone),
-      nationality: validateNationality(input.nationality),
       avatar: await validateAvatar(input.avatar),
       caregivers: validateCaregivers(input.caregivers),
       primaryRecorderRelationship: validatePrimaryRecorderRelationship(input.primaryRecorderRelationship),
@@ -222,7 +214,6 @@ export class FamilyMemberService {
       }
       if (key === 'gender') changes.gender = validateGender(input.gender)
       if (key === 'birthday') changes.birthday = validateBirthdayForRelationship(input.birthday, targetRelationship, now, timeZone)
-      if (key === 'nationality') changes.nationality = validateNationality(input.nationality)
       if (key === 'avatar') changes.avatar = await validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
       if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
