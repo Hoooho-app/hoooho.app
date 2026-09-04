@@ -42,7 +42,8 @@ test('family avatar editor offers a compact onboarding layout without shrinking 
 })
 
 test('child profile avatar switch keeps a smaller visual control with an expanded hit area', () => {
-  assert.match(source, /-end-10/)
+  assert.match(source, /h-28 w-28 border-2 border-primary/)
+  assert.match(source, /-end-9/)
   assert.match(source, /h-9.*text-xs/)
   assert.match(source, /after:-inset-1/)
 })

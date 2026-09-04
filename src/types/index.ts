@@ -53,6 +53,7 @@ export type ChildCaregiver =
   | 'maternal_grandfather'
   | 'maternal_grandmother'
   | 'nanny'
+export type ChildRecorderRelationship = ChildCaregiver | 'other'
 
 export interface FamilyMemberApiDto {
   id: string
@@ -70,6 +71,7 @@ export interface FamilyMemberApiDto {
   headCircumferenceCm?: number | null
   rhBloodType?: 'positive' | 'negative' | null
   caregivers?: ChildCaregiver[]
+  primaryRecorderRelationship?: ChildRecorderRelationship | null
   otherRelative?: string | null
   otherCaregiver?: string | null
   isSelf: boolean

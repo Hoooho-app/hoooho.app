@@ -65,7 +65,7 @@ export const familyMemberService = {
       | 'name' | 'relationship' | 'birthday' | 'gender' | 'avatar'
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
-      | 'caregivers' | 'otherRelative' | 'otherCaregiver'
+      | 'caregivers' | 'primaryRecorderRelationship' | 'otherRelative' | 'otherCaregiver'
     >>,
     token: string,
     signal?: AbortSignal

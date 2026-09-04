@@ -26,6 +26,7 @@ export class FamilyMemberRepository {
       headCircumferenceCm: input.headCircumferenceCm ?? null,
       rhBloodType: input.rhBloodType ?? null,
       caregivers: Array.isArray(input.caregivers) ? input.caregivers : [],
+      primaryRecorderRelationship: input.primaryRecorderRelationship ?? null,
       otherRelative: input.otherRelative ?? null,
       otherCaregiver: input.otherCaregiver ?? null,
       isSelf: Boolean(input.isSelf),
