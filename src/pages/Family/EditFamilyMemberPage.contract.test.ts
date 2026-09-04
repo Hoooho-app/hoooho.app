@@ -13,7 +13,7 @@ test('孩子编辑页只呈现冻结的信息架构', () => {
   assert.match(pageSource, /性别/)
   assert.match(pageSource, /主要照顾者/)
   assert.match(pageSource, /可多选/)
-  assert.match(pageSource, /其他亲属/)
+  assert.equal(pageSource.includes('>其他亲属</span>'), false)
   assert.match(pageSource, /其他照看者/)
   assert.match(pageSource, /过敏情况的及时变化，可以同步给其他照看者/)
   assert.match(pageSource, /保存修改/)
@@ -58,6 +58,12 @@ test('照顾者固定选项完整且自定义项不是固定按钮', () => {
   for (const label of ['爸爸', '妈妈', '爷爷', '奶奶', '外公', '外婆', '保姆']) {
     assert.match(pageSource, new RegExp(`'${label}'`))
   }
-  assert.match(pageSource, /placeholder="请输入称呼"/)
+  assert.equal(pageSource.includes('placeholder="请输入称呼"'), false)
   assert.match(pageSource, /placeholder="请输入称呼或姓名"/)
+})
+
+test('孩子基本资料使用紧凑但可触达的行高和控件高度', () => {
+  assert.match(pageSource, /min-h-\[64px\]/)
+  assert.match(pageSource, /h-11 min-w-0/)
+  assert.equal(pageSource.includes('min-h-[72px]'), false)
 })

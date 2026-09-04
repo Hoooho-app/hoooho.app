@@ -154,13 +154,13 @@ export function FamilyAvatarEditor({ childProfile = false, compact = false, conf
             <ClayAvatar className="h-32 w-32 border-2 border-primary bg-surface" config={config} language={language} name={name || text.cartoon} />
             <button
               aria-label={text.change}
-              className="absolute -bottom-1 -end-8 inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-control border border-primary bg-surface px-4 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute -bottom-0.5 -end-10 inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-control border border-primary bg-surface px-3 text-xs font-medium text-primary after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               disabled={disabled || processing}
               title={text.change}
               type="button"
               onClick={changeAvatar}
             >
-              <RefreshCw aria-hidden="true" size={18} strokeWidth={1.8} />
+              <RefreshCw aria-hidden="true" size={15} strokeWidth={1.8} />
               <span>{text.change}</span>
             </button>
           </div>
