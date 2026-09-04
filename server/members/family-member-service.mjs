@@ -6,7 +6,7 @@ import {
   AVATAR_PHOTO_MAX_DATA_URL_LENGTH,
   AVATAR_PHOTO_MIME_TYPES
 } from '../../shared/avatar-photo-policy.mjs'
-import { normalizeChildCaregivers, parsePlainDateKey, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
+import { normalizeChildCaregivers, normalizeChildRecorderRelationship, parsePlainDateKey, validateChildBirthdayKey } from '../../shared/child-profile-policy.mjs'
 
 const relationships = new Set(['child', 'parent', 'spouse', 'other'])
 const genders = new Set(['male', 'female', 'undisclosed'])
@@ -14,7 +14,7 @@ const editableFields = new Set([
   'name', 'relationship', 'gender', 'birthday', 'avatar',
   'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
   'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType',
-  'caregivers', 'otherRelative', 'otherCaregiver'
+  'caregivers', 'primaryRecorderRelationship', 'otherRelative', 'otherCaregiver'
 ])
 const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
 const rhBloodTypes = new Set(['positive', 'negative'])
@@ -87,6 +87,14 @@ function validateCaregivers(value) {
   const caregivers = normalizeChildCaregivers(value)
   if (!caregivers) throw new FamilyMemberError('主要照顾者格式错误', 400, 'INVALID_CAREGIVERS')
   return caregivers
+}
+
+function validatePrimaryRecorderRelationship(value) {
+  const relationship = normalizeChildRecorderRelationship(value)
+  if (relationship === undefined) {
+    throw new FamilyMemberError('主要记录者关系格式错误', 400, 'INVALID_PRIMARY_RECORDER_RELATIONSHIP')
+  }
+  return relationship
 }
 
 function validateCaregiverLabel(value, label) {
@@ -173,6 +181,7 @@ export class FamilyMemberService {
       birthday: validateBirthday(input.birthday, now, timeZone),
       avatar: await validateAvatar(input.avatar),
       caregivers: validateCaregivers(input.caregivers),
+      primaryRecorderRelationship: validatePrimaryRecorderRelationship(input.primaryRecorderRelationship),
       otherRelative: validateCaregiverLabel(input.otherRelative, '其他亲属'),
       otherCaregiver: validateCaregiverLabel(input.otherCaregiver, '其他照看者'),
       isSelf: false
@@ -214,6 +223,7 @@ export class FamilyMemberService {
       if (key === 'headCircumferenceCm') changes.headCircumferenceCm = validateOptionalNumber(input.headCircumferenceCm, '头围', 1, 100)
       if (key === 'rhBloodType') changes.rhBloodType = validateRhBloodType(input.rhBloodType)
       if (key === 'caregivers') changes.caregivers = validateCaregivers(input.caregivers)
+      if (key === 'primaryRecorderRelationship') changes.primaryRecorderRelationship = validatePrimaryRecorderRelationship(input.primaryRecorderRelationship)
       if (key === 'otherRelative') changes.otherRelative = validateCaregiverLabel(input.otherRelative, '其他亲属')
       if (key === 'otherCaregiver') changes.otherCaregiver = validateCaregiverLabel(input.otherCaregiver, '其他照看者')
     }

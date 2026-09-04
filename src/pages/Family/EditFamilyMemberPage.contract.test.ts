@@ -13,6 +13,9 @@ test('孩子编辑页只呈现冻结的信息架构', () => {
   assert.match(pageSource, /性别/)
   assert.match(pageSource, /主要照顾者/)
   assert.match(pageSource, /可多选/)
+  assert.match(pageSource, /主要记录者/)
+  assert.match(pageSource, /你是孩子的谁？/)
+  assert.match(pageSource, /请选择关系/)
   assert.equal(pageSource.includes('>其他亲属</span>'), false)
   assert.match(pageSource, /其他照看者/)
   assert.match(pageSource, /过敏情况的及时变化，可以同步给其他照看者/)
@@ -28,9 +31,11 @@ test('孩子编辑页使用真实数据、统一草稿和服务端回读确认',
   assert.match(pageSource, /isChildProfileMember/)
   assert.match(pageSource, /relationship: 'child'/)
   assert.match(pageSource, /member\.caregivers \?\? \[\]/)
+  assert.match(pageSource, /member\.primaryRecorderRelationship/)
   assert.match(pageSource, /member\.otherRelative \?\? ''/)
   assert.match(pageSource, /member\.otherCaregiver \?\? ''/)
   assert.match(pageSource, /caregivers: draft\.caregivers/)
+  assert.match(pageSource, /primaryRecorderRelationship: draft\.primaryRecorderRelationship \|\| null/)
   assert.match(pageSource, /otherRelative: draft\.otherRelative\.trim\(\) \|\| null/)
   assert.match(pageSource, /otherCaregiver: draft\.otherCaregiver\.trim\(\) \|\| null/)
   assert.match(pageSource, /await familyMemberService\.getById\(memberId, token\)/)
@@ -60,6 +65,9 @@ test('照顾者固定选项完整且自定义项不是固定按钮', () => {
   }
   assert.equal(pageSource.includes('placeholder="请输入称呼"'), false)
   assert.match(pageSource, /placeholder="请输入称呼或姓名"/)
+  assert.match(pageSource, /aria-expanded=\{caregiverOpen\}/)
+  assert.match(pageSource, /请选择主要照顾者/)
+  assert.equal(pageSource.includes('mt-3 grid grid-cols-5'), false)
 })
 
 test('孩子基本资料使用紧凑但可触达的行高和控件高度', () => {

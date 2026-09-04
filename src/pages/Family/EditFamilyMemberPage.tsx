@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Info, Pencil, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, Info, Pencil, UserRound } from 'lucide-react'
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
@@ -9,7 +9,7 @@ import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { ChildCaregiver, FamilyMemberApiDto, ProfileGender } from '../../types'
+import type { ChildCaregiver, ChildRecorderRelationship, FamilyMemberApiDto, ProfileGender } from '../../types'
 import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, isChildProfileMember, validateChildBirthday } from '../../utils/childProfile'
 import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
@@ -24,6 +24,7 @@ interface ChildEditorDraft {
   caregivers: ChildCaregiver[]
   gender: ChildGender
   name: string
+  primaryRecorderRelationship: ChildRecorderRelationship | ''
   otherCaregiver: string
   otherRelative: string
   photoAvatar: string
@@ -40,6 +41,8 @@ const caregiverOptions = [
 ] as const satisfies readonly (readonly [ChildCaregiver, string])[]
 
 const caregiverValues = new Set<ChildCaregiver>(caregiverOptions.map(([value]) => value))
+const recorderOptions = [...caregiverOptions, ['other', '其他']] as const satisfies readonly (readonly [ChildRecorderRelationship, string])[]
+const recorderValues = new Set<ChildRecorderRelationship>(recorderOptions.map(([value]) => value))
 const rowClass = 'grid min-h-[64px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
 const controlClass = 'h-11 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
 
@@ -63,6 +66,7 @@ function makeDraft(member: FamilyMemberApiDto): ChildEditorDraft {
     caregivers: (member.caregivers ?? []).filter((value): value is ChildCaregiver => caregiverValues.has(value)),
     gender,
     name: member.name,
+    primaryRecorderRelationship: member.primaryRecorderRelationship && recorderValues.has(member.primaryRecorderRelationship) ? member.primaryRecorderRelationship : '',
     otherCaregiver: member.otherCaregiver ?? '',
     otherRelative: member.otherRelative ?? '',
     photoAvatar: isPhoto ? avatar : ''
@@ -81,8 +85,15 @@ function draftFingerprint(draft: ChildEditorDraft) {
 function caregiverDataMatches(member: FamilyMemberApiDto, draft: ChildEditorDraft) {
   return member.relationship === 'child'
     && JSON.stringify(member.caregivers ?? []) === JSON.stringify(draft.caregivers)
+    && (member.primaryRecorderRelationship ?? '') === draft.primaryRecorderRelationship
     && (member.otherRelative ?? '') === draft.otherRelative.trim()
     && (member.otherCaregiver ?? '') === draft.otherCaregiver.trim()
+}
+
+function caregiverSummary(caregivers: ChildCaregiver[]) {
+  if (!caregivers.length) return '请选择主要照顾者'
+  const labels = new Map<ChildCaregiver, string>(caregiverOptions)
+  return caregivers.map((value) => labels.get(value)).filter(Boolean).join('、')
 }
 
 function displayBirthday(value: string) {
@@ -114,6 +125,7 @@ export function EditFamilyMemberPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
+  const [caregiverOpen, setCaregiverOpen] = useState(false)
   const [error, setError] = useState('')
   const allowNavigationRef = useRef(false)
   const draftEditedRef = useRef(false)
@@ -220,6 +232,7 @@ export function EditFamilyMemberPage() {
         gender: draft.gender || null,
         avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeClayAvatar(previewConfig),
         caregivers: draft.caregivers,
+        primaryRecorderRelationship: draft.primaryRecorderRelationship || null,
         otherRelative: draft.otherRelative.trim() || null,
         otherCaregiver: draft.otherCaregiver.trim() || null
       }, token)
@@ -264,7 +277,7 @@ export function EditFamilyMemberPage() {
   return <main className="app-shell flex min-h-dvh flex-col bg-surface pb-0">
     <WebPageHeader title="编辑孩子资料" fallback="/family" />
     {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : sourceMember && draft && previewConfig ? (
-      <form className="flex flex-1 flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-5" onSubmit={save}>
+      <form className="flex flex-1 flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-4" onSubmit={save}>
         <div className="mx-auto w-full max-w-sm">
           <FamilyAvatarEditor
             childProfile
@@ -281,7 +294,7 @@ export function EditFamilyMemberPage() {
           />
         </div>
 
-        <section className="mt-6 overflow-hidden rounded-card border border-border-calm bg-surface" aria-label="孩子基本资料">
+        <section className="mt-5 overflow-hidden rounded-card border border-border-calm bg-surface" aria-label="孩子基本资料">
           <label className={rowClass}>
             <span className="flex items-center gap-2 text-sm font-medium"><UserRound aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />姓名</span>
             <input aria-invalid={Boolean(nameError)} className={controlClass} disabled={locked} maxLength={50} value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} />
@@ -321,23 +334,57 @@ export function EditFamilyMemberPage() {
           </fieldset>
         </section>
 
+        <section className="mt-4 rounded-card border border-border-calm bg-surface p-4" aria-labelledby="recorder-heading">
+          <h2 className="text-base font-semibold text-heading" id="recorder-heading">主要记录者</h2>
+          <label className="mt-3 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
+            <span className="text-sm font-medium">你是孩子的谁？</span>
+            <span className="relative">
+              <select
+                aria-label="你是孩子的谁？"
+                className={`${controlClass} appearance-none pr-10`}
+                disabled={locked}
+                value={draft.primaryRecorderRelationship}
+                onChange={(event) => updateDraft({ primaryRecorderRelationship: event.target.value as ChildRecorderRelationship | '' })}
+              >
+                <option value="">请选择关系</option>
+                {recorderOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} strokeWidth={1.7} />
+            </span>
+          </label>
+        </section>
+
         <section className="mt-4 rounded-card border border-border-calm bg-surface p-4" aria-labelledby="caregiver-heading">
           <div className="flex items-baseline gap-2">
             <h2 className="text-base font-semibold text-heading" id="caregiver-heading">主要照顾者</h2>
             <span className="text-sm text-text-secondary">可多选</span>
           </div>
-          <div className="mt-3 grid grid-cols-5 gap-2" role="group" aria-label="主要照顾者，可多选">
-            {caregiverOptions.map(([value, label]) => {
-              const selected = draft.caregivers.includes(value)
-              return <button
-                aria-pressed={selected}
-                className={`min-h-11 rounded-control border px-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${selected ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface text-heading'}`}
-                disabled={locked}
-                key={value}
-                type="button"
-                onClick={() => updateDraft({ caregivers: selected ? draft.caregivers.filter((item) => item !== value) : [...draft.caregivers, value] })}
-              >{label}</button>
-            })}
+          <div className="relative mt-3">
+            <button
+              aria-label={`主要照顾者：${caregiverSummary(draft.caregivers)}`}
+              aria-controls="caregiver-options"
+              aria-expanded={caregiverOpen}
+              className={`${controlClass} flex items-center justify-between gap-2 text-left`}
+              disabled={locked}
+              type="button"
+              onClick={() => setCaregiverOpen((open) => !open)}
+            >
+              <span className={draft.caregivers.length ? 'truncate text-heading' : 'truncate text-text-secondary'}>{caregiverSummary(draft.caregivers)}</span>
+              <ChevronDown aria-hidden="true" className={`shrink-0 transition-transform ${caregiverOpen ? 'rotate-180' : ''}`} size={18} strokeWidth={1.7} />
+            </button>
+            {caregiverOpen && <div className="mt-2 grid grid-cols-2 gap-2 rounded-control border border-border-calm bg-surface-muted p-2" id="caregiver-options" role="group" aria-label="主要照顾者，可多选">
+              {caregiverOptions.map(([value, label]) => {
+                const selected = draft.caregivers.includes(value)
+                return <button
+                  aria-pressed={selected}
+                  className={`flex min-h-11 items-center justify-between rounded-control border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${selected ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface text-heading'}`}
+                  disabled={locked}
+                  key={value}
+                  type="button"
+                  onClick={() => updateDraft({ caregivers: selected ? draft.caregivers.filter((item) => item !== value) : [...draft.caregivers, value] })}
+                ><span>{label}</span><span aria-hidden="true">{selected ? '✓' : ''}</span></button>
+              })}
+            </div>}
           </div>
 
           <label className="mt-4 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">

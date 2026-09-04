@@ -3,7 +3,10 @@ export const CHILD_CAREGIVER_VALUES = [
   'maternal_grandfather', 'maternal_grandmother', 'nanny'
 ]
 
+export const CHILD_RECORDER_RELATIONSHIP_VALUES = [...CHILD_CAREGIVER_VALUES, 'other']
+
 const CHILD_CAREGIVER_SET = new Set(CHILD_CAREGIVER_VALUES)
+const CHILD_RECORDER_RELATIONSHIP_SET = new Set(CHILD_RECORDER_RELATIONSHIP_VALUES)
 
 function pad(value) {
   return String(value).padStart(2, '0')
@@ -89,4 +92,9 @@ export function isChildProfileMember(member, todayKey) {
 export function normalizeChildCaregivers(value) {
   if (!Array.isArray(value) || value.some((item) => !CHILD_CAREGIVER_SET.has(item))) return null
   return [...new Set(value)]
+}
+
+export function normalizeChildRecorderRelationship(value) {
+  if (value === undefined || value === null || value === '') return null
+  return CHILD_RECORDER_RELATIONSHIP_SET.has(value) ? value : undefined
 }

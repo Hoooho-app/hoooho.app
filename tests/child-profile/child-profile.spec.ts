@@ -43,6 +43,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       birthday: '2026-09-04',
       avatar: 'clay:v1:baby-girl:east-asian',
       caregivers: ['mother'],
+      primaryRecorderRelationship: 'mother',
       otherRelative: '姨妈',
       otherCaregiver: '王老师'
     }
@@ -66,7 +67,8 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await page.getByRole('button', { name: '编辑加载测试宝宝的资料' }).click()
     await expect(page.locator('input[maxlength="50"]')).toHaveValue('加载测试宝宝', { timeout: 800 })
     expect(Date.now() - startedAt).toBeLessThan(1_000)
-    await expect(page.getByRole('button', { name: '妈妈' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('mother')
+    await expect(page.getByRole('button', { name: '主要照顾者：妈妈' })).toHaveAttribute('aria-expanded', 'false')
     await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
     await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveValue('王老师')
   } finally {
@@ -94,6 +96,9 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   const avatarSwitchBox = await page.getByRole('button', { name: '换一个' }).boundingBox()
   expect(avatarSwitchBox?.height).toBeLessThanOrEqual(36)
   expect(avatarSwitchBox?.width).toBeLessThanOrEqual(90)
+  const avatarBox = await page.locator('section[aria-label="卡通形象"] > div').first().boundingBox()
+  expect(avatarBox?.height).toBeLessThanOrEqual(112)
+  expect(avatarBox?.width).toBeLessThanOrEqual(112)
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   const profileRows = page.locator('section[aria-label="孩子基本资料"] > label, section[aria-label="孩子基本资料"] > div, section[aria-label="孩子基本资料"] > fieldset')
@@ -102,6 +107,8 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
     expect((await profileRows.nth(index).boundingBox())?.height).toBeLessThanOrEqual(64)
   }
   await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
+  await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('mother')
+  await expect(page.getByRole('group', { name: '主要照顾者，可多选' })).toHaveCount(0)
 
   const birthday = page.getByLabel('出生日期')
   const min = await birthday.getAttribute('min')
@@ -116,9 +123,13 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
 
   await page.getByRole('button', { name: '换一个' }).click()
   await page.getByRole('button', { name: '女' }).click()
-  await page.getByRole('button', { name: '爷爷' }).click()
-  await page.getByRole('button', { name: '爸爸' }).click()
-  await expect(page.getByRole('button', { name: '爸爸' })).toHaveAttribute('aria-pressed', 'false')
+  await page.getByLabel('你是孩子的谁？').selectOption('father')
+  await page.getByRole('button', { name: '主要照顾者：爸爸、妈妈' }).click()
+  const caregiverGroup = page.getByRole('group', { name: '主要照顾者，可多选' })
+  await expect(caregiverGroup).toBeVisible()
+  await caregiverGroup.getByRole('button', { name: '爷爷', exact: true }).click()
+  await caregiverGroup.getByRole('button', { name: '爸爸', exact: true }).click()
+  await expect(caregiverGroup.getByRole('button', { name: '爸爸', exact: true })).toHaveAttribute('aria-pressed', 'false')
   await page.getByRole('textbox', { name: '其他照看者' }).fill(' 王老师 ')
 
   await page.getByRole('button', { name: '照片' }).click()
@@ -137,6 +148,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(persistedResponse.ok(), await persistedResponse.text()).toBeTruthy()
   const persisted = await persistedResponse.json()
   expect(persisted.caregivers).toEqual(['mother', 'paternal_grandfather'])
+  expect(persisted.primaryRecorderRelationship).toBe('father')
   expect(persisted.otherRelative).toBe('姨妈')
   expect(persisted.otherCaregiver).toBe('王老师')
   expect(persisted.avatar).toMatch(/^data:image\/webp;base64,/)
@@ -144,8 +156,10 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await page.goto(`/family/${memberId}/edit`)
   await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveValue('王老师')
-  await expect(page.getByRole('button', { name: '妈妈' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('button', { name: '爷爷' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('father')
+  await page.getByRole('button', { name: '主要照顾者：妈妈、爷爷' }).click()
+  await expect(page.getByRole('group', { name: '主要照顾者，可多选' }).getByRole('button', { name: '妈妈', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('group', { name: '主要照顾者，可多选' }).getByRole('button', { name: '爷爷', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   await page.getByRole('button', { name: '卡通形象' }).click()
   await expect(page.getByRole('button', { name: '换一个' })).toBeVisible()
