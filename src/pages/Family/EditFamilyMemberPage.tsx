@@ -1,15 +1,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, Info, Pencil, UserRound } from 'lucide-react'
-import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, ChevronDown, UserRound } from 'lucide-react'
+import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { FamilyEditorConfirmDialog } from '../../components/family/FamilyEditorConfirmDialog'
-import { isSafeReturnPath } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
-import type { ChildCaregiver, ChildRecorderRelationship, FamilyMemberApiDto, ProfileGender } from '../../types'
+import type { ChildRecorderRelationship, FamilyMemberApiDto, ProfileGender } from '../../types'
 import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, isChildProfileMember, validateChildBirthday } from '../../utils/childProfile'
 import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
@@ -21,27 +20,22 @@ interface ChildEditorDraft {
   avatarConfig: ClayAvatarConfig
   avatarMode: FamilyAvatarMode
   birthday: string
-  caregivers: ChildCaregiver[]
   gender: ChildGender
   name: string
   primaryRecorderRelationship: ChildRecorderRelationship | ''
-  otherCaregiver: string
-  otherRelative: string
   photoAvatar: string
 }
 
-const caregiverOptions = [
+const recorderOptions = [
   ['father', '爸爸'],
   ['mother', '妈妈'],
   ['paternal_grandfather', '爷爷'],
   ['paternal_grandmother', '奶奶'],
   ['maternal_grandfather', '外公'],
   ['maternal_grandmother', '外婆'],
-  ['nanny', '保姆']
-] as const satisfies readonly (readonly [ChildCaregiver, string])[]
-
-const caregiverValues = new Set<ChildCaregiver>(caregiverOptions.map(([value]) => value))
-const recorderOptions = [...caregiverOptions, ['other', '其他']] as const satisfies readonly (readonly [ChildRecorderRelationship, string])[]
+  ['nanny', '保姆'],
+  ['other', '其他']
+] as const satisfies readonly (readonly [ChildRecorderRelationship, string])[]
 const recorderValues = new Set<ChildRecorderRelationship>(recorderOptions.map(([value]) => value))
 const rowClass = 'grid min-h-[64px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
 const controlClass = 'h-11 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
@@ -63,12 +57,9 @@ function makeDraft(member: FamilyMemberApiDto): ChildEditorDraft {
     avatarConfig: remapClayAvatarRole(baseAvatar, avatarBirthday, avatarGender),
     avatarMode: isPhoto ? 'photo' : 'cartoon',
     birthday,
-    caregivers: (member.caregivers ?? []).filter((value): value is ChildCaregiver => caregiverValues.has(value)),
     gender,
     name: member.name,
     primaryRecorderRelationship: member.primaryRecorderRelationship && recorderValues.has(member.primaryRecorderRelationship) ? member.primaryRecorderRelationship : '',
-    otherCaregiver: member.otherCaregiver ?? '',
-    otherRelative: member.otherRelative ?? '',
     photoAvatar: isPhoto ? avatar : ''
   }
 }
@@ -76,24 +67,13 @@ function makeDraft(member: FamilyMemberApiDto): ChildEditorDraft {
 function draftFingerprint(draft: ChildEditorDraft) {
   return JSON.stringify({
     ...draft,
-    name: draft.name.trim(),
-    otherCaregiver: draft.otherCaregiver.trim(),
-    otherRelative: draft.otherRelative.trim()
+    name: draft.name.trim()
   })
 }
 
-function caregiverDataMatches(member: FamilyMemberApiDto, draft: ChildEditorDraft) {
+function savedDataMatches(member: FamilyMemberApiDto, draft: ChildEditorDraft) {
   return member.relationship === 'child'
-    && JSON.stringify(member.caregivers ?? []) === JSON.stringify(draft.caregivers)
     && (member.primaryRecorderRelationship ?? '') === draft.primaryRecorderRelationship
-    && (member.otherRelative ?? '') === draft.otherRelative.trim()
-    && (member.otherCaregiver ?? '') === draft.otherCaregiver.trim()
-}
-
-function caregiverSummary(caregivers: ChildCaregiver[]) {
-  if (!caregivers.length) return '请选择主要照顾者'
-  const labels = new Map<ChildCaregiver, string>(caregiverOptions)
-  return caregivers.map((value) => labels.get(value)).filter(Boolean).join('、')
 }
 
 function displayBirthday(value: string) {
@@ -102,7 +82,6 @@ function displayBirthday(value: string) {
 
 export function EditFamilyMemberPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { memberId = '' } = useParams()
   const token = useAppStore((state) => state.authToken)
   const members = useAppStore((state) => state.members)
@@ -111,8 +90,6 @@ export function EditFamilyMemberPage() {
   const setMembers = useAppStore((state) => state.setMembers)
   const clearProfile = useAppStore((state) => state.clearProfile)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
-  const returnState = (location.state as { returnTo?: unknown } | null)?.returnTo
-  const returnTo = isSafeReturnPath(returnState) ? returnState : null
   const cachedMember = token && memberId ? familyMemberService.getCachedById(memberId, token) : undefined
   const initialMember = cachedMember && isChildProfileMember(cachedMember) ? cachedMember : null
   const initialDraft = initialMember ? makeDraft(initialMember) : null
@@ -125,7 +102,6 @@ export function EditFamilyMemberPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
-  const [caregiverOpen, setCaregiverOpen] = useState(false)
   const [error, setError] = useState('')
   const allowNavigationRef = useRef(false)
   const draftEditedRef = useRef(false)
@@ -181,13 +157,12 @@ export function EditFamilyMemberPage() {
   const birthdayValidation = useMemo(() => validateChildBirthday(draft?.birthday ?? ''), [draft?.birthday])
   const birthdayError = childBirthdayErrorMessage(birthdayValidation.error)
   const nameError = draft && !draft.name.trim() ? '请输入姓名' : draft && draft.name.trim().length > 50 ? '姓名最多50个字符' : ''
-  const otherCaregiverError = draft && draft.otherCaregiver.trim().length > 30 ? '其他照看者最多30个字符' : ''
   const photoError = draft?.avatarMode === 'photo' && !draft.photoAvatar ? '请先选择一张照片' : ''
   const isDirty = Boolean(draft && baseline && draftFingerprint(draft) !== baseline)
   const blocker = useBlocker(isDirty && !allowNavigationRef.current && saveState !== 'saving' && !deleting)
   const bounds = useMemo(() => getChildBirthdayBounds(), [])
   const age = draft?.birthday ? formatChildProfileAge(draft.birthday) : ''
-  const hasErrors = Boolean(nameError || birthdayError || otherCaregiverError || photoError)
+  const hasErrors = Boolean(nameError || birthdayError || photoError)
   const locked = saveState === 'saving' || deleting || photoProcessing
 
   useEffect(() => {
@@ -213,12 +188,6 @@ export function EditFamilyMemberPage() {
     setSaveState('idle')
   }
 
-  const goBack = (replace = false) => {
-    allowNavigationRef.current = true
-    if (returnTo) navigate(returnTo, { replace })
-    else navigate('/family', { replace })
-  }
-
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (!draft || !previewConfig || !token || !memberId || !isDirty || hasErrors || photoProcessing) return
@@ -231,13 +200,10 @@ export function EditFamilyMemberPage() {
         birthday: draft.birthday || null,
         gender: draft.gender || null,
         avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeClayAvatar(previewConfig),
-        caregivers: draft.caregivers,
-        primaryRecorderRelationship: draft.primaryRecorderRelationship || null,
-        otherRelative: draft.otherRelative.trim() || null,
-        otherCaregiver: draft.otherCaregiver.trim() || null
+        primaryRecorderRelationship: draft.primaryRecorderRelationship || null
       }, token)
       const persisted = await familyMemberService.getById(memberId, token)
-      if (!caregiverDataMatches(persisted, draft)) throw new Error('照护信息尚未完整保存，请重试')
+      if (!savedDataMatches(persisted, draft)) throw new Error('资料尚未完整保存，请重试')
       const savedDraft = makeDraft(persisted)
       const adapted = adaptFamilyMember(persisted)
       setSourceMember(persisted)
@@ -246,8 +212,6 @@ export function EditFamilyMemberPage() {
       setBaseline(draftFingerprint(savedDraft))
       draftEditedRef.current = false
       setSaveState('saved')
-      allowNavigationRef.current = true
-      window.setTimeout(() => goBack(true), 450)
     } catch (requestError) {
       setSaveState('idle')
       setError(requestError instanceof Error ? requestError.message : '保存失败，请重试')
@@ -352,54 +316,6 @@ export function EditFamilyMemberPage() {
               <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} strokeWidth={1.7} />
             </span>
           </label>
-        </section>
-
-        <section className="mt-4 rounded-card border border-border-calm bg-surface p-4" aria-labelledby="caregiver-heading">
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-base font-semibold text-heading" id="caregiver-heading">主要照顾者</h2>
-            <span className="text-sm text-text-secondary">可多选</span>
-          </div>
-          <div className="relative mt-3">
-            <button
-              aria-label={`主要照顾者：${caregiverSummary(draft.caregivers)}`}
-              aria-controls="caregiver-options"
-              aria-expanded={caregiverOpen}
-              className={`${controlClass} flex items-center justify-between gap-2 text-left`}
-              disabled={locked}
-              type="button"
-              onClick={() => setCaregiverOpen((open) => !open)}
-            >
-              <span className={draft.caregivers.length ? 'truncate text-heading' : 'truncate text-text-secondary'}>{caregiverSummary(draft.caregivers)}</span>
-              <ChevronDown aria-hidden="true" className={`shrink-0 transition-transform ${caregiverOpen ? 'rotate-180' : ''}`} size={18} strokeWidth={1.7} />
-            </button>
-            {caregiverOpen && <div className="mt-2 grid grid-cols-2 gap-2 rounded-control border border-border-calm bg-surface-muted p-2" id="caregiver-options" role="group" aria-label="主要照顾者，可多选">
-              {caregiverOptions.map(([value, label]) => {
-                const selected = draft.caregivers.includes(value)
-                return <button
-                  aria-pressed={selected}
-                  className={`flex min-h-11 items-center justify-between rounded-control border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${selected ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface text-heading'}`}
-                  disabled={locked}
-                  key={value}
-                  type="button"
-                  onClick={() => updateDraft({ caregivers: selected ? draft.caregivers.filter((item) => item !== value) : [...draft.caregivers, value] })}
-                ><span>{label}</span><span aria-hidden="true">{selected ? '✓' : ''}</span></button>
-              })}
-            </div>}
-          </div>
-
-          <label className="mt-4 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
-            <span className="text-sm font-medium">其他照看者</span>
-            <span className="relative">
-              <input aria-invalid={Boolean(otherCaregiverError)} className={`${controlClass} pr-10`} disabled={locked} maxLength={30} placeholder="请输入称呼或姓名" value={draft.otherCaregiver} onChange={(event) => updateDraft({ otherCaregiver: event.target.value })} />
-              <Pencil aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={17} strokeWidth={1.7} />
-            </span>
-          </label>
-          {otherCaregiverError && <p className="mt-1 text-right text-xs text-danger">{otherCaregiverError}</p>}
-
-          <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-text-secondary">
-            <Info aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={17} strokeWidth={1.8} />
-            <span>过敏情况的及时变化，可以同步给其他照看者</span>
-          </p>
         </section>
 
         <div className="mt-auto pt-5">
