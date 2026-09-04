@@ -102,31 +102,54 @@ export function EditFamilyMemberPage() {
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const returnState = (location.state as { returnTo?: unknown } | null)?.returnTo
   const returnTo = isSafeReturnPath(returnState) ? returnState : null
+  const cachedMember = token && memberId ? familyMemberService.getCachedById(memberId, token) : undefined
+  const initialMember = cachedMember && isChildProfileMember(cachedMember) ? cachedMember : null
+  const initialDraft = initialMember ? makeDraft(initialMember) : null
 
-  const [sourceMember, setSourceMember] = useState<FamilyMemberApiDto | null>(null)
-  const [draft, setDraft] = useState<ChildEditorDraft | null>(null)
-  const [baseline, setBaseline] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [sourceMember, setSourceMember] = useState<FamilyMemberApiDto | null>(initialMember)
+  const [draft, setDraft] = useState<ChildEditorDraft | null>(initialDraft)
+  const [baseline, setBaseline] = useState(initialDraft ? draftFingerprint(initialDraft) : '')
+  const [loading, setLoading] = useState(!initialMember)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [error, setError] = useState('')
   const allowNavigationRef = useRef(false)
+  const draftEditedRef = useRef(false)
 
   useEffect(() => {
     if (!token || !memberId) return
+    const cached = familyMemberService.getCachedById(memberId, token)
+    draftEditedRef.current = false
+    setError('')
+    if (cached && isChildProfileMember(cached)) {
+      const cachedDraft = makeDraft(cached)
+      setSourceMember(cached)
+      setDraft(cachedDraft)
+      setBaseline(draftFingerprint(cachedDraft))
+      setLoading(false)
+    } else {
+      setSourceMember(null)
+      setDraft(null)
+      setBaseline('')
+      setLoading(true)
+    }
     const controller = new AbortController()
     familyMemberService.getById(memberId, token, controller.signal)
       .then((member) => {
         if (!isChildProfileMember(member)) {
+          setSourceMember(null)
+          setDraft(null)
           setError('该页面仅用于编辑孩子资料')
           return
         }
         const initial = makeDraft(member)
         setSourceMember(member)
-        setDraft(initial)
-        setBaseline(draftFingerprint(initial))
+        if (!draftEditedRef.current) {
+          setDraft(initial)
+          setBaseline(draftFingerprint(initial))
+        }
       })
       .catch((requestError) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
@@ -135,7 +158,9 @@ export function EditFamilyMemberPage() {
           navigate('/login', { replace: true })
           return
         }
-        setError(requestError instanceof Error ? requestError.message : '孩子资料加载失败')
+        setError(cached
+          ? '资料刷新暂时失败，当前显示最近一次数据'
+          : requestError instanceof Error ? requestError.message : '孩子资料加载失败')
       })
       .finally(() => setLoading(false))
     return () => controller.abort()
@@ -171,6 +196,7 @@ export function EditFamilyMemberPage() {
   }, [draft])
 
   const updateDraft = (changes: Partial<ChildEditorDraft>) => {
+    draftEditedRef.current = true
     setDraft((current) => current ? { ...current, ...changes } : current)
     setError('')
     setSaveState('idle')
@@ -206,6 +232,7 @@ export function EditFamilyMemberPage() {
       setMembers(members.map((member) => member.id === persisted.id ? adapted : member))
       setDraft(savedDraft)
       setBaseline(draftFingerprint(savedDraft))
+      draftEditedRef.current = false
       setSaveState('saved')
       allowNavigationRef.current = true
       window.setTimeout(() => goBack(true), 450)

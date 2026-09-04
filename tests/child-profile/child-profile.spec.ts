@@ -30,6 +30,52 @@ test.beforeAll(async () => {
   await mkdir(evidenceRoot, { recursive: true })
 })
 
+test('从已加载家人列表进入编辑页时不等待后台成员刷新', async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-se', '加载性能边界只需在固定 iPhone SE 执行一次')
+  const account = 'child-loading-' + testInfo.project.name
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const createdResponse = await request.post('/api/members', {
+    headers: { Authorization: 'Bearer ' + authToken },
+    data: {
+      name: '加载测试宝宝',
+      relationship: 'child',
+      gender: 'female',
+      birthday: '2026-09-04',
+      avatar: 'clay:v1:baby-girl:east-asian',
+      caregivers: ['mother'],
+      otherRelative: '姨妈',
+      otherCaregiver: '王老师'
+    }
+  })
+  expect(createdResponse.status()).toBe(201)
+  const created = await createdResponse.json()
+  await prepareAccount(page, authToken, account)
+
+  try {
+    await page.goto('/family')
+    await expect(page.getByText('加载测试宝宝')).toBeVisible()
+    await page.route('**/api/members/' + created.id, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      await route.continue()
+    })
+
+    await page.getByRole('button', { name: '切换角色' }).click()
+    await expect(page).toHaveURL(/\/health-events$/)
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    const startedAt = Date.now()
+    await page.getByRole('button', { name: '编辑加载测试宝宝的资料' }).click()
+    await expect(page.locator('input[maxlength="50"]')).toHaveValue('加载测试宝宝', { timeout: 800 })
+    expect(Date.now() - startedAt).toBeLessThan(1_000)
+    await expect(page.getByRole('button', { name: '妈妈' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveValue('姨妈')
+    await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveValue('王老师')
+  } finally {
+    await request.delete('/api/members/' + created.id, {
+      headers: { Authorization: 'Bearer ' + authToken }
+    })
+  }
+})
+
 test('孩子资料完整交互、持久化、响应式和删除失败恢复', async ({ page, request }, testInfo) => {
   const memberId = `child-profile-${testInfo.project.name}`
   const runtimeErrors: string[] = []

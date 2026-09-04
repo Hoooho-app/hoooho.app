@@ -1,13 +1,40 @@
 import type { FamilyMemberApiDto } from '../types'
 import { apiRequest } from './apiClient'
 
+let cachedToken = ''
+const cachedMembers = new Map<string, FamilyMemberApiDto>()
+
+function cacheFor(token: string) {
+  if (token !== cachedToken) {
+    cachedToken = token
+    cachedMembers.clear()
+  }
+  return cachedMembers
+}
+
+function rememberMember(member: FamilyMemberApiDto, token: string) {
+  cacheFor(token).set(member.id, member)
+  return member
+}
+
 export const familyMemberService = {
   list(token: string, signal?: AbortSignal) {
     return apiRequest<FamilyMemberApiDto[]>('/api/members', { token, signal })
+      .then((members) => {
+        const cache = cacheFor(token)
+        cache.clear()
+        members.forEach((member) => cache.set(member.id, member))
+        return members
+      })
+  },
+
+  getCachedById(memberId: string, token: string) {
+    return cacheFor(token).get(memberId)
   },
 
   getById(memberId: string, token: string, signal?: AbortSignal) {
     return apiRequest<FamilyMemberApiDto>(`/api/members/${encodeURIComponent(memberId)}`, { token, signal })
+      .then((member) => rememberMember(member, token))
   },
 
   create(input: {
@@ -21,7 +48,7 @@ export const familyMemberService = {
       token,
       method: 'POST',
       body: input
-    })
+    }).then((member) => rememberMember(member, token))
   },
 
   createSelf(input: { name?: string; birthday?: string; gender?: 'male' | 'female'; avatar?: string } = {}, token: string) {
@@ -29,7 +56,7 @@ export const familyMemberService = {
       token,
       method: 'POST',
       body: input
-    })
+    }).then((member) => rememberMember(member, token))
   },
 
   update(
@@ -48,7 +75,7 @@ export const familyMemberService = {
       signal,
       method: 'PATCH',
       body: input
-    })
+    }).then((member) => rememberMember(member, token))
   },
 
   delete(memberId: string, token: string, signal?: AbortSignal) {
@@ -56,6 +83,9 @@ export const familyMemberService = {
       token,
       signal,
       method: 'DELETE'
+    }).then((result) => {
+      cacheFor(token).delete(memberId)
+      return result
     })
   }
 }
