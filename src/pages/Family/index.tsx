@@ -119,8 +119,8 @@ export function FamilyPage() {
             >
               <RecordSubjectCard
                 action={current
-                  ? <span className="rounded-pill bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">当前角色</span>
-                  : <button className="rounded-pill border border-primary/30 px-2.5 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => switchMember(member)}>切换记录对象</button>}
+                  ? <span className="rounded-pill bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">当前</span>
+                  : <button className="rounded-pill border border-text-primary px-2.5 py-1.5 text-xs font-medium text-text-primary" type="button" onClick={() => switchMember(member)}>切换</button>}
                 age={member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}
                 avatar={member.avatar}
                 gender={genderLabel[member.gender ?? '']}

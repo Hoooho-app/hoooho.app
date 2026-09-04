@@ -73,7 +73,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       await route.continue()
     })
 
-    await page.getByRole('button', { name: '切换记录对象' }).click()
+    await page.getByRole('button', { name: '切换', exact: true }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
     const startedAt = Date.now()
@@ -111,7 +111,16 @@ test('我的家人支持左滑删除并在确认后更新列表', async ({ page,
     await page.goto('/family')
     await expect(page.getByText('选择家人即可查看和记录对应的健康情况。')).toHaveCount(0)
     await expect(page.getByText('记录对象', { exact: true })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: '切换记录对象' })).toHaveCount(2)
+    await expect(page.getByText('当前', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('当前角色', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '切换记录对象' })).toHaveCount(0)
+    const switchButtons = page.getByRole('button', { name: '切换', exact: true })
+    await expect(switchButtons).toHaveCount(2)
+    const switchButtonColors = await switchButtons.first().evaluate((element) => {
+      const styles = getComputedStyle(element)
+      return { border: styles.borderColor, text: styles.color }
+    })
+    expect(switchButtonColors).toEqual({ border: 'rgb(24, 49, 47)', text: 'rgb(24, 49, 47)' })
 
     const row = page.getByRole('group', { name: /滑动成员A/ })
     const box = await row.boundingBox()
@@ -353,7 +362,7 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     await expect(page).toHaveURL(/\/family$/)
     await expect(page.getByText('未满1个月')).toBeVisible()
 
-    await page.getByRole('button', { name: '切换记录对象' }).click()
+    await page.getByRole('button', { name: '切换', exact: true }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
     await page.getByRole('button', { name: '编辑凌晨宝宝的资料' }).click()

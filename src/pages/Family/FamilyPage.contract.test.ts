@@ -15,7 +15,11 @@ test('family list uses swipe-to-delete confirmation and the requested copy', asy
 
   assert.doesNotMatch(pageSource, /选择家人即可查看和记录对应的健康情况/)
   assert.doesNotMatch(pageSource, />切换角色</)
-  assert.match(pageSource, />切换记录对象</)
+  assert.doesNotMatch(pageSource, />当前角色</)
+  assert.doesNotMatch(pageSource, />切换记录对象</)
+  assert.match(pageSource, />当前</)
+  assert.match(pageSource, />切换</)
+  assert.match(pageSource, /border-text-primary[^\"]*text-text-primary/)
   assert.match(pageSource, /label=""/)
   assert.match(pageSource, /confirmLabel="确认删除"/)
   assert.match(pageSource, /await familyMemberService\.delete\(pendingDelete\.id, token\)/)
