@@ -36,7 +36,7 @@ const recorderOptions = [
   ['other', '其他']
 ] as const satisfies readonly (readonly [ChildRecorderRelationship, string])[]
 const recorderValues = new Set<ChildRecorderRelationship>(recorderOptions.map(([value]) => value))
-const rowClass = 'grid min-h-[64px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
+const rowClass = 'grid min-h-[56px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
 const controlClass = 'h-11 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
 
 function childAvatarBirthday(birthday: string) {
@@ -241,7 +241,7 @@ export function EditFamilyMemberPage() {
   return <main className="app-shell flex min-h-dvh flex-col bg-surface pb-0">
     <WebPageHeader title="编辑孩子资料" fallback="/family" />
     {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : sourceMember && draft && previewConfig ? (
-      <form className="flex flex-1 flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-4" onSubmit={save}>
+      <form className="flex flex-1 flex-col px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" onSubmit={save}>
         <div className="mx-auto w-full max-w-sm">
           <FamilyAvatarEditor
             childProfile
@@ -258,7 +258,7 @@ export function EditFamilyMemberPage() {
           />
         </div>
 
-        <section className="mt-5 overflow-hidden rounded-card border border-border-calm bg-surface" aria-label="孩子基本资料">
+        <section className="mt-3 overflow-hidden rounded-card border border-border-calm bg-surface" aria-label="孩子基本资料">
           <label className={rowClass}>
             <span className="flex items-center gap-2 text-sm font-medium"><UserRound aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />姓名</span>
             <input aria-invalid={Boolean(nameError)} className={controlClass} disabled={locked} maxLength={50} value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} />
@@ -298,9 +298,9 @@ export function EditFamilyMemberPage() {
           </fieldset>
         </section>
 
-        <section className="mt-4 rounded-card border border-border-calm bg-surface p-4" aria-labelledby="recorder-heading">
+        <section className="mt-3 rounded-card border border-border-calm bg-surface p-3" aria-labelledby="recorder-heading">
           <h2 className="text-base font-semibold text-heading" id="recorder-heading">主要记录者</h2>
-          <label className="mt-3 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
+          <label className="mt-2 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
             <span className="text-sm font-medium">你是孩子的谁？</span>
             <span className="relative">
               <select
@@ -318,12 +318,12 @@ export function EditFamilyMemberPage() {
           </label>
         </section>
 
-        <div className="mt-auto pt-5">
-          <div className="min-h-5" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
-          <Button className="mt-2 min-h-[50px]" disabled={!isDirty || hasErrors || locked || saveState === 'saved'} fullWidth type="submit">
+        <div className="mt-auto pt-3">
+          <div className="min-h-4" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
+          <Button className="mt-1 min-h-[50px]" disabled={!isDirty || hasErrors || locked || saveState === 'saved'} fullWidth type="submit">
             {saveState === 'saving' ? '正在保存…' : saveState === 'saved' ? '已保存' : '保存修改'}
           </Button>
-          <Button className="mt-3 min-h-[50px]" disabled={locked} fullWidth type="button" variant="danger" onClick={() => setDeleteOpen(true)}>删除孩子资料</Button>
+          <Button className="mt-2 min-h-[50px]" disabled={locked} fullWidth type="button" variant="danger" onClick={() => setDeleteOpen(true)}>删除孩子资料</Button>
         </div>
       </form>
     ) : <div className="px-4 py-16 text-center"><p className="text-sm text-text-secondary">{error || '未找到这个孩子'}</p><Button className="mt-5" onClick={() => navigate('/family')}>返回我的家人</Button></div>}
