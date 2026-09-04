@@ -67,7 +67,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await expect(page.locator('input[maxlength="50"]')).toHaveValue('加载测试宝宝', { timeout: 800 })
     expect(Date.now() - startedAt).toBeLessThan(1_000)
     await expect(page.getByRole('button', { name: '妈妈' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveValue('姨妈')
+    await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
     await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveValue('王老师')
   } finally {
     await request.delete('/api/members/' + created.id, {
@@ -91,8 +91,17 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
 
   await expect(page.getByRole('heading', { name: '编辑孩子资料' })).toBeVisible()
   await expect(page.getByRole('button', { name: '换一个' })).toBeVisible()
+  const avatarSwitchBox = await page.getByRole('button', { name: '换一个' }).boundingBox()
+  expect(avatarSwitchBox?.height).toBeLessThanOrEqual(36)
+  expect(avatarSwitchBox?.width).toBeLessThanOrEqual(90)
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
+  const profileRows = page.locator('section[aria-label="孩子基本资料"] > label, section[aria-label="孩子基本资料"] > div, section[aria-label="孩子基本资料"] > fieldset')
+  await expect(profileRows).toHaveCount(3)
+  for (let index = 0; index < 3; index += 1) {
+    expect((await profileRows.nth(index).boundingBox())?.height).toBeLessThanOrEqual(64)
+  }
+  await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
 
   const birthday = page.getByLabel('出生日期')
   const min = await birthday.getAttribute('min')
@@ -110,7 +119,6 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await page.getByRole('button', { name: '爷爷' }).click()
   await page.getByRole('button', { name: '爸爸' }).click()
   await expect(page.getByRole('button', { name: '爸爸' })).toHaveAttribute('aria-pressed', 'false')
-  await page.getByRole('textbox', { name: '其他亲属' }).fill(' 姨妈 ')
   await page.getByRole('textbox', { name: '其他照看者' }).fill(' 王老师 ')
 
   await page.getByRole('button', { name: '照片' }).click()
@@ -134,7 +142,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(persisted.avatar).toMatch(/^data:image\/webp;base64,/)
 
   await page.goto(`/family/${memberId}/edit`)
-  await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveValue('姨妈')
+  await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveValue('王老师')
   await expect(page.getByRole('button', { name: '妈妈' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('button', { name: '爷爷' })).toHaveAttribute('aria-pressed', 'true')
@@ -172,7 +180,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   confirmation = page.getByRole('dialog', { name: '删除孩子资料？' })
   await confirmation.getByRole('button', { name: '确认删除' }).click()
   await expect(page.getByText('删除暂时失败，请重试')).toBeVisible()
-  await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveValue('姨妈')
+  await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
 
   await deleteButton.click()
   confirmation = page.getByRole('dialog', { name: '删除孩子资料？' })

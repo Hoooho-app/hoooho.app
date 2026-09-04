@@ -41,6 +41,12 @@ test('family avatar editor offers a compact onboarding layout without shrinking 
   assert.match(source, /size=\{compact \? 16 : 20\}/)
 })
 
+test('child profile avatar switch keeps a smaller visual control with an expanded hit area', () => {
+  assert.match(source, /-end-10/)
+  assert.match(source, /h-9.*text-xs/)
+  assert.match(source, /after:-inset-1/)
+})
+
 test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {
   assert.match(source, /language\.toLowerCase\(\)\.startsWith\('ar'\)/)
   assert.match(source, /dir=\{isRtl \? 'rtl' : 'ltr'\}/)

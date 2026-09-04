@@ -40,8 +40,8 @@ const caregiverOptions = [
 ] as const satisfies readonly (readonly [ChildCaregiver, string])[]
 
 const caregiverValues = new Set<ChildCaregiver>(caregiverOptions.map(([value]) => value))
-const rowClass = 'grid min-h-[72px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
-const controlClass = 'h-12 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
+const rowClass = 'grid min-h-[64px] grid-cols-[94px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)] sm:px-4'
+const controlClass = 'h-11 min-w-0 w-full rounded-control border border-border-calm bg-surface px-3 text-sm text-heading outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-surface-muted disabled:text-text-secondary'
 
 function childAvatarBirthday(birthday: string) {
   return birthday && validateChildBirthday(birthday).valid ? birthday : getChildBirthdayBounds().min
@@ -169,14 +169,13 @@ export function EditFamilyMemberPage() {
   const birthdayValidation = useMemo(() => validateChildBirthday(draft?.birthday ?? ''), [draft?.birthday])
   const birthdayError = childBirthdayErrorMessage(birthdayValidation.error)
   const nameError = draft && !draft.name.trim() ? '请输入姓名' : draft && draft.name.trim().length > 50 ? '姓名最多50个字符' : ''
-  const otherRelativeError = draft && draft.otherRelative.trim().length > 30 ? '其他亲属最多30个字符' : ''
   const otherCaregiverError = draft && draft.otherCaregiver.trim().length > 30 ? '其他照看者最多30个字符' : ''
   const photoError = draft?.avatarMode === 'photo' && !draft.photoAvatar ? '请先选择一张照片' : ''
   const isDirty = Boolean(draft && baseline && draftFingerprint(draft) !== baseline)
   const blocker = useBlocker(isDirty && !allowNavigationRef.current && saveState !== 'saving' && !deleting)
   const bounds = useMemo(() => getChildBirthdayBounds(), [])
   const age = draft?.birthday ? formatChildProfileAge(draft.birthday) : ''
-  const hasErrors = Boolean(nameError || birthdayError || otherRelativeError || otherCaregiverError || photoError)
+  const hasErrors = Boolean(nameError || birthdayError || otherCaregiverError || photoError)
   const locked = saveState === 'saving' || deleting || photoProcessing
 
   useEffect(() => {
@@ -310,7 +309,7 @@ export function EditFamilyMemberPage() {
           <fieldset className={rowClass} disabled={locked}>
             <legend className="sr-only">性别</legend>
             <span className="flex items-center gap-2 text-sm font-medium"><UserRound aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />性别</span>
-            <div className="grid h-12 w-full grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface">
+            <div className="grid h-11 w-full grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface">
               {([['male', '男'], ['female', '女']] as const).map(([value, label]) => <button
                 aria-pressed={draft.gender === value}
                 className={`text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${draft.gender === value ? 'bg-primary-soft font-semibold text-primary' : 'text-heading'}`}
@@ -342,15 +341,6 @@ export function EditFamilyMemberPage() {
           </div>
 
           <label className="mt-4 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
-            <span className="text-sm font-medium">其他亲属</span>
-            <span className="relative">
-              <input aria-invalid={Boolean(otherRelativeError)} className={`${controlClass} pr-10`} disabled={locked} maxLength={30} placeholder="请输入称呼" value={draft.otherRelative} onChange={(event) => updateDraft({ otherRelative: event.target.value })} />
-              <Pencil aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary" size={17} strokeWidth={1.7} />
-            </span>
-          </label>
-          {otherRelativeError && <p className="mt-1 text-right text-xs text-danger">{otherRelativeError}</p>}
-
-          <label className="mt-3 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
             <span className="text-sm font-medium">其他照看者</span>
             <span className="relative">
               <input aria-invalid={Boolean(otherCaregiverError)} className={`${controlClass} pr-10`} disabled={locked} maxLength={30} placeholder="请输入称呼或姓名" value={draft.otherCaregiver} onChange={(event) => updateDraft({ otherCaregiver: event.target.value })} />
