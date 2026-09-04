@@ -41,6 +41,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       relationship: 'child',
       gender: 'female',
       birthday: '2026-09-04',
+      nationality: 'CN',
       avatar: 'clay:v1:baby-girl:east-asian',
       caregivers: ['mother'],
       primaryRecorderRelationship: 'mother',
@@ -68,6 +69,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await expect(page.locator('input[maxlength="50"]')).toHaveValue('加载测试宝宝', { timeout: 800 })
     expect(Date.now() - startedAt).toBeLessThan(1_000)
     await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('mother')
+    await expect(page.getByLabel('国籍')).toHaveValue('CN')
     await expect(page.getByText('主要照顾者')).toHaveCount(0)
     await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
     await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveCount(0)
@@ -102,12 +104,13 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   const profileRows = page.locator('section[aria-label="孩子基本资料"] > label, section[aria-label="孩子基本资料"] > div, section[aria-label="孩子基本资料"] > fieldset')
-  await expect(profileRows).toHaveCount(3)
-  for (let index = 0; index < 3; index += 1) {
+  await expect(profileRows).toHaveCount(4)
+  for (let index = 0; index < 4; index += 1) {
     expect((await profileRows.nth(index).boundingBox())?.height).toBeLessThanOrEqual(64)
   }
   await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
   await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('mother')
+  await expect(page.getByLabel('国籍')).toHaveValue('CN')
   await expect(page.getByText('主要照顾者')).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveCount(0)
 
@@ -124,6 +127,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
 
   await page.getByRole('button', { name: '换一个' }).click()
   await page.getByRole('button', { name: '女' }).click()
+  await page.getByLabel('国籍').selectOption('GB')
   await page.getByLabel('你是孩子的谁？').selectOption('father')
 
   await page.getByRole('button', { name: '照片' }).click()
@@ -151,6 +155,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(persistedResponse.ok(), await persistedResponse.text()).toBeTruthy()
   const persisted = await persistedResponse.json()
   expect(persisted.caregivers).toEqual(['father', 'mother'])
+  expect(persisted.nationality).toBe('GB')
   expect(persisted.primaryRecorderRelationship).toBe('father')
   expect(persisted.otherRelative).toBe('姨妈')
   expect(persisted.otherCaregiver).toBeNull()
@@ -160,6 +165,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveCount(0)
   await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('father')
+  await expect(page.getByLabel('国籍')).toHaveValue('GB')
   await expect(page.getByText('主要照顾者')).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   await page.getByRole('button', { name: '卡通形象' }).click()

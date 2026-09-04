@@ -17,6 +17,7 @@ export class FamilyMemberRepository {
       relationship: input.relationship,
       gender: input.gender ?? null,
       birthday: input.birthday ?? null,
+      nationality: input.nationality ?? null,
       avatar: input.avatar ?? null,
       heightCm: input.heightCm ?? null,
       weightKg: input.weightKg ?? null,

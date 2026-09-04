@@ -62,6 +62,7 @@ export interface FamilyMemberApiDto {
   relationship: ApiMemberRelationship
   gender: ApiMemberGender
   birthday: string | null
+  nationality?: string | null
   avatar: string | null
   heightCm?: number | null
   weightKg?: number | null
