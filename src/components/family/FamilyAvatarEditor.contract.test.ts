@@ -5,7 +5,7 @@ import test from 'node:test'
 const source = readFileSync(new URL('./FamilyAvatarEditor.tsx', import.meta.url), 'utf8')
 
 test('family avatar editor exposes only a complete avatar switch and photo mode', () => {
-  assert.match(source, /cycleClayAvatar\(config\)/)
+  assert.match(source, /cycleChildAvatar\(config\)/)
   assert.match(source, /RefreshCw/)
   assert.match(source, /change: '换一个'/)
   assert.match(source, /aria-label=\{text\.change\}/)
@@ -19,18 +19,20 @@ test('family avatar editor exposes only a complete avatar switch and photo mode'
 
 test('avatar artwork and border share one fixed circular frame', () => {
   assert.match(source, /compact \? 'h-20 w-20' : 'h-28 w-28'/)
-  assert.match(source, /border-2 border-primary bg-surface shadow-card/)
+  assert.match(source, /border-2 border-primary bg-white shadow-card/)
   assert.equal(source.includes('bg-surface p-0.5 shadow-card'), false)
 })
 
 test('cartoon avatar keeps the old frame until the complete next asset is decoded', () => {
-  const clayAvatarSource = readFileSync(new URL('../common/ClayAvatar.tsx', import.meta.url), 'utf8')
-  assert.match(clayAvatarSource, /decodeImageAsset\(source, 'high'\)/)
-  assert.match(clayAvatarSource, /setDisplayed\(\{ source, viewport \}\)/)
-  assert.match(clayAvatarSource, /requestIdleCallback/)
-  assert.match(clayAvatarSource, /decodeImageAsset\(nextSource, 'low'\)/)
-  assert.match(clayAvatarSource, /Keep the last completely decoded avatar/)
-  assert.equal(clayAvatarSource.includes('key={source}'), false)
+  const childAvatarSource = readFileSync(new URL('../common/ChildAvatar.tsx', import.meta.url), 'utf8')
+  assert.match(childAvatarSource, /decodeImageAsset\(source, 'high'\)/)
+  assert.match(childAvatarSource, /setDisplayedSource\(source\)/)
+  assert.match(childAvatarSource, /requestIdleCallback/)
+  assert.match(childAvatarSource, /childAvatarVariants/)
+  assert.match(childAvatarSource, /variant !== selection\.variant/)
+  assert.match(childAvatarSource, /decodeImageAsset\(siblingSource, 'low'\)/)
+  assert.match(childAvatarSource, /Keep the last completely decoded avatar/)
+  assert.equal(childAvatarSource.includes('key={source}'), false)
 })
 
 test('family avatar editor offers a compact onboarding layout without shrinking touch targets', () => {

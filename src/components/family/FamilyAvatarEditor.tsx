@@ -3,20 +3,24 @@ import { Camera, RefreshCw, ZoomIn } from 'lucide-react'
 import { AvatarPhotoError, createAvatarPhotoPreview, prepareAvatarPhoto, type AvatarPhotoCropSelection } from '../../utils/prepareAvatarPhoto'
 import { decodeImageAsset } from '../../utils/decodeImageAsset'
 import { cycleClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
+import { cycleChildAvatar, isChildAvatarSelection, type ChildAvatarSelection } from '../../utils/childAvatar'
+import { ChildAvatar } from '../common/ChildAvatar'
 import { ClayAvatar } from '../common/ClayAvatar'
 import { BottomSheetSurface, HohoButton } from '../design-system'
 
 export type FamilyAvatarMode = 'cartoon' | 'photo'
 
-interface FamilyAvatarEditorProps {
+export type FamilyAvatarConfig = ChildAvatarSelection | ClayAvatarConfig
+
+interface FamilyAvatarEditorProps<Config extends FamilyAvatarConfig> {
   childProfile?: boolean
   compact?: boolean
-  config: ClayAvatarConfig
+  config: Config
   disabled?: boolean
   language?: string
   mode: FamilyAvatarMode
   name: string
-  onConfigChange: (config: ClayAvatarConfig) => void
+  onConfigChange: (config: Config) => void
   onError: (message: string) => void
   onModeChange: (mode: FamilyAvatarMode) => void
   onPhotoChange: (photo: string) => void
@@ -51,7 +55,7 @@ export function getFamilyAvatarCopy(language: string) {
   return copy.zh
 }
 
-export function FamilyAvatarEditor({ childProfile = false, compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps) {
+export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childProfile = false, compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps<Config>) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const requestRef = useRef(0)
   const [processing, setProcessing] = useState(false)
@@ -142,16 +146,20 @@ export function FamilyAvatarEditor({ childProfile = false, compact = false, conf
   }
 
   const changeAvatar = () => {
-    onConfigChange(cycleClayAvatar(config))
+    onConfigChange((isChildAvatarSelection(config) ? cycleChildAvatar(config) : cycleClayAvatar(config)) as Config)
     onError('')
   }
+
+  const cartoonAvatar = (className: string) => isChildAvatarSelection(config)
+    ? <ChildAvatar className={className} selection={config} language={language} name={name || text.cartoon} />
+    : <ClayAvatar className={className} config={config} language={language} name={name || text.cartoon} />
 
   return (
     <section className="flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'} aria-label={mode === 'cartoon' ? text.cartoon : text.photo}>
       {mode === 'cartoon' ? (
         childProfile ? (
           <div className="relative mb-2 h-28 w-28">
-            <ClayAvatar className="h-28 w-28 border-2 border-primary bg-surface" config={config} language={language} name={name || text.cartoon} />
+            {cartoonAvatar('h-28 w-28 border-2 border-primary bg-white')}
             <button
               aria-label={text.change}
               className="absolute -bottom-0.5 -end-9 inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-control border border-primary bg-surface px-3 text-xs font-medium text-primary after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -174,7 +182,7 @@ export function FamilyAvatarEditor({ childProfile = false, compact = false, conf
               onClick={changeAvatar}
             >
               <span className={`relative block ${compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
-                <ClayAvatar className={`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-surface shadow-card`} config={config} language={language} name={name || text.cartoon} />
+                {cartoonAvatar(`${compact ? 'h-20 w-20' : 'h-28 w-28'} border-2 border-primary bg-white shadow-card`)}
                 <span className={`absolute bottom-0 end-0 grid place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-card transition-transform duration-150 group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
                 <RefreshCw aria-hidden="true" size={compact ? 16 : 20} strokeWidth={1.9} />
                 </span>

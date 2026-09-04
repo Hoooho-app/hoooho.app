@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
-import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
+import { FamilyAvatarEditor, type FamilyAvatarConfig, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
@@ -14,6 +14,7 @@ import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import { inferFamilyMemberRelationship } from '../../utils/childProfile'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { createClayAvatarConfig, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
+import { createChildAvatarSelection, isChildAvatarSelection, remapChildAvatarSelection, serializeChildAvatar } from '../../utils/childAvatar'
 
 export { EditFamilyMemberPage } from './EditFamilyMemberPage'
 
@@ -106,7 +107,7 @@ export function AddFamilyMemberPage() {
   const [gender, setGender] = useState<RequiredGender>('')
   const [birthday, setBirthday] = useState('')
   const [avatarMode, setAvatarMode] = useState<FamilyAvatarMode>('cartoon')
-  const [avatarConfig, setAvatarConfig] = useState<ClayAvatarConfig | null>(null)
+  const [avatarConfig, setAvatarConfig] = useState<FamilyAvatarConfig | null>(null)
   const [photoAvatar, setPhotoAvatar] = useState('')
   const [avatarTouched, setAvatarTouched] = useState(false)
   const [error, setError] = useState('')
@@ -122,8 +123,12 @@ export function AddFamilyMemberPage() {
       return
     }
     setAvatarConfig((current) => {
-      if (!current || !avatarTouched) return createClayAvatarConfig(cleanName, birthday, gender)
-      return remapClayAvatarRole(current, birthday, gender)
+      if (inferFamilyMemberRelationship(birthday) === 'child') {
+        if (!current || !avatarTouched || !isChildAvatarSelection(current)) return createChildAvatarSelection(birthday, gender)
+        return remapChildAvatarSelection(current, birthday, gender)
+      }
+      if (!current || !avatarTouched || isChildAvatarSelection(current)) return createClayAvatarConfig(cleanName, birthday, gender)
+      return remapClayAvatarRole(current as ClayAvatarConfig, birthday, gender)
     })
   }, [avatarTouched, birthday, gender, name])
 
@@ -147,7 +152,11 @@ export function AddFamilyMemberPage() {
         setError('请完整填写姓名、出生日期和性别')
         return
       }
-      const avatar = avatarMode === 'photo' ? photoAvatar : serializeClayAvatar(avatarConfig!)
+      const avatar = avatarMode === 'photo'
+        ? photoAvatar
+        : isChildAvatarSelection(avatarConfig)
+          ? serializeChildAvatar(avatarConfig)
+          : serializeClayAvatar(avatarConfig as ClayAvatarConfig)
       const created = createdMember ?? await familyMemberService.create({
         name: cleanName,
         birthday,

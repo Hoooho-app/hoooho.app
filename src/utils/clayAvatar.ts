@@ -1,14 +1,8 @@
-import { differenceInMonths, differenceInYears, isValid, parseISO } from 'date-fns'
+import { differenceInYears, isValid, parseISO } from 'date-fns'
 import type { ProfileGender } from '../types'
 import { clayAvatarAssetPaths } from '../generated/clayAvatarAssets'
 
 export type ClayAvatarRole =
-  | 'baby-boy'
-  | 'baby-girl'
-  | 'toddler-boy'
-  | 'toddler-girl'
-  | 'boy'
-  | 'girl'
   | 'adult-male'
   | 'adult-female'
   | 'elder-male'
@@ -29,8 +23,7 @@ export interface ClayAvatarConfig {
 }
 
 export const clayAvatarRoles = [
-  'baby-boy', 'baby-girl', 'toddler-boy', 'toddler-girl',
-  'boy', 'girl', 'adult-male', 'adult-female', 'elder-male', 'elder-female'
+  'adult-male', 'adult-female', 'elder-male', 'elder-female'
 ] as const satisfies readonly ClayAvatarRole[]
 
 export const appearancePresets = [
@@ -53,30 +46,6 @@ export const clayAvatarAssetManifest = {
 // the circle background and the subject also shift between role rows. Asset-level
 // focal points keep the person centred without altering the pre-rendered artwork.
 const clayAvatarHorizontalFocalPoints = {
-  'baby-boy': {
-    'east-asian': 55.6, 'south-asian': 51.1, african: 46.6, european: 58.4,
-    'middle-eastern-north-african': 51.6, 'latin-mixed': 46.2
-  },
-  'baby-girl': {
-    'east-asian': 58.5, 'south-asian': 50.6, african: 41, european: 60,
-    'middle-eastern-north-african': 50.6, 'latin-mixed': 41.5
-  },
-  'toddler-boy': {
-    'east-asian': 55.6, 'south-asian': 50.4, african: 44.8, european: 56.4,
-    'middle-eastern-north-african': 50.1, 'latin-mixed': 44.3
-  },
-  'toddler-girl': {
-    'east-asian': 60.9, 'south-asian': 49.6, african: 39.7, european: 62.7,
-    'middle-eastern-north-african': 50.3, 'latin-mixed': 39.2
-  },
-  boy: {
-    'east-asian': 59.1, 'south-asian': 49.5, african: 40.4, european: 60.6,
-    'middle-eastern-north-african': 49.5, 'latin-mixed': 40
-  },
-  girl: {
-    'east-asian': 59.6, 'south-asian': 50, african: 39, european: 59.9,
-    'middle-eastern-north-african': 49.1, 'latin-mixed': 38.6
-  },
   'adult-male': {
     'east-asian': 59, 'south-asian': 49.4, african: 41.1, european: 59.7,
     'middle-eastern-north-african': 49.9, 'latin-mixed': 40.5
@@ -130,12 +99,7 @@ export function resolveClayAvatarRole(birthday: string, gender: ProfileGender, t
   const female = gender === 'female'
   if (!isValid(birthDate)) return female ? 'adult-female' : 'adult-male'
 
-  const months = Math.max(differenceInMonths(today, birthDate), 0)
-  if (months < 12) return female ? 'baby-girl' : 'baby-boy'
-  if (months < 36) return female ? 'toddler-girl' : 'toddler-boy'
-
   const age = Math.max(differenceInYears(today, birthDate), 0)
-  if (age < 18) return female ? 'girl' : 'boy'
   if (age < 60) return female ? 'adult-female' : 'adult-male'
   return female ? 'elder-female' : 'elder-male'
 }

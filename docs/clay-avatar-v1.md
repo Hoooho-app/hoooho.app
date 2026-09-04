@@ -1,26 +1,34 @@
-# Complete clay avatars v1
+# Family cartoon avatars
 
-Family avatars use pre-rendered 512×512 PNG files from
-`public/avatars/clay/v1`. The client never assembles facial features, hair, or
-outfits and does not call an online image-generation service.
+Family avatars are complete, pre-rendered WebP images. The client never
+assembles facial features, hair, or outfits and does not call an online
+image-generation service.
 
-## Roles and assets
+## Children
 
-The base set contains boy, girl, adult male, adult female, elder male, and
-elder female roles. The early-childhood extension adds baby and toddler roles.
-Every role has six internal appearance presets. These identifiers are never
-shown in the interface and are independent of name, language, locale, and
-country.
+The final child set is stored in `public/avatars/children/v1` and contains
+exactly 48 content-hashed 256×256 WebP files:
 
-`src/utils/clayAvatar.ts` is the single manifest and behavior boundary. It:
+- ages 0 through 7;
+- girls and boys;
+- three internal variants for every age and gender.
 
-- maps birth date and gender to a role;
-- derives a stable default from normalized family details;
-- cycles the six complete images without repetition within a round;
-- preserves the appearance preset when birth date or gender changes;
-- serializes `clay:v1:<role>:<appearance>`;
-- maps the previous layered `clay:v1:<role>:<face>:<hair>:<outfit>` format to
-  a stable complete avatar.
+`src/utils/childAvatar.ts` is the single behavior and resolution boundary.
+Birth date determines age, gender determines the matching set, and the change
+button cycles the three variants in a fixed order. The internal variant names
+are never displayed and are not inferred from profile metadata.
 
-Photo data URLs and legacy `virtual:*` values remain readable. A cartoon or
-photo avatar is persisted only with the surrounding family-member save action.
+Only the current image is requested on entry. After it decodes successfully,
+the other two images in the same age and gender group are preloaded. Historical
+child cartoon IDs are recognized only long enough to map them to this final
+set; deleted child assets are never requested.
+
+## Adults and elders
+
+The existing adult and elder set remains in `public/avatars/clay/v1`.
+`src/utils/clayAvatar.ts` continues to resolve those roles so this child-only
+replacement does not regress unrelated family profiles.
+
+Photo data URLs remain readable and are never replaced during compatibility
+mapping. A cartoon or photo avatar is persisted only with the surrounding
+family-member save action.
