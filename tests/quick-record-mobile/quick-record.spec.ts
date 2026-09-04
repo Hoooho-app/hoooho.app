@@ -8,10 +8,11 @@ const photo = { name: '体温.png', mimeType: 'image/png', buffer: Buffer.from('
 
 async function preparePage(page: Page, microphone: 'allow' | 'deny' = 'allow') {
   await page.addInitScript(({ authToken, account, member, permission }) => {
+    sessionStorage.setItem('hoooho-auth-token', authToken)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: {
-      authToken, authUser: { id: account }, opsAuthToken: null, opsAuthUser: null,
+      authUser: { id: account }, opsAuthUser: null,
       currentMemberId: member, members: [], profile: null
-    }, version: 4 }))
+    }, version: 5 }))
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
       getUserMedia: async () => {
         window.__getUserMediaCalls = (window.__getUserMediaCalls ?? 0) + 1

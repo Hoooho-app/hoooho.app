@@ -6,6 +6,9 @@ const dataDirectory = path.resolve('.codex-tmp/design-quality-e2e')
 await rm(dataDirectory, { recursive: true, force: true })
 await mkdir(dataDirectory, { recursive: true })
 const now = new Date().toISOString()
+await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ users: [{
+  id: 'design-quality-account', email: 'design@hoooho.test', createdAt: now, updatedAt: now
+}] }, null, 2))
 await writeFile(path.join(dataDirectory, 'family-members.json'), JSON.stringify({ members: [{
   id: 'design-quality-member', accountId: 'design-quality-account', name: '刘磊', relationship: 'self',
   gender: 'female', birthday: '1964-01-01', avatar: null, heightCm: 160, weightKg: 55,
