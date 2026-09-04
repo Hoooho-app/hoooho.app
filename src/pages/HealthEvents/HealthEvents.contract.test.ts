@@ -28,9 +28,12 @@ test('前台视图成为默认主入口并保留显式列表切换', () => {
 
 test('零成员在前台内分流且不会预先创建空健康事件', () => {
   assert.match(firstMember, /先添加一位需要记录健康情况的人/)
-  assert.match(firstMember, /可以是你自己，也可以是家人/)
-  assert.match(firstMember, /添加第一个家人/)
-  assert.match(firstMember, /我是为自己记录/)
+  assert.match(firstMember, /为过敏儿童设计的健康连续记录/)
+  assert.match(firstMember, /孩子发生什么，就记录什么/)
+  assert.match(firstMember, /不用一次说完，有空了再补上/)
+  assert.match(firstMember, /添加孩子信息/)
+  assert.doesNotMatch(firstMember, /可以是你自己，也可以是家人|添加第一个家人|我是为自己记录/)
+  assert.doesNotMatch(page, /familyMemberService\.createSelf|createSelfAndRecord/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
   assert.doesNotMatch(page, /!state\.data\.entryState\.hasValidHealthRecord/)
   assert.doesNotMatch(page, /healthEventService\.create|pendingTriageEventRef|ensurePendingTriageEvent/)

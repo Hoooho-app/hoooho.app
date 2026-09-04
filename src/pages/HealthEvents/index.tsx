@@ -10,9 +10,7 @@ import { ApiRequestError } from '../../services/apiClient'
 import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
-import { familyMemberService } from '../../services/familyMembers'
 import { quickRecordService } from '../../services/quickRecords'
-import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
@@ -100,13 +98,10 @@ export function HealthEventsPage() {
   const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
-  const addMember = useAppStore((state) => state.addMember)
-  const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const cachedMembers = useAppStore((state) => state.members)
   const carePreferences = useSettingsStore((state) => state.care)
   const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
-  const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
@@ -116,7 +111,6 @@ export function HealthEventsPage() {
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const submissionKeyRef = useRef('')
-  const openAfterMemberLoadRef = useRef(false)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -170,13 +164,6 @@ export function HealthEventsPage() {
     navigate('/health-events', { replace: true })
   }, [currentMember, location.state, navigate])
 
-  useEffect(() => {
-    if (!openAfterMemberLoadRef.current || !currentMember || state.status !== 'success') return
-    openAfterMemberLoadRef.current = false
-    setQuickRecordOpen(true)
-    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
-  }, [currentMember, state.status])
-
   const selectYear = (year: number) => {
     setSelectedYear(year)
     if (filters.year !== null) setFilters((current) => ({ ...current, year: null }))
@@ -204,27 +191,6 @@ export function HealthEventsPage() {
     }
     submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     setQuickRecordOpen(true)
-  }
-
-  const createSelfAndRecord = async () => {
-    if (!token || creating) return
-    setCreating(true)
-    setCreateError('')
-    try {
-      const createdMember = await familyMemberService.createSelf({}, token)
-      addMember(adaptFamilyMember(createdMember))
-      setCurrentMemberId(createdMember.id)
-      openAfterMemberLoadRef.current = true
-      await retry()
-    } catch (requestError) {
-      if (requestError instanceof ApiRequestError && requestError.status === 401) {
-        clearAuthSession()
-        return
-      }
-      setCreateError(requestError instanceof Error ? requestError.message : '暂时无法开始记录，请稍后重试')
-    } finally {
-      setCreating(false)
-    }
   }
 
   const changeEventStatus = async (eventId: string, status: HealthEventStage) => {
@@ -277,12 +243,9 @@ export function HealthEventsPage() {
   if (state.status === 'success' && state.data.entryState.familyMemberCount === 0) {
     return (
       <FirstMemberFrontDesk
-        busy={creating}
-        error={createError}
         onAddMember={() => navigate('/family/new', {
           state: { firstUseEntry: { continueToRecord: false, returnTo: '/health-events' } }
         })}
-        onCreateSelf={() => void createSelfAndRecord()}
         reducedMotion={reducedMotion}
       />
     )
@@ -350,9 +313,9 @@ export function HealthEventsPage() {
         {viewMode === 'list' && state.status === 'success' && memberEvents.length === 0 && (
           <HealthCard className="flex min-h-[360px] items-center justify-center">
             <EmptyState
-              action={<HohoButton disabled={creating} onClick={beginNewRecord}>
+              action={<HohoButton onClick={beginNewRecord}>
               <Plus size={19} strokeWidth={1.8} />
-              {creating ? '正在开始记录…' : '记录新情况'}
+              记录新情况
               </HohoButton>}
               description={<><span className="care-standard-language">心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</span><span className="care-plain-language">身体不舒服时，把发生的事记下来。</span></>}
               icon={<ClipboardList size={28} strokeWidth={1.6} />}
@@ -397,7 +360,7 @@ export function HealthEventsPage() {
         className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
         type="button"
         aria-label="记录新情况"
-        disabled={creating || !currentMember}
+        disabled={!currentMember}
         onClick={beginNewRecord}
       >
         <Plus size={30} strokeWidth={1.8} />

@@ -844,11 +844,10 @@
   .first-member-front-desk__copy { text-align: center; }
   .first-member-front-desk__eyebrow { color: rgb(var(--hoho-color-primary)); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
   .first-member-front-desk__copy h1 { margin-top: 8px; font: 700 22px / 1.35 var(--hoho-font-family); letter-spacing: -0.02em; }
-  .first-member-front-desk__copy > p:last-child { margin-top: 8px; color: rgb(var(--hoho-color-text-secondary)); font-size: 15px; }
+  .first-member-front-desk__intro { margin-top: 8px; color: rgb(var(--hoho-color-text-secondary)); font-size: 15px; line-height: 1.55; }
   .first-member-front-desk__visual { display: grid; min-height: 0; place-items: center; }
   .first-member-front-desk__visual .nurse-triage-desk { width: min(78%, 300px); }
   .first-member-front-desk__actions { display: grid; gap: 8px; }
-  .first-member-front-desk__self { min-height: 44px; color: rgb(var(--hoho-color-primary)); font-size: 14px; font-weight: 650; }
 
   .idle-nurse-visual__idle-video::-webkit-media-controls,
   .idle-nurse-visual__idle-video::-webkit-media-controls-start-playback-button {
