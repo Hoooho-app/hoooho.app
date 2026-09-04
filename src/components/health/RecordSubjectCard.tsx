@@ -29,7 +29,7 @@ export function RecordSubjectCard({
     <>
       <Avatar name={name} src={avatar} size="sm" />
       <span className="min-w-0 flex-1">
-        <span className="hoho-text-caption block truncate text-text-secondary">{label}</span>
+        {label && <span className="hoho-text-caption block truncate text-text-secondary">{label}</span>}
         <span className="mt-0.5 block min-w-0 truncate leading-5">
           <strong className="text-[15px] font-semibold">{name}</strong>
           {meta && <span className="text-sm text-text-secondary">　{meta}</span>}

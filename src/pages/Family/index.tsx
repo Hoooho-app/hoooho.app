@@ -2,7 +2,9 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'
+import { ConfirmDialog } from '../../components/design-system'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
+import { FamilyMemberSwipeRow } from '../../components/family/FamilyMemberSwipeRow'
 import { RecordSubjectCard } from '../../components/health'
 import { isSafeReturnPath, type FamilyLocationState } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
@@ -28,8 +30,13 @@ export function FamilyPage() {
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
   const setMembers = useAppStore((state) => state.setMembers)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
+  const clearProfile = useAppStore((state) => state.clearProfile)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Member | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const switchMember = (member: Member) => {
     setCurrentMemberId(member.id)
@@ -64,32 +71,77 @@ export function FamilyPage() {
     return () => controller.abort()
   }, [clearAuthSession, navigate, setMembers, token])
 
+  const removeMember = async () => {
+    if (!token || !pendingDelete || deleting) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await familyMemberService.delete(pendingDelete.id, token)
+      const remaining = members.filter((member) => member.id !== pendingDelete.id)
+      setMembers(remaining)
+      if (remaining.length === 0) clearProfile()
+      else if (currentMemberId === pendingDelete.id) setCurrentMemberId(remaining[0].id)
+      setPendingDelete(null)
+      setOpenMemberId(null)
+    } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearAuthSession()
+        navigate('/login', { replace: true })
+        return
+      }
+      setPendingDelete(null)
+      setDeleteError(requestError instanceof Error ? requestError.message : '删除失败，请重试')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
+    <>
     <main className="app-shell family-page pb-0">
       <WebPageHeader title="我的家人" fallback="/health-events" action={
         <button className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-primary" type="button" onClick={() => navigate('/family/new')}><Plus aria-hidden="true" size={16} />添加家人</button>
       } />
       <div className="family-page__content space-y-3 px-4 py-4">
-        {!loading && !error && <p className="family-page__intro">选择家人即可查看和记录对应的健康情况。</p>}
         {loading && <p className="py-12 text-center text-sm text-text-secondary">正在加载家人…</p>}
         {error && <p className="py-8 text-center text-sm text-danger">{error}</p>}
+        {deleteError && <p className="py-3 text-center text-sm text-danger" role="alert">{deleteError}</p>}
         {!loading && !error && members.map((member) => {
           const current = member.id === currentMemberId
           return (
-            <RecordSubjectCard
-              action={current
-                ? <span className="rounded-pill bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">当前角色</span>
-                : <button className="rounded-pill border border-primary/30 px-2.5 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => switchMember(member)}>切换角色</button>}
-              age={member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}
-              avatar={member.avatar}
-              gender={genderLabel[member.gender ?? '']}
+            <FamilyMemberSwipeRow
               key={member.id}
               name={member.name}
-            />
+              onDelete={() => { setOpenMemberId(null); setPendingDelete(member) }}
+              onOpenChange={(open) => setOpenMemberId(open ? member.id : null)}
+              open={openMemberId === member.id}
+            >
+              <RecordSubjectCard
+                action={current
+                  ? <span className="rounded-pill bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">当前角色</span>
+                  : <button className="rounded-pill border border-primary/30 px-2.5 py-1.5 text-xs font-medium text-primary" type="button" onClick={() => switchMember(member)}>切换记录对象</button>}
+                age={member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}
+                avatar={member.avatar}
+                gender={genderLabel[member.gender ?? '']}
+                label=""
+                name={member.name}
+              />
+            </FamilyMemberSwipeRow>
           )
         })}
       </div>
     </main>
+    <ConfirmDialog
+      confirmLabel="确认删除"
+      danger
+      description={pendingDelete ? `删除后，${pendingDelete.name}的资料及相关健康记录将无法恢复。` : ''}
+      loading={deleting}
+      onCancel={() => setPendingDelete(null)}
+      onConfirm={() => void removeMember()}
+      open={Boolean(pendingDelete)}
+      title={pendingDelete ? `删除${pendingDelete.name}？` : '删除家人？'}
+    />
+    </>
   )
 }
 

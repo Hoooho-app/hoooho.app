@@ -60,7 +60,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       await route.continue()
     })
 
-    await page.getByRole('button', { name: '切换角色' }).click()
+    await page.getByRole('button', { name: '切换记录对象' }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
     const startedAt = Date.now()
@@ -75,6 +75,75 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await request.delete('/api/members/' + created.id, {
       headers: { Authorization: 'Bearer ' + authToken }
     })
+  }
+})
+
+test('我的家人支持左滑删除并在确认后更新列表', async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-se', '左滑手势只需在固定 iPhone SE 执行一次')
+  const account = 'family-swipe-delete'
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const createMember = async (name: string) => {
+    const response = await request.post('/api/members', {
+      headers: { Authorization: 'Bearer ' + authToken },
+      data: { name, relationship: 'child', gender: 'female', birthday: '2023-05-12', avatar: 'clay:v1:toddler-girl:east-asian' }
+    })
+    expect(response.status()).toBe(201)
+    return response.json()
+  }
+  const first = await createMember('滑动成员A')
+  const second = await createMember('滑动成员B')
+  await prepareAccount(page, authToken, account)
+
+  try {
+    await page.goto('/family')
+    await expect(page.getByText('选择家人即可查看和记录对应的健康情况。')).toHaveCount(0)
+    await expect(page.getByText('记录对象', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '切换记录对象' })).toHaveCount(2)
+
+    const row = page.getByRole('group', { name: /滑动成员A/ })
+    const box = await row.boundingBox()
+    expect(box).not.toBeNull()
+    await page.mouse.move(box!.x + box!.width - 20, box!.y + box!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box!.x + box!.width - 110, box!.y + box!.height / 2, { steps: 6 })
+    await page.mouse.up()
+
+    const deleteButton = row.getByRole('button', { name: '删除' })
+    await expect(deleteButton).toBeVisible()
+    await deleteButton.click()
+    let confirmation = page.getByRole('dialog', { name: '删除滑动成员A？' })
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation.getByRole('button', { name: '取消' })).toBeFocused()
+    await confirmation.getByRole('button', { name: '取消' }).click()
+    await expect(page.getByText('滑动成员A')).toBeVisible()
+
+    let failDelete = true
+    await page.route('**/api/members/' + first.id, async (route) => {
+      if (failDelete && route.request().method() === 'DELETE') {
+        failDelete = false
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '删除暂时失败，请重试' } }) })
+      }
+      await route.continue()
+    })
+    await row.focus()
+    await page.keyboard.press('ArrowLeft')
+    await deleteButton.click()
+    confirmation = page.getByRole('dialog', { name: '删除滑动成员A？' })
+    await confirmation.getByRole('button', { name: '确认删除' }).click()
+    await expect(page.getByText('删除暂时失败，请重试')).toBeVisible()
+    await expect(page.getByText('滑动成员A')).toBeVisible()
+
+    await row.focus()
+    await page.keyboard.press('ArrowLeft')
+    await deleteButton.click()
+    confirmation = page.getByRole('dialog', { name: '删除滑动成员A？' })
+    await confirmation.getByRole('button', { name: '确认删除' }).click()
+    await expect(page.getByText('滑动成员A')).toHaveCount(0)
+    await expect(page.getByText('滑动成员B')).toBeVisible()
+    expect((await request.get('/api/members/' + first.id, { headers: { Authorization: 'Bearer ' + authToken } })).status()).toBe(404)
+  } finally {
+    await request.delete('/api/members/' + first.id, { headers: { Authorization: 'Bearer ' + authToken } })
+    await request.delete('/api/members/' + second.id, { headers: { Authorization: 'Bearer ' + authToken } })
   }
 })
 
@@ -235,7 +304,7 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     await expect(page).toHaveURL(/\/family$/)
     await expect(page.getByText('未满1个月')).toBeVisible()
 
-    await page.getByRole('button', { name: '切换角色' }).click()
+    await page.getByRole('button', { name: '切换记录对象' }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
     await page.getByRole('button', { name: '编辑凌晨宝宝的资料' }).click()
