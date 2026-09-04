@@ -74,7 +74,7 @@ test('主要记录者关系选项完整且照顾者模块已删除', () => {
 })
 
 test('孩子基本资料使用紧凑但可触达的行高和控件高度', () => {
-  assert.match(pageSource, /min-h-\[64px\]/)
+  assert.match(pageSource, /min-h-\[56px\]/)
   assert.match(pageSource, /h-11 min-w-0/)
   assert.equal(pageSource.includes('min-h-[72px]'), false)
 })

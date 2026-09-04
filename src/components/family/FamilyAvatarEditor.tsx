@@ -158,18 +158,18 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
     <section className="flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'} aria-label={mode === 'cartoon' ? text.cartoon : text.photo}>
       {mode === 'cartoon' ? (
         childProfile ? (
-          <div className="relative mb-2 h-28 w-28">
-            {cartoonAvatar('h-28 w-28 border-2 border-primary bg-white')}
+          <div className="relative h-24 w-24">
+            {cartoonAvatar('h-24 w-24 border-2 border-primary bg-white')}
             <button
               aria-label={text.change}
-              className="absolute -bottom-0.5 -end-9 inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-control border border-primary bg-surface px-3 text-xs font-medium text-primary after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute bottom-1 -end-7 inline-grid h-9 w-9 place-items-center rounded-control border border-primary bg-surface text-primary shadow-sm after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              data-child-avatar-switch
               disabled={disabled || processing}
               title={text.change}
               type="button"
               onClick={changeAvatar}
             >
-              <RefreshCw aria-hidden="true" size={15} strokeWidth={1.8} />
-              <span>{text.change}</span>
+              <RefreshCw aria-hidden="true" size={16} strokeWidth={1.8} />
             </button>
           </div>
         ) : (
@@ -199,11 +199,11 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
           type="button"
           onClick={() => photoInputRef.current?.click()}
         >
-          <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface ${childProfile ? 'h-28 w-28' : compact ? 'h-20 w-20 shadow-card' : 'h-28 w-28 shadow-card'}`}>
+          <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface ${childProfile ? 'h-24 w-24' : compact ? 'h-20 w-20 shadow-card' : 'h-28 w-28 shadow-card'}`}>
             {displayedPhoto ? (
               <img alt={text.photoAlt} className="h-full w-full object-cover" decoding="async" src={displayedPhoto} />
             ) : (
-              <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${childProfile ? 'h-28 w-28' : compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
+              <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${childProfile ? 'h-24 w-24' : compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
                 <Camera aria-hidden="true" size={compact ? 28 : 34} strokeWidth={1.6} />
               </span>
             )}
@@ -213,11 +213,11 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
       )}
       <input ref={photoInputRef} accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" disabled={disabled} type="file" onChange={(event) => void selectPhoto(event)} />
 
-      <div className={childProfile ? 'min-h-3' : 'min-h-5'} aria-live="polite" role="status">
+      <div className={childProfile ? 'min-h-2' : 'min-h-5'} aria-live="polite" role="status">
         {processing && <p className="mt-1 text-xs text-text-secondary">{text.processing}</p>}
       </div>
 
-      <div className={`${childProfile ? 'mt-0.5 w-48' : compact ? 'mt-1 w-44' : 'mt-2 w-48'} grid grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface`} aria-label={text.cartoon}>
+      <div className={`${childProfile ? 'w-48' : compact ? 'mt-1 w-44' : 'mt-2 w-48'} grid grid-cols-2 overflow-hidden rounded-control border border-border-calm bg-surface`} aria-label={text.cartoon}>
         {([['cartoon', text.cartoon], ['photo', text.photo]] as const).map(([value, label]) => (
           <button
             aria-pressed={mode === value}
