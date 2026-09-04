@@ -6,7 +6,16 @@ const dataDirectory = path.resolve('.codex-tmp/child-profile-e2e')
 await rm(dataDirectory, { recursive: true, force: true })
 await mkdir(dataDirectory, { recursive: true })
 const now = new Date().toISOString()
-const projectNames = ['iphone-se', 'mobile-375', 'mobile-390', 'mobile-430', 'tablet-768', 'desktop-1280']
+const projectNames = [
+  'iphone-se',
+  'mobile-375',
+  'mobile-390',
+  'mobile-430',
+  'wechat-webview',
+  'safari-iphone',
+  'tablet-768',
+  'desktop-1280'
+]
 const members = projectNames.map((project, index) => ({
   id: `child-profile-${project}`,
   accountId: 'child-profile-account',

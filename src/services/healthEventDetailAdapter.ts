@@ -17,6 +17,8 @@ import type {
 } from '../types'
 import { formatAgeFromBirthday } from '../utils/formatAgeFromBirthday'
 import { createClayAvatarConfig, serializeClayAvatar } from '../utils/clayAvatar'
+import { isChildProfileMember } from '../utils/childProfile'
+import { createChildAvatarSelection, parseStoredChildAvatar, remapChildAvatarSelection, serializeChildAvatar } from '../utils/childAvatar'
 import { formatHealthTimePeriod } from '../utils/formatHealthTimePeriod'
 import { getExactTemperatureMeasurement } from '../utils/temperatureMeasurement'
 import { compareHealthChronologyDesc } from './healthChronology'
@@ -48,6 +50,16 @@ interface FactContext {
 export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
   const avatarGender = member.gender === 'male' || member.gender === 'female' ? member.gender : null
   const canGenerateAvatar = Boolean(member.birthday && avatarGender)
+  const child = canGenerateAvatar && isChildProfileMember(member)
+  const parsedChildAvatar = child
+    ? parseStoredChildAvatar(member.avatar, member.birthday!, avatarGender!)
+    : null
+  const storedBuiltInAvatar = Boolean(member.avatar?.startsWith('clay:') || member.avatar?.startsWith('virtual:'))
+  const childAvatar = child
+    ? serializeChildAvatar(parsedChildAvatar
+      ? remapChildAvatarSelection(parsedChildAvatar, member.birthday!, avatarGender!)
+      : createChildAvatarSelection(member.birthday!, avatarGender!))
+    : null
 
   return {
     id: member.id,
@@ -55,9 +67,11 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     relation: relationLabels[member.relationship],
     birthday: member.birthday ?? undefined,
     gender: member.gender ?? '',
-    avatar: member.avatar ?? (canGenerateAvatar
-      ? serializeClayAvatar(createClayAvatarConfig(member.name, member.birthday!, avatarGender!, member.id))
-      : undefined),
+    avatar: child
+      ? member.avatar && !parsedChildAvatar && !storedBuiltInAvatar ? member.avatar : childAvatar ?? undefined
+      : member.avatar ?? (canGenerateAvatar
+        ? serializeClayAvatar(createClayAvatarConfig(member.name, member.birthday!, avatarGender!, member.id))
+        : undefined),
     heightCm: member.heightCm ?? undefined,
     weightKg: member.weightKg ?? undefined,
     bloodType: member.bloodType ?? undefined,

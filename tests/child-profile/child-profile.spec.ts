@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { TokenService } from '../../server/auth/token-service.mjs'
+import { childAvatarAssetPaths } from '../../src/generated/childAvatarAssets'
 
 const accountId = 'child-profile-account'
 const token = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: accountId })
@@ -30,6 +31,18 @@ test.beforeAll(async () => {
   await mkdir(evidenceRoot, { recursive: true })
 })
 
+test('48 张最终儿童头像均可访问并使用长期不可变缓存', async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-se', '静态资源全集只需验证一次')
+  const paths = Object.values(childAvatarAssetPaths)
+  expect(paths).toHaveLength(48)
+  for (const assetPath of paths) {
+    const response = await request.get(assetPath)
+    expect(response.status(), assetPath).toBe(200)
+    expect(response.headers()['content-type'], assetPath).toContain('image/webp')
+    expect(response.headers()['cache-control'], assetPath).toBe('public, max-age=31536000, immutable')
+  }
+})
+
 test('从已加载家人列表进入编辑页时不等待后台成员刷新', async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-se', '加载性能边界只需在固定 iPhone SE 执行一次')
   const account = 'child-loading-' + testInfo.project.name
@@ -41,7 +54,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       relationship: 'child',
       gender: 'female',
       birthday: '2026-09-04',
-      avatar: 'clay:v1:baby-girl:east-asian',
+      avatar: 'girl-age0-east-asian',
       caregivers: ['mother'],
       primaryRecorderRelationship: 'mother',
       otherRelative: '姨妈',
@@ -151,17 +164,28 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   const memberId = `child-profile-${testInfo.project.name}`
   const runtimeErrors: string[] = []
   let patchCount = 0
+  const childAvatarRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/avatars/children/v1/')) childAvatarRequests.push(request.url())
+  })
   page.on('pageerror', (error) => runtimeErrors.push(error.message))
   page.on('console', (message) => message.type() === 'error' && runtimeErrors.push(message.text()))
-  await page.route(`**/api/members/${memberId}`, async (route) => {
+  await page.route(`**/api/members/${memberId}*`, async (route) => {
     if (route.request().method() === 'PATCH') patchCount += 1
     await route.continue()
   })
   await preparePage(page, memberId)
+  const avatarLoadStartedAt = Date.now()
   await page.goto(`/family/${memberId}/edit`)
 
   await expect(page.getByRole('heading', { name: '编辑孩子资料' })).toBeVisible()
   await expect(page.getByRole('button', { name: '换一个' })).toBeVisible()
+  const cartoonImage = page.locator('img[src*="/avatars/children/v1/"]').first()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age3-east-asian\.[a-f0-9]{10}\.webp/)
+  expect(Date.now() - avatarLoadStartedAt).toBeLessThan(1_500)
+  await expect.poll(() => new Set(childAvatarRequests).size).toBe(3)
+  expect([...new Set(childAvatarRequests)].every((url) => /girl-age3-(?:east-asian|european|african)\.[a-f0-9]{10}\.webp/.test(url))).toBeTruthy()
+  expect(new Set(childAvatarRequests).size).toBeLessThanOrEqual(3)
   const avatarSwitchBox = await page.getByRole('button', { name: '换一个' }).boundingBox()
   expect(avatarSwitchBox?.height).toBeLessThanOrEqual(36)
   expect(avatarSwitchBox?.width).toBeLessThanOrEqual(90)
@@ -189,11 +213,34 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await birthday.fill('2010-01-01')
   await expect(page.getByText('孩子应尚未满8周岁')).toBeVisible()
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
-  await birthday.fill('2023-05-12')
+  await birthday.fill('2022-05-12')
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-east-asian\.[a-f0-9]{10}\.webp/)
 
-  await page.getByRole('button', { name: '换一个' }).click()
+  const changeAvatar = page.getByRole('button', { name: '换一个' })
+  await changeAvatar.click()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-european\.[a-f0-9]{10}\.webp/)
+  await changeAvatar.click()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-african\.[a-f0-9]{10}\.webp/)
+  await changeAvatar.click()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-east-asian\.[a-f0-9]{10}\.webp/)
+  await changeAvatar.click()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-european\.[a-f0-9]{10}\.webp/)
+  await page.getByRole('button', { name: '男' }).click()
+  await expect(cartoonImage).toHaveAttribute('src', /boy-age4-european\.[a-f0-9]{10}\.webp/)
   await page.getByRole('button', { name: '女' }).click()
+  await expect(cartoonImage).toHaveAttribute('src', /girl-age4-european\.[a-f0-9]{10}\.webp/)
   await page.getByLabel('你是孩子的谁？').selectOption('father')
+
+  const save = page.getByRole('button', { name: '保存修改' })
+  const editUrl = page.url()
+  await save.click()
+  await expect(page).toHaveURL(editUrl)
+  await expect(page.getByRole('button', { name: '已保存' })).toBeDisabled()
+  let persistedResponse = await request.get(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${token}` } })
+  let persisted = await persistedResponse.json()
+  expect(persisted.avatar).toBe('girl-age4-european')
+  await page.reload()
+  await expect(page.locator('img[src*="/avatars/children/v1/"]').first()).toHaveAttribute('src', /girl-age4-european\.[a-f0-9]{10}\.webp/)
 
   await page.getByRole('button', { name: '照片' }).click()
   await page.locator('input[type="file"]').setInputFiles({ name: 'child.png', mimeType: 'image/png', buffer: photo })
@@ -202,12 +249,10 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await cropDialog.getByRole('button', { name: '使用这张照片' }).click()
   await expect(page.getByRole('button', { name: '更换照片头像' })).toBeVisible()
 
-  const save = page.getByRole('button', { name: '保存修改' })
-  const editUrl = page.url()
   await save.dblclick({ delay: 10 })
   await expect(page).toHaveURL(editUrl)
   await expect(page.getByRole('button', { name: '已保存' })).toBeDisabled()
-  expect(patchCount).toBe(1)
+  expect(patchCount).toBe(2)
 
   const nameInput = page.locator('input[maxlength="50"]')
   const originalName = await nameInput.inputValue()
@@ -216,9 +261,9 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await nameInput.fill(originalName)
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
 
-  const persistedResponse = await request.get(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${token}` } })
+  persistedResponse = await request.get(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${token}` } })
   expect(persistedResponse.ok(), await persistedResponse.text()).toBeTruthy()
-  const persisted = await persistedResponse.json()
+  persisted = await persistedResponse.json()
   expect(persisted.caregivers).toEqual(['father', 'mother'])
   expect(persisted.primaryRecorderRelationship).toBe('father')
   expect(persisted.otherRelative).toBe('姨妈')
@@ -226,6 +271,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(persisted.avatar).toMatch(/^data:image\/webp;base64,/)
 
   await page.reload()
+  await expect(page.getByRole('button', { name: '更换照片头像' })).toBeVisible()
   await expect(page.getByRole('textbox', { name: '其他亲属' })).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: '其他照看者' })).toHaveCount(0)
   await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('father')
@@ -233,6 +279,9 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   await page.getByRole('button', { name: '卡通形象' }).click()
   await expect(page.getByRole('button', { name: '换一个' })).toBeVisible()
+  await page.getByRole('button', { name: '照片' }).click()
+  await expect(page.getByRole('button', { name: '更换照片头像' })).toBeVisible()
+  await page.getByRole('button', { name: '卡通形象' }).click()
   await page.evaluate(() => {
     const shell = document.querySelector<HTMLElement>('.app-shell')
     if (shell) {
@@ -253,7 +302,7 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([])
 
   let failDelete = true
-  await page.route(`**/api/members/${memberId}`, async (route) => {
+  await page.route(`**/api/members/${memberId}*`, async (route) => {
     if (failDelete && route.request().method() === 'DELETE') {
       failDelete = false
       return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '删除暂时失败，请重试' } }) })
@@ -300,7 +349,7 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     await page.getByRole('button', { name: '添加家庭成员' }).click()
     const created = await (await createResponsePromise).json()
     memberId = created.id
-    expect(created).toMatchObject({ birthday: localToday, relationship: 'child', isSelf: false })
+    expect(created).toMatchObject({ birthday: localToday, relationship: 'child', isSelf: false, avatar: 'girl-age0-east-asian' })
     await expect(page).toHaveURL(/\/family$/)
     await expect(page.getByText('未满1个月')).toBeVisible()
 

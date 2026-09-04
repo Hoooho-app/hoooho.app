@@ -28,6 +28,9 @@ test('孩子编辑页只呈现冻结的信息架构', () => {
 test('孩子编辑页使用真实数据、统一草稿和服务端回读确认', () => {
   assert.match(pageSource, /familyMemberService\.getCachedById/)
   assert.match(pageSource, /isChildProfileMember/)
+  assert.match(pageSource, /parseStoredChildAvatar/)
+  assert.match(pageSource, /remapChildAvatarSelection/)
+  assert.match(pageSource, /serializeChildAvatar/)
   assert.match(pageSource, /relationship: 'child'/)
   assert.match(pageSource, /member\.primaryRecorderRelationship/)
   assert.match(pageSource, /primaryRecorderRelationship: draft\.primaryRecorderRelationship \|\| null/)
@@ -38,6 +41,8 @@ test('孩子编辑页使用真实数据、统一草稿和服务端回读确认',
   assert.match(pageSource, /savedDataMatches/)
   assert.match(pageSource, /draftFingerprint/)
   assert.equal(pageSource.includes('localStorage'), false)
+  assert.equal(pageSource.includes('nationality'), false)
+  assert.equal(pageSource.includes('国籍'), false)
 })
 
 test('孩子生日、照片、保存和删除交互有完整状态保护', () => {

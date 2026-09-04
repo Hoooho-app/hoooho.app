@@ -10,14 +10,13 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { ChildRecorderRelationship, FamilyMemberApiDto, ProfileGender } from '../../types'
 import { childBirthdayErrorMessage, formatChildProfileAge, getChildBirthdayBounds, isChildProfileMember, validateChildBirthday } from '../../utils/childProfile'
-import { createClayAvatarConfig, parseClayAvatar, remapClayAvatarRole, serializeClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'
-import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
+import { createChildAvatarSelection, parseStoredChildAvatar, remapChildAvatarSelection, serializeChildAvatar, type ChildAvatarSelection } from '../../utils/childAvatar'
 
 type ChildGender = Extract<ProfileGender, 'male' | 'female'> | ''
 type SaveState = 'idle' | 'saving' | 'saved'
 
 interface ChildEditorDraft {
-  avatarConfig: ClayAvatarConfig
+  avatarConfig: ChildAvatarSelection
   avatarMode: FamilyAvatarMode
   birthday: string
   gender: ChildGender
@@ -48,13 +47,14 @@ function makeDraft(member: FamilyMemberApiDto): ChildEditorDraft {
   const gender: ChildGender = member.gender === 'female' ? 'female' : member.gender === 'male' ? 'male' : ''
   const avatarGender = gender || 'male'
   const avatar = member.avatar ?? ''
-  const parsed = parseClayAvatar(avatar)
   const birthday = member.birthday && /^\d{4}-\d{2}-\d{2}$/.test(member.birthday) ? member.birthday : ''
   const avatarBirthday = childAvatarBirthday(birthday)
-  const baseAvatar = parsed ?? createClayAvatarConfig(member.name, avatarBirthday, avatarGender, member.id)
-  const isPhoto = Boolean(avatar && !parsed && !parseVirtualAvatarId(avatar))
+  const parsed = parseStoredChildAvatar(avatar, avatarBirthday, avatarGender)
+  const baseAvatar = parsed ?? createChildAvatarSelection(avatarBirthday, avatarGender)
+  const isBuiltIn = avatar.startsWith('clay:v1:') || avatar.startsWith('virtual:')
+  const isPhoto = Boolean(avatar && !parsed && !isBuiltIn)
   return {
-    avatarConfig: remapClayAvatarRole(baseAvatar, avatarBirthday, avatarGender),
+    avatarConfig: remapChildAvatarSelection(baseAvatar, avatarBirthday, avatarGender),
     avatarMode: isPhoto ? 'photo' : 'cartoon',
     birthday,
     gender,
@@ -177,8 +177,8 @@ export function EditFamilyMemberPage() {
 
   const previewConfig = useMemo(() => {
     if (!draft) return null
-    const gender = draft.gender || (draft.avatarConfig.role.includes('girl') ? 'female' : 'male')
-    return remapClayAvatarRole(draft.avatarConfig, childAvatarBirthday(draft.birthday), gender)
+    const gender = draft.gender || (draft.avatarConfig.gender === 'girl' ? 'female' : 'male')
+    return remapChildAvatarSelection(draft.avatarConfig, childAvatarBirthday(draft.birthday), gender)
   }, [draft])
 
   const updateDraft = (changes: Partial<ChildEditorDraft>) => {
@@ -199,7 +199,7 @@ export function EditFamilyMemberPage() {
         relationship: 'child',
         birthday: draft.birthday || null,
         gender: draft.gender || null,
-        avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeClayAvatar(previewConfig),
+        avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeChildAvatar(previewConfig),
         primaryRecorderRelationship: draft.primaryRecorderRelationship || null
       }, token)
       const persisted = await familyMemberService.getById(memberId, token)

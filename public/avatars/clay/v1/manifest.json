@@ -11,8 +11,6 @@
   },
   "filenamePattern": "avatars/{role}-{appearance}.{contentHash}.webp",
   "roles": [
-    { "id": "boy", "ageGroup": "child", "gender": "male" },
-    { "id": "girl", "ageGroup": "child", "gender": "female" },
     { "id": "adult-male", "ageGroup": "adult", "gender": "male" },
     { "id": "adult-female", "ageGroup": "adult", "gender": "female" },
     { "id": "elder-male", "ageGroup": "elder", "gender": "male" },

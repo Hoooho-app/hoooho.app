@@ -36,7 +36,7 @@
     "audit:design:after": "npm run test:e2e:design-quality",
     "test:help": "tsc -p tsconfig.help-test.json && node --test server/help/search.test.mjs server/help/feedback-service.test.mjs",
     "test:client": "node --import ./scripts/register-node-ts-loader.mjs --test \"src/**/*.test.ts\"",
-    "test:avatar-assets": "node scripts/check-clay-avatar-assets.mjs",
+    "test:avatar-assets": "node scripts/check-child-avatar-assets.mjs && node scripts/check-clay-avatar-assets.mjs",
     "test:viewport": "node scripts/check-viewport-config.mjs",
     "optimize:avatar-assets": "node scripts/optimize-clay-avatar-assets.mjs",
     "test:consultations": "node --test server/consultations/online-consultation-service.test.mjs",
