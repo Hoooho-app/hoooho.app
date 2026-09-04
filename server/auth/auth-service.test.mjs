@@ -19,6 +19,7 @@ const createService = async (options = {}) => {
     logger: (message) => messages.push(message),
     tokenSecret: 'test-secret',
     emailProvider: { sendVerificationCode: async (payload) => deliveries.push(payload) },
+    smsProvider: { sendVerificationCode: async (payload) => deliveries.push(payload) },
     ...options
   })
   return { service, messages, deliveries, cleanup: () => rm(dataDirectory, { recursive: true, force: true }) }
@@ -36,7 +37,6 @@ test('手机号验证码可以完成注册登录并且验证码仅可使用一�
   try {
     const sent = await context.service.sendCode('13812345678', 1_000)
     assert.equal(sent.retryAfter, 60)
-    assert.match(context.messages[0], /code=123456/)
 
     const session = await context.service.login('13812345678', '123456', 2_000)
     assert.equal(session.user.phone, '13812345678')
@@ -85,7 +85,8 @@ test('Vite 同源 API 可以完成发送验证码与登录', async () => {
       codeGenerator: () => '123456',
       logger: () => undefined,
       tokenSecret: 'test-secret',
-      emailProvider: { sendVerificationCode: async () => undefined }
+      emailProvider: { sendVerificationCode: async () => undefined },
+      smsProvider: { sendVerificationCode: async () => undefined }
     })]
   })
   try {

@@ -5,6 +5,7 @@ import { VerificationCodeRepository } from './repositories/verification-code-rep
 import { TokenService } from './token-service.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { EmailProviderError, ResendEmailVerificationProvider } from './providers/email-verification-provider.mjs'
+import { AccountDataService } from '../account/account-data-service.mjs'
 
 export class AuthError extends Error {
   constructor(message, status = 400, code = 'AUTH_ERROR', details = {}) {
@@ -33,8 +34,10 @@ export class AuthService {
       apiKey: config.resendApiKey,
       from: config.authEmailFrom
     })
+    this.smsProvider = options.smsProvider ?? null
     this.codeGenerator = options.codeGenerator ?? (() => String(randomInt(0, 1_000_000)).padStart(6, '0'))
     this.logger = options.logger ?? console.info
+    this.accountData = options.accountData ?? new AccountDataService(config)
   }
 
   validatePhone(phone) {
@@ -61,6 +64,12 @@ export class AuthService {
 
     const code = this.codeGenerator()
     const salt = randomBytes(16).toString('hex')
+    if (!this.smsProvider?.sendVerificationCode) throw new AuthError('短信验证码服务尚未配置', 503, 'SMS_PROVIDER_NOT_CONFIGURED')
+    try {
+      await this.smsProvider.sendVerificationCode({ phone, code, expiresIn: Math.floor(this.config.codeTtlMs / 1000) })
+    } catch {
+      throw new AuthError('短信服务暂时不可用，请稍后重试', 503, 'SMS_PROVIDER_UNAVAILABLE')
+    }
     await this.codes.save({
       channel: 'phone',
       identifier: phone,
@@ -70,11 +79,16 @@ export class AuthService {
       expiresAt: now + this.config.codeTtlMs,
       failedAttempts: 0
     })
-    this.logger(`[Hoooho auth] phone=${phone} code=${code} expires=${new Date(now + this.config.codeTtlMs).toISOString()}`)
     return { success: true, expiresIn: Math.floor(this.config.codeTtlMs / 1000), retryAfter: 60 }
   }
 
   async login(phone, code, now = Date.now()) {
+    await this.verifyPhoneCode(phone, code, now)
+    const user = await this.users.findOrCreateByPhone(phone, new Date(now))
+    return { token: this.tokens.create(user, now), user }
+  }
+
+  async verifyPhoneCode(phone, code, now = Date.now()) {
     this.validatePhone(phone)
     if (!/^\d{6}$/.test(code)) throw new AuthError('请输入 6 位数字验证码', 400, 'INVALID_CODE_FORMAT')
 
@@ -93,9 +107,8 @@ export class AuthService {
       throw new AuthError('验证码错误', 401, 'CODE_INCORRECT')
     }
 
-    const user = await this.users.findOrCreateByPhone(phone, new Date(now))
     await this.codes.consume(phone)
-    return { token: this.tokens.create(user, now), user }
+    return true
   }
 
   async sendEmailCode(rawEmail, now = Date.now()) {
@@ -170,6 +183,17 @@ export class AuthService {
   }
 
   async loginWithEmailForChannel(channel, email, code, now) {
+    await this.verifyEmailCodeForChannel(channel, email, code, now)
+    const user = await this.users.findOrCreateByEmail(email, new Date(now))
+    return { token: this.tokens.create(user, now), user }
+  }
+
+  async verifyEmailCode(rawEmail, code, now = Date.now()) {
+    const email = this.normalizeEmail(rawEmail)
+    return this.verifyEmailCodeForChannel('email', email, code, now)
+  }
+
+  async verifyEmailCodeForChannel(channel, email, code, now) {
     if (!/^\d{6}$/.test(code)) throw new AuthError('请输入 6 位数字验证码', 400, 'INVALID_CODE_FORMAT')
 
     const entry = await this.codes.find(channel, email)
@@ -187,8 +211,24 @@ export class AuthService {
       throw new AuthError('验证码错误', 401, 'CODE_INCORRECT')
     }
 
-    const user = await this.users.findOrCreateByEmail(email, new Date(now))
     await this.codes.consume(channel, email)
+    return true
+  }
+
+  createGuestSession(rawGuestId, now = Date.now()) {
+    const guestId = String(rawGuestId ?? '').trim().toLowerCase()
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(guestId)) throw new AuthError('访客标识无效', 400, 'INVALID_GUEST_ID')
+    const user = { id: `guest:${guestId}`, guest: true, createdAt: new Date(now).toISOString() }
     return { token: this.tokens.create(user, now), user }
+  }
+
+  async mergeGuestSession(session, guestToken, now = Date.now()) {
+    if (!guestToken) return { ...session, guestMerge: { merged: false, idempotent: true } }
+    const payload = this.tokens.verify(guestToken, now)
+    if (!payload?.guest || !String(payload.sub).startsWith('guest:')) {
+      throw new AuthError('体验记录凭证无效，请保留本机记录后重试', 401, 'INVALID_GUEST_SESSION')
+    }
+    const guestMerge = await this.accountData.mergeGuest(payload.sub, session.user.id, new Date(now))
+    return { ...session, guestMerge }
   }
 }

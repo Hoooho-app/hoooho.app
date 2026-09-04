@@ -36,17 +36,22 @@ export function authApiPlugin(options = {}) {
 
         try {
           const body = await readJson(request)
+          if (pathname === '/api/auth/guest') {
+            return sendJson(response, 200, auth.createGuestSession(String(body.guestId ?? '')))
+          }
           if (pathname === '/api/auth/send-code') {
             return sendJson(response, 200, await auth.sendCode(String(body.phone ?? '')))
           }
           if (pathname === '/api/auth/login') {
-            return sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
+            const session = await auth.login(String(body.phone ?? ''), String(body.code ?? ''))
+            return sendJson(response, 200, await auth.mergeGuestSession(session, String(body.guestToken ?? '')))
           }
           if (pathname === '/api/auth/email/send-code') {
             return sendJson(response, 200, await auth.sendEmailCode(String(body.email ?? '')))
           }
           if (pathname === '/api/auth/email/login') {
-            return sendJson(response, 200, await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? '')))
+            const session = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
+            return sendJson(response, 200, await auth.mergeGuestSession(session, String(body.guestToken ?? '')))
           }
           if (pathname === '/api/ops/auth/email/send') {
             return sendJson(response, 200, await auth.sendOpsEmailCode(String(body.email ?? '')))

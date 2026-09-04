@@ -90,7 +90,7 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     logLevel: 'silent',
     server: { host: '127.0.0.1', port: 5194, strictPort: false },
     plugins: [
-      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined }),
+      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined, smsProvider: { sendVerificationCode: async () => undefined } }),
       membersApiPlugin(sharedOptions),
       eventsApiPlugin(sharedOptions)
     ]

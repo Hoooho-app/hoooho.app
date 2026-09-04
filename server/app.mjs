@@ -26,6 +26,7 @@ import { AccountEntryStateService } from './onboarding/account-entry-state-servi
 import { HealthProfileFactService } from './health-profile/health-profile-fact-service.mjs'
 import { HealthInformationCandidateService } from './health-information/health-information-candidate-service.mjs'
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
+import { AccountService } from './account/account-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -42,6 +43,7 @@ const sharedOptions = {
 }
 
 const auth = new AuthService(sharedOptions)
+const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
@@ -111,11 +113,12 @@ function readJson(request, maxLength = 16_384) {
   })
 }
 
-function readAccountId(request) {
+async function readAccountId(request) {
   const authorization = request.headers.authorization ?? ''
   const match = /^Bearer\s+(.+)$/i.exec(authorization)
   const payload = match ? tokens.verify(match[1]) : null
-  if (payload) return payload.sub
+  if (payload?.guest) return payload.sub
+  if (payload && await auth.users.findById(payload.sub)) return payload.sub
 
   const error = new Error('登录状态无效或已过期')
   error.status = 401
@@ -208,7 +211,7 @@ async function handleFeedback(request, response, pathname, searchParams) {
     return true
   }
   if (!pathname.startsWith('/api/feedback')) return false
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   if (pathname === '/api/feedback' && request.method === 'POST') sendJson(response, 201, await feedback.create(accountId, await readJson(request, 29_000_000)))
   else if (pathname === '/api/feedback' && request.method === 'GET') sendJson(response, 200, await feedback.listForAccount(accountId))
   else {
@@ -268,12 +271,17 @@ async function handleAuth(request, response, pathname) {
     }
 
     const body = await readJson(request)
+    if (pathname === '/api/auth/guest') {
+      sendJson(response, 200, auth.createGuestSession(String(body.guestId ?? '')))
+      return true
+    }
     if (pathname === '/api/auth/send-code') {
       sendJson(response, 200, await auth.sendCode(String(body.phone ?? '')))
       return true
     }
     if (pathname === '/api/auth/login') {
-      sendJson(response, 200, await auth.login(String(body.phone ?? ''), String(body.code ?? '')))
+      const session = await auth.login(String(body.phone ?? ''), String(body.code ?? ''))
+      sendJson(response, 200, await auth.mergeGuestSession(session, String(body.guestToken ?? '')))
       return true
     }
     if (pathname === '/api/auth/email/send-code') {
@@ -283,7 +291,8 @@ async function handleAuth(request, response, pathname) {
       return true
     }
     if (pathname === '/api/auth/email/login') {
-      const result = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
+      const session = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
+      const result = await auth.mergeGuestSession(session, String(body.guestToken ?? ''))
       logEmailAuthRequest(context, 200)
       sendJson(response, 200, result)
       return true
@@ -313,11 +322,53 @@ async function handleAuth(request, response, pathname) {
     throw error
   }
 }
+async function handleAccount(request, response, pathname) {
+  if (!pathname.startsWith('/api/account/') || pathname === '/api/account/entry-state') return false
+  const accountId = await readAccountId(request)
+  if (accountId.startsWith('guest:')) {
+    const error = new Error('请先登录或注册')
+    error.status = 401
+    error.code = 'GUEST_ACCOUNT_REQUIRED'
+    throw error
+  }
+  if (pathname === '/api/account/profile' && request.method === 'GET') sendJson(response, 200, await account.get(accountId))
+  else if (pathname === '/api/account/profile' && request.method === 'PATCH') sendJson(response, 200, await account.updateProfile(accountId, await readJson(request, AVATAR_PHOTO_MAX_REQUEST_LENGTH)))
+  else if (pathname === '/api/account/bind/send-code' && request.method === 'POST') {
+    const body = await readJson(request)
+    sendJson(response, 200, await account.sendBindingCode(accountId, String(body.kind ?? ''), String(body.value ?? '')))
+  } else if (pathname === '/api/account/bind/confirm' && request.method === 'POST') {
+    const body = await readJson(request)
+    sendJson(response, 200, await account.bind(accountId, String(body.kind ?? ''), String(body.value ?? ''), String(body.code ?? ''), String(body.challengeToken ?? '')))
+  } else if (pathname === '/api/account/bind/verify-current' && request.method === 'POST') {
+    const body = await readJson(request)
+    sendJson(response, 200, await account.verifyCurrent(accountId, String(body.kind ?? ''), String(body.code ?? '')))
+  } else if (pathname === '/api/account/provider' && request.method === 'POST') {
+    const body = await readJson(request)
+    sendJson(response, 200, await account.providerAction(accountId, String(body.provider ?? ''), String(body.action ?? '')))
+  } else if (pathname === '/api/account/delete/send-code' && request.method === 'POST') {
+    const current = await account.get(accountId)
+    const body = await readJson(request)
+    const kind = String(body.kind ?? '')
+    const value = kind === 'phone' ? current.phone : current.email
+    if (!value) {
+      const error = new Error('当前账户没有可用的验证方式')
+      error.status = 409
+      error.code = 'NO_VERIFICATION_METHOD'
+      throw error
+    }
+    sendJson(response, 200, await account.sendBindingCode(accountId, kind, value))
+  } else if (pathname === '/api/account/delete/verify' && request.method === 'POST') {
+    const body = await readJson(request)
+    sendJson(response, 200, await account.verifyDeletion(accountId, String(body.kind ?? ''), String(body.code ?? '')))
+  } else if (pathname === '/api/account/delete' && request.method === 'POST') sendJson(response, 200, await account.delete(accountId, await readJson(request)))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
 async function handleMembers(request, response, pathname) {
   const match = /^\/api\/members(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
   const memberId = match[1] ? decodeRouteValue(match[1]) : null
   if (!memberId && request.method === 'GET') sendJson(response, 200, await members.list(accountId))
@@ -334,7 +385,7 @@ async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
   if (pathname !== '/api/quick-records' && !photoMatch && !photoContentMatch) return false
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const photoMemberId = String(request.headers['x-hoooho-member-id'] ?? '').trim()
   if (photoContentMatch) {
     if (request.method === 'GET') {
@@ -362,7 +413,7 @@ async function handleQuickRecords(request, response, pathname) {
 
 async function handleAccountEntryState(request, response, pathname) {
   if (pathname !== '/api/account/entry-state') return false
-  if (request.method === 'GET') sendJson(response, 200, await accountEntryState.get(readAccountId(request)))
+  if (request.method === 'GET') sendJson(response, 200, await accountEntryState.get(await readAccountId(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -373,7 +424,7 @@ async function handleEventRecords(request, response, pathname) {
   const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
   if (!eventRecordsMatch && !recordMatch && !annotationMatch) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   if (eventRecordsMatch) {
     const eventId = decodeRouteValue(eventRecordsMatch[1])
     if (request.method === 'GET') sendJson(response, 200, await records.list(accountId, eventId))
@@ -404,7 +455,7 @@ async function handleOrganizations(request, response, pathname) {
   const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
   if (!previewMatch && !confirmMatch && !match) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const eventId = decodeRouteValue((previewMatch ?? confirmMatch ?? match)[1])
   if (previewMatch) {
     if (request.method === 'POST') sendJson(response, 200, await organizations.preview(accountId, eventId, await readJson(request)))
@@ -425,7 +476,7 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
   const collectionMatch = pathname === '/api/health-profile-facts'
   if (!candidatesMatch && !sourcesMatch && !factMatch && !collectionMatch) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   if (candidatesMatch && request.method === 'GET') {
     sendJson(response, 200, await healthProfileFacts.listCandidates(accountId, searchParams.get('memberId') ?? ''))
   } else if (collectionMatch && request.method === 'GET') {
@@ -446,7 +497,7 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 
 async function handleAudioTranscription(request, response, pathname) {
   if (pathname !== '/api/ai/audio/transcriptions') return false
-  readAccountId(request)
+  await readAccountId(request)
   if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
@@ -456,7 +507,7 @@ async function handleHealthInformationCandidates(request, response, pathname) {
   const eventMatch = /^\/api\/events\/([^/]+)\/health-information-candidates(?:\/(discover))?$/.exec(pathname)
   const candidateMatch = /^\/api\/health-information-candidates\/([^/]+)$/.exec(pathname)
   if (!eventMatch && !candidateMatch) return false
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   if (eventMatch) {
     const eventId = decodeRouteValue(eventMatch[1])
     if (!eventMatch[2] && request.method === 'GET') sendJson(response, 200, await healthInformationCandidates.list(accountId, eventId))
@@ -473,7 +524,7 @@ async function handleAttachments(request, response, pathname) {
   const contentMatch = /^\/api\/events\/([^/]+)\/attachments\/([^/]+)\/content$/.exec(pathname)
   const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
   if (!match && !contentMatch) return false
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const eventId = decodeRouteValue((match ?? contentMatch)[1])
   if (contentMatch) {
     if (request.method === 'GET') {
@@ -496,7 +547,7 @@ async function handleAttachments(request, response, pathname) {
 async function handleEvents(request, response, pathname) {
   const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
   if (summaryMatch) {
-    const accountId = readAccountId(request)
+    const accountId = await readAccountId(request)
     const eventId = decodeRouteValue(summaryMatch[1])
     if (request.method === 'PATCH') sendJson(response, 200, await events.correctSummary(accountId, eventId, await readJson(request)))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
@@ -505,7 +556,7 @@ async function handleEvents(request, response, pathname) {
   const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
 
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const eventId = match[1] ? decodeRouteValue(match[1]) : null
   if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.list(accountId)))
   else if (!eventId && request.method === 'POST') sendJson(response, 201, await events.create(accountId, await readJson(request)))
@@ -519,7 +570,7 @@ async function handleEvents(request, response, pathname) {
 async function handleOnlineConsultations(request, response, pathname) {
   const match = /^\/api\/events\/([^/]+)\/online-consultation(?:\/(questions|refresh|complete))?$/.exec(pathname)
   if (!match) return false
-  const accountId = readAccountId(request)
+  const accountId = await readAccountId(request)
   const eventId = decodeRouteValue(match[1])
   const action = match[2]
   if (!action && request.method === 'GET') sendJson(response, 200, await onlineConsultations.get(accountId, eventId))
@@ -547,6 +598,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true
+  if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleQuickRecords(request, response, pathname)) return true

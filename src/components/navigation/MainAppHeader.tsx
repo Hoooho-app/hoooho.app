@@ -8,8 +8,10 @@ export function MainAppHeader({ title, compact = false }: { title: string; compa
   const location = useLocation()
   const navigate = useNavigate()
   const switchResult = (location.state as MemberSwitchResultState | null)?.memberSwitchResult
+  const accountNotice = (location.state as { accountNotice?: string } | null)?.accountNotice ?? ''
   const [open, setOpen] = useState(() => switchResult?.reopenDrawer ?? false)
   const [switchedMemberName, setSwitchedMemberName] = useState(() => switchResult?.memberName ?? '')
+  const [notice, setNotice] = useState(accountNotice)
 
   useEffect(() => {
     if (!switchedMemberName) return
@@ -19,6 +21,15 @@ export function MainAppHeader({ title, compact = false }: { title: string; compa
     }, 1800)
     return () => window.clearTimeout(timer)
   }, [location.hash, location.pathname, location.search, navigate, switchedMemberName])
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => {
+      setNotice('')
+      navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null })
+    }, 2200)
+    return () => window.clearTimeout(timer)
+  }, [location.hash, location.pathname, location.search, navigate, notice])
 
   return (
     <>
@@ -34,6 +45,11 @@ export function MainAppHeader({ title, compact = false }: { title: string; compa
           <p className="rounded-control bg-text-primary px-4 py-2.5 text-sm font-medium text-surface shadow-floating">
             已切换至 {switchedMemberName}
           </p>
+        </div>
+      )}
+      {notice && (
+        <div className="app-shell-toast pointer-events-none fixed inset-x-0 bottom-[max(24px,env(safe-area-inset-bottom))] z-[60] mx-auto flex w-full justify-center px-6" aria-live="polite" role="status">
+          <p className="rounded-control bg-text-primary px-4 py-2.5 text-sm font-medium text-surface shadow-floating">{notice}</p>
         </div>
       )}
     </>

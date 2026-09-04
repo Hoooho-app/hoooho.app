@@ -66,7 +66,7 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     logLevel: 'silent',
     server: { host: '127.0.0.1', port: 5195, strictPort: false },
     plugins: [
-      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined }),
+      authApiPlugin({ ...sharedOptions, codeGenerator: () => '123456', logger: () => undefined, smsProvider: { sendVerificationCode: async () => undefined } }),
       membersApiPlugin(sharedOptions),
       eventsApiPlugin(sharedOptions),
       eventRecordsApiPlugin(sharedOptions)

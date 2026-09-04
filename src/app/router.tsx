@@ -3,6 +3,7 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RequireAuth } from '../components/auth/RequireAuth'
 import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
 import { RequireOpsAuth } from '../components/auth/RequireOpsAuth'
+import { RequireRegisteredAccount } from '../components/auth/RequireRegisteredAccount'
 
 function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string) {
   return async () => {
@@ -53,6 +54,19 @@ export const router = createBrowserRouter([
       { path: '/settings/account', lazy: lazyPage(() => import('../pages/Settings'), 'AccountSettingsPage') },
       { path: '/settings/notification', element: <Navigate to="/settings" replace /> },
       { path: '/settings/privacy', lazy: lazyPage(() => import('../pages/Settings'), 'PrivacySettingsPage') },
+      {
+        element: <RequireRegisteredAccount />,
+        children: [
+          { path: '/account/security', lazy: lazyPage(() => import('../pages/Account'), 'AccountSecurityPage') },
+          { path: '/account/avatar', lazy: lazyPage(() => import('../pages/Account'), 'AccountAvatarPage') },
+          { path: '/account/nickname', lazy: lazyPage(() => import('../pages/Account'), 'AccountNicknamePage') },
+          { path: '/account/phone', lazy: lazyPage(() => import('../pages/Account'), 'AccountPhonePage') },
+          { path: '/account/email', lazy: lazyPage(() => import('../pages/Account'), 'AccountEmailPage') },
+          { path: '/account/providers', lazy: lazyPage(() => import('../pages/Account'), 'AccountProvidersPage') },
+          { path: '/account/membership', lazy: lazyPage(() => import('../pages/Account'), 'AccountMembershipPage') },
+          { path: '/account/delete', lazy: lazyPage(() => import('../pages/Account'), 'AccountDeletePage') }
+        ]
+      },
       { path: '/messages/*', element: <Navigate to="/health-events" replace /> },
       { path: '/message/*', element: <Navigate to="/health-events" replace /> },
       { path: '/notifications/*', element: <Navigate to="/health-events" replace /> },
