@@ -10,7 +10,7 @@ const member: FamilyMemberApiDto = {
   relationship: 'child',
   gender: 'female',
   birthday: '2026-09-04',
-  avatar: 'clay:v1:baby-girl:east-asian',
+  avatar: 'girl-age0-east-asian',
   caregivers: ['mother'],
   otherRelative: '姨妈',
   otherCaregiver: '王老师',

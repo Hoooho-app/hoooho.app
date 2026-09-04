@@ -1,5 +1,6 @@
 export * from './Avatar'
 export * from './ClayAvatar'
+export * from './ChildAvatar'
 export * from './Button'
 export * from './Card'
 export * from './Header'

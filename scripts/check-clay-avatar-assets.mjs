@@ -9,7 +9,7 @@ const files = (await readdir(assetDirectory)).filter((file) => /\.(?:png|webp|jp
 const webpFiles = files.filter((file) => file.endsWith('.webp'))
 const legacyFiles = files.filter((file) => !file.endsWith('.webp'))
 
-assert.equal(webpFiles.length, 60, 'Expected all 60 complete clay avatar presets.')
+assert.equal(webpFiles.length, 24, 'Expected the 24 unchanged adult and elder clay avatar presets.')
 assert.deepEqual(legacyFiles, [], `Unoptimized avatar assets remain: ${legacyFiles.join(', ')}`)
 
 let totalBytes = 0
@@ -30,7 +30,7 @@ for (const file of webpFiles) {
 
 const generatedSource = await readFile(path.join(root, 'src', 'generated', 'clayAvatarAssets.ts'), 'utf8')
 for (const file of webpFiles) assert.ok(generatedSource.includes(file), `${file} is absent from the generated asset map.`)
-assert.ok(totalBytes <= 60 * 80 * 1024, 'The complete avatar pack exceeds its aggregate budget.')
+assert.ok(totalBytes <= 24 * 80 * 1024, 'The adult avatar pack exceeds its aggregate budget.')
 
 console.log(JSON.stringify({
   count: webpFiles.length,
