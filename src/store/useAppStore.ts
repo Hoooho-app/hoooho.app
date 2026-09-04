@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AccountProfile, AuthSession, AuthUser, Member, UserProfile } from '../types'
 
+const authTokenKey = 'hoooho-auth-token'
+const opsAuthTokenKey = 'hoooho-ops-auth-token'
+
+function readSessionToken(key: string) {
+  try { return typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(key) } catch { return null }
+}
+
+function writeSessionToken(key: string, value: string | null) {
+  try {
+    if (typeof sessionStorage === 'undefined') return
+    if (value) sessionStorage.setItem(key, value)
+    else sessionStorage.removeItem(key)
+  } catch { /* The in-memory session remains usable when storage is unavailable. */ }
+}
+
 interface AppState {
   authToken: string | null
   authUser: AuthUser | null
@@ -27,31 +42,37 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      authToken: null,
+      authToken: readSessionToken(authTokenKey),
       authUser: null,
       accountProfile: null,
-      opsAuthToken: null,
+      opsAuthToken: readSessionToken(opsAuthTokenKey),
       opsAuthUser: null,
       opsAuthFailure: null,
       currentMemberId: 'self',
       members: [],
       profile: null,
       setCurrentMemberId: (currentMemberId) => set({ currentMemberId }),
-      setAuthSession: ({ token, user }) => set((state) => ({
+      setAuthSession: ({ token, user }) => {
+        writeSessionToken(authTokenKey, token)
+        set((state) => ({
         authToken: token,
         authUser: user,
         ...(state.authUser?.id && state.authUser.id !== user.id
           ? { profile: null, accountProfile: null, currentMemberId: 'self' }
           : {})
-      })),
+        }))
+      },
       setAccountProfile: (accountProfile) => set({ accountProfile }),
-      clearAuthSession: () => set({ authToken: null, authUser: null, accountProfile: null, profile: null, currentMemberId: 'self' }),
-      setOpsAuthSession: ({ token, user }) => set({
+      clearAuthSession: () => { writeSessionToken(authTokenKey, null); set({ authToken: null, authUser: null, accountProfile: null, profile: null, currentMemberId: 'self' }) },
+      setOpsAuthSession: ({ token, user }) => {
+        writeSessionToken(opsAuthTokenKey, token)
+        set({
         opsAuthToken: token,
         opsAuthUser: user.email ? { email: user.email.trim().toLowerCase() } : null,
         opsAuthFailure: null
-      }),
-      clearOpsAuthSession: (opsAuthFailure = null) => set({ opsAuthToken: null, opsAuthUser: null, opsAuthFailure }),
+        })
+      },
+      clearOpsAuthSession: (opsAuthFailure = null) => { writeSessionToken(opsAuthTokenKey, null); set({ opsAuthToken: null, opsAuthUser: null, opsAuthFailure }) },
       addMember: (member) => set((state) => ({
         members: state.members.some((item) => item.id === member.id)
           ? state.members.map((item) => item.id === member.id ? member : item)
@@ -71,12 +92,12 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'hoooho-app',
-      version: 4,
+      version: 5,
       migrate: (persisted) => {
-        const { notifications: _removedNotifications, ...state } = persisted as AppState & { notifications?: unknown }
+        const { notifications: _removedNotifications, authToken: _removedAuthToken, opsAuthToken: _removedOpsAuthToken, ...state } = persisted as AppState & { notifications?: unknown }
         return { ...state, members: [] }
       },
-      partialize: ({ authToken, authUser, accountProfile, opsAuthToken, opsAuthUser, currentMemberId, members, profile }) => ({ authToken, authUser, accountProfile, opsAuthToken, opsAuthUser, currentMemberId, members, profile })
+      partialize: ({ authUser, accountProfile, opsAuthUser, currentMemberId, members, profile }) => ({ authUser, accountProfile, opsAuthUser, currentMemberId, members, profile })
     }
   )
 )

@@ -7,6 +7,7 @@ const drawer = readFileSync(new URL('../../components/navigation/SideDrawer.tsx'
 const sheet = readFileSync(new URL('../../components/account/AccountSheet.tsx', import.meta.url), 'utf8')
 const pages = readFileSync(new URL('../../pages/Account/index.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../../styles/settings.css', import.meta.url), 'utf8')
+const store = readFileSync(new URL('../../store/useAppStore.ts', import.meta.url), 'utf8')
 
 test('sidebar account identity stays separate from the current child', () => {
   assert.match(drawer, /当前为体验模式/)
@@ -39,4 +40,12 @@ test('contact details are masked for every account surface', () => {
 test('editing, verification, provider failure and final deletion states are explicit', () => {
   for (const copy of ['从相册选择照片', '拍摄新照片', '取消本次选择', '头像缩放', '原手机号已验证', '验证码已发送', '暂未开放', '最后确认', '永久删除账户']) assert.match(pages, new RegExp(copy))
   assert.match(styles, /min-height: 44px/)
+})
+
+test('session tokens never persist in the local app store', () => {
+  assert.match(store, /sessionStorage\.setItem\(key, value\)/)
+  assert.match(store, /version: 5/)
+  assert.match(store, /_removedAuthToken/)
+  const partialize = store.slice(store.indexOf('partialize:'))
+  assert.doesNotMatch(partialize, /\bauthToken\b|\bopsAuthToken\b/)
 })

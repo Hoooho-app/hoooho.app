@@ -12,10 +12,11 @@ let eventId = ''
 
 async function preparePage(page: Page) {
   await page.addInitScript(({ authToken, account, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', authToken)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: {
-      authToken, authUser: { id: account }, opsAuthToken: null, opsAuthUser: null,
+      authUser: { id: account }, opsAuthUser: null,
       currentMemberId: member, members: [], profile: null
-    }, version: 4 }))
+    }, version: 5 }))
   }, { authToken: token, account: accountId, member: memberId })
 }
 
@@ -62,7 +63,7 @@ for (const route of routes) {
 
 test('login records public-state evidence and keeps the page scale fixed', async ({ page }, testInfo) => {
   await page.goto('/login')
-  await expect(page.getByRole('button', { name: '登录' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible()
   const viewport = await page.locator('meta[name="viewport"]').getAttribute('content')
   if (phase === 'after') {
     expect(viewport).toContain('width=device-width')
@@ -95,7 +96,7 @@ test('protected deep link returns after login without fallible member bootstrap'
   await page.goto('/settings?panel=privacy#controls')
   await page.getByPlaceholder('请输入邮箱地址').fill('design@hoooho.test')
   await page.getByPlaceholder('请输入验证码').fill('123456')
-  await page.getByRole('button', { name: '登录' }).click()
+  await page.getByRole('button', { name: '登录', exact: true }).click()
   await expect(page).toHaveURL(/\/settings\?panel=privacy#controls$/)
 })
 

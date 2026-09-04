@@ -39,8 +39,8 @@ test('guest enters the app and can reach login guidance from the visible drawer 
 
 test('registered account pages match the scoped account structure', async ({ page }) => {
   await page.addInitScript((profile) => {
-    localStorage.setItem('hoooho-app', JSON.stringify({ version: 4, state: {
-      authToken: 'test-token',
+    sessionStorage.setItem('hoooho-auth-token', 'test-token')
+    localStorage.setItem('hoooho-app', JSON.stringify({ version: 5, state: {
       authUser: { id: profile.id, email: profile.email, createdAt: new Date().toISOString() },
       accountProfile: profile,
       currentMemberId: 'self',

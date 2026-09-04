@@ -11,19 +11,21 @@ const photo = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQ
 
 async function preparePage(page: Page, memberId: string) {
   await page.addInitScript(({ authToken, account, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', authToken)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: {
-      authToken, authUser: { id: account }, opsAuthToken: null, opsAuthUser: null,
+      authUser: { id: account }, opsAuthUser: null,
       currentMemberId: member, members: [], profile: null
-    }, version: 4 }))
+    }, version: 5 }))
   }, { authToken: token, account: accountId, member: memberId })
 }
 
 async function prepareAccount(page: Page, authToken: string, account: string) {
   await page.addInitScript(({ token, accountId }) => {
+    sessionStorage.setItem('hoooho-auth-token', token)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: {
-      authToken: token, authUser: { id: accountId }, opsAuthToken: null, opsAuthUser: null,
+      authUser: { id: accountId }, opsAuthUser: null,
       currentMemberId: 'self', members: [], profile: null
-    }, version: 4 }))
+    }, version: 5 }))
   }, { token: authToken, accountId: account })
 }
 
