@@ -40,6 +40,7 @@
     "test:client": "node --import ./scripts/register-node-ts-loader.mjs --test \"src/**/*.test.ts\"",
     "test:avatar-assets": "node scripts/check-child-avatar-assets.mjs && node scripts/check-clay-avatar-assets.mjs",
     "test:viewport": "node scripts/check-viewport-config.mjs",
+    "test:media": "node --test server/media-range.test.mjs && node scripts/check-nurse-media.mjs",
     "optimize:avatar-assets": "node scripts/optimize-clay-avatar-assets.mjs",
     "test:consultations": "node --test server/consultations/online-consultation-service.test.mjs",
     "test:fact-pipeline": "node --test --test-concurrency=1 server/ai/health-record-preview-contract.test.mjs server/ai/health-fact-safety-regression.test.mjs server/ai/evaluation/symptom-tracking-65-regression.test.mjs",
