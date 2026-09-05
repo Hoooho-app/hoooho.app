@@ -88,11 +88,27 @@ test('login records public-state evidence and keeps the page scale fixed', async
 
 test('protected deep link returns after login without fallible member bootstrap', async ({ page }) => {
   test.skip(phase === 'before')
-  await page.route('**/api/auth/email/login', (route) => route.fulfill({
+  let loggedIn = false
+  await page.route('**/api/auth/session', (route) => loggedIn
+    ? route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token, user: { id: accountId, email: 'design@hoooho.test' } })
+    })
+    : route.continue())
+  await page.route('**/api/auth/profile-sections', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ token, user: { id: accountId, email: 'design@hoooho.test' } })
+    body: '[]'
   }))
+  await page.route('**/api/auth/email/login', (route) => {
+    loggedIn = true
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token, user: { id: accountId, email: 'design@hoooho.test' } })
+    })
+  })
   await page.goto('/settings?panel=privacy#controls')
   await page.getByPlaceholder('请输入邮箱地址').fill('design@hoooho.test')
   await page.getByPlaceholder('请输入验证码').fill('123456')
