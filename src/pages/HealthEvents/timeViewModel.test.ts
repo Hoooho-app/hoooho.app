@@ -3,7 +3,7 @@ import test from 'node:test'
 import { flattenJournal, journalDayGroups, journalTime, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
-const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0 })
+const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
 test('one hour contains multiple peer records in occurrence order, regardless of submission date', () => {
   const a = entry('a', '2026-09-05T09:10:00')
   const b = { ...entry('b', '2026-09-05T09:45:00'), createdAt: '2026-09-05T09:45:01' }
@@ -11,10 +11,11 @@ test('one hour contains multiple peer records in occurrence order, regardless of
   assert.equal(groups.length, 1)
   assert.equal(groups[0].label, '9时')
   assert.deepEqual(groups[0].items.map((item) => item.id), ['b', 'a'])
+  assert.deepEqual(journalDayGroups([a, b], '2026-09-05', 'asc')[0].items.map((item) => item.id), ['a', 'b'])
 })
-test('periods and unknown times do not render a fabricated exact time', () => {
+test('periods keep their label while unresolved legacy text falls back to its recorded minute', () => {
   assert.deepEqual(journalTime({ ...entry('a', '2026-09-05T18:00:00'), timePrecision: 'period', timeLabel: '晚上' }), { group: '晚上', label: '晚上' })
-  assert.equal(journalTime({ ...entry('b', '2026-09-05T23:59:00'), timePrecision: 'unknown' }).label, '时间未明确')
+  assert.equal(journalTime({ ...entry('b', '2026-09-05T23:59:00'), timePrecision: 'unknown' }).label, '23:59')
 })
 test('member and account scope is enforced and legacy event-only data is retained', () => {
   const event: HealthEventApiDto = { id: 'event', memberId: 'child', accountId: 'account', title: '原始内容', category: 'other', status: 'observing', startTime: '2026-09-05T09:00:00', createdAt: '2026-09-05T09:01:00', updatedAt: '2026-09-05T09:01:00' }
@@ -23,7 +24,7 @@ test('member and account scope is enforced and legacy event-only data is retaine
   assert.equal(projected.length, 1)
   assert.equal(projected[0].content, raw.content)
   assert.deepEqual(projected[0].categories, ['other'])
-  assert.equal(projected[0].timePrecision, 'unknown')
+  assert.equal(journalTime(projected[0]).label, '09:00')
   assert.equal(flattenJournal([event], new Map(), new Map(), 'child')[0].content, event.title)
   assert.equal(flattenJournal([event], new Map(), new Map(), 'another-child').length, 0)
 })

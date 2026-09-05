@@ -4,6 +4,16 @@ import { HealthEventRecordError } from './health-event-record-error.mjs'
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
 const resolver = new TimeResolverService()
 
+function recordedClock(occurredAt, timezone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(occurredAt)).map(({ type, value }) => [type, value]))
+  return `${parts.hour}:${parts.minute}`
+}
+
 export function validateJournal(value) {
   if (value === undefined || value === null) return undefined
   if (typeof value !== 'object' || !Array.isArray(value.categories) || value.categories.some((category) => !categories.has(category))) {
@@ -15,7 +25,7 @@ export function validateJournal(value) {
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
   const selected = ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
-  let journal = { ...record.journal, timePrecision: selected ? 'exact' : 'unknown', occurredAt: record.occurredAt }
+  let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {
     const text = record.sourceText || record.content || ''
     const clocks = text.match(/[一二两三四五六七八九十\d]{1,3}(?:点(?:半|[一二两三四五六七八九十\d]{1,3}分?)?|[:：]\d{1,2})/g) ?? []
@@ -29,8 +39,14 @@ export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
     if (clockContext && !/一点(?:点|儿|痒|疼|痛)|明天|后天|下周|下个月/.test(text) && clocks.length <= 1 && new Set(days).size <= 1 && new Set(periods).size <= 1) {
       try {
         const time = resolver.resolve(text.replaceAll('：', ':'), { timezone, referenceNow: new Date(record.createdAt) })
-        if (time.resolvedStart && ['exact', 'period', 'day'].includes(time.precision) && Date.parse(time.resolvedStart) <= Date.parse(record.createdAt)) {
-          journal = { ...journal, occurredAt: time.resolvedStart, timePrecision: time.precision, ...(time.precision === 'period' ? { timeLabel: periods[0] === '昨晚' ? '晚上' : periods[0] } : {}) }
+        let projected = time
+        // A spoken day without a clock still belongs to that day, but its visible
+        // minute is the moment the user made the record rather than midnight.
+        if (time.precision === 'day' && time.resolvedStart) {
+          projected = resolver.resolve(`${text.replaceAll('：', ':')} ${recordedClock(record.occurredAt, timezone)}`, { timezone, referenceNow: new Date(record.createdAt) })
+        }
+        if (projected.resolvedStart && ['exact', 'period'].includes(projected.precision) && Date.parse(projected.resolvedStart) <= Date.parse(record.createdAt)) {
+          journal = { ...journal, occurredAt: projected.resolvedStart, timePrecision: projected.precision, ...(projected.precision === 'period' ? { timeLabel: periods[0] === '昨晚' ? '晚上' : periods[0] } : {}) }
         }
       } catch { /* Invalid or ambiguous legacy input keeps its raw content and unknown precision. */ }
     }

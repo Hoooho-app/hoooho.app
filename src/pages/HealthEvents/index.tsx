@@ -1,9 +1,11 @@
-import { CalendarDays, LayoutGrid, Mic } from 'lucide-react'
+import { ArrowDownNarrowWide, ArrowUpNarrowWide, Filter, Mic, PenLine } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { BottomSheetSurface, HohoButton } from '../../components/design-system'
+import { HohoButton } from '../../components/design-system'
 import logoUrl from '../../assets/logo.svg'
-import { RecordSubjectCard } from '../../components/health'
+import { Avatar } from '../../components/common'
+import { emptyHealthEventFilters, HealthEventFilterSheet } from '../../components/health'
+import type { HealthEventFilters } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
@@ -33,21 +35,27 @@ import {
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
 function UserIdentity({ member, onSummary, summaryDisabled, triage }: { member: Member | null; onSummary: () => void; summaryDisabled: boolean; triage: boolean }) {
-
+  const meta = member ? [genderLabels[member.gender ?? ''], member.age].filter(Boolean).join(' · ') : ''
   return (
-    <div className="health-events-member mx-4 mt-3">
-      <RecordSubjectCard
-        action={<HohoButton className="journal-subject-summary" size="small" variant="secondary" onClick={onSummary} disabled={summaryDisabled}><img src={logoUrl} width={20} height={20} alt="" />摘要生成</HohoButton>}
-        age={member?.age ?? ''}
-        avatar={member?.avatar}
-        gender={member ? genderLabels[member.gender ?? ''] : ''}
-        label="记录对象"
-        name={member?.name ?? ' '}
-      />
+    <div className="health-events-member mx-4 mt-2">
+      <div className="journal-subject-row">
+        <div className="journal-subject-card" aria-label="记录对象">
+          <Avatar name={member?.name ?? ' '} src={member?.avatar} size="sm" />
+          <span className="journal-subject-copy">
+            <span className="journal-subject-name"><strong>{member?.name ?? ' '}</strong><span>记录对象</span></span>
+            <span className="journal-subject-meta">{meta}</span>
+          </span>
+        </div>
+        <HohoButton className="journal-subject-summary" variant="secondary" onClick={onSummary} disabled={summaryDisabled}><img src={logoUrl} width={20} height={20} alt="" />摘要生成</HohoButton>
+      </div>
       {triage && <><p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
       <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p></>}
     </div>
   )
+}
+
+function hasActiveFilters(filters: HealthEventFilters) {
+  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.definitionTitles.length > 0
 }
 
 const healthEventsViewOptions: HealthEventsViewMode[] = ['triage', 'list']
@@ -77,7 +85,9 @@ export function HealthEventsPage() {
   const { state, retry } = useHealthEventsList()
   const [today, setToday] = useState(() => getLocalDateKey(new Date())!)
   const [day, setDay] = useState(today)
-  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null)
   const [revision, setRevision] = useState(0)
   const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: '', eventId: null })
@@ -124,7 +134,7 @@ export function HealthEventsPage() {
     setQuickRecordOpen(false)
     setNextActionOpen(false)
     setRecorderMode(null)
-    setCalendarOpen(false)
+    setFilterOpen(false)
     submissionKeyRef.current = ''
   }, [currentMemberId, viewMode])
 
@@ -207,14 +217,17 @@ export function HealthEventsPage() {
       <MainAppHeader title="健康随身记" />
       <UserIdentity member={currentMember} onSummary={() => setNextActionOpen(true)} summaryDisabled={!nextActionEventId} triage={viewMode === 'triage'} />
 
-      <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
-        <div className="health-events-toolbar mb-4">
+      <div className={`health-events-content mt-3 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
+        <div className="health-events-toolbar mb-2">
           <div className="journal-toolbar">
             <HealthEventsViewSelect onChange={setViewMode} value={viewMode} />
-            {viewMode === 'list' && <HohoButton size="icon" variant="secondary" aria-label="选择日期" onClick={() => setCalendarOpen(true)}><CalendarDays size={20} /></HohoButton>}
+            {viewMode === 'list' && <div className="journal-toolbar-actions">
+              <HohoButton className={hasActiveFilters(filters) ? 'journal-filter-active' : ''} size="icon" variant="secondary" aria-label="筛选健康随身记" onClick={() => setFilterOpen(true)}><Filter size={18} /></HohoButton>
+              <HohoButton size="icon" variant="secondary" aria-label={sortOrder === 'desc' ? '当前最新在前，切换为从早到晚' : '当前从早到晚，切换为最新在前'} onClick={() => setSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}>{sortOrder === 'desc' ? <ArrowDownNarrowWide size={18} /> : <ArrowUpNarrowWide size={18} />}</HohoButton>
+            </div>}
           </div>
         </div>
-        {viewMode === 'list' && <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} onDayChange={(value) => { if (parsePlainDate(value) && value <= today) setDay(value) }} revision={revision} onContext={setJournalContext} />}
+        {viewMode === 'list' && <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} onDayChange={(value) => { if (parsePlainDate(value) && value <= today) setDay(value) }} revision={revision} onContext={setJournalContext} filterOpen={filterOpen} filters={filters} onFilterClose={() => setFilterOpen(false)} onFilterApply={setFilters} sortOrder={sortOrder} />}
         {(
           <NurseQuickRecord
             active={viewMode === 'triage'}
@@ -235,13 +248,10 @@ export function HealthEventsPage() {
       </div>
 
       {viewMode === 'list' && <footer className="journal-record-actions"><div>
-        <HohoButton size="large" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><LayoutGrid size={20} />手动记录</HohoButton>
-        <HohoButton size="icon" variant="secondary" aria-label="快捷语音记录" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('voice') }}><Mic size={22} /></HohoButton>
+        <HohoButton size="large" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><PenLine size={20} />手动记录</HohoButton>
+        <HohoButton size="large" variant="secondary" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('voice') }}><Mic size={20} />快捷记录</HohoButton>
       </div></footer>}
       {recorderMode && <JournalRecorder key={currentMemberId} mode={recorderMode} memberId={currentMemberId} token={token ?? ''} onClose={() => setRecorderMode(null)} onConfirm={saveJournalRecord} />}
-      <BottomSheetSurface open={calendarOpen} onClose={() => setCalendarOpen(false)} title="选择日期" label="日历">
-        <label className="hoho-text-label">记录日期<input className="journal-calendar-field" type="date" aria-label="记录日期" max={today} value={day} onChange={(event) => { const value = event.target.value; if (parsePlainDate(value) && value <= today) { setDay(value); setCalendarOpen(false) } }} /></label>
-      </BottomSheetSurface>
       <NurseNextAction
         currentMemberId={currentMemberId}
         eventId={nextActionEventId}
