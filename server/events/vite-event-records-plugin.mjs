@@ -61,7 +61,9 @@ export function eventRecordsApiPlugin(options = {}) {
           const accountId = readAccountId(request, tokens)
           if (eventRecordsMatch) {
             const eventId = decodeURIComponent(eventRecordsMatch[1])
-            if (request.method === 'GET') return sendJson(response, 200, await records.list(accountId, eventId))
+            if (request.method === 'GET') return sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time'
+              ? await records.listJournal(accountId, eventId, request.headers['x-hoooho-timezone'])
+              : await records.list(accountId, eventId))
             if (request.method === 'POST') {
               return sendJson(response, 201, await records.create(accountId, eventId, await readJson(request)))
             }

@@ -198,6 +198,7 @@ export interface HealthChangeAnnotationApiDto {
 }
 
 export interface HealthEventRecordApiDto {
+  journal?: import('./journal').JournalMetadata
   id: string
   accountId: string
   eventId: string

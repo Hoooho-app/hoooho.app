@@ -1,20 +1,23 @@
-import { ClipboardList, Filter, Plus } from 'lucide-react'
+import { CalendarDays, LayoutGrid, Mic } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { EmptyState, HealthCard, HohoButton, ListSkeleton, StatusNotice, Typography } from '../../components/design-system'
-import { emptyHealthEventFilters, HealthEventFilterSheet, HealthEventTimeline, RecordSubjectCard } from '../../components/health'
-import type { HealthEventFilters } from '../../components/health'
+import { BottomSheetSurface, HohoButton } from '../../components/design-system'
+import logoUrl from '../../assets/logo.svg'
+import { RecordSubjectCard } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { ApiRequestError } from '../../services/apiClient'
-import { getHealthEventDefinitionTitleOptions } from '../../services/healthEventFilterOptions'
 import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { getMemberHealthEvents } from '../../services/healthEventListPresentation'
 import { quickRecordService } from '../../services/quickRecords'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import type { HealthEventListItemViewModel, HealthEventStage, Member } from '../../types'
-import { getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
+import type { Member } from '../../types'
+import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
+import { TimeView } from './TimeView'
+import { JournalRecorder } from './JournalRecorder'
+import type { JournalCategory } from './timeViewModel'
+import './TimeView.css'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { FirstMemberFrontDesk } from './FirstMemberFrontDesk'
@@ -24,35 +27,27 @@ import { getNurseNextActionEventId } from './nurseNextActionContext'
 import {
   DEFAULT_HEALTH_EVENTS_VIEW_MODE,
   healthEventsViewLabels,
-  shouldShowHealthEventFilters,
   type HealthEventsViewMode
 } from './nurseTriageMachine'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
-function UserIdentity({ member }: { member: Member | null }) {
-  const navigate = useNavigate()
+function UserIdentity({ member, onSummary, summaryDisabled, triage }: { member: Member | null; onSummary: () => void; summaryDisabled: boolean; triage: boolean }) {
 
   return (
     <div className="health-events-member mx-4 mt-3">
       <RecordSubjectCard
-        action={<button className="rounded-control border border-primary/25 px-2.5 py-1.5 text-xs font-semibold text-primary" type="button" onClick={() => navigate('/family', {
-          state: { familyEntry: { returnTo: '/health-events', reopenDrawer: false } }
-        })}>切换人物</button>}
+        action={<HohoButton className="journal-subject-summary" size="small" variant="secondary" onClick={onSummary} disabled={summaryDisabled}><img src={logoUrl} width={20} height={20} alt="" />摘要生成</HohoButton>}
         age={member?.age ?? ''}
         avatar={member?.avatar}
         gender={member ? genderLabels[member.gender ?? ''] : ''}
-        label="当前人物"
+        label="记录对象"
         name={member?.name ?? ' '}
       />
-      <p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
-      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p>
+      {triage && <><p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
+      <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p></>}
     </div>
   )
-}
-
-function hasActiveFilters(filters: HealthEventFilters) {
-  return filters.range !== 'all' || filters.year !== null || filters.months.length > 0 || filters.statuses.length > 0 || filters.definitionTitles.length > 0
 }
 
 const healthEventsViewOptions: HealthEventsViewMode[] = ['triage', 'list']
@@ -71,28 +66,6 @@ function HealthEventsViewSelect({ onChange, value }: { onChange: (view: HealthEv
   )
 }
 
-export function filterEvents(events: HealthEventListItemViewModel[], filters: HealthEventFilters, now = new Date()) {
-  return events.filter((event) => {
-    const eventDate = new Date(event.occurredAt)
-    const localDate = getLocalCalendarParts(eventDate)
-    const localDateKey = getLocalDateKey(eventDate)
-    if (!localDate || !localDateKey) return false
-    if (filters.range === '7d' && eventDate < new Date(now.getTime() - 7 * 86_400_000)) return false
-    if (filters.range === '30d' && eventDate < new Date(now.getTime() - 30 * 86_400_000)) return false
-    if (filters.range === 'year' && localDate.year !== now.getFullYear()) return false
-    if (filters.range === 'custom') {
-      if (filters.customStart && localDateKey < filters.customStart) return false
-      if (filters.customEnd && localDateKey > filters.customEnd) return false
-    }
-    if (filters.year !== null && localDate.year !== filters.year) return false
-    if (filters.months.length > 0 && !filters.months.includes(localDate.month)) return false
-    const displayStatus = event.status === 'handling' ? 'observing' : event.status
-    if (filters.statuses.length > 0 && !filters.statuses.includes(displayStatus)) return false
-    if (filters.definitionTitles.length > 0 && !filters.definitionTitles.includes(event.definitionTitle)) return false
-    return true
-  })
-}
-
 export function HealthEventsPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -101,11 +74,13 @@ export function HealthEventsPage() {
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const cachedMembers = useAppStore((state) => state.members)
   const carePreferences = useSettingsStore((state) => state.care)
-  const { state, retry, updateEventStatus, deleteEvent } = useHealthEventsList()
-  const [createError, setCreateError] = useState('')
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters)
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const { state, retry } = useHealthEventsList()
+  const [today, setToday] = useState(() => getLocalDateKey(new Date())!)
+  const [day, setDay] = useState(today)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null)
+  const [revision, setRevision] = useState(0)
+  const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: '', eventId: null })
   const [viewMode, setViewMode] = useState<HealthEventsViewMode>(DEFAULT_HEALTH_EVENTS_VIEW_MODE)
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [nextActionOpen, setNextActionOpen] = useState(false)
@@ -121,8 +96,14 @@ export function HealthEventsPage() {
   }, [])
 
   useEffect(() => {
-    if (viewMode === 'triage') setFilterOpen(false)
-  }, [viewMode])
+    const refreshDay = () => {
+      const currentDay = getLocalDateKey(new Date())!
+      setToday((previous) => { if (currentDay !== previous) setDay((selected) => selected === previous ? currentDay : selected); return currentDay })
+    }
+    const timer = window.setInterval(refreshDay, 30_000)
+    window.addEventListener('focus', refreshDay)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refreshDay) }
+  }, [])
 
   const loadedMembers = state.status === 'success' ? state.data.members : []
   const currentMember = loadedMembers.find((member) => member.id === currentMemberId)
@@ -136,22 +117,14 @@ export function HealthEventsPage() {
   const memberEvents = state.status === 'success'
     ? getMemberHealthEvents(state.data.events, currentMemberDto?.id)
     : []
-  const nextActionEventId = getNurseNextActionEventId(memberEvents, currentMemberId)
-  const years = [...new Set(memberEvents
-    .map((event) => getLocalCalendarParts(event.occurredAt)?.year)
-    .filter((year): year is number => year !== undefined))]
-    .sort((left, right) => right - left)
-  const definitionTitles = getHealthEventDefinitionTitleOptions(memberEvents)
-  const activeYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years[0] ?? null
-  const filteredEvents = filterEvents(memberEvents, filters)
-  const visibleEvents = activeYear === null
-    ? filteredEvents
-    : filteredEvents.filter((event) => getLocalCalendarParts(event.occurredAt)?.year === activeYear)
+  const nextActionEventId = getNurseNextActionEventId(memberEvents, currentMemberId) ?? (viewMode === 'list' && journalContext.memberId === currentMemberId ? journalContext.eventId : null)
   const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
 
   useEffect(() => {
     setQuickRecordOpen(false)
     setNextActionOpen(false)
+    setRecorderMode(null)
+    setCalendarOpen(false)
     submissionKeyRef.current = ''
   }, [currentMemberId, viewMode])
 
@@ -164,26 +137,6 @@ export function HealthEventsPage() {
     navigate('/health-events', { replace: true })
   }, [currentMember, location.state, navigate])
 
-  const selectYear = (year: number) => {
-    setSelectedYear(year)
-    if (filters.year !== null) setFilters((current) => ({ ...current, year: null }))
-  }
-
-  const applyFilters = (nextFilters: HealthEventFilters) => {
-    setFilters(nextFilters)
-    if (nextFilters.year !== null) setSelectedYear(nextFilters.year)
-  }
-
-  const beginNewRecord = () => {
-    if (!currentMember) {
-      navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
-      return
-    }
-    setViewMode('triage')
-    setQuickRecordOpen(true)
-    submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
-  }
-
   const openQuickRecord = () => {
     if (!currentMember) {
       navigate('/family/new', { state: { firstUseEntry: { continueToRecord: true, returnTo: '/health-events' } } })
@@ -191,24 +144,6 @@ export function HealthEventsPage() {
     }
     submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     setQuickRecordOpen(true)
-  }
-
-  const changeEventStatus = async (eventId: string, status: HealthEventStage) => {
-    setCreateError('')
-    try {
-      await updateEventStatus(eventId, status)
-    } catch (requestError) {
-      setCreateError(requestError instanceof Error ? requestError.message : '状态更新失败，请稍后重试')
-    }
-  }
-
-  const removeEvent = async (eventId: string) => {
-    setCreateError('')
-    try {
-      await deleteEvent(eventId)
-    } catch (requestError) {
-      setCreateError(requestError instanceof Error ? requestError.message : '删除失败，请稍后重试')
-    }
   }
 
   const saveTriageRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => {
@@ -236,6 +171,22 @@ export function HealthEventsPage() {
     }
   }
 
+  const saveJournalRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, categories: JournalCategory[]) => {
+    if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
+    if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
+    await quickRecordService.create({
+      memberId: currentMemberId, content: transcript, occurredAt, inputChannel,
+      title: normalizeHealthEventTitle('', transcript), idempotencyKey: submissionKeyRef.current,
+      journal: { categories },
+      ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {})
+    }, token)
+    submissionKeyRef.current = ''
+    setDay(getLocalDateKey(new Date())!)
+    setRevision((value) => value + 1)
+    void retry()
+    return '已记录'
+  }
+
   const closeQuickRecord = () => {
     setQuickRecordOpen(false)
   }
@@ -253,90 +204,17 @@ export function HealthEventsPage() {
 
   return (
     <main className="hoho-health-events-page app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode={viewMode}>
-      <MainAppHeader title="健康随记" />
-      <UserIdentity member={currentMember} />
+      <MainAppHeader title="健康随身记" />
+      <UserIdentity member={currentMember} onSummary={() => setNextActionOpen(true)} summaryDisabled={!nextActionEventId} triage={viewMode === 'triage'} />
 
       <div className={`health-events-content mt-5 min-h-0 flex-1 overscroll-contain px-4 ${viewMode === 'triage' ? 'health-events-content--triage overflow-hidden' : 'overflow-y-auto pb-24'}`}>
-        <div className="health-events-toolbar mb-4 space-y-3">
-          <div className={`flex min-h-11 items-center gap-2 ${viewMode === 'list' ? 'justify-between' : 'justify-end'}`}>
-            {viewMode === 'list' && <Typography className="health-events-list-title" variant="sectionTitle">健康随记</Typography>}
-            <div className="health-events-view-actions">
-              {shouldShowHealthEventFilters(viewMode) && (
-                <button
-                  className={`relative flex min-h-10 items-center gap-1.5 rounded-control px-2.5 text-sm font-medium transition hover:bg-primary-soft ${hasActiveFilters(filters) ? 'bg-primary-soft text-primary' : 'text-text-secondary'}`}
-                  type="button"
-                  aria-label="筛选健康随记"
-                  onClick={() => setFilterOpen(true)}
-                >
-                  <Filter size={17} strokeWidth={1.8} />
-                  筛选
-                  {hasActiveFilters(filters) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                </button>
-              )}
-              <HealthEventsViewSelect onChange={setViewMode} value={viewMode} />
-            </div>
+        <div className="health-events-toolbar mb-4">
+          <div className="journal-toolbar">
+            <HealthEventsViewSelect onChange={setViewMode} value={viewMode} />
+            {viewMode === 'list' && <HohoButton size="icon" variant="secondary" aria-label="选择日期" onClick={() => setCalendarOpen(true)}><CalendarDays size={20} /></HohoButton>}
           </div>
-
-          {viewMode === 'list' && state.status === 'success' && years.length > 0 && (
-            <div
-              className="hoho-year-tabs health-events-year-tabs"
-              role="tablist"
-              aria-label="按年份切换健康随记"
-            >
-              {years.map((year) => {
-                const selected = year === activeYear
-                return (
-                  <button
-                    className="hoho-year-tabs__item"
-                    data-selected={selected}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    key={year}
-                    onClick={() => selectYear(year)}
-                  >
-                    {year}年
-                  </button>
-                )
-              })}
-            </div>
-          )}
         </div>
-        {viewMode === 'list' && state.status === 'loading' && (
-          <ListSkeleton rows={3} />
-        )}
-
-        {viewMode === 'list' && state.status === 'error' && (
-          <StatusNotice action={<HohoButton size="small" variant="secondary" onClick={retry}>重新加载</HohoButton>} title="健康随记加载失败" tone="error">{state.message}</StatusNotice>
-        )}
-
-        {viewMode === 'list' && state.status === 'success' && memberEvents.length === 0 && (
-          <HealthCard className="flex min-h-[360px] items-center justify-center">
-            <EmptyState
-              action={<HohoButton onClick={beginNewRecord}>
-              <Plus size={19} strokeWidth={1.8} />
-              记录新情况
-              </HohoButton>}
-              description={<><span className="care-standard-language">心慌、胸闷、咳嗽、受凉等不适<br />都可以记录下来</span><span className="care-plain-language">身体不舒服时，把发生的事记下来。</span></>}
-              icon={<ClipboardList size={28} strokeWidth={1.6} />}
-              title="还没有健康随记"
-            />
-          </HealthCard>
-        )}
-
-        {viewMode === 'list' && state.status === 'success' && memberEvents.length > 0 && visibleEvents.length > 0 && (
-          <HealthEventTimeline events={visibleEvents} onStatusChange={changeEventStatus} onDelete={removeEvent} />
-        )}
-
-        {viewMode === 'list' && state.status === 'success' && memberEvents.length > 0 && visibleEvents.length === 0 && (
-          <HealthCard>
-            <EmptyState
-              action={<HohoButton variant="secondary" onClick={() => setFilters(emptyHealthEventFilters)}>重置筛选</HohoButton>}
-              description="可以调整或重置筛选条件"
-              title="没有符合条件的健康随记"
-            />
-          </HealthCard>
-        )}
+        {viewMode === 'list' && <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} onDayChange={(value) => { if (parsePlainDate(value) && value <= today) setDay(value) }} revision={revision} onContext={setJournalContext} />}
         {(
           <NurseQuickRecord
             active={viewMode === 'triage'}
@@ -354,26 +232,22 @@ export function HealthEventsPage() {
             reducedMotion={reducedMotion}
           />
         )}
-        {viewMode === 'list' && createError && <p className="mt-3 text-center text-xs text-danger">{createError}</p>}
       </div>
 
-      {viewMode === 'list' && <button
-        className="health-events-fab fixed z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-surface shadow-floating transition active:scale-95"
-        type="button"
-        aria-label="记录新情况"
-        disabled={!currentMember}
-        onClick={beginNewRecord}
-      >
-        <Plus size={30} strokeWidth={1.8} />
-      </button>}
-
-      <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      {viewMode === 'list' && <footer className="journal-record-actions"><div>
+        <HohoButton size="large" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><LayoutGrid size={20} />手动记录</HohoButton>
+        <HohoButton size="icon" variant="secondary" aria-label="快捷语音记录" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('voice') }}><Mic size={22} /></HohoButton>
+      </div></footer>}
+      {recorderMode && <JournalRecorder key={currentMemberId} mode={recorderMode} memberId={currentMemberId} token={token ?? ''} onClose={() => setRecorderMode(null)} onConfirm={saveJournalRecord} />}
+      <BottomSheetSurface open={calendarOpen} onClose={() => setCalendarOpen(false)} title="选择日期" label="日历">
+        <label className="hoho-text-label">记录日期<input className="journal-calendar-field" type="date" aria-label="记录日期" max={today} value={day} onChange={(event) => { const value = event.target.value; if (parsePlainDate(value) && value <= today) { setDay(value); setCalendarOpen(false) } }} /></label>
+      </BottomSheetSurface>
       <NurseNextAction
         currentMemberId={currentMemberId}
         eventId={nextActionEventId}
         key={`${currentMemberId}:${nextActionEventId ?? 'none'}`}
         onClose={() => setNextActionOpen(false)}
-        open={viewMode === 'triage' && nextActionOpen}
+        open={nextActionOpen}
       />
     </main>
   )

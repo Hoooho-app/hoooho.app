@@ -4,7 +4,7 @@ export const DEFAULT_HEALTH_EVENTS_VIEW_MODE: HealthEventsViewMode = 'triage'
 
 export const healthEventsViewLabels: Record<HealthEventsViewMode, string> = {
   triage: '前台视图',
-  list: '列表视图'
+  list: '时间视图'
 }
 
 export type NurseTriageState =

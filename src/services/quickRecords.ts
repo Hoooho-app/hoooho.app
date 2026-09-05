@@ -1,6 +1,7 @@
 import { apiRequest } from './apiClient'
 
 export interface QuickRecordCreateInput {
+  journal?: { categories: import('../types/journal').JournalCategory[] }
   memberId: string
   content: string
   occurredAt: string

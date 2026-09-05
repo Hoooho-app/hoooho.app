@@ -2,6 +2,7 @@ import { HealthEventError, HealthEventService } from './health-event-service.mjs
 import { HealthEventRecordService } from './health-event-record-service.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import path from 'node:path'
+import { validateJournal } from './journal-metadata.mjs'
 
 const keyPattern = /^[A-Za-z0-9_-]{8,128}$/
 
@@ -44,7 +45,7 @@ function validateInput(input) {
   const photoIds = Array.isArray(input.photoIds) ? input.photoIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()) : []
   const photoDraftId = typeof input.photoDraftId === 'string' ? input.photoDraftId.trim() : ''
   if (photoIds.length && !photoDraftId) throw new HealthEventError('照片草稿标识不能为空', 400, 'PHOTO_DRAFT_REQUIRED')
-  return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds }
+  return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal: validateJournal(input.journal) }
 }
 
 export class QuickRecordService {
@@ -111,6 +112,7 @@ export class QuickRecordService {
     try {
       const record = await this.records.create(accountId, event.id, {
         type: 'note',
+        ...(input.journal === undefined ? {} : { journal: input.journal }),
         content: input.content,
         occurredAt: input.occurredAt,
         sourceType: input.inputChannel === 'voice' ? 'voice_record' : 'text_record',

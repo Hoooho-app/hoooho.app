@@ -67,7 +67,7 @@ export function eventsApiPlugin(options = {}) {
           }
           const eventId = match[1] ? decodeURIComponent(match[1]) : null
 
-          if (!eventId && request.method === 'GET') return sendJson(response, 200, await events.list(accountId))
+          if (!eventId && request.method === 'GET') return sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time' ? await events.listJournal(accountId) : await events.list(accountId))
           if (!eventId && request.method === 'POST') return sendJson(response, 201, await events.create(accountId, await readJson(request)))
           if (eventId && request.method === 'GET') return sendJson(response, 200, await events.get(accountId, eventId))
           if (eventId && request.method === 'PATCH') return sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))

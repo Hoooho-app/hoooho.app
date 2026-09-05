@@ -33,6 +33,7 @@ interface QuickVoiceRecordFlowProps {
   onSaved?: (message: string, inputChannel: QuickRecordInputChannel) => void
   open: boolean
   presentation?: QuickRecordPresentation
+  initialInputChannel?: QuickRecordInputChannel
   recognitionApi?: RecognitionConstructor | null
   voiceCapability?: BrowserVoiceCapability
   photoMemberId?: string
@@ -49,7 +50,7 @@ const recognitionConstructor = () => {
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
-export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', recognitionApi, voiceCapability, photoMemberId, photoToken }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -233,7 +234,10 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setSavedMessage('已记录')
     setInputError('')
     inputChannelRef.current = 'text'
-    if (presentation === 'nurse-inline') {
+    if (initialInputChannel === 'voice' && capability.canAttemptMicrophone && !capability.isWechat) {
+      inputChannelRef.current = 'voice'
+      void startListening()
+    } else if (presentation === 'nurse-inline') {
       setState('text_entry')
       if (capability.isWechat) {
         try {
@@ -259,7 +263,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         closeTimerRef.current = null
       }
     }
-  }, [capability.canAttemptMicrophone, capability.isWechat, open, presentation, startListening, stopSession])
+  }, [capability.canAttemptMicrophone, capability.isWechat, open, presentation, initialInputChannel, startListening, stopSession])
 
   useEffect(() => {
     if (presentation !== 'nurse-inline') return
