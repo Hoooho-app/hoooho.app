@@ -19,7 +19,7 @@ async function seed(page: Page) {
       if (!response.ok) throw new Error(`test API ${url}: ${response.status}`)
       return response.json()
     }
-    const member = await call('/api/members', { name: '验收宝宝', relationship: 'child', birthday: '2023-01-01', gender: 'female', avatar: '/avatars/children/avatar-01.webp' })
+    const member = await call('/api/members', { name: '验收宝宝', relationship: 'child', birthday: '2023-01-01', gender: 'female', avatar: 'girl-age3-east-asian' })
     const event = await call('/api/events', { memberId: member.id, title: '游客持久化验收', category: 'other', startTime: '2026-01-01T00:00:00Z' })
     await call(`/api/events/${event.id}/records`, { type: 'note', content: '隔离测试记录', occurredAt: '2026-01-01T01:00:00Z' })
     await call(`/api/events/${event.id}/records`, { type: 'note', content: '追加隔离测试记录', occurredAt: '2026-01-01T02:00:00Z' })
@@ -33,8 +33,11 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
   const directory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-guest-profile-'))
   const options = { ...devices['iPhone SE'], executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true }
   let context = await chromium.launchPersistentContext(directory, options)
+  const runtimeErrors: string[] = []
+  const observe = (page: Page) => page.on('pageerror', () => runtimeErrors.push('pageerror'))
   try {
     let page = await context.newPage()
+    observe(page)
     await page.goto(`${baseURL}/login`)
     await page.getByRole('button', { name: '暂不登录，先体验' }).click()
     await expect(page).toHaveURL(/health-events/)
@@ -55,6 +58,7 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
     await context.close()
     context = await chromium.launchPersistentContext(directory, options)
     page = await context.newPage()
+    observe(page)
     await page.goto(`${baseURL}/health-events/${records.eventId}`)
     await expect(page.getByText('追加隔离测试记录', { exact: true }).first()).toBeVisible()
     expect(await identity(page)).toBe(accountId)
@@ -64,6 +68,7 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
     expect(cookie.expires).toBeGreaterThan(Date.now() / 1000 + 179 * 86400)
     expect(await page.evaluate(() => document.cookie.includes('hoooho_session'))).toBe(false)
     await page.screenshot({ path: 'tests/guest-session/restored-iphone-se.png', fullPage: true })
+    expect(runtimeErrors).toEqual([])
   } finally { await context.close(); await rm(directory, { recursive: true, force: true }) }
 })
 
