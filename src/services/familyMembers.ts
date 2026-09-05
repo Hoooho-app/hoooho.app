@@ -43,6 +43,7 @@ export const familyMemberService = {
     gender: 'male' | 'female'
     avatar: string
     relationship: Extract<FamilyMemberApiDto['relationship'], 'child' | 'other'>
+    primaryRecorderRelationship?: FamilyMemberApiDto['primaryRecorderRelationship']
   }, token: string) {
     return apiRequest<FamilyMemberApiDto>('/api/members', {
       token,

@@ -80,7 +80,22 @@ function displayBirthday(value: string) {
   return value ? value.replaceAll('-', '/') : '请选择日期'
 }
 
-export function EditFamilyMemberPage() {
+function makeEmptyDraft(): ChildEditorDraft {
+  return {
+    avatarConfig: createChildAvatarSelection(getChildBirthdayBounds().max, 'male'),
+    avatarMode: 'cartoon',
+    birthday: '',
+    gender: '',
+    name: '',
+    primaryRecorderRelationship: '',
+    photoAvatar: ''
+  }
+}
+
+export function EditFamilyMemberPage({ create = false, onCreated }: {
+  create?: boolean
+  onCreated?: (member: FamilyMemberApiDto) => void
+} = {}) {
   const navigate = useNavigate()
   const { memberId = '' } = useParams()
   const token = useAppStore((state) => state.authToken)
@@ -92,12 +107,12 @@ export function EditFamilyMemberPage() {
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const cachedMember = token && memberId ? familyMemberService.getCachedById(memberId, token) : undefined
   const initialMember = cachedMember && isChildProfileMember(cachedMember) ? cachedMember : null
-  const initialDraft = initialMember ? makeDraft(initialMember) : null
+  const initialDraft = create ? makeEmptyDraft() : initialMember ? makeDraft(initialMember) : null
 
   const [sourceMember, setSourceMember] = useState<FamilyMemberApiDto | null>(initialMember)
   const [draft, setDraft] = useState<ChildEditorDraft | null>(initialDraft)
   const [baseline, setBaseline] = useState(initialDraft ? draftFingerprint(initialDraft) : '')
-  const [loading, setLoading] = useState(!initialMember)
+  const [loading, setLoading] = useState(!create && !initialMember)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -105,9 +120,10 @@ export function EditFamilyMemberPage() {
   const [error, setError] = useState('')
   const allowNavigationRef = useRef(false)
   const draftEditedRef = useRef(false)
+  const savingRef = useRef(false)
 
   useEffect(() => {
-    if (!token || !memberId) return
+    if (create || !token || !memberId) return
     const cached = familyMemberService.getCachedById(memberId, token)
     draftEditedRef.current = false
     setError('')
@@ -152,7 +168,7 @@ export function EditFamilyMemberPage() {
       })
       .finally(() => setLoading(false))
     return () => controller.abort()
-  }, [clearAuthSession, memberId, navigate, token])
+  }, [clearAuthSession, create, memberId, navigate, token])
 
   const birthdayValidation = useMemo(() => validateChildBirthday(draft?.birthday ?? ''), [draft?.birthday])
   const birthdayError = childBirthdayErrorMessage(birthdayValidation.error)
@@ -162,7 +178,7 @@ export function EditFamilyMemberPage() {
   const blocker = useBlocker(isDirty && !allowNavigationRef.current && saveState !== 'saving' && !deleting)
   const bounds = useMemo(() => getChildBirthdayBounds(), [])
   const age = draft?.birthday ? formatChildProfileAge(draft.birthday) : ''
-  const hasErrors = Boolean(nameError || birthdayError || photoError)
+  const hasErrors = Boolean(nameError || birthdayError || photoError || (create && (!draft?.birthday || !draft?.gender)))
   const locked = saveState === 'saving' || deleting || photoProcessing
 
   useEffect(() => {
@@ -178,8 +194,9 @@ export function EditFamilyMemberPage() {
   const previewConfig = useMemo(() => {
     if (!draft) return null
     const gender = draft.gender || (draft.avatarConfig.gender === 'girl' ? 'female' : 'male')
-    return remapChildAvatarSelection(draft.avatarConfig, childAvatarBirthday(draft.birthday), gender)
-  }, [draft])
+    const avatarBirthday = create && !draft.birthday ? getChildBirthdayBounds().max : childAvatarBirthday(draft.birthday)
+    return remapChildAvatarSelection(draft.avatarConfig, avatarBirthday, gender)
+  }, [create, draft])
 
   const updateDraft = (changes: Partial<ChildEditorDraft>) => {
     draftEditedRef.current = true
@@ -190,10 +207,27 @@ export function EditFamilyMemberPage() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (!draft || !previewConfig || !token || !memberId || !isDirty || hasErrors || photoProcessing) return
+    if (!draft || !previewConfig || !token || (!create && !memberId) || !isDirty || hasErrors || photoProcessing || savingRef.current) return
+    savingRef.current = true
     setSaveState('saving')
     setError('')
     try {
+      if (create) {
+        if (!draft.gender) return
+        const created = await familyMemberService.create({
+          name: draft.name.trim(),
+          relationship: 'child',
+          birthday: draft.birthday,
+          gender: draft.gender,
+          avatar: draft.avatarMode === 'photo' ? draft.photoAvatar : serializeChildAvatar(previewConfig),
+          primaryRecorderRelationship: draft.primaryRecorderRelationship || null
+        }, token)
+        allowNavigationRef.current = true
+        setBaseline(draftFingerprint(draft))
+        setSaveState('saved')
+        onCreated?.(created)
+        return
+      }
       await familyMemberService.update(memberId, {
         name: draft.name.trim(),
         relationship: 'child',
@@ -214,7 +248,15 @@ export function EditFamilyMemberPage() {
       setSaveState('saved')
     } catch (requestError) {
       setSaveState('idle')
+      if (create && requestError instanceof ApiRequestError && requestError.status === 401) {
+        allowNavigationRef.current = true
+        clearAuthSession()
+        navigate('/login', { replace: true })
+        return
+      }
       setError(requestError instanceof Error ? requestError.message : '保存失败，请重试')
+    } finally {
+      savingRef.current = false
     }
   }
 
@@ -239,8 +281,8 @@ export function EditFamilyMemberPage() {
   }
 
   return <main className="app-shell flex min-h-dvh flex-col bg-surface pb-0">
-    <WebPageHeader title="编辑孩子资料" fallback="/family" />
-    {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : sourceMember && draft && previewConfig ? (
+    {create ? <WebPageHeader title="添加家庭成员" fallback="/family" /> : <WebPageHeader title="编辑孩子资料" fallback="/family" />}
+    {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : (create || sourceMember) && draft && previewConfig ? (
       <form className="flex flex-1 flex-col px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" onSubmit={save}>
         <div className="mx-auto w-full max-w-sm">
           <FamilyAvatarEditor
@@ -261,7 +303,7 @@ export function EditFamilyMemberPage() {
         <section className="mt-3 overflow-hidden rounded-card border border-border-calm bg-surface" aria-label="孩子基本资料">
           <label className={rowClass}>
             <span className="flex items-center gap-2 text-sm font-medium"><UserRound aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />姓名</span>
-            <input aria-invalid={Boolean(nameError)} className={controlClass} disabled={locked} maxLength={50} value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} />
+            <input aria-invalid={Boolean(nameError) && (!create || draftEditedRef.current)} className={controlClass} disabled={locked} maxLength={50} placeholder={create ? '请输入姓名' : undefined} value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} />
           </label>
           <div className={rowClass}>
             <span className="flex items-center gap-2 text-sm font-medium"><CalendarDays aria-hidden="true" className="shrink-0 text-primary" size={20} strokeWidth={1.7} />出生日期</span>
@@ -321,9 +363,9 @@ export function EditFamilyMemberPage() {
         <div className="mt-auto pt-3">
           <div className="min-h-4" aria-live="polite">{error && <p className="text-xs text-danger">{error}</p>}</div>
           <Button className="mt-1 min-h-[50px]" disabled={!isDirty || hasErrors || locked || saveState === 'saved'} fullWidth type="submit">
-            {saveState === 'saving' ? '正在保存…' : saveState === 'saved' ? '已保存' : '保存修改'}
+            {saveState === 'saving' ? (create ? '正在添加…' : '正在保存…') : saveState === 'saved' ? '已保存' : create ? '添加家庭成员' : '保存修改'}
           </Button>
-          <Button className="mt-2 min-h-[50px]" disabled={locked} fullWidth type="button" variant="danger" onClick={() => setDeleteOpen(true)}>删除孩子资料</Button>
+          {!create && <Button className="mt-2 min-h-[50px]" disabled={locked} fullWidth type="button" variant="danger" onClick={() => setDeleteOpen(true)}>删除孩子资料</Button>}
         </div>
       </form>
     ) : <div className="px-4 py-16 text-center"><p className="text-sm text-text-secondary">{error || '未找到这个孩子'}</p><Button className="mt-5" onClick={() => navigate('/family')}>返回我的家人</Button></div>}

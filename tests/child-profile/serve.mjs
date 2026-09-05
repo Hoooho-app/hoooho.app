@@ -7,9 +7,6 @@ await rm(dataDirectory, { recursive: true, force: true })
 await mkdir(dataDirectory, { recursive: true })
 const now = new Date().toISOString()
 const accountIds = ['child-profile-account', 'child-loading-iphone-se', 'family-swipe-delete', 'child-entry-iphone-se']
-await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ users: accountIds.map((id) => ({
-  id, email: `${id}@hoooho.test`, createdAt: now, updatedAt: now
-})) }, null, 2))
 const projectNames = [
   'iphone-se',
   'mobile-375',
@@ -20,6 +17,10 @@ const projectNames = [
   'tablet-768',
   'desktop-1280'
 ]
+accountIds.push(...projectNames.map((project) => `blank-child-${project}`))
+await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ users: accountIds.map((id) => ({
+  id, email: `${id}@hoooho.test`, createdAt: now, updatedAt: now
+})) }, null, 2))
 const members = projectNames.map((project, index) => ({
   id: `child-profile-${project}`,
   accountId: 'child-profile-account',

@@ -344,6 +344,79 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(runtimeErrors).toEqual(['Failed to load resource: the server responded with a status of 503 (Service Unavailable)'])
 })
 
+test('添加家庭成员使用空白孩子资料表单并一次保存头像和记录者', async ({ page, request }, testInfo) => {
+  const account = `blank-child-${testInfo.project.name}`
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  await prepareAccount(page, authToken, account)
+  let createdId = ''
+  let createAttempts = 0
+  await page.route('**/api/members', async (route) => {
+    if (route.request().method() === 'POST') {
+      createAttempts += 1
+      if (createAttempts === 1) return route.fulfill({
+        status: 503, contentType: 'application/json',
+        body: JSON.stringify({ error: { message: '添加暂时失败，请重试' } })
+      })
+    }
+    await route.continue()
+  })
+  try {
+    await page.goto('/family/new')
+    await expect(page.getByRole('heading', { name: '添加家庭成员' })).toBeVisible()
+    const name = page.getByRole('textbox', { name: '姓名' })
+    const birthday = page.getByLabel('出生日期')
+    const recorder = page.getByLabel('你是孩子的谁？')
+    const add = page.getByRole('button', { name: '添加家庭成员', exact: true })
+    await expect(name).toHaveValue('')
+    await expect(birthday).toHaveValue('')
+    await expect(recorder).toHaveValue('')
+    await expect(page.getByRole('button', { name: '男', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.getByRole('button', { name: '女', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.getByRole('button', { name: '换一个' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '照片', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '删除孩子资料' })).toHaveCount(0)
+    await expect(add).toBeDisabled()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+    const addBox = await add.boundingBox()
+    expect(addBox!.y + addBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+    const blankEvidence = path.resolve('docs/design/child-profile/evidence/2026-09-05')
+    await mkdir(blankEvidence, { recursive: true })
+    await page.screenshot({ path: path.join(blankEvidence, `${testInfo.project.name}-add-child-profile.png`), fullPage: true })
+
+    await name.fill('空白表单宝宝')
+    const today = await birthday.getAttribute('max')
+    await birthday.fill(today!)
+    await expect(add).toBeDisabled()
+    await page.getByRole('button', { name: '女', exact: true }).click()
+    await recorder.selectOption('mother')
+    await page.getByRole('button', { name: '换一个' }).click()
+    await page.getByRole('button', { name: '照片', exact: true }).click()
+    await expect(add).toBeDisabled()
+    await page.getByRole('button', { name: '卡通形象', exact: true }).click()
+    await add.click()
+    await expect(page.getByText('添加暂时失败，请重试')).toBeVisible()
+    await expect(name).toHaveValue('空白表单宝宝')
+    await expect(recorder).toHaveValue('mother')
+    const createdResponse = page.waitForResponse((response) => response.url().endsWith('/api/members') && response.request().method() === 'POST')
+    await add.dblclick({ delay: 10 })
+    const created = await (await createdResponse).json()
+    createdId = created.id
+    await expect(page).toHaveURL(/\/family$/)
+    expect(createAttempts).toBe(2)
+    const saved = await (await request.get('/api/members/' + createdId, { headers: { Authorization: 'Bearer ' + authToken } })).json()
+    expect(saved).toMatchObject({
+      name: '空白表单宝宝', birthday: today, gender: 'female', relationship: 'child',
+      primaryRecorderRelationship: 'mother', avatar: 'girl-age0-european'
+    })
+    await page.goto('/family/' + createdId + '/edit')
+    await expect(name).toHaveValue('空白表单宝宝')
+    await expect(recorder).toHaveValue('mother')
+    await expect(page.getByRole('button', { name: '删除孩子资料' })).toBeVisible()
+  } finally {
+    if (createdId) await request.delete('/api/members/' + createdId, { headers: { Authorization: 'Bearer ' + authToken } })
+  }
+})
+
 test('真实入口允许编辑在上海当天出生的新建孩子', async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-se', '真实入口边界只需在固定 iPhone SE 执行一次')
   const account = `child-entry-${testInfo.project.name}`
@@ -361,9 +434,9 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
       const now = new Date()
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     })
-    await page.getByLabel('姓名 *').fill('凌晨宝宝')
-    await page.getByLabel('出生日期 *').fill(localToday)
-    await page.getByLabel('女').check()
+    await page.getByRole('textbox', { name: '姓名' }).fill('凌晨宝宝')
+    await page.getByLabel('出生日期').fill(localToday)
+    await page.getByRole('button', { name: '女', exact: true }).click()
     const createResponsePromise = page.waitForResponse((response) => (
       response.url().endsWith('/api/members') && response.request().method() === 'POST'
     ))
