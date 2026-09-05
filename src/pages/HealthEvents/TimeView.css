@@ -36,7 +36,7 @@
 .journal-record-actions .hoho-button[data-size='large'] { padding-inline: var(--hoho-space-3); }
 .journal-record-actions .hoho-button__content { white-space: nowrap; }
 .journal-category-group { margin-top: var(--hoho-space-5); }
-.journal-category-group > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.journal-category-group > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .journal-category-group .hoho-button { padding-inline: var(--hoho-space-1); }
 .journal-category-group .hoho-button__content { flex-direction: column; gap: var(--hoho-space-1); padding-block: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); }
 .journal-category-group [aria-pressed='true'] { background: rgb(var(--hoho-color-primary-soft)); border-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
