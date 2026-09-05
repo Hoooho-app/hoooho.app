@@ -56,3 +56,25 @@ test('explicitly selected legacy time and optional categories remain compatible'
   assert.deepEqual(validateJournal({ categories: ['diet', 'social', 'diet'] }), { categories: ['diet', 'social'] })
   assert.throws(() => validateJournal({ categories: ['invalid'] }), /记录分类无效/)
 })
+
+test('structured feeding and diet details remain optional and preserve specific first-try foods', () => {
+  const complementary = validateJournal({
+    categories: ['diet'],
+    diet: {
+      kind: 'complementary',
+      foods: ['鸡蛋黄', '南瓜泥', '鸡蛋黄'],
+      foodForm: 'puree',
+      amount: '约 1/2 碗',
+      firstTryFoods: ['鸡蛋黄'],
+      reactions: ['暂未发现']
+    }
+  })
+  assert.deepEqual(complementary.diet, {
+    kind: 'complementary', foods: ['鸡蛋黄', '南瓜泥'], firstTryFoods: ['鸡蛋黄'], reactions: ['暂未发现'], foodForm: 'puree', amount: '约 1/2 碗'
+  })
+  assert.deepEqual(validateJournal({ categories: ['diet'], diet: { kind: 'feeding', feedingMethod: 'mixed', breastSeconds: { left: 60, right: 120, total: 180 }, bottleMl: 90 } }).diet, {
+    kind: 'feeding', feedingMethod: 'mixed', breastSeconds: { left: 60, right: 120, total: 180 }, bottleMl: 90
+  })
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'complementary', foods: ['南瓜泥'], firstTryFoods: ['鸡蛋黄'] } }), /首次尝试食物/)
+  assert.throws(() => validateJournal({ categories: ['sleep'], diet: { kind: 'snack', foods: ['苹果'] } }), /必须归入喂养\/饮食分类/)
+})

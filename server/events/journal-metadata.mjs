@@ -2,7 +2,69 @@ import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
+const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack'])
+const feedingMethods = new Set(['breast', 'formula', 'expressed', 'mixed'])
+const foodForms = new Set(['puree', 'minced', 'small-pieces', 'finger-food'])
+const meals = new Set(['早餐', '午餐', '晚餐', '零食'])
+const appetites = new Set(['比平时少', '和平时差不多', '比平时多'])
 const resolver = new TimeResolverService()
+
+function cleanStrings(value, field, limit = 12) {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > limit || value.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 80)) {
+    throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_DIET')
+  }
+  return [...new Set(value.map((item) => item.trim()))]
+}
+
+function validateDiet(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !dietKinds.has(value.kind)) throw new HealthEventRecordError('饮食记录类型无效', 400, 'INVALID_JOURNAL_DIET')
+  const result = { kind: value.kind }
+  if (value.feedingMethod !== undefined) {
+    if (!feedingMethods.has(value.feedingMethod)) throw new HealthEventRecordError('喂养方式无效', 400, 'INVALID_JOURNAL_DIET')
+    result.feedingMethod = value.feedingMethod
+  }
+  if (value.breastSeconds !== undefined) {
+    const { left, right, total } = value.breastSeconds ?? {}
+    if (![left, right, total].every((item) => Number.isInteger(item) && item >= 0 && item <= 86_400) || total !== left + right) throw new HealthEventRecordError('喂养时长无效', 400, 'INVALID_JOURNAL_DIET')
+    result.breastSeconds = { left, right, total }
+  }
+  if (value.bottleMl !== undefined) {
+    if (!Number.isFinite(value.bottleMl) || value.bottleMl <= 0 || value.bottleMl > 5000) throw new HealthEventRecordError('喂奶量无效', 400, 'INVALID_JOURNAL_DIET')
+    result.bottleMl = value.bottleMl
+  }
+  const foods = cleanStrings(value.foods, '食物')
+  const firstTryFoods = cleanStrings(value.firstTryFoods, '首次尝试食物')
+  const reactions = cleanStrings(value.reactions, '进食后观察', 8)
+  const feedingStatuses = cleanStrings(value.feedingStatuses, '进食状态', 8)
+  if (foods !== undefined) result.foods = foods
+  if (firstTryFoods !== undefined) {
+    if (firstTryFoods.some((food) => !foods?.includes(food))) throw new HealthEventRecordError('首次尝试食物必须来自本次食物', 400, 'INVALID_JOURNAL_DIET')
+    result.firstTryFoods = firstTryFoods
+  }
+  if (reactions !== undefined) result.reactions = reactions
+  if (feedingStatuses !== undefined) result.feedingStatuses = feedingStatuses
+  if (value.foodForm !== undefined) {
+    if (!foodForms.has(value.foodForm)) throw new HealthEventRecordError('食物形态无效', 400, 'INVALID_JOURNAL_DIET')
+    result.foodForm = value.foodForm
+  }
+  if (value.meal !== undefined) {
+    if (!meals.has(value.meal)) throw new HealthEventRecordError('餐次无效', 400, 'INVALID_JOURNAL_DIET')
+    result.meal = value.meal
+  }
+  if (value.appetite !== undefined) {
+    if (!appetites.has(value.appetite)) throw new HealthEventRecordError('食欲记录无效', 400, 'INVALID_JOURNAL_DIET')
+    result.appetite = value.appetite
+  }
+  for (const key of ['amount', 'voiceTranscript']) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== 'string' || !value[key].trim() || value[key].trim().length > 1000) throw new HealthEventRecordError('饮食记录内容无效', 400, 'INVALID_JOURNAL_DIET')
+      result[key] = value[key].trim()
+    }
+  }
+  return result
+}
 
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
@@ -19,7 +81,9 @@ export function validateJournal(value) {
   if (typeof value !== 'object' || !Array.isArray(value.categories) || value.categories.some((category) => !categories.has(category))) {
     throw new HealthEventRecordError('记录分类无效', 400, 'INVALID_JOURNAL_CATEGORY')
   }
-  return { categories: [...new Set(value.categories)] }
+  const diet = validateDiet(value.diet)
+  if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

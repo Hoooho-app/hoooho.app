@@ -15,10 +15,10 @@ import { quickRecordService } from '../../services/quickRecords'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import type { Member } from '../../types'
+import type { JournalMetadata } from '../../types/journal'
 import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import { TimeView } from './TimeView'
 import { JournalRecorder } from './JournalRecorder'
-import type { JournalCategory } from './timeViewModel'
 import './TimeView.css'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
@@ -90,12 +90,14 @@ export function HealthEventsPage() {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null)
   const [revision, setRevision] = useState(0)
+  const [journalSavedNotice, setJournalSavedNotice] = useState('')
   const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: '', eventId: null })
   const [viewMode, setViewMode] = useState<HealthEventsViewMode>(DEFAULT_HEALTH_EVENTS_VIEW_MODE)
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const submissionKeyRef = useRef('')
+  const journalNoticeTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -103,6 +105,10 @@ export function HealthEventsPage() {
     updatePreference()
     mediaQuery.addEventListener('change', updatePreference)
     return () => mediaQuery.removeEventListener('change', updatePreference)
+  }, [])
+
+  useEffect(() => () => {
+    if (journalNoticeTimerRef.current !== null) window.clearTimeout(journalNoticeTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -181,13 +187,13 @@ export function HealthEventsPage() {
     }
   }
 
-  const saveJournalRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, categories: JournalCategory[]) => {
+  const saveJournalRecord = async (transcript: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
     if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     await quickRecordService.create({
       memberId: currentMemberId, content: transcript, occurredAt, inputChannel,
       title: normalizeHealthEventTitle('', transcript), idempotencyKey: submissionKeyRef.current,
-      journal: { categories },
+      journal,
       ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {})
     }, token)
     submissionKeyRef.current = ''
@@ -195,6 +201,15 @@ export function HealthEventsPage() {
     setRevision((value) => value + 1)
     void retry()
     return '已记录'
+  }
+
+  const showJournalSavedNotice = (_message: string) => {
+    setJournalSavedNotice('已记录')
+    if (journalNoticeTimerRef.current !== null) window.clearTimeout(journalNoticeTimerRef.current)
+    journalNoticeTimerRef.current = window.setTimeout(() => {
+      setJournalSavedNotice('')
+      journalNoticeTimerRef.current = null
+    }, 1800)
   }
 
   const closeQuickRecord = () => {
@@ -251,7 +266,8 @@ export function HealthEventsPage() {
         <HohoButton size="large" variant="secondary" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><PenLine size={20} />手动记录</HohoButton>
         <HohoButton size="large" variant="secondary" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('voice') }}><Mic size={20} />快捷记录</HohoButton>
       </div></footer>}
-      {recorderMode && <JournalRecorder key={currentMemberId} mode={recorderMode} memberId={currentMemberId} token={token ?? ''} onClose={() => setRecorderMode(null)} onConfirm={saveJournalRecord} />}
+      {recorderMode && <JournalRecorder key={currentMemberId} mode={recorderMode} memberId={currentMemberId} token={token ?? ''} onClose={() => setRecorderMode(null)} onConfirm={saveJournalRecord} onSaved={showJournalSavedNotice} />}
+      {journalSavedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{journalSavedNotice}</div>}
       <NurseNextAction
         currentMemberId={currentMemberId}
         eventId={nextActionEventId}

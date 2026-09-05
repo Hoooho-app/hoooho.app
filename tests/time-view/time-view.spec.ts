@@ -81,10 +81,7 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button')).toHaveCount(4)
   const diet = page.getByRole('button', { name: '喂养/饮食', exact: true })
   const visit = page.getByRole('button', { name: '就医', exact: true })
-  await diet.click()
-  await expect(diet).toHaveAttribute('aria-pressed', 'true')
   await visit.click()
-  await expect(diet).toHaveAttribute('aria-pressed', 'false')
   await expect(visit).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('checkbox')).toHaveCount(0)
   await page.getByRole('button', { name: '开始记录', exact: true }).click()
@@ -102,6 +99,116 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(saved.getByLabel('1 个附件')).toBeVisible()
   await saved.click()
   await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+})
+
+async function openDietTypes(page: Page) {
+  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
+}
+
+test('feeding and diet type sheet is complete, non-scrollable and returns with selection preserved', async ({ page }) => {
+  await prepare(page)
+  await openDietTypes(page)
+  const dialog = page.getByRole('dialog', { name: '记录喂养/饮食' })
+  await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toBeVisible()
+  await expect(dialog.getByText(/推荐/)).toHaveCount(0)
+  await expect(dialog.getByText(/个月|记录对象|已按年龄优先显示/)).toHaveCount(0)
+  const start = dialog.getByRole('button', { name: '开始记录', exact: true })
+  await expect(start).toBeDisabled()
+  const layout = await dialog.evaluate((sheet) => {
+    const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
+    const handle = sheet.querySelector('.hoho-bottom-sheet__handle') as HTMLElement
+    return { sheetFits: sheet.scrollHeight <= sheet.clientHeight + 1, bodyFits: body.scrollHeight <= body.clientHeight + 1, overflowY: getComputedStyle(body).overflowY, handle: getComputedStyle(handle).display }
+  })
+  expect(layout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'visible', handle: 'none' })
+  const startBox = await start.boundingBox()
+  expect(startBox!.y + startBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+
+  const choices = [
+    { button: /^喂养/, heading: '记录喂养' },
+    { button: /^辅食/, heading: '记录辅食' },
+    { button: /^正餐/, heading: '记录正餐' },
+    { button: /^零食/, heading: '记录零食' }
+  ]
+  for (const choice of choices) {
+    const button = dialog.getByRole('button', { name: choice.button })
+    await button.click()
+    await expect(button).toHaveAttribute('aria-pressed', 'true')
+    await start.click()
+    await expect(page.getByRole('heading', { name: choice.heading, exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '返回喂养/饮食类型选择' }).click()
+    await expect(page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: choice.button })).toHaveAttribute('aria-pressed', 'true')
+  }
+})
+
+test('four diet record kinds save through the real API and show only the concise success message', async ({ page }) => {
+  await prepare(page)
+
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^喂养/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('group', { name: '喂养方式' }).getByRole('button', { name: '配方奶', exact: true }).click()
+  await page.getByLabel('喂奶量').fill('120')
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-saved-toast')).toHaveText('已记录')
+  await expect(page.locator('.journal-record').filter({ hasText: '配方奶 · 120毫升' })).toBeVisible()
+
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^辅食/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('button', { name: '鸡蛋黄', exact: true }).click()
+  await page.getByRole('button', { name: '南瓜泥', exact: true }).click()
+  await page.getByRole('group', { name: '食物形态' }).getByRole('button', { name: '泥糊' }).click()
+  await page.getByRole('group', { name: '吃了多少' }).getByRole('button', { name: '约 1/2 碗' }).click()
+  await page.getByRole('switch', { name: '首次尝试这种食物' }).click()
+  await page.getByRole('group', { name: '哪一种食物是首次尝试' }).getByRole('button', { name: '鸡蛋黄' }).click()
+  await page.getByRole('group', { name: '观察到的情况' }).getByRole('button', { name: '暂未发现' }).click()
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  const complementary = page.locator('.journal-record').filter({ hasText: '鸡蛋黄、南瓜泥 · 约 1/2 碗' })
+  await expect(complementary).toBeVisible()
+
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^正餐/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('button', { name: '米饭', exact: true }).click()
+  await page.getByRole('group', { name: '吃了多少' }).getByRole('button', { name: '一半' }).click()
+  await page.getByRole('group', { name: '食欲' }).getByRole('button', { name: '和平时差不多' }).click()
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '正餐 ·' })).toBeVisible()
+
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^零食/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByLabel('输入食物名称').fill('苹果')
+  await page.getByRole('button', { name: '添加食物' }).click()
+  await page.getByRole('group', { name: '吃了多少' }).getByRole('button', { name: '少量' }).click()
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '零食' })).toBeVisible()
+  await expect(page.getByText(/保存成功|已经成功|已为/)).toHaveCount(0)
+})
+
+test('complementary record survives reload and remains isolated to the selected member', async ({ page }) => {
+  await prepare(page)
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^辅食/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('button', { name: '大米粥', exact: true }).click()
+  await page.getByRole('group', { name: '食物形态' }).getByRole('button', { name: '小颗粒' }).click()
+  await page.getByRole('group', { name: '吃了多少' }).getByRole('button', { name: '尝了几口' }).click()
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: '时间视图', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toBeVisible()
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('hoooho-app') ?? '{}')
+    stored.state.currentMemberId = 'child-two'
+    localStorage.setItem('hoooho-app', JSON.stringify(stored))
+  })
+  await page.reload()
+  await page.getByRole('button', { name: '时间视图', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toHaveCount(0)
 })
 
 test('quick record button enters listening directly and saves using the existing review flow', async ({ page }) => {
