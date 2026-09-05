@@ -24,7 +24,7 @@ const examples = [
   ['13:10', '排便1次，颜色偏黄，较稀', 'elimination'], ['09:45', '按医嘱服用了药', 'medication'], ['09:30', '拿到了今天的检查报告', 'examination'], ['09:10', '去医院复诊', 'visit']
 ]
 await writeFile(path.join(dataDirectory, 'health-events.json'), JSON.stringify({ events: [
-  { ...base, id: 'event-one', memberId: 'child-one', title: '连续记录', category: 'other', status: 'observing', startTime: `${day}T09:10:00+08:00` },
+  { ...base, id: 'event-one', memberId: 'child-one', title: '', category: 'other', status: 'observing', startTime: `${day}T09:10:00+08:00` },
   { ...base, id: 'event-two', memberId: 'child-two', title: '另一位孩子', category: 'other', status: 'observing', startTime: `${day}T09:10:00+08:00` }
 ] }))
 await writeFile(path.join(dataDirectory, 'health-event-records.json'), JSON.stringify({ records: [

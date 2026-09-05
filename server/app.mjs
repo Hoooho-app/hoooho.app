@@ -588,7 +588,7 @@ async function handleEvents(request, response, pathname) {
 
   const accountId = await readAccountId(request)
   const eventId = match[1] ? decodeRouteValue(match[1]) : null
-  if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.list(accountId)))
+  if (!eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(new URL(request.url, 'http://localhost').searchParams.get('view') === 'time' ? await events.listJournal(accountId) : await events.list(accountId)))
   else if (!eventId && request.method === 'POST') sendJson(response, 201, await events.create(accountId, await readJson(request)))
   else if (eventId && request.method === 'GET') sendJson(response, 200, organizations.publicEventPayload(await events.get(accountId, eventId)))
   else if (eventId && request.method === 'PATCH') sendJson(response, 200, await events.update(accountId, eventId, await readJson(request)))

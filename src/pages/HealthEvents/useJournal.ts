@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { HealthEventRecordApiDto } from '../../types'
+import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types'
 import { apiRequest, ApiRequestError } from '../../services/apiClient'
-import { healthEventService } from '../../services/healthEvents'
 import { eventAttachmentService } from '../../services/eventAttachments'
 import { flattenJournal, type JournalEntry } from './timeViewModel'
 
@@ -13,7 +12,7 @@ export function useJournal(memberId: string, token: string, revision: number) {
     setState({ memberId, entries: [], loading: true, error: '' })
     const load = async () => {
       try {
-        const events = (await healthEventService.list(token, controller.signal)).filter((event) => event.memberId === memberId)
+        const events = (await apiRequest<HealthEventApiDto[]>('/api/events?view=time', { token, signal: controller.signal })).filter((event) => event.memberId === memberId)
         const results = await Promise.all(events.map(async (event) => {
           const [records, attachments] = await Promise.all([
             apiRequest<HealthEventRecordApiDto[]>(`/api/events/${encodeURIComponent(event.id)}/records?view=time`, { token, signal: controller.signal }),

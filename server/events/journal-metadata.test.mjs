@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
+import { HealthEventService } from './health-event-service.mjs'
+
+test('journal keeps untitled lifestyle containers without changing the legacy event list', async () => {
+  const rows = [{ id: 'lifestyle', title: '' }, { id: 'medical', title: '症状' }]
+  const service = new HealthEventService({ members: {}, repository: { findByAccountId: async (accountId) => accountId === 'owner' ? rows : [] } })
+  assert.deepEqual(await service.listJournal('owner'), rows)
+  assert.deepEqual((await service.list('owner')).map((row) => row.id), ['medical'])
+  assert.deepEqual(await service.listJournal('someone-else'), [])
+})
 
 const record = (content, extra = {}) => ({ content, sourceType: 'voice_record', occurredAt: '2026-09-05T15:00:00Z', createdAt: '2026-09-05T15:01:00Z', ...extra })
 test('period remains a period and submission time is never shown as an occurrence', () => {

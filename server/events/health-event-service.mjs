@@ -94,6 +94,11 @@ export class HealthEventService {
     return events.filter((event) => event.title.trim())
   }
 
+  async listJournal(accountId) {
+    // Lifestyle records need no medical summary to be visible in the journal.
+    return this.repository.findByAccountId(accountId)
+  }
+
   async get(accountId, id) {
     const event = await this.repository.findById(id)
     if (!event || event.accountId !== accountId) throw new HealthEventError('未找到这条健康随记', 404, 'HEALTH_EVENT_NOT_FOUND')

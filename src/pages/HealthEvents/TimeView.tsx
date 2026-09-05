@@ -1,14 +1,17 @@
 import { ChevronLeft, ChevronRight, Paperclip } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { formatPlainMonthDay } from '../../utils/localCalendarDate'
 import { journalCategoryLabels, journalDayGroups, journalTime, shiftJournalDate } from './timeViewModel'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
 
-export function TimeView({ memberId, token, day, today, onDayChange, revision }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; revision: number }) {
+export function TimeView({ memberId, token, day, today, onDayChange, revision, onContext }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void }) {
   const navigate = useNavigate()
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
+  const contextEventId = entries[0]?.eventId ?? null
+  useEffect(() => { onContext({ memberId, eventId: contextEventId }) }, [memberId, contextEventId, onContext])
   const groups = journalDayGroups(entries, day)
   const relative = day === today ? '今天 · ' : day === shiftJournalDate(today, -1) ? '昨天 · ' : ''
   return <section className="journal-time-view" aria-label="单日时间轴">

@@ -80,6 +80,7 @@ export function HealthEventsPage() {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null)
   const [revision, setRevision] = useState(0)
+  const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: '', eventId: null })
   const [viewMode, setViewMode] = useState<HealthEventsViewMode>(DEFAULT_HEALTH_EVENTS_VIEW_MODE)
   const [quickRecordOpen, setQuickRecordOpen] = useState(false)
   const [nextActionOpen, setNextActionOpen] = useState(false)
@@ -116,7 +117,7 @@ export function HealthEventsPage() {
   const memberEvents = state.status === 'success'
     ? getMemberHealthEvents(state.data.events, currentMemberDto?.id)
     : []
-  const nextActionEventId = getNurseNextActionEventId(memberEvents, currentMemberId)
+  const nextActionEventId = getNurseNextActionEventId(memberEvents, currentMemberId) ?? (viewMode === 'list' && journalContext.memberId === currentMemberId ? journalContext.eventId : null)
   const reducedMotion = systemReducedMotion || (carePreferences.enabled && carePreferences.reduceMotion)
 
   useEffect(() => {
@@ -213,7 +214,7 @@ export function HealthEventsPage() {
             {viewMode === 'list' && <HohoButton size="icon" variant="secondary" aria-label="选择日期" onClick={() => setCalendarOpen(true)}><CalendarDays size={20} /></HohoButton>}
           </div>
         </div>
-        {viewMode === 'list' && <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} onDayChange={(value) => { if (parsePlainDate(value) && value <= today) setDay(value) }} revision={revision} />}
+        {viewMode === 'list' && <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} onDayChange={(value) => { if (parsePlainDate(value) && value <= today) setDay(value) }} revision={revision} onContext={setJournalContext} />}
         {(
           <NurseQuickRecord
             active={viewMode === 'triage'}

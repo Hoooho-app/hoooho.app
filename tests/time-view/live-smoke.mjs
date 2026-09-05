@@ -39,7 +39,24 @@ try {
   await page.getByRole('button', { name: '开始记录', exact: true }).click()
   await page.getByRole('textbox', { name: '快捷记录文字', exact: true }).fill('发布验收：今天散步，合成测试记录')
   await page.getByRole('button', { name: '继续核对', exact: true }).click()
+  // The host clock can lead Railway slightly. Keep the real future-time guard;
+  // wait through review until the server has reached this timestamp, without
+  // changing the browser clock, request payload, or server validation.
+  const reviewedAt = Date.now()
+  const deadline = reviewedAt + 10_000
+  while (true) {
+    const serverHealth = await context.request.get(`${baseURL}/api/health`)
+    if (Date.parse(serverHealth.headers().date) >= reviewedAt) break
+    if (Date.now() > deadline) throw new Error('Server/host clock skew exceeds the smoke review budget')
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  const saving = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/quick-records' && response.request().method() === 'POST')
   await page.getByRole('button', { name: '确认保存', exact: true }).click()
+  const savedResponse = await saving
+  assert.equal(savedResponse.status(), 201)
+  const savedResult = await savedResponse.json()
+  const persisted = await call(`/api/events/${encodeURIComponent(savedResult.eventId)}/records?view=time`, undefined, 'GET')
+  console.log(JSON.stringify({ persistedRecords: persisted.length, times: persisted.map(({ occurredAt, journal }) => ({ occurredAt, journal })) }))
   const row = page.locator('.journal-record').filter({ hasText: '发布验收：今天散步，合成测试记录' })
   await row.waitFor()
   assert.equal(await row.getByText('活动', { exact: true }).count(), 1)
@@ -61,6 +78,11 @@ try {
   assert.equal(await video.evaluate((element) => element.readyState >= 2 && !element.error), true)
   assert.deepEqual(failures, [])
   console.log(JSON.stringify({ target: baseURL, health: 'PASS', manualSaveAndReload: 'PASS', summary: 'PASS', frontVideo: 'PASS', widths: [375, 390, 430], runtimeErrors: failures.length }))
+} catch (error) {
+  await mkdir('outputs/time-view', { recursive: true })
+  await page.screenshot({ path: 'outputs/time-view/live-failure.png' }).catch(() => undefined)
+  console.log(JSON.stringify({ alerts: await page.locator('[role=alert]').allTextContents(), dialog: await page.getByRole('dialog').allTextContents(), failures }))
+  throw error
 } finally {
   if (memberId) {
     // Only the exact synthetic member created in this fresh guest session.

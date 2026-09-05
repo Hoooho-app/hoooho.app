@@ -4,6 +4,8 @@
 
 ## 兼容契约
 
+- `GET /api/events?view=time` 只按账户读取原始事件容器，包含被既有摘要逻辑清空标题的生活记录；不触发医疗摘要刷新、不改变旧事件列表的过滤行为。
+
 - `POST /api/quick-records` 可选接受 `journal: { categories: JournalCategory[] }`，分类非必填，去重后随原记录持久化。原有语音、照片草稿、核对、幂等保存及回滚流程不变。
 - `GET /api/events/:id/records?view=time` 在原账户和事件权限校验后返回只读 `journal` 投影；无该参数时沿用旧响应。支持浏览器时区头。
 - 原始 `content/sourceText/occurredAt/createdAt` 不改写、不迁移。明确选择的发生时间可展示具体时刻；听写/文字自动提交时间不能冒充事件时间。原话中的单一明确时间复用既有服务解析，时段只显示时段，多时间、歧义和缺失时间显示“时间未明确”。无日期线索的旧记录仍在原始记录日期下可见，不虚构时刻。
