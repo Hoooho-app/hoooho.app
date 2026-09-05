@@ -20,19 +20,19 @@
 .journal-filter-active { position: relative; }
 .journal-filter-active::after { content: ''; position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary)); }
 .journal-subject-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--hoho-space-2); }
-.journal-subject-card, .journal-subject-summary { min-height: 52px; height: 52px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); }
-.journal-subject-card { display: flex; align-items: center; gap: var(--hoho-space-2); min-width: 0; padding: var(--hoho-space-2) var(--hoho-space-3); }
+.journal-subject-card, .journal-subject-summary { min-height: 52px; height: 52px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); }
+.journal-subject-card { display: flex; align-items: center; gap: var(--hoho-space-2); min-width: 0; padding: var(--hoho-space-2) var(--hoho-space-3); background: rgb(var(--hoho-color-surface)); }
 .journal-subject-copy { display: grid; min-width: 0; line-height: 1.25; }
 .journal-subject-name { display: flex; align-items: baseline; gap: var(--hoho-space-2); min-width: 0; white-space: nowrap; }
 .journal-subject-name strong { overflow: hidden; text-overflow: ellipsis; font-size: var(--hoho-font-size-body); }
 .journal-subject-name span, .journal-subject-meta { font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
-.journal-subject-summary { white-space: nowrap; padding-inline: var(--hoho-space-3); }
-.journal-subject-summary img { width: 20px; height: 20px; }
+.journal-subject-summary { white-space: nowrap; padding-inline: var(--hoho-space-3); border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); }
+.journal-subject-summary img { width: 20px; height: 20px; filter: brightness(0) invert(1); }
 .hoho-health-events-page[data-view-mode='list'] .health-events-view-switch button { min-height: 36px; padding-inline: var(--hoho-space-3); }
 .hoho-health-events-page[data-view-mode='list'] { height: 100dvh; min-height: 0; background: rgb(var(--hoho-color-page-background)); }
 .hoho-health-events-page[data-view-mode='list'] .health-events-content { padding-bottom: var(--hoho-space-6); }
 .journal-record-actions { flex: none; background: rgb(var(--hoho-color-surface)); border-top: 1px solid rgb(var(--hoho-color-border)); padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
-.journal-record-actions > div { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--hoho-space-2); width: min(100%, 960px); margin-inline: auto; }
+.journal-record-actions > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); width: min(100%, 960px); margin-inline: auto; }
 .journal-record-actions .hoho-button[data-size='large'] { padding-inline: var(--hoho-space-3); }
 .journal-record-actions .hoho-button__content { white-space: nowrap; }
 .journal-category-group { margin-top: var(--hoho-space-5); }
