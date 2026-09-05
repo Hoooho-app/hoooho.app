@@ -106,6 +106,15 @@ test('optional journal categories preserve verbatim content and existing idempot
   await assert.rejects(() => setup().service.create('account-1', { ...input, journal: { categories: ['invented'] } }), /记录分类无效/)
 })
 
+test('quick record persists structured diet details without changing member ownership', async () => {
+  const state = setup()
+  const journal = { categories: ['diet'], diet: { kind: 'meal', meal: '午餐', foods: ['番茄牛肉', '米饭'], amount: '一半', appetite: '和平时差不多', reactions: ['暂未发现'] } }
+  await state.service.create('account-1', { ...input, memberId: 'child-one', content: '正餐 · 午餐\n番茄牛肉、米饭 · 一半', journal })
+  assert.equal(state.eventRows[0].memberId, 'child-one')
+  assert.deepEqual(state.recordRows[0].journal, journal)
+  assert.equal(state.recordRows[0].content, '正餐 · 午餐\n番茄牛肉、米饭 · 一半')
+})
+
 test('quick record collapses concurrent submissions with the same key', async () => {
   const state = setup()
   const [left, right] = await Promise.all([
