@@ -4,12 +4,15 @@ import type { JournalCategory, JournalMetadata } from '../../types/journal'
 export type { JournalCategory, JournalMetadata } from '../../types/journal'
 
 export const journalCategoryGroups: readonly { label: string; items: readonly (readonly [JournalCategory, string])[] }[] = [
-  { label: '日常生活', items: [['diet', '饮食'], ['sleep', '睡眠'], ['elimination', '排泄'], ['activity', '活动'], ['emotion', '情绪'], ['social', '社交']] },
-  { label: '身体变化', items: [['symptom', '症状'], ['measurement', '测量'], ['growth', '生长发育'], ['injury', '意外受伤']] },
-  { label: '照护处理', items: [['medication', '用药'], ['care', '护理干预'], ['vaccination', '疫苗']] },
-  { label: '经历与环境', items: [['environment', '接触环境'], ['visit', '就医'], ['examination', '检查报告'], ['other', '其他']] }
+  { label: '日常生活', items: [['diet', '饮食'], ['sleep', '睡眠'], ['elimination', '排泄'], ['activity', '运动']] },
+  { label: '健康事件', items: [['symptom', '症状'], ['injury', '意外受伤']] },
+  { label: '照护处理', items: [['medication', '用药'], ['care', '护理干预'], ['vaccination', '疫苗'], ['visit', '就医']] }
 ] as const
-export const journalCategoryLabels = Object.fromEntries(journalCategoryGroups.flatMap((group) => group.items)) as Record<JournalCategory, string>
+export const journalCategoryLabels: Record<JournalCategory, string> = {
+  diet: '饮食', sleep: '睡眠', elimination: '排泄', activity: '运动', emotion: '情绪', social: '社交',
+  symptom: '症状', measurement: '测量', growth: '生长发育', injury: '意外受伤', medication: '用药',
+  care: '护理干预', vaccination: '疫苗', environment: '接触环境', visit: '就医', examination: '检查报告', other: '其他'
+}
 export interface JournalEntry extends JournalMetadata {
   id: string
   eventId: string
