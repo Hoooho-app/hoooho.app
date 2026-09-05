@@ -1,4 +1,5 @@
 import { createReadStream } from 'node:fs'
+import { mediaRange } from './media-range.mjs'
 import { access, readFile, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -644,9 +645,38 @@ async function sendFile(request, response, filePath) {
       ? 'no-cache'
       : 'public, max-age=31536000, immutable'
   )
-  response.setHeader('Content-Length', String(fileStat.size))
+  const isVideo = path.extname(filePath).toLowerCase() === '.mp4'
+  const etag = `"${fileName}-${fileStat.size}"`
+  if (isVideo) {
+    response.setHeader('Accept-Ranges', 'bytes')
+    response.setHeader('ETag', etag)
+    if (request.headers['if-none-match'] === etag) {
+      response.statusCode = 304
+      response.end()
+      return true
+    }
+  }
+  const rangeAllowed = !request.headers['if-range'] || request.headers['if-range'] === etag
+  const range = isVideo && request.method === 'GET' && rangeAllowed ? mediaRange(request.headers.range, fileStat.size) : null
+  if (range === false) {
+    response.statusCode = 416
+    response.setHeader('Content-Range', `bytes */${fileStat.size}`)
+    response.setHeader('Content-Length', '0')
+    response.end()
+    return true
+  }
+  if (range) {
+    response.statusCode = 206
+    response.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${fileStat.size}`)
+  }
+  response.setHeader('Content-Length', String(range ? range.end - range.start + 1 : fileStat.size))
   if (request.method === 'HEAD') response.end()
-  else createReadStream(filePath).pipe(response)
+  else {
+    const stream = createReadStream(filePath, range || undefined)
+    response.on('close', () => stream.destroy())
+    stream.on('error', () => response.destroy())
+    stream.pipe(response)
+  }
   return true
 }
 

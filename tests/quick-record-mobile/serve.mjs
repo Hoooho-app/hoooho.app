@@ -15,7 +15,7 @@ await writeFile(path.join(dataDirectory, 'family-members.json'), JSON.stringify(
   bloodType: null, waistCircumferenceCm: null, bodyFatPercentage: null, headCircumferenceCm: null,
   rhBloodType: null, isSelf: true, createdAt: now, updatedAt: now
 }] }, null, 2))
-process.env.PORT = '4190'
+process.env.PORT = process.env.NURSE_TEST_PORT || '4190'
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'development'
 process.env.DATA_DIRECTORY = dataDirectory

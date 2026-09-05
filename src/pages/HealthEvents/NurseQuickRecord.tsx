@@ -10,6 +10,7 @@ import { NurseTriageDesk } from './NurseTriageDesk'
 import './NurseQuickRecord.css'
 
 interface NurseQuickRecordProps {
+  active?: boolean
   currentMemberId: string
   authToken: string
   disabled?: boolean
@@ -24,6 +25,7 @@ interface NurseQuickRecordProps {
 }
 
 export function NurseQuickRecord({
+  active = true,
   authToken,
   currentMemberId,
   disabled = false,
@@ -71,11 +73,11 @@ export function NurseQuickRecord({
   }, [open])
 
   return (
-    <section aria-label="健康随记快捷记录" className="nurse-triage-recorder">
+      <section aria-label="健康随记快捷记录" className="nurse-triage-recorder" hidden={!active}>
       <div className="nurse-triage-visual-slot">
         <NurseTriageDesk
           audioLevel={0}
-          idleActive
+            idleActive={active}
           idleAnimationResetKey={currentMemberId}
           reducedMotion={reducedMotion}
           saveSuccessSequence={saveSuccessSequence}

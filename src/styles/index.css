@@ -664,7 +664,8 @@
     display: grid;
     min-height: 0;
     flex: 1;
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, auto) auto auto;
+    align-content: center;
     gap: clamp(var(--hoho-space-2), 1.8dvh, var(--hoho-space-4));
     padding: 0 0 max(var(--hoho-space-2), env(safe-area-inset-bottom));
   }
@@ -674,6 +675,8 @@
     min-height: 0;
     place-items: center;
   }
+
+  .nurse-triage-recorder[hidden] { display: none; }
 
   .nurse-triage-desk {
     position: relative;
@@ -700,9 +703,9 @@
   }
 
   .nurse-triage-visual-slot .nurse-triage-desk {
-    width: min(76%, 340px);
+    width: min(60.8%, 272px);
     height: auto;
-    max-height: 340px;
+    max-height: 272px;
     margin: 0 auto;
   }
 
@@ -781,20 +784,6 @@
     -webkit-user-drag: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-  }
-
-  .idle-nurse-visual__poster {
-    position: absolute;
-    z-index: 1;
-    inset: 0;
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-drag: none;
   }
 
   .idle-nurse-visual__idle-video {

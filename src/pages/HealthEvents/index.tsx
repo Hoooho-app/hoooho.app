@@ -337,8 +337,9 @@ export function HealthEventsPage() {
             />
           </HealthCard>
         )}
-        {viewMode === 'triage' && (
+        {(
           <NurseQuickRecord
+            active={viewMode === 'triage'}
             authToken={token ?? ''}
             currentMemberId={currentMemberId}
             disabled={!token || !currentMember}

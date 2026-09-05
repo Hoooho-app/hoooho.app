@@ -56,20 +56,15 @@ test('快速记录留在前台核对并只在确认保存时调用原子接口',
 })
 
 test('快捷记录全过程保留连续待机视频且成功视频就绪后再交接', () => {
-  assert.match(nurse, /idleActive\s*\n/)
+  assert.match(nurse, /idleActive=\{active\}/)
   assert.match(nurse, /state="idle"/)
   assert.doesNotMatch(nurse, /idleActive=\{!open\}|state=\{triageState\}/)
   assert.match(desk, /\{activeAsset && <img/)
   assert.doesNotMatch(desk, /allNurseTriageAssets\.map|preloadNurseTriageAssets/)
-  assert.match(idleVisual, /idle-nurse-visual__poster/)
-  assert.match(idleVisual, /fetchPriority="high"/)
-  assert.match(idleVisual, /onLoadedData=\{\(\) => handleIdleCanPlay\(videoIndex\)\}/)
-  assert.match(idleVisual, /preload="auto"/)
-  assert.match(idleVisual, /window\.addEventListener\('pageshow'/)
-  assert.doesNotMatch(idleVisual, /activeSaveSuccessSessionRef\.current = sessionId\s*\n\s*stopIdlePlaylist\(\)/)
-  assert.match(idleVisual, /onPlaying=\{\(\) => \{[\s\S]*setSaveSuccessPlaying\(true\)[\s\S]*stopIdlePlaylist\(\)/)
-  assert.match(idleVisual, /onEnded=\{\(\) => returnFromSaveSuccess/)
-  assert.match(idleVisual, /if \(saveSuccessSessionId > 0\) completeSaveSuccessReturn/)
+  assert.doesNotMatch(idleVisual, /poster=|<img|onLoadedData=|onPlaying=/)
+  assert.match(idleVisual, /preload="none"/)
+  assert.match(idleVisual, /createNursePlayback/)
+  assert.match(idleVisual, /saved\(saveSuccessSequence\)/)
 })
 
 test('听写与核对态共享同一照片草稿且不改变护士视频状态机', () => {
