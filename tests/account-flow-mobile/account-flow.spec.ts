@@ -23,10 +23,10 @@ test('guest enters the app and can reach login guidance from the visible drawer 
   await page.goto('/login')
   await page.getByRole('button', { name: '暂不登录，先体验' }).click()
   await expect(page).toHaveURL(/\/health-events/)
-  const guestId = await page.evaluate(() => localStorage.getItem('hoooho-guest-id'))
-  expect(guestId).toMatch(/^[0-9a-f-]{36}$/)
+  const guestId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
+  expect(guestId).toMatch(/^guest:/)
   await page.reload()
-  expect(await page.evaluate(() => localStorage.getItem('hoooho-guest-id'))).toBe(guestId)
+  expect(await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)).toBe(guestId)
   await page.getByRole('button', { name: '打开菜单' }).click()
   const accountButton = page.getByRole('button', { name: /未登录/ })
   await expect(accountButton).toContainText('当前为体验模式')
@@ -38,6 +38,9 @@ test('guest enters the app and can reach login guidance from the visible drawer 
 })
 
 test('registered account pages match the scoped account structure', async ({ page }) => {
+  await page.route('**/api/auth/session', (route) => route.fulfill({ json: { token: 'test-token', user: { id: account.id, email: account.email, createdAt: new Date().toISOString() } } }))
+  await page.route('**/api/members', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/auth/profile-sections', (route) => route.fulfill({ json: [] }))
   await page.addInitScript((profile) => {
     sessionStorage.setItem('hoooho-auth-token', 'test-token')
     localStorage.setItem('hoooho-app', JSON.stringify({ version: 5, state: {

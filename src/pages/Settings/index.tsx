@@ -359,7 +359,15 @@ export function AccountSettingsPage() {
   const navigate = useNavigate()
   const email = useAppStore((state) => state.authUser?.email)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
-  const logout = () => { clearAuthSession(); navigate('/login', { replace: true }) }
+  const [logoutError, setLogoutError] = useState('')
+  const logout = async () => {
+    try {
+      const { authService } = await import('../../services/auth')
+      await authService.logout()
+      clearAuthSession()
+      navigate('/login', { replace: true })
+    } catch { setLogoutError('退出失败，请检查网络后重试') }
+  }
 
   return (
     <SettingsLayout title="账号与安全">
@@ -368,6 +376,7 @@ export function AccountSettingsPage() {
         <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={email ? '邮箱验证码' : '当前登录方式'} />
       </SettingsGroup>
       <section className="settings-account-actions" aria-label="账号操作">
+        {logoutError && <p role="alert">{logoutError}</p>}
         <HohoButton fullWidth size="large" variant="secondary" onClick={logout}><LogOut aria-hidden="true" size={18} strokeWidth={1.7} />退出登录</HohoButton>
       </section>
     </SettingsLayout>

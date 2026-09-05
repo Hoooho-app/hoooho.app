@@ -1,8 +1,10 @@
 import path from 'node:path'
 import { unlink } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
+import { accountTransaction } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
+  ['health-profile-sections.json', 'sections'],
   ['family-members.json', 'members'],
   ['health-events.json', 'events'],
   ['health-event-records.json', 'records'],
@@ -28,9 +30,16 @@ export class AccountDataService {
   }
 
   async mergeGuest(guestAccountId, accountId, now = new Date()) {
+    return accountTransaction(this.dataDirectory, () => this.mergeGuestTransaction(guestAccountId, accountId, now))
+  }
+
+  async mergeGuestTransaction(guestAccountId, accountId, now) {
     if (!guestAccountId.startsWith('guest:') || guestAccountId === accountId) return { merged: false, idempotent: true }
     const operationId = `${guestAccountId}->${accountId}`
     const journal = await this.journal.read()
+    if (journal.merges.some((item) => item.guestAccountId === guestAccountId && item.accountId !== accountId)) {
+      throw Object.assign(new Error('体验记录已经合并到其他账户'), { status: 409, code: 'GUEST_ALREADY_MERGED' })
+    }
     if (journal.merges.some((item) => item.id === operationId && item.status === 'completed')) {
       return { merged: false, idempotent: true }
     }
@@ -46,6 +55,9 @@ export class AccountDataService {
         [collection]: (data[collection] ?? []).map((item) => item.accountId === guestAccountId ? { ...item, accountId } : item)
       }))
     }
+    await this.store('feedback/records.json', 'feedback').update((data) => Object.fromEntries(Object.entries(data).map(([key, value]) => [key,
+      Array.isArray(value) ? value.map((item) => item.accountId === guestAccountId ? { ...item, accountId } : item) : value
+    ])))
     await this.journal.update((data) => ({
       ...data,
       merges: data.merges.map((item) => item.id === operationId ? { ...item, status: 'completed', completedAt: now.toISOString() } : item)

@@ -22,7 +22,7 @@ const IMPLANT_SUGGESTIONS = ['无', '钢板', '螺钉', '人工关节', '支架'
 
 function loadJson(key: string) {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? '[]') as unknown
+    return JSON.parse(readProfileSection(key)) as unknown
   } catch {
     return []
   }
@@ -137,12 +137,12 @@ export function SurgeryProfilePage({ member, storageKey }: { member: Member; sto
     }
   }
 
-  const saveArchive = (event: FormEvent) => {
+  const saveArchive = async (event: FormEvent) => {
     event.preventDefault()
     try {
       const savedAt = new Date().toISOString()
       const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
-      localStorage.setItem(storageKey, JSON.stringify(next))
+      await saveProfileSection(storageKey, next)
       setRecords(next)
       setExpandedId('')
       setStatus('手术史档案已保存')
@@ -239,3 +239,4 @@ export function SurgeryProfilePage({ member, storageKey }: { member: Member; sto
     </main>
   )
 }
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
