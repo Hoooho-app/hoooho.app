@@ -19,8 +19,9 @@ test('stable guest identity merges server records once', async () => {
   const context = await setup()
   try {
     const guestId = '12345678-1234-4234-8234-123456789012'
-    const first = context.auth.createGuestSession(guestId, 1_000)
-    const refreshed = context.auth.createGuestSession(guestId, 2_000)
+    const user = await context.auth.users.createGuest(`guest:${guestId}`, new Date(1_000))
+    const first = { user, token: context.auth.tokens.create(user, 1_000) }
+    const refreshed = { user, token: context.auth.tokens.create(user, 2_000) }
     assert.equal(first.user.id, refreshed.user.id)
     assert.equal(context.auth.tokens.verify(refreshed.token, 2_001).guest, true)
     const members = new FamilyMemberRepository(context.dataDirectory)
@@ -71,7 +72,7 @@ test('verified deletion preserves unrelated guest data and is repeat-safe', asyn
   const context = await setup()
   try {
     const user = await context.auth.users.findOrCreateByEmail('delete@example.com')
-    const guest = context.auth.createGuestSession('87654321-4321-4321-8321-210987654321')
+    const guest = { user: await context.auth.users.createGuest() }
     const members = new FamilyMemberRepository(context.dataDirectory)
     await members.create({ accountId: user.id, name: '账户孩子', relationship: 'child' })
     await members.create({ accountId: guest.user.id, name: '本机访客', relationship: 'child' })

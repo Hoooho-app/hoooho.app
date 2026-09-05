@@ -17,9 +17,9 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
   const user = useAppStore((state) => state.authUser)
   const profile = useAppStore((state) => state.accountProfile)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
-  const setAuthSession = useAppStore((state) => state.setAuthSession)
   const [confirmLogout, setConfirmLogout] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
   const guest = !user || Boolean(user.guest)
   const login = () => {
     onClose()
@@ -28,17 +28,14 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
   const openPage = (path: string) => { onClose(); navigate(path) }
   const logout = async () => {
     setLoggingOut(true)
-    clearAuthSession()
     try {
-      let guestId = localStorage.getItem('hoooho-guest-id')
-      if (!guestId) { guestId = crypto.randomUUID(); localStorage.setItem('hoooho-guest-id', guestId) }
-      setAuthSession(await authService.guest(guestId))
+      await authService.logout()
+      clearAuthSession()
       setConfirmLogout(false)
       onClose()
-      navigate('/health-events', { replace: true })
-    } catch {
-      onClose()
       navigate('/login', { replace: true })
+    } catch {
+      setLogoutError('退出失败，请检查网络后重试')
     } finally { setLoggingOut(false) }
   }
 
@@ -53,6 +50,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
       ) : confirmLogout ? (
         <div className="grid gap-4">
           <p className="hoho-text-body">退出只会清理当前设备的登录状态，不会删除账户与健康记录。</p>
+          {logoutError && <p role="alert">{logoutError}</p>}
           <HohoButton fullWidth loading={loggingOut} size="large" variant="danger" onClick={() => void logout()}>确认退出登录</HohoButton>
           <HohoButton fullWidth size="large" variant="secondary" onClick={() => setConfirmLogout(false)}>取消</HohoButton>
         </div>

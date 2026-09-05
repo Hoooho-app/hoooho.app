@@ -37,7 +37,7 @@ import {
 function loadRecords(storageKey: string, sectionId: string) {
   try {
     const parsed = JSON.parse(
-      localStorage.getItem(storageKey) ?? "[]",
+      readProfileSection(storageKey),
     ) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.map((record) =>
@@ -230,11 +230,11 @@ export function HealthProfileExperiencePage({
 
   const change = (id: string, value: ProfileValue) =>
     setValues((current) => ({ ...current, [id]: value }));
-  const persist = (next: ProfileValues[]) => {
+  const persist = async (next: ProfileValues[]) => {
     const ordered =
       definition.mode === "timeline" ? sortProfileRecords(next) : next;
-    localStorage.setItem(storageKey, JSON.stringify(ordered));
-    setRecords(ordered);
+    try { await saveProfileSection(storageKey, ordered); setRecords(ordered); return true }
+    catch { setStatus('保存失败，请检查网络或刷新后重试'); return false }
   };
   const closeEditor = () => {
     setValues({});
@@ -268,18 +268,18 @@ export function HealthProfileExperiencePage({
       0,
     );
   };
-  const remove = (index: number) => {
+  const remove = async (index: number) => {
     if (!window.confirm("确认删除这条健康档案记录吗？")) return;
-    persist(records.filter((_, itemIndex) => itemIndex !== index));
+    if (!await persist(records.filter((_, itemIndex) => itemIndex !== index))) return;
     if (editingIndex === index) closeEditor();
     setStatus("记录已删除");
   };
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     const saved = { ...values, _savedAt: new Date().toISOString() };
     if (!definition.repeatable) {
       const next = saveCurrentProfile(saved, records);
-      persist(next);
+      if (!await persist(next)) return;
       setValues(next[0]);
       setStatus("档案已保存");
       return;
@@ -290,7 +290,7 @@ export function HealthProfileExperiencePage({
         : records.map((record, index) =>
             index === editingIndex ? saved : record,
           );
-    persist(next);
+    if (!await persist(next)) return;
     closeEditor();
     setStatus(editingIndex == null ? "记录已添加" : "记录已更新");
   };
@@ -439,3 +439,4 @@ export function HealthProfileExperiencePage({
     </>
   );
 }
+import { readProfileSection, saveProfileSection } from '../../../services/profileSectionStorage'

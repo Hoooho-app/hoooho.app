@@ -12,12 +12,13 @@ import {
   type MedicationProfileRecord
 } from '../../features/health-profile/utils/medicationProfile'
 import type { Member } from '../../types'
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
 
 const routes = ['口服', '外用', '吸入', '注射', '滴眼', '其他']
 
 function loadMedicationRecords(storageKey: string) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(storageKey) ?? '[]')
+    const parsed = JSON.parse(readProfileSection(storageKey))
     return Array.isArray(parsed) ? normalizeMedicationRecords(parsed) : []
   } catch { return [] }
 }
@@ -81,12 +82,12 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
     reader.onload = () => updateRecord(id, { imageName: file.name, imageDataUrl: String(reader.result ?? '') })
     reader.readAsDataURL(file)
   }
-  const saveArchive = (event: FormEvent) => {
+  const saveArchive = async (event: FormEvent) => {
     event.preventDefault()
     try {
       const savedAt = new Date().toISOString()
       const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
-      localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next); setStatus('长期用药档案已保存')
+      await saveProfileSection(storageKey, next); setRecords(next); setStatus('长期用药档案已保存')
     } catch { setStatus('保存失败，请缩小图片后重试') }
   }
 

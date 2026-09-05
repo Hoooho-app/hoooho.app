@@ -7,6 +7,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
+import { BrowserSessionService } from './auth/browser-session-service.mjs'
+import { registerTransactionRoot } from './auth/storage/transaction.mjs'
+import { withAccountLock } from './auth/account-lock.mjs'
 import { assertAuthRuntimeConfig, authConfig } from './auth/config.mjs'
 import { TokenService } from './auth/token-service.mjs'
 import { HealthEventRecordService } from './events/health-event-record-service.mjs'
@@ -35,6 +38,7 @@ const staticDirectory = path.resolve(process.env.STATIC_DIRECTORY || path.join(r
 const port = Number.parseInt(process.env.PORT || '3000', 10)
 const host = process.env.HOST || '0.0.0.0'
 
+registerTransactionRoot(authConfig.dataDirectory)
 const cleanupResult = await cleanupTestDataOnce(authConfig.dataDirectory)
 if (cleanupResult.applied) console.info('[Hoooho] test data cleanup completed', cleanupResult)
 
@@ -44,6 +48,7 @@ const sharedOptions = {
 }
 
 const auth = new AuthService(sharedOptions)
+const browserSessions = new BrowserSessionService(auth)
 const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
@@ -118,8 +123,12 @@ async function readAccountId(request) {
   const authorization = request.headers.authorization ?? ''
   const match = /^Bearer\s+(.+)$/i.exec(authorization)
   const payload = match ? tokens.verify(match[1]) : null
-  if (payload?.guest) return payload.sub
-  if (payload && await auth.users.findById(payload.sub)) return payload.sub
+  if (payload?.guest) {
+    const user = await auth.users.findById(payload.sub)
+    if (user) browserSessions.assertSameOrigin(request)
+    if (!user?.mergedInto && (!user || (await browserSessions.current(request))?.user.id === payload.sub)) return payload.sub
+  }
+  if (payload && !payload.guest && await auth.users.findById(payload.sub)) return payload.sub
 
   const error = new Error('登录状态无效或已过期')
   error.status = 401
@@ -260,6 +269,20 @@ function logEmailAuthRequest(context, status, errorCategory = 'OK') {
 
 async function handleAuth(request, response, pathname) {
   if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/')) return false
+  if (pathname === '/api/auth/current-member' && request.method === 'POST') {
+    sendJson(response, 200, await browserSessions.selectMember(request, await readJson(request)))
+    return true
+  }
+  if (pathname === '/api/auth/profile-sections' && ['GET', 'POST'].includes(request.method)) {
+    const input = request.method === 'GET' ? undefined : await readJson(request, 20_000_000)
+    sendJson(response, 200, await browserSessions.profileSections(request, input))
+    return true
+  }
+  if (pathname === '/api/auth/session' && request.method === 'GET') {
+    const legacyToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1] ?? ''
+    sendJson(response, 200, await browserSessions.restore(request, response, legacyToken))
+    return true
+  }
   const context = pathname.startsWith('/api/auth/email/') || pathname.startsWith('/api/ops/auth/email/')
     ? createEmailAuthRequestContext(request, response, pathname)
     : null
@@ -273,7 +296,11 @@ async function handleAuth(request, response, pathname) {
 
     const body = await readJson(request)
     if (pathname === '/api/auth/guest') {
-      sendJson(response, 200, auth.createGuestSession(String(body.guestId ?? '')))
+      sendJson(response, 200, await browserSessions.create(request, response, String(body.guestToken ?? '')))
+      return true
+    }
+    if (pathname === '/api/auth/logout') {
+      sendJson(response, 200, await browserSessions.logout(request, response))
       return true
     }
     if (pathname === '/api/auth/send-code') {
@@ -282,7 +309,7 @@ async function handleAuth(request, response, pathname) {
     }
     if (pathname === '/api/auth/login') {
       const session = await auth.login(String(body.phone ?? ''), String(body.code ?? ''))
-      sendJson(response, 200, await auth.mergeGuestSession(session, String(body.guestToken ?? '')))
+      sendJson(response, 200, await browserSessions.completeLogin(request, response, session, String(body.guestToken ?? '')))
       return true
     }
     if (pathname === '/api/auth/email/send-code') {
@@ -293,7 +320,7 @@ async function handleAuth(request, response, pathname) {
     }
     if (pathname === '/api/auth/email/login') {
       const session = await auth.loginWithEmail(String(body.email ?? ''), String(body.code ?? ''))
-      const result = await auth.mergeGuestSession(session, String(body.guestToken ?? ''))
+      const result = await browserSessions.completeLogin(request, response, session, String(body.guestToken ?? ''))
       logEmailAuthRequest(context, 200)
       sendJson(response, 200, result)
       return true
@@ -713,7 +740,9 @@ const server = createServer(async (request, response) => {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
-    if (await handleApi(request, response, pathname, url.searchParams)) return
+    const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
+    const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
+    if (await withAccountLock(lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
     await handleStatic(request, response, pathname)
   } catch (error) {
     const status = Number.isInteger(error?.status) ? error.status : 500

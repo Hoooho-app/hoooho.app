@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AccountProfile, AuthSession, AuthUser, Member, UserProfile } from '../types'
+import { postAuthRequest } from '../services/auth'
+import { clearProfileSectionCache } from '../services/profileSectionStorage'
 
 const authTokenKey = 'hoooho-auth-token'
 const opsAuthTokenKey = 'hoooho-ops-auth-token'
@@ -18,6 +20,8 @@ function writeSessionToken(key: string, value: string | null) {
 }
 
 interface AppState {
+  authStatus: 'unknown' | 'loading' | 'guest' | 'authenticated' | 'unauthenticated'
+  setAuthStatus: (status: AppState['authStatus']) => void
   authToken: string | null
   authUser: AuthUser | null
   accountProfile: AccountProfile | null
@@ -42,6 +46,8 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      authStatus: 'unknown',
+      setAuthStatus: (authStatus) => set({ authStatus }),
       authToken: readSessionToken(authTokenKey),
       authUser: null,
       accountProfile: null,
@@ -51,19 +57,23 @@ export const useAppStore = create<AppState>()(
       currentMemberId: 'self',
       members: [],
       profile: null,
-      setCurrentMemberId: (currentMemberId) => set({ currentMemberId }),
+      setCurrentMemberId: (currentMemberId) => {
+        set({ currentMemberId })
+        if (currentMemberId !== 'self') void postAuthRequest('/api/auth/current-member', { memberId: currentMemberId }).catch(() => { /* Retain the non-sensitive local selection as a retry hint. */ })
+      },
       setAuthSession: ({ token, user }) => {
-        writeSessionToken(authTokenKey, token)
+        writeSessionToken(authTokenKey, null)
         set((state) => ({
+        authStatus: user.guest ? 'guest' : 'authenticated',
         authToken: token,
         authUser: user,
         ...(state.authUser?.id && state.authUser.id !== user.id
-          ? { profile: null, accountProfile: null, currentMemberId: 'self' }
+          ? { profile: null, accountProfile: null, currentMemberId: 'self', members: [] }
           : {})
         }))
       },
       setAccountProfile: (accountProfile) => set({ accountProfile }),
-      clearAuthSession: () => { writeSessionToken(authTokenKey, null); set({ authToken: null, authUser: null, accountProfile: null, profile: null, currentMemberId: 'self' }) },
+      clearAuthSession: () => { clearProfileSectionCache(); writeSessionToken(authTokenKey, null); set({ authStatus: 'unauthenticated', authToken: null, authUser: null, accountProfile: null, profile: null, members: [], currentMemberId: 'self' }) },
       setOpsAuthSession: ({ token, user }) => {
         writeSessionToken(opsAuthTokenKey, token)
         set({

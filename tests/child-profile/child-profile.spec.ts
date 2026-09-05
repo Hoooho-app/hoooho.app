@@ -75,7 +75,9 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
       await route.continue()
     })
 
-    await page.getByRole('button', { name: '切换', exact: true }).click()
+    // Bootstrap now restores the first valid member before rendering this page.
+    await expect(page.getByText('当前', { exact: true })).toHaveCount(1)
+    await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
     const startedAt = Date.now()
@@ -113,11 +115,11 @@ test('我的家人支持左滑删除并在确认后更新列表', async ({ page,
     await page.goto('/family')
     await expect(page.getByText('选择家人即可查看和记录对应的健康情况。')).toHaveCount(0)
     await expect(page.getByText('记录对象', { exact: true })).toHaveCount(0)
-    await expect(page.getByText('当前', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('当前', { exact: true })).toHaveCount(1)
     await expect(page.getByText('当前角色', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: '切换记录对象' })).toHaveCount(0)
     const switchButtons = page.getByRole('button', { name: '切换', exact: true })
-    await expect(switchButtons).toHaveCount(2)
+    await expect(switchButtons).toHaveCount(1)
     const switchButtonColors = await switchButtons.first().evaluate((element) => {
       const styles = getComputedStyle(element)
       return { border: styles.borderColor, text: styles.color }

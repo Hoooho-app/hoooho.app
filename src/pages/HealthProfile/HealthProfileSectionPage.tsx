@@ -78,7 +78,7 @@ export function HealthProfileSectionPage() {
   const setMembers = useAppStore((state) => state.setMembers)
   const section = healthProfileSectionMap[sectionId as HealthProfileSectionId]
   const storageKey = `hoho-health-profile:${member.id}:${sectionId}`
-  const storedRecords = useMemo(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '[]') as FormValues[] } catch { return [] } }, [storageKey])
+  const storedRecords = useMemo(() => { try { return JSON.parse(readProfileSection(storageKey)) as FormValues[] } catch { return [] } }, [storageKey])
   const initialRecords = useMemo(() => getInitialHealthProfileRecords(sectionId as HealthProfileSectionId, storedRecords, member), [member, sectionId, storedRecords])
   const [records, setRecords] = useState(initialRecords)
   const [values, setValues] = useState<FormValues>(() => sectionId === 'basic' ? getBasicHealthProfileValues(member, storedRecords[0]) : {})
@@ -100,7 +100,7 @@ export function HealthProfileSectionPage() {
     ? section.fields.filter((field) => field.id !== 'headCircumference' || ['infant', 'child'].includes(getHealthProfileType(member.birthday, member.gender)))
     : section.fields
 
-  const persist = (next: FormValues[]) => { localStorage.setItem(storageKey, JSON.stringify(next)); setRecords(next) }
+  const persist = async (next: FormValues[]) => { await saveProfileSection(storageKey, next); setRecords(next) }
   const resetForm = () => { setValues(section.id === 'basic' ? getBasicHealthProfileValues(member) : {}); setEditingIndex(null) }
 
   const submit = async (event: FormEvent) => {
@@ -113,12 +113,12 @@ export function HealthProfileSectionPage() {
         setMembers(members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
         savedValues = { ...getBasicHealthProfileValues(adaptFamilyMember(updated), values), _savedAt: new Date().toISOString() }
         setValues(savedValues)
-        persist([savedValues])
+        await persist([savedValues])
       } else if (editingIndex == null) {
-        persist([savedValues, ...records])
+        await persist([savedValues, ...records])
         resetForm()
       } else {
-        persist(records.map((record, index) => index === editingIndex ? savedValues : record))
+        await persist(records.map((record, index) => index === editingIndex ? savedValues : record))
         resetForm()
       }
       setStatus(section.id === 'basic' ? '基础健康信息已保存' : editingIndex == null ? '记录已添加' : '记录已更新')
@@ -127,9 +127,10 @@ export function HealthProfileSectionPage() {
   }
 
   const editRecord = (record: FormValues, index: number) => { setValues(record); setEditingIndex(index); setStatus(''); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
-  const deleteRecord = (index: number) => {
+  const deleteRecord = async (index: number) => {
     if (!window.confirm('确认删除这条健康档案记录吗？')) return
-    persist(records.filter((_, recordIndex) => recordIndex !== index)); resetForm(); setStatus('记录已删除')
+    try { await persist(records.filter((_, recordIndex) => recordIndex !== index)); resetForm(); setStatus('记录已删除') }
+    catch { setError('删除失败，请检查网络或刷新后重试') }
   }
 
   return <main className="app-shell health-profile-detail-shell">
@@ -180,3 +181,4 @@ export function HealthProfileSectionPage() {
     </HealthProfileActionBar>
   </main>
 }
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'

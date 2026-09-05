@@ -6,6 +6,7 @@ import { TokenService } from './token-service.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { EmailProviderError, ResendEmailVerificationProvider } from './providers/email-verification-provider.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
+import { registerTransactionRoot } from './storage/transaction.mjs'
 
 export class AuthError extends Error {
   constructor(message, status = 400, code = 'AUTH_ERROR', details = {}) {
@@ -26,6 +27,7 @@ export class AuthService {
   constructor(options = {}) {
     const config = { ...authConfig, ...options }
     this.config = config
+    registerTransactionRoot(config.dataDirectory)
     this.codes = options.codes ?? new VerificationCodeRepository(config.dataDirectory)
     this.users = options.users ?? new UserRepository(config.dataDirectory)
     this.members = options.members ?? new FamilyMemberRepository(config.dataDirectory)
@@ -213,13 +215,6 @@ export class AuthService {
 
     await this.codes.consume(channel, email)
     return true
-  }
-
-  createGuestSession(rawGuestId, now = Date.now()) {
-    const guestId = String(rawGuestId ?? '').trim().toLowerCase()
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(guestId)) throw new AuthError('访客标识无效', 400, 'INVALID_GUEST_ID')
-    const user = { id: `guest:${guestId}`, guest: true, createdAt: new Date(now).toISOString() }
-    return { token: this.tokens.create(user, now), user }
   }
 
   async mergeGuestSession(session, guestToken, now = Date.now()) {

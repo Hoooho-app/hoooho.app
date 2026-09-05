@@ -49,20 +49,21 @@ function publicErrorMessage(path: string, response: Response, data: ApiErrorBody
   return data.error?.message ?? '请求失败，请稍后重试'
 }
 
-export async function postAuthRequest<T>(path: string, body: Record<string, string>): Promise<T> {
+export async function postAuthRequest<T>(path: string, body: Record<string, string>, method: 'GET' | 'POST' = 'POST', legacyToken = ''): Promise<T> {
   const requestId = createRequestId()
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), 15_000)
 
   try {
     const response = await fetch(path, {
-      method: 'POST',
+      method,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'X-Hoooho-Request-ID': requestId
+        'X-Hoooho-Request-ID': requestId,
+        ...(legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {})
       },
-      body: JSON.stringify(body),
+      ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
       cache: 'no-store',
       credentials: 'same-origin',
       signal: controller.signal
@@ -102,7 +103,9 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 }
 
 export const authService = {
-  guest: (guestId: string) => postAuthRequest<AuthSession>('/api/auth/guest', { guestId }),
+  guest: (guestToken = '') => postAuthRequest<AuthSession>('/api/auth/guest', { guestToken }),
+  restore: (legacyToken = '') => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken),
+  logout: () => postAuthRequest<{ success: true }>('/api/auth/logout', {}),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),
   login: (phone: string, code: string, guestToken = '') => postAuthRequest<AuthSession>('/api/auth/login', { phone, code, guestToken }),
   sendEmailCode: (email: string) => postAuthRequest<SendCodeResponse>('/api/auth/email/send-code', { email }),
