@@ -79,7 +79,7 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button', { name: '就医', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: '日常生活' }).getByRole('button')).toHaveCount(4)
   await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button')).toHaveCount(4)
-  const diet = page.getByRole('button', { name: '饮食', exact: true })
+  const diet = page.getByRole('button', { name: '喂养/饮食', exact: true })
   const visit = page.getByRole('button', { name: '就医', exact: true })
   await diet.click()
   await expect(diet).toHaveAttribute('aria-pressed', 'true')

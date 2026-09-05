@@ -4,7 +4,7 @@ import type { JournalCategory, JournalMetadata } from '../../types/journal'
 export type { JournalCategory, JournalMetadata } from '../../types/journal'
 
 export const journalCategoryGroups: readonly { label: string; items: readonly (readonly [JournalCategory, string])[] }[] = [
-  { label: '日常生活', items: [['diet', '饮食'], ['sleep', '睡眠'], ['elimination', '排泄'], ['activity', '运动']] },
+  { label: '日常生活', items: [['diet', '喂养/饮食'], ['sleep', '睡眠'], ['elimination', '排泄'], ['activity', '运动']] },
   { label: '健康事件', items: [['symptom', '症状'], ['injury', '意外受伤']] },
   { label: '照护处理', items: [['medication', '用药'], ['care', '护理干预'], ['vaccination', '疫苗'], ['visit', '就医']] }
 ] as const
