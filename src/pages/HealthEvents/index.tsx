@@ -1,4 +1,4 @@
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Filter, Mic, PenLine } from 'lucide-react'
+import { ArrowUpDown, Filter, Mic, PenLine } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
@@ -46,7 +46,7 @@ function UserIdentity({ member, onSummary, summaryDisabled, triage }: { member: 
             <span className="journal-subject-meta">{meta}</span>
           </span>
         </div>
-        <HohoButton className="journal-subject-summary" variant="secondary" onClick={onSummary} disabled={summaryDisabled}><img src={logoUrl} width={20} height={20} alt="" />摘要生成</HohoButton>
+        <HohoButton className="journal-subject-summary" onClick={onSummary} disabled={summaryDisabled}><img src={logoUrl} width={20} height={20} alt="" />摘要生成</HohoButton>
       </div>
       {triage && <><p className="care-term-explanation mt-2 px-1 text-xs leading-5 text-text-secondary">“健康随记”记录一次不舒服、就诊或康复的完整过程。</p>
       <p className="care-action-hint mt-2 px-1 text-xs leading-5 text-text-secondary">需要新增记录时，留在前台直接点击“快速记录”。</p></>}
@@ -223,7 +223,7 @@ export function HealthEventsPage() {
             <HealthEventsViewSelect onChange={setViewMode} value={viewMode} />
             {viewMode === 'list' && <div className="journal-toolbar-actions">
               <HohoButton className={hasActiveFilters(filters) ? 'journal-filter-active' : ''} size="icon" variant="secondary" aria-label="筛选健康随身记" onClick={() => setFilterOpen(true)}><Filter size={18} /></HohoButton>
-              <HohoButton size="icon" variant="secondary" aria-label={sortOrder === 'desc' ? '当前最新在前，切换为从早到晚' : '当前从早到晚，切换为最新在前'} onClick={() => setSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}>{sortOrder === 'desc' ? <ArrowDownNarrowWide size={18} /> : <ArrowUpNarrowWide size={18} />}</HohoButton>
+              <HohoButton size="icon" variant="secondary" aria-label={sortOrder === 'desc' ? '当前最新在前，切换为从早到晚' : '当前从早到晚，切换为最新在前'} onClick={() => setSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}><ArrowUpDown size={18} /></HohoButton>
             </div>}
           </div>
         </div>
@@ -248,7 +248,7 @@ export function HealthEventsPage() {
       </div>
 
       {viewMode === 'list' && <footer className="journal-record-actions"><div>
-        <HohoButton size="large" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><PenLine size={20} />手动记录</HohoButton>
+        <HohoButton size="large" variant="secondary" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('manual') }}><PenLine size={20} />手动记录</HohoButton>
         <HohoButton size="large" variant="secondary" disabled={!token || currentMember?.id !== currentMemberId} onClick={() => { submissionKeyRef.current = ''; setRecorderMode('voice') }}><Mic size={20} />快捷记录</HohoButton>
       </div></footer>}
       {recorderMode && <JournalRecorder key={currentMemberId} mode={recorderMode} memberId={currentMemberId} token={token ?? ''} onClose={() => setRecorderMode(null)} onConfirm={saveJournalRecord} />}

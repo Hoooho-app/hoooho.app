@@ -41,7 +41,7 @@ try {
   assert.equal(subjectHeight, summaryHeight)
   const manualWidth = await page.getByRole('button', { name: '手动记录', exact: true }).evaluate((element) => element.getBoundingClientRect().width)
   const quickWidth = await page.getByRole('button', { name: '快捷记录', exact: true }).evaluate((element) => element.getBoundingClientRect().width)
-  assert.ok(manualWidth > quickWidth)
+  assert.ok(Math.abs(manualWidth - quickWidth) <= 1)
   assert.equal(await page.getByRole('button', { name: '后一天', exact: true }).isDisabled(), true)
   await page.getByRole('button', { name: '手动记录', exact: true }).click()
   await page.getByRole('button', { name: '活动', exact: true }).click()
