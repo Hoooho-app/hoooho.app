@@ -15,7 +15,7 @@ export function validateJournal(value) {
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
   const selected = ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
-  let journal = { ...record.journal, timePrecision: selected ? 'exact' : 'unknown', occurredAt: record.occurredAt }
+  let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {
     const text = record.sourceText || record.content || ''
     const clocks = text.match(/[一二两三四五六七八九十\d]{1,3}(?:点(?:半|[一二两三四五六七八九十\d]{1,3}分?)?|[:：]\d{1,2})/g) ?? []
