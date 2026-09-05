@@ -28,6 +28,14 @@ test('explicit time and yesterday are projected using the recording reference da
   const midnight = projectJournalRecord(record('昨天09:15吃饭', { createdAt: '2026-09-05T01:00:00Z' }), 'America/Los_Angeles')
   assert.equal(Date.parse(midnight.journal.occurredAt), Date.parse('2026-09-03T09:15:00-07:00'))
 })
+test('a spoken day without a clock keeps the recorded minute on that calendar day', () => {
+  const today = projectJournalRecord(record('今天散步'), 'Asia/Shanghai')
+  assert.equal(today.journal.timePrecision, 'exact')
+  assert.equal(Date.parse(today.journal.occurredAt), Date.parse('2026-09-05T23:00:00+08:00'))
+  const yesterday = projectJournalRecord(record('昨天起疹'), 'Asia/Shanghai')
+  assert.equal(yesterday.journal.timePrecision, 'exact')
+  assert.equal(Date.parse(yesterday.journal.occurredAt), Date.parse('2026-09-04T23:00:00+08:00'))
+})
 test('ambiguous multi-time text is kept intact and uses the recorded minute', () => {
   const raw = record('17:30游泳，21:15起疹')
   assert.equal(projectJournalRecord(raw).journal.timePrecision, 'exact')
