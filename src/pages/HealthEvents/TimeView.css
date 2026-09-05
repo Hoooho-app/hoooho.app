@@ -41,6 +41,7 @@
 .journal-category-group .hoho-button__content { flex-direction: column; gap: var(--hoho-space-1); padding-block: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); }
 .journal-category-group [aria-pressed='true'] { background: rgb(var(--hoho-color-primary-soft)); border-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
 .journal-recorder-sheet { max-height: calc(var(--journal-viewport-height, 100dvh) - var(--hoho-space-6)); margin-bottom: var(--journal-keyboard-inset, 0px); }
+.journal-recorder-sheet > .hoho-bottom-sheet__body { padding-top: 0; }
 .journal-recorder-sheet .quick-record-panel { position: static; display: flex; flex-direction: column; align-items: stretch; width: 100%; max-width: none; max-height: none; transform: none; padding: 0; border: 0; box-shadow: none; animation: none; }
 .journal-recorder-sheet .quick-record-natural-input .hoho-textarea { min-height: 120px; }
 .journal-recorder-sheet .quick-record-text-actions { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2); }
