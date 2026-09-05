@@ -27,6 +27,7 @@ export interface UserProfile {
 }
 
 export interface AuthUser {
+  currentMemberId?: string
   id: string
   email?: string
   phone?: string

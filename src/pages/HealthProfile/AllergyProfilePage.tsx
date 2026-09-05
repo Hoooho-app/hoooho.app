@@ -16,7 +16,7 @@ const reactionCategories = ['皮肤', '消化道', '呼吸道', '全身']
 
 function loadRecords(storageKey: string) {
   try {
-    const value = JSON.parse(localStorage.getItem(storageKey) ?? '[]')
+    const value = JSON.parse(readProfileSection(storageKey))
     return Array.isArray(value) ? normalizeAllergyRecords(value) : []
   } catch {
     return []
@@ -85,12 +85,12 @@ export function AllergyProfilePage({ member, storageKey }: { member: Member; sto
       return next
     })
   }
-  const saveArchive = (event: FormEvent) => {
+  const saveArchive = async (event: FormEvent) => {
     event.preventDefault()
     try {
       const savedAt = new Date().toISOString()
       const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
-      localStorage.setItem(storageKey, JSON.stringify(next))
+      await saveProfileSection(storageKey, next)
       setRecords(next)
       setStatus('过敏与不良反应档案已保存')
     } catch {
@@ -128,3 +128,4 @@ export function AllergyProfilePage({ member, storageKey }: { member: Member; sto
     <HealthProfileActionBar><HohoButton fullWidth form="allergy-profile-form" type="submit">保存档案</HohoButton></HealthProfileActionBar>
   </main>
 }
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'

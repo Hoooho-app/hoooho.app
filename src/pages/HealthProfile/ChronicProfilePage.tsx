@@ -25,7 +25,7 @@ const IMPACT_SUGGESTIONS = ['基本不影响', '影响走路', '影响睡眠', '
 
 function loadJson(key: string) {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? '[]') as unknown
+    return JSON.parse(readProfileSection(key)) as unknown
   } catch {
     return []
   }
@@ -210,12 +210,12 @@ export function ChronicProfilePage({ member, storageKey }: { member: Member; sto
     }
   }
 
-  const saveArchive = (event: FormEvent) => {
+  const saveArchive = async (event: FormEvent) => {
     event.preventDefault()
     try {
       const savedAt = new Date().toISOString()
       const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
-      localStorage.setItem(storageKey, JSON.stringify(next))
+      await saveProfileSection(storageKey, next)
       setRecords(next)
       setExpandedId('')
       setStatus('慢性病史档案已保存')
@@ -312,3 +312,4 @@ export function ChronicProfilePage({ member, storageKey }: { member: Member; sto
     </main>
   )
 }
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'

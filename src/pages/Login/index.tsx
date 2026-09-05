@@ -5,6 +5,7 @@ import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { authService, AuthApiError } from '../../services/auth'
 import { useAppStore } from '../../store/useAppStore'
+import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
@@ -83,6 +84,7 @@ export function LoginPage() {
     try {
       const session = await authService.loginWithEmail(normalizedEmail, code, guestToken)
       setAuthSession(session)
+      await restoreBrowserSession()
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
       const safePath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events'
       navigate(safePath, { replace: true, state: session.guestMerge?.merged ? { accountNotice: '已登录，体验记录已合并' } : null })
@@ -94,16 +96,14 @@ export function LoginPage() {
   }
 
   const continueAsGuest = async () => {
+    if (isEnteringGuest) return
     setError('')
     setIsEnteringGuest(true)
     try {
-      let guestId = localStorage.getItem('hoooho-guest-id')
-      if (!guestId) {
-        guestId = crypto.randomUUID()
-        localStorage.setItem('hoooho-guest-id', guestId)
-      }
-      const session = await authService.guest(guestId)
+      const enter = () => authService.guest(guestToken)
+      const session = await (navigator.locks ? navigator.locks.request('hoooho-browser-session', enter) : enter())
       setAuthSession(session)
+      await restoreBrowserSession()
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
       navigate(requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events', { replace: true })
     } catch (requestError) {

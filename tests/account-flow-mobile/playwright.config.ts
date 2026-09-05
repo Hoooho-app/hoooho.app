@@ -10,7 +10,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000
   },
-  use: { baseURL, trace: 'retain-on-failure' },
+  use: { baseURL, browserName: 'chromium', launchOptions: { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' }, trace: 'off' },
   projects: [
     { name: 'iphone-se', use: { ...devices['iPhone SE'], viewport: { width: 375, height: 667 } } },
     { name: 'mobile-390', use: { ...devices['iPhone SE'], viewport: { width: 390, height: 844 } } },

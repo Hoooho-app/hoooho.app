@@ -20,7 +20,7 @@ const ISSUE_SUGGESTIONS = ['高血压', '糖尿病', '冠心病', '脑卒中', '
 
 function loadRecords(storageKey: string) {
   try {
-    const stored = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as unknown
+    const stored = JSON.parse(readProfileSection(storageKey)) as unknown
     return normalizeFamilyHistoryRecords(Array.isArray(stored) ? stored as Record<string, unknown>[] : [])
   } catch {
     return []
@@ -140,9 +140,9 @@ export function FamilyHistoryProfilePage({ member, storageKey }: { member: Membe
   const [editor, setEditor] = useState<FamilyHistoryRecord | null>(() => initial.length ? null : emptyFamilyHistoryRecord(1))
   const [status, setStatus] = useState('')
 
-  const persist = (next: FamilyHistoryRecord[]) => {
-    localStorage.setItem(storageKey, JSON.stringify(next))
-    setRecords(next)
+  const persist = async (next: FamilyHistoryRecord[]) => {
+    try { await saveProfileSection(storageKey, next); setRecords(next); return true }
+    catch { setStatus('保存失败，请检查网络或刷新后重试'); return false }
   }
 
   const openNew = () => {
@@ -163,23 +163,23 @@ export function FamilyHistoryProfilePage({ member, storageKey }: { member: Membe
     setStatus('')
   }
 
-  const removeCurrent = () => {
+  const removeCurrent = async () => {
     if (editingIndex == null || !window.confirm('确认删除这位亲属的健康记录吗？')) return
     const next = records.filter((_, index) => index !== editingIndex)
-    persist(next)
+    if (!await persist(next)) return
     setEditingIndex(null)
     setEditor(next.length ? null : emptyFamilyHistoryRecord(1))
     setStatus('记录已删除')
   }
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!editor) return
     const saved = { ...editor, _savedAt: new Date().toISOString() }
     const next = editingIndex == null
       ? [...records, saved]
       : records.map((record, index) => index === editingIndex ? saved : record)
-    persist(next)
+    if (!await persist(next)) return
     setEditingIndex(null)
     setEditor(null)
     setStatus(editingIndex == null ? '亲属健康情况已添加' : '亲属健康情况已更新')
@@ -266,3 +266,4 @@ export function FamilyHistoryProfilePage({ member, storageKey }: { member: Membe
     </main>
   )
 }
+import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'

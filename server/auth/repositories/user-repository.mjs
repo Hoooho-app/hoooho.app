@@ -36,6 +36,17 @@ export class UserRepository {
     return data.users.find((user) => user.id === id) ?? null
   }
 
+  async createGuest(id = `guest:${randomUUID()}`, now = new Date()) {
+    let user
+    await this.#store.update((data) => {
+      user = data.users.find((item) => item.id === id)
+      if (user) return data
+      user = { id, guest: true, createdAt: now.toISOString() }
+      return { ...data, users: [...data.users, user] }
+    })
+    return user
+  }
+
   async findByPhone(phone) {
     const data = await this.#store.read()
     return data.users.find((user) => user.phone === phone) ?? null
