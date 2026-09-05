@@ -11,7 +11,7 @@ import {
 
 test('健康事件查看方式默认规则只在列表视图显示筛选', () => {
   assert.equal(DEFAULT_HEALTH_EVENTS_VIEW_MODE, 'triage')
-  assert.deepEqual(healthEventsViewLabels, { triage: '前台视图', list: '列表视图' })
+  assert.deepEqual(healthEventsViewLabels, { triage: '前台视图', list: '时间视图' })
   assert.equal(shouldShowHealthEventFilters('list'), true)
   assert.equal(shouldShowHealthEventFilters('triage'), false)
 })

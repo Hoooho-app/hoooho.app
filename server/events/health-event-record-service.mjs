@@ -3,6 +3,7 @@ import { HealthEventRecordRepository } from './repositories/health-event-record-
 import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 import { HealthChangeAnnotationService } from './health-change-annotation-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
+import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 
 export { HealthEventRecordError } from './health-event-record-error.mjs'
 
@@ -116,6 +117,7 @@ export class HealthEventRecordService {
       accountId,
       eventId,
       type: validateType(input.type),
+      ...(input.journal === undefined ? {} : { journal: validateJournal(input.journal) }),
       content: validateContent(input.content),
       occurredAt,
       sourceType: input.sourceType === undefined ? 'user_record' : validateSourceType(input.sourceType),
@@ -136,6 +138,10 @@ export class HealthEventRecordService {
   async list(accountId, eventId) {
     await this.assertEventOwnership(accountId, eventId)
     return this.repository.findByEventId(eventId)
+  }
+
+  async listJournal(accountId, eventId, timezone) {
+    return (await this.list(accountId, eventId)).map((record) => projectJournalRecord(record, timezone))
   }
 
   async update(accountId, id, input, now = new Date()) {

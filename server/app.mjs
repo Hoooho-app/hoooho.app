@@ -455,7 +455,9 @@ async function handleEventRecords(request, response, pathname) {
   const accountId = await readAccountId(request)
   if (eventRecordsMatch) {
     const eventId = decodeRouteValue(eventRecordsMatch[1])
-    if (request.method === 'GET') sendJson(response, 200, await records.list(accountId, eventId))
+    if (request.method === 'GET') sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time'
+      ? await records.listJournal(accountId, eventId, request.headers['x-hoooho-timezone'])
+      : await records.list(accountId, eventId))
     else if (request.method === 'POST') sendJson(response, 201, await records.create(accountId, eventId, await readJson(request)))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
     return true

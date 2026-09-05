@@ -183,7 +183,7 @@ test('list switch and page lifecycle retain nodes and resume idle without repeat
   await open(page)
   await playing(page, 'intro0')
   await page.locator('.idle-nurse-visual').evaluate((el) => { el.setAttribute('data-identity', 'same') })
-  await page.getByRole('button', { name: '列表视图', exact: true }).click()
+    await page.getByRole('button', { name: '时间视图', exact: true }).click()
   await expect(page.locator(visible)).toHaveCount(0)
   await page.getByRole('button', { name: '前台视图', exact: true }).click()
   await playing(page, 'idle1')

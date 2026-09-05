@@ -1,0 +1,126 @@
+import { expect, test, type Page } from '@playwright/test'
+import { TokenService } from '../../server/auth/token-service.mjs'
+
+const token = new TokenService('time-view-e2e-local-only-secret', 60 * 60_000).create({ id: 'time-view-test-account' })
+async function prepare(page: Page, member = 'child-one') {
+  await page.addInitScript(({ token, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', token)
+    localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'time-view-test-account' }, currentMemberId: member, members: [], profile: null }, version: 5 }))
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } })
+    class Recognition {
+      onresult: ((event: unknown) => void) | null = null
+      onend: (() => void) | null = null
+      start() { setTimeout(() => this.onresult?.({ results: [{ 0: { transcript: '今天和朋友一起玩了半小时' } }] }), 40) }
+      stop() { this.onend?.() }
+      abort() {}
+    }
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
+  }, { token, member })
+  await page.goto('/health-events')
+  await expect(page.getByRole('button', { name: '快速记录', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '时间视图', exact: true }).click()
+  await expect(page.getByRole('button', { name: '手动记录', exact: true })).toBeVisible()
+}
+
+test('single-day timeline, hour grouping, calendar guard, record detail and summary entry', async ({ page }) => {
+  await prepare(page)
+  await expect(page.getByRole('button', { name: '后一天', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '筛选健康随记' })).toHaveCount(0)
+  await page.getByRole('button', { name: '前一天', exact: true }).click()
+  await expect(page.locator('.journal-record')).toHaveCount(10)
+  const nine = page.locator('.hoho-timeline-item').filter({ has: page.locator('.hoho-timeline-item__label', { hasText: /^9时$/ }) })
+  await expect(nine.locator('.journal-record')).toHaveCount(3)
+  await expect(nine.locator('.journal-record-time')).toHaveText(['09:45', '09:30', '09:10'])
+  await expect(page.getByText('隔离对象专属记录')).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/time-view-iphone-se.png' })
+  await page.getByRole('button', { name: '选择日期', exact: true }).click()
+  const input = page.getByLabel('记录日期', { exact: true })
+  const today = await input.getAttribute('max')
+  await input.fill('2099-01-01')
+  await expect(page.getByRole('dialog', { name: '日历' })).toBeVisible()
+  await input.fill(today!)
+  await expect(page.getByRole('dialog', { name: '日历' })).toHaveCount(0)
+  await page.getByRole('button', { name: '摘要生成', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+})
+
+test('manual multiselect, photo draft, review and real API save reach today', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '饮食', exact: true }).click()
+  await page.getByRole('button', { name: '社交', exact: true }).click()
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('textbox', { name: '快捷记录文字', exact: true }).fill('今天和朋友一起吃饭')
+  await page.locator('input[type=file]').setInputFiles({ name: 'fixture.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') })
+  await expect(page.getByText('1/10', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '继续核对', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: '编辑识别原话' })).toHaveValue('今天和朋友一起吃饭')
+  await page.screenshot({ path: 'test-results/time-view-manual-review.png' })
+  await page.getByRole('button', { name: '确认保存', exact: true }).click()
+  const saved = page.locator('.journal-record').filter({ hasText: '今天和朋友一起吃饭' })
+  await expect(saved).toBeVisible()
+  await expect(saved.getByText('饮食', { exact: true })).toBeVisible()
+  await expect(saved.getByText('社交', { exact: true })).toBeVisible()
+  await expect(saved.getByLabel('1 个附件')).toBeVisible()
+  await saved.click()
+  await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+})
+
+test('voice icon enters listening directly and saves using the existing review flow', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '快捷语音记录' }).click()
+  await expect(page.getByText('正在听…', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '结束听写' })).toBeEnabled()
+  await page.getByRole('button', { name: '结束听写' }).click()
+  await expect(page.getByRole('textbox', { name: '编辑识别原话' })).toHaveValue('今天和朋友一起玩了半小时')
+  await page.getByRole('button', { name: '确认保存' }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '今天和朋友一起玩了半小时' })).toBeVisible()
+})
+
+test('another member never sees the first member timeline', async ({ page }) => {
+  await prepare(page, 'child-two')
+  await page.getByRole('button', { name: '前一天', exact: true }).click()
+  await expect(page.locator('.journal-record')).toHaveCount(1)
+  await expect(page.locator('.journal-record')).toContainText('隔离对象专属记录')
+})
+
+test('failed timeline request offers retry without claiming an empty day', async ({ page }) => {
+  let failing = true
+  await page.route('**/records?view=time', (route) => failing ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }) : route.continue())
+  await prepare(page)
+  await expect(page.getByText('记录加载失败，请重试', { exact: true })).toBeVisible()
+  failing = false
+  await page.getByRole('button', { name: '重新加载', exact: true }).click()
+  await page.getByRole('button', { name: '前一天', exact: true }).click()
+  await expect(page.locator('.journal-record')).toHaveCount(10)
+})
+
+test('short keyboard viewport keeps manual review actionable and closes with Escape', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.setViewportSize({ width: 375, height: 430 })
+  await page.getByRole('textbox', { name: '快捷记录文字', exact: true }).fill('键盘布局验收')
+  await page.getByRole('button', { name: '继续核对', exact: true }).click()
+  const save = page.getByRole('button', { name: '确认保存', exact: true })
+  await save.scrollIntoViewIfNeeded()
+  const box = await save.boundingBox()
+  expect(box!.y + box!.height).toBeLessThanOrEqual(430)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+for (const width of [390, 430, 1280]) test(`layout remains usable at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 800 })
+  await prepare(page)
+  await page.getByRole('button', { name: '前一天', exact: true }).click()
+  await expect(page.locator('.journal-record')).toHaveCount(10)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  const last = page.locator('.journal-record').last()
+  await last.scrollIntoViewIfNeeded()
+  const lastBox = await last.boundingBox()
+  const footer = await page.locator('.journal-record-actions').boundingBox()
+  expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(footer!.y + 1)
+})

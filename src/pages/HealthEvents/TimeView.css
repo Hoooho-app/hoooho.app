@@ -1,0 +1,44 @@
+.journal-date-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); margin-bottom: var(--hoho-space-4); color: rgb(var(--hoho-color-primary)); }
+.journal-return-today { display: flex; justify-content: center; margin-top: calc(-1 * var(--hoho-space-3)); margin-bottom: var(--hoho-space-3); }
+.journal-hour-records { display: grid; gap: var(--hoho-space-2); }
+.journal-timeline.hoho-timeline { gap: var(--hoho-space-3); margin-left: var(--hoho-space-2); }
+.journal-timeline .hoho-timeline-item { display: block; position: relative; border-left: 1px solid rgb(var(--hoho-color-border)); padding-left: var(--hoho-space-4); }
+.journal-timeline .hoho-timeline-item__label { text-align: left; color: rgb(var(--hoho-color-primary)); }
+.journal-timeline .hoho-timeline-item__label::before { content: ''; position: absolute; left: -5px; top: 4px; width: 9px; height: 9px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary)); }
+.journal-timeline .hoho-timeline-item__content { border: 0; padding-left: 0; }
+.journal-timeline .hoho-timeline-item__content::before { display: none; }
+.journal-record { position: relative; }
+.journal-record::before { content: ''; position: absolute; left: calc(-1 * var(--hoho-space-4) - 4px); top: calc(50% - 4px); width: 7px; height: 7px; border: 1px solid rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-surface)); border-radius: var(--hoho-radius-pill); }
+.journal-record { display: flex; align-items: center; gap: var(--hoho-space-2); width: 100%; min-width: 0; padding-block: var(--hoho-space-3); text-align: left; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.journal-record-time { width: 48px; flex: none; font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); font-variant-numeric: tabular-nums; }
+.journal-record-content { flex: 1; min-width: 0; }
+.journal-record-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--hoho-font-size-body); line-height: var(--hoho-line-height-body); }
+.journal-record-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hoho-space-1); margin-top: var(--hoho-space-1); }
+.journal-attachment { display: inline-flex; align-items: center; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
+.journal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-2); }
+.journal-subject-summary { white-space: nowrap; }
+.journal-subject-summary svg { width: 20px; height: 20px; }
+.hoho-health-events-page[data-view-mode='list'] { height: 100dvh; min-height: 0; background: rgb(var(--hoho-color-page-background)); }
+.hoho-health-events-page[data-view-mode='list'] .health-events-content { padding-bottom: var(--hoho-space-6); }
+.journal-record-actions { flex: none; background: rgb(var(--hoho-color-surface)); border-top: 1px solid rgb(var(--hoho-color-border)); padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
+.journal-record-actions > div { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: var(--hoho-space-3); width: min(100%, 960px); margin-inline: auto; }
+.journal-category-group { margin-top: var(--hoho-space-5); }
+.journal-category-group > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.journal-category-group .hoho-button { padding-inline: var(--hoho-space-1); }
+.journal-category-group .hoho-button__content { flex-direction: column; gap: var(--hoho-space-1); padding-block: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); }
+.journal-category-group [aria-pressed='true'] { background: rgb(var(--hoho-color-primary-soft)); border-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
+.journal-recorder-sheet { max-height: calc(var(--journal-viewport-height, 100dvh) - var(--hoho-space-6)); margin-bottom: var(--journal-keyboard-inset, 0px); }
+.journal-recorder-sheet .quick-record-panel { position: static; display: flex; flex-direction: column; align-items: stretch; width: 100%; max-width: none; max-height: none; transform: none; padding: 0; border: 0; box-shadow: none; animation: none; }
+.journal-recorder-sheet .quick-record-natural-input .hoho-textarea { min-height: 120px; }
+.journal-recorder-sheet .quick-record-text-actions { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2); }
+.journal-recorder-sheet .quick-record-text-actions > .hoho-button { margin-left: auto; }
+.journal-recorder-sheet .quick-record-natural-input { width: 100%; }
+.journal-recorder-sheet .quick-record-natural-input textarea { font-size: 16px; }
+.journal-recorder-sheet .quick-record-panel { overflow: visible; }
+.journal-calendar-field { width: 100%; min-height: var(--hoho-touch-target); padding: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); }
+@media (max-width: 400px) {
+  .health-events-member .record-subject-card { padding-inline: var(--hoho-space-3); gap: var(--hoho-space-2); }
+  .health-events-member .record-subject-card > span:nth-child(2) > span:last-child { white-space: normal; }
+  .health-events-member .record-subject-card > span:nth-child(2) > span:last-child > span { display: block; font-size: var(--hoho-font-size-caption); }
+  .journal-subject-summary { padding-inline: var(--hoho-space-2); }
+}

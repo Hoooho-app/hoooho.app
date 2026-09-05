@@ -94,6 +94,18 @@ test('quick record reuses the persisted result for the same idempotency key', as
   assert.deepEqual(state.counts(), { eventCreates: 1, recordCreates: 1 })
 })
 
+test('optional journal categories preserve verbatim content and existing idempotency', async () => {
+  const state = setup()
+  const journalInput = { ...input, journal: { categories: ['diet', 'social', 'diet'] } }
+  const result = await state.service.create('account-1', journalInput)
+  const retried = await state.service.create('account-1', journalInput)
+  assert.equal(retried.recordId, result.recordId)
+  assert.deepEqual(state.recordRows[0].journal, { categories: ['diet', 'social'] })
+  assert.equal(state.recordRows[0].content, input.content)
+  assert.equal(state.recordRows[0].occurredAt, input.occurredAt)
+  await assert.rejects(() => setup().service.create('account-1', { ...input, journal: { categories: ['invented'] } }), /记录分类无效/)
+})
+
 test('quick record collapses concurrent submissions with the same key', async () => {
   const state = setup()
   const [left, right] = await Promise.all([
