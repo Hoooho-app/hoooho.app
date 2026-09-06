@@ -31,7 +31,7 @@ interface AppState {
   currentMemberId: string
   members: Member[]
   profile: UserProfile | null
-  setCurrentMemberId: (memberId: string) => void
+  setCurrentMemberId: (memberId: string, options?: { sync?: boolean }) => void
   setAuthSession: (session: AuthSession) => void
   setAccountProfile: (profile: AccountProfile | null) => void
   clearAuthSession: () => void
@@ -57,9 +57,9 @@ export const useAppStore = create<AppState>()(
       currentMemberId: 'self',
       members: [],
       profile: null,
-      setCurrentMemberId: (currentMemberId) => {
+      setCurrentMemberId: (currentMemberId, options) => {
         set({ currentMemberId })
-        if (currentMemberId !== 'self') void postAuthRequest('/api/auth/current-member', { memberId: currentMemberId }).catch(() => { /* Retain the non-sensitive local selection as a retry hint. */ })
+        if (currentMemberId !== 'self' && options?.sync !== false) void postAuthRequest('/api/auth/current-member', { memberId: currentMemberId }).catch(() => { /* Retain the non-sensitive local selection as a retry hint. */ })
       },
       setAuthSession: ({ token, user }) => {
         writeSessionToken(authTokenKey, null)

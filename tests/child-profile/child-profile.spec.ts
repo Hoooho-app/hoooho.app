@@ -97,16 +97,23 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
   }
 })
 
-test('侧边栏当前记录对象使用双操作栏且在移动视口完整可见', async ({ page, request }, testInfo) => {
+test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩子弹窗', async ({ page, request }, testInfo) => {
   test.skip(!['iphone-se', 'mobile-390', 'mobile-430'].includes(testInfo.project.name), '只验证要求的三档移动视口')
   const account = 'drawer-member-' + testInfo.project.name
   const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
-  const createdResponse = await request.post('/api/members', {
-    headers: { Authorization: 'Bearer ' + authToken },
-    data: { name: '刘景宜', relationship: 'child', gender: 'female', birthday: '2024-12-04', avatar: 'girl-age1-east-asian' }
-  })
-  expect(createdResponse.status()).toBe(201)
-  const created = await createdResponse.json()
+  const createMember = async (name: string, birthday: string) => {
+    const response = await request.post('/api/members', {
+      headers: { Authorization: 'Bearer ' + authToken },
+      data: { name, relationship: 'child', gender: 'female', birthday, avatar: 'girl-age1-east-asian' }
+    })
+    expect(response.status()).toBe(201)
+    return response.json()
+  }
+  const created = await createMember('刘景宜', '2024-12-04')
+  const second = await createMember('刘景安', '2022-07-04')
+  const extraMembers = testInfo.project.name === 'iphone-se'
+    ? await Promise.all(['小满', '安安', '宁宁', '乐乐', '可可', '一一'].map((name, index) => createMember(name, `202${index % 3 + 1}-06-04`)))
+    : []
   await prepareAccount(page, authToken, account)
 
   try {
@@ -115,8 +122,8 @@ test('侧边栏当前记录对象使用双操作栏且在移动视口完整可�
     const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
     await expect(drawer.getByText('刘景宜', { exact: true })).toBeVisible()
     await expect(drawer.getByText('当前记录对象', { exact: true })).toBeVisible()
-    await expect(drawer.getByRole('button', { name: '切换人物' })).toBeVisible()
-    await expect(drawer.getByRole('button', { name: '编辑资料' })).toBeVisible()
+    await expect(drawer.getByText('切换人物', { exact: true })).toHaveCount(0)
+    await expect(drawer.getByText('编辑资料', { exact: true })).toHaveCount(0)
     await expect(drawer.getByRole('button', { name: '健康随身记' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: '健康档案夹' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: '说明', exact: true })).toBeVisible()
@@ -125,10 +132,78 @@ test('侧边栏当前记录对象使用双操作栏且在移动视口完整可�
     expect(accountBox && accountBox.y + accountBox.height).toBeLessThanOrEqual(page.viewportSize()!.height)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
     await page.screenshot({ path: testInfo.outputPath('current-member-drawer.png') })
-    await drawer.getByRole('button', { name: '编辑资料' }).click()
-    await expect(page).toHaveURL(new RegExp(`/family/${created.id}/edit$`))
+    await drawer.getByRole('button', { name: '打开我的孩子' }).click()
+    const sheet = page.getByRole('dialog', { name: '我的孩子' })
+    await expect(sheet).toBeVisible()
+    await expect(sheet.getByRole('heading', { name: '我的孩子' })).toBeVisible()
+    await expect(sheet.getByText('选择健康内容的记录对象')).toHaveCount(0)
+    await expect(sheet.getByRole('button', { name: '添加孩子' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: '刘景宜，当前记录对象' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: '切换到刘景安' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: '编辑刘景安的资料' })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('my-children-sheet.png') })
+
+    if (testInfo.project.name !== 'iphone-se') return
+
+    const sheetBox = await sheet.boundingBox()
+    expect(sheetBox && sheetBox.y + sheetBox.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+    const list = sheet.locator('.current-child-sheet__list')
+    expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBeTruthy()
+    const titleBeforeScroll = await sheet.getByRole('heading', { name: '我的孩子' }).boundingBox()
+    const addBeforeScroll = await sheet.getByRole('button', { name: '添加孩子' }).boundingBox()
+    await list.evaluate((element) => { element.scrollTop = element.scrollHeight })
+    expect((await sheet.getByRole('heading', { name: '我的孩子' }).boundingBox())?.y).toBe(titleBeforeScroll?.y)
+    expect((await sheet.getByRole('button', { name: '添加孩子' }).boundingBox())?.y).toBe(addBeforeScroll?.y)
+    await sheet.getByRole('button', { name: '关闭我的孩子' }).click()
+    await expect(sheet).toBeHidden()
+    await page.getByRole('button', { name: '打开我的孩子' }).click()
+    await page.locator('.current-child-sheet-backdrop').click({ position: { x: 360, y: 40 } })
+    await expect(sheet).toBeHidden()
+    await page.getByRole('button', { name: '打开我的孩子' }).click()
+    let switchRequests = 0
+    page.on('request', (browserRequest) => {
+      if (browserRequest.url().endsWith('/api/auth/current-member')) switchRequests += 1
+    })
+    await sheet.getByRole('button', { name: '编辑刘景安的资料' }).click()
+    await expect(page).toHaveURL(new RegExp(`/family/${second.id}/edit$`))
+    expect(switchRequests).toBe(0)
+
+    await page.goto('/health-events')
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    await page.getByRole('button', { name: '打开我的孩子' }).click()
+    await page.route('**/api/auth/current-member', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { message: '暂时无法切换' } }) }), { times: 1 })
+    await page.getByRole('dialog', { name: '我的孩子' }).getByRole('button', { name: '切换到刘景安' }).click()
+    await expect(page.getByRole('alert')).toHaveText('暂时无法切换')
+    await expect(page.getByRole('dialog', { name: '我的孩子' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '打开我的孩子' })).toContainText('刘景宜')
+
+    await page.getByRole('dialog', { name: '我的孩子' }).getByRole('button', { name: '切换到刘景安' }).click()
+    await expect(page.getByRole('dialog', { name: '我的孩子' })).toBeHidden()
+    await expect(page).toHaveURL(/\/health-events$/)
+    await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '打开我的孩子' })).toContainText('刘景安')
+
+    await page.getByRole('button', { name: '打开我的孩子' }).click()
+    const handle = page.locator('.current-child-sheet__drag-zone')
+    const handleBox = await handle.boundingBox()
+    expect(handleBox).not.toBeNull()
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 30)
+    await page.mouse.up()
+    await expect(page.getByRole('dialog', { name: '我的孩子' })).toBeVisible()
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 90)
+    await page.mouse.up()
+    await expect(page.getByRole('dialog', { name: '我的孩子' })).toBeHidden()
+
+    await page.getByRole('button', { name: '打开我的孩子' }).click()
+    await page.getByRole('dialog', { name: '我的孩子' }).getByRole('button', { name: '添加孩子' }).click()
+    await expect(page).toHaveURL(/\/family\/new$/)
   } finally {
     await request.delete('/api/members/' + created.id, { headers: { Authorization: 'Bearer ' + authToken } })
+    await request.delete('/api/members/' + second.id, { headers: { Authorization: 'Bearer ' + authToken } })
+    for (const member of extraMembers) await request.delete('/api/members/' + member.id, { headers: { Authorization: 'Bearer ' + authToken } })
   }
 })
 
