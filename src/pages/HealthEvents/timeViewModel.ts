@@ -39,6 +39,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       categories: record.journal?.categories?.length ? record.journal.categories.filter((category) => category in journalCategoryLabels) : [record.type in journalCategoryLabels ? record.type as JournalCategory : 'other' as const],
       timePrecision: record.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType ?? '') ? 'exact' : 'unknown'),
       timeLabel: record.journal?.timeLabel,
+      sleep: record.journal?.sleep,
       attachmentCount: files.filter((file) => file.recordId === record.id).length + (record === rows[0] ? files.filter((file) => !file.recordId).length : 0),
       status: event.status
     }))

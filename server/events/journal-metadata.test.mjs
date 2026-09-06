@@ -91,3 +91,14 @@ test('structured bowel observations preserve uncertainty and reject invalid or c
   assert.throws(() => validateJournal({ categories: ['diet'], bowel: { shapes: [], observations: [] } }), /必须归入排便分类/)
   assert.throws(() => validateJournal({ categories: ['elimination'], bowel: { shapes: ['成人评分 4'], observations: [] } }), /选项无效/)
 })
+
+test('structured sleep recomputes duration from timestamps and preserves optional observations', () => {
+  const result = validateJournal({ categories: ['sleep'], sleep: {
+    sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', durationMinutes: 1,
+    kind: 'night', quality: '睡得安稳', observations: ['夜醒', '其他', '夜醒'], otherNote: '凌晨喝了一次奶'
+  } })
+  assert.equal(result.sleep.durationMinutes, 535)
+  assert.deepEqual(result.sleep.observations, ['夜醒', '其他'])
+  assert.throws(() => validateJournal({ categories: ['sleep'], sleep: { sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-05T21:40:00+08:00', kind: 'night' } }), /睡眠时长/)
+  assert.throws(() => validateJournal({ categories: ['diet'], sleep: { sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', kind: 'night' } }), /必须归入睡眠分类/)
+})

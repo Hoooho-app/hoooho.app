@@ -31,6 +31,16 @@ export interface JournalBowelDetails {
   observations: string[]
 }
 
+export interface JournalSleepDetails {
+  sleepAt: string
+  wakeAt: string
+  durationMinutes: number
+  kind: 'night' | 'nap'
+  quality?: '睡得安稳' | '有些翻动' | '频繁醒来'
+  observations?: string[]
+  otherNote?: string
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -38,4 +48,5 @@ export interface JournalMetadata {
   occurredAt?: string
   diet?: JournalDietDetails
   bowel?: JournalBowelDetails
+  sleep?: JournalSleepDetails
 }
