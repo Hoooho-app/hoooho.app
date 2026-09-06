@@ -86,20 +86,24 @@
 .diet-amount-labels span:last-child { text-align: right; }
 .diet-amount-labels .is-selected { color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .diet-reaction-fieldset { display: grid; gap: var(--hoho-space-2); }
-.diet-no-reaction, .diet-reaction-grid > button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
-.diet-no-reaction { width: 100%; }
+.diet-reaction-grid > button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
 .diet-reaction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); }
-.diet-no-reaction[aria-pressed='true'], .diet-reaction-grid > button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
+.diet-reaction-grid > button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .diet-food-input { display: grid; grid-template-columns: minmax(0, 1fr) var(--hoho-touch-target); gap: var(--hoho-space-2); }
 .diet-food-input input { width: 100%; min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); padding-inline: var(--hoho-space-3); font-size: 16px; outline: none; }
 .diet-food-input input:focus { border-color: rgb(var(--hoho-color-primary) / 0.55); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.08); }
 .diet-food-chips, .diet-common-foods { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hoho-space-1); }
 .diet-food-chips button, .diet-common-foods button { min-height: 34px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); padding-inline: var(--hoho-space-3); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); }
 .diet-food-chips button { display: inline-flex; align-items: center; gap: var(--hoho-space-1); }
-.diet-common-foods { padding-top: var(--hoho-space-1); }
-.diet-common-foods > span { margin-right: var(--hoho-space-1); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.diet-common-header { display: flex; min-height: 32px; align-items: center; justify-content: space-between; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.diet-common-header button { display: inline-flex; min-height: 32px; align-items: center; gap: 4px; border-radius: var(--hoho-radius-pill); padding-inline: var(--hoho-space-2); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .diet-common-foods button { border: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); }
+.diet-common-foods button span { margin-left: var(--hoho-space-1); color: rgb(var(--hoho-color-primary)); }
 .diet-common-foods button:disabled { opacity: 0.45; }
+.diet-common-editor { display: grid; grid-template-columns: minmax(0, 1fr) var(--hoho-touch-target); gap: var(--hoho-space-2); }
+.diet-common-editor input { min-width: 0; min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-3); font-size: 16px; outline: none; }
+.diet-common-editor input:focus { border-color: rgb(var(--hoho-color-primary) / 0.55); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.08); }
+.diet-common-editor button { display: grid; min-height: var(--hoho-touch-target); place-items: center; border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
 .diet-voice-button { justify-self: start; }
 .diet-inline-message, .diet-save-error { color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
 .diet-timer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); }

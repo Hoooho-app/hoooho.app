@@ -1,4 +1,4 @@
-import { ArrowLeft, Mic, Plus } from 'lucide-react'
+import { ArrowLeft, Mic, Pencil, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
 import { getSpeechRecognitionConstructor, speechErrorMessage, type SpeechRecognitionLike } from '../../features/feedback/speechInput'
@@ -6,6 +6,7 @@ import { getBrowserVoiceCapability } from '../../features/quick-record/browserVo
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../types/journal'
+import { familyMemberService } from '../../services/familyMembers'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 
 type InputChannel = 'voice' | 'text'
@@ -27,6 +28,7 @@ const appetiteOptions = ['比平时少', '和平时差不多', '比平时多'] a
 const commonComplementary = ['鸡蛋黄', '南瓜泥', '大米粥']
 const commonMeals = ['番茄牛肉', '米饭', '西兰花']
 const commonSupplements = ['维生素D', '铁剂', '钙剂', 'DHA']
+const defaultFrequentFoods = { complementary: commonComplementary, meal: commonMeals, snack: commonMeals }
 const supplementUnits = ['滴', '毫升', '粒', '袋'] as const
 
 function localDateTimeValue(date = new Date()) {
@@ -62,16 +64,19 @@ function AmountSlider({ options, value, onChange }: { options: readonly string[]
 }
 
 function ReactionChoices({ values, onChange, hint }: { values: string[]; onChange: (values: string[]) => void; hint?: string }) {
-  const noReaction = values.includes('暂未发现')
   return <fieldset className="diet-fieldset diet-reaction-fieldset"><legend>观察到的情况</legend>
     {hint && <p className="diet-field-hint">{hint}</p>}
-    <button aria-pressed={noReaction} className="diet-no-reaction" onClick={() => onChange(['暂未发现'])} type="button">暂未发现</button>
-    <div className="diet-reaction-grid">{reactionOptions.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values.filter((value) => value !== '暂未发现'), option))} type="button">{option}</button>)}</div>
+    <div className="diet-reaction-grid">{reactionOptions.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div>
   </fieldset>
 }
 
-function FoodEditor({ foods, onFoodsChange, common, voice, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; voice?: ReturnType<typeof useDietVoice>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
+function FoodEditor({ foods, onFoodsChange, common, onCommonChange, voice, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void>; voice?: ReturnType<typeof useDietVoice>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
   const [draft, setDraft] = useState('')
+  const [editingCommon, setEditingCommon] = useState(false)
+  const [commonDraft, setCommonDraft] = useState('')
+  const [editableCommon, setEditableCommon] = useState<string[]>([...common])
+  const [savingCommon, setSavingCommon] = useState(false)
+  const [commonError, setCommonError] = useState('')
   const add = (raw: string) => {
     const value = raw.trim()
     if (!value || foods.includes(value)) return
@@ -81,11 +86,27 @@ function FoodEditor({ foods, onFoodsChange, common, voice, heading = '吃了什�
   useEffect(() => {
     if (voice?.transcript) setDraft(voice.transcript)
   }, [voice?.transcript])
+  useEffect(() => { if (!editingCommon) setEditableCommon([...common]) }, [common, editingCommon])
+  const addCommon = () => {
+    const value = commonDraft.trim()
+    if (!value || editableCommon.includes(value) || editableCommon.length >= 12) return
+    setEditableCommon((current) => [...current, value]); setCommonDraft('')
+  }
+  const finishCommon = async () => {
+    if (!onCommonChange) return
+    setSavingCommon(true); setCommonError('')
+    try { await onCommonChange(editableCommon); setEditingCommon(false) }
+    catch (reason) { setCommonError(reason instanceof Error ? reason.message : '常吃食物保存失败') }
+    finally { setSavingCommon(false) }
+  }
   return <section className="diet-form-section" aria-labelledby="diet-foods-heading">
     <h2 id="diet-foods-heading">{heading}</h2>
     <div className="diet-food-input"><input aria-label={inputLabel} maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder={placeholder} value={draft} /><HohoButton aria-label={addLabel} disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton></div>
     {foods.length > 0 && <div className="diet-food-chips" aria-label={itemsLabel}>{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true">×</span></button>)}</div>}
-    <div className="diet-common-foods"><span>{commonLabel}</span>{common.map((food) => <button disabled={foods.includes(food)} key={food} onClick={() => add(food)} type="button">{food}</button>)}</div>
+    <div className="diet-common-header"><span>{commonLabel}</span>{onCommonChange && <button aria-expanded={editingCommon} disabled={savingCommon} onClick={() => editingCommon ? void finishCommon() : setEditingCommon(true)} type="button"><Pencil size={14} />{editingCommon ? savingCommon ? '保存中' : '完成' : '编辑'}</button>}</div>
+    <div className="diet-common-foods">{(editingCommon ? editableCommon : common).map((food) => <button aria-label={editingCommon ? `删除常吃食物${food}` : undefined} disabled={!editingCommon && foods.includes(food)} key={food} onClick={() => editingCommon ? setEditableCommon((current) => current.filter((item) => item !== food)) : add(food)} type="button">{food}{editingCommon && <span aria-hidden="true">×</span>}</button>)}</div>
+    {editingCommon && <div className="diet-common-editor"><input aria-label="添加常吃食物" maxLength={30} onChange={(event) => setCommonDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCommon() } }} placeholder="添加常吃食物" value={commonDraft} /><button aria-label="确认添加常吃食物" disabled={!commonDraft.trim() || editableCommon.length >= 12} onClick={addCommon} type="button"><Plus size={17} /></button></div>}
+    {commonError && <p aria-live="polite" className="diet-inline-message">{commonError}</p>}
     {voice && <><HohoButton className="diet-voice-button" disabled={voice.state === 'requesting' || voice.state === 'processing'} variant="secondary" onClick={voice.state === 'listening' ? voice.stop : voice.start}><Mic size={18} />{voice.label}</HohoButton>{voice.message && <p aria-live="polite" className="diet-inline-message">{voice.message}</p>}</>}
   </section>
 }
@@ -191,7 +212,7 @@ function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFor
   </>
 }
 
-function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack' }) {
+function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const voice = useDietVoice()
   const [foods, setFoods] = useState<string[]>([])
   const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
@@ -200,10 +221,9 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving }: Com
   const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
   const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
   const [reactionsOpen, setReactionsOpen] = useState(kind === 'complementary')
-  const [reactions, setReactions] = useState<string[]>(['暂未发现'])
+  const [reactions, setReactions] = useState<string[]>([])
   const isComplementary = kind === 'complementary'
   const isMeal = kind === 'meal'
-  const common = isComplementary ? commonComplementary : commonMeals
   const usableVoice = isComplementary ? undefined : voice
   const hasFood = foods.length > 0 || Boolean(usableVoice?.transcript)
   const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite))
@@ -223,7 +243,7 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving }: Com
   }
   return <>
     {isMeal && <ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} />}
-    <FoodEditor common={common} foods={foods} onFoodsChange={setFoods} voice={usableVoice} />
+    <FoodEditor common={common} foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} voice={usableVoice} />
     {isComplementary && <ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} />}
     <AmountSlider options={amountOptions} value={amount} onChange={setAmount} />
     {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
@@ -247,8 +267,18 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
   const [error, setError] = useState('')
   const layerRef = useRef<HTMLElement>(null)
   const photoModel = useQuickRecordPhotos(memberId, token)
+  const [frequentFoods, setFrequentFoods] = useState(defaultFrequentFoods)
+  const [frequentFoodsReady, setFrequentFoodsReady] = useState(false)
   usePageScrollLock(true)
   useDialogFocus(true, layerRef)
+  useEffect(() => {
+    const controller = new AbortController()
+    familyMemberService.getById(memberId, token, controller.signal).then((member) => {
+      if (member.dietFrequentFoods) setFrequentFoods(member.dietFrequentFoods)
+      setFrequentFoodsReady(true)
+    }).catch(() => undefined)
+    return () => controller.abort()
+  }, [memberId, token])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && photoModel.previewIndex === null && !saving) onBack() }
     window.addEventListener('keydown', onKeyDown)
@@ -269,8 +299,13 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
     } finally { setSaving(false) }
   }
   const common = { occurredAt, setOccurredAt, onSave: save, saving }
+  const saveFrequentFoods = async (foodKind: 'complementary' | 'meal' | 'snack', foods: string[]) => {
+    const next = { ...frequentFoods, [foodKind]: foods }
+    const member = await familyMemberService.update(memberId, { dietFrequentFoods: next }, token)
+    setFrequentFoods(member.dietFrequentFoods ?? next)
+  }
   return <div className="diet-record-page-layer"><section aria-label={kindTitles[kind]} aria-modal="true" className="diet-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回喂养/饮食类型选择" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>{kindTitles[kind]}</h1><span aria-hidden="true" /></header>
-    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} kind={kind} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
+    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} common={frequentFoods[kind]} kind={kind} onCommonChange={frequentFoodsReady ? (foods) => saveFrequentFoods(kind, foods) : undefined} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
   </section></div>
 }

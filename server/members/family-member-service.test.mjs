@@ -108,6 +108,20 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(child.otherRelative, '姨妈')
     assert.equal(child.otherCaregiver, '王老师')
 
+    const frequentFoodsResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      dietFrequentFoods: { complementary: [' 南瓜泥 ', '南瓜泥', '牛油果'], meal: ['米饭'], snack: [] }
+    })
+    assert.equal(frequentFoodsResponse.status, 200)
+    assert.deepEqual((await frequentFoodsResponse.json()).dietFrequentFoods, {
+      complementary: ['南瓜泥', '牛油果'], meal: ['米饭'], snack: []
+    })
+
+    const invalidFrequentFoods = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
+      dietFrequentFoods: { complementary: Array.from({ length: 13 }, (_, index) => `食物${index}`), meal: [], snack: [] }
+    })
+    assert.equal(invalidFrequentFoods.status, 400)
+    assert.equal((await invalidFrequentFoods.json()).error.code, 'INVALID_DIET_FREQUENT_FOODS')
+
     const caregiverResponse = await requestJson(`${baseUrl}/api/members/${child.id}`, 'PATCH', first.token, {
       caregivers: ['mother', 'paternal_grandmother'], primaryRecorderRelationship: 'father', otherRelative: '', otherCaregiver: '李老师'
     })
