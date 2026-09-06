@@ -59,6 +59,8 @@ test('short mobile drawers keep the member summary compact with explicit switch 
   assert.match(drawer, /<Pencil[^>]*size=\{20\}/)
   assert.match(drawer, />编辑资料</)
   assert.match(styles, /\.hoho-drawer__member-actions > button\s*\{[^}]*min-height:\s*44px/s)
+  assert.match(styles, /@media \(max-height:\s*700px\)[\s\S]*\.hoho-drawer > nav\s*\{[^}]*margin-top:\s*var\(--hoho-space-2\)/)
+  assert.match(styles, /@media \(max-height:\s*700px\)[\s\S]*\.hoho-drawer \.hoho-drawer__account\s*\{[^}]*margin-top:\s*var\(--hoho-space-2\)/)
 })
 
 test('global UI supports reduced motion and responsive desktop content', async () => {

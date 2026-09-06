@@ -20,6 +20,12 @@ test('every direct sidebar destination is represented by the shared top-level he
   assert.match(header, /compact \? 'sticky top-0 z-20 min-h-14' : 'min-h-16'/)
 })
 
+test('sidebar uses the approved concise navigation copy', () => {
+  assert.match(drawer, /label: '健康随身记'[^\n]*to: '\/health-events'/)
+  assert.match(drawer, /label: '健康档案夹'[^\n]*to: '\/health-profile'/)
+  assert.match(drawer, /label: '说明'[^\n]*to: '\/guide'/)
+})
+
 test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /<MainAppHeader compact title="使用说明" \/>/)
