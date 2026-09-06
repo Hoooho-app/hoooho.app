@@ -115,6 +115,15 @@ test('quick record persists structured diet details without changing member owne
   assert.equal(state.recordRows[0].content, '正餐 · 午餐\n番茄牛肉、米饭 · 一半')
 })
 
+test('quick record persists structured sleep for only the selected member and sorts at wake time', async () => {
+  const state = setup()
+  const journal = { categories: ['sleep'], sleep: { sleepAt: '2026-09-01T13:40:00.000Z', wakeAt: '2026-09-01T22:35:00.000Z', durationMinutes: 535, kind: 'night', quality: '睡得安稳', observations: ['夜醒'] } }
+  await state.service.create('account-1', { ...input, idempotencyKey: 'sleep_12345678', memberId: 'child-sleep', occurredAt: '2026-09-02T10:00:00.000Z', content: '夜间睡眠\n21:40–06:35 · 8小时55分钟', journal })
+  assert.equal(state.eventRows[0].memberId, 'child-sleep')
+  assert.equal(state.recordRows[0].occurredAt, journal.sleep.wakeAt)
+  assert.deepEqual(state.recordRows[0].journal, journal)
+})
+
 test('quick record collapses concurrent submissions with the same key', async () => {
   const state = setup()
   const [left, right] = await Promise.all([

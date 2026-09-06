@@ -8,7 +8,7 @@ import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 export { HealthEventRecordError } from './health-event-record-error.mjs'
 
 const recordTypes = new Set(['note', 'symptom', 'medication', 'visit', 'examination', 'other'])
-const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note'])
+const editableFields = new Set(['type', 'content', 'occurredAt', 'sourceType', 'sourceText', 'measurementMethod', 'measurementDevice', 'note', 'journal'])
 const immutableFields = new Set(['id', 'accountId', 'eventId', 'createdAt', 'updatedAt'])
 const sourceTypes = new Set(['user_record', 'voice_record', 'text_record', 'measurement', 'medical_file', 'doctor_confirmation', 'other'])
 const measurementMethods = new Set(['unspecified', 'oral', 'axillary', 'ear', 'forehead', 'other'])
@@ -158,6 +158,10 @@ export class HealthEventRecordService {
       if (key === 'measurementMethod') changes.measurementMethod = validateMeasurementMethod(input.measurementMethod)
       if (key === 'measurementDevice') changes.measurementDevice = validateOptionalText(input.measurementDevice, '测量设备', 200)
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
+      if (key === 'journal') {
+        changes.journal = validateJournal(input.journal)
+        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.wakeAt, now)
+      }
     }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')

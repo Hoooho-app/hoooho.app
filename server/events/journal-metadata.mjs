@@ -8,6 +8,9 @@ const foodForms = new Set(['puree', 'minced', 'small-pieces', 'finger-food'])
 const meals = new Set(['早餐', '午餐', '晚餐', '零食'])
 const appetites = new Set(['比平时少', '和平时差不多', '比平时多'])
 const supplementUnits = new Set(['滴', '毫升', '粒', '袋'])
+const sleepKinds = new Set(['night', 'nap'])
+const sleepQualities = new Set(['睡得安稳', '有些翻动', '频繁醒来'])
+const sleepObservations = new Set(['夜醒', '入睡困难', '咳嗽', '鼻塞', '抓挠', '呼吸不适', '其他'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -76,6 +79,27 @@ function validateDiet(value) {
   return result
 }
 
+function validateSleep(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !sleepKinds.has(value.kind)) throw new HealthEventRecordError('睡眠类型无效', 400, 'INVALID_JOURNAL_SLEEP')
+  const sleepAt = new Date(value.sleepAt)
+  const wakeAt = new Date(value.wakeAt)
+  if (!Number.isFinite(sleepAt.getTime()) || !Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
+  const durationMinutes = Math.round((wakeAt.getTime() - sleepAt.getTime()) / 60_000)
+  if (durationMinutes <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
+  if (value.quality !== undefined && !sleepQualities.has(value.quality)) throw new HealthEventRecordError('睡眠感受无效', 400, 'INVALID_JOURNAL_SLEEP')
+  const observations = cleanStrings(value.observations, '睡眠观察', 7)
+  if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')
+  const otherNote = value.otherNote === undefined ? undefined : validateSleepNote(value.otherNote)
+  if (otherNote && !observations?.includes('其他')) throw new HealthEventRecordError('睡眠补充说明必须选择其他', 400, 'INVALID_JOURNAL_SLEEP')
+  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
+}
+
+function validateSleepNote(value) {
+  if (typeof value !== 'string' || value.trim().length > 120) throw new HealthEventRecordError('睡眠补充说明无效', 400, 'INVALID_JOURNAL_SLEEP')
+  return value.trim()
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -92,8 +116,10 @@ export function validateJournal(value) {
     throw new HealthEventRecordError('记录分类无效', 400, 'INVALID_JOURNAL_CATEGORY')
   }
   const diet = validateDiet(value.diet)
+  const sleep = validateSleep(value.sleep)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}) }
+  if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(sleep ? { sleep } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
