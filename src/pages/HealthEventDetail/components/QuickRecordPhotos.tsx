@@ -22,9 +22,9 @@ export const QUICK_RECORD_PHOTO_LIMIT = 10
 export const remainingPhotoCapacity = (count: number, limit = QUICK_RECORD_PHOTO_LIMIT) => Math.max(0, limit - count)
 export const hasUnreadyPhotos = (photos: readonly QuickRecordPhotoItem[]) => photos.some((photo) => photo.status !== 'uploaded')
 
-const draftStorageKey = (memberId: string) => `hoooho-quick-record-photo-draft:${memberId}`
+const draftStorageKey = (memberId: string, namespace = 'default') => `hoooho-quick-record-photo-draft:${namespace}:${memberId}`
 
-export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT) {
+export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT, namespace = 'default') {
   const [photos, setPhotos] = useState<QuickRecordPhotoItem[]>([])
   const [notice, setNotice] = useState('')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -34,15 +34,15 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
 
   const ensureDraftId = () => {
     if (draftIdRef.current) return draftIdRef.current
-    const existing = memberId ? sessionStorage.getItem(draftStorageKey(memberId)) : ''
+    const existing = memberId ? sessionStorage.getItem(draftStorageKey(memberId, namespace)) : ''
     draftIdRef.current = existing || crypto.randomUUID().replaceAll('-', '')
-    if (memberId) sessionStorage.setItem(draftStorageKey(memberId), draftIdRef.current)
+    if (memberId) sessionStorage.setItem(draftStorageKey(memberId, namespace), draftIdRef.current)
     return draftIdRef.current
   }
 
   useEffect(() => {
     if (!memberId || !token) return
-    const stored = sessionStorage.getItem(draftStorageKey(memberId))
+    const stored = sessionStorage.getItem(draftStorageKey(memberId, namespace))
     if (!stored || photosRef.current.length) return
     draftIdRef.current = stored
     let active = true
@@ -55,7 +55,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
       else hydrated.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
     }).catch(() => { if (active) setNotice('照片草稿暂时无法恢复，请稍后重试') })
     return () => { active = false }
-  }, [memberId, token])
+  }, [memberId, namespace, token])
 
   useEffect(() => () => photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl)), [])
 
@@ -108,7 +108,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     setPhotos([])
     setPreviewIndex(null)
     setNotice('')
-    if (memberId) sessionStorage.removeItem(draftStorageKey(memberId))
+    if (memberId) sessionStorage.removeItem(draftStorageKey(memberId, namespace))
     draftIdRef.current = ''
   }
 
@@ -126,7 +126,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   return { photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
-export function QuickRecordPhotos({ model }: { model: ReturnType<typeof useQuickRecordPhotos> }) {
+export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lightboxRef = useRef<HTMLDivElement>(null)
   const { photos, notice, previewIndex } = model
@@ -141,7 +141,7 @@ export function QuickRecordPhotos({ model }: { model: ReturnType<typeof useQuick
   }, [model, selected])
   return <>
     <div className="quick-record-photos" data-empty={photos.length === 0}>
-      <div className="quick-record-photos__heading"><strong>上传照片</strong><span>{photos.length}/10</span></div>
+      <div className="quick-record-photos__heading"><strong>上传照片</strong><span>{photos.length}/{limit}</span></div>
       <div className="quick-record-photos__rail">
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
           <button aria-label={`查看照片 ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button"><img alt="" src={photo.previewUrl} /></button>
@@ -149,7 +149,7 @@ export function QuickRecordPhotos({ model }: { model: ReturnType<typeof useQuick
           {photo.status === 'failed' && <button aria-label={`重试上传 ${photo.name}`} className="quick-record-photo__status" onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={16} /></button>}
           <button aria-label={`删除照片 ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>
         </div>)}
-        {photos.length < QUICK_RECORD_PHOTO_LIMIT && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
+        {photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
       </div>
       <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}

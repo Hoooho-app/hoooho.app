@@ -1,0 +1,61 @@
+import { ArrowLeft, Camera, ChevronDown, ChevronRight, ImagePlus, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { HohoButton, HohoInput } from '../../components/design-system'
+import { BodyLocationPicker } from '../../components/health'
+import type { BodyLocationSelection } from '../../features/body-location'
+import type { JournalMetadata, JournalSymptomDetails, SymptomCategory, SymptomImpactLevel } from '../../types/journal'
+import { localDateTimeValue } from '../../utils/healthOccurredAt'
+import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { associatedOptions, descriptorsFor, generateSymptomSummary, symptomCategoryOptions, toggleExclusive, toSymptomLocations } from './symptomRecordLogic'
+
+type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
+interface Draft { category?: SymptomCategory; otherCategoryText?: string; locations: BodyLocationSelection[]; descriptors: string[]; impactLevel?: SymptomImpactLevel; onsetApprox?: JournalSymptomDetails['onsetApprox']; trend?: JournalSymptomDetails['trend']; associatedSymptoms: string[]; shortNote?: string; specific: Record<string, string | number | string[]>; occurredAt: string }
+const newDraft = (): Draft => ({ locations: [], descriptors: [], associatedSymptoms: [], specific: {}, occurredAt: localDateTimeValue() })
+const draftKey = (memberId: string) => `hoooho-symptom-record-draft:${memberId}`
+const impactOptions: Array<[SymptomImpactLevel, string, string]> = [['little', '不太影响', '照常活动'], ['some', '有些影响', '会抓、会停下来或明显不舒服'], ['clear', '明显影响', '影响吃饭、睡觉或活动']]
+const onsetOptions: Array<[NonNullable<Draft['onsetApprox']>, string]> = [['just_now', '刚刚'], ['today', '今天'], ['yesterday', '昨天'], ['two_three_days', '2—3天前'], ['within_week', '一周内'], ['earlier', '更早']]
+const trendOptions: Array<[NonNullable<Draft['trend']>, string]> = [['same', '差不多'], ['more_noticeable', '更明显了'], ['improving', '正在减轻'], ['returned', '消失后又出现'], ['recurrent', '反复出现'], ['unclear', '暂时看不出来']]
+
+function Choices({ options, values, onToggle, label, expanded = true }: { options: string[]; values: string[]; onToggle: (value: string) => void; label: string; expanded?: boolean }) {
+  const shown = expanded ? options : options.slice(0, 6)
+  return <div aria-label={label} className="symptom-choice-grid" role="group">{shown.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onToggle(option)} type="button">{option}</button>)}</div>
+}
+
+export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+  const [draft, setDraft] = useState<Draft>(() => { try { return { ...newDraft(), ...JSON.parse(sessionStorage.getItem(draftKey(memberId)) || '{}') } } catch { return newDraft() } })
+  const [moreDescriptors, setMoreDescriptors] = useState(false)
+  const [supplementOpen, setSupplementOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const cameraRef = useRef<HTMLInputElement>(null)
+  const albumRef = useRef<HTMLInputElement>(null)
+  const photos = useQuickRecordPhotos(memberId, token, 6, 'symptom')
+  useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
+  const update = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setError('') }
+  const categoryDescriptors = draft.category ? descriptorsFor(draft.category, draft.locations) : []
+  const validTime = Boolean(draft.occurredAt && Number.isFinite(Date.parse(draft.occurredAt)) && Date.parse(draft.occurredAt) <= Date.now())
+  const canSave = Boolean(draft.category && (draft.category !== 'other' || draft.otherCategoryText?.trim()) && draft.locations.length && validTime && !photos.blocked)
+  const save = async () => {
+    if (!canSave || saving || !draft.category) { setError('请选择主要症状、标记身体部位，并检查记录时间'); return }
+    setSaving(true); setError('')
+    try {
+      const details: JournalSymptomDetails = { symptomCategory: draft.category, locations: toSymptomLocations(draft.locations), descriptors: draft.descriptors, ...(draft.otherCategoryText?.trim() ? { otherCategoryText: draft.otherCategoryText.trim() } : {}), ...(draft.impactLevel ? { impactLevel: draft.impactLevel } : {}), ...(draft.onsetApprox ? { onsetApprox: draft.onsetApprox } : {}), ...(draft.trend ? { trend: draft.trend } : {}), ...(draft.associatedSymptoms.length ? { associatedSymptoms: draft.associatedSymptoms } : {}), ...(Object.keys(draft.specific).length ? { symptomSpecificData: draft.specific } : {}), ...(draft.shortNote?.trim() ? { shortNote: draft.shortNote.trim() } : {}) }
+      const summary = generateSymptomSummary(details, photos.photos.length)
+      details.generatedSummary = summary
+      const message = await onConfirm(summary, new Date(draft.occurredAt).toISOString(), 'text', photos.payload(), { categories: ['symptom'], symptom: details })
+      photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved(message); onClose()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
+  }
+  return <div className="symptom-record-page-layer"><section aria-label="记录症状" aria-modal="true" className="symptom-record-page" role="dialog">
+    <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录症状</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X size={21} /></button></header>
+    <div className="symptom-record-scroll"><p className="symptom-intro">先把最重要的情况记下来，其他内容都可以以后再补。</p>
+      <fieldset className="symptom-fieldset"><legend>主要怎么不舒服？</legend><div className="symptom-category-grid">{symptomCategoryOptions.map(([value, label]) => <button aria-pressed={draft.category === value} key={value} onClick={() => { setDraft((current) => ({ ...current, category: value, descriptors: [], associatedSymptoms: [], specific: {} })); setError('') }} type="button">{label}</button>)}</div>{draft.category === 'other' && <HohoInput label="其他不舒服" maxLength={80} onChange={(event) => update('otherCategoryText', event.target.value)} placeholder="简单写下或说出哪里不舒服" value={draft.otherCategoryText ?? ''} />}</fieldset>
+      <section className="symptom-location-section" data-has-location={draft.locations.length > 0}><BodyLocationPicker buttonLabel={draft.locations.length ? '点击修改' : '进入定位器'} confirmLabel="完成并返回症状记录" inputLike label="不舒服的位置" showEmptyState={false} value={draft.locations} onChange={(value) => update('locations', value)} /><div className="symptom-location-hint"><span>标记身体部位</span><small>{draft.locations.length ? `${draft.locations.map((item, index) => `${item.label} · ${index + 1}号区域`).join('，')} · 身体${draft.locations[0].locationType === 'surface' ? '表层' : '里面'}` : '进入身体定位器，圈出不舒服的位置'}</small><ChevronRight size={18} /></div></section>
+      {draft.category && categoryDescriptors.length > 0 && <fieldset className="symptom-fieldset"><legend>这里具体怎么了？<span>（可多选）</span></legend><Choices label="具体表现" options={categoryDescriptors} values={draft.descriptors} expanded={moreDescriptors} onToggle={(value) => update('descriptors', draft.descriptors.includes(value) ? draft.descriptors.filter((item) => item !== value) : [...draft.descriptors, value])} />{categoryDescriptors.length > 6 && <button className="symptom-more-button" onClick={() => setMoreDescriptors((value) => !value)} type="button">{moreDescriptors ? '收起' : '更多表现'}<ChevronDown data-open={moreDescriptors} size={16} /></button>}</fieldset>}
+      <fieldset className="symptom-fieldset"><legend>现在大概到什么程度？<span>（可选）</span></legend><div className="symptom-impact-grid">{impactOptions.map(([value, label, note]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button"><strong>{label}</strong><small>{note}</small></button>)}</div></fieldset>
+      <section className="symptom-photo-section"><div className="symptom-heading"><h2>拍下来更容易说明 <span>（选填）</span></h2><em>{photos.photos.length}/6</em></div><div className="symptom-photo-actions"><button onClick={() => cameraRef.current?.click()} type="button"><Camera size={19} />拍照</button><button onClick={() => albumRef.current?.click()} type="button"><ImagePlus size={19} />从相册选择</button></div><input ref={cameraRef} accept="image/*" capture="environment" hidden onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" /><input ref={albumRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />{photos.photos.length > 0 && <QuickRecordPhotos limit={6} model={photos} />}</section>
+      <section className="symptom-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen((value) => !value)} type="button"><span><strong>再补充一点</strong><small>出现多久、变化、伴随表现</small></span><em>选填</em><ChevronDown data-open={supplementOpen} size={18} /></button>{supplementOpen && <div className="symptom-supplement-body"><fieldset className="symptom-fieldset"><legend>大概什么时候开始</legend><Choices label="开始时间" options={onsetOptions.map(([, label]) => label)} values={draft.onsetApprox ? [onsetOptions.find(([value]) => value === draft.onsetApprox)![1]] : []} onToggle={(label) => { const value = onsetOptions.find(([, item]) => item === label)![0]; update('onsetApprox', draft.onsetApprox === value ? undefined : value) }} /></fieldset><fieldset className="symptom-fieldset"><legend>和刚出现时相比</legend><Choices label="变化" options={trendOptions.map(([, label]) => label)} values={draft.trend ? [trendOptions.find(([value]) => value === draft.trend)![1]] : []} onToggle={(label) => { const value = trendOptions.find(([, item]) => item === label)![0]; update('trend', draft.trend === value ? undefined : value) }} /></fieldset>{draft.category && <fieldset className="symptom-fieldset"><legend>伴随表现<span>（可多选）</span></legend><Choices label="伴随表现" options={associatedOptions[draft.category]} values={draft.associatedSymptoms} onToggle={(value) => update('associatedSymptoms', toggleExclusive(draft.associatedSymptoms, value))} /></fieldset>}<HohoInput label="还有一句想说明" maxLength={160} onChange={(event) => update('shortNote', event.target.value)} placeholder="简短补充，不需要写医学术语" value={draft.shortNote ?? ''} />{draft.category === 'fever' && <div className="symptom-specific"><HohoInput inputMode="decimal" label="当前体温（℃，选填）" onChange={(event) => update('specific', { ...draft.specific, currentTemperature: event.target.value })} value={String(draft.specific.currentTemperature ?? '')} /><HohoInput inputMode="decimal" label="最高体温（℃，选填）" onChange={(event) => update('specific', { ...draft.specific, maxTemperature: event.target.value })} value={String(draft.specific.maxTemperature ?? '')} /></div>}{draft.category === 'gastrointestinal' && <div className="symptom-specific"><HohoInput inputMode="numeric" label="今天大概几次（选填）" onChange={(event) => update('specific', { ...draft.specific, approximateCount: event.target.value })} value={String(draft.specific.approximateCount ?? '')} /><Choices label="大便大致性状" options={['稀水样', '蛋花汤样', '黏液样', '颜色异常', '暂时说不清']} values={Array.isArray(draft.specific.stoolAppearance) ? draft.specific.stoolAppearance : []} onToggle={(value) => update('specific', { ...draft.specific, stoolAppearance: [value] })} /></div>}</div>}</section>
+      <HohoInput label="记录时间" max={localDateTimeValue()} onChange={(event) => update('occurredAt', event.target.value)} type="datetime-local" value={draft.occurredAt} />{error && <p className="symptom-save-error" role="alert">{error}</p>}<div className="symptom-record-save"><HohoButton disabled={!canSave || saving} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
+    </div>
+  </section></div>
+}
