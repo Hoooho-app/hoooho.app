@@ -84,6 +84,26 @@
     margin-top: var(--hoho-space-6);
   }
 
+  .health-profile-overview { background: rgb(var(--hoho-color-surface)); }
+  .health-profile-open-list { display: grid; gap: var(--hoho-space-3); }
+  .health-profile-open-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 19px; align-items: center; gap: var(--hoho-space-3); width: 100%; border: 1px solid rgb(var(--hoho-color-primary-border) / 0.5); border-radius: var(--hoho-radius-card); padding: var(--hoho-space-4); background: rgb(var(--hoho-color-surface)); text-align: left; }
+  .health-profile-open-card--allergy { border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-primary-soft) / 0.18); }
+  .health-profile-open-card__icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .health-profile-open-card__status { white-space: nowrap; color: rgb(var(--hoho-color-primary)); font-size: 13px; font-weight: 650; }
+  .health-profile-open-card__summary { grid-column: 1 / -1; display: block; border-radius: var(--hoho-radius-control); padding: 10px 12px; background: rgb(var(--hoho-color-surface-subtle)); color: rgb(var(--hoho-color-text-primary)); font-size: 13px; line-height: 1.5; }
+  .health-profile-open-card__summary small { display: block; margin-bottom: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+  .health-profile-allergy-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid rgb(var(--hoho-color-primary-border) / 0.42); padding-block: 10px; }
+  .health-profile-allergy-stats > span { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; text-align: center; }
+  .health-profile-allergy-stats > span + span { border-left: 1px solid rgb(var(--hoho-color-primary-border) / 0.55); }
+  .health-profile-allergy-stats strong { display: block; margin-top: 3px; color: rgb(var(--hoho-color-primary)); font-size: 18px; }
+  .health-profile-locked-heading { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: var(--hoho-space-3); }
+  .health-profile-locked-heading > :last-child { flex: 0 0 auto; }
+  .health-profile-locked-list { margin-top: var(--hoho-space-3); overflow: hidden; border-block: 1px solid rgb(var(--hoho-color-border) / 0.8); }
+  .health-profile-locked-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 18px; min-height: 48px; align-items: center; gap: 8px; border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.7); color: rgb(var(--hoho-color-text-weak)); cursor: default; font-size: 14px; }
+  .health-profile-locked-row:last-child { border-bottom: 0; }
+  .health-profile-locked-row small { white-space: nowrap; font-size: 11px; }
+  @media (max-width: 360px) { .health-profile-locked-row small { display: none; } }
+
   .health-fact-home-card {
     overflow: hidden;
     border: 1px solid rgb(var(--hoho-color-primary-border) / 0.62);

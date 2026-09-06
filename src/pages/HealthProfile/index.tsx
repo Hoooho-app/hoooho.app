@@ -1,125 +1,57 @@
-import { Activity, AlertTriangle, Baby, CalendarDays, ChevronRight, FileHeart, HeartPulse, Moon, Pill, Search, Stethoscope, Syringe, UserRound, UsersRound, Utensils, type LucideIcon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { Activity, Baby, ChevronRight, Circle, ClipboardPlus, Ear, Heart, HeartPulse, Hospital, LockKeyhole, Pill, Scissors, ShieldPlus, Syringe, UsersRound, type LucideIcon } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Typography } from '../../components/design-system'
+import { RecordSubjectCard } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
-import { MemberIdentityCard } from '../../components/health'
-import { useCurrentMember } from '../../hooks/useCurrentMember'
-import { healthProfileSections, type HealthProfileSectionConfig } from '../../features/health-profile/config/healthProfileSections'
-import { healthProfilePriorities } from '../../features/health-profile/config/healthProfileTemplates'
-import { getHealthProfileType } from '../../features/health-profile/utils/getHealthProfileProfile'
 import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
-import { buildPersonalizedHealthDirectory, type HealthProfileViewStatus } from '../../features/health-profile/utils/healthProfileHomeLogic'
-import { hasBasicHealthProfileValues } from '../../features/health-profile/utils/healthProfileBasicInfo'
-import { useHealthProfileFacts } from '../../features/health-profile/hooks/useHealthProfileFacts'
+import { healthEventService } from '../../services/healthEvents'
+import { useAppStore } from '../../store/useAppStore'
+import type { HealthEventApiDto, Member } from '../../types'
+import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { buildAllergyOverview, buildBasicOverview } from './healthProfileOverview'
 
-const icons: Record<HealthProfileSectionConfig['icon'], LucideIcon> = {
-  activity: Activity, allergy: AlertTriangle, baby: Baby, calendar: CalendarDays, care: UserRound,
-  family: UsersRound, file: FileHeart, heart: HeartPulse, pill: Pill, sleep: Moon,
-  stethoscope: Stethoscope, syringe: Syringe, utensils: Utensils,
-}
-const statusLabels: Record<HealthProfileViewStatus, string> = { all: '全部', filled: '已填写', empty: '未填写' }
-const groupLabels: Partial<Record<HealthProfileSectionConfig['category'], string>> = {
-  lifestyle: '生活方式', 'long-term': '健康维护', child: '儿童与成长', female: '女性健康', elder: '老年健康', core: '其他健康档案'
-}
-const categoryOrder: HealthProfileSectionConfig['category'][] = ['lifestyle', 'long-term', 'child', 'female', 'elder', 'core']
+const lockedSections: Array<{ title: string; icon: LucideIcon }> = [
+  { title: '检查 / 体检报告', icon: ClipboardPlus }, { title: '心理与情绪健康', icon: Heart }, { title: '视力与听力', icon: Ear },
+  { title: '口腔与牙齿', icon: Circle }, { title: '疫苗接种史', icon: Syringe }, { title: '长期用药', icon: Pill },
+  { title: '慢性病史', icon: HeartPulse }, { title: '手术史', icon: Scissors }, { title: '住院 / 急诊史', icon: Hospital },
+  { title: '输血史', icon: Activity }, { title: '家族遗传史', icon: UsersRound },
+]
+const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
-function getSectionSummary(section: HealthProfileSectionConfig, records: Array<Record<string, unknown>> = []) {
-  if (!records.length) return section.description
-  const visible = section.fields.flatMap((field) => {
-    const value = records[0]?.[field.id]
-    if (value == null || value === '' || value === false) return []
-    return [`${field.label}：${String(value)}`]
-  }).slice(0, 2)
-  return visible.join(' · ') || `已记录 ${records.length} 项`
-}
-
-function ProfileSectionRows({ recordedIds, sections, summaries }: { recordedIds: ReadonlySet<string>; sections: HealthProfileSectionConfig[]; summaries: ReadonlyMap<string, string> }) {
-  const navigate = useNavigate()
-  return <div className="profile-directory-group">{sections.map((section) => {
-    const Icon = icons[section.icon]
-    return <button className="hoho-surface-row" key={section.id} onClick={() => navigate(`/health-profile/${section.id}`)} type="button">
-      <span className="profile-directory-icon"><Icon size={19} strokeWidth={1.75} /></span>
-      <span className="min-w-0 flex-1 text-left"><Typography className="font-medium text-text-primary" variant="body">{section.title}</Typography><Typography className="mt-0.5 block truncate" variant="caption">{summaries.get(section.id) ?? section.description}</Typography></span>
-      <span className="profile-directory-status" data-filled={recordedIds.has(section.id)}>{recordedIds.has(section.id) ? '已填写' : '待补充'}</span>
-      <ChevronRight className="shrink-0 text-text-secondary" size={18} />
-    </button>
-  })}</div>
+function exactCurrentMember(currentMemberId: string, members: Member[], profile: ReturnType<typeof useAppStore.getState>['profile']): Member {
+  const member = members.find((item) => item.id === currentMemberId)
+  if (member) return member
+  if (currentMemberId === 'self' && profile) return { id: 'self', name: profile.nickname, age: formatAgeFromBirthday(profile.birthday), relation: '本人', birthday: profile.birthday, gender: profile.gender, avatar: profile.avatar }
+  return { id: currentMemberId, name: '记录对象加载中', age: '', relation: '其他' }
 }
 
 export function HealthProfilePage() {
-  const member = useCurrentMember()
-  const navigate = useNavigate()
-  const longTermFacts = useHealthProfileFacts(member.id)
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<HealthProfileViewStatus>('all')
-  const profileType = getHealthProfileType(member.birthday, member.gender)
-  const hasBasicValues = hasBasicHealthProfileValues(member)
-  const stored = useMemo(() => getStoredHealthProfileSectionSnapshots(member.id), [member.id])
-  const recordsBySection = useMemo(() => new Map(stored.map(({ id, records }) => [id, records])), [stored])
-  const summaries = useMemo(() => new Map(healthProfileSections.map((section) => (
-    [section.id, getSectionSummary(section, recordsBySection.get(section.id))]
-  ))), [recordsBySection])
-  const recordedIds = useMemo(() => {
-    const ids = new Set(stored.map(({ id }) => id))
-    if (hasBasicValues) ids.add('basic')
-    return ids
-  }, [hasBasicValues, stored])
-  const directory = useMemo(() => buildPersonalizedHealthDirectory(
-    healthProfileSections,
-    profileType,
-    healthProfilePriorities[profileType],
-    recordedIds,
-    query,
-    status
-  ), [profileType, query, recordedIds, status])
-  const quickSections = useMemo(() => directory.priority.filter((section) => !recordedIds.has(section.id)).slice(0, 3), [directory.priority, recordedIds])
-  const directorySections = useMemo(() => {
-    const quickIds = new Set(quickSections.map(({ id }) => id))
-    return [...directory.priority.filter(({ id }) => !quickIds.has(id)), ...directory.remaining]
-  }, [directory.priority, directory.remaining, quickSections])
-  const grouped = useMemo(() => categoryOrder.flatMap((category) => {
-    const sections = directorySections.filter((section) => section.category === category)
-    return sections.length ? [{ category, sections }] : []
-  }), [directorySections])
-  const filtering = Boolean(query.trim()) || status !== 'all'
+  const navigate = useNavigate(), location = useLocation()
+  const token = useAppStore((state) => state.authToken)
+  const currentMemberId = useAppStore((state) => state.currentMemberId)
+  const members = useAppStore((state) => state.members)
+  const profile = useAppStore((state) => state.profile)
+  const member = exactCurrentMember(currentMemberId, members, profile)
+  const [allergyEvents, setAllergyEvents] = useState<HealthEventApiDto[]>([])
+  const stored = useMemo(() => getStoredHealthProfileSectionSnapshots(currentMemberId), [currentMemberId])
+  const records = useMemo(() => new Map(stored.map((item) => [item.id, item.records])), [stored])
+  const basic = useMemo(() => buildBasicOverview(member, records), [member, records])
+  const allergy = useMemo(() => buildAllergyOverview(records.get('allergy'), allergyEvents, currentMemberId), [allergyEvents, currentMemberId, records])
 
-  return <main className="app-shell">
-    <MainAppHeader title="健康档案" />
-    <div className="page-content pb-10">
-      <MemberIdentityCard member={member} />
+  useEffect(() => {
+    if (!token || currentMemberId === 'self') { setAllergyEvents([]); return }
+    const controller = new AbortController()
+    healthEventService.list(token, controller.signal).then((events) => setAllergyEvents(events.filter((event) => event.memberId === currentMemberId && event.category === 'allergy'))).catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setAllergyEvents([]) })
+    return () => controller.abort()
+  }, [currentMemberId, token])
 
-      <section className="health-profile-search grid grid-cols-[minmax(0,1fr)_104px] items-center gap-2" aria-label="搜索和查看状态">
-        <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} /><span className="sr-only">搜索健康档案</span><input className="hoho-input w-full pl-10" placeholder="搜索健康档案" type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <label className="min-w-0">
-          <span className="sr-only">查看状态</span>
-          <select
-            aria-label="查看状态"
-            className="hoho-select h-11 min-h-11 w-full px-3 text-sm"
-            value={status}
-            onChange={(event) => setStatus(event.target.value as HealthProfileViewStatus)}
-          >
-            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-      </section>
-
-      <section className="health-fact-home-card mt-5" aria-label="重要健康事实">
-        <button onClick={() => navigate('/health-profile/facts')} type="button">
-          <span className="health-fact-home-card__icon"><FileHeart size={21} /></span>
-          <span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">重要健康事实</Typography><Typography className="mt-1" variant="caption">记录影响长期健康的重要信息</Typography></span>
-          <span className="health-fact-home-card__count">{longTermFacts.status === 'success' ? `${longTermFacts.facts.filter((fact) => fact.status !== 'removed').length} 条` : '—'}</span>
-          <ChevronRight size={18} />
-        </button>
-        {longTermFacts.status === 'success' && longTermFacts.candidates.length > 0 && <button className="health-fact-home-card__inbox" onClick={() => navigate('/health-profile/facts')} type="button"><span>发现 {longTermFacts.candidates.length} 条可长期保留的信息</span><span>需要你确认</span></button>}
-        {longTermFacts.status === 'success' && longTermFacts.facts.length === 0 && longTermFacts.candidates.length === 0 && <Typography className="health-fact-home-card__empty" variant="caption">暂无重要健康事实；健康随记中的重要信息确认后会显示在这里</Typography>}
-      </section>
-
-      {directory.visible.length === 0 ? <section className="py-16 text-center"><Typography variant="sectionTitle">没有找到对应档案</Typography><Typography className="mt-2" variant="caption">可以更换搜索词或查看状态</Typography></section> : <>
-        {quickSections.length > 0 && <section className="mt-5 grid gap-3" aria-label="建议优先补充"><Typography variant="sectionTitle">建议优先补充</Typography><ProfileSectionRows recordedIds={recordedIds} sections={quickSections} summaries={summaries} /></section>}
-        {grouped.map(({ category, sections }) => <section className="mt-6 grid gap-3" key={category}><Typography variant="sectionTitle">{groupLabels[category]}</Typography><ProfileSectionRows recordedIds={recordedIds} sections={sections} summaries={summaries} /></section>)}
-        {filtering && directory.remaining.length === 0 && directory.priority.length > 0 && <Typography className="mt-4 text-center" variant="caption">已显示全部匹配项目</Typography>}
-      </>}
-    </div>
-  </main>
+  return <main className="app-shell health-profile-overview"><MainAppHeader title="健康档案" /><div className="page-content pb-10">
+    <RecordSubjectCard action={<ChevronRight aria-hidden="true" className="text-text-secondary" size={19} />} age={member.birthday ? formatAgeFromBirthday(member.birthday) : member.age} avatar={member.avatar} gender={genderLabels[member.gender ?? '']} label="当前记录对象" name={member.name} onClick={() => navigate('/family', { state: { familyEntry: { returnTo: `${location.pathname}${location.search}${location.hash}`, reopenDrawer: false } } })} />
+    <section className="health-profile-open-list mt-5" aria-label="开放健康档案">
+      <button className="health-profile-open-card" onClick={() => navigate('/health-profile/basic')} type="button"><span className="health-profile-open-card__icon"><Baby aria-hidden="true" size={22} /></span><span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">基础信息</Typography><Typography className="mt-1" variant="caption">出生情况、身高、体重、头围与成长变化</Typography></span><span className="health-profile-open-card__status">{basic.filled ? '已填写' : '未填写'}</span><ChevronRight aria-hidden="true" size={19} />{basic.summary && <span className="health-profile-open-card__summary">{basic.summary}</span>}</button>
+      <button className="health-profile-open-card health-profile-open-card--allergy" onClick={() => navigate('/health-profile/allergy')} type="button"><span className="health-profile-open-card__icon"><ShieldPlus aria-hidden="true" size={22} /></span><span className="min-w-0 flex-1 text-left"><Typography variant="cardTitle">过敏与反应记录</Typography><Typography className="mt-1" variant="caption">食物、环境、动物、药物及其他相关线索</Typography></span><span className="health-profile-open-card__status">{allergy.total ? `共${allergy.total}项` : allergy.latest ? '已有记录' : '未填写'}</span><ChevronRight aria-hidden="true" size={19} />{allergy.total > 0 && <span className="health-profile-allergy-stats"><span>正在排查<strong>{allergy.investigating}</strong></span><span>家长怀疑<strong>{allergy.suspected}</strong></span><span>医生已确认<strong>{allergy.doctorConfirmed}</strong></span></span>}{allergy.latest && <span className="health-profile-open-card__summary"><small>最近一次反应</small>{allergy.latest}</span>}</button>
+    </section>
+    <section className="mt-7" aria-labelledby="more-health-profile-title"><header className="health-profile-locked-heading"><Typography id="more-health-profile-title" variant="sectionTitle">更多健康档案</Typography><Typography variant="caption">会员功能 · 暂未开放</Typography></header><div className="health-profile-locked-list" aria-label="暂未开放的会员健康档案">{lockedSections.map(({ title, icon: Icon }) => <div aria-disabled="true" className="health-profile-locked-row" key={title}><Icon aria-hidden="true" size={19} strokeWidth={1.7} /><span>{title}</span><small>暂未开放</small><LockKeyhole aria-hidden="true" size={16} /></div>)}</div></section>
+  </div></main>
 }
