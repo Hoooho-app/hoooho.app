@@ -41,6 +41,23 @@ export interface JournalSleepDetails {
   otherNote?: string
 }
 
+export type OutdoorActivityKind = 'stroller_outing' | 'walking' | 'free_play' | 'running_jumping' | 'cycling_balance_bike' | 'ball_play' | 'climbing' | 'other'
+export type OutdoorActivityPlace = 'neighborhood' | 'park' | 'grassland' | 'playground' | 'school_kindergarten' | 'mall_indoor_venue' | 'other'
+export type OutdoorActivityContact = 'plants_pollen' | 'animals' | 'sand_soil' | 'dust' | 'cold_air' | 'smoke_odor' | 'water' | 'none_observed'
+export type OutdoorActivityObservation = 'cough' | 'wheeze_breathing_discomfort' | 'runny_nose_sneeze' | 'red_eyes_eye_rubbing' | 'red_itchy_skin' | 'scratching' | 'fall_injury' | 'none_observed'
+
+export interface JournalOutdoorActivityDetails {
+  activities: OutdoorActivityKind[]
+  activityOtherText?: string
+  durationRange?: 'under_15' | '15_30' | '30_60' | 'over_60'
+  durationMinutes?: number
+  places: OutdoorActivityPlace[]
+  placeOtherText?: string
+  contacts: OutdoorActivityContact[]
+  activityState?: 'good' | 'tired' | 'very_tired' | 'stopped'
+  observations: OutdoorActivityObservation[]
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -49,4 +66,5 @@ export interface JournalMetadata {
   diet?: JournalDietDetails
   bowel?: JournalBowelDetails
   sleep?: JournalSleepDetails
+  outdoorActivity?: JournalOutdoorActivityDetails
 }

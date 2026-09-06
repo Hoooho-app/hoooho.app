@@ -124,6 +124,17 @@ test('quick record persists structured sleep for only the selected member and so
   assert.deepEqual(state.recordRows[0].journal, journal)
 })
 
+test('quick record persists outdoor activity facts and rejects conflicting none-observed values', async () => {
+  const state = setup()
+  const journal = { categories: ['activity'], outdoorActivity: { activities: ['stroller_outing', 'walking'], durationMinutes: 45, places: ['park'], contacts: ['cold_air'], activityState: 'good', observations: ['cough'] } }
+  await state.service.create('account-1', { ...input, idempotencyKey: 'outdoor_12345678', memberId: 'child-outdoor', content: '户外活动\n公园 · 推车外出、散步 · 45分钟', journal })
+  assert.equal(state.eventRows[0].memberId, 'child-outdoor')
+  assert.deepEqual(state.recordRows[0].journal, journal)
+  await assert.rejects(() => setup().service.create('account-1', { ...input, idempotencyKey: 'outdoor_invalid_1', journal: { categories: ['activity'], outdoorActivity: { activities: [], places: [], contacts: ['none_observed', 'dust'], observations: [] } } }), /环境接触选项互斥/)
+  await assert.rejects(() => setup().service.create('account-1', { ...input, idempotencyKey: 'outdoor_invalid_2', journal: { categories: ['activity'], outdoorActivity: { activities: [], places: [], contacts: [], observations: ['none_observed', 'cough'] } } }), /身体观察选项互斥/)
+  await assert.rejects(() => setup().service.create('account-1', { ...input, idempotencyKey: 'outdoor_invalid_3', journal: { categories: ['activity'], outdoorActivity: { activities: [], durationRange: '30_60', durationMinutes: 45, places: [], contacts: [], observations: [] } } }), /活动时长只能选择一种填写方式/)
+})
+
 test('quick record collapses concurrent submissions with the same key', async () => {
   const state = setup()
   const [left, right] = await Promise.all([

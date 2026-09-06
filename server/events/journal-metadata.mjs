@@ -18,6 +18,12 @@ const bowelObservations = new Set(['黏液', '泡沫', '奶瓣或食物残渣', 
 const sleepKinds = new Set(['night', 'nap'])
 const sleepQualities = new Set(['睡得安稳', '有些翻动', '频繁醒来'])
 const sleepObservations = new Set(['夜醒', '入睡困难', '咳嗽', '鼻塞', '抓挠', '呼吸不适', '其他'])
+const outdoorActivities = new Set(['stroller_outing', 'walking', 'free_play', 'running_jumping', 'cycling_balance_bike', 'ball_play', 'climbing', 'other'])
+const outdoorDurationRanges = new Set(['under_15', '15_30', '30_60', 'over_60'])
+const outdoorPlaces = new Set(['neighborhood', 'park', 'grassland', 'playground', 'school_kindergarten', 'mall_indoor_venue', 'other'])
+const outdoorContacts = new Set(['plants_pollen', 'animals', 'sand_soil', 'dust', 'cold_air', 'smoke_odor', 'water', 'none_observed'])
+const outdoorStates = new Set(['good', 'tired', 'very_tired', 'stopped'])
+const outdoorObservations = new Set(['cough', 'wheeze_breathing_discomfort', 'runny_nose_sneeze', 'red_eyes_eye_rubbing', 'red_itchy_skin', 'scratching', 'fall_injury', 'none_observed'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -124,6 +130,33 @@ function validateSleepNote(value) {
   return value.trim()
 }
 
+function optionalShortText(value, field) {
+  if (value === undefined || value === '') return undefined
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > 80) throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  return value.trim()
+}
+
+function validateOutdoorActivity(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object') throw new HealthEventRecordError('户外活动记录无效', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  const activities = cleanStrings(value.activities, '活动类型', 8) ?? []
+  const places = cleanStrings(value.places, '活动地点', 7) ?? []
+  const contacts = cleanStrings(value.contacts, '环境接触', 8) ?? []
+  const observations = cleanStrings(value.observations, '身体观察', 8) ?? []
+  if (activities.some((item) => !outdoorActivities.has(item)) || places.some((item) => !outdoorPlaces.has(item)) || contacts.some((item) => !outdoorContacts.has(item)) || observations.some((item) => !outdoorObservations.has(item))) throw new HealthEventRecordError('户外活动选项无效', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (contacts.includes('none_observed') && contacts.length > 1) throw new HealthEventRecordError('环境接触选项互斥', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (observations.includes('none_observed') && observations.length > 1) throw new HealthEventRecordError('身体观察选项互斥', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (value.durationRange !== undefined && !outdoorDurationRanges.has(value.durationRange)) throw new HealthEventRecordError('活动时长范围无效', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (value.durationMinutes !== undefined && (!Number.isInteger(value.durationMinutes) || value.durationMinutes <= 0 || value.durationMinutes > 1440)) throw new HealthEventRecordError('具体活动时长无效', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (value.durationRange !== undefined && value.durationMinutes !== undefined) throw new HealthEventRecordError('活动时长只能选择一种填写方式', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (value.activityState !== undefined && !outdoorStates.has(value.activityState)) throw new HealthEventRecordError('活动状态无效', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  const activityOtherText = optionalShortText(value.activityOtherText, '其他活动名称')
+  const placeOtherText = optionalShortText(value.placeOtherText, '其他地点名称')
+  if (activityOtherText && !activities.includes('other')) throw new HealthEventRecordError('其他活动名称必须选择其他', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  if (placeOtherText && !places.includes('other')) throw new HealthEventRecordError('其他地点名称必须选择其他', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  return { activities, places, contacts, observations, ...(activityOtherText ? { activityOtherText } : {}), ...(placeOtherText ? { placeOtherText } : {}), ...(value.durationRange ? { durationRange: value.durationRange } : {}), ...(value.durationMinutes ? { durationMinutes: value.durationMinutes } : {}), ...(value.activityState ? { activityState: value.activityState } : {}) }
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -142,10 +175,12 @@ export function validateJournal(value) {
   const diet = validateDiet(value.diet)
   const bowel = validateBowel(value.bowel)
   const sleep = validateSleep(value.sleep)
+  const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}) }
+  if (outdoorActivity && !value.categories.includes('activity')) throw new HealthEventRecordError('户外活动详情必须归入活动分类', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
