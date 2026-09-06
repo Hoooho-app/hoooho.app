@@ -272,6 +272,10 @@
     .hoho-drawer.hoho-drawer { padding-top: max(var(--hoho-space-3), env(safe-area-inset-top)); padding-bottom: max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
     .hoho-drawer__close { width: 36px; height: 36px; }
     .hoho-drawer__member { margin-top: 0; }
+    .hoho-drawer .hoho-drawer__member-summary { min-height: 48px; }
+    .hoho-drawer > nav { margin-top: var(--hoho-space-2); }
+    .hoho-drawer > nav > :not([hidden]) ~ :not([hidden]) { margin-top: var(--hoho-space-2); }
+    .hoho-drawer .hoho-drawer__account { margin-top: var(--hoho-space-2); }
     .hoho-drawer__item { height: 44px; }
   }
   .hoho-drawer__close:hover { background: rgb(var(--hoho-color-primary-soft)); }

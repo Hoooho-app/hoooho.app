@@ -24,14 +24,14 @@ export const sidebarMenuGroups = [
     title: '健康管理',
     items: [
     { label: '前台护士站', icon: House, to: '/nurse-station' },
-    { label: '健康随记', icon: BookOpen, to: '/health-events' },
-    { label: '健康档案', icon: Folder, to: '/health-profile' }
+    { label: '健康随身记', icon: BookOpen, to: '/health-events' },
+    { label: '健康档案夹', icon: Folder, to: '/health-profile' }
     ]
   },
   {
     title: '工具与帮助',
     items: [
-    { label: '使用说明', icon: BookOpen, to: '/guide' },
+    { label: '说明', icon: BookOpen, to: '/guide' },
     { label: '设置', icon: Settings, to: '/settings' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
     { label: '反馈', icon: MessageCircle, to: '/feedback' },
