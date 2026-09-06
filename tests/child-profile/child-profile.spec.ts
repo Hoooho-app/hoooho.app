@@ -207,6 +207,95 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
   }
 })
 
+test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在健康档案', async ({ page, request }, testInfo) => {
+  test.skip(!['iphone-se', 'mobile-390', 'wechat-webview', 'safari-iphone', 'desktop-1280'].includes(testInfo.project.name), '覆盖固定 iPhone SE、390px、微信、iOS WebKit 与桌面对照')
+  const account = 'profile-navigation-' + testInfo.project.name
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const createdResponse = await request.post('/api/members', {
+    headers: { Authorization: 'Bearer ' + authToken },
+    data: { name: '导航测试宝宝', relationship: 'child', gender: 'female', birthday: '2024-09-07', avatar: 'girl-age1-east-asian' }
+  })
+  expect(createdResponse.status()).toBe(201)
+  const created = await createdResponse.json()
+  await prepareAccount(page, authToken, account)
+  await page.addInitScript(() => {
+    const browserWindow = window as typeof window & { __healthProfileNavigations?: number }
+    browserWindow.__healthProfileNavigations = 0
+    const originalPushState = history.pushState.bind(history)
+    history.pushState = ((...args: Parameters<History['pushState']>) => {
+      const destination = String(args[2] ?? '')
+      if (destination.endsWith('/health-profile')) browserWindow.__healthProfileNavigations = (browserWindow.__healthProfileNavigations ?? 0) + 1
+      return originalPushState(...args)
+    }) as History['pushState']
+  })
+
+  let routeAttempt = 0
+  const openHealthProfileFromDrawer = async () => {
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
+    if (testInfo.project.name === 'iphone-se' && routeAttempt === 0) await page.screenshot({ path: testInfo.outputPath('health-profile-navigation-drawer.png') })
+    await drawer.getByRole('button', { name: '健康档案夹' }).click()
+    routeAttempt += 1
+    await expect(drawer).toBeHidden()
+    await expect(page).toHaveURL(/\/health-profile$/)
+    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '健康随身记' })).toHaveCount(0)
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案夹' })).toHaveAttribute('aria-current', 'page')
+    await page.getByRole('button', { name: '关闭菜单' }).click()
+  }
+
+  try {
+    await page.goto('/health-events')
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      await openHealthProfileFromDrawer()
+      await page.getByRole('button', { name: '打开菜单' }).click()
+      await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康随身记' }).click()
+      await expect(page).toHaveURL(/\/health-events$/)
+    }
+    expect(await page.evaluate(() => (window as typeof window & { __healthProfileNavigations?: number }).__healthProfileNavigations)).toBe(3)
+
+    await page.goto('/health-profile')
+    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await page.reload()
+    await expect(page).toHaveURL(/\/health-profile$/)
+    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await page.goBack()
+    await expect(page).toHaveURL(/\/health-events$/)
+    await page.goForward()
+    await expect(page).toHaveURL(/\/health-profile$/)
+    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('health-profile-mobile-navigation.png') })
+  } finally {
+    await request.delete('/api/members/' + created.id, { headers: { Authorization: 'Bearer ' + authToken } })
+  }
+})
+
+test('游客模式已有孩子但尚无健康记录时也能进入健康档案', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-se', '游客模式在固定 iPhone SE 验证一次')
+  await page.goto('/login')
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await expect(page).toHaveURL(/\/nurse-station$/)
+  await page.evaluate(async () => {
+    const session = await (await fetch('/api/auth/session')).json()
+    const response = await fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ name: '游客宝宝', relationship: 'child', gender: 'male', birthday: '2025-09-07', avatar: 'boy-age1-east-asian' })
+    })
+    if (!response.ok) throw new Error(`member setup failed: ${response.status}`)
+  })
+  await page.reload()
+  await expect(page.getByText('游客宝宝', { exact: true }).first()).toBeVisible()
+  const tutorialClose = page.getByRole('button', { name: '关闭教程' })
+  await expect(tutorialClose).toBeVisible()
+  await tutorialClose.click()
+  await page.getByRole('button', { name: '打开菜单' }).click()
+  await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案夹' }).click()
+  await expect(page).toHaveURL(/\/health-profile$/)
+  await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+})
+
 test('我的家人支持左滑删除并在确认后更新列表', async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-se', '左滑手势只需在固定 iPhone SE 执行一次')
   const account = 'family-swipe-delete'
