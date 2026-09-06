@@ -279,8 +279,31 @@
     border-bottom: 1px solid rgb(var(--hoho-color-border) / 0.76);
     padding: 0 var(--hoho-space-2) var(--hoho-space-2);
   }
-  .hoho-drawer__switch { border-radius: var(--hoho-radius-small); }
-  .hoho-drawer__switch:hover { background: rgb(var(--hoho-color-primary-soft)); }
+  .hoho-drawer__member-summary {
+    display: flex;
+    min-height: 52px;
+    align-items: center;
+    gap: var(--hoho-space-3);
+  }
+  .hoho-drawer__member-actions {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    align-items: center;
+    margin-top: 2px;
+  }
+  .hoho-drawer__member-actions > button {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--hoho-space-2);
+    border-radius: var(--hoho-radius-small);
+    color: rgb(var(--hoho-color-text-primary));
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .hoho-drawer__member-actions > button:hover { background: rgb(var(--hoho-color-primary-soft)); }
+  .hoho-drawer__member-actions > span { height: 24px; background: rgb(var(--hoho-color-border)); }
   .hoho-drawer__menu { display: grid; gap: 2px; }
   .hoho-drawer__item {
     display: flex;

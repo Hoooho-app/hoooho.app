@@ -18,6 +18,7 @@ const projectNames = [
   'desktop-1280'
 ]
 accountIds.push(...projectNames.map((project) => `blank-child-${project}`))
+accountIds.push(...['iphone-se', 'mobile-390', 'mobile-430'].map((project) => `drawer-member-${project}`))
 await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ users: accountIds.map((id) => ({
   id, email: `${id}@hoooho.test`, createdAt: now, updatedAt: now
 })) }, null, 2))

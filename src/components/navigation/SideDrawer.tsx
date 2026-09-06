@@ -1,5 +1,5 @@
 import {
-  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X
+  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Pencil, Settings, UserRound, UsersRound, X
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -102,17 +102,27 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
             <>
-              <button className="flex w-full items-center gap-3 text-left" type="button" aria-label={`编辑${member.name}的资料`} onClick={() => { onClose(); navigate(`/family/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
+              <div className="hoho-drawer__member-summary">
                 <Avatar name={member.name} src={member.avatar} size="md" />
                 <span className="min-w-0 flex-1">
-                  <strong className="block truncate text-base font-semibold text-heading">{member.name}</strong>
-                  <span className="mt-1 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <strong className="truncate text-base font-semibold text-heading">{member.name}</strong>
+                    <span className="shrink-0 text-xs text-text-secondary">当前记录对象</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
                 </span>
-                <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
-              </button>
-              <button className="hoho-drawer__switch mt-1 inline-flex min-h-10 items-center px-1 text-sm font-medium text-primary" type="button" onClick={() => openPage('/family')}>
-                切换人物
-              </button>
+              </div>
+              <div className="hoho-drawer__member-actions" aria-label="当前记录对象操作">
+                <button type="button" onClick={() => openPage('/family')}>
+                  <UsersRound size={21} strokeWidth={1.7} />
+                  <span>切换人物</span>
+                </button>
+                <span aria-hidden="true" />
+                <button type="button" onClick={() => { onClose(); navigate(`/family/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
+                  <Pencil size={20} strokeWidth={1.7} />
+                  <span>编辑资料</span>
+                </button>
+              </div>
             </>
           ) : (
             <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => openPage('/family/new')}>

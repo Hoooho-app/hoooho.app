@@ -80,8 +80,10 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
+    await expect(page.getByText('当前记录对象', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '切换人物' })).toBeVisible()
     const startedAt = Date.now()
-    await page.getByRole('button', { name: '编辑加载测试宝宝的资料' }).click()
+    await page.getByRole('button', { name: '编辑资料' }).click()
     await expect(page.locator('input[maxlength="50"]')).toHaveValue('加载测试宝宝', { timeout: 800 })
     expect(Date.now() - startedAt).toBeLessThan(1_000)
     await expect(page.getByLabel('你是孩子的谁？')).toHaveValue('mother')
@@ -92,6 +94,38 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
     await request.delete('/api/members/' + created.id, {
       headers: { Authorization: 'Bearer ' + authToken }
     })
+  }
+})
+
+test('侧边栏当前记录对象使用双操作栏且在移动视口完整可见', async ({ page, request }, testInfo) => {
+  test.skip(!['iphone-se', 'mobile-390', 'mobile-430'].includes(testInfo.project.name), '只验证要求的三档移动视口')
+  const account = 'drawer-member-' + testInfo.project.name
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const createdResponse = await request.post('/api/members', {
+    headers: { Authorization: 'Bearer ' + authToken },
+    data: { name: '刘景宜', relationship: 'child', gender: 'female', birthday: '2024-12-04', avatar: 'girl-age1-east-asian' }
+  })
+  expect(createdResponse.status()).toBe(201)
+  const created = await createdResponse.json()
+  await prepareAccount(page, authToken, account)
+
+  try {
+    await page.goto('/health-events')
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
+    await expect(drawer.getByText('刘景宜', { exact: true })).toBeVisible()
+    await expect(drawer.getByText('当前记录对象', { exact: true })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '切换人物' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '编辑资料' })).toBeVisible()
+    const accountButton = drawer.getByRole('button', { name: /已同步/ })
+    const accountBox = await accountButton.boundingBox()
+    expect(accountBox && accountBox.y + accountBox.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
+    await page.screenshot({ path: testInfo.outputPath('current-member-drawer.png') })
+    await drawer.getByRole('button', { name: '编辑资料' }).click()
+    await expect(page).toHaveURL(new RegExp(`/family/${created.id}/edit$`))
+  } finally {
+    await request.delete('/api/members/' + created.id, { headers: { Authorization: 'Bearer ' + authToken } })
   }
 })
 
@@ -452,7 +486,8 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     await page.getByRole('button', { name: '切换', exact: true }).click()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.getByRole('button', { name: '打开菜单' }).click()
-    await page.getByRole('button', { name: '编辑凌晨宝宝的资料' }).click()
+    await expect(page.getByText('当前记录对象', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '编辑资料' }).click()
     await expect(page).toHaveURL(new RegExp(`/family/${memberId}/edit$`))
     await expect(page.getByRole('heading', { name: '编辑孩子资料' })).toBeVisible()
     await expect(page.getByText('该页面仅用于编辑孩子资料')).toHaveCount(0)
