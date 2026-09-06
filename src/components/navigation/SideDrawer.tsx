@@ -1,6 +1,4 @@
-import {
-  BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Pencil, Settings, UserRound, UsersRound, X
-} from 'lucide-react'
+import { BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -13,6 +11,7 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
+import { CurrentChildSheet } from './CurrentChildSheet'
 
 interface SideDrawerProps {
   open: boolean
@@ -53,6 +52,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [childSheetOpen, setChildSheetOpen] = useState(false)
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
 
@@ -102,32 +102,20 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
 
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
-            <>
-              <div className="hoho-drawer__member-summary">
-                <Avatar name={member.name} src={member.avatar} size="md" />
-                <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <strong className="truncate text-base font-semibold text-heading">{member.name}</strong>
-                    <span className="shrink-0 text-xs text-text-secondary">当前记录对象</span>
-                  </span>
-                  <span className="mt-0.5 block truncate text-sm text-text-secondary">{genderLabel[member.gender ?? '']} · {member.age}</span>
+            <button className="hoho-drawer__member-trigger" type="button" aria-label="打开我的孩子" onClick={() => setChildSheetOpen(true)}>
+              <Avatar name={member.name} src={member.avatar} size="md" />
+              <span className="hoho-drawer__member-identity">
+                <span className="hoho-drawer__member-name-line">
+                  <strong className="text-base font-semibold text-heading">{member.name}</strong>
+                  <span className="current-child-label">当前记录对象</span>
                 </span>
-              </div>
-              <div className="hoho-drawer__member-actions" aria-label="当前记录对象操作">
-                <button type="button" onClick={() => openPage('/family')}>
-                  <UsersRound size={21} strokeWidth={1.7} />
-                  <span>切换人物</span>
-                </button>
-                <span aria-hidden="true" />
-                <button type="button" onClick={() => { onClose(); navigate(`/family/${encodeURIComponent(member.id)}/edit`, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } }) }}>
-                  <Pencil size={20} strokeWidth={1.7} />
-                  <span>编辑资料</span>
-                </button>
-              </div>
-            </>
+                <span className="hoho-drawer__member-meta">{genderLabel[member.gender ?? '']} · {member.age}</span>
+              </span>
+              <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
+            </button>
           ) : (
-            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => openPage('/family/new')}>
-              <span><strong className="block text-base font-semibold text-heading">尚未添加家人</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
+            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => setChildSheetOpen(true)}>
+              <span><strong className="block text-base font-semibold text-heading">尚未添加孩子</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
               <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
             </button>
           )}
@@ -165,6 +153,15 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
         </button>
       </aside>
+      <CurrentChildSheet
+        onClose={() => setChildSheetOpen(false)}
+        onNavigate={(to) => {
+          setChildSheetOpen(false)
+          onClose()
+          navigate(to, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } })
+        }}
+        open={childSheetOpen}
+      />
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
   )
