@@ -1,4 +1,4 @@
-import { Apple, Baby, CookingPot, Utensils } from 'lucide-react'
+import { Apple, Baby, CookingPot, Pill, Utensils } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { BottomSheetSurface, HohoButton, Typography } from '../../components/design-system'
 import type { DietRecordKind, JournalMetadata } from '../../types/journal'
@@ -31,7 +31,8 @@ export function JournalRecorder({ mode, memberId, token, onClose, onConfirm, onS
     { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', icon: Baby },
     { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒 / 手指食物', icon: CookingPot },
     { kind: 'meal', title: '正餐', description: '早餐 / 午餐 / 晚餐', icon: Utensils },
-    { kind: 'snack', title: '零食', description: '点心 / 水果 / 饮品', icon: Apple }
+    { kind: 'snack', title: '零食', description: '点心 / 水果 / 饮品', icon: Apple },
+    { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', icon: Pill }
   ]
   const isDietTypes = screen === 'diet-types'
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : ''}`} open label={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录内容' : '分类提醒板'} title={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记下新情况'} onClose={() => { if (!saving) onClose() }}

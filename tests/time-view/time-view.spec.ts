@@ -129,7 +129,8 @@ test('feeding and diet type sheet is complete, non-scrollable and returns with s
     { button: /^喂养/, heading: '记录喂养' },
     { button: /^辅食/, heading: '记录辅食' },
     { button: /^正餐/, heading: '记录正餐' },
-    { button: /^零食/, heading: '记录零食' }
+    { button: /^零食/, heading: '记录零食' },
+    { button: /^补剂/, heading: '记录补剂' }
   ]
   for (const choice of choices) {
     const button = dialog.getByRole('button', { name: choice.button })
@@ -142,7 +143,7 @@ test('feeding and diet type sheet is complete, non-scrollable and returns with s
   }
 })
 
-test('four diet record kinds save through the real API and show only the concise success message', async ({ page }) => {
+test('five diet record kinds save through the real API and show only the concise success message', async ({ page }) => {
   await prepare(page)
 
   await openDietTypes(page)
@@ -185,6 +186,14 @@ test('four diet record kinds save through the real API and show only the concise
   await page.getByRole('group', { name: '吃了多少' }).getByRole('button', { name: '少量' }).click()
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
   await expect(page.locator('.journal-record').filter({ hasText: '零食' })).toBeVisible()
+
+  await openDietTypes(page)
+  await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^补剂/ }).click()
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await page.getByRole('button', { name: '维生素D', exact: true }).click()
+  await page.getByLabel('用量').fill('1')
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '维生素D · 1滴' })).toBeVisible()
   await expect(page.getByText(/保存成功|已经成功|已为/)).toHaveCount(0)
 })
 

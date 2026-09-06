@@ -2,11 +2,12 @@ import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
-const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack'])
+const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack', 'supplement'])
 const feedingMethods = new Set(['breast', 'formula', 'expressed', 'mixed'])
 const foodForms = new Set(['puree', 'minced', 'small-pieces', 'finger-food'])
 const meals = new Set(['早餐', '午餐', '晚餐', '零食'])
 const appetites = new Set(['比平时少', '和平时差不多', '比平时多'])
+const supplementUnits = new Set(['滴', '毫升', '粒', '袋'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -38,6 +39,7 @@ function validateDiet(value) {
   const firstTryFoods = cleanStrings(value.firstTryFoods, '首次尝试食物')
   const reactions = cleanStrings(value.reactions, '进食后观察', 8)
   const feedingStatuses = cleanStrings(value.feedingStatuses, '进食状态', 8)
+  const supplementNames = cleanStrings(value.supplementNames, '补剂名称')
   if (foods !== undefined) result.foods = foods
   if (firstTryFoods !== undefined) {
     if (firstTryFoods.some((food) => !foods?.includes(food))) throw new HealthEventRecordError('首次尝试食物必须来自本次食物', 400, 'INVALID_JOURNAL_DIET')
@@ -45,6 +47,7 @@ function validateDiet(value) {
   }
   if (reactions !== undefined) result.reactions = reactions
   if (feedingStatuses !== undefined) result.feedingStatuses = feedingStatuses
+  if (supplementNames !== undefined) result.supplementNames = supplementNames
   if (value.foodForm !== undefined) {
     if (!foodForms.has(value.foodForm)) throw new HealthEventRecordError('食物形态无效', 400, 'INVALID_JOURNAL_DIET')
     result.foodForm = value.foodForm
@@ -57,11 +60,18 @@ function validateDiet(value) {
     if (!appetites.has(value.appetite)) throw new HealthEventRecordError('食欲记录无效', 400, 'INVALID_JOURNAL_DIET')
     result.appetite = value.appetite
   }
-  for (const key of ['amount', 'voiceTranscript']) {
+  if (value.supplementUnit !== undefined) {
+    if (!supplementUnits.has(value.supplementUnit)) throw new HealthEventRecordError('补剂单位无效', 400, 'INVALID_JOURNAL_DIET')
+    result.supplementUnit = value.supplementUnit
+  }
+  for (const key of ['amount', 'voiceTranscript', 'supplementAmount']) {
     if (value[key] !== undefined) {
       if (typeof value[key] !== 'string' || !value[key].trim() || value[key].trim().length > 1000) throw new HealthEventRecordError('饮食记录内容无效', 400, 'INVALID_JOURNAL_DIET')
       result[key] = value[key].trim()
     }
+  }
+  if (value.kind === 'supplement' && (!supplementNames?.length || !Number.isFinite(Number(result.supplementAmount)) || Number(result.supplementAmount) <= 0 || !result.supplementUnit)) {
+    throw new HealthEventRecordError('补剂名称、用量和单位不能为空', 400, 'INVALID_JOURNAL_DIET')
   }
   return result
 }

@@ -12,7 +12,7 @@ type InputChannel = 'voice' | 'text'
 type SaveRecord = (content: string, occurredAt: string, channel: InputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 
 const kindTitles: Record<DietRecordKind, string> = {
-  feeding: '记录喂养', complementary: '记录辅食', meal: '记录正餐', snack: '记录零食'
+  feeding: '记录喂养', complementary: '记录辅食', meal: '记录正餐', snack: '记录零食', supplement: '记录补剂'
 }
 
 const feedingMethods = [
@@ -26,6 +26,8 @@ const mealAmounts = ['没吃', '少量', '一半', '大部分', '吃完']
 const appetiteOptions = ['比平时少', '和平时差不多', '比平时多'] as const
 const commonComplementary = ['鸡蛋黄', '南瓜泥', '大米粥']
 const commonMeals = ['番茄牛肉', '米饭', '西兰花']
+const commonSupplements = ['维生素D', '铁剂', '钙剂', 'DHA']
+const supplementUnits = ['滴', '毫升', '粒', '袋'] as const
 
 function localDateTimeValue(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000
@@ -50,7 +52,7 @@ function MultiChoiceGroup({ label, options, values, onChange, hint }: { label: s
   return <fieldset className="diet-fieldset"><legend>{label}</legend>{hint && <p className="diet-field-hint">{hint}</p>}<div className="diet-choice-row">{options.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div></fieldset>
 }
 
-function FoodEditor({ foods, onFoodsChange, common, voice }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; voice?: ReturnType<typeof useDietVoice> }) {
+function FoodEditor({ foods, onFoodsChange, common, voice, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; voice?: ReturnType<typeof useDietVoice>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
   const [draft, setDraft] = useState('')
   const add = (raw: string) => {
     const value = raw.trim()
@@ -62,10 +64,10 @@ function FoodEditor({ foods, onFoodsChange, common, voice }: { foods: string[]; 
     if (voice?.transcript) setDraft(voice.transcript)
   }, [voice?.transcript])
   return <section className="diet-form-section" aria-labelledby="diet-foods-heading">
-    <h2 id="diet-foods-heading">吃了什么</h2>
-    <div className="diet-food-input"><input aria-label="输入食物名称" maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder="输入食物或菜品" value={draft} /><HohoButton aria-label="添加食物" disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton></div>
-    {foods.length > 0 && <div className="diet-food-chips" aria-label="已添加食物">{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true">×</span></button>)}</div>}
-    <div className="diet-common-foods"><span>常吃</span>{common.map((food) => <button disabled={foods.includes(food)} key={food} onClick={() => add(food)} type="button">{food}</button>)}</div>
+    <h2 id="diet-foods-heading">{heading}</h2>
+    <div className="diet-food-input"><input aria-label={inputLabel} maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder={placeholder} value={draft} /><HohoButton aria-label={addLabel} disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton></div>
+    {foods.length > 0 && <div className="diet-food-chips" aria-label={itemsLabel}>{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true">×</span></button>)}</div>}
+    <div className="diet-common-foods"><span>{commonLabel}</span>{common.map((food) => <button disabled={foods.includes(food)} key={food} onClick={() => add(food)} type="button">{food}</button>)}</div>
     {voice && <><HohoButton className="diet-voice-button" disabled={voice.state === 'requesting' || voice.state === 'processing'} variant="secondary" onClick={voice.state === 'listening' ? voice.stop : voice.start}><Mic size={18} />{voice.label}</HohoButton>{voice.message && <p aria-live="polite" className="diet-inline-message">{voice.message}</p>}</>}
   </section>
 }
@@ -143,6 +145,26 @@ function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormPr
 }
 
 interface CommonFormProps { occurredAt: string; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean }
+
+function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormProps) {
+  const [names, setNames] = useState<string[]>([])
+  const [amount, setAmount] = useState('')
+  const [unit, setUnit] = useState<JournalDietDetails['supplementUnit']>('滴')
+  const valid = names.length > 0 && Boolean(amount.trim()) && Number(amount) > 0
+  const save = () => {
+    const normalizedAmount = amount.trim()
+    onSave(`补剂\n${names.join('、')} · ${normalizedAmount}${unit}`, {
+      kind: 'supplement', supplementNames: names, supplementAmount: normalizedAmount, supplementUnit: unit
+    })
+  }
+  return <>
+    <FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" />
+    <HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} />
+    <ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} />
+    <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
+    <SaveBar disabled={!valid} onClick={save} saving={saving} />
+  </>
+}
 
 function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photoModel }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; photoModel: ReturnType<typeof useQuickRecordPhotos> }) {
   const voice = useDietVoice()
@@ -235,6 +257,6 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
   const common = { occurredAt, setOccurredAt, onSave: save, saving }
   return <div className="diet-record-page-layer"><section aria-label={kindTitles[kind]} aria-modal="true" className="diet-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回喂养/饮食类型选择" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>{kindTitles[kind]}</h1><span aria-hidden="true" /></header>
-    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : <FoodRecordForm {...common} kind={kind} photoModel={photoModel} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
+    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} kind={kind} photoModel={photoModel} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
   </section></div>
 }
