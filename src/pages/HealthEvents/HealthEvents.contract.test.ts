@@ -57,7 +57,7 @@ test('快速记录留在前台核对并只在确认保存时调用原子接口',
   assert.doesNotMatch(nurse, /onPreview=/)
 })
 
-test('喂养饮食使用四类确认页、独立记录页和结构化真实保存', () => {
+test('喂养饮食使用五类确认页、独立记录页和结构化真实保存', () => {
   assert.match(journalRecorder, /记录喂养\/饮食/)
   assert.match(journalRecorder, /母乳 \/ 配方奶/)
   assert.match(journalRecorder, /泥糊 \/ 颗粒 \/ 手指食物/)
@@ -68,6 +68,7 @@ test('喂养饮食使用四类确认页、独立记录页和结构化真实保�
   assert.match(dietFlow, /记录辅食/)
   assert.match(dietFlow, /记录正餐/)
   assert.match(dietFlow, /记录零食/)
+  assert.match(dietFlow, /记录补剂/)
   assert.match(dietFlow, /firstTryFoods/)
   assert.match(dietFlow, /useQuickRecordPhotos/)
   assert.match(dietFlow, /getSpeechRecognitionConstructor/)

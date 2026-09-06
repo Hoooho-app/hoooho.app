@@ -1,6 +1,6 @@
 export type JournalCategory = 'diet' | 'sleep' | 'elimination' | 'activity' | 'emotion' | 'social' | 'symptom' | 'measurement' | 'growth' | 'injury' | 'medication' | 'care' | 'vaccination' | 'environment' | 'visit' | 'examination' | 'other'
 
-export type DietRecordKind = 'feeding' | 'complementary' | 'meal' | 'snack'
+export type DietRecordKind = 'feeding' | 'complementary' | 'meal' | 'snack' | 'supplement'
 
 export interface JournalDietDetails {
   kind: DietRecordKind
@@ -16,6 +16,9 @@ export interface JournalDietDetails {
   appetite?: '比平时少' | '和平时差不多' | '比平时多'
   feedingStatuses?: string[]
   voiceTranscript?: string
+  supplementNames?: string[]
+  supplementAmount?: string
+  supplementUnit?: '滴' | '毫升' | '粒' | '袋'
 }
 
 export interface JournalMetadata {

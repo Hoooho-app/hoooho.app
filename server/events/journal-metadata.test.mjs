@@ -75,6 +75,11 @@ test('structured feeding and diet details remain optional and preserve specific 
   assert.deepEqual(validateJournal({ categories: ['diet'], diet: { kind: 'feeding', feedingMethod: 'mixed', breastSeconds: { left: 60, right: 120, total: 180 }, bottleMl: 90 } }).diet, {
     kind: 'feeding', feedingMethod: 'mixed', breastSeconds: { left: 60, right: 120, total: 180 }, bottleMl: 90
   })
+  assert.deepEqual(validateJournal({ categories: ['diet'], diet: { kind: 'supplement', supplementNames: ['维生素D'], supplementAmount: '1', supplementUnit: '滴' } }).diet, {
+    kind: 'supplement', supplementNames: ['维生素D'], supplementAmount: '1', supplementUnit: '滴'
+  })
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'supplement', supplementNames: ['维生素D'], supplementAmount: '1', supplementUnit: '勺' } }), /补剂单位无效/)
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'supplement', supplementNames: [], supplementAmount: '1', supplementUnit: '滴' } }), /不能为空/)
   assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'complementary', foods: ['南瓜泥'], firstTryFoods: ['鸡蛋黄'] } }), /首次尝试食物/)
   assert.throws(() => validateJournal({ categories: ['sleep'], diet: { kind: 'snack', foods: ['苹果'] } }), /必须归入喂养\/饮食分类/)
 })
