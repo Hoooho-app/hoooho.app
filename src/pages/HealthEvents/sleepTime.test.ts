@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { clockMinutesFromPoint, defaultSleepType, durationMinutes, formatSleepDuration, sleepRangeFromClocks, snapClockMinutes } from './sleepTime.ts'
+import { clockMinutesFromPoint, defaultSleepType, durationMinutes, formatSleepDuration, sleepRangeFromClocks, sleepTimelineSummary, snapClockMinutes } from './sleepTime.ts'
 
 test('ring maps cardinal points to a 24 hour clock and snaps to five minutes', () => {
   assert.equal(clockMinutesFromPoint(100, 0, 100, 100), 0)
@@ -22,6 +22,8 @@ test('duration labels and daytime default remain neutral', () => {
   assert.equal(formatSleepDuration(45), '45分钟')
   assert.equal(formatSleepDuration(480), '8小时')
   assert.equal(formatSleepDuration(535), '8小时55分钟')
+  assert.equal(sleepTimelineSummary('night', 480), '夜间睡眠 · 8小时')
+  assert.equal(sleepTimelineSummary('nap', 230), '白天小睡 · 3小时50分钟')
   const daytime = sleepRangeFromClocks(new Date(2026, 8, 6), new Date(2026, 8, 6), 13 * 60 + 26, 14 * 60 + 48)
   assert.equal(durationMinutes(daytime.start, daytime.end), 82)
   assert.equal(defaultSleepType(daytime.start, daytime.end), 'nap')

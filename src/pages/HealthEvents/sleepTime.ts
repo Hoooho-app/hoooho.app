@@ -54,6 +54,10 @@ export function formatClock(value: Date | string) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+export function sleepTimelineSummary(kind: 'night' | 'nap', minutes: number) {
+  return `${kind === 'night' ? '夜间睡眠' : '白天小睡'} · ${formatSleepDuration(minutes)}`
+}
+
 export function defaultSleepType(start: Date, end: Date): 'night' | 'nap' {
   const minutes = durationMinutes(start, end)
   const startClock = clockMinutes(start)
