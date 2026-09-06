@@ -45,7 +45,8 @@ function validateInput(input) {
   const photoIds = Array.isArray(input.photoIds) ? input.photoIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()) : []
   const photoDraftId = typeof input.photoDraftId === 'string' ? input.photoDraftId.trim() : ''
   if (photoIds.length && !photoDraftId) throw new HealthEventError('照片草稿标识不能为空', 400, 'PHOTO_DRAFT_REQUIRED')
-  return { idempotencyKey, content, memberId, title, occurredAt: input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal: validateJournal(input.journal) }
+  const journal = validateJournal(input.journal)
+  return { idempotencyKey, content, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal }
 }
 
 export class QuickRecordService {

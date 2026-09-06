@@ -230,7 +230,7 @@ export interface CreateHealthEventRecordInput {
 }
 
 export type UpdateHealthEventRecordInput = Partial<Pick<HealthEventRecordApiDto,
-  'type' | 'content' | 'occurredAt' | 'sourceType' | 'sourceText' | 'measurementMethod' | 'measurementDevice' | 'note'
+  'type' | 'content' | 'occurredAt' | 'sourceType' | 'sourceText' | 'measurementMethod' | 'measurementDevice' | 'note' | 'journal'
 >>
 
 export type OnlineConsultationStatus = 'preparing' | 'waiting' | 'doctor_questions' | 'completed'

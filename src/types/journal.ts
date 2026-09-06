@@ -21,10 +21,21 @@ export interface JournalDietDetails {
   supplementUnit?: '滴' | '毫升' | '粒' | '袋'
 }
 
+export interface JournalSleepDetails {
+  sleepAt: string
+  wakeAt: string
+  durationMinutes: number
+  kind: 'night' | 'nap'
+  quality?: '睡得安稳' | '有些翻动' | '频繁醒来'
+  observations?: string[]
+  otherNote?: string
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
   timeLabel?: string
   occurredAt?: string
   diet?: JournalDietDetails
+  sleep?: JournalSleepDetails
 }

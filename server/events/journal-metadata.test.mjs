@@ -83,3 +83,14 @@ test('structured feeding and diet details remain optional and preserve specific 
   assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'complementary', foods: ['南瓜泥'], firstTryFoods: ['鸡蛋黄'] } }), /首次尝试食物/)
   assert.throws(() => validateJournal({ categories: ['sleep'], diet: { kind: 'snack', foods: ['苹果'] } }), /必须归入喂养\/饮食分类/)
 })
+
+test('structured sleep recomputes duration from timestamps and preserves optional observations', () => {
+  const result = validateJournal({ categories: ['sleep'], sleep: {
+    sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', durationMinutes: 1,
+    kind: 'night', quality: '睡得安稳', observations: ['夜醒', '其他', '夜醒'], otherNote: '凌晨喝了一次奶'
+  } })
+  assert.equal(result.sleep.durationMinutes, 535)
+  assert.deepEqual(result.sleep.observations, ['夜醒', '其他'])
+  assert.throws(() => validateJournal({ categories: ['sleep'], sleep: { sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-05T21:40:00+08:00', kind: 'night' } }), /睡眠时长/)
+  assert.throws(() => validateJournal({ categories: ['diet'], sleep: { sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', kind: 'night' } }), /必须归入睡眠分类/)
+})
