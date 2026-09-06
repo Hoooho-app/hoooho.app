@@ -7,7 +7,11 @@ import { useAppStore } from '../../store/useAppStore'
 
 type GateState = 'loading' | 'allowed' | 'first-use' | 'error'
 
-export function RequireEstablishedHealthData() {
+interface RequireEstablishedHealthDataProps {
+  requireHealthRecord?: boolean
+}
+
+export function RequireEstablishedHealthData({ requireHealthRecord = true }: RequireEstablishedHealthDataProps) {
   const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
@@ -19,7 +23,9 @@ export function RequireEstablishedHealthData() {
     setState('loading')
     try {
       const entryState = await accountEntryStateService.get(token, signal)
-      setState(entryState.familyMemberCount > 0 && entryState.hasValidHealthRecord ? 'allowed' : 'first-use')
+      const hasRequiredData = entryState.familyMemberCount > 0
+        && (!requireHealthRecord || entryState.hasValidHealthRecord)
+      setState(hasRequiredData ? 'allowed' : 'first-use')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (error instanceof ApiRequestError && error.status === 401) {
@@ -28,7 +34,7 @@ export function RequireEstablishedHealthData() {
       }
       setState('error')
     }
-  }, [allowFirstRecord, clearAuthSession, token])
+  }, [allowFirstRecord, clearAuthSession, requireHealthRecord, token])
 
   useEffect(() => {
     const controller = new AbortController()
