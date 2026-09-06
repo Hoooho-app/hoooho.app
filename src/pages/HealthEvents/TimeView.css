@@ -13,9 +13,6 @@
 .journal-record-time { width: 48px; flex: none; font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); font-variant-numeric: tabular-nums; }
 .journal-record-content { display: flex; align-items: center; gap: var(--hoho-space-1); flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
 .journal-record-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--hoho-font-size-body); line-height: var(--hoho-line-height-body); }
-.journal-record-summary:has(> small) { display: grid; gap: 1px; }
-.journal-record-summary > strong { overflow: hidden; text-overflow: ellipsis; font-size: var(--hoho-font-size-label); }
-.journal-record-summary > small { overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
 .journal-record-tags { display: flex; flex: none; align-items: center; gap: var(--hoho-space-1); max-width: 46%; overflow: hidden; white-space: nowrap; }
 .journal-attachment { display: inline-flex; align-items: center; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
 .journal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-2); min-height: var(--hoho-touch-target); }
