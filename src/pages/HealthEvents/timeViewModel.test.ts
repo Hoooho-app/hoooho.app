@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { flattenJournal, journalDayGroups, journalTime, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
+import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalTime, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
 const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
@@ -31,4 +31,12 @@ test('member and account scope is enforced and legacy event-only data is retaine
 test('calendar navigation crosses months and leap days without adding 24-hour instants', () => {
   assert.equal(shiftJournalDate('2026-01-01', -1), '2025-12-31')
   assert.equal(shiftJournalDate('2024-03-01', -1), '2024-02-29')
+})
+test('bowel occurrence number is scoped to the selected local day and ordered by occurred time', () => {
+  const first = { ...entry('first', '2026-09-05T08:00:00'), categories: ['elimination'] as const }
+  const second = { ...entry('second', '2026-09-05T16:00:00'), categories: ['elimination'] as const }
+  const unrelated = { ...entry('diet', '2026-09-05T12:00:00'), categories: ['diet'] as const }
+  assert.equal(bowelOccurrenceNumber([second, unrelated, first], first), 1)
+  assert.equal(bowelOccurrenceNumber([second, unrelated, first], second), 2)
+  assert.equal(bowelOccurrenceNumber([second, unrelated, first], unrelated), null)
 })

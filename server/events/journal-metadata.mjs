@@ -8,6 +8,13 @@ const foodForms = new Set(['puree', 'minced', 'small-pieces', 'finger-food'])
 const meals = new Set(['早餐', '午餐', '晚餐', '零食'])
 const appetites = new Set(['比平时少', '和平时差不多', '比平时多'])
 const supplementUnits = new Set(['滴', '毫升', '粒', '袋'])
+const bowelShapes = new Set(['硬小颗粒', '细小颗粒', '成团偏硬', '光滑条状', '松散软块', '糊状', '水样', '无法判断'])
+const bowelColors = new Set(['灰白', '黄色', '黄褐', '棕色', '深棕', '绿色', '近黑', '红色', '无法判断'])
+const bowelAmounts = new Set(['很少', '较少', '一般', '较多', '很多'])
+const bowelDurations = new Set(['1–2分钟', '2–5分钟', '5–10分钟', '超过10分钟'])
+const bowelProcesses = new Set(['顺利', '有些费力', '明显费力', '像是还没排完'])
+const bowelBlood = new Set(['none-seen', 'possibly-seen'])
+const bowelObservations = new Set(['黏液', '泡沫', '奶瓣或食物残渣', '腹胀', '肚子痛（孩子能表达时）', '排便时哭闹或明显不适', '没有特别发现'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -76,6 +83,23 @@ function validateDiet(value) {
   return result
 }
 
+function validateBowel(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object') throw new HealthEventRecordError('排便记录无效', 400, 'INVALID_JOURNAL_BOWEL')
+  const shapes = cleanStrings(value.shapes, '排便形状', 8) ?? []
+  const observations = cleanStrings(value.observations, '其他观察', 7) ?? []
+  if (shapes.some((item) => !bowelShapes.has(item)) || observations.some((item) => !bowelObservations.has(item))) throw new HealthEventRecordError('排便观察选项无效', 400, 'INVALID_JOURNAL_BOWEL')
+  if (observations.includes('没有特别发现') && observations.length > 1) throw new HealthEventRecordError('排便观察选项互斥', 400, 'INVALID_JOURNAL_BOWEL')
+  const result = { shapes, observations }
+  for (const [key, allowed] of [['color', bowelColors], ['amount', bowelAmounts], ['durationRange', bowelDurations], ['process', bowelProcesses], ['bloodObservation', bowelBlood]]) {
+    if (value[key] !== undefined) {
+      if (!allowed.has(value[key])) throw new HealthEventRecordError('排便记录选项无效', 400, 'INVALID_JOURNAL_BOWEL')
+      result[key] = value[key]
+    }
+  }
+  return result
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -92,8 +116,10 @@ export function validateJournal(value) {
     throw new HealthEventRecordError('记录分类无效', 400, 'INVALID_JOURNAL_CATEGORY')
   }
   const diet = validateDiet(value.diet)
+  const bowel = validateBowel(value.bowel)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}) }
+  if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

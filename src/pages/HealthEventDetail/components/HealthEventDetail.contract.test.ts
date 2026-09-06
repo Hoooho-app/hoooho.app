@@ -75,12 +75,12 @@ test('微信说一句使用文字降级并复用现有预览和保存管线', ()
   assert.match(pageSource, /onPreview=\{previewQuickRecord\}/)
 })
 
-test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺序', () => {
+test('首次记录使用紧凑表单、顶部保存并在具体内容后确认记录时间', () => {
   assert.match(pageSource, /title=\{hasRecords \? '症状跟踪' : '记录情况'\}/)
   assert.match(headerSource, /aria-label="保存记录情况"/)
   assert.equal(firstRecordSource.includes('<h2'), false)
   assert.equal(firstRecordSource.includes('保存，自动整理'), false)
-  assert.match(firstRecordSource, />开始时间</)
+  assert.match(firstRecordSource, />记录时间</)
   assert.match(firstRecordSource, />描述症状</)
   assert.match(firstRecordSource, /症状部位（选填）/)
   assert.match(firstRecordSource, /buttonLabel="身体部位定位器"/)
@@ -91,6 +91,7 @@ test('首次记录使用紧凑表单、顶部保存和症状优先的字段顺�
   assert.match(firstRecordSource, /检查报告、处方、药品或身体部位照片/)
   assert.match(firstRecordSource, /placeholder="请描述发生了什么…"/)
   assert.ok(firstRecordSource.indexOf('描述症状') < firstRecordSource.indexOf('症状部位（选填）'))
+  assert.ok(firstRecordSource.indexOf('附件补充（选填）') < firstRecordSource.indexOf('>记录时间<'))
   assert.match(polishStylesSource, /body-location-picker-row--input/)
 })
 

@@ -21,10 +21,21 @@ export interface JournalDietDetails {
   supplementUnit?: '滴' | '毫升' | '粒' | '袋'
 }
 
+export interface JournalBowelDetails {
+  shapes: string[]
+  color?: string
+  amount?: string
+  durationRange?: string
+  process?: string
+  bloodObservation?: 'none-seen' | 'possibly-seen'
+  observations: string[]
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
   timeLabel?: string
   occurredAt?: string
   diet?: JournalDietDetails
+  bowel?: JournalBowelDetails
 }
