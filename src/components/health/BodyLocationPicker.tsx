@@ -16,6 +16,7 @@ import { AtlasSelectionCount, BodyLocationAtlas } from './body-location/BodyLoca
 
 export interface BodyLocationPickerProps {
   buttonLabel?: string
+  confirmLabel?: string
   compact?: boolean
   inputLike?: boolean
   label?: string
@@ -45,7 +46,7 @@ const iconForRegion = (region: BodyLocationRegion) => {
 
 function SelectionChips({ values, onRemove, compact = false, showEmptyState = true }: { values: BodyLocationSelection[]; onRemove: (id: string) => void; compact?: boolean; showEmptyState?: boolean }) {
   if (!values.length) return showEmptyState ? <span className="text-xs text-text-weak">尚未选择</span> : null
-  return <div className={compact ? 'body-location-selection-strip' : 'flex flex-wrap gap-2'}>{values.map((item) => <span className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-pill border border-primary/30 bg-primary-soft pl-3 pr-1 text-xs font-medium text-primary" key={item.id}>{item.label}<button aria-label={`移除${item.label}`} className="grid h-11 w-11 place-items-center rounded-full" onClick={() => onRemove(item.id)} type="button"><X size={13} /></button></span>)}</div>
+  return <div className={compact ? 'body-location-selection-strip' : 'flex flex-wrap gap-2'}>{values.map((item) => <span className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-pill border border-primary/30 bg-primary-soft pl-3 pr-1 text-xs font-medium text-primary" key={item.id}>{item.label}<button aria-label={`移除${item.label}`} className="grid h-11 w-11 place-items-center rounded-full" onClick={(event) => { event.stopPropagation(); onRemove(item.id) }} type="button"><X size={13} /></button></span>)}</div>
 }
 
 function SegmentControl({ label, value, options, onChange }: { label: string; value: string; options: readonly { id: string; label: string }[]; onChange: (value: string) => void }) {
@@ -60,7 +61,7 @@ function OptionGrid({ options, selectedIds, onToggle }: { options: readonly Body
   })}</div>
 }
 
-export function BodyLocationPicker({ buttonLabel, compact = false, inputLike = false, label = '身体部位（可多选）', member, showEmptyState = true, value, onChange }: BodyLocationPickerProps) {
+export function BodyLocationPicker({ buttonLabel, confirmLabel = '确认', compact = false, inputLike = false, label = '身体部位（可多选）', member, showEmptyState = true, value, onChange }: BodyLocationPickerProps) {
   const [open, setOpen] = useState(false)
   const [activeRegionId, setActiveRegionId] = useState('')
   const [activeView, setActiveView] = useState<BodyLocationView>('front')
@@ -87,13 +88,13 @@ export function BodyLocationPicker({ buttonLabel, compact = false, inputLike = f
   const activeRegionSelectionCount = activeRegion ? draft.filter((item) => item.parentId === activeRegion.id).length : 0
 
   return <fieldset className="min-w-0"><legend className="hoho-text-label mb-2">{label}</legend>
-    <div className={`body-location-picker-row flex min-w-0 items-center gap-3 ${compact ? 'flex-nowrap' : 'flex-wrap'} ${inputLike ? 'body-location-picker-row--input' : ''}`}>
+    <div className={`body-location-picker-row flex min-w-0 items-center gap-3 ${compact ? 'flex-nowrap' : 'flex-wrap'} ${inputLike ? 'body-location-picker-row--input' : ''}`} onClick={inputLike ? beginEditing : undefined} onKeyDown={inputLike ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); beginEditing() } } : undefined} role={inputLike ? 'button' : undefined} tabIndex={inputLike ? 0 : undefined}>
       <span className="min-w-0 flex-1 overflow-hidden"><SelectionChips compact={compact} onRemove={removeCommitted} showEmptyState={showEmptyState} values={value} /></span>
       <button className="body-location-picker-action inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-2 text-sm font-medium text-primary" onClick={beginEditing} type="button">{buttonLabel ?? (value.length ? '修改位置' : '选择位置')}</button>
     </div>
     <BottomSheetSurface
       className="body-location-sheet"
-      footer={<div className="body-location-footer"><div aria-live="polite" className="grid min-w-0 gap-1"><span className="text-xs font-medium text-text-secondary">{draft.length ? `已选择 ${draft.length} 个位置` : '尚未选择位置'}</span>{draft.length > 0 && <SelectionChips compact onRemove={(id) => setDraft((current) => current.filter((item) => item.id !== id))} values={draft} />}</div><HohoButton onClick={confirm} type="button"><Check size={17} />确认</HohoButton></div>}
+      footer={<div className="body-location-footer"><div aria-live="polite" className="grid min-w-0 gap-1"><span className="text-xs font-medium text-text-secondary">{draft.length ? `已选择 ${draft.length} 个位置` : '尚未选择位置'}</span>{draft.length > 0 && <SelectionChips compact onRemove={(id) => setDraft((current) => current.filter((item) => item.id !== id))} values={draft} />}</div><HohoButton onClick={confirm} type="button"><Check size={17} />{confirmLabel}</HohoButton></div>}
       label="身体部位定位器"
       leading={activeRegion ? <button aria-label="返回身体部位列表" className="hoho-bottom-sheet__back" onClick={() => setActiveRegionId('')} type="button"><ArrowLeft size={20} /></button> : undefined}
       onClose={close}

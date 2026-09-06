@@ -24,6 +24,10 @@ const outdoorPlaces = new Set(['neighborhood', 'park', 'grassland', 'playground'
 const outdoorContacts = new Set(['plants_pollen', 'animals', 'sand_soil', 'dust', 'cold_air', 'smoke_odor', 'water', 'none_observed'])
 const outdoorStates = new Set(['good', 'tired', 'very_tired', 'stopped'])
 const outdoorObservations = new Set(['cough', 'wheeze_breathing_discomfort', 'runny_nose_sneeze', 'red_eyes_eye_rubbing', 'red_itchy_skin', 'scratching', 'fall_injury', 'none_observed'])
+const symptomCategories = new Set(['skin', 'fever', 'respiratory', 'ent', 'gastrointestinal', 'pain', 'other'])
+const symptomImpacts = new Set(['little', 'some', 'clear'])
+const symptomOnsets = new Set(['just_now', 'today', 'yesterday', 'two_three_days', 'within_week', 'earlier'])
+const symptomTrends = new Set(['same', 'more_noticeable', 'improving', 'returned', 'recurrent', 'unclear'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -157,6 +161,39 @@ function validateOutdoorActivity(value) {
   return { activities, places, contacts, observations, ...(activityOtherText ? { activityOtherText } : {}), ...(placeOtherText ? { placeOtherText } : {}), ...(value.durationRange ? { durationRange: value.durationRange } : {}), ...(value.durationMinutes ? { durationMinutes: value.durationMinutes } : {}), ...(value.activityState ? { activityState: value.activityState } : {}) }
 }
 
+function validateSymptom(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !symptomCategories.has(value.symptomCategory)) throw new HealthEventRecordError('症状分类无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (!Array.isArray(value.locations) || value.locations.length < 1 || value.locations.length > 20) throw new HealthEventRecordError('请至少标记一个身体部位', 400, 'INVALID_JOURNAL_SYMPTOM')
+  const locations = value.locations.map((item, index) => {
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || typeof item.label !== 'string' || !item.label.trim() || item.locationNumber !== index + 1 || !['surface', 'organ'].includes(item.locationLayer)) throw new HealthEventRecordError('症状位置无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+    const result = { id: item.id.trim(), label: item.label.trim(), locationNumber: item.locationNumber, locationLayer: item.locationLayer, localRegion: typeof item.localRegion === 'string' && item.localRegion.trim() ? item.localRegion.trim() : item.label.trim() }
+    for (const key of ['bodySide', 'bodyView', 'bodyRegion', 'markedArea']) if (typeof item[key] === 'string' && item[key].trim()) result[key] = item[key].trim()
+    return result
+  })
+  const descriptors = cleanStrings(value.descriptors, '症状表现', 20) ?? []
+  const associatedSymptoms = cleanStrings(value.associatedSymptoms, '伴随表现', 12)
+  if (associatedSymptoms?.includes('没有特别发现') && associatedSymptoms.length > 1) throw new HealthEventRecordError('伴随表现选项互斥', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (value.impactLevel !== undefined && !symptomImpacts.has(value.impactLevel)) throw new HealthEventRecordError('影响程度无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (value.onsetApprox !== undefined && !symptomOnsets.has(value.onsetApprox)) throw new HealthEventRecordError('开始时间无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (value.trend !== undefined && !symptomTrends.has(value.trend)) throw new HealthEventRecordError('变化记录无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  const optionalText = (source, field, limit) => source === undefined ? undefined : typeof source === 'string' && source.trim() && source.trim().length <= limit ? source.trim() : (() => { throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_SYMPTOM') })()
+  const otherCategoryText = optionalText(value.otherCategoryText, '其他症状', 80)
+  if (value.symptomCategory === 'other' && !otherCategoryText) throw new HealthEventRecordError('请填写其他症状', 400, 'INVALID_JOURNAL_SYMPTOM')
+  const shortNote = optionalText(value.shortNote, '症状补充', 160)
+  const generatedSummary = optionalText(value.generatedSummary, '症状摘要', 1000)
+  let symptomSpecificData
+  if (value.symptomSpecificData !== undefined) {
+    if (!value.symptomSpecificData || typeof value.symptomSpecificData !== 'object' || Array.isArray(value.symptomSpecificData) || Object.keys(value.symptomSpecificData).length > 20) throw new HealthEventRecordError('症状专属信息无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+    symptomSpecificData = {}
+    for (const [key, item] of Object.entries(value.symptomSpecificData)) {
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key) || !(typeof item === 'string' && item.length <= 160 || typeof item === 'number' && Number.isFinite(item) || typeof item === 'boolean' || Array.isArray(item) && item.length <= 12 && item.every((entry) => typeof entry === 'string' && entry.length <= 80))) throw new HealthEventRecordError('症状专属信息无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+      symptomSpecificData[key] = item
+    }
+  }
+  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -176,11 +213,13 @@ export function validateJournal(value) {
   const bowel = validateBowel(value.bowel)
   const sleep = validateSleep(value.sleep)
   const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
+  const symptom = validateSymptom(value.symptom)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
   if (outdoorActivity && !value.categories.includes('activity')) throw new HealthEventRecordError('户外活动详情必须归入活动分类', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}) }
+  if (symptom && !value.categories.includes('symptom')) throw new HealthEventRecordError('症状详情必须归入症状分类', 400, 'INVALID_JOURNAL_SYMPTOM')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

@@ -58,6 +58,35 @@ export interface JournalOutdoorActivityDetails {
   observations: OutdoorActivityObservation[]
 }
 
+export type SymptomCategory = 'skin' | 'fever' | 'respiratory' | 'ent' | 'gastrointestinal' | 'pain' | 'other'
+export type SymptomImpactLevel = 'little' | 'some' | 'clear'
+
+export interface JournalSymptomLocation {
+  id: string
+  label: string
+  locationNumber: number
+  locationLayer: 'surface' | 'organ'
+  bodySide?: 'left' | 'right' | 'bilateral' | 'center' | 'none'
+  bodyView?: 'front' | 'back' | 'internal' | 'palm' | 'dorsum' | 'sole' | 'organ-reference'
+  bodyRegion?: string
+  localRegion: string
+  markedArea?: string
+}
+
+export interface JournalSymptomDetails {
+  symptomCategory: SymptomCategory
+  otherCategoryText?: string
+  locations: JournalSymptomLocation[]
+  descriptors: string[]
+  impactLevel?: SymptomImpactLevel
+  onsetApprox?: 'just_now' | 'today' | 'yesterday' | 'two_three_days' | 'within_week' | 'earlier'
+  trend?: 'same' | 'more_noticeable' | 'improving' | 'returned' | 'recurrent' | 'unclear'
+  associatedSymptoms?: string[]
+  symptomSpecificData?: Record<string, string | number | boolean | string[]>
+  shortNote?: string
+  generatedSummary?: string
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -67,4 +96,5 @@ export interface JournalMetadata {
   bowel?: JournalBowelDetails
   sleep?: JournalSleepDetails
   outdoorActivity?: JournalOutdoorActivityDetails
+  symptom?: JournalSymptomDetails
 }

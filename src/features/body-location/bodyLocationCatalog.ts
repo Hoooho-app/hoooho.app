@@ -10,6 +10,12 @@ const option = (
 ): BodyLocationOption => ({ id, label, parentId, view, laterality, locationType: view === 'internal' ? 'organ' : 'surface', ...extra })
 
 export const BODY_LOCATION_REGIONS: readonly BodyLocationRegion[] = [
+  { id: 'ent', label: '眼、鼻、口与咽喉', shortLabel: '眼鼻口咽', description: '选择家长能够直接观察到的位置，不需要判断具体器官', view: 'front', locationType: 'surface', diagram: 'head', options: [
+    option('ent_eye_left', '左眼', 'ent', 'front', 'left'), option('ent_eye_right', '右眼', 'ent', 'front', 'right'), option('ent_eyes_bilateral', '双眼', 'ent', 'front', 'bilateral'), option('ent_nose', '鼻腔', 'ent', 'front', 'center'), option('ent_lips', '嘴唇', 'ent', 'front', 'center'), option('ent_mouth', '口腔', 'ent', 'front', 'center'), option('ent_throat', '咽喉', 'ent', 'front', 'center')
+  ] },
+  { id: 'general', label: '全身或说不清', shortLabel: '全身/不明', description: '不适合在人体图上定位时，选择最符合实际的一项', view: 'front', locationType: 'surface', diagram: 'torso', options: [
+    option('general_whole_body', '全身', 'general', 'front', 'bilateral'), option('general_multiple', '身体多处', 'general', 'front', 'bilateral'), option('general_changing', '位置变化', 'general', 'front', 'none'), option('general_unclear', '位置不明确', 'general', 'front', 'none')
+  ] },
   { id: 'head', label: '头部', description: '直接在头面或后脑图上选择不适位置', view: 'front', locationType: 'surface', diagram: 'head', atlas: 'head', atlasViews: [{ id: 'front', label: '正面' }, { id: 'back', label: '后面' }], searchTerms: ['头疼', '头痛'], options: [
     option('head_forehead', '前额', 'head', 'front', 'center', { clinicalLabel: '额部' }), option('head_temple_left', '左太阳穴', 'head', 'front', 'left', { clinicalLabel: '左颞部' }), option('head_temple_right', '右太阳穴', 'head', 'front', 'right', { clinicalLabel: '右颞部' }), option('head_face_left', '左侧头面', 'head', 'front', 'left'), option('head_face_right', '右侧头面', 'head', 'front', 'right'), option('head_crown', '头顶', 'head', 'front', 'center', { clinicalLabel: '顶部' }), option('head_occipital', '后脑', 'head', 'back', 'center', { clinicalLabel: '枕部' }), option('head_back_left', '左后脑', 'head', 'back', 'left'), option('head_back_right', '右后脑', 'head', 'back', 'right')
   ] },
