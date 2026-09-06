@@ -220,7 +220,7 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photo
 }
 
 function RecordTime({ occurredAt, setOccurredAt }: { occurredAt: string; setOccurredAt: (value: string) => void }) {
-  return <HohoInput label="记录时间" max={localDateTimeValue()} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} hint="默认为现在" />
+  return <HohoInput label="记录时间（默认为现在）" max={localDateTimeValue()} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
 }
 
 function SaveBar({ disabled, onClick, saving }: { disabled: boolean; onClick: () => void; saving: boolean }) {
