@@ -1,10 +1,11 @@
 import { Menu } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { SideDrawer } from './SideDrawer'
 import type { MemberSwitchResultState } from './navigationState'
 
-export function MainAppHeader({ title, compact = false }: { title: string; compact?: boolean }) {
+export function MainAppHeader({ title, compact = false, action }: { title: string; compact?: boolean; action?: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const switchResult = (location.state as MemberSwitchResultState | null)?.memberSwitchResult
@@ -38,6 +39,7 @@ export function MainAppHeader({ title, compact = false }: { title: string; compa
           <Menu size={24} strokeWidth={1.8} />
         </button>
         <h1 className="hoho-text-section-title w-full truncate text-center">{title}</h1>
+        {action && <div className="absolute right-3 flex min-h-11 items-center">{action}</div>}
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} />
       {switchedMemberName && (

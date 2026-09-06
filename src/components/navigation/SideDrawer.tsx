@@ -23,7 +23,8 @@ export const sidebarMenuGroups = [
   {
     title: '健康管理',
     items: [
-    { label: '健康随记', icon: House, to: '/health-events' },
+    { label: '前台护士站', icon: House, to: '/nurse-station' },
+    { label: '健康随记', icon: BookOpen, to: '/health-events' },
     { label: '健康档案', icon: Folder, to: '/health-profile' }
     ]
   },
@@ -72,7 +73,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const openPage = (to: string) => {
     onClose()
     if (members.length === 0 && to === '/health-profile') {
-      navigate('/health-events', { replace: true })
+      navigate('/nurse-station', { replace: true })
       return
     }
     navigate(to, to === '/feedback' ? {

@@ -19,27 +19,22 @@ const login = read('../Login/index.tsx')
 const router = read('../../app/router.tsx')
 const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
+const station = read('../NurseStation/index.tsx')
 
-test('前台视图成为默认主入口并保留显式列表切换', () => {
-  assert.match(router, /path: '\/', element: <Navigate to="\/health-events" replace/)
-  assert.match(page, /DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
-  assert.match(page, /health-events-view-switch/)
-  assert.match(page, /\['triage', 'list'\]/)
-  assert.doesNotMatch(page, /FirstUseHome|health-events-view-select__menu/)
+test('前台护士站成为默认首页且健康随记保持独立', () => {
+  assert.match(router, /path: '\/', element: <Navigate to="\/nurse-station" replace/)
+  assert.match(router, /path: '\/nurse-station'/)
+  assert.doesNotMatch(page, /health-events-view-switch|DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
+  assert.match(station, /前台护士站/)
 })
 
-test('零成员在前台内分流且不会预先创建空健康事件', () => {
-  assert.match(firstMember, /先添加一位需要记录健康情况的人/)
-  assert.match(firstMember, /为过敏儿童设计的健康连续记录/)
-  assert.match(firstMember, /孩子发生什么，就记录什么/)
-  assert.match(firstMember, /不用一次说完，有空了再补上/)
-  assert.match(firstMember, /添加孩子信息/)
-  assert.doesNotMatch(firstMember, /可以是你自己，也可以是家人|添加第一个家人|我是为自己记录/)
+test('零成员在护士站内分流且不会预先创建空健康事件', () => {
+  assert.match(station, /先添加孩子，护士站才能为TA提供服务/)
+  assert.match(station, /添加第一个孩子/)
   assert.doesNotMatch(page, /familyMemberService\.createSelf|createSelfAndRecord/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
   assert.doesNotMatch(page, /!state\.data\.entryState\.hasValidHealthRecord/)
   assert.doesNotMatch(page, /healthEventService\.create|pendingTriageEventRef|ensurePendingTriageEvent/)
-  assert.match(family, /state: \{ openQuickRecord: true \}/)
   assert.doesNotMatch(family, /healthEventService\.create/)
 })
 

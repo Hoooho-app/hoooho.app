@@ -154,9 +154,9 @@ export function AddFamilyMemberPage() {
     if (firstUseEntry?.continueToRecord) {
       setCurrentMemberId(created.id)
       navigate('/health-events', { replace: true, state: { openQuickRecord: true } })
-    } else if (firstUseEntry?.returnTo === '/health-events') {
+    } else if (firstUseEntry?.returnTo === '/health-events' || firstUseEntry?.returnTo === '/nurse-station') {
       setCurrentMemberId(created.id)
-      navigate('/health-events', { replace: true })
+      navigate(firstUseEntry.returnTo, { replace: true })
     } else {
       navigate('/family', { replace: true })
     }

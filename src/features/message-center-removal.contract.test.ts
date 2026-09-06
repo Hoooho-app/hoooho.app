@@ -15,7 +15,7 @@ test('通用消息中心页面、入口和持久化状态已删除', () => {
   assert.equal(existsSync(new URL('../pages/Messages/index.tsx', import.meta.url)), false)
   assert.doesNotMatch(healthEvents, /Bell|消息中心|\/messages/)
   assert.doesNotMatch(drawer, /label: '消息'|to: '\/messages'/)
-  assert.doesNotMatch(header, /action|justify-self-end/)
+  assert.doesNotMatch(header, /消息中心|\/messages/)
   assert.doesNotMatch(actionSheet, /关注此事件|事件更新时提醒我|<Bell/)
   assert.doesNotMatch(store, /NotificationPreferences|setNotification|setQuietHours/)
   assert.doesNotMatch(types, /interface NotificationPreferences/)

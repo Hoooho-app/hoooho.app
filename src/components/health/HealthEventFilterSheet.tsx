@@ -30,8 +30,8 @@ export const emptyHealthEventFilters: HealthEventFilters = {
 interface Props {
   open: boolean
   filters: HealthEventFilters
-  years: number[]
-  definitionTitles: string[]
+  years?: number[]
+  definitionTitles?: string[]
   onClose: () => void
   onApply: (filters: HealthEventFilters) => void
 }
@@ -47,7 +47,7 @@ function ChoiceButton({ active, children, onClick }: { active: boolean; children
   )
 }
 
-export function HealthEventFilterSheet({ open, filters, years, definitionTitles, onClose, onApply }: Props) {
+export function HealthEventFilterSheet({ open, filters, years = [], definitionTitles = [], onClose, onApply }: Props) {
   const [draft, setDraft] = useState(filters)
   const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)

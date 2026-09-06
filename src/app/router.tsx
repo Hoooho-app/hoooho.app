@@ -13,7 +13,7 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/health-events" replace /> },
+  { path: '/', element: <Navigate to="/nurse-station" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
   { path: '/ops/login', lazy: lazyPage(() => import('../pages/Ops/Login'), 'OpsLoginPage') },
@@ -29,6 +29,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
+      { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
       {

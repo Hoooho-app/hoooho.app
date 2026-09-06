@@ -122,7 +122,7 @@ export function ProfileSetupPage() {
         avatar
       }, token) : await familyMemberService.createSelf({ name: cleanName, birthday, gender, avatar }, token)
       setProfile({ nickname: member.name, birthday: member.birthday ?? birthday, gender, avatar: member.avatar ?? avatar }, member.id)
-      navigate('/health-events', { replace: true })
+      navigate('/nurse-station', { replace: true })
     } catch (requestError) {
       if (requestError instanceof ApiRequestError && requestError.status === 401) {
         clearAuthSession()
@@ -259,7 +259,7 @@ export function ProfileSetupPage() {
           <Button disabled={loading || submitting || photoProcessing} fullWidth type="submit">
             {loading ? '正在准备…' : submitting ? '正在保存…' : '完成'}
           </Button>
-          <button className="mt-1 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/health-events', { replace: true })}>
+          <button className="mt-1 min-h-11 w-full text-sm font-medium text-text-secondary transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={loading || submitting} type="button" onClick={() => navigate('/nurse-station', { replace: true })}>
             跳过，稍后再添加
           </button>
           <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-text-secondary">

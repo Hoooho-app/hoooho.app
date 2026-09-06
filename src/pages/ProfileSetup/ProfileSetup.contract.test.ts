@@ -26,7 +26,7 @@ test('首次添加家人页面将出生信息精度合并到出生日期字段',
 
 test('首次添加家人允许跳过且使用路由替换进入兜底首页', () => {
   assert.match(pageSource, /跳过，稍后再添加/)
-  assert.match(pageSource, /navigate\('\/health-events', \{ replace: true \}\)/)
+  assert.match(pageSource, /navigate\('\/nurse-station', \{ replace: true \}\)/)
 })
 
 test('首次添加家人页面压缩空白但保留辅助操作触控高度', () => {
