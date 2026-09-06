@@ -6,7 +6,7 @@ import { getBrowserVoiceCapability } from '../../features/quick-record/browserVo
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../types/journal'
-import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 
 type InputChannel = 'voice' | 'text'
 type SaveRecord = (content: string, occurredAt: string, channel: InputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
@@ -191,15 +191,16 @@ function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFor
   </>
 }
 
-function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photoModel }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; photoModel: ReturnType<typeof useQuickRecordPhotos> }) {
+function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack' }) {
   const voice = useDietVoice()
   const [foods, setFoods] = useState<string[]>([])
   const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
-  const [amount, setAmount] = useState(kind === 'complementary' ? complementaryAmounts[0] : '')
+  const amountOptions = kind === 'complementary' ? complementaryAmounts : mealAmounts
+  const [amount, setAmount] = useState(amountOptions[0])
   const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
   const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
   const [reactionsOpen, setReactionsOpen] = useState(kind === 'complementary')
-  const [reactions, setReactions] = useState<string[]>(kind === 'complementary' ? ['暂未发现'] : [])
+  const [reactions, setReactions] = useState<string[]>(['暂未发现'])
   const isComplementary = kind === 'complementary'
   const isMeal = kind === 'meal'
   const common = isComplementary ? commonComplementary : commonMeals
@@ -223,13 +224,12 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photo
   return <>
     {isMeal && <ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} />}
     <FoodEditor common={common} foods={foods} onFoodsChange={setFoods} voice={usableVoice} />
-    {!isComplementary && <QuickRecordPhotos model={photoModel} />}
     {isComplementary && <ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} />}
-    {isComplementary ? <AmountSlider options={complementaryAmounts} value={amount} onChange={setAmount} /> : <ChoiceGroup label="吃了多少" options={mealAmounts} value={amount} onChange={setAmount} />}
+    <AmountSlider options={amountOptions} value={amount} onChange={setAmount} />
     {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
-    <section className="diet-collapsible"><button aria-expanded={reactionsOpen} onClick={() => setReactionsOpen((value) => !value)} type="button"><span>进食后有无异常 <em>（可选）</em></span><span aria-hidden="true">{reactionsOpen ? '−' : '+'}</span></button>{reactionsOpen && (isComplementary ? <ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /> : <MultiChoiceGroup label="观察到的情况" options={reactionOptions} values={reactions} onChange={setReactions} />)}</section>
+    <section className="diet-collapsible"><button aria-expanded={reactionsOpen} onClick={() => setReactionsOpen((value) => !value)} type="button"><span>进食后有无异常 <em>（可选）</em></span><span aria-hidden="true">{reactionsOpen ? '−' : '+'}</span></button>{reactionsOpen && <ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} />}</section>
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
-    <SaveBar disabled={!valid || (!isComplementary && photoModel.blocked)} onClick={save} saving={saving} />
+    <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
@@ -271,6 +271,6 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
   const common = { occurredAt, setOccurredAt, onSave: save, saving }
   return <div className="diet-record-page-layer"><section aria-label={kindTitles[kind]} aria-modal="true" className="diet-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回喂养/饮食类型选择" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>{kindTitles[kind]}</h1><span aria-hidden="true" /></header>
-    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} kind={kind} photoModel={photoModel} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
+    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} kind={kind} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
   </section></div>
 }
