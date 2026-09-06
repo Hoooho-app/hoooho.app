@@ -8,7 +8,6 @@ const durationLabels = { under_15: '不到15分钟', '15_30': '15–30分钟', '
 
 export function toggleChoice<T extends string>(values: T[], value: T) { return values.includes(value) ? values.filter((item) => item !== value) : [...values, value] }
 export function toggleExclusive<T extends string>(values: T[], value: T, none: T) { return value === none ? (values.includes(none) ? [] : [none]) : toggleChoice(values.filter((item) => item !== none), value) }
-export function exactDurationMinutes(hours: string, minutes: string) { const total = (Number(hours) || 0) * 60 + (Number(minutes) || 0); return total > 0 && total <= 1440 ? total : undefined }
 export function outdoorActivitySummary(details: JournalOutdoorActivityDetails) {
   const duration = details.durationMinutes ? `${details.durationMinutes}分钟` : details.durationRange ? durationLabels[details.durationRange] : undefined
   const first = [details.places.map((key) => key === 'other' ? details.placeOtherText || placeLabels[key] : placeLabels[key]).join('、'), details.activities.map((key) => key === 'other' ? details.activityOtherText || activityLabels[key] : activityLabels[key]).join('、'), duration].filter(Boolean).join(' · ')
