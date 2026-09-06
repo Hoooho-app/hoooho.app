@@ -46,13 +46,19 @@ test('product polish keeps shared navigation and grouped rows on one visual syst
   assert.match(styles, /\.event-identity-details/)
 })
 
-test('short mobile drawers keep the member summary compact', async () => {
+test('short mobile drawers keep the member summary compact with explicit switch and edit actions', async () => {
   const styles = await read('./product-polish.css')
   const drawer = await read('../components/navigation/SideDrawer.tsx')
   assert.match(styles, /\.hoho-drawer__member\s*\{[^}]*padding:\s*0 var\(--hoho-space-2\) var\(--hoho-space-2\)/s)
   assert.match(drawer, /hoho-drawer__member mt-2/)
   assert.match(drawer, /<Avatar[^>]*size="md"/)
-  assert.match(drawer, /hoho-drawer__switch mt-1/)
+  assert.match(drawer, />当前记录对象</)
+  assert.match(drawer, /hoho-drawer__member-actions/)
+  assert.match(drawer, /<UsersRound[^>]*size=\{21\}/)
+  assert.match(drawer, />切换人物</)
+  assert.match(drawer, /<Pencil[^>]*size=\{20\}/)
+  assert.match(drawer, />编辑资料</)
+  assert.match(styles, /\.hoho-drawer__member-actions > button\s*\{[^}]*min-height:\s*44px/s)
 })
 
 test('global UI supports reduced motion and responsive desktop content', async () => {
