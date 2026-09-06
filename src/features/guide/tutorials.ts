@@ -101,14 +101,14 @@ export const guideTutorials: GuideTutorial[] = [
   {
     id: 'add-family-member', title: '想替孩子记录，先怎么添加家人？', context: '每位家人的健康随记和档案彼此分开。',
     section: 'family', filterIds: ['family'], keywords: ['孩子', '家人', '添加家人', '家庭成员', '替家人记录'],
-    steps: ['进入“我的家人”', '点“添加家人”', '填写姓名、出生日期和性别'], result: '家人会出现在人物列表中，可以切换为当前记录对象。',
-    actionLabel: '添加家人', actionTo: '/family'
+    steps: ['打开侧边栏', '点当前记录对象资料', '点“添加孩子”并填写资料'], result: '孩子会出现在当前记录对象资料中，可以随时切换。',
+    actionLabel: '添加孩子', actionTo: '/family/new'
   },
   {
     id: 'switch-family-member', title: '记录前，怎么确认写给了正确的人？', context: '健康随记页会显示当前家人，记录前可以先切换人物。',
     section: 'family', filterIds: ['family'], keywords: ['切换人物', '记录对象', '当前家人', '替家人记录'],
     steps: ['在健康随记页查看当前家人', '点“切换人物”', '选择要记录的家庭成员'], result: '之后新增的健康随记会归到选中的人物。',
-    actionLabel: '管理家人', actionTo: '/family'
+    actionLabel: '查看当前记录对象', actionTo: '/nurse-station'
   },
   {
     id: 'record-allergy', title: '有明确过敏，应该记在哪里？', context: '过敏属于长期健康背景，不必混在某条健康随记里。',

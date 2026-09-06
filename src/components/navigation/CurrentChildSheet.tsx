@@ -10,14 +10,15 @@ import './current-child-sheet.css'
 
 interface CurrentChildSheetProps {
   onClose: () => void
-  onNavigate: (to: string) => void
+  onEdit: (memberId: string) => void
+  onAdd: () => void
   open: boolean
 }
 
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
 const closeThreshold = 72
 
-export function CurrentChildSheet({ onClose, onNavigate, open }: CurrentChildSheetProps) {
+export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChildSheetProps) {
   const sheetRef = useRef<HTMLElement>(null)
   const dragRef = useRef<{ pointerId: number; startY: number } | null>(null)
   const members = useAppStore((state) => state.members)
@@ -136,7 +137,7 @@ export function CurrentChildSheet({ onClose, onNavigate, open }: CurrentChildShe
                   aria-label={`编辑${member.name}的资料`}
                   className="current-child-sheet__edit"
                   disabled={Boolean(switchingId)}
-                  onClick={(event) => { event.stopPropagation(); onNavigate(`/family/${encodeURIComponent(member.id)}/edit`) }}
+                  onClick={(event) => { event.stopPropagation(); onEdit(member.id) }}
                   type="button"
                 >
                   <SquarePen aria-hidden="true" size={19} strokeWidth={1.8} />
@@ -148,7 +149,7 @@ export function CurrentChildSheet({ onClose, onNavigate, open }: CurrentChildShe
           {error && <p className="current-child-sheet__error" role="alert">{error}</p>}
         </div>
         <footer className="current-child-sheet__footer">
-          <button type="button" onClick={() => onNavigate('/family/new')}><Plus aria-hidden="true" size={20} strokeWidth={1.9} />添加孩子</button>
+          <button type="button" onClick={onAdd}><Plus aria-hidden="true" size={20} strokeWidth={1.9} />添加孩子</button>
         </footer>
       </section>
     </div>

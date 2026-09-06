@@ -1,9 +1,10 @@
 import { Bell, ChevronRight, CircleHelp, HeartHandshake, LogIn, Pause, Play, Thermometer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
+import { getCurrentPath, makeMemberProfileOpenState } from '../../components/navigation/navigationState'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
@@ -17,6 +18,7 @@ const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '':
 
 export function NurseStationPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const authUser = useAppStore((value) => value.authUser)
   const currentMemberId = useAppStore((value) => value.currentMemberId)
   const cachedMembers = useAppStore((value) => value.members)
@@ -76,7 +78,7 @@ export function NurseStationPage() {
   return <main className="app-shell nurse-station-page">
     <MainAppHeader title="前台护士站" action={<span className="nurse-station-header-actions"><button aria-label="重新打开教程" onClick={() => setStation((value) => ({ ...value, tutorialSeen: false }))} type="button"><CircleHelp size={18} /></button>{authUser?.guest && <span>未登录</span>}</span>} />
     <div className="nurse-station-scroll">
-      {member && <button className="nurse-station-member" onClick={() => navigate('/family')} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><small>当前记录对象</small><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button>}
+      {member && <button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><small>当前记录对象</small><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button>}
       <div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state={pending.length ? 'awaitingConfirmation' : active.length ? 'reviewing' : 'idle'} /></div>
       {member && !pending.length && !active.length && <p className="nurse-station-warmth">我们会在这里陪你照看 {member.name} 的健康记录。</p>}
       {showLoginNotice && <aside className="nurse-station-login"><LogIn size={18} /><span>登录后可同步保存跟进与提醒</span><button onClick={() => navigate('/login')} type="button">登录</button><button onClick={() => setStation((value) => ({ ...value, loginNoticeDismissed: true }))} type="button">稍后</button></aside>}
