@@ -11,11 +11,11 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
-import { CurrentChildSheet } from './CurrentChildSheet'
 
 interface SideDrawerProps {
   open: boolean
   onClose: () => void
+  onOpenChildSheet: () => void
 }
 
 export const sidebarMenuGroups = [
@@ -41,7 +41,7 @@ export const sidebarMenuGroups = [
 
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
 
-export function SideDrawer({ open, onClose }: SideDrawerProps) {
+export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -52,7 +52,6 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [childSheetOpen, setChildSheetOpen] = useState(false)
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
 
@@ -82,13 +81,6 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
         location.pathname.startsWith('/health-events/') ? '健康随记详情' : location.pathname === '/health-events' ? '健康随记' : location.pathname === '/settings' ? '我的' : '原页面',
         window.scrollY
       )
-    } : to === '/family' ? {
-      state: {
-        familyEntry: {
-          returnTo: getCurrentPath(location.pathname, location.search, location.hash),
-          reopenDrawer: true
-        }
-      }
     } : undefined)
   }
 
@@ -102,7 +94,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
 
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
-            <button className="hoho-drawer__member-trigger" type="button" aria-label="打开我的孩子" onClick={() => setChildSheetOpen(true)}>
+            <button className="hoho-drawer__member-trigger" type="button" aria-label="打开我的孩子" onClick={() => { onClose(); onOpenChildSheet() }}>
               <Avatar name={member.name} src={member.avatar} size="md" />
               <span className="hoho-drawer__member-identity">
                 <span className="hoho-drawer__member-name-line">
@@ -114,7 +106,7 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
               <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
             </button>
           ) : (
-            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => setChildSheetOpen(true)}>
+            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => { onClose(); onOpenChildSheet() }}>
               <span><strong className="block text-base font-semibold text-heading">尚未添加孩子</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
               <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
             </button>
@@ -153,15 +145,6 @@ export function SideDrawer({ open, onClose }: SideDrawerProps) {
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
         </button>
       </aside>
-      <CurrentChildSheet
-        onClose={() => setChildSheetOpen(false)}
-        onNavigate={(to) => {
-          setChildSheetOpen(false)
-          onClose()
-          navigate(to, { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } })
-        }}
-        open={childSheetOpen}
-      />
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
   )

@@ -38,7 +38,6 @@ test.beforeAll(async ({ request }) => {
 const routes = [
   { slug: 'health-events', path: '/health-events' },
   { slug: 'health-event-detail', path: () => `/health-events/${eventId}` },
-  { slug: 'family', path: '/family' },
   { slug: 'health-profile', path: '/health-profile' },
   { slug: 'guide', path: '/guide' },
   { slug: 'feedback', path: '/feedback' },

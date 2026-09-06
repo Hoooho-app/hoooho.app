@@ -5,6 +5,7 @@ import test from 'node:test'
 const source = readFileSync(new URL('./CurrentChildSheet.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('./current-child-sheet.css', import.meta.url), 'utf8')
 const drawer = readFileSync(new URL('./SideDrawer.tsx', import.meta.url), 'utf8')
+const header = readFileSync(new URL('./MainAppHeader.tsx', import.meta.url), 'utf8')
 
 test('current child sheet uses real members and keeps header and add action fixed around a scrolling list', () => {
   assert.match(source, /const members = useAppStore/)
@@ -27,10 +28,13 @@ test('selection is server-first, guarded against repeats, and only commits after
 
 test('edit and add reuse existing routes while edit stops propagation', () => {
   assert.match(source, /event\.stopPropagation\(\)/)
-  assert.match(source, /onNavigate\(`\/family\/\$\{encodeURIComponent\(member\.id\)\}\/edit`\)/)
-  assert.match(source, /onNavigate\('\/family\/new'\)/)
+  assert.match(source, /onEdit\(member\.id\)/)
+  assert.match(source, /onClick=\{onAdd\}/)
   assert.match(source, /<SquarePen/)
-  assert.match(drawer, /navigate\(to, \{ state: \{ returnTo:/)
+  assert.doesNotMatch(drawer, /<CurrentChildSheet/)
+  assert.match(header, /memberProfileEditOrigin: origin/)
+  assert.match(header, /navigate\('\/family\/new'\)/)
+  assert.match(header, /consumeMemberProfileRestore/)
 })
 
 test('sheet supports backdrop, close button and thresholded handle dragging', () => {

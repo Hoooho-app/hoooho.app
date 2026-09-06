@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ChevronDown, UserRound } from 'lucide-react'
-import { useBlocker, useNavigate, useParams } from 'react-router-dom'
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
 import { FamilyAvatarEditor, type FamilyAvatarMode } from '../../components/family/FamilyAvatarEditor'
 import { FamilyEditorConfirmDialog } from '../../components/family/FamilyEditorConfirmDialog'
+import { APP_HOME_PATH, makeMemberProfileRestoreState, readMemberProfileEditOrigin } from '../../components/navigation/navigationState'
 import { ApiRequestError } from '../../services/apiClient'
 import { familyMemberService } from '../../services/familyMembers'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
@@ -97,7 +98,9 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   onCreated?: (member: FamilyMemberApiDto) => void
 } = {}) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { memberId = '' } = useParams()
+  const [editOrigin] = useState(() => create ? null : readMemberProfileEditOrigin(location.state, memberId))
   const token = useAppStore((state) => state.authToken)
   const members = useAppStore((state) => state.members)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
@@ -205,6 +208,18 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
     setSaveState('idle')
   }
 
+  const leaveEditor = (reopenMemberProfileSheet: boolean) => {
+    allowNavigationRef.current = true
+    if (!editOrigin) {
+      navigate(APP_HOME_PATH, { replace: true })
+      return
+    }
+    navigate(editOrigin.returnTo, {
+      replace: true,
+      state: reopenMemberProfileSheet ? makeMemberProfileRestoreState(editOrigin) : editOrigin.returnState
+    })
+  }
+
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (!draft || !previewConfig || !token || (!create && !memberId) || !isDirty || hasErrors || photoProcessing || savingRef.current) return
@@ -246,6 +261,8 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
       setBaseline(draftFingerprint(savedDraft))
       draftEditedRef.current = false
       setSaveState('saved')
+      if (currentMemberId !== memberId) setCurrentMemberId(memberId)
+      leaveEditor(true)
     } catch (requestError) {
       setSaveState('idle')
       if (create && requestError instanceof ApiRequestError && requestError.status === 401) {
@@ -270,8 +287,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
       setMembers(remaining)
       if (remaining.length === 0) clearProfile()
       if (currentMemberId === memberId && remaining[0]) setCurrentMemberId(remaining[0].id)
-      allowNavigationRef.current = true
-      navigate(remaining.length ? '/family' : '/health-events', { replace: true })
+      leaveEditor(false)
     } catch (requestError) {
       setDeleteOpen(false)
       setError(requestError instanceof Error ? requestError.message : '删除失败，请重试')
@@ -281,7 +297,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   }
 
   return <main className="app-shell flex min-h-dvh flex-col bg-surface pb-0">
-    {create ? <WebPageHeader title="添加家庭成员" fallback="/family" /> : <WebPageHeader title="编辑孩子资料" fallback="/family" />}
+    {create ? <WebPageHeader title="添加家庭成员" fallback={APP_HOME_PATH} /> : <WebPageHeader title="编辑孩子资料" fallback={APP_HOME_PATH} onBack={() => leaveEditor(true)} />}
     {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : (create || sourceMember) && draft && previewConfig ? (
       <form className="flex flex-1 flex-col px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" onSubmit={save}>
         <div className="mx-auto w-full max-w-sm">
@@ -368,7 +384,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
           {!create && <Button className="mt-2 min-h-[50px]" disabled={locked} fullWidth type="button" variant="danger" onClick={() => setDeleteOpen(true)}>删除孩子资料</Button>}
         </div>
       </form>
-    ) : <div className="px-4 py-16 text-center"><p className="text-sm text-text-secondary">{error || '未找到这个孩子'}</p><Button className="mt-5" onClick={() => navigate('/family')}>返回我的家人</Button></div>}
+    ) : <div className="px-4 py-16 text-center"><p className="text-sm text-text-secondary">{error || '未找到这个孩子'}</p><Button className="mt-5" onClick={() => navigate(APP_HOME_PATH, { replace: true })}>返回首页</Button></div>}
 
     <FamilyEditorConfirmDialog confirmLabel="放弃修改" description="当前修改尚未保存。返回后，这些修改将不会保留。" onCancel={() => blocker.state === 'blocked' && blocker.reset()} onConfirm={() => { allowNavigationRef.current = true; if (blocker.state === 'blocked') blocker.proceed() }} open={blocker.state === 'blocked'} title="要放弃未保存的修改吗？" />
     <FamilyEditorConfirmDialog cancelLabel="取消" confirmLabel="确认删除" danger description="删除后，这个孩子的资料及相关记录将无法恢复。" loading={deleting} onCancel={() => setDeleteOpen(false)} onConfirm={() => void remove()} open={deleteOpen} title="删除孩子资料？" />

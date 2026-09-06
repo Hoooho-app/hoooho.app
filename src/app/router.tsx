@@ -50,7 +50,7 @@ export const router = createBrowserRouter([
           { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') }
         ]
       },
-      { path: '/family', lazy: lazyPage(() => import('../pages/Family'), 'FamilyPage') },
+      { path: '/family', element: <Navigate to="/nurse-station" replace /> },
       { path: '/family/new', lazy: lazyPage(() => import('../pages/Family'), 'AddFamilyMemberPage') },
       { path: '/family/:memberId/edit', lazy: lazyPage(() => import('../pages/Family'), 'EditFamilyMemberPage') },
       { path: '/guide', lazy: lazyPage(() => import('../pages/Guide'), 'UsageGuidePage') },

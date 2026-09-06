@@ -1209,7 +1209,6 @@
     .auth-shell { align-items: center; justify-content: center; }
     .auth-shell .auth-panel { flex: 0 1 auto; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-overlay); background: rgb(var(--hoho-color-surface)); padding: var(--hoho-space-8); box-shadow: var(--hoho-shadow-floating); }
     .feedback-categories > div { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .family-page__content { width: min(calc(100% - 48px), 520px); margin-inline: auto; padding-inline: 0; padding-top: var(--hoho-space-6); }
   }
 
   .temperature-chart-point__focus { opacity: 0; }

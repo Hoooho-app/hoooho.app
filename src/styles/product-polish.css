@@ -6,13 +6,6 @@
 }
 
 @layer components {
-  .family-page__intro {
-    margin: 0 0 var(--hoho-space-1);
-    color: rgb(var(--hoho-color-text-secondary));
-    font-size: var(--hoho-font-size-caption);
-    line-height: var(--hoho-line-height-caption);
-  }
-
   .profile-directory-icon {
     display: grid;
     width: 32px;
