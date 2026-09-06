@@ -14,7 +14,8 @@ const editableFields = new Set([
   'name', 'relationship', 'gender', 'birthday', 'avatar',
   'heightCm', 'weightKg', 'bloodType', 'waistCircumferenceCm',
   'bodyFatPercentage', 'headCircumferenceCm', 'rhBloodType',
-  'caregivers', 'primaryRecorderRelationship', 'otherRelative', 'otherCaregiver'
+  'caregivers', 'primaryRecorderRelationship', 'otherRelative', 'otherCaregiver',
+  'dietFrequentFoods'
 ])
 const bloodTypes = new Set(['A', 'B', 'AB', 'O'])
 const rhBloodTypes = new Set(['positive', 'negative'])
@@ -156,6 +157,25 @@ function validateRhBloodType(value) {
   return value
 }
 
+function validateDietFrequentFoods(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new FamilyMemberError('常吃食物格式错误', 400, 'INVALID_DIET_FREQUENT_FOODS')
+  }
+  const result = {}
+  for (const kind of ['complementary', 'meal', 'snack']) {
+    const foods = value[kind]
+    if (!Array.isArray(foods) || foods.length > 12) {
+      throw new FamilyMemberError('每类常吃食物最多 12 项', 400, 'INVALID_DIET_FREQUENT_FOODS')
+    }
+    const normalized = foods.map((food) => typeof food === 'string' ? food.trim() : '')
+    if (normalized.some((food) => !food || food.length > 30)) {
+      throw new FamilyMemberError('常吃食物应为 1–30 个字符', 400, 'INVALID_DIET_FREQUENT_FOODS')
+    }
+    result[kind] = [...new Set(normalized)]
+  }
+  return result
+}
+
 export class FamilyMemberService {
   constructor(options = {}) {
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
@@ -226,6 +246,7 @@ export class FamilyMemberService {
       if (key === 'primaryRecorderRelationship') changes.primaryRecorderRelationship = validatePrimaryRecorderRelationship(input.primaryRecorderRelationship)
       if (key === 'otherRelative') changes.otherRelative = validateCaregiverLabel(input.otherRelative, '其他亲属')
       if (key === 'otherCaregiver') changes.otherCaregiver = validateCaregiverLabel(input.otherCaregiver, '其他照看者')
+      if (key === 'dietFrequentFoods') changes.dietFrequentFoods = validateDietFrequentFoods(input.dietFrequentFoods)
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
     return this.repository.update(id, changes, now)

@@ -67,6 +67,7 @@ export const familyMemberService = {
       | 'heightCm' | 'weightKg' | 'bloodType'
       | 'waistCircumferenceCm' | 'bodyFatPercentage' | 'headCircumferenceCm' | 'rhBloodType'
       | 'caregivers' | 'primaryRecorderRelationship' | 'otherRelative' | 'otherCaregiver'
+      | 'dietFrequentFoods'
     >>,
     token: string,
     signal?: AbortSignal

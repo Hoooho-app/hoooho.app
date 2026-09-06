@@ -88,6 +88,7 @@ export interface FamilyMemberApiDto {
   primaryRecorderRelationship?: ChildRecorderRelationship | null
   otherRelative?: string | null
   otherCaregiver?: string | null
+  dietFrequentFoods?: Record<'complementary' | 'meal' | 'snack', string[]>
   isSelf: boolean
   createdAt: string
   updatedAt: string
