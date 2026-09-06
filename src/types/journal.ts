@@ -27,7 +27,7 @@ export interface JournalBowelDetails {
   amount?: string
   durationRange?: string
   process?: string
-  bloodObservation?: 'none-seen' | 'possibly-seen'
+  bloodObservation?: 'none-seen' | 'possibly-seen' | 'small-amount' | 'large-amount'
   observations: string[]
 }
 

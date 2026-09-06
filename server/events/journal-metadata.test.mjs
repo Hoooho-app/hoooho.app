@@ -84,9 +84,10 @@ test('structured feeding and diet details remain optional and preserve specific 
   assert.throws(() => validateJournal({ categories: ['sleep'], diet: { kind: 'snack', foods: ['苹果'] } }), /必须归入喂养\/饮食分类/)
 })
 
-test('structured bowel observations preserve uncertainty and reject invalid or conflicting values', () => {
-  const result = validateJournal({ categories: ['elimination'], bowel: { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'possibly-seen', observations: ['黏液'] } })
-  assert.deepEqual(result.bowel, { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'possibly-seen', observations: ['黏液'] })
+test('structured bowel observations preserve blood amount and reject invalid or conflicting values', () => {
+  const result = validateJournal({ categories: ['elimination'], bowel: { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'small-amount', observations: ['黏液'] } })
+  assert.deepEqual(result.bowel, { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'small-amount', observations: ['黏液'] })
+  assert.equal(validateJournal({ categories: ['elimination'], bowel: { shapes: [], bloodObservation: 'large-amount', observations: [] } }).bowel.bloodObservation, 'large-amount')
   assert.throws(() => validateJournal({ categories: ['elimination'], bowel: { shapes: [], observations: ['没有特别发现', '黏液'] } }), /互斥/)
   assert.throws(() => validateJournal({ categories: ['diet'], bowel: { shapes: [], observations: [] } }), /必须归入排便分类/)
   assert.throws(() => validateJournal({ categories: ['elimination'], bowel: { shapes: ['成人评分 4'], observations: [] } }), /选项无效/)
