@@ -70,6 +70,8 @@ test('喂养饮食使用五类确认页、独立记录页和结构化真实保�
   assert.match(dietFlow, /记录零食/)
   assert.match(dietFlow, /记录补剂/)
   assert.match(dietFlow, /记录时间（默认为现在）/)
+  assert.match(dietFlow, /\$\{label\}手填分钟/)
+  assert.match(dietFlow, /feedingStatusOptions = \['顺利', '吐奶', '呛咳', '抗拒'\]/)
   assert.doesNotMatch(dietFlow, /hint="默认为现在"/)
   assert.doesNotMatch(dietFlow, /首次尝试这种食物|firstTryFoods/)
   assert.match(dietFlow, /diet-amount-slider/)

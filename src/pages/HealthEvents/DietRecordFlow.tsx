@@ -18,7 +18,7 @@ const kindTitles: Record<DietRecordKind, string> = {
 const feedingMethods = [
   ['breast', '母乳'], ['formula', '配方奶'], ['expressed', '瓶喂母乳'], ['mixed', '混合喂养']
 ] as const
-const feedingStatusOptions = ['顺利', '吐奶', '呛咳', '拒绝']
+const feedingStatusOptions = ['顺利', '吐奶', '呛咳', '抗拒']
 const reactionOptions = ['皮肤', '呼吸', '消化']
 const formOptions = [['puree', '泥糊'], ['minced', '碎末'], ['small-pieces', '小颗粒'], ['finger-food', '手指食物']] as const
 const complementaryAmounts = ['尝了几口', '约 1/4 碗', '约 1/2 碗', '大部分', '全部吃完']
@@ -131,6 +131,7 @@ function useDietVoice() {
 function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormProps) {
   const [method, setMethod] = useState<JournalDietDetails['feedingMethod']>('breast')
   const [seconds, setSeconds] = useState({ left: 0, right: 0 })
+  const [manualMinutes, setManualMinutes] = useState({ left: '', right: '' })
   const [activeSide, setActiveSide] = useState<'left' | 'right' | null>(null)
   const [bottleMl, setBottleMl] = useState('')
   const [statuses, setStatuses] = useState<string[]>([])
@@ -152,9 +153,15 @@ function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormPr
     if (statuses.length) parts.push(statuses.join('、'))
     onSave(parts.join(' · '), { kind: 'feeding', feedingMethod: method, ...(hasBreast ? { breastSeconds: { ...seconds, total } } : {}), ...(hasBottle ? { bottleMl: Number(bottleMl) } : {}), feedingStatuses: statuses })
   }
+  const setSideMinutes = (side: 'left' | 'right', value: string) => {
+    const minutes = Math.min(1440, Math.max(0, Number(value) || 0))
+    if (activeSide === side) setActiveSide(null)
+    setManualMinutes((current) => ({ ...current, [side]: value }))
+    setSeconds((current) => ({ ...current, [side]: Math.round(minutes * 60) }))
+  }
   return <>
     <ChoiceGroup label="喂养方式" options={feedingMethods.map(([, label]) => label)} value={feedingMethods.find(([value]) => value === method)?.[1] ?? ''} onChange={(label) => setMethod(feedingMethods.find(([, item]) => item === label)?.[0] ?? 'breast')} />
-    {hasBreast && <section className="diet-form-section"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => <button aria-pressed={activeSide === side} key={side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{side === 'left' ? '左侧' : '右侧'}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button>)}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
+    {hasBreast && <section className="diet-form-section"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
     {hasBottle && <HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" />}
     <MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} />
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
