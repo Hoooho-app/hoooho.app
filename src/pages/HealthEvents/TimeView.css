@@ -85,7 +85,9 @@
 .diet-amount-labels span:first-child { text-align: left; }
 .diet-amount-labels span:last-child { text-align: right; }
 .diet-amount-labels .is-selected { color: rgb(var(--hoho-color-primary)); font-weight: 650; }
-.diet-reaction-fieldset { display: grid; gap: var(--hoho-space-2); }
+.diet-reaction-section, .diet-reaction-fieldset { display: grid; gap: var(--hoho-space-2); }
+.diet-reaction-section h2 { font-size: var(--hoho-font-size-label); font-weight: 650; }
+.diet-reaction-section h2 em { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-style: normal; font-weight: 400; }
 .diet-reaction-grid > button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
 .diet-reaction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); }
 .diet-reaction-grid > button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
@@ -104,7 +106,6 @@
 .diet-common-editor input { min-width: 0; min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-3); font-size: 16px; outline: none; }
 .diet-common-editor input:focus { border-color: rgb(var(--hoho-color-primary) / 0.55); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.08); }
 .diet-common-editor button { display: grid; min-height: var(--hoho-touch-target); place-items: center; border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
-.diet-voice-button { justify-self: start; }
 .diet-inline-message, .diet-save-error { color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
 .diet-timer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); }
 .diet-timer-card { overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface)); }
