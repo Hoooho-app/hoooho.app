@@ -19,12 +19,12 @@ export interface QuickRecordPhotoItem {
 export interface QuickRecordPhotoPayload { draftId: string; photoIds: string[] }
 
 export const QUICK_RECORD_PHOTO_LIMIT = 10
-export const remainingPhotoCapacity = (count: number) => Math.max(0, QUICK_RECORD_PHOTO_LIMIT - count)
+export const remainingPhotoCapacity = (count: number, limit = QUICK_RECORD_PHOTO_LIMIT) => Math.max(0, limit - count)
 export const hasUnreadyPhotos = (photos: readonly QuickRecordPhotoItem[]) => photos.some((photo) => photo.status !== 'uploaded')
 
 const draftStorageKey = (memberId: string) => `hoooho-quick-record-photo-draft:${memberId}`
 
-export function useQuickRecordPhotos(memberId?: string, token?: string) {
+export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT) {
   const [photos, setPhotos] = useState<QuickRecordPhotoItem[]>([])
   const [notice, setNotice] = useState('')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -76,9 +76,9 @@ export function useQuickRecordPhotos(memberId?: string, token?: string) {
 
   const chooseFiles = (files: FileList | null) => {
     if (!files?.length) return
-    const available = remainingPhotoCapacity(photosRef.current.length)
+    const available = remainingPhotoCapacity(photosRef.current.length, limit)
     const selected = Array.from(files).slice(0, available)
-    if (files.length > available) setNotice('最多上传10张照片')
+    if (files.length > available) setNotice(limit === QUICK_RECORD_PHOTO_LIMIT ? '最多上传10张照片' : `最多上传${limit}张照片`)
     else setNotice('')
     const additions = selected.map((file): QuickRecordPhotoItem => ({
       localId: crypto.randomUUID(), file, name: file.name, previewUrl: URL.createObjectURL(file), status: 'uploading'

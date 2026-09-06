@@ -100,17 +100,6 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
     <section aria-label="记录情况表单" className="first-record-composer">
       <div className="first-record-fields">
         <label className="first-record-field">
-          <span className="hoho-text-label">开始时间</span>
-          <span className="first-record-datetime">
-            <input className="hoho-input" max={localDateTimeValue()} onChange={(event) => {
-              const nextValue = clampOccurredAtToNow(event.target.value)
-              setOccurredAt(nextValue)
-              setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
-            }} type="datetime-local" value={occurredAt} />
-          </span>
-        </label>
-
-        <label className="first-record-field">
           <span className="hoho-text-label">描述症状</span>
           <span className="relative overflow-hidden">
             <textarea aria-label="描述症状" className="hoho-textarea first-record-description resize-none pb-8" maxLength={1000} onChange={(event) => { setText(event.target.value); setInputSourceType('text_record'); setError('') }} placeholder="请描述发生了什么…" ref={textAreaRef} value={text} />
@@ -133,6 +122,16 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
             ))}</div>}
           </div>
         </div>
+        <label className="first-record-field">
+          <span className="hoho-text-label">记录时间</span>
+          <span className="first-record-datetime">
+            <input className="hoho-input" max={localDateTimeValue()} onChange={(event) => {
+              const nextValue = clampOccurredAtToNow(event.target.value)
+              setOccurredAt(nextValue)
+              setError(nextValue === event.target.value ? '' : FUTURE_OCCURRED_AT_MESSAGE)
+            }} type="datetime-local" value={occurredAt} />
+          </span>
+        </label>
       </div>
 
       {error && <div className="first-record-error" role="alert"><p>{error}</p><button onClick={() => { setError(''); textAreaRef.current?.focus() }} type="button">重新编辑</button></div>}

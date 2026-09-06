@@ -84,6 +84,14 @@ test('structured feeding and diet details remain optional and preserve specific 
   assert.throws(() => validateJournal({ categories: ['sleep'], diet: { kind: 'snack', foods: ['苹果'] } }), /必须归入喂养\/饮食分类/)
 })
 
+test('structured bowel observations preserve uncertainty and reject invalid or conflicting values', () => {
+  const result = validateJournal({ categories: ['elimination'], bowel: { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'possibly-seen', observations: ['黏液'] } })
+  assert.deepEqual(result.bowel, { shapes: ['光滑条状', '糊状'], color: '黄褐', amount: '一般', durationRange: '2–5分钟', process: '有些费力', bloodObservation: 'possibly-seen', observations: ['黏液'] })
+  assert.throws(() => validateJournal({ categories: ['elimination'], bowel: { shapes: [], observations: ['没有特别发现', '黏液'] } }), /互斥/)
+  assert.throws(() => validateJournal({ categories: ['diet'], bowel: { shapes: [], observations: [] } }), /必须归入排便分类/)
+  assert.throws(() => validateJournal({ categories: ['elimination'], bowel: { shapes: ['成人评分 4'], observations: [] } }), /选项无效/)
+})
+
 test('structured sleep recomputes duration from timestamps and preserves optional observations', () => {
   const result = validateJournal({ categories: ['sleep'], sleep: {
     sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', durationMinutes: 1,

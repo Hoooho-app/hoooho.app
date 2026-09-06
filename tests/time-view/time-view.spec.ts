@@ -66,7 +66,7 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
 test('manual single selection, photo draft, review and real API save reach today', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '手动记录', exact: true }).click()
-  const recorderTitle = page.getByRole('heading', { name: '记下新情况', exact: true })
+  const recorderTitle = page.getByRole('heading', { name: '记录新情况', exact: true })
   const recorderHint = page.getByText('先记下来，不用一次性记完，想到时继续补充', { exact: true })
   await expect(recorderTitle).toBeVisible()
   await expect(recorderHint).toBeVisible()
@@ -99,6 +99,65 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(saved.getByLabel('1 个附件')).toBeVisible()
   await saved.click()
   await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+})
+
+test('bowel record is one continuous form, restores its member draft and saves real structured data', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  const entrySheet = page.getByRole('dialog', { name: '记录新情况' })
+  const entryLayout = await entrySheet.evaluate((sheet) => {
+    const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
+    return { sheetFits: sheet.scrollHeight <= sheet.clientHeight + 1, bodyFits: body.scrollHeight <= body.clientHeight + 1, overflowY: getComputedStyle(body).overflowY }
+  })
+  expect(entryLayout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'visible' })
+  await entrySheet.getByRole('button', { name: '排便', exact: true }).click()
+  await expect(entrySheet.getByRole('button', { name: '排便', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await entrySheet.getByRole('button', { name: '开始记录', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '记录排便', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: '记录排便' })).toHaveCount(1)
+  await expect(page.getByText(/排便类型|布里斯托|正常|异常/)).toHaveCount(0)
+  await page.getByRole('group', { name: '形状 （可多选）' }).getByRole('button', { name: '光滑条状' }).click()
+  await page.getByRole('group', { name: '形状 （可多选）' }).getByRole('button', { name: '糊状' }).click()
+  await page.getByRole('group', { name: '颜色' }).getByRole('button', { name: '黄褐' }).click()
+  await page.getByRole('group', { name: '分量' }).getByRole('button', { name: '一般' }).click()
+  const observations = page.getByRole('group', { name: '还观察到什么？（可多选）' })
+  await observations.getByRole('button', { name: '黏液' }).click()
+  await observations.getByRole('button', { name: '没有特别发现' }).click()
+  await expect(observations.getByRole('button', { name: '黏液' })).toHaveAttribute('aria-pressed', 'false')
+  await observations.getByRole('button', { name: '黏液' }).click()
+  await expect(observations.getByRole('button', { name: '没有特别发现' })).toHaveAttribute('aria-pressed', 'false')
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+  await page.locator('.bowel-photo-section input[type=file]').last().setInputFiles(Array.from({ length: 7 }, (_, index) => ({ name: `bowel-${index}.png`, mimeType: 'image/png', buffer: pixel })))
+  await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
+  await expect(page.getByText('6/6', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '返回记录新情况' }).click()
+  await expect(page.getByRole('dialog', { name: '记录新情况' }).getByRole('button', { name: '排便' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '开始记录', exact: true }).click()
+  await expect(page.getByRole('button', { name: '光滑条状' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
+  const form = page.getByRole('dialog', { name: '记录排便' })
+  const order = await form.evaluate((node) => {
+    const photo = node.querySelector('.bowel-photo-section')!
+    const time = node.querySelector('input[type=datetime-local]')!
+    const save = [...node.querySelectorAll('button')].find((button) => button.textContent?.includes('保存记录'))!
+    return Boolean(photo.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING) && Boolean(time.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+  expect(order).toBe(true)
+  const time = form.locator('input[type=datetime-local]')
+  await time.scrollIntoViewIfNeeded()
+  const timeBox = await time.boundingBox()
+  const saveBox = await page.getByRole('button', { name: '保存记录', exact: true }).boundingBox()
+  expect(timeBox!.y + timeBox!.height).toBeLessThanOrEqual(saveBox!.y)
+  await page.screenshot({ path: 'test-results/bowel-record-iphone-se.png', fullPage: true })
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(page.locator('.journal-saved-toast')).toHaveText('已记录')
+  const saved = page.locator('.journal-record').filter({ hasText: '光滑条状、糊状 · 黄褐色 · 一般' })
+  await expect(saved).toBeVisible()
+  await expect(saved).toContainText('今天第1次')
+  await expect(saved.getByLabel('6 个附件')).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: '时间视图', exact: true }).click()
+  await expect(page.locator('.journal-record').filter({ hasText: '光滑条状、糊状 · 黄褐色 · 一般' })).toBeVisible()
 })
 
 async function openDietTypes(page: Page) {
@@ -303,6 +362,7 @@ test('failed timeline request offers retry without claiming an empty day', async
 test('short keyboard viewport keeps manual review actionable and closes with Escape', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '症状', exact: true }).click()
   await page.getByRole('button', { name: '开始记录', exact: true }).click()
   await page.setViewportSize({ width: 375, height: 430 })
   await page.getByRole('textbox', { name: '快捷记录文字', exact: true }).fill('键盘布局验收')

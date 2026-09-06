@@ -197,7 +197,7 @@ export function HealthEventsPage() {
       ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {})
     }, token)
     submissionKeyRef.current = ''
-    setDay(getLocalDateKey(new Date())!)
+    setDay(getLocalDateKey(new Date(occurredAt))!)
     setRevision((value) => value + 1)
     void retry()
     return '已记录'

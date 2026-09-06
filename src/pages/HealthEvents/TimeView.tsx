@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { HealthEventFilterSheet, type HealthEventFilters } from '../../components/health'
 import { formatPlainMonthDay, getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
-import { journalCategoryLabels, journalDayGroups, journalTime, shiftJournalDate } from './timeViewModel'
+import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalTime, shiftJournalDate } from './timeViewModel'
 import { formatClock, formatSleepDuration } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
@@ -32,7 +32,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, revision, o
         content: <div className="journal-hour-records">{group.items.map((entry) => <button className="journal-record" key={entry.id} type="button" onClick={() => navigate(`/health-events/${encodeURIComponent(entry.eventId)}?recordId=${encodeURIComponent(entry.id)}`)}>
           <span className="journal-record-time">{journalTime(entry).label}</span>
           <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} />
-          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? <><strong>{entry.sleep.kind === 'night' ? '夜间睡眠' : '白天小睡'}</strong><small>{formatClock(entry.sleep.sleepAt)}–{formatClock(entry.sleep.wakeAt)} · {formatSleepDuration(entry.sleep.durationMinutes)}</small></> : entry.content}</span><span className="journal-record-tags">{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{journalCategoryLabels[category]}</HealthTag>)}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span></span>
+          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? <><strong>{entry.sleep.kind === 'night' ? '夜间睡眠' : '白天小睡'}</strong><small>{formatClock(entry.sleep.sleepAt)}–{formatClock(entry.sleep.wakeAt)} · {formatSleepDuration(entry.sleep.durationMinutes)}</small></> : entry.content}</span><span className="journal-record-tags">{entry.categories?.includes('elimination') && <HealthTag>{`今天第${bowelOccurrenceNumber(entries, entry)}次`}</HealthTag>}{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{journalCategoryLabels[category]}</HealthTag>)}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span></span>
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
         </button>)}</div>
       }))} />}

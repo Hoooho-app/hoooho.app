@@ -21,6 +21,16 @@ export interface JournalDietDetails {
   supplementUnit?: '滴' | '毫升' | '粒' | '袋'
 }
 
+export interface JournalBowelDetails {
+  shapes: string[]
+  color?: string
+  amount?: string
+  durationRange?: string
+  process?: string
+  bloodObservation?: 'none-seen' | 'possibly-seen'
+  observations: string[]
+}
+
 export interface JournalSleepDetails {
   sleepAt: string
   wakeAt: string
@@ -37,5 +47,6 @@ export interface JournalMetadata {
   timeLabel?: string
   occurredAt?: string
   diet?: JournalDietDetails
+  bowel?: JournalBowelDetails
   sleep?: JournalSleepDetails
 }
