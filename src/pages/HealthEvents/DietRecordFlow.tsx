@@ -1,6 +1,6 @@
 import { ArrowLeft, Mic, Plus } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { HohoButton, HohoInput, HohoToggle } from '../../components/design-system'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { HohoButton, HohoInput } from '../../components/design-system'
 import { getSpeechRecognitionConstructor, speechErrorMessage, type SpeechRecognitionLike } from '../../features/feedback/speechInput'
 import { getBrowserVoiceCapability } from '../../features/quick-record/browserVoiceCapability'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -19,7 +19,7 @@ const feedingMethods = [
   ['breast', '母乳'], ['formula', '配方奶'], ['expressed', '瓶喂母乳'], ['mixed', '混合喂养']
 ] as const
 const feedingStatusOptions = ['顺利', '吐奶', '呛咳', '拒绝']
-const reactionOptions = ['暂未发现', '皮肤', '呼吸', '消化', '其他']
+const reactionOptions = ['皮肤', '呼吸', '消化']
 const formOptions = [['puree', '泥糊'], ['minced', '碎末'], ['small-pieces', '小颗粒'], ['finger-food', '手指食物']] as const
 const complementaryAmounts = ['尝了几口', '约 1/4 碗', '约 1/2 碗', '大部分', '全部吃完']
 const mealAmounts = ['没吃', '少量', '一半', '大部分', '吃完']
@@ -50,6 +50,24 @@ function ChoiceGroup({ label, options, value, onChange, optional = false }: { la
 
 function MultiChoiceGroup({ label, options, values, onChange, hint }: { label: string; options: readonly string[]; values: string[]; onChange: (values: string[]) => void; hint?: string }) {
   return <fieldset className="diet-fieldset"><legend>{label}</legend>{hint && <p className="diet-field-hint">{hint}</p>}<div className="diet-choice-row">{options.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div></fieldset>
+}
+
+function AmountSlider({ options, value, onChange }: { options: readonly string[]; value: string; onChange: (value: string) => void }) {
+  const selectedIndex = Math.max(0, options.indexOf(value))
+  const progress = `${(selectedIndex / (options.length - 1)) * 100}%`
+  return <fieldset className="diet-fieldset diet-amount-slider"><legend>吃了多少</legend>
+    <input aria-label="吃了多少" aria-valuetext={options[selectedIndex]} max={options.length - 1} min="0" onChange={(event) => onChange(options[Number(event.target.value)])} step="1" style={{ '--diet-amount-progress': progress } as CSSProperties} type="range" value={selectedIndex} />
+    <div aria-hidden="true" className="diet-amount-labels">{options.map((option, index) => <span className={index === selectedIndex ? 'is-selected' : ''} key={option}>{option}</span>)}</div>
+  </fieldset>
+}
+
+function ReactionChoices({ values, onChange, hint }: { values: string[]; onChange: (values: string[]) => void; hint?: string }) {
+  const noReaction = values.includes('暂未发现')
+  return <fieldset className="diet-fieldset diet-reaction-fieldset"><legend>观察到的情况</legend>
+    {hint && <p className="diet-field-hint">{hint}</p>}
+    <button aria-pressed={noReaction} className="diet-no-reaction" onClick={() => onChange(['暂未发现'])} type="button">暂未发现</button>
+    <div className="diet-reaction-grid">{reactionOptions.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values.filter((value) => value !== '暂未发现'), option))} type="button">{option}</button>)}</div>
+  </fieldset>
 }
 
 function FoodEditor({ foods, onFoodsChange, common, voice, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; voice?: ReturnType<typeof useDietVoice>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
@@ -170,35 +188,26 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photo
   const voice = useDietVoice()
   const [foods, setFoods] = useState<string[]>([])
   const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
-  const [amount, setAmount] = useState('')
-  const [firstTry, setFirstTry] = useState(false)
-  const [firstTryFoods, setFirstTryFoods] = useState<string[]>([])
+  const [amount, setAmount] = useState(kind === 'complementary' ? complementaryAmounts[0] : '')
   const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
   const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
   const [reactionsOpen, setReactionsOpen] = useState(kind === 'complementary')
-  const [reactions, setReactions] = useState<string[]>([])
-  useEffect(() => setFirstTryFoods((values) => values.filter((food) => foods.includes(food))), [foods])
+  const [reactions, setReactions] = useState<string[]>(kind === 'complementary' ? ['暂未发现'] : [])
   const isComplementary = kind === 'complementary'
   const isMeal = kind === 'meal'
   const common = isComplementary ? commonComplementary : commonMeals
   const usableVoice = isComplementary ? undefined : voice
   const hasFood = foods.length > 0 || Boolean(usableVoice?.transcript)
-  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite)) && (!firstTry || firstTryFoods.length > 0)
-  const updateReactions = (values: string[]) => {
-    if (!reactions.includes('暂未发现') && values.includes('暂未发现')) setReactions(['暂未发现'])
-    else if (reactions.includes('暂未发现') && values.some((value) => value !== '暂未发现')) setReactions(values.filter((value) => value !== '暂未发现'))
-    else setReactions(values)
-  }
+  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite))
   const save = () => {
     const title = isComplementary ? '辅食' : isMeal ? '正餐' : '零食'
     const listedFoods = foods.length ? foods.join('、') : voice.transcript
     const lines = [`${title}${isMeal ? ` · ${meal}` : ''}`, `${listedFoods} · ${amount}`]
-    if (firstTry && firstTryFoods.length) lines.push(`首次尝试：${firstTryFoods.join('、')}`)
     if (isMeal && appetite) lines.push(`食欲：${appetite}`)
     if (reactions.length) lines.push(reactions.includes('暂未发现') ? '暂未发现异常' : `进食后观察：${reactions.join('、')}`)
     onSave(lines.join('\n'), {
       kind, foods, amount,
-      ...(isComplementary ? { foodForm, firstTryFoods: firstTry ? firstTryFoods : [] } : {}),
+      ...(isComplementary ? { foodForm } : {}),
       ...(isMeal ? { meal, appetite } : kind === 'snack' ? { meal: '零食' as const } : {}),
       reactions,
       ...(usableVoice?.transcript ? { voiceTranscript: usableVoice.transcript } : {})
@@ -207,15 +216,13 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, photo
   return <>
     {isMeal && <ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} />}
     <FoodEditor common={common} foods={foods} onFoodsChange={setFoods} voice={usableVoice} />
-    <QuickRecordPhotos model={photoModel} />
+    {!isComplementary && <QuickRecordPhotos model={photoModel} />}
     {isComplementary && <ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} />}
-    <ChoiceGroup label="吃了多少" options={isComplementary ? complementaryAmounts : mealAmounts} value={amount} onChange={setAmount} />
-    {isComplementary && <section className="diet-toggle-row"><div><strong>首次尝试这种食物</strong><span>选择本次第一次吃的具体食物</span></div><HohoToggle checked={firstTry} label="首次尝试这种食物" onChange={(checked) => { setFirstTry(checked); if (!checked) setFirstTryFoods([]) }} /></section>}
-    {isComplementary && firstTry && <MultiChoiceGroup label="哪一种食物是首次尝试" options={foods} values={firstTryFoods} onChange={setFirstTryFoods} />}
+    {isComplementary ? <AmountSlider options={complementaryAmounts} value={amount} onChange={setAmount} /> : <ChoiceGroup label="吃了多少" options={mealAmounts} value={amount} onChange={setAmount} />}
     {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
-    <section className="diet-collapsible"><button aria-expanded={reactionsOpen} onClick={() => setReactionsOpen((value) => !value)} type="button"><span>进食后有无异常 <em>（可选）</em></span><span aria-hidden="true">{reactionsOpen ? '−' : '+'}</span></button>{reactionsOpen && <MultiChoiceGroup label="观察到的情况" options={reactionOptions} values={reactions} onChange={updateReactions} hint={isComplementary ? '可以稍后补充，不必等够观察时间' : undefined} />}</section>
+    <section className="diet-collapsible"><button aria-expanded={reactionsOpen} onClick={() => setReactionsOpen((value) => !value)} type="button"><span>进食后有无异常 <em>（可选）</em></span><span aria-hidden="true">{reactionsOpen ? '−' : '+'}</span></button>{reactionsOpen && (isComplementary ? <ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /> : <MultiChoiceGroup label="观察到的情况" options={reactionOptions} values={reactions} onChange={setReactions} />)}</section>
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
-    <SaveBar disabled={!valid || photoModel.blocked} onClick={save} saving={saving} />
+    <SaveBar disabled={!valid || (!isComplementary && photoModel.blocked)} onClick={save} saving={saving} />
   </>
 }
 
