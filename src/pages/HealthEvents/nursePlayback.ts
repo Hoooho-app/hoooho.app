@@ -5,6 +5,8 @@ export const RECOVERY_MS = 8_000
 export const RETRY_LIMIT = 2
 
 export function createNursePlayback(videos: HTMLVideoElement[], sources: readonly string[]) {
+  const idleIndex = 1
+  const savedIndex = videos.length - 1
   let enabled = false
   let disposed = false
   let startedIntro = false
@@ -24,8 +26,7 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
   const cleanup: Array<() => void> = []
   const allowed = () => enabled && !document.hidden && !disposed
   const hide = (index: number) => { if (index >= 0) videos[index].dataset.active = 'false' }
-  const next = (index: number) => index === 1 ? 2 : 1
-  const available = (index: number) => !exhausted[index] ? index : [1, 2].find((i) => !exhausted[i]) ?? -1
+  const availableIdle = () => !exhausted[idleIndex] ? idleIndex : -1
   const prepare = (index: number) => {
     const video = videos[index]
     if (!video.getAttribute('src')) {
@@ -73,7 +74,7 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
       videos[index].pause()
       if (current === index) current = -1
       pending = -1
-      start(available(next(index)))
+      start(availableIdle())
     }
   }
   const frame = (index: number, time: number) => {
@@ -89,9 +90,8 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
       current = index
       pending = -1
       if (previous >= 0 && previous !== index) { hide(previous); videos[previous].pause() }
-      // Prepare just the next idle clip after foreground playback starts.
-      const upcoming = available(next(index))
-      if (upcoming >= 0 && upcoming !== index) prepare(upcoming)
+      // The stable idle loop is loaded only after the intro has presented.
+      if (index === 0) prepare(idleIndex)
     }
     if (current === index) video.dataset.active = 'true'
   }
@@ -107,7 +107,7 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
     if (typeof video.requestVideoFrameCallback === 'function') callbacks[index] = video.requestVideoFrameCallback(watch)
     const ended = () => {
       hide(index)
-      if (index === current && pending < 0) start(available(next(index)))
+      if (index === current && pending < 0) start(availableIdle())
     }
     const failed = () => { hide(index) }
     const paused = () => { hide(index); frameCount[index] = 0 }
@@ -160,7 +160,7 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
   }, 200)
   const resume = () => {
     if (!allowed()) { stop(); return }
-    if (current < 0 && pending < 0) start(available(startedIntro ? 1 : 0))
+    if (current < 0 && pending < 0) start(startedIntro ? availableIdle() : 0)
   }
   const pageHide = () => stop()
   document.addEventListener('visibilitychange', resume)
@@ -171,7 +171,7 @@ export function createNursePlayback(videos: HTMLVideoElement[], sources: readonl
     saved(sequence: number) {
       if (sequence <= lastSave) return
       lastSave = sequence
-      if (allowed() && !exhausted[3]) start(3)
+      if (allowed() && !exhausted[savedIndex]) start(savedIndex)
     },
     dispose() {
       disposed = true

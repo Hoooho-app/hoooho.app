@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
 import intro from '../../assets/nurse-triage/nurses-idle-intro-0-mobile.mp4'
 import idleOne from '../../assets/nurse-triage/nurses-idle-loop-1-mobile.mp4'
-import idleTwo from '../../assets/nurse-triage/nurses-idle-loop-2-mobile.mp4'
 import saved from '../../assets/nurse-triage/nurse-save-success-ok-mobile.mp4'
 import { createNursePlayback } from './nursePlayback'
 
-export const idlePlaylist = [intro, idleOne, idleTwo] as const
+export const idlePlaylist = [intro, idleOne] as const
 const sources = [...idlePlaylist, saved]
-const phases = ['intro0', 'idle1', 'idle2', 'save_success']
+const phases = ['intro0', 'idle1', 'save_success']
 interface IdleNurseVisualProps {
   active: boolean
   reducedMotion: boolean
