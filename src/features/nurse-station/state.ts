@@ -24,10 +24,12 @@ export interface NurseStationState {
   tutorialSeen: boolean
   loginNoticeDismissed: boolean
   suppressedTypes: NurseStationItemType[]
+  handledBubbleKeys: string[]
+  animatedBubbleKeys: string[]
   items: NurseStationItem[]
 }
 
-const initialState: NurseStationState = { tutorialSeen: false, loginNoticeDismissed: false, suppressedTypes: [], items: [] }
+const initialState: NurseStationState = { tutorialSeen: false, loginNoticeDismissed: false, suppressedTypes: [], handledBubbleKeys: [], animatedBubbleKeys: [], items: [] }
 const prefix = 'hoooho:nurse-station:v1:'
 
 export function nurseStationStorageKey(identityId: string, memberId: string) {
@@ -37,7 +39,7 @@ export function nurseStationStorageKey(identityId: string, memberId: string) {
 export function readNurseStationState(identityId: string, memberId: string): NurseStationState {
   try {
     const parsed = JSON.parse(localStorage.getItem(nurseStationStorageKey(identityId, memberId)) ?? '') as Partial<NurseStationState>
-    return { ...initialState, ...parsed, items: Array.isArray(parsed.items) ? parsed.items : [], suppressedTypes: Array.isArray(parsed.suppressedTypes) ? parsed.suppressedTypes : [] }
+    return { ...initialState, ...parsed, items: Array.isArray(parsed.items) ? parsed.items : [], suppressedTypes: Array.isArray(parsed.suppressedTypes) ? parsed.suppressedTypes : [], handledBubbleKeys: Array.isArray(parsed.handledBubbleKeys) ? parsed.handledBubbleKeys : [], animatedBubbleKeys: Array.isArray(parsed.animatedBubbleKeys) ? parsed.animatedBubbleKeys : [] }
   } catch { return { ...initialState } }
 }
 

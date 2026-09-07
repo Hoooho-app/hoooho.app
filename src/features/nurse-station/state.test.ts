@@ -10,7 +10,7 @@ test('护士站状态按身份和当前记录对象隔离', () => {
 
 test('只有真实且匹配的健康随记产生待确认事项并去重', () => {
   const event = { id: 'event-1', memberId: 'child-a', title: '发热', displayTitle: '发热', category: 'fever', occurredAt: '2026-09-07T10:20:00.000Z', createdAt: '2026-09-07T10:20:00.000Z', updatedAt: '2026-09-07T10:20:00.000Z' } as HealthEventListItemViewModel
-  const empty = { tutorialSeen: true, loginNoticeDismissed: false, suppressedTypes: [], items: [] }
+  const empty = { tutorialSeen: true, loginNoticeDismissed: false, suppressedTypes: [], handledBubbleKeys: [], animatedBubbleKeys: [], items: [] }
   const once = reconcileNurseStationItems(empty, [event], 'child-a')
   assert.equal(once.items.length, 1)
   assert.equal(once.items[0].status, 'pending_confirmation')

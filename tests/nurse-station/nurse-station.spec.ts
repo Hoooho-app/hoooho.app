@@ -1,8 +1,22 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
-test('iPhone SE nurse station covers empty, small and pressure states', async ({ page }) => {
+async function swipeLeft(page: Page, locator: Locator) {
+  const box = await locator.boundingBox()
+  await page.mouse.move(box!.x + box!.width * .8, box!.y + box!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 8, box!.y + box!.height / 2, { steps: 6 })
+  await page.mouse.up()
+}
+
+test('iPhone SE nurse bubbles are contextual, grouped, dismissible and safe', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
+  await page.addInitScript(() => {
+    const pendingState = sessionStorage.getItem('nurse-station-test-state')
+    if (!pendingState) return
+    Object.keys(localStorage).filter((key) => key.startsWith('hoooho:nurse-station:v1:')).forEach((key) => localStorage.setItem(key, pendingState))
+    sessionStorage.removeItem('nurse-station-test-state')
+  })
   await page.goto('/login')
   await page.getByRole('button', { name: '暂不登录，先体验' }).click()
   await expect(page).toHaveURL(/nurse-station/)
@@ -15,65 +29,76 @@ test('iPhone SE nurse station covers empty, small and pressure states', async ({
   await page.goto('/nurse-station')
 
   const now = new Date().toISOString()
-  const makeItem = (id: string, status: string, type = 'symptom_observation') => ({ id, memberId: 'fixture-child', sourceEventId: `event-${id}`, relatedEventIds: [`event-${id}`], type, status, title: type === 'medication_reminder' ? '需要设置下一次用药提醒吗？' : '要开启体温观察吗？', sourceLabel: `记录${id} · 9/8 10:00`, createdAt: now, updatedAt: now, ...(status === 'completed' ? { completedAt: now, completionResult: '已恢复' } : {}) })
-  const setStation = async (items: ReturnType<typeof makeItem>[], tutorialSeen: boolean) => page.evaluate(({ items, tutorialSeen }) => {
-    const value = JSON.stringify({ tutorialSeen, loginNoticeDismissed: false, suppressedTypes: [], items })
-    Object.keys(localStorage).filter((key) => key.startsWith('hoooho:nurse-station:v1:')).forEach((key) => localStorage.setItem(key, value))
-  }, { items, tutorialSeen })
+  const makeItem = (id: string, status: string, changes: Record<string, unknown> = {}) => ({ id, memberId: 'fixture-child', sourceEventId: `event-${id}`, relatedEventIds: [`event-${id}`], type: 'symptom_observation', status, title: '值得继续留意', sourceLabel: `${id} · 9/8 10:00`, createdAt: now, updatedAt: now, ...changes })
+  const setStation = async (items: ReturnType<typeof makeItem>[], tutorialSeen = true) => {
+    await page.evaluate(({ items, tutorialSeen }) => {
+      const value = JSON.stringify({ tutorialSeen, loginNoticeDismissed: false, suppressedTypes: [], handledBubbleKeys: [], animatedBubbleKeys: [], items })
+      sessionStorage.setItem('nurse-station-test-state', value)
+      window.location.reload()
+    }, { items, tutorialSeen })
+    await page.waitForLoadState('domcontentloaded')
+  }
 
-  await setStation([], true)
-  await page.reload()
+  // 1. No messages: no fixed cards, centered nurse video, tasks remain available.
+  await setStation([])
+  await expect(page.locator('.nurse-bubble')).toHaveCount(0)
+  await expect(page.locator('.nurse-bubble-stage')).toHaveAttribute('data-has-bubbles', 'false')
   await expect(page.getByText('暂无守护任务')).toBeVisible()
-  await expect(page.getByRole('button', { name: '护理小贴士' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '值得继续留意' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '使用教程' })).toBeVisible()
-  await expect(page.getByText('未登录')).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/nurse-station-empty-iphone-se.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/nurse-bubbles-none-iphone-se.png', fullPage: true })
 
-  await setStation([makeItem('active', 'active'), makeItem('pending', 'pending_confirmation', 'medication_reminder')], false)
+  // 2. A first-use tutorial is one temporary bubble and does not return after dismissal.
+  await setStation([makeItem('history', 'completed')], false)
+  await expect(page.getByRole('button', { name: '使用教程', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '擦除使用教程' }).click()
+  await expect(page.getByRole('button', { name: '使用教程', exact: true })).toHaveCount(0)
   await page.reload()
-  await expect(page.getByRole('button', { name: '护理小贴士，2项待查看' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '值得继续留意，1项待查看' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '使用教程，1项待查看' })).toBeVisible()
-  await expect(page.getByText('共 1 项守护任务')).toBeVisible()
-  await page.getByRole('button', { name: '值得继续留意，1项待查看' }).click()
+  await expect(page.getByRole('button', { name: '使用教程', exact: true })).toHaveCount(0)
+
+  // 3. Three different observation topics become one grouped bubble.
+  const attentionItems = [makeItem('发热', 'pending_confirmation'), makeItem('咳嗽', 'pending_confirmation'), makeItem('皮肤变化', 'pending_confirmation')]
+  await setStation(attentionItems)
+  await expect(page.locator('.nurse-bubble')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: '值得继续留意，3项' })).toBeVisible()
+
+  // 4. Only two full bubbles render; lower-priority messages fold into one summary.
+  const multiTypeItems = [makeItem('安全', 'active', { title: '安全提醒：症状明显加重' }), makeItem('发热', 'pending_confirmation'), makeItem('护理', 'active', { type: 'follow_up', title: '护理小贴士' })]
+  await setStation(multiTypeItems, false)
+  await expect(page.locator('.nurse-bubble')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: '安全提醒', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '值得继续留意', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '还有 2 条' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/nurse-bubbles-multiple-iphone-se.png', fullPage: true })
+
+  // 5. A regular bubble can be swiped away without affecting guardian tasks.
+  await setStation(attentionItems)
+  await swipeLeft(page, page.getByRole('button', { name: '值得继续留意，3项' }))
+  await expect(page.getByRole('button', { name: '值得继续留意，3项' })).toHaveCount(0)
+  await expect(page.getByText('共 0 项守护任务')).toBeVisible()
+
+  // 6. Explicit confirmation converts one message into one task and reduces the bubble count.
+  await setStation(attentionItems)
+  await page.getByRole('button', { name: '值得继续留意，3项' }).click()
   await expect(page.getByRole('dialog', { name: '值得继续留意' })).toBeVisible()
-  await page.getByRole('button', { name: '加入守护任务' }).click()
-  await expect(page.getByText('共 2 项守护任务')).toBeVisible()
-  await page.getByRole('button', { name: '使用教程，1项待查看' }).click()
-  await page.getByRole('button', { name: '完成教程' }).click()
-  await expect(page.getByRole('button', { name: '使用教程' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/nurse-station-small-iphone-se.png', fullPage: true })
+  await page.getByRole('button', { name: '加入守护任务' }).first().click()
+  await expect(page.getByText('共 1 项守护任务')).toBeVisible()
+  await expect(page.getByRole('button', { name: '值得继续留意，2项' })).toBeVisible()
 
-  const pressure = [
-    ...Array.from({ length: 7 }, (_, index) => makeItem(`active-${index}`, 'active', index === 1 ? 'medication_reminder' : 'symptom_observation')),
-    ...Array.from({ length: 12 }, (_, index) => makeItem(`pending-${index}`, 'pending_confirmation')),
-    ...Array.from({ length: 18 }, (_, index) => makeItem(`done-${index}`, 'completed'))
-  ]
-  await setStation(pressure, false)
-  await page.reload()
-  await expect(page.getByRole('button', { name: '护理小贴士，9+项待查看' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '值得继续留意，9+项待查看' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '使用教程，1项待查看' })).toBeVisible()
-  await expect(page.getByText('共 7 项守护任务')).toBeVisible()
-  await expect(page.getByRole('button', { name: '已归档任务 18' })).toBeVisible()
-  const tasks = page.locator('.guardian-task-card')
-  await expect(tasks).toHaveCount(7)
-  const secondTask = await tasks.nth(1).boundingBox()
-  expect(secondTask!.y).toBeLessThan(667)
+  // 7. A safety bubble cannot disappear from one swipe and requires an explicit action.
+  await setStation([makeItem('安全', 'active', { title: '安全提醒：症状明显加重' })])
+  const safety = page.getByRole('button', { name: '安全提醒', exact: true })
+  await swipeLeft(page, safety)
+  await expect(page.getByRole('dialog', { name: '安全提醒' })).toBeVisible()
+  await page.getByRole('dialog', { name: '安全提醒' }).getByLabel('关闭安全提醒').click()
+  await expect(safety).toBeVisible()
+  await safety.click()
+  await page.getByRole('button', { name: '我知道了' }).click()
+  await expect(safety).toHaveCount(0)
+
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
   expect(await page.locator('.idle-nurse-visual video').count()).toBe(3)
-  await expect.poll(() => page.locator('.idle-nurse-visual video[data-active="true"]').count()).toBe(1)
-  const activeVideo = page.locator('.idle-nurse-visual video[data-active="true"]')
-  const firstTime = await activeVideo.evaluate((video: HTMLVideoElement) => video.currentTime)
-  await page.waitForTimeout(300)
-  expect(await activeVideo.evaluate((video: HTMLVideoElement, time) => !video.paused && video.currentTime > time, firstTime)).toBe(true)
-  await page.screenshot({ path: 'test-results/nurse-station-pressure-iphone-se.png', fullPage: true })
-
   for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
-    await expect(page.getByRole('button', { name: '摘要生成' })).toBeVisible()
   }
   expect(errors).toEqual([])
 })
