@@ -29,8 +29,14 @@ test('前台护士站成为默认首页且健康随记保持独立', () => {
 })
 
 test('零成员在护士站内分流且不会预先创建空健康事件', () => {
-  assert.match(station, /先添加孩子，护士站才能为TA提供服务/)
+  assert.match(station, /欢迎来到 Hoooho/)
+  assert.match(station, /把孩子零散的健康变化，<span>整理成连续记录<\/span>/)
+  assert.match(station, /记下症状、用药和就医经过，<span>自动整理成时间线和问诊摘要。<\/span>/)
+  assert.match(station, /随手记录[\s\S]*自动整理[\s\S]*就医时带走/)
   assert.match(station, /添加第一个孩子/)
+  assert.match(station, /添加后即可开始记录/)
+  assert.match(station, /<MainAppHeader title="前台护士站" \/>[\s\S]*nurse-station-empty-member/)
+  assert.doesNotMatch(station, /先添加孩子，护士站才能为TA提供服务/)
   assert.doesNotMatch(page, /familyMemberService\.createSelf|createSelfAndRecord/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
   assert.doesNotMatch(page, /!state\.data\.entryState\.hasValidHealthRecord/)
