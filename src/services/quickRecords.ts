@@ -4,12 +4,15 @@ export interface QuickRecordCreateInput {
   journal?: import('../types/journal').JournalMetadata
   memberId: string
   content: string
+  rawText?: string
   occurredAt: string
   inputChannel: 'voice' | 'text'
   idempotencyKey: string
   title: string
   photoDraftId?: string
   photoIds?: string[]
+  duplicateAction?: 'update' | 'create'
+  duplicateEventId?: string
 }
 
 export interface QuickRecordCreateResult {
@@ -17,6 +20,15 @@ export interface QuickRecordCreateResult {
   recordId: string
   photoCount?: number
   idempotent: boolean
+}
+
+export interface QuickRecordDuplicate {
+  eventId: string
+  recordId: string
+  occurredAt: string
+  summary: string
+  hasClearChange: boolean
+  changeSummary: string
 }
 
 export interface QuickRecordPhotoDto {
@@ -35,6 +47,9 @@ export interface QuickRecordPhotoDto {
 }
 
 export const quickRecordService = {
+  checkDuplicate(input: QuickRecordCreateInput, token: string) {
+    return apiRequest<{ duplicate: QuickRecordDuplicate | null }>('/api/quick-records/duplicate-check', { method: 'POST', body: input, token })
+  },
   create(input: QuickRecordCreateInput, token: string) {
     return apiRequest<QuickRecordCreateResult>('/api/quick-records', { method: 'POST', body: input, token })
   },

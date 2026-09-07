@@ -21,6 +21,9 @@ export interface JournalEntry extends JournalMetadata {
   createdAt: string
   attachmentCount: number
   status: HealthEventStage
+  firstOccurredAt?: string
+  latestOccurredAt?: string
+  updateCount?: number
 }
 
 export function shiftJournalDate(day: string, amount: number) {
@@ -34,19 +37,41 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
     const rows = (records.get(event.id) ?? []).filter((record) => record.eventId === event.id && record.accountId === event.accountId)
     const files = (attachments.get(event.id) ?? []).filter((file) => file.eventId === event.id && file.accountId === event.accountId)
     if (!rows.length) return [{ id: `event:${event.id}`, eventId: event.id, content: event.title, occurredAt: event.startTime, createdAt: event.createdAt, categories: ['other'] as JournalCategory[], timePrecision: 'exact' as const, attachmentCount: files.length, status: event.status }]
-    return rows.map((record) => ({
-      id: record.id, eventId: event.id, content: record.content, occurredAt: record.journal?.occurredAt ?? record.occurredAt, createdAt: record.createdAt,
-      categories: record.journal?.categories?.length ? record.journal.categories.filter((category) => category in journalCategoryLabels) : [record.type in journalCategoryLabels ? record.type as JournalCategory : 'other' as const],
-      timePrecision: record.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType ?? '') ? 'exact' : 'unknown'),
-      timeLabel: record.journal?.timeLabel,
-      sleep: record.journal?.sleep,
-      outdoorActivity: record.journal?.outdoorActivity,
-      medication: record.journal?.medication,
-      vaccination: record.journal?.vaccination,
-      attachmentCount: files.filter((file) => file.recordId === record.id).length + (record === rows[0] ? files.filter((file) => !file.recordId).length : 0),
-      status: event.status
-    }))
+    const updatePrefix = 'event-update:'
+    const updates = rows.filter((record) => record.note?.startsWith(updatePrefix))
+    const roots = rows.filter((record) => !record.note?.startsWith(updatePrefix))
+    return (roots.length ? roots : rows).map((first) => {
+      const ordered = [first, ...updates.filter((record) => record.note === `${updatePrefix}${first.id}`)].sort((left, right) => Date.parse(left.journal?.occurredAt ?? left.occurredAt) - Date.parse(right.journal?.occurredAt ?? right.occurredAt) || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
+      const latest = ordered[ordered.length - 1]
+      const firstOccurredAt = first.journal?.occurredAt ?? first.occurredAt
+      const latestOccurredAt = latest.journal?.occurredAt ?? latest.occurredAt
+      return {
+      id: first.id, eventId: event.id, content: first.content, occurredAt: latestOccurredAt, createdAt: latest.createdAt,
+      categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
+      timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType ?? '') ? 'exact' : 'unknown'),
+      timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
+      sleep: first.journal?.sleep,
+      outdoorActivity: first.journal?.outdoorActivity,
+      medication: first.journal?.medication,
+      vaccination: first.journal?.vaccination,
+      attachmentCount: files.filter((file) => !file.recordId || ordered.some((record) => record.id === file.recordId)).length,
+      status: event.status,
+      firstOccurredAt,
+      latestOccurredAt,
+      updateCount: ordered.length - 1
+      }
+    })
   })
+}
+
+export function journalUpdateLabel(entry: JournalEntry) {
+  if (!entry.updateCount || !entry.firstOccurredAt || !entry.latestOccurredAt) return ''
+  const formatTime = (value: string) => {
+    const date = new Date(value)
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+  const first = formatTime(entry.firstOccurredAt)
+  return entry.updateCount === 1 ? `${first} 首次记录 · ${formatTime(entry.latestOccurredAt)} 有更新` : `${first} 首次记录 · 已更新${entry.updateCount}次`
 }
 
 export function journalTime(entry: JournalEntry) {

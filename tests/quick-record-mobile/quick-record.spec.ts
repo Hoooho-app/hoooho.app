@@ -6,7 +6,7 @@ const memberId = 'quick-record-e2e-member'
 const token = new TokenService('quick-record-mobile-e2e-secret', 60 * 60_000).create({ id: accountId })
 const photo = { name: '体温.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') }
 
-async function preparePage(page: Page, microphone: 'allow' | 'deny' = 'allow') {
+async function preparePage(page: Page, microphone: 'allow' | 'deny' = 'allow', actionName = '快速记录') {
   await page.addInitScript(({ authToken, account, member, permission }) => {
     sessionStorage.setItem('hoooho-auth-token', authToken)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: {
@@ -38,7 +38,7 @@ async function preparePage(page: Page, microphone: 'allow' | 'deny' = 'allow') {
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: FakeRecognition })
   }, { authToken: token, account: accountId, member: memberId, permission: microphone })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '快速记录' })).toBeVisible()
+  await expect(page.getByRole('button', { name: actionName })).toBeVisible()
 }
 
 async function coordinateClick(page: Page, role: 'button' | 'textbox', name: string | RegExp) {
@@ -202,6 +202,37 @@ test('保存失败保留核对文字和已上传照片并可再次保存', async
   await page.unroute('**/api/quick-records')
   await coordinateClick(page, 'button', '确认保存')
   await expect(page.getByText('已记录', { exact: true }).first()).toBeVisible()
+})
+
+test('疑似重复记录由用户决定丢弃、补充或仍然新增', async ({ page }) => {
+  await preparePage(page, 'allow', '快捷记录')
+  const describeAndSave = async () => {
+    await coordinateClick(page, 'button', '快捷记录')
+    await expect(page.getByRole('region', { name: '快捷记录听写' }).getByText('头有点疼', { exact: true })).toBeVisible()
+    await page.waitForTimeout(1100)
+    await coordinateClick(page, 'button', '结束听写')
+    await coordinateClick(page, 'button', '确认保存')
+  }
+
+  await describeAndSave()
+  await expect(page.locator('.journal-record')).toHaveCount(1)
+  await describeAndSave()
+  await expect(page.getByRole('dialog', { name: '这个情况刚刚记录过' })).toBeVisible()
+  await coordinateClick(page, 'button', '知道了，不再记录')
+  await expect(page.locator('.journal-record')).toHaveCount(1)
+
+  await describeAndSave()
+  await coordinateClick(page, 'button', '有变化，补充情况')
+  await expect(page.getByText('暂时没有识别到明显变化，你可以补充哪里发生了变化。')).toBeVisible()
+  await page.getByRole('textbox', { name: '情况变化' }).fill('体温升到38.5度')
+  await coordinateClick(page, 'button', '保存情况更新')
+  await expect(page.locator('.journal-record')).toHaveCount(1)
+  await expect(page.getByText(/首次记录 · .*有更新/)).toBeVisible()
+
+  await describeAndSave()
+  await coordinateClick(page, 'button', '仍然新增一条')
+  await expect(page.locator('.journal-record')).toHaveCount(2)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
 })
 
 declare global {
