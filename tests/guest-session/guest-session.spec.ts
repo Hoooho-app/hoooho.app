@@ -40,19 +40,20 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
     observe(page)
     await page.goto(`${baseURL}/login`)
     await page.getByRole('button', { name: '暂不登录，先体验' }).click()
-    await expect(page).toHaveURL(/health-events/)
+    await expect(page).toHaveURL(/nurse-station/)
     const accountId = await identity(page)
     expect(accountId).toBeTruthy()
     const records = await seed(page)
+    await page.goto(`${baseURL}/health-events`)
     for (const hard of [false, true]) {
       if (hard) { const cdp = await context.newCDPSession(page); await cdp.send('Network.setCacheDisabled', { cacheDisabled: true }); await cdp.detach() }
       await page.reload()
-      await expect(page.getByRole('button', { name: '快速记录' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: '健康随身记' })).toBeVisible()
       expect(await identity(page)).toBe(accountId)
     }
     const tab = await context.newPage()
     await tab.goto(`${baseURL}/health-events`)
-    await expect(tab.getByRole('button', { name: '快速记录' })).toBeVisible()
+    await expect(tab.getByRole('heading', { name: '健康随身记' })).toBeVisible()
     expect(await identity(tab)).toBe(accountId)
     await tab.close(); await page.close()
     await context.close()
@@ -75,7 +76,7 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
 test('failed restoration offers retry and never creates a guest; browsers stay isolated', async ({ page, browser }) => {
   await page.goto('/login')
   await page.getByRole('button', { name: '暂不登录，先体验' }).click()
-  await expect(page).toHaveURL(/health-events/)
+  await expect(page).toHaveURL(/nurse-station/)
   const accountId = await identity(page)
   let created = 0
   page.on('request', (request) => { if (request.url().endsWith('/api/auth/guest')) created++ })
@@ -93,4 +94,59 @@ test('failed restoration offers retry and never creates a guest; browsers stay i
     await expect(otherPage).toHaveURL(/login/)
     expect(await identity(otherPage)).toBeNull()
   } finally { await other.close() }
+})
+
+test('mobile foreground and bfcache restore the same guest before protected requests continue', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await expect(page).toHaveURL(/nurse-station/)
+  const accountId = await identity(page)
+  await seed(page)
+  let restores = 0
+  page.on('request', (request) => { if (request.url().endsWith('/api/auth/session')) restores++ })
+
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await expect.poll(() => restores).toBeGreaterThan(0)
+  const afterForeground = restores
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })))
+  await expect.poll(() => restores).toBeGreaterThan(afterForeground)
+  expect(await identity(page)).toBe(accountId)
+
+  let rejected = false
+  await page.route('**/api/account/entry-state', async (route) => {
+    if (!rejected) {
+      rejected = true
+      await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'TOKEN_EXPIRED', message: '测试短期凭证已过期' } }) })
+      return
+    }
+    await route.continue()
+  })
+  const beforeRejectedRequest = restores
+  await page.goto('/guide')
+  await page.goto('/health-events')
+  await expect(page).toHaveURL(/health-events/)
+  await expect.poll(() => rejected).toBe(true)
+  await expect.poll(() => restores).toBeGreaterThan(beforeRejectedRequest)
+  expect(await identity(page)).toBe(accountId)
+})
+
+test('foreground recovery failure keeps the guest cookie and offers retry', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await expect(page).toHaveURL(/nurse-station/)
+  const accountId = await identity(page)
+  let created = 0
+  let restores = 0
+  page.on('request', (request) => { if (request.url().endsWith('/api/auth/guest')) created++ })
+  page.on('request', (request) => { if (request.url().endsWith('/api/auth/session')) restores++ })
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })))
+  await expect.poll(() => restores).toBeGreaterThan(0)
+  await page.route('**/api/auth/session', (route) => route.abort('failed'))
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })))
+  await expect(page.getByRole('button', { name: '重试', exact: true })).toBeVisible()
+  expect(created).toBe(0)
+  await page.unroute('**/api/auth/session')
+  await page.getByRole('button', { name: '重试', exact: true }).click()
+  await expect(page).toHaveURL(/nurse-station/)
+  expect(await identity(page)).toBe(accountId)
 })

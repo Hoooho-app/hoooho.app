@@ -20,7 +20,7 @@ function writeSessionToken(key: string, value: string | null) {
 }
 
 interface AppState {
-  authStatus: 'unknown' | 'loading' | 'guest' | 'authenticated' | 'unauthenticated'
+  authStatus: 'unknown' | 'loading' | 'guest' | 'authenticated' | 'unauthenticated' | 'error'
   setAuthStatus: (status: AppState['authStatus']) => void
   authToken: string | null
   authUser: AuthUser | null

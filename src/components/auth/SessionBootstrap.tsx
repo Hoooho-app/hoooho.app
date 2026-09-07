@@ -5,15 +5,31 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import { HohoButton } from '../design-system/HohoButton'
 import { loadProfileSections } from '../../services/profileSectionStorage'
+import { registerSessionRecoveryHandler } from '../../services/sessionRecoveryCoordinator'
 
 let pending: Promise<void> | undefined
-export function restoreBrowserSession() {
+async function refreshBrowserSessionToken(transition = true) {
+  const state = useAppStore.getState()
+  if (transition) state.setAuthStatus('loading')
+  const session = await authService.restore(state.authToken ?? '')
+  if ('unauthenticated' in session) { state.clearAuthSession(); return null }
+  state.setAuthSession(session)
+  return session
+}
+
+registerSessionRecoveryHandler(async () => {
+  try { return (await refreshBrowserSessionToken(false))?.token ?? null }
+  catch (error) { useAppStore.getState().setAuthStatus('error'); throw error }
+})
+
+export function restoreBrowserSession(options: { transition?: boolean } = {}) {
   if (pending) return pending
   const restore = async () => {
     const state = useAppStore.getState()
-    state.setAuthStatus('loading')
-    const session = await authService.restore(state.authToken ?? '')
-    if ('unauthenticated' in session) { state.clearAuthSession(); return }
+    const previousUserId = state.authUser?.id
+    const previousMemberId = state.currentMemberId
+    const session = await refreshBrowserSessionToken(options.transition !== false)
+    if (!session) return
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 15_000)
     let members
@@ -21,13 +37,17 @@ export function restoreBrowserSession() {
       members = (await familyMemberService.list(session.token, controller.signal)).map(adaptFamilyMember)
       await loadProfileSections(session.token, members, controller.signal)
     } finally { window.clearTimeout(timeout) }
-    const preferred = state.authUser?.id === session.user.id && state.currentMemberId !== 'self' ? state.currentMemberId : session.user.currentMemberId ?? ''
-    state.setAuthSession(session)
+    const preferred = previousUserId === session.user.id && previousMemberId !== 'self' ? previousMemberId : session.user.currentMemberId ?? ''
     state.setMembers(members)
-    state.setCurrentMemberId(members.some((member) => member.id === preferred) ? preferred : members[0]?.id ?? 'self')
+    state.setCurrentMemberId(members.some((member) => member.id === preferred) ? preferred : members[0]?.id ?? 'self', { sync: false })
   }
   pending = (navigator.locks ? navigator.locks.request('hoooho-browser-session', restore) : restore()).finally(() => { pending = undefined })
   return pending
+}
+
+export async function recoverBrowserSession(options: { transition?: boolean } = {}) {
+  try { await restoreBrowserSession(options); return true }
+  catch { useAppStore.getState().setAuthStatus('error'); return false }
 }
 
 export function SessionBootstrap({ children }: { children: ReactNode }) {
@@ -40,6 +60,18 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
     catch { setError('暂时无法恢复使用状态，请检查网络后重试') }
   }, [])
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (!ready) return
+    const resume = () => {
+      if (document.visibilityState !== 'hidden') void recoverBrowserSession({ transition: false })
+    }
+    document.addEventListener('visibilitychange', resume)
+    window.addEventListener('pageshow', resume)
+    return () => {
+      document.removeEventListener('visibilitychange', resume)
+      window.removeEventListener('pageshow', resume)
+    }
+  }, [ready])
   if (ready) return children
   return <main className="app-shell px-4 py-16"><p role={error ? 'alert' : 'status'}>{error || '正在恢复使用状态…'}</p>{error && <HohoButton onClick={() => void load()}>重试</HohoButton>}</main>
 }

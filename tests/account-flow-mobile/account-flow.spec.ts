@@ -22,7 +22,7 @@ async function noHorizontalOverflow(page: import('@playwright/test').Page) {
 test('guest enters the app and can reach login guidance from the visible drawer footer', async ({ page }) => {
   await page.goto('/login')
   await page.getByRole('button', { name: '暂不登录，先体验' }).click()
-  await expect(page).toHaveURL(/\/health-events/)
+  await expect(page).toHaveURL(/\/nurse-station/)
   const guestId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
   expect(guestId).toMatch(/^guest:/)
   await page.reload()
