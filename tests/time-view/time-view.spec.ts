@@ -27,6 +27,7 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
   await expect(page.getByRole('button', { name: '后一天', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: '筛选健康随身记' })).toBeVisible()
   await expect(page.getByText(`${new Date().getFullYear()}年`, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '昨天', exact: true })).toHaveCount(0)
   await expect(page.locator('.journal-day-picker')).toContainText('今天 ·')
   const navigationLayout = await page.locator('.journal-date-navigation').evaluate((navigation) => {
     const controls = [...navigation.querySelectorAll('label, .journal-yesterday-entry, :scope > button')].map((element) => element.getBoundingClientRect())
