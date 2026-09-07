@@ -48,6 +48,12 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
   await expect(page.locator('.journal-record')).toHaveCount(10)
   await expect(page.getByText('时间未明确', { exact: true })).toHaveCount(0)
   expect(await page.locator('.journal-record-content').first().evaluate((element) => ({ whiteSpace: getComputedStyle(element).whiteSpace, oneLine: element.scrollHeight <= element.clientHeight + 1 }))).toEqual({ whiteSpace: 'nowrap', oneLine: true })
+  expect(await page.locator('.journal-record').first().evaluate((record) => {
+    const icon = record.querySelector(':scope > svg')!.getBoundingClientRect()
+    const tags = record.querySelector('.journal-record-tags')!.getBoundingClientRect()
+    const summary = record.querySelector('.journal-record-summary')!.getBoundingClientRect()
+    return { tagsAfterIcon: tags.left >= icon.right, summaryAfterTags: summary.left >= tags.right }
+  })).toEqual({ tagsAfterIcon: true, summaryAfterTags: true })
   expect(await page.locator('.journal-record-summary').first().evaluate((element) => getComputedStyle(element).fontSize)).toBe('13px')
   const nine = page.locator('.hoho-timeline-item').filter({ has: page.locator('.hoho-timeline-item__label', { hasText: /^9时$/ }) })
   await expect(nine.locator('.journal-record')).toHaveCount(3)
