@@ -1,5 +1,30 @@
-.journal-date-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); margin-bottom: var(--hoho-space-2); color: rgb(var(--hoho-color-primary)); }
-.journal-return-today { display: flex; justify-content: center; margin-top: calc(-1 * var(--hoho-space-3)); margin-bottom: var(--hoho-space-3); }
+.health-events-content { position: relative; }
+.health-events-toolbar { position: absolute; z-index: 2; top: 0; right: 0; margin: 0; }
+.health-events-toolbar .journal-toolbar { min-height: 48px; padding-right: 4px; }
+.health-events-toolbar .journal-toolbar-actions { gap: 4px; }
+.health-events-toolbar .hoho-button[data-size='icon'] { width: 40px; min-width: 40px; min-height: 40px; height: 40px; }
+.journal-date-navigation { display: grid; grid-template-columns: auto auto minmax(0, 1fr) 36px; align-items: center; gap: 2px; height: 48px; margin-bottom: var(--hoho-space-2); padding: 0 84px 0 6px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); white-space: nowrap; }
+.journal-year-picker, .journal-day-picker { position: relative; display: flex; align-items: center; min-width: 0; height: 40px; cursor: pointer; }
+.journal-year-picker { padding-right: 6px; color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 400; }
+.journal-year-picker::after { content: ''; position: absolute; right: 0; width: 1px; height: 24px; background: rgb(var(--hoho-color-border)); }
+.journal-year-picker input, .journal-day-picker input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.journal-yesterday-entry { display: flex; align-items: center; min-width: 0; height: 40px; }
+.journal-yesterday-entry .hoho-button[data-size='icon'] { width: 24px; min-width: 24px; min-height: 40px; height: 40px; padding: 0; }
+.journal-yesterday-entry > button { min-width: 32px; min-height: 40px; padding: 0; color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-label); font-weight: 400; }
+.journal-day-picker { justify-content: center; overflow: hidden; font-size: var(--hoho-font-size-label); font-weight: 400; }
+.journal-day-picker > span { overflow: hidden; text-overflow: clip; }
+.journal-day-picker b { color: rgb(var(--hoho-color-primary)); font: inherit; }
+.journal-date-navigation > .hoho-button[data-size='icon'] { width: 36px; min-width: 36px; min-height: 40px; height: 40px; padding: 0; }
+.journal-date-navigation > .hoho-button:disabled { color: rgb(var(--hoho-color-text-tertiary)); opacity: .55; }
+.journal-year-picker:focus-within, .journal-day-picker:focus-within, .journal-yesterday-entry > button:focus-visible { border-radius: var(--hoho-radius-control); outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: -2px; }
+@media (max-width: 340px) {
+  .health-events-toolbar .journal-toolbar { padding-right: 2px; }
+  .health-events-toolbar .journal-toolbar-actions { gap: 2px; }
+  .health-events-toolbar .hoho-button[data-size='icon'] { width: 36px; min-width: 36px; height: 40px; }
+  .journal-date-navigation { width: calc(100% + var(--hoho-page-gutter)); gap: 1px; margin-right: calc(var(--hoho-page-gutter) * -1); padding-right: 76px; padding-left: 4px; }
+  .journal-year-picker, .journal-yesterday-entry > button, .journal-day-picker { font-size: var(--hoho-font-size-caption); }
+  .journal-year-picker { padding-right: 4px; }
+}
 .journal-hour-records { display: grid; gap: var(--hoho-space-2); }
 .journal-timeline.hoho-timeline { gap: var(--hoho-space-3); margin-left: var(--hoho-space-2); }
 .journal-timeline .hoho-timeline-item { display: block; position: relative; border-left: 1px solid rgb(var(--hoho-color-border)); padding-left: var(--hoho-space-4); }

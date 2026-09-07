@@ -7,6 +7,7 @@ import { Avatar } from '../common'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import './current-child-sheet.css'
+import { getChildMembers } from '../../features/family/currentChild'
 
 interface CurrentChildSheetProps {
   onClose: () => void
@@ -24,7 +25,7 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
   const members = useAppStore((state) => state.members)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
-  const children = members.filter((member) => member.relation === '子女')
+  const children = getChildMembers(members)
   const [switchingId, setSwitchingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [dragOffset, setDragOffset] = useState(0)

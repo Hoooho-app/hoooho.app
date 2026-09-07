@@ -205,6 +205,12 @@ test('保存失败保留核对文字和已上传照片并可再次保存', async
 })
 
 test('疑似重复记录由用户决定丢弃、补充或仍然新增', async ({ page }) => {
+  await page.route('**/api/members', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    const members = await response.json()
+    await route.fulfill({ response, json: members.map((member: Record<string, unknown>) => ({ ...member, relationship: 'child' })) })
+  })
   await preparePage(page, 'allow', '快捷记录')
   const describeAndSave = async () => {
     await coordinateClick(page, 'button', '快捷记录')

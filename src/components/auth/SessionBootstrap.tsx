@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { HohoButton } from '../design-system/HohoButton'
 import { loadProfileSections } from '../../services/profileSectionStorage'
 import { registerSessionRecoveryHandler } from '../../services/sessionRecoveryCoordinator'
+import { resolveCurrentChildId } from '../../features/family/currentChild'
 
 let pending: Promise<void> | undefined
 async function refreshBrowserSessionToken(transition = true) {
@@ -39,7 +40,7 @@ export function restoreBrowserSession(options: { transition?: boolean } = {}) {
     } finally { window.clearTimeout(timeout) }
     const preferred = previousUserId === session.user.id && previousMemberId !== 'self' ? previousMemberId : session.user.currentMemberId ?? ''
     state.setMembers(members)
-    state.setCurrentMemberId(members.some((member) => member.id === preferred) ? preferred : members[0]?.id ?? 'self', { sync: false })
+    state.setCurrentMemberId(resolveCurrentChildId(members, preferred))
   }
   pending = (navigator.locks ? navigator.locks.request('hoooho-browser-session', restore) : restore()).finally(() => { pending = undefined })
   return pending
