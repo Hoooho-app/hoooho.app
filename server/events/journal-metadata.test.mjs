@@ -130,3 +130,19 @@ test('structured symptom preserves facts and rejects missing location or conflic
   assert.throws(() => validateJournal({ categories: ['symptom'], symptom: { ...symptom, associatedSymptoms: ['没有特别发现', '发热'] } }), /互斥/)
   assert.throws(() => validateJournal({ categories: ['other'], symptom }), /必须归入症状分类/)
 })
+
+test('structured visit preserves occurrence facts, links and unverified extraction state', () => {
+  const visit = validateJournal({ categories: ['visit'], visit: {
+    visitType: 'inpatient', reasonText: '持续发热', linkedSymptomRecordIds: ['symptom-1', 'symptom-2'], institutionName: '儿童医院', department: '呼吸科', doctorStatement: '上呼吸道感染待观察', examinationTypes: ['抽血'], followUpActions: ['home_observation', 'medication_as_instructed'], admittedAt: '2026-09-06T02:00:00.000Z', isCurrentlyHospitalized: true, documentTypes: ['medical_record'], recognitionStatus: 'draft_unverified'
+  } }).visit
+  assert.equal(visit.visitType, 'inpatient')
+  assert.deepEqual(visit.linkedSymptomRecordIds, ['symptom-1', 'symptom-2'])
+  assert.equal(visit.recognitionStatus, 'draft_unverified')
+  assert.equal(visit.isCurrentlyHospitalized, true)
+})
+
+test('visit rejects false medical state, wrong category and reversed inpatient dates', () => {
+  assert.throws(() => validateJournal({ categories: ['visit'], visit: { visitType: 'outpatient', recognitionStatus: 'medically_verified' } }), /识别状态/)
+  assert.throws(() => validateJournal({ categories: ['other'], visit: { visitType: 'outpatient' } }), /必须归入就医分类/)
+  assert.throws(() => validateJournal({ categories: ['visit'], visit: { visitType: 'inpatient', admittedAt: '2026-09-07T02:00:00Z', dischargedAt: '2026-09-06T02:00:00Z' } }), /出院时间/)
+})

@@ -135,6 +135,46 @@ export interface JournalVaccinationDetails {
   recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
 }
 
+export type VisitType = 'outpatient' | 'emergency' | 'inpatient' | 'online_consultation' | 'follow_up' | 'other'
+export type VisitFollowUpAction = 'home_observation' | 'medication_as_instructed' | 'awaiting_results' | 'follow_up' | 'referral' | 'hospitalization' | 'other'
+export type VisitDocumentType = 'medical_record' | 'prescription' | 'examination_report' | 'receipt' | 'other'
+
+export interface JournalVisitDetails {
+  visitType: VisitType
+  visitTypeOtherText?: string
+  reasonText?: string
+  linkedSymptomRecordIds?: string[]
+  linkedVisitRecordId?: string
+  institutionName?: string
+  platformName?: string
+  department?: string
+  departmentOtherText?: string
+  doctorName?: string
+  doctorStatement?: string
+  examinationTypes?: string[]
+  examinationOtherText?: string
+  followUpActions?: VisitFollowUpAction[]
+  followUpAt?: string
+  followUpRelativeText?: string
+  expectedResultAt?: string
+  referralInstitution?: string
+  referralDepartment?: string
+  referralReason?: string
+  admittedAt?: string
+  dischargedAt?: string
+  isCurrentlyHospitalized?: boolean
+  admissionNumber?: string
+  emergencyArrivalAt?: string
+  emergencyDepartureAt?: string
+  linkedMedicationRecordIds?: string[]
+  linkedExaminationRecordIds?: string[]
+  linkedInjuryRecordIds?: string[]
+  linkedVaccinationRecordIds?: string[]
+  documentTypes?: VisitDocumentType[]
+  recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
+  note?: string
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -147,4 +187,5 @@ export interface JournalMetadata {
   symptom?: JournalSymptomDetails
   medication?: JournalMedicationDetails
   vaccination?: JournalVaccinationDetails
+  visit?: JournalVisitDetails
 }

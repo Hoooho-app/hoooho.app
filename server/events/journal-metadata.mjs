@@ -36,6 +36,10 @@ const medicationRecognitionStatuses = new Set(['not_used', 'draft_unverified', '
 const vaccinationDoses = new Set(['dose_1', 'dose_2', 'dose_3', 'dose_4', 'booster', 'unknown'])
 const vaccinationSites = new Set(['left_upper_arm', 'right_upper_arm', 'left_thigh', 'right_thigh', 'other', 'not_recorded'])
 const vaccinationObservations = new Set(['not_observed_yet', 'nothing_notable', 'injection_site_redness_or_pain', 'fever', 'energy_or_appetite_change', 'other'])
+const visitTypes = new Set(['outpatient', 'emergency', 'inpatient', 'online_consultation', 'follow_up', 'other'])
+const visitFollowUpActions = new Set(['home_observation', 'medication_as_instructed', 'awaiting_results', 'follow_up', 'referral', 'hospitalization', 'other'])
+const visitDocumentTypes = new Set(['medical_record', 'prescription', 'examination_report', 'receipt', 'other'])
+const visitRecognitionStatuses = new Set(['not_used', 'draft_unverified', 'user_edited'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -250,6 +254,39 @@ function validateVaccination(value) {
   return result
 }
 
+function validateVisit(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !visitTypes.has(value.visitType)) throw new HealthEventRecordError('就医方式无效', 400, 'INVALID_JOURNAL_VISIT')
+  const result = { visitType: value.visitType }
+  const textFields = {
+    visitTypeOtherText: 80, reasonText: 240, institutionName: 120, platformName: 120,
+    department: 80, departmentOtherText: 80, doctorName: 80, doctorStatement: 500,
+    examinationOtherText: 120, followUpRelativeText: 80, referralInstitution: 120,
+    referralDepartment: 80, referralReason: 200, admissionNumber: 80, note: 300
+  }
+  for (const [key, limit] of Object.entries(textFields)) if (value[key] !== undefined && value[key] !== '') {
+    if (typeof value[key] !== 'string' || !value[key].trim() || value[key].trim().length > limit) throw new HealthEventRecordError('就医记录内容无效', 400, 'INVALID_JOURNAL_VISIT')
+    result[key] = value[key].trim()
+  }
+  if (value.visitType === 'other' && !result.visitTypeOtherText) throw new HealthEventRecordError('请填写实际就医方式', 400, 'INVALID_JOURNAL_VISIT')
+  if (value.visitType === 'online_consultation' && result.institutionName) throw new HealthEventRecordError('线上问诊请填写平台或机构', 400, 'INVALID_JOURNAL_VISIT')
+  const examinations = cleanStrings(value.examinationTypes, '检查项目', 12); if (examinations?.length) result.examinationTypes = examinations
+  const followUps = cleanStrings(value.followUpActions, '后续安排', 8); if (followUps?.some((item) => !visitFollowUpActions.has(item))) throw new HealthEventRecordError('后续安排无效', 400, 'INVALID_JOURNAL_VISIT'); if (followUps?.length) result.followUpActions = followUps
+  const documentTypes = cleanStrings(value.documentTypes, '资料类型', 5); if (documentTypes?.some((item) => !visitDocumentTypes.has(item))) throw new HealthEventRecordError('资料类型无效', 400, 'INVALID_JOURNAL_VISIT'); if (documentTypes?.length) result.documentTypes = documentTypes
+  for (const [key, label] of [['linkedSymptomRecordIds', '关联症状'], ['linkedMedicationRecordIds', '关联用药'], ['linkedExaminationRecordIds', '关联检查'], ['linkedInjuryRecordIds', '关联受伤'], ['linkedVaccinationRecordIds', '关联疫苗']]) {
+    const ids = cleanStrings(value[key], label, 30); if (ids?.length) result[key] = ids
+  }
+  if (value.linkedVisitRecordId !== undefined) { if (typeof value.linkedVisitRecordId !== 'string' || !value.linkedVisitRecordId.trim() || value.linkedVisitRecordId.trim().length > 80) throw new HealthEventRecordError('关联就医记录无效', 400, 'INVALID_JOURNAL_VISIT'); result.linkedVisitRecordId = value.linkedVisitRecordId.trim() }
+  for (const key of ['followUpAt', 'expectedResultAt', 'admittedAt', 'dischargedAt', 'emergencyArrivalAt', 'emergencyDepartureAt']) if (value[key] !== undefined && value[key] !== '') {
+    if (typeof value[key] !== 'string' || !Number.isFinite(Date.parse(value[key]))) throw new HealthEventRecordError('就医时间信息无效', 400, 'INVALID_JOURNAL_VISIT')
+    result[key] = new Date(value[key]).toISOString()
+  }
+  if (value.isCurrentlyHospitalized !== undefined) { if (typeof value.isCurrentlyHospitalized !== 'boolean') throw new HealthEventRecordError('住院状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.isCurrentlyHospitalized = value.isCurrentlyHospitalized }
+  if (result.dischargedAt && result.admittedAt && Date.parse(result.dischargedAt) < Date.parse(result.admittedAt)) throw new HealthEventRecordError('出院时间不能早于入院时间', 400, 'INVALID_JOURNAL_VISIT')
+  if (value.recognitionStatus !== undefined) { if (!visitRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('资料识别状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.recognitionStatus = value.recognitionStatus }
+  return result
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -272,6 +309,7 @@ export function validateJournal(value) {
   const symptom = validateSymptom(value.symptom)
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
+  const visit = validateVisit(value.visit)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
@@ -279,7 +317,8 @@ export function validateJournal(value) {
   if (symptom && !value.categories.includes('symptom')) throw new HealthEventRecordError('症状详情必须归入症状分类', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (medication && !value.categories.includes('medication')) throw new HealthEventRecordError('用药详情必须归入用药分类', 400, 'INVALID_JOURNAL_MEDICATION')
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}) }
+  if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
