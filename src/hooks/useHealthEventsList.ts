@@ -9,6 +9,7 @@ import { healthEventRecordService } from '../services/healthEventRecords'
 import { healthEventService } from '../services/healthEvents'
 import { eventAttachmentService } from '../services/eventAttachments'
 import { useAppStore } from '../store/useAppStore'
+import { resolveCurrentChildId } from '../features/family/currentChild'
 
 interface LoadedHealthEvents {
   entryState: AccountEntryState
@@ -40,8 +41,9 @@ export function useHealthEventsList() {
       const adaptedMembers = memberDtos.map(adaptFamilyMember)
       setMembers(adaptedMembers)
       const currentId = useAppStore.getState().currentMemberId
-      if (!adaptedMembers.some((member) => member.id === currentId)) {
-        setCurrentMemberId(adaptedMembers[0]?.id ?? 'self')
+      const resolvedChildId = resolveCurrentChildId(adaptedMembers, currentId)
+      if (resolvedChildId !== currentId) {
+        setCurrentMemberId(resolvedChildId)
       }
       if (entryState.familyMemberCount === 0 || !entryState.hasValidHealthRecord) {
         if (signal?.aborted) return
