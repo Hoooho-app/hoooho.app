@@ -23,6 +23,7 @@ async function prepare(page: Page, member = 'child-one') {
 test('single-day timeline, filters, sort order, compact subject and summary entry', async ({ page }) => {
   await prepare(page)
   await expect(page.getByText('记录发生了什么', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('当前记录对象', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '后一天', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: '筛选健康随身记' })).toBeVisible()
   await expect(page.getByText(`${new Date().getFullYear()}年`, { exact: true })).toBeVisible()
