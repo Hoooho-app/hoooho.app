@@ -9,6 +9,13 @@ allows concurrent POSTs and retries after lost responses to reuse the same user.
 No network error triggers guest creation. Browser startup blocks routing until
 session, owned members and server archives have loaded; failures offer retry.
 
+Mobile foreground recovery uses both `visibilitychange` and `pageshow` so a
+document resumed from app switching, screen locking or the back-forward cache
+revalidates its long-lived Cookie before continuing. A protected API 401 first
+exchanges that Cookie for a fresh short-lived bearer token and retries once.
+Only a definitive unauthenticated session clears client identity; a network
+failure preserves the Cookie and account hint and exposes a retry state.
+
 The opaque 256-bit cookie has Path=/, SameSite=Lax, 180-day Max-Age and Secure in
 deployed environments. Only its SHA-256 hash is stored in `browser-sessions.json`.
 Production uses the `__Host-` cookie prefix to prevent Domain/path shadowing.
@@ -67,3 +74,6 @@ rollback alone is not a functional data-recovery strategy.
 Chromium device/WeChat User-Agent emulation is not a real iOS Safari or WeChat
 test. Incognito session termination, explicit cookie clearing and changing devices
 cannot preserve an anonymous session; verified login remains the recovery route.
+The application and API are same-origin and use explicit same-origin credentials.
+`www.hoooho.com` redirects to `hoooho.com`; Railway's native domains are separate
+Cookie origins and must not be used as interchangeable end-user entry links.

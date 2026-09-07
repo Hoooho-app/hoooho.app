@@ -1,3 +1,5 @@
+import { recoverSessionToken } from './sessionRecoveryCoordinator'
+
 interface ApiErrorBody {
   error?: {
     code?: string
@@ -24,7 +26,7 @@ interface ApiRequestOptions {
   signal?: AbortSignal
 }
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+async function executeApiRequest<T>(path: string, options: ApiRequestOptions, mayRecover: boolean): Promise<T> {
   const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const response = await fetch(path, {
     method: options.method ?? 'GET',
@@ -35,7 +37,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions): P
       ...options.headers
     },
     ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
-    signal: options.signal
+    signal: options.signal,
+    credentials: 'same-origin'
   })
 
   const text = await response.text()
@@ -50,6 +53,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions): P
 
   if (!response.ok) {
     const errorBody = data as ApiErrorBody | null
+    if (response.status === 401 && mayRecover) {
+      try {
+        const token = await recoverSessionToken()
+        if (token) return executeApiRequest<T>(path, { ...options, token }, false)
+      } catch {
+        throw new ApiRequestError('暂时无法恢复使用状态，请检查网络后重试', 503, 'SESSION_RECOVERY_FAILED')
+      }
+    }
     throw new ApiRequestError(
       errorBody?.error?.message ?? '请求失败，请稍后重试',
       response.status,
@@ -58,4 +69,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions): P
   }
 
   return data as T
+}
+
+export function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+  return executeApiRequest<T>(path, options, true)
 }
