@@ -111,6 +111,30 @@ export interface JournalMedicationDetails {
   recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
 }
 
+export type VaccinationDose = 'dose_1' | 'dose_2' | 'dose_3' | 'dose_4' | 'booster' | 'unknown'
+export type VaccinationSite = 'left_upper_arm' | 'right_upper_arm' | 'left_thigh' | 'right_thigh' | 'other' | 'not_recorded'
+export type VaccinationObservation = 'not_observed_yet' | 'nothing_notable' | 'injection_site_redness_or_pain' | 'fever' | 'energy_or_appetite_change' | 'other'
+export interface JournalVaccinationItem {
+  id: string
+  vaccineName: string
+  vaccineCode?: string
+  commonAbbreviation?: string
+  doseSequence: VaccinationDose
+  manufacturerName?: string
+  batchNumber?: string
+  injectionSite?: VaccinationSite
+  injectionSiteOtherText?: string
+}
+export interface JournalVaccinationDetails {
+  items: JournalVaccinationItem[]
+  institutionName?: string
+  observations?: VaccinationObservation[]
+  note?: string
+  linkedSymptomRecordIds?: string[]
+  recognitionSource?: 'camera' | 'album'
+  recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -122,4 +146,5 @@ export interface JournalMetadata {
   outdoorActivity?: JournalOutdoorActivityDetails
   symptom?: JournalSymptomDetails
   medication?: JournalMedicationDetails
+  vaccination?: JournalVaccinationDetails
 }

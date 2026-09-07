@@ -8,6 +8,18 @@ test('medication journal keeps dose and route as recorded without calculation', 
   assert.throws(() => validateJournal({ categories: ['medication'], medication: { medicationName: '药品', amountValue: 0, amountUnit: 'mg', administrationRoute: 'oral' } }), /本次用量无效/)
   assert.throws(() => validateJournal({ categories: ['medication'], medication: { medicationName: '药品', amountUnit: 'mg', administrationRoute: 'oral' } }), /不能只填写/)
 })
+
+test('vaccination journal preserves separate items and rejects conflicting observations', () => {
+  const vaccination = validateJournal({ categories: ['vaccination'], vaccination: { items: [
+    { id: 'vac-1', vaccineName: '流感疫苗（三价）', doseSequence: 'dose_2', manufacturerName: '示例厂家', batchNumber: 'AB-01', injectionSite: 'left_upper_arm' },
+    { id: 'vac-2', vaccineName: '百白破疫苗', doseSequence: 'booster', batchNumber: 'CD/02', injectionSite: 'right_upper_arm' }
+  ], institutionName: '社区卫生服务中心', observations: ['not_observed_yet'], recognitionSource: 'camera', recognitionStatus: 'draft_unverified' } }).vaccination
+  assert.equal(vaccination.items.length, 2)
+  assert.equal(vaccination.items[0].batchNumber, 'AB-01')
+  assert.equal(vaccination.items[1].doseSequence, 'booster')
+  assert.throws(() => validateJournal({ categories: ['vaccination'], vaccination: { items: [{ id: 'a', vaccineName: '疫苗', doseSequence: 'dose_1' }], observations: ['not_observed_yet', 'fever'] } }), /互斥/)
+  assert.throws(() => validateJournal({ categories: ['other'], vaccination: { items: [{ id: 'a', vaccineName: '疫苗', doseSequence: 'dose_1' }] } }), /必须归入疫苗分类/)
+})
 import { HealthEventService } from './health-event-service.mjs'
 
 test('journal keeps untitled lifestyle containers without changing the legacy event list', async () => {

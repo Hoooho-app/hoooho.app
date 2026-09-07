@@ -33,6 +33,9 @@ const medicationObservations = new Set(['not_observed_yet', 'some_relief', 'no_o
 const medicationSuggestedBy = new Set(['doctor', 'pharmacist', 'original_instruction', 'caregiver_record', 'other'])
 const medicationRecognitionSources = new Set(['camera', 'album'])
 const medicationRecognitionStatuses = new Set(['not_used', 'draft_unverified', 'user_edited'])
+const vaccinationDoses = new Set(['dose_1', 'dose_2', 'dose_3', 'dose_4', 'booster', 'unknown'])
+const vaccinationSites = new Set(['left_upper_arm', 'right_upper_arm', 'left_thigh', 'right_thigh', 'other', 'not_recorded'])
+const vaccinationObservations = new Set(['not_observed_yet', 'nothing_notable', 'injection_site_redness_or_pain', 'fever', 'energy_or_appetite_change', 'other'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -222,6 +225,31 @@ function validateMedication(value) {
   return result
 }
 
+function validateVaccination(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !Array.isArray(value.items) || value.items.length < 1 || value.items.length > 8) throw new HealthEventRecordError('疫苗接种记录无效', 400, 'INVALID_JOURNAL_VACCINATION')
+  const ids = new Set()
+  const items = value.items.map((item) => {
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.vaccineName !== 'string' || !item.vaccineName.trim() || item.vaccineName.trim().length > 120 || !vaccinationDoses.has(item.doseSequence)) throw new HealthEventRecordError('疫苗项目无效', 400, 'INVALID_JOURNAL_VACCINATION')
+    ids.add(item.id)
+    const result = { id: item.id.trim(), vaccineName: item.vaccineName.trim(), doseSequence: item.doseSequence }
+    for (const key of ['vaccineCode', 'commonAbbreviation', 'manufacturerName', 'batchNumber']) if (item[key] !== undefined && item[key] !== '') {
+      if (typeof item[key] !== 'string' || item[key].trim().length > 120) throw new HealthEventRecordError('疫苗项目内容无效', 400, 'INVALID_JOURNAL_VACCINATION')
+      result[key] = item[key].trim()
+    }
+    if (item.injectionSite !== undefined) { if (!vaccinationSites.has(item.injectionSite)) throw new HealthEventRecordError('接种部位无效', 400, 'INVALID_JOURNAL_VACCINATION'); result.injectionSite = item.injectionSite }
+    if (item.injectionSiteOtherText !== undefined && item.injectionSiteOtherText !== '') { if (item.injectionSite !== 'other' || typeof item.injectionSiteOtherText !== 'string' || item.injectionSiteOtherText.trim().length > 80) throw new HealthEventRecordError('其他接种部位无效', 400, 'INVALID_JOURNAL_VACCINATION'); result.injectionSiteOtherText = item.injectionSiteOtherText.trim() }
+    return result
+  })
+  const observations = cleanStrings(value.observations, '接种后观察', 6) ?? []
+  if (observations.some((item) => !vaccinationObservations.has(item)) || (observations.includes('not_observed_yet') && observations.length > 1) || (observations.includes('nothing_notable') && observations.length > 1)) throw new HealthEventRecordError('接种后观察选项互斥', 400, 'INVALID_JOURNAL_VACCINATION')
+  const result = { items, ...(observations.length ? { observations } : {}) }
+  for (const [key, limit] of [['institutionName', 120], ['note', 200]]) if (value[key] !== undefined && value[key] !== '') { if (typeof value[key] !== 'string' || value[key].trim().length > limit) throw new HealthEventRecordError('疫苗接种补充信息无效', 400, 'INVALID_JOURNAL_VACCINATION'); result[key] = value[key].trim() }
+  const linked = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 20); if (linked?.length) result.linkedSymptomRecordIds = linked
+  if (value.recognitionSource !== undefined) { if (!medicationRecognitionSources.has(value.recognitionSource) || !medicationRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('识别状态无效', 400, 'INVALID_JOURNAL_VACCINATION'); result.recognitionSource = value.recognitionSource; result.recognitionStatus = value.recognitionStatus }
+  return result
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -243,13 +271,15 @@ export function validateJournal(value) {
   const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
   const symptom = validateSymptom(value.symptom)
   const medication = validateMedication(value.medication)
+  const vaccination = validateVaccination(value.vaccination)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
   if (outdoorActivity && !value.categories.includes('activity')) throw new HealthEventRecordError('户外活动详情必须归入活动分类', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
   if (symptom && !value.categories.includes('symptom')) throw new HealthEventRecordError('症状详情必须归入症状分类', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (medication && !value.categories.includes('medication')) throw new HealthEventRecordError('用药详情必须归入用药分类', 400, 'INVALID_JOURNAL_MEDICATION')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}) }
+  if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

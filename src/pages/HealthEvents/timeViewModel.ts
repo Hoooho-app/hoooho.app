@@ -11,7 +11,7 @@ export const journalCategoryGroups: readonly { label: string; items: readonly (r
 export const journalCategoryLabels: Record<JournalCategory, string> = {
   diet: '饮食', sleep: '睡眠', elimination: '排便', activity: '户外活动', emotion: '情绪', social: '社交',
   symptom: '症状', measurement: '测量', growth: '生长发育', injury: '意外受伤', medication: '用药',
-  care: '护理干预', vaccination: '疫苗', environment: '接触环境', visit: '就医', examination: '检查报告', other: '其他'
+  care: '护理干预', vaccination: '疫苗接种', environment: '接触环境', visit: '就医', examination: '检查报告', other: '其他'
 }
 export interface JournalEntry extends JournalMetadata {
   id: string
@@ -42,6 +42,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       sleep: record.journal?.sleep,
       outdoorActivity: record.journal?.outdoorActivity,
       medication: record.journal?.medication,
+      vaccination: record.journal?.vaccination,
       attachmentCount: files.filter((file) => file.recordId === record.id).length + (record === rows[0] ? files.filter((file) => !file.recordId).length : 0),
       status: event.status
     }))
