@@ -9,7 +9,7 @@ const header = readFileSync(new URL('./MainAppHeader.tsx', import.meta.url), 'ut
 
 test('current child sheet uses real members and keeps header and add action fixed around a scrolling list', () => {
   assert.match(source, /const members = useAppStore/)
-  assert.match(source, /members\.filter\(\(member\) => member\.relation === '子女'\)/)
+  assert.match(source, /getChildMembers\(members\)/)
   assert.match(source, /<h2>我的孩子<\/h2>/)
   assert.doesNotMatch(source, /选择健康内容的记录对象/)
   assert.match(source, />添加孩子<\/button>/)
