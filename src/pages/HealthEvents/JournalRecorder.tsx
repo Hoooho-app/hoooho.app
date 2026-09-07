@@ -12,13 +12,14 @@ import { createSleepDraft, SleepRecordFlow, type SleepDraft } from './SleepRecor
 import { journalCategoryGroups, type JournalCategory } from './timeViewModel'
 import { SymptomRecordFlow } from './SymptomRecordFlow'
 import { MedicationRecordFlow } from './MedicationRecordFlow'
+import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 
 export function JournalRecorder({ mode, memberId, token, onClose, onConfirm, onSaved }: {
   mode: 'manual' | 'voice'; memberId: string; token: string; onClose: () => void
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
 }) {
-  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'generic'>(mode === 'voice' ? 'generic' : 'categories')
+  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'generic'>(mode === 'voice' ? 'generic' : 'categories')
   const [selected, setSelected] = useState<JournalCategory[]>([])
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(null)
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
@@ -38,6 +39,7 @@ export function JournalRecorder({ mode, memberId, token, onClose, onConfirm, onS
   if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} token={token} onBack={() => setScreen('categories')} onClose={onClose} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} token={token} onBack={() => setScreen('categories')} onClose={onClose} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} token={token} onBack={() => setScreen('categories')} onClose={onClose} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} token={token} onBack={() => setScreen('categories')} onClose={onClose} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; icon: typeof Baby }[] = [
     { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', icon: Baby },
     { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒 / 手指食物', icon: CookingPot },
@@ -47,7 +49,7 @@ export function JournalRecorder({ mode, memberId, token, onClose, onConfirm, onS
   ]
   const isDietTypes = screen === 'diet-types'
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : ''}`} open label={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录内容' : '记录新情况'} title={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记录新情况'} onClose={() => { if (!saving) onClose() }}
-    footer={screen === 'categories' ? <HohoButton disabled={!selected.length} fullWidth onClick={() => setScreen(selected[0] === 'sleep' ? 'sleep-form' : selected[0] === 'elimination' ? 'bowel-form' : selected[0] === 'activity' ? 'activity-form' : selected[0] === 'symptom' ? 'symptom-form' : selected[0] === 'medication' ? 'medication-form' : 'generic')}>开始记录</HohoButton> : isDietTypes ? <HohoButton disabled={!dietKind} fullWidth onClick={() => setScreen('diet-form')}>开始记录</HohoButton> : undefined}>
+    footer={screen === 'categories' ? <HohoButton disabled={!selected.length} fullWidth onClick={() => setScreen(selected[0] === 'sleep' ? 'sleep-form' : selected[0] === 'elimination' ? 'bowel-form' : selected[0] === 'activity' ? 'activity-form' : selected[0] === 'symptom' ? 'symptom-form' : selected[0] === 'medication' ? 'medication-form' : selected[0] === 'vaccination' ? 'vaccination-form' : 'generic')}>开始记录</HohoButton> : isDietTypes ? <HohoButton disabled={!dietKind} fullWidth onClick={() => setScreen('diet-form')}>开始记录</HohoButton> : undefined}>
     {screen === 'categories' ? <><Typography variant="caption">先记下来，不用一次性记完，想到时继续补充</Typography>{journalCategoryGroups.map((group) => <section className="journal-category-group" key={group.label} aria-label={group.label}><h3 className="hoho-text-label">{group.label}</h3><div>{group.items.map(([category, label]) => <HohoButton variant="secondary" key={category} aria-pressed={selected[0] === category} onClick={() => { setSelected([category]); if (category === 'diet') setScreen('diet-types') }}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div></section>)}</> : isDietTypes ? <><Typography variant="caption">先记下来，之后还可以继续补充</Typography><div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon: Icon }) => <button aria-pressed={dietKind === kind} key={kind} onClick={() => setDietKind(kind)} type="button"><Icon aria-hidden="true" size={24} strokeWidth={1.7} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div></> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
         onActivityChange={(activity) => setSaving(activity === 'saving')}
