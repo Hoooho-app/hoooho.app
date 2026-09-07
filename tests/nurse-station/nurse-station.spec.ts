@@ -21,7 +21,7 @@ test('iPhone SE nurse station keeps the current child and summary action stable'
 
   const avatar = page.getByRole('img', { name: '小禾的3D卡通头像' })
   await expect(avatar).toBeVisible()
-  await expect(page.locator('.current-child-label')).toHaveText('当前守护对象')
+  await expect(page.locator('.nurse-station-member .current-child-label')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '摘要生成' })).toBeVisible()
   await expect(page.getByRole('button', { name: '重新打开教程' })).toHaveCount(0)
   await expect(page.getByText(/我们会在这里陪你照看/)).toHaveCount(0)
