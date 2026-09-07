@@ -20,6 +20,17 @@ async function prepare(page: Page, member = 'child-one') {
   await expect(page.getByRole('button', { name: '手动记录', exact: true })).toBeVisible()
 }
 
+test('manual record sheet omits retired injury and care entries', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: '记录新情况' })
+  await expect(sheet.getByRole('region', { name: '健康事件' }).getByRole('button')).toHaveCount(1)
+  await expect(sheet.getByRole('region', { name: '照护处理' }).getByRole('button')).toHaveCount(3)
+  await expect(sheet.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
+  await expect(sheet.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/manual-record-entries-iphone-se.png' })
+})
+
 test('single-day timeline, filters, sort order, compact subject and summary entry', async ({ page }) => {
   await prepare(page)
   await expect(page.getByText('记录发生了什么', { exact: true })).toHaveCount(0)
@@ -104,7 +115,10 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(page.getByRole('region', { name: '健康事件' })).toBeVisible()
   await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button', { name: '就医', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: '日常生活' }).getByRole('button')).toHaveCount(4)
-  await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button')).toHaveCount(4)
+  await expect(page.getByRole('region', { name: '健康事件' }).getByRole('button')).toHaveCount(1)
+  await expect(page.getByRole('region', { name: '照护处理' }).getByRole('button')).toHaveCount(3)
+  await expect(page.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
   const diet = page.getByRole('button', { name: '喂养/饮食', exact: true })
   const visit = page.getByRole('button', { name: '就医', exact: true })
   await visit.click()
