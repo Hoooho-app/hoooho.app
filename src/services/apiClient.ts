@@ -19,8 +19,8 @@ export class ApiRequestError extends Error {
 }
 
 interface ApiRequestOptions {
-  token: string
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  token?: string
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
   signal?: AbortSignal
@@ -31,7 +31,7 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
   const response = await fetch(path, {
     method: options.method ?? 'GET',
     headers: {
-      Authorization: `Bearer ${options.token}`,
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...(browserTimeZone ? { 'X-Hoooho-Timezone': browserTimeZone } : {}),
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers

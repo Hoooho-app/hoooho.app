@@ -1,4 +1,4 @@
-import type { CreateHealthEventInput, HealthEventApiDto } from '../types'
+import type { CreateHealthEventInput, HealthEventApiDto, MedicalPreparationApiDto, MedicalPreparationSummaryApiDto } from '../types'
 import { apiRequest } from './apiClient'
 
 export const healthEventService = {
@@ -40,6 +40,18 @@ export const healthEventService = {
       method: 'PATCH',
       body: input
     })
+  },
+
+  saveMedicalPreparation(eventId: string, input: { sourceFingerprint: string; summary: MedicalPreparationSummaryApiDto }, token: string) {
+    return apiRequest<{ status: 'created' | 'updated' | 'current'; medicalPreparation: MedicalPreparationApiDto }>(`/api/events/${encodeURIComponent(eventId)}/medical-preparation`, {
+      token,
+      method: 'PUT',
+      body: input
+    })
+  },
+
+  getSharedMedicalPreparation(shareToken: string, signal?: AbortSignal) {
+    return apiRequest<MedicalPreparationApiDto & { eventId: string }>(`/api/medical-preparations/shared/${encodeURIComponent(shareToken)}`, { signal })
   },
 
   delete(eventId: string, token: string) {

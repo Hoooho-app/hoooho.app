@@ -82,6 +82,27 @@ test('事件只在进入康复状态时写入语义明确的结束时间，重�
   assert.equal(reopened.recoveredAt, null)
 })
 
+test('病情摘要首次创建后原位更新且私密链接保持不变', async () => {
+  let stored = { id: 'event-1', accountId: 'account-1', memberId: 'member-1', title: '咳嗽', category: 'cough', status: 'observing', startTime: '2026-09-01T00:00:00.000Z', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }
+  const repository = {
+    findById: async () => stored,
+    findByMedicalPreparationToken: async (token) => stored.medicalPreparation?.shareToken === token ? stored : null,
+    update: async (_id, changes, now) => (stored = { ...stored, ...changes, updatedAt: now.toISOString() })
+  }
+  const members = { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) }
+  const service = new HealthEventService({ repository, members })
+  const summary = { memberName: '乐乐', prompt: '请整理健康资料', text: '病情摘要', selectedSourceIds: ['current'], sections: [{ id: 'current', title: '当前状态', lines: ['咳嗽'] }] }
+  const created = await service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'first-fingerprint', summary }, new Date('2026-09-08T01:00:00.000Z'))
+  assert.equal(created.status, 'created'); assert.equal(created.medicalPreparation.version, 1)
+  const current = await service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'first-fingerprint', summary }, new Date('2026-09-08T02:00:00.000Z'))
+  assert.equal(current.status, 'current'); assert.equal(current.medicalPreparation.version, 1)
+  const updated = await service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'second-fingerprint', summary: { ...summary, text: '最新病情摘要' } }, new Date('2026-09-08T03:00:00.000Z'))
+  assert.equal(updated.status, 'updated'); assert.equal(updated.medicalPreparation.version, 2)
+  assert.equal(updated.medicalPreparation.shareToken, created.medicalPreparation.shareToken)
+  const shared = await service.getSharedMedicalPreparation(created.medicalPreparation.shareToken)
+  assert.equal(shared.summary.text, '最新病情摘要')
+})
+
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-events-api-'))
   const sharedOptions = { dataDirectory, tokenSecret: 'events-test-secret' }

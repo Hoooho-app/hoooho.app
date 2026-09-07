@@ -1,4 +1,4 @@
-import { Archive, Bell, BookOpen, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, Pause, Play, ShieldCheck, Thermometer, X } from 'lucide-react'
+import { Archive, Bell, BookOpen, ChevronRight, ClipboardCheck, FileHeart, FileText, FolderOpen, HeartHandshake, Pause, Play, ShieldCheck, Thermometer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
@@ -11,7 +11,7 @@ import { readNurseStationState, reconcileNurseStationItems, writeNurseStationSta
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import { NurseNextAction } from '../HealthEvents/NurseNextAction'
+import { NurseNextAction, formatUpdatedAt } from '../HealthEvents/NurseNextAction'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import '../HealthEvents/TimeView.css'
@@ -31,7 +31,7 @@ export function NurseStationPage() {
   const currentMemberId = useAppStore((value) => value.currentMemberId)
   const cachedMembers = useAppStore((value) => value.members)
   const care = useSettingsStore((value) => value.care)
-  const { state: listState } = useHealthEventsList()
+  const { state: listState, retry: retryEvents } = useHealthEventsList()
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const identityId = authUser?.id ?? 'unknown'
   const [station, setStation] = useState<NurseStationState>(() => readNurseStationState(identityId, currentMemberId))
@@ -58,6 +58,7 @@ export function NurseStationPage() {
   const member = members.find((item) => item.id === currentMemberId) ?? members[0] ?? null
   const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === member?.id) : []
   const nextActionEventId = getNurseNextActionEventId(events, currentMemberId)
+  const recentPreparationEvent = events.filter((event) => event.medicalPreparation).sort((left, right) => (right.medicalPreparation?.updatedAt ?? '').localeCompare(left.medicalPreparation?.updatedAt ?? ''))[0] ?? null
 
   useEffect(() => {
     if (!member || listState.status !== 'success') return
@@ -126,9 +127,10 @@ export function NurseStationPage() {
     <div className="nurse-station-scroll">
       {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button><HohoButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)}><img alt="" height={20} src={logoUrl} width={20} />就医准备</HohoButton></div>}
       <section aria-label="护士站消息" className="nurse-bubble-stage" data-has-bubbles={bubbleLayout.visible.length > 0}><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div>{bubbleLayout.visible.length > 0 && <div className="nurse-bubble-stack">{bubbleLayout.visible.map((bubble) => <NurseBubble animate={animatingBubbleKey === bubble.key} bubble={bubble} key={bubble.key} onDismiss={() => isSafetyBubble(bubble) ? setServiceSheet(bubble.type) : handleBubbleKeys(bubble.itemKeys)} onOpen={() => setServiceSheet(bubble.type)} />)}{bubbleLayout.hiddenCount > 0 && <MoreNurseBubbles count={bubbleLayout.hiddenCount} onClick={() => setServiceSheet('all')} />}</div>}</section>
+      {recentPreparationEvent?.medicalPreparation && <section className="recent-medical-preparation"><header><h2>最近的就医准备</h2><span>{formatUpdatedAt(recentPreparationEvent.medicalPreparation.updatedAt)}</span></header><article><FileHeart /><div><strong>{member?.name}的病情摘要</strong><small>{recentPreparationEvent.displayTitle}</small></div><button onClick={() => navigate(`/medical-preparation/${recentPreparationEvent.medicalPreparation?.shareToken}`)} type="button">打开病情摘要</button></article></section>}
       <section className="guardian-tasks"><header><div><h2>守护任务</h2><p>共 {active.length} 项守护任务</p></div><button onClick={() => setServiceSheet('archive')} type="button">已归档任务{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
     </div>
-    <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
+    <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
     <BubbleBottomSheet archived={archived} bubbles={bubbles} onClose={closeServiceSheet} onDismissItem={(item) => { updateItem(item.id, { status: 'dismissed' }); handleBubbleKeys([bubbleItemKey(item)]) }} onHandle={(keys) => { handleBubbleKeys(keys); setServiceSheet(null) }} onLater={(bubble) => { bubble.items.forEach((item) => updateItem(item.id, { reminder: { at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), paused: false } })); handleBubbleKeys(bubble.itemKeys); setServiceSheet(null) }} onStart={startObservation} onSummary={() => { setServiceSheet(null); setNextActionOpen(true) }} onTutorialDone={() => { setStation((value) => ({ ...value, tutorialSeen: true, handledBubbleKeys: [...new Set([...value.handledBubbleKeys, 'tutorial:first-record'])] })); setServiceSheet(null) }} open={serviceSheet} />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
   </main>

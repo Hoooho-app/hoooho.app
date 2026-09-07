@@ -3,14 +3,14 @@ import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventError, HealthEventService } from './health-event-service.mjs'
 import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 
-const readJson = (request) => new Promise((resolve, reject) => {
+const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = ''
   let settled = false
   request.setEncoding('utf8')
   request.on('data', (chunk) => {
     if (settled) return
     body += chunk
-    if (body.length > 16_384) {
+    if (body.length > maxLength) {
       settled = true
       reject(new HealthEventError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
     }
@@ -54,12 +54,23 @@ export function eventsApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const sharedMatch = /^\/api\/medical-preparations\/shared\/([^/]+)$/.exec(pathname)
+        const preparationMatch = /^\/api\/events\/([^/]+)\/medical-preparation$/.exec(pathname)
         const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
         const match = /^\/api\/events(?:\/([^/]+))?$/.exec(pathname)
-        if (!match && !summaryMatch) return next()
+        if (!match && !summaryMatch && !preparationMatch && !sharedMatch) return next()
 
         try {
+          if (sharedMatch) {
+            if (request.method === 'GET') return sendJson(response, 200, await events.getSharedMedicalPreparation(decodeURIComponent(sharedMatch[1])))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          }
           const accountId = readAccountId(request, tokens)
+          if (preparationMatch) {
+            const eventId = decodeURIComponent(preparationMatch[1])
+            if (request.method === 'PUT') return sendJson(response, 200, await events.saveMedicalPreparation(accountId, eventId, await readJson(request, 100_000)))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          }
           if (summaryMatch) {
             const eventId = decodeURIComponent(summaryMatch[1])
             if (request.method === 'PATCH') return sendJson(response, 200, await events.correctSummary(accountId, eventId, await readJson(request)))

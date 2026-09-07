@@ -38,6 +38,11 @@ export class HealthEventRepository {
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
   }
 
+  async findByMedicalPreparationToken(token) {
+    const data = await this.#store.read()
+    return data.events.find((event) => event.medicalPreparation?.shareToken === token) ?? null
+  }
+
   async update(id, changes, now = new Date()) {
     let updated = null
     await this.#store.update((data) => ({

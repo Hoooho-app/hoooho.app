@@ -576,6 +576,19 @@ async function handleAttachments(request, response, pathname) {
 }
 
 async function handleEvents(request, response, pathname) {
+  const sharedPreparationMatch = /^\/api\/medical-preparations\/shared\/([^/]+)$/.exec(pathname)
+  if (sharedPreparationMatch) {
+    if (request.method === 'GET') sendJson(response, 200, await events.getSharedMedicalPreparation(decodeRouteValue(sharedPreparationMatch[1])))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
+  const preparationMatch = /^\/api\/events\/([^/]+)\/medical-preparation$/.exec(pathname)
+  if (preparationMatch) {
+    const accountId = await readAccountId(request)
+    if (request.method === 'PUT') sendJson(response, 200, await events.saveMedicalPreparation(accountId, decodeRouteValue(preparationMatch[1]), await readJson(request, 100_000)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
   const summaryMatch = /^\/api\/events\/([^/]+)\/summary$/.exec(pathname)
   if (summaryMatch) {
     const accountId = await readAccountId(request)

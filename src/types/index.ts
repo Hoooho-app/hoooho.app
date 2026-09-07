@@ -106,8 +106,27 @@ export interface HealthEventApiDto {
   startTime: string
   recoveredAt?: string | null
   eventSummary?: HealthEventSummaryApiDto | null
+  medicalPreparation?: MedicalPreparationApiDto | null
   createdAt: string
   updatedAt: string
+}
+
+export interface MedicalPreparationSummaryApiDto {
+  generatedAt: string
+  memberName: string
+  prompt: string
+  sections: Array<{ id: string; title: string; lines: string[] }>
+  selectedSourceIds: string[]
+  text: string
+}
+
+export interface MedicalPreparationApiDto {
+  version: number
+  createdAt: string
+  updatedAt: string
+  shareToken: string
+  sourceFingerprint: string
+  summary: MedicalPreparationSummaryApiDto
 }
 
 export interface CreateHealthEventInput {
@@ -162,6 +181,7 @@ export interface HealthEventListItemViewModel {
   occurredAt: string
   createdAt: string
   updatedAt: string
+  medicalPreparation: MedicalPreparationApiDto | null
 }
 
 export type HealthEventCardIconKind = 'head' | 'neck' | 'chest' | 'abdomen' | 'waist' | 'arm' | 'hand' | 'leg' | 'foot' | 'combined' | 'medication' | 'examination' | 'visit' | 'surgery' | 'report' | 'general'

@@ -65,7 +65,8 @@ export function adaptHealthEventList(
       recoveredAt: event.recoveredAt ?? null,
       occurredAt: getEventOccurredAt(event, records),
       createdAt: event.createdAt,
-      updatedAt: event.updatedAt
+      updatedAt: event.updatedAt,
+      medicalPreparation: event.medicalPreparation ?? null
     }
   })
 }
