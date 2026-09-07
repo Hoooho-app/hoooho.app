@@ -31,6 +31,13 @@ test('manual record sheet omits retired injury and care entries', async ({ page 
   await page.screenshot({ path: 'test-results/manual-record-entries-iphone-se.png' })
 })
 
+test('health journal names the existing summary action medical prep', async ({ page }) => {
+  await prepare(page)
+  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
+})
+
 test('single-day timeline, filters, sort order, compact subject and summary entry', async ({ page }) => {
   await prepare(page)
   await expect(page.getByText('记录发生了什么', { exact: true })).toHaveCount(0)
@@ -83,7 +90,7 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
   await expect(page.getByText('隔离对象专属记录')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/time-view-iphone-se.png' })
   const subjectBox = await page.locator('.journal-subject-card').boundingBox()
-  const summaryBox = await page.getByRole('button', { name: '摘要生成', exact: true }).boundingBox()
+  const summaryBox = await page.getByRole('button', { name: '就医准备', exact: true }).boundingBox()
   expect(subjectBox!.height).toBe(summaryBox!.height)
   const manualBox = await page.getByRole('button', { name: '手动记录', exact: true }).boundingBox()
   const quickBox = await page.getByRole('button', { name: '快捷记录', exact: true }).boundingBox()
@@ -91,11 +98,11 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
   await page.mouse.move(0, 0)
   await expect(page.getByRole('button', { name: '手动记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
-  await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveAttribute('data-variant', 'primary')
+  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveAttribute('data-variant', 'primary')
   const subjectBackground = await page.locator('.journal-subject-card').evaluate((element) => getComputedStyle(element).backgroundColor)
-  const summaryBackground = await page.getByRole('button', { name: '摘要生成', exact: true }).evaluate((element) => getComputedStyle(element).backgroundColor)
+  const summaryBackground = await page.getByRole('button', { name: '就医准备', exact: true }).evaluate((element) => getComputedStyle(element).backgroundColor)
   expect(summaryBackground).not.toBe(subjectBackground)
-  await page.getByRole('button', { name: '摘要生成', exact: true }).click()
+  await page.getByRole('button', { name: '就医准备', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
 })

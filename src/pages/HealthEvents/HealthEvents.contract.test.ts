@@ -21,6 +21,12 @@ const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
+test('健康随身记将摘要入口命名为就医准备且不改变护士站文案', () => {
+  assert.match(page, />就医准备<\/HohoButton>/)
+  assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
+  assert.match(station, />摘要生成<\/HohoButton>/)
+})
+
 test('前台护士站成为默认首页且健康随记保持独立', () => {
   assert.match(router, /path: '\/', element: <Navigate to="\/nurse-station" replace/)
   assert.match(router, /path: '\/nurse-station'/)
