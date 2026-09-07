@@ -1,0 +1,7 @@
+.medical-preparation-shared { min-height: 100dvh; background: rgb(var(--hoho-color-background)); }
+.medical-preparation-shared__body { display: grid; gap: 14px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); }
+.medical-preparation-shared__body > header { display: flex; align-items: center; gap: 10px; border-radius: var(--hoho-radius-card); padding: 13px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medical-preparation-shared__body > header div { display: grid; gap: 3px; }
+.medical-preparation-shared__body > header strong { color: rgb(var(--hoho-color-text-primary)); font-size: 16px; }
+.medical-preparation-shared__body > header span, .medical-preparation-shared__body > p { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.medical-preparation-shared__body > p { display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; }

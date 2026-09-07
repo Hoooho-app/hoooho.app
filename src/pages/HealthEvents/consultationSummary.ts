@@ -157,3 +157,26 @@ export function buildConsultationSummary(
     text,
   }
 }
+
+export function buildMedicalPreparation(context: HealthEventPromptContext, now = new Date()) {
+  const selected = getConsultationSummarySources(context).filter((source) => source.available).map((source) => source.id)
+  return buildConsultationSummary(context, selected, now)
+}
+
+export function getMedicalPreparationFingerprint(context: HealthEventPromptContext) {
+  assertCurrentMember(context)
+  const source = JSON.stringify({
+    member: context.member,
+    event: context.event,
+    healthProfile: context.healthProfile,
+    records: context.records,
+    organizations: context.organizations,
+    relatedEvents: context.relatedEvents
+  })
+  let hash = 2166136261
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `mp-v1-${(hash >>> 0).toString(16).padStart(8, '0')}`
+}

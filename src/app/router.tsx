@@ -16,6 +16,7 @@ export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/nurse-station" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
+  { path: '/medical-preparation/:shareToken', lazy: lazyPage(() => import('../pages/MedicalPreparationShared'), 'MedicalPreparationSharedPage') },
   { path: '/ops/login', lazy: lazyPage(() => import('../pages/Ops/Login'), 'OpsLoginPage') },
   {
     element: <RequireOpsAuth />,

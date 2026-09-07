@@ -1,6 +1,7 @@
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
+import { randomBytes } from 'node:crypto'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -38,6 +39,26 @@ function validateStatus(value) {
     throw new HealthEventError('随记状态无效', 400, 'INVALID_EVENT_STATUS')
   }
   return value
+}
+
+function validateMedicalPreparation(input) {
+  const fingerprint = typeof input.sourceFingerprint === 'string' ? input.sourceFingerprint.trim() : ''
+  const summary = input.summary
+  if (!fingerprint || fingerprint.length > 256 || !summary || typeof summary !== 'object') {
+    throw new HealthEventError('病情摘要内容无效', 400, 'INVALID_MEDICAL_PREPARATION')
+  }
+  const memberName = typeof summary.memberName === 'string' ? summary.memberName.trim() : ''
+  const prompt = typeof summary.prompt === 'string' ? summary.prompt.trim() : ''
+  const text = typeof summary.text === 'string' ? summary.text.trim() : ''
+  const sections = Array.isArray(summary.sections) ? summary.sections.slice(0, 12).map((section) => ({
+    id: String(section?.id ?? '').slice(0, 40),
+    title: String(section?.title ?? '').trim().slice(0, 80),
+    lines: Array.isArray(section?.lines) ? section.lines.slice(0, 40).map((line) => String(line).trim().slice(0, 500)).filter(Boolean) : []
+  })).filter((section) => section.id && section.title && section.lines.length) : []
+  if (!memberName || memberName.length > 80 || !prompt || prompt.length > 40_000 || !text || text.length > 40_000 || !sections.length) {
+    throw new HealthEventError('病情摘要内容无效', 400, 'INVALID_MEDICAL_PREPARATION')
+  }
+  return { memberName, prompt, text, sections, selectedSourceIds: Array.isArray(summary.selectedSourceIds) ? summary.selectedSourceIds.map(String).slice(0, 12) : [] }
 }
 
 export function validateStartTime(value, now = new Date()) {
@@ -127,6 +148,37 @@ export class HealthEventService {
     await this.get(accountId, id)
     await this.repository.delete(id)
     return { success: true }
+  }
+
+  async saveMedicalPreparation(accountId, id, input, now = new Date()) {
+    const event = await this.get(accountId, id)
+    const summary = validateMedicalPreparation(input)
+    const existing = event.medicalPreparation ?? null
+    if (existing?.sourceFingerprint === input.sourceFingerprint.trim()) {
+      return { status: 'current', medicalPreparation: existing }
+    }
+    const timestamp = now.toISOString()
+    const medicalPreparation = {
+      version: existing ? existing.version + 1 : 1,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      shareToken: existing?.shareToken ?? randomBytes(24).toString('base64url'),
+      sourceFingerprint: input.sourceFingerprint.trim(),
+      summary: { ...summary, generatedAt: timestamp }
+    }
+    await this.repository.update(id, { medicalPreparation }, now)
+    return { status: existing ? 'updated' : 'created', medicalPreparation }
+  }
+
+  async getSharedMedicalPreparation(token) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,80}$/.test(token)) {
+      throw new HealthEventError('私密链接无效', 404, 'MEDICAL_PREPARATION_NOT_FOUND')
+    }
+    const event = await this.repository.findByMedicalPreparationToken(token)
+    if (!event?.medicalPreparation) throw new HealthEventError('病情摘要不存在或链接已失效', 404, 'MEDICAL_PREPARATION_NOT_FOUND')
+    const member = await this.members.findById(event.memberId)
+    if (!member || member.accountId !== event.accountId) throw new HealthEventError('病情摘要不存在或链接已失效', 404, 'MEDICAL_PREPARATION_NOT_FOUND')
+    return { ...event.medicalPreparation, eventId: event.id }
   }
 
   async correctSummary(accountId, id, input, now = new Date()) {
