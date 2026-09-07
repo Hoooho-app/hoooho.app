@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { HealthEventFilterSheet, type HealthEventFilters } from '../../components/health'
-import { formatPlainMonthDay, getLocalCalendarParts, getLocalDateKey } from '../../utils/localCalendarDate'
+import { formatPlainMonthDay, formatPlainWeekday, getLocalCalendarParts, getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalTime, shiftJournalDate } from './timeViewModel'
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
@@ -18,14 +18,23 @@ export function TimeView({ memberId, token, day, today, onDayChange, revision, o
   const groups = journalDayGroups(filteredEntries, day, sortOrder)
   const years = [...new Set(entries.map((entry) => getLocalCalendarParts(entry.occurredAt)?.year).filter((year): year is number => year !== undefined))].sort((left, right) => right - left)
   const definitionTitles = [...new Set(entries.flatMap((entry) => entry.categories ?? ['other'] as const).map((category) => journalCategoryLabels[category]))]
-  const relative = day === today ? '今天 · ' : day === shiftJournalDate(today, -1) ? '昨天 · ' : ''
+  const yesterday = shiftJournalDate(today, -1)
+  const relative = day === today ? '今天' : day === yesterday ? '昨天' : formatPlainWeekday(day)
+  const selectMonth = (month: string) => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return
+    const [year, monthNumber] = month.split('-').map(Number)
+    const currentDay = parsePlainDate(day)?.day ?? 1
+    const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+    const selected = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, '0')}`
+    onDayChange(selected > today ? today : selected)
+  }
   return <section className="journal-time-view" aria-label="单日时间轴">
     <div className="journal-date-navigation">
-      <HohoButton size="icon" variant="ghost" aria-label="前一天" onClick={() => onDayChange(shiftJournalDate(day, -1))}><ChevronLeft size={22} /></HohoButton>
-      <h2 className="hoho-text-section-title" aria-live="polite">{relative}{day.slice(0, 4) !== today.slice(0, 4) ? `${day.slice(0, 4)}年` : ''}{formatPlainMonthDay(day)}</h2>
+      <label className="journal-year-picker"><span>{day.slice(0, 4)}年</span><input aria-label="选择年月" max={today.slice(0, 7)} onChange={(event) => selectMonth(event.target.value)} type="month" value={day.slice(0, 7)} /></label>
+      <span className="journal-yesterday-entry"><HohoButton size="icon" variant="ghost" aria-label="前一天" onClick={() => onDayChange(shiftJournalDate(day, -1))}><ChevronLeft size={22} /></HohoButton><button onClick={() => onDayChange(yesterday)} type="button">昨天</button></span>
+      <label className="journal-day-picker" aria-live="polite"><span>{relative} · <b>{formatPlainMonthDay(day)}</b></span><input aria-label="选择日期" max={today} onChange={(event) => onDayChange(event.target.value)} type="date" value={day} /></label>
       <HohoButton size="icon" variant="ghost" aria-label="后一天" disabled={day >= today} onClick={() => onDayChange(shiftJournalDate(day, 1))}><ChevronRight size={22} /></HohoButton>
     </div>
-    {day !== today && <div className="journal-return-today"><HohoButton size="small" variant="text" onClick={() => onDayChange(today)}>回到今天</HohoButton></div>}
     {loading ? <ListSkeleton rows={4} /> : error ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : groups.length === 0 ? <EmptyState title="这一天还没有记录" description="饮食、活动或身体变化，都可以记下来。" /> :
       <HealthTimeline ariaLabel={`当天记录，${sortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
