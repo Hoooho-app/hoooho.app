@@ -162,7 +162,7 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
             {cartoonAvatar('h-24 w-24 border-2 border-primary bg-white')}
             <button
               aria-label={text.change}
-              className="absolute bottom-1 -end-7 inline-grid h-9 w-9 place-items-center rounded-control border border-primary bg-surface text-primary shadow-sm after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute bottom-1 -end-5 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-sm after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               data-child-avatar-switch
               disabled={disabled || processing}
               title={text.change}
