@@ -37,7 +37,7 @@ try {
   await page.getByRole('button', { name: '当前最新在前，切换为从早到晚', exact: true }).click()
   await page.getByRole('button', { name: '当前从早到晚，切换为最新在前', exact: true }).click()
   const subjectHeight = await page.locator('.journal-subject-card').evaluate((element) => element.getBoundingClientRect().height)
-  const summaryHeight = await page.getByRole('button', { name: '摘要生成', exact: true }).evaluate((element) => element.getBoundingClientRect().height)
+  const summaryHeight = await page.getByRole('button', { name: '就医准备', exact: true }).evaluate((element) => element.getBoundingClientRect().height)
   assert.equal(subjectHeight, summaryHeight)
   const manualWidth = await page.getByRole('button', { name: '手动记录', exact: true }).evaluate((element) => element.getBoundingClientRect().width)
   const quickWidth = await page.getByRole('button', { name: '快捷记录', exact: true }).evaluate((element) => element.getBoundingClientRect().width)
@@ -80,7 +80,7 @@ try {
   await page.reload()
   await page.getByRole('button', { name: '时间视图', exact: true }).click()
   await row.waitFor()
-  await page.getByRole('button', { name: '摘要生成', exact: true }).click()
+  await page.getByRole('button', { name: '就医准备', exact: true }).click()
   await page.getByRole('dialog').waitFor()
   await page.keyboard.press('Escape')
   for (const width of [375, 390, 430]) {
