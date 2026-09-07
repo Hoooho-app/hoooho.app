@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, HeartHandshake, LogIn, Pause, Play, Thermometer, X } from 'lucide-react'
+import { Bell, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, LogIn, Pause, Play, ShieldCheck, Thermometer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
@@ -71,11 +71,25 @@ export function NurseStationPage() {
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="前台护士站" action={<span className="nurse-station-auth">未登录</span>} />
+      <MainAppHeader title="前台护士站" />
       <section className="nurse-station-empty-member">
-        <NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey="first-member" reducedMotion={reducedMotion} state="idle" />
-        <p>先添加孩子，护士站才能为TA提供服务。</p>
+        <div className="nurse-station-empty-member__copy">
+          <p className="nurse-station-empty-member__eyebrow">欢迎来到 Hoooho</p>
+          <h1>把孩子零散的健康变化，<span>整理成连续记录</span></h1>
+          <p className="nurse-station-empty-member__description">记下症状、用药和就医经过，<span>自动整理成时间线和问诊摘要。</span></p>
+        </div>
+        <div className="nurse-station-empty-member__visual">
+          <NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey="first-member" reducedMotion={reducedMotion} state="idle" />
+        </div>
+        <ol aria-label="Hoooho 健康记录流程" className="nurse-station-empty-member__steps">
+          <li><FileText aria-hidden="true" /><span>随手记录</span></li>
+          <ChevronRight aria-hidden="true" className="nurse-station-empty-member__arrow" />
+          <li><FolderOpen aria-hidden="true" /><span>自动整理</span></li>
+          <ChevronRight aria-hidden="true" className="nurse-station-empty-member__arrow" />
+          <li><ClipboardCheck aria-hidden="true" /><span>就医时带走</span></li>
+        </ol>
         <HohoButton fullWidth size="large" onClick={() => navigate('/family/new', { state: { firstUseEntry: { continueToRecord: false, returnTo: '/nurse-station' } } })}>添加第一个孩子</HohoButton>
+        <p className="nurse-station-empty-member__note"><ShieldCheck aria-hidden="true" />添加后即可开始记录</p>
       </section>
     </main>
   )
