@@ -38,6 +38,11 @@ test('零成员在护士站内分流且不会预先创建空健康事件', () =>
   assert.doesNotMatch(family, /healthEventService\.create/)
 })
 
+test('护士站待确认事项不会停止前台空闲动画', () => {
+  assert.match(station, /state=\{active\.length \? 'reviewing' : 'idle'\}/)
+  assert.doesNotMatch(station, /pending\.length \? 'awaitingConfirmation'/)
+})
+
 test('快速记录留在前台核对并只在确认保存时调用原子接口', () => {
   assert.match(trigger, /快速记录/)
   assert.match(flow, /if \(!onPreviewRef\.current\)[\s\S]*setState\('review'\)/)
