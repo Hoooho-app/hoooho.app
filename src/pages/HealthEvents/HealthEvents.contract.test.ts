@@ -45,7 +45,7 @@ test('零成员在护士站内分流且不会预先创建空健康事件', () =>
 })
 
 test('护士站待确认事项不会停止前台空闲动画', () => {
-  assert.match(station, /state=\{active\.length \? 'reviewing' : 'idle'\}/)
+  assert.match(station, /idleActive[^>]*state="idle"/)
   assert.doesNotMatch(station, /pending\.length \? 'awaitingConfirmation'/)
 })
 

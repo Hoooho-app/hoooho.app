@@ -8,16 +8,16 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   use: {
     ...devices['iPhone SE'],
-    baseURL: 'http://127.0.0.1:4196',
+    baseURL: 'http://127.0.0.1:4197',
     browserName: 'chromium',
     launchOptions: { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' },
     viewport: { width: 375, height: 667 },
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'node tests/guest-session/serve.mjs',
+    command: 'node tests/nurse-station/serve.mjs',
     cwd: '../..',
-    url: 'http://127.0.0.1:4196/api/health',
+    url: 'http://127.0.0.1:4197/api/health',
     reuseExistingServer: true,
     timeout: 30_000
   }
