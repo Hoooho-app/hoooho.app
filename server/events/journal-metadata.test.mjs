@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
+
+test('medication journal keeps dose and route as recorded without calculation', () => {
+  const journal = validateJournal({ categories: ['medication'], medication: { medicationName: '氯雷他定片', dosageForm: '片剂', strengthText: '10mg', amountValue: 2.5, amountUnit: 'mL', administrationRoute: 'oral', reasons: ['过敏相关表现'], recognitionSource: 'camera', recognitionStatus: 'draft_unverified' } })
+  assert.deepEqual(journal.medication, { medicationName: '氯雷他定片', dosageForm: '片剂', strengthText: '10mg', amountValue: 2.5, amountUnit: 'mL', administrationRoute: 'oral', reasons: ['过敏相关表现'], recognitionSource: 'camera', recognitionStatus: 'draft_unverified' })
+  assert.throws(() => validateJournal({ categories: ['medication'], medication: { medicationName: '药品', amountValue: 0, amountUnit: 'mg', administrationRoute: 'oral' } }), /本次用量无效/)
+  assert.throws(() => validateJournal({ categories: ['medication'], medication: { medicationName: '药品', amountUnit: 'mg', administrationRoute: 'oral' } }), /不能只填写/)
+})
 import { HealthEventService } from './health-event-service.mjs'
 
 test('journal keeps untitled lifestyle containers without changing the legacy event list', async () => {

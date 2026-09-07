@@ -230,6 +230,36 @@
 @media (prefers-reduced-motion: reduce) { .sleep-ring-node-face { filter: none; } }
 
 .symptom-record-page-layer { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; overflow: hidden; background: rgb(var(--hoho-color-text-primary) / .24); }
+
+.medication-record-page-layer { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; overflow: hidden; background: rgb(var(--hoho-color-text-primary) / .24); }
+.medication-record-page { width: min(100%, 36rem); height: 100%; display: flex; flex-direction: column; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); }
+.medication-record-page > header { height: 3.25rem; padding: 0 var(--hoho-space-3); display: grid; grid-template-columns: 2.5rem 1fr 2.5rem; align-items: center; border-bottom: 1px solid rgb(var(--hoho-color-border)); flex: 0 0 auto; }
+.medication-record-page > header h1 { margin: 0; text-align: center; font-size: var(--hoho-font-size-section-title); font-weight: 650; }
+.medication-record-page > header button { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border: 0; background: transparent; color: inherit; border-radius: var(--hoho-radius-control); }
+.medication-record-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--hoho-space-4) var(--hoho-space-4) calc(var(--hoho-space-5) + env(safe-area-inset-bottom)); }
+.medication-section, .medication-fieldset { margin: 0 0 var(--hoho-space-5); padding: 0; border: 0; }
+.medication-section h2, .medication-fieldset legend { margin: 0 0 var(--hoho-space-2); font-size: var(--hoho-font-size-body); font-weight: 650; color: rgb(var(--hoho-color-text-primary)); }
+.medication-section h2 span, .medication-fieldset legend span { font-size: var(--hoho-font-size-caption); font-weight: 400; color: rgb(var(--hoho-color-text-secondary)); }
+.medication-identity-row, .medication-amount { display: grid; grid-template-columns: 1fr 1fr; gap: var(--hoho-space-2); }
+.medication-amount { grid-template-columns: 1fr 6.5rem; }
+.medication-amount select, .medication-note textarea { width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: inherit; padding: 0 var(--hoho-space-3); }
+.medication-photo-actions, .medication-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.medication-photo-actions button, .medication-choice-grid button { min-height: var(--hoho-touch-target); display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
+.medication-choice-grid { grid-template-columns: repeat(3, 1fr); }
+.medication-photo-actions button:focus-visible, .medication-choice-grid button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: 2px; }
+.medication-choice-grid button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: white; }
+.medication-recognition { display: flex; gap: var(--hoho-space-2); margin-top: var(--hoho-space-3); padding: var(--hoho-space-3); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-recognition span { display: grid; gap: .2rem; }.medication-recognition small { color: rgb(var(--hoho-color-text-secondary)); }
+.medication-supplement { margin-bottom: var(--hoho-space-5); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface-subtle)); }
+.medication-supplement > button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); padding: var(--hoho-space-3); border: 0; background: transparent; text-align: left; color: inherit; }
+.medication-supplement > button span { display: grid; gap: .2rem; }.medication-supplement > button small { color: rgb(var(--hoho-color-text-secondary)); }.medication-supplement svg[data-open="true"] { transform: rotate(180deg); }
+.medication-supplement-body { padding: 0 var(--hoho-space-3) var(--hoho-space-3); }
+.medication-note { display: grid; gap: var(--hoho-space-2); font-size: var(--hoho-font-size-label); }.medication-note textarea { min-height: 5rem; padding: var(--hoho-space-3); resize: vertical; }
+.medication-reaction-link { margin-top: var(--hoho-space-2); border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); text-decoration: underline; }
+.medication-save-error { color: rgb(var(--hoho-color-danger)); font-size: var(--hoho-font-size-caption); }.medication-record-save { margin-top: var(--hoho-space-3); }
+.medication-confirm-layer { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--hoho-space-4); background: rgb(var(--hoho-color-text-primary) / .35); }
+.medication-confirm-layer > div { width: min(100%, 22rem); display: grid; gap: var(--hoho-space-3); padding: var(--hoho-space-5); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface)); box-shadow: var(--hoho-shadow-overlay); }.medication-confirm-layer h2, .medication-confirm-layer p { margin: 0; }
+@media (max-width: 374px) { .medication-record-scroll { padding-inline: var(--hoho-space-3); }.medication-choice-grid { grid-template-columns: repeat(2, 1fr); }.medication-identity-row { grid-template-columns: 1fr; } }
 .symptom-record-page { display: grid; width: min(100%, 600px); height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); }
 .symptom-record-page > header { display: grid; min-height: 52px; grid-template-columns: var(--hoho-touch-target) minmax(0, 1fr) var(--hoho-touch-target); align-items: center; border-bottom: 1px solid rgb(var(--hoho-color-border)); padding: max(0px, env(safe-area-inset-top)) var(--hoho-space-3) 0; }
 .symptom-record-page > header button { display: grid; width: var(--hoho-touch-target); height: var(--hoho-touch-target); place-items: center; border-radius: var(--hoho-radius-pill); }

@@ -41,6 +41,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       timeLabel: record.journal?.timeLabel,
       sleep: record.journal?.sleep,
       outdoorActivity: record.journal?.outdoorActivity,
+      medication: record.journal?.medication,
       attachmentCount: files.filter((file) => file.recordId === record.id).length + (record === rows[0] ? files.filter((file) => !file.recordId).length : 0),
       status: event.status
     }))

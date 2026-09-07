@@ -87,6 +87,30 @@ export interface JournalSymptomDetails {
   generatedSummary?: string
 }
 
+export type MedicationRoute = 'oral' | 'topical' | 'nebulized' | 'inhaled' | 'nasal' | 'ophthalmic' | 'other'
+export type MedicationObservation = 'not_observed_yet' | 'some_relief' | 'no_obvious_change' | 'discomfort_observed'
+
+export interface JournalMedicationDetails {
+  medicationName: string
+  genericName?: string
+  brandName?: string
+  dosageForm?: string
+  strengthText?: string
+  amountValue?: number
+  amountUnit?: string
+  administrationRoute: MedicationRoute
+  routeDetails?: Record<string, string | number | boolean | string[]>
+  bodyLocations?: JournalSymptomLocation[]
+  reasons?: string[]
+  suggestedBy?: 'doctor' | 'pharmacist' | 'original_instruction' | 'caregiver_record' | 'other'
+  suggestedByOther?: string
+  observationAfterUse?: MedicationObservation
+  linkedSymptomRecordIds?: string[]
+  note?: string
+  recognitionSource?: 'camera' | 'album'
+  recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
+}
+
 export interface JournalMetadata {
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
@@ -97,4 +121,5 @@ export interface JournalMetadata {
   sleep?: JournalSleepDetails
   outdoorActivity?: JournalOutdoorActivityDetails
   symptom?: JournalSymptomDetails
+  medication?: JournalMedicationDetails
 }
