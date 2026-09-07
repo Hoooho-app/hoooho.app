@@ -321,10 +321,25 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   const avatarSwitchBox = await avatarSwitch.boundingBox()
   expect(avatarSwitchBox?.height).toBeLessThanOrEqual(36)
   expect(avatarSwitchBox?.width).toBeLessThanOrEqual(36)
+  const avatarSwitchStyles = await avatarSwitch.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    const icon = element.querySelector('svg')
+    return {
+      backgroundColor: styles.backgroundColor,
+      borderRadius: styles.borderRadius,
+      color: styles.color,
+      iconColor: icon ? getComputedStyle(icon).color : ''
+    }
+  })
+  expect(avatarSwitchStyles.backgroundColor).toBe('rgb(27, 122, 110)')
+  expect(avatarSwitchStyles.borderRadius).toBe('9999px')
+  expect(avatarSwitchStyles.color).toBe('rgb(255, 255, 255)')
+  expect(avatarSwitchStyles.iconColor).toBe('rgb(255, 255, 255)')
   const avatarBox = await page.locator('section[aria-label="卡通形象"] > div').first().boundingBox()
   expect(avatarBox?.height).toBeLessThanOrEqual(96)
   expect(avatarBox?.width).toBeLessThanOrEqual(96)
-  expect(avatarSwitchBox!.x).toBeGreaterThanOrEqual(avatarBox!.x + avatarBox!.width - 12)
+  expect(avatarSwitchBox!.x).toBeGreaterThanOrEqual(avatarBox!.x + avatarBox!.width - 20)
+  expect(avatarSwitchBox!.x).toBeLessThan(avatarBox!.x + avatarBox!.width - 8)
   await expect(page.getByRole('button', { name: '保存修改' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
   const profileRows = page.locator('section[aria-label="孩子基本资料"] > label, section[aria-label="孩子基本资料"] > div, section[aria-label="孩子基本资料"] > fieldset')
