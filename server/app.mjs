@@ -412,7 +412,7 @@ async function handleMembers(request, response, pathname) {
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
-  if (pathname !== '/api/quick-records' && !photoMatch && !photoContentMatch) return false
+  if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !photoMatch && !photoContentMatch) return false
   const accountId = await readAccountId(request)
   const photoMemberId = String(request.headers['x-hoooho-member-id'] ?? '').trim()
   if (photoContentMatch) {
@@ -434,7 +434,8 @@ async function handleQuickRecords(request, response, pathname) {
     else if (!photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.cancel(accountId, photoMemberId, draftId))
     else if (photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.delete(accountId, photoMemberId, draftId, photoId))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
-  } else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
+  } else if (pathname === '/api/quick-records/duplicate-check' && request.method === 'POST') sendJson(response, 200, await quickRecords.checkDuplicate(accountId, await readJson(request)))
+  else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }

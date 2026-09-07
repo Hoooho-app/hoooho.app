@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalTime, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
+import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
 const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
@@ -31,6 +31,23 @@ test('member and account scope is enforced and legacy event-only data is retaine
 test('calendar navigation crosses months and leap days without adding 24-hour instants', () => {
   assert.equal(shiftJournalDate('2026-01-01', -1), '2025-12-31')
   assert.equal(shiftJournalDate('2024-03-01', -1), '2024-02-29')
+})
+test('event updates remain one timeline item and sort by the latest update', () => {
+  const event: HealthEventApiDto = { id: 'event', memberId: 'child', accountId: 'account', title: '发热', category: 'other', status: 'observing', startTime: '2026-09-05T16:16:00', createdAt: '2026-09-05T16:16:01', updatedAt: '2026-09-05T16:18:01' }
+  const first: HealthEventRecordApiDto = { id: 'first', accountId: 'account', eventId: event.id, type: 'note', content: '孩子头顶部区域发热', occurredAt: '2026-09-05T16:16:00', createdAt: '2026-09-05T16:16:01', updatedAt: '2026-09-05T16:16:01', journal: { categories: ['symptom'], occurredAt: '2026-09-05T16:16:00', timePrecision: 'exact' } }
+  const update: HealthEventRecordApiDto = { ...first, id: 'update', note: 'event-update:first', content: '体温升到38.5度', occurredAt: '2026-09-05T16:18:00', createdAt: '2026-09-05T16:18:01', updatedAt: '2026-09-05T16:18:01', journal: { ...first.journal, occurredAt: '2026-09-05T16:18:00' } }
+  const projected = flattenJournal([event], new Map([[event.id, [update, first]]]), new Map(), 'child')
+  assert.equal(projected.length, 1)
+  assert.equal(projected[0].content, first.content)
+  assert.equal(projected[0].occurredAt, update.occurredAt)
+  assert.equal(projected[0].updateCount, 1)
+  assert.equal(journalUpdateLabel(projected[0]), '16:16 首次记录 · 16:18 有更新')
+})
+test('independent legacy records sharing one event are not mistaken for update nodes', () => {
+  const event: HealthEventApiDto = { id: 'event', memberId: 'child', accountId: 'account', title: '日常记录', category: 'other', status: 'observing', startTime: '2026-09-05T12:00:00', createdAt: '2026-09-05T12:00:01', updatedAt: '2026-09-05T13:00:01' }
+  const first: HealthEventRecordApiDto = { id: 'diet', accountId: 'account', eventId: event.id, type: 'note', content: '吃午饭', occurredAt: '2026-09-05T12:00:00', createdAt: '2026-09-05T12:00:01', updatedAt: '2026-09-05T12:00:01', journal: { categories: ['diet'] } }
+  const second: HealthEventRecordApiDto = { ...first, id: 'activity', content: '散步', occurredAt: '2026-09-05T13:00:00', createdAt: '2026-09-05T13:00:01', updatedAt: '2026-09-05T13:00:01', journal: { categories: ['activity'] } }
+  assert.deepEqual(flattenJournal([event], new Map([[event.id, [first, second]]]), new Map(), 'child').map((item) => item.id), ['diet', 'activity'])
 })
 test('bowel occurrence number is scoped to the selected local day and ordered by occurred time', () => {
   const first = { ...entry('first', '2026-09-05T08:00:00'), categories: ['elimination'] as const }

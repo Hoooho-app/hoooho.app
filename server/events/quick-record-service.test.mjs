@@ -10,6 +10,7 @@ function setup({ failRecord = false, failRequest = false, failPhotos = false } =
   let recordCreates = 0
   const events = {
     repository: {
+      findByAccountId: async (accountId) => eventRows.filter((item) => item.accountId === accountId),
       findById: async (id) => eventRows.find((item) => item.id === id) ?? null
     },
     create: async (accountId, input) => {
@@ -179,4 +180,55 @@ test('quick record photo association failure rolls back text event and record', 
   await assert.rejects(() => state.service.create('account-1', { ...input, photoDraftId: 'draft_12345678', photoIds: ['photo-1'] }), /photo attach failed/)
   assert.equal(state.eventRows.length, 0)
   assert.equal(state.recordRows.length, 0)
+})
+
+test('verbatim smart-recognition retries with a new key are still confirmed as possible duplicates', async () => {
+  const state = setup()
+  await state.service.create('account-1', input)
+  const repeated = { ...input, idempotencyKey: 'session_13345678', occurredAt: '2026-09-02T10:01:00.000Z' }
+  assert.equal((await state.service.checkDuplicate('account-1', repeated)).duplicate?.eventId, 'event-1')
+  await assert.rejects(() => state.service.create('account-1', repeated), (error) => error.code === 'POSSIBLE_DUPLICATE_RECORD')
+})
+
+const forehead = { id: 'head-forehead-1', label: '前额1号区域', locationNumber: 1, locationLayer: 'surface', bodySide: 'center', bodyView: 'front', bodyRegion: 'head', localRegion: 'forehead' }
+const crown = { ...forehead, id: 'head-crown-1', label: '头顶部1号区域', localRegion: 'crown' }
+const symptomInput = (changes = {}) => ({
+  ...input,
+  content: '孩子头顶部1号区域发热，表现为身体发热。',
+  title: '身体发热',
+  journal: { categories: ['symptom'], symptom: { symptomCategory: 'fever', locations: [crown], descriptors: ['身体发热'], trend: 'same' } },
+  ...changes
+})
+
+test('similar symptoms on adjacent head regions require an explicit user choice', async () => {
+  const state = setup()
+  await state.service.create('account-1', symptomInput(), new Date('2026-09-02T10:00:00.000Z'))
+  const repeated = symptomInput({ idempotencyKey: 'session_22345678', content: '孩子前额1号区域发热，表现为身体发热。', occurredAt: '2026-09-02T10:01:00.000Z', journal: { categories: ['symptom'], symptom: { symptomCategory: 'fever', locations: [forehead], descriptors: ['身体发热'], trend: 'same' } } })
+  const checked = await state.service.checkDuplicate('account-1', repeated, new Date('2026-09-02T10:01:00.000Z'))
+  assert.equal(checked.duplicate?.eventId, 'event-1')
+  await assert.rejects(() => state.service.create('account-1', repeated, new Date('2026-09-02T10:01:00.000Z')), (error) => error.code === 'POSSIBLE_DUPLICATE_RECORD')
+  assert.deepEqual(state.counts(), { eventCreates: 1, recordCreates: 1 })
+})
+
+test('situation update appends a record node without overwriting the original event', async () => {
+  const state = setup()
+  await state.service.create('account-1', symptomInput(), new Date('2026-09-02T10:00:00.000Z'))
+  const repeated = symptomInput({ idempotencyKey: 'session_32345678', content: '孩子前额1号区域发热，体温升到38.5度。', occurredAt: '2026-09-02T10:02:00.000Z', journal: { categories: ['symptom'], symptom: { symptomCategory: 'fever', locations: [forehead], descriptors: ['身体发热'], impactLevel: 'clear', trend: 'more_noticeable' } } })
+  const created = await state.service.create('account-1', { ...repeated, rawText: repeated.content, content: '体温升到38.5度', duplicateAction: 'update', duplicateEventId: 'event-1' }, new Date('2026-09-02T10:02:00.000Z'))
+  assert.equal(created.eventId, 'event-1')
+  assert.deepEqual(state.counts(), { eventCreates: 1, recordCreates: 2 })
+  assert.equal(state.recordRows[0].content, symptomInput().content)
+  assert.equal(state.recordRows[1].content, '体温升到38.5度')
+  assert.equal(state.recordRows[1].sourceText, repeated.content)
+  assert.equal(state.recordRows[1].note, 'event-update:record-1')
+})
+
+test('force-create preserves an independent event while member isolation avoids false matches', async () => {
+  const state = setup()
+  await state.service.create('account-1', symptomInput(), new Date('2026-09-02T10:00:00.000Z'))
+  const repeated = symptomInput({ idempotencyKey: 'session_42345678', occurredAt: '2026-09-02T10:03:00.000Z' })
+  await state.service.create('account-1', { ...repeated, duplicateAction: 'create', duplicateEventId: 'event-1' }, new Date('2026-09-02T10:03:00.000Z'))
+  assert.deepEqual(state.counts(), { eventCreates: 2, recordCreates: 2 })
+  const otherMember = await state.service.checkDuplicate('account-1', symptomInput({ idempotencyKey: 'session_52345678', memberId: 'member-2', occurredAt: '2026-09-02T10:04:00.000Z' }))
+  assert.equal(otherMember.duplicate, null)
 })

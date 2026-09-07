@@ -38,6 +38,7 @@
 .journal-record-time { width: 48px; flex: none; font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); font-variant-numeric: tabular-nums; }
 .journal-record-content { display: flex; align-items: center; gap: var(--hoho-space-1); flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
 .journal-record-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--hoho-font-size-label); line-height: var(--hoho-line-height-label); }
+.journal-record-update-meta { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); white-space: nowrap; }
 .journal-record-tags { display: flex; flex: none; align-items: center; gap: var(--hoho-space-1); max-width: 46%; overflow: hidden; white-space: nowrap; }
 .journal-attachment { display: inline-flex; align-items: center; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
 .journal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-2); min-height: var(--hoho-touch-target); }
@@ -211,6 +212,13 @@
 .outdoor-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }.outdoor-photo-grid > div { position: relative; aspect-ratio: 1; }.outdoor-photo-grid > div > button:first-child, .outdoor-photo-grid img { width: 100%; height: 100%; }.outdoor-photo-grid img { border-radius: var(--hoho-radius-control); object-fit: cover; }.outdoor-photo-grid > div > button:nth-child(2) { position: absolute; top: -5px; right: -5px; display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: rgb(var(--hoho-color-text-primary)); color: white; }.outdoor-photo-grid span { position: absolute; right: 3px; bottom: 3px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-text-primary) / .76); padding: 2px 6px; color: white; font-size: 9px; }
 .outdoor-photo-section > p { margin: var(--hoho-space-2) 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 .journal-saved-toast { position: fixed; z-index: 80; left: 50%; bottom: max(var(--hoho-space-6), env(safe-area-inset-bottom)); transform: translateX(-50%); border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-text-primary)); padding: var(--hoho-space-2) var(--hoho-space-4); color: rgb(var(--hoho-color-surface)); font-size: var(--hoho-font-size-label); font-weight: 650; box-shadow: var(--hoho-shadow-floating); }
+.duplicate-record-content, .duplicate-record-actions { display: grid; gap: var(--hoho-space-3); }
+.duplicate-record-existing { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--hoho-space-2); border-block: 1px solid rgb(var(--hoho-color-border)); padding-block: var(--hoho-space-3); }
+.duplicate-record-existing time { color: rgb(var(--hoho-color-primary)); font: 650 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family); font-variant-numeric: tabular-nums; }
+.duplicate-record-existing span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.duplicate-record-change { display: grid; gap: var(--hoho-space-2); font-size: var(--hoho-font-size-label); font-weight: 650; }
+.duplicate-record-change small { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-weight: 400; }
+.duplicate-record-change textarea { min-height: 104px; resize: vertical; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); padding: var(--hoho-space-3); color: rgb(var(--hoho-color-text-primary)); font: 400 var(--hoho-font-size-body) / var(--hoho-line-height-body) var(--hoho-font-family); }
 
 .sleep-record-page-layer { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; overflow: hidden; background: rgb(var(--hoho-color-text-primary) / 0.24); }
 .sleep-record-page { display: grid; width: min(100%, 600px); height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); }
