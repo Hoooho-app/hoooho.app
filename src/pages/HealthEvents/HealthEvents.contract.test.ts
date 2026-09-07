@@ -145,7 +145,7 @@ test('登录等待反馈只在服务端成功后开始且成功后安全返回�
   assert.match(login, /requestedPath\.startsWith\('\/'\)/)
   assert.doesNotMatch(login, /familyMemberService\.list/)
   assert.match(requireAuth, /location\.pathname\}\$\{location\.search\}\$\{location\.hash/)
-  assert.match(login, /preload="metadata"/)
+  assert.doesNotMatch(login, /login-family-care|<video/)
 })
 
 test('健康随记永久删除必须经过共享确认弹窗', () => {
