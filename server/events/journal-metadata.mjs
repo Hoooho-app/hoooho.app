@@ -28,6 +28,11 @@ const symptomCategories = new Set(['skin', 'fever', 'respiratory', 'ent', 'gastr
 const symptomImpacts = new Set(['little', 'some', 'clear'])
 const symptomOnsets = new Set(['just_now', 'today', 'yesterday', 'two_three_days', 'within_week', 'earlier'])
 const symptomTrends = new Set(['same', 'more_noticeable', 'improving', 'returned', 'recurrent', 'unclear'])
+const medicationRoutes = new Set(['oral', 'topical', 'nebulized', 'inhaled', 'nasal', 'ophthalmic', 'other'])
+const medicationObservations = new Set(['not_observed_yet', 'some_relief', 'no_obvious_change', 'discomfort_observed'])
+const medicationSuggestedBy = new Set(['doctor', 'pharmacist', 'original_instruction', 'caregiver_record', 'other'])
+const medicationRecognitionSources = new Set(['camera', 'album'])
+const medicationRecognitionStatuses = new Set(['not_used', 'draft_unverified', 'user_edited'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -194,6 +199,29 @@ function validateSymptom(value) {
   return { symptomCategory: value.symptomCategory, locations, descriptors, ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
 
+function validateMedication(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || typeof value.medicationName !== 'string' || !value.medicationName.trim() || value.medicationName.trim().length > 120 || !medicationRoutes.has(value.administrationRoute)) throw new HealthEventRecordError('用药记录无效', 400, 'INVALID_JOURNAL_MEDICATION')
+  const result = { medicationName: value.medicationName.trim(), administrationRoute: value.administrationRoute }
+  for (const key of ['genericName', 'brandName', 'dosageForm', 'strengthText', 'suggestedByOther']) if (value[key] !== undefined) {
+    if (typeof value[key] !== 'string' || !value[key].trim() || value[key].trim().length > 120) throw new HealthEventRecordError('药品信息无效', 400, 'INVALID_JOURNAL_MEDICATION')
+    result[key] = value[key].trim()
+  }
+  if (value.amountValue !== undefined) {
+    if (!Number.isFinite(value.amountValue) || value.amountValue <= 0 || value.amountValue > 100000 || typeof value.amountUnit !== 'string' || !value.amountUnit.trim() || value.amountUnit.trim().length > 20) throw new HealthEventRecordError('本次用量无效', 400, 'INVALID_JOURNAL_MEDICATION')
+    result.amountValue = value.amountValue; result.amountUnit = value.amountUnit.trim()
+  } else if (value.amountUnit !== undefined) throw new HealthEventRecordError('不能只填写用量单位', 400, 'INVALID_JOURNAL_MEDICATION')
+  const reasons = cleanStrings(value.reasons, '使用原因', 8); if (reasons?.length) result.reasons = reasons
+  const linked = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 20); if (linked?.length) result.linkedSymptomRecordIds = linked
+  if (value.suggestedBy !== undefined) { if (!medicationSuggestedBy.has(value.suggestedBy)) throw new HealthEventRecordError('建议来源无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.suggestedBy = value.suggestedBy }
+  if (value.observationAfterUse !== undefined) { if (!medicationObservations.has(value.observationAfterUse)) throw new HealthEventRecordError('用后观察无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.observationAfterUse = value.observationAfterUse }
+  if (value.recognitionSource !== undefined) { if (!medicationRecognitionSources.has(value.recognitionSource) || !medicationRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('识别状态无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.recognitionSource = value.recognitionSource; result.recognitionStatus = value.recognitionStatus }
+  if (value.note !== undefined) { if (typeof value.note !== 'string' || !value.note.trim() || value.note.trim().length > 200) throw new HealthEventRecordError('用药备注无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.note = value.note.trim() }
+  if (value.routeDetails !== undefined) { if (!value.routeDetails || typeof value.routeDetails !== 'object' || Array.isArray(value.routeDetails) || JSON.stringify(value.routeDetails).length > 2000) throw new HealthEventRecordError('使用方式详情无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.routeDetails = value.routeDetails }
+  if (value.bodyLocations !== undefined) result.bodyLocations = validateSymptom({ symptomCategory: 'other', otherCategoryText: '用药位置', locations: value.bodyLocations, descriptors: [] }).locations
+  return result
+}
+
 function recordedClock(occurredAt, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
@@ -214,12 +242,14 @@ export function validateJournal(value) {
   const sleep = validateSleep(value.sleep)
   const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
   const symptom = validateSymptom(value.symptom)
+  const medication = validateMedication(value.medication)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
   if (outdoorActivity && !value.categories.includes('activity')) throw new HealthEventRecordError('户外活动详情必须归入活动分类', 400, 'INVALID_JOURNAL_OUTDOOR_ACTIVITY')
   if (symptom && !value.categories.includes('symptom')) throw new HealthEventRecordError('症状详情必须归入症状分类', 400, 'INVALID_JOURNAL_SYMPTOM')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}) }
+  if (medication && !value.categories.includes('medication')) throw new HealthEventRecordError('用药详情必须归入用药分类', 400, 'INVALID_JOURNAL_MEDICATION')
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

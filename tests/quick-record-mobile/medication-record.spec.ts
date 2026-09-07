@@ -1,0 +1,38 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function prepare(page: Page) {
+  await page.goto('/health-events')
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await page.getByRole('button', { name: '添加第一个孩子' }).click()
+  await page.getByLabel('姓名').fill('测试宝宝')
+  await page.getByLabel('出生日期').fill('2024-01-01')
+  await page.getByRole('button', { name: '男' }).click()
+  await page.getByLabel('你是孩子的谁？').selectOption({ label: '爸爸' })
+  await page.getByRole('button', { name: '添加家庭成员' }).click()
+  await page.getByRole('button', { name: '跳过' }).click()
+  await page.goto('/health-events')
+}
+
+test('iPhone SE 用药入口、动态字段、草稿和真实保存链路', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '手动记录' }).click()
+  await page.getByRole('button', { name: '用药' }).click()
+  await page.getByRole('button', { name: '开始记录' }).click()
+  const form = page.getByRole('dialog', { name: '记录用药' })
+  await expect(form).toBeVisible()
+  await expect(form.getByText('再补充一点（选填）')).toBeVisible()
+  await expect(form.getByText('记录时间')).toBeVisible()
+  await form.getByLabel('药品名称').fill('氯雷他定片')
+  await form.getByLabel('本次用量').fill('2.5')
+  await form.getByLabel('用量单位').selectOption('mL')
+  await form.getByRole('button', { name: '外用' }).click()
+  await expect(form.getByText('涂在哪里？')).toBeVisible()
+  await form.getByRole('button', { name: '口服' }).click()
+  await expect(form.getByText('涂在哪里？')).toBeHidden()
+  await form.getByRole('button', { name: /再补充一点/ }).click()
+  await form.getByRole('button', { name: '皮肤不适' }).click()
+  expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, nested: [...document.querySelectorAll('.medication-record-scroll *:not(textarea)')].filter((node) => { const style = getComputedStyle(node); return /(auto|scroll)/.test(style.overflowY) }).length }))).toEqual({ width: 375, nested: 0 })
+  await form.getByRole('button', { name: '保存记录' }).click()
+  await expect(page.getByText('已记录').first()).toBeVisible()
+  await expect(page.getByText(/口服 · 氯雷他定片 · 2.5 mL/)).toBeVisible()
+})

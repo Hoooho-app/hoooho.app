@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   globalTeardown: './teardown.ts',
   testDir: '.',
-  testMatch: ['quick-record.spec.ts', 'nurse-video.spec.ts'],
+  testMatch: ['quick-record.spec.ts', 'nurse-video.spec.ts', 'medication-record.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,
