@@ -27,6 +27,8 @@ test('iPhone SE nurse bubbles are contextual, grouped, dismissible and safe', as
   await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
   await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
   await page.goto('/nurse-station')
+  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveCount(0)
 
   const now = new Date().toISOString()
   const makeItem = (id: string, status: string, changes: Record<string, unknown> = {}) => ({ id, memberId: 'fixture-child', sourceEventId: `event-${id}`, relatedEventIds: [`event-${id}`], type: 'symptom_observation', status, title: '值得继续留意', sourceLabel: `${id} · 9/8 10:00`, createdAt: now, updatedAt: now, ...changes })
