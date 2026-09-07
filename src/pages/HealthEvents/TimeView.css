@@ -274,6 +274,32 @@
 .vaccination-observations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .vaccination-observations button { min-height: 3rem; padding: var(--hoho-space-2); line-height: 1.25; }
 .vaccination-causality { display: block; margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
+.visit-record-scroll { display: block; }
+.visit-record-scroll > * + * { margin-top: var(--hoho-space-4); }
+.visit-choice-grid, .visit-department-grid, .visit-document-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); }
+.visit-choice-grid button, .visit-department-grid button, .visit-document-types button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); padding: var(--hoho-space-2); font-size: var(--hoho-font-size-caption); line-height: 1.25; }
+.visit-choice-grid button[aria-pressed='true'], .visit-department-grid button[aria-pressed='true'], .visit-document-types button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 600; }
+.visit-choice-grid + .hoho-field, .visit-department-grid + .hoho-field { margin-top: var(--hoho-space-2); }
+.visit-primary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); }
+.visit-primary-actions > button { display: flex; min-height: var(--hoho-touch-target); align-items: center; justify-content: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-primary) / .5); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-primary)); }
+.visit-symptom-list { display: grid; gap: 0; margin-top: var(--hoho-space-2); border-block: 1px solid rgb(var(--hoho-color-border)); }
+.visit-symptom-list label { display: flex; min-height: var(--hoho-touch-target); align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); padding: var(--hoho-space-2); }
+.visit-symptom-list label:last-child { border-bottom: 0; }.visit-symptom-list label span { display: grid; }.visit-symptom-list small { color: rgb(var(--hoho-color-text-secondary)); }
+.visit-linked-tags, .visit-recent { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.visit-linked-tags button, .visit-recent button { display: inline-flex; min-height: 32px; align-items: center; gap: var(--hoho-space-1); border: 1px solid rgb(var(--hoho-color-primary) / .35); border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); padding-inline: var(--hoho-space-2); font-size: var(--hoho-font-size-caption); }
+.visit-recent span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.visit-datetime-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); }
+.visit-check { display: flex; min-height: var(--hoho-touch-target); align-items: center; gap: var(--hoho-space-2); font-size: var(--hoho-font-size-label); }
+.visit-dynamic-fields > * + * { margin-top: var(--hoho-space-2); }
+.visit-results { margin-top: var(--hoho-space-5); background: transparent; border-block: 1px solid rgb(var(--hoho-color-border)); border-radius: 0; }
+.visit-results-body { display: grid; gap: var(--hoho-space-5); padding-inline: 0; }
+.visit-results-body h3 { margin: 0 0 var(--hoho-space-2); font-size: var(--hoho-font-size-body); font-weight: 650; }
+.visit-document-types { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: var(--hoho-space-3); }
+.visit-document-types button { min-height: 36px; padding-inline: var(--hoho-space-1); }
+.visit-fact-hint { display: block; margin-bottom: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
+.visit-secondary-link { min-height: var(--hoho-touch-target); color: rgb(var(--hoho-color-primary)); text-decoration: underline; }
+.visit-results-body .hoho-field + .hoho-field { margin-top: var(--hoho-space-2); }
+@media (max-width: 374px) { .visit-choice-grid, .visit-department-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.visit-datetime-row { grid-template-columns: 1fr; }.visit-document-types { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .symptom-record-page { display: grid; width: min(100%, 600px); height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); }
 .symptom-record-page > header { display: grid; min-height: 52px; grid-template-columns: var(--hoho-touch-target) minmax(0, 1fr) var(--hoho-touch-target); align-items: center; border-bottom: 1px solid rgb(var(--hoho-color-border)); padding: max(0px, env(safe-area-inset-top)) var(--hoho-space-3) 0; }
 .symptom-record-page > header button { display: grid; width: var(--hoho-touch-target); height: var(--hoho-touch-target); place-items: center; border-radius: var(--hoho-radius-pill); }

@@ -98,6 +98,7 @@ export class QuickRecordService {
   async createLocked(accountId, input, marker, now) {
     const existing = await this.findExisting(accountId, input.idempotencyKey, marker, now)
     if (existing) return existing
+    if (input.journal?.visit) await this.validateVisitLinks(accountId, input.memberId, input.journal.visit)
     const photos = input.photoIds.length
       ? await this.photos?.prepareForSave(accountId, input.memberId, input.photoDraftId, input.photoIds)
       : []
@@ -112,7 +113,7 @@ export class QuickRecordService {
     let attachedPhotos = []
     try {
       const record = await this.records.create(accountId, event.id, {
-        type: 'note',
+        type: input.journal?.categories?.includes('visit') ? 'visit' : 'note',
         ...(input.journal === undefined ? {} : { journal: input.journal }),
         content: input.content,
         occurredAt: input.occurredAt,
@@ -131,6 +132,26 @@ export class QuickRecordService {
       if (createdRecord) await this.records.repository.delete(createdRecord.id).catch(() => undefined)
       await this.events.delete(accountId, event.id).catch(() => undefined)
       throw error
+    }
+  }
+
+  async validateVisitLinks(accountId, memberId, visit) {
+    const groups = [
+      ['linkedSymptomRecordIds', 'symptom'], ['linkedMedicationRecordIds', 'medication'],
+      ['linkedExaminationRecordIds', 'examination'], ['linkedInjuryRecordIds', 'injury'],
+      ['linkedVaccinationRecordIds', 'vaccination']
+    ]
+    for (const [key, category] of groups) for (const recordId of visit[key] ?? []) {
+      const record = await this.records.repository.findById(recordId)
+      const event = record ? await this.events.repository.findById(record.eventId) : null
+      if (!record || !event || record.accountId !== accountId || event.accountId !== accountId || event.memberId !== memberId || !record.journal?.categories?.includes(category)) {
+        throw new HealthEventError('关联记录不存在或不属于当前人物', 400, 'INVALID_VISIT_LINK')
+      }
+    }
+    if (visit.linkedVisitRecordId) {
+      const record = await this.records.repository.findById(visit.linkedVisitRecordId)
+      const event = record ? await this.events.repository.findById(record.eventId) : null
+      if (!record || !event || record.accountId !== accountId || event.accountId !== accountId || event.memberId !== memberId || !record.journal?.categories?.includes('visit')) throw new HealthEventError('关联就医记录不存在或不属于当前人物', 400, 'INVALID_VISIT_LINK')
     }
   }
 }

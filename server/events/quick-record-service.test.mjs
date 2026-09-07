@@ -135,6 +135,16 @@ test('quick record persists outdoor activity facts and rejects conflicting none-
   await assert.rejects(() => setup().service.create('account-1', { ...input, idempotencyKey: 'outdoor_invalid_3', journal: { categories: ['activity'], outdoorActivity: { activities: [], durationRange: '30_60', durationMinutes: 45, places: [], contacts: [], observations: [] } } }), /活动时长只能选择一种填写方式/)
 })
 
+test('visit is persisted as a visit and rejects links owned by another member', async () => {
+  const state = setup()
+  state.eventRows.push({ id: 'symptom-event', accountId: 'account-1', memberId: 'child-other' })
+  state.recordRows.push({ id: 'symptom-record', accountId: 'account-1', eventId: 'symptom-event', journal: { categories: ['symptom'] } })
+  const journal = { categories: ['visit'], visit: { visitType: 'outpatient', institutionName: '儿童医院' } }
+  await state.service.create('account-1', { ...input, idempotencyKey: 'visit_12345678', memberId: 'child-one', content: '门诊 · 儿童医院', journal })
+  assert.equal(state.recordRows.at(-1).type, 'visit')
+  await assert.rejects(() => state.service.create('account-1', { ...input, idempotencyKey: 'visit_87654321', memberId: 'child-one', content: '门诊', journal: { categories: ['visit'], visit: { visitType: 'outpatient', linkedSymptomRecordIds: ['symptom-record'] } } }), /不属于当前人物/)
+})
+
 test('quick record collapses concurrent submissions with the same key', async () => {
   const state = setup()
   const [left, right] = await Promise.all([
