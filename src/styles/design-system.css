@@ -1,3 +1,5 @@
+@import '../components/design-system/MedicalPrepButton.css' layer(components);
+
 @layer components {
   .hoho-health-events-page {
     --color-primary: var(--hoho-color-primary);

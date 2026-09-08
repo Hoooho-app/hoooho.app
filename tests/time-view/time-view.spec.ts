@@ -36,9 +36,35 @@ test('manual record sheet groups supported care actions under health events', as
 
 test('health journal names the existing summary action medical prep', async ({ page }) => {
   await prepare(page)
-  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveClass(/medical-prep-button/)
   await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
+})
+
+test('medical prep uses a quiet timed wake cycle and respects reduced motion', async ({ page }) => {
+  await prepare(page)
+  const button = page.getByRole('button', { name: '就医准备', exact: true })
+  await expect(button).toBeEnabled()
+  expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false)
+  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
+  await expect(button).toHaveClass(/medical-prep-button--awake/, { timeout: 6_000 })
+  await page.screenshot({ path: 'test-results/medical-prep-awake-iphone-se.png' })
+  await expect(button).not.toHaveClass(/medical-prep-button--awake/, { timeout: 2_100 })
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.reload()
+  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
+  await page.waitForTimeout(3_300)
+  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
+})
+
+test('medical prep keeps its established desktop dimensions and stable label', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await prepare(page)
+  const button = page.getByRole('button', { name: '就医准备', exact: true })
+  await expect(button).toHaveCSS('height', '52px')
+  await expect(button.locator('.medical-prep-button__label')).toHaveText('就医准备')
+  expect(await button.evaluate((element) => element.scrollWidth === element.clientWidth)).toBe(true)
 })
 
 test('single-day timeline, filters, sort order, compact subject and summary entry', async ({ page }) => {
