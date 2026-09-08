@@ -41,6 +41,69 @@ test('health journal names the existing summary action medical prep', async ({ p
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
 })
 
+test('manual record button keeps its fixed content stable while typing in a clipped prompt window', async ({ page }) => {
+  await prepare(page)
+  const button = page.getByRole('button', { name: '手动记录', exact: true })
+  await expect(button).not.toContainText('手动记录')
+  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记录')
+  await expect(button.locator('.journal-manual-record-action__underscore')).toHaveText('_')
+  await expect(button.locator('.journal-manual-record-action__prompt-window')).toContainText('不舒服就记下来', { timeout: 2_000 })
+
+  const layout = await button.evaluate((element) => {
+    const fixed = element.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
+    const underscore = element.querySelector('.journal-manual-record-action__underscore')!.getBoundingClientRect()
+    const promptWindow = element.querySelector('.journal-manual-record-action__prompt-window')!
+    const prompt = promptWindow.getBoundingClientRect()
+    const quick = document.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
+    const buttonBox = element.getBoundingClientRect()
+    return {
+      fixedBeforePrompt: fixed.right <= underscore.left && underscore.right <= prompt.left,
+      sameRow: Math.abs(buttonBox.top - quick.top) < 1,
+      buttonHeight: buttonBox.height,
+      quickWidth: quick.width,
+      promptClips: getComputedStyle(promptWindow).overflow === 'hidden',
+      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    }
+  })
+  expect(layout).toEqual({ fixedBeforePrompt: true, sameRow: true, buttonHeight: 50, quickWidth: 52, promptClips: true, pageOverflows: false })
+  await page.screenshot({ path: 'test-results/manual-record-typewriter-iphone-se.png' })
+
+  await button.click()
+  await expect(page.getByRole('dialog', { name: '记录新情况' })).toBeVisible()
+})
+
+test('manual record prompt is static and motionless when reduced motion is requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await prepare(page)
+  const button = page.getByRole('button', { name: '手动记录', exact: true })
+  await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveText('不舒服就记下来')
+  await expect(button.locator('.journal-manual-record-action__caret')).toHaveCSS('display', 'none')
+  await expect(button.locator('.journal-manual-record-action__prompt-track')).toHaveCSS('transform', 'none')
+  await page.screenshot({ path: 'test-results/manual-record-reduced-motion-iphone-se.png' })
+  await page.waitForTimeout(3_500)
+  await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveText('不舒服就记下来')
+})
+
+test('manual record footer stays on one row at the required mobile widths', async ({ page }) => {
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 667 })
+    await prepare(page)
+    const layout = await page.locator('.journal-record-actions > div').evaluate((footer) => {
+      const manual = footer.querySelector('.journal-manual-record-action')!.getBoundingClientRect()
+      const quick = footer.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
+      const fixed = footer.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
+      const underscore = footer.querySelector('.journal-manual-record-action__underscore')!.getBoundingClientRect()
+      return {
+        oneRow: manual.top === quick.top && manual.bottom === quick.bottom,
+        fixedVisible: fixed.width > 0 && underscore.width > 0,
+        quickWidth: quick.width,
+        pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      }
+    })
+    expect(layout).toEqual({ oneRow: true, fixedVisible: true, quickWidth: 52, pageOverflows: false })
+  }
+})
+
 test('medical prep uses a quiet timed wake cycle and respects reduced motion', async ({ page }) => {
   await prepare(page)
   const button = page.getByRole('button', { name: '就医准备', exact: true })
