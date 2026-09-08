@@ -82,6 +82,7 @@ export function authApiPlugin(options = {}) {
           }
           if (request.method !== 'POST') return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求' } })
           const body = await readJson(request)
+          if (pathname === '/api/auth/guest-recovery') return sendJson(response, 200, await sessions.recovery(request, response, body))
           if (pathname === '/api/auth/current-member') return sendJson(response, 200, await sessions.selectMember(request, body))
           if (pathname === '/api/auth/guest') {
             return sendJson(response, 200, await sessions.create(request, response, String(body.guestToken ?? ''), String(body.idempotencyKey ?? '')))

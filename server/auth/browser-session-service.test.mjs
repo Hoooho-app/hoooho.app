@@ -18,6 +18,65 @@ async function fixture() {
   return { directory, auth, browser, request, response, headers }
 }
 
+test('recovery rotates codes, restores the same members, rejects replay and survives restart', async () => {
+  const f = await fixture()
+  try {
+    const guest = await f.browser.create(f.request, f.response, '', '11111111-1111-4111-8111-111111111111')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
+    const member = await f.auth.members.create({ accountId: guest.user.id, name: 'test', relationship: 'child' })
+    await f.browser.recovery(f.request, f.response, { mode: 'issue', nextCode: 'a'.repeat(64) })
+    const stored = await f.browser.recoveryCodes.read()
+    assert.equal(JSON.stringify(stored).includes('a'.repeat(64)), false)
+    delete f.request.headers.cookie
+    const restarted = new BrowserSessionService(f.auth)
+    const restored = await restarted.recovery(f.request, f.response, { mode: 'restore', code: 'a'.repeat(64), nextCode: 'b'.repeat(64) })
+    assert.equal(restored.user.id, guest.user.id)
+    assert.equal((await f.auth.members.findById(member.id)).accountId, guest.user.id)
+    await assert.rejects(restarted.recovery(f.request, f.response, { mode: 'restore', code: 'a'.repeat(64), nextCode: 'c'.repeat(64) }), { code: 'INVALID_RECOVERY_CODE' })
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
+    assert.equal((await restarted.restore({ ...f.request, method: 'GET' }, f.response)).user.id, guest.user.id)
+    await restarted.recovery(f.request, f.response, { mode: 'revoke', nextCode: 'c'.repeat(64) })
+    delete f.request.headers.cookie
+    await assert.rejects(restarted.recovery(f.request, f.response, { mode: 'restore', code: 'b'.repeat(64), nextCode: 'c'.repeat(64) }), { code: 'INVALID_RECOVERY_CODE' })
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('recovery rejects other active accounts, expired codes, cross-site requests and merged guests', async () => {
+  const f = await fixture()
+  try {
+    const guest = await f.browser.create(f.request, f.response, '', '11111111-1111-4111-8111-111111111111')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
+    await f.browser.recovery(f.request, f.response, { mode: 'issue', nextCode: 'a'.repeat(64) })
+    const input = { mode: 'restore', code: 'a'.repeat(64), nextCode: 'b'.repeat(64) }
+    await assert.rejects(f.browser.recovery(f.request, f.response, input), { code: 'SESSION_EXISTS' })
+    delete f.request.headers.cookie
+    await assert.rejects(f.browser.recovery({ ...f.request, headers: { ...f.request.headers, origin: 'https://evil.invalid' } }, f.response, input), { code: 'CSRF_REJECTED' })
+    await f.browser.recoveryCodes.update((data) => ({ codes: data.codes.map((c) => ({ ...c, expiresAt: 0 })) }))
+    await assert.rejects(f.browser.recovery(f.request, f.response, input), { code: 'INVALID_RECOVERY_CODE' })
+    await f.browser.recoveryCodes.update((data) => ({ codes: data.codes.map((c) => ({ ...c, expiresAt: Date.now() + 10000 })) }))
+    await f.auth.users.update(guest.user.id, { mergedInto: 'formal' })
+    await assert.rejects(f.browser.recovery(f.request, f.response, input), { code: 'INVALID_RECOVERY_CODE' })
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('failed recovery leaves the code usable and concurrent recovery has one winner', async () => {
+  const f = await fixture()
+  try {
+    await f.browser.create(f.request, f.response, '', '11111111-1111-4111-8111-111111111111')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
+    await f.browser.recovery(f.request, f.response, { mode: 'issue', nextCode: 'a'.repeat(64) })
+    delete f.request.headers.cookie
+    const original = f.browser.issue
+    f.browser.issue = async () => { throw new Error('injected failure') }
+    const input = { mode: 'restore', code: 'a'.repeat(64), nextCode: 'b'.repeat(64) }
+    await assert.rejects(f.browser.recovery(f.request, f.response, input), /injected failure/)
+    f.browser.issue = original
+    const outcomes = await Promise.allSettled([f.browser.recovery(f.request, f.response, input), f.browser.recovery(f.request, f.response, input)])
+    assert.equal(outcomes.filter((item) => item.status === 'fulfilled').length, 1)
+    assert.equal(outcomes.filter((item) => item.status === 'rejected').length, 1)
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
 test('merge waits for an in-flight account write and includes that record', async () => {
   const f = await fixture()
   try {

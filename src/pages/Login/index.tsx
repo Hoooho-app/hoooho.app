@@ -7,6 +7,7 @@ import { authService, AuthApiError } from '../../services/auth'
 import { useAppStore } from '../../store/useAppStore'
 import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
 import { recordGuestDiagnostic } from '../../services/guestDiagnostics'
+import { GuestRecovery } from '../../components/auth/GuestRecovery'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
@@ -217,6 +218,7 @@ export function LoginPage() {
             暂不登录，先体验
           </HohoButton>
         </form>
+        <GuestRecovery mode="restore" />
 
         {SHOW_PHONE_LOGIN && (
           <HohoButton

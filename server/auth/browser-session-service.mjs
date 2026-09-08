@@ -19,6 +19,37 @@ export class BrowserSessionService {
     this.sections = new JsonStore(path.join(auth.config.dataDirectory, 'health-profile-sections.json'), { sections: [] })
     this.guestRequests = new JsonStore(path.join(auth.config.dataDirectory, 'guest-creation-requests.json'), { requests: [] })
     this.diagnostics = new GuestDiagnostics(auth.config.dataDirectory)
+    this.recoveryCodes = new JsonStore(path.join(auth.config.dataDirectory, 'guest-recovery-codes.json'), { codes: [] })
+  }
+  async recovery(request, response, input) {
+    this.assertSameOrigin(request)
+    const normalize = (value) => typeof value === 'string' ? value.replace(/[\s-]/g, '').toLowerCase() : ''
+    const next = normalize(input.nextCode)
+    const code = normalize(input.code)
+    if (!/^[a-f0-9]{64}$/.test(next) || (input.mode === 'restore' && (!/^[a-f0-9]{64}$/.test(code) || code === next))) {
+      throw new AuthError('恢复码格式无效', 400, 'INVALID_RECOVERY_CODE')
+    }
+    return this.cookieTransaction(response, async (draft) => {
+      const current = await this.current(request)
+      let user
+      if (input.mode === 'restore') {
+        if (current) throw new AuthError('当前已有使用账户，请先退出后再恢复', 409, 'SESSION_EXISTS')
+        const entry = (await this.recoveryCodes.read()).codes.find((item) => item.tokenHash === hash(code) && item.expiresAt > Date.now())
+        user = entry ? await this.auth.users.findById(entry.accountId) : null
+        if (!user?.guest || user.mergedInto) throw new AuthError('恢复码无效、已使用或已过期', 401, 'INVALID_RECOVERY_CODE')
+      } else if (input.mode === 'issue' || input.mode === 'revoke') {
+        user = current?.user
+        if (!user?.guest || user.mergedInto) throw new AuthError('请先恢复体验账户', 401, 'GUEST_REQUIRED')
+      } else throw new AuthError('请求无效', 400, 'INVALID_RECOVERY_ACTION')
+      await this.recoveryCodes.update((data) => ({ codes: [
+        ...data.codes.filter((item) => item.accountId !== user.id && item.expiresAt > Date.now()),
+        ...(input.mode === 'revoke' ? [] : [{ accountId: user.id, tokenHash: hash(next), expiresAt: Date.now() + sessionTtlMs }])
+      ] }))
+      draft.setHeader('Cache-Control', 'no-store')
+      if (input.mode !== 'restore') return { success: true }
+      await this.sessions.revokeAccount(user.id)
+      return this.issue(request, draft, user)
+    })
   }
   assertSameOrigin(request) {
     const origin = request.headers.origin
