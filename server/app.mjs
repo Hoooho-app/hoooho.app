@@ -316,6 +316,10 @@ async function handleAuth(request, response, pathname) {
     }
 
     const body = await readJson(request)
+    if (pathname === '/api/auth/guest-recovery') {
+      sendJson(response, 200, await browserSessions.recovery(request, response, body))
+      return true
+    }
     if (pathname === '/api/auth/guest') {
       sendJson(response, 200, await browserSessions.create(request, response, String(body.guestToken ?? ''), String(body.idempotencyKey ?? '')))
       return true

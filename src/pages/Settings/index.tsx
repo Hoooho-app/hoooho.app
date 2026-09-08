@@ -9,6 +9,7 @@ import {
 } from '../../components/design-system'
 import { WebPageHeader } from '../../components/common'
 import { MainAppHeader } from '../../components/navigation'
+import { GuestRecovery } from '../../components/auth/GuestRecovery'
 import {
   permissionStatusLabels,
   mapBrowserPermissionState,
@@ -356,6 +357,7 @@ export function PrivacySettingsPage() {
 }
 
 export function AccountSettingsPage() {
+  const guest = useAppStore((state) => state.authUser?.guest)
   const navigate = useNavigate()
   const email = useAppStore((state) => state.authUser?.email)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
@@ -376,6 +378,7 @@ export function AccountSettingsPage() {
         <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={email ? '邮箱验证码' : '当前登录方式'} />
       </SettingsGroup>
       <section className="settings-account-actions" aria-label="账号操作">
+        {guest && <GuestRecovery mode="issue" />}
         {logoutError && <p role="alert">{logoutError}</p>}
         <HohoButton fullWidth size="large" variant="secondary" onClick={logout}><LogOut aria-hidden="true" size={18} strokeWidth={1.7} />退出登录</HohoButton>
       </section>

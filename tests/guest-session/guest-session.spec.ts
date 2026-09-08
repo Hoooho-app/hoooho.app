@@ -4,6 +4,34 @@ import os from 'node:os'
 import path from 'node:path'
 
 const baseURL = 'http://127.0.0.1:4196'
+
+test('saved recovery code restores server records in a fresh browser and rotates', async ({ page, browser }) => {
+  page.setDefaultTimeout(8000)
+  await page.goto('/login')
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await expect(page).toHaveURL(/nurse-station/)
+  const accountId = await identity(page)
+  const records = await seed(page)
+  await page.goto('/settings/account')
+  await page.getByRole('button', { name: '生成或更换体验恢复码' }).click()
+  const recovery = await page.getByLabel('新恢复码', { exact: true }).inputValue()
+  await page.getByLabel('我已在浏览器之外保存新恢复码').check()
+  await page.getByRole('button', { name: '启用新恢复码', exact: true }).click()
+  await expect(page.getByText('恢复码已启用，有效期180天，请妥善保管')).toBeVisible()
+  const fresh = await browser.newContext({ ...devices['iPhone SE'] })
+  try {
+    const restored = await fresh.newPage()
+    await restored.goto(`${baseURL}/login`)
+    await restored.getByRole('button', { name: '用恢复码找回体验记录' }).click()
+    await restored.getByLabel('原恢复码', { exact: true }).fill(recovery)
+    await restored.getByLabel('我已在浏览器之外保存新恢复码').check()
+    await restored.getByRole('button', { name: '恢复记录并启用新码' }).click()
+    await expect(restored.getByRole('heading', { name: '健康随身记' })).toBeVisible()
+    expect(await identity(restored)).toBe(accountId)
+    expect((await persistedData(restored)).members.some((m: { id: string }) => m.id === records.memberId)).toBe(true)
+    expect((await persistedData(restored)).events.some((e: { id: string }) => e.id === records.eventId)).toBe(true)
+  } finally { await fresh.close() }
+})
 async function identity(page: Page) {
   return page.evaluate(async () => {
     const response = await fetch('/api/auth/session')
