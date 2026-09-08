@@ -21,10 +21,10 @@ const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
-test('健康随身记将摘要入口命名为就医准备且不改变护士站文案', () => {
-  assert.match(page, />就医准备<\/HohoButton>/)
+test('健康随身记与前台护士站共用就医准备按钮', () => {
+  assert.match(page, /<MedicalPrepButton className="journal-subject-summary"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
-  assert.match(station, />就医准备<\/HohoButton>/)
+  assert.match(station, /<MedicalPrepButton className="journal-subject-summary"/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
 })
 
