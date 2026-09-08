@@ -1,4 +1,5 @@
 import type { AuthSession } from '../types'
+import { readGuestDiagnostic } from './guestDiagnostics'
 
 interface SendCodeResponse {
   success: true
@@ -61,6 +62,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'X-Hoooho-Request-ID': requestId,
+        ...(readGuestDiagnostic() ? { 'X-Hoooho-Diagnostic-ID': readGuestDiagnostic() } : {}),
         ...(legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {})
       },
       ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),

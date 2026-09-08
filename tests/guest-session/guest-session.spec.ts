@@ -146,6 +146,17 @@ test('failed restoration offers retry and never creates a guest; browsers stay i
   } finally { await other.close() }
 })
 
+test('guest entry stays on login when the browser does not accept Set-Cookie', async ({ page }) => {
+  let creates = 0
+  page.on('request', (request) => { if (request.url().endsWith('/api/auth/guest')) creates += 1 })
+  await page.goto('/login')
+  await page.route('**/api/auth/session', (route) => route.fulfill({ json: { unauthenticated: true } }))
+  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await expect(page).toHaveURL(/\/login/)
+  await expect(page.getByText(/未能保存体验状态/)).toBeVisible()
+  expect(creates).toBe(1)
+})
+
 test('mobile foreground and bfcache restore the same guest before protected requests continue', async ({ page }) => {
   await page.goto('/login')
   await page.getByRole('button', { name: '暂不登录，先体验' }).click()

@@ -19,11 +19,14 @@ import { accountApiPlugin } from './server/account/vite-account-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
+const buildCommit = buildEnvironment.RAILWAY_GIT_COMMIT_SHA || buildEnvironment.GITHUB_SHA || buildEnvironment.VITE_BUILD_COMMIT || 'local'
 
 export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_UPDATED_AT': JSON.stringify(buildTimestamp),
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildEnvironment.VITE_APP_VERSION || packageMetadata.version)
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildEnvironment.VITE_APP_VERSION || packageMetadata.version),
+    'import.meta.env.VITE_BUILD_COMMIT': JSON.stringify(buildCommit),
+    'import.meta.env.VITE_BUILD_TIMESTAMP': JSON.stringify(buildTimestamp)
   },
   server: {
     host: true
@@ -46,6 +49,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//]
+      },
       manifest: {
         name: 'Hoooho 家庭健康',
         short_name: 'Hoooho',

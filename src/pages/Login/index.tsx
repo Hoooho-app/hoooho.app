@@ -6,6 +6,7 @@ import { HohoButton } from '../../components/design-system/HohoButton'
 import { authService, AuthApiError } from '../../services/auth'
 import { useAppStore } from '../../store/useAppStore'
 import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
+import { recordGuestDiagnostic } from '../../services/guestDiagnostics'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
@@ -122,10 +123,24 @@ export function LoginPage() {
     try {
       const idempotencyKey = getGuestEntryIdempotencyKey()
       const enter = () => authService.guest(guestToken, idempotencyKey)
-      const session = await (navigator.locks ? navigator.locks.request('hoooho-browser-session', enter) : enter())
+      void recordGuestDiagnostic('guest_create_started')
+      const createdSession = await (navigator.locks ? navigator.locks.request('hoooho-browser-session', enter) : enter())
+      void recordGuestDiagnostic('guest_create_response')
+      let confirmedSession = null
+      for (let attempt = 0; attempt < 2 && !confirmedSession; attempt += 1) {
+        if (attempt) await new Promise((resolve) => window.setTimeout(resolve, 300))
+        const restored = await authService.restore('')
+        if (!('unauthenticated' in restored) && restored.user.guest && restored.user.id === createdSession.user.id) confirmedSession = restored
+      }
+      if (!confirmedSession) {
+        void recordGuestDiagnostic('guest_confirmation_failed', { routeDecision: 'stay_login' })
+        throw new AuthApiError('Safari 未能保存体验状态，请重试；系统不会重复创建体验账户', 'GUEST_COOKIE_NOT_CONFIRMED')
+      }
+      void recordGuestDiagnostic('guest_confirmed', { routeDecision: 'guest' })
       try { localStorage.removeItem(guestEntryKey) } catch { /* A successful server session remains authoritative. */ }
-      setAuthSession(session)
-      await restoreBrowserSession()
+      setAuthSession(confirmedSession)
+      const loadedSession = await restoreBrowserSession()
+      if (!loadedSession || loadedSession.user.id !== confirmedSession.user.id) throw new AuthApiError('体验状态恢复失败，请重试', 'GUEST_SESSION_CHANGED')
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''
       navigate(requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/health-events', { replace: true })
     } catch (requestError) {

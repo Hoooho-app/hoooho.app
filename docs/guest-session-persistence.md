@@ -81,3 +81,22 @@ cannot preserve an anonymous session; verified login remains the recovery route.
 The application and API are same-origin and use explicit same-origin credentials.
 `www.hoooho.com` redirects to `hoooho.com`; Railway's native domains are separate
 Cookie origins and must not be used as interchangeable end-user entry links.
+
+## Temporary real-Safari diagnostics
+
+Opening `/login?guest-diagnostic=1` creates a random, non-authenticating diagnostic
+test ID that expires from the browser after 48 hours. While active, the UI shows
+only that ID, the frontend build commit and `guest-cookie-v3`. The server keeps a
+48-hour lifecycle trace in `guest-auth-diagnostics.json` under the same configured
+data directory. It records booleans and irreversible 12-character SHA-256 prefixes;
+it never stores a raw session token, Cookie, member name, health content, email,
+phone number or IP address. Lookup requires possession of the high-entropy test ID.
+
+Guest entry now treats the POST response as provisional. It performs a separate
+cookie-only `GET /api/auth/session` twice at most and enters the application only
+when the returned guest account is the account created by the POST. A missing or
+rejected Cookie leaves the user on Login and retains the same idempotency key, so a
+retry cannot silently create another guest. Entry HTML, the web manifest and the
+service worker are served with `Cache-Control: no-store`; hashed assets remain
+immutable. The generated service worker activates immediately and excludes all API
+paths from its navigation fallback.

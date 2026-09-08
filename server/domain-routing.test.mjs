@@ -32,3 +32,10 @@ test('优先读取 Railway 转发的原始 Host', () => {
     'https://hoooho.com/api/health'
   )
 })
+
+test('认证请求在创建 Cookie 前统一到 canonical host', () => {
+  assert.equal(
+    getCanonicalDomainRedirect({ headers: { host: 'www.hoooho.com' }, url: '/api/auth/guest' }),
+    'https://hoooho.com/api/auth/guest'
+  )
+})
