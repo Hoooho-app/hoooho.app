@@ -57,9 +57,10 @@
 .hoho-health-events-page[data-view-mode='list'] { height: 100dvh; min-height: 0; background: rgb(var(--hoho-color-page-background)); }
 .hoho-health-events-page[data-view-mode='list'] .health-events-content { padding-bottom: var(--hoho-space-6); }
 .journal-record-actions { flex: none; background: rgb(var(--hoho-color-surface)); border-top: 1px solid rgb(var(--hoho-color-border)); padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
-.journal-record-actions > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); width: min(100%, 960px); margin-inline: auto; }
+.journal-record-actions > div { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: var(--hoho-space-2); width: min(100%, 960px); margin-inline: auto; }
 .journal-record-actions .hoho-button[data-size='large'] { padding-inline: var(--hoho-space-3); }
 .journal-record-actions .hoho-button__content { white-space: nowrap; }
+.journal-record-actions .journal-quick-record-action { padding-inline: 0; }
 .journal-category-group { margin-top: var(--hoho-space-5); }
 .journal-category-group > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .journal-category-group .hoho-button { padding-inline: var(--hoho-space-1); }
