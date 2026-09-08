@@ -110,6 +110,26 @@ test('single-day timeline, filters, sort order, compact subject and summary entr
   await page.keyboard.press('Escape')
 })
 
+test('journal row opens record details over the list without visiting symptom tracking', async ({ page }) => {
+  await prepare(page)
+  await page.getByRole('button', { name: '前一天', exact: true }).click()
+  await page.locator('.journal-record').first().click()
+  const detail = page.getByRole('dialog', { name: '症状记录详情' })
+  await expect(detail).toBeVisible()
+  await expect(page.getByRole('heading', { name: '健康随身记', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '症状跟踪', exact: true })).toHaveCount(0)
+  await expect(page).toHaveURL(/\/health-events$/)
+  await detail.getByRole('button', { name: '关闭症状记录详情' }).click()
+  await expect(detail).toHaveCount(0)
+  await expect(page.locator('.journal-record')).toHaveCount(10)
+
+  await page.goto('/health-events/event-one?recordId=record-0')
+  await expect(page).toHaveURL(/\/health-events\?eventId=event-one&recordId=record-0$/)
+  await expect(page.getByRole('dialog', { name: '症状记录详情' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '健康随身记', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '症状跟踪', exact: true })).toHaveCount(0)
+})
+
 test('manual single selection, photo draft, review and real API save reach today', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '手动记录', exact: true }).click()

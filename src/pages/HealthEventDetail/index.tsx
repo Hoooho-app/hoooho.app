@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Card } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { QuickRecordTrigger } from '../../components/health'
@@ -33,6 +33,7 @@ export function HealthEventDetailPage() {
   const navigate = useNavigate()
   const currentMemberId = useAppStore((appState) => appState.currentMemberId)
   const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateTitle, retry } = useHealthEventDetail(eventId)
+  const focusedRecordId = searchParams.get('recordId')
   const healthInformation = useHealthInformationCandidates(eventId, state.status === 'success' && hasPersistedHealthEventRecords(state.data.records))
   const [actionOpen, setActionOpen] = useState(false)
   const [voiceRecordOpen, setVoiceRecordOpen] = useState(false)
@@ -56,6 +57,8 @@ export function HealthEventDetailPage() {
   const promptHealthProfile = useMemo(() => state.status === 'success'
     ? createHealthProfilePromptSections(getStoredHealthProfileSectionSnapshots(state.data.member.id))
     : [], [state])
+
+  if (eventId && focusedRecordId) return <Navigate replace to={`/health-events?eventId=${encodeURIComponent(eventId)}&recordId=${encodeURIComponent(focusedRecordId)}`} />
 
   if (state.status === 'loading') {
     return (
