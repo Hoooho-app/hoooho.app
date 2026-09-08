@@ -125,3 +125,26 @@ test('profile ownership, optimistic concurrency and current member selection are
     await assert.rejects(f.browser.selectMember(f.request, { memberId: 'other' }), (error) => error.status === 404)
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
+
+test('diagnostics correlate guest creation and the real follow-up cookie request without storing secrets', async () => {
+  const f = await fixture()
+  try {
+    f.request.headers['x-hoooho-diagnostic-id'] = 'diagnostic_test_1234567890'
+    f.request.headers['x-hoooho-request-id'] = 'request-12345678'
+    const created = await f.browser.create(f.request, f.response, '', '77777777-7777-4777-8777-777777777777')
+    const setCookie = f.headers.get('Set-Cookie')
+    const rawToken = setCookie.split(';')[0].split('=')[1]
+    const followUp = { ...f.request, method: 'GET', url: '/api/auth/session', headers: { ...f.request.headers, cookie: setCookie.split(';')[0] } }
+    const restored = await f.browser.restore(followUp, f.response)
+    assert.equal(restored.user.id, created.user.id)
+    const events = await f.browser.diagnostics.list('diagnostic_test_1234567890')
+    assert.deepEqual(events.map((item) => item.event), ['guest_create_started', 'guest_create_response', 'session_restore_result'])
+    assert.equal(events[1].setCookieSent, true)
+    assert.equal(events[2].cookiePresent, true)
+    assert.equal(events[2].sessionFound, true)
+    assert.equal(events[2].accountBound, true)
+    assert.equal(events[1].accountHashPrefix, events[2].accountHashPrefix)
+    assert.equal(JSON.stringify(events).includes(rawToken), false)
+    assert.equal(events[2].cookieHashPrefix.length, 12)
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})

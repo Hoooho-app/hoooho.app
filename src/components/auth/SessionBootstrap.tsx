@@ -7,8 +7,10 @@ import { HohoButton } from '../design-system/HohoButton'
 import { loadProfileSections } from '../../services/profileSectionStorage'
 import { registerSessionRecoveryHandler } from '../../services/sessionRecoveryCoordinator'
 import { resolveCurrentChildId } from '../../features/family/currentChild'
+import { recordGuestDiagnostic } from '../../services/guestDiagnostics'
+import type { AuthSession } from '../../types'
 
-let pending: Promise<void> | undefined
+let pending: Promise<AuthSession | null> | undefined
 async function refreshBrowserSessionToken(transition = true) {
   const state = useAppStore.getState()
   if (transition) state.setAuthStatus('loading')
@@ -30,7 +32,10 @@ export function restoreBrowserSession(options: { transition?: boolean } = {}) {
     const previousUserId = state.authUser?.id
     const previousMemberId = state.currentMemberId
     const session = await refreshBrowserSessionToken(options.transition !== false)
-    if (!session) return
+    if (!session) {
+      void recordGuestDiagnostic('route_decision', { routeDecision: 'unauthenticated' })
+      return null
+    }
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 15_000)
     let members
@@ -41,6 +46,8 @@ export function restoreBrowserSession(options: { transition?: boolean } = {}) {
     const preferred = previousUserId === session.user.id && previousMemberId !== 'self' ? previousMemberId : session.user.currentMemberId ?? ''
     state.setMembers(members)
     state.setCurrentMemberId(resolveCurrentChildId(members, preferred))
+    void recordGuestDiagnostic('route_decision', { routeDecision: session.user.guest ? 'guest' : 'authenticated', currentMemberPresent: Boolean(state.currentMemberId && state.currentMemberId !== 'self') })
+    return session
   }
   pending = (navigator.locks ? navigator.locks.request('hoooho-browser-session', restore) : restore()).finally(() => { pending = undefined })
   return pending

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { JsonStore } from './storage/json-store.mjs'
 import { withAccountLock } from './account-lock.mjs'
 import { createHash } from 'node:crypto'
+import { GuestDiagnostics } from './guest-diagnostics.mjs'
 
 const cookieName = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_ID ? '__Host-hoooho_session' : 'hoooho_session'
 const cookieToken = (request) => String(request.headers.cookie ?? '').split(';').map((item) => item.trim()).find((item) => item.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1) ?? ''
@@ -17,6 +18,7 @@ export class BrowserSessionService {
     this.sessions = new SessionRepository(auth.config.dataDirectory)
     this.sections = new JsonStore(path.join(auth.config.dataDirectory, 'health-profile-sections.json'), { sections: [] })
     this.guestRequests = new JsonStore(path.join(auth.config.dataDirectory, 'guest-creation-requests.json'), { requests: [] })
+    this.diagnostics = new GuestDiagnostics(auth.config.dataDirectory)
   }
   assertSameOrigin(request) {
     const origin = request.headers.origin
@@ -44,7 +46,10 @@ export class BrowserSessionService {
   async restore(request, response, legacyToken = '') {
     this.assertSameOrigin(request)
     const current = await this.current(request)
-    if (current) return this.responseSession(request, response, current)
+    if (current) {
+      await this.diagnostics.record(request, { event: 'session_restore_result', cookieToken: cookieToken(request), ...current })
+      return this.responseSession(request, response, current)
+    }
     if (legacyToken) {
       const payload = this.auth.tokens.verify(legacyToken)
       if (payload && !payload.purpose && !payload.browserSession) {
@@ -52,6 +57,7 @@ export class BrowserSessionService {
         if (user && !user.mergedInto) return this.issue(request, response, user)
       }
     }
+    await this.diagnostics.record(request, { event: 'session_restore_result', cookieToken: cookieToken(request) })
     return { unauthenticated: true }
   }
   async issue(request, response, user) {
@@ -61,6 +67,7 @@ export class BrowserSessionService {
   }
   async create(request, response, legacyToken = '', idempotencyKey = '') {
     this.assertSameOrigin(request)
+    await this.diagnostics.record(request, { event: 'guest_create_started', cookieToken: cookieToken(request), idempotencyKey })
     const current = await this.current(request)
     if (current) return this.responseSession(request, response, current)
     if (legacyToken) {
@@ -83,7 +90,9 @@ export class BrowserSessionService {
         ...data.requests.filter((item) => item.expiresAt > now && item.tokenHash !== requestHash),
         { tokenHash: requestHash, accountId: user.id, createdAt: now, expiresAt: now + guestRequestTtlMs }
       ] }))
-      return this.issue(request, draftResponse, user)
+      const result = await this.issue(request, draftResponse, user)
+      await this.diagnostics.record(request, { event: 'guest_create_response', idempotencyKey, user, setCookieSent: true })
+      return result
     })
   }
   async cookieTransaction(response, operation) {
