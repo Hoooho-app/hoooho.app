@@ -74,7 +74,7 @@ export function authApiPlugin(options = {}) {
           const body = await readJson(request)
           if (pathname === '/api/auth/current-member') return sendJson(response, 200, await sessions.selectMember(request, body))
           if (pathname === '/api/auth/guest') {
-            return sendJson(response, 200, await sessions.create(request, response, String(body.guestToken ?? '')))
+            return sendJson(response, 200, await sessions.create(request, response, String(body.guestToken ?? ''), String(body.idempotencyKey ?? '')))
           }
           if (pathname === '/api/auth/logout') return sendJson(response, 200, await sessions.logout(request, response))
           if (pathname === '/api/auth/send-code') {

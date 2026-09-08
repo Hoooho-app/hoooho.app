@@ -10,6 +10,26 @@ import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_PATTERN = /^\d{6}$/
 const SHOW_PHONE_LOGIN = false
+const guestEntryKey = 'hoooho-guest-entry-idempotency'
+
+function createGuestEntryIdempotencyKey() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+function getGuestEntryIdempotencyKey() {
+  try {
+    const existing = localStorage.getItem(guestEntryKey)
+    if (existing) return existing
+    const created = createGuestEntryIdempotencyKey()
+    localStorage.setItem(guestEntryKey, created)
+    return created
+  } catch { return createGuestEntryIdempotencyKey() }
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -100,8 +120,10 @@ export function LoginPage() {
     setError('')
     setIsEnteringGuest(true)
     try {
-      const enter = () => authService.guest(guestToken)
+      const idempotencyKey = getGuestEntryIdempotencyKey()
+      const enter = () => authService.guest(guestToken, idempotencyKey)
       const session = await (navigator.locks ? navigator.locks.request('hoooho-browser-session', enter) : enter())
+      try { localStorage.removeItem(guestEntryKey) } catch { /* A successful server session remains authoritative. */ }
       setAuthSession(session)
       await restoreBrowserSession()
       const requestedPath = typeof location.state?.from === 'string' ? location.state.from : ''

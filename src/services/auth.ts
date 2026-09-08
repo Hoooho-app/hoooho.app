@@ -103,7 +103,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 }
 
 export const authService = {
-  guest: (guestToken = '') => postAuthRequest<AuthSession>('/api/auth/guest', { guestToken }),
+  guest: (guestToken = '', idempotencyKey = '') => postAuthRequest<AuthSession>('/api/auth/guest', { guestToken, idempotencyKey }),
   restore: (legacyToken = '') => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken),
   logout: () => postAuthRequest<{ success: true }>('/api/auth/logout', {}),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),
