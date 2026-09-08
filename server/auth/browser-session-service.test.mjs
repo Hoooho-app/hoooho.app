@@ -15,15 +15,14 @@ async function fixture() {
   const headers = new Map()
   const response = { setHeader: (name, value) => headers.set(name, value) }
   const request = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/json' } }
-  await browser.restore({ ...request, method: 'GET' }, response)
-  request.headers.cookie = headers.get('Set-Cookie').split(';')[0]
   return { directory, auth, browser, request, response, headers }
 }
 
 test('merge waits for an in-flight account write and includes that record', async () => {
   const f = await fixture()
   try {
-    const guest = await f.browser.create(f.request, f.response)
+    const guest = await f.browser.create(f.request, f.response, '', '11111111-1111-4111-8111-111111111111')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
     const user = await f.auth.users.findOrCreateByEmail('test@example.invalid')
     let release
     let started
@@ -46,9 +45,17 @@ test('merge waits for an in-flight account write and includes that record', asyn
 test('concurrent first guest requests and lost-response retries use one account', async () => {
   const f = await fixture()
   try {
-    const results = await Promise.all(Array.from({ length: 8 }, () => f.browser.create(f.request, f.response)))
+    const responses = Array.from({ length: 8 }, () => {
+      const headers = new Map()
+      return { headers, response: { setHeader: (name, value) => headers.set(name, value) } }
+    })
+    const results = await Promise.all(responses.map(({ response }) => f.browser.create(f.request, response, '', '22222222-2222-4222-8222-222222222222')))
     assert.equal(new Set(results.map((item) => item.user.id)).size, 1)
-    assert.equal((await f.browser.restore({ ...f.request, method: 'GET' }, f.response)).user.id, results[0].user.id)
+    for (const { headers } of responses) {
+      const request = { ...f.request, method: 'GET', headers: { ...f.request.headers, cookie: headers.get('Set-Cookie').split(';')[0] } }
+      assert.equal((await f.browser.restore(request, f.response)).user.id, results[0].user.id)
+    }
+    f.request.headers.cookie = responses.at(-1).headers.get('Set-Cookie').split(';')[0]
     const broken = new BrowserSessionService(f.auth)
     broken.sessions.find = async () => { throw new Error('temporary network/storage failure') }
     await assert.rejects(broken.create(f.request, f.response))
@@ -59,7 +66,8 @@ test('concurrent first guest requests and lost-response retries use one account'
 for (const existing of [false, true]) test(`guest merge preserves all collections and attachments; existing account=${existing}`, async () => {
   const f = await fixture()
   try {
-    const guest = await f.browser.create(f.request, f.response)
+    const guest = await f.browser.create(f.request, f.response, '', '33333333-3333-4333-8333-333333333333')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
     const user = await f.auth.users.findOrCreateByEmail('test@example.invalid')
     for (const [file, collection] of accountCollections) {
       await f.auth.accountData.store(file, collection).update((data) => ({ ...data, [collection]: [
@@ -85,7 +93,8 @@ for (const existing of [false, true]) test(`guest merge preserves all collection
 test('mid-merge failure rolls back every collection and leaves guest cookie usable', async () => {
   const f = await fixture()
   try {
-    const guest = await f.browser.create(f.request, f.response)
+    const guest = await f.browser.create(f.request, f.response, '', '44444444-4444-4444-8444-444444444444')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
     const member = await f.auth.members.create({ accountId: guest.user.id, name: 'test child', relationship: 'child' })
     const user = await f.auth.users.findOrCreateByEmail('test@example.invalid')
     const originalStore = f.auth.accountData.store.bind(f.auth.accountData)
@@ -102,7 +111,8 @@ test('mid-merge failure rolls back every collection and leaves guest cookie usab
 test('profile ownership, optimistic concurrency and current member selection are validated', async () => {
   const f = await fixture()
   try {
-    const guest = await f.browser.create(f.request, f.response)
+    const guest = await f.browser.create(f.request, f.response, '', '55555555-5555-4555-8555-555555555555')
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
     const member = await f.auth.members.create({ accountId: guest.user.id, name: 'test child', relationship: 'child' })
     const input = { memberId: member.id, sectionId: 'medication', revision: 0, records: [{ imageDataUrl: 'data:image/png;base64,dGVzdA==' }] }
     const saved = await f.browser.profileSections(f.request, input)

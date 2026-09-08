@@ -4,15 +4,19 @@ import { AuthError } from './auth-service.mjs'
 import path from 'node:path'
 import { JsonStore } from './storage/json-store.mjs'
 import { withAccountLock } from './account-lock.mjs'
+import { createHash } from 'node:crypto'
 
 const cookieName = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_ID ? '__Host-hoooho_session' : 'hoooho_session'
 const cookieToken = (request) => String(request.headers.cookie ?? '').split(';').map((item) => item.trim()).find((item) => item.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1) ?? ''
+const guestRequestTtlMs = 10 * 60 * 1000
+const hash = (value) => createHash('sha256').update(value).digest('hex')
 
 export class BrowserSessionService {
   constructor(auth) {
     this.auth = auth
     this.sessions = new SessionRepository(auth.config.dataDirectory)
     this.sections = new JsonStore(path.join(auth.config.dataDirectory, 'health-profile-sections.json'), { sections: [] })
+    this.guestRequests = new JsonStore(path.join(auth.config.dataDirectory, 'guest-creation-requests.json'), { requests: [] })
   }
   assertSameOrigin(request) {
     const origin = request.headers.origin
@@ -22,7 +26,8 @@ export class BrowserSessionService {
   }
   setCookie(request, response, token, maxAge = sessionTtlMs / 1000) {
     const secure = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || request.socket?.encrypted
-    response.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`)
+    const expires = new Date(Date.now() + maxAge * 1000).toUTCString()
+    response.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Expires=${expires}${secure ? '; Secure' : ''}`)
     response.setHeader('Cache-Control', 'no-store')
   }
   async current(request) {
@@ -40,8 +45,6 @@ export class BrowserSessionService {
     this.assertSameOrigin(request)
     const current = await this.current(request)
     if (current) return this.responseSession(request, response, current)
-    const pendingSession = await this.sessions.find(cookieToken(request))
-    if (pendingSession && !pendingSession.accountId) return { unauthenticated: true }
     if (legacyToken) {
       const payload = this.auth.tokens.verify(legacyToken)
       if (payload && !payload.purpose && !payload.browserSession) {
@@ -49,8 +52,6 @@ export class BrowserSessionService {
         if (user && !user.mergedInto) return this.issue(request, response, user)
       }
     }
-    const pending = await this.sessions.create(null)
-    this.setCookie(request, response, pending.token)
     return { unauthenticated: true }
   }
   async issue(request, response, user) {
@@ -58,7 +59,7 @@ export class BrowserSessionService {
     this.setCookie(request, response, token)
     return { token: this.auth.tokens.create({ ...user, browserSession: true }), user }
   }
-  async create(request, response, legacyToken = '') {
+  async create(request, response, legacyToken = '', idempotencyKey = '') {
     this.assertSameOrigin(request)
     const current = await this.current(request)
     if (current) return this.responseSession(request, response, current)
@@ -67,17 +68,22 @@ export class BrowserSessionService {
       if (!restored.unauthenticated) return restored
       throw new AuthError('原体验凭证已失效，请保留本机记录后联系支持', 401, 'LEGACY_SESSION_UNRECOVERABLE')
     }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      throw new AuthError('请重试进入体验模式', 400, 'INVALID_IDEMPOTENCY_KEY')
+    }
     return this.cookieTransaction(response, async (draftResponse) => {
-      // Recheck under the transaction barrier: repeated/concurrent POSTs and
-      // retries after a lost response must bind the same pre-established cookie.
       const restored = await this.current(request)
       if (restored) return this.responseSession(request, draftResponse, restored)
-      const pending = await this.sessions.find(cookieToken(request))
-      if (!pending || pending.accountId) throw new AuthError('请先恢复浏览器使用状态后重试', 409, 'BROWSER_SESSION_REQUIRED')
-      const user = await this.auth.users.createGuest()
-      await this.sessions.attach(cookieToken(request), user.id)
-      this.setCookie(request, draftResponse, cookieToken(request))
-      return { token: this.auth.tokens.create({ ...user, browserSession: true }), user }
+      const now = Date.now()
+      const requestHash = hash(idempotencyKey)
+      const existing = (await this.guestRequests.read()).requests.find((item) => item.tokenHash === requestHash && item.expiresAt > now)
+      let user = existing ? await this.auth.users.findById(existing.accountId) : null
+      if (!user || user.mergedInto) user = await this.auth.users.createGuest()
+      await this.guestRequests.update((data) => ({ requests: [
+        ...data.requests.filter((item) => item.expiresAt > now && item.tokenHash !== requestHash),
+        { tokenHash: requestHash, accountId: user.id, createdAt: now, expiresAt: now + guestRequestTtlMs }
+      ] }))
+      return this.issue(request, draftResponse, user)
     })
   }
   async cookieTransaction(response, operation) {

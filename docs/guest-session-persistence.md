@@ -3,9 +3,12 @@
 ## Scope and recovery
 
 Guest accounts share `users.json` and the existing `accountId` ownership contract.
-The browser first obtains an unbound, backend-generated HttpOnly session cookie.
-An explicit guest action atomically binds that session to a new guest user. This
-allows concurrent POSTs and retries after lost responses to reuse the same user.
+An unauthenticated session lookup never writes a Cookie. An explicit guest action
+atomically creates the guest user and a bound, backend-generated HttpOnly session
+Cookie. A short-lived browser-generated idempotency key lets concurrent POSTs and
+retries after lost or reordered responses reuse the same user. The server stores
+only its SHA-256 hash and expires the mapping after ten minutes; the browser removes
+the key after success, and never treats it as authentication or health-data storage.
 No network error triggers guest creation. Browser startup blocks routing until
 session, owned members and server archives have loaded; failures offer retry.
 
@@ -16,8 +19,9 @@ exchanges that Cookie for a fresh short-lived bearer token and retries once.
 Only a definitive unauthenticated session clears client identity; a network
 failure preserves the Cookie and account hint and exposes a retry state.
 
-The opaque 256-bit cookie has Path=/, SameSite=Lax, 180-day Max-Age and Secure in
-deployed environments. Only its SHA-256 hash is stored in `browser-sessions.json`.
+The opaque 256-bit cookie has Path=/, SameSite=Lax, matching 180-day Max-Age and
+Expires attributes, and Secure in deployed environments. Only its SHA-256 hash is
+stored in `browser-sessions.json`.
 Production uses the `__Host-` cookie prefix to prevent Domain/path shadowing.
 Short-lived API bearer tokens remain in memory. The previous sessionStorage token
 is accepted for one-way legacy migration only; new browser tokens cannot mint a
@@ -67,8 +71,8 @@ rollback alone is not a functional data-recovery strategy.
   all-collection preservation, rollback, crash recovery, archive conflicts.
 - `npm run test:server`: runs guest tests as a mandatory pretest plus existing tests.
 - `npm run test:client`, `npm run typecheck`, `npm run build`.
-- `npm run test:e2e:guest`: real Chromium persistent-profile restart, internal
-  routes, append persistence, failed restoration/retry and browser isolation.
+- `npm run test:e2e:guest`: real Chromium and WebKit persistent-profile restarts,
+  internal routes, append persistence, failed restoration/retry and browser isolation.
 - Existing child-profile, quick-record and account-flow browser tests remain gates.
 
 Chromium device/WeChat User-Agent emulation is not a real iOS Safari or WeChat

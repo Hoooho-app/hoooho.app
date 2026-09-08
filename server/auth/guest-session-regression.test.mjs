@@ -12,14 +12,15 @@ test('guest creation persists an account rather than only issuing a token', asyn
     const auth = new AuthService({ dataDirectory, tokenSecret: 'guest-test-only' })
     const browser = new BrowserSessionService(auth)
     const headers = new Map()
-    const request = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/json' } }
+    const request = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/json' }, socket: { encrypted: true } }
     const response = { setHeader: (name, value) => headers.set(name, value) }
-    await browser.restore({ ...request, method: 'GET' }, response)
-    request.headers.cookie = headers.get('Set-Cookie').split(';')[0]
-    const session = await browser.create(request, response)
+    assert.equal((await browser.restore({ ...request, method: 'GET' }, response)).unauthenticated, true)
+    assert.equal(headers.has('Set-Cookie'), false)
+    const session = await browser.create(request, response, '', '66666666-6666-4666-8666-666666666666')
     assert.ok(await auth.users.findById(session.user.id), 'guest account must exist in server storage')
     request.headers.cookie = headers.get('Set-Cookie').split(';')[0]
-    assert.match(headers.get('Set-Cookie'), /HttpOnly; SameSite=Lax; Max-Age=15552000/)
+    assert.match(headers.get('Set-Cookie'), /Path=\/; HttpOnly; SameSite=Lax; Max-Age=15552000; Expires=.*GMT; Secure/)
+    assert.doesNotMatch(headers.get('Set-Cookie'), /Domain=/i)
     const restored = await browser.restore({ ...request, method: 'GET' }, response)
     assert.equal(restored.user.id, session.user.id)
     assert.equal((await browser.create(request, response)).user.id, session.user.id)

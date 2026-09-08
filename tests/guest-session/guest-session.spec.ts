@@ -1,4 +1,4 @@
-import { test, expect, chromium, devices, type Page } from '@playwright/test'
+import { test, expect, chromium, devices, webkit, type Page } from '@playwright/test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -28,10 +28,25 @@ async function seed(page: Page) {
     return { memberId: member.id, eventId: event.id }
   })
 }
+async function persistedData(page: Page) {
+  return page.evaluate(async () => {
+    const session = await (await fetch('/api/auth/session')).json()
+    const headers = { Authorization: `Bearer ${session.token}` }
+    return {
+      members: await (await fetch('/api/members', { headers })).json(),
+      events: await (await fetch('/api/events', { headers })).json()
+    }
+  })
+}
 
 test('guest survives reload, hard reload, tabs and browser restart with server records', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-guest-profile-'))
-  const options = { ...devices['iPhone SE'], executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true }
+  const options = {
+    ...devices['iPhone SE'],
+    executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    args: ['--password-store=basic', '--use-mock-keychain', '--disable-gpu'],
+    headless: true
+  }
   let context = await chromium.launchPersistentContext(directory, options)
   const runtimeErrors: string[] = []
   const observe = (page: Page) => page.on('pageerror', () => runtimeErrors.push('pageerror'))
@@ -57,20 +72,55 @@ test('guest survives reload, hard reload, tabs and browser restart with server r
     expect(await identity(tab)).toBe(accountId)
     await tab.close(); await page.close()
     await context.close()
+    // Chrome releases and flushes its persistent Cookie store asynchronously.
+    await new Promise((resolve) => setTimeout(resolve, 500))
     context = await chromium.launchPersistentContext(directory, options)
     page = await context.newPage()
     observe(page)
-    await page.goto(`${baseURL}/health-events/${records.eventId}`)
-    await expect(page.getByText('追加隔离测试记录', { exact: true }).first()).toBeVisible()
+    await page.goto(`${baseURL}/health-events`)
+    await expect(page).toHaveURL(/health-events/)
     expect(await identity(page)).toBe(accountId)
+    const restored = await persistedData(page)
+    expect(restored.members.some((item: { id: string }) => item.id === records.memberId)).toBe(true)
+    expect(restored.events.some((item: { id: string }) => item.id === records.eventId)).toBe(true)
     const cookies = await context.cookies()
     const cookie = cookies.find((item) => item.name === 'hoooho_session')!
     expect(cookie.httpOnly).toBe(true)
     expect(cookie.expires).toBeGreaterThan(Date.now() / 1000 + 179 * 86400)
     expect(await page.evaluate(() => document.cookie.includes('hoooho_session'))).toBe(false)
-    await page.screenshot({ path: 'tests/guest-session/restored-iphone-se.png', fullPage: true })
+    await page.screenshot({ path: path.join(directory, 'restored-iphone-se.png'), fullPage: true })
     expect(runtimeErrors).toEqual([])
   } finally { await context.close(); await rm(directory, { recursive: true, force: true }) }
+})
+
+test('WebKit preserves the bound guest cookie after the browser process closes', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-webkit-guest-'))
+  const options = { ...devices['iPhone 13'], executablePath: webkit.executablePath(), headless: true }
+  let context = await webkit.launchPersistentContext(directory, options)
+  try {
+    let page = context.pages()[0]
+    await page.goto(`${baseURL}/login`)
+    await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+    await expect(page).toHaveURL(/nurse-station/)
+    const accountId = await identity(page)
+    await seed(page)
+    const cookie = (await context.cookies()).find((item) => item.name === 'hoooho_session')
+    expect(cookie?.httpOnly).toBe(true)
+    expect(cookie?.expires).toBeGreaterThan(Date.now() / 1000 + 170 * 24 * 60 * 60)
+    await context.close()
+
+    context = await webkit.launchPersistentContext(directory, options)
+    page = context.pages()[0]
+    await page.goto(`${baseURL}/health-events`)
+    await expect(page.getByRole('heading', { name: '健康随身记' })).toBeVisible()
+    expect(await identity(page)).toBe(accountId)
+    const restored = await persistedData(page)
+    expect(restored.members.some((item: { name: string }) => item.name === '验收宝宝')).toBe(true)
+    expect(restored.events.some((item: { title: string }) => item.title === '游客持久化验收')).toBe(true)
+  } finally {
+    await context.close()
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('failed restoration offers retry and never creates a guest; browsers stay isolated', async ({ page, browser }) => {
