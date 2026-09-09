@@ -13,6 +13,7 @@ import { useSettingsStore } from '../../store/useSettingsStore'
 import { NurseNextAction } from '../HealthEvents/NurseNextAction'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
+import { useJournal } from '../HealthEvents/useJournal'
 import '../HealthEvents/TimeView.css'
 import { getArchivedTasks, sortActiveTasks, taskNextStep, taskStatus, taskTitle } from './nurseStationView'
 import './nurseStation.css'
@@ -30,6 +31,8 @@ export function NurseStationPage() {
   const { state: listState, retry: retryEvents } = useHealthEventsList()
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const identityId = authUser?.id ?? 'unknown'
+  const token = useAppStore((value) => value.authToken) ?? ''
+  const medicationJournal = useJournal(currentMemberId, token, 0)
   const [station, setStation] = useState<NurseStationState>(() => readNurseStationState(identityId, currentMemberId))
   const [selected, setSelected] = useState<NurseStationItem | null>(null)
   const [serviceSheet, setServiceSheet] = useState<ServiceSheet>(null)
@@ -56,8 +59,8 @@ export function NurseStationPage() {
 
   useEffect(() => {
     if (!member || listState.status !== 'success') return
-    setStation((previous) => reconcileNurseStationItems(previous, events, member.id))
-  }, [events, listState.status, member])
+    setStation((previous) => reconcileNurseStationItems(previous, events, member.id, medicationJournal.entries))
+  }, [events, listState.status, medicationJournal.entries, member])
   useEffect(() => { if (member) writeNurseStationState(identityId, member.id, station) }, [identityId, member, station])
 
   const active = sortActiveTasks(station.items)

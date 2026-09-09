@@ -75,7 +75,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   }
 
   const chooseFiles = (files: FileList | null) => {
-    if (!files?.length) return
+    if (!files?.length) return []
     const available = remainingPhotoCapacity(photosRef.current.length, limit)
     const selected = Array.from(files).slice(0, available)
     if (files.length > available) setNotice(limit === QUICK_RECORD_PHOTO_LIMIT ? '最多上传10张照片' : `最多上传${limit}张照片`)
@@ -85,6 +85,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     }))
     setPhotos((current) => [...current, ...additions])
     additions.forEach((item, index) => void uploadItem(item, photosRef.current.length + index))
+    return additions.map((item) => item.localId)
   }
 
   const retry = (localId: string) => {
