@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function prepare(page: Page) {
   await page.goto('/health-events')
-  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('就诊测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await page.getByRole('button', { name: '添加第一个孩子' }).click()
   await page.getByLabel('姓名').fill('就医测试宝宝')
   await page.getByLabel('出生日期').fill('2024-01-01')

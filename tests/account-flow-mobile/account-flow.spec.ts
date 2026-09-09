@@ -19,21 +19,24 @@ async function noHorizontalOverflow(page: import('@playwright/test').Page) {
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.width)
 }
 
-test('guest enters the app and can reach login guidance from the visible drawer footer', async ({ page }) => {
+test('new account enters the app and exposes its account identity in the drawer footer', async ({ page }) => {
   await page.goto('/login')
-  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('刘磊')
+  await page.getByPlaceholder('设置一个密码').fill('12345678')
+  await page.getByRole('button', { name: '注册并进入' }).click()
+  const hooohoId = await page.getByText(/^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/).textContent()
+  await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await expect(page).toHaveURL(/\/nurse-station/)
-  const guestId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
-  expect(guestId).toMatch(/^guest:/)
+  const accountId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
   await page.reload()
-  expect(await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)).toBe(guestId)
+  expect(await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)).toBe(accountId)
   await page.getByRole('button', { name: '打开菜单' }).click()
-  const accountButton = page.getByRole('button', { name: /未登录/ })
-  await expect(accountButton).toContainText('当前为体验模式')
+  const accountButton = page.getByRole('button', { name: /刘磊/ })
+  await expect(accountButton).toContainText(hooohoId!)
   const box = await accountButton.boundingBox()
   expect(box && box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height)
   await accountButton.click()
-  await expect(page.getByRole('dialog', { name: '登录或注册' })).toContainText('继续体验')
+  await expect(page.getByRole('dialog', { name: '账户' })).toContainText('账户与安全')
   await noHorizontalOverflow(page)
 })
 

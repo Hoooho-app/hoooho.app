@@ -7,6 +7,12 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 import { EmailProviderError, ResendEmailVerificationProvider } from './providers/email-verification-provider.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { registerTransactionRoot } from './storage/transaction.mjs'
+import bcrypt from 'bcryptjs'
+import { PasswordAttemptRepository } from './repositories/password-attempt-repository.mjs'
+import { hashRegistrationKey } from './repositories/user-repository.mjs'
+import { SessionRepository } from './session-repository.mjs'
+
+const dummyPasswordHash = bcrypt.hashSync('Hoooho-dummy-password', 12)
 
 export class AuthError extends Error {
   constructor(message, status = 400, code = 'AUTH_ERROR', details = {}) {
@@ -40,6 +46,72 @@ export class AuthService {
     this.codeGenerator = options.codeGenerator ?? (() => String(randomInt(0, 1_000_000)).padStart(6, '0'))
     this.logger = options.logger ?? console.info
     this.accountData = options.accountData ?? new AccountDataService(config)
+    this.passwordAttempts = options.passwordAttempts ?? new PasswordAttemptRepository(config.dataDirectory)
+    this.sessions = options.sessions ?? new SessionRepository(config.dataDirectory)
+  }
+
+  validateNickname(value) {
+    const nickname = String(value ?? '').trim()
+    if (!/^\S{1,20}$/u.test(nickname)) throw new AuthError('昵称为 1–20 个字符，且不能包含空格', 400, 'INVALID_NICKNAME')
+    return nickname
+  }
+
+  validatePassword(value) {
+    const password = String(value ?? '')
+    if (password.length < 6 || password.length > 64) throw new AuthError('密码需为 6–64 个字符', 400, 'INVALID_PASSWORD')
+    return password
+  }
+
+  normalizeHooohoId(value) {
+    const hooohoId = String(value ?? '').trim().toUpperCase()
+    if (!/^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/.test(hooohoId)) throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
+    return hooohoId
+  }
+
+  async register(nicknameValue, passwordValue, idempotencyKey, guestId = null, now = Date.now()) {
+    const nickname = this.validateNickname(nicknameValue)
+    const password = this.validatePassword(passwordValue)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      throw new AuthError('请重试注册', 400, 'INVALID_IDEMPOTENCY_KEY')
+    }
+    const passwordHash = await bcrypt.hash(password, 12)
+    const user = await this.users.register({ nickname, passwordHash, registrationKeyHash: hashRegistrationKey(idempotencyKey), guestId }, new Date(now))
+    return { token: this.tokens.create(user, now), user }
+  }
+
+  async loginWithPassword(idValue, passwordValue, clientKey = '', now = Date.now()) {
+    const hooohoId = this.normalizeHooohoId(idValue)
+    const password = String(passwordValue ?? '')
+    if (password.length < 6 || password.length > 64) throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
+    const attemptKey = `${hooohoId}:${clientKey}`
+    const retryAfter = await this.passwordAttempts.assertAllowed(attemptKey, now)
+    if (retryAfter) throw new AuthError('Hoooho ID 或密码错误，请稍后再试', 429, 'PASSWORD_LOGIN_RATE_LIMITED', { retryAfter })
+    const user = await this.users.findByHooohoId(hooohoId)
+    const valid = await bcrypt.compare(password, user?.passwordHash ?? dummyPasswordHash) && Boolean(user?.passwordHash)
+    if (!valid) {
+      const failed = await this.passwordAttempts.fail(attemptKey, now)
+      this.logger(`[Hoooho auth] password login rejected id=${hooohoId.slice(0, 3)}*** failures=${failed.failures}`)
+      throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
+    }
+    await this.passwordAttempts.clear(attemptKey)
+    this.logger(`[Hoooho auth] password login accepted id=${hooohoId.slice(0, 3)}***`)
+    return { token: this.tokens.create(user, now), user }
+  }
+
+  async setPassword(accountId, input, now = Date.now()) {
+    const user = await this.users.findById(accountId)
+    if (!user || user.guest) throw new AuthError('账户不存在', 404, 'ACCOUNT_NOT_FOUND')
+    const password = this.validatePassword(input.password)
+    if (user.passwordHash) {
+      if (!await bcrypt.compare(String(input.currentPassword ?? ''), user.passwordHash)) throw new AuthError('当前密码错误', 401, 'INVALID_CURRENT_PASSWORD')
+    } else {
+      if (!user.email) throw new AuthError('请先绑定邮箱后再设置密码', 409, 'EMAIL_REQUIRED')
+      await this.verifyEmailCode(user.email, String(input.code ?? ''), now)
+    }
+    const passwordHash = await bcrypt.hash(password, 12)
+    const updated = await this.users.update(user.id, { passwordHash, passwordChangedAt: new Date(now).toISOString() }, new Date(now))
+    await this.sessions.revokeAccount(user.id, now)
+    return { success: true, hooohoId: updated.hooohoId }
   }
 
   validatePhone(phone) {

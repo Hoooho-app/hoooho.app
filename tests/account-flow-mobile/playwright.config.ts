@@ -5,7 +5,8 @@ export default defineConfig({
   testDir: '.',
   timeout: 30_000,
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    command: 'cross-env NODE_OPTIONS=--import=./tests/health-timeline-oral-text-stress/windows-fs-retry-preload.mjs npm run dev -- --host 127.0.0.1',
+    cwd: '../..',
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000

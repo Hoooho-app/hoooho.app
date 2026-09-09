@@ -273,7 +273,7 @@ async function handleAuth(request, response, pathname) {
     sendJson(response, 200, {
       buildCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.BUILD_COMMIT || 'local',
       buildTimestamp: process.env.BUILD_TIMESTAMP || process.env.RAILWAY_DEPLOYMENT_ID || 'runtime',
-      authProtocolVersion: 'guest-cookie-v3',
+      authProtocolVersion: 'account-id-v1',
       dataDirectory: authConfig.dataDirectory === '/data' || authConfig.dataDirectory.startsWith('/data/') ? 'persistent-volume' : 'local'
     })
     return true
@@ -316,12 +316,14 @@ async function handleAuth(request, response, pathname) {
     }
 
     const body = await readJson(request)
-    if (pathname === '/api/auth/guest-recovery') {
-      sendJson(response, 200, await browserSessions.recovery(request, response, body))
+    if (pathname === '/api/auth/register') {
+      sendJson(response, 200, await browserSessions.register(request, response, body))
       return true
     }
-    if (pathname === '/api/auth/guest') {
-      sendJson(response, 200, await browserSessions.create(request, response, String(body.guestToken ?? ''), String(body.idempotencyKey ?? '')))
+    if (pathname === '/api/auth/id/login') {
+      const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()
+      const session = await auth.loginWithPassword(String(body.hooohoId ?? ''), String(body.password ?? ''), clientKey)
+      sendJson(response, 200, await browserSessions.completePasswordLogin(request, response, session))
       return true
     }
     if (pathname === '/api/auth/logout') {
@@ -378,7 +380,7 @@ async function handleAuth(request, response, pathname) {
 async function handleAccount(request, response, pathname) {
   if (!pathname.startsWith('/api/account/') || pathname === '/api/account/entry-state') return false
   const accountId = await readAccountId(request)
-  if (accountId.startsWith('guest:')) {
+  if ((await auth.users.findById(accountId))?.guest) {
     const error = new Error('请先登录或注册')
     error.status = 401
     error.code = 'GUEST_ACCOUNT_REQUIRED'
@@ -398,6 +400,8 @@ async function handleAccount(request, response, pathname) {
   } else if (pathname === '/api/account/provider' && request.method === 'POST') {
     const body = await readJson(request)
     sendJson(response, 200, await account.providerAction(accountId, String(body.provider ?? ''), String(body.action ?? '')))
+  } else if (pathname === '/api/account/password' && request.method === 'POST') {
+    sendJson(response, 200, await account.setPassword(accountId, await readJson(request)))
   } else if (pathname === '/api/account/delete/send-code' && request.method === 'POST') {
     const current = await account.get(accountId)
     const body = await readJson(request)
@@ -800,15 +804,21 @@ server.listen(port, host, () => {
   console.info(`[Hoooho] data=${authConfig.dataDirectory}`)
 })
 
+let shuttingDown = false
 function shutdown(signal) {
+  if (shuttingDown) return
+  shuttingDown = true
   console.info(`[Hoooho] received ${signal}, shutting down`)
   stopOpsScheduler()
+  server.closeAllConnections?.()
   server.close((error) => {
     if (error) {
       console.error(error)
-      process.exitCode = 1
+      process.exit(1)
     }
+    process.exit(0)
   })
+  setTimeout(() => process.exit(1), 5_000).unref()
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'))

@@ -23,7 +23,7 @@ try {
   const health = await context.request.get(`${baseURL}/api/health`)
   assert.equal(health.status(), 200)
   await page.goto(`${baseURL}/login`)
-  await page.getByRole('button', { name: '暂不登录，先体验', exact: true }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('时间视图测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await page.waitForURL(/health-events/)
   memberId = (await call('/api/members', { name: '时间视图验收', relationship: 'child', birthday: '2023-01-01', gender: 'female', avatar: 'girl-age3-east-asian' })).id
   await call('/api/auth/current-member', { memberId })

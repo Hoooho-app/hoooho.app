@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { JsonStore } from './storage/json-store.mjs'
 
-export const authProtocolVersion = 'guest-cookie-v3'
+export const authProtocolVersion = 'account-id-v1'
 const idPattern = /^[A-Za-z0-9_-]{16,64}$/
 const eventPattern = /^(client_loaded|route_decision|guest_create_started|guest_create_response|guest_confirmed|guest_confirmation_failed|session_restore_result)$/
 const retentionMs = 48 * 60 * 60 * 1000

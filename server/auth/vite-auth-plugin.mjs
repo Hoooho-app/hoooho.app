@@ -67,7 +67,7 @@ export function authApiPlugin(options = {}) {
             return sendJson(response, 200, await sessions.profileSections(request, input))
           }
           if (pathname === '/api/auth/diagnostics/version' && request.method === 'GET') {
-            return sendJson(response, 200, { buildCommit: 'local', buildTimestamp: 'runtime', authProtocolVersion: 'guest-cookie-v3', dataDirectory: 'local' })
+            return sendJson(response, 200, { buildCommit: 'local', buildTimestamp: 'runtime', authProtocolVersion: 'account-id-v1', dataDirectory: 'local' })
           }
           const diagnosticMatch = /^\/api\/auth\/diagnostics\/([A-Za-z0-9_-]{16,64})$/.exec(pathname)
           if (diagnosticMatch && request.method === 'GET') return sendJson(response, 200, { events: await sessions.diagnostics.list(diagnosticMatch[1]) ?? [] })
@@ -82,10 +82,12 @@ export function authApiPlugin(options = {}) {
           }
           if (request.method !== 'POST') return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求' } })
           const body = await readJson(request)
-          if (pathname === '/api/auth/guest-recovery') return sendJson(response, 200, await sessions.recovery(request, response, body))
           if (pathname === '/api/auth/current-member') return sendJson(response, 200, await sessions.selectMember(request, body))
-          if (pathname === '/api/auth/guest') {
-            return sendJson(response, 200, await sessions.create(request, response, String(body.guestToken ?? ''), String(body.idempotencyKey ?? '')))
+          if (pathname === '/api/auth/register') return sendJson(response, 200, await sessions.register(request, response, body))
+          if (pathname === '/api/auth/id/login') {
+            const clientKey = String(request.socket?.remoteAddress ?? '')
+            const session = await auth.loginWithPassword(String(body.hooohoId ?? ''), String(body.password ?? ''), clientKey)
+            return sendJson(response, 200, await sessions.completePasswordLogin(request, response, session))
           }
           if (pathname === '/api/auth/logout') return sendJson(response, 200, await sessions.logout(request, response))
           if (pathname === '/api/auth/send-code') {

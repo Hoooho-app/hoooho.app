@@ -45,4 +45,9 @@ export class SessionRepository {
   async revokeAccount(accountId, now = Date.now()) {
     await this.store.update((data) => ({ ...data, sessions: data.sessions.map((item) => item.accountId === accountId ? { ...item, revokedAt: now } : item) }))
   }
+
+  async revoke(token, now = Date.now()) {
+    if (!token) return
+    await this.store.update((data) => ({ ...data, sessions: data.sessions.map((item) => item.tokenHash === hash(token) ? { ...item, revokedAt: now } : item) }))
+  }
 }

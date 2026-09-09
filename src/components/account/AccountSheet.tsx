@@ -43,9 +43,8 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
     <BottomSheetSurface label={guest ? '登录或注册' : '账户'} onClose={onClose} open={open} title={guest ? '登录或注册' : '账户'}>
       {guest ? (
         <div className="grid gap-4">
-          <p className="hoho-text-body">登录后可在不同设备查看记录；当前体验记录会自动、安全地合并到账户。</p>
-          <HohoButton fullWidth size="large" onClick={login}>登录或注册</HohoButton>
-          <HohoButton fullWidth size="large" variant="secondary" onClick={onClose}>继续体验</HohoButton>
+          <p className="hoho-text-body">只需昵称和密码即可把当前记录原地升级为正式账户。</p>
+          <HohoButton fullWidth size="large" onClick={login}>创建账号以保留记录</HohoButton>
         </div>
       ) : confirmLogout ? (
         <div className="grid gap-4">
@@ -61,6 +60,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
             <span className="min-w-0">
               <strong className="block truncate text-base font-semibold">{profile?.nickname ?? 'Hoooho 用户'} <span className="account-sync-badge">已同步</span></strong>
               <span className="mt-1 block truncate text-sm text-text-secondary">{profile?.email ? maskEmail(profile.email) : maskPhone(profile?.phone ?? null)}</span>
+              <span className="mt-1 block truncate text-xs font-semibold text-primary">{user?.hooohoId}</span>
             </span>
           </div>
           <div className="settings-list">

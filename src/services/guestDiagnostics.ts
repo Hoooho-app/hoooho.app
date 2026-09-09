@@ -45,5 +45,5 @@ export async function recordGuestDiagnostic(event: string, details: Record<strin
 export const frontendBuild = {
   commit: import.meta.env?.VITE_BUILD_COMMIT ?? 'test',
   timestamp: import.meta.env?.VITE_BUILD_TIMESTAMP ?? 'test',
-  authProtocolVersion: 'guest-cookie-v3'
+  authProtocolVersion: 'account-id-v1'
 }

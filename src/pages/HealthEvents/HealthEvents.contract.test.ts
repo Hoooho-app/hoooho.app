@@ -149,13 +149,13 @@ test('底部保留快速记录主动作和右侧下一步 Logo 按钮', () => {
   assert.match(styles, /health-events-content--triage[\s\S]*min-height:\s*0/)
 })
 
-test('登录等待反馈只在服务端成功后开始且成功后安全返回原页面', () => {
+test('登录注册只在服务端成功后建立会话且安全返回原页面', () => {
   assert.match(login, /const result = await authService\.sendEmailCode[\s\S]*setCountdown\(result\.retryAfter\)/)
   assert.match(login, /autoComplete="one-time-code"/)
-  assert.match(login, /18_000/)
-  assert.match(login, /检查垃圾邮件/)
+  assert.match(login, /authService\.register/)
+  assert.match(login, /authService\.loginWithPassword/)
   assert.match(login, /location\.state\?\.from/)
-  assert.match(login, /requestedPath\.startsWith\('\/'\)/)
+  assert.match(login, /requested\.startsWith\('\/'\)/)
   assert.doesNotMatch(login, /familyMemberService\.list/)
   assert.match(requireAuth, /location\.pathname\}\$\{location\.search\}\$\{location\.hash/)
   assert.doesNotMatch(login, /login-family-care|<video/)
