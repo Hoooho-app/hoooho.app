@@ -18,7 +18,7 @@ function GoogleMark() { return <svg aria-hidden="true" viewBox="0 0 24 24"><path
 export function LoginPage() {
   const navigate = useNavigate(), location = useLocation()
   const authUser = useAppStore((state) => state.authUser), setAuthSession = useAppStore((state) => state.setAuthSession)
-  const [mode, setMode] = useState<'register' | 'login'>('register')
+  const [mode, setMode] = useState<'register' | 'login'>('login')
   const [nickname, setNickname] = useState(() => { try { return localStorage.getItem(recentNicknameKey) ?? '' } catch { return '' } })
   const [password, setPassword] = useState(''), [showPassword, setShowPassword] = useState(false), [emailOpen, setEmailOpen] = useState(false)
   const [email, setEmail] = useState(''), [code, setCode] = useState(''), [countdown, setCountdown] = useState(0)
