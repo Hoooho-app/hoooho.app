@@ -1,40 +1,35 @@
 import { expect, test, type Page } from '@playwright/test'
+import { TokenService } from '../../server/auth/token-service.mjs'
+
+const accountId = 'quick-record-e2e-account'
+const memberId = 'quick-record-e2e-member'
+const token = new TokenService('quick-record-mobile-e2e-secret', 60 * 60_000).create({ id: accountId })
 
 async function prepare(page: Page) {
-  await page.goto('/health-events')
-  await page.getByPlaceholder('给自己起个昵称').fill('疫苗测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
-  await page.getByRole('button', { name: '添加第一个孩子' }).click()
-  await page.getByLabel('姓名').fill('疫苗测试宝宝')
-  await page.getByLabel('出生日期').fill('2024-01-01')
-  await page.getByRole('button', { name: '男' }).click()
-  await page.getByLabel('你是孩子的谁？').selectOption({ label: '爸爸' })
-  await page.getByRole('button', { name: '添加家庭成员' }).click()
-  await page.getByRole('button', { name: '跳过' }).click()
+  await page.route('**/api/members', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    const members = await response.json()
+    await route.fulfill({ response, json: members.map((member: Record<string, unknown>) => ({ ...member, relationship: 'child' })) })
+  })
+  await page.addInitScript(({ authToken, account, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', authToken)
+    localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: account }, opsAuthUser: null, currentMemberId: member, members: [], profile: null }, version: 5 }))
+  }, { authToken: token, account: accountId, member: memberId })
   await page.goto('/health-events')
 }
 
-test('iPhone SE 疫苗入口、多疫苗、观察互斥、草稿和真实保存', async ({ page }) => {
+test('iPhone SE 活动、疫苗和就医入口置灰并提示即将开放', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '手动记录' }).click()
   const entry = page.getByRole('dialog', { name: '记录新情况' })
-  await expect(entry.getByRole('button', { name: '就医' })).toBeVisible()
-  await entry.getByRole('button', { name: '疫苗' }).click()
-  await expect(entry.getByRole('button', { name: '疫苗' })).toHaveAttribute('aria-pressed', 'true')
-  await entry.getByRole('button', { name: '开始记录' }).click()
-  const form = page.getByRole('dialog', { name: '记录疫苗接种' })
-  await expect(form).toBeVisible()
-  await form.getByPlaceholder('搜索疫苗名称，或手动填写').first().fill('流感疫苗（三价）')
-  await form.getByRole('button', { name: '第2剂' }).click()
-  await form.getByRole('button', { name: '添加同次接种的其他疫苗' }).click()
-  await form.getByPlaceholder('搜索疫苗名称，或手动填写').nth(1).fill('百白破疫苗')
-  await form.getByRole('button', { name: '加强剂' }).nth(1).click()
-  await form.getByRole('button', { name: /再补充一点/ }).click()
-  await form.getByRole('button', { name: '暂未观察' }).click()
-  await form.getByRole('button', { name: '发热' }).click()
-  await expect(form.getByRole('button', { name: '暂未观察' })).toHaveAttribute('aria-pressed', 'false')
-  await expect(form.getByRole('button', { name: '发热' })).toHaveAttribute('aria-pressed', 'true')
-  expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, nested: [...document.querySelectorAll('.vaccination-record-scroll *:not(textarea)')].filter((node) => { const style = getComputedStyle(node); return /(auto|scroll)/.test(style.overflowY) }).length }))).toEqual({ width: 375, nested: 0 })
-  await form.getByRole('button', { name: '保存记录' }).click()
-  await expect(page.getByText('已记录').first()).toBeVisible()
-  await expect(page.getByText(/疫苗接种 · 共2种/)).toBeVisible()
+  for (const label of ['活动', '疫苗', '就医']) {
+    const button = entry.getByRole('button', { name: label, exact: true })
+    await expect(button).toHaveAttribute('aria-disabled', 'true')
+    await expect(button).toHaveCSS('opacity', '0.52')
+    await button.click({ force: true })
+    await expect(entry.getByRole('status')).toHaveText('即将开放功能')
+    await expect(button).toHaveAttribute('aria-pressed', 'false')
+    await expect(entry.getByRole('button', { name: '开始记录' })).toBeDisabled()
+  }
 })

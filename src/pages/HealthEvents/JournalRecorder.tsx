@@ -29,6 +29,7 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(null)
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
   const [saving, setSaving] = useState(false)
+  const [availabilityNotice, setAvailabilityNotice] = useState('')
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, inset: 0 })
   useEffect(() => {
     const vv = window.visualViewport
@@ -54,9 +55,21 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
     { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', icon: Pill }
   ]
   const isDietTypes = screen === 'diet-types'
+  const unavailableCategories = new Set<JournalCategory>(['activity', 'vaccination', 'visit'])
+  const chooseCategory = (category: JournalCategory) => {
+    if (unavailableCategories.has(category)) {
+      setSelected([])
+      setAvailabilityNotice('即将开放功能')
+      window.setTimeout(() => setAvailabilityNotice(''), 1800)
+      return
+    }
+    setAvailabilityNotice('')
+    setSelected([category])
+    if (category === 'diet') setScreen('diet-types')
+  }
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : ''}`} open label={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录内容' : '记录新情况'} title={isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记录新情况'} onClose={() => { if (!saving) onClose() }}
     footer={screen === 'categories' ? <HohoButton disabled={!selected.length} fullWidth onClick={() => setScreen(selected[0] === 'sleep' ? 'sleep-form' : selected[0] === 'elimination' ? 'bowel-form' : selected[0] === 'activity' ? 'activity-form' : selected[0] === 'symptom' ? 'symptom-form' : selected[0] === 'medication' ? 'medication-form' : selected[0] === 'vaccination' ? 'vaccination-form' : selected[0] === 'visit' ? 'visit-form' : 'generic')}>开始记录</HohoButton> : isDietTypes ? <HohoButton disabled={!dietKind} fullWidth onClick={() => setScreen('diet-form')}>开始记录</HohoButton> : undefined}>
-    {screen === 'categories' ? <>{journalCategoryGroups.map((group) => <section className="journal-category-group" key={group.label} aria-label={group.label}><h3 className="hoho-text-label">{group.label}</h3><div>{group.items.map(([category, label]) => <HohoButton variant="secondary" key={category} aria-pressed={selected[0] === category} onClick={() => { setSelected([category]); if (category === 'diet') setScreen('diet-types') }}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div></section>)}</> : isDietTypes ? <><Typography variant="caption">先记下来，之后还可以继续补充</Typography><div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon: Icon }) => <button aria-pressed={dietKind === kind} key={kind} onClick={() => setDietKind(kind)} type="button"><Icon aria-hidden="true" size={24} strokeWidth={1.7} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div></> :
+    {screen === 'categories' ? <>{journalCategoryGroups.map((group) => <section className="journal-category-group" key={group.label} aria-label={group.label}><h3 className="hoho-text-label">{group.label}</h3><div>{group.items.map(([category, label]) => { const unavailable = unavailableCategories.has(category); return <HohoButton aria-disabled={unavailable} className={unavailable ? 'journal-category-unavailable' : ''} variant="secondary" key={category} aria-pressed={!unavailable && selected[0] === category} onClick={() => chooseCategory(category)}><JournalCategoryIcon category={category} />{label}</HohoButton> })}</div></section>)}{availabilityNotice && <div aria-live="polite" className="journal-availability-toast" role="status">{availabilityNotice}</div>}</> : isDietTypes ? <><Typography variant="caption">先记下来，之后还可以继续补充</Typography><div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon: Icon }) => <button aria-pressed={dietKind === kind} key={kind} onClick={() => setDietKind(kind)} type="button"><Icon aria-hidden="true" size={24} strokeWidth={1.7} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div></> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
         onActivityChange={(activity) => setSaving(activity === 'saving')}
         onClose={onClose}
