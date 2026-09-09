@@ -104,21 +104,21 @@ test('manual record footer stays on one row at the required mobile widths', asyn
   }
 })
 
-test('medical prep uses a quiet timed wake cycle and respects reduced motion', async ({ page }) => {
+test('medical prep uses a continuous soft-light cycle and respects reduced motion', async ({ page }) => {
   await prepare(page)
   const button = page.getByRole('button', { name: '就医准备', exact: true })
   await expect(button).toBeEnabled()
   expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false)
   await expect(button).not.toHaveClass(/medical-prep-button--awake/)
-  await expect(button).toHaveClass(/medical-prep-button--awake/, { timeout: 6_000 })
-  await page.screenshot({ path: 'test-results/medical-prep-awake-iphone-se.png' })
-  await expect(button).not.toHaveClass(/medical-prep-button--awake/, { timeout: 2_100 })
+  await expect(button).toHaveCSS('animation-duration', '4.8s')
+  await expect(button.locator('.medical-prep-button__glow')).toHaveCSS('animation-duration', '4.8s')
+  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '13px')
+  await page.screenshot({ path: 'outputs/medical-prep-continuous-iphone-se.png' })
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
-  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
-  await page.waitForTimeout(3_300)
-  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
+  await expect(button).toHaveCSS('animation-name', 'none')
+  await expect(button.locator('.medical-prep-button__glow')).toHaveCSS('display', 'none')
 })
 
 test('medical prep keeps its established desktop dimensions and stable label', async ({ page }) => {
