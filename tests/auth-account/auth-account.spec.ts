@@ -50,11 +50,18 @@ test('registration layout fits iPhone SE and email verification remains secondar
     await page.setViewportSize(viewport)
     await page.goto('/login')
     await expect(page.getByRole('tab', { name: '注册' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByText('敏宝情况记录与就医准备', { exact: true })).toBeVisible()
+    await expect(page.getByRole('tab')).toHaveText(['登录', '注册'])
     const sizes = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))
     expect(sizes.scroll).toBeLessThanOrEqual(sizes.width)
     expect(sizes.height).toBeLessThanOrEqual(viewport.height)
   }
   for (const label of ['手机号登录，暂未开放', '微信登录，暂未开放', 'Apple 登录，暂未开放', 'Google 登录，暂未开放']) await expect(page.getByRole('button', { name: label })).toBeDisabled()
+  const wechatColor = await page.getByRole('button', { name: '微信登录，暂未开放' }).evaluate((button) => ({
+    button: getComputedStyle(button).color,
+    icon: getComputedStyle(button.querySelector('svg')!).fill
+  }))
+  expect(wechatColor.icon).toBe(wechatColor.button)
   await expect(page.getByText('忘记密码')).toHaveCount(0)
   await expect(page.getByText('暂不登录')).toHaveCount(0)
   await page.getByRole('button', { name: '邮箱验证码登录' }).click()
