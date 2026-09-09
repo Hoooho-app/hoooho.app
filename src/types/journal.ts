@@ -90,7 +90,28 @@ export interface JournalSymptomDetails {
 export type MedicationRoute = 'oral' | 'topical' | 'nebulized' | 'inhaled' | 'nasal' | 'ophthalmic' | 'other'
 export type MedicationObservation = 'not_observed_yet' | 'some_relief' | 'no_obvious_change' | 'discomfort_observed'
 
+export interface MedicationReminder {
+  enabled: boolean
+  frequency: 'daily' | 'interval_hours' | 'weekly' | 'custom'
+  timesPerDay: number
+  times: string[]
+  durationDays: number
+}
+
+export interface JournalMedicationItem {
+  id: string
+  medicationName: string
+  amountValue: number
+  amountUnit: string
+  dosageStep: number
+  photoIds?: string[]
+  recognitionSource?: 'camera' | 'album'
+  recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
+  reminder?: MedicationReminder
+}
+
 export interface JournalMedicationDetails {
+  medications?: JournalMedicationItem[]
   medicationName: string
   genericName?: string
   brandName?: string

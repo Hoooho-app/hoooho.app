@@ -1,4 +1,5 @@
 import type { HealthEventListItemViewModel } from '../../types'
+import type { JournalEntry } from '../../pages/HealthEvents/timeViewModel'
 
 export type NurseStationItemStatus = 'pending_confirmation' | 'active' | 'paused' | 'completed' | 'dismissed' | 'deleted'
 export type NurseStationItemType = 'symptom_observation' | 'medication_reminder' | 'record_connection' | 'family_sync' | 'reassurance_message' | 'missing_information' | 'follow_up' | 'other'
@@ -53,13 +54,21 @@ function suggestionFor(event: HealthEventListItemViewModel): Pick<NurseStationIt
   return null
 }
 
-export function reconcileNurseStationItems(state: NurseStationState, events: readonly HealthEventListItemViewModel[], memberId: string): NurseStationState {
+export function reconcileNurseStationItems(state: NurseStationState, events: readonly HealthEventListItemViewModel[], memberId: string, journal: readonly JournalEntry[] = []): NurseStationState {
   const known = new Set(state.items.map((item) => item.sourceEventId))
+  const configured = journal.flatMap((entry) => (entry.medication?.medications ?? []).flatMap((medicine) => medicine.reminder?.enabled ? [{ entry, medicine }] : []))
+  const configuredEventIds = new Set(configured.map(({ entry }) => entry.eventId))
+  const reminderAdditions = configured.flatMap(({ entry, medicine }) => {
+    const id = `nurse-${entry.eventId}-${medicine.id}`
+    if (state.items.some((item) => item.id === id)) return []
+    const firstTime = medicine.reminder!.times[0]
+    return [{ id, memberId, sourceEventId: entry.eventId, relatedEventIds: [entry.eventId], type: 'medication_reminder' as const, status: 'active' as const, title: `${medicine.medicationName}用药提醒`, sourceLabel: `${medicine.medicationName} · ${medicine.amountValue} ${medicine.amountUnit}`, createdAt: entry.createdAt, updatedAt: entry.createdAt, reminder: { at: `${entry.occurredAt.slice(0, 10)}T${firstTime}:00`, paused: false } }]
+  })
   const additions = events.flatMap((event) => {
     const suggestion = suggestionFor(event)
-    if (!suggestion || known.has(event.id) || state.suppressedTypes.includes(suggestion.type)) return []
+    if (!suggestion || known.has(event.id) || configuredEventIds.has(event.id) || state.suppressedTypes.includes(suggestion.type)) return []
     const now = event.updatedAt || event.createdAt
     return [{ id: `nurse-${event.id}`, memberId, sourceEventId: event.id, relatedEventIds: [event.id], status: 'pending_confirmation' as const, sourceLabel: `${event.displayTitle || event.title} · ${new Date(event.occurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`, createdAt: now, updatedAt: now, ...suggestion }]
   })
-  return additions.length ? { ...state, items: [...state.items, ...additions] } : state
+  return reminderAdditions.length || additions.length ? { ...state, items: [...state.items, ...reminderAdditions, ...additions] } : state
 }

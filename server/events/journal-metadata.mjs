@@ -208,6 +208,28 @@ function validateSymptom(value) {
 
 function validateMedication(value) {
   if (value === undefined) return undefined
+  if (value && typeof value === 'object' && Array.isArray(value.medications)) {
+    if (value.medications.length < 1 || value.medications.length > 12) throw new HealthEventRecordError('用药项目数量无效', 400, 'INVALID_JOURNAL_MEDICATION')
+    const ids = new Set()
+    const medications = value.medications.map((item) => {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.medicationName !== 'string' || !item.medicationName.trim() || item.medicationName.trim().length > 120) throw new HealthEventRecordError('用药项目无效', 400, 'INVALID_JOURNAL_MEDICATION')
+      ids.add(item.id)
+      if (!Number.isFinite(item.amountValue) || item.amountValue <= 0 || item.amountValue > 100000 || typeof item.amountUnit !== 'string' || !item.amountUnit.trim() || item.amountUnit.trim().length > 20) throw new HealthEventRecordError('本次用量无效', 400, 'INVALID_JOURNAL_MEDICATION')
+      if (![0.1, 0.5, 1].includes(item.dosageStep)) throw new HealthEventRecordError('剂量步长无效', 400, 'INVALID_JOURNAL_MEDICATION')
+      const result = { id: item.id.trim(), medicationName: item.medicationName.trim(), amountValue: item.amountValue, amountUnit: item.amountUnit.trim(), dosageStep: item.dosageStep }
+      const photoIds = cleanStrings(item.photoIds, '药品照片', 6); if (photoIds?.length) result.photoIds = photoIds
+      if (item.recognitionSource !== undefined) { if (!medicationRecognitionSources.has(item.recognitionSource) || !medicationRecognitionStatuses.has(item.recognitionStatus)) throw new HealthEventRecordError('识别状态无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.recognitionSource = item.recognitionSource; result.recognitionStatus = item.recognitionStatus }
+      if (item.reminder !== undefined) {
+        const reminder = item.reminder
+        if (!reminder || typeof reminder.enabled !== 'boolean' || !['daily', 'interval_hours', 'weekly', 'custom'].includes(reminder.frequency) || !Number.isInteger(reminder.timesPerDay) || reminder.timesPerDay < 1 || reminder.timesPerDay > 12 || !Array.isArray(reminder.times) || reminder.times.length !== reminder.timesPerDay || reminder.times.some((time) => typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) || !Number.isInteger(reminder.durationDays) || reminder.durationDays < 1 || reminder.durationDays > 365) throw new HealthEventRecordError('用药提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
+        result.reminder = { enabled: reminder.enabled, frequency: reminder.frequency, timesPerDay: reminder.timesPerDay, times: [...new Set(reminder.times)].sort(), durationDays: reminder.durationDays }
+        if (result.reminder.times.length !== reminder.timesPerDay) throw new HealthEventRecordError('提醒时间不能重复', 400, 'INVALID_JOURNAL_MEDICATION')
+      }
+      return result
+    })
+    const first = medications[0]
+    return { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral' }
+  }
   if (!value || typeof value !== 'object' || typeof value.medicationName !== 'string' || !value.medicationName.trim() || value.medicationName.trim().length > 120 || !medicationRoutes.has(value.administrationRoute)) throw new HealthEventRecordError('用药记录无效', 400, 'INVALID_JOURNAL_MEDICATION')
   const result = { medicationName: value.medicationName.trim(), administrationRoute: value.administrationRoute }
   for (const key of ['genericName', 'brandName', 'dosageForm', 'strengthText', 'suggestedByOther']) if (value[key] !== undefined) {

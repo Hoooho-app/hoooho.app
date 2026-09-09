@@ -107,6 +107,18 @@ test('optional journal categories preserve verbatim content and existing idempot
   await assert.rejects(() => setup().service.create('account-1', { ...input, journal: { categories: ['invented'] } }), /记录分类无效/)
 })
 
+test('quick record persists multiple medications and independent reminder settings', async () => {
+  const state = setup()
+  const medications = [
+    { id: 'drug-one', medicationName: '布洛芬混悬液', amountValue: 2.5, amountUnit: 'mL', dosageStep: 0.5, reminder: { enabled: true, frequency: 'daily', timesPerDay: 3, times: ['08:00', '14:00', '20:00'], durationDays: 5 } },
+    { id: 'drug-two', medicationName: '对乙酰氨基酚', amountValue: 1, amountUnit: '片', dosageStep: 1, reminder: { enabled: false, frequency: 'daily', timesPerDay: 1, times: ['08:00'], durationDays: 1 } }
+  ]
+  await state.service.create('account-1', { ...input, content: '布洛芬混悬液 · 2.5 mL\n对乙酰氨基酚 · 1 片', journal: { categories: ['medication'], medication: { medications, medicationName: medications[0].medicationName, administrationRoute: 'oral', amountValue: 2.5, amountUnit: 'mL' } } })
+  assert.equal(state.recordRows[0].journal.medication.medications.length, 2)
+  assert.equal(state.recordRows[0].journal.medication.medications.filter((item) => item.reminder?.enabled).length, 1)
+  await assert.rejects(() => setup().service.create('account-1', { ...input, journal: { categories: ['medication'], medication: { medications: [{ ...medications[0], dosageStep: 0.3 }], medicationName: 'x', administrationRoute: 'oral' } } }), /剂量步长无效/)
+})
+
 test('quick record persists structured diet details without changing member ownership', async () => {
   const state = setup()
   const journal = { categories: ['diet'], diet: { kind: 'meal', meal: '午餐', foods: ['番茄牛肉', '米饭'], amount: '一半', appetite: '和平时差不多', reactions: ['暂未发现'] } }
