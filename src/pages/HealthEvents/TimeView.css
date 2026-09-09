@@ -3,6 +3,7 @@
 .health-events-toolbar .journal-toolbar { min-height: 48px; padding-right: 4px; }
 .health-events-toolbar .journal-toolbar-actions { gap: 4px; }
 .health-events-toolbar .hoho-button[data-size='icon'] { width: 40px; min-width: 40px; min-height: 40px; height: 40px; }
+.health-events-toolbar .journal-toolbar-action { border: 0; background: transparent; }
 .journal-date-navigation { display: grid; grid-template-columns: auto auto minmax(0, 1fr) 36px; align-items: center; gap: 2px; height: 48px; margin-bottom: var(--hoho-space-2); padding: 0 84px 0 6px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); white-space: nowrap; }
 .journal-year-picker, .journal-day-picker { position: relative; display: flex; align-items: center; min-width: 0; height: 40px; cursor: pointer; }
 .journal-year-picker { padding-right: 6px; color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 400; }
@@ -66,7 +67,7 @@
 .journal-manual-record-action__icon { flex: 0 0 20px; }
 .journal-manual-record-action__label { flex: none; font-weight: 600; }
 .journal-manual-record-action__underscore { flex: none; color: rgb(var(--hoho-color-primary) / 0.58); }
-.journal-manual-record-action__prompt-window { position: relative; height: 20px; min-width: 0; flex: 1 1 auto; overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); text-align: left; white-space: nowrap; mask-image: linear-gradient(to right, transparent 0, #000 8px, #000 calc(100% - 2px)); }
+.journal-manual-record-action__prompt-window { position: relative; height: 20px; min-width: 0; flex: 1 1 auto; overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); text-align: left; white-space: nowrap; mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 8px), transparent 100%); }
 .journal-manual-record-action__prompt-track { position: absolute; top: 0; left: 0; display: inline-flex; align-items: center; transition: transform 110ms var(--hoho-ease-standard); }
 .journal-manual-record-action__caret { width: 1.5px; height: 15px; margin-left: 1px; flex: 0 0 auto; background: rgb(var(--hoho-color-primary)); animation: journal-manual-record-caret 760ms step-end infinite; }
 @keyframes journal-manual-record-caret { 0%, 45% { opacity: 1; } 46%, 100% { opacity: 0; } }
