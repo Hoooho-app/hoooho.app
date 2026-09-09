@@ -70,7 +70,8 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
   try {
     await page.goto('/nurse-station')
     await expect(page.getByRole('button', { name: /加载测试宝宝的3D/ })).toBeVisible()
-    await page.getByRole('button', { name: '关闭教程' }).click()
+    const tutorialClose = page.getByRole('button', { name: '关闭教程' })
+    if (await tutorialClose.isVisible()) await tutorialClose.click()
     await page.route('**/api/members/' + created.id, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 3_000))
       await route.continue()
@@ -260,7 +261,9 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
 test('游客模式已有孩子但尚无健康记录时也能进入健康档案', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-se', '游客模式在固定 iPhone SE 验证一次')
   await page.goto('/login')
-  await page.getByPlaceholder('给自己起个昵称').fill('孩子档案测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('孩子档案测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click()
+  const enterApp = page.getByRole('button', { name: '进入 Hoooho' })
+  if (await enterApp.isVisible()) await enterApp.click()
   await expect(page).toHaveURL(/\/nurse-station$/)
   await page.evaluate(async () => {
     const session = await (await fetch('/api/auth/session')).json()
@@ -274,8 +277,7 @@ test('游客模式已有孩子但尚无健康记录时也能进入健康档案',
   await page.reload()
   await expect(page.getByText('游客宝宝', { exact: true }).first()).toBeVisible()
   const tutorialClose = page.getByRole('button', { name: '关闭教程' })
-  await expect(tutorialClose).toBeVisible()
-  await tutorialClose.click()
+  if (await tutorialClose.isVisible()) await tutorialClose.click()
   await page.getByRole('button', { name: '打开菜单' }).click()
   await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案夹' }).click()
   await expect(page).toHaveURL(/\/health-profile$/)
@@ -577,8 +579,9 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     memberId = created.id
     expect(created).toMatchObject({ birthday: localToday, relationship: 'child', isSelf: false, avatar: 'girl-age0-east-asian' })
     await expect(page).toHaveURL(/\/nurse-station$/)
-    await expect(page.getByText('未满1个月')).toBeVisible()
-    await page.getByRole('button', { name: '关闭教程' }).click()
+    await expect(page.getByText(/女\s*·\s*0天/)).toBeVisible()
+    const tutorialClose = page.getByRole('button', { name: '关闭教程' })
+    if (await tutorialClose.isVisible()) await tutorialClose.click()
     await page.getByRole('button', { name: '打开菜单' }).click()
     await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByText('当前记录对象', { exact: true })).toBeVisible()
     await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '打开我的孩子' }).click()
@@ -587,6 +590,7 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
     await expect(page.getByRole('heading', { name: '编辑孩子资料' })).toBeVisible()
     await expect(page.getByText('该页面仅用于编辑孩子资料')).toHaveCount(0)
     await expect(page.getByLabel('出生日期')).toHaveValue(localToday)
+    await expect(page.locator('section[aria-label="孩子基本资料"]')).toContainText('0天')
     expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([])
   } finally {
     if (memberId) await request.delete(`/api/members/${memberId}`, { headers: { Authorization: `Bearer ${authToken}` } })

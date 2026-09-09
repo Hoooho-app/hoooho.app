@@ -23,11 +23,18 @@ test('闰日边界只禁用真正满8周岁的日期', () => {
   assert.deepEqual(getChildBirthdayBounds('2024-02-29'), { min: '2016-03-01', max: '2024-02-29' })
 })
 
-test('年龄始终按本地纯日期显示月龄或岁月龄', () => {
-  assert.equal(formatChildAgeFromDateKeys('2026-08-20', today), '未满1个月')
-  assert.equal(formatChildAgeFromDateKeys('2026-01-03', today), '8个月')
-  assert.equal(formatChildAgeFromDateKeys('2023-05-12', today), '3岁3个月')
-  assert.equal(formatChildAgeFromDateKeys('2023-09-03', today), '3岁')
+test('年龄始终按本地纯日期精确显示到日', () => {
+  assert.equal(formatChildAgeFromDateKeys('2026-09-03', today), '0天')
+  assert.equal(formatChildAgeFromDateKeys('2026-08-20', today), '14天')
+  assert.equal(formatChildAgeFromDateKeys('2026-01-03', today), '8个月0天')
+  assert.equal(formatChildAgeFromDateKeys('2023-05-12', today), '3岁3个月22天')
+  assert.equal(formatChildAgeFromDateKeys('2023-09-03', today), '3岁0个月0天')
+})
+
+test('月末和闰日年龄使用真实日历周年日计算', () => {
+  assert.equal(formatChildAgeFromDateKeys('2026-01-31', '2026-02-28'), '1个月0天')
+  assert.equal(formatChildAgeFromDateKeys('2024-02-29', '2025-02-28'), '1岁0个月0天')
+  assert.equal(formatChildAgeFromDateKeys('2024-02-29', '2025-03-01'), '1岁0个月1天')
 })
 
 test('儿童身份统一兼容显式 child 和历史 other 幼儿', () => {

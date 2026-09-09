@@ -41,6 +41,21 @@ function dayAfter(parts) {
   return { year: parts.year + 1, month: 1, day: 1 }
 }
 
+function addMonthsClamped(parts, monthsToAdd) {
+  const monthIndex = parts.year * 12 + parts.month - 1 + monthsToAdd
+  const year = Math.floor(monthIndex / 12)
+  const month = monthIndex - year * 12 + 1
+  return { year, month, day: Math.min(parts.day, daysInMonth(year, month)) }
+}
+
+function compareDateParts(left, right) {
+  return formatParts(left).localeCompare(formatParts(right))
+}
+
+function calendarDayNumber(parts) {
+  return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / 86_400_000)
+}
+
 export function getChildBirthdayBounds(todayKey) {
   const today = parsePlainDateKey(todayKey)
   if (!today) return { min: '', max: '' }
@@ -65,14 +80,18 @@ export function formatChildAgeFromDateKeys(birthday, todayKey) {
   const birth = parsePlainDateKey(birthday)
   const today = parsePlainDateKey(todayKey)
   if (!birth || !today || birthday > todayKey) return ''
-  const totalMonths = Math.max(
-    (today.year - birth.year) * 12 + today.month - birth.month - (today.day < birth.day ? 1 : 0), 0
-  )
-  if (totalMonths < 1) return '未满1个月'
-  if (totalMonths < 12) return `${totalMonths}个月`
+  let totalMonths = Math.max((today.year - birth.year) * 12 + today.month - birth.month, 0)
+  let monthAnniversary = addMonthsClamped(birth, totalMonths)
+  if (compareDateParts(monthAnniversary, today) > 0) {
+    totalMonths -= 1
+    monthAnniversary = addMonthsClamped(birth, totalMonths)
+  }
+  const days = calendarDayNumber(today) - calendarDayNumber(monthAnniversary)
+  if (totalMonths < 1) return `${days}天`
+  if (totalMonths < 12) return `${totalMonths}个月${days}天`
   const years = Math.floor(totalMonths / 12)
   const months = totalMonths % 12
-  return months ? `${years}岁${months}个月` : `${years}岁`
+  return `${years}岁${months}个月${days}天`
 }
 
 export function isChildBirthdayKey(birthday, todayKey) {
