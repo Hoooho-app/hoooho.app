@@ -4,11 +4,11 @@
 .nurse-station-scroll::-webkit-scrollbar { display: none; }
 
 .nurse-station-member-row { display: grid; grid-template-columns: minmax(0, 1fr) 106px; align-items: stretch; gap: 8px; }
-.nurse-station-member { display: flex; width: 100%; min-width: 0; min-height: 52px; height: 52px; align-items: center; gap: 9px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 4px 10px; text-align: left; background: #5fb99c; }
+.nurse-station-member { display: flex; width: 100%; min-width: 0; min-height: 52px; height: 52px; align-items: center; gap: 9px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 4px 10px; text-align: left; background: #ecfaf7; }
 .nurse-station-member > :first-child { flex: 0 0 auto; }
 .nurse-station-member-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .nurse-station-member strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.nurse-station-member em { overflow: hidden; color: #17322e; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.nurse-station-member em { overflow: hidden; color: #687b88; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-member > svg { flex: 0 0 auto; color: #173f55; }
 .nurse-station-member-row .journal-subject-summary { width: 106px; min-width: 0; min-height: 52px; height: 52px; padding-inline: 8px; border-radius: 12px; font-size: 14px; white-space: nowrap; }
 .nurse-station-member-row .journal-subject-summary img { filter: brightness(0) invert(1); }

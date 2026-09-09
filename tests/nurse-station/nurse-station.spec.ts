@@ -20,7 +20,7 @@ test('护士站服务排序、开放状态和用药入口符合移动端方案',
   page.on('pageerror', (error) => errors.push(error.message))
   await registerMember(page)
   await expect(page.locator('.nurse-station-member')).toHaveCSS('height', '52px')
-  await expect(page.locator('.nurse-station-member')).toHaveCSS('background-color', 'rgb(95, 185, 156)')
+  await expect(page.locator('.nurse-station-member')).toHaveCSS('background-color', 'rgb(236, 250, 247)')
   await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveCSS('height', '52px')
   const services = page.locator('.nurse-service-entry')
   await expect(services).toHaveCount(5)
