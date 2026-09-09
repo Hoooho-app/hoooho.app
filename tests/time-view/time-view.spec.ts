@@ -41,12 +41,24 @@ test('health journal names the existing summary action medical prep', async ({ p
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
 })
 
+test('quick record is unavailable and timeline tools are borderless', async ({ page }) => {
+  await prepare(page)
+  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toBeDisabled()
+  for (const name of ['筛选健康随身记', '切换记录顺序']) {
+    const tool = page.getByRole('button', { name, exact: true })
+    await expect(tool).toHaveCSS('border-top-width', '0px')
+    await expect(tool).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  }
+})
+
 test('manual record button keeps its fixed content stable while typing in a clipped prompt window', async ({ page }) => {
   await prepare(page)
   const button = page.getByRole('button', { name: '手动记录', exact: true })
   await expect(button).not.toContainText('手动记录')
   await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记录')
   await expect(button.locator('.journal-manual-record-action__underscore')).toHaveText('_')
+  await expect(button.locator('.lucide-pencil')).toBeVisible()
+  await expect(button.locator('.lucide-pen-line')).toHaveCount(0)
   await expect(button.locator('.journal-manual-record-action__prompt-window')).toContainText('不舒服就记下来', { timeout: 2_000 })
 
   const layout = await button.evaluate((element) => {
@@ -62,10 +74,11 @@ test('manual record button keeps its fixed content stable while typing in a clip
       buttonHeight: buttonBox.height,
       quickWidth: quick.width,
       promptClips: getComputedStyle(promptWindow).overflow === 'hidden',
+      promptMaskStartsOpaque: getComputedStyle(promptWindow).maskImage.includes('rgb(0, 0, 0) 0px'),
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ fixedBeforePrompt: true, sameRow: true, buttonHeight: 50, quickWidth: 52, promptClips: true, pageOverflows: false })
+  expect(layout).toEqual({ fixedBeforePrompt: true, sameRow: true, buttonHeight: 50, quickWidth: 52, promptClips: true, promptMaskStartsOpaque: true, pageOverflows: false })
   await page.screenshot({ path: 'test-results/manual-record-typewriter-iphone-se.png' })
 
   await button.click()
