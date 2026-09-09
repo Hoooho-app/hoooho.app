@@ -123,15 +123,41 @@ test('medical prep uses a continuous soft-light cycle and respects reduced motio
   await expect(button).toBeEnabled()
   expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false)
   await expect(button).not.toHaveClass(/medical-prep-button--awake/)
-  await expect(button).toHaveCSS('animation-duration', '4.8s')
-  await expect(button.locator('.medical-prep-button__glow')).toHaveCSS('animation-duration', '4.8s')
-  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '13px')
-  await page.screenshot({ path: 'outputs/medical-prep-continuous-iphone-se.png' })
+  await expect(button).toHaveCSS('animation-duration', '4s')
+  await expect(button.locator('.medical-prep-button__soft-glow')).toHaveCSS('animation-duration', '4s')
+  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('animation-duration', '4s')
+  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '12px')
+  const layout = await button.evaluate((element) => {
+    const icon = element.querySelector('.medical-prep-button__icon')!.getBoundingClientRect()
+    const content = element.querySelector('.hoho-button__content')!
+    const box = element.getBoundingClientRect()
+    return {
+      buttonHeight: box.height,
+      iconWidth: icon.width,
+      iconHeight: icon.height,
+      contentGap: getComputedStyle(content).gap,
+      contentTransform: getComputedStyle(content).transform,
+      clipsGlow: getComputedStyle(element).overflow === 'hidden',
+      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    }
+  })
+  expect(layout).toEqual({ buttonHeight: 52, iconWidth: 15, iconHeight: 15, contentGap: '5px', contentTransform: 'matrix(1, 0, 0, 1, -3, 0)', clipsGlow: true, pageOverflows: false })
+
+  for (const [phase, delay] of [['dark', '0s'], ['transition', '-0.72s'], ['bright', '-1.68s']] as const) {
+    await button.evaluate((element, delay) => {
+      for (const layer of [element, ...element.querySelectorAll<HTMLElement>('.medical-prep-button__soft-glow, .medical-prep-button__light-band')]) {
+        layer.style.animationDelay = delay
+        layer.style.animationPlayState = 'paused'
+      }
+    }, delay)
+    await page.screenshot({ path: `outputs/medical-prep-${phase}-iphone-se.png` })
+  }
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
   await expect(button).toHaveCSS('animation-name', 'none')
-  await expect(button.locator('.medical-prep-button__glow')).toHaveCSS('display', 'none')
+  await expect(button.locator('.medical-prep-button__soft-glow')).toHaveCSS('display', 'none')
+  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('display', 'none')
 })
 
 test('medical prep keeps its established desktop dimensions and stable label', async ({ page }) => {
@@ -141,6 +167,19 @@ test('medical prep keeps its established desktop dimensions and stable label', a
   await expect(button).toHaveCSS('height', '52px')
   await expect(button.locator('.medical-prep-button__label')).toHaveText('就医准备')
   expect(await button.evaluate((element) => element.scrollWidth === element.clientWidth)).toBe(true)
+})
+
+test('nurse station uses the same corrected medical prep button', async ({ page }) => {
+  await prepare(page)
+  await page.goto('/nurse-station')
+  const button = page.getByRole('button', { name: '就医准备', exact: true })
+  await expect(button).toBeVisible()
+  await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '15px')
+  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '12px')
+  await expect(button).toBeDisabled()
+  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('animation-name', 'none')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
+  await page.screenshot({ path: 'outputs/medical-prep-nurse-station-iphone-se.png' })
 })
 
 test('single-day timeline, filters, sort order, compact subject and summary entry', async ({ page }) => {
