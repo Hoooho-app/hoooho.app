@@ -3,75 +3,62 @@
   isolation: isolate;
   overflow: hidden;
   white-space: nowrap;
+  animation: medical-prep-breathe 4.8s ease-in-out infinite;
   transition: background-color var(--hoho-motion-fast) var(--hoho-ease-standard), box-shadow var(--hoho-motion-fast) var(--hoho-ease-standard), transform 140ms var(--hoho-ease-standard);
 }
 
-.medical-prep-button::before {
-  content: '';
+.medical-prep-button__glow {
   position: absolute;
-  z-index: 0;
-  inset: 0;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: conic-gradient(from -35deg, transparent 0 81%, rgb(224 255 247 / .86) 88%, transparent 95%);
+  z-index: 1;
+  right: -15%;
+  bottom: -95%;
+  left: -15%;
+  height: 130%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgb(205 255 241 / .72) 0%, rgb(255 255 255 / .18) 34%, rgb(255 255 255 / 0) 70%);
+  filter: blur(7px);
   opacity: 0;
   pointer-events: none;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  animation: medical-prep-light-rise 4.8s cubic-bezier(.45, 0, .55, 1) infinite;
 }
 
 .medical-prep-button::after {
   content: '';
   position: absolute;
-  z-index: 0;
-  inset: 0;
+  z-index: 1;
+  inset: 1px;
   border-radius: inherit;
-  background: rgb(255 255 255 / .055);
-  opacity: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / .08), rgb(255 255 255 / 0) 48%, rgb(0 0 0 / .05));
   pointer-events: none;
 }
 
-.medical-prep-button .hoho-button__content { position: relative; z-index: 1; }
+.medical-prep-button .hoho-button__content { position: relative; z-index: 2; gap: 7px; font-size: 13px; font-weight: 500; line-height: 1; }
 .medical-prep-button__icon { position: relative; display: inline-grid; width: 20px; height: 20px; flex: none; place-items: center; }
 .medical-prep-button__icon img { display: block; width: 20px; height: 20px; filter: brightness(0) invert(1); }
 .medical-prep-button__spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgb(235 255 250); opacity: .68; transform: scale(1); }
 .medical-prep-button__spark--one { top: 0; right: 0; }
 .medical-prep-button__spark--two { top: 5px; right: -2px; width: 2px; height: 2px; }
 
-.medical-prep-button--awake::before { animation: medical-prep-border-orbit 1.65s cubic-bezier(.4, 0, .2, 1) both; }
-.medical-prep-button--awake::after { animation: medical-prep-soft-light 1.65s cubic-bezier(.4, 0, .2, 1) both; }
-.medical-prep-button--awake { animation: medical-prep-shadow-bloom 1.65s cubic-bezier(.4, 0, .2, 1) both; }
-.medical-prep-button--awake .medical-prep-button__icon { animation: medical-prep-icon-wake 1.65s cubic-bezier(.2, .7, .2, 1) both; }
-.medical-prep-button--awake .medical-prep-button__spark--one { animation: medical-prep-spark 1.65s .28s ease-out both; }
-.medical-prep-button--awake .medical-prep-button__spark--two { animation: medical-prep-spark 1.65s .48s ease-out both; }
 .medical-prep-button:active:not(:disabled) { transform: scale(.97); }
+.medical-prep-button:disabled,
+.medical-prep-button:disabled .medical-prep-button__glow { animation: none; }
 
-@keyframes medical-prep-border-orbit {
-  0% { opacity: 0; transform: rotate(-35deg); }
-  12%, 76% { opacity: .95; }
-  100% { opacity: 0; transform: rotate(325deg); }
+@keyframes medical-prep-light-rise {
+  0% { transform: translateY(28%); opacity: 0; }
+  12% { opacity: .18; }
+  36% { opacity: .66; }
+  58% { transform: translateY(-72%); opacity: .42; }
+  82% { transform: translateY(-118%); opacity: .08; }
+  94% { transform: translateY(-130%); opacity: 0; }
+  100% { transform: translateY(28%); opacity: 0; }
 }
-@keyframes medical-prep-soft-light { 0%, 100% { opacity: 0; } 44% { opacity: 1; } }
-@keyframes medical-prep-shadow-bloom {
+@keyframes medical-prep-breathe {
   0%, 100% { box-shadow: 0 5px 16px rgb(var(--hoho-color-primary) / .14); }
-  44% { box-shadow: 0 8px 22px rgb(var(--hoho-color-primary) / .28); }
-}
-@keyframes medical-prep-icon-wake {
-  0%, 20%, 100% { transform: translate(0, 0) rotate(0); }
-  45% { transform: translate(1.5px, -1.5px) rotate(-4deg); }
-  66% { transform: translate(0, 0) rotate(0); }
-}
-@keyframes medical-prep-spark {
-  0%, 100% { opacity: .68; transform: scale(1); }
-  28% { opacity: 1; transform: scale(1.55); }
-  54% { opacity: .78; transform: scale(1); }
+  46% { box-shadow: 0 8px 20px rgb(var(--hoho-color-primary) / .24); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .medical-prep-button,
-  .medical-prep-button::before,
-  .medical-prep-button::after,
-  .medical-prep-button__icon,
-  .medical-prep-button__spark { animation: none !important; }
+  .medical-prep-button__glow { animation: none !important; }
+  .medical-prep-button__glow { display: none; }
 }
