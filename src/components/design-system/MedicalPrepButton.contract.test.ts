@@ -6,20 +6,20 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const component = read('./MedicalPrepButton.tsx')
 const styles = read('./MedicalPrepButton.css')
 
-test('medical prep motion uses cancellable quiet timing and lifecycle guards', () => {
-  assert.match(component, /FIRST_WAKE_DELAY = 3_000/)
-  assert.match(component, /REPEAT_WAKE_DELAY = 12_000/)
-  assert.match(component, /WAKE_DURATION = 1_650/)
-  assert.doesNotMatch(component, /setInterval/)
-  assert.match(component, /visibilitychange/)
-  assert.match(component, /prefers-reduced-motion: reduce/)
-  assert.match(component, /clearTimers\(\)/)
+test('medical prep motion uses the existing shared button with one continuous CSS glow', () => {
+  assert.match(component, /<HohoButton/)
+  assert.match(component, /medical-prep-button__glow/)
+  assert.doesNotMatch(component, /setTimeout|setInterval|requestAnimationFrame|medical-prep-button--awake/)
+  assert.match(styles, /medical-prep-light-rise 4\.8s/)
+  assert.match(styles, /medical-prep-breathe 4\.8s/)
+  assert.doesNotMatch(styles, /12s|12_000/)
 })
 
-test('medical prep motion keeps the label stable and limits movement to the icon', () => {
-  assert.match(styles, /medical-prep-border-orbit/)
-  assert.match(styles, /translate\(1\.5px, -1\.5px\) rotate\(-4deg\)/)
+test('medical prep motion keeps its content stable and honors reduced motion', () => {
+  assert.match(styles, /medical-prep-button \.hoho-button__content[^}]*font-size: 13px/)
+  assert.doesNotMatch(styles, /medical-prep-button__icon[^}]*animation/s)
   assert.doesNotMatch(styles, /medical-prep-button__label[^}]*animation/s)
   assert.match(styles, /prefers-reduced-motion: reduce/)
   assert.match(styles, /animation: none !important/)
+  assert.match(styles, /medical-prep-button__glow \{ display: none; \}/)
 })
