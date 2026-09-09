@@ -1,4 +1,4 @@
-import { PenLine } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
 import { HohoButton } from '../../components/design-system'
@@ -90,7 +90,7 @@ export function ManualRecordButton({ className = '', ...props }: ManualRecordBut
       variant="secondary"
     >
       <span aria-hidden="true" className="journal-manual-record-action__visual">
-        <PenLine className="journal-manual-record-action__icon" size={20} />
+        <Pencil className="journal-manual-record-action__icon" size={20} />
         <span className="journal-manual-record-action__label">记录</span>
         <span className="journal-manual-record-action__underscore">_</span>
         <span className="journal-manual-record-action__prompt-window" ref={windowRef}>
