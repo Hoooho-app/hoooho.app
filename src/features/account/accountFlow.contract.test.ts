@@ -10,19 +10,19 @@ const styles = readFileSync(new URL('../../styles/settings.css', import.meta.url
 const store = readFileSync(new URL('../../store/useAppStore.ts', import.meta.url), 'utf8')
 
 test('sidebar account identity stays separate from the current child', () => {
-  assert.match(drawer, /当前为体验模式/)
-  assert.match(drawer, /已同步/)
+  assert.match(drawer, /创建正式账户/)
+  assert.match(drawer, /authUser\?\.hooohoId/)
   assert.doesNotMatch(drawer, /父亲|母亲/)
 })
 
 test('account sheet exposes only peer security, membership and logout actions', () => {
-  for (const copy of ['账户与安全', '会员状态', '退出登录', '登录或注册', '继续体验']) assert.match(sheet, new RegExp(copy))
+  for (const copy of ['账户与安全', '会员状态', '退出登录', '创建账号以保留记录']) assert.match(sheet, new RegExp(copy))
   assert.doesNotMatch(sheet, /数据同步|切换账户|登录设备/)
 })
 
 test('security grouping excludes membership, device and sync', () => {
   const security = pages.slice(pages.indexOf('export function AccountSecurityPage'), pages.indexOf('export function AccountNicknamePage'))
-  for (const copy of ['头像', '昵称', '手机号', '邮箱', '第三方账户', '删除账户']) assert.match(security, new RegExp(copy))
+  for (const copy of ['头像', '昵称', 'Hoooho ID', '修改密码', '手机号', '邮箱', '第三方账户', '删除账户']) assert.match(security, new RegExp(copy))
   assert.doesNotMatch(security, /会员状态|设备管理|数据同步/)
 })
 

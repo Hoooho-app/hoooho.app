@@ -32,6 +32,9 @@ export interface AuthUser {
   email?: string
   phone?: string
   guest?: boolean
+  hooohoId?: string
+  hasPassword?: boolean
+  nickname?: string
   createdAt: string
 }
 
@@ -48,6 +51,8 @@ export interface AccountProfile {
   avatar: string | null
   phone: string | null
   email: string | null
+  hooohoId?: string
+  hasPassword?: boolean
   membership: 'free'
   providers: Array<{ provider: AccountProvider; label: string; bound: boolean; displayName: string | null }>
 }

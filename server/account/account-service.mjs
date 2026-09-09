@@ -28,7 +28,9 @@ export class AccountService {
   publicAccount(user, profile) {
     return {
       id: user.id,
-      nickname: profile?.nickname ?? (user.email?.split('@')[0] || 'Hoooho 用户'),
+      nickname: profile?.nickname ?? user.nickname ?? (user.email?.split('@')[0] || 'Hoooho 用户'),
+      hooohoId: user.hooohoId ?? '',
+      hasPassword: Boolean(user.passwordHash),
       avatar: profile?.avatar ?? null,
       phone: user.phone ?? null,
       email: user.email ?? null,
@@ -122,6 +124,10 @@ export class AccountService {
     if (loginCount <= 1) throw new AuthError('请先设置手机号或邮箱，再解除当前唯一登录方式', 409, 'LAST_LOGIN_METHOD')
     await this.profiles.update((data) => ({ ...data, profiles: data.profiles.map((profile) => profile.accountId === accountId ? { ...profile, providers: (profile.providers ?? []).filter((item) => item.provider !== provider) } : profile) }))
     return this.get(accountId)
+  }
+
+  async setPassword(accountId, input, now = Date.now()) {
+    return this.auth.setPassword(accountId, input, now)
   }
 
   async delete(accountId, input, now = Date.now()) {

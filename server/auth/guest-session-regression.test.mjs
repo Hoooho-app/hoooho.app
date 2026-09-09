@@ -6,30 +6,19 @@ import test from 'node:test'
 import { AuthService } from './auth-service.mjs'
 import { BrowserSessionService } from './browser-session-service.mjs'
 
-test('guest creation persists an account rather than only issuing a token', async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-guest-regression-'))
+test('an existing guest cookie still restores, but no public guest creation API is required', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-guest-compatibility-'))
   try {
-    const auth = new AuthService({ dataDirectory, tokenSecret: 'guest-test-only' })
+    const auth = new AuthService({ dataDirectory: directory, tokenSecret: 'guest-test-only', logger: () => undefined })
     const browser = new BrowserSessionService(auth)
+    const user = await auth.users.createGuest()
     const headers = new Map()
     const request = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/json' }, socket: { encrypted: true } }
     const response = { setHeader: (name, value) => headers.set(name, value) }
-    assert.equal((await browser.restore({ ...request, method: 'GET' }, response)).unauthenticated, true)
-    assert.equal(headers.has('Set-Cookie'), false)
-    const session = await browser.create(request, response, '', '66666666-6666-4666-8666-666666666666')
-    assert.ok(await auth.users.findById(session.user.id), 'guest account must exist in server storage')
+    await browser.issue(request, response, user)
     request.headers.cookie = headers.get('Set-Cookie').split(';')[0]
-    assert.match(headers.get('Set-Cookie'), /Path=\/; HttpOnly; SameSite=Lax; Max-Age=15552000; Expires=.*GMT; Secure/)
-    assert.doesNotMatch(headers.get('Set-Cookie'), /Domain=/i)
-    const restored = await browser.restore({ ...request, method: 'GET' }, response)
-    assert.equal(restored.user.id, session.user.id)
-    assert.equal((await browser.create(request, response)).user.id, session.user.id)
-    const repeats = await Promise.all(Array.from({ length: 5 }, () => browser.create(request, response)))
-    assert.ok(repeats.every((item) => item.user.id === session.user.id))
-    await assert.rejects(browser.create({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }, response), (error) => error.code === 'CSRF_REJECTED')
-    await browser.logout(request, response)
-    assert.equal((await browser.restore({ ...request, method: 'GET' }, response)).unauthenticated, true)
-  } finally {
-    await rm(dataDirectory, { recursive: true, force: true })
-  }
+    assert.equal((await browser.restore({ ...request, method: 'GET' }, response)).user.id, user.id)
+    assert.equal(typeof browser.create, 'undefined')
+    assert.equal(typeof browser.recovery, 'undefined')
+  } finally { await rm(directory, { recursive: true, force: true }) }
 })

@@ -260,7 +260,7 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
 test('游客模式已有孩子但尚无健康记录时也能进入健康档案', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-se', '游客模式在固定 iPhone SE 验证一次')
   await page.goto('/login')
-  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('孩子档案测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
   await page.evaluate(async () => {
     const session = await (await fetch('/api/auth/session')).json()

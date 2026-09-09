@@ -1,4 +1,4 @@
-import { Apple, Camera, ImageUp, Mail, Phone, ShieldAlert, UserRound } from 'lucide-react'
+import { Apple, Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, WebPageHeader } from '../../components/common'
@@ -47,6 +47,8 @@ export function AccountSecurityPage() {
         <HohoSurfaceRow onActivate={() => navigate('/account/nickname')} title="昵称" value={profile.nickname} />
       </Group>
       <Group title="登录与绑定">
+        <HohoSurfaceRow title="Hoooho ID" value={profile.hooohoId ? <button className="font-semibold text-primary" type="button" onClick={() => void navigator.clipboard.writeText(profile.hooohoId!)}>{profile.hooohoId} · 复制</button> : '正在生成'} />
+        <HohoSurfaceRow leading={<KeyRound size={19} />} onActivate={() => navigate('/account/password')} title={profile.hasPassword ? '修改密码' : '设置密码'} value={profile.hasPassword ? '已设置' : '未设置'} />
         <HohoSurfaceRow leading={<Phone size={19} />} onActivate={() => navigate('/account/phone')} title="手机号" value={maskPhone(profile.phone)} />
         <HohoSurfaceRow leading={<Mail size={19} />} onActivate={() => navigate('/account/email')} title="邮箱" value={maskEmail(profile.email)} />
         <HohoSurfaceRow leading={<ShieldAlert size={19} />} onActivate={() => navigate('/account/providers')} title="第三方账户" value={`${profile.providers.filter((item) => item.bound).length} 个已绑定`} />
@@ -171,6 +173,37 @@ export function AccountBindingPage({ kind }: { kind: 'phone' | 'email' }) {
 
 export function AccountPhonePage() { return <AccountBindingPage kind="phone" /> }
 export function AccountEmailPage() { return <AccountBindingPage kind="email" /> }
+
+export function AccountPasswordPage() {
+  const navigate = useNavigate()
+  const { token, profile } = useAccount()
+  const clear = useAppStore((state) => state.clearAuthSession)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const send = async () => {
+    if (!profile?.email) return setError('请先绑定邮箱后再设置密码')
+    setBusy(true); setError('')
+    try { await accountService.sendCode(token, 'email', profile.email); setSent(true) } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
+  }
+  const save = async () => {
+    if (password.length < 6 || password.length > 64) return setError('密码需为 6–64 个字符')
+    setBusy(true); setError('')
+    try {
+      await accountService.setPassword(token, { password, ...(profile?.hasPassword ? { currentPassword } : { code }) })
+      clear(); navigate('/login', { replace: true, state: { passwordChanged: true } })
+    } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
+  }
+  return <AccountLayout title={profile?.hasPassword ? '修改密码' : '设置密码'}>
+    {profile?.hasPassword ? <HohoInput label="当前密码" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /> : <><StatusNotice title={profile?.email ? `验证码将发送至 ${maskEmail(profile.email)}` : '请先绑定邮箱'} />{profile?.email && <div className="account-code-row"><HohoInput label="邮箱验证码" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} /><CodeButton countdown={0} disabled={busy || sent} onClick={() => void send()} /></div>}</>}
+    <HohoInput label="新密码" hint="6–64 个字符" type="password" autoComplete="new-password" maxLength={64} value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} />
+    {error && <StatusNotice title={error} tone="error" />}
+    <HohoButton fullWidth loading={busy} size="large" disabled={!password || Boolean(profile?.hasPassword && !currentPassword) || Boolean(!profile?.hasPassword && (!sent || code.length !== 6))} onClick={() => void save()}>保存密码并重新登录</HohoButton>
+  </AccountLayout>
+}
 
 function ProviderMark({ provider }: { provider: AccountProvider }) {
   if (provider === 'apple') return <span className="provider-mark apple"><Apple size={21} fill="currentColor" /></span>

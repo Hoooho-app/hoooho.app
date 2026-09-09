@@ -18,7 +18,7 @@ test('iPhone SE nurse bubbles are contextual, grouped, dismissible and safe', as
     sessionStorage.removeItem('nurse-station-test-state')
   })
   await page.goto('/login')
-  await page.getByRole('button', { name: '暂不登录，先体验' }).click()
+  await page.getByPlaceholder('给自己起个昵称').fill('护士站测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await expect(page).toHaveURL(/nurse-station/)
   await page.goto('/family/new')
   await page.getByRole('textbox', { name: '姓名' }).fill('123')

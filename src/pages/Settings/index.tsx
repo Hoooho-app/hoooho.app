@@ -9,7 +9,6 @@ import {
 } from '../../components/design-system'
 import { WebPageHeader } from '../../components/common'
 import { MainAppHeader } from '../../components/navigation'
-import { GuestRecovery } from '../../components/auth/GuestRecovery'
 import {
   permissionStatusLabels,
   mapBrowserPermissionState,
@@ -357,7 +356,7 @@ export function PrivacySettingsPage() {
 }
 
 export function AccountSettingsPage() {
-  const guest = useAppStore((state) => state.authUser?.guest)
+  const hooohoId = useAppStore((state) => state.authUser?.hooohoId)
   const navigate = useNavigate()
   const email = useAppStore((state) => state.authUser?.email)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
@@ -374,11 +373,11 @@ export function AccountSettingsPage() {
   return (
     <SettingsLayout title="账号与安全">
       <SettingsGroup title="登录账号">
+        <HohoSurfaceRow leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="Hoooho ID" value={hooohoId ? <button className="font-semibold text-primary" type="button" onClick={() => void navigator.clipboard.writeText(hooohoId)}>{hooohoId} · 复制</button> : '升级账户后生成'} />
         <HohoSurfaceRow leading={<LeadingIcon><Mail size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录邮箱" value={email ?? '当前账号未提供邮箱'} />
-        <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={email ? '邮箱验证码' : '当前登录方式'} />
+        <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={hooohoId ? 'Hoooho ID 与密码' : email ? '邮箱验证码' : '待升级'} />
       </SettingsGroup>
       <section className="settings-account-actions" aria-label="账号操作">
-        {guest && <GuestRecovery mode="issue" />}
         {logoutError && <p role="alert">{logoutError}</p>}
         <HohoButton fullWidth size="large" variant="secondary" onClick={logout}><LogOut aria-hidden="true" size={18} strokeWidth={1.7} />退出登录</HohoButton>
       </section>

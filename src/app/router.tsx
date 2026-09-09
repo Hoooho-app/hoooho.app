@@ -65,6 +65,7 @@ export const router = createBrowserRouter([
         element: <RequireRegisteredAccount />,
         children: [
           { path: '/account/security', lazy: lazyPage(() => import('../pages/Account'), 'AccountSecurityPage') },
+          { path: '/account/password', lazy: lazyPage(() => import('../pages/Account'), 'AccountPasswordPage') },
           { path: '/account/avatar', lazy: lazyPage(() => import('../pages/Account'), 'AccountAvatarPage') },
           { path: '/account/nickname', lazy: lazyPage(() => import('../pages/Account'), 'AccountNicknamePage') },
           { path: '/account/phone', lazy: lazyPage(() => import('../pages/Account'), 'AccountPhonePage') },

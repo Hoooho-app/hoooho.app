@@ -39,6 +39,7 @@ export function accountApiPlugin(options = {}) {
           if (pathname === '/api/account/bind/confirm' && request.method === 'POST') return send(response, 200, await service.bind(payload.sub, String(body.kind ?? ''), String(body.value ?? ''), String(body.code ?? ''), String(body.challengeToken ?? '')))
           if (pathname === '/api/account/bind/verify-current' && request.method === 'POST') return send(response, 200, await service.verifyCurrent(payload.sub, String(body.kind ?? ''), String(body.code ?? '')))
           if (pathname === '/api/account/provider' && request.method === 'POST') return send(response, 200, await service.providerAction(payload.sub, String(body.provider ?? ''), String(body.action ?? '')))
+          if (pathname === '/api/account/password' && request.method === 'POST') return send(response, 200, await service.setPassword(payload.sub, body))
           if (pathname === '/api/account/delete/send-code' && request.method === 'POST') {
             const current = await service.get(payload.sub)
             const value = body.kind === 'phone' ? current.phone : current.email
