@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test'
 
 async function register(page: Page, nickname = `测试家长${Date.now().toString().slice(-8)}`) {
   await page.goto('/login')
+  await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(nickname)
   await page.getByPlaceholder('设置一个密码').fill('simple-password')
   await page.getByRole('button', { name: '注册并进入' }).click()
@@ -19,7 +20,7 @@ async function reopenWithSavedCookies(browser: Browser, page: Page) {
   return { context, page: await context.newPage() }
 }
 
-test('default registration creates a durable formal account and nickname login restores it', async ({ browser }) => {
+test('registration creates a durable formal account and default nickname login restores it', async ({ browser }) => {
   const initialContext = await browser.newContext({ viewport: { width: 375, height: 667 } })
   let page = await initialContext.newPage()
   const nickname = await register(page)
@@ -29,7 +30,7 @@ test('default registration creates a durable formal account and nickname login r
   await page.evaluate(async () => { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) })
 
   await page.goto('/login')
-  await page.getByRole('tab', { name: '登录' }).click()
+  await expect(page.getByRole('tab', { name: '登录' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByPlaceholder('输入你的昵称')).toHaveValue(nickname)
   await page.getByPlaceholder('输入密码').fill('simple-password')
   await page.getByRole('button', { name: '登录', exact: true }).click()
@@ -49,7 +50,7 @@ test('registration layout fits iPhone SE and email verification remains secondar
   for (const viewport of [{ width: 375, height: 667 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport)
     await page.goto('/login')
-    await expect(page.getByRole('tab', { name: '注册' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: '登录' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByText('敏宝情况记录与就医准备', { exact: true })).toBeVisible()
     await expect(page.getByRole('tab')).toHaveText(['登录', '注册'])
     const sizes = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))
