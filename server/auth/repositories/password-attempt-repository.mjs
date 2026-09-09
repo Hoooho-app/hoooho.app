@@ -5,8 +5,8 @@ import { JsonStore } from '../storage/json-store.mjs'
 const keyHash = (value) => createHash('sha256').update(value).digest('hex')
 
 export class PasswordAttemptRepository {
-  constructor(dataDirectory) {
-    this.store = new JsonStore(path.join(dataDirectory, 'password-login-attempts.json'), { attempts: [] })
+  constructor(dataDirectory, filename = 'password-login-attempts.json') {
+    this.store = new JsonStore(path.join(dataDirectory, filename), { attempts: [] })
   }
 
   async assertAllowed(key, now = Date.now()) {

@@ -4,7 +4,6 @@ import { AuthError } from './auth-service.mjs'
 import path from 'node:path'
 import { JsonStore } from './storage/json-store.mjs'
 import { withAccountLock } from './account-lock.mjs'
-import { GuestDiagnostics } from './guest-diagnostics.mjs'
 import { hashRegistrationKey } from './repositories/user-repository.mjs'
 
 const cookieName = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_ID ? '__Host-hoooho_session' : 'hoooho_session'
@@ -15,7 +14,6 @@ export class BrowserSessionService {
     this.auth = auth
     this.sessions = new SessionRepository(auth.config.dataDirectory)
     this.sections = new JsonStore(path.join(auth.config.dataDirectory, 'health-profile-sections.json'), { sections: [] })
-    this.diagnostics = new GuestDiagnostics(auth.config.dataDirectory)
   }
   assertSameOrigin(request) {
     const origin = request.headers.origin
@@ -39,13 +37,12 @@ export class BrowserSessionService {
   async responseSession(request, response, current) {
     await this.sessions.renew(cookieToken(request))
     this.setCookie(request, response, cookieToken(request))
-    return { token: this.auth.tokens.create({ ...current.user, browserSession: true }), user: current.user }
+    return { token: this.auth.tokens.create({ ...current.user, browserSession: true }), user: this.publicUser(current.user) }
   }
   async restore(request, response, legacyToken = '') {
     this.assertSameOrigin(request)
     const current = await this.current(request)
     if (current) {
-      await this.diagnostics.record(request, { event: 'session_restore_result', cookieToken: cookieToken(request), ...current })
       return this.responseSession(request, response, current)
     }
     if (legacyToken) {
@@ -55,13 +52,25 @@ export class BrowserSessionService {
         if (user && !user.mergedInto) return this.issue(request, response, user)
       }
     }
-    await this.diagnostics.record(request, { event: 'session_restore_result', cookieToken: cookieToken(request) })
     return { unauthenticated: true }
   }
   async issue(request, response, user) {
     const { token } = await this.sessions.create(user.id)
     this.setCookie(request, response, token)
-    return { token: this.auth.tokens.create({ ...user, browserSession: true }), user }
+    return { token: this.auth.tokens.create({ ...user, browserSession: true }), user: this.publicUser(user) }
+  }
+  publicUser(user) {
+    return {
+      id: user.id,
+      ...(user.email ? { email: user.email } : {}),
+      ...(user.phone ? { phone: user.phone } : {}),
+      ...(user.guest ? { guest: true } : {}),
+      ...(user.nickname ? { nickname: user.nickname } : {}),
+      ...(user.currentMemberId ? { currentMemberId: user.currentMemberId } : {}),
+      hasPassword: Boolean(user.passwordHash),
+      requiresNicknameSetup: !user.guest && !user.nickname,
+      createdAt: user.createdAt
+    }
   }
   async register(request, response, input) {
     this.assertSameOrigin(request)
@@ -74,6 +83,8 @@ export class BrowserSessionService {
         if (current.user.registrationKeyHash === expected) return this.responseSession(request, draftResponse, current)
         throw new AuthError('当前账户已完成注册', 409, 'SESSION_EXISTS')
       }
+      const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()
+      await this.auth.assertRegistrationAllowed(clientKey)
       const session = await this.auth.register(input.nickname, input.password, String(input.idempotencyKey ?? ''), current?.user.guest ? current.user.id : null)
       if (current) await this.sessions.revokeAccount(current.user.id)
       return { ...await this.issue(request, draftResponse, session.user), upgradedGuest: Boolean(current?.user.guest) }

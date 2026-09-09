@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs'
 import { PasswordAttemptRepository } from './repositories/password-attempt-repository.mjs'
 import { hashRegistrationKey } from './repositories/user-repository.mjs'
 import { SessionRepository } from './session-repository.mjs'
+import { isValidNickname, normalizeNickname, nicknameKey } from './nickname.mjs'
 
 const dummyPasswordHash = bcrypt.hashSync('Hoooho-dummy-password', 12)
 
@@ -47,12 +48,13 @@ export class AuthService {
     this.logger = options.logger ?? console.info
     this.accountData = options.accountData ?? new AccountDataService(config)
     this.passwordAttempts = options.passwordAttempts ?? new PasswordAttemptRepository(config.dataDirectory)
+    this.registrationAttempts = options.registrationAttempts ?? new PasswordAttemptRepository(config.dataDirectory, 'registration-attempts.json')
     this.sessions = options.sessions ?? new SessionRepository(config.dataDirectory)
   }
 
   validateNickname(value) {
-    const nickname = String(value ?? '').trim()
-    if (!/^\S{1,20}$/u.test(nickname)) throw new AuthError('昵称为 1–20 个字符，且不能包含空格', 400, 'INVALID_NICKNAME')
+    const nickname = normalizeNickname(value)
+    if (!isValidNickname(nickname)) throw new AuthError('请输入 1–20 个中文、英文或数字', 400, 'INVALID_NICKNAME')
     return nickname
   }
 
@@ -62,12 +64,6 @@ export class AuthService {
     return password
   }
 
-  normalizeHooohoId(value) {
-    const hooohoId = String(value ?? '').trim().toUpperCase()
-    if (!/^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/.test(hooohoId)) throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
-    return hooohoId
-  }
-
   async register(nicknameValue, passwordValue, idempotencyKey, guestId = null, now = Date.now()) {
     const nickname = this.validateNickname(nicknameValue)
     const password = this.validatePassword(passwordValue)
@@ -75,26 +71,38 @@ export class AuthService {
       throw new AuthError('请重试注册', 400, 'INVALID_IDEMPOTENCY_KEY')
     }
     const passwordHash = await bcrypt.hash(password, 12)
-    const user = await this.users.register({ nickname, passwordHash, registrationKeyHash: hashRegistrationKey(idempotencyKey), guestId }, new Date(now))
+    let user
+    try { user = await this.users.register({ nickname, passwordHash, registrationKeyHash: hashRegistrationKey(idempotencyKey), guestId }, new Date(now)) }
+    catch (error) {
+      if (error?.code === 'NICKNAME_IN_USE') throw new AuthError(error.message, 409, error.code)
+      throw error
+    }
     return { token: this.tokens.create(user, now), user }
   }
 
-  async loginWithPassword(idValue, passwordValue, clientKey = '', now = Date.now()) {
-    const hooohoId = this.normalizeHooohoId(idValue)
+  async assertRegistrationAllowed(clientKey, now = Date.now()) {
+    const key = `register:${String(clientKey || 'unknown')}`
+    const retryAfter = await this.registrationAttempts.assertAllowed(key, now)
+    if (retryAfter) throw new AuthError('注册请求过于频繁，请稍后再试', 429, 'REGISTER_RATE_LIMITED', { retryAfter })
+    await this.registrationAttempts.fail(key, now)
+  }
+
+  async loginWithPassword(nicknameValue, passwordValue, clientKey = '', now = Date.now()) {
+    const nickname = normalizeNickname(nicknameValue)
     const password = String(passwordValue ?? '')
-    if (password.length < 6 || password.length > 64) throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
-    const attemptKey = `${hooohoId}:${clientKey}`
+    if (!isValidNickname(nickname) || password.length < 6 || password.length > 64) throw new AuthError('昵称或密码不正确', 401, 'INVALID_CREDENTIALS')
+    const attemptKey = `${nicknameKey(nickname)}:${clientKey}`
     const retryAfter = await this.passwordAttempts.assertAllowed(attemptKey, now)
-    if (retryAfter) throw new AuthError('Hoooho ID 或密码错误，请稍后再试', 429, 'PASSWORD_LOGIN_RATE_LIMITED', { retryAfter })
-    const user = await this.users.findByHooohoId(hooohoId)
+    if (retryAfter) throw new AuthError('昵称或密码不正确，请稍后再试', 429, 'PASSWORD_LOGIN_RATE_LIMITED', { retryAfter })
+    const user = await this.users.findByNickname(nickname)
     const valid = await bcrypt.compare(password, user?.passwordHash ?? dummyPasswordHash) && Boolean(user?.passwordHash)
     if (!valid) {
       const failed = await this.passwordAttempts.fail(attemptKey, now)
-      this.logger(`[Hoooho auth] password login rejected id=${hooohoId.slice(0, 3)}*** failures=${failed.failures}`)
-      throw new AuthError('Hoooho ID 或密码错误', 401, 'INVALID_CREDENTIALS')
+      this.logger(`[Hoooho auth] password login rejected nicknameHash=${createHash('sha256').update(nicknameKey(nickname)).digest('hex').slice(0, 10)} failures=${failed.failures}`)
+      throw new AuthError('昵称或密码不正确', 401, 'INVALID_CREDENTIALS')
     }
     await this.passwordAttempts.clear(attemptKey)
-    this.logger(`[Hoooho auth] password login accepted id=${hooohoId.slice(0, 3)}***`)
+    this.logger(`[Hoooho auth] password login accepted nicknameHash=${createHash('sha256').update(nicknameKey(nickname)).digest('hex').slice(0, 10)}`)
     return { token: this.tokens.create(user, now), user }
   }
 
@@ -111,7 +119,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, 12)
     const updated = await this.users.update(user.id, { passwordHash, passwordChangedAt: new Date(now).toISOString() }, new Date(now))
     await this.sessions.revokeAccount(user.id, now)
-    return { success: true, hooohoId: updated.hooohoId }
+    return { success: true }
   }
 
   validatePhone(phone) {
@@ -293,7 +301,7 @@ export class AuthService {
     if (!guestToken) return { ...session, guestMerge: { merged: false, idempotent: true } }
     const payload = this.tokens.verify(guestToken, now)
     if (!payload?.guest || !String(payload.sub).startsWith('guest:')) {
-      throw new AuthError('体验记录凭证无效，请保留本机记录后重试', 401, 'INVALID_GUEST_SESSION')
+      throw new AuthError('历史会话无效，请在原浏览器中重试', 401, 'INVALID_GUEST_SESSION')
     }
     const guestMerge = await this.accountData.mergeGuest(payload.sub, session.user.id, new Date(now))
     return { ...session, guestMerge }

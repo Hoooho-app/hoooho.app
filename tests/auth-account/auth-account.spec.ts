@@ -1,18 +1,28 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Page } from '@playwright/test'
 
-async function register(page: Page, nickname = '测试家长') {
+async function register(page: Page, nickname = `测试家长${Date.now().toString().slice(-8)}`) {
   await page.goto('/login')
   await page.getByPlaceholder('给自己起个昵称').fill(nickname)
   await page.getByPlaceholder('设置一个密码').fill('simple-password')
   await page.getByRole('button', { name: '注册并进入' }).click()
-  const id = (await page.getByText(/^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/).textContent())!
-  await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await expect(page).toHaveURL(/nurse-station/)
-  return id
+  return nickname
 }
 
-test('default registration creates a durable formal account and ID login restores it', async ({ page }) => {
-  const hooohoId = await register(page)
+async function reopenWithSavedCookies(browser: Browser, page: Page) {
+  const storageState = await page.context().storageState()
+  expect(storageState.cookies.some((cookie) => cookie.name === 'hoooho_session')).toBe(true)
+  await page.context().close()
+  const context = await browser.newContext({ storageState, viewport: { width: 375, height: 667 } })
+  const restored = await context.request.get('http://127.0.0.1:4196/api/auth/session')
+  expect(await restored.json()).not.toEqual({ unauthenticated: true })
+  return { context, page: await context.newPage() }
+}
+
+test('default registration creates a durable formal account and nickname login restores it', async ({ browser }) => {
+  const initialContext = await browser.newContext({ viewport: { width: 375, height: 667 } })
+  let page = await initialContext.newPage()
+  const nickname = await register(page)
   const accountId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
   await page.reload()
   expect((await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id))).toBe(accountId)
@@ -20,10 +30,19 @@ test('default registration creates a durable formal account and ID login restore
 
   await page.goto('/login')
   await page.getByRole('tab', { name: '登录' }).click()
-  await expect(page.getByPlaceholder('请输入 Hoooho ID')).toHaveValue(hooohoId)
-  await page.getByPlaceholder('请输入密码').fill('simple-password')
+  await expect(page.getByPlaceholder('输入你的昵称')).toHaveValue(nickname)
+  await page.getByPlaceholder('输入密码').fill('simple-password')
   await page.getByRole('button', { name: '登录', exact: true }).click()
   await expect(page).toHaveURL(/nurse-station/)
+  const localState = await page.evaluate(() => ({ nickname: localStorage.getItem('lastLoginNickname'), all: JSON.stringify(localStorage) }))
+  expect(localState.nickname).toBe(nickname)
+  expect(localState.all).not.toContain('simple-password')
+
+  const reopened = await reopenWithSavedCookies(browser, page)
+  page = reopened.page
+  await page.goto('/login')
+  await expect(page).toHaveURL(/nurse-station/)
+  await reopened.context.close()
 })
 
 test('registration layout fits iPhone SE and email verification remains secondary', async ({ page }) => {
@@ -35,6 +54,11 @@ test('registration layout fits iPhone SE and email verification remains secondar
     expect(sizes.scroll).toBeLessThanOrEqual(sizes.width)
     expect(sizes.height).toBeLessThanOrEqual(viewport.height)
   }
-  await page.getByRole('button', { name: '使用邮箱验证码' }).click()
+  for (const label of ['手机号登录，暂未开放', '微信登录，暂未开放', 'Apple 登录，暂未开放', 'Google 登录，暂未开放']) await expect(page.getByRole('button', { name: label })).toBeDisabled()
+  await expect(page.getByText('忘记密码')).toHaveCount(0)
+  await expect(page.getByText('暂不登录')).toHaveCount(0)
+  await page.getByRole('button', { name: '邮箱验证码登录' }).click()
+  await expect(page.getByText('返回账号登录')).toBeVisible()
   await expect(page.getByPlaceholder('请输入邮箱地址')).toBeVisible()
+  await expect(page.getByText('Hoooho ID')).toHaveCount(0)
 })

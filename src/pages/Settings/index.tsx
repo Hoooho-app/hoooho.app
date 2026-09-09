@@ -356,7 +356,8 @@ export function PrivacySettingsPage() {
 }
 
 export function AccountSettingsPage() {
-  const hooohoId = useAppStore((state) => state.authUser?.hooohoId)
+  const nickname = useAppStore((state) => state.authUser?.nickname)
+  const hasPassword = useAppStore((state) => state.authUser?.hasPassword)
   const navigate = useNavigate()
   const email = useAppStore((state) => state.authUser?.email)
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
@@ -373,9 +374,9 @@ export function AccountSettingsPage() {
   return (
     <SettingsLayout title="账号与安全">
       <SettingsGroup title="登录账号">
-        <HohoSurfaceRow leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="Hoooho ID" value={hooohoId ? <button className="font-semibold text-primary" type="button" onClick={() => void navigator.clipboard.writeText(hooohoId)}>{hooohoId} · 复制</button> : '升级账户后生成'} />
+        <HohoSurfaceRow leading={<LeadingIcon><UserRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="昵称" value={nickname ?? '尚未设置'} />
         <HohoSurfaceRow leading={<LeadingIcon><Mail size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录邮箱" value={email ?? '当前账号未提供邮箱'} />
-        <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={hooohoId ? 'Hoooho ID 与密码' : email ? '邮箱验证码' : '待升级'} />
+        <HohoSurfaceRow leading={<LeadingIcon><KeyRound size={18} strokeWidth={1.7} /></LeadingIcon>} title="登录方式" value={hasPassword ? '昵称与密码' : email ? '邮箱验证码' : '待设置'} />
       </SettingsGroup>
       <section className="settings-account-actions" aria-label="账号操作">
         {logoutError && <p role="alert">{logoutError}</p>}

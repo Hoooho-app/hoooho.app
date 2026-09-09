@@ -16,12 +16,12 @@ async function fixture() {
   return { directory, auth, browser, headers, response, request }
 }
 
-test('nickname and password registration creates a formal account with a non-confusing Hoooho ID and bcrypt hash', async () => {
+test('nickname and password registration creates a formal account without exposing the internal ID', async () => {
   const f = await fixture()
   try {
     const result = await f.browser.register(f.request, f.response, { nickname: '小雨', password: 'simple7', idempotencyKey: '11111111-1111-4111-8111-111111111111' })
     assert.equal(result.user.guest, undefined)
-    assert.match(result.user.hooohoId, /^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/)
+    assert.equal(result.user.hooohoId, undefined)
     assert.match(f.headers.get('Set-Cookie'), /HttpOnly; SameSite=Lax;.*Secure/)
     const stored = await readFile(path.join(f.directory, 'users.json'), 'utf8')
     assert.doesNotMatch(stored, /simple7/)
@@ -41,32 +41,65 @@ test('a valid historical guest session upgrades in place and keeps account-linke
     const result = await f.browser.register(f.request, f.response, { nickname: '妈妈', password: '123456', idempotencyKey: '22222222-2222-4222-8222-222222222222' })
     assert.equal(result.upgradedGuest, true)
     assert.equal(result.user.id, guest.id)
-    assert.equal(result.user.guest, false)
+    assert.equal(result.user.guest, undefined)
     assert.equal((await f.auth.members.findById(member.id)).accountId, guest.id)
     assert.notEqual(result.token, oldSession.token)
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 
-test('Hoooho ID login uses generic errors, rate limits repeated failures, and clears failures on success', async () => {
+test('normalized nicknames are unique and idempotent registration does not duplicate accounts', async () => {
   const f = await fixture()
   try {
-    const registered = await f.auth.register('用户', 'correct-password', '33333333-3333-4333-8333-333333333333', null, 1_000)
-    for (let i = 0; i < 5; i += 1) await assert.rejects(f.auth.loginWithPassword(registered.user.hooohoId, 'wrong-password', 'client', 2_000 + i), { code: 'INVALID_CREDENTIALS' })
-    await assert.rejects(f.auth.loginWithPassword(registered.user.hooohoId, 'correct-password', 'client', 2_006), { code: 'PASSWORD_LOGIN_RATE_LIMITED' })
-    const session = await f.auth.loginWithPassword(registered.user.hooohoId, 'correct-password', 'other-client', 2_007)
-    assert.equal(session.user.id, registered.user.id)
-    await assert.rejects(f.auth.loginWithPassword('H2345678', 'correct-password', 'other-client', 2_008), (error) => error.message === 'Hoooho ID 或密码错误')
+    const first = await f.auth.register('Ａlice', '123456', '66666666-6666-4666-8666-666666666666')
+    assert.equal(first.user.nickname, 'Alice')
+    const replay = await f.auth.register('ignored', 'abcdef', '66666666-6666-4666-8666-666666666666')
+    assert.equal(replay.user.id, first.user.id)
+    await assert.rejects(f.auth.register(' alice ', 'abcdef', '77777777-7777-4777-8777-777777777777'), { code: 'NICKNAME_IN_USE' })
+    assert.equal((await f.auth.users.findByNickname('ALICE')).id, first.user.id)
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 
-test('existing email accounts receive one stable Hoooho ID without duplication', async () => {
+test('nickname rejects whitespace, invisible characters and punctuation', async () => {
+  const f = await fixture()
+  try {
+    for (const nickname of [' ', '两 个', `隐\u200b形`, 'name!']) {
+      await assert.rejects(f.auth.register(nickname, '123456', crypto.randomUUID()), { code: 'INVALID_NICKNAME' })
+    }
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('nickname login normalizes Unicode and whitespace, uses generic errors, and rate limits failures', async () => {
+  const f = await fixture()
+  try {
+    const registered = await f.auth.register('用户', 'correct-password', '33333333-3333-4333-8333-333333333333', null, 1_000)
+    for (let i = 0; i < 5; i += 1) await assert.rejects(f.auth.loginWithPassword(' 用户 ', 'wrong-password', 'client', 2_000 + i), { code: 'INVALID_CREDENTIALS' })
+    await assert.rejects(f.auth.loginWithPassword('用户', 'correct-password', 'client', 2_006), { code: 'PASSWORD_LOGIN_RATE_LIMITED' })
+    const session = await f.auth.loginWithPassword('用户', 'correct-password', 'other-client', 2_007)
+    assert.equal(session.user.id, registered.user.id)
+    await assert.rejects(f.auth.loginWithPassword('不存在', 'correct-password', 'other-client', 2_008), (error) => error.message === '昵称或密码不正确')
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('registration is rate limited per client without exposing submitted credentials', async () => {
+  const f = await fixture()
+  try {
+    for (let i = 0; i < 5; i += 1) await f.auth.assertRegistrationAllowed('same-client', 3_000 + i)
+    await assert.rejects(f.auth.assertRegistrationAllowed('same-client', 3_006), { code: 'REGISTER_RATE_LIMITED' })
+    await f.auth.assertRegistrationAllowed('other-client', 3_007)
+    const stored = await readFile(path.join(f.directory, 'registration-attempts.json'), 'utf8')
+    assert.doesNotMatch(stored, /same-client|other-client/)
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('existing email accounts remain one account and require a nickname setup', async () => {
   const f = await fixture()
   try {
     const first = await f.auth.users.findOrCreateByEmail('same@example.com')
     const second = await f.auth.users.findOrCreateByEmail('same@example.com')
     assert.equal(first.id, second.id)
-    assert.equal(first.hooohoId, second.hooohoId)
-    assert.equal((await f.auth.users.findByHooohoId(first.hooohoId)).id, first.id)
+    assert.equal(first.id, second.id)
+    const session = await f.browser.issue(f.request, f.response, first)
+    assert.equal(session.user.requiresNicknameSetup, true)
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 
@@ -77,8 +110,8 @@ test('changing a password revokes old browser sessions and replaces the bcrypt h
     const browserSession = await f.auth.sessions.create(registered.user.id)
     await f.auth.setPassword(registered.user.id, { currentPassword: 'old-password', password: 'new-password' })
     assert.equal(await f.auth.sessions.find(browserSession.token), null)
-    await assert.rejects(f.auth.loginWithPassword(registered.user.hooohoId, 'old-password', 'old-client'), { code: 'INVALID_CREDENTIALS' })
-    assert.equal((await f.auth.loginWithPassword(registered.user.hooohoId, 'new-password', 'new-client')).user.id, registered.user.id)
+    await assert.rejects(f.auth.loginWithPassword('用户', 'old-password', 'old-client'), { code: 'INVALID_CREDENTIALS' })
+    assert.equal((await f.auth.loginWithPassword('用户', 'new-password', 'new-client')).user.id, registered.user.id)
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 

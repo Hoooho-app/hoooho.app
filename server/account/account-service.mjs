@@ -5,8 +5,9 @@ import { UserRepository } from '../auth/repositories/user-repository.mjs'
 import { AccountDataService } from './account-data-service.mjs'
 import { AVATAR_PHOTO_MAX_DATA_URL_LENGTH } from '../../shared/avatar-photo-policy.mjs'
 import { TokenService } from '../auth/token-service.mjs'
+import { accountTransaction } from '../auth/storage/transaction.mjs'
+import { isValidNickname, normalizeNickname } from '../auth/nickname.mjs'
 
-const nicknamePattern = /^\S{1,20}$/u
 const providerLabels = { wechat: '微信', qq: 'QQ', apple: 'Apple' }
 
 export class AccountService {
@@ -29,7 +30,6 @@ export class AccountService {
     return {
       id: user.id,
       nickname: profile?.nickname ?? user.nickname ?? (user.email?.split('@')[0] || 'Hoooho 用户'),
-      hooohoId: user.hooohoId ?? '',
       hasPassword: Boolean(user.passwordHash),
       avatar: profile?.avatar ?? null,
       phone: user.phone ?? null,
@@ -46,8 +46,8 @@ export class AccountService {
     const current = await this.get(accountId)
     const changes = {}
     if (Object.hasOwn(input, 'nickname')) {
-      const nickname = String(input.nickname ?? '').trim()
-      if (!nicknamePattern.test(nickname)) throw new AuthError('昵称为 1–20 个字符，且不能包含空格', 400, 'INVALID_NICKNAME')
+      const nickname = normalizeNickname(input.nickname)
+      if (!isValidNickname(nickname)) throw new AuthError('请输入 1–20 个中文、英文或数字', 400, 'INVALID_NICKNAME')
       changes.nickname = nickname
     }
     if (Object.hasOwn(input, 'avatar')) {
@@ -57,10 +57,19 @@ export class AccountService {
       }
       changes.avatar = avatar
     }
-    await this.profiles.update((data) => {
-      const existing = data.profiles.find((item) => item.accountId === accountId)
-      const next = { accountId, nickname: existing?.nickname ?? current.nickname, avatar: existing?.avatar ?? null, providers: existing?.providers ?? [], ...changes, updatedAt: now.toISOString() }
-      return { ...data, profiles: existing ? data.profiles.map((item) => item.accountId === accountId ? next : item) : [...data.profiles, next] }
+    await accountTransaction(this.auth.config.dataDirectory, async () => {
+      if (changes.nickname) {
+        try { await this.users.setNickname(accountId, changes.nickname, now) }
+        catch (error) {
+          if (error?.code === 'NICKNAME_IN_USE') throw new AuthError(error.message, 409, error.code)
+          throw error
+        }
+      }
+      await this.profiles.update((data) => {
+        const existing = data.profiles.find((item) => item.accountId === accountId)
+        const next = { accountId, nickname: existing?.nickname ?? current.nickname, avatar: existing?.avatar ?? null, providers: existing?.providers ?? [], ...changes, updatedAt: now.toISOString() }
+        return { ...data, profiles: existing ? data.profiles.map((item) => item.accountId === accountId ? next : item) : [...data.profiles, next] }
+      })
     })
     return this.get(accountId)
   }

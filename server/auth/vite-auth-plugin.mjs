@@ -66,16 +66,6 @@ export function authApiPlugin(options = {}) {
             const input = request.method === 'GET' ? undefined : await readJson(request, 20_000_000)
             return sendJson(response, 200, await sessions.profileSections(request, input))
           }
-          if (pathname === '/api/auth/diagnostics/version' && request.method === 'GET') {
-            return sendJson(response, 200, { buildCommit: 'local', buildTimestamp: 'runtime', authProtocolVersion: 'account-id-v1', dataDirectory: 'local' })
-          }
-          const diagnosticMatch = /^\/api\/auth\/diagnostics\/([A-Za-z0-9_-]{16,64})$/.exec(pathname)
-          if (diagnosticMatch && request.method === 'GET') return sendJson(response, 200, { events: await sessions.diagnostics.list(diagnosticMatch[1]) ?? [] })
-          if (pathname === '/api/auth/diagnostics' && request.method === 'POST') {
-            const item = await sessions.diagnostics.record(request, await readJson(request))
-            if (!item) throw new AuthError('诊断编号无效', 400, 'INVALID_DIAGNOSTIC_ID')
-            return sendJson(response, 200, { success: true })
-          }
           if (pathname === '/api/auth/session' && request.method === 'GET') {
             const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1] ?? ''
             return sendJson(response, 200, await sessions.restore(request, response, token))
@@ -84,9 +74,9 @@ export function authApiPlugin(options = {}) {
           const body = await readJson(request)
           if (pathname === '/api/auth/current-member') return sendJson(response, 200, await sessions.selectMember(request, body))
           if (pathname === '/api/auth/register') return sendJson(response, 200, await sessions.register(request, response, body))
-          if (pathname === '/api/auth/id/login') {
+          if (pathname === '/api/auth/nickname/login') {
             const clientKey = String(request.socket?.remoteAddress ?? '')
-            const session = await auth.loginWithPassword(String(body.hooohoId ?? ''), String(body.password ?? ''), clientKey)
+            const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
             return sendJson(response, 200, await sessions.completePasswordLogin(request, response, session))
           }
           if (pathname === '/api/auth/logout') return sendJson(response, 200, await sessions.logout(request, response))

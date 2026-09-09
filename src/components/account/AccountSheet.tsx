@@ -60,7 +60,6 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
             <span className="min-w-0">
               <strong className="block truncate text-base font-semibold">{profile?.nickname ?? 'Hoooho 用户'} <span className="account-sync-badge">已同步</span></strong>
               <span className="mt-1 block truncate text-sm text-text-secondary">{profile?.email ? maskEmail(profile.email) : maskPhone(profile?.phone ?? null)}</span>
-              <span className="mt-1 block truncate text-xs font-semibold text-primary">{user?.hooohoId}</span>
             </span>
           </div>
           <div className="settings-list">
