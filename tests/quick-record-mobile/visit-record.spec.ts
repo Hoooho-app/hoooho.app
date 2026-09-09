@@ -1,59 +1,32 @@
 import { expect, test, type Page } from '@playwright/test'
+import { TokenService } from '../../server/auth/token-service.mjs'
+
+const accountId = 'quick-record-e2e-account'
+const memberId = 'quick-record-e2e-member'
+const token = new TokenService('quick-record-mobile-e2e-secret', 60 * 60_000).create({ id: accountId })
 
 async function prepare(page: Page) {
-  await page.goto('/health-events')
-  await page.getByPlaceholder('给自己起个昵称').fill('就诊测试'); await page.getByPlaceholder('设置一个密码').fill('12345678'); await page.getByRole('button', { name: '注册并进入' }).click(); await page.getByRole('button', { name: '进入 Hoooho' }).click()
-  await page.getByRole('button', { name: '添加第一个孩子' }).click()
-  await page.getByLabel('姓名').fill('就医测试宝宝')
-  await page.getByLabel('出生日期').fill('2024-01-01')
-  await page.getByRole('button', { name: '男' }).click()
-  await page.getByLabel('你是孩子的谁？').selectOption({ label: '爸爸' })
-  await page.getByRole('button', { name: '添加家庭成员' }).click()
-  await page.getByRole('button', { name: '跳过' }).click()
+  await page.route('**/api/members', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    const members = await response.json()
+    await route.fulfill({ response, json: members.map((member: Record<string, unknown>) => ({ ...member, relationship: 'child' })) })
+  })
+  await page.addInitScript(({ authToken, account, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', authToken)
+    localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: account }, opsAuthUser: null, currentMemberId: member, members: [], profile: null }, version: 5 }))
+  }, { authToken: token, account: accountId, member: memberId })
   await page.goto('/health-events')
 }
 
-test('iPhone SE 就医入口、动态字段、折叠资料、草稿和真实保存', async ({ page }) => {
+test('iPhone SE 就医入口不可用且不再进入记录表单', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '手动记录' }).click()
   const entry = page.getByRole('dialog', { name: '记录新情况' })
-  await entry.getByRole('button', { name: '就医' }).click()
-  await expect(entry.getByRole('button', { name: '就医' })).toHaveAttribute('aria-pressed', 'true')
-  await entry.getByRole('button', { name: '开始记录' }).click()
-  const form = page.getByRole('dialog', { name: '记录就医' })
-  await expect(form).toBeVisible()
-  await page.screenshot({ path: 'test-results/visit-record-iphone-se.png', fullPage: true })
-  await expect(form.getByText('就医结果与资料（选填）')).toBeVisible()
-  await expect(form.getByText('医生怎么说？（选填）')).toBeHidden()
-  await form.getByRole('button', { name: '住院' }).click()
-  await expect(form.getByLabel('入院时间')).toBeVisible()
-  await form.getByRole('button', { name: '线上问诊' }).click()
-  await expect(form.getByLabel('平台或机构')).toBeVisible()
-  await expect(form.getByLabel('入院时间')).toBeHidden()
-  await form.getByRole('button', { name: '门诊', exact: true }).click()
-  await form.getByRole('button', { name: '简单写一句' }).click()
-  await form.getByLabel('就医原因').fill('发热并伴有咳嗽')
-  await form.getByLabel('医院或诊所').fill('北京儿童医院')
-  await form.getByRole('button', { name: '儿科' }).click()
-  await form.getByRole('button', { name: /就医结果与资料/ }).click()
-  await form.getByLabel('医生怎么说？（选填）').fill('上呼吸道感染，继续观察')
-  await form.getByRole('button', { name: '抽血' }).click()
-  await form.getByRole('button', { name: '居家观察' }).click()
-  await page.screenshot({ path: 'test-results/visit-record-iphone-se-expanded.png', fullPage: true })
-  expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, nested: [...document.querySelectorAll('.visit-record-scroll *:not(textarea)')].filter((node) => { const style = getComputedStyle(node); return /(auto|scroll)/.test(style.overflowY) }).length }))).toEqual({ width: 375, nested: 0 })
-  await form.getByRole('button', { name: '保存记录' }).click()
-  await expect(page.getByText('已记录').first()).toBeVisible()
-  await expect(page.getByText(/门诊 · 北京儿童医院 · 儿科/)).toBeVisible()
-})
-
-test('390px 和 430px 就医表单无横向或嵌套滚动', async ({ page }) => {
-  await prepare(page)
-  await page.getByRole('button', { name: '手动记录' }).click()
-  const entry = page.getByRole('dialog', { name: '记录新情况' })
-  await entry.getByRole('button', { name: '就医' }).click()
-  await entry.getByRole('button', { name: '开始记录' }).click()
-  for (const width of [390, 430]) {
-    await page.setViewportSize({ width, height: 760 })
-    expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, nested: [...document.querySelectorAll('.visit-record-scroll *:not(textarea)')].filter((node) => { const style = getComputedStyle(node); return /(auto|scroll)/.test(style.overflowY) }).length }))).toEqual({ width, nested: 0 })
-  }
+  const button = entry.getByRole('button', { name: '就医', exact: true })
+  await expect(button).toHaveAttribute('aria-disabled', 'true')
+  await button.click({ force: true })
+  await expect(entry.getByRole('status')).toHaveText('即将开放功能')
+  await expect(page.getByRole('dialog', { name: '记录就医' })).toBeHidden()
+  await expect(entry.getByRole('button', { name: '开始记录' })).toBeDisabled()
 })
