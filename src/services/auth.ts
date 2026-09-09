@@ -1,5 +1,4 @@
 import type { AuthSession } from '../types'
-import { readGuestDiagnostic } from './guestDiagnostics'
 
 interface SendCodeResponse {
   success: true
@@ -62,7 +61,6 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'X-Hoooho-Request-ID': requestId,
-        ...(readGuestDiagnostic() ? { 'X-Hoooho-Diagnostic-ID': readGuestDiagnostic() } : {}),
         ...(legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {})
       },
       ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
@@ -106,7 +104,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 
 export const authService = {
   register: (nickname: string, password: string, idempotencyKey: string) => postAuthRequest<AuthSession & { upgradedGuest?: boolean }>('/api/auth/register', { nickname, password, idempotencyKey }),
-  loginWithPassword: (hooohoId: string, password: string) => postAuthRequest<AuthSession>('/api/auth/id/login', { hooohoId, password }),
+  loginWithPassword: (nickname: string, password: string) => postAuthRequest<AuthSession>('/api/auth/nickname/login', { nickname, password }),
   restore: (legacyToken = '') => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken),
   logout: () => postAuthRequest<{ success: true }>('/api/auth/logout', {}),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),

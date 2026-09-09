@@ -9,6 +9,7 @@ import { ApiRequestError } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
 import type { AccountProfile, AccountProvider } from '../../types'
 import { AvatarPhotoError, createAvatarPhotoPreview, prepareAvatarPhoto } from '../../utils/prepareAvatarPhoto'
+import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
 
 function message(error: unknown) {
   return error instanceof ApiRequestError ? error.message : '操作失败，请稍后重试'
@@ -47,7 +48,6 @@ export function AccountSecurityPage() {
         <HohoSurfaceRow onActivate={() => navigate('/account/nickname')} title="昵称" value={profile.nickname} />
       </Group>
       <Group title="登录与绑定">
-        <HohoSurfaceRow title="Hoooho ID" value={profile.hooohoId ? <button className="font-semibold text-primary" type="button" onClick={() => void navigator.clipboard.writeText(profile.hooohoId!)}>{profile.hooohoId} · 复制</button> : '正在生成'} />
         <HohoSurfaceRow leading={<KeyRound size={19} />} onActivate={() => navigate('/account/password')} title={profile.hasPassword ? '修改密码' : '设置密码'} value={profile.hasPassword ? '已设置' : '未设置'} />
         <HohoSurfaceRow leading={<Phone size={19} />} onActivate={() => navigate('/account/phone')} title="手机号" value={maskPhone(profile.phone)} />
         <HohoSurfaceRow leading={<Mail size={19} />} onActivate={() => navigate('/account/email')} title="邮箱" value={maskEmail(profile.email)} />
@@ -68,12 +68,12 @@ export function AccountNicknamePage() {
   useEffect(() => { if (profile && !initialized.current) { initialized.current = true; setValue(profile.nickname) } }, [profile])
   const save = async () => {
     const nickname = value.trim()
-    if (!nickname || /\s/u.test(nickname) || nickname.length > 20) return setError('昵称为 1–20 个字符，且不能包含空格')
+    if (!nickname || !/^[\p{L}\p{N}]{1,20}$/u.test(nickname.normalize('NFKC'))) return setError('请输入 1–20 个中文、英文或数字')
     setSaving(true); setError('')
-    try { setProfile(await accountService.update(token, { nickname })); navigate('/account/security', { replace: true }) } catch (e) { setError(message(e)) } finally { setSaving(false) }
+    try { setProfile(await accountService.update(token, { nickname })); try { localStorage.setItem('lastLoginNickname', nickname.normalize('NFKC').trim()) } catch { /* Optional convenience only. */ }; await restoreBrowserSession({ transition: false }); navigate('/account/security', { replace: true }) } catch (e) { setError(message(e)) } finally { setSaving(false) }
   }
   return <AccountLayout title="修改昵称" action={<button className="account-header-action" disabled={saving} onClick={() => void save()} type="button">保存</button>}>
-    <HohoInput autoFocus error={error} hint={!error ? '最多 20 个字符，仅用于 Hoooho 内展示。' : undefined} label="昵称" maxLength={20} value={value} onChange={(e) => { setValue(e.target.value); setError('') }} />
+    <HohoInput autoFocus error={error} hint={!error ? '昵称也是你的登录名。' : undefined} label="昵称" maxLength={20} value={value} onChange={(e) => { setValue(e.target.value); setError('') }} />
   </AccountLayout>
 }
 

@@ -269,27 +269,6 @@ function logEmailAuthRequest(context, status, errorCategory = 'OK') {
 
 async function handleAuth(request, response, pathname) {
   if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/')) return false
-  if (pathname === '/api/auth/diagnostics/version' && request.method === 'GET') {
-    sendJson(response, 200, {
-      buildCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.BUILD_COMMIT || 'local',
-      buildTimestamp: process.env.BUILD_TIMESTAMP || process.env.RAILWAY_DEPLOYMENT_ID || 'runtime',
-      authProtocolVersion: 'account-id-v1',
-      dataDirectory: authConfig.dataDirectory === '/data' || authConfig.dataDirectory.startsWith('/data/') ? 'persistent-volume' : 'local'
-    })
-    return true
-  }
-  const diagnosticMatch = /^\/api\/auth\/diagnostics\/([A-Za-z0-9_-]{16,64})$/.exec(pathname)
-  if (diagnosticMatch && request.method === 'GET') {
-    sendJson(response, 200, { events: await browserSessions.diagnostics.list(diagnosticMatch[1]) ?? [] })
-    return true
-  }
-  if (pathname === '/api/auth/diagnostics' && request.method === 'POST') {
-    const body = await readJson(request)
-    const item = await browserSessions.diagnostics.record(request, body)
-    if (!item) throw new AuthError('诊断编号无效', 400, 'INVALID_DIAGNOSTIC_ID')
-    sendJson(response, 200, { success: true })
-    return true
-  }
   if (pathname === '/api/auth/current-member' && request.method === 'POST') {
     sendJson(response, 200, await browserSessions.selectMember(request, await readJson(request)))
     return true
@@ -320,9 +299,9 @@ async function handleAuth(request, response, pathname) {
       sendJson(response, 200, await browserSessions.register(request, response, body))
       return true
     }
-    if (pathname === '/api/auth/id/login') {
+    if (pathname === '/api/auth/nickname/login') {
       const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()
-      const session = await auth.loginWithPassword(String(body.hooohoId ?? ''), String(body.password ?? ''), clientKey)
+      const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
       sendJson(response, 200, await browserSessions.completePasswordLogin(request, response, session))
       return true
     }

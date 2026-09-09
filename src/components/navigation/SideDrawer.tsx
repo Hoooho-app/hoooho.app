@@ -139,7 +139,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
             : <Avatar name={accountProfile?.nickname ?? '用户'} src={accountProfile?.avatar ?? undefined} size="sm" />}
           <span className="min-w-0 flex-1">
             <strong className="block truncate text-sm font-semibold">{authUser?.guest ? '创建正式账户' : accountProfile?.nickname ?? authUser?.nickname ?? 'Hoooho 用户'}</strong>
-            <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : authUser?.hooohoId ?? '已同步'}</span>
+            <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : '已同步'}</span>
           </span>
           {!authUser?.guest && <MembershipBadge />}
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
