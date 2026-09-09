@@ -1,5 +1,6 @@
 import { Apple, Baby, CookingPot, Pill, Utensils } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useLocation } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton, Typography } from '../../components/design-system'
 import type { DietRecordKind, JournalMetadata } from '../../types/journal'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
@@ -15,12 +16,15 @@ import { MedicationRecordFlow } from './MedicationRecordFlow'
 import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 import { VisitRecordFlow } from './VisitRecordFlow'
 
-export function JournalRecorder({ mode, memberId, token, onClose, onConfirm, onSaved }: {
+export function JournalRecorder({ mode, memberId, token, initialCategory, onClose, onConfirm, onSaved }: {
   mode: 'manual' | 'voice'; memberId: string; token: string; onClose: () => void
+  initialCategory?: 'medication'
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
 }) {
-  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'>(mode === 'voice' ? 'generic' : 'categories')
+  const location = useLocation()
+  const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
+  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'>(initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : mode === 'voice' ? 'generic' : 'categories')
   const [selected, setSelected] = useState<JournalCategory[]>([])
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(null)
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())

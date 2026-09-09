@@ -36,10 +36,25 @@ export function HealthEventsPage() {
   const token = useAppStore((state) => state.authToken); const currentMemberId = useAppStore((state) => state.currentMemberId); const cachedMembers = useAppStore((state) => state.members)
   const { state, retry } = useHealthEventsList()
   const [today, setToday] = useState(() => getLocalDateKey(new Date())!); const [day, setDay] = useState(today); const [filterOpen, setFilterOpen] = useState(false); const [filters, setFilters] = useState<HealthEventFilters>(emptyHealthEventFilters); const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null); const [selectedRecord, setSelectedRecord] = useState<{ eventId: string; recordId: string } | null>(null); const [nextActionOpen, setNextActionOpen] = useState(false); const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null); const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: currentMemberId, eventId: null }); const [revision, setRevision] = useState(0); const [savedNotice, setSavedNotice] = useState(''); const submissionKeyRef = useRef('')
+  const [recorderInitialCategory, setRecorderInitialCategory] = useState<'medication' | undefined>()
   const tutorial = Boolean((location.state as { nurseTutorial?: boolean } | null)?.nurseTutorial)
   const loadedMembers = state.status === 'success' ? state.data.members : []; const currentMember = loadedMembers.find((member) => member.id === currentMemberId) ?? cachedMembers.find((member) => member.id === currentMemberId) ?? loadedMembers[0] ?? cachedMembers[0] ?? null
   const nextActionEventId = getNurseNextActionEventId(state.status === 'success' ? state.data.events : [], currentMemberId) ?? (journalContext.memberId === currentMemberId ? journalContext.eventId : null)
   useEffect(() => { setNextActionOpen(false); setSelectedRecord(null) }, [currentMemberId])
+  useEffect(() => {
+    if (!(location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry) return
+    submissionKeyRef.current = ''
+    setRecorderMode('manual')
+    const clearEntryState = window.setTimeout(() => navigate(`${location.pathname}${location.search}`, { replace: true, state: null }), 0)
+    return () => window.clearTimeout(clearEntryState)
+  }, [location.pathname, location.search, location.state, navigate])
+  useEffect(() => {
+    if (!(location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry) return
+    submissionKeyRef.current = ''
+    setRecorderInitialCategory('medication')
+    setRecorderMode('manual')
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+  }, [location.pathname, location.search, location.state, navigate])
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const eventId = params.get('eventId')

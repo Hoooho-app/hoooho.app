@@ -1,5 +1,5 @@
-import { Archive, Bell, BookOpen, ChevronRight, ClipboardCheck, FileHeart, FileText, FolderOpen, HeartHandshake, Pause, Play, ShieldCheck, Thermometer, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Archive, Bell, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, Waypoints, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { BottomSheetSurface, HohoButton, MedicalPrepButton } from '../../components/design-system'
@@ -10,18 +10,15 @@ import { readNurseStationState, reconcileNurseStationItems, writeNurseStationSta
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import { NurseNextAction, formatUpdatedAt } from '../HealthEvents/NurseNextAction'
+import { NurseNextAction } from '../HealthEvents/NurseNextAction'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import '../HealthEvents/TimeView.css'
-import { MoreNurseBubbles, NurseBubble } from './NurseBubble'
-import type { NurseBubbleModel, NurseBubbleType } from './nurseBubbles'
-import { bubbleItemKey, buildNurseBubbles, isSafetyBubble, visibleNurseBubbles } from './nurseBubbles'
 import { getArchivedTasks, sortActiveTasks, taskNextStep, taskStatus, taskTitle } from './nurseStationView'
 import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
-type ServiceSheet = NurseBubbleType | 'archive' | 'all' | null
+type ServiceSheet = 'reminders' | 'archive' | null
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -36,7 +33,6 @@ export function NurseStationPage() {
   const [station, setStation] = useState<NurseStationState>(() => readNurseStationState(identityId, currentMemberId))
   const [selected, setSelected] = useState<NurseStationItem | null>(null)
   const [serviceSheet, setServiceSheet] = useState<ServiceSheet>(null)
-  const [animatingBubbleKey, setAnimatingBubbleKey] = useState('')
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [completionOpen, setCompletionOpen] = useState(false)
   const [completionResult, setCompletionResult] = useState('已恢复')
@@ -57,7 +53,6 @@ export function NurseStationPage() {
   const member = members.find((item) => item.id === currentMemberId) ?? members[0] ?? null
   const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === member?.id) : []
   const nextActionEventId = getNurseNextActionEventId(events, currentMemberId)
-  const recentPreparationEvent = events.filter((event) => event.medicalPreparation).sort((left, right) => (right.medicalPreparation?.updatedAt ?? '').localeCompare(left.medicalPreparation?.updatedAt ?? ''))[0] ?? null
 
   useEffect(() => {
     if (!member || listState.status !== 'success') return
@@ -68,33 +63,10 @@ export function NurseStationPage() {
   const active = sortActiveTasks(station.items)
   const archived = getArchivedTasks(station.items)
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
-  const bubbles = useMemo(() => buildNurseBubbles({ handledKeys: station.handledBubbleKeys, items: station.items, medicalPrepEventId: nextActionEventId, tutorialAvailable: station.items.length > 0 && !station.tutorialSeen }), [nextActionEventId, station.handledBubbleKeys, station.items, station.tutorialSeen])
-  const bubbleLayout = useMemo(() => visibleNurseBubbles(bubbles), [bubbles])
-
-  useEffect(() => {
-    if (!member || reducedMotion) return
-    const next = bubbleLayout.visible.find((bubble) => !station.animatedBubbleKeys.includes(bubble.key))
-    if (!next) return
-    setAnimatingBubbleKey(next.key)
-    const timeout = window.setTimeout(() => {
-      setAnimatingBubbleKey('')
-      setStation((previous) => ({ ...previous, animatedBubbleKeys: [...new Set([...previous.animatedBubbleKeys, next.key])] }))
-    }, 900)
-    return () => window.clearTimeout(timeout)
-  }, [bubbleLayout.visible, member, reducedMotion, station.animatedBubbleKeys])
 
   const updateItem = (id: string, changes: Partial<NurseStationItem>) => setStation((previous) => ({ ...previous, items: previous.items.map((item) => item.id === id ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item) }))
   const closeTaskSheet = () => { setSelected(null); setCompletionOpen(false) }
-  const handleBubbleKeys = (keys: string[]) => setStation((previous) => ({ ...previous, handledBubbleKeys: [...new Set([...previous.handledBubbleKeys, ...keys])] }))
-  const startObservation = (item: NurseStationItem) => { updateItem(item.id, { status: 'active', confirmedAt: new Date().toISOString() }); handleBubbleKeys([bubbleItemKey(item)]); setServiceSheet(null) }
   const finishObservation = () => { if (selected) { updateItem(selected.id, { status: 'completed', completedAt: new Date().toISOString(), completionResult }); closeTaskSheet() } }
-  const closeServiceSheet = () => {
-    if (serviceSheet && serviceSheet !== 'archive') {
-      const viewed = serviceSheet === 'all' ? bubbles.filter((bubble) => !isSafetyBubble(bubble)) : bubbles.filter((bubble) => bubble.type === serviceSheet && !isSafetyBubble(bubble))
-      handleBubbleKeys(viewed.flatMap((bubble) => bubble.itemKeys))
-    }
-    setServiceSheet(null)
-  }
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
@@ -125,27 +97,35 @@ export function NurseStationPage() {
     <MainAppHeader title="前台护士站" />
     <div className="nurse-station-scroll">
       {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} /></div>}
-      <section aria-label="护士站消息" className="nurse-bubble-stage" data-has-bubbles={bubbleLayout.visible.length > 0}><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div>{bubbleLayout.visible.length > 0 && <div className="nurse-bubble-stack">{bubbleLayout.visible.map((bubble) => <NurseBubble animate={animatingBubbleKey === bubble.key} bubble={bubble} key={bubble.key} onDismiss={() => isSafetyBubble(bubble) ? setServiceSheet(bubble.type) : handleBubbleKeys(bubble.itemKeys)} onOpen={() => setServiceSheet(bubble.type)} />)}{bubbleLayout.hiddenCount > 0 && <MoreNurseBubbles count={bubbleLayout.hiddenCount} onClick={() => setServiceSheet('all')} />}</div>}</section>
-      {recentPreparationEvent?.medicalPreparation && <section className="recent-medical-preparation"><header><h2>最近的就医准备</h2><span>{formatUpdatedAt(recentPreparationEvent.medicalPreparation.updatedAt)}</span></header><article><FileHeart /><div><strong>{member?.name}的病情摘要</strong><small>{recentPreparationEvent.displayTitle}</small></div><button onClick={() => navigate(`/medical-preparation/${recentPreparationEvent.medicalPreparation?.shareToken}`)} type="button">打开病情摘要</button></article></section>}
+      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div><NurseServices onReminderOpen={() => setServiceSheet('reminders')} /></section>
       <section className="guardian-tasks"><header><div><h2>守护任务</h2><p>共 {active.length} 项守护任务</p></div><button onClick={() => setServiceSheet('archive')} type="button">已归档任务{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
     </div>
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
-    <BubbleBottomSheet archived={archived} bubbles={bubbles} onClose={closeServiceSheet} onDismissItem={(item) => { updateItem(item.id, { status: 'dismissed' }); handleBubbleKeys([bubbleItemKey(item)]) }} onHandle={(keys) => { handleBubbleKeys(keys); setServiceSheet(null) }} onLater={(bubble) => { bubble.items.forEach((item) => updateItem(item.id, { reminder: { at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), paused: false } })); handleBubbleKeys(bubble.itemKeys); setServiceSheet(null) }} onStart={startObservation} onSummary={() => { setServiceSheet(null); setNextActionOpen(true) }} onTutorialDone={() => { setStation((value) => ({ ...value, tutorialSeen: true, handledBubbleKeys: [...new Set([...value.handledBubbleKeys, 'tutorial:first-record'])] })); setServiceSheet(null) }} open={serviceSheet} />
+    <ServiceBottomSheet archived={archived} onClose={() => setServiceSheet(null)} onMedication={() => navigate('/health-events', { state: { nurseMedicationEntry: true } })} open={serviceSheet} />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
   </main>
 }
 
 function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void }) { return <button className="guardian-task-card" data-status={item.status} onClick={onOpen} type="button"><span className="guardian-task-icon"><Thermometer /></span><span className="guardian-task-copy"><span><strong>{taskTitle(item)}</strong><em>{taskStatus(item)}</em></span><small>{taskNextStep(item)}</small></span><ChevronRight /></button> }
 
-function BubbleBottomSheet({ archived, bubbles, onClose, onDismissItem, onHandle, onLater, onStart, onSummary, onTutorialDone, open }: { archived: NurseStationItem[]; bubbles: NurseBubbleModel[]; onClose: () => void; onDismissItem: (item: NurseStationItem) => void; onHandle: (keys: string[]) => void; onLater: (bubble: NurseBubbleModel) => void; onStart: (item: NurseStationItem) => void; onSummary: () => void; onTutorialDone: () => void; open: ServiceSheet }) {
-  const [confirmSafetyIgnore, setConfirmSafetyIgnore] = useState(false)
+function NurseServices({ onReminderOpen }: { onReminderOpen: () => void }) {
+  const services = [
+    { label: '提醒执行', icon: Bell, enabled: true },
+    { label: '守护观察', icon: ShieldCheck, enabled: false },
+    { label: '排敏测试', icon: TestTube, enabled: false },
+    { label: '医嘱跟进', icon: ClipboardCheck, enabled: false },
+    { label: '冲突提醒', icon: Waypoints, enabled: false }
+  ] as const
+  return <div className="nurse-service-list">{services.map(({ label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={label} onClick={enabled ? onReminderOpen : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span><ChevronRight aria-hidden="true" /></button>)}</div>
+}
+
+function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
   if (!open) return null
-  const selectedBubbles = open === 'all' ? bubbles : bubbles.filter((bubble) => bubble.type === open)
-  const title = open === 'archive' ? '已归档任务' : open === 'all' ? '护士消息' : selectedBubbles[0]?.title ?? '护士消息'
-  const leading = open === 'archive' ? <Archive /> : open === 'tutorial' ? <BookOpen /> : open === 'safety' ? <ShieldCheck /> : <HeartHandshake />
+  const title = open === 'archive' ? '已归档任务' : '提醒执行'
+  const leading = open === 'archive' ? <Archive /> : <Bell />
   return <BottomSheetSurface className="nurse-service-sheet" label={title} leading={leading} onClose={onClose} open title={title}>
     {open === 'archive' && <div className="nurse-sheet-list">{archived.length ? archived.map((item) => <article key={item.id}><strong>{taskTitle(item)}</strong><p>{item.completionResult ?? '已结束'} · {item.sourceLabel}</p></article>) : <SheetEmpty text="暂无已归档任务" />}</div>}
-    {open !== 'archive' && <div className="nurse-sheet-list">{selectedBubbles.map((bubble) => <article data-bubble-type={bubble.type} key={bubble.key}><strong>{bubble.title}{bubble.count > 1 && ` · ${bubble.count}项`}</strong>{bubble.items.length ? bubble.items.map((item) => <p key={item.id}>{item.sourceLabel}</p>) : <p>{bubble.type === 'tutorial' ? '用一分钟了解如何查看并建立守护任务。' : bubble.type === 'medical-prep' ? '现有记录可以整理成问诊摘要。' : '这是根据当前记录生成的护士提示。'}</p>}{(bubble.type === 'attention' || bubble.type === 'medication') && <div className="nurse-sheet-actions">{bubble.items.map((item) => <div className="nurse-sheet-action-group" key={item.id}><HohoButton onClick={() => onStart(item)}>加入守护任务</HohoButton><button onClick={() => onLater(bubble)} type="button">稍后提醒</button><button onClick={() => onDismissItem(item)} type="button">暂不需要</button></div>)}</div>}{bubble.type === 'tutorial' && <div className="nurse-sheet-actions"><HohoButton onClick={onTutorialDone}>开始教程</HohoButton><button onClick={onTutorialDone} type="button">跳过</button><button onClick={onTutorialDone} type="button">不再提示</button></div>}{bubble.type === 'medical-prep' && <div className="nurse-sheet-actions"><HohoButton onClick={onSummary}>生成问诊摘要</HohoButton><button onClick={() => onLater(bubble)} type="button">稍后</button></div>}{bubble.type === 'safety' && <div className="nurse-sheet-actions"><HohoButton onClick={() => onHandle(bubble.itemKeys)}>我知道了</HohoButton>{confirmSafetyIgnore ? <HohoButton variant="secondary" onClick={() => onHandle(bubble.itemKeys)}>确认忽略这条提醒</HohoButton> : <button onClick={() => setConfirmSafetyIgnore(true)} type="button">忽略这条提醒</button>}</div>}{!['attention', 'medication', 'tutorial', 'medical-prep', 'safety'].includes(bubble.type) && <div className="nurse-sheet-actions"><HohoButton onClick={() => onHandle(bubble.itemKeys)}>知道了</HohoButton><button onClick={() => onLater(bubble)} type="button">稍后看</button></div>}</article>)}</div>}
+    {open === 'reminders' && <button className="medication-reminder-entry" onClick={onMedication} type="button"><span><Pill aria-hidden="true" /></span><span><strong>用药提醒</strong><small>按计划提醒用药，并记录是否已经完成</small></span><ChevronRight aria-hidden="true" /></button>}
   </BottomSheetSurface>
 }
 
