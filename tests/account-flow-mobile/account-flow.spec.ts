@@ -19,20 +19,19 @@ async function noHorizontalOverflow(page: import('@playwright/test').Page) {
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.width)
 }
 
-test('new account enters the app and exposes its account identity in the drawer footer', async ({ page }) => {
+test('new account enters the app and exposes its nickname in the drawer footer', async ({ page }) => {
+  const nickname = `刘磊${Date.now().toString().slice(-8)}`
   await page.goto('/login')
-  await page.getByPlaceholder('给自己起个昵称').fill('刘磊')
+  await page.getByPlaceholder('给自己起个昵称').fill(nickname)
   await page.getByPlaceholder('设置一个密码').fill('12345678')
   await page.getByRole('button', { name: '注册并进入' }).click()
-  const hooohoId = await page.getByText(/^H[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{7}$/).textContent()
-  await page.getByRole('button', { name: '进入 Hoooho' }).click()
   await expect(page).toHaveURL(/\/nurse-station/)
   const accountId = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)
   await page.reload()
   expect(await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)).toBe(accountId)
   await page.getByRole('button', { name: '打开菜单' }).click()
-  const accountButton = page.getByRole('button', { name: /刘磊/ })
-  await expect(accountButton).toContainText(hooohoId!)
+  const accountButton = page.getByRole('button', { name: new RegExp(nickname) })
+  await expect(accountButton).toContainText(nickname)
   const box = await accountButton.boundingBox()
   expect(box && box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height)
   await accountButton.click()
@@ -67,6 +66,7 @@ test('registered account pages match the scoped account structure', async ({ pag
   await expect(page.getByRole('button', { name: '已绑定' })).toBeVisible()
   await expect(page.getByRole('button', { name: '绑定', exact: true })).toHaveCount(2)
   await page.goto('/account/security')
+  await expect(page.getByText('Hoooho ID')).toHaveCount(0)
   await expect(page.getByText('会员状态')).toHaveCount(0)
   await expect(page.getByText('数据同步')).toHaveCount(0)
 })

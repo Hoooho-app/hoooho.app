@@ -11,7 +11,7 @@ const store = readFileSync(new URL('../../store/useAppStore.ts', import.meta.url
 
 test('sidebar account identity stays separate from the current child', () => {
   assert.match(drawer, /创建正式账户/)
-  assert.match(drawer, /authUser\?\.hooohoId/)
+  assert.match(drawer, /authUser\?\.nickname/)
   assert.doesNotMatch(drawer, /父亲|母亲/)
 })
 
@@ -22,7 +22,8 @@ test('account sheet exposes only peer security, membership and logout actions', 
 
 test('security grouping excludes membership, device and sync', () => {
   const security = pages.slice(pages.indexOf('export function AccountSecurityPage'), pages.indexOf('export function AccountNicknamePage'))
-  for (const copy of ['头像', '昵称', 'Hoooho ID', '修改密码', '手机号', '邮箱', '第三方账户', '删除账户']) assert.match(security, new RegExp(copy))
+  for (const copy of ['头像', '昵称', '修改密码', '手机号', '邮箱', '第三方账户', '删除账户']) assert.match(security, new RegExp(copy))
+  assert.doesNotMatch(security, /Hoooho ID|复制 ID/)
   assert.doesNotMatch(security, /会员状态|设备管理|数据同步/)
 })
 

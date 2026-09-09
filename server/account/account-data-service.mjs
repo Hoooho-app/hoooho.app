@@ -38,7 +38,7 @@ export class AccountDataService {
     const operationId = `${guestAccountId}->${accountId}`
     const journal = await this.journal.read()
     if (journal.merges.some((item) => item.guestAccountId === guestAccountId && item.accountId !== accountId)) {
-      throw Object.assign(new Error('体验记录已经合并到其他账户'), { status: 409, code: 'GUEST_ALREADY_MERGED' })
+      throw Object.assign(new Error('历史记录已经合并到其他账户'), { status: 409, code: 'GUEST_ALREADY_MERGED' })
     }
     if (journal.merges.some((item) => item.id === operationId && item.status === 'completed')) {
       return { merged: false, idempotent: true }

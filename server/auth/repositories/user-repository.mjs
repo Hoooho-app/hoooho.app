@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { JsonStore } from '../storage/json-store.mjs'
+import { nicknameKey } from '../nickname.mjs'
 
 export class UserRepository {
   #store
@@ -68,6 +69,13 @@ export class UserRepository {
     return data.users.find((user) => user.hooohoId === hooohoId) ?? null
   }
 
+  async findByNickname(nickname) {
+    const key = nicknameKey(nickname)
+    const data = await this.#store.read()
+    const matches = data.users.filter((user) => !user.guest && nicknameKey(user.nickname) === key)
+    return matches.length === 1 ? matches[0] : null
+  }
+
   async ensureHooohoId(id, now = new Date()) {
     let selectedUser = null
     await this.#store.update((data) => {
@@ -85,13 +93,33 @@ export class UserRepository {
     await this.#store.update((data) => {
       const replay = data.users.find((user) => user.registrationKeyHash === registrationKeyHash)
       if (replay) { selectedUser = replay; return data }
+      const normalizedKey = nicknameKey(nickname)
+      if (data.users.some((user) => !user.guest && nicknameKey(user.nickname) === normalizedKey)) {
+        throw Object.assign(new Error('这个昵称已经有人用了，换一个吧'), { status: 409, code: 'NICKNAME_IN_USE' })
+      }
       const guest = guestId ? data.users.find((user) => user.id === guestId && user.guest && !user.mergedInto) : null
       selectedUser = guest
-        ? { ...guest, guest: false, nickname, passwordHash, hooohoId: createHooohoId(data.users), registrationKeyHash, upgradedAt: now.toISOString(), updatedAt: now.toISOString() }
-        : { id: randomUUID(), nickname, passwordHash, hooohoId: createHooohoId(data.users), registrationKeyHash, createdAt: now.toISOString() }
+        ? { ...guest, guest: false, nickname, nicknameKey: normalizedKey, passwordHash, hooohoId: createHooohoId(data.users), registrationKeyHash, upgradedAt: now.toISOString(), updatedAt: now.toISOString() }
+        : { id: randomUUID(), nickname, nicknameKey: normalizedKey, passwordHash, hooohoId: createHooohoId(data.users), registrationKeyHash, createdAt: now.toISOString() }
       return { ...data, users: guest ? data.users.map((user) => user.id === guest.id ? selectedUser : user) : [...data.users, selectedUser] }
     })
     return selectedUser
+  }
+
+  async setNickname(id, nickname, now = new Date()) {
+    let updated = null
+    await this.#store.update((data) => {
+      const key = nicknameKey(nickname)
+      if (data.users.some((user) => user.id !== id && !user.guest && nicknameKey(user.nickname) === key)) {
+        throw Object.assign(new Error('这个昵称已经有人用了，换一个吧'), { status: 409, code: 'NICKNAME_IN_USE' })
+      }
+      return { ...data, users: data.users.map((user) => {
+        if (user.id !== id) return user
+        updated = { ...user, nickname, nicknameKey: key, updatedAt: now.toISOString() }
+        return updated
+      }) }
+    })
+    return updated
   }
 
   async update(id, changes, now = new Date()) {

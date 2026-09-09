@@ -15,7 +15,7 @@ export const accountService = {
   verifyCurrent: (token: string, kind: 'phone' | 'email', code: string) => apiRequest<{ changeToken: string }>('/api/account/bind/verify-current', { token, method: 'POST', body: { kind, code } }),
   bind: (token: string, kind: 'phone' | 'email', value: string, code: string, challengeToken = '') => apiRequest<AccountProfile>('/api/account/bind/confirm', { token, method: 'POST', body: { kind, value, code, challengeToken } }),
   provider: (token: string, provider: AccountProvider, action: 'bind' | 'unbind') => apiRequest<AccountProfile>('/api/account/provider', { token, method: 'POST', body: { provider, action } }),
-  setPassword: (token: string, body: { currentPassword?: string; code?: string; password: string }) => apiRequest<{ success: true; hooohoId: string }>('/api/account/password', { token, method: 'POST', body }),
+  setPassword: (token: string, body: { currentPassword?: string; code?: string; password: string }) => apiRequest<{ success: true }>('/api/account/password', { token, method: 'POST', body }),
   sendDeleteCode: (token: string, kind: 'phone' | 'email') => apiRequest<{ success: true; expiresIn: number; retryAfter: number }>('/api/account/delete/send-code', { token, method: 'POST', body: { kind } }),
   verifyDelete: (token: string, kind: 'phone' | 'email', code: string) => apiRequest<{ deleteToken: string }>('/api/account/delete/verify', { token, method: 'POST', body: { kind, code } }),
   delete: (token: string, deleteToken: string) => apiRequest<{ deleted: true; idempotent: boolean }>('/api/account/delete', { token, method: 'POST', body: { deleteToken } })
