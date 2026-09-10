@@ -265,6 +265,8 @@ test('journal search stays minimal, scopes results, highlights matches, and pres
   const input = page.getByRole('searchbox', { name: '搜索健康随身记' })
   await expect(input).toBeFocused()
   await expect(input).toHaveAttribute('placeholder', '输入名称，即可查看发生时间')
+  await expect(input).toHaveCSS('font-size', '13px')
+  await expect(input).toHaveCSS('color', 'rgb(82, 105, 102)')
   await expect(page.getByText('查找随记中发生过的情况', { exact: true })).toHaveCount(0)
   await expect(page.getByText('最近搜索', { exact: true })).toHaveCount(0)
   await expect(page.locator('.journal-search-body')).toBeEmpty()
