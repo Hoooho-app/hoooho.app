@@ -23,6 +23,7 @@ export interface JournalEntry extends JournalMetadata {
   firstOccurredAt?: string
   latestOccurredAt?: string
   updateCount?: number
+  searchContents?: string[]
 }
 
 export function shiftJournalDate(day: string, amount: number) {
@@ -58,7 +59,8 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       status: event.status,
       firstOccurredAt,
       latestOccurredAt,
-      updateCount: ordered.length - 1
+      updateCount: ordered.length - 1,
+      searchContents: ordered.map((record) => record.content)
       }
     })
   })
@@ -79,6 +81,43 @@ export function journalListSummary(entry: JournalEntry) {
     return parts.join(' · ')
   }
   return entry.content
+}
+
+function textValues(value: unknown): string[] {
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)]
+  if (Array.isArray(value)) return value.flatMap(textValues)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(textValues)
+  return []
+}
+
+export function normalizeJournalSearch(value: string) {
+  return value.normalize('NFKC').trim().replace(/\s+/g, '').toLocaleLowerCase('zh-CN')
+}
+
+export function journalSearchFields(entry: JournalEntry) {
+  return [
+    journalListSummary(entry),
+    entry.content,
+    ...(entry.searchContents ?? []),
+    ...(entry.categories ?? ['other']).map((category) => journalCategoryLabels[category]),
+    ...textValues(entry.diet),
+    ...textValues(entry.sleep),
+    ...textValues(entry.outdoorActivity),
+    ...textValues(entry.medication),
+    ...textValues(entry.vaccination),
+  ].map((value) => value.trim()).filter(Boolean)
+}
+
+export function searchJournalEntries(entries: readonly JournalEntry[], query: string) {
+  const needle = normalizeJournalSearch(query)
+  if (!needle) return []
+  return entries.filter((entry) => journalSearchFields(entry).some((value) => normalizeJournalSearch(value).includes(needle)))
+    .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt) || right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
+}
+
+export function journalSearchResultSummary(entry: JournalEntry, query: string) {
+  const needle = normalizeJournalSearch(query)
+  return journalSearchFields(entry).find((value) => normalizeJournalSearch(value).includes(needle)) ?? journalListSummary(entry)
 }
 
 export function journalUpdateLabel(entry: JournalEntry) {
