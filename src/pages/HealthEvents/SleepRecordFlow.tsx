@@ -82,9 +82,10 @@ function SleepRing({ draft, onChange }: { draft: SleepDraft; onChange: (draft: S
 
 function clockInputValue(value: string) { return formatClock(value) }
 
-export function SleepRecordFlow({ draft, onDraftChange, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function SleepRecordFlow({ draft, mode, memberId: _memberId, onDraftChange, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [flowMode, setFlowMode] = useState(mode)
   const layerRef = useRef<HTMLElement>(null)
   usePageScrollLock(true)
   useDialogFocus(true, layerRef)
@@ -118,6 +119,21 @@ export function SleepRecordFlow({ draft, onDraftChange, onBack, onClose, onConfi
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
+  const startSleep = async () => {
+    if (saving) return
+    setSaving(true); setError('')
+    const sleepAt = new Date(); sleepAt.setSeconds(0, 0)
+    try {
+      const details: JournalSleepDetails = { sleepAt: sleepAt.toISOString(), wakeAt: sleepAt.toISOString(), durationMinutes: 0, kind: 'night', status: 'ongoing' }
+      const message = await onConfirm('睡眠已开始', sleepAt.toISOString(), 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: details })
+      onSaved(message); onClose()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '开始失败，请重试') }
+    finally { setSaving(false) }
+  }
+  if (flowMode === 'start') return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page sleep-start-page" ref={layerRef} role="dialog" tabIndex={-1}>
+    <header><button aria-label="返回健康随记" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><button className="sleep-header-cancel" onClick={onClose} type="button">取消</button></header>
+    <div className="sleep-start-content"><span className="sleep-start-icon"><Moon aria-hidden="true" size={38} /></span><h2>准备睡觉</h2><p className="sleep-start-time">{formatClock(new Date())}<small>当前时间</small></p><HohoButton fullWidth loading={saving} onClick={() => void startSleep()} size="large">开始睡眠</HohoButton><p>点一下开始，醒来后再点一下结束</p><button onClick={() => { setFlowMode('backfill'); sessionStorage.removeItem('hoooho:journal-suggestion') }} type="button">补记之前的睡眠</button>{error && <p role="alert">{error}</p>}</div>
+  </section></div>
   return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span aria-hidden="true" /></header>
     <div className="sleep-record-scroll"><SleepRing draft={draft} onChange={onDraftChange} />

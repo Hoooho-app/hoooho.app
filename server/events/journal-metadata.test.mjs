@@ -139,6 +139,11 @@ test('structured sleep recomputes duration from timestamps and preserves optiona
   assert.throws(() => validateJournal({ categories: ['diet'], sleep: { sleepAt: '2026-09-05T21:40:00+08:00', wakeAt: '2026-09-06T06:35:00+08:00', kind: 'night' } }), /必须归入睡眠分类/)
 })
 
+test('ongoing sleep persists only its start state', () => {
+  const result = validateJournal({ categories: ['sleep'], sleep: { sleepAt: '2026-09-11T20:36:00+08:00', kind: 'night', status: 'ongoing' } })
+  assert.deepEqual(result.sleep, { sleepAt: '2026-09-11T12:36:00.000Z', kind: 'night', status: 'ongoing' })
+})
+
 test('structured symptom preserves facts and rejects missing location or conflicting associated observations', () => {
   const symptom = { symptomCategory: 'skin', locations: [{ id: 'left_elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘窝', markedArea: '1号区域' }], descriptors: ['发红', '痒'], impactLevel: 'some', associatedSymptoms: ['影响睡觉'], generatedSummary: '孩子左肘窝皮肤发红、痒。' }
   assert.deepEqual(validateJournal({ categories: ['symptom'], symptom }).symptom, symptom)

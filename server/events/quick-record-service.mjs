@@ -50,7 +50,7 @@ function validateInput(input) {
   const journal = validateJournal(input.journal)
   const duplicateAction = ['update', 'create'].includes(input.duplicateAction) ? input.duplicateAction : null
   const duplicateEventId = typeof input.duplicateEventId === 'string' ? input.duplicateEventId.trim() : ''
-  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
+  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
 }
 
 export class QuickRecordService {
@@ -107,6 +107,17 @@ export class QuickRecordService {
   async createLocked(accountId, input, marker, now) {
     const existing = await this.findExisting(accountId, input.idempotencyKey, marker, now)
     if (existing) return existing
+    if (input.journal?.sleep?.status === 'ongoing') {
+      const records = await this.records.repository.findByAccountId(accountId)
+      for (const record of records) {
+        if (record.journal?.sleep?.status !== 'ongoing') continue
+        const event = await this.events.repository.findById(record.eventId)
+        if (event?.accountId === accountId && event.memberId === input.memberId) {
+          await this.requests.save({ accountId, idempotencyKey: input.idempotencyKey, eventId: event.id, recordId: record.id }, now)
+          return { eventId: event.id, recordId: record.id, idempotent: true }
+        }
+      }
+    }
     const detectionInput = input.duplicateAction ? { ...input, content: input.rawText } : input
     const duplicate = await findQuickRecordDuplicate({ accountId, input: detectionInput, events: this.events, records: this.records, now })
     if (input.duplicateAction === 'update' && (!duplicate || input.duplicateEventId !== duplicate.eventId)) {

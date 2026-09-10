@@ -137,6 +137,16 @@ test('quick record persists structured sleep for only the selected member and so
   assert.deepEqual(state.recordRows[0].journal, journal)
 })
 
+test('starting sleep is idempotent per member even with a fresh request key', async () => {
+  const state = setup()
+  const sleep = { categories: ['sleep'], sleep: { sleepAt: '2026-09-11T12:36:00.000Z', kind: 'night', status: 'ongoing' } }
+  const first = await state.service.create('account-1', { ...input, idempotencyKey: 'sleep_start_0001', memberId: 'child-sleep', content: '睡眠已开始', journal: sleep })
+  const second = await state.service.create('account-1', { ...input, idempotencyKey: 'sleep_start_0002', memberId: 'child-sleep', content: '睡眠已开始', journal: sleep })
+  assert.equal(second.recordId, first.recordId)
+  assert.equal(second.idempotent, true)
+  assert.equal(state.recordRows.filter((record) => record.journal?.sleep?.status === 'ongoing').length, 1)
+})
+
 test('quick record persists outdoor activity facts and rejects conflicting none-observed values', async () => {
   const state = setup()
   const journal = { categories: ['activity'], outdoorActivity: { activities: ['stroller_outing', 'walking'], durationMinutes: 45, places: ['park'], contacts: ['cold_air'], activityState: 'good', observations: ['cough'] } }

@@ -129,8 +129,10 @@ function validateSleep(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !sleepKinds.has(value.kind)) throw new HealthEventRecordError('睡眠类型无效', 400, 'INVALID_JOURNAL_SLEEP')
   const sleepAt = new Date(value.sleepAt)
+  if (!Number.isFinite(sleepAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
+  if (value.status === 'ongoing') return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing' }
   const wakeAt = new Date(value.wakeAt)
-  if (!Number.isFinite(sleepAt.getTime()) || !Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
+  if (!Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
   const durationMinutes = Math.round((wakeAt.getTime() - sleepAt.getTime()) / 60_000)
   if (durationMinutes <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
   if (value.quality !== undefined && !sleepQualities.has(value.quality)) throw new HealthEventRecordError('睡眠感受无效', 400, 'INVALID_JOURNAL_SLEEP')
@@ -138,7 +140,7 @@ function validateSleep(value) {
   if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')
   const otherNote = value.otherNote === undefined ? undefined : validateSleepNote(value.otherNote)
   if (otherNote && !observations?.includes('其他')) throw new HealthEventRecordError('睡眠补充说明必须选择其他', 400, 'INVALID_JOURNAL_SLEEP')
-  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
+  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.status === 'completed' ? { status: 'completed' } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
 }
 
 function validateSleepNote(value) {
