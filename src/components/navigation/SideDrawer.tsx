@@ -23,7 +23,7 @@ export const sidebarMenuGroups = [
     title: '健康管理',
     items: [
     { label: '健康档案', icon: Folder, to: '/health-profile' },
-    { label: '健康日记', icon: BookOpen, to: '/health-events' },
+    { label: '健康记录', icon: BookOpen, to: '/health-events' },
     { label: '服务站', icon: House, to: '/nurse-station' }
     ]
   },

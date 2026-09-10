@@ -123,9 +123,9 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
     await expect(drawer.getByText('切换人物', { exact: true })).toHaveCount(0)
     await expect(drawer.getByText('编辑资料', { exact: true })).toHaveCount(0)
     await expect(drawer.getByRole('button', { name: '健康档案' })).toBeVisible()
-    await expect(drawer.getByRole('button', { name: '健康日记' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '健康记录' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: '服务站' })).toBeVisible()
-    expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['健康档案', '健康日记', '服务站'])
+    expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['健康档案', '健康记录', '服务站'])
     await expect(drawer.getByRole('button', { name: '说明', exact: true })).toBeVisible()
     const accountButton = drawer.getByRole('button', { name: /已同步/ })
     const accountBox = await accountButton.boundingBox()
@@ -239,7 +239,7 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     for (let iteration = 0; iteration < 3; iteration += 1) {
       await openHealthProfileFromDrawer()
       await page.getByRole('button', { name: '打开菜单' }).click()
-      await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康日记' }).click()
+      await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康记录' }).click()
       await expect(page).toHaveURL(/\/health-events$/)
     }
     expect(await page.evaluate(() => (window as typeof window & { __healthProfileNavigations?: number }).__healthProfileNavigations)).toBe(3)
