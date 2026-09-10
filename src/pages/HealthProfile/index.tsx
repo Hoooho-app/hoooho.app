@@ -71,10 +71,10 @@ export function HealthProfilePage() {
 
   return <main className="app-shell health-profile-overview"><MainAppHeader title="健康档案" /><div className="page-content pb-10">
     <section className={`growth-identity-card ${basic.complete ? 'growth-identity-card--complete' : ''}`} aria-labelledby="growth-card-title">
-      <button className="growth-identity-card__member" onClick={openMember} type="button"><Avatar name={member.name} size={basic.complete ? 'lg' : 'md'} src={member.avatar} /><span><strong id="growth-card-title">{member.name}</strong><small>{genderLabels[member.gender ?? '']} · {age}</small></span>{basic.complete && <em><Check size={13} />已建立</em>}<ChevronRight aria-hidden="true" size={18} /></button>
+      <button className="growth-identity-card__member" onClick={openMember} type="button"><Avatar name={member.name} size={basic.complete ? 'lg' : 'md'} src={member.avatar} /><span><strong id="growth-card-title">{member.name}</strong><small>{genderLabels[member.gender ?? '']} · {age}</small></span>{basic.complete && <em><Check size={13} />已建立</em>}</button>
       {!basic.complete && <p>再补充 <strong>{basic.missingCount}</strong> 项，就能生成成长身份卡</p>}
       <div className="growth-identity-card__metrics"><GrowthMetric label="身高" unit="cm" value={basic.height} /><GrowthMetric label="体重" unit="kg" value={basic.weight} /><GrowthMetric label="血型" unit="血型" value={basic.bloodType ? `${basic.bloodType}型` : ''} /></div>
-      <button className="growth-identity-card__action" onClick={() => navigate('/health-profile/basic')} type="button">{basic.complete ? '更新成长数据' : '生成成长身份卡'}<ChevronRight aria-hidden="true" size={18} /></button>
+      <button className="growth-identity-card__action" onClick={() => navigate('/health-profile/basic')} type="button">{basic.complete ? '更新成长数据' : '铸造成长身份卡'}<ChevronRight aria-hidden="true" size={18} /></button>
       {basic.complete && formatGrowthCardUpdatedAt(basic.updatedAt) && <small className="growth-identity-card__updated">{formatGrowthCardUpdatedAt(basic.updatedAt)}</small>}
     </section>
 
