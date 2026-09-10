@@ -328,6 +328,58 @@
 .medication-reminder { border-top: 1px solid rgb(var(--hoho-color-border)); padding-top: .8rem; }.medication-reminder > label { display: grid; grid-template-columns: 1.6rem 1fr auto; align-items: center; gap: .45rem; }.medication-reminder input[role="switch"] { width: 2.75rem; height: 1.55rem; accent-color: rgb(var(--hoho-color-primary)); }.medication-reminder-summary { width: 100%; margin-top: .55rem; padding: .55rem .7rem; border: 0; border-radius: .55rem; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-text-secondary)); text-align: left; }.medication-reminder-panel { display: grid; gap: .3rem; padding-top: .5rem; }.medication-mini-stepper { display: flex; justify-content: center; align-items: center; gap: 1.4rem; }.medication-mini-stepper button { width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: white; color: rgb(var(--hoho-color-primary)); }.medication-time-row { display: flex; flex-wrap: wrap; gap: .4rem; }.medication-time-row input { min-height: 2.4rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .45rem; color: inherit; }
 .medication-event-footer { margin-top: auto; display: grid; gap: .7rem; padding-top: .5rem; }
 .medication-recent { display: grid; gap: .45rem; }.medication-recent > strong { font-size: var(--hoho-font-size-body); }.medication-direct-input { width: 100%; min-height: 2.5rem; margin-top: .65rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: white; color: rgb(var(--hoho-color-primary)); }.medication-dose-note,.medication-nurse-note { margin: .5rem 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }.medication-add-secondary { min-height: 2.65rem; display: flex; align-items: center; justify-content: center; gap: .35rem; border: 1px solid rgb(var(--hoho-color-primary)); border-radius: .6rem; background: white; color: rgb(var(--hoho-color-primary)); }
+.medication-record-compact { height: 100dvh; min-height: 0; overflow: hidden; }
+.medication-record-compact > header { height: 3.125rem; min-height: 3.125rem; }
+.medication-record-compact > header svg { width: 1.35rem; height: 1.35rem; stroke-width: 1.8; }
+.medication-tab-bar { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem; gap: .5rem; flex: 0 0 auto; padding: .55rem 1rem; border-bottom: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); }
+.medication-record-compact .medication-tabs { min-width: 0; gap: .4rem; padding: 0; border: 0; }
+.medication-record-compact .medication-tabs button { min-width: 5rem; min-height: 2.5rem; display: flex; align-items: center; justify-content: center; gap: .35rem; padding: 0 .7rem; border-radius: .55rem; color: rgb(var(--hoho-color-text-secondary)); }
+.medication-record-compact .medication-tabs button[aria-selected="true"] { border-color: rgb(var(--hoho-color-primary) / .18); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-record-compact .medication-tabs button svg { width: .85rem; height: .85rem; flex: 0 0 auto; fill: currentColor; stroke-width: 2; }
+.medication-record-compact .medication-tabs svg[aria-label="待填写"] { color: rgb(var(--hoho-color-text-secondary) / .55); }
+.medication-record-compact .medication-tabs svg[aria-label="已填写完整"] { color: rgb(var(--hoho-color-primary)); }
+.medication-tab-add { min-width: 2.75rem; height: 2.5rem; display: grid; place-items: center; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
+.medication-tab-add svg { width: 1.2rem; height: 1.2rem; }
+.medication-record-compact .medication-record-scroll { display: block; padding: 0 1rem .5rem; }
+.medication-compact-section { padding: .72rem 0; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.medication-compact-section h2 { margin: 0 0 .48rem; font-size: var(--hoho-font-size-body); font-weight: 650; }
+.medication-picker { height: 3rem; display: grid; grid-template-columns: 2.35rem minmax(0, 1fr) 2.65rem; align-items: center; gap: .35rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .6rem; padding: 0 .35rem; }
+.medication-picker .medication-package-thumb { width: 2.15rem; height: 2.15rem; }
+.medication-picker input { min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
+.medication-picker > button { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); }
+.medication-picker > button svg { width: 1.35rem; height: 1.35rem; }
+.medication-recognition-note { display: block; margin: .35rem 0 0; }
+.medication-amount-row { display: grid; grid-template-columns: 2.6rem minmax(4.2rem, 1fr) 2.6rem 4.8rem; align-items: center; gap: .42rem; }
+.medication-amount-row button { width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-amount-row button svg { width: 1.25rem; height: 1.25rem; }
+.medication-amount-row input, .medication-amount-row select { width: 100%; height: 2.6rem; min-width: 0; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: rgb(var(--hoho-color-surface)); color: inherit; text-align: center; font: inherit; }
+.medication-amount-row input { font-size: 1.22rem; font-weight: 650; }
+.medication-compact-section > p { margin: .38rem 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.medication-time-row-main { position: relative; min-height: 3.4rem; display: grid; grid-template-columns: minmax(0, 1fr) auto 1.25rem; align-items: center; gap: .25rem; border-bottom: 1px solid rgb(var(--hoho-color-border)); cursor: pointer; }
+.medication-time-row-main span { color: rgb(var(--hoho-color-text-secondary)); }
+.medication-time-row-main svg { width: 1.15rem; height: 1.15rem; color: rgb(var(--hoho-color-text-secondary)); }
+.medication-time-row-main input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.medication-reminder-main { padding: .55rem 0; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.medication-reminder-main > label { min-height: 2.5rem; display: grid; grid-template-columns: 1.45rem minmax(0, 1fr) 2.8rem; align-items: center; gap: .5rem; }
+.medication-reminder-main > label svg { width: 1.3rem; height: 1.3rem; }
+.medication-reminder-main input[role="switch"] { position: relative; width: 2.75rem; height: 1.55rem; margin: 0; appearance: none; border: 0; border-radius: 999px; background: rgb(var(--hoho-color-border)); cursor: pointer; transition: background .16s ease; }
+.medication-reminder-main input[role="switch"]::after { content: ''; position: absolute; top: .18rem; left: .18rem; width: 1.18rem; height: 1.18rem; border-radius: 50%; background: white; transition: transform .16s ease; }
+.medication-reminder-main input[role="switch"]:checked { background: rgb(var(--hoho-color-primary)); }
+.medication-reminder-main input[role="switch"]:checked::after { transform: translateX(1.2rem); }
+.medication-reminder-summary { width: 100%; min-height: 2.45rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .35rem; padding: .45rem .65rem; border: 0; border-radius: .55rem; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-text-secondary)); text-align: left; }
+.medication-reminder-summary span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.medication-reminder-summary em { flex: 0 0 auto; color: rgb(var(--hoho-color-primary)); font-style: normal; }
+.medication-remove-current { display: block; min-height: 2rem; margin: .3rem auto 0; border: 0; background: transparent; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); text-decoration: underline; }
+.medication-save-error { margin: .25rem 0 0; }
+.medication-fixed-save { z-index: 2; flex: 0 0 auto; border-top: 1px solid rgb(var(--hoho-color-border)); padding: .55rem 1rem max(.55rem, env(safe-area-inset-bottom)); background: rgb(var(--hoho-color-surface)); }
+.medication-reminder-sheet { display: grid; gap: .65rem; }
+.medication-reminder-sheet > span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.medication-sheet-options { display: flex; gap: .4rem; overflow-x: auto; }
+.medication-sheet-options button { min-height: 2.35rem; flex: 1 0 auto; padding: 0 .65rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: white; color: rgb(var(--hoho-color-text-secondary)); }
+.medication-sheet-options button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-time-inputs { display: flex; flex-wrap: wrap; gap: .4rem; }
+.medication-time-inputs input { min-height: 2.4rem; min-width: 6rem; flex: 1; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .45rem; background: white; color: inherit; }
+@media (max-width: 340px) { .medication-tab-bar, .medication-record-compact .medication-record-scroll, .medication-fixed-save { padding-inline: .7rem; }.medication-amount-row { grid-template-columns: 2.45rem minmax(3.8rem, 1fr) 2.45rem 4.35rem; gap: .3rem; }.medication-amount-row button { width: 2.45rem; height: 2.45rem; } }
 .vaccination-record-scroll { display: block; }
 .vaccination-item { margin-bottom: var(--hoho-space-4); padding-bottom: var(--hoho-space-4); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
 .vaccination-item-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); }
