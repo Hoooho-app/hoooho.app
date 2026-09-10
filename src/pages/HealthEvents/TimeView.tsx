@@ -1,17 +1,25 @@
 import { ChevronLeft, ChevronRight, Paperclip } from 'lucide-react'
-import { useEffect } from 'react'
-import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
+import { useEffect, useState } from 'react'
+import { HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { formatPlainMonthDay, formatPlainWeekday, parsePlainDate } from '../../utils/localCalendarDate'
 import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate } from './timeViewModel'
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
+import { getTimelinePrompt, type TimelinePromptMode, type TimelinePromptTarget } from './timelinePrompt'
+import { useAppStore } from '../../store/useAppStore'
 
 export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
+  const memberName = useAppStore((state) => state.members.find((member) => member.id === memberId)?.name ?? '')
+  const onPromptAction = (target: TimelinePromptTarget, mode: TimelinePromptMode) => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target, mode, day } }))
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer) }, [])
   const contextEventId = entries[0]?.eventId ?? null
   useEffect(() => { onContext({ memberId, eventId: contextEventId }) }, [memberId, contextEventId, onContext])
   const groups = journalDayGroups(entries, day, sortOrder)
+  const prompt = getTimelinePrompt(now, memberName, day, today, entries)
+  const activeSleep = entries.find((entry) => entry.sleep?.status === 'ongoing')
   const yesterday = shiftJournalDate(today, -1)
   const relative = day === today ? '今天' : day === yesterday ? '昨天' : formatPlainWeekday(day)
   const selectMonth = (month: string) => {
@@ -29,8 +37,10 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
       <label className="journal-day-picker" aria-live="polite"><span>{relative} · <b>{formatPlainMonthDay(day)}</b></span><input aria-label="选择日期" max={today} onChange={(event) => onDayChange(event.target.value)} type="date" value={day} /></label>
       <HohoButton size="icon" variant="ghost" aria-label="后一天" disabled={day >= today} onClick={() => onDayChange(shiftJournalDate(day, 1))}><ChevronRight size={22} /></HohoButton>
     </div>
-    {loading ? <ListSkeleton rows={4} /> : error ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : groups.length === 0 ? <EmptyState title="这一天还没有记录" description="饮食、活动或身体变化，都可以记下来。" /> :
-      <HealthTimeline ariaLabel={`当天记录，${sortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
+    {loading ? <ListSkeleton rows={4} /> : error ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : <>
+      {day === today && <div className="journal-now-marker"><span>{`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}</span><strong>现在</strong></div>}
+      {activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : prompt ? <article className="journal-memory-prompt"><span>{prompt.eyebrow}</span><strong>{prompt.question}</strong><HohoButton onClick={() => onPromptAction(prompt.target, prompt.mode)}>{prompt.action}</HohoButton><button onClick={() => onPromptAction('other', 'backfill')} type="button">不是这件事，记点别的</button></article> : null}
+      {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${sortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
         content: <div className="journal-hour-records">{group.items.map((entry) => <button className="journal-record" key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>
           <span className="journal-record-time">{journalTime(entry).label}</span>
@@ -40,5 +50,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
         </button>)}</div>
       }))} />}
+      {groups.length > 0 && <p className="journal-gentle-status">今天的事情，正在一点点记清楚</p>}
+    </>}
   </section>
 }

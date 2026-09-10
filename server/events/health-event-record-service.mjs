@@ -160,7 +160,7 @@ export class HealthEventRecordService {
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
       if (key === 'journal') {
         changes.journal = validateJournal(input.journal)
-        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.wakeAt, now)
+        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.wakeAt ?? changes.journal.sleep.sleepAt, now)
       }
     }
     if (!Object.keys(changes).length) {

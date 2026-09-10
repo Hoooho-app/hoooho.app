@@ -36,6 +36,7 @@ export interface JournalSleepDetails {
   wakeAt: string
   durationMinutes: number
   kind: 'night' | 'nap'
+  status?: 'ongoing' | 'completed'
   quality?: '睡得安稳' | '有些翻动' | '频繁醒来'
   observations?: string[]
   otherNote?: string

@@ -1,4 +1,22 @@
 .health-events-content { position: relative; }
+.journal-now-marker { display: flex; align-items: center; gap: 10px; margin: 10px 8px 12px; color: rgb(var(--hoho-color-primary)); font-size: 13px; }
+.journal-now-marker::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 4px rgb(var(--hoho-color-primary) / .1); }
+.journal-now-marker strong { font-weight: 650; }
+.journal-memory-prompt, .journal-active-sleep { display: grid; gap: 10px; margin: 8px 4px 18px 24px; padding: 16px; border: 1px solid rgb(var(--hoho-color-primary) / .14); border-radius: 16px; background: linear-gradient(145deg, rgb(var(--hoho-color-primary) / .1), rgb(var(--hoho-color-primary) / .045)); }
+.journal-memory-prompt > span { color: rgb(var(--hoho-color-primary)); font-size: 13px; font-weight: 650; }
+.journal-memory-prompt > strong, .journal-active-sleep > strong { color: rgb(var(--hoho-color-text)); font-size: 16px; line-height: 1.45; }
+.journal-memory-prompt > button:last-child { min-height: 36px; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); font-size: 13px; }
+.journal-gentle-status { margin: 20px 0 4px; text-align: center; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.sleep-start-page { background: rgb(var(--hoho-color-surface)); }
+.sleep-start-content, .sleep-active-detail { display: flex; min-height: min(72dvh, 520px); padding: 40px 24px 24px; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.sleep-start-icon, .sleep-active-detail > span { display: grid; width: 82px; height: 82px; place-items: center; border-radius: 50%; color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary) / .09); }
+.sleep-start-content h2, .sleep-active-detail h2 { margin: 0; font-size: 20px; }
+.sleep-start-time { display: grid; gap: 4px; margin: 0; padding: 10px 24px; border-radius: 12px; background: rgb(var(--hoho-color-muted)); font-size: 20px; font-weight: 700; }
+.sleep-start-time small, .sleep-start-content > p, .sleep-active-detail > p { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 400; }
+.sleep-start-content > button:not(.hoho-button) { min-height: 44px; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); }
+.sleep-header-cancel { color: rgb(var(--hoho-color-primary)); font-size: 13px; }
+.sleep-active-detail > strong { color: rgb(var(--hoho-color-primary)); font-size: 28px; }
+@media (prefers-reduced-motion: reduce) { .sleep-active-detail *, .journal-memory-prompt * { animation: none !important; transition: none !important; } }
 .health-events-toolbar { position: absolute; z-index: 2; top: 0; right: 0; margin: 0; }
 .health-events-toolbar .journal-toolbar { min-height: 48px; padding-right: 4px; }
 .health-events-toolbar .journal-toolbar-actions { gap: 4px; }

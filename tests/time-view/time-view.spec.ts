@@ -23,7 +23,7 @@ async function prepare(page: Page, member = 'child-one') {
 test('manual record sheet groups supported care actions under health events', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: '记录新情况' })
+  const sheet = page.getByRole('dialog', { name: '记一下' })
   const eating = sheet.getByRole('button', { name: '进食', exact: true })
   await expect(eating).toBeVisible()
   await expect(eating.locator('.journal-category-icon--spoon')).toBeVisible()
@@ -43,6 +43,33 @@ test('health journal names the existing summary action medical prep', async ({ p
   await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveClass(/medical-prep-button/)
   await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
+})
+
+test('empty today shows one contextual prompt and current-time marker without the old empty state', async ({ page }) => {
+  await prepare(page, 'child-two')
+  const today = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
+  await page.getByLabel('选择日期').fill(today)
+  await expect(page.getByText('现在', { exact: true })).toBeVisible()
+  await expect(page.locator('.journal-memory-prompt')).toHaveCount(1)
+  await expect(page.locator('.journal-memory-prompt')).toContainText('隔离对象')
+  await expect(page.getByText('这一天还没有记录', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('饮食、活动或身体变化，都可以记下来。', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/journal-context-prompt-iphone-se.png' })
+})
+
+test('sleep prompt starts one persistent session, restores after reload and ends it', async ({ page }) => {
+  await prepare(page, 'child-two')
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'sleep', mode: 'start' } })))
+  await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('准备睡觉')
+  await page.getByRole('button', { name: '开始睡眠' }).click()
+  await expect(page.getByText(/等隔离对象醒来/)).toBeVisible()
+  await page.reload()
+  await expect(page.getByText(/等隔离对象醒来/)).toBeVisible()
+  await page.getByLabel('单日时间轴').getByRole('button', { name: '结束睡眠' }).click()
+  await expect(page.getByRole('dialog', { name: '正在记录睡眠' })).toBeVisible()
+  await page.getByRole('dialog', { name: '正在记录睡眠' }).getByRole('button', { name: '结束睡眠' }).click()
+  await page.reload()
+  await expect(page.getByText(/等隔离对象醒来/)).toHaveCount(0)
 })
 
 test('quick record opens the existing voice flow and timeline tools are borderless', async ({ page }) => {
@@ -88,7 +115,7 @@ test('manual record button uses a centered plus and concise label', async ({ pag
   await page.screenshot({ path: 'test-results/manual-record-concise-iphone-se.png' })
 
   await button.click()
-  await expect(page.getByRole('dialog', { name: '记录新情况' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: '记一下' })).toBeVisible()
 })
 
 test('manual record footer stays on one row at the required mobile widths', async ({ page }) => {
@@ -176,7 +203,7 @@ test('single-day timeline, search entry, sort order, compact subject and summary
   expect(navigationLayout).toEqual({ height: 48, sameRow: true, dateFits: true, pageOverflow: false })
   await page.getByLabel('选择年月').fill('2025-12')
   await expect(page.getByText('2025年', { exact: true })).toBeVisible()
-  await page.getByLabel('选择日期').fill(new Date().toISOString().slice(0, 10))
+  await page.getByLabel('选择日期').fill(await page.evaluate(() => { const value = new Date(); return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}` }))
   await expect(page.locator('.journal-day-picker')).toContainText('今天 ·')
   await page.getByRole('button', { name: '前一天', exact: true }).click()
   await expect(page.locator('.journal-day-picker')).toContainText('昨天 ·')
@@ -291,7 +318,7 @@ test('journal row opens record details over the list without visiting symptom tr
 test('manual category cards navigate directly without a start action', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const recorderTitle = page.getByRole('heading', { name: '记录新情况', exact: true })
+  const recorderTitle = page.getByRole('heading', { name: '记一下', exact: true })
   await expect(recorderTitle).toBeVisible()
   await expect(page.getByText('先记下来，不用一次性记完，想到时继续补充', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^(情绪|社交|测量|生长发育|接触环境|检查报告|其他)$/ })).toHaveCount(0)
@@ -313,7 +340,7 @@ test('manual category cards navigate directly without a start action', async ({ 
 test('bowel record is one continuous form, restores its member draft and saves real structured data', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const entrySheet = page.getByRole('dialog', { name: '记录新情况' })
+  const entrySheet = page.getByRole('dialog', { name: '记一下' })
   const entryLayout = await entrySheet.evaluate((sheet) => {
     const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
     return { sheetFits: sheet.scrollHeight <= sheet.clientHeight + 1, bodyFits: body.scrollHeight <= body.clientHeight + 1, overflowY: getComputedStyle(body).overflowY }
@@ -342,7 +369,7 @@ test('bowel record is one continuous form, restores its member draft and saves r
   await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
   await expect(page.getByText('6/6', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '返回记录新情况' }).click()
-  await page.getByRole('dialog', { name: '记录新情况' }).getByRole('button', { name: '排便' }).click()
+  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '排便' }).click()
   await expect(page.getByRole('button', { name: '光滑条状' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
   const form = page.getByRole('dialog', { name: '记录排便' })

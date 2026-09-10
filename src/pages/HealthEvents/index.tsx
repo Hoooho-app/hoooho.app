@@ -10,7 +10,7 @@ import { quickRecordService } from '../../services/quickRecords'
 import type { QuickRecordCreateInput, QuickRecordDuplicate } from '../../services/quickRecords'
 import { useAppStore } from '../../store/useAppStore'
 import type { Member } from '../../types'
-import type { JournalMetadata } from '../../types/journal'
+import type { JournalCategory, JournalMetadata } from '../../types/journal'
 import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
@@ -34,7 +34,7 @@ export function HealthEventsPage() {
   const { state, retry } = useHealthEventsList()
   const returnState = (location.state as { journalReturn?: { day?: string; scrollTop?: number } } | null)?.journalReturn
   const [today, setToday] = useState(() => getLocalDateKey(new Date())!); const [day, setDay] = useState(() => returnState?.day && parsePlainDate(returnState.day) ? returnState.day : getLocalDateKey(new Date())!); const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); const [recorderMode, setRecorderMode] = useState<'manual' | 'voice' | null>(null); const [selectedRecord, setSelectedRecord] = useState<{ eventId: string; recordId: string } | null>(null); const [nextActionOpen, setNextActionOpen] = useState(false); const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null); const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: currentMemberId, eventId: null }); const [revision, setRevision] = useState(0); const [savedNotice, setSavedNotice] = useState(''); const submissionKeyRef = useRef(''); const contentRef = useRef<HTMLDivElement>(null)
-  const [recorderInitialCategory, setRecorderInitialCategory] = useState<'medication' | 'symptom' | undefined>()
+  const [recorderInitialCategory, setRecorderInitialCategory] = useState<JournalCategory | undefined>()
   const tutorial = Boolean((location.state as { nurseTutorial?: boolean } | null)?.nurseTutorial)
   const loadedMembers = state.status === 'success' ? state.data.members : []; const currentMember = loadedMembers.find((member) => member.id === currentMemberId) ?? cachedMembers.find((member) => member.id === currentMemberId) ?? loadedMembers[0] ?? cachedMembers[0] ?? null
   const nextActionEventId = getNurseNextActionEventId(state.status === 'success' ? state.data.events : [], currentMemberId) ?? (journalContext.memberId === currentMemberId ? journalContext.eventId : null)
@@ -82,12 +82,23 @@ export function HealthEventsPage() {
     restore()
     return () => window.clearTimeout(timer)
   }, [location.pathname, location.search, navigate, returnState?.scrollTop])
+  useEffect(() => {
+    const openPrompt = (event: Event) => {
+      const detail = (event as CustomEvent<{ target: JournalCategory | 'other' }>).detail
+      submissionKeyRef.current = ''
+      sessionStorage.setItem('hoooho:journal-suggestion', JSON.stringify((event as CustomEvent).detail))
+      setRecorderInitialCategory(detail.target === 'other' ? undefined : detail.target)
+      setRecorderMode(detail.target === 'other' ? 'voice' : 'manual')
+    }
+    window.addEventListener('hoooho:timeline-prompt', openPrompt)
+    return () => window.removeEventListener('hoooho:timeline-prompt', openPrompt)
+  }, [])
   const finishSave = () => { submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
   const saveJournalRecord = async (content: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
     if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
     const input: QuickRecordCreateInput = { memberId: currentMemberId, content, occurredAt, inputChannel, title: normalizeHealthEventTitle('', content), idempotencyKey: submissionKeyRef.current, journal, ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {}) }
-    const { duplicate } = await quickRecordService.checkDuplicate(input, token)
+    const { duplicate } = journal.sleep?.status === 'ongoing' ? { duplicate: null } : await quickRecordService.checkDuplicate(input, token)
     if (duplicate) return new Promise<string>((resolve, reject) => setPendingDuplicate({ duplicate, input, resolve, reject }))
     await quickRecordService.create(input, token)
     setDay(getLocalDateKey(new Date(occurredAt))!); finishSave(); return '已记录'
