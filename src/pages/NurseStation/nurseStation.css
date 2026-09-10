@@ -4,7 +4,7 @@
 .nurse-station-scroll::-webkit-scrollbar { display: none; }
 
 .nurse-station-member-row { display: grid; grid-template-columns: minmax(0, 1fr) 106px; align-items: stretch; gap: 8px; }
-.nurse-station-member { display: flex; width: 100%; min-width: 0; min-height: 52px; height: 52px; align-items: center; gap: 9px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 4px 10px; text-align: left; background: #ecfaf7; }
+.nurse-station-member { display: flex; width: 100%; min-width: 0; min-height: 52px; height: 52px; align-items: center; gap: 9px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 4px 10px; text-align: left; background: #fff; }
 .nurse-station-member > :first-child { flex: 0 0 auto; }
 .nurse-station-member-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .nurse-station-member strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }

@@ -20,6 +20,7 @@ import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 type ServiceSheet = 'reminders' | 'archive' | null
+type NurseService = 'symptom' | 'reminders' | 'allergy'
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -99,8 +100,8 @@ export function NurseStationPage() {
   return <main className="app-shell nurse-station-page">
     <MainAppHeader title="前台护士站" />
     <div className="nurse-station-scroll">
-      {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} /></div>}
-      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div><NurseServices onReminderOpen={() => setServiceSheet('reminders')} /></section>
+      {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} wordmark /></div>}
+      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div><NurseServices onOpen={(service) => service === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : service === 'allergy' ? navigate('/health-profile/allergy') : setServiceSheet('reminders')} /></section>
       <section className="guardian-tasks"><header><div><h2>守护任务</h2><p>共 {active.length} 项守护任务</p></div><button onClick={() => setServiceSheet('archive')} type="button">已归档任务{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
     </div>
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
@@ -111,20 +112,20 @@ export function NurseStationPage() {
 
 function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void }) { return <button className="guardian-task-card" data-status={item.status} onClick={onOpen} type="button"><span className="guardian-task-icon"><Thermometer /></span><span className="guardian-task-copy"><span><strong>{taskTitle(item)}</strong><em>{taskStatus(item)}</em></span><small>{taskNextStep(item)}</small></span><ChevronRight /></button> }
 
-function NurseServices({ onReminderOpen }: { onReminderOpen: () => void }) {
+function NurseServices({ onOpen }: { onOpen: (service: NurseService) => void }) {
   const services = [
-    { label: '提醒执行', icon: Bell, enabled: true },
-    { label: '守护观察', icon: ShieldCheck, enabled: false },
-    { label: '排敏测试', icon: TestTube, enabled: false },
-    { label: '医嘱跟进', icon: ClipboardCheck, enabled: false },
-    { label: '冲突提醒', icon: Waypoints, enabled: false }
+    { id: 'symptom', label: '症状观察', icon: ShieldCheck, enabled: true },
+    { id: 'reminders', label: '提醒服务', icon: Bell, enabled: true },
+    { id: 'allergy', label: '排敏测试', icon: TestTube, enabled: true },
+    { id: 'instructions', label: '医嘱跟进', icon: ClipboardCheck, enabled: false },
+    { id: 'conflicts', label: '冲突提醒', icon: Waypoints, enabled: false }
   ] as const
-  return <div className="nurse-service-list">{services.map(({ label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={label} onClick={enabled ? onReminderOpen : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span><ChevronRight aria-hidden="true" /></button>)}</div>
+  return <div className="nurse-service-list">{services.map(({ id, label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={id} onClick={enabled ? () => onOpen(id) : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span><ChevronRight aria-hidden="true" /></button>)}</div>
 }
 
 function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
   if (!open) return null
-  const title = open === 'archive' ? '已归档任务' : '提醒执行'
+  const title = open === 'archive' ? '已归档任务' : '提醒服务'
   const leading = open === 'archive' ? <Archive /> : <Bell />
   return <BottomSheetSurface className="nurse-service-sheet" label={title} leading={leading} onClose={onClose} open title={title}>
     {open === 'archive' && <div className="nurse-sheet-list">{archived.length ? archived.map((item) => <article key={item.id}><strong>{taskTitle(item)}</strong><p>{item.completionResult ?? '已结束'} · {item.sourceLabel}</p></article>) : <SheetEmpty text="暂无已归档任务" />}</div>}
