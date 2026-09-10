@@ -9,6 +9,7 @@ const nurse = read('./NurseQuickRecord.tsx')
 const trigger = read('../../components/health/QuickRecordTrigger.tsx')
 const desk = read('./NurseTriageDesk.tsx')
 const idleVisual = read('./IdleNurseVisual.tsx')
+const stationIdleVideo = read('./NurseStationIdleVideo.tsx')
 const flow = read('../HealthEventDetail/components/QuickVoiceRecordFlow.tsx')
 const photos = read('../HealthEventDetail/components/QuickRecordPhotos.tsx')
 const photoStyles = read('./NurseQuickRecord.css')
@@ -55,7 +56,23 @@ test('零成员在护士站内分流且不会预先创建空健康事件', () =>
 
 test('护士站待确认事项不会停止前台空闲动画', () => {
   assert.match(station, /idleActive[^>]*state="idle"/)
+  assert.equal((station.match(/stationIdleOnly/g) ?? []).length, 2)
   assert.doesNotMatch(station, /pending\.length \? 'awaitingConfirmation'/)
+})
+
+test('前台护士站只加载待机1并使用单视频原生无缝循环', () => {
+  assert.match(stationIdleVideo, /nurse-station-idle-1\.mp4/)
+  assert.match(stationIdleVideo, /nurse-station-idle-1-poster\.webp/)
+  assert.equal((stationIdleVideo.match(/<video/g) ?? []).length, 1)
+  assert.match(stationIdleVideo, /autoPlay=\{active && !reducedMotion\}/)
+  assert.match(stationIdleVideo, /loop/)
+  assert.match(stationIdleVideo, /muted/)
+  assert.match(stationIdleVideo, /playsInline/)
+  assert.match(stationIdleVideo, /preload="auto"/)
+  assert.match(stationIdleVideo, /data-video-phase="idle1"/)
+  assert.match(stationIdleVideo, /removeAttribute\('src'\)[\s\S]*video\.load\(\)/)
+  assert.match(stationIdleVideo, /pointerdown[\s\S]*retryAfterGesture/)
+  assert.doesNotMatch(stationIdleVideo, /intro|idle-loop-2|setInterval|onEnded|transition/)
 })
 
 test('快速记录留在前台核对并只在确认保存时调用原子接口', () => {

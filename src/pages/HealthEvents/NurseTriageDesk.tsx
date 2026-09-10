@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { IdleNurseVisual } from './IdleNurseVisual'
+import { NurseStationIdleVideo } from './NurseStationIdleVideo'
 import type { NurseTriageState } from './nurseTriageMachine'
 
 const nurseTriageAssets = {
@@ -48,9 +49,10 @@ interface NurseTriageDeskProps {
   idleAnimationResetKey: string
   reducedMotion: boolean
   saveSuccessSequence?: number
+  stationIdleOnly?: boolean
 }
 
-export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnimationResetKey, reducedMotion, saveSuccessSequence = 0 }: NurseTriageDeskProps) {
+export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnimationResetKey, reducedMotion, saveSuccessSequence = 0, stationIdleOnly = false }: NurseTriageDeskProps) {
   const pageVisible = usePageVisible()
   const activeAsset = visualAssetByState[state] ?? null
   const idleVideoActive = idleActive && (state === 'idle' || state === 'error')
@@ -64,12 +66,14 @@ export function NurseTriageDesk({ state, audioLevel, idleActive = true, idleAnim
       data-state={state}
       style={style}
     >
-      <IdleNurseVisual
-        active={idleVideoActive && pageVisible}
-        reducedMotion={reducedMotion}
-        resetKey={idleAnimationResetKey}
-        saveSuccessSequence={saveSuccessSequence}
-      />
+      {stationIdleOnly
+        ? <NurseStationIdleVideo active={idleVideoActive && pageVisible} reducedMotion={reducedMotion} />
+        : <IdleNurseVisual
+            active={idleVideoActive && pageVisible}
+            reducedMotion={reducedMotion}
+            resetKey={idleAnimationResetKey}
+            saveSuccessSequence={saveSuccessSequence}
+          />}
       {activeAsset && <img
         alt=""
         aria-hidden="true"
