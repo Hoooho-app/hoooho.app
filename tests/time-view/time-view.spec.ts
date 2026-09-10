@@ -428,7 +428,9 @@ test('five diet record kinds save through the real API and show only the concise
   await page.getByRole('group', { name: '进食状态（可选）' }).getByRole('button', { name: '抗拒', exact: true }).click()
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
   await expect(page.locator('.journal-saved-toast')).toHaveText('已记录')
-  await expect(page.locator('.journal-record').filter({ hasText: '母乳 · 5分钟 · 抗拒' })).toBeVisible()
+  const feedingRecord = page.locator('.journal-record').filter({ hasText: '母乳 · 5分钟' })
+  await expect(feedingRecord).toBeVisible()
+  await expect(feedingRecord.locator('.journal-record-summary')).not.toContainText('抗拒')
 
   await openDietTypes(page)
   await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^辅食/ }).click()

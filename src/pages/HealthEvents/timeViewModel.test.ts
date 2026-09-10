@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
+import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
 const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
@@ -56,4 +56,30 @@ test('bowel occurrence number is scoped to the selected local day and ordered by
   assert.equal(bowelOccurrenceNumber([second, unrelated, first], first), 1)
   assert.equal(bowelOccurrenceNumber([second, unrelated, first], second), 2)
   assert.equal(bowelOccurrenceNumber([second, unrelated, first], unrelated), null)
+})
+
+test('list summaries keep medication names while hiding doses', () => {
+  const medication = {
+    ...entry('medication', '2026-09-10T12:16:00'),
+    categories: ['medication'] as const,
+    content: '阿司匹林 · 1 mL\n地奈德 · 1 mL',
+    medication: {
+      medicationName: '阿司匹林', administrationRoute: 'oral' as const,
+      medications: [
+        { id: 'one', medicationName: '阿司匹林', amountValue: 1, amountUnit: 'mL', dosageStep: 0.1 },
+        { id: 'two', medicationName: '地奈德', amountValue: 1, amountUnit: 'mL', dosageStep: 0.1 },
+      ],
+    },
+  }
+  assert.equal(journalListSummary(medication), '阿司匹林、地奈德')
+})
+
+test('feeding list summaries omit eating statuses but retain method and duration', () => {
+  const feeding = {
+    ...entry('feeding', '2026-09-10T08:49:00'),
+    categories: ['diet'] as const,
+    content: '母乳 · 1分钟 · 顺利、吐奶',
+    diet: { kind: 'feeding' as const, feedingMethod: 'breast' as const, breastSeconds: { left: 30, right: 30, total: 60 }, feedingStatuses: ['顺利', '吐奶'] },
+  }
+  assert.equal(journalListSummary(feeding), '母乳 · 1分钟')
 })

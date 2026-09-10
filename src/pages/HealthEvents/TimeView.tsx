@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { HealthEventFilterSheet, type HealthEventFilters } from '../../components/health'
 import { formatPlainMonthDay, formatPlainWeekday, getLocalCalendarParts, getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
-import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalTime, journalUpdateLabel, shiftJournalDate } from './timeViewModel'
+import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate } from './timeViewModel'
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
@@ -40,7 +40,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
           <span className="journal-record-time">{journalTime(entry).label}</span>
           <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} />
           <span className="journal-record-tags">{entry.categories?.includes('elimination') && <HealthTag>{`今天第${bowelOccurrenceNumber(entries, entry)}次`}</HealthTag>}{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{category === 'medication' && (entry.medication?.medications?.length ?? 0) > 1 ? `用药 · 共${entry.medication!.medications!.length}种` : journalCategoryLabels[category]}</HealthTag>)}</span>
-          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : entry.content}</span>{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
+          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : journalListSummary(entry)}</span>{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
         </button>)}</div>
       }))} />}
