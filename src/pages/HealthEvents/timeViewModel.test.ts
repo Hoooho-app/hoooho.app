@@ -1,20 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
+import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalDayPeriod, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
 const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
-test('one hour contains multiple peer records in occurrence order, regardless of submission date', () => {
+test('one day period contains multiple peer records in occurrence order, regardless of submission date', () => {
   const a = entry('a', '2026-09-05T09:10:00')
   const b = { ...entry('b', '2026-09-05T09:45:00'), createdAt: '2026-09-05T09:45:01' }
   const groups = journalDayGroups([a, b, entry('old', '2026-09-04T21:00:00')], '2026-09-05')
   assert.equal(groups.length, 1)
-  assert.equal(groups[0].label, '9时')
+  assert.equal(groups[0].label, '早上')
   assert.deepEqual(groups[0].items.map((item) => item.id), ['b', 'a'])
   assert.deepEqual(journalDayGroups([a, b], '2026-09-05', 'asc')[0].items.map((item) => item.id), ['a', 'b'])
 })
-test('periods keep their label while unresolved legacy text falls back to its recorded minute', () => {
-  assert.deepEqual(journalTime({ ...entry('a', '2026-09-05T18:00:00'), timePrecision: 'period', timeLabel: '晚上' }), { group: '晚上', label: '晚上' })
+test('all records use the four normalized day periods', () => {
+  assert.deepEqual([0, 5, 6, 11, 12, 17, 18, 23].map(journalDayPeriod), ['凌晨', '凌晨', '早上', '早上', '下午', '下午', '夜间', '夜间'])
+  assert.deepEqual(journalTime({ ...entry('a', '2026-09-05T18:00:00'), timePrecision: 'period', timeLabel: '晚上' }), { group: '夜间', label: '夜间' })
   assert.equal(journalTime({ ...entry('b', '2026-09-05T23:59:00'), timePrecision: 'unknown' }).label, '23:59')
 })
 test('member and account scope is enforced and legacy event-only data is retained', () => {

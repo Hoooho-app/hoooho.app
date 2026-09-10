@@ -91,11 +91,20 @@ export function journalUpdateLabel(entry: JournalEntry) {
   return entry.updateCount === 1 ? `${first} 首次记录 · ${formatTime(entry.latestOccurredAt)} 有更新` : `${first} 首次记录 · 已更新${entry.updateCount}次`
 }
 
+export type JournalDayPeriod = '凌晨' | '早上' | '下午' | '夜间'
+
+export function journalDayPeriod(hour: number): JournalDayPeriod {
+  if (hour < 6) return '凌晨'
+  if (hour < 12) return '早上'
+  if (hour < 18) return '下午'
+  return '夜间'
+}
+
 export function journalTime(entry: JournalEntry) {
-  if (entry.timePrecision === 'period') return { group: entry.timeLabel || '时段未明确', label: entry.timeLabel || '时段未明确' }
   if (!Number.isFinite(Date.parse(entry.occurredAt))) return { group: '', label: '' }
   const date = new Date(entry.occurredAt)
-  return { group: `${date.getHours()}时`, label: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` }
+  const group = journalDayPeriod(date.getHours())
+  return { group, label: entry.timePrecision === 'period' ? group : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` }
 }
 
 export function journalDayGroups(entries: readonly JournalEntry[], day: string, order: 'desc' | 'asc' = 'desc') {
