@@ -84,7 +84,7 @@ export function JournalSearchPage() {
           <h2>{resultDateLabel(group.day, today)}</h2>
           <div>{group.items.map((entry) => <button className="journal-search-result" key={entry.id} onClick={() => setSelected({ eventId: entry.eventId, recordId: entry.id })} type="button">
             <time>{journalTime(entry).label}</time>
-            <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} />
+            <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
             <HealthTag>{journalCategoryLabels[entry.categories?.[0] ?? 'other']}</HealthTag>
             <span><HighlightedText query={debouncedQuery} text={journalSearchResultSummary(entry, debouncedQuery)} /></span>
             <ChevronRight aria-hidden="true" size={17} />
