@@ -1,4 +1,4 @@
-import { Archive, Bell, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, Waypoints, X } from 'lucide-react'
+import { AlarmClock, Archive, Bell, ChevronRight, ClipboardCheck, Cross, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, Waypoints, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -100,9 +100,9 @@ export function NurseStationPage() {
   return <main className="app-shell nurse-station-page">
     <MainAppHeader title="前台护士站" />
     <div className="nurse-station-scroll">
-      {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span><ChevronRight size={19} /></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} wordmark /></div>}
+      {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><MedicalPrepButton className="journal-subject-summary" brandMark disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} /></div>}
       <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div><NurseServices onOpen={(service) => service === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : service === 'allergy' ? navigate('/health-profile/allergy') : setServiceSheet('reminders')} /></section>
-      <section className="guardian-tasks"><header><div><h2>守护任务</h2><p>共 {active.length} 项守护任务</p></div><button onClick={() => setServiceSheet('archive')} type="button">已归档任务{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
+      <section className="guardian-tasks"><header><h2>守护任务</h2><button onClick={() => setServiceSheet('archive')} type="button">已归档{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
     </div>
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
     <ServiceBottomSheet archived={archived} onClose={() => setServiceSheet(null)} onMedication={() => navigate('/health-events', { state: { nurseMedicationEntry: true } })} open={serviceSheet} />
@@ -114,13 +114,13 @@ function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void
 
 function NurseServices({ onOpen }: { onOpen: (service: NurseService) => void }) {
   const services = [
-    { id: 'symptom', label: '症状观察', icon: ShieldCheck, enabled: true },
-    { id: 'reminders', label: '提醒服务', icon: Bell, enabled: true },
+    { id: 'symptom', label: '症状观察', icon: Cross, enabled: true },
+    { id: 'reminders', label: '提醒服务', icon: AlarmClock, enabled: true },
     { id: 'allergy', label: '排敏测试', icon: TestTube, enabled: true },
     { id: 'instructions', label: '医嘱跟进', icon: ClipboardCheck, enabled: false },
     { id: 'conflicts', label: '冲突提醒', icon: Waypoints, enabled: false }
   ] as const
-  return <div className="nurse-service-list">{services.map(({ id, label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={id} onClick={enabled ? () => onOpen(id) : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span><ChevronRight aria-hidden="true" /></button>)}</div>
+  return <div className="nurse-service-list">{services.map(({ id, label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={id} onClick={enabled ? () => onOpen(id) : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span></button>)}</div>
 }
 
 function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
