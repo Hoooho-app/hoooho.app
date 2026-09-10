@@ -25,6 +25,12 @@ test('sidebar uses the approved concise navigation copy', () => {
   assert.match(drawer, /label: '说明'[^\n]*to: '\/guide'/)
 })
 
+test('sidebar service and account summary use the current member context', () => {
+  assert.match(drawer, /label: '服务站', icon: NurseCapIcon/)
+  assert.match(drawer, /member\.primaryRecorderRelationship/)
+  assert.match(drawer, /accountRelationship/)
+})
+
 test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /<MainAppHeader compact title="使用说明" \/>/)

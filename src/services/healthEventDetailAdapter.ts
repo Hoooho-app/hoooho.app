@@ -65,6 +65,7 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
     id: member.id,
     name: member.name,
     relation: relationLabels[member.relationship],
+    primaryRecorderRelationship: member.primaryRecorderRelationship,
     birthday: member.birthday ?? undefined,
     gender: member.gender ?? '',
     avatar: child
