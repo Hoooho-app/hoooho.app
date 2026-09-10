@@ -6,7 +6,7 @@ const home = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
 
 test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
-  assert.match(home, /生成成长身份卡/)
+  assert.match(home, /铸造成长身份卡/)
   assert.match(home, /更新成长数据/)
   assert.match(home, /暂无已知反应/)
   assert.match(home, /不确定过敏原也可以先记录症状/)

@@ -88,7 +88,7 @@
     box-shadow: 0 6px 24px rgb(var(--hoho-color-primary) / 0.045);
   }
   .growth-identity-card--complete { background: linear-gradient(145deg, rgb(var(--hoho-color-surface)), rgb(var(--hoho-color-primary-soft) / 0.38)); }
-  .growth-identity-card__member { display: grid; width: 100%; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; text-align: left; }
+  .growth-identity-card__member { display: grid; width: 100%; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; text-align: left; }
   .growth-identity-card__member > span { display: grid; min-width: 0; gap: 2px; }
   .growth-identity-card__member strong { overflow: hidden; color: rgb(var(--hoho-color-text-primary)); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
   .growth-identity-card__member small { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
