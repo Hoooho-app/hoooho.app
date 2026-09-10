@@ -27,9 +27,10 @@ const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
 test('健康随身记与前台护士站共用就医准备按钮', () => {
-  assert.match(page, /<MedicalPrepButton className="journal-subject-summary" icon="report"/)
+  assert.match(page, /<MedicalPrepButton className="journal-subject-summary"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
   assert.match(station, /<MedicalPrepButton className="journal-subject-summary"/)
+  assert.match(page, /setRecorderMode\('voice'\)/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
 })
 
