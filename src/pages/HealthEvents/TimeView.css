@@ -378,11 +378,29 @@
 .medication-fixed-save { z-index: 2; flex: 0 0 auto; border-top: 1px solid rgb(var(--hoho-color-border)); padding: .55rem 1rem max(.55rem, env(safe-area-inset-bottom)); background: rgb(var(--hoho-color-surface)); }
 .medication-reminder-sheet { display: grid; gap: .65rem; }
 .medication-reminder-sheet > span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.medication-reminder-sheet-surface { max-height: min(88dvh, 720px); }
+.medication-reminder-sheet-surface > .hoho-bottom-sheet__body { padding-bottom: var(--hoho-space-3); }
+.medication-reminder-sheet-surface > .hoho-bottom-sheet__footer { padding-block: var(--hoho-space-2) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
+.medication-mode-fields { display: grid; gap: .55rem; padding-top: .15rem; }
+.medication-mode-fields > span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.medication-mode-fields > input { width: 100%; min-height: 2.6rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .65rem; background: white; color: inherit; }
 .medication-sheet-options { display: flex; gap: .4rem; overflow-x: auto; }
 .medication-sheet-options button { min-height: 2.35rem; flex: 1 0 auto; padding: 0 .65rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: white; color: rgb(var(--hoho-color-text-secondary)); }
 .medication-sheet-options button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
 .medication-time-inputs { display: flex; flex-wrap: wrap; gap: .4rem; }
 .medication-time-inputs input { min-height: 2.4rem; min-width: 6rem; flex: 1; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .45rem; background: white; color: inherit; }
+.medication-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
+.medication-weekdays button { aspect-ratio: 1; min-width: 0; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 50%; background: white; color: rgb(var(--hoho-color-text-secondary)); }
+.medication-weekdays button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
+.medication-reminder-preview { color: rgb(var(--hoho-color-text-secondary)); }
+.medication-reminder-error { color: rgb(var(--hoho-color-danger)); }
+.medication-date-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem; }
+.medication-date-add input { min-width: 0; min-height: 2.6rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .45rem; background: white; color: inherit; }
+.medication-date-add button { min-height: 2.6rem; border: 1px solid rgb(var(--hoho-color-primary)); border-radius: .55rem; padding: 0 .65rem; color: rgb(var(--hoho-color-primary)); }
+.medication-date-add button:disabled { border-color: rgb(var(--hoho-color-border)); color: rgb(var(--hoho-color-text-tertiary)); }
+.medication-selected-dates { display: flex; flex-wrap: wrap; gap: .35rem; }
+.medication-selected-dates button { min-height: 2rem; display: inline-flex; align-items: center; gap: .2rem; border: 0; border-radius: var(--hoho-radius-pill); padding: 0 .55rem; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-selected-dates svg { width: .8rem; height: .8rem; }
 .medication-photo-source { display: grid; gap: .5rem; }
 .medication-photo-source button { min-height: 3.5rem; display: grid; grid-template-columns: 2rem minmax(0, 1fr); align-items: center; gap: .7rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .6rem; padding: .55rem .75rem; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); text-align: left; }
 .medication-photo-source button > svg { width: 1.35rem; height: 1.35rem; justify-self: center; }
