@@ -1,0 +1,29 @@
+.journal-search-page { min-height: 100dvh; overflow: hidden; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); }
+.journal-search-header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: var(--hoho-space-1); min-height: 64px; padding: max(var(--hoho-space-2), env(safe-area-inset-top)) var(--hoho-page-gutter) var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.journal-search-back, .journal-search-cancel, .journal-search-field button { display: grid; min-width: 44px; min-height: 44px; place-items: center; color: rgb(var(--hoho-color-text-primary)); }
+.journal-search-back { margin-left: -10px; }
+.journal-search-cancel { padding-inline: var(--hoho-space-1); font-size: var(--hoho-font-size-body); white-space: nowrap; }
+.journal-search-field { display: flex; min-width: 0; height: 44px; align-items: center; gap: var(--hoho-space-2); padding-left: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border-strong)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); }
+.journal-search-field:focus-within { border-color: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary-soft)); }
+.journal-search-field input { min-width: 0; flex: 1; height: 100%; border: 0; outline: 0; background: transparent; color: rgb(var(--hoho-color-text-primary)); font: inherit; font-size: 16px; }
+.journal-search-field input::placeholder { color: rgb(var(--hoho-color-text-tertiary)); }
+.journal-search-field input::-webkit-search-cancel-button { display: none; }
+.journal-search-field button { min-width: 40px; min-height: 40px; color: rgb(var(--hoho-color-surface)); }
+.journal-search-field button svg { box-sizing: content-box; padding: 2px; border-radius: 50%; background: rgb(var(--hoho-color-text-tertiary)); }
+.journal-search-body { height: calc(100dvh - 64px); overflow-y: auto; overscroll-behavior: contain; padding: var(--hoho-space-5) var(--hoho-page-gutter) max(var(--hoho-space-6), env(safe-area-inset-bottom)); }
+.journal-search-summary { display: grid; gap: 3px; margin-bottom: var(--hoho-space-4); }
+.journal-search-summary strong { font-size: var(--hoho-font-size-body); font-weight: 600; }
+.journal-search-summary span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
+.journal-search-results { display: grid; gap: var(--hoho-space-5); }
+.journal-search-date-group h2 { margin-bottom: var(--hoho-space-1); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-body); font-weight: 600; }
+.journal-search-date-group > div { border-top: 1px solid rgb(var(--hoho-color-border)); }
+.journal-search-result { display: flex; width: 100%; min-height: 52px; min-width: 0; align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); text-align: left; }
+.journal-search-result time { width: 46px; flex: none; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-variant-numeric: tabular-nums; }
+.journal-search-result > span:not(.hoho-health-tag) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--hoho-font-size-label); }
+.journal-search-result mark { padding: 1px 2px; border-radius: 3px; background: rgb(var(--hoho-color-primary-soft)); color: inherit; }
+.journal-search-result > svg:last-child { flex: none; color: rgb(var(--hoho-color-text-secondary)); }
+.journal-search-empty { display: grid; justify-items: center; gap: var(--hoho-space-1); padding-top: 72px; text-align: center; }
+.journal-search-empty strong { font-size: var(--hoho-font-size-body); font-weight: 600; }
+.journal-search-empty span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
+.journal-search-empty button { min-height: 44px; color: rgb(var(--hoho-color-primary)); }
+@media (max-width: 374px) { .journal-search-header { grid-template-columns: 40px minmax(0, 1fr) auto; padding-inline: var(--hoho-space-3); } .journal-search-back { min-width: 40px; } }

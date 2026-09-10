@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalDayPeriod, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
+import { bowelOccurrenceNumber, flattenJournal, journalDayGroups, journalDayPeriod, journalListSummary, journalSearchResultSummary, journalTime, journalUpdateLabel, searchJournalEntries, shiftJournalDate, type JournalEntry } from './timeViewModel.ts'
 import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types/index.ts'
 
 const entry = (id: string, time: string): JournalEntry => ({ id, eventId: 'event', content: id, occurredAt: time, createdAt: '2026-09-05T23:59:00', timePrecision: 'exact', categories: ['other'], attachmentCount: 0, status: 'observing' })
@@ -83,4 +83,18 @@ test('feeding list summaries omit eating statuses but retain method and duration
     diet: { kind: 'feeding' as const, feedingMethod: 'breast' as const, breastSeconds: { left: 30, right: 30, total: 60 }, feedingStatuses: ['顺利', '吐奶'] },
   }
   assert.equal(journalListSummary(feeding), '母乳 · 1分钟')
+})
+
+test('journal search trims whitespace, fuzzy-matches structured fields, and keeps newest first', () => {
+  const medication = {
+    ...entry('medication', '2026-09-10T12:16:00'), categories: ['medication'] as const, content: '按医嘱服药',
+    medication: { medicationName: '阿司匹林', administrationRoute: 'oral' as const },
+  }
+  const earlier = { ...medication, id: 'earlier', occurredAt: '2026-09-03T08:10:00' }
+  const otherMemberEntry = { ...entry('other', '2026-09-10T13:00:00'), content: '地奈德' }
+  assert.deepEqual(searchJournalEntries([earlier, otherMemberEntry, medication], '  阿司 匹林  ').map((item) => item.id), ['medication', 'earlier'])
+  assert.equal(journalSearchResultSummary(medication, '阿司匹林'), '阿司匹林')
+  const updated = { ...medication, id: 'updated', searchContents: ['最初记录', '补充描述：服药后缓解'] }
+  assert.deepEqual(searchJournalEntries([updated], '  服药 后缓解 ').map((item) => item.id), ['updated'])
+  assert.equal(journalSearchResultSummary(updated, '服药后缓解'), '补充描述：服药后缓解')
 })
