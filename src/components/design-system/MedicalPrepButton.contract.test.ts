@@ -6,29 +6,19 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const component = read('./MedicalPrepButton.tsx')
 const styles = read('./MedicalPrepButton.css')
 
-test('medical prep button keeps the compact three-dot brand mark and label', () => {
-  assert.match(component, /<svg[^>]*height="14"[^>]*viewBox="0 0 80 80"[^>]*width="14"/)
+test('medical prep button uses the shared report-sheet icon and label', () => {
+  assert.match(component, /<ClipboardList[^>]*size=\{24\}[^>]*strokeWidth=\{1\.8\}/)
   assert.match(component, /<strong>就诊情况单<\/strong>/)
   assert.match(component, /<small>孩子情况快速整理<\/small>/)
-  assert.equal((component.match(/<circle /g) ?? []).length, 3)
-  assert.match(component, /dot--bottom/)
-  assert.match(component, /dot--middle/)
-  assert.match(component, /dot--top/)
-  assert.doesNotMatch(component, /WandSparkles|soft-glow|light-band|brandMark|<img/)
+  assert.doesNotMatch(component, /<circle |WandSparkles|soft-glow|light-band|brandMark|<img/)
   assert.doesNotMatch(component, /setTimeout|setInterval|requestAnimationFrame|medical-prep-button--awake/)
 })
 
-test('three logo dots pulse bottom-to-top, then rest for three seconds while the button stays stable', () => {
-  assert.match(styles, /medical-prep-button \.hoho-button__content[\s\S]*align-items: center;[\s\S]*justify-content: center;[\s\S]*gap: 4px;/)
-  assert.match(styles, /medical-prep-button__icon[\s\S]*width: 14px;[\s\S]*height: 14px;[\s\S]*align-items: center;[\s\S]*justify-content: center;/)
-  assert.match(styles, /medical-prep-button__icon svg[\s\S]*width: 14px;[\s\S]*height: 14px;/)
+test('report icon matches the two-line copy height and the group remains centered', () => {
+  assert.match(styles, /medical-prep-button \.hoho-button__content[\s\S]*align-items: center;[\s\S]*justify-content: center;[\s\S]*gap: 6px;/)
+  assert.match(styles, /medical-prep-button__icon[\s\S]*width: 24px;[\s\S]*height: 24px;[\s\S]*flex: 0 0 24px;[\s\S]*align-items: center;[\s\S]*justify-content: center;/)
+  assert.match(styles, /medical-prep-button__icon svg[\s\S]*width: 24px;[\s\S]*height: 24px;/)
   assert.match(styles, /medical-prep-button__label[\s\S]*display: grid;[\s\S]*text-align: left;/)
-  assert.match(styles, /medical-prep-button__dot[\s\S]*animation: medical-prep-logo-pulse 4\.8s ease-in-out infinite;/)
-  assert.match(styles, /dot--middle[\s\S]*animation-delay: \.6s;/)
-  assert.match(styles, /dot--top[\s\S]*animation-delay: 1\.2s;/)
-  assert.match(styles, /0%, 12\.5%, 100%[\s\S]*transform: scale\(1\);/)
-  assert.match(styles, /6\.25%[\s\S]*opacity: 1;[\s\S]*transform: scale\(1\.3\);[\s\S]*drop-shadow/)
-  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*medical-prep-button__dot[\s\S]*animation: none;/)
   assert.match(styles, /box-shadow: none;/)
   assert.match(styles, /transition: none;/)
   assert.match(styles, /transform: none;/)

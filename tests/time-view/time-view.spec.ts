@@ -45,21 +45,23 @@ test('health journal names the existing summary action medical prep', async ({ p
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
 })
 
-test('quick record is unavailable and timeline tools are borderless', async ({ page }) => {
+test('quick record opens the existing voice flow and timeline tools are borderless', async ({ page }) => {
   await prepare(page)
   const manual = page.getByRole('button', { name: '记一下', exact: true })
   const quick = page.getByRole('button', { name: '快捷记录', exact: true })
   await expect(manual).toHaveCSS('background-color', 'rgb(27, 122, 110)')
   await expect(manual).toHaveCSS('color', 'rgb(255, 255, 255)')
-  await expect(quick).toBeDisabled()
+  await expect(quick).toBeEnabled()
   await expect(quick).toHaveCSS('background-color', 'rgb(27, 122, 110)')
   await expect(quick).toHaveCSS('color', 'rgb(255, 255, 255)')
-  await expect(quick).toHaveCSS('opacity', '0.48')
+  await expect(quick).toHaveCSS('opacity', '1')
   for (const name of ['搜索健康随身记', '切换记录顺序']) {
     const tool = page.getByRole('button', { name, exact: true })
     await expect(tool).toHaveCSS('border-top-width', '0px')
     await expect(tool).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   }
+  await quick.click()
+  await expect(page.getByRole('dialog', { name: '记录内容' })).toBeVisible()
 })
 
 test('manual record button uses a centered plus and concise label', async ({ page }) => {
@@ -116,18 +118,18 @@ test('health journal medical prep uses a centered title and report icon', async 
   await expect(button.locator('.medical-prep-button__dot')).toHaveCount(0)
   const layout = await button.evaluate((element) => {
     const icon = element.querySelector('.medical-prep-button__icon')!.getBoundingClientRect()
-    const title = element.querySelector('.medical-prep-button__label strong')!.getBoundingClientRect()
+    const content = element.querySelector('.hoho-button__content')!.getBoundingClientRect()
     const box = element.getBoundingClientRect()
     return {
       buttonHeight: box.height,
       buttonWidth: box.width,
       iconWidth: icon.width,
       iconHeight: icon.height,
-      titleCentered: Math.abs((title.left + title.width / 2) - (box.left + box.width / 2)) < 1,
+      contentCentered: Math.abs((content.left + content.width / 2) - (box.left + box.width / 2)) < 1,
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ buttonHeight: 52, buttonWidth: 128, iconWidth: 16, iconHeight: 16, titleCentered: true, pageOverflows: false })
+  expect(layout).toEqual({ buttonHeight: 52, buttonWidth: 140, iconWidth: 24, iconHeight: 24, contentCentered: true, pageOverflows: false })
   await page.screenshot({ path: 'test-results/medical-prep-report-iphone-se.png' })
 })
 
@@ -141,13 +143,13 @@ test('medical prep keeps its established desktop dimensions and stable label', a
   expect(await button.evaluate((element) => element.scrollWidth === element.clientWidth)).toBe(true)
 })
 
-test('nurse station keeps the existing brand icon', async ({ page }) => {
+test('nurse station uses the same centered report icon', async ({ page }) => {
   await prepare(page)
   await page.goto('/nurse-station')
   const button = page.getByRole('button', { name: '就医准备', exact: true })
   await expect(button).toBeVisible()
-  await expect(button.locator('.medical-prep-button__dot')).toHaveCount(3)
-  await expect(button.locator('.lucide-clipboard-list')).toHaveCount(0)
+  await expect(button.locator('.lucide-clipboard-list')).toBeVisible()
+  await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '24px')
   await expect(button).toBeDisabled()
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   await page.screenshot({ path: 'outputs/medical-prep-nurse-station-iphone-se.png' })

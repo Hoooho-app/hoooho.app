@@ -14,7 +14,7 @@
 .medical-prep-button .hoho-button__content {
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
@@ -22,55 +22,18 @@
 
 .medical-prep-button__icon {
   display: inline-flex;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
   align-items: center;
   justify-content: center;
 }
 
 .medical-prep-button__icon svg {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   overflow: visible;
-}
-
-.medical-prep-button__dot {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: medical-prep-logo-pulse 4.8s ease-in-out infinite;
-}
-
-.medical-prep-button__dot--bottom {
-  opacity: .42;
-}
-
-.medical-prep-button__dot--middle {
-  animation-delay: .6s;
-}
-
-.medical-prep-button__dot--top {
-  opacity: .72;
-  animation-delay: 1.2s;
-}
-
-@keyframes medical-prep-logo-pulse {
-  0%, 12.5%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 0 rgb(255 255 255 / 0));
-  }
-  6.25% {
-    opacity: 1;
-    transform: scale(1.3);
-    filter: drop-shadow(0 0 5px rgb(255 255 255 / .9));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .medical-prep-button__dot {
-    animation: none;
-  }
 }
 
 .medical-prep-button__label {
