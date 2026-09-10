@@ -10,7 +10,6 @@
 .nurse-station-member strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-member em { overflow: hidden; color: #687b88; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-member-row .journal-subject-summary { width: 106px; min-width: 0; min-height: 52px; height: 52px; padding-inline: 8px; border-radius: 12px; font-size: 14px; white-space: nowrap; }
-.nurse-station-member-row .journal-subject-summary img { filter: none; }
 
 .nurse-service-stage { display: grid; grid-template-columns: minmax(0, 1fr) 106px; align-items: stretch; gap: 8px; margin-top: 10px; }
 .nurse-station-visual { display: grid; min-width: 0; height: 224px; overflow: hidden; place-items: center; border: 0; border-radius: 8px; background: transparent; box-shadow: none; }

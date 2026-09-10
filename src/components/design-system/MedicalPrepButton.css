@@ -1,88 +1,42 @@
-.medical-prep-button {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
+.hoho-button.medical-prep-button {
   white-space: nowrap;
-  animation: medical-prep-surface-breathe 4s ease-in-out infinite;
-  transition: background-color var(--hoho-motion-fast) var(--hoho-ease-standard), box-shadow var(--hoho-motion-fast) var(--hoho-ease-standard), transform 140ms var(--hoho-ease-standard);
+  box-shadow: none;
+  transition: none;
 }
 
-.medical-prep-button__soft-glow {
-  position: absolute;
-  z-index: 1;
-  right: -20%;
-  bottom: -105%;
-  left: -20%;
-  height: 150%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgb(218 255 246 / .86) 0%, rgb(151 240 218 / .48) 30%, rgb(116 221 197 / .18) 54%, rgb(116 221 197 / 0) 74%);
-  filter: blur(5px);
-  mix-blend-mode: screen;
-  opacity: 0;
-  pointer-events: none;
-  animation: medical-prep-soft-glow-rise 4s cubic-bezier(.42, 0, .58, 1) infinite;
+.hoho-button.medical-prep-button:hover:not(:disabled),
+.hoho-button.medical-prep-button:active:not(:disabled) {
+  background: rgb(var(--hoho-color-primary));
+  box-shadow: none;
+  transform: none;
 }
 
-.medical-prep-button__light-band {
-  position: absolute;
-  z-index: 2;
-  top: -120%;
-  left: -45%;
-  width: 55%;
-  height: 340%;
-  background: linear-gradient(90deg, rgb(255 255 255 / 0) 0%, rgb(225 255 248 / .18) 26%, rgb(236 255 251 / .72) 50%, rgb(193 248 235 / .26) 72%, rgb(255 255 255 / 0) 100%);
-  filter: blur(3px);
-  mix-blend-mode: screen;
-  opacity: 0;
-  pointer-events: none;
-  animation: medical-prep-light-band-pass 4s cubic-bezier(.45, 0, .55, 1) infinite;
+.medical-prep-button .hoho-button__content {
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
 }
 
-.medical-prep-button::after {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  inset: 1px;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgb(255 255 255 / .08), rgb(255 255 255 / 0) 48%, rgb(0 0 0 / .05));
-  pointer-events: none;
+.medical-prep-button__icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
 }
 
-.medical-prep-button .hoho-button__content { position: relative; z-index: 3; gap: 5px; font-size: 12px; font-weight: 500; line-height: 1; transform: translateX(-3px); }
-.medical-prep-button__icon { display: inline-grid; width: 15px; height: 15px; flex: 0 0 15px; overflow: visible; place-items: center; }
-.medical-prep-button__icon img { display: block; width: 18px; height: 18px; max-width: none; }
-
-.medical-prep-button:active:not(:disabled) { transform: scale(.97); }
-.medical-prep-button:disabled,
-.medical-prep-button:disabled .medical-prep-button__soft-glow,
-.medical-prep-button:disabled .medical-prep-button__light-band { animation: none; }
-
-@keyframes medical-prep-soft-glow-rise {
-  0% { transform: translateY(34%); opacity: 0; }
-  10% { opacity: .32; }
-  36% { opacity: .9; }
-  58% { transform: translateY(-72%); opacity: .7; }
-  82% { transform: translateY(-122%); opacity: .16; }
-  94%, 100% { transform: translateY(-134%); opacity: 0; }
+.medical-prep-button__icon img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  filter: none;
 }
 
-@keyframes medical-prep-light-band-pass {
-  0% { transform: rotate(18deg) translateX(-30%); opacity: 0; }
-  18% { opacity: .18; }
-  42% { opacity: .9; }
-  68% { opacity: .42; }
-  86%, 100% { transform: rotate(18deg) translateX(360%); opacity: 0; }
-}
-
-@keyframes medical-prep-surface-breathe {
-  0%, 100% { filter: brightness(1); box-shadow: 0 4px 12px rgb(var(--hoho-color-primary-dark) / .2); }
-  46% { filter: brightness(1.055); box-shadow: 0 7px 18px rgb(var(--hoho-color-primary-dark) / .28), 0 0 12px rgb(139 238 215 / .16); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .medical-prep-button,
-  .medical-prep-button__soft-glow,
-  .medical-prep-button__light-band { animation: none !important; }
-  .medical-prep-button__soft-glow,
-  .medical-prep-button__light-band { display: none; }
+.medical-prep-button__label {
+  letter-spacing: .01em;
 }
