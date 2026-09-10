@@ -7,6 +7,7 @@ const pageSource = readFileSync(new URL('./EditFamilyMemberPage.tsx', import.met
 test('孩子编辑页只呈现冻结的信息架构', () => {
   assert.match(pageSource, /title="编辑孩子资料"/)
   assert.match(pageSource, /childProfile/)
+  assert.match(pageSource, /childProfileReady=\{Boolean\(draft\.birthday && draft\.gender\)\}/)
   assert.match(pageSource, /卡通形象|FamilyAvatarEditor/)
   assert.match(pageSource, /姓名/)
   assert.match(pageSource, /出生日期/)
