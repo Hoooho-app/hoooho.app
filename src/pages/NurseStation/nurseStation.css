@@ -22,7 +22,7 @@
 .nurse-service-entry[data-enabled='true']:active { transform: scale(.98); }
 .nurse-service-entry[data-enabled='true']:focus-visible { outline: 3px solid rgb(var(--hoho-color-focus, 27 148 134) / .28); outline-offset: 2px; }
 .nurse-service-entry:disabled { cursor: default; opacity: 1; }
-.nurse-station-page .idle-nurse-visual { background: #fff url('/nurse-triage/attention.png') center / contain no-repeat; }
+.nurse-station-page .idle-nurse-visual { background: #fff; }
 .nurse-station-empty-member { display: grid; height: calc(100vh - 64px); height: calc(100dvh - 64px); grid-template-rows: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: clamp(7px, 1.4dvh, 11px); padding: clamp(10px, 2dvh, 16px) 20px max(10px, env(safe-area-inset-bottom)); text-align: center; }
 .nurse-station-empty-member__copy { margin-inline: auto; max-width: 350px; }
 .nurse-station-empty-member__eyebrow { color: rgb(var(--hoho-color-text-secondary)); font-size: 14px; line-height: 1.3; }

@@ -82,7 +82,7 @@ export function NurseStationPage() {
           <p className="nurse-station-empty-member__description">记下症状、用药和就医经过，<span>自动整理成时间线和问诊摘要。</span></p>
         </div>
         <div className="nurse-station-empty-member__visual">
-          <NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey="first-member" reducedMotion={reducedMotion} state="idle" />
+          <NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey="first-member" reducedMotion={reducedMotion} state="idle" stationIdleOnly />
         </div>
         <ol aria-label="Hoooho 健康记录流程" className="nurse-station-empty-member__steps">
           <li><FileText aria-hidden="true" /><span>随手记录</span></li>
@@ -101,7 +101,7 @@ export function NurseStationPage() {
     <MainAppHeader title="前台护士站" />
     <div className="nurse-station-scroll">
       {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} /></div>}
-      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" /></div><NurseServices onOpen={(service) => service === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : service === 'allergy' ? navigate('/health-profile/allergy') : setServiceSheet('reminders')} /></section>
+      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div><NurseServices onOpen={(service) => service === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : service === 'allergy' ? navigate('/health-profile/allergy') : setServiceSheet('reminders')} /></section>
       <section className="guardian-tasks"><header><h2>守护任务</h2><button onClick={() => setServiceSheet('archive')} type="button">已归档{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
     </div>
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
