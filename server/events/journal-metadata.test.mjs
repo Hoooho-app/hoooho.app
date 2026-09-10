@@ -9,6 +9,22 @@ test('medication journal keeps dose and route as recorded without calculation', 
   assert.throws(() => validateJournal({ categories: ['medication'], medication: { medicationName: '药品', amountUnit: 'mg', administrationRoute: 'oral' } }), /不能只填写/)
 })
 
+test('medication reminders preserve and validate interval, weekly and custom schedules', () => {
+  const medication = (reminder) => ({ categories: ['medication'], medication: { medications: [{ id: 'drug-1', medicationName: '药品', amountValue: 1, amountUnit: '片', dosageStep: 1, reminder }] } })
+  const base = { enabled: true, configured: true, timesPerDay: 1, times: ['08:00'], durationDays: 7 }
+  const interval = validateJournal(medication({ ...base, frequency: 'interval_hours', intervalHours: 6, firstReminderAt: '2026-09-10T14:00' })).medication.medications[0].reminder
+  assert.equal(interval.intervalHours, 6)
+  assert.equal(interval.firstReminderAt, '2026-09-10T14:00')
+  const weekly = validateJournal(medication({ ...base, frequency: 'weekly', weekdays: [5, 1, 3], durationWeeks: 4 })).medication.medications[0].reminder
+  assert.deepEqual(weekly.weekdays, [1, 3, 5])
+  assert.equal(weekly.durationWeeks, 4)
+  const custom = validateJournal(medication({ ...base, frequency: 'custom', selectedDates: ['2026-09-15', '2026-09-12'] })).medication.medications[0].reminder
+  assert.deepEqual(custom.selectedDates, ['2026-09-12', '2026-09-15'])
+  assert.throws(() => validateJournal(medication({ ...base, frequency: 'weekly', weekdays: [], durationWeeks: 2 })), /每周提醒设置无效/)
+  assert.throws(() => validateJournal(medication({ ...base, frequency: 'custom', selectedDates: [] })), /自定义提醒日期无效/)
+  assert.throws(() => validateJournal(medication({ ...base, frequency: 'interval_hours', intervalHours: 0, firstReminderAt: '2026-09-10T14:00' })), /间隔提醒设置无效/)
+})
+
 test('vaccination journal preserves separate items and rejects conflicting observations', () => {
   const vaccination = validateJournal({ categories: ['vaccination'], vaccination: { items: [
     { id: 'vac-1', vaccineName: '流感疫苗（三价）', doseSequence: 'dose_2', manufacturerName: '示例厂家', batchNumber: 'AB-01', injectionSite: 'left_upper_arm' },
