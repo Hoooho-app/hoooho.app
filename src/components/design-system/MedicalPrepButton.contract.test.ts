@@ -6,24 +6,21 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const component = read('./MedicalPrepButton.tsx')
 const styles = read('./MedicalPrepButton.css')
 
-test('medical prep motion uses the existing shared button with a continuous two-layer CSS glow', () => {
-  assert.match(component, /<HohoButton/)
-  assert.match(component, /medical-prep-button__soft-glow/)
-  assert.match(component, /medical-prep-button__light-band/)
-  assert.match(component, /WandSparkles[^>]*size=\{15\}[^>]*strokeWidth=\{1\.8\}/)
+test('medical prep button keeps only the compact brand mark and label', () => {
+  assert.match(component, /logoWhiteUrl/)
+  assert.match(component, /height=\{14\}/)
+  assert.match(component, />就医准备</)
+  assert.doesNotMatch(component, /WandSparkles|soft-glow|light-band|brandMark/)
   assert.doesNotMatch(component, /setTimeout|setInterval|requestAnimationFrame|medical-prep-button--awake/)
-  assert.match(styles, /medical-prep-soft-glow-rise 4s/)
-  assert.match(styles, /medical-prep-light-band-pass 4s/)
-  assert.match(styles, /medical-prep-surface-breathe 4s/)
-  assert.doesNotMatch(styles, /12s|12_000/)
 })
 
-test('medical prep motion keeps its content stable and honors reduced motion', () => {
-  assert.match(styles, /medical-prep-button \.hoho-button__content[^}]*gap: 5px[^}]*font-size: 12px[^}]*transform: translateX\(-3px\)/)
-  assert.match(component, /brandMark \? <img[^>]*logoWhiteUrl/)
-  assert.doesNotMatch(styles, /medical-prep-button__icon[^}]*animation/s)
-  assert.doesNotMatch(styles, /medical-prep-button__label[^}]*animation/s)
-  assert.match(styles, /prefers-reduced-motion: reduce/)
-  assert.match(styles, /animation: none !important/)
-  assert.match(styles, /medical-prep-button__soft-glow,[\s\S]*medical-prep-button__light-band \{ display: none; \}/)
+test('medical prep button is centered and has no decorative effects', () => {
+  assert.match(styles, /medical-prep-button \.hoho-button__content[\s\S]*align-items: center;[\s\S]*justify-content: center;[\s\S]*gap: 4px;/)
+  assert.match(styles, /medical-prep-button__icon[\s\S]*width: 14px;[\s\S]*height: 14px;[\s\S]*align-items: center;[\s\S]*justify-content: center;/)
+  assert.match(styles, /medical-prep-button__icon img[\s\S]*width: 14px;[\s\S]*height: 14px;[\s\S]*object-fit: contain;/)
+  assert.match(styles, /box-shadow: none;/)
+  assert.match(styles, /transition: none;/)
+  assert.match(styles, /transform: none;/)
+  assert.match(styles, /filter: none;/)
+  assert.doesNotMatch(styles, /animation|@keyframes|::after|radial-gradient|linear-gradient/)
 })
