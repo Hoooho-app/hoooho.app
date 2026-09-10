@@ -392,6 +392,8 @@ test('feeding and diet type sheet is complete, non-scrollable and returns with s
   await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: /^喂养/ }).locator('.diet-type-icon--feeding-bottle')).toBeVisible()
   await expect(dialog.getByRole('button', { name: /^辅食/ }).locator('.journal-category-icon--spoon')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^正餐/ }).locator('.diet-type-icon--meal-pot')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^补剂/ }).locator('.diet-type-icon--supplement-bottle')).toBeVisible()
   await expect(dialog.getByRole('button', { name: /^辅食/ })).toContainText('泥糊 / 颗粒')
   await expect(dialog.getByRole('button', { name: /^辅食/ })).not.toContainText('手指食物')
   await expect(dialog.getByText(/推荐/)).toHaveCount(0)
