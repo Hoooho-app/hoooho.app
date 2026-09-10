@@ -66,21 +66,20 @@ test('manual record button keeps its fixed content stable while typing in a clip
   await prepare(page)
   const button = page.getByRole('button', { name: '手动记录', exact: true })
   await expect(button).not.toContainText('手动记录')
-  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记录')
-  await expect(button.locator('.journal-manual-record-action__underscore')).toHaveText('_')
+  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('快捷记录')
+  await expect(button.locator('.journal-manual-record-action__copy')).toBeVisible()
   await expect(button.locator('.lucide-pencil')).toBeVisible()
   await expect(button.locator('.lucide-pen-line')).toHaveCount(0)
   await expect(button.locator('.journal-manual-record-action__prompt-window')).toContainText('不舒服就记下来', { timeout: 2_000 })
 
   const layout = await button.evaluate((element) => {
     const fixed = element.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
-    const underscore = element.querySelector('.journal-manual-record-action__underscore')!.getBoundingClientRect()
     const promptWindow = element.querySelector('.journal-manual-record-action__prompt-window')!
     const prompt = promptWindow.getBoundingClientRect()
     const quick = document.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
     const buttonBox = element.getBoundingClientRect()
     return {
-      fixedBeforePrompt: fixed.right <= underscore.left && underscore.right <= prompt.left,
+      promptBelowLabel: prompt.top >= fixed.bottom,
       sameRow: Math.abs(buttonBox.top - quick.top) < 1,
       buttonHeight: buttonBox.height,
       quickWidth: quick.width,
@@ -89,7 +88,7 @@ test('manual record button keeps its fixed content stable while typing in a clip
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ fixedBeforePrompt: true, sameRow: true, buttonHeight: 50, quickWidth: 52, promptClips: true, promptMaskStartsOpaque: true, pageOverflows: false })
+  expect(layout).toEqual({ promptBelowLabel: true, sameRow: true, buttonHeight: 60, quickWidth: 60, promptClips: true, promptMaskStartsOpaque: true, pageOverflows: false })
   await page.screenshot({ path: 'test-results/manual-record-typewriter-iphone-se.png' })
 
   await button.click()
@@ -116,15 +115,15 @@ test('manual record footer stays on one row at the required mobile widths', asyn
       const manual = footer.querySelector('.journal-manual-record-action')!.getBoundingClientRect()
       const quick = footer.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
       const fixed = footer.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
-      const underscore = footer.querySelector('.journal-manual-record-action__underscore')!.getBoundingClientRect()
+      const prompt = footer.querySelector('.journal-manual-record-action__prompt-window')!.getBoundingClientRect()
       return {
         oneRow: manual.top === quick.top && manual.bottom === quick.bottom,
-        fixedVisible: fixed.width > 0 && underscore.width > 0,
+        hierarchyVisible: fixed.width > 0 && prompt.width > 0 && prompt.top >= fixed.bottom,
         quickWidth: quick.width,
         pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       }
     })
-    expect(layout).toEqual({ oneRow: true, fixedVisible: true, quickWidth: 52, pageOverflows: false })
+    expect(layout).toEqual({ oneRow: true, hierarchyVisible: true, quickWidth: 60, pageOverflows: false })
   }
 })
 
@@ -242,8 +241,8 @@ test('single-day timeline, search entry, sort order, compact subject and summary
   expect(subjectBox!.height).toBe(summaryBox!.height)
   const manualBox = await page.getByRole('button', { name: '手动记录', exact: true }).boundingBox()
   const quickBox = await page.getByRole('button', { name: '快捷记录', exact: true }).boundingBox()
-  expect(manualBox!.width).toBeGreaterThan(quickBox!.width * 4)
-  expect(quickBox!.width).toBe(52)
+  expect(manualBox!.width).toBeGreaterThan(quickBox!.width * 3.5)
+  expect(quickBox!.width).toBe(60)
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).not.toContainText('快捷记录')
   await page.mouse.move(0, 0)
   await expect(page.getByRole('button', { name: '手动记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
