@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
+let registrationSequence = 0
+
 async function registerAccount(page: Page) {
+  registrationSequence += 1
+  await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.51.100.${registrationSequence}` })
   await page.goto('/login')
   await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`护士站测试${Date.now().toString().slice(-8)}`)
