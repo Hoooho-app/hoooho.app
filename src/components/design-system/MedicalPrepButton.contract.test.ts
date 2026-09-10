@@ -20,6 +20,7 @@ test('medical prep motion uses the existing shared button with a continuous two-
 
 test('medical prep motion keeps its content stable and honors reduced motion', () => {
   assert.match(styles, /medical-prep-button \.hoho-button__content[^}]*gap: 5px[^}]*font-size: 12px[^}]*transform: translateX\(-3px\)/)
+  assert.match(component, /wordmark \? <span className="medical-prep-button__wordmark">Hoooho</)
   assert.doesNotMatch(styles, /medical-prep-button__icon[^}]*animation/s)
   assert.doesNotMatch(styles, /medical-prep-button__label[^}]*animation/s)
   assert.match(styles, /prefers-reduced-motion: reduce/)

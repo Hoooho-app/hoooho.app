@@ -49,7 +49,9 @@
 }
 
 .medical-prep-button .hoho-button__content { position: relative; z-index: 3; gap: 5px; font-size: 12px; font-weight: 500; line-height: 1; transform: translateX(-3px); }
-.medical-prep-button__icon { width: 15px; height: 15px; flex: 0 0 15px; overflow: visible; }
+.medical-prep-button__icon { display: inline-grid; width: 15px; height: 15px; flex: 0 0 15px; overflow: visible; place-items: center; }
+.medical-prep-button__icon--wordmark { width: 30px; }
+.medical-prep-button__wordmark { color: #fff; font-size: 8px; font-weight: 900; letter-spacing: -.08em; line-height: 1; }
 
 .medical-prep-button:active:not(:disabled) { transform: scale(.97); }
 .medical-prep-button:disabled,

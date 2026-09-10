@@ -18,13 +18,13 @@ import { VisitRecordFlow } from './VisitRecordFlow'
 
 export function JournalRecorder({ mode, memberId, token, initialCategory, onClose, onConfirm, onSaved }: {
   mode: 'manual' | 'voice'; memberId: string; token: string; onClose: () => void
-  initialCategory?: 'medication'
+  initialCategory?: 'medication' | 'symptom'
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
 }) {
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
-  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'>(initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : mode === 'voice' ? 'generic' : 'categories')
+  const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'>(initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : mode === 'voice' ? 'generic' : 'categories')
   const [selected, setSelected] = useState<JournalCategory[]>([])
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(null)
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
