@@ -484,6 +484,7 @@ test('five diet record kinds save through the real API and show only the concise
   await expect(page.locator('.journal-saved-toast')).toHaveText('已记录')
   const feedingRecord = page.locator('.journal-record').filter({ hasText: '母乳 · 5分钟' })
   await expect(feedingRecord).toBeVisible()
+  await expect(feedingRecord.locator('.diet-type-icon--feeding-bottle')).toBeVisible()
   await expect(feedingRecord.locator('.journal-record-summary')).not.toContainText('抗拒')
 
   await openDietTypes(page)
