@@ -1,6 +1,10 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
 
+let registrationSequence = 0
+
 async function register(page: Page, nickname = `测试家长${Date.now().toString().slice(-8)}`) {
+  registrationSequence += 1
+  await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.51.100.${registrationSequence}` })
   await page.goto('/login')
   await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(nickname)
@@ -10,7 +14,7 @@ async function register(page: Page, nickname = `测试家长${Date.now().toStrin
   return nickname
 }
 
-async function reopenWithSavedCookies(browser: Browser, page: Page) {
+async function reopenWithSavedState(browser: Browser, page: Page) {
   const storageState = await page.context().storageState()
   expect(storageState.cookies.some((cookie) => cookie.name === 'hoooho_session')).toBe(true)
   await page.context().close()
@@ -46,15 +50,43 @@ test('registration creates a durable formal account and default nickname login r
   expect(localState.nickname).toBe(nickname)
   expect(localState.all).not.toContain('simple-password')
 
-  const reopened = await reopenWithSavedCookies(browser, page)
+  const reopened = await reopenWithSavedState(browser, page)
   page = reopened.page
-  await page.goto('/login')
+  await page.goto('/')
   await expect(page).toHaveURL(/nurse-station/)
   await page.evaluate(async () => { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) })
   await page.goto('/login')
   await expect(page).toHaveURL(/login/)
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'hoooho_session')).toBe(false)
   await reopened.context.close()
+})
+
+test('revoked persistent session falls back to the remembered nickname without storing the password', async ({ browser }) => {
+  const initialContext = await browser.newContext({ viewport: { width: 375, height: 667 } })
+  const page = await initialContext.newPage()
+  const nickname = await register(page)
+  await page.evaluate(async () => { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) })
+  await page.goto('/login')
+  await page.getByPlaceholder('输入密码').fill('simple-password')
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await expect(page).toHaveURL(/nurse-station/)
+
+  const storageState = await initialContext.storageState()
+  const storedOrigin = storageState.origins.find((origin) => origin.origin === 'http://127.0.0.1:4196')
+  expect(storedOrigin?.localStorage.some((item) => item.name === 'lastLoginNickname' && item.value === nickname)).toBe(true)
+  expect(JSON.stringify(storageState.origins)).not.toContain('simple-password')
+
+  await page.evaluate(async () => { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) })
+  await initialContext.close()
+
+  const reopened = await browser.newContext({ storageState, viewport: { width: 375, height: 667 } })
+  const reopenedPage = await reopened.newPage()
+  await reopenedPage.goto('/')
+  await expect(reopenedPage).toHaveURL(/login/)
+  await expect(reopenedPage.getByPlaceholder('输入你的昵称')).toHaveValue(nickname)
+  await expect(reopenedPage.getByPlaceholder('输入密码')).toHaveValue('')
+  expect(await reopenedPage.evaluate(() => JSON.stringify(localStorage))).not.toContain('simple-password')
+  await reopened.close()
 })
 
 test('session-only login clears the remembered nickname and issues a browser-session cookie', async ({ browser }) => {

@@ -65,7 +65,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
       },
       ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
       cache: 'no-store',
-      credentials: 'same-origin',
+      credentials: 'include',
       signal: controller.signal
     })
     const responseRequestId = response.headers.get('X-Hoooho-Request-ID') ?? requestId
