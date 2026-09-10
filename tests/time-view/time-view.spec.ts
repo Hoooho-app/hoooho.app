@@ -24,6 +24,10 @@ test('manual record sheet groups supported care actions under health events', as
   await prepare(page)
   await page.getByRole('button', { name: '手动记录', exact: true }).click()
   const sheet = page.getByRole('dialog', { name: '记录新情况' })
+  const eating = sheet.getByRole('button', { name: '进食', exact: true })
+  await expect(eating).toBeVisible()
+  await expect(eating.locator('.journal-category-icon--spoon')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: '喂养/饮食', exact: true })).toHaveCount(0)
   const healthEvents = sheet.getByRole('region', { name: '健康事件' })
   await expect(healthEvents.getByRole('button')).toHaveCount(4)
   await expect(healthEvents.getByRole('button')).toHaveText(['症状', '用药', '疫苗', '就医'])
@@ -288,7 +292,8 @@ test('manual single selection, photo draft, review and real API save reach today
   await expect(page.getByRole('region', { name: '照护处理' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
-  const diet = page.getByRole('button', { name: '喂养/饮食', exact: true })
+  const diet = page.getByRole('button', { name: '进食', exact: true })
+  await expect(diet.locator('.journal-category-icon--spoon')).toBeVisible()
   const visit = page.getByRole('button', { name: '就医', exact: true })
   await visit.click()
   await expect(visit).toHaveAttribute('aria-pressed', 'true')
@@ -376,7 +381,7 @@ test('bowel record is one continuous form, restores its member draft and saves r
 
 async function openDietTypes(page: Page) {
   await page.getByRole('button', { name: '手动记录', exact: true }).click()
-  await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
+  await page.getByRole('button', { name: '进食', exact: true }).click()
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 }
 
