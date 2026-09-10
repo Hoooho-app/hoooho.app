@@ -389,7 +389,11 @@ test('feeding and diet type sheet is complete, non-scrollable and returns with s
   await prepare(page)
   await openDietTypes(page)
   const dialog = page.getByRole('dialog', { name: '记录喂养/饮食' })
-  await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: /^喂养/ }).locator('.diet-type-icon--feeding-bottle')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^辅食/ }).locator('.journal-category-icon--spoon')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^辅食/ })).toContainText('泥糊 / 颗粒')
+  await expect(dialog.getByRole('button', { name: /^辅食/ })).not.toContainText('手指食物')
   await expect(dialog.getByText(/推荐/)).toHaveCount(0)
   await expect(dialog.getByText(/个月|记录对象|已按年龄优先显示/)).toHaveCount(0)
   const start = dialog.getByRole('button', { name: '开始记录', exact: true })
@@ -402,6 +406,7 @@ test('feeding and diet type sheet is complete, non-scrollable and returns with s
   expect(layout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'visible', handle: 'none' })
   const startBox = await start.boundingBox()
   expect(startBox!.y + startBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+  await page.screenshot({ path: 'test-results/diet-types-icons-iphone-se.png' })
 
   const choices = [
     { button: /^喂养/, heading: '记录喂养' },

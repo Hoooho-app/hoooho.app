@@ -75,7 +75,10 @@ test('快速记录留在前台核对并只在确认保存时调用原子接口',
 test('喂养饮食使用五类确认页、独立记录页和结构化真实保存', () => {
   assert.match(journalRecorder, /记录喂养\/饮食/)
   assert.match(journalRecorder, /母乳 \/ 配方奶/)
-  assert.match(journalRecorder, /泥糊 \/ 颗粒 \/ 手指食物/)
+  assert.match(journalRecorder, /泥糊 \/ 颗粒/)
+  assert.doesNotMatch(journalRecorder, /先记下来，之后还可以继续补充|泥糊 \/ 颗粒 \/ 手指食物/)
+  assert.match(journalRecorder, /diet-type-icon--feeding-bottle/)
+  assert.match(journalRecorder, /<SpoonIcon size=\{24\}/)
   assert.match(journalRecorder, /早餐 \/ 午餐 \/ 晚餐/)
   assert.match(journalRecorder, /点心 \/ 水果 \/ 饮品/)
   assert.doesNotMatch(journalRecorder, /推荐|已按年龄优先显示/)
