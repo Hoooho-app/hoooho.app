@@ -47,7 +47,14 @@ test('health journal names the existing summary action medical prep', async ({ p
 
 test('quick record is unavailable and timeline tools are borderless', async ({ page }) => {
   await prepare(page)
-  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toBeDisabled()
+  const manual = page.getByRole('button', { name: '手动记录', exact: true })
+  const quick = page.getByRole('button', { name: '快捷记录', exact: true })
+  await expect(manual).toHaveCSS('background-color', 'rgb(27, 122, 110)')
+  await expect(manual).toHaveCSS('color', 'rgb(255, 255, 255)')
+  await expect(quick).toBeDisabled()
+  await expect(quick).toHaveCSS('background-color', 'rgb(27, 122, 110)')
+  await expect(quick).toHaveCSS('color', 'rgb(255, 255, 255)')
+  await expect(quick).toHaveCSS('opacity', '0.48')
   for (const name of ['搜索健康随身记', '切换记录顺序']) {
     const tool = page.getByRole('button', { name, exact: true })
     await expect(tool).toHaveCSS('border-top-width', '0px')
