@@ -12,7 +12,7 @@ const store = readFileSync(new URL('../../store/useAppStore.ts', import.meta.url
 test('sidebar account identity stays separate from the current child', () => {
   assert.match(drawer, /创建正式账户/)
   assert.match(drawer, /authUser\?\.nickname/)
-  assert.doesNotMatch(drawer, /父亲|母亲/)
+  assert.match(drawer, /accountRelationship/)
 })
 
 test('account sheet exposes only peer security, membership and logout actions', () => {

@@ -102,7 +102,7 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
   const createMember = async (name: string, birthday: string) => {
     const response = await request.post('/api/members', {
       headers: { Authorization: 'Bearer ' + authToken },
-      data: { name, relationship: 'child', gender: 'female', birthday, avatar: 'girl-age1-east-asian' }
+      data: { name, relationship: 'child', gender: 'female', birthday, avatar: 'girl-age1-east-asian', primaryRecorderRelationship: 'father' }
     })
     expect(response.status()).toBe(201)
     return response.json()
@@ -125,6 +125,7 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
     await expect(drawer.getByRole('button', { name: '健康档案' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: '健康记录' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: '服务站' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: /爸爸.*已同步/ })).toBeVisible()
     expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['健康档案', '健康记录', '服务站'])
     await expect(drawer.getByRole('button', { name: '说明', exact: true })).toBeVisible()
     const accountButton = drawer.getByRole('button', { name: /已同步/ })

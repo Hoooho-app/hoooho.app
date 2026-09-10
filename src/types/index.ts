@@ -5,6 +5,7 @@ export interface Member {
   name: string
   age: string
   relation: MemberRelation
+  primaryRecorderRelationship?: ChildRecorderRelationship | null
   birthday?: string
   gender?: ProfileGender
   avatar?: string

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleHelp, Folder, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -11,6 +11,7 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
+import { NurseCapIcon } from './NurseCapIcon'
 
 interface SideDrawerProps {
   open: boolean
@@ -24,7 +25,7 @@ export const sidebarMenuGroups = [
     items: [
     { label: '健康档案', icon: Folder, to: '/health-profile' },
     { label: '健康记录', icon: BookOpen, to: '/health-events' },
-    { label: '服务站', icon: House, to: '/nurse-station' }
+    { label: '服务站', icon: NurseCapIcon, to: '/nurse-station' }
     ]
   },
   {
@@ -40,6 +41,10 @@ export const sidebarMenuGroups = [
 ]
 
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
+const recorderRelationshipLabel = {
+  father: '爸爸', mother: '妈妈', paternal_grandfather: '爷爷', paternal_grandmother: '奶奶',
+  maternal_grandfather: '外公', maternal_grandmother: '外婆', nanny: '保姆', other: '其他'
+} as const
 
 export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null)
@@ -52,6 +57,9 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
+  const accountRelationship = member.primaryRecorderRelationship
+    ? recorderRelationshipLabel[member.primaryRecorderRelationship]
+    : null
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
 
@@ -138,7 +146,10 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
             ? <span className="account-neutral-avatar"><UserRound size={19} /></span>
             : <Avatar name={accountProfile?.nickname ?? '用户'} src={accountProfile?.avatar ?? undefined} size="sm" />}
           <span className="min-w-0 flex-1">
-            <strong className="block truncate text-sm font-semibold">{authUser?.guest ? '创建正式账户' : accountProfile?.nickname ?? authUser?.nickname ?? 'Hoooho 用户'}</strong>
+            <strong className="block truncate text-sm font-semibold">
+              {authUser?.guest ? '创建正式账户' : accountProfile?.nickname ?? authUser?.nickname ?? 'Hoooho 用户'}
+              {!authUser?.guest && accountRelationship && <span className="ml-1.5 font-normal text-text-secondary">{accountRelationship}</span>}
+            </strong>
             <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : '已同步'}</span>
           </span>
           {!authUser?.guest && <MembershipBadge />}
