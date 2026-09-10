@@ -32,6 +32,7 @@ export const router = createBrowserRouter([
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
+      { path: '/health-events/search', lazy: lazyPage(() => import('../pages/HealthEvents/JournalSearchPage'), 'JournalSearchPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
       {
         element: <RequireEstablishedHealthData />,

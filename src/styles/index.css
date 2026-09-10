@@ -964,8 +964,7 @@
     }
   }
 
-  .app-shell-toast,
-  .health-events-filter-layer { max-width: none; }
+  .app-shell-toast { max-width: none; }
 
   .hoho-health-card.health-event-list-card--recovered {
     border-color: rgb(var(--hoho-color-success) / 0.16);
@@ -1193,8 +1192,7 @@
     .app-shell { max-width: var(--hoho-app-shell-max); border-inline: 1px solid rgb(var(--hoho-color-border) / 0.72); }
     .health-profile-action-bar,
     .hoho-drawer-layer,
-    .app-shell-toast,
-    .health-events-filter-layer { max-width: var(--hoho-app-shell-max); }
+    .app-shell-toast { max-width: var(--hoho-app-shell-max); }
     .health-events-fab { right: calc((100vw - var(--hoho-app-shell-max)) / 2 + var(--hoho-page-gutter)); }
     .app-shell > .hoho-page-header { padding-inline: var(--hoho-page-gutter); }
     .app-shell > .hoho-page-header + :not(.health-events-member) { width: 100%; max-width: none; margin-inline: 0; }
@@ -1222,7 +1220,6 @@
     .hoho-health-events-page[data-view-mode='list'] .health-events-content { width: min(calc(100% - 64px), 960px); }
     .hoho-health-events-page[data-view-mode='triage'] .health-events-member,
     .hoho-health-events-page[data-view-mode='triage'] .health-events-content { width: min(calc(100% - 48px), calc(var(--hoho-app-shell-max) - 48px)); }
-    .hoho-health-events-page .health-events-filter-layer { max-width: var(--hoho-content-wide); }
     .hoho-health-events-page .health-events-fab { right: max(var(--hoho-page-gutter), calc((100vw - var(--hoho-content-wide)) / 2 + var(--hoho-page-gutter))); }
   }
 

@@ -1,21 +1,17 @@
 import { ChevronLeft, ChevronRight, Paperclip } from 'lucide-react'
 import { useEffect } from 'react'
 import { EmptyState, HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
-import { HealthEventFilterSheet, type HealthEventFilters } from '../../components/health'
-import { formatPlainMonthDay, formatPlainWeekday, getLocalCalendarParts, getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
+import { formatPlainMonthDay, formatPlainWeekday, parsePlainDate } from '../../utils/localCalendarDate'
 import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate } from './timeViewModel'
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
 
-export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, filterOpen, filters, onFilterClose, onFilterApply, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; filterOpen: boolean; filters: HealthEventFilters; onFilterClose: () => void; onFilterApply: (filters: HealthEventFilters) => void; sortOrder: 'desc' | 'asc' }) {
+export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
   const contextEventId = entries[0]?.eventId ?? null
   useEffect(() => { onContext({ memberId, eventId: contextEventId }) }, [memberId, contextEventId, onContext])
-  const filteredEntries = filterJournalEntries(entries, filters)
-  const groups = journalDayGroups(filteredEntries, day, sortOrder)
-  const years = [...new Set(entries.map((entry) => getLocalCalendarParts(entry.occurredAt)?.year).filter((year): year is number => year !== undefined))].sort((left, right) => right - left)
-  const definitionTitles = [...new Set(entries.flatMap((entry) => entry.categories ?? ['other'] as const).map((category) => journalCategoryLabels[category]))]
+  const groups = journalDayGroups(entries, day, sortOrder)
   const yesterday = shiftJournalDate(today, -1)
   const relative = day === today ? '今天' : day === yesterday ? '昨天' : formatPlainWeekday(day)
   const selectMonth = (month: string) => {
@@ -44,26 +40,5 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
         </button>)}</div>
       }))} />}
-    <HealthEventFilterSheet open={filterOpen} filters={filters} years={years} definitionTitles={definitionTitles} onClose={onFilterClose} onApply={onFilterApply} />
   </section>
-}
-
-function filterJournalEntries(entries: ReturnType<typeof useJournal>['entries'], filters: HealthEventFilters, now = new Date()) {
-  return entries.filter((entry) => {
-    const occurred = new Date(entry.occurredAt)
-    const dayKey = getLocalDateKey(occurred)
-    const localDate = getLocalCalendarParts(occurred)
-    const localNow = getLocalCalendarParts(now)
-    if (!dayKey || !localDate || !localNow) return false
-    if (filters.range === '7d' && occurred < new Date(now.getTime() - 7 * 86_400_000)) return false
-    if (filters.range === '30d' && occurred < new Date(now.getTime() - 30 * 86_400_000)) return false
-    if (filters.range === 'year' && localDate.year !== localNow.year) return false
-    if (filters.range === 'custom' && ((filters.customStart && dayKey < filters.customStart) || (filters.customEnd && dayKey > filters.customEnd))) return false
-    if (filters.year !== null && localDate.year !== filters.year) return false
-    if (filters.months.length && !filters.months.includes(localDate.month)) return false
-    const displayStatus = entry.status === 'handling' ? 'observing' : entry.status
-    if (filters.statuses.length && !filters.statuses.includes(displayStatus)) return false
-    if (filters.definitionTitles.length && !(entry.categories ?? ['other']).some((category) => filters.definitionTitles.includes(journalCategoryLabels[category]))) return false
-    return true
-  })
 }

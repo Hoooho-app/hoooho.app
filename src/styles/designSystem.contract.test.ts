@@ -73,7 +73,6 @@ test('global UI supports reduced motion and responsive desktop content', async (
   assert.match(styles, /\.app-shell\.app-shell--wide[^}]*max-width:\s*var\(--hoho-content-wide\)/s)
   assert.match(styles, /\.page-content[^}]*width:\s*100%/s)
   assert.match(styles, /health-events-fab[^}]*var\(--hoho-app-shell-max\)/s)
-  assert.match(styles, /health-events-filter-layer[^}]*var\(--hoho-app-shell-max\)/s)
   assert.match(styles, /quick-record-trigger,[^}]*quick-record-panel[^}]*width:\s*calc\(var\(--hoho-app-shell-max\)/s)
   assert.match(styles, /health-event-detail-fixed\s*\{[^}]*width:\s*100%[^}]*max-width:\s*var\(--hoho-app-shell-max\)/s)
   assert.match(styles, /health-event-detail \.page-content[^}]*scrollbar-width:\s*none/s)

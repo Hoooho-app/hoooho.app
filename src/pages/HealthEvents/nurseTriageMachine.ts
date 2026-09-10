@@ -60,7 +60,3 @@ export function transitionNurseTriage(state: NurseTriageState, action: NurseTria
 export function canStartNurseHandoff(state: NurseTriageState) {
   return state === 'idle' || state === 'saved'
 }
-
-export function shouldShowHealthEventFilters(view: HealthEventsViewMode) {
-  return view === 'list'
-}

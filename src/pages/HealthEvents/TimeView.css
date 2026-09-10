@@ -43,8 +43,6 @@
 .journal-attachment { display: inline-flex; align-items: center; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
 .journal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-2); min-height: var(--hoho-touch-target); }
 .journal-toolbar-actions { display: flex; align-items: center; gap: var(--hoho-space-1); margin-left: auto; }
-.journal-filter-active { position: relative; }
-.journal-filter-active::after { content: ''; position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary)); }
 .journal-subject-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--hoho-space-2); }
 .journal-subject-card, .journal-subject-summary { min-height: 52px; height: 52px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); }
 .journal-subject-card { display: flex; align-items: center; gap: var(--hoho-space-2); min-width: 0; padding: var(--hoho-space-2) var(--hoho-space-3); background: rgb(var(--hoho-color-surface)); }
