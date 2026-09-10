@@ -349,12 +349,16 @@
 .medication-picker > button { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); }
 .medication-picker > button svg { width: 1.35rem; height: 1.35rem; }
 .medication-recognition-note { display: block; margin: .35rem 0 0; }
-.medication-amount-row { display: grid; grid-template-columns: 2.6rem minmax(4.2rem, 1fr) 2.6rem 4.8rem; align-items: center; gap: .42rem; }
-.medication-amount-row button { width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.medication-amount-row { display: grid; grid-template-columns: 2.6rem minmax(3.75rem, 6.75rem) 2.6rem 4.8rem; align-items: center; justify-content: space-between; gap: .35rem; }
+.medication-amount-row button { position: relative; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); }
+.medication-amount-row button::before { content: ''; position: absolute; width: 2.05rem; height: 2.05rem; border-radius: 50%; background: rgb(var(--hoho-color-primary-soft)); }
 .medication-amount-row button svg { width: 1.25rem; height: 1.25rem; }
-.medication-amount-row input, .medication-amount-row select { width: 100%; height: 2.6rem; min-width: 0; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: rgb(var(--hoho-color-surface)); color: inherit; text-align: center; font: inherit; }
+.medication-amount-row button svg { position: relative; z-index: 1; width: 1.05rem; height: 1.05rem; }
+.medication-amount-row input, .medication-unit-select { width: 100%; height: 2.6rem; min-width: 0; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; background: rgb(var(--hoho-color-surface)); color: inherit; text-align: center; font: inherit; }
 .medication-amount-row input { font-size: 1.22rem; font-weight: 650; }
-.medication-compact-section > p { margin: .38rem 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.medication-unit-select { position: relative; display: grid; align-items: center; }
+.medication-unit-select select { width: 100%; height: 100%; appearance: none; border: 0; outline: 0; border-radius: inherit; padding: 0 1.45rem 0 .45rem; background: transparent; color: inherit; text-align: center; text-align-last: center; font: inherit; }
+.medication-unit-select svg { position: absolute; right: .55rem; width: .9rem; height: .9rem; pointer-events: none; }
 .medication-time-row-main { position: relative; min-height: 3.4rem; display: grid; grid-template-columns: minmax(0, 1fr) auto 1.25rem; align-items: center; gap: .25rem; border-bottom: 1px solid rgb(var(--hoho-color-border)); cursor: pointer; }
 .medication-time-row-main span { color: rgb(var(--hoho-color-text-secondary)); }
 .medication-time-row-main svg { width: 1.15rem; height: 1.15rem; color: rgb(var(--hoho-color-text-secondary)); }
@@ -379,7 +383,12 @@
 .medication-sheet-options button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
 .medication-time-inputs { display: flex; flex-wrap: wrap; gap: .4rem; }
 .medication-time-inputs input { min-height: 2.4rem; min-width: 6rem; flex: 1; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .55rem; padding: 0 .45rem; background: white; color: inherit; }
-@media (max-width: 340px) { .medication-tab-bar, .medication-record-compact .medication-record-scroll, .medication-fixed-save { padding-inline: .7rem; }.medication-amount-row { grid-template-columns: 2.45rem minmax(3.8rem, 1fr) 2.45rem 4.35rem; gap: .3rem; }.medication-amount-row button { width: 2.45rem; height: 2.45rem; } }
+.medication-photo-source { display: grid; gap: .5rem; }
+.medication-photo-source button { min-height: 3.5rem; display: grid; grid-template-columns: 2rem minmax(0, 1fr); align-items: center; gap: .7rem; border: 1px solid rgb(var(--hoho-color-border)); border-radius: .6rem; padding: .55rem .75rem; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); text-align: left; }
+.medication-photo-source button > svg { width: 1.35rem; height: 1.35rem; justify-self: center; }
+.medication-photo-source button span { display: grid; gap: .1rem; }
+.medication-photo-source button small { color: rgb(var(--hoho-color-text-secondary)); }
+@media (max-width: 340px) { .medication-tab-bar, .medication-record-compact .medication-record-scroll, .medication-fixed-save { padding-inline: .7rem; }.medication-amount-row { grid-template-columns: 2.45rem minmax(3.6rem, 5.5rem) 2.45rem 4.35rem; gap: .25rem; }.medication-amount-row button { width: 2.45rem; height: 2.45rem; }.medication-time-row-main strong { font-size: var(--hoho-font-size-caption); } }
 .vaccination-record-scroll { display: block; }
 .vaccination-item { margin-bottom: var(--hoho-space-4); padding-bottom: var(--hoho-space-4); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
 .vaccination-item-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); }
