@@ -21,10 +21,10 @@ export class BrowserSessionService {
     if (site === 'cross-site' || (origin && new URL(origin).host !== request.headers.host)) throw new AuthError('请求来源无效', 403, 'CSRF_REJECTED')
     if (!['GET', 'HEAD'].includes(request.method) && !String(request.headers['content-type'] ?? '').startsWith('application/json')) throw new AuthError('请求格式无效', 415, 'JSON_REQUIRED')
   }
-  setCookie(request, response, token, maxAge = sessionTtlMs / 1000) {
+  setCookie(request, response, token, { maxAge = sessionTtlMs / 1000, persistent = true } = {}) {
     const secure = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || request.socket?.encrypted
-    const expires = new Date(Date.now() + maxAge * 1000).toUTCString()
-    response.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Expires=${expires}${secure ? '; Secure' : ''}`)
+    const lifetime = persistent ? `; Max-Age=${maxAge}; Expires=${new Date(Date.now() + maxAge * 1000).toUTCString()}` : ''
+    response.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax${lifetime}${secure ? '; Secure' : ''}`)
     response.setHeader('Cache-Control', 'no-store')
   }
   async current(request) {
@@ -36,7 +36,7 @@ export class BrowserSessionService {
   }
   async responseSession(request, response, current) {
     await this.sessions.renew(cookieToken(request))
-    this.setCookie(request, response, cookieToken(request))
+    this.setCookie(request, response, cookieToken(request), { persistent: current.session.persistent !== false })
     return { token: this.auth.tokens.create({ ...current.user, browserSession: true }), user: this.publicUser(current.user) }
   }
   async restore(request, response, legacyToken = '') {
@@ -54,9 +54,9 @@ export class BrowserSessionService {
     }
     return { unauthenticated: true }
   }
-  async issue(request, response, user) {
-    const { token } = await this.sessions.create(user.id)
-    this.setCookie(request, response, token)
+  async issue(request, response, user, persistent = true) {
+    const { token } = await this.sessions.create(user.id, Date.now(), persistent)
+    this.setCookie(request, response, token, { persistent })
     return { token: this.auth.tokens.create({ ...user, browserSession: true }), user: this.publicUser(user) }
   }
   publicUser(user) {
@@ -91,12 +91,12 @@ export class BrowserSessionService {
     }))
   }
 
-  async completePasswordLogin(request, response, session) {
+  async completePasswordLogin(request, response, session, persistent = true) {
     this.assertSameOrigin(request)
     return this.cookieTransaction(response, async (draftResponse) => {
       const current = await this.current(request)
       if (current) await this.sessions.revoke(cookieToken(request))
-      return this.issue(request, draftResponse, session.user)
+      return this.issue(request, draftResponse, session.user, persistent)
     })
   }
   async cookieTransaction(response, operation) {
@@ -131,7 +131,7 @@ export class BrowserSessionService {
     this.assertSameOrigin(request)
     const current = await this.current(request)
     if (current) await this.sessions.revokeAccount(current.user.id)
-    this.setCookie(request, response, '', 0)
+    this.setCookie(request, response, '', { maxAge: 0 })
     return { success: true }
   }
   async profileSections(request, input) {

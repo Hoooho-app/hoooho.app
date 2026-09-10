@@ -104,7 +104,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 
 export const authService = {
   register: (nickname: string, password: string, idempotencyKey: string) => postAuthRequest<AuthSession & { upgradedGuest?: boolean }>('/api/auth/register', { nickname, password, idempotencyKey }),
-  loginWithPassword: (nickname: string, password: string) => postAuthRequest<AuthSession>('/api/auth/nickname/login', { nickname, password }),
+  loginWithPassword: (nickname: string, password: string, remember = true) => postAuthRequest<AuthSession>('/api/auth/nickname/login', { nickname, password, remember: String(remember) }),
   restore: (legacyToken = '') => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken),
   logout: () => postAuthRequest<{ success: true }>('/api/auth/logout', {}),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),

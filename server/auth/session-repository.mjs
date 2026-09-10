@@ -10,9 +10,9 @@ export class SessionRepository {
     this.store = new JsonStore(path.join(dataDirectory, 'browser-sessions.json'), { sessions: [] })
   }
 
-  async create(accountId, now = Date.now()) {
+  async create(accountId, now = Date.now(), persistent = true) {
     const token = randomBytes(32).toString('base64url')
-    const session = { id: randomUUID(), accountId, tokenHash: hash(token), createdAt: now, expiresAt: now + sessionTtlMs, lastSeenAt: now }
+    const session = { id: randomUUID(), accountId, tokenHash: hash(token), persistent, createdAt: now, expiresAt: now + sessionTtlMs, lastSeenAt: now }
     await this.store.update((data) => ({ ...data, sessions: [...data.sessions, session] }))
     return { token, session }
   }

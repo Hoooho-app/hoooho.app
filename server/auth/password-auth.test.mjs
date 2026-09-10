@@ -80,6 +80,23 @@ test('nickname login normalizes Unicode and whitespace, uses generic errors, and
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 
+test('remembered login uses a persistent cookie while session-only login stays non-persistent after restore', async () => {
+  const f = await fixture()
+  try {
+    const registered = await f.auth.register('记住测试', 'correct-password', '88888888-8888-4888-8888-888888888888')
+    await f.browser.completePasswordLogin(f.request, f.response, registered, true)
+    assert.match(f.headers.get('Set-Cookie'), /Max-Age=/)
+    assert.match(f.headers.get('Set-Cookie'), /Expires=/)
+
+    await f.browser.completePasswordLogin(f.request, f.response, registered, false)
+    const sessionCookie = f.headers.get('Set-Cookie')
+    assert.doesNotMatch(sessionCookie, /Max-Age=|Expires=/)
+    f.request.headers.cookie = sessionCookie.split(';')[0]
+    await f.browser.restore({ ...f.request, method: 'GET' }, f.response)
+    assert.doesNotMatch(f.headers.get('Set-Cookie'), /Max-Age=|Expires=/)
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
 test('registration is rate limited per client without exposing submitted credentials', async () => {
   const f = await fixture()
   try {
