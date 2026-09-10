@@ -77,7 +77,7 @@ export function authApiPlugin(options = {}) {
           if (pathname === '/api/auth/nickname/login') {
             const clientKey = String(request.socket?.remoteAddress ?? '')
             const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
-            return sendJson(response, 200, await sessions.completePasswordLogin(request, response, session))
+            return sendJson(response, 200, await sessions.completePasswordLogin(request, response, session, body.remember !== false && body.remember !== 'false'))
           }
           if (pathname === '/api/auth/logout') return sendJson(response, 200, await sessions.logout(request, response))
           if (pathname === '/api/auth/send-code') {

@@ -302,7 +302,7 @@ async function handleAuth(request, response, pathname) {
     if (pathname === '/api/auth/nickname/login') {
       const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()
       const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
-      sendJson(response, 200, await browserSessions.completePasswordLogin(request, response, session))
+      sendJson(response, 200, await browserSessions.completePasswordLogin(request, response, session, body.remember !== false && body.remember !== 'false'))
       return true
     }
     if (pathname === '/api/auth/logout') {
