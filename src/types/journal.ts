@@ -96,6 +96,13 @@ export interface MedicationReminder {
   timesPerDay: number
   times: string[]
   durationDays: number
+  configured?: boolean
+  intervalHours?: number
+  firstReminderAt?: string
+  weekdays?: number[]
+  durationWeeks?: number
+  selectedDates?: string[]
+  endDate?: string
 }
 
 export interface JournalMedicationItem {

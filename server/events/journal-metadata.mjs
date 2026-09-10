@@ -224,6 +224,20 @@ function validateMedication(value) {
         if (!reminder || typeof reminder.enabled !== 'boolean' || !['daily', 'interval_hours', 'weekly', 'custom'].includes(reminder.frequency) || !Number.isInteger(reminder.timesPerDay) || reminder.timesPerDay < 1 || reminder.timesPerDay > 12 || !Array.isArray(reminder.times) || reminder.times.length !== reminder.timesPerDay || reminder.times.some((time) => typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) || !Number.isInteger(reminder.durationDays) || reminder.durationDays < 1 || reminder.durationDays > 365) throw new HealthEventRecordError('用药提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
         result.reminder = { enabled: reminder.enabled, frequency: reminder.frequency, timesPerDay: reminder.timesPerDay, times: [...new Set(reminder.times)].sort(), durationDays: reminder.durationDays }
         if (result.reminder.times.length !== reminder.timesPerDay) throw new HealthEventRecordError('提醒时间不能重复', 400, 'INVALID_JOURNAL_MEDICATION')
+        if (reminder.configured !== undefined) { if (typeof reminder.configured !== 'boolean') throw new HealthEventRecordError('用药提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.reminder.configured = reminder.configured }
+        if (reminder.endDate !== undefined) { if (typeof reminder.endDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(reminder.endDate) || !Number.isFinite(Date.parse(`${reminder.endDate}T00:00:00Z`))) throw new HealthEventRecordError('提醒结束日期无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.reminder.endDate = reminder.endDate }
+        if (reminder.frequency === 'interval_hours' && reminder.configured) {
+          if (!Number.isInteger(reminder.intervalHours) || reminder.intervalHours < 1 || reminder.intervalHours > 168 || typeof reminder.firstReminderAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(reminder.firstReminderAt)) throw new HealthEventRecordError('间隔提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
+          result.reminder.intervalHours = reminder.intervalHours; result.reminder.firstReminderAt = reminder.firstReminderAt
+        }
+        if (reminder.frequency === 'weekly' && reminder.configured) {
+          if (!Array.isArray(reminder.weekdays) || reminder.weekdays.length < 1 || reminder.weekdays.length > 7 || reminder.weekdays.some((day) => !Number.isInteger(day) || day < 0 || day > 6) || new Set(reminder.weekdays).size !== reminder.weekdays.length || !Number.isInteger(reminder.durationWeeks) || reminder.durationWeeks < 1 || reminder.durationWeeks > 52) throw new HealthEventRecordError('每周提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
+          result.reminder.weekdays = [...reminder.weekdays].sort(); result.reminder.durationWeeks = reminder.durationWeeks
+        }
+        if (reminder.frequency === 'custom' && reminder.configured) {
+          if (!Array.isArray(reminder.selectedDates) || reminder.selectedDates.length < 1 || reminder.selectedDates.length > 100 || reminder.selectedDates.some((date) => typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`))) || new Set(reminder.selectedDates).size !== reminder.selectedDates.length) throw new HealthEventRecordError('自定义提醒日期无效', 400, 'INVALID_JOURNAL_MEDICATION')
+          result.reminder.selectedDates = [...reminder.selectedDates].sort()
+        }
       }
       return result
     })
