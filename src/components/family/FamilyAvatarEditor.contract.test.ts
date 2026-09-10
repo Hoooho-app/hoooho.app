@@ -52,6 +52,15 @@ test('child profile avatar switch keeps a smaller visual control with an expande
   assert.match(source, /data-child-avatar-switch[\s\S]*?<RefreshCw[^>]*\/>\s*<\/button>/)
 })
 
+test('child profile waits for birthday and gender before showing a derived cartoon avatar', () => {
+  assert.match(source, /childProfileReady\?: boolean/)
+  assert.match(source, /childProfileReady = true/)
+  assert.match(source, /incomplete: '先填写信息'/)
+  assert.match(source, /childProfileReady \? <>/)
+  assert.match(source, /border-2 border-dashed border-border-calm bg-primary-soft/)
+  assert.match(source, /\{text\.incomplete\}/)
+})
+
 test('family avatar editor keeps localized, RTL-safe cartoon and photo controls', () => {
   assert.match(source, /language\.toLowerCase\(\)\.startsWith\('ar'\)/)
   assert.match(source, /dir=\{isRtl \? 'rtl' : 'ltr'\}/)

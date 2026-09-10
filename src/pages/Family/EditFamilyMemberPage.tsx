@@ -303,6 +303,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
         <div className="mx-auto w-full max-w-sm">
           <FamilyAvatarEditor
             childProfile
+            childProfileReady={Boolean(draft.birthday && draft.gender)}
             config={previewConfig}
             disabled={locked}
             mode={draft.avatarMode}

@@ -14,6 +14,7 @@ export type FamilyAvatarConfig = ChildAvatarSelection | ClayAvatarConfig
 
 interface FamilyAvatarEditorProps<Config extends FamilyAvatarConfig> {
   childProfile?: boolean
+  childProfileReady?: boolean
   compact?: boolean
   config: Config
   disabled?: boolean
@@ -30,19 +31,19 @@ interface FamilyAvatarEditorProps<Config extends FamilyAvatarConfig> {
 
 const copy = {
   zh: {
-    cartoon: '卡通形象', photo: '照片', change: '换一个',
+    cartoon: '卡通形象', photo: '照片', change: '换一个', incomplete: '先填写信息',
     upload: '上传照片头像', replace: '更换照片头像', photoAlt: '照片头像', processing: '正在处理照片…',
     unsupported: '暂不支持这种照片格式', unreadable: '无法读取这张照片，请选择其他照片', photoError: '照片处理失败，请重新选择',
     cropTitle: '调整照片', cropHint: '拖动照片调整位置，使用滑杆缩放', cancel: '取消', confirm: '使用这张照片', zoom: '缩放照片'
   },
   en: {
-    cartoon: 'Cartoon avatar', photo: 'Photo avatar', change: 'Choose another avatar',
+    cartoon: 'Cartoon avatar', photo: 'Photo avatar', change: 'Choose another avatar', incomplete: 'Fill in details first',
     upload: 'Upload photo avatar', replace: 'Replace photo avatar', photoAlt: 'Photo avatar', processing: 'Processing photo…',
     unsupported: 'This photo format is not supported yet.', unreadable: 'This photo could not be read. Choose another photo.', photoError: 'The photo could not be processed. Please try again.',
     cropTitle: 'Adjust photo', cropHint: 'Drag to reposition and use the slider to zoom.', cancel: 'Cancel', confirm: 'Use photo', zoom: 'Photo zoom'
   },
   ar: {
-    cartoon: 'صورة كرتونية', photo: 'صورة شخصية', change: 'تغيير الصورة الكرتونية',
+    cartoon: 'صورة كرتونية', photo: 'صورة شخصية', change: 'تغيير الصورة الكرتونية', incomplete: 'أكمل المعلومات أولاً',
     upload: 'رفع صورة شخصية', replace: 'تغيير الصورة الشخصية', photoAlt: 'الصورة الشخصية', processing: 'جارٍ معالجة الصورة…',
     unsupported: 'تنسيق هذه الصورة غير مدعوم حاليًا.', unreadable: 'تعذرت قراءة هذه الصورة. اختر صورة أخرى.', photoError: 'فشلت معالجة الصورة. حاول مرة أخرى.',
     cropTitle: 'ضبط الصورة', cropHint: 'اسحب الصورة لتغيير موضعها واستخدم شريط التمرير للتكبير.', cancel: 'إلغاء', confirm: 'استخدام الصورة', zoom: 'تكبير الصورة'
@@ -55,7 +56,7 @@ export function getFamilyAvatarCopy(language: string) {
   return copy.zh
 }
 
-export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childProfile = false, compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps<Config>) {
+export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childProfile = false, childProfileReady = true, compact = false, config, disabled = false, language: languageOverride, mode, name, onConfigChange, onError, onModeChange, onPhotoChange, onProcessingChange, photo }: FamilyAvatarEditorProps<Config>) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const requestRef = useRef(0)
   const [processing, setProcessing] = useState(false)
@@ -159,18 +160,24 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
       {mode === 'cartoon' ? (
         childProfile ? (
           <div className="relative h-24 w-24">
-            {cartoonAvatar('h-24 w-24 border-2 border-primary bg-white')}
-            <button
-              aria-label={text.change}
-              className="absolute bottom-1 -end-5 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-sm after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              data-child-avatar-switch
-              disabled={disabled || processing}
-              title={text.change}
-              type="button"
-              onClick={changeAvatar}
-            >
-              <RefreshCw aria-hidden="true" size={16} strokeWidth={1.8} />
-            </button>
+            {childProfileReady ? <>
+              {cartoonAvatar('h-24 w-24 border-2 border-primary bg-white')}
+              <button
+                aria-label={text.change}
+                className="absolute bottom-1 -end-5 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-surface bg-primary text-white shadow-sm after:absolute after:-inset-1 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                data-child-avatar-switch
+                disabled={disabled || processing}
+                title={text.change}
+                type="button"
+                onClick={changeAvatar}
+              >
+                <RefreshCw aria-hidden="true" size={16} strokeWidth={1.8} />
+              </button>
+            </> : (
+              <span className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-border-calm bg-primary-soft px-3 text-center text-xs font-medium leading-5 text-primary">
+                {text.incomplete}
+              </span>
+            )}
           </div>
         ) : (
           <button
