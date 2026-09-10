@@ -3,11 +3,20 @@ import test from 'node:test'
 import {
   calculateBmi,
   combineBloodType,
+  formatBloodTypeDisplay,
   getBasicHealthProfileValues,
   getInitialHealthProfileRecords,
   splitBloodType,
   toFamilyMemberHealthUpdate
 } from './healthProfileBasicInfo.ts'
+
+test('ABO 与 Rh 支持独立展示并保留未知语义', () => {
+  assert.equal(formatBloodTypeDisplay('A', 'positive'), 'A型 Rh+')
+  assert.equal(formatBloodTypeDisplay('O', 'negative'), 'O型 Rh−')
+  assert.equal(formatBloodTypeDisplay('AB', 'unknown'), 'AB型 · Rh未知')
+  assert.equal(formatBloodTypeDisplay('B', ''), 'B型')
+  assert.equal(formatBloodTypeDisplay('', 'positive'), 'Rh+')
+})
 
 test('成员已有基础健康字段会完整映射，并兼容原 ABO 血型字段', () => {
   const member = {
@@ -98,6 +107,7 @@ test('新 ABO 与 RhD 独立选择保存到现有 API 字段', () => {
     aboBloodType: 'O', rhBloodType: '', _bloodTypeTouched: true
   }).rhBloodType, null)
 })
+
 
 test('旧组合血型自动拆分，新自由文本血型信息保留在本地档案', () => {
   const values = getBasicHealthProfileValues({}, { combinedBloodType: 'B+', otherBloodTypeInfo: 'Kell 阴性' })

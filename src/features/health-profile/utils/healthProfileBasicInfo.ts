@@ -18,8 +18,21 @@ export function combineBloodType(
   bloodType: BasicHealthProfileSource['bloodType'] | string | undefined,
   rhBloodType: BasicHealthProfileSource['rhBloodType'] | string | undefined
 ) {
-  if (!bloodType || !rhBloodType) return ''
+  if (!bloodType || !rhBloodType || rhBloodType === 'unknown') return ''
   return `${bloodType}${rhBloodType === 'positive' ? '+' : '-'}`
+}
+
+export function formatBloodTypeDisplay(
+  bloodType: BasicHealthProfileSource['bloodType'] | string | undefined,
+  rhBloodType: BasicHealthProfileSource['rhBloodType'] | 'unknown' | string | undefined
+) {
+  if (bloodType && rhBloodType === 'unknown') return `${bloodType}型 · Rh未知`
+  if (bloodType && rhBloodType) return `${bloodType}型 Rh${rhBloodType === 'positive' ? '+' : '−'}`
+  if (bloodType) return `${bloodType}型`
+  if (rhBloodType === 'positive') return 'Rh+'
+  if (rhBloodType === 'negative') return 'Rh−'
+  if (rhBloodType === 'unknown') return 'Rh未知'
+  return ''
 }
 
 export function splitBloodType(value: string | boolean | undefined) {
@@ -93,7 +106,9 @@ export function toFamilyMemberHealthUpdate(values: BasicHealthProfileValues) {
   const selectedRhBloodType = String(values.rhBloodType ?? combined.rhBloodType ?? '')
   const preserveLegacyBloodType = !values._bloodTypeTouched && !values._combinedBloodTypeTouched && !selectedBloodType && !selectedRhBloodType
   const bloodType = preserveLegacyBloodType ? String(values._originalBloodType ?? '') || null : selectedBloodType || null
-  const rhBloodType = preserveLegacyBloodType ? String(values._originalRhBloodType ?? '') || null : selectedRhBloodType || null
+  const rhBloodType = preserveLegacyBloodType
+    ? String(values._originalRhBloodType ?? '') || null
+    : selectedRhBloodType === 'unknown' ? null : selectedRhBloodType || null
 
   return {
     heightCm: optionalNumber(values.height),

@@ -9,11 +9,11 @@ test('基础信息合并人物、出生和最新成长数据', () => {
   const result = buildBasicOverview(member, new Map([['birth', [{ gestationalWeeks: 39 }]], ['growth', [{ date: '2026-01-01', headCircumference: 45 }]]]))
   assert.equal(result.filled, true)
   assert.equal(result.summary, '足月出生 · 78 cm · 9.2 kg · 头围 45 cm')
-  assert.equal(result.missingCount, 1)
-  assert.equal(result.complete, false)
+  assert.equal(result.missingCount, 0)
+  assert.equal(result.complete, true)
 })
 
-test('成长身份卡只在身高、体重和 ABO 血型完整时建立', () => {
+test('成长身份卡由身高体重建立，血型保持可选', () => {
   const result = buildBasicOverview({ ...member, bloodType: 'AB' }, new Map())
   assert.equal(result.complete, true)
   assert.equal(result.missingCount, 0)

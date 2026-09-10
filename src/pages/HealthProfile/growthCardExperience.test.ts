@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 
 const home = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
+const form = readFileSync(new URL('./growthCardForm.ts', import.meta.url), 'utf8')
 
 test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.match(home, /铸造成长身份卡/)
@@ -15,9 +16,11 @@ test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
 })
 
 test('首次建立与后续更新使用不同反馈并保留失败输入', () => {
-  assert.match(editor, /基础档案已建立/)
+  assert.match(editor, /第一组成长坐标已建立/)
   assert.match(editor, /成长数据已更新/)
-  assert.match(editor, /继续补充出生信息/)
+  assert.match(editor, /继续补充信息/)
+  assert.match(editor, /成长坐标已建立/)
+  assert.match(form, /保存成长快照/)
   assert.match(editor, /catch \(submitError\)/)
   assert.doesNotMatch(editor, /积分|签到|连续填写|超过.*用户/)
 })
