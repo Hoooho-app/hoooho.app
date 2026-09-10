@@ -91,12 +91,13 @@ export function ManualRecordButton({ className = '', ...props }: ManualRecordBut
     >
       <span aria-hidden="true" className="journal-manual-record-action__visual">
         <Pencil className="journal-manual-record-action__icon" size={20} />
-        <span className="journal-manual-record-action__label">记录</span>
-        <span className="journal-manual-record-action__underscore">_</span>
-        <span className="journal-manual-record-action__prompt-window" ref={windowRef}>
-          <span className="journal-manual-record-action__prompt-track" ref={trackRef}>
-            <span>{prompt}</span>
-            <span className="journal-manual-record-action__caret" />
+        <span className="journal-manual-record-action__copy">
+          <span className="journal-manual-record-action__label">快捷记录</span>
+          <span className="journal-manual-record-action__prompt-window" ref={windowRef}>
+            <span className="journal-manual-record-action__prompt-track" ref={trackRef}>
+              <span>{prompt}</span>
+              <span className="journal-manual-record-action__caret" />
+            </span>
           </span>
         </span>
       </span>
