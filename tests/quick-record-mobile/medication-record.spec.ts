@@ -12,11 +12,11 @@ async function prepare(page: Page) {
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'quick-record-e2e-account' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { authToken: token, memberId: member.id })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '手动记录' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: '记一下' })).toBeEnabled()
 }
 
 async function openMedicationForm(page: Page) {
-  await page.getByRole('button', { name: '手动记录' }).click()
+  await page.getByRole('button', { name: '记一下' }).click()
   await page.getByRole('button', { name: '用药' }).click()
   await page.getByRole('button', { name: '开始记录' }).click()
   return page.getByRole('dialog', { name: '记录用药' })

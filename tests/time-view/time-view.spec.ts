@@ -17,12 +17,12 @@ async function prepare(page: Page, member = 'child-one') {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
   }, { token, member })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '手动记录', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
 }
 
 test('manual record sheet groups supported care actions under health events', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const sheet = page.getByRole('dialog', { name: '记录新情况' })
   const eating = sheet.getByRole('button', { name: '进食', exact: true })
   await expect(eating).toBeVisible()
@@ -47,7 +47,7 @@ test('health journal names the existing summary action medical prep', async ({ p
 
 test('quick record is unavailable and timeline tools are borderless', async ({ page }) => {
   await prepare(page)
-  const manual = page.getByRole('button', { name: '手动记录', exact: true })
+  const manual = page.getByRole('button', { name: '记一下', exact: true })
   const quick = page.getByRole('button', { name: '快捷记录', exact: true })
   await expect(manual).toHaveCSS('background-color', 'rgb(27, 122, 110)')
   await expect(manual).toHaveCSS('color', 'rgb(255, 255, 255)')
@@ -62,49 +62,31 @@ test('quick record is unavailable and timeline tools are borderless', async ({ p
   }
 })
 
-test('manual record button keeps its fixed content stable while typing in a clipped prompt window', async ({ page }) => {
+test('manual record button uses a centered plus and concise label', async ({ page }) => {
   await prepare(page)
-  const button = page.getByRole('button', { name: '手动记录', exact: true })
+  const button = page.getByRole('button', { name: '记一下', exact: true })
   await expect(button).not.toContainText('手动记录')
-  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('快捷记录')
-  await expect(button.locator('.journal-manual-record-action__copy')).toBeVisible()
-  await expect(button.locator('.lucide-pencil')).toBeVisible()
-  await expect(button.locator('.lucide-pen-line')).toHaveCount(0)
-  await expect(button.locator('.journal-manual-record-action__prompt-window')).toContainText('不舒服就记下来', { timeout: 2_000 })
+  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记一下')
+  await expect(button.locator('.lucide-plus')).toBeVisible()
+  await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveCount(0)
 
   const layout = await button.evaluate((element) => {
-    const fixed = element.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
-    const promptWindow = element.querySelector('.journal-manual-record-action__prompt-window')!
-    const prompt = promptWindow.getBoundingClientRect()
+    const visual = element.querySelector('.journal-manual-record-action__visual')!.getBoundingClientRect()
     const quick = document.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
     const buttonBox = element.getBoundingClientRect()
     return {
-      promptBelowLabel: prompt.top >= fixed.bottom,
+      visuallyCentered: Math.abs((visual.left + visual.width / 2) - (buttonBox.left + buttonBox.width / 2)) < 1,
       sameRow: Math.abs(buttonBox.top - quick.top) < 1,
       buttonHeight: buttonBox.height,
       quickWidth: quick.width,
-      promptClips: getComputedStyle(promptWindow).overflow === 'hidden',
-      promptMaskStartsOpaque: getComputedStyle(promptWindow).maskImage.includes('rgb(0, 0, 0) 0px'),
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ promptBelowLabel: true, sameRow: true, buttonHeight: 60, quickWidth: 60, promptClips: true, promptMaskStartsOpaque: true, pageOverflows: false })
-  await page.screenshot({ path: 'test-results/manual-record-typewriter-iphone-se.png' })
+  expect(layout).toEqual({ visuallyCentered: true, sameRow: true, buttonHeight: 60, quickWidth: 60, pageOverflows: false })
+  await page.screenshot({ path: 'test-results/manual-record-concise-iphone-se.png' })
 
   await button.click()
   await expect(page.getByRole('dialog', { name: '记录新情况' })).toBeVisible()
-})
-
-test('manual record prompt is static and motionless when reduced motion is requested', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await prepare(page)
-  const button = page.getByRole('button', { name: '手动记录', exact: true })
-  await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveText('不舒服就记下来')
-  await expect(button.locator('.journal-manual-record-action__caret')).toHaveCSS('display', 'none')
-  await expect(button.locator('.journal-manual-record-action__prompt-track')).toHaveCSS('transform', 'none')
-  await page.screenshot({ path: 'test-results/manual-record-reduced-motion-iphone-se.png' })
-  await page.waitForTimeout(3_500)
-  await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveText('不舒服就记下来')
 })
 
 test('manual record footer stays on one row at the required mobile widths', async ({ page }) => {
@@ -114,60 +96,39 @@ test('manual record footer stays on one row at the required mobile widths', asyn
     const layout = await page.locator('.journal-record-actions > div').evaluate((footer) => {
       const manual = footer.querySelector('.journal-manual-record-action')!.getBoundingClientRect()
       const quick = footer.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
-      const fixed = footer.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
-      const prompt = footer.querySelector('.journal-manual-record-action__prompt-window')!.getBoundingClientRect()
+      const label = footer.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
       return {
         oneRow: manual.top === quick.top && manual.bottom === quick.bottom,
-        hierarchyVisible: fixed.width > 0 && prompt.width > 0 && prompt.top >= fixed.bottom,
+        labelVisible: label.width > 0,
         quickWidth: quick.width,
         pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       }
     })
-    expect(layout).toEqual({ oneRow: true, hierarchyVisible: true, quickWidth: 60, pageOverflows: false })
+    expect(layout).toEqual({ oneRow: true, labelVisible: true, quickWidth: 60, pageOverflows: false })
   }
 })
 
-test('medical prep uses a continuous soft-light cycle and respects reduced motion', async ({ page }) => {
+test('health journal medical prep uses a centered title and report icon', async ({ page }) => {
   await prepare(page)
   const button = page.getByRole('button', { name: '就医准备', exact: true })
   await expect(button).toBeEnabled()
-  expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false)
-  await expect(button).not.toHaveClass(/medical-prep-button--awake/)
-  await expect(button).toHaveCSS('animation-duration', '4s')
-  await expect(button.locator('.medical-prep-button__soft-glow')).toHaveCSS('animation-duration', '4s')
-  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('animation-duration', '4s')
-  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '12px')
+  await expect(button.locator('.lucide-clipboard-list')).toBeVisible()
+  await expect(button.locator('.medical-prep-button__dot')).toHaveCount(0)
   const layout = await button.evaluate((element) => {
     const icon = element.querySelector('.medical-prep-button__icon')!.getBoundingClientRect()
-    const content = element.querySelector('.hoho-button__content')!
+    const title = element.querySelector('.medical-prep-button__label strong')!.getBoundingClientRect()
     const box = element.getBoundingClientRect()
     return {
       buttonHeight: box.height,
+      buttonWidth: box.width,
       iconWidth: icon.width,
       iconHeight: icon.height,
-      contentGap: getComputedStyle(content).gap,
-      contentTransform: getComputedStyle(content).transform,
-      clipsGlow: getComputedStyle(element).overflow === 'hidden',
+      titleCentered: Math.abs((title.left + title.width / 2) - (box.left + box.width / 2)) < 1,
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ buttonHeight: 52, iconWidth: 15, iconHeight: 15, contentGap: '5px', contentTransform: 'matrix(1, 0, 0, 1, -3, 0)', clipsGlow: true, pageOverflows: false })
-
-  for (const [phase, delay] of [['dark', '0s'], ['transition', '-0.72s'], ['bright', '-1.68s']] as const) {
-    await button.evaluate((element, delay) => {
-      for (const layer of [element, ...element.querySelectorAll<HTMLElement>('.medical-prep-button__soft-glow, .medical-prep-button__light-band')]) {
-        layer.style.animationDelay = delay
-        layer.style.animationPlayState = 'paused'
-      }
-    }, delay)
-    await page.screenshot({ path: `outputs/medical-prep-${phase}-iphone-se.png` })
-  }
-
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.reload()
-  await expect(button).toHaveCSS('animation-name', 'none')
-  await expect(button.locator('.medical-prep-button__soft-glow')).toHaveCSS('display', 'none')
-  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('display', 'none')
+  expect(layout).toEqual({ buttonHeight: 52, buttonWidth: 128, iconWidth: 16, iconHeight: 16, titleCentered: true, pageOverflows: false })
+  await page.screenshot({ path: 'test-results/medical-prep-report-iphone-se.png' })
 })
 
 test('medical prep keeps its established desktop dimensions and stable label', async ({ page }) => {
@@ -175,19 +136,19 @@ test('medical prep keeps its established desktop dimensions and stable label', a
   await prepare(page)
   const button = page.getByRole('button', { name: '就医准备', exact: true })
   await expect(button).toHaveCSS('height', '52px')
-  await expect(button.locator('.medical-prep-button__label')).toHaveText('就医准备')
+  await expect(button.locator('.medical-prep-button__label strong')).toHaveText('就诊情况单')
+  await expect(button.locator('.medical-prep-button__label small')).toHaveText('孩子情况快速整理')
   expect(await button.evaluate((element) => element.scrollWidth === element.clientWidth)).toBe(true)
 })
 
-test('nurse station uses the same corrected medical prep button', async ({ page }) => {
+test('nurse station keeps the existing brand icon', async ({ page }) => {
   await prepare(page)
   await page.goto('/nurse-station')
   const button = page.getByRole('button', { name: '就医准备', exact: true })
   await expect(button).toBeVisible()
-  await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '15px')
-  await expect(button.locator('.medical-prep-button__label')).toHaveCSS('font-size', '12px')
+  await expect(button.locator('.medical-prep-button__dot')).toHaveCount(3)
+  await expect(button.locator('.lucide-clipboard-list')).toHaveCount(0)
   await expect(button).toBeDisabled()
-  await expect(button.locator('.medical-prep-button__light-band')).toHaveCSS('animation-name', 'none')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   await page.screenshot({ path: 'outputs/medical-prep-nurse-station-iphone-se.png' })
 })
@@ -239,13 +200,13 @@ test('single-day timeline, search entry, sort order, compact subject and summary
   const subjectBox = await page.locator('.journal-subject-card').boundingBox()
   const summaryBox = await page.getByRole('button', { name: '就医准备', exact: true }).boundingBox()
   expect(subjectBox!.height).toBe(summaryBox!.height)
-  const manualBox = await page.getByRole('button', { name: '手动记录', exact: true }).boundingBox()
+  const manualBox = await page.getByRole('button', { name: '记一下', exact: true }).boundingBox()
   const quickBox = await page.getByRole('button', { name: '快捷记录', exact: true }).boundingBox()
   expect(manualBox!.width).toBeGreaterThan(quickBox!.width * 3.5)
   expect(quickBox!.width).toBe(60)
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).not.toContainText('快捷记录')
   await page.mouse.move(0, 0)
-  await expect(page.getByRole('button', { name: '手动记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
+  await expect(page.getByRole('button', { name: '记一下', exact: true })).toHaveAttribute('data-variant', 'secondary')
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
   await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveAttribute('data-variant', 'primary')
   const subjectBackground = await page.locator('.journal-subject-card').evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -327,7 +288,7 @@ test('journal row opens record details over the list without visiting symptom tr
 
 test('manual single selection, photo draft, review and real API save reach today', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const recorderTitle = page.getByRole('heading', { name: '记录新情况', exact: true })
   await expect(recorderTitle).toBeVisible()
   await expect(page.getByText('先记下来，不用一次性记完，想到时继续补充', { exact: true })).toHaveCount(0)
@@ -365,7 +326,7 @@ test('manual single selection, photo draft, review and real API save reach today
 
 test('bowel record is one continuous form, restores its member draft and saves real structured data', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const entrySheet = page.getByRole('dialog', { name: '记录新情况' })
   const entryLayout = await entrySheet.evaluate((sheet) => {
     const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
@@ -428,7 +389,7 @@ test('bowel record is one continuous form, restores its member draft and saves r
 })
 
 async function openDietTypes(page: Page) {
-  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   await page.getByRole('button', { name: '进食', exact: true }).click()
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 }
@@ -638,7 +599,7 @@ test('failed timeline request offers retry without claiming an empty day', async
 
 test('short keyboard viewport keeps manual review actionable and closes with Escape', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   await page.getByRole('button', { name: '症状', exact: true }).click()
   await page.getByRole('button', { name: '开始记录', exact: true }).click()
   await page.setViewportSize({ width: 375, height: 430 })

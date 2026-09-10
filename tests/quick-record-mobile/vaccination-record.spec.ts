@@ -21,7 +21,7 @@ async function prepare(page: Page) {
 
 test('iPhone SE 活动、疫苗和就医入口置灰并提示即将开放', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录' }).click()
+  await page.getByRole('button', { name: '记一下' }).click()
   const entry = page.getByRole('dialog', { name: '记录新情况' })
   for (const label of ['活动', '疫苗', '就医']) {
     const button = entry.getByRole('button', { name: label, exact: true })
