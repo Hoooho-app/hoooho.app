@@ -19,6 +19,7 @@ import { profileSectionExperienceMap } from '../../features/health-profile/confi
 import { getHealthProfileType } from '../../features/health-profile/utils/getHealthProfileProfile'
 import { HealthProfileExperiencePage } from './profile-sections/HealthProfileExperiencePage'
 import { ProfileChoiceGroup } from './profile-sections/ProfileSectionPatterns'
+import { BasicHealthProfilePage } from './BasicHealthProfilePage'
 
 type FormValues = Record<string, string | boolean>
 
@@ -73,6 +74,7 @@ function summarizeRecord(fields: HealthProfileField[], record: FormValues) {
 export function HealthProfileSectionPage() {
   const { sectionId = '' } = useParams()
   const member = useCurrentMember()
+  const currentMemberId = useAppStore((state) => state.currentMemberId)
   const token = useAppStore((state) => state.authToken)
   const members = useAppStore((state) => state.members)
   const setMembers = useAppStore((state) => state.setMembers)
@@ -93,21 +95,22 @@ export function HealthProfileSectionPage() {
   if (section.id === 'chronic') return <ChronicProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'surgery') return <SurgeryProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'family-history') return <FamilyHistoryProfilePage member={member} storageKey={storageKey} />
+  if (section.id === 'basic') return <BasicHealthProfilePage member={member.id === currentMemberId ? member : { id: currentMemberId, name: '记录对象加载中', age: '', relation: '其他' }} />
   const experience = profileSectionExperienceMap[section.id as keyof typeof profileSectionExperienceMap]
   if (experience) return <main className="app-shell health-profile-detail-shell"><WebPageHeader fallback="/health-profile" title={section.title} /><HealthProfileExperiencePage definition={experience} member={member} storageKey={storageKey} title={section.title} /></main>
-  const bmi = section.id === 'basic' ? calculateBmi(values.height, values.weight) : ''
-  const visibleFields = section.id === 'basic'
+  const bmi = (section.id as string) === 'basic' ? calculateBmi(values.height, values.weight) : ''
+  const visibleFields = (section.id as string) === 'basic'
     ? section.fields.filter((field) => field.id !== 'headCircumference' || ['infant', 'child'].includes(getHealthProfileType(member.birthday, member.gender)))
     : section.fields
 
   const persist = async (next: FormValues[]) => { await saveProfileSection(storageKey, next); setRecords(next) }
-  const resetForm = () => { setValues(section.id === 'basic' ? getBasicHealthProfileValues(member) : {}); setEditingIndex(null) }
+  const resetForm = () => { setValues((section.id as string) === 'basic' ? getBasicHealthProfileValues(member) : {}); setEditingIndex(null) }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSubmitting(true); setError(''); setStatus('')
     try {
       let savedValues = { ...values, _savedAt: new Date().toISOString() }
-      if (section.id === 'basic') {
+      if ((section.id as string) === 'basic') {
         if (!token) throw new Error('登录状态无效，请重新登录')
         const updated = await familyMemberService.update(member.id, toFamilyMemberHealthUpdate(values), token)
         setMembers(members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
@@ -121,7 +124,7 @@ export function HealthProfileSectionPage() {
         await persist(records.map((record, index) => index === editingIndex ? savedValues : record))
         resetForm()
       }
-      setStatus(section.id === 'basic' ? '基础健康信息已保存' : editingIndex == null ? '记录已添加' : '记录已更新')
+      setStatus((section.id as string) === 'basic' ? '基础健康信息已保存' : editingIndex == null ? '记录已添加' : '记录已更新')
     } catch (submitError) { setError(submitError instanceof Error ? submitError.message : '保存失败，请稍后重试') }
     finally { setSubmitting(false) }
   }
@@ -138,7 +141,7 @@ export function HealthProfileSectionPage() {
     <div className="page-content health-profile-page-content">
       <MemberIdentityCard member={member} recordSubject />
 
-      {section.id !== 'basic' && records.length > 0 && <section className="mt-6 grid gap-3">
+      {(section.id as string) !== 'basic' && records.length > 0 && <section className="mt-6 grid gap-3">
         <div className="overflow-hidden rounded-card border bg-surface">{records.map((record, index) => <article className="border-b p-4 last:border-b-0" key={`${String(record._savedAt)}-${index}`}>
           <div className="flex items-start gap-3"><div className="min-w-0 flex-1"><strong className="text-sm">{String(record.name || record.disease || record.type || section.title)}</strong><p className="mt-1 line-clamp-2 text-xs leading-5 text-text-secondary">{summarizeRecord(section.fields, record)}</p></div>
             <button aria-label="编辑记录" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary" onClick={() => editRecord(record, index)} type="button"><Pencil size={17} /></button>
@@ -149,13 +152,13 @@ export function HealthProfileSectionPage() {
 
       <form className="mt-6 grid gap-5 rounded-card border bg-surface p-4" id="health-profile-form" onSubmit={submit}>
         <Typography variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography>
-        {section.id === 'basic' && <BasicMetrics
+        {(section.id as string) === 'basic' && <BasicMetrics
           bmi={bmi}
           fields={visibleFields.slice(0, 3)}
           onChange={(id, value) => setValues((current) => ({ ...current, [id]: value }))}
           values={values}
         />}
-        {(section.id === 'basic' ? visibleFields.slice(3) : visibleFields).map((field) => <Field
+        {((section.id as string) === 'basic' ? visibleFields.slice(3) : visibleFields).map((field) => <Field
           field={field}
           key={field.id}
           value={values[field.id] ?? ''}
@@ -166,7 +169,7 @@ export function HealthProfileSectionPage() {
           }))}
           onUnavailable={() => setStatus('附件功能暂未开放')}
         />)}
-        {section.id === 'basic' && <BasicBloodType values={values} onChange={(id, value) => setValues((current) => ({
+        {(section.id as string) === 'basic' && <BasicBloodType values={values} onChange={(id, value) => setValues((current) => ({
           ...current,
           [id]: id === 'aboBloodType' ? String(value).replace('型', '') : id === 'rhBloodType' ? value === '阳性' ? 'positive' : value === '阴性' ? 'negative' : '' : value,
           ...(id === 'aboBloodType' || id === 'rhBloodType' ? { _bloodTypeTouched: true } : {})
@@ -175,8 +178,8 @@ export function HealthProfileSectionPage() {
         {status && <p className="text-sm text-primary" role="status">{status}</p>}
       </form>
     </div>
-    <HealthProfileActionBar split={editingIndex != null && section.id !== 'basic'}>
-      {editingIndex != null && section.id !== 'basic' && <HohoButton disabled={submitting} fullWidth onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}
+    <HealthProfileActionBar split={editingIndex != null && (section.id as string) !== 'basic'}>
+      {editingIndex != null && (section.id as string) !== 'basic' && <HohoButton disabled={submitting} fullWidth onClick={resetForm} type="button" variant="secondary">取消编辑</HohoButton>}
       <HohoButton disabled={submitting} fullWidth form="health-profile-form" type="submit">{submitting ? '正在保存…' : '保存档案'}</HohoButton>
     </HealthProfileActionBar>
   </main>
