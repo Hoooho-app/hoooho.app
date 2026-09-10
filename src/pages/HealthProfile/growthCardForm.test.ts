@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { growthCardActionLabel, growthCardMissing, validHeight, validWeight } from './growthCardForm.ts'
+import { growthCardActionLabel, growthCardMissing, validHeight, validRh, validWeight } from './growthCardForm.ts'
 
-test('成长身份卡缺失项和操作文案按真实表单值计算', () => {
-  assert.deepEqual(growthCardMissing({}), ['身高', '体重', '血型'])
-  assert.equal(growthCardActionLabel({ height: '82', weight: '11.2' }, false), '选择血型后即可生成')
-  assert.equal(growthCardActionLabel({ height: '82', weight: '11.2', aboBloodType: 'A' }, false), '生成成长身份卡')
-  assert.equal(growthCardActionLabel({ height: '82', weight: '11.2', aboBloodType: 'A' }, true), '更新成长数据')
+test('成长快照不把血型设为必填并按核心输入切换文案', () => {
+  assert.deepEqual(growthCardMissing({}), ['身高', '体重'])
+  assert.equal(growthCardActionLabel({}, false), '填写身长后即可查看')
+  assert.equal(growthCardActionLabel({}, false, '身高'), '填写身高后即可查看')
+  assert.equal(growthCardActionLabel({ height: '82' }, false), '再填体重，建立成长坐标')
+  assert.equal(growthCardActionLabel({ height: '82', weight: '11.2' }, false), '保存成长快照')
+  assert.equal(growthCardActionLabel({ aboBloodType: 'A' }, false), '保存血型')
+  assert.equal(validRh('unknown'), true)
 })
 
 test('身高体重沿用服务端合理范围并允许小数', () => {

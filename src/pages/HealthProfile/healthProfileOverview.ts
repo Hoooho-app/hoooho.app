@@ -8,7 +8,7 @@ export function buildBasicOverview(member: Member, records: SectionRecords) {
   const weeks = Number(birth.gestationalWeeks), birthSummary = Number.isFinite(weeks) && weeks > 0 ? (weeks >= 37 ? '足月出生' : '早产出生') : ''
   const height = numberText(member.heightCm ?? growth.height ?? basic.height), weight = numberText(member.weightKg ?? growth.weight ?? basic.weight), head = numberText(member.headCircumferenceCm ?? growth.headCircumference ?? basic.headCircumference)
   const bloodType = String(member.bloodType ?? basic.aboBloodType ?? basic.bloodType ?? '').replace(/型$/, '')
-  const missingCount = [height, weight, bloodType].filter((value) => !value).length
+  const missingCount = [height, weight].filter((value) => !value).length
   return {
     bloodType, complete: missingCount === 0,
     filled: [member.heightCm, member.weightKg, member.headCircumferenceCm, ...Object.values(birth), ...Object.values(growth), ...Object.values(basic)].some(present),
