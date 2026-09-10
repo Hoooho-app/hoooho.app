@@ -14,6 +14,8 @@ const photos = read('../HealthEventDetail/components/QuickRecordPhotos.tsx')
 const photoStyles = read('./NurseQuickRecord.css')
 const dietFlow = read('./DietRecordFlow.tsx')
 const journalRecorder = read('./JournalRecorder.tsx')
+const journalCategoryIcon = read('./JournalCategoryIcon.tsx')
+const timeViewModel = read('./timeViewModel.ts')
 const family = read('../Family/index.tsx')
 const login = read('../Login/index.tsx')
 const router = read('../../app/router.tsx')
@@ -100,6 +102,14 @@ test('喂养饮食使用五类确认页、独立记录页和结构化真实保�
   assert.match(dietFlow, /记录时间不能晚于现在/)
   assert.match(page, /journal,/)
   assert.match(page, /showJournalSavedNotice/)
+})
+
+test('进食一级入口使用独立勺子图标且保留喂养饮食二级流程', () => {
+  assert.match(timeViewModel, /\['diet', '进食'\]/)
+  assert.doesNotMatch(timeViewModel, /\['diet', '喂养\/饮食'\]/)
+  assert.match(journalCategoryIcon, /category === 'diet'[\s\S]*<SpoonIcon/)
+  assert.match(journalCategoryIcon, /journal-category-icon--spoon/)
+  assert.match(journalRecorder, /记录喂养\/饮食/)
 })
 
 test('快捷记录全过程保留连续待机视频且成功视频就绪后再交接', () => {
