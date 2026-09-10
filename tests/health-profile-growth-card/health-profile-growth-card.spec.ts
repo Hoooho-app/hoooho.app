@@ -1,0 +1,33 @@
+import { expect, test } from '@playwright/test'
+
+test('iPhone SE completes the growth identity card flow without overflow', async ({ page }, testInfo) => {
+  await page.goto('/login')
+  await page.getByRole('tab', { name: '注册' }).click()
+  const inputs = page.locator('input')
+  await inputs.nth(0).fill(`验收${Date.now()}`)
+  await inputs.nth(1).fill('local-test-0911')
+  await page.getByRole('button', { name: '注册并进入' }).click()
+  await page.getByRole('button', { name: '添加第一个孩子' }).click()
+  await page.getByLabel('姓名').fill('小禾')
+  await page.getByLabel('出生日期').fill('2024-01-15')
+  await page.getByText('女', { exact: true }).click()
+  await page.getByLabel('你是孩子的谁？').selectOption({ label: '妈妈' })
+  await page.getByRole('button', { name: '添加家庭成员' }).click()
+
+  await page.goto('/health-profile')
+  await expect(page.getByText('再补充 3 项，就能生成成长身份卡')).toBeVisible()
+  await expect(page.getByRole('button', { name: /记录第一次反应/ })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  await page.screenshot({ path: testInfo.outputPath('health-profile-iphone-se.png'), fullPage: true })
+
+  await page.getByRole('button', { name: '生成成长身份卡' }).click()
+  await page.getByLabel('身高').fill('82')
+  await page.getByLabel('体重').fill('11.2')
+  await page.getByRole('button', { name: 'A型' }).click()
+  await expect(page.getByText('已形成一组成长数据')).toBeVisible()
+  await page.getByRole('button', { name: '生成成长身份卡' }).click()
+  await expect(page.getByText('小禾的成长身份卡已建立')).toBeVisible()
+  await page.getByRole('button', { name: '完成' }).click()
+  await expect(page.getByText('成长身份卡已保存，并会用于就医准备')).toBeVisible()
+  await expect(page.getByText('已建立')).toBeVisible()
+})
