@@ -18,7 +18,10 @@ export function MedicalPrepButton({ className = '', disabled = false, ...props }
           <circle className="medical-prep-button__dot medical-prep-button__dot--top" cx="67" cy="13" fill="#FFFFFF" r="8" />
         </svg>
       </span>
-      <span className="medical-prep-button__label">就医准备</span>
+      <span className="medical-prep-button__label">
+        <strong>就诊情况单</strong>
+        <small>孩子情况快速整理</small>
+      </span>
     </HohoButton>
   )
 }

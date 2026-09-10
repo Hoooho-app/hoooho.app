@@ -74,5 +74,27 @@
 }
 
 .medical-prep-button__label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-align: left;
   letter-spacing: .01em;
+}
+
+.medical-prep-button__label strong,
+.medical-prep-button__label small {
+  display: block;
+  font: inherit;
+  line-height: 1;
+}
+
+.medical-prep-button__label strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.medical-prep-button__label small {
+  opacity: .78;
+  font-size: 9px;
+  font-weight: 500;
 }
