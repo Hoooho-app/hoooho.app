@@ -1,4 +1,4 @@
-import { AlarmClock, Archive, Bell, ChevronRight, ClipboardCheck, Cross, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, Waypoints, X } from 'lucide-react'
+import { AlarmClock, Archive, Bell, ChevronRight, ClipboardCheck, Cross, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -114,13 +114,11 @@ function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void
 
 function NurseServices({ onOpen }: { onOpen: (service: NurseService) => void }) {
   const services = [
-    { id: 'symptom', label: '症状观察', icon: Cross, enabled: true },
-    { id: 'reminders', label: '提醒服务', icon: AlarmClock, enabled: true },
-    { id: 'allergy', label: '排敏测试', icon: TestTube, enabled: true },
-    { id: 'instructions', label: '医嘱跟进', icon: ClipboardCheck, enabled: false },
-    { id: 'conflicts', label: '冲突提醒', icon: Waypoints, enabled: false }
+    { id: 'reminders', label: '提醒服务', description: '用药或重要事情，到时间提醒', icon: AlarmClock },
+    { id: 'symptom', label: '症状观察', description: '按时记录变化，看看有没有好转', icon: Cross },
+    { id: 'allergy', label: '排敏测试', description: '按计划尝试，记录每次反应', icon: TestTube }
   ] as const
-  return <div className="nurse-service-list">{services.map(({ id, label, icon: Icon, enabled }) => <button aria-disabled={!enabled} className="nurse-service-entry" data-enabled={enabled} disabled={!enabled} key={id} onClick={enabled ? () => onOpen(id) : undefined} type="button"><Icon aria-hidden="true" /><span>{label}</span></button>)}</div>
+  return <div className="nurse-service-list">{services.map(({ id, label, description, icon: Icon }) => <button className="nurse-service-entry" key={id} onClick={() => onOpen(id)} type="button"><Icon aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span><ChevronRight aria-hidden="true" /></button>)}</div>
 }
 
 function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {

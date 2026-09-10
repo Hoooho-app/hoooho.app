@@ -11,17 +11,18 @@
 .nurse-station-member em { overflow: hidden; color: #687b88; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-member-row .journal-subject-summary { width: 140px; min-width: 0; min-height: 52px; height: 52px; padding-inline: 10px; border-radius: 12px; font-size: 14px; white-space: nowrap; }
 
-.nurse-service-stage { display: grid; grid-template-columns: minmax(0, 1fr) 106px; align-items: stretch; gap: 8px; margin-top: 10px; }
-.nurse-station-visual { display: grid; min-width: 0; height: 224px; overflow: hidden; place-items: center; border: 0; border-radius: 8px; background: transparent; box-shadow: none; }
-.nurse-station-visual .nurse-triage-desk { width: min(116%, 270px); margin: 0; }
-.nurse-service-list { display: grid; grid-template-rows: repeat(5, 40px); gap: 6px; }
-.nurse-service-entry { display: grid; width: 106px; height: 40px; grid-template-columns: 18px auto; align-items: center; justify-content: center; gap: 6px; border: 1px solid #dce6e4; border-radius: 11px; padding: 0 7px; background: #f5f8f7; color: #86918f; text-align: center; }
-.nurse-service-entry > svg:first-child { width: 18px; height: 18px; }
-.nurse-service-entry span { overflow: hidden; font-size: 12px; font-weight: 700; letter-spacing: -.03em; white-space: nowrap; }
-.nurse-service-entry[data-enabled='true'] { border-color: #b9e4db; background: #eaf8f4; color: #187f73; box-shadow: 0 3px 10px rgb(22 132 117 / .08); }
-.nurse-service-entry[data-enabled='true']:active { transform: scale(.98); }
-.nurse-service-entry[data-enabled='true']:focus-visible { outline: 3px solid rgb(var(--hoho-color-focus, 27 148 134) / .28); outline-offset: 2px; }
-.nurse-service-entry:disabled { cursor: default; opacity: 1; }
+.nurse-service-stage { display: grid; grid-template-columns: minmax(0, 1fr) clamp(158px, 48%, 174px); align-items: stretch; gap: 8px; margin-top: 8px; }
+.nurse-station-visual { display: grid; min-width: 0; height: 196px; overflow: hidden; place-items: center; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.nurse-station-visual .nurse-triage-desk { width: min(112%, 196px); margin: 0; }
+.nurse-service-list { display: grid; grid-template-rows: repeat(3, 62px); gap: 5px; }
+.nurse-service-entry { display: grid; width: 100%; min-width: 0; height: 62px; grid-template-columns: 22px minmax(0, 1fr) 15px; align-items: center; gap: 7px; border: 1px solid #b9e4db; border-radius: 12px; padding: 7px 8px; background: #eaf8f4; color: #187f73; text-align: left; }
+.nurse-service-entry > svg:first-child { width: 22px; height: 22px; stroke-width: 1.8; }
+.nurse-service-entry > svg:last-child { width: 15px; height: 15px; stroke-width: 2; }
+.nurse-service-entry > span { display: grid; min-width: 0; gap: 2px; }
+.nurse-service-entry strong { font-size: 13px; font-weight: 740; line-height: 1.15; white-space: nowrap; }
+.nurse-service-entry small { overflow: hidden; color: #5d7872; font-size: 10px; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.nurse-service-entry:active { transform: scale(.98); }
+.nurse-service-entry:focus-visible { outline: 3px solid rgb(var(--hoho-color-focus, 27 148 134) / .28); outline-offset: 2px; }
 .nurse-station-page .idle-nurse-visual { background: #fff; }
 .nurse-station-empty-member { display: grid; height: calc(100vh - 64px); height: calc(100dvh - 64px); grid-template-rows: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: clamp(7px, 1.4dvh, 11px); padding: clamp(10px, 2dvh, 16px) 20px max(10px, env(safe-area-inset-bottom)); text-align: center; }
 .nurse-station-empty-member__copy { margin-inline: auto; max-width: 350px; }
@@ -132,5 +133,5 @@
 .completion-options label { display: flex; min-height: 44px; align-items: center; gap: 10px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 0 12px; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-@media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-member-row { grid-template-columns: minmax(0, 1fr) 136px; } .nurse-service-stage { grid-template-columns: minmax(0, 1fr) 102px; } .nurse-station-member-row .journal-subject-summary { width: 136px; padding-inline: 8px; } .nurse-service-entry { width: 102px; padding-inline: 5px; } }
+@media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-member-row { grid-template-columns: minmax(0, 1fr) 136px; } .nurse-service-stage { grid-template-columns: minmax(0, 1fr) 158px; } .nurse-station-member-row .journal-subject-summary { width: 136px; padding-inline: 8px; } .nurse-service-entry { padding-inline: 7px; } }
 @media (prefers-reduced-motion: reduce) { .nurse-service-entry, .nurse-station-visual, .guardian-task-card, .nurse-station-sheet { animation: none !important; transition: none !important; } }

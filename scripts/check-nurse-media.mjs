@@ -27,6 +27,6 @@ const stationVideo = readFileSync(new URL('nurse-station-idle-1.mp4', stationBas
 const stationPosterSize = statSync(new URL('nurse-station-idle-1-poster.webp', stationBase)).size
 const stationBoxes = boxesOf(stationVideo)
 assert.ok(stationBoxes.indexOf('moov') >= 0 && stationBoxes.indexOf('moov') < stationBoxes.indexOf('mdat'), 'nurse-station-idle-1: faststart')
-assert.ok(stationVideo.length >= 350 * 1024 && stationVideo.length <= 650 * 1024, 'nurse-station-idle-1: 350-650 KB production budget')
-assert.ok(stationPosterSize >= 20 * 1024 && stationPosterSize <= 50 * 1024, 'nurse-station-idle-1-poster: 20-50 KB production budget')
+assert.ok(stationVideo.length >= 150 * 1024 && stationVideo.length <= 300 * 1024, 'nurse-station-idle-1: 150-300 KB compact production budget')
+assert.ok(stationPosterSize >= 6 * 1024 && stationPosterSize <= 18 * 1024, 'nurse-station-idle-1-poster: 6-18 KB compact production budget')
 console.table([{ name: 'nurse-station-idle-1', video: stationVideo.length, poster: stationPosterSize }])
