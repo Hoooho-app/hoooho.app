@@ -6,7 +6,7 @@ const source = readFileSync(new URL('./SymptomRecordFlow.tsx', import.meta.url),
 const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url), 'utf8')
 
 test('symptom category enters one continuous form with locator, optional details, time and save in order', () => {
-  assert.match(recorder, /selected\[0\] === 'symptom' \? 'symptom-form'/)
+  assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return <div className="symptom-record-page-layer"'))
   const labels = ['主要怎么不舒服？', '不舒服的位置', '这里具体怎么了？', '现在大概到什么程度？', '拍下来更容易说明', '再补充一点', '记录时间', '保存记录']
   let cursor = -1

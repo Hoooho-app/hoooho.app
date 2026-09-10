@@ -12,3 +12,11 @@ test('activity, vaccination and visit stay visible but announce their unavailabl
   assert.match(source, /setSelected\(\[\]\)/)
   assert.match(styles, /\.journal-category-unavailable/)
 })
+
+test('available category and diet type cards navigate directly without a start footer', () => {
+  assert.match(source, /setScreen\(categoryScreen\(category\)\)/)
+  assert.match(source, /className="diet-type-direct-entry"/)
+  assert.match(source, /setDietKind\(kind\); setScreen\('diet-form'\)/)
+  assert.match(source, /footer=\{undefined\}/)
+  assert.doesNotMatch(source, />开始记录<\/HohoButton>/)
+})
