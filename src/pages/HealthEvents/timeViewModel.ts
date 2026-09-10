@@ -49,6 +49,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
       timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType ?? '') ? 'exact' : 'unknown'),
       timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
+      diet: first.journal?.diet,
       sleep: first.journal?.sleep,
       outdoorActivity: first.journal?.outdoorActivity,
       medication: first.journal?.medication,
@@ -61,6 +62,23 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       }
     })
   })
+}
+
+const feedingMethodLabels = { breast: '母乳', formula: '配方奶', expressed: '瓶喂母乳', mixed: '混合喂养' } as const
+
+export function journalListSummary(entry: JournalEntry) {
+  if (entry.categories?.includes('medication') && entry.medication) {
+    const names = entry.medication.medications?.map((item) => item.medicationName.trim()).filter(Boolean)
+      ?? [entry.medication.medicationName.trim()].filter(Boolean)
+    if (names.length) return [...new Set(names)].join('、')
+  }
+  if (entry.categories?.includes('diet') && entry.diet?.kind === 'feeding') {
+    const parts: string[] = [feedingMethodLabels[entry.diet.feedingMethod ?? 'breast']]
+    if (entry.diet.breastSeconds) parts.push(`${Math.max(1, Math.round(entry.diet.breastSeconds.total / 60))}分钟`)
+    if (entry.diet.bottleMl) parts.push(`${entry.diet.bottleMl}毫升`)
+    return parts.join(' · ')
+  }
+  return entry.content
 }
 
 export function journalUpdateLabel(entry: JournalEntry) {

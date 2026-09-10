@@ -77,7 +77,7 @@ test('多药标签保留独立剂量和提醒并一次真实保存', async ({ pa
   await form.getByRole('button', { name: '保存记录' }).click()
   await expect(page.getByText('已记录').first()).toBeVisible()
   await expect(page.getByText('用药 · 共2种')).toBeVisible()
-  await expect(page.getByText(/布洛芬混悬液 · 0.5 mL/)).toBeVisible()
+  await expect(page.getByText('布洛芬混悬液、西替利嗪', { exact: true })).toBeVisible()
 })
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
