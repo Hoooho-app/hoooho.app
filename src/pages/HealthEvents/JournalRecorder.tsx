@@ -1,4 +1,4 @@
-import { Apple, Pill, Utensils } from 'lucide-react'
+import { Apple, CookingPot } from 'lucide-react'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
@@ -18,6 +18,10 @@ import { VisitRecordFlow } from './VisitRecordFlow'
 
 function FeedingBottleIcon({ size = 24, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }) {
   return <svg aria-hidden="true" className="diet-type-icon--feeding-bottle" fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} viewBox="0 0 24 24" width={size}><path d="M10 2h4v3l2 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8l2-3V2Z" /><path d="M9 9h6M9 15h3" /></svg>
+}
+
+function SupplementBottleIcon({ size = 24, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }) {
+  return <svg aria-hidden="true" className="diet-type-icon--supplement-bottle" fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} viewBox="0 0 24 24" width={size}><path d="M9 2h6v3H9zM10 5v2.2L8 9v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9l-2-1.8V5" /><path d="M8 11h8M10 15h4M12 13v4" /></svg>
 }
 
 export function JournalRecorder({ mode, memberId, token, initialCategory, onClose, onConfirm, onSaved }: {
@@ -54,9 +58,9 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
   const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; icon: ReactNode }[] = [
     { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', icon: <FeedingBottleIcon /> },
     { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒', icon: <SpoonIcon size={24} strokeWidth={1.7} /> },
-    { kind: 'meal', title: '正餐', description: '早餐 / 午餐 / 晚餐', icon: <Utensils aria-hidden="true" size={24} strokeWidth={1.7} /> },
+    { kind: 'meal', title: '正餐', description: '早餐 / 午餐 / 晚餐', icon: <CookingPot aria-hidden="true" className="diet-type-icon--meal-pot" size={24} strokeWidth={1.7} /> },
     { kind: 'snack', title: '零食', description: '点心 / 水果 / 饮品', icon: <Apple aria-hidden="true" size={24} strokeWidth={1.7} /> },
-    { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', icon: <Pill aria-hidden="true" size={24} strokeWidth={1.7} /> }
+    { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', icon: <SupplementBottleIcon /> }
   ]
   const isDietTypes = screen === 'diet-types'
   const unavailableCategories = new Set<JournalCategory>(['activity', 'vaccination', 'visit'])
