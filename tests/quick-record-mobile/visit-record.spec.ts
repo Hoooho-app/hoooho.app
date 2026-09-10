@@ -21,7 +21,7 @@ async function prepare(page: Page) {
 
 test('iPhone SE 就医入口不可用且不再进入记录表单', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '手动记录' }).click()
+  await page.getByRole('button', { name: '记一下' }).click()
   const entry = page.getByRole('dialog', { name: '记录新情况' })
   const button = entry.getByRole('button', { name: '就医', exact: true })
   await expect(button).toHaveAttribute('aria-disabled', 'true')
