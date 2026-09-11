@@ -1,5 +1,5 @@
-import { ClipboardList } from 'lucide-react'
 import { HohoButton } from './HohoButton'
+import { HooohoIcon } from './HooohoIcon'
 import type { HohoButtonProps } from './HohoButton'
 
 export type MedicalPrepButtonProps = Omit<HohoButtonProps, 'children'>
@@ -14,7 +14,7 @@ export function MedicalPrepButton({ className = '', disabled = false, ...props }
       disabled={disabled}
     >
       <span aria-hidden="true" className="medical-prep-button__icon">
-        <ClipboardList className="medical-prep-button__report-icon" size={24} strokeWidth={1.8} />
+        <HooohoIcon className="medical-prep-button__report-icon" name="medical-note" size={24} />
       </span>
       <span className="medical-prep-button__label">
         <strong>就诊情况单</strong>

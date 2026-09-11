@@ -1,4 +1,3 @@
-import { BookOpen, ChevronRight, CircleHelp, Folder, Info, MessageCircle, Settings, Stethoscope, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -11,6 +10,7 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
+import { HooohoIcon, type HooohoIconName } from '../design-system'
 
 interface SideDrawerProps {
   open: boolean
@@ -22,19 +22,19 @@ export const sidebarMenuGroups = [
   {
     title: '健康管理',
     items: [
-    { label: '健康档案', icon: Folder, to: '/health-profile' },
-    { label: '健康记录', icon: BookOpen, to: '/health-events' },
-    { label: '服务站', icon: Stethoscope, to: '/nurse-station' }
+    { label: '健康档案', icon: 'health-profile', to: '/health-profile' },
+    { label: '健康记录', icon: 'health-record', to: '/health-events' },
+    { label: '服务站', icon: 'service-station', to: '/nurse-station' }
     ]
   },
   {
     title: '工具与帮助',
     items: [
-    { label: '说明', icon: BookOpen, to: '/guide' },
-    { label: '设置', icon: Settings, to: '/settings' },
-    { label: '帮助', icon: CircleHelp, to: '/help' },
-    { label: '反馈', icon: MessageCircle, to: '/feedback' },
-    { label: '关于', icon: Info, to: '/about' }
+    { label: '说明', icon: 'instructions', to: '/guide' },
+    { label: '设置', icon: 'settings', to: '/settings' },
+    { label: '帮助', icon: 'help', to: '/help' },
+    { label: '反馈', icon: 'feedback', to: '/feedback' },
+    { label: '关于', icon: 'about', to: '/about' }
     ]
   }
 ]
@@ -96,7 +96,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
       <aside className="hoho-drawer" ref={drawerRef} tabIndex={-1}>
         <button className="hoho-drawer__close grid h-10 w-10 place-items-center rounded-full" type="button" aria-label="关闭菜单" onClick={onClose}>
-          <X size={24} strokeWidth={1.7} />
+          <HooohoIcon aria-hidden="true" name="close" size={24} />
         </button>
 
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
@@ -110,12 +110,12 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
                 </span>
                 <span className="hoho-drawer__member-meta">{genderLabel[member.gender ?? '']} · {member.age}</span>
               </span>
-              <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
+              <HooohoIcon aria-hidden="true" className="text-text-secondary" name="right-arrow" size={20} />
             </button>
           ) : (
             <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => { onClose(); onOpenChildSheet() }}>
               <span><strong className="block text-base font-semibold text-heading">尚未添加孩子</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
-              <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
+              <HooohoIcon aria-hidden="true" className="text-text-secondary" name="right-arrow" size={20} />
             </button>
           )}
         </section>
@@ -125,13 +125,13 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
             <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
               <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
               <div className="hoho-drawer__menu">
-              {group.items.map(({ label, icon: Icon, to }) => {
+              {group.items.map(({ label, icon, to }) => {
                 const active = location.pathname === to || (to !== '/health-events' && location.pathname.startsWith(`${to}/`))
                 return (
                   <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
-                    <Icon size={20} strokeWidth={1.7} />
+                    <HooohoIcon aria-hidden="true" name={icon as HooohoIconName} size={20} state={active ? 'selected' : 'default'} />
                     <span className="flex-1">{label}</span>
-                    <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
+                    <HooohoIcon aria-hidden="true" className="text-text-secondary" name="right-arrow" size={16} />
                   </button>
                 )
               })}
@@ -142,7 +142,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
 
         <button className="hoho-drawer__account mt-3 flex min-h-[58px] w-full items-center gap-3 px-2 text-left" type="button" onClick={() => setAccountOpen(true)}>
           {authUser?.guest
-            ? <span className="account-neutral-avatar"><UserRound size={19} /></span>
+            ? <span className="account-neutral-avatar"><HooohoIcon aria-hidden="true" name="current-child" size={20} /></span>
             : <Avatar name={accountProfile?.nickname ?? '用户'} src={accountProfile?.avatar ?? undefined} size="sm" />}
           <span className="min-w-0 flex-1">
             <strong className="block truncate text-sm font-semibold">
@@ -152,7 +152,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
             <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : '已同步'}</span>
           </span>
           {!authUser?.guest && <MembershipBadge />}
-          <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
+          <HooohoIcon aria-hidden="true" className="text-text-secondary" name="right-arrow" size={16} />
         </button>
       </aside>
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />

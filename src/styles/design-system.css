@@ -1,6 +1,10 @@
 @import '../components/design-system/MedicalPrepButton.css' layer(components);
 
 @layer components {
+  .hoooho-icon { display: block; flex-shrink: 0; }
+  .hoooho-icon[data-state='disabled'] { color: rgb(var(--hoho-color-disabled)); }
+  .hoooho-icon[data-state='warning'], .hoooho-icon[data-state='pending'] { color: rgb(var(--hoho-color-warning)); }
+  .hoooho-icon[data-state='completed'] { color: rgb(var(--hoho-color-success)); }
   .hoho-health-events-page {
     --color-primary: var(--hoho-color-primary);
     --color-primary-soft: var(--hoho-color-primary-soft);

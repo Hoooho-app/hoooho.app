@@ -1,8 +1,8 @@
-import { AlarmClock, Archive, Bell, ChevronRight, ClipboardCheck, Cross, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, X } from 'lucide-react'
+import { Archive, Bell, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, Thermometer, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
-import { BottomSheetSurface, HohoButton, MedicalPrepButton } from '../../components/design-system'
+import { BottomSheetSurface, HohoButton, HooohoIcon, MedicalPrepButton, type HooohoIconName } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { getCurrentPath, makeMemberProfileOpenState } from '../../components/navigation/navigationState'
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
@@ -114,11 +114,11 @@ function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void
 
 function NurseServices({ onOpen }: { onOpen: (service: NurseService) => void }) {
   const services = [
-    { id: 'reminders', label: '提醒服务', description: '用药或重要事情，到时间提醒', icon: AlarmClock },
-    { id: 'symptom', label: '症状观察', description: '按时记录变化，看看有没有好转', icon: Cross },
-    { id: 'allergy', label: '排敏测试', description: '按计划尝试，记录每次反应', icon: TestTube }
+    { id: 'reminders', label: '提醒服务', description: '用药或重要事情，到时间提醒', icon: 'reminder' },
+    { id: 'symptom', label: '症状观察', description: '按时记录变化，看看有没有好转', icon: 'observation' },
+    { id: 'allergy', label: '排敏测试', description: '按计划尝试，记录每次反应', icon: 'allergy-test' }
   ] as const
-  return <div className="nurse-service-list">{services.map(({ id, label, description, icon: Icon }) => <button className="nurse-service-entry" key={id} onClick={() => onOpen(id)} type="button"><Icon aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span><ChevronRight aria-hidden="true" /></button>)}</div>
+  return <div className="nurse-service-list">{services.map(({ id, label, description, icon }) => <button className="nurse-service-entry" key={id} onClick={() => onOpen(id)} type="button"><HooohoIcon aria-hidden="true" name={icon as HooohoIconName} size={24} /><span><strong>{label}</strong><small>{description}</small></span><ChevronRight aria-hidden="true" /></button>)}</div>
 }
 
 function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
