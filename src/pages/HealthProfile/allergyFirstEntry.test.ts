@@ -38,3 +38,19 @@ test('iPhone SE 紧凑布局完整保留字号和点击面积', () => {
   assert.match(styles, /\.allergy-category-grid button\{[^}]*min-height:104px/)
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)/)
 })
+
+test('过敏原整行下钻到正确详情及子路由', () => {
+  assert.match(page, /itemId=sub\[0\],item=items\.find\(x=>x\.id===itemId\)/)
+  for (const action of ['status', 'reaction', 'test', 'tests', 'success']) assert.match(page, new RegExp(`sub\\[1\\]===['\"]${action}['\"]`))
+  assert.match(page, /group\.items\.map\(item=><button key=\{item\.id\} onClick=\{\(\)=>navigate\(`\/health-profile\/allergy\/\$\{item\.id\}`\)\}/)
+})
+
+test('单个过敏原详情包含概况、联动提示、相关记录和时间线', () => {
+  assert.match(page, /Header title=\{`\$\{item\.name\}的过敏史`\}/)
+  assert.match(page, /item\.currentStatus&&<span><strong>/)
+  assert.match(page, /item\.currentStatus==='investigating'&&<p className="allergy-investigating"/)
+  assert.match(page, /这些记录只表示时间或内容上可能相关，不代表因果关系。/)
+  assert.match(page, /<h2>相关记录时间线<\/h2>/)
+  assert.match(page, /className="allergy-detail-footer"/)
+  assert.doesNotMatch(page, /尚待判断/)
+})
