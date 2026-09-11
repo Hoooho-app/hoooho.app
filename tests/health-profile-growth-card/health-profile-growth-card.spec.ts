@@ -12,8 +12,9 @@ test('iPhone SE completes autosave, history, curve and reassurance flow without 
   await page.getByLabel('出生日期').fill('2024-01-15')
   await page.getByText('女', { exact: true }).click()
   await page.getByLabel('你是孩子的谁？').selectOption({ label: '妈妈' })
+  const memberResponse = page.waitForResponse((response) => response.url().includes('/api/members') && response.request().method() === 'POST')
   await page.getByRole('button', { name: '添加家庭成员' }).click()
-
+  expect((await memberResponse).ok()).toBe(true)
   await page.goto('/health-profile')
   await expect(page.getByText('再补充 2 项，就能生成成长身份卡')).toBeVisible()
   await expect(page.getByRole('button', { name: /记录第一次反应/ })).toBeVisible()
