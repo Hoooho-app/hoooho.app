@@ -13,6 +13,7 @@ export const accountCollections = [
   ['health-record-previews.json', 'previews'],
   ['health-organization-state.json', 'events'],
   ['health-profile-facts.json', 'facts'],
+  ['growth-measurements.json', 'measurements'],
   ['health-information-candidates.json', 'candidates'],
   ['online-consultations.json', 'consultations'],
   ['quick-record-requests.json', 'requests'],

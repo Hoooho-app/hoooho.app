@@ -15,13 +15,13 @@ test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
 })
 
-test('首次建立与后续更新使用不同反馈并保留失败输入', () => {
-  assert.match(editor, /第一组成长坐标已建立/)
-  assert.match(editor, /成长数据已更新/)
-  assert.match(editor, /继续补充信息/)
-  assert.match(editor, /成长坐标已建立/)
-  assert.match(form, /保存成长快照/)
-  assert.match(editor, /catch \(submitError\)/)
+test('基础信息改为自动保存并保留失败重试', () => {
+  assert.match(editor, /看看今天长到哪里了/)
+  assert.match(editor, /保存中…/)
+  assert.match(editor, /已保存/)
+  assert.match(editor, /保存失败，点击重试/)
+  assert.match(editor, /growthMeasurementService\.upsert/)
+  assert.doesNotMatch(editor, /保存成长快照|补充更多信息|头围|腰围|体脂率/)
   assert.doesNotMatch(editor, /积分|签到|连续填写|超过.*用户/)
 })
 

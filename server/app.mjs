@@ -31,6 +31,7 @@ import { HealthProfileFactService } from './health-profile/health-profile-fact-s
 import { HealthInformationCandidateService } from './health-information/health-information-candidate-service.mjs'
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 import { AccountService } from './account/account-service.mjs'
+import { GrowthMeasurementService } from './growth/growth-measurement-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -66,6 +67,7 @@ const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
 const healthProfileFacts = new HealthProfileFactService(sharedOptions)
 const healthInformationCandidates = new HealthInformationCandidateService({ ...sharedOptions, profileFacts: healthProfileFacts })
+const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -417,6 +419,19 @@ async function handleMembers(request, response, pathname) {
   return true
 }
 
+async function handleGrowthMeasurements(request, response, pathname, searchParams) {
+  const match = /^\/api\/growth-measurements(?:\/([^/]+))?$/.exec(pathname)
+  if (!match) return false
+  const accountId = await readAccountId(request)
+  const id = match[1] ? decodeRouteValue(match[1]) : null
+  if (!id && request.method === 'GET') sendJson(response, 200, await growthMeasurements.list(accountId, String(searchParams.get('memberId') ?? '')))
+  else if (!id && request.method === 'POST') sendJson(response, 200, await growthMeasurements.upsert(accountId, await readJson(request)))
+  else if (id && request.method === 'PATCH') sendJson(response, 200, await growthMeasurements.update(accountId, id, await readJson(request)))
+  else if (id && request.method === 'DELETE') sendJson(response, 200, await growthMeasurements.delete(accountId, id))
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
@@ -653,6 +668,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
+  if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
   if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true

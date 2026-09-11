@@ -99,6 +99,22 @@ export interface FamilyMemberApiDto {
   updatedAt: string
 }
 
+export type GrowthMeasurementType = 'length' | 'height'
+export type GrowthMeasurementStatus = 'confirmed' | 'pending_confirmation'
+export interface GrowthMeasurementApiDto {
+  id: string
+  accountId: string
+  memberId: string
+  measuredAt: string
+  measurementType: GrowthMeasurementType
+  heightCm: number | null
+  weightKg: number | null
+  dataStatus: GrowthMeasurementStatus
+  standardId: 'who-2006'
+  createdAt: string
+  updatedAt: string
+}
+
 export type HealthEventCategory = 'fever' | 'cough' | 'pain' | 'injury' | 'allergy' | 'other'
 
 export interface HealthEventApiDto {
