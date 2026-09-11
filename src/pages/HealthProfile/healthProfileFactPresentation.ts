@@ -2,7 +2,7 @@ import type { HealthProfileFactCategory, HealthProfileFactStatus } from '../../t
 
 export const healthProfileFactCategoryLabels: Record<HealthProfileFactCategory, string> = {
   important: '重要健康事实',
-  allergy: '过敏与不良反应',
+  allergy: '过敏史',
   medication: '长期用药',
   chronic: '慢性病与长期健康问题',
   surgery: '手术史',

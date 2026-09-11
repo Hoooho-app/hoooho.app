@@ -399,7 +399,7 @@ export function HealthProfileExperiencePage({
             })}
             {definition.id === "feeding" && (
               <p className="text-xs leading-5 text-text-secondary">
-                如需长期记录食物异常反应，请前往「过敏与不良反应」补充。
+                如需长期记录食物异常反应，请前往「过敏史」补充。
               </p>
             )}
             {definition.id === "fall" && (

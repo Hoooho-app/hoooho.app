@@ -10,7 +10,7 @@ const unique = (values: readonly string[]) => [...new Set(values.map((value) => 
 const dateTime = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const dateOnly = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(value))
 const relevantProfileLabels: Record<string, string> = {
-  allergy: '过敏与不良反应',
+  allergy: '过敏史',
   medication: '长期用药',
   chronic: '慢性病史',
   surgery: '手术史',

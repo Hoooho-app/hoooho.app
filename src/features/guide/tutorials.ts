@@ -113,7 +113,7 @@ export const guideTutorials: GuideTutorial[] = [
   {
     id: 'record-allergy', title: '有明确过敏，应该记在哪里？', context: '过敏属于长期健康背景，不必混在某条健康随记里。',
     section: 'family', filterIds: ['family'], keywords: ['过敏', '不良反应', '药物过敏', '食物过敏', '档案'],
-    steps: ['进入健康档案', '打开“过敏与不良反应”', '按已经知道的信息保存'], result: '过敏信息会留在当前家人的健康档案中，以后还可以继续补充。',
+    steps: ['进入健康档案', '打开“过敏史”', '按已经知道的信息保存'], result: '过敏信息会留在当前家人的健康档案中，以后还可以继续补充。',
     actionLabel: '填写过敏信息', actionTo: '/health-profile/allergy'
   },
   {

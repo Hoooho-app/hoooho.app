@@ -8,7 +8,7 @@ export const candidateCategoryLabel: Record<HealthInformationCandidateCategory, 
 }
 
 export const destinationOptions: Record<HealthInformationCandidateCategory, Array<{ value: HealthProfileDestination; label: string }>> = {
-  adverse_reaction: [{ value: 'allergy_adverse_reaction', label: '过敏与不良反应' }, { value: 'important_health_fact', label: '重要健康事实' }],
+  adverse_reaction: [{ value: 'allergy_adverse_reaction', label: '过敏史' }, { value: 'important_health_fact', label: '重要健康事实' }],
   chronic_condition: [{ value: 'chronic_condition', label: '慢性病与长期健康问题' }, { value: 'important_health_fact', label: '重要健康事实' }],
   long_term_medication: [{ value: 'long_term_medication', label: '长期用药' }, { value: 'important_health_fact', label: '重要健康事实' }],
   important_health_fact: [{ value: 'important_health_fact', label: '重要健康事实' }]
