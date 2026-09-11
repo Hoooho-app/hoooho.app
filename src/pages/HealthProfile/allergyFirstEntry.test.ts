@@ -54,3 +54,8 @@ test('单个过敏原详情包含概况、联动提示、相关记录和时间�
   assert.match(page, /className="allergy-detail-footer"/)
   assert.doesNotMatch(page, /尚待判断/)
 })
+
+test('详情页返回使用浏览器历史以保留面板滚动位置', () => {
+  assert.match(page, /isDetailRoute=\/\^\\\/health-profile\\\/allergy\\\/\[\^\/\]\+\$\//)
+  assert.match(page, /\(historyBack\|\|isDetailRoute\)[\s\S]*navigate\(-1\)/)
+})
