@@ -423,10 +423,11 @@ async function handleGrowthMeasurements(request, response, pathname, searchParam
   const match = /^\/api\/growth-measurements(?:\/([^/]+))?$/.exec(pathname)
   if (!match) return false
   const accountId = await readAccountId(request)
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
   const id = match[1] ? decodeRouteValue(match[1]) : null
   if (!id && request.method === 'GET') sendJson(response, 200, await growthMeasurements.list(accountId, String(searchParams.get('memberId') ?? '')))
-  else if (!id && request.method === 'POST') sendJson(response, 200, await growthMeasurements.upsert(accountId, await readJson(request)))
-  else if (id && request.method === 'PATCH') sendJson(response, 200, await growthMeasurements.update(accountId, id, await readJson(request)))
+  else if (!id && request.method === 'POST') sendJson(response, 200, await growthMeasurements.upsert(accountId, await readJson(request), new Date(), timeZone))
+  else if (id && request.method === 'PATCH') sendJson(response, 200, await growthMeasurements.update(accountId, id, await readJson(request), new Date(), timeZone))
   else if (id && request.method === 'DELETE') sendJson(response, 200, await growthMeasurements.delete(accountId, id))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true

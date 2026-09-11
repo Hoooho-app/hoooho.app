@@ -85,11 +85,10 @@ function percentileText(percentile: number) {
 }
 
 export function growthReferenceMessage(zScore: number) {
-  const absolute = Math.abs(zScore)
-  if (absolute > 3) return '本次数值与参考区间差距较大，请先确认测量是否准确'
-  if (zScore < -1.5) return '接近参考区间下沿'
-  if (zScore > 1.5) return '接近参考区间上沿'
-  return '位于常见成长区间'
+  if (zScore < -1.8808 || zScore > 1.8808) return '超出主要参考区间，请先确认测量是否准确'
+  if (zScore < -1.0364) return '参考区间中下部'
+  if (zScore > 1.0364) return '参考区间中上部'
+  return '参考区间中部'
 }
 
 export function calculateGrowthPosition(input: {

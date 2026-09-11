@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { calculateGrowthPosition, exactAgeInMonths, heightMeasureLabel, WHO_CHILD_GROWTH_STANDARD } from './childGrowthReference.ts'
+import { calculateGrowthPosition, exactAgeInMonths, growthReferenceMessage, heightMeasureLabel, WHO_CHILD_GROWTH_STANDARD } from './childGrowthReference.ts'
 
 test('23个月与24个月准确切换身长和身高', () => {
   assert.equal(heightMeasureLabel('2024-01-15', '2025-12-14'), '身长')
@@ -23,4 +23,11 @@ test('缺少出生日期、性别或超出0至60月适用范围时不生成百�
   assert.equal(calculateGrowthPosition({ gender: 'female', measuredAt: '2026-01-15', measure: 'height', value: 82 }), null)
   assert.equal(calculateGrowthPosition({ birthday: '2024-01-15', gender: 'undisclosed', measuredAt: '2026-01-15', measure: 'height', value: 82 }), null)
   assert.equal(calculateGrowthPosition({ birthday: '2018-01-15', gender: 'female', measuredAt: '2026-01-15', measure: 'height', value: 120 }), null)
+})
+
+test('极端百分位不会被描述成常见参考区间', () => {
+  assert.match(growthReferenceMessage(-3), /超出主要参考区间/)
+  assert.match(growthReferenceMessage(3), /超出主要参考区间/)
+  assert.doesNotMatch(growthReferenceMessage(-3), /常见参考区间/)
+  assert.equal(growthReferenceMessage(0), '参考区间中部')
 })

@@ -1,7 +1,16 @@
 import type { GrowthMeasurementApiDto, Member } from '../../../types'
-import { calculateGrowthPosition } from './childGrowthReference'
+import { calculateGrowthPosition, type GrowthPosition } from './childGrowthReference'
 
 export const GROWTH_STANDARDS = [{ id: 'who-2006' as const, name: '世界卫生组织儿童生长标准', version: '2006', ageRange: '0–5岁', source: 'WHO Child Growth Standards' }]
+
+export function growthPositionBand(...positions: Array<GrowthPosition | null>) {
+  const available = positions.filter((value): value is GrowthPosition => value != null)
+  if (!available.length) return '缺少适用的参考数据，仅保存原始记录'
+  if (available.some((value) => value.percentile < 3 || value.percentile > 97)) return '接近或超出参考区间边缘，请先确认测量'
+  if (available.some((value) => value.percentile < 15)) return '目前位于参考区间中下部'
+  if (available.some((value) => value.percentile > 85)) return '目前位于参考区间中上部'
+  return '目前位于参考区间中部'
+}
 
 export function requiresMeasurementConfirmation(previous: GrowthMeasurementApiDto | undefined, next: { measuredAt: string; heightCm: number | null; weightKg: number | null }) {
   if (!previous || next.measuredAt <= previous.measuredAt) return false
