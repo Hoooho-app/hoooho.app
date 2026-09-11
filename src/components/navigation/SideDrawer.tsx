@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, CircleHelp, Folder, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleHelp, Folder, Info, MessageCircle, Settings, Stethoscope, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -11,7 +11,6 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
-import { NurseCapIcon } from './NurseCapIcon'
 
 interface SideDrawerProps {
   open: boolean
@@ -25,7 +24,7 @@ export const sidebarMenuGroups = [
     items: [
     { label: '健康档案', icon: Folder, to: '/health-profile' },
     { label: '健康记录', icon: BookOpen, to: '/health-events' },
-    { label: '服务站', icon: NurseCapIcon, to: '/nurse-station' }
+    { label: '服务站', icon: Stethoscope, to: '/nurse-station' }
     ]
   },
   {
