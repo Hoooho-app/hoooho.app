@@ -2,10 +2,19 @@
 .journal-now-marker { display: flex; align-items: center; gap: 10px; margin: 10px 8px 12px; color: rgb(var(--hoho-color-primary)); font-size: 13px; }
 .journal-now-marker::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 4px rgb(var(--hoho-color-primary) / .1); }
 .journal-now-marker strong { font-weight: 650; }
-.journal-memory-prompt, .journal-active-sleep { display: grid; gap: 10px; margin: 8px 4px 18px 24px; padding: 16px; border: 1px solid rgb(var(--hoho-color-primary) / .14); border-radius: 16px; background: linear-gradient(145deg, rgb(var(--hoho-color-primary) / .1), rgb(var(--hoho-color-primary) / .045)); }
-.journal-memory-prompt > span { color: rgb(var(--hoho-color-primary)); font-size: 13px; font-weight: 650; }
+.journal-memory-prompt { display: grid; gap: 13px; margin: 8px 4px 18px 24px; padding: 17px; border: 1px solid rgb(var(--hoho-color-border) / .82); border-radius: 19px; background: rgb(var(--hoho-color-surface)); box-shadow: 0 5px 18px rgb(22 58 55 / .055); }
+.journal-active-sleep { display: grid; gap: 10px; margin: 8px 4px 18px 24px; padding: 16px; border: 1px solid rgb(var(--hoho-color-primary) / .14); border-radius: 16px; background: rgb(var(--hoho-color-primary) / .06); }
+.journal-memory-eyebrow { display: inline-flex; width: fit-content; min-height: 27px; padding: 0 11px; align-items: center; gap: 7px; border-radius: 999px; color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary) / .075); font-size: 12.5px; font-weight: 650; }
+.journal-memory-eyebrow i { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: rgb(var(--hoho-color-primary)); }
 .journal-memory-prompt > strong, .journal-active-sleep > strong { color: rgb(var(--hoho-color-text)); font-size: 16px; line-height: 1.45; }
-.journal-memory-prompt > button:last-child { min-height: 36px; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); font-size: 13px; }
+.journal-memory-action { display: grid; width: 100%; min-height: 45px; padding: 0 13px; grid-template-columns: 24px minmax(0, 1fr) 18px; align-items: center; gap: 8px; border: 1px solid rgb(var(--hoho-color-primary) / .15); border-radius: 12px; color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary) / .075); font-size: 14px; font-weight: 650; text-align: left; -webkit-tap-highlight-color: transparent; }
+.journal-memory-action:active { background: rgb(var(--hoho-color-primary) / .13); transform: scale(.99); }
+.journal-memory-action .journal-category-icon { width: 22px; height: 22px; }
+.journal-memory-action > svg:last-child { justify-self: end; color: rgb(var(--hoho-color-primary) / .68); }
+.journal-memory-typewriter { display: flex; min-width: 0; height: 22px; align-items: baseline; overflow: hidden; color: rgb(var(--hoho-color-primary)); font-size: 12.5px; line-height: 22px; white-space: nowrap; }
+.journal-memory-cursor { flex: 0 0 auto; margin-right: 4px; color: rgb(var(--hoho-color-primary)); animation: journal-memory-cursor-blink 700ms steps(1, end) infinite; }
+.journal-memory-typed-copy { min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+@keyframes journal-memory-cursor-blink { 50% { opacity: .18; } }
 .journal-gentle-status { margin: 20px 0 4px; text-align: center; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
 .sleep-start-page { background: rgb(var(--hoho-color-surface)); }
 .sleep-start-content, .sleep-active-detail { display: flex; min-height: min(72dvh, 520px); padding: 40px 24px 24px; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
@@ -16,7 +25,7 @@
 .sleep-start-content > button:not(.hoho-button) { min-height: 44px; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); }
 .sleep-header-cancel { color: rgb(var(--hoho-color-primary)); font-size: 13px; }
 .sleep-active-detail > strong { color: rgb(var(--hoho-color-primary)); font-size: 28px; }
-@media (prefers-reduced-motion: reduce) { .sleep-active-detail *, .journal-memory-prompt * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .sleep-active-detail *, .journal-memory-prompt * { animation: none !important; transition: none !important; } .journal-memory-cursor { opacity: 1; } }
 .health-events-toolbar { position: absolute; z-index: 2; top: 0; right: 0; margin: 0; }
 .health-events-toolbar .journal-toolbar { min-height: 48px; padding-right: 4px; }
 .health-events-toolbar .journal-toolbar-actions { gap: 4px; }
