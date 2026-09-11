@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { growthTrend, requiresMeasurementConfirmation } from './growthTrend.ts'
+import { growthPositionBand, growthTrend, requiresMeasurementConfirmation } from './growthTrend.ts'
 
 const point = (id: string, date: string, h: number, w: number, hz: number, wz: number, status: 'confirmed' | 'pending_confirmation' = 'confirmed') => ({ id, accountId: 'a', memberId: 'm', measuredAt: date, measurementType: 'height' as const, heightCm: h, weightKg: w, dataStatus: status, standardId: 'who-2006' as const, createdAt: date, updatedAt: date, heightPosition: { zScore: hz, percentile: 40, percentileLabel: 'P40', position: 40, referenceMessage: '', ageInMonths: 1 }, weightPosition: { zScore: wz, percentile: 40, percentileLabel: 'P40', position: 40, referenceMessage: '', ageInMonths: 1 } })
 test('趋势只使用已确认记录，下降和稳定判断来自真实相邻点', () => {
@@ -12,4 +12,9 @@ test('与上一条差异过大的新测量进入待确认，补录旧日期不�
   const previous = point('1','2026-01-01',70,8,0,0)
   assert.equal(requiresMeasurementConfirmation(previous, { measuredAt: '2026-01-15', heightCm: 90, weightKg: 8 }), true)
   assert.equal(requiresMeasurementConfirmation(previous, { measuredAt: '2025-12-01', heightCm: 60, weightKg: 7 }), false)
+})
+test('任一指标超出主要区间时优先提示确认测量', () => {
+  assert.match(growthPositionBand({ percentile: .2 } as never, { percentile: 50 } as never), /确认测量/)
+  assert.match(growthPositionBand({ percentile: 50 } as never, { percentile: 99.8 } as never), /确认测量/)
+  assert.equal(growthPositionBand({ percentile: 40 } as never, { percentile: 60 } as never), '目前位于参考区间中部')
 })

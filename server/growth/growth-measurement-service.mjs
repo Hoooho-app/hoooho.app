@@ -1,16 +1,17 @@
 import { GrowthMeasurementRepository } from './repositories/growth-measurement-repository.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
+import { localDateKey } from '../time/local-calendar.mjs'
 
 export class GrowthMeasurementError extends Error {
   constructor(message, status = 400, code = 'GROWTH_MEASUREMENT_ERROR') { super(message); this.status = status; this.code = code }
 }
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
-function validDate(value, now = new Date()) {
+function validDate(value, now = new Date(), timeZone) {
   const normalized = String(value ?? '')
   if (!datePattern.test(normalized)) return false
   const [year, month, day] = normalized.split('-').map(Number)
   const parsed = new Date(Date.UTC(year, month - 1, day))
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day && normalized <= now.toISOString().slice(0, 10)
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day && normalized <= localDateKey(now, timeZone)
 }
 function optionalNumber(value, label, min, max) {
   if (value === undefined || value === null || value === '') return null
@@ -29,10 +30,10 @@ export class GrowthMeasurementService {
     return member
   }
   async list(accountId, memberId) { await this.assertMember(accountId, memberId); return this.repository.list(accountId, memberId) }
-  normalize(input, now, partial = false) {
+  normalize(input, now, partial = false, timeZone) {
     const result = {}
     if (!partial || input.measuredAt !== undefined) {
-      if (!validDate(input.measuredAt, now)) throw new GrowthMeasurementError('请输入有效且不晚于今天的测量日期', 400, 'INVALID_MEASURED_AT')
+      if (!validDate(input.measuredAt, now, timeZone)) throw new GrowthMeasurementError('请输入有效且不晚于今天的测量日期', 400, 'INVALID_MEASURED_AT')
       result.measuredAt = input.measuredAt
     }
     if (!partial || input.measurementType !== undefined) {
@@ -54,14 +55,14 @@ export class GrowthMeasurementService {
     if (!partial && result.heightCm == null && result.weightKg == null) throw new GrowthMeasurementError('请填写身长、身高或体重', 400, 'EMPTY_MEASUREMENT')
     return result
   }
-  async upsert(accountId, input, now = new Date()) {
+  async upsert(accountId, input, now = new Date(), timeZone) {
     await this.assertMember(accountId, String(input.memberId ?? ''))
-    return this.repository.upsert({ accountId, memberId: input.memberId, ...this.normalize(input, now) }, now)
+    return this.repository.upsert({ accountId, memberId: input.memberId, ...this.normalize(input, now, false, timeZone) }, now)
   }
-  async update(accountId, id, input, now = new Date()) {
+  async update(accountId, id, input, now = new Date(), timeZone) {
     const existing = await this.repository.findById(id)
     if (!existing || existing.accountId !== accountId) throw new GrowthMeasurementError('成长记录不存在', 404, 'GROWTH_MEASUREMENT_NOT_FOUND')
-    const changes = this.normalize(input, now, true)
+    const changes = this.normalize(input, now, true, timeZone)
     const targetDate = changes.measuredAt ?? existing.measuredAt
     if ((await this.repository.list(accountId, existing.memberId)).some((item) => item.id !== id && item.measuredAt === targetDate)) throw new GrowthMeasurementError('该日期已有成长记录', 409, 'MEASUREMENT_DATE_EXISTS')
     return this.repository.update(id, changes, now)

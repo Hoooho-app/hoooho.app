@@ -23,7 +23,7 @@ test('成长记录包含历史 CRUD、双曲线和标准说明', () => {
 
 test('成长动效绑定真实 SVG 路径并尊重 reduced motion', () => {
   assert.match(chart, /animateMotion/)
-  assert.match(chart, /path=\{model\.journey\}/)
+  assert.match(chart, /path=\{model\.animationPath\}/)
   assert.match(chart, /prefers-reduced-motion/)
   assert.match(chart, /model\.points\.map/)
   assert.doesNotMatch(chart, /fake|mock/i)

@@ -20,3 +20,16 @@ test('成长记录按账户和人物隔离，同日 upsert 且支持增删改', 
     assert.deepEqual(await service.delete('a1', first.id), { success: true }); assert.equal((await service.list('a1', child.id)).length, 0)
   } finally { await rm(dataDirectory, { recursive: true, force: true }) }
 })
+
+test('测量日期上限使用客户端时区的本地自然日', async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-growth-zone-'))
+  try {
+    const members = new FamilyMemberRepository(dataDirectory)
+    const child = await members.create({ accountId: 'a1', name: '孩子', relationship: 'child' })
+    const service = new GrowthMeasurementService({ dataDirectory, members })
+    const now = new Date('2026-09-10T16:30:00.000Z')
+    const saved = await service.upsert('a1', { memberId: child.id, measuredAt: '2026-09-11', measurementType: 'height', heightCm: 82, standardId: 'who-2006' }, now, 'Asia/Shanghai')
+    assert.equal(saved.measuredAt, '2026-09-11')
+    await assert.rejects(service.upsert('a1', { memberId: child.id, measuredAt: '2026-09-12', measurementType: 'height', heightCm: 82, standardId: 'who-2006' }, now, 'Asia/Shanghai'), (error) => error.code === 'INVALID_MEASURED_AT')
+  } finally { await rm(dataDirectory, { recursive: true, force: true }) }
+})
