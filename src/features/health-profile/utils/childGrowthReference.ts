@@ -47,7 +47,7 @@ export function heightMeasureLabel(birthday: string | undefined, measuredAt: str
   return months != null && months < 24 ? '身长' : '身高'
 }
 
-function interpolate(points: readonly WhoLmsPoint[], ageInMonths: number): WhoLmsPoint | null {
+export function interpolateGrowthLms(points: readonly WhoLmsPoint[], ageInMonths: number): WhoLmsPoint | null {
   if (ageInMonths < WHO_CHILD_GROWTH_STANDARD.minimumMonth || ageInMonths > WHO_CHILD_GROWTH_STANDARD.maximumMonth) return null
   const lowerMonth = Math.floor(ageInMonths)
   const upperMonth = Math.ceil(ageInMonths)
@@ -57,6 +57,17 @@ function interpolate(points: readonly WhoLmsPoint[], ageInMonths: number): WhoLm
   if (lowerMonth === upperMonth) return lower
   const ratio = ageInMonths - lowerMonth
   return [ageInMonths, lower[1] + (upper[1] - lower[1]) * ratio, lower[2] + (upper[2] - lower[2]) * ratio, lower[3] + (upper[3] - lower[3]) * ratio]
+}
+
+export function growthValueAtZScore(input: { ageInMonths: number; gender: ProfileGender; measure: GrowthMeasure; zScore: number }) {
+  if (input.gender !== 'female' && input.gender !== 'male') return null
+  const points = input.gender === 'female'
+    ? input.measure === 'height' ? FEMALE_LENGTH_HEIGHT_FOR_AGE : FEMALE_WEIGHT_FOR_AGE
+    : input.measure === 'height' ? MALE_LENGTH_HEIGHT_FOR_AGE : MALE_WEIGHT_FOR_AGE
+  const lms = interpolateGrowthLms(points, input.ageInMonths)
+  if (!lms) return null
+  const [, l, median, coefficient] = lms
+  return Math.abs(l) < 0.000001 ? median * Math.exp(coefficient * input.zScore) : median * ((1 + l * coefficient * input.zScore) ** (1 / l))
 }
 
 function normalCdf(value: number) {
@@ -94,7 +105,7 @@ export function calculateGrowthPosition(input: {
   const points = input.gender === 'female'
     ? input.measure === 'height' ? FEMALE_LENGTH_HEIGHT_FOR_AGE : FEMALE_WEIGHT_FOR_AGE
     : input.measure === 'height' ? MALE_LENGTH_HEIGHT_FOR_AGE : MALE_WEIGHT_FOR_AGE
-  const lms = interpolate(points, ageInMonths)
+  const lms = interpolateGrowthLms(points, ageInMonths)
   if (!lms) return null
   const [, l, median, coefficient] = lms
   const zScore = Math.abs(l) < 0.000001
