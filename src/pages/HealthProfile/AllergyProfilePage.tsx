@@ -1,131 +1,57 @@
-import { FormEvent, useState } from 'react'
-import { Check, Plus } from 'lucide-react'
-import { WebPageHeader } from '../../components/common'
-import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
-import { HohoButton, Typography } from '../../components/design-system'
-import {
-  allergyReactionSummary,
-  emptyAllergyRecord,
-  nextAllergySequence,
-  normalizeAllergyRecords,
-  type AllergyProfileRecord
-} from '../../features/health-profile/utils/allergyProfile'
-import type { Member } from '../../types'
-
-const reactionCategories = ['皮肤', '消化道', '呼吸道', '全身']
-
-function loadRecords(storageKey: string) {
-  try {
-    const value = JSON.parse(readProfileSection(storageKey))
-    return Array.isArray(value) ? normalizeAllergyRecords(value) : []
-  } catch {
-    return []
-  }
-}
-
-function SequenceNumber({ sequence }: { sequence: number }) {
-  return <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-surface">{sequence}</span>
-}
-
-function ChoiceGroup({ label, options, value, columns = 2, onChange }: { label: string; options: string[]; value: string; columns?: 2 | 3; onChange: (value: string) => void }) {
-  return <fieldset className="grid gap-2"><legend className="hoho-text-label mb-2">{label}</legend><div className={`grid gap-2 ${columns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>{options.map((option) => <button aria-pressed={value === option} className={`min-h-11 rounded-control border px-2 text-sm ${value === option ? 'border-primary bg-primary text-surface' : 'bg-surface text-text-primary'}`} key={option} onClick={() => onChange(value === option ? '' : option)} type="button">{option}</button>)}</div></fieldset>
-}
-
-function ReactionSelector({ record, onChange }: { record: AllergyProfileRecord; onChange: (changes: Partial<AllergyProfileRecord>) => void }) {
-  const [showOther, setShowOther] = useState(Boolean(record.otherReaction))
-  const toggle = (reaction: string) => onChange({ reactions: record.reactions.includes(reaction) ? record.reactions.filter((item) => item !== reaction) : [...record.reactions, reaction] })
-
-  return <fieldset className="grid gap-3">
-    <legend className="hoho-text-label mb-2">出现过的反应</legend>
-    <div className="flex flex-wrap gap-2">
-      {reactionCategories.map((reaction) => {
-        const selected = record.reactions.includes(reaction)
-        return <button aria-pressed={selected} className={`inline-flex min-h-11 items-center gap-1.5 rounded-control border px-3 text-sm ${selected ? 'border-primary bg-primary-soft font-semibold text-primary' : 'bg-surface text-text-secondary'}`} key={reaction} onClick={() => toggle(reaction)} type="button">{selected && <Check size={14} />}{reaction}</button>
-      })}
-      <button aria-expanded={showOther} className="min-h-11 rounded-control border bg-surface px-3 text-sm text-primary" onClick={() => setShowOther((current) => !current)} type="button">+ 其他表现</button>
-    </div>
-    {record.reactions.length > 0 && <label className="hoho-field"><span className="hoho-text-label">补充具体表现（选填）</span><input className="hoho-input" placeholder="例如皮疹、腹泻、喘息" value={record.reactionDetail} onChange={(event) => onChange({ reactionDetail: event.target.value })} /></label>}
-    {showOther && <label className="hoho-field"><span className="hoho-text-label">其他表现</span><input autoFocus className="hoho-input" value={record.otherReaction} onChange={(event) => onChange({ otherReaction: event.target.value })} /></label>}
-  </fieldset>
-}
-
-function AllergyFields({ record, onChange }: { record: AllergyProfileRecord; onChange: (changes: Partial<AllergyProfileRecord>) => void }) {
-  return <div className="grid gap-5">
-    <ChoiceGroup label="明确程度" options={['已明确', '怀疑中']} value={record.certainty} onChange={(certainty) => onChange({ certainty })} />
-    <label className="hoho-field"><span className="hoho-text-label">对什么过敏 / 怀疑什么</span><input className="hoho-input" placeholder="例如猫毛、花粉、青霉素、牛奶" value={record.subject} onChange={(event) => onChange({ subject: event.target.value })} /></label>
-    <ReactionSelector record={record} onChange={onChange} />
-    <ChoiceGroup columns={3} label="影响程度" options={['轻微', '明显', '严重']} value={record.impact} onChange={(impact) => onChange({ impact })} />
-    <label className="hoho-field"><span className="hoho-text-label">平时如何处理</span><textarea className="hoho-textarea" placeholder="记录过去实际如何处理" rows={3} value={record.handling} onChange={(event) => onChange({ handling: event.target.value })} /></label>
-  </div>
-}
-
-export function AllergyProfilePage({ member, storageKey }: { member: Member; storageKey: string }) {
-  const initial = useState(() => loadRecords(storageKey))[0]
-  const [records, setRecords] = useState<AllergyProfileRecord[]>(() => initial.length ? initial : [emptyAllergyRecord(1)])
-  const [expandedId, setExpandedId] = useState(() => initial.length ? '' : records[0].id)
-  const [status, setStatus] = useState('')
-
-  const updateRecord = (id: string, changes: Partial<AllergyProfileRecord>) => setRecords((current) => current.map((record) => record.id === id ? { ...record, ...changes } : record))
-  const addRecord = () => {
-    const next = emptyAllergyRecord(nextAllergySequence(records))
-    setRecords((current) => [...current, next])
-    setExpandedId(next.id)
-    setStatus('')
-  }
-  const deleteRecord = (id: string) => {
-    if (!window.confirm('确认删除这条过敏 / 不良反应记录吗？')) return
-    setRecords((current) => {
-      const next = current.filter((record) => record.id !== id)
-      if (!next.length) {
-        const empty = emptyAllergyRecord(1)
-        setExpandedId(empty.id)
-        return [empty]
-      }
-      if (expandedId === id) setExpandedId('')
-      return next
-    })
-  }
-  const saveArchive = async (event: FormEvent) => {
-    event.preventDefault()
-    try {
-      const savedAt = new Date().toISOString()
-      const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
-      await saveProfileSection(storageKey, next)
-      setRecords(next)
-      setStatus('过敏与不良反应档案已保存')
-    } catch {
-      setStatus('保存失败，请稍后重试')
-    }
-  }
-
-  return <main className="app-shell health-profile-detail-shell">
-    <WebPageHeader fallback="/health-profile" title="过敏与不良反应" />
-    <div className="page-content health-profile-page-content">
-      <MemberIdentityCard member={member} recordSubject />
-      <Typography variant="caption">所有字段均可留空，按你了解的情况填写即可</Typography>
-      <form className="grid gap-3" id="allergy-profile-form" onSubmit={saveArchive}>
-        {records.map((record) => {
-          const expanded = expandedId === record.id
-          const reactionSummary = allergyReactionSummary(record)
-          const summary = [record.certainty, reactionSummary, record.impact].filter(Boolean).join(' · ')
-          return <article className="rounded-card border bg-surface p-4" key={record.id}>
-            <div className="flex items-start gap-3">
-              <SequenceNumber sequence={record.sequence} />
-              <div className="min-w-0 flex-1">
-                <strong className="block truncate text-sm">{record.subject || `过敏 / 反应 ${record.sequence}`}</strong>
-                {!expanded && <span className="mt-1 block line-clamp-2 text-xs leading-5 text-text-secondary">{summary || '尚未填写'}</span>}
-              </div>
-              {!expanded && <button className="min-h-11 px-1 text-sm font-medium text-primary" onClick={() => setExpandedId(record.id)} type="button">编辑</button>}
-              <button className="min-h-11 px-1 text-sm font-medium text-danger" onClick={() => deleteRecord(record.id)} type="button">删除</button>
-            </div>
-            {expanded && <div className="mt-5 grid gap-5"><AllergyFields record={record} onChange={(changes) => updateRecord(record.id, changes)} /><HohoButton fullWidth onClick={() => setExpandedId('')} type="button" variant="secondary"><Check size={17} />确认并收起</HohoButton></div>}
-          </article>
-        })}
-        <button className="flex min-h-12 items-center justify-center gap-2 rounded-control border border-dashed text-sm font-semibold text-primary" onClick={addRecord} type="button"><Plus size={19} />添加过敏 / 不良反应</button>
-        {status && <p className={`text-sm ${status.includes('失败') ? 'text-danger' : 'text-primary'}`} role="status">{status}</p>}
-      </form>
-    </div>
-    <HealthProfileActionBar><HohoButton fullWidth form="allergy-profile-form" type="submit">保存档案</HohoButton></HealthProfileActionBar>
-  </main>
-}
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { AlertCircle, ArrowLeft, Bug, Check, ChevronRight, CircleHelp, FileCheck2, Flower2, Leaf, Link2, LoaderCircle, PackageOpen, Pill, Plus, Search, ShieldCheck, Sparkles, Utensils, X } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Avatar } from '../../components/common'
+import { useCurrentMember } from '../../hooks/useCurrentMember'
+import { healthEventService } from '../../services/healthEvents'
 import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
+import { useAppStore } from '../../store/useAppStore'
+import type { HealthEventApiDto, Member } from '../../types'
+import { allergyCategoryLabels, allergyOptions, allergyStatusLabels, appendUniqueAllergyItems, buildTemporalStatement, createAllergyItem, formatElapsedSince, readAllergyItems, type AllergyCategory, type AllergyHistoryItem, type AllergyReactionRecord, type AllergyStatus, type AllergyTestRecord } from '../../features/health-profile/utils/allergyProfile'
+
+const categories:{id:AllergyCategory;icon:typeof Utensils}[]=[{id:'food',icon:Utensils},{id:'drug',icon:Pill},{id:'environment',icon:Leaf},{id:'insect',icon:Bug},{id:'contact',icon:Flower2},{id:'unknown',icon:CircleHelp}]
+const recallPrompts=['最近有没有吃完某种食物后反复不舒服？','有没有一种药，家里人一直说孩子不能用？','换季、花粉或宠物接触后，有没有相似表现？','想不起名字也没关系，可以先选“尚未明确”。']
+const nowLocal=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
+function Header({title,fallback='/health-profile/allergy'}:{title:string;fallback?:string}){const navigate=useNavigate();return <header className="allergy-header"><button aria-label="返回" onClick={()=>navigate(fallback)}><ArrowLeft size={21}/></button><strong>{title}</strong><span/></header>}
+function Identity({member}:{member:Member}){return <div className="allergy-identity"><Avatar name={member.name} size="md" src={member.avatar}/><span><strong>{member.name}</strong><small>{member.gender==='female'?'女':member.gender==='male'?'男':'未填写'} · {member.age}</small></span></div>}
+function Toast({children,onClose}:{children:React.ReactNode;onClose:()=>void}){return <div className="allergy-toast" role="status"><Check size={18}/><span>{children}</span><button aria-label="关闭" onClick={onClose}><X size={16}/></button></div>}
+function PrimaryButton({children,disabled=false,loading=false,onClick,type='button'}:{children:React.ReactNode;disabled?:boolean;loading?:boolean;onClick?:()=>void;type?:'button'|'submit'}){return <button className="allergy-primary" disabled={disabled||loading} onClick={onClick} type={type}>{loading&&<LoaderCircle className="animate-spin" size={17}/>} {children}</button>}
+
+export function AllergyHistoryPage(){const member=useCurrentMember();return <AllergyProfilePage member={member} storageKey={`hoho-health-profile:${member.id}:allergy`}/>}
+export function AllergyProfilePage({member,storageKey}:{member:Member;storageKey:string}){
+  const navigate=useNavigate(),location=useLocation(),token=useAppStore(s=>s.authToken)
+  const [items,setItems]=useState(()=>readAllergyItems(readProfileSection(storageKey),member.id,token??'')),[events,setEvents]=useState<HealthEventApiDto[]>([])
+  const [saving,setSaving]=useState(false),[toast,setToast]=useState('')
+  const parts=location.pathname.split('/').filter(Boolean),sub=parts.slice(2),itemId=sub[1],item=items.find(x=>x.id===itemId)
+  useEffect(()=>{setItems(readAllergyItems(readProfileSection(storageKey),member.id,token??''))},[member.id,storageKey,token])
+  useEffect(()=>{if(!token)return;const c=new AbortController();healthEventService.list(token,c.signal).then(x=>setEvents(x.filter(e=>e.memberId===member.id))).catch(()=>setEvents([]));return()=>c.abort()},[member.id,token])
+  const persist=async(next:AllergyHistoryItem[])=>{setSaving(true);try{await saveProfileSection(storageKey,next);setItems(next);return true}catch{setToast('保存失败，请检查网络后重试');return false}finally{setSaving(false)}}
+  const update=async(id:string,change:(current:AllergyHistoryItem)=>AllergyHistoryItem)=>{const next=items.map(x=>x.id===id?change(x):x);return persist(next)}
+  if(sub[0]==='new'&&sub[1])return <SelectPage category={sub[1] as AllergyCategory} items={items} member={member} saving={saving} onSave={async names=>{const additions=names.map(name=>createAllergyItem(member.id,sub[1] as AllergyCategory,name,token??''));const next=appendUniqueAllergyItems(items,additions);const added=next.length-items.length;if(await persist(next))navigate('/health-profile/allergy',{state:{allergyAdded:{count:added,names,category:allergyCategoryLabels[sub[1] as AllergyCategory]}}})}}/>
+  if(sub[0]==='choose')return <CategoryPage/>
+  if(item&&sub[2]==='status')return <StatusPage item={item} saving={saving} onSave={async changes=>{if(await update(item.id,x=>({...x,...changes,updatedAt:new Date().toISOString(),statusUpdatedAt:new Date().toISOString()})))navigate(`/health-profile/allergy/${item.id}`)}}/>
+  if(item&&sub[2]==='reaction')return <ReactionPage item={item} member={member} saving={saving} onSave={async reaction=>{if(await update(item.id,x=>({...x,reactions:[...x.reactions,reaction],lastReactionAt:reaction.occurredAt,updatedAt:new Date().toISOString()})))navigate(`/health-profile/allergy/${item.id}/success`)}}/>
+  if(item&&sub[2]==='test')return <TestPage item={item} member={member} saving={saving} onSave={async test=>{if(await update(item.id,x=>({...x,tests:[...x.tests,test],updatedAt:new Date().toISOString()})))navigate(`/health-profile/allergy/${item.id}/tests/${test.id}`)}}/>
+  if(item&&sub[2]==='tests'&&sub[3])return <TestDetail item={item} test={item.tests.find(x=>x.id===sub[3])}/>
+  if(item&&sub[2]==='success')return <SuccessPage item={item}/>
+  if(item)return <DetailPage item={item} events={events} saving={saving} onUpdate={update}/>
+  return <Dashboard member={member} items={items} toast={toast} onClose={()=>setToast('')}/>
+}
+
+function CategoryPage(){const navigate=useNavigate();return <main className="app-shell allergy-shell"><Header title="过敏史"/><div className="allergy-content"><div className="allergy-intro"><h1>请记下你知道的过敏信息</h1><p>已经明确的、正在怀疑的，都可以先记下来。</p></div><div className="allergy-category-grid">{categories.map(({id,icon:Icon})=><button key={id} onClick={()=>navigate(`/health-profile/allergy/new/${id}`)}><Icon/><strong>{allergyCategoryLabels[id]}</strong></button>)}</div><p className="allergy-recall"><Sparkles size={16}/>{recallPrompts[3]}</p></div></main>}
+
+function SelectPage({category,items,member,saving,onSave}:{category:AllergyCategory;items:AllergyHistoryItem[];member:Member;saving:boolean;onSave:(names:string[])=>void}){const [selected,setSelected]=useState<string[]>([]),[custom,setCustom]=useState(''),[search,setSearch]=useState('');const options=allergyOptions[category].filter(x=>x.includes(search.trim()));const toggle=(name:string)=>setSelected(x=>x.includes(name)?x.filter(v=>v!==name):[...x,name]);const chosen=[...selected,...(custom.trim()?[custom.trim()]:[])];return <main className="app-shell allergy-shell"><Header title={`添加${allergyCategoryLabels[category]}过敏信息`} fallback="/health-profile/allergy/choose"/><div className="allergy-content"><Identity member={member}/><header className="allergy-selection-title"><span><strong>点选你知道或关切的{allergyCategoryLabels[category]}</strong><small>只需点选，之后还能补充。</small></span><em key={chosen.length}>已选 {chosen.length} 项</em></header>{category!=='food'&&<label className="allergy-search"><Search size={17}/><input aria-label="搜索" onChange={e=>setSearch(e.target.value)} placeholder={`搜索${allergyCategoryLabels[category]}`} value={search}/></label>}<div className="allergy-option-grid">{options.map(name=>{const selectedNow=selected.includes(name),duplicate=items.some(x=>x.category===category&&x.name===name);return <button aria-pressed={selectedNow} disabled={duplicate} key={name} onClick={()=>toggle(name)}><span>{name}</span>{selectedNow&&<Check size={17}/>} {duplicate&&<small>已记录</small>}</button>})}</div><label className="allergy-custom"><Plus size={18}/><input onChange={e=>setCustom(e.target.value)} placeholder={`其他${allergyCategoryLabels[category]}或自定义名称`} value={custom}/></label><button className="allergy-more" type="button">查看更多 <ChevronRight size={17}/></button></div><div className="allergy-action"><PrimaryButton disabled={!chosen.length} loading={saving} onClick={()=>onSave(chosen)}>加入过敏史{chosen.length?`（${chosen.length}）`:''}</PrimaryButton></div></main>}
+
+function Dashboard({member,items,toast,onClose}:{member:Member;items:AllergyHistoryItem[];toast:string;onClose:()=>void}){const navigate=useNavigate(),state=locationState(),added=state?.allergyAdded as {count:number;names:string[];category:string}|undefined;const grouped=categories.map(c=>({...c,items:items.filter(x=>x.category===c.id)})).filter(x=>x.items.length);useEffect(()=>{if(!added)return;const t=setTimeout(()=>history.replaceState({},''),2000);return()=>clearTimeout(t)},[added]);return <main className="app-shell allergy-shell"><Header title="过敏史" fallback="/health-profile"/><div className="allergy-content"><Identity member={member}/>{!items.length?<section className="allergy-empty"><ShieldCheck/><h1>暂无过敏信息</h1><p>怀疑过的，也可以先记下来。不用确定，先留下线索。</p><PrimaryButton onClick={()=>navigate('/health-profile/allergy/choose')}>记录过敏信息</PrimaryButton></section>:<><p className="allergy-panel-note">这里记录的是目前知道的信息，不需要一次填完整。</p><div className="allergy-groups">{grouped.map(group=><section key={group.id}><header><group.icon size={20}/><strong>{allergyCategoryLabels[group.id]}（{group.items.length}）</strong></header>{group.items.map(item=><button key={item.id} onClick={()=>navigate(`/health-profile/allergy/${item.id}`)}><span><strong>{item.name}</strong>{item.currentStatus&&<em>{allergyStatusLabels[item.currentStatus as Exclude<AllergyStatus,''>]}</em>}<small>症状 {item.reactions.length?'●':'○'}　检查 {item.tests.length?'●':'○'}　医生判断 {item.clinicianNote?'●':'○'}</small></span><ChevronRight size={18}/></button>)}</section>)}</div><button className="allergy-add" onClick={()=>navigate('/health-profile/allergy/choose')}><Plus/>添加过敏信息</button><p className="allergy-recall"><Sparkles size={16}/>最近有没有吃完某种食物后反复不舒服？<button onClick={()=>navigate('/health-profile/allergy/choose')}>想到一个</button></p></>}</div>{added&&<Toast onClose={()=>history.replaceState({},'')}>已经帮你分好类了<small>{added.names.join('和')}已加入“{added.category}”。</small></Toast>}{toast&&<Toast onClose={onClose}>{toast}</Toast>}</main>}
+
+function DetailPage({item,events,saving,onUpdate}:{item:AllergyHistoryItem;events:HealthEventApiDto[];saving:boolean;onUpdate:(id:string,change:(x:AllergyHistoryItem)=>AllergyHistoryItem)=>Promise<boolean>}){const navigate=useNavigate();const candidates=useMemo(()=>events.filter(e=>!item.evidenceLinks.some(l=>l.healthEventId===e.id)&&(e.title.includes(item.name)||e.eventSummary?.displayedResult.summary?.includes(item.name)||e.category==='allergy')).slice(0,3),[events,item]);const [removed,setRemoved]=useState<string[]>([]);const visible=candidates.filter(x=>!removed.includes(x.id));return <main className="app-shell allergy-shell"><Header title={`${item.name}的过敏史`}/><div className="allergy-content"><section className="allergy-detail-hero"><strong>{item.name}</strong><small>{allergyCategoryLabels[item.category]}</small></section><div className="allergy-stats"><span><strong>{item.reactions.length}</strong>次症状</span><span><strong>{item.tests.length}</strong>份检查</span><button onClick={()=>navigate(`/health-profile/allergy/${item.id}/status`)}><strong>{item.currentStatus?allergyStatusLabels[item.currentStatus as Exclude<AllergyStatus,''>]:'未设置'}</strong>当前状态</button></div><div className="allergy-detail-actions"><button onClick={()=>navigate(`/health-profile/allergy/${item.id}/reaction`)}>记录一次症状<ChevronRight/></button><button onClick={()=>navigate(`/health-profile/allergy/${item.id}/test`)}>添加检查或报告<ChevronRight/></button><button onClick={()=>navigate(`/health-profile/allergy/${item.id}/status`)}>补充医生判断<ChevronRight/></button></div>{visible.length?<section className="allergy-candidates"><h2><Link2/>找到了{visible.length}条可能相关的记录</h2><p>这些记录可能与{item.name}有时间或内容关联。</p>{visible.map(e=><article key={e.id}><span><strong>{e.title}</strong><small>{new Date(e.createdAt).toLocaleDateString('zh-CN')} · 自动</small></span><button onClick={()=>removed.includes(e.id)||setRemoved(x=>[...x,e.id])}>移除</button></article>)}<PrimaryButton loading={saving} onClick={async()=>{const links=visible.map(e=>({id:`link-${Date.now()}-${e.id}`,allergyItemId:item.id,healthEventId:e.id,relationType:'keyword' as const,confidence:.6,source:'rule' as const,confirmedByUser:true,createdAt:new Date().toISOString()}));if(await onUpdate(item.id,x=>({...x,evidenceLinks:[...x.evidenceLinks,...links],updatedAt:new Date().toISOString()})))navigate(`/health-profile/allergy/${item.id}/success`)}}>确认关联</PrimaryButton><button className="allergy-secondary">手动关联其他记录</button></section>:<section className="allergy-no-candidate"><Link2/><strong>暂未找到可能相关的健康随记</strong><p>不影响继续手动记录，之后也可以再关联。</p></section>}{item.evidenceLinks.length>0&&<section className="allergy-clue"><Check/><span><strong>已串联成一条完整线索</strong><small>{buildTemporalStatement(item.name,`接触${item.name}`,'相关表现')}</small></span></section>}</div></main>}
+
+function StatusPage({item,saving,onSave}:{item:AllergyHistoryItem;saving:boolean;onSave:(x:Partial<AllergyHistoryItem>)=>void}){const [status,setStatus]=useState<AllergyStatus>(item.currentStatus),[date,setDate]=useState(item.excludedAt??item.toleranceSince??''),[clinician,setClinician]=useState(item.clinician??''),[note,setNote]=useState(item.clinicianNote??'');const choices:(Exclude<AllergyStatus,''>)[]=['suspected','investigating','confirmed','excluded','tolerated'];return <main className="app-shell allergy-shell"><Header title="当前状态" fallback={`/health-profile/allergy/${item.id}`}/><form className="allergy-content" onSubmit={e=>{e.preventDefault();onSave({currentStatus:status,excludedAt:status==='excluded'?date:undefined,toleranceSince:status==='tolerated'?date:undefined,clinician,clinicianNote:note})}}><fieldset className="allergy-status-grid"><legend>选择当前状态</legend>{choices.map(value=><button aria-pressed={status===value} key={value} onClick={()=>setStatus(value)} type="button"><Check/><strong>{allergyStatusLabels[value]}</strong>{value==='investigating'&&item.tests.length>0&&<small>排敏测试进行中</small>}</button>)}</fieldset>{['confirmed','excluded','tolerated'].includes(status)&&<div className="allergy-extra-fields"><label>{status==='excluded'?'排除日期':status==='tolerated'?'当前耐受开始时间':'确认日期'}<input max={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.target.value)} required type="date" value={date}/></label><label>医院或医生（如有）<input onChange={e=>setClinician(e.target.value)} value={clinician}/></label><label>判断依据或说明<textarea onChange={e=>setNote(e.target.value)} value={note}/></label>{status==='excluded'&&date&&<p>目前已排除：{formatElapsedSince(date)}</p>}</div>}<p className="allergy-info"><AlertCircle/>状态会保留日期，之后仍可重新评估。</p><PrimaryButton disabled={!status} loading={saving} type="submit">保存状态</PrimaryButton></form></main>}
+
+function ReactionPage({item,member,saving,onSave}:{item:AllergyHistoryItem;member:Member;saving:boolean;onSave:(x:AllergyReactionRecord)=>void}){const [systems,setSystems]=useState<string[]>([]),[latency,setLatency]=useState(''),[more,setMore]=useState(false),[occurredAt,setOccurredAt]=useState(nowLocal()),[detail,setDetail]=useState({symptoms:'',exposureAmount:'',bodyLocations:'',handling:'',notes:''});const toggle=(v:string)=>setSystems(x=>x.includes(v)?x.filter(i=>i!==v):[...x,v]);return <main className="app-shell allergy-shell"><Header title="记录一次症状" fallback={`/health-profile/allergy/${item.id}`}/><form className="allergy-content allergy-form" onSubmit={(e)=>{e.preventDefault();onSave({id:`reaction-${Date.now()}`,allergyItemId:item.id,memberId:member.id,symptomSystems:systems,symptoms:detail.symptoms,exposureAmount:detail.exposureAmount,latency,bodyLocations:detail.bodyLocations,handling:detail.handling,aggravatingFactors:'',relievingFactors:'',occurredAt:new Date(occurredAt).toISOString(),photos:[],notes:detail.notes})}}><div className="allergy-detail-hero"><strong>{item.name} · {allergyCategoryLabels[item.category]}</strong><small>正在记录与该过敏原相关的症状</small></div><Choice title="出现了哪些表现？（可多选）" options={['皮肤','消化道','呼吸道','口腔／面部','全身','其他']} selected={systems} onToggle={toggle}/><Choice title="接触后多久出现？" options={['立即','2小时内','当天稍后','说不清']} selected={[latency]} onToggle={setLatency}/><button className="allergy-more-fields" onClick={()=>setMore(x=>!x)} type="button">更多信息：接触量、处理经过、图片 <ChevronRight/></button>{more&&<div className="allergy-extra-fields">{Object.entries(detail).map(([key,value])=><label key={key}>{({symptoms:'具体症状',exposureAmount:'接触量',bodyLocations:'身体部位',handling:'处理经过',notes:'备注'} as Record<string,string>)[key]}<input onChange={e=>setDetail(x=>({...x,[key]:e.target.value}))} value={value}/></label>)}</div>}<label className="allergy-date-field">发生时间<input max={nowLocal()} onChange={e=>setOccurredAt(e.target.value)} type="datetime-local" value={occurredAt}/></label>{systems.length>0&&latency&&<p className="allergy-save-preview"><Check/>已记清：{systems.join('、')}表现 · 接触后{latency}<small>这段经过会自动进入后续病情整理。</small></p>}<PrimaryButton disabled={!systems.length||!latency} loading={saving} type="submit">保存这次症状</PrimaryButton></form></main>}
+
+function Choice({title,options,selected,onToggle}:{title:string;options:string[];selected:string[];onToggle:(v:string)=>void}){return <fieldset className="allergy-choice"><legend>{title}</legend><div>{options.map(v=><button aria-pressed={selected.includes(v)} key={v} onClick={()=>onToggle(v)} type="button">{v}{selected.includes(v)&&<Check/>}</button>)}</div></fieldset>}
+function TestPage({item,member,saving,onSave}:{item:AllergyHistoryItem;member:Member;saving:boolean;onSave:(x:AllergyTestRecord)=>void}){const [type,setType]=useState(''),[result,setResult]=useState<AllergyTestRecord['result']>(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[value,setValue]=useState(''),[unit,setUnit]=useState(''),[institution,setInstitution]=useState('');return <main className="app-shell allergy-shell"><Header title="添加检查或报告" fallback={`/health-profile/allergy/${item.id}`}/><form className="allergy-content allergy-form" onSubmit={(e:FormEvent)=>{e.preventDefault();onSave({id:`test-${Date.now()}`,allergyItemId:item.id,memberId:member.id,testType:type,result,value,unit,testedAt:date,institution,reportFiles:[],clinicianInterpretation:'',notes:''})}}><div className="allergy-detail-hero"><strong>{item.name} · {allergyCategoryLabels[item.category]}</strong><small>为该过敏原添加检查或报告</small></div><Choice title="做了什么检查？" options={['血清特异性 IgE','皮肤点刺试验','斑贴试验','过敏原组分检测','医疗监督下激发试验','回避—再引入观察','其他']} selected={[type]} onToggle={setType}/><Choice title="检查结果" options={['阳性','阴性','临界','未填写']} selected={[({positive:'阳性',negative:'阴性',borderline:'临界','':'未填写'} as const)[result]]} onToggle={v=>setResult(({阳性:'positive',阴性:'negative',临界:'borderline',未填写:''} as const)[v] ?? '')}/><div className="allergy-extra-fields"><label>原始数值（选填）<input onChange={e=>setValue(e.target.value)} value={value}/></label><label>单位（选填）<input onChange={e=>setUnit(e.target.value)} value={unit}/></label><label>检查机构（选填）<input onChange={e=>setInstitution(e.target.value)} value={institution}/></label><button className="allergy-upload" type="button">上传报告照片</button></div><label className="allergy-date-field">检查时间<input max={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.target.value)} type="date" value={date}/></label><PrimaryButton disabled={!type} loading={saving} type="submit">保存检查</PrimaryButton><p className="allergy-footnote">系统只保存本次结果，不自动修改过敏判断。</p></form></main>}
+function TestDetail({item,test}:{item:AllergyHistoryItem;test?:AllergyTestRecord}){const navigate=useNavigate();if(!test)return null;const result=({positive:'阳性',negative:'阴性',borderline:'临界','':'未填写'} as const)[test.result];return <main className="app-shell allergy-shell"><Header title="检查详情" fallback={`/health-profile/allergy/${item.id}`}/><div className="allergy-content"><div className="allergy-detail-hero"><strong>{item.name} · {test.testType}</strong><small>检查结果已保存</small></div><section className="allergy-test-result"><FileCheck2/><span><strong>本次检查：{result}</strong><small>检查时间：{test.testedAt}</small></span></section><section className="allergy-current-status"><AlertCircle/><span><strong>当前状态：{item.currentStatus?allergyStatusLabels[item.currentStatus as Exclude<AllergyStatus,''>]:'尚未设置'}</strong><small>单次检查结果不直接等于最终诊断，需要结合症状经过和医生判断。</small></span></section><div className="allergy-saved-grid"><span><strong>已保存</strong>✓ 检查结果<br/>○ 报告原图</span><span><strong>待补充</strong>○ 医生解释</span></div><PrimaryButton onClick={()=>navigate(`/health-profile/allergy/${item.id}/status`)}>补充医生判断</PrimaryButton><button className="allergy-secondary" onClick={()=>navigate(`/health-profile/allergy/${item.id}`)}>返回{item.name}详情</button></div></main>}
+function SuccessPage({item}:{item:AllergyHistoryItem}){const navigate=useNavigate();return <main className="app-shell allergy-shell"><Header title="已记录" fallback={`/health-profile/allergy/${item.id}`}/><div className="allergy-success"><div className="allergy-gather"><i/><i/><i/><ShieldCheck/></div><h1>这条担心，已经有地方可追踪了</h1><dl><dt>过敏原</dt><dd>{item.name}</dd><dt>分类</dt><dd>{allergyCategoryLabels[item.category]}</dd><dt>当前状态</dt><dd>{item.currentStatus?allergyStatusLabels[item.currentStatus as Exclude<AllergyStatus,''>]:'待补充'}</dd><dt>已串联</dt><dd>{item.evidenceLinks.length}次进食、{item.reactions.length}次症状、{item.tests.length}份检查</dd><dt>后续可补</dt><dd>医生判断</dd></dl><p>不用再靠记忆反复回想。新的症状、检查或医生意见，都可以继续补在这里。</p><PrimaryButton onClick={()=>navigate('/health-profile/allergy')}>回到过敏史</PrimaryButton><button className="allergy-secondary" onClick={()=>navigate(`/health-profile/allergy/${item.id}`)}>继续补充</button><small>这些内容会用于后续病情整理和就医准备。</small></div></main>}
+function locationState(){return window.history.state?.usr as Record<string,unknown>|undefined}

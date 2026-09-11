@@ -9,9 +9,9 @@ const form = readFileSync(new URL('./growthCardForm.ts', import.meta.url), 'utf8
 test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.match(home, /铸造成长身份卡/)
   assert.match(home, /更新成长数据/)
-  assert.match(home, /暂无已知反应/)
-  assert.match(home, /不确定过敏原也可以先记录症状/)
-  assert.match(home, /记录第一次反应/)
+  assert.match(home, /暂无过敏信息/)
+  assert.match(home, /怀疑过的，也可以先记下来/)
+  assert.match(home, /记录过敏信息/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
 })
 

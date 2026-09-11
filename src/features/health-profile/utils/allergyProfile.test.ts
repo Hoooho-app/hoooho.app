@@ -1,38 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  allergyReactionSummary,
-  emptyAllergyRecord,
-  nextAllergySequence,
-  normalizeAllergyRecords,
-  normalizeAllergyReports
-} from './allergyProfile.ts'
+import { allergyOptions, appendUniqueAllergyItems, buildTemporalStatement, createAllergyItem, formatElapsedSince, normalizeAllergyArchive, normalizeAllergyReports } from './allergyProfile.ts'
 
-test('旧过敏记录兼容映射为多记录结构', () => {
-  const records = normalizeAllergyRecords([{ name: '猫毛', type: '环境', reaction: '打喷嚏' }])
-  assert.equal(records[0].sequence, 1)
-  assert.equal(records[0].subject, '猫毛')
-  assert.equal(records[0].certainty, '已明确')
-  assert.equal(records[0].otherReaction, '打喷嚏')
-})
-
-test('旧的具体反应归入精简分类且保留细节', () => {
-  const [record] = normalizeAllergyRecords([{ reactions: ['皮疹', '腹痛', '喘息'] }])
-  assert.deepEqual(record.reactions, ['皮肤', '消化道', '呼吸道'])
-  assert.equal(record.reactionDetail, '皮疹、腹痛、喘息')
-  assert.equal(allergyReactionSummary(record), '皮肤 / 消化道 / 呼吸道')
-})
-
-test('序号稳定递增', () => {
-  const first = { ...emptyAllergyRecord(1), reactions: ['皮肤', '呼吸道'] }
-  const third = emptyAllergyRecord(3)
-  assert.equal(nextAllergySequence([first, third]), 4)
-  assert.equal(allergyReactionSummary(first), '皮肤 / 呼吸道')
-  assert.equal(normalizeAllergyRecords([third])[0].sequence, 3)
-})
-
-test('无效报告被忽略且有效报告保留人工整理状态', () => {
-  const reports = normalizeAllergyReports([{ id: 'r1', name: '报告.pdf', dataUrl: 'data:application/pdf;base64,AA', parsingStatus: '已识别' }, {}])
-  assert.equal(reports.length, 1)
-  assert.equal(reports[0].parsingStatus, '待人工整理')
-})
+test('旧过敏记录兼容迁移且绑定当前人物',()=>{const archive=normalizeAllergyArchive([{name:'猫毛',type:'环境',certainty:'怀疑中'}],'child-1','account-1');assert.equal(archive.version,2);assert.deepEqual({name:archive.items[0].name,category:archive.items[0].category,status:archive.items[0].currentStatus,memberId:archive.items[0].memberId},{name:'猫毛',category:'environment',status:'suspected',memberId:'child-1'})})
+test('同分类同名去重但允许不同分类同名',()=>{const first=createAllergyItem('m1','food','自定义项');const next=appendUniqueAllergyItems([first],[createAllergyItem('m1','food','自定义项'),createAllergyItem('m1','contact','自定义项')]);assert.equal(next.length,2)})
+test('六类常见选项独立且检查结果不改变状态',()=>{assert.equal(Object.keys(allergyOptions).length,6);assert.deepEqual(allergyOptions.food.slice(0,2),['牛奶','鸡蛋']);assert.deepEqual(allergyOptions.drug.slice(0,2),['青霉素类','头孢类']);const item=createAllergyItem('m1','food','牛奶');item.tests.push({id:'t',allergyItemId:item.id,memberId:'m1',testType:'血清特异性 IgE',result:'negative',value:'',unit:'',testedAt:'2026-09-01',institution:'',reportFiles:[],clinicianInterpretation:'',notes:''});assert.equal(item.currentStatus,'')})
+test('日期持续时间和时间关联文案不声称因果',()=>{assert.equal(formatElapsedSince('2026-09-01',new Date('2026-09-11T00:00:00Z')),'10天');const statement=buildTemporalStatement('牛奶','饮用牛奶','皮肤发红','30分钟');assert.equal(statement,'饮用牛奶后约30分钟记录到皮肤发红');assert.doesNotMatch(statement,/导致/)})
+test('无效报告被忽略且有效报告保留人工整理状态',()=>{const reports=normalizeAllergyReports([{id:'r1',name:'报告.pdf',dataUrl:'data:application/pdf;base64,AA',parsingStatus:'已识别'},{}]);assert.equal(reports.length,1);assert.equal(reports[0].parsingStatus,'待人工整理')})

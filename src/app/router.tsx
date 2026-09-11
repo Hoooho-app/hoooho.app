@@ -51,6 +51,7 @@ export const router = createBrowserRouter([
           { path: '/health-profile/facts', lazy: lazyPage(() => import('../pages/HealthProfile/ImportantHealthFactsPage'), 'ImportantHealthFactsPage') },
           { path: '/health-profile/facts/candidates/:candidateId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileFactCandidatePage'), 'HealthProfileFactCandidatePage') },
           { path: '/health-profile/facts/:factId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileFactDetailPage'), 'HealthProfileFactDetailPage') },
+          { path: '/health-profile/allergy/*', lazy: lazyPage(() => import('../pages/HealthProfile/AllergyProfilePage'), 'AllergyHistoryPage') },
           { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') }
         ]
       },
