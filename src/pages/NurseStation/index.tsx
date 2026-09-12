@@ -10,7 +10,6 @@ import { readNurseStationState, reconcileNurseStationItems, writeNurseStationSta
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import { NurseNextAction } from '../HealthEvents/NurseNextAction'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import { useJournal } from '../HealthEvents/useJournal'
@@ -30,7 +29,7 @@ export function NurseStationPage() {
   const currentMemberId = useAppStore((value) => value.currentMemberId)
   const cachedMembers = useAppStore((value) => value.members)
   const care = useSettingsStore((value) => value.care)
-  const { state: listState, retry: retryEvents } = useHealthEventsList()
+  const { state: listState } = useHealthEventsList()
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const identityId = authUser?.id ?? 'unknown'
   const token = useAppStore((value) => value.authToken) ?? ''
@@ -41,7 +40,6 @@ export function NurseStationPage() {
   const [taskCategory, setTaskCategory] = useState<TaskCategory>('reminders')
   const [taskView, setTaskView] = useState<'active' | 'archive'>('active')
   const [taskViewOpen, setTaskViewOpen] = useState(false)
-  const [nextActionOpen, setNextActionOpen] = useState(false)
   const [completionOpen, setCompletionOpen] = useState(false)
   const [completionResult, setCompletionResult] = useState('已恢复')
 
@@ -54,14 +52,13 @@ export function NurseStationPage() {
 
   useEffect(() => {
     setStation(readNurseStationState(identityId, currentMemberId))
-    setSelected(null); setServiceSheet(null); setNextActionOpen(false)
+    setSelected(null); setServiceSheet(null)
   }, [identityId, currentMemberId])
 
   const members = listState.status === 'success' ? listState.data.members : cachedMembers
   const member = members.find((item) => item.id === currentMemberId) ?? members[0] ?? null
   const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === currentMemberId) : []
   const nextActionEventId = getNurseNextActionEventId(events, currentMemberId)
-  const existingPreparation = events.map((event) => event.medicalPreparation).filter((value) => value != null).sort((left, right) => right.version - left.version)[0] ?? null
 
   useEffect(() => {
     if (!member || listState.status !== 'success') return
@@ -110,10 +107,9 @@ export function NurseStationPage() {
     <div className="nurse-station-scroll">
       {member && <section className="nurse-station-hero"><div className="nurse-station-copy"><button className="nurse-station-identity" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="lg" /><span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><p className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</p><NurseStationFactTypewriter /></div><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div></section>}
       <PrimaryEntries onJournal={() => navigate('/health-events')} onProfile={() => navigate('/health-profile')} />
-      <MoreServices hasHealthData={events.length > 0} onMedicalPrep={() => setNextActionOpen(true)} />
+      <MoreServices hasHealthData={events.length > 0} onMedicalPrep={() => nextActionEventId && navigate(`/visit-summary/${nextActionEventId}`)} />
       <section className="guardian-tasks"><header><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button>{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header><div className="guardian-task-tabs" role="tablist">{([['reminders', '提醒服务'], ['symptom', '症状观察'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>{taskView === 'active' && <AddTaskCard category={taskCategory} onOpen={() => taskCategory === 'reminders' ? setServiceSheet('reminders') : taskCategory === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : navigate('/health-profile/allergy')} />}<div className="guardian-task-list">{visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>结束的任务会保留在这里</span></div></div> : null}</div></section>
     </div>
-    <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} existingPreparation={existingPreparation} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
     <ServiceBottomSheet onClose={() => setServiceSheet(null)} onMedication={() => navigate('/health-events', { state: { nurseMedicationEntry: true } })} open={serviceSheet} />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
   </main>
