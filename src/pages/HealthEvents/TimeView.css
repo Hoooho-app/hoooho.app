@@ -10,7 +10,8 @@
 .trigger-opportunity-heading { display: grid; gap: 3px; }
 .trigger-opportunity-heading strong { color: rgb(var(--hoho-color-text)); font-size: var(--hoho-font-size-body); line-height: 1.35; }
 .trigger-opportunity-heading p { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: 1.45; }
-.trigger-opportunity-illustration { display: block; width: 100%; height: 104px; border-radius: 14px; overflow: hidden; }
+.trigger-opportunity-illustration { width: 100%; aspect-ratio: 1.65 / 1; overflow: hidden; border-radius: 12px; background: rgb(var(--hoho-color-primary-soft) / .45); }
+.trigger-opportunity-illustration img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .trigger-opportunity-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .trigger-opportunity-options button { min-height: 44px; padding: 6px 8px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-text)); background: rgb(var(--hoho-color-surface)); font-size: var(--hoho-font-size-caption); font-weight: 600; line-height: 1.25; }
 .trigger-opportunity-options button:active { border-color: rgb(var(--hoho-color-primary) / .55); background: rgb(var(--hoho-color-primary-soft) / .45); }
@@ -31,7 +32,7 @@
 .sleep-header-cancel { color: rgb(var(--hoho-color-primary)); font-size: 13px; }
 .sleep-active-detail > strong { color: rgb(var(--hoho-color-primary)); font-size: 28px; }
 @media (prefers-reduced-motion: reduce) { .sleep-active-detail *, .trigger-opportunity-card { animation: none !important; transition: none !important; } }
-@media (max-width: 374px) { .trigger-opportunity-card { margin-left: 20px; padding: 12px; }.trigger-opportunity-illustration { height: 92px; }.trigger-opportunity-heading strong { font-size: var(--hoho-font-size-label); } }
+@media (max-width: 374px) { .trigger-opportunity-card { margin-left: 20px; padding: 12px; }.trigger-opportunity-heading strong { font-size: var(--hoho-font-size-label); } }
 .health-events-toolbar { position: absolute; z-index: 2; top: 0; right: 0; margin: 0; }
 .health-events-toolbar .journal-toolbar { min-height: 48px; padding-right: 4px; }
 .health-events-toolbar .journal-toolbar-actions { gap: 4px; }
