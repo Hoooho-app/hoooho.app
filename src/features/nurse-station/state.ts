@@ -1,7 +1,7 @@
 import type { HealthEventListItemViewModel } from '../../types'
 import type { JournalEntry } from '../../pages/HealthEvents/timeViewModel'
 
-export type NurseStationItemStatus = 'pending_confirmation' | 'active' | 'paused' | 'completed' | 'dismissed' | 'deleted'
+export type NurseStationItemStatus = 'pending_confirmation' | 'active' | 'due' | 'snoozed' | 'skipped_current' | 'paused' | 'completed' | 'ended' | 'notification_disabled' | 'dismissed' | 'deleted'
 export type NurseStationItemType = 'symptom_observation' | 'medication_reminder' | 'record_connection' | 'family_sync' | 'reassurance_message' | 'missing_information' | 'follow_up' | 'other'
 
 export interface NurseStationItem {
@@ -19,6 +19,34 @@ export interface NurseStationItem {
   completedAt?: string
   completionResult?: string
   reminder?: { at: string; paused: boolean }
+  medicationPlan?: MedicationReminderPlan
+}
+
+export type MedicationReminderMode = 'daily' | 'interval' | 'once'
+export interface MedicationReminderPlan {
+  medicationName: string
+  medicationType: 'drops' | 'syrup' | 'tablet' | 'spray' | 'ointment' | 'other'
+  amount: number
+  unit: string
+  route: string
+  mode: MedicationReminderMode
+  times: string[]
+  intervalHours?: number
+  startDate: string
+  endDate?: string
+  durationDays?: number
+  longTerm?: boolean
+  reminderTargets: string[]
+  timezone: string
+  nextOccurrenceAt: string
+  originalOccurrenceAt?: string
+  snoozedUntil?: string
+  skippedAt?: string
+  skipReason?: string
+  lastTakenAt?: string
+  occurrenceKey: string
+  confirmedOccurrenceKeys: string[]
+  updatedNoticeAt?: string
 }
 
 export interface NurseStationState {
