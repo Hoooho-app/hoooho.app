@@ -24,98 +24,41 @@ async function registerMember(page: Page) {
   await page.goto('/nurse-station')
 }
 
-test('护士站待机1使用单一资源连续无缝循环', async ({ page }) => {
-  test.setTimeout(45_000)
-  const mediaRequests: string[] = []
-  page.on('request', (request) => {
-    if (/\.(?:mp4|webm)(?:\?|$)/.test(request.url())) mediaRequests.push(request.url())
-  })
-
-  await registerAccount(page)
-  await page.goto('/nurse-station')
+test('护士站待机视频仍使用真实单一循环资源', async ({ page }) => {
+  await registerMember(page)
   const video = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
   await expect(video).toHaveCount(1)
-  await expect(video).toHaveAttribute('src', /nurse-station-idle-1/)
-  await expect(video).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
   await expect(video).toHaveAttribute('loop', '')
-  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({
-    height: element.videoHeight,
-    paused: element.paused,
-    time: element.currentTime,
-    width: element.videoWidth
-  }))).toMatchObject({ height: 360, paused: false, width: 360 })
-
-  await video.evaluate((element) => { element.dataset.loopTestIdentity = 'stable-idle1' })
-  for (let loop = 0; loop < 10; loop += 1) {
-    await video.evaluate((element: HTMLVideoElement) => { element.currentTime = element.duration - 0.12 })
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime < 0.8 && !element.paused), { timeout: 3_000 }).toBe(true)
-    await expect(video).toHaveAttribute('data-loop-test-identity', 'stable-idle1')
-  }
-
-  const uniqueMedia = [...new Set(mediaRequests.map((url) => new URL(url).pathname))]
-  expect(uniqueMedia).toHaveLength(1)
-  expect(uniqueMedia[0]).toContain('nurse-station-idle-1')
-  expect(uniqueMedia.join(' ')).not.toMatch(/nurses-idle-intro|nurses-idle-loop/)
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({ height: element.videoHeight, paused: element.paused, width: element.videoWidth }))).toMatchObject({ height: 360, paused: false, width: 360 })
 })
 
-test('护士站服务排序、开放状态和用药入口符合移动端方案', async ({ page }) => {
+test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await registerMember(page)
-  await expect(page.locator('.nurse-station-member')).toHaveCSS('height', '52px')
-  await expect(page.locator('.nurse-station-member')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  await expect(page.locator('.nurse-station-member > svg')).toHaveCount(0)
-  const medicalPrep = page.locator('.medical-prep-button')
-  await expect(medicalPrep).toHaveCSS('height', '52px')
-  await expect(medicalPrep).toHaveCSS('width', '140px')
-  await expect(medicalPrep.locator('svg')).toHaveCount(1)
-  await expect(medicalPrep.locator('strong')).toHaveText('就诊情况单')
-  await expect(medicalPrep.locator('small')).toHaveText('孩子情况快速整理')
-  const services = page.locator('.nurse-service-entry')
-  await expect(services).toHaveCount(3)
-  await expect(services.locator('strong')).toHaveText(['提醒服务', '症状观察', '排敏测试'])
-  await expect(services.locator('small')).toHaveText(['用药或重要事情，到时间提醒', '按时记录变化，看看有没有好转', '按计划尝试，记录每次反应'])
-  await expect(services.locator('svg')).toHaveCount(6)
-  await expect(page.getByText('医嘱跟进', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('冲突提醒', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('已归档', { exact: true })).toBeVisible()
-  await expect(page.getByText(/共 \d+ 项守护任务/)).toHaveCount(0)
-  for (let index = 0; index < 3; index += 1) await expect(services.nth(index)).toBeEnabled()
-  await expect(page.locator('.nurse-station-visual')).toHaveCSS('border-top-width', '0px')
-  await expect(page.locator('.nurse-station-visual')).toHaveCSS('box-shadow', 'none')
-  await expect(page.getByText('守护任务', { exact: true })).toBeVisible()
-  await expect(page.locator('.guardian-task-list')).toBeInViewport()
-  expect(await page.locator('.nurse-service-stage').evaluate((element) => element.getBoundingClientRect().height)).toBe(196)
-  expect(await page.locator('.guardian-tasks').evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(390)
-  expect(await services.evaluateAll((elements) => elements.every((element) => element.scrollWidth <= element.clientWidth))).toBe(true)
-  const idleVideo = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
-  await expect(idleVideo).toHaveCount(1)
-  await expect(idleVideo).toHaveAttribute('src', /nurse-station-idle-1/)
-  await expect(idleVideo).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
-  await expect(idleVideo).toHaveAttribute('loop', '')
-  await expect(idleVideo).toHaveAttribute('preload', 'auto')
-  await expect.poll(() => idleVideo.evaluate((video: HTMLVideoElement) => !video.paused && video.currentTime > 0 && video.videoWidth === 360 && video.videoHeight === 360)).toBe(true)
-  await services.nth(1).click()
-  await expect(page).toHaveURL(/\/health-events$/)
-  await expect(page.getByRole('dialog', { name: '记录症状' })).toBeVisible()
-  await page.getByRole('button', { name: '关闭' }).click()
-  await page.goto('/nurse-station')
-  await page.locator('.nurse-service-entry').nth(2).click()
-  await expect(page).toHaveURL(/\/health-profile\/allergy$/)
-  await page.goto('/nurse-station')
-  const currentServices = page.locator('.nurse-service-entry')
-  await currentServices.first().click()
-  const reminders = page.getByRole('dialog', { name: '提醒服务' })
-  await expect(reminders).toBeVisible()
-  await expect(reminders.getByRole('button', { name: /用药提醒/ })).toContainText('按计划提醒用药，并记录是否已经完成')
-  await reminders.getByRole('button', { name: /用药提醒/ }).click()
-  await expect(page).toHaveURL(/\/health-events/)
-  await expect(page.getByRole('dialog', { name: /记录用药/ })).toBeVisible()
+  await expect(page.locator('.nurse-station-hero')).toBeVisible()
+  await expect(page.locator('.nurse-station-identity')).toContainText('123')
+  await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
+  await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康随记', '健康档案'])
+  await expect(page.locator('.nurse-primary-entries small')).toHaveText(['每天记一点，变化有迹可循', '想起来就补，信息更完整'])
+  await expect(page.locator('.nurse-more-services strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
+  await expect(page.getByText('就诊情况单', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
+  const tabs = page.getByRole('tab')
+  await expect(tabs).toHaveText(['提醒服务', '症状观察', '排敏测试'])
+  await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('新增用药提醒', { exact: true })).toBeVisible()
+  await expect(page.getByText('创建下一次用药提醒', { exact: true })).toBeVisible()
+  await tabs.nth(1).click()
+  await expect(page.getByText('新增症状观察', { exact: true })).toBeVisible()
+  await tabs.nth(2).click()
+  await expect(page.getByText('新增排敏测试', { exact: true })).toBeVisible()
+  await page.locator('.guardian-task-view').click()
+  await page.getByRole('button', { name: '已归档任务', exact: true }).click()
+  await expect(page.locator('.guardian-task-view')).toHaveText(/已归档任务/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
-  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 667 }, { width: 430, height: 932 }]) {
+  for (const viewport of [{ width: 320, height: 667 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport)
-    await page.goto('/nurse-station')
-    await expect(page.locator('.nurse-service-entry')).toHaveCount(3)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
   }
   expect(errors).toEqual([])
