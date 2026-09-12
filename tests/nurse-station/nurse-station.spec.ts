@@ -40,7 +40,7 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await expect(page.locator('.nurse-station-hero')).toBeVisible()
   await expect(page.locator('.nurse-station-identity')).toContainText('123')
   await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '150px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '136px')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
@@ -57,6 +57,12 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康随记', '健康档案'])
   await expect(page.locator('.nurse-primary-entries small')).toHaveText(['每天记一点，变化有迹可循', '想起来就补，信息更完整'])
   await expect(page.locator('.nurse-more-services strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
+  const unavailableServices = page.locator('.nurse-more-service--unavailable')
+  await expect(unavailableServices).toHaveCount(3)
+  for (const service of await unavailableServices.all()) {
+    await service.click()
+    await expect(page.getByRole('status')).toHaveText('功能即将开放')
+  }
   await expect(page.getByText('就诊情况单', { exact: true })).toHaveCount(0)
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
   const tabs = page.getByRole('tab')
