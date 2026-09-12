@@ -1,7 +1,7 @@
-.medical-preparation-shared { min-height: 100dvh; background: rgb(var(--hoho-color-background)); }
-.medical-preparation-shared__body { display: grid; gap: 14px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); }
-.medical-preparation-shared__body > header { display: flex; align-items: center; gap: 10px; border-radius: var(--hoho-radius-card); padding: 13px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
-.medical-preparation-shared__body > header div { display: grid; gap: 3px; }
-.medical-preparation-shared__body > header strong { color: rgb(var(--hoho-color-text-primary)); font-size: 16px; }
-.medical-preparation-shared__body > header span, .medical-preparation-shared__body > p { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
-.medical-preparation-shared__body > p { display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; }
+.medical-preparation-shared { position: relative; height: 100dvh; overflow: hidden; background: rgb(var(--hoho-color-surface)); }
+.medical-preparation-shared__banner { min-height: 28px; padding: 6px 12px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-size: 11px; text-align: center; }
+.medical-preparation-shared__header { display: grid; min-height: 50px; place-items: center; border-bottom: 1px solid rgb(var(--hoho-color-border)); font-size: var(--hoho-font-size-body); }
+.medical-preparation-shared__body { height: calc(100dvh - 78px); }
+.medical-preparation-shared__body > .visit-summary-scroll { height: 100%; }
+.medical-preparation-shared__body > .visit-summary-rail { top: 135px; }
+.medical-preparation-shared__body > [role='status'] { margin: 18px; }
