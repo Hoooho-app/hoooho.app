@@ -9,7 +9,9 @@ test('顶部将人物信息、守护天数、轮播事实和真实视频收纳�
   assert.match(source, /className="nurse-station-hero"/)
   assert.match(source, /<NurseStationFactTypewriter \/>/)
   assert.match(source, /<NurseTriageDesk/)
-  assert.match(styles, /\.nurse-station-hero\s*\{[^}]*height:\s*190px[^}]*overflow:\s*hidden/)
+  assert.match(styles, /\.nurse-station-hero\s*\{[^}]*height:\s*144px[^}]*background:\s*#fff/)
+  assert.match(styles, /\.nurse-station-fact\s*\{[^}]*width:\s*45%[^}]*max-height:\s*36px[^}]*overflow:\s*hidden/)
+  assert.match(styles, /\.nurse-station-visual\s*\{[^}]*width:\s*55%[^}]*height:\s*144px[^}]*mask-image:/)
   assert.doesNotMatch(source, /今天想让我们帮你做什么|容易忘、需要持续观察/)
 })
 

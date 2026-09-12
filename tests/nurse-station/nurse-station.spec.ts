@@ -35,10 +35,23 @@ test('护士站待机视频仍使用真实单一循环资源', async ({ page }) 
 test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await registerMember(page)
   await expect(page.locator('.nurse-station-hero')).toBeVisible()
   await expect(page.locator('.nurse-station-identity')).toContainText('123')
   await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '144px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  const facts = ['全球食物过敏率约3%～8%', '约1/4人群受各类过敏疾病影响', '中国2岁内儿童食物过敏检出率约3.5%～7.7%', '过敏反应可能涉及多个身体系统', '时间、诱因和频率都是重要线索', '你已经更早一步留下判断线索']
+  for (const fact of facts) {
+    const metrics = await page.locator('.nurse-station-fact').evaluate((element, text) => {
+      const copy = element.querySelector('span')
+      if (copy) copy.textContent = text
+      return { clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }
+    }, fact)
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(36)
+    expect(metrics.clientHeight).toBeLessThanOrEqual(36)
+  }
   await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康随记', '健康档案'])
   await expect(page.locator('.nurse-primary-entries small')).toHaveText(['每天记一点，变化有迹可循', '想起来就补，信息更完整'])
   await expect(page.locator('.nurse-more-services strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
