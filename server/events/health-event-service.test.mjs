@@ -82,11 +82,15 @@ test('事件只在进入康复状态时写入语义明确的结束时间，重�
   assert.equal(reopened.recoveredAt, null)
 })
 
-test('病情摘要首次创建后原位更新且私密链接保持不变', async () => {
+test('就诊情况单更新为新版本且已分享版本保持固定快照', async () => {
   let stored = { id: 'event-1', accountId: 'account-1', memberId: 'member-1', title: '咳嗽', category: 'cough', status: 'observing', startTime: '2026-09-01T00:00:00.000Z', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }
   const repository = {
     findById: async () => stored,
-    findByMedicalPreparationToken: async (token) => stored.medicalPreparation?.shareToken === token ? stored : null,
+    findByAccountId: async () => [stored],
+    findByMedicalPreparationToken: async (token) => {
+      const snapshot = [stored.medicalPreparation, ...(stored.medicalPreparationSnapshots ?? [])].find((item) => item?.shareToken === token)
+      return snapshot ? { ...stored, medicalPreparation: snapshot } : null
+    },
     update: async (_id, changes, now) => (stored = { ...stored, ...changes, updatedAt: now.toISOString() })
   }
   const members = { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) }
@@ -98,9 +102,10 @@ test('病情摘要首次创建后原位更新且私密链接保持不变', async
   assert.equal(current.status, 'current'); assert.equal(current.medicalPreparation.version, 1)
   const updated = await service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'second-fingerprint', summary: { ...summary, text: '最新病情摘要' } }, new Date('2026-09-08T03:00:00.000Z'))
   assert.equal(updated.status, 'updated'); assert.equal(updated.medicalPreparation.version, 2)
-  assert.equal(updated.medicalPreparation.shareToken, created.medicalPreparation.shareToken)
+  assert.notEqual(updated.medicalPreparation.shareToken, created.medicalPreparation.shareToken)
   const shared = await service.getSharedMedicalPreparation(created.medicalPreparation.shareToken)
-  assert.equal(shared.summary.text, '最新病情摘要')
+  assert.equal(shared.version, 1)
+  assert.equal(shared.summary.text, '病情摘要')
 })
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {

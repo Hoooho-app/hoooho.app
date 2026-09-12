@@ -5,7 +5,7 @@ import type { HohoButtonProps } from './HohoButton'
 export type MedicalPrepButtonProps = Omit<HohoButtonProps, 'children'>
 
 export function MedicalPrepButton({ className = '', disabled = false, ...props }: MedicalPrepButtonProps) {
-  const accessibleLabel = props['aria-label'] ?? '就医准备'
+  const accessibleLabel = props['aria-label'] ?? '就诊情况单'
   return (
     <HohoButton
       {...props}
