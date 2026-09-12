@@ -6,20 +6,37 @@ import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journal
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
-import { getTimelinePrompt, type TimelinePromptMode, type TimelinePromptTarget } from './timelinePrompt'
 import { useAppStore } from '../../store/useAppStore'
-import { JournalMemoryTypewriter } from './JournalMemoryTypewriter'
+import { TriggerOpportunityCard } from './TriggerOpportunityCard'
+import { resolveTriggerLocale } from './triggerOpportunityI18n'
+import { selectTriggerOpportunity } from './triggerOpportunitySelector'
+import { readTriggerCardStatus, setTriggerCardStatus, triggerSuggestionKey } from './triggerOpportunityState'
 
 export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
   const memberName = useAppStore((state) => state.members.find((member) => member.id === memberId)?.name ?? '')
-  const onPromptAction = (target: TimelinePromptTarget, mode: TimelinePromptMode) => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target, mode, day } }))
+  const accountId = useAppStore((state) => state.authUser?.id ?? 'guest')
+  const [cardRevision, setCardRevision] = useState(0)
+  const [triggerLocale, setTriggerLocale] = useState(() => resolveTriggerLocale())
+  useEffect(() => {
+    const update = () => setTriggerLocale(resolveTriggerLocale())
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] })
+    window.addEventListener('languagechange', update)
+    return () => { observer.disconnect(); window.removeEventListener('languagechange', update) }
+  }, [])
   const [now, setNow] = useState(() => new Date())
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer) }, [])
   const contextEventId = entries[0]?.eventId ?? null
   useEffect(() => { onContext({ memberId, eventId: contextEventId }) }, [memberId, contextEventId, onContext])
   const groups = journalDayGroups(entries, day, sortOrder)
-  const prompt = getTimelinePrompt(now, memberName, day, today, entries)
+  const selectedCard = selectTriggerOpportunity(now, day, today, entries, (cardId, cycle) => Boolean(readTriggerCardStatus(accountId, memberId, cardId, cycle)))
+  const openTriggerCard = (optionIndex?: 0 | 1) => {
+    if (!selectedCard) return
+    const detail = { target: selectedCard.config.category, mode: day === today ? selectedCard.config.mode : 'backfill', day, prefill: optionIndex === undefined ? {} : selectedCard.config.prefill[optionIndex], accountId, memberId, cardId: selectedCard.config.id, cycle: selectedCard.cycle, relatedEventId: selectedCard.prerequisiteEntry?.eventId, relatedRecordId: selectedCard.prerequisiteEntry?.id }
+    sessionStorage.setItem(triggerSuggestionKey, JSON.stringify(detail))
+    window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail }))
+  }
   const activeSleep = entries.find((entry) => entry.sleep?.status === 'ongoing')
   const yesterday = shiftJournalDate(today, -1)
   const relative = day === today ? '今天' : day === yesterday ? '昨天' : formatPlainWeekday(day)
@@ -40,7 +57,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
     </div>
     {loading ? <ListSkeleton rows={4} /> : error ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : <>
       {day === today && <div className="journal-now-marker"><span>{`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}</span><strong>现在</strong></div>}
-      {activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : prompt ? <article className="journal-memory-prompt"><span className="journal-memory-eyebrow"><i aria-hidden="true" />{prompt.eyebrow}</span><strong>{prompt.question}</strong><button className="journal-memory-action" onClick={() => onPromptAction(prompt.target, prompt.mode)} type="button"><JournalCategoryIcon category={prompt.target} /><span>{prompt.action}</span><ChevronRight aria-hidden="true" size={17} /></button><JournalMemoryTypewriter key={memberId} /></article> : null}
+      {activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null}
       {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${sortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
         content: <div className="journal-hour-records">{group.items.map((entry) => <button className="journal-record" key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>

@@ -22,20 +22,22 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
 }) {
-  const suggestion = (() => { try { return JSON.parse(sessionStorage.getItem('hoooho:journal-suggestion') ?? 'null') as { mode?: 'start' | 'backfill' | 'nap'; day?: string } | null } catch { return null } })()
+  const suggestion = (() => { try { return JSON.parse(sessionStorage.getItem('hoooho:journal-suggestion') ?? 'null') as { mode?: 'start' | 'backfill' | 'nap'; day?: string; prefill?: Record<string, string | boolean> } | null } catch { return null } })()
   const closeRecorder = () => { sessionStorage.removeItem('hoooho:journal-suggestion'); onClose() }
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
-  const initialScreen = initialCategory === 'diet' ? 'diet-types' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
+  const suggestedDietKind = suggestion?.prefill?.kind
+  const initialScreen = initialCategory === 'diet' ? suggestedDietKind ? 'diet-form' : 'diet-types' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
   const [screen, setScreen] = useState<'categories' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'>(initialScreen)
   const [selected, setSelected] = useState<JournalCategory[]>([])
-  const [dietKind, setDietKind] = useState<DietRecordKind | null>(null)
+  const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => ['feeding','complementary','meal','snack','supplement'].includes(String(suggestedDietKind)) ? suggestedDietKind as DietRecordKind : null)
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => {
     const draft = createSleepDraft()
-    if (!suggestion?.day) return suggestion?.mode === 'nap' ? { ...draft, kind: 'nap' } : draft
+    const quality = typeof suggestion?.prefill?.quality === 'string' ? suggestion.prefill.quality as SleepDraft['quality'] : undefined
+    if (!suggestion?.day) return { ...draft, ...(suggestion?.mode === 'nap' ? { kind: 'nap' as const } : {}), ...(quality ? { quality } : {}) }
     const start = new Date(`${suggestion.day}T${suggestion.mode === 'nap' ? '12:30' : '20:00'}:00`)
     const end = new Date(`${suggestion.day}T${suggestion.mode === 'nap' ? '14:00' : '23:00'}:00`)
-    return { ...draft, sleepAt: start.toISOString(), wakeAt: end.toISOString(), durationMinutes: Math.round((end.getTime() - start.getTime()) / 60_000), kind: suggestion.mode === 'nap' ? 'nap' : 'night' }
+    return { ...draft, sleepAt: start.toISOString(), wakeAt: end.toISOString(), durationMinutes: Math.round((end.getTime() - start.getTime()) / 60_000), kind: suggestion.mode === 'nap' ? 'nap' : 'night', ...(quality ? { quality } : {}) }
   })
   const [saving, setSaving] = useState(false)
   const [availabilityNotice, setAvailabilityNotice] = useState('')

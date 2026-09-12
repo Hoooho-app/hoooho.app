@@ -22,6 +22,7 @@ import { NurseNextAction } from './NurseNextAction'
 import { getNurseNextActionEventId } from './nurseNextActionContext'
 import { TimeView } from './TimeView'
 import './TimeView.css'
+import { completeCurrentTriggerSuggestion } from './triggerOpportunityState'
 import '../NurseStation/nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
@@ -93,7 +94,7 @@ export function HealthEventsPage() {
     window.addEventListener('hoooho:timeline-prompt', openPrompt)
     return () => window.removeEventListener('hoooho:timeline-prompt', openPrompt)
   }, [])
-  const finishSave = () => { submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
+  const finishSave = () => { completeCurrentTriggerSuggestion(); submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
   const saveJournalRecord = async (content: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
     if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
