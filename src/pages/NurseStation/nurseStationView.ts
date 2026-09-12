@@ -33,7 +33,7 @@ export function taskNextStep(item: NurseStationItem, now = Date.now()) {
 
 export function sortActiveTasks(items: NurseStationItem[], now = Date.now()) {
   return items
-    .filter((item) => item.status === 'active' || item.status === 'paused')
+    .filter((item) => ['active', 'due', 'snoozed', 'skipped_current', 'paused', 'notification_disabled'].includes(item.status))
     .slice()
     .sort((left, right) => taskPriority(left, now) - taskPriority(right, now) || Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
 }
@@ -55,7 +55,7 @@ export function getUnreadTips(items: NurseStationItem[], seenKeys: string[]) {
 }
 
 export function getArchivedTasks(items: NurseStationItem[]) {
-  return items.filter((item) => item.status === 'completed')
+  return items.filter((item) => item.status === 'completed' || item.status === 'ended')
 }
 
 export function getGuardedDays(createdAt: string | null | undefined, now = new Date()) {
