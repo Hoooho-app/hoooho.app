@@ -21,12 +21,12 @@ test('every direct sidebar destination is represented by the shared top-level he
 })
 
 test('sidebar uses the approved concise navigation copy', () => {
-  assert.match(drawer, /label: '健康档案'[^\n]*to: '\/health-profile'[\s\S]*label: '健康记录'[^\n]*to: '\/health-events'[\s\S]*label: '服务站'[^\n]*to: '\/nurse-station'/)
+  assert.match(drawer, /label: '前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康记录'[^\n]*to: '\/health-events'[\s\S]*label: '健康档案'[^\n]*to: '\/health-profile'/)
   assert.match(drawer, /label: '说明'[^\n]*to: '\/guide'/)
 })
 
 test('sidebar service and account summary use the current member context', () => {
-  assert.match(drawer, /label: '服务站', icon: Stethoscope/)
+  assert.match(drawer, /label: '前台', icon: Stethoscope/)
   assert.match(drawer, /member\.primaryRecorderRelationship/)
   assert.match(drawer, /accountRelationship/)
 })
