@@ -57,3 +57,12 @@ export function getUnreadTips(items: NurseStationItem[], seenKeys: string[]) {
 export function getArchivedTasks(items: NurseStationItem[]) {
   return items.filter((item) => item.status === 'completed')
 }
+
+export function getGuardedDays(createdAt: string | null | undefined, now = new Date()) {
+  if (!createdAt) return 1
+  const startedAt = new Date(createdAt)
+  if (Number.isNaN(startedAt.getTime())) return 1
+  const startedDay = new Date(startedAt.getFullYear(), startedAt.getMonth(), startedAt.getDate())
+  const currentDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.max(1, Math.round((currentDay.getTime() - startedDay.getTime()) / 86_400_000) + 1)
+}

@@ -1,4 +1,4 @@
-import { AlarmClock, Archive, Bell, ChevronRight, ClipboardCheck, Cross, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, ShieldCheck, TestTube, Thermometer, X } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderHeart, FolderOpen, HeartHandshake, Languages, MapPin, NotebookPen, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, Utensils, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -15,12 +15,13 @@ import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import { useJournal } from '../HealthEvents/useJournal'
 import '../HealthEvents/TimeView.css'
-import { getArchivedTasks, sortActiveTasks, taskNextStep, taskStatus, taskTitle } from './nurseStationView'
+import { getArchivedTasks, getGuardedDays, sortActiveTasks, taskNextStep, taskStatus, taskTitle } from './nurseStationView'
+import { NurseStationFactTypewriter } from './NurseStationFactTypewriter'
 import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
-type ServiceSheet = 'reminders' | 'archive' | null
-type NurseService = 'symptom' | 'reminders' | 'allergy'
+type ServiceSheet = 'reminders' | null
+type TaskCategory = 'reminders' | 'symptom' | 'allergy'
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -37,6 +38,9 @@ export function NurseStationPage() {
   const [station, setStation] = useState<NurseStationState>(() => readNurseStationState(identityId, currentMemberId))
   const [selected, setSelected] = useState<NurseStationItem | null>(null)
   const [serviceSheet, setServiceSheet] = useState<ServiceSheet>(null)
+  const [taskCategory, setTaskCategory] = useState<TaskCategory>('reminders')
+  const [taskView, setTaskView] = useState<'active' | 'archive'>('active')
+  const [taskViewOpen, setTaskViewOpen] = useState(false)
   const [nextActionOpen, setNextActionOpen] = useState(false)
   const [completionOpen, setCompletionOpen] = useState(false)
   const [completionResult, setCompletionResult] = useState('已恢复')
@@ -55,7 +59,7 @@ export function NurseStationPage() {
 
   const members = listState.status === 'success' ? listState.data.members : cachedMembers
   const member = members.find((item) => item.id === currentMemberId) ?? members[0] ?? null
-  const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === member?.id) : []
+  const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === currentMemberId) : []
   const nextActionEventId = getNurseNextActionEventId(events, currentMemberId)
 
   useEffect(() => {
@@ -66,6 +70,9 @@ export function NurseStationPage() {
 
   const active = sortActiveTasks(station.items)
   const archived = getArchivedTasks(station.items)
+  const memberDto = listState.status === 'success' ? listState.data.memberDtos.find((item) => item.id === member?.id) : null
+  const guardedDays = getGuardedDays(memberDto?.createdAt)
+  const visibleTasks = (taskView === 'archive' ? archived : active).filter((item) => taskCategory === 'reminders' ? item.type === 'medication_reminder' : taskCategory === 'symptom' ? item.type === 'symptom_observation' : false)
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
 
   const updateItem = (id: string, changes: Partial<NurseStationItem>) => setStation((previous) => ({ ...previous, items: previous.items.map((item) => item.id === id ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item) }))
@@ -100,38 +107,31 @@ export function NurseStationPage() {
   return <main className="app-shell nurse-station-page">
     <MainAppHeader title="前台护士站" />
     <div className="nurse-station-scroll">
-      {member && <div className="nurse-station-member-row"><button className="nurse-station-member" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="sm" /><span className="nurse-station-member-copy"><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><MedicalPrepButton className="journal-subject-summary" disabled={!nextActionEventId} onClick={() => setNextActionOpen(true)} /></div>}
-      <section aria-label="护士站服务" className="nurse-service-stage"><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div><NurseServices onOpen={(service) => service === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : service === 'allergy' ? navigate('/health-profile/allergy') : setServiceSheet('reminders')} /></section>
-      <section className="guardian-tasks"><header><h2>守护任务</h2><button onClick={() => setServiceSheet('archive')} type="button">已归档{archived.length > 0 && <span>{archived.length > 99 ? '99+' : archived.length}</span>}<ChevronRight /></button></header><div className="guardian-task-list">{active.length ? active.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无守护任务</strong><span>需要持续关注的事项会出现在这里</span></div></div>}</div></section>
+      {member && <section className="nurse-station-hero"><button className="nurse-station-identity" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="lg" /><span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><p className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</p><NurseStationFactTypewriter /><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div></section>}
+      <PrimaryEntries onJournal={() => navigate('/health-events')} onProfile={() => navigate('/health-profile')} />
+      <MoreServices hasJournal={events.length > 0} onMedicalPrep={() => setNextActionOpen(true)} />
+      <section className="guardian-tasks"><header><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button>{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header><div className="guardian-task-tabs" role="tablist">{([['reminders', '提醒服务'], ['symptom', '症状观察'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>{taskView === 'active' && <AddTaskCard category={taskCategory} onOpen={() => taskCategory === 'reminders' ? setServiceSheet('reminders') : taskCategory === 'symptom' ? navigate('/health-events', { state: { nurseRecordEntry: 'symptom' } }) : navigate('/health-profile/allergy')} />}<div className="guardian-task-list">{visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>结束的任务会保留在这里</span></div></div> : null}</div></section>
     </div>
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onChanged={retryEvents} onClose={() => setNextActionOpen(false)} open={nextActionOpen} />
-    <ServiceBottomSheet archived={archived} onClose={() => setServiceSheet(null)} onMedication={() => navigate('/health-events', { state: { nurseMedicationEntry: true } })} open={serviceSheet} />
+    <ServiceBottomSheet onClose={() => setServiceSheet(null)} onMedication={() => navigate('/health-events', { state: { nurseMedicationEntry: true } })} open={serviceSheet} />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
   </main>
 }
 
-function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void }) { return <button className="guardian-task-card" data-status={item.status} onClick={onOpen} type="button"><span className="guardian-task-icon"><Thermometer /></span><span className="guardian-task-copy"><span><strong>{taskTitle(item)}</strong><em>{taskStatus(item)}</em></span><small>{taskNextStep(item)}</small></span><ChevronRight /></button> }
+function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void }) { return <button className="guardian-task-card" data-status={item.status} onClick={onOpen} type="button"><span className="guardian-task-icon">{item.type === 'medication_reminder' ? <Pill /> : <Thermometer />}</span><span className="guardian-task-copy"><span><strong>{taskTitle(item)}</strong><em>{taskStatus(item)}</em></span><small>{taskNextStep(item)}</small></span></button> }
 
-function NurseServices({ onOpen }: { onOpen: (service: NurseService) => void }) {
-  const services = [
-    { id: 'reminders', label: '提醒服务', description: '用药或重要事情，到时间提醒', icon: AlarmClock },
-    { id: 'symptom', label: '症状观察', description: '按时记录变化，看看有没有好转', icon: Cross },
-    { id: 'allergy', label: '排敏测试', description: '按计划尝试，记录每次反应', icon: TestTube }
-  ] as const
-  return <div className="nurse-service-list">{services.map(({ id, label, description, icon: Icon }) => <button className="nurse-service-entry" key={id} onClick={() => onOpen(id)} type="button"><Icon aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span><ChevronRight aria-hidden="true" /></button>)}</div>
-}
+function PrimaryEntries({ onJournal, onProfile }: { onJournal: () => void; onProfile: () => void }) { return <section aria-label="核心记录入口" className="nurse-primary-entries"><button onClick={onJournal} type="button"><NotebookPen /><span><strong>健康随记</strong><small>每天记一点，变化有迹可循</small></span></button><button onClick={onProfile} type="button"><FolderHeart /><span><strong>健康档案</strong><small>想起来就补，信息更完整</small></span></button></section> }
 
-function ServiceBottomSheet({ archived, onClose, onMedication, open }: { archived: NurseStationItem[]; onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
+function MoreServices({ hasJournal, onMedicalPrep }: { hasJournal: boolean; onMedicalPrep: () => void }) { const services = [{ id: 'allergy-card', label: '过敏出示', icon: Languages }, { id: 'food', label: '能不能吃', icon: Utensils }, { id: 'nearby', label: '附近就医', icon: MapPin }] as const; return <section className="nurse-more-services"><h2>更多服务</h2><div>{hasJournal && <MedicalPrepButton className="journal-subject-summary" onClick={onMedicalPrep} />}{services.map(({ id, label, icon: Icon }) => <button className={`nurse-more-service nurse-more-service--${id}`} key={id} type="button"><span><Icon aria-hidden="true" /></span><strong>{label}</strong></button>)}</div></section> }
+
+function AddTaskCard({ category, onOpen }: { category: TaskCategory; onOpen: () => void }) { const copy = category === 'reminders' ? ['新增用药提醒', '创建下一次用药提醒'] : category === 'symptom' ? ['新增症状观察', '创建新的症状观察'] : ['新增排敏测试', '创建新的排敏记录']; return <button className="guardian-task-card guardian-task-add" onClick={onOpen} type="button"><span className="guardian-task-icon"><Plus /></span><span className="guardian-task-copy"><strong>{copy[0]}</strong><small>{copy[1]}</small></span></button> }
+
+function ServiceBottomSheet({ onClose, onMedication, open }: { onClose: () => void; onMedication: () => void; open: ServiceSheet }) {
   if (!open) return null
-  const title = open === 'archive' ? '已归档任务' : '提醒服务'
-  const leading = open === 'archive' ? <Archive /> : <Bell />
-  return <BottomSheetSurface className="nurse-service-sheet" label={title} leading={leading} onClose={onClose} open title={title}>
-    {open === 'archive' && <div className="nurse-sheet-list">{archived.length ? archived.map((item) => <article key={item.id}><strong>{taskTitle(item)}</strong><p>{item.completionResult ?? '已结束'} · {item.sourceLabel}</p></article>) : <SheetEmpty text="暂无已归档任务" />}</div>}
-    {open === 'reminders' && <button className="medication-reminder-entry" onClick={onMedication} type="button"><span><Pill aria-hidden="true" /></span><span><strong>用药提醒</strong><small>按计划提醒用药，并记录是否已经完成</small></span><ChevronRight aria-hidden="true" /></button>}
+  return <BottomSheetSurface className="nurse-service-sheet" label="提醒服务" leading={<Bell />} onClose={onClose} open title="提醒服务">
+    <button className="medication-reminder-entry" onClick={onMedication} type="button"><span><Pill aria-hidden="true" /></span><span><strong>用药提醒</strong><small>按计划提醒用药，并记录是否已经完成</small></span></button>
   </BottomSheetSurface>
 }
-
-function SheetEmpty({ text }: { text: string }) { return <div className="nurse-sheet-empty"><HeartHandshake /><span>{text}</span></div> }
 
 function TaskDetailSheet({ completionOpen, completionResult, item, onClose, onComplete, onCompletionOpen, onCompletionResult, onNavigate, onUpdate }: { completionOpen: boolean; completionResult: string; item: NurseStationItem; onClose: () => void; onComplete: () => void; onCompletionOpen: (value: boolean) => void; onCompletionResult: (value: string) => void; onNavigate: () => void; onUpdate: (changes: Partial<NurseStationItem>) => void }) {
   return <div className="nurse-station-modal-layer" role="dialog" aria-modal="true"><div className="nurse-station-sheet"><button aria-label="关闭" className="sheet-close" onClick={onClose} type="button"><X /></button>{completionOpen ? <><h2>结束这次观察？</h2><div className="completion-options">{['已恢复', '已经就医', '不再继续记录', '其他'].map((result) => <label key={result}><input checked={completionResult === result} name="result" onChange={() => onCompletionResult(result)} type="radio" />{result}</label>)}</div><div className="sheet-actions"><HohoButton variant="secondary" onClick={() => onCompletionOpen(false)}>取消</HohoButton><HohoButton onClick={onComplete}>确定</HohoButton></div></> : <><Thermometer className="sheet-icon" size={24} /><h2>{taskTitle(item)}</h2><p className="sheet-source">来自健康随记：{item.sourceLabel}</p><div className="station-actions"><button onClick={onNavigate} type="button"><Play />补充最新情况</button><button onClick={() => onUpdate({ reminder: { at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), paused: false } })} type="button"><Bell />设置提醒</button><button onClick={() => onUpdate({ status: item.status === 'paused' ? 'active' : 'paused' })} type="button"><Pause />{item.status === 'paused' ? '恢复提醒' : '暂停提醒'}</button><button onClick={() => onCompletionOpen(true)} type="button"><HeartHandshake />结束观察</button></div><p className="safety-note">如出现紧急情况，请及时联系专业医疗人员。</p></>}</div></div>
