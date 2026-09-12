@@ -153,7 +153,11 @@ export class HealthEventService {
   async saveMedicalPreparation(accountId, id, input, now = new Date()) {
     const event = await this.get(accountId, id)
     const summary = validateMedicalPreparation(input)
-    const existing = event.medicalPreparation ?? null
+    const accountEvents = await this.repository.findByAccountId(accountId)
+    const existing = accountEvents
+      .filter((item) => item.memberId === event.memberId && item.medicalPreparation)
+      .map((item) => item.medicalPreparation)
+      .sort((left, right) => right.version - left.version)[0] ?? null
     if (existing?.sourceFingerprint === input.sourceFingerprint.trim()) {
       return { status: 'current', medicalPreparation: existing }
     }
@@ -162,11 +166,14 @@ export class HealthEventService {
       version: existing ? existing.version + 1 : 1,
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp,
-      shareToken: existing?.shareToken ?? randomBytes(24).toString('base64url'),
+      shareToken: randomBytes(24).toString('base64url'),
       sourceFingerprint: input.sourceFingerprint.trim(),
       summary: { ...summary, generatedAt: timestamp }
     }
-    await this.repository.update(id, { medicalPreparation }, now)
+    const medicalPreparationSnapshots = event.medicalPreparation && existing?.shareToken === event.medicalPreparation.shareToken
+      ? [...(event.medicalPreparationSnapshots ?? []), existing].slice(-20)
+      : (event.medicalPreparationSnapshots ?? [])
+    await this.repository.update(id, { medicalPreparation, medicalPreparationSnapshots }, now)
     return { status: existing ? 'updated' : 'created', medicalPreparation }
   }
 

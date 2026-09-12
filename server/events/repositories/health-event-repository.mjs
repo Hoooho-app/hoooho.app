@@ -40,7 +40,12 @@ export class HealthEventRepository {
 
   async findByMedicalPreparationToken(token) {
     const data = await this.#store.read()
-    return data.events.find((event) => event.medicalPreparation?.shareToken === token) ?? null
+    const event = data.events.find((item) => item.medicalPreparation?.shareToken === token || item.medicalPreparationSnapshots?.some((snapshot) => snapshot.shareToken === token))
+    if (!event) return null
+    const medicalPreparation = event.medicalPreparation?.shareToken === token
+      ? event.medicalPreparation
+      : event.medicalPreparationSnapshots.find((snapshot) => snapshot.shareToken === token)
+    return { ...event, medicalPreparation }
   }
 
   async update(id, changes, now = new Date()) {
