@@ -21,7 +21,7 @@ test('核心记录入口为等宽双列，更多服务为可扩展四列宫格',
   assert.match(styles, /\.nurse-more-services > div\s*\{[^}]*grid-template-columns:\s*repeat\(4,/)
   assert.match(source, /健康随记/)
   assert.match(source, /健康档案/)
-  assert.match(source, /\{hasJournal && <MedicalPrepButton className="journal-subject-summary"/)
+  assert.match(source, /<MedicalPrepButton[^>]*disabled=\{!hasHealthData\}[^>]*onClick=\{onMedicalPrep\}/)
   assert.match(source, /nurse-more-service--unavailable[^>]*onClick=\{\(\) => setNoticeKey/)
   assert.match(source, /功能即将开放/)
   assert.match(styles, /\.nurse-more-service--unavailable/)
