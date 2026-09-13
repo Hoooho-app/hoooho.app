@@ -55,15 +55,14 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
     expect(metrics.clientHeight).toBeLessThanOrEqual(36)
   }
   await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康随记', '健康档案'])
-  await expect(page.locator('.nurse-primary-entries small')).toHaveText(['每天记一点，变化有迹可循', '想起来就补，信息更完整'])
-  await expect(page.locator('.nurse-more-services strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
+  await expect(page.locator('.nurse-primary-entries small span')).toHaveText(['健康事件记一下', '日常喂养记一下', '病症用药记一下', '补充基础信息', '补充过敏史', '补充家族史'])
+  await expect(page.locator('.nurse-more-service--unavailable strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
   const unavailableServices = page.locator('.nurse-more-service--unavailable')
   await expect(unavailableServices).toHaveCount(3)
   for (const service of await unavailableServices.all()) {
     await service.click()
     await expect(page.getByRole('status')).toHaveText('功能即将开放')
   }
-  await expect(page.getByText('就诊情况单', { exact: true })).toHaveCount(0)
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
   const tabs = page.getByRole('tab')
   await expect(tabs).toHaveText(['用药提醒', '排敏测试', '疫苗提醒'])
