@@ -11,6 +11,14 @@ test('narrative extraction only keeps explicitly stated symptom facts', () => {
   assert.deepEqual(extractSymptomNarrative('孩子看起来不太对').keywords, [])
 })
 
+test('negated symptoms never become positive tags while positive facts remain', () => {
+  for (const text of ['有皮疹，没发烧', '有皮疹，没有发烧', '有皮疹，未发烧', '有皮疹，无发热', '有皮疹，不发烧', '有皮疹，目前没发烧', '有皮疹，没有明显发烧']) {
+    assert.deepEqual(extractSymptomNarrative(text).keywords, ['皮疹'])
+  }
+  assert.deepEqual(extractSymptomNarrative('出现皮疹并发烧').keywords, ['皮疹', '发烧'])
+  assert.deepEqual(extractSymptomNarrative('昨天发烧，今天没发烧').keywords, [])
+})
+
 test('symptom locations preserve structured position and stable numbering', () => {
   assert.deepEqual(toSymptomLocations([{ id: 'upper_limb_elbow_left', label: '左肘', parentId: 'upper_limb', locationType: 'surface', laterality: 'left', view: 'front' }]), [{ id: 'upper_limb_elbow_left', label: '左肘', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘', markedArea: '1号区域' }])
 })

@@ -79,7 +79,9 @@ export interface JournalSymptomDetails {
   narrative?: string
   keywords?: string[]
   locationText?: string
+  /** @deprecated Kept readable for records created before concrete links were supported. */
   supplementalCounts?: Partial<Record<'diet' | 'elimination' | 'medication' | 'visit', number>>
+  linkedRecordIds?: Partial<Record<'diet' | 'elimination' | 'medication' | 'visit', string[]>>
   otherCategoryText?: string
   locations: JournalSymptomLocation[]
   descriptors: string[]
@@ -89,6 +91,7 @@ export interface JournalSymptomDetails {
   associatedSymptoms?: string[]
   symptomSpecificData?: Record<string, string | number | boolean | string[]>
   shortNote?: string
+  triggerText?: string
   generatedSummary?: string
 }
 

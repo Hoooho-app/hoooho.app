@@ -4,6 +4,8 @@ import { SymptomRecordSheet } from '../HealthEventDetail/components'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Moon } from 'lucide-react'
+import { useJournal } from './useJournal'
+import { useAppStore } from '../../store/useAppStore'
 
 export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
   eventId: string
@@ -12,6 +14,9 @@ export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
   onClose: () => void
 }) {
   const { state, retry, updateRecord, deleteRecord } = useHealthEventDetail(eventId)
+  const memberId = useAppStore((value) => value.currentMemberId)
+  const token = useAppStore((value) => value.authToken ?? '')
+  const relatedJournal = useJournal(memberId, token, 0)
   const [now, setNow] = useState(() => Date.now())
   const [ending, setEnding] = useState(false)
   const [endError, setEndError] = useState('')
@@ -48,6 +53,10 @@ export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
     onDelete={async (id) => { await deleteRecord(id); onChanged() }}
     onUpdate={async (id, input) => { const updated = await updateRecord(id, input); onChanged(); return updated }}
     record={record}
+    relatedEntries={relatedJournal.entries}
+    relatedError={relatedJournal.error}
+    relatedLoading={relatedJournal.loading}
+    onRelatedRetry={relatedJournal.retry}
   />
 }
 

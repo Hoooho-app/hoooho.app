@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import type { HealthEventRecordApiDto, HealthMeasurementMethod, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
 import { isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
+import { extractSymptomNarrative, inferSymptomCategory } from '../../HealthEvents/symptomRecordLogic'
+import { RelatedRecordsSheet, type SymptomLinkedRecordIds } from '../../HealthEvents/SymptomRecordFlow'
+import { journalCategoryLabels, journalListSummary, type JournalEntry } from '../../HealthEvents/timeViewModel'
+import type { JournalSymptomDetails } from '../../../types/journal'
 
 interface SymptomRecordSheetProps {
   entry: TimelineEntry | null
@@ -12,6 +16,10 @@ interface SymptomRecordSheetProps {
   onClose: () => void
   onDelete: (recordId: string) => Promise<void>
   onUpdate: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
+  relatedEntries?: JournalEntry[]
+  relatedLoading?: boolean
+  relatedError?: string
+  onRelatedRetry?: () => void
 }
 
 const measurementMethods: Array<{ label: string; value: HealthMeasurementMethod }> = [
@@ -49,7 +57,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
   return entry.source.label
 }
 
-export function SymptomRecordSheet({ entry, memberName, record, initialEditing = false, onClose, onDelete, onUpdate }: SymptomRecordSheetProps) {
+export function SymptomRecordSheet({ entry, memberName, record, initialEditing = false, onClose, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [content, setContent] = useState('')
@@ -59,16 +67,29 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [linkedRecordIds, setLinkedRecordIds] = useState<SymptomLinkedRecordIds>({})
+  const [relatedOpen, setRelatedOpen] = useState(false)
+  const [locationText, setLocationText] = useState('')
+  const [impactLevel, setImpactLevel] = useState<JournalSymptomDetails['impactLevel'] | ''>('')
+  const [triggerText, setTriggerText] = useState('')
+  const [trend, setTrend] = useState<JournalSymptomDetails['trend'] | ''>('')
+  const [shortNote, setShortNote] = useState('')
 
   useEffect(() => {
     if (!entry) return
     setEditing(initialEditing)
     setConfirmingDelete(false)
-    setContent(record?.content ?? symptomRecordTitle(entry))
+    setContent(record?.journal?.symptom?.narrative ?? record?.content ?? symptomRecordTitle(entry))
     setOccurredAt(localDateTimeValue(new Date(record?.occurredAt ?? entry.time)))
     setMeasurementMethod(record?.measurementMethod ?? entry.source.measurementMethod ?? 'unspecified')
     setMeasurementDevice(record?.measurementDevice ?? entry.source.measurementDevice ?? '')
     setNote(record?.note ?? entry.source.note ?? '')
+    setLinkedRecordIds(record?.journal?.symptom?.linkedRecordIds ?? {})
+    setLocationText(record?.journal?.symptom?.locationText ?? '')
+    setImpactLevel(record?.journal?.symptom?.impactLevel ?? '')
+    setTriggerText(record?.journal?.symptom?.triggerText ?? '')
+    setTrend(record?.journal?.symptom?.trend ?? '')
+    setShortNote(record?.journal?.symptom?.shortNote ?? '')
     setBusy(false)
     setError('')
   }, [entry, initialEditing, record])
@@ -85,12 +106,15 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     setBusy(true)
     setError('')
     try {
+      const extraction = extractSymptomNarrative(content)
+      const symptom = record.journal?.symptom
       await onUpdate(record.id, {
         content: content.trim(),
         occurredAt: new Date(occurredAt).toISOString(),
         measurementMethod: isMeasurement ? measurementMethod : null,
         measurementDevice: isMeasurement ? measurementDevice.trim() || null : null,
-        note: note.trim() || null
+        note: note.trim() || null,
+        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
       })
       onClose()
     } catch (reason) {
@@ -135,6 +159,8 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
       {editing ? (
         <div className="symptom-record-editor">
           <label><span>记录内容</span><textarea className="hoho-textarea" maxLength={1000} onChange={(event) => { setContent(event.target.value); setError('') }} value={content} /></label>
+          {record?.journal?.symptom && <div className="symptom-record-editor-optional"><label><span>症状部位</span><input className="hoho-input" maxLength={120} onChange={(event) => setLocationText(event.target.value)} value={locationText} /></label><label><span>严重程度</span><select className="hoho-input" onChange={(event) => setImpactLevel(event.target.value as typeof impactLevel)} value={impactLevel}><option value="">未填写</option><option value="little">轻微</option><option value="some">有些影响</option><option value="clear">明显影响</option></select></label><label><span>触发或诱因</span><input className="hoho-input" maxLength={160} onChange={(event) => setTriggerText(event.target.value)} value={triggerText} /></label><label><span>是否加重或减轻</span><select className="hoho-input" onChange={(event) => setTrend(event.target.value as typeof trend)} value={trend}><option value="">未填写</option><option value="more_noticeable">加重了</option><option value="improving">减轻了</option><option value="same">没有明显变化</option><option value="recurrent">反复出现</option></select></label><label><span>症状备注</span><textarea className="hoho-textarea" maxLength={160} onChange={(event) => setShortNote(event.target.value)} value={shortNote} /></label></div>}
+          {record?.journal?.symptom && <button className="symptom-record-related-editor" onClick={() => setRelatedOpen(true)} type="button"><span>关联其他记录</span><strong>{Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0) ? `已关联 ${Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0)} 条` : '选填'}</strong></button>}
           <label><span>发生时间</span><input className="hoho-input" max={localDateTimeValue()} onChange={(event) => { setOccurredAt(event.target.value); setError('') }} type="datetime-local" value={occurredAt} /></label>
           <div className="symptom-record-readonly"><span>记录来源</span><strong>{entry.source.label}</strong></div>
           {isMeasurement && <>
@@ -144,24 +170,35 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
           <label><span>备注（可选）</span><textarea className="hoho-textarea symptom-record-note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="补充这条记录的说明" value={note} /></label>
           {confirmingDelete && <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条症状记录？"><strong>删除这条症状记录？</strong><p>删除后将从当前症状跟踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
+          <RelatedRecordsSheet entries={relatedEntries} error={relatedError} linked={linkedRecordIds} loading={relatedLoading} onChange={setLinkedRecordIds} onClose={() => setRelatedOpen(false)} onRetry={onRelatedRetry} open={relatedOpen} />
         </div>
       ) : (
         <div className="symptom-record-detail">
-          <strong className="symptom-record-detail__title">{title}</strong>
-          <section><h3>来源信息</h3><dl>
-            <div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>
-            <div><dt>记录时间</dt><dd>{formatRecordDateTime(entry.time)}</dd></div>
-            <div><dt>记录对象</dt><dd>{memberName}</dd></div>
-            {isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}
-            {isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}
-            {entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}
-          </dl></section>
-          <section><h3>原始记录</h3><p className="symptom-record-original">{entry.source.originalText || '未说明'}</p></section>
+          <section><h3>症状描述</h3><p className="symptom-record-original">{record?.journal?.symptom?.narrative ?? entry.source.originalText ?? record?.content ?? title}</p></section>
+          {!!record?.journal?.symptom?.keywords?.length && <section><h3>症状标签</h3><div className="symptom-detail-tags">{record.journal.symptom.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></section>}
+          {Boolean(record?.journal?.symptom?.locationText || record?.journal?.symptom?.locations?.length) && <section><h3>症状部位</h3><p className="symptom-record-original">{record!.journal!.symptom!.locationText || record!.journal!.symptom!.locations.map((item) => item.label).join('、')}</p></section>}
+          {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
+          {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}
+          <section><h3>记录信息</h3><dl><div><dt>记录时间</dt><dd>{formatRecordDateTime(record?.occurredAt ?? entry.time)}</dd></div><div><dt>记录对象</dt><dd>{memberName}</dd></div></dl></section>
+          <section><h3>来源信息</h3><dl><div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>{isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}{isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}{entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}</dl></section>
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
         </div>
       )}
     </BottomSheetSurface>
   )
+}
+
+function SymptomOptionalDetails({ symptom }: { symptom: NonNullable<NonNullable<HealthEventRecordApiDto['journal']>['symptom']> }) {
+  const severity = { little: '轻微', some: '有些影响', clear: '明显影响' } as const
+  const trend = { same: '没有明显变化', more_noticeable: '加重了', improving: '减轻了', returned: '消失后又出现', recurrent: '反复出现', unclear: '暂时不明确' } as const
+  const rows = [symptom.impactLevel && ['严重程度', severity[symptom.impactLevel]], symptom.triggerText && ['触发或诱因', symptom.triggerText], symptom.trend && ['变化', trend[symptom.trend]], symptom.shortNote && ['补充备注', symptom.shortNote]].filter(Boolean) as string[][]
+  return rows.length ? <section><h3>补充症状信息</h3><dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section> : null
+}
+
+function LinkedRecordDetails({ entries, linked }: { entries: JournalEntry[]; linked: SymptomLinkedRecordIds }) {
+  const ids = new Set(Object.values(linked).flat())
+  const selected = entries.filter((entry) => ids.has(entry.id))
+  return selected.length ? <section><h3>已关联记录</h3><div className="symptom-detail-related">{selected.map((entry) => <div key={entry.id}><strong>{journalCategoryLabels[entry.categories?.[0] ?? 'other']}</strong><span>{formatRecordDateTime(entry.occurredAt)}</span><p>{journalListSummary(entry)}</p></div>)}</div></section> : null
 }
 
 function measurementMethodLabel(value: HealthMeasurementMethod) {

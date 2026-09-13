@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { clampOccurredAtToNow, isFutureOccurredAt } from './healthOccurredAt.ts'
+import { clampOccurredAtToNow, isFutureOccurredAt, localDateTimeToIso, localDateTimeValue } from './healthOccurredAt.ts'
 
 test('前端发生时间规则按绝对时刻判断并恢复未来值', () => {
   const now = new Date('2026-08-12T15:35:00+08:00')
@@ -11,4 +11,10 @@ test('前端发生时间规则按绝对时刻判断并恢复未来值', () => {
   assert.equal(isFutureOccurredAt('2026-08-13T00:00', now), true)
   assert.equal(isFutureOccurredAt('2037-01-01T00:00', now), true)
   assert.equal(clampOccurredAtToNow('2037-01-01T00:00', now), '2026-08-12T15:35')
+})
+
+test('datetime-local values are interpreted once as user local wall time', () => {
+  const value = '2026-09-14T01:14'
+  const iso = localDateTimeToIso(value)
+  assert.equal(localDateTimeValue(new Date(iso)), value)
 })
