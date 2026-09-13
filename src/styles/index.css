@@ -3,6 +3,7 @@
 @import './settings.css';
 @import './product-polish.css';
 @import './guide.css';
+@import './visit-summary-stability.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
