@@ -28,4 +28,10 @@ test('基础信息改为自动保存并保留失败重试', () => {
 test('会员档案维持真实禁用语义且没有导航行为', () => {
   assert.match(home, /aria-disabled="true"/)
   assert.match(home, /className="health-profile-locked-row"/)
+  assert.match(home, /检查 \/ 体检报告/)
+  assert.match(home, /慢性病史/)
+  assert.match(home, /手术史/)
+  assert.match(home, /住院 \/ 急诊史/)
+  assert.match(home, /家族遗传史/)
+  assert.doesNotMatch(home, /心理与情绪健康|视力与听力|口腔与牙齿|疫苗接种史|长期用药|输血史/)
 })
