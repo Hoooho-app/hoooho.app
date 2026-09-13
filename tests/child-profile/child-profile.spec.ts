@@ -128,6 +128,7 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
     await expect(drawer.getByRole('button', { name: /爸爸.*已同步/ })).toBeVisible()
     expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['前台', '健康记录', '健康档案'])
     await expect(drawer.getByRole('button', { name: '说明', exact: true })).toBeVisible()
+    expect(await drawer.locator('nav section').nth(1).getByRole('button').allTextContents()).toEqual(['设置', '说明', '帮助', '反馈', '关于'])
     const accountButton = drawer.getByRole('button', { name: /已同步/ })
     const accountBox = await accountButton.boundingBox()
     expect(accountBox && accountBox.y + accountBox.height).toBeLessThanOrEqual(page.viewportSize()!.height)
