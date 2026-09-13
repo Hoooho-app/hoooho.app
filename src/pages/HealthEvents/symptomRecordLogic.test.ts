@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { descriptorsFor, generateSymptomSummary, toggleExclusive, toSymptomLocations } from './symptomRecordLogic.ts'
+import { descriptorsFor, extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, toggleExclusive, toSymptomLocations } from './symptomRecordLogic.ts'
+
+test('narrative extraction only keeps explicitly stated symptom facts', () => {
+  const result = extractSymptomNarrative('昨晚左肘窝有点发红，也很痒')
+  assert.deepEqual(result.keywords, ['发红', '瘙痒'])
+  assert.equal(result.bodyLocation, '左肘窝')
+  assert.equal(result.occurredAtText, '昨晚')
+  assert.equal(inferSymptomCategory(result.keywords), 'skin')
+  assert.deepEqual(extractSymptomNarrative('孩子看起来不太对').keywords, [])
+})
 
 test('symptom locations preserve structured position and stable numbering', () => {
   assert.deepEqual(toSymptomLocations([{ id: 'upper_limb_elbow_left', label: '左肘', parentId: 'upper_limb', locationType: 'surface', laterality: 'left', view: 'front' }]), [{ id: 'upper_limb_elbow_left', label: '左肘', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘', markedArea: '1号区域' }])

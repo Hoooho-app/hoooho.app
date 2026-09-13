@@ -55,6 +55,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       outdoorActivity: first.journal?.outdoorActivity,
       medication: first.journal?.medication,
       vaccination: first.journal?.vaccination,
+      symptom: first.journal?.symptom,
       attachmentCount: files.filter((file) => !file.recordId || ordered.some((record) => record.id === file.recordId)).length,
       status: event.status,
       firstOccurredAt,
@@ -106,6 +107,7 @@ export function journalSearchFields(entry: JournalEntry) {
     ...textValues(entry.outdoorActivity),
     ...textValues(entry.medication),
     ...textValues(entry.vaccination),
+    ...textValues(entry.symptom),
   ].map((value) => value.trim()).filter(Boolean)
 }
 

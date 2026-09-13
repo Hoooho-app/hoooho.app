@@ -17,8 +17,28 @@ async function prepare(page: Page, member = 'child-one') {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
   }, { token, member })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '记录症状', exact: true })).toBeVisible()
 }
+
+test('symptom entry opens directly, extracts explicit facts, toggles month view and saves', async ({ page }) => {
+  await prepare(page)
+  await expect(page.getByLabel('单日时间轴').getByRole('button', { name: '切换到月视图' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/symptom-day-iphone-se.png' })
+  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '记录症状' })
+  await expect(form).toBeVisible()
+  await form.getByPlaceholder('请描述哪里不舒服、有什么变化').fill('昨晚左肘窝有点发红，也很痒')
+  await expect(form.getByText('已从主述填写')).toBeVisible()
+  await expect(form.getByRole('button', { name: '移除发红' })).toBeVisible()
+  await expect(form.locator('.symptom-location-input > input')).toHaveValue('左肘窝')
+  await page.screenshot({ path: 'test-results/symptom-form-iphone-se.png' })
+  await form.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByText('已记录', { exact: true })).toBeVisible()
+  await page.getByLabel('单日时间轴').getByRole('button', { name: '切换到月视图' }).click()
+  await expect(page.getByLabel('单日时间轴').getByRole('button', { name: '切换到日视图' })).toBeVisible()
+  await expect(page.getByLabel('选择月份')).toBeVisible()
+  await page.screenshot({ path: 'test-results/symptom-month-iphone-se.png' })
+})
 
 test('manual record sheet groups supported care actions under health events', async ({ page }) => {
   await prepare(page)
