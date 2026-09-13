@@ -7,11 +7,12 @@ const records = readFileSync(new URL('./GrowthRecordsPage.tsx', import.meta.url)
 const chart = readFileSync(new URL('./GrowthCurveChart.tsx', import.meta.url), 'utf8')
 const reassurance = readFileSync(new URL('./GrowthReassurancePage.tsx', import.meta.url), 'utf8')
 
-test('基础页只保留核心字段、单行血型和自动保存状态', () => {
-  for (const copy of ['看看今天长到哪里了', '填写后自动保存', '保存失败，点击重试', '测量日期']) assert.match(basic, new RegExp(copy))
+test('基础页只保留核心字段、独立血型和明确保存状态', () => {
+  for (const copy of ['基础信息', '更新成长数据', '保存本次更新', '测量日期']) assert.match(basic, new RegExp(copy))
   for (const removed of ['头围', '腰围', '出生身长', '体脂率', '补充更多信息', '保存成长快照']) assert.doesNotMatch(basic, new RegExp(removed))
-  assert.match(basic, /abo === value \? '' : value/)
-  assert.match(basic, /selectRh\(''\)/)
+  assert.match(basic, /aria-pressed=\{abo === value\}/)
+  assert.match(basic, /rh === 'unknown'/)
+  assert.match(basic, /growthMeasurementService\.upsert/)
 })
 
 test('成长记录包含历史 CRUD、双曲线和标准说明', () => {
