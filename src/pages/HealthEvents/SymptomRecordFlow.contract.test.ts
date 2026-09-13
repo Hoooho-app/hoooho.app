@@ -5,13 +5,15 @@ import test from 'node:test'
 const source = readFileSync(new URL('./SymptomRecordFlow.tsx', import.meta.url), 'utf8')
 const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url), 'utf8')
 
-test('symptom category enters one continuous form with locator, optional details, time and save in order', () => {
+test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return <div className="symptom-record-page-layer"'))
-  const labels = ['主要怎么不舒服？', '不舒服的位置', '这里具体怎么了？', '现在大概到什么程度？', '拍下来更容易说明', '再补充一点', '记录时间', '保存记录']
+  const labels = ['主要症状（主述）', '症状部位', '添加照片', '补充更多', '记录时间', '保存']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
-  assert.doesNotMatch(source, /疼痛.{0,20}1—10|确认医学准确性|诊断/)
+  assert.match(source, /请描述哪里不舒服、有什么变化/)
+  assert.match(source, /已从主述填写/)
+  assert.doesNotMatch(source, /程度|严重|确认医学准确性|诊断/)
 })
 
 test('symptom photos use an isolated six-photo draft and structured real save', () => {

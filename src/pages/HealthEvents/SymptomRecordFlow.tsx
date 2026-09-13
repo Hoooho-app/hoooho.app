@@ -1,61 +1,68 @@
-import { ArrowLeft, Camera, ChevronDown, ChevronRight, ImagePlus, X } from 'lucide-react'
+import { ArrowLeft, Camera, ChevronRight, ImagePlus, Mic, Paperclip, PersonStanding, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { HohoButton, HohoInput } from '../../components/design-system'
+import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import { BodyLocationPicker } from '../../components/health'
 import type { BodyLocationSelection } from '../../features/body-location'
-import type { JournalMetadata, JournalSymptomDetails, SymptomCategory, SymptomImpactLevel } from '../../types/journal'
+import type { JournalMetadata, JournalSymptomDetails } from '../../types/journal'
 import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
-import { associatedOptions, descriptorsFor, generateSymptomSummary, symptomCategoryOptions, toggleExclusive, toSymptomLocations } from './symptomRecordLogic'
+import { extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, toSymptomLocations } from './symptomRecordLogic'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
-interface Draft { category?: SymptomCategory; otherCategoryText?: string; locations: BodyLocationSelection[]; descriptors: string[]; impactLevel?: SymptomImpactLevel; onsetApprox?: JournalSymptomDetails['onsetApprox']; trend?: JournalSymptomDetails['trend']; associatedSymptoms: string[]; shortNote?: string; specific: Record<string, string | number | string[]>; occurredAt: string }
-const newDraft = (): Draft => ({ locations: [], descriptors: [], associatedSymptoms: [], specific: {}, occurredAt: localDateTimeValue() })
+type SupplementKey = 'diet' | 'elimination' | 'medication' | 'visit'
+interface Draft { narrative: string; keywords: string[]; locationText: string; locations: BodyLocationSelection[]; occurredAt: string; supplementalCounts: Partial<Record<SupplementKey, number>> }
+const newDraft = (): Draft => ({ narrative: '', keywords: [], locationText: '', locations: [], occurredAt: localDateTimeValue(), supplementalCounts: {} })
 const draftKey = (memberId: string) => `hoooho-symptom-record-draft:${memberId}`
-const impactOptions: Array<[SymptomImpactLevel, string, string]> = [['little', '不太影响', '照常活动'], ['some', '有些影响', '会抓、会停下来或明显不舒服'], ['clear', '明显影响', '影响吃饭、睡觉或活动']]
-const onsetOptions: Array<[NonNullable<Draft['onsetApprox']>, string]> = [['just_now', '刚刚'], ['today', '今天'], ['yesterday', '昨天'], ['two_three_days', '2—3天前'], ['within_week', '一周内'], ['earlier', '更早']]
-const trendOptions: Array<[NonNullable<Draft['trend']>, string]> = [['same', '差不多'], ['more_noticeable', '更明显了'], ['improving', '正在减轻'], ['returned', '消失后又出现'], ['recurrent', '反复出现'], ['unclear', '暂时看不出来']]
-
-function Choices({ options, values, onToggle, label, expanded = true }: { options: string[]; values: string[]; onToggle: (value: string) => void; label: string; expanded?: boolean }) {
-  const shown = expanded ? options : options.slice(0, 6)
-  return <div aria-label={label} className="symptom-choice-grid" role="group">{shown.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onToggle(option)} type="button">{option}</button>)}</div>
-}
+const supplementLabels: Record<SupplementKey, string> = { diet: '进食', elimination: '排便', medication: '用药', visit: '就医' }
 
 export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => { try { return { ...newDraft(), ...JSON.parse(sessionStorage.getItem(draftKey(memberId)) || '{}') } } catch { return newDraft() } })
-  const [moreDescriptors, setMoreDescriptors] = useState(false)
-  const [supplementOpen, setSupplementOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const cameraRef = useRef<HTMLInputElement>(null)
-  const albumRef = useRef<HTMLInputElement>(null)
+  const [saving, setSaving] = useState(false), [error, setError] = useState(''), [extracted, setExtracted] = useState(false)
+  const [attachmentOpen, setAttachmentOpen] = useState(false), [supplementOpen, setSupplementOpen] = useState(false), [listening, setListening] = useState(false)
+  const cameraRef = useRef<HTMLInputElement>(null), albumRef = useRef<HTMLInputElement>(null)
   const photos = useQuickRecordPhotos(memberId, token, 6, 'symptom')
   useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
+  useEffect(() => {
+    if (!draft.narrative.trim()) { setExtracted(false); return }
+    const timer = window.setTimeout(() => { const result = extractSymptomNarrative(draft.narrative); setDraft((current) => ({ ...current, keywords: result.keywords, locationText: current.locationText || result.bodyLocation || '' })); setExtracted(Boolean(result.keywords.length || result.bodyLocation || result.occurredAtText)) }, 350)
+    return () => window.clearTimeout(timer)
+  }, [draft.narrative])
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setError('') }
-  const categoryDescriptors = draft.category ? descriptorsFor(draft.category, draft.locations) : []
   const validTime = Boolean(draft.occurredAt && Number.isFinite(Date.parse(draft.occurredAt)) && Date.parse(draft.occurredAt) <= Date.now())
-  const canSave = Boolean(draft.category && (draft.category !== 'other' || draft.otherCategoryText?.trim()) && draft.locations.length && validTime && !photos.blocked)
+  const canSave = Boolean(draft.narrative.trim() && validTime && !photos.blocked)
+  const startVoice = () => {
+    type Recognition = { lang: string; continuous: boolean; interimResults: boolean; onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void; onend: () => void; onerror: () => void; start: () => void }
+    const speechWindow = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }
+    const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition
+    if (!Recognition) { setError('当前浏览器暂不支持语音输入，可以直接输入文字'); return }
+    const recognition = new Recognition(); recognition.lang = 'zh-CN'; recognition.continuous = false; recognition.interimResults = false
+    recognition.onresult = (event) => update('narrative', `${draft.narrative}${draft.narrative ? '，' : ''}${event.results[0][0].transcript}`)
+    recognition.onend = () => setListening(false); recognition.onerror = () => { setListening(false); setError('没有听清，可以重试或直接输入文字') }; setListening(true); recognition.start()
+  }
   const save = async () => {
-    if (!canSave || saving || !draft.category) { setError('请选择主要症状、标记身体部位，并检查记录时间'); return }
+    if (!canSave || saving) { setError('请填写主要症状，并检查记录时间'); return }
     setSaving(true); setError('')
     try {
-      const details: JournalSymptomDetails = { symptomCategory: draft.category, locations: toSymptomLocations(draft.locations), descriptors: draft.descriptors, ...(draft.otherCategoryText?.trim() ? { otherCategoryText: draft.otherCategoryText.trim() } : {}), ...(draft.impactLevel ? { impactLevel: draft.impactLevel } : {}), ...(draft.onsetApprox ? { onsetApprox: draft.onsetApprox } : {}), ...(draft.trend ? { trend: draft.trend } : {}), ...(draft.associatedSymptoms.length ? { associatedSymptoms: draft.associatedSymptoms } : {}), ...(Object.keys(draft.specific).length ? { symptomSpecificData: draft.specific } : {}), ...(draft.shortNote?.trim() ? { shortNote: draft.shortNote.trim() } : {}) }
-      const summary = generateSymptomSummary(details, photos.photos.length)
-      details.generatedSummary = summary
-      const message = await onConfirm(summary, new Date(draft.occurredAt).toISOString(), 'text', photos.payload(), { categories: ['symptom'], symptom: details })
+      const details: JournalSymptomDetails = { symptomCategory: inferSymptomCategory(draft.keywords), narrative: draft.narrative.trim(), keywords: draft.keywords, locations: toSymptomLocations(draft.locations), descriptors: [], ...(draft.locationText.trim() ? { locationText: draft.locationText.trim() } : {}), ...(Object.values(draft.supplementalCounts).some(Boolean) ? { supplementalCounts: draft.supplementalCounts } : {}) }
+      details.generatedSummary = generateSymptomSummary(details, photos.photos.length)
+      const occurredAt = new Date(draft.occurredAt).toISOString()
+      const message = await onConfirm(details.generatedSummary, occurredAt, 'text', photos.payload(), { categories: ['symptom'], symptom: details, occurredAt, timePrecision: 'exact' })
       photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved(message); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
+  const selectedLocation = draft.locations[0]
   return <div className="symptom-record-page-layer"><section aria-label="记录症状" aria-modal="true" className="symptom-record-page" role="dialog">
-    <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录症状</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X size={21} /></button></header>
-    <div className="symptom-record-scroll"><p className="symptom-intro">先把最重要的情况记下来，其他内容都可以以后再补。</p>
-      <fieldset className="symptom-fieldset"><legend>主要怎么不舒服？</legend><div className="symptom-category-grid">{symptomCategoryOptions.map(([value, label]) => <button aria-pressed={draft.category === value} key={value} onClick={() => { setDraft((current) => ({ ...current, category: value, descriptors: [], associatedSymptoms: [], specific: {} })); setError('') }} type="button">{label}</button>)}</div>{draft.category === 'other' && <HohoInput label="其他不舒服" maxLength={80} onChange={(event) => update('otherCategoryText', event.target.value)} placeholder="简单写下或说出哪里不舒服" value={draft.otherCategoryText ?? ''} />}</fieldset>
-      <section className="symptom-location-section" data-has-location={draft.locations.length > 0}><BodyLocationPicker buttonLabel={draft.locations.length ? '点击修改' : '进入定位器'} confirmLabel="完成并返回症状记录" inputLike label="不舒服的位置" showEmptyState={false} value={draft.locations} onChange={(value) => update('locations', value)} /><div className="symptom-location-hint"><span>标记身体部位</span><small>{draft.locations.length ? `${draft.locations.map((item, index) => `${item.label} · ${index + 1}号区域`).join('，')} · 身体${draft.locations[0].locationType === 'surface' ? '表层' : '里面'}` : '进入身体定位器，圈出不舒服的位置'}</small><ChevronRight size={18} /></div></section>
-      {draft.category && categoryDescriptors.length > 0 && <fieldset className="symptom-fieldset"><legend>这里具体怎么了？<span>（可多选）</span></legend><Choices label="具体表现" options={categoryDescriptors} values={draft.descriptors} expanded={moreDescriptors} onToggle={(value) => update('descriptors', draft.descriptors.includes(value) ? draft.descriptors.filter((item) => item !== value) : [...draft.descriptors, value])} />{categoryDescriptors.length > 6 && <button className="symptom-more-button" onClick={() => setMoreDescriptors((value) => !value)} type="button">{moreDescriptors ? '收起' : '更多表现'}<ChevronDown data-open={moreDescriptors} size={16} /></button>}</fieldset>}
-      <fieldset className="symptom-fieldset"><legend>现在大概到什么程度？<span>（可选）</span></legend><div className="symptom-impact-grid">{impactOptions.map(([value, label, note]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button"><strong>{label}</strong><small>{note}</small></button>)}</div></fieldset>
-      <section className="symptom-photo-section"><div className="symptom-heading"><h2>拍下来更容易说明 <span>（选填）</span></h2><em>{photos.photos.length}/6</em></div><div className="symptom-photo-actions"><button onClick={() => cameraRef.current?.click()} type="button"><Camera size={19} />拍照</button><button onClick={() => albumRef.current?.click()} type="button"><ImagePlus size={19} />从相册选择</button></div><input ref={cameraRef} accept="image/*" capture="environment" hidden onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" /><input ref={albumRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />{photos.photos.length > 0 && <QuickRecordPhotos limit={6} model={photos} />}</section>
-      <section className="symptom-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen((value) => !value)} type="button"><span><strong>再补充一点</strong><small>出现多久、变化、伴随表现</small></span><em>选填</em><ChevronDown data-open={supplementOpen} size={18} /></button>{supplementOpen && <div className="symptom-supplement-body"><fieldset className="symptom-fieldset"><legend>大概什么时候开始</legend><Choices label="开始时间" options={onsetOptions.map(([, label]) => label)} values={draft.onsetApprox ? [onsetOptions.find(([value]) => value === draft.onsetApprox)![1]] : []} onToggle={(label) => { const value = onsetOptions.find(([, item]) => item === label)![0]; update('onsetApprox', draft.onsetApprox === value ? undefined : value) }} /></fieldset><fieldset className="symptom-fieldset"><legend>和刚出现时相比</legend><Choices label="变化" options={trendOptions.map(([, label]) => label)} values={draft.trend ? [trendOptions.find(([value]) => value === draft.trend)![1]] : []} onToggle={(label) => { const value = trendOptions.find(([, item]) => item === label)![0]; update('trend', draft.trend === value ? undefined : value) }} /></fieldset>{draft.category && <fieldset className="symptom-fieldset"><legend>伴随表现<span>（可多选）</span></legend><Choices label="伴随表现" options={associatedOptions[draft.category]} values={draft.associatedSymptoms} onToggle={(value) => update('associatedSymptoms', toggleExclusive(draft.associatedSymptoms, value))} /></fieldset>}<HohoInput label="还有一句想说明" maxLength={160} onChange={(event) => update('shortNote', event.target.value)} placeholder="简短补充，不需要写医学术语" value={draft.shortNote ?? ''} />{draft.category === 'fever' && <div className="symptom-specific"><HohoInput inputMode="decimal" label="当前体温（℃，选填）" onChange={(event) => update('specific', { ...draft.specific, currentTemperature: event.target.value })} value={String(draft.specific.currentTemperature ?? '')} /><HohoInput inputMode="decimal" label="最高体温（℃，选填）" onChange={(event) => update('specific', { ...draft.specific, maxTemperature: event.target.value })} value={String(draft.specific.maxTemperature ?? '')} /></div>}{draft.category === 'gastrointestinal' && <div className="symptom-specific"><HohoInput inputMode="numeric" label="今天大概几次（选填）" onChange={(event) => update('specific', { ...draft.specific, approximateCount: event.target.value })} value={String(draft.specific.approximateCount ?? '')} /><Choices label="大便大致性状" options={['稀水样', '蛋花汤样', '黏液样', '颜色异常', '暂时说不清']} values={Array.isArray(draft.specific.stoolAppearance) ? draft.specific.stoolAppearance : []} onToggle={(value) => update('specific', { ...draft.specific, stoolAppearance: [value] })} /></div>}</div>}</section>
-      <HohoInput label="记录时间" max={localDateTimeValue()} onChange={(event) => update('occurredAt', event.target.value)} type="datetime-local" value={draft.occurredAt} />{error && <p className="symptom-save-error" role="alert">{error}</p>}<div className="symptom-record-save"><HohoButton disabled={!canSave || saving} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
+    <header><button aria-label="返回" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录症状</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X size={21} /></button></header>
+    <div className="symptom-record-scroll">
+      <section className="symptom-narrative"><div className="symptom-heading"><h2>主要症状（主述）</h2><button aria-label="语音输入症状" className={listening ? 'is-listening' : ''} onClick={startVoice} type="button"><Mic size={19} /></button></div><textarea autoFocus maxLength={1000} onChange={(event) => update('narrative', event.target.value)} placeholder="请描述哪里不舒服、有什么变化" value={draft.narrative} />{extracted && <p className="symptom-extraction-note">已从主述填写</p>}{draft.keywords.length > 0 && <div className="symptom-keywords">{draft.keywords.map((keyword) => <button aria-label={`移除${keyword}`} key={keyword} onClick={() => update('keywords', draft.keywords.filter((item) => item !== keyword))} type="button">{keyword}<X size={12} /></button>)}</div>}</section>
+      <section className="symptom-location-compact"><div className="symptom-heading"><h2>症状部位</h2></div><div className="symptom-location-input"><input maxLength={120} onChange={(event) => update('locationText', event.target.value)} placeholder="例如：左肘窝" value={draft.locationText} /><BodyLocationPicker buttonLabel={selectedLocation ? '修改' : '定位'} compact label="" showEmptyState={false} value={draft.locations} onChange={(locations) => { setDraft((current) => ({ ...current, locations, locationText: locations[0]?.label ?? current.locationText })); setError('') }} /></div>{selectedLocation && <div className="symptom-location-preview"><span aria-hidden="true" className="symptom-location-silhouette"><PersonStanding size={34} strokeWidth={1.35} /><i>1</i></span><span><strong>{selectedLocation.label} · 1号区域</strong><small>{`身体${selectedLocation.locationType === 'surface' ? '表面' : '内部'} · ${selectedLocation.view === 'back' ? '背面' : '正面'}`}</small></span></div>}</section>
+      <section className="symptom-compact-row"><button onClick={() => setAttachmentOpen(true)} type="button"><span><Paperclip size={19} /><strong>添加照片</strong></span><span>{photos.photos.length ? `${photos.photos.length}张` : '选填'}<ChevronRight size={18} /></span></button>{photos.photos.length > 0 && <QuickRecordPhotos limit={6} model={photos} />}</section>
+      <section className="symptom-compact-row"><button onClick={() => setSupplementOpen(true)} type="button"><span><Plus size={19} /><strong>补充更多</strong><small>进食、排便、用药、就医</small></span><span>{Object.values(draft.supplementalCounts).reduce((sum, count) => sum + (count ?? 0), 0) || '选填'}<ChevronRight size={18} /></span></button></section>
+      <label className="symptom-time-row"><span>记录时间</span><input max={localDateTimeValue()} onChange={(event) => update('occurredAt', event.target.value)} type="datetime-local" value={draft.occurredAt} /></label>
+      {error && <p className="symptom-save-error" role="alert">{error}</p>}<div className="symptom-record-save"><HohoButton disabled={!canSave || saving} fullWidth loading={saving} onClick={() => void save()} size="large">保存</HohoButton></div>
     </div>
+    <BottomSheetSurface label="添加照片" onClose={() => setAttachmentOpen(false)} open={attachmentOpen} title="添加照片"><div className="symptom-attachment-options"><button onClick={() => cameraRef.current?.click()} type="button"><Camera size={22} /><span>拍照</span></button><button onClick={() => albumRef.current?.click()} type="button"><ImagePlus size={22} /><span>从相册选择</span></button></div></BottomSheetSurface>
+    <input ref={cameraRef} accept="image/*" capture="environment" hidden onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = ''; setAttachmentOpen(false) }} type="file" /><input ref={albumRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = ''; setAttachmentOpen(false) }} type="file" />
+    <BottomSheetSurface label="补充更多" onClose={() => setSupplementOpen(false)} open={supplementOpen} title="补充更多"><div className="symptom-supplement-tabs">{(Object.keys(supplementLabels) as SupplementKey[]).map((key) => <button className={(draft.supplementalCounts[key] ?? 0) > 0 ? 'is-added' : ''} key={key} onClick={() => update('supplementalCounts', { ...draft.supplementalCounts, [key]: (draft.supplementalCounts[key] ?? 0) ? 0 : 1 })} type="button"><span>{supplementLabels[key]}</span><small>{(draft.supplementalCounts[key] ?? 0) ? '已关联 1 条' : '点按关联'}</small></button>)}</div><HohoButton fullWidth onClick={() => setSupplementOpen(false)} size="large">完成</HohoButton></BottomSheetSurface>
   </section></div>
 }

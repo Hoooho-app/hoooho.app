@@ -1,6 +1,42 @@
 import type { BodyLocationSelection } from '../../features/body-location'
 import type { JournalSymptomDetails, JournalSymptomLocation, SymptomCategory } from '../../types/journal'
 
+export interface SymptomNarrativeExtraction {
+  transcript: string
+  keywords: string[]
+  bodyLocation?: string
+  occurredAtText?: string
+  confidence?: Record<string, number>
+}
+
+const keywordPatterns = ['红疹', '皮疹', '发红', '瘙痒', '痒', '发热', '发烧', '咳嗽', '鼻塞', '流鼻涕', '呕吐', '腹泻', '腹痛', '头痛', '疼痛', '肿', '起泡']
+const bodyLocationPatterns = ['左手肘', '右手肘', '左肘窝', '右肘窝', '左手', '右手', '左脚', '右脚', '头部', '额头', '脸部', '面部', '胸口', '腹部', '肚子', '背部', '腰部', '左腿', '右腿']
+
+export function extractSymptomNarrative(transcript: string): SymptomNarrativeExtraction {
+  const normalized = transcript.trim()
+  const keywords = keywordPatterns.filter((keyword) => normalized.includes(keyword))
+  const bodyLocation = bodyLocationPatterns.find((location) => normalized.includes(location))
+  const occurredAtText = ['昨天晚上', '昨晚', '昨天', '今天早上', '今早', '今天中午', '今天下午', '今天晚上', '今晚', '刚刚'].find((value) => normalized.includes(value))
+  return {
+    transcript: normalized,
+    keywords: [...new Set(keywords.map((keyword) => keyword === '痒' ? '瘙痒' : keyword))],
+    ...(bodyLocation ? { bodyLocation } : {}),
+    ...(occurredAtText ? { occurredAtText } : {}),
+    confidence: { keywords: keywords.length ? 1 : 0, bodyLocation: bodyLocation ? 1 : 0, occurredAtText: occurredAtText ? 1 : 0 },
+  }
+}
+
+export function inferSymptomCategory(keywords: readonly string[]): SymptomCategory {
+  const text = keywords.join(' ')
+  if (/红疹|皮疹|发红|瘙痒|肿|起泡/.test(text)) return 'skin'
+  if (/发热|发烧/.test(text)) return 'fever'
+  if (/咳嗽/.test(text)) return 'respiratory'
+  if (/鼻塞|流鼻涕/.test(text)) return 'ent'
+  if (/呕吐|腹泻|腹痛/.test(text)) return 'gastrointestinal'
+  if (/头痛|疼痛/.test(text)) return 'pain'
+  return 'other'
+}
+
 export const symptomCategoryOptions: ReadonlyArray<[SymptomCategory, string]> = [
   ['skin', '皮肤变化'], ['fever', '发热'], ['respiratory', '咳嗽或呼吸'], ['ent', '眼、鼻、口或咽喉'],
   ['gastrointestinal', '呕吐或腹泻'], ['pain', '疼痛'], ['other', '其他']
@@ -51,6 +87,7 @@ export function toggleExclusive(values: readonly string[], value: string) {
 }
 
 export function generateSymptomSummary(details: JournalSymptomDetails, photoCount = 0) {
+  if (details.narrative?.trim()) return details.narrative.trim()
   const locations = details.locations.map((item) => `${item.label}${item.locationNumber}号区域`).join('、')
   const subject = details.symptomCategory === 'other' ? details.otherCategoryText?.trim() || '不舒服' : categoryLabel[details.symptomCategory]
   const facts = [locations && `${locations}${subject}`, details.descriptors.length ? `表现为${details.descriptors.join('、')}` : '', details.impactLevel ? impactLabels[details.impactLevel] : ''].filter(Boolean).join('，')

@@ -144,10 +144,12 @@ test('ongoing sleep persists only its start state', () => {
   assert.deepEqual(result.sleep, { sleepAt: '2026-09-11T12:36:00.000Z', kind: 'night', status: 'ongoing' })
 })
 
-test('structured symptom preserves facts and rejects missing location or conflicting associated observations', () => {
+test('structured symptom preserves facts, permits an optional location and rejects conflicting observations', () => {
   const symptom = { symptomCategory: 'skin', locations: [{ id: 'left_elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘窝', markedArea: '1号区域' }], descriptors: ['发红', '痒'], impactLevel: 'some', associatedSymptoms: ['影响睡觉'], generatedSummary: '孩子左肘窝皮肤发红、痒。' }
   assert.deepEqual(validateJournal({ categories: ['symptom'], symptom }).symptom, symptom)
-  assert.throws(() => validateJournal({ categories: ['symptom'], symptom: { ...symptom, locations: [] } }), /至少标记/)
+  assert.equal(validateJournal({ categories: ['symptom'], symptom: { ...symptom, locations: [] } }).symptom.locations.length, 0)
+  const narrative = validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '左肘窝有点发红', keywords: ['发红'], locationText: '左肘窝', locations: [], descriptors: [], supplementalCounts: { diet: 1 } } }).symptom
+  assert.equal(narrative.narrative, '左肘窝有点发红')
   assert.throws(() => validateJournal({ categories: ['symptom'], symptom: { ...symptom, associatedSymptoms: ['没有特别发现', '发热'] } }), /互斥/)
   assert.throws(() => validateJournal({ categories: ['other'], symptom }), /必须归入症状分类/)
 })

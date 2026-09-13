@@ -76,6 +76,10 @@ export interface JournalSymptomLocation {
 
 export interface JournalSymptomDetails {
   symptomCategory: SymptomCategory
+  narrative?: string
+  keywords?: string[]
+  locationText?: string
+  supplementalCounts?: Partial<Record<'diet' | 'elimination' | 'medication' | 'visit', number>>
   otherCategoryText?: string
   locations: JournalSymptomLocation[]
   descriptors: string[]

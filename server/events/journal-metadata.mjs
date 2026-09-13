@@ -178,8 +178,8 @@ function validateOutdoorActivity(value) {
 function validateSymptom(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !symptomCategories.has(value.symptomCategory)) throw new HealthEventRecordError('症状分类无效', 400, 'INVALID_JOURNAL_SYMPTOM')
-  if (!Array.isArray(value.locations) || value.locations.length < 1 || value.locations.length > 20) throw new HealthEventRecordError('请至少标记一个身体部位', 400, 'INVALID_JOURNAL_SYMPTOM')
-  const locations = value.locations.map((item, index) => {
+  if (value.locations !== undefined && (!Array.isArray(value.locations) || value.locations.length > 20)) throw new HealthEventRecordError('症状部位无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  const locations = (value.locations ?? []).map((item, index) => {
     if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || typeof item.label !== 'string' || !item.label.trim() || item.locationNumber !== index + 1 || !['surface', 'organ'].includes(item.locationLayer)) throw new HealthEventRecordError('症状位置无效', 400, 'INVALID_JOURNAL_SYMPTOM')
     const result = { id: item.id.trim(), label: item.label.trim(), locationNumber: item.locationNumber, locationLayer: item.locationLayer, localRegion: typeof item.localRegion === 'string' && item.localRegion.trim() ? item.localRegion.trim() : item.label.trim() }
     for (const key of ['bodySide', 'bodyView', 'bodyRegion', 'markedArea']) if (typeof item[key] === 'string' && item[key].trim()) result[key] = item[key].trim()
@@ -196,6 +196,21 @@ function validateSymptom(value) {
   if (value.symptomCategory === 'other' && !otherCategoryText) throw new HealthEventRecordError('请填写其他症状', 400, 'INVALID_JOURNAL_SYMPTOM')
   const shortNote = optionalText(value.shortNote, '症状补充', 160)
   const generatedSummary = optionalText(value.generatedSummary, '症状摘要', 1000)
+  const narrative = optionalText(value.narrative, '症状主述', 1000)
+  const locationText = optionalText(value.locationText, '症状部位', 120)
+  const keywords = cleanStrings(value.keywords, '症状关键词', 20)
+  let supplementalCounts
+  if (value.supplementalCounts !== undefined) {
+    if (!value.supplementalCounts || typeof value.supplementalCounts !== 'object' || Array.isArray(value.supplementalCounts)) throw new HealthEventRecordError('关联记录数量无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+    supplementalCounts = {}
+    for (const key of ['diet', 'elimination', 'medication', 'visit']) {
+      const count = value.supplementalCounts[key]
+      if (count !== undefined) {
+        if (!Number.isInteger(count) || count < 0 || count > 20) throw new HealthEventRecordError('关联记录数量无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+        if (count) supplementalCounts[key] = count
+      }
+    }
+  }
   let symptomSpecificData
   if (value.symptomSpecificData !== undefined) {
     if (!value.symptomSpecificData || typeof value.symptomSpecificData !== 'object' || Array.isArray(value.symptomSpecificData) || Object.keys(value.symptomSpecificData).length > 20) throw new HealthEventRecordError('症状专属信息无效', 400, 'INVALID_JOURNAL_SYMPTOM')
@@ -205,7 +220,8 @@ function validateSymptom(value) {
       symptomSpecificData[key] = item
     }
   }
-  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
+  if (!narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
+  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
 
 function validateMedication(value) {
