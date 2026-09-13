@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 
 export const nurseStationFacts = [
   '全球食物过敏率约3%～8%',
-  '约1/4人群受各类过敏疾病影响',
-  '中国2岁内儿童食物过敏检出率约3.5%～7.7%',
-  '过敏反应可能涉及多个身体系统',
+  '低龄儿童更容易发生食物过敏',
   '时间、诱因和频率都是重要线索',
-  '你已经更早一步留下判断线索'
+  '早点留下记录，就能少一点麻烦'
 ] as const
 
 const TYPE_DELAY = 28
 const HOLD_DELAY = 1750
+const DELETE_DELAY = 16
 const EMPTY_DELAY = 240
 
 function highlighted(text: string) {
@@ -36,14 +35,24 @@ export function NurseStationFactTypewriter() {
     const fact = nurseStationFacts[factIndex]
     if (reducedMotion) { setVisibleLength(fact.length); return }
     const advance = () => {
-      if (visibleLength < fact.length) setVisibleLength((length) => length + 1)
-      else if (visibleLength === fact.length) setVisibleLength(-1)
+      if (visibleLength < fact.length && visibleLength >= 0) setVisibleLength((length) => length + 1)
+      else if (visibleLength === fact.length) setVisibleLength(-(fact.length + 1))
+      else if (visibleLength < -1) setVisibleLength((length) => length + 1)
       else { setVisibleLength(0); setFactIndex((index) => (index + 1) % nurseStationFacts.length) }
     }
-    timeoutRef.current = window.setTimeout(advance, visibleLength < fact.length ? TYPE_DELAY : visibleLength === fact.length ? HOLD_DELAY : EMPTY_DELAY)
+    const delay = visibleLength >= 0 && visibleLength < fact.length
+      ? TYPE_DELAY
+      : visibleLength === fact.length
+        ? HOLD_DELAY
+        : visibleLength < -1
+          ? DELETE_DELAY
+          : EMPTY_DELAY
+    timeoutRef.current = window.setTimeout(advance, delay)
     return () => { if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current) }
   }, [factIndex, reducedMotion, visibleLength])
 
-  const visibleText = nurseStationFacts[factIndex].slice(0, Math.max(0, visibleLength))
-  return <p aria-label={nurseStationFacts[factIndex]} className="nurse-station-fact"><span aria-hidden="true">{highlighted(visibleText)}</span><i aria-hidden="true" /></p>
+  const visibleText = visibleLength >= 0
+    ? nurseStationFacts[factIndex].slice(0, visibleLength)
+    : nurseStationFacts[factIndex].slice(0, Math.abs(visibleLength) - 1)
+  return <p aria-label={nurseStationFacts[factIndex]} className="nurse-station-fact"><span aria-hidden="true">{highlighted(visibleText)}<i /></span></p>
 }

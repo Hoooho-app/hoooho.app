@@ -44,7 +44,7 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  const facts = ['全球食物过敏率约3%～8%', '约1/4人群受各类过敏疾病影响', '中国2岁内儿童食物过敏检出率约3.5%～7.7%', '过敏反应可能涉及多个身体系统', '时间、诱因和频率都是重要线索', '你已经更早一步留下判断线索']
+  const facts = ['全球食物过敏率约3%～8%', '低龄儿童更容易发生食物过敏', '时间、诱因和频率都是重要线索', '早点留下记录，就能少一点麻烦']
   for (const fact of facts) {
     const metrics = await page.locator('.nurse-station-fact').evaluate((element, text) => {
       const copy = element.querySelector('span')
