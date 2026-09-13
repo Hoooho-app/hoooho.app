@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const page = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('./visitSummary.css', import.meta.url), 'utf8')
+const stabilityCss = readFileSync(new URL('../../styles/visit-summary-stability.css', import.meta.url), 'utf8')
 const router = readFileSync(new URL('../../app/router.tsx', import.meta.url), 'utf8')
 const nurseStation = readFileSync(new URL('../NurseStation/index.tsx', import.meta.url), 'utf8')
 const journal = readFileSync(new URL('../HealthEvents/index.tsx', import.meta.url), 'utf8')
@@ -13,6 +14,20 @@ test('两个入口共用独立的就诊情况单路由', () => {
   assert.match(router, /visit-summary\/:eventId/)
   assert.match(nurseStation, /navigate\(`\/visit-summary\/\$\{nextActionEventId\}`\)/)
   assert.match(journal, /<Navigate to=\{`\/visit-summary\/\$\{nextActionEventId\}`\}/)
+})
+
+test('移动端使用固定外壳、单一纵向滚动区和恒定索引尺寸', () => {
+  assert.match(page, /data-visit-sheet-root/)
+  assert.match(page, /data-scroll-container/)
+  assert.match(page, /data-visit-sheet-index/)
+  assert.doesNotMatch(page, /scrollIntoView/)
+  assert.match(page, /root\.scrollTo\(\{top:Math\.max\(0,top\),left:0/)
+  assert.match(page, /requestAnimationFrame/)
+  assert.match(stabilityCss, /position:fixed/)
+  assert.match(stabilityCss, /touch-action:pan-y/)
+  assert.match(stabilityCss, /overflow-x:clip/)
+  assert.match(stabilityCss, /width:var\(--visit-index-width\)/)
+  assert.doesNotMatch(stabilityCss, /margin-left:-5px/)
 })
 
 test('情况单保留医生直读结构并移除旧弹层操作', () => {
