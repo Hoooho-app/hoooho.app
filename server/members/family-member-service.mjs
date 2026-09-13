@@ -136,13 +136,14 @@ async function validateAvatar(value) {
   return value
 }
 
-function validateOptionalNumber(value, label, min, max) {
+function validateOptionalNumber(value, label, min, max, precision = 1) {
   if (value === undefined || value === null || value === '') return null
   const number = Number(value)
   if (!Number.isFinite(number) || number < min || number > max) {
     throw new FamilyMemberError(`${label}格式错误`, 400, `INVALID_${label === '身高' ? 'HEIGHT' : 'WEIGHT'}`)
   }
-  return Math.round(number * 10) / 10
+  const factor = 10 ** precision
+  return Math.round(number * factor) / factor
 }
 
 function validateBloodType(value) {
@@ -236,7 +237,7 @@ export class FamilyMemberService {
       if (key === 'birthday') changes.birthday = validateBirthdayForRelationship(input.birthday, targetRelationship, now, timeZone)
       if (key === 'avatar') changes.avatar = await validateAvatar(input.avatar)
       if (key === 'heightCm') changes.heightCm = validateOptionalNumber(input.heightCm, '身高', 20, 260)
-      if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500)
+      if (key === 'weightKg') changes.weightKg = validateOptionalNumber(input.weightKg, '体重', 1, 500, 3)
       if (key === 'bloodType') changes.bloodType = validateBloodType(input.bloodType)
       if (key === 'waistCircumferenceCm') changes.waistCircumferenceCm = validateOptionalNumber(input.waistCircumferenceCm, '腰围', 1, 300)
       if (key === 'bodyFatPercentage') changes.bodyFatPercentage = validateOptionalNumber(input.bodyFatPercentage, '体脂率', 0, 100)

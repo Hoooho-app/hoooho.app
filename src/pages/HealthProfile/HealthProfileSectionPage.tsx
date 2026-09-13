@@ -124,7 +124,7 @@ export function HealthProfileSectionPage() {
         await persist(records.map((record, index) => index === editingIndex ? savedValues : record))
         resetForm()
       }
-      setStatus((section.id as string) === 'basic' ? '基础健康信息已保存' : editingIndex == null ? '记录已添加' : '记录已更新')
+      setStatus((section.id as string) === 'basic' ? '基础信息已保存' : editingIndex == null ? '记录已添加' : '记录已更新')
     } catch (submitError) { setError(submitError instanceof Error ? submitError.message : '保存失败，请稍后重试') }
     finally { setSubmitting(false) }
   }

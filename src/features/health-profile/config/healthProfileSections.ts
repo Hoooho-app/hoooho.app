@@ -43,7 +43,7 @@ const note = field('note', '补充说明', 'textarea')
 const attachment = field('attachment', '附件', 'attachment')
 
 export const healthProfileSections: HealthProfileSectionConfig[] = [
-  { id:'basic', title:'基础健康信息', description:'身高、体重、体脂与血型等基础健康资料', guidance:'记录长期有效的基础身体信息即可。', category:'core', icon:'file', activeFor:all, fields: [
+  { id:'basic', title:'基础信息', description:'出生情况、身高、体重、头围与成长变化', guidance:'记录长期有效的基础身体信息即可。', category:'core', icon:'file', activeFor:all, fields: [
     field('height','身高','number',{unit:'cm'}), field('weight','体重','number',{unit:'kg'}), field('bmi','BMI','computed'), field('waistCircumference','腰围','number',{unit:'cm'}), field('bodyFatPercentage','体脂率','number',{unit:'%'}), field('headCircumference','儿童头围','number',{unit:'cm'}) ] },
   { id:'allergy', title:'过敏史', description:'药物、食物和环境相关的过敏记录', guidance:'记录明确发生过或仍需注意的反应即可。', category:'core', icon:'allergy', activeFor:all, repeatable:true, fields:[field('type','类型','select',{options:['药物','食物','环境','接触','其他']}),field('name','名称'),field('reaction','出现过什么反应','textarea'),field('firstFoundAt','首次发现时间','date'),field('active','是否仍需注意','select',{options:yn}),note] },
   { id:'medication', title:'长期用药', description:'长期使用的药物及用法', guidance:'记录长期或持续使用的药物，不必填写临时用药。', category:'core', icon:'pill', activeFor:all, repeatable:true, fields:[field('name','药物名称'),field('reason','使用原因 / 对症'),field('dose','每次用量'),field('frequency','使用频率'),field('route','用药方式','select',{options:['口服','外用','吸入','注射','滴眼','其他']}),field('startedAt','开始日期','date'),field('endedAt','结束日期','date'),field('image','药物图片','attachment')] },

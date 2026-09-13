@@ -13,11 +13,12 @@ function validDate(value, now = new Date(), timeZone) {
   const parsed = new Date(Date.UTC(year, month - 1, day))
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day && normalized <= localDateKey(now, timeZone)
 }
-function optionalNumber(value, label, min, max) {
+function optionalNumber(value, label, min, max, precision = 1) {
   if (value === undefined || value === null || value === '') return null
   const number = Number(value)
   if (!Number.isFinite(number) || number < min || number > max) throw new GrowthMeasurementError(`${label}格式错误`, 400, label === '体重' ? 'INVALID_WEIGHT' : 'INVALID_HEIGHT')
-  return Math.round(number * 10) / 10
+  const factor = 10 ** precision
+  return Math.round(number * factor) / factor
 }
 export class GrowthMeasurementService {
   constructor(options = {}) {
@@ -41,7 +42,7 @@ export class GrowthMeasurementService {
       result.measurementType = input.measurementType
     }
     if (!partial || input.heightCm !== undefined) result.heightCm = optionalNumber(input.heightCm, '身长或身高', 20, 260)
-    if (!partial || input.weightKg !== undefined) result.weightKg = optionalNumber(input.weightKg, '体重', 1, 500)
+    if (!partial || input.weightKg !== undefined) result.weightKg = optionalNumber(input.weightKg, '体重', 1, 500, 3)
     if (!partial || input.dataStatus !== undefined) {
       const value = input.dataStatus ?? 'confirmed'
       if (!['confirmed', 'pending_confirmation'].includes(value)) throw new GrowthMeasurementError('数据状态格式错误', 400, 'INVALID_DATA_STATUS')

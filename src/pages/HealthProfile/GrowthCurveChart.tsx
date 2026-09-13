@@ -5,6 +5,8 @@ import type { GrowthMeasurementApiDto, Member } from '../../types'
 
 const percentiles = [{ label: 'P3', z: -1.8808 }, { label: 'P15', z: -1.0364 }, { label: 'P50', z: 0 }, { label: 'P85', z: 1.0364 }, { label: 'P97', z: 1.8808 }]
 type Measure = 'height' | 'weight'
+const displayValue = (measure: Measure, value: number) => measure === 'height' ? String(value) : String(Math.round(value * 1000))
+const displayUnit = (measure: Measure) => measure === 'height' ? 'cm' : 'g'
 
 export function GrowthCurveChart({ compact = false, measure, member, records, replayKey = 0 }: { compact?: boolean; measure: Measure; member: Member; records: GrowthMeasurementApiDto[]; replayKey?: number }) {
   const rawId = useId(), pathId = `growth-journey-${rawId.replace(/:/g, '')}`
@@ -53,17 +55,17 @@ export function GrowthCurveChart({ compact = false, measure, member, records, re
   return <div className={`growth-curve-chart ${compact ? 'growth-curve-chart--compact' : ''}`} data-reduced-motion={reduced}>
     <svg aria-label={`${measure === 'height' ? '身长身高' : '体重'}成长曲线`} role="img" viewBox="0 0 340 286">
       <path className="growth-chart-band" d={model.bandPath} />
-      {model.yTicks.map((value) => <g key={value}><line className="growth-chart-grid" x1="42" x2="300" y1={model.y(value)} y2={model.y(value)} /><text className="growth-chart-axis growth-chart-axis--y" x="36" y={model.y(value) + 3}>{value}</text></g>)}
+      {model.yTicks.map((value) => <g key={value}><line className="growth-chart-grid" x1="42" x2="300" y1={model.y(value)} y2={model.y(value)} /><text className="growth-chart-axis growth-chart-axis--y" x="36" y={model.y(value) + 3}>{displayValue(measure, value)}</text></g>)}
       {model.xTicks.map((month) => <g key={month}><line className="growth-chart-grid" x1={model.x(month)} x2={model.x(month)} y1="36" y2="244" /><text className="growth-chart-axis" x={model.x(month)} y="266">{month}</text></g>)}
       {model.referencePaths.map((line, index) => <g key={line.label}><path className={`growth-chart-reference growth-chart-reference--${index}`} d={line.path} /><text className="growth-chart-percentile" x="306" y={model.y(line.values.at(-1)?.value ?? 0) + 3}>{line.label}</text></g>)}
       {model.points.length > 1 && <path className="growth-chart-actual" d={model.actualPath} />}
       {!animationDone && <path className="growth-chart-journey" d={model.animationPath} id={pathId} />}
-      {model.points.map((point, index) => <g aria-label={`${point.record.measuredAt}，${point.value}${measure === 'height' ? '厘米' : '千克'}`} className="growth-chart-record" key={point.record.id} onClick={() => setSelectedId(point.record.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(point.record.id) }} role="button" style={{ '--record-index': index } as CSSProperties} tabIndex={0}><circle className={point.record.dataStatus === 'pending_confirmation' ? 'pending' : ''} cx={model.x(point.age)} cy={model.y(point.value)} r="6" /><title>{point.record.measuredAt} · {point.value}{measure === 'height' ? ' cm' : ' kg'}</title></g>)}
+      {model.points.map((point, index) => <g aria-label={`${point.record.measuredAt}，${displayValue(measure, point.value)}${measure === 'height' ? '厘米' : '克'}`} className="growth-chart-record" key={point.record.id} onClick={() => setSelectedId(point.record.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(point.record.id) }} role="button" style={{ '--record-index': index } as CSSProperties} tabIndex={0}><circle className={point.record.dataStatus === 'pending_confirmation' ? 'pending' : ''} cx={model.x(point.age)} cy={model.y(point.value)} r="6" /><title>{point.record.measuredAt} · {displayValue(measure, point.value)} {displayUnit(measure)}</title></g>)}
       {!reduced && !animationDone && <foreignObject height="38" width="38" x="-19" y="-19"><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div><animateMotion begin="0s" dur="2.2s" fill="freeze" key={`${replayKey}-${measure}-${latestRecordId}`} path={model.animationPath} /></foreignObject>}
       <circle className="growth-chart-current-halo" cx={model.x(model.latest.age)} cy={model.y(model.latest.value)} r="12" />
       {animationDone && <foreignObject className="growth-chart-final-avatar" height="38" width="38" x={model.x(model.latest.age) - 19} y={model.y(model.latest.value) - 19}><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div></foreignObject>}
     </svg>
-    <div className="growth-chart-selected"><strong>{selected.record.measuredAt} · {selected.value} {measure === 'height' ? 'cm' : 'kg'}</strong><span>{Math.floor(selected.age / 12)}岁{Math.floor(selected.age % 12)}个月 · {selectedPosition?.percentileLabel ?? '暂无百分位'}{selected.record.dataStatus === 'pending_confirmation' ? ' · 待确认' : ''}</span></div>
-    <p className="growth-chart-footnote">横轴：年龄（月） · 纵轴：{measure === 'height' ? 'cm' : 'kg'}。深色线和圆点仅代表真实测量记录。</p>
+    <div className="growth-chart-selected"><strong>{selected.record.measuredAt} · {displayValue(measure, selected.value)} {displayUnit(measure)}</strong><span>{Math.floor(selected.age / 12)}岁{Math.floor(selected.age % 12)}个月 · {selectedPosition?.percentileLabel ?? '暂无百分位'}{selected.record.dataStatus === 'pending_confirmation' ? ' · 待确认' : ''}</span></div>
+    <p className="growth-chart-footnote">横轴：年龄（月） · 纵轴：{displayUnit(measure)}。深色线和圆点仅代表真实测量记录。</p>
   </div>
 }
