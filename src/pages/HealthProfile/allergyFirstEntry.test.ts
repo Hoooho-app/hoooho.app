@@ -45,14 +45,20 @@ test('过敏原整行下钻到正确详情及子路由', () => {
   assert.match(page, /group\.items\.map\(item=><button key=\{item\.id\} onClick=\{\(\)=>navigate\(`\/health-profile\/allergy\/\$\{item\.id\}`\)\}/)
 })
 
-test('单个过敏原详情包含概况、联动提示、相关记录和时间线', () => {
+test('单个过敏原详情保留概况、联动提示和主要操作', () => {
   assert.match(page, /Header title=\{`\$\{item\.name\}的过敏史`\}/)
   assert.match(page, /item\.currentStatus&&<span><strong>/)
   assert.match(page, /item\.currentStatus==='investigating'&&<p className="allergy-investigating"/)
   assert.match(page, /这些记录只表示时间或内容上可能相关，不代表因果关系。/)
-  assert.match(page, /<h2>相关记录时间线<\/h2>/)
-  assert.match(page, /className="allergy-detail-footer"/)
   assert.doesNotMatch(page, /尚待判断/)
+})
+
+test('单个过敏原详情删除空随记提示、时间线和底部重复操作', () => {
+  assert.doesNotMatch(page, /className="allergy-no-candidate"/)
+  assert.doesNotMatch(page, /相关记录时间线/)
+  assert.doesNotMatch(page, /className="allergy-detail-footer"/)
+  assert.doesNotMatch(styles, /\.allergy-timeline/)
+  assert.doesNotMatch(styles, /\.allergy-detail-footer/)
 })
 
 test('详情页返回使用浏览器历史以保留面板滚动位置', () => {
