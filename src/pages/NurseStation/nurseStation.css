@@ -21,14 +21,15 @@
 @keyframes nurse-fact-caret { 0%, 46% { opacity: 1; } 47%, 100% { opacity: 0; } }
 
 .nurse-primary-entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.nurse-primary-entries button { display: grid; min-width: 0; min-height: 78px; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 8px; border-radius: 14px; padding: 10px; color: #17322e; text-align: left; }
+.nurse-primary-entries button { display: grid; min-width: 0; min-height: 108px; align-items: center; border-radius: 14px; padding: 12px; color: #17322e; text-align: left; }
 .nurse-primary-entries button:first-child { background: #eaf5fb; }
 .nurse-primary-entries button:last-child { background: #fff0f1; }
-.nurse-primary-entries svg { width: 38px; height: 38px; border-radius: 11px; padding: 8px; background: rgb(255 255 255 / .58); color: #197f9d; }
-.nurse-primary-entries button:last-child svg { color: #cf666a; }
-.nurse-primary-entries span { display: grid; min-width: 0; gap: 4px; }
+.nurse-primary-entry-copy { display: grid; min-width: 0; gap: 8px; }
+.nurse-primary-entry-title { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.nurse-primary-entry-title svg { width: 19px; height: 19px; flex: 0 0 auto; color: #197f9d; stroke-width: 1.7; }
+.nurse-primary-entries button:last-child .nurse-primary-entry-title svg { color: #cf666a; }
 .nurse-primary-entries strong { font-size: 15px; font-weight: 760; white-space: nowrap; }
-.nurse-primary-entries small { color: #637783; font-size: 10.5px; line-height: 1.35; }
+.nurse-primary-entries small { display: grid; gap: 2px; color: #637783; font-size: 10.5px; line-height: 1.3; text-align: left; }
 
 .nurse-more-services { margin-top: 10px; }
 .nurse-more-services h2 { margin: 0 0 5px 4px; color: #657780; font-size: 13px; font-weight: 680; }
@@ -201,5 +202,5 @@
 .completion-options label { display: flex; min-height: 44px; align-items: center; gap: 10px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 0 12px; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-@media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-hero { height: 134px; padding-inline: 10px 8px; } .nurse-station-visual { height: 112px; } .nurse-station-visual .nurse-triage-desk { width: min(100%, 150px); } .nurse-primary-entries button { grid-template-columns: 34px minmax(0, 1fr); gap: 6px; padding-inline: 8px; } .nurse-primary-entries svg { width: 34px; height: 34px; } .nurse-primary-entries strong { font-size: 14px; } .guardian-task-tabs button { font-size: 12px; } }
+@media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-hero { height: 134px; padding-inline: 10px 8px; } .nurse-station-visual { height: 112px; } .nurse-station-visual .nurse-triage-desk { width: min(100%, 150px); } .nurse-primary-entries button { padding-inline: 10px; } .nurse-primary-entry-title svg { width: 18px; height: 18px; } .nurse-primary-entries strong { font-size: 14px; } .guardian-task-tabs button { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { .nurse-service-entry, .nurse-station-visual, .guardian-task-card, .nurse-station-sheet { animation: none !important; transition: none !important; } }
