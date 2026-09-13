@@ -170,6 +170,15 @@ test('structured symptom preserves concrete related record ids and optional fact
   assert.equal(result.symptom.triggerText, '吃完晚饭后')
 })
 
+test('free symptom narratives save without a recognized category and isolated numeric locations are rejected', () => {
+  for (const narrative of ['感冒', '手冰凉']) {
+    const result = validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'other', narrative, keywords: [], locations: [], descriptors: [] } })
+    assert.equal(result.symptom.narrative, narrative)
+  }
+  assert.throws(() => validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'other', narrative: '手冰凉', locationText: '1', locations: [], descriptors: [] } }), /请填写具体部位/)
+  assert.equal(validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'other', narrative: '手冰凉', locationText: '左手', locations: [], descriptors: [] } }).symptom.locationText, '左手')
+})
+
 test('visit rejects false medical state, wrong category and reversed inpatient dates', () => {
   assert.throws(() => validateJournal({ categories: ['visit'], visit: { visitType: 'outpatient', recognitionStatus: 'medically_verified' } }), /识别状态/)
   assert.throws(() => validateJournal({ categories: ['other'], visit: { visitType: 'outpatient' } }), /必须归入就医分类/)

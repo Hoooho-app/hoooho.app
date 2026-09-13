@@ -193,12 +193,13 @@ function validateSymptom(value) {
   if (value.trend !== undefined && !symptomTrends.has(value.trend)) throw new HealthEventRecordError('变化记录无效', 400, 'INVALID_JOURNAL_SYMPTOM')
   const optionalText = (source, field, limit) => source === undefined ? undefined : typeof source === 'string' && source.trim() && source.trim().length <= limit ? source.trim() : (() => { throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_SYMPTOM') })()
   const otherCategoryText = optionalText(value.otherCategoryText, '其他症状', 80)
-  if (value.symptomCategory === 'other' && !otherCategoryText) throw new HealthEventRecordError('请填写其他症状', 400, 'INVALID_JOURNAL_SYMPTOM')
   const shortNote = optionalText(value.shortNote, '症状补充', 160)
   const triggerText = optionalText(value.triggerText, '触发或诱因', 160)
   const generatedSummary = optionalText(value.generatedSummary, '症状摘要', 1000)
   const narrative = optionalText(value.narrative, '症状主述', 1000)
   const locationText = optionalText(value.locationText, '症状部位', 120)
+  if (value.symptomCategory === 'other' && !otherCategoryText && !narrative) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (locationText && !locations.length && !/[\p{L}]/u.test(locationText.replace(/[\d\s#\-_.，。号区域位置部位]/gu, ''))) throw new HealthEventRecordError('请填写具体部位，或使用定位', 400, 'INVALID_JOURNAL_SYMPTOM')
   const keywords = cleanStrings(value.keywords, '症状关键词', 20)
   let linkedRecordIds
   if (value.linkedRecordIds !== undefined) {

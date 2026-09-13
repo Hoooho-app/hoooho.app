@@ -5,3 +5,4 @@
 .visit-evidence-sheet dl div{display:grid;grid-template-columns:56px 1fr}
 .visit-evidence-sheet dd{margin:0}.visit-evidence-empty{padding:24px 0;color:rgb(var(--hoho-color-text-secondary));font-size:12px;text-align:center}
 .visit-share-notice{position:absolute;z-index:30;top:calc(58px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);border-radius:999px;padding:7px 12px;background:#163d37;color:#fff;font-size:11px;white-space:nowrap;box-shadow:0 4px 12px rgb(0 0 0/.12)}
+.visit-concern>.visit-concern__member{color:rgb(var(--hoho-color-text-secondary));font-size:11px}.visit-concern__member strong{color:rgb(var(--hoho-color-text-primary));font-weight:650}.visit-concern__clear{align-self:flex-end;min-height:44px;margin-top:-6px;color:rgb(var(--hoho-color-primary));font-size:11px;font-weight:650}.visit-concern__long textarea:focus{border-color:rgb(var(--hoho-color-primary));outline:2px solid rgb(var(--hoho-color-primary)/.12)}

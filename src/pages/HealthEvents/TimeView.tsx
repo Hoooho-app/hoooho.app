@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HealthTimeline, ListSkeleton, StatusNotice, HohoButton, HealthTag } from '../../components/design-system'
 import { formatPlainMonthDay, formatPlainWeekday, getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
-import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate } from './timeViewModel'
+import { bowelOccurrenceNumber, journalCategoryLabels, journalDayGroups, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel'
+import { symptomLocationDisplay, visibleSymptomKeywords } from './symptomRecordLogic'
 import { sleepTimelineSummary } from './sleepTime'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { useJournal } from './useJournal'
@@ -12,6 +13,14 @@ import { TriggerOpportunityCard } from './TriggerOpportunityCard'
 import { resolveTriggerLocale } from './triggerOpportunityI18n'
 import { selectTriggerOpportunity } from './triggerOpportunitySelector'
 import { readTriggerCardStatus, setTriggerCardStatus, triggerSuggestionKey } from './triggerOpportunityState'
+
+function symptomFacts(entry: JournalEntry) {
+  const narrative = entry.symptom?.narrative ?? entry.content
+  return {
+    keywords: visibleSymptomKeywords(narrative, entry.symptom?.keywords ?? []).join(' · '),
+    location: symptomLocationDisplay(entry.symptom),
+  }
+}
 
 export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const navigate = useNavigate()
@@ -77,13 +86,13 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
       {viewMode === 'day' && (activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null)}
       {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${localSortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
-        content: <div className="journal-hour-records">{group.items.map((entry) => <button className={`journal-record${viewMode === 'day' && entry.symptom ? ' journal-record--symptom' : ''}`} key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>
+        content: <div className="journal-hour-records">{group.items.map((entry) => { const facts = symptomFacts(entry); return <button className={`journal-record${viewMode === 'day' && entry.symptom ? ' journal-record--symptom' : ''}`} key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>
           <span className="journal-record-time">{journalTime(entry).label}</span>
           <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
           <span className="journal-record-tags">{entry.categories?.includes('elimination') && <HealthTag>{`今天第${bowelOccurrenceNumber(entries, entry)}次`}</HealthTag>}{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{category === 'medication' && (entry.medication?.medications?.length ?? 0) > 1 ? `用药 · 共${entry.medication!.medications!.length}种` : journalCategoryLabels[category]}</HealthTag>)}</span>
-          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : journalListSummary(entry)}</span>{entry.symptom?.keywords?.length ? <span className="journal-symptom-facts">{entry.symptom.keywords.join(' · ')}</span> : null}{entry.symptom?.locationText ? <span className="journal-symptom-facts">{entry.symptom.locationText}</span> : null}{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
+          <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : journalListSummary(entry)}</span>{facts.keywords ? <span className="journal-symptom-facts">{facts.keywords}</span> : null}{facts.location ? <span className="journal-symptom-facts">{facts.location}</span> : null}{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
-        </button>)}</div>
+        </button> })}</div>
       }))} />}
       {groups.length === 0 && viewMode === 'day' && day !== today && <div className="journal-empty-day"><strong>这一天还没有记录</strong></div>}
       {groups.length === 0 && viewMode === 'month' && <div className="journal-empty-day"><strong>这个月还没有记录</strong></div>}

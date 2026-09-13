@@ -32,6 +32,39 @@ function keywordIsPositive(text: string, keyword: string) {
   return evidence.some((item) => item.positive)
 }
 
+const keywordFamilies = [
+  ['发热', '发烧'],
+  ['瘙痒', '痒'],
+] as const
+
+function keywordFamily(keyword: string) {
+  return keywordFamilies.find((family) => family.includes(keyword as never)) ?? [keyword]
+}
+
+export function visibleSymptomKeywords(narrative: string, keywords: readonly string[]) {
+  const source = narrative.trim()
+  const positive = new Set(extractSymptomNarrative(source).keywords)
+  return [...new Set(keywords.map((keyword) => keyword.trim()).filter(Boolean))].filter((keyword) => {
+    if (source === keyword) return false
+    const family = keywordFamily(keyword)
+    const mentioned = family.some((alias) => source.includes(alias))
+    return !mentioned || family.some((alias) => positive.has(alias))
+  })
+}
+
+export function isSemanticSymptomLocation(value: string) {
+  const normalized = value.normalize('NFKC').trim()
+  if (!normalized) return true
+  const withoutNumbering = normalized.replace(/[\d\s#\-_.，。号区域位置部位]/gu, '')
+  return /\p{L}/u.test(withoutNumbering)
+}
+
+export function symptomLocationDisplay(details?: Pick<JournalSymptomDetails, 'locationText' | 'locations'>) {
+  if (!details) return ''
+  if (details.locations.length) return details.locations.map((item) => `${item.label}${item.locationNumber ? ` · ${item.locationNumber}号区域` : ''}`).join('、')
+  return details.locationText && isSemanticSymptomLocation(details.locationText) ? details.locationText.trim() : ''
+}
+
 export function extractSymptomNarrative(transcript: string): SymptomNarrativeExtraction {
   const normalized = transcript.trim()
   const keywords = keywordPatterns.filter((keyword) => keywordIsPositive(normalized, keyword))

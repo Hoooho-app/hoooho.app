@@ -32,7 +32,7 @@ try {
   const video = page.locator('video').first()
   await video.waitFor({ state: 'attached' })
   await page.getByRole('button', { name: '时间视图', exact: true }).click()
-  await page.getByRole('heading', { name: '健康随身记', exact: true }).waitFor()
+  await page.getByRole('heading', { name: '健康随记', exact: true }).waitFor()
   await page.getByRole('button', { name: '搜索健康随身记', exact: true }).waitFor()
   await page.getByRole('button', { name: '当前最新在前，切换为从早到晚', exact: true }).click()
   await page.getByRole('button', { name: '当前从早到晚，切换为最新在前', exact: true }).click()
