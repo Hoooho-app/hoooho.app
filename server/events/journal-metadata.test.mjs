@@ -164,6 +164,12 @@ test('structured visit preserves occurrence facts, links and unverified extracti
   assert.equal(visit.isCurrentlyHospitalized, true)
 })
 
+test('structured symptom preserves concrete related record ids and optional facts', () => {
+  const result = validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '有皮疹，没发烧', keywords: ['皮疹'], locations: [], descriptors: [], impactLevel: 'some', triggerText: '吃完晚饭后', trend: 'more_noticeable', shortNote: '继续观察', linkedRecordIds: { diet: ['diet-1', 'diet-1'], medication: ['med-1'] } } })
+  assert.deepEqual(result.symptom.linkedRecordIds, { diet: ['diet-1'], medication: ['med-1'] })
+  assert.equal(result.symptom.triggerText, '吃完晚饭后')
+})
+
 test('visit rejects false medical state, wrong category and reversed inpatient dates', () => {
   assert.throws(() => validateJournal({ categories: ['visit'], visit: { visitType: 'outpatient', recognitionStatus: 'medically_verified' } }), /识别状态/)
   assert.throws(() => validateJournal({ categories: ['other'], visit: { visitType: 'outpatient' } }), /必须归入就医分类/)

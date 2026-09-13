@@ -109,15 +109,32 @@ export class HealthEventRecordService {
     return record
   }
 
+  async validateSymptomLinks(accountId, event, journal) {
+    const groups = journal?.symptom?.linkedRecordIds
+    if (!groups) return
+    for (const [category, recordIds] of Object.entries(groups)) {
+      for (const id of recordIds) {
+        const related = await this.repository.findById(id)
+        if (!related || related.accountId !== accountId) throw new HealthEventRecordError('关联记录不存在', 400, 'INVALID_RELATED_RECORD')
+        const relatedEvent = await this.events.findById(related.eventId)
+        if (!relatedEvent || relatedEvent.accountId !== accountId || relatedEvent.memberId !== event.memberId) throw new HealthEventRecordError('只能关联当前记录对象的内容', 400, 'INVALID_RELATED_RECORD')
+        const categories = related.journal?.categories ?? [related.type]
+        if (!categories.includes(category)) throw new HealthEventRecordError('关联记录类型不匹配', 400, 'INVALID_RELATED_RECORD')
+      }
+    }
+  }
+
   async create(accountId, eventId, input, now = new Date()) {
-    await this.assertEventOwnership(accountId, eventId)
+    const event = await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
     const occurredAt = validateOccurredAt(input.occurredAt, now)
+    const journal = input.journal === undefined ? undefined : validateJournal(input.journal)
+    await this.validateSymptomLinks(accountId, event, journal)
     const created = await this.repository.create({
       accountId,
       eventId,
       type: validateType(input.type),
-      ...(input.journal === undefined ? {} : { journal: validateJournal(input.journal) }),
+      ...(journal === undefined ? {} : { journal }),
       content: validateContent(input.content),
       occurredAt,
       sourceType: input.sourceType === undefined ? 'user_record' : validateSourceType(input.sourceType),
@@ -146,6 +163,7 @@ export class HealthEventRecordService {
 
   async update(accountId, id, input, now = new Date()) {
     const record = await this.getOwnedRecord(accountId, id)
+    const event = await this.assertEventOwnership(accountId, record.eventId)
     rejectImmutableFields(input)
     const changes = {}
     for (const key of Object.keys(input)) {
@@ -160,6 +178,7 @@ export class HealthEventRecordService {
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
       if (key === 'journal') {
         changes.journal = validateJournal(input.journal)
+        await this.validateSymptomLinks(accountId, event, changes.journal)
         if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.wakeAt ?? changes.journal.sleep.sleepAt, now)
       }
     }

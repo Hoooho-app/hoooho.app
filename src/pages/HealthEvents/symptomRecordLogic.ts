@@ -12,9 +12,29 @@ export interface SymptomNarrativeExtraction {
 const keywordPatterns = ['红疹', '皮疹', '发红', '瘙痒', '痒', '发热', '发烧', '咳嗽', '鼻塞', '流鼻涕', '呕吐', '腹泻', '腹痛', '头痛', '疼痛', '肿', '起泡']
 const bodyLocationPatterns = ['左手肘', '右手肘', '左肘窝', '右肘窝', '左手', '右手', '左脚', '右脚', '头部', '额头', '脸部', '面部', '胸口', '腹部', '肚子', '背部', '腰部', '左腿', '右腿']
 
+const negationPrefix = /(?:没(?:有)?|未|无|不|并未|目前没(?:有)?|没有明显|目前没有明显)$/
+const currentTimeWords = /今天|现在|目前|刚刚/
+const pastTimeWords = /昨天|昨晚|此前|之前/
+
+function keywordIsPositive(text: string, keyword: string) {
+  const matches = [...text.matchAll(new RegExp(keyword, 'g'))]
+  if (!matches.length) return false
+  const evidence = matches.map((match) => {
+    const index = match.index ?? 0
+    const clauseStart = Math.max(text.lastIndexOf('，', index), text.lastIndexOf('。', index), text.lastIndexOf('；', index), text.lastIndexOf(',', index), text.lastIndexOf(';', index)) + 1
+    const clauseEndCandidates = ['，', '。', '；', ',', ';'].map((separator) => text.indexOf(separator, index)).filter((value) => value >= 0)
+    const clauseEnd = clauseEndCandidates.length ? Math.min(...clauseEndCandidates) : text.length
+    const clause = text.slice(clauseStart, clauseEnd)
+    const prefix = text.slice(Math.max(clauseStart, index - 8), index).replace(/\s/g, '')
+    return { positive: !negationPrefix.test(prefix), current: currentTimeWords.test(clause), past: pastTimeWords.test(clause) }
+  })
+  if (evidence.some((item) => !item.positive && item.current) && evidence.some((item) => item.positive && item.past)) return false
+  return evidence.some((item) => item.positive)
+}
+
 export function extractSymptomNarrative(transcript: string): SymptomNarrativeExtraction {
   const normalized = transcript.trim()
-  const keywords = keywordPatterns.filter((keyword) => normalized.includes(keyword))
+  const keywords = keywordPatterns.filter((keyword) => keywordIsPositive(normalized, keyword))
   const bodyLocation = bodyLocationPatterns.find((location) => normalized.includes(location))
   const occurredAtText = ['昨天晚上', '昨晚', '昨天', '今天早上', '今早', '今天中午', '今天下午', '今天晚上', '今晚', '刚刚'].find((value) => normalized.includes(value))
   return {

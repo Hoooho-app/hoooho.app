@@ -15,13 +15,14 @@ import { readTriggerCardStatus, setTriggerCardStatus, triggerSuggestionKey } fro
 
 export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const navigate = useNavigate()
-  const [viewMode, setViewMode] = useState<'day' | 'month'>('day')
+  const [viewMode, setViewMode] = useState<'day' | 'month'>(() => sessionStorage.getItem(`hoooho-journal-view:${memberId}`) === 'month' ? 'month' : 'day')
   const [localSortOrder, setLocalSortOrder] = useState(sortOrder)
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
   const memberName = useAppStore((state) => state.members.find((member) => member.id === memberId)?.name ?? '')
   const accountId = useAppStore((state) => state.authUser?.id ?? 'guest')
   const [cardRevision, setCardRevision] = useState(0)
   const [triggerLocale, setTriggerLocale] = useState(() => resolveTriggerLocale())
+  useEffect(() => { sessionStorage.setItem(`hoooho-journal-view:${memberId}`, viewMode) }, [memberId, viewMode])
   useEffect(() => {
     const update = () => setTriggerLocale(resolveTriggerLocale())
     const observer = new MutationObserver(update)
@@ -68,12 +69,13 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
       <label className="journal-day-picker" aria-live="polite"><span>{viewMode === 'day' ? <>{relative} · <b>{formatPlainMonthDay(day)}</b></> : <><b>{Number(day.slice(5, 7))}月</b>{day.slice(0, 7) === today.slice(0, 7) ? ' · 本月' : ''}</>}</span><input aria-label={viewMode === 'day' ? '选择日期' : '选择月份'} max={viewMode === 'day' ? today : today.slice(0, 7)} onChange={(event) => viewMode === 'day' ? onDayChange(event.target.value) : selectMonth(event.target.value)} type={viewMode === 'day' ? 'date' : 'month'} value={viewMode === 'day' ? day : day.slice(0, 7)} /></label>
       <HohoButton size="icon" variant="ghost" aria-label={viewMode === 'day' ? '后一天' : '下个月'} disabled={viewMode === 'day' ? day >= today : day.slice(0, 7) >= today.slice(0, 7)} onClick={() => viewMode === 'day' ? onDayChange(shiftJournalDate(day, 1)) : shiftMonth(1)}><ChevronRight size={22} /></HohoButton>
       <HohoButton size="icon" variant="ghost" aria-label="搜索健康随身记" onClick={() => navigate('/health-events/search', { state: { journalReturn: { day, scrollTop: 0 } } })}><Search size={18} /></HohoButton>
-      <HohoButton size="icon" variant="ghost" aria-label="切换记录顺序" onClick={() => setLocalSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}><ArrowUpDown size={18} /></HohoButton>
+      <HohoButton size="icon" variant="ghost" aria-label={`记录顺序：${localSortOrder === 'desc' ? '最新在上' : '最新在下'}，点击切换`} aria-pressed={localSortOrder === 'asc'} onClick={() => setLocalSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}><ArrowUpDown size={18} /></HohoButton>
     </div>
-    {loading ? <ListSkeleton rows={4} /> : error ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : <>
+    {loading ? <ListSkeleton rows={4} /> : error && entries.length === 0 ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : <>
+      {error && <div className="journal-refresh-error"><span>刷新失败，正在显示上次内容</span><button onClick={retry} type="button">重新加载</button></div>}
       {viewMode === 'day' && day === today && <div className="journal-now-marker"><span>{`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}</span><strong>现在</strong></div>}
       {viewMode === 'day' && (activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null)}
-      {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${sortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
+      {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${localSortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
         content: <div className="journal-hour-records">{group.items.map((entry) => <button className={`journal-record${viewMode === 'day' && entry.symptom ? ' journal-record--symptom' : ''}`} key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>
           <span className="journal-record-time">{journalTime(entry).label}</span>
@@ -83,7 +85,9 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
           <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />
         </button>)}</div>
       }))} />}
-      {groups.length > 0 && <p className="journal-gentle-status">今天的事情，正在一点点记清楚</p>}
+      {groups.length === 0 && viewMode === 'day' && day !== today && <div className="journal-empty-day"><strong>这一天还没有记录</strong></div>}
+      {groups.length === 0 && viewMode === 'month' && <div className="journal-empty-day"><strong>这个月还没有记录</strong></div>}
+      {groups.length > 0 && day === today && <p className="journal-gentle-status">今天的事情，正在一点点记清楚</p>}
     </>}
   </section>
 }
