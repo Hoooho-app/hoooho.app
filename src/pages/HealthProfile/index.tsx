@@ -1,4 +1,4 @@
-import { Activity, Check, ChevronRight, Circle, ClipboardPlus, Ear, Heart, HeartPulse, Hospital, LockKeyhole, Pill, Scissors, ShieldPlus, Syringe, UsersRound, X, type LucideIcon } from 'lucide-react'
+import { Check, ChevronRight, ClipboardPlus, HeartPulse, Hospital, LockKeyhole, Scissors, ShieldPlus, UsersRound, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -13,10 +13,9 @@ import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import { buildAllergyOverview, buildBasicOverview, formatGrowthCardUpdatedAt } from './healthProfileOverview'
 
 const lockedSections: Array<{ title: string; icon: LucideIcon }> = [
-  { title: '检查 / 体检报告', icon: ClipboardPlus }, { title: '心理与情绪健康', icon: Heart }, { title: '视力与听力', icon: Ear },
-  { title: '口腔与牙齿', icon: Circle }, { title: '疫苗接种史', icon: Syringe }, { title: '长期用药', icon: Pill },
-  { title: '慢性病史', icon: HeartPulse }, { title: '手术史', icon: Scissors }, { title: '住院 / 急诊史', icon: Hospital },
-  { title: '输血史', icon: Activity }, { title: '家族遗传史', icon: UsersRound },
+  { title: '检查 / 体检报告', icon: ClipboardPlus }, { title: '慢性病史', icon: HeartPulse },
+  { title: '手术史', icon: Scissors }, { title: '住院 / 急诊史', icon: Hospital },
+  { title: '家族遗传史', icon: UsersRound },
 ]
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 
