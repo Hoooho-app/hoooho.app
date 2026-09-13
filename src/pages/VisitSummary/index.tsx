@@ -25,10 +25,10 @@ export function VisitSummaryPage(){
   const context:HealthEventPromptContext={attachments:state.data.attachments,currentMemberId,event:{...event,summary:eventDto.eventSummary?.displayedResult.summary??event.summary},growthMeasurements:growth??[],healthProfile:profile,member:state.data.member,organizations:state.data.organizations,records:state.data.records,relatedEvents:state.data.relatedEvents}
   const candidates=buildVisitConcernCandidates((events??[]).filter(item=>item.memberId===currentMemberId))
   const organizer=account?.nickname||authUser?.nickname||'';const relation=state.data.member.primaryRecorderRelationship?relationLabel(state.data.member.primaryRecorderRelationship):''
-  return <VisitSummaryLoaded candidates={candidates} context={context} eventId={eventId} initial={eventDto.medicalPreparation??null} onBack={()=>navigate(-1)} organizer={organizer} organizerRelation={relation} token={token??''}/>
+  return <VisitSummaryLoaded candidates={candidates} context={context} eventId={eventId} initial={eventDto.medicalPreparation??null} memberName={state.data.member.name} onBack={()=>navigate(-1)} organizer={organizer} organizerRelation={relation} token={token??''}/>
 }
 
-function VisitSummaryLoaded({candidates,context,eventId,initial,onBack,organizer,organizerRelation,token}:{candidates:VisitConcernCandidate[];context:HealthEventPromptContext;eventId:string;initial:MedicalPreparationApiDto|null;onBack:()=>void;organizer:string;organizerRelation:string;token:string}){
+function VisitSummaryLoaded({candidates,context,eventId,initial,memberName,onBack,organizer,organizerRelation,token}:{candidates:VisitConcernCandidate[];context:HealthEventPromptContext;eventId:string;initial:MedicalPreparationApiDto|null;memberName:string;onBack:()=>void;organizer:string;organizerRelation:string;token:string}){
   const storedComplaint=initial?.summary.sections.find(section=>section.id==='visit_preferences')?.lines.find(line=>line.startsWith('主诉：'))?.slice(3)??''
   const[choice,setChoice]=useState(candidates.find(item=>item.label===storedComplaint)?.id??'')
   const[longTerm,setLongTerm]=useState('')
@@ -61,14 +61,26 @@ function VisitSummaryLoaded({candidates,context,eventId,initial,onBack,organizer
     }catch(reason){setShareNotice(reason instanceof DOMException&&reason.name==='AbortError'?'已取消分享':'分享没有完成，请重试')}
     finally{setSharing(false)}
   }
-  if(status==='choosing')return <VisitShell onBack={onBack} title="就医准备"><ConcernChooser candidates={candidates} choice={choice} longTerm={longTerm} onChoice={setChoice} onGenerate={()=>void save()} onLongTerm={setLongTerm}/></VisitShell>
+  if(status==='choosing')return <VisitShell onBack={onBack} title="就医准备"><ConcernChooser candidates={candidates} choice={choice} longTerm={longTerm} memberName={memberName} onChoice={setChoice} onGenerate={()=>void save()} onLongTerm={setLongTerm}/></VisitShell>
   if(status==='working')return <VisitShell onBack={onBack}><Organizing title={preparation?'正在更新病情摘要':'正在整理已有记录'}/></VisitShell>
   if(status==='error')return <VisitShell onBack={onBack}><div className="visit-summary-status"><StatusNotice title={preparation?'更新未完成':'暂时没有生成成功'} tone="error">{error}<br/>健康记录和上一版本不受影响。</StatusNotice><HohoButton fullWidth onClick={()=>void save()}>重试</HohoButton>{preparation&&<HohoButton fullWidth onClick={()=>setStatus('reading')} variant="secondary">继续查看原病情摘要</HohoButton>}</div></VisitShell>
   if(!preparation)return null
   return <VisitShell onBack={onBack} onShare={()=>void share()} shareDisabled={sharing} shareNotice={shareNotice}><VisitSummaryContent preparation={preparation} stale={preparation.sourceFingerprint!==fingerprint} onAdjust={()=>setStatus('choosing')} onUpdate={()=>void save()}/></VisitShell>
 }
 
-function ConcernChooser({candidates,choice,longTerm,onChoice,onGenerate,onLongTerm}:{candidates:VisitConcernCandidate[];choice:string;longTerm:string;onChoice:(v:string)=>void;onGenerate:()=>void;onLongTerm:(v:string)=>void}){const shortcuts=['过敏排查','生长情况','长期用药'];const canGenerate=Boolean(choice||longTerm.trim());return <section className="visit-concern"><h1>这次想解决什么问题</h1><p>选择已有情况，或直接补充本次主诉；用药记录不会被自动当成主诉。</p>{candidates.length>0?<><div className="visit-concern__merge">已将时间连续、共同发展的记录归并为 {candidates.length} 项。</div><div className="visit-concern__choices">{candidates.map((item,index)=><label className={choice===item.id?'is-selected':''} key={item.id}><input checked={choice===item.id} name="visit-concern" onChange={()=>onChoice(item.id)} type="radio"/><span><strong>{item.label}{index===0&&<em>最近情况</em>}</strong><small>{item.summary}</small></span></label>)}</div></>:<div className="visit-concern__merge">暂时没有可作为主诉的症状记录，请在下方填写。</div>}<label className="visit-concern__long"><strong>{choice?'还想补充的长期问题':'本次主诉'} <small>{choice?'选填':'必填'}</small></strong><textarea onChange={e=>onLongTerm(e.target.value)} placeholder="例如：反复大便异常、皮疹或体重增长……" value={longTerm}/></label><div className="visit-concern__shortcuts">{shortcuts.map(value=><button key={value} onClick={()=>onLongTerm(longTerm.includes(value)?longTerm:[longTerm,value].filter(Boolean).join('、'))} type="button">＋{value}</button>)}</div><HohoButton disabled={!canGenerate} fullWidth onClick={onGenerate} size="large">生成病情摘要</HohoButton></section>}
+function ConcernChooser({candidates,choice,longTerm,memberName,onChoice,onGenerate,onLongTerm}:{candidates:VisitConcernCandidate[];choice:string;longTerm:string;memberName:string;onChoice:(v:string)=>void;onGenerate:()=>void;onLongTerm:(v:string)=>void}){
+  const shortcuts=['过敏排查','生长情况','长期用药']
+  const canGenerate=Boolean(choice||longTerm.trim())
+  return <section className="visit-concern">
+    <h1>这次想解决什么问题</h1>
+    <p>选择一项已有情况，或填写这次想解决的问题。</p>
+    <p className="visit-concern__member">正在为：<strong>{memberName}</strong></p>
+    {candidates.length>0?<><div className="visit-concern__merge">已将时间连续、共同发展的记录归并为 {candidates.length} 项。</div><div className="visit-concern__choices">{candidates.map((item,index)=><label className={choice===item.id?'is-selected':''} key={item.id}><input checked={choice===item.id} name="visit-concern" onChange={()=>onChoice(item.id)} type="radio"/><span><strong>{item.label}{index===0&&<em>最近情况</em>}</strong><small>{item.summary}</small></span></label>)}</div>{choice&&<button className="visit-concern__clear" onClick={()=>onChoice('')} type="button">取消已有情况选择</button>}</>:<div className="visit-concern__merge">暂时没有可作为主诉的症状记录，请在下方填写。</div>}
+    <label className="visit-concern__long"><strong>{choice?'还有想补充的吗？（选填）':'本次主诉（必填）'}</strong><textarea onChange={e=>onLongTerm(e.target.value)} placeholder="例如：反复大便异常、皮疹或体重增长……" value={longTerm}/></label>
+    <div className="visit-concern__shortcuts">{shortcuts.map(value=><button key={value} onClick={()=>onLongTerm(longTerm.includes(value)?longTerm:[longTerm,value].filter(Boolean).join('、'))} type="button">＋{value}</button>)}</div>
+    <HohoButton disabled={!canGenerate} fullWidth onClick={onGenerate} size="large">生成病情摘要</HohoButton>
+  </section>
+}
 
 function withPreferences(base:MedicalPreparationSummaryApiDto,complaint:string,longTerm:string,organizer:string,relation:string):MedicalPreparationSummaryApiDto{const lines=[`主诉：${complaint}`,longTerm.trim()?`长期补充：${longTerm.trim()}`:'',organizer?`整理人：${organizer}${relation?`（${relation}）`:''}`:''].filter(Boolean);return{...base,sections:[...base.sections.filter(section=>section.id!=='visit_preferences'),{id:'visit_preferences',title:'本次整理设置',lines}],text:`${base.text}\n\n## 本次整理设置\n${lines.map(line=>`- ${line}`).join('\n')}`}}
 function VisitShell({children,onBack,onShare,title='就医准备',shareDisabled=false,shareNotice=''}:{children:ReactNode;onBack:()=>void;onShare?:()=>void;title?:string;shareDisabled?:boolean;shareNotice?:string}){return <main className="app-shell visit-summary-page" data-visit-sheet-root><header className="visit-summary-header"><button aria-label="返回" onClick={onBack}><ArrowLeft/></button><strong>{title}</strong>{onShare?<button aria-label="分享只读病情摘要" disabled={shareDisabled} onClick={onShare}><Share2/></button>:<span/>}</header>{shareNotice&&<p aria-live="polite" className="visit-share-notice" role="status">{shareNotice}</p>}{children}</main>}

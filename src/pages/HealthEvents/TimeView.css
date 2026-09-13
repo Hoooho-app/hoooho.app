@@ -511,6 +511,10 @@
 .symptom-supplement-body { display: grid; gap: var(--hoho-space-5); padding: 0 0 var(--hoho-space-4); }
 .symptom-specific { display: grid; gap: var(--hoho-space-3); }
 .symptom-save-error { color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); }
+.symptom-field-error { display: block; margin-top: 5px; color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); line-height: 1.45; }
+.symptom-record-member { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.symptom-record-member strong { color: rgb(var(--hoho-color-text-primary)); font-weight: 650; }
+.symptom-narrative [aria-invalid='true'], .symptom-location-input:has([aria-invalid='true']) { border-color: rgb(var(--hoho-color-error)); }
 .symptom-record-save { position: sticky; z-index: 2; bottom: 0; margin: var(--hoho-space-5) calc(var(--hoho-space-4) * -1) 0; border-top: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); padding: var(--hoho-space-3) var(--hoho-space-4) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
 
 /* Narrative-first symptom flow and its compact one-row journal controls. */

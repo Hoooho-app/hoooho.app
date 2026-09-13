@@ -34,7 +34,7 @@ test('情况单保留医生直读结构并移除旧弹层操作', () => {
   assert.match(page, /正在整理已有记录/)
   assert.match(page, /按当前情况、经过与依据生成/)
   assert.match(page, /这次想解决什么问题/)
-  assert.match(page, /用药记录不会被自动当成主诉/)
+  assert.match(page, /选择一项已有情况，或填写这次想解决的问题。/)
   assert.match(page, /情况单整理人/)
   assert.match(presentation, /病情摘要/)
   assert.match(page, /查看依据/)
@@ -42,4 +42,17 @@ test('情况单保留医生直读结构并移除旧弹层操作', () => {
   assert.match(css, /position:\s*fixed/)
   assert.match(css, /aria-current/)
   assert.match(css, /border-radius:8px 0 0 8px/)
+})
+
+test('就医准备解释二选一规则并显示当前记录对象', () => {
+  assert.match(page, /正在为：/)
+  assert.match(page, /本次主诉（必填）/)
+  assert.match(page, /还有想补充的吗？（选填）/)
+})
+
+test('取消已有情况选择不会改变已输入的主诉', () => {
+  assert.match(page, /取消已有情况选择/)
+  assert.match(page, /onClick=\{\(\)=>onChoice\(''\)\}/)
+  assert.match(page, /value=\{longTerm\}/)
+  assert.match(page, /const canGenerate=Boolean\(choice\|\|longTerm\.trim\(\)\)/)
 })

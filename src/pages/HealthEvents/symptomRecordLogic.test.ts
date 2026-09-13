@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { descriptorsFor, extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, toggleExclusive, toSymptomLocations } from './symptomRecordLogic.ts'
+import { descriptorsFor, extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, isSemanticSymptomLocation, symptomLocationDisplay, toggleExclusive, toSymptomLocations, visibleSymptomKeywords } from './symptomRecordLogic.ts'
 
 test('narrative extraction only keeps explicitly stated symptom facts', () => {
   const result = extractSymptomNarrative('昨晚左肘窝有点发红，也很痒')
@@ -17,6 +17,21 @@ test('negated symptoms never become positive tags while positive facts remain', 
   }
   assert.deepEqual(extractSymptomNarrative('出现皮疹并发烧').keywords, ['皮疹', '发烧'])
   assert.deepEqual(extractSymptomNarrative('昨天发烧，今天没发烧').keywords, [])
+})
+
+test('display tags remove negated and exact duplicate facts without hiding unrelated legacy facts', () => {
+  assert.deepEqual(visibleSymptomKeywords('发烧', ['发烧', '发烧']), [])
+  assert.deepEqual(visibleSymptomKeywords('还是有皮疹，没发烧', ['皮疹', '发烧']), ['皮疹'])
+  assert.deepEqual(visibleSymptomKeywords('没有咳嗽，但有皮疹', ['咳嗽', '皮疹']), ['皮疹'])
+  assert.deepEqual(visibleSymptomKeywords('脸色不好', ['发红']), ['发红'])
+})
+
+test('location validation rejects isolated numbering and displays locator names with numbers', () => {
+  assert.equal(isSemanticSymptomLocation('1'), false)
+  assert.equal(isSemanticSymptomLocation(' 1号区域 '), false)
+  assert.equal(isSemanticSymptomLocation('左肘窝'), true)
+  assert.equal(symptomLocationDisplay({ locationText: '1', locations: [] }), '')
+  assert.equal(symptomLocationDisplay({ locationText: '左肘窝', locations: [{ id: 'left-elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', localRegion: '左肘窝' }] }), '左肘窝 · 1号区域')
 })
 
 test('symptom locations preserve structured position and stable numbering', () => {
