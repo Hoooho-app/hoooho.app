@@ -5,7 +5,7 @@ import type { HohoButtonProps } from './HohoButton'
 export type MedicalPrepButtonProps = Omit<HohoButtonProps, 'children'>
 
 export function MedicalPrepButton({ className = '', disabled = false, ...props }: MedicalPrepButtonProps) {
-  const accessibleLabel = props['aria-label'] ?? '就诊情况单'
+  const accessibleLabel = props['aria-label'] ?? '就医准备'
   return (
     <HohoButton
       {...props}
@@ -17,7 +17,7 @@ export function MedicalPrepButton({ className = '', disabled = false, ...props }
         <ClipboardList className="medical-prep-button__report-icon" size={24} strokeWidth={1.8} />
       </span>
       <span className="medical-prep-button__label">
-        <strong>就诊情况单</strong>
+        <strong>就医准备</strong>
         <small>孩子情况快速整理</small>
       </span>
     </HohoButton>

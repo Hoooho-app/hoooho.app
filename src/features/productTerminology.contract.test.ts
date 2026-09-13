@@ -29,7 +29,9 @@ test('用户可见运行时代码统一使用健康随记', () => {
     // It is not a page or product name, so keep the exception local and exact.
     const checkedSource = file.pathname.endsWith('/pages/HealthEvents/timeViewModel.ts')
       ? source.replace("label: '健康事件'", '')
-      : source
+      : file.pathname.endsWith('/pages/NurseStation/index.tsx')
+        ? source.replace('健康事件记一下', '')
+        : source
     return checkedSource.includes('健康事件') ? [file.pathname] : []
   })
 

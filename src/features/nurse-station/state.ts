@@ -82,6 +82,20 @@ function suggestionFor(event: HealthEventListItemViewModel): Pick<NurseStationIt
   return null
 }
 
+const medicationTypeForUnit = (unit: string): MedicationReminderPlan['medicationType'] => unit === '滴' ? 'drops' : unit === 'mL' || unit === '毫升' ? 'syrup' : unit === '片' ? 'tablet' : unit === '喷' ? 'spray' : unit === '次' ? 'ointment' : 'other'
+const routeForJournal = (route: string) => route === 'nebulized' ? 'inhaled' : route
+function journalMedicationPlan(entry: JournalEntry, medicine: NonNullable<NonNullable<JournalEntry['medication']>['medications']>[number]): MedicationReminderPlan | null {
+  const reminder = medicine.reminder
+  if (!reminder?.enabled) return null
+  const startDate = entry.occurredAt.slice(0, 10)
+  const mode: MedicationReminderMode = reminder.frequency === 'interval_hours' ? 'interval' : reminder.frequency === 'custom' && reminder.selectedDates?.length === 1 ? 'once' : 'daily'
+  const times = reminder.times.filter(value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value))
+  const firstTime = times[0] || reminder.firstReminderAt?.slice(11, 16) || ''
+  if (!firstTime) return null
+  const nextOccurrenceAt = reminder.firstReminderAt || `${mode === 'once' && reminder.selectedDates?.[0] ? reminder.selectedDates[0] : startDate}T${firstTime}:00`
+  return { medicationName: medicine.medicationName, medicationType: medicationTypeForUnit(medicine.amountUnit), amount: medicine.amountValue, unit: medicine.amountUnit, route: routeForJournal(entry.medication?.administrationRoute ?? 'other'), mode, times: times.length ? times : [firstTime], intervalHours: mode === 'interval' ? reminder.intervalHours : undefined, startDate: mode === 'once' && reminder.selectedDates?.[0] ? reminder.selectedDates[0] : startDate, endDate: reminder.endDate, durationDays: reminder.durationDays || undefined, longTerm: !reminder.durationDays && !reminder.endDate, reminderTargets: ['我'], timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, nextOccurrenceAt, occurrenceKey: nextOccurrenceAt, confirmedOccurrenceKeys: [] }
+}
+
 export function reconcileNurseStationItems(state: NurseStationState, events: readonly HealthEventListItemViewModel[], memberId: string, journal: readonly JournalEntry[] = []): NurseStationState {
   const known = new Set(state.items.map((item) => item.sourceEventId))
   const configured = journal.flatMap((entry) => (entry.medication?.medications ?? []).flatMap((medicine) => medicine.reminder?.enabled ? [{ entry, medicine }] : []))
@@ -89,8 +103,9 @@ export function reconcileNurseStationItems(state: NurseStationState, events: rea
   const reminderAdditions = configured.flatMap(({ entry, medicine }) => {
     const id = `nurse-${entry.eventId}-${medicine.id}`
     if (state.items.some((item) => item.id === id)) return []
-    const firstTime = medicine.reminder!.times[0]
-    return [{ id, memberId, sourceEventId: entry.eventId, relatedEventIds: [entry.eventId], type: 'medication_reminder' as const, status: 'active' as const, title: `${medicine.medicationName}用药提醒`, sourceLabel: `${medicine.medicationName} · ${medicine.amountValue} ${medicine.amountUnit}`, createdAt: entry.createdAt, updatedAt: entry.createdAt, reminder: { at: `${entry.occurredAt.slice(0, 10)}T${firstTime}:00`, paused: false } }]
+    const medicationPlan = journalMedicationPlan(entry, medicine)
+    if (!medicationPlan) return []
+    return [{ id, memberId, sourceEventId: entry.eventId, relatedEventIds: [entry.eventId], type: 'medication_reminder' as const, status: 'active' as const, title: `${medicine.medicationName}用药提醒`, sourceLabel: `${medicine.medicationName} · ${medicine.amountValue} ${medicine.amountUnit}`, createdAt: entry.createdAt, updatedAt: entry.createdAt, medicationPlan, reminder: { at: medicationPlan.nextOccurrenceAt, paused: false } }]
   })
   const additions = events.flatMap((event) => {
     const suggestion = suggestionFor(event)
@@ -98,5 +113,13 @@ export function reconcileNurseStationItems(state: NurseStationState, events: rea
     const now = event.updatedAt || event.createdAt
     return [{ id: `nurse-${event.id}`, memberId, sourceEventId: event.id, relatedEventIds: [event.id], status: 'pending_confirmation' as const, sourceLabel: `${event.displayTitle || event.title} · ${new Date(event.occurredAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`, createdAt: now, updatedAt: now, ...suggestion }]
   })
-  return reminderAdditions.length || additions.length ? { ...state, items: [...state.items, ...reminderAdditions, ...additions] } : state
+  const upgraded = state.items.map(item => {
+    if (item.type !== 'medication_reminder' || item.medicationPlan) return item
+    const configuredItem = configured.find(({ entry, medicine }) => `nurse-${entry.eventId}-${medicine.id}` === item.id)
+    if (!configuredItem) return item
+    const medicationPlan = journalMedicationPlan(configuredItem.entry, configuredItem.medicine)
+    return medicationPlan ? { ...item, medicationPlan, reminder: { at: medicationPlan.nextOccurrenceAt, paused: false } } : item
+  })
+  const changed = upgraded.some((item,index) => item !== state.items[index])
+  return reminderAdditions.length || additions.length || changed ? { ...state, items: [...upgraded, ...reminderAdditions, ...additions] } : state
 }

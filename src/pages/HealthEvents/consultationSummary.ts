@@ -45,6 +45,20 @@ const genderLabel = (gender: HealthEventPromptContext['member']['gender']) => ge
 const compact = (value: string | null | undefined) => value?.trim() || ''
 const unique = (values: string[]) => [...new Set(values.map(compact).filter(Boolean))]
 
+export function selectLatestGrowthMeasurement(context: HealthEventPromptContext) {
+  const records = (context.growthMeasurements ?? [])
+    .filter((record) => record.memberId === context.currentMemberId)
+    .sort((left, right) => right.measuredAt.localeCompare(left.measuredAt)
+      || right.createdAt.localeCompare(left.createdAt)
+      || right.id.localeCompare(left.id))
+  return records.find((record) => record.dataStatus === 'confirmed') ?? records[0] ?? null
+}
+
+const growthLine = (label: string, value: number | null | undefined, unit: string, measuredAt: string | undefined, pending: boolean) => {
+  if (value == null) return ''
+  return `${label}：${value} ${unit}（${measuredAt || '记录时间未知'}${pending ? '，待核对' : ''}）`
+}
+
 function assertCurrentMember(context: HealthEventPromptContext) {
   const currentMemberId = context.currentMemberId.trim()
   if (!currentMemberId || currentMemberId === 'self') throw new Error('当前人物无法确认，请先选择人物')
@@ -124,6 +138,8 @@ export function buildConsultationSummary(
   const invalid = [...selected].find((id) => !available.get(id)?.available)
   if (invalid) throw new Error(`${available.get(invalid)?.label ?? '所选资料'}暂无内容，请返回调整`)
 
+  const growth = selectLatestGrowthMeasurement(context)
+  const growthPending = growth?.dataStatus === 'pending_confirmation'
   const sectionsById: Record<ConsultationSummarySourceId, ConsultationSummarySection> = {
     basic: {
       id: 'basic',
@@ -132,8 +148,12 @@ export function buildConsultationSummary(
         `姓名：${context.member.name}`,
         `性别：${genderLabel(context.member.gender)}`,
         `年龄：${context.member.age || '未填写'}`,
-        context.member.heightCm == null ? '' : `身高：${context.member.heightCm} cm`,
-        context.member.weightKg == null ? '' : `体重：${context.member.weightKg} kg`,
+        growth
+          ? growthLine('身高', growth.heightCm, 'cm', growth.measuredAt, growthPending)
+          : growthLine('身高', context.member.heightCm, 'cm', undefined, false),
+        growth
+          ? growthLine('体重', growth.weightKg, 'kg', growth.measuredAt, growthPending)
+          : growthLine('体重', context.member.weightKg, 'kg', undefined, false),
         context.member.bloodType ? `血型：${context.member.bloodType} 型` : '',
       ].filter(Boolean),
     },
@@ -169,6 +189,7 @@ export function getMedicalPreparationFingerprint(context: HealthEventPromptConte
     member: context.member,
     event: context.event,
     healthProfile: context.healthProfile,
+    growthMeasurements: context.growthMeasurements,
     records: context.records,
     organizations: context.organizations,
     relatedEvents: context.relatedEvents

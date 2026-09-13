@@ -25,7 +25,7 @@ test('核心记录入口为等宽双列，更多服务为可扩展四列宫格',
   assert.match(source, /健康事件记一下.*日常喂养记一下.*病症用药记一下/)
   assert.match(source, /补充基础信息.*补充过敏史.*补充家族史/)
   assert.match(styles, /\.nurse-primary-entry-title svg\s*\{[^}]*width:\s*19px[^}]*stroke-width:\s*1\.7/)
-  assert.match(source, /<MedicalPrepButton[^>]*disabled=\{!hasHealthData\}[^>]*onClick=\{onMedicalPrep\}/)
+  assert.match(source, /<MedicalPrepButton[^>]*disabled=\{unavailable\}[^>]*onClick=\{onMedicalPrep\}/)
   assert.match(source, /nurse-more-service--unavailable[^>]*onClick=\{\(\) => setNoticeKey/)
   assert.match(source, /功能即将开放/)
   assert.match(styles, /\.nurse-more-service--unavailable/)

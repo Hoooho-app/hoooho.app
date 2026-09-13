@@ -24,4 +24,5 @@ test('只为当前人物明确开启提醒的药品创建独立任务', () => {
   assert.equal(result.items.length, 1)
   assert.equal(result.items[0].id, 'nurse-event-1-a')
   assert.equal(result.items[0].status, 'active')
+  assert.deepEqual({ name: result.items[0].medicationPlan?.medicationName, type: result.items[0].medicationPlan?.medicationType, amount: result.items[0].medicationPlan?.amount, unit: result.items[0].medicationPlan?.unit, mode: result.items[0].medicationPlan?.mode, times: result.items[0].medicationPlan?.times, duration: result.items[0].medicationPlan?.durationDays }, { name: 'A', type: 'tablet', amount: 1, unit: '片', mode: 'daily', times: ['08:00'], duration: 5 })
 })

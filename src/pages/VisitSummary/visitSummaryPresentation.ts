@@ -1,6 +1,7 @@
 import type { MedicalPreparationApiDto } from '../../types'
 export type VisitSectionId='overview'|'complaint'|'course'|'temperature'|'medication'|'examinations'|'allergy'|'elimination'|'feeding'|'growth'|'vaccination'|'history'|'family'|'questions'|'attachments'
-export interface VisitEvidence{id:string;label:string;lines:string[]}
+export interface VisitEvidenceItem { text:string; source:'健康随记'|'健康档案'; recordedAt:string; status:string }
+export interface VisitEvidence{id:string;label:string;lines:string[];items:VisitEvidenceItem[]}
 export interface VisitSection{id:VisitSectionId;label:string;title:string;lines:string[];evidence:VisitEvidence}
 export interface VisitSummaryPresentation{complaint:string;longTerm:string;organizer:string;overview:string[];sections:VisitSection[]}
 export const visitIndex:Array<{id:VisitSectionId;label:string}>=[['overview','概览'],['complaint','主诉'],['course','病程'],['temperature','体温'],['medication','用药'],['examinations','检查'],['allergy','过敏'],['elimination','排敏'],['feeding','喂养'],['growth','生长'],['vaccination','疫苗'],['history','既往'],['family','家族'],['questions','待明'],['attachments','附件']].map(([id,label])=>({id:id as VisitSectionId,label}))
@@ -11,7 +12,14 @@ export function createVisitSummaryPresentation(preparation:MedicalPreparationApi
   const source=new Map(preparation.summary.sections.map(section=>[section.id,section.lines]));const preferences=source.get('visit_preferences')??[]
   const complaint=preferences.find(line=>line.startsWith('主诉：'))?.slice(3)||clean(source.get('current')?.[0]??'本次健康情况');const longTerm=preferences.find(line=>line.startsWith('长期补充：'))?.slice(5)??'';const organizer=preferences.find(line=>line.startsWith('整理人：'))?.slice(4)??''
   const current=unique(source.get('current')??[]),raw=unique(source.get('raw')??[]),history=unique(source.get('history')??[]),profile=unique(source.get('profile')??[]),all=unique([...current,...raw,...history,...profile]);const used=new Set<string>();const sections:VisitSection[]=[]
-  const make=(id:VisitSectionId,label:string,title:string,lines:string[]):VisitSection=>({id,label,title,lines,evidence:{id:`evidence-${id}`,label:`${title}的原始依据`,lines}})
+  const profileLines=new Set(profile)
+  const evidenceItem=(line:string):VisitEvidenceItem=>{
+    const source=profileLines.has(line)?'健康档案':'健康随记'
+    const date=line.match(/(?:20\d{2}[-/.年]\d{1,2}(?:[-/.月]\d{1,2}日?)?|\d{1,2}月\d{1,2}日)/)?.[0]??'记录时间未知'
+    const status=line.match(/待核对|正在排查|怀疑中|医生已确认|已排除|已耐受/)?.[0]??'已保存'
+    return{text:line,source,recordedAt:date,status}
+  }
+  const make=(id:VisitSectionId,label:string,title:string,lines:string[]):VisitSection=>({id,label,title,lines,evidence:{id:`evidence-${id}`,label:`${title}的原始依据`,lines,items:lines.map(evidenceItem)}})
   sections.push(make('overview','概览','病情摘要',unique([...current.slice(0,4),...(longTerm?[`另希望了解：${longTerm}`]:[])])));sections.push(make('complaint','主诉','本次就诊目的',unique([complaint,...current.slice(1,5)])))
   const course=unique([...raw,...history].filter(line=>!rules.medication.test(line)&&!rules.examinations.test(line)));if(course.length)sections.push(make('course','病程','病程与关键变化',course))
   for(const item of visitIndex.slice(3)){const pattern=rules[item.id as keyof typeof rules];const lines=all.filter(line=>pattern.test(line)&&!used.has(line));lines.forEach(line=>used.add(line));if(lines.length)sections.push(make(item.id,item.label,item.id==='examinations'?'检查与就诊':item.label,lines))}

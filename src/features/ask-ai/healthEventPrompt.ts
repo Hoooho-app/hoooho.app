@@ -5,6 +5,7 @@ import type {
   HealthEventRecordApiDto,
   HealthFact,
   HealthRecordOrganizationApiDto,
+  GrowthMeasurementApiDto,
   Member,
 } from '../../types'
 
@@ -26,6 +27,7 @@ export interface HealthEventPromptContext {
   currentMemberId: string
   event: HealthEvent
   healthProfile: HealthProfilePromptSection[]
+  growthMeasurements?: GrowthMeasurementApiDto[]
   member: Member
   organizations: HealthRecordOrganizationApiDto[]
   records: HealthEventRecordApiDto[]

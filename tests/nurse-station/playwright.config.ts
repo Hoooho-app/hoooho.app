@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
+  globalTeardown: './teardown.ts',
   testDir: '.',
   testMatch: 'nurse-station.spec.ts',
   workers: 1,

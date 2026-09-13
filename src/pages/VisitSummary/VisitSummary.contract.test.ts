@@ -33,8 +33,8 @@ test('移动端使用固定外壳、单一纵向滚动区和恒定索引尺寸',
 test('情况单保留医生直读结构并移除旧弹层操作', () => {
   assert.match(page, /正在整理已有记录/)
   assert.match(page, /按当前情况、经过与依据生成/)
-  assert.match(page, /本次想要就诊的病情/)
-  assert.match(page, /还想让医生了解的长期问题/)
+  assert.match(page, /这次想解决什么问题/)
+  assert.match(page, /用药记录不会被自动当成主诉/)
   assert.match(page, /情况单整理人/)
   assert.match(presentation, /病情摘要/)
   assert.match(page, /查看依据/)
