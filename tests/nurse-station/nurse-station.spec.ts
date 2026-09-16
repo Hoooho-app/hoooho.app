@@ -78,7 +78,7 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
     expect(metrics.scrollHeight).toBeLessThanOrEqual(36)
     expect(metrics.clientHeight).toBeLessThanOrEqual(36)
   }
-  await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康随记', '健康档案'])
+  await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康事件记录', '健康档案'])
   await expect(page.locator('.nurse-primary-entries small span')).toHaveText(['健康事件记一下', '日常喂养记一下', '病症用药记一下', '补充基础信息', '补充过敏史', '补充家族史'])
   await expect(page.locator('.nurse-more-service--unavailable strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
   const unavailableServices = page.locator('.nurse-more-service--unavailable')
@@ -86,9 +86,10 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   for (const service of await unavailableServices.all()) {
     await expect(service).toBeDisabled()
   }
-  await expect(page.getByText('就医准备需先记录健康情况；其余灰色服务正在准备中。', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '就诊情况单', exact: true })).toBeDisabled()
+  await expect(page.getByText(/正在准备中。/, { exact: true })).toHaveCount(0)
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
-  await expect(page.locator('.guardian-task-heading')).toContainText('123的任务')
+  await expect(page.locator('.guardian-task-heading > p')).toHaveCount(0)
   await expect(page.locator('.guardian-notification-notice')).toHaveCount(1)
   await expect(page.locator('.guardian-notification-notice')).toContainText('用药计划仍会保留')
   const reducedVideo = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
@@ -196,7 +197,7 @@ test('加载失败与可用空状态明确区分且重试可恢复', async ({ pa
   await expect(page.getByText('失败时仍保留的用药计划', { exact: true })).toBeVisible()
 })
 
-test('切换到另一人物时任务归属与标题同步更新', async ({ page }) => {
+test('切换到另一人物时任务归属同步更新且不显示人物任务副标题', async ({ page }) => {
   await registerMember(page)
   await page.goto('/family/new')
   await page.getByRole('textbox', { name: '姓名' }).fill('这是一个非常非常长的孩子姓名')
@@ -208,8 +209,8 @@ test('切换到另一人物时任务归属与标题同步更新', async ({ page 
   await page.getByRole('button', { name: '打开菜单' }).click()
   await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '打开我的孩子' }).click()
   await page.getByRole('dialog', { name: '我的孩子' }).locator('.current-child-sheet__select').filter({ hasText: '这是一个非常非常长的孩子姓名' }).click()
-  await expect(page.locator('.guardian-task-heading')).toContainText('这是一个非常非常长的孩子姓名')
-  await expect(page.locator('.guardian-task-heading > p strong')).toHaveCSS('text-overflow', 'ellipsis')
+  await expect(page.locator('.nurse-station-identity')).toContainText('这是一个非常非常长的孩子姓名')
+  await expect(page.locator('.guardian-task-heading > p')).toHaveCount(0)
   await expect(page.getByText('还没有用药提醒', { exact: true })).toBeVisible()
 })
 
@@ -287,7 +288,7 @@ test('编辑提醒完整回填并在三种规律间保留各自输入', async ({
   await expect(flow.getByRole('heading', { name: '编辑用药提醒' })).toBeVisible()
 })
 
-test('就医准备从当前人物随记生成病情摘要并支持索引和依据抽屉', async ({ page }) => {
+test('就诊情况单从当前人物随记生成病情摘要并支持索引和依据抽屉', async ({ page }) => {
   await registerMember(page)
   await page.goto('/health-events')
   await page.getByRole('button', { name: '记录症状', exact: true }).click()
@@ -297,7 +298,7 @@ test('就医准备从当前人物随记生成病情摘要并支持索引和依�
   await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByText('已记录', { exact: true })).toBeVisible()
   await page.goto('/nurse-station')
-  await page.getByRole('button', { name: '就医准备', exact: true }).click()
+  await page.getByRole('button', { name: '就诊情况单', exact: true }).click()
   await expect(page).toHaveURL(/\/visit-summary\//)
   await expect(page.getByRole('heading', { name: '这次想解决什么问题' })).toBeVisible()
   await expect(page.getByText('选择一项已有情况，或填写这次想解决的问题。', { exact: true })).toBeVisible()

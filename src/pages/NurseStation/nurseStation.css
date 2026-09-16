@@ -45,7 +45,6 @@
 .nurse-more-service--unavailable { color: #687875; cursor: not-allowed; }
 .nurse-more-service--unavailable > span { background: #f1f4f3; color: #97a4a2; }
 .nurse-more-service--unavailable:disabled { opacity: 1; }
-.nurse-more-services-status { margin: 2px 4px 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 1.45; }
 .nurse-more-services .journal-subject-summary { display: grid; width: auto; min-width: 0; min-height: 72px; height: auto; grid-template-columns: none; place-items: center; align-content: center; gap: 5px; border: 0; padding: 0; background: transparent; color: #17322e; box-shadow: none; }
 .nurse-more-services .journal-subject-summary .hoho-button__content { display: grid; min-width: 0; place-items: center; align-content: center; gap: 5px; }
 .nurse-more-services .journal-subject-summary .medical-prep-button__icon { display: grid; width: 40px; height: 40px; margin: 0; place-items: center; border-radius: 50%; background: #e6f7f3; color: #168f80; }
@@ -138,9 +137,7 @@
 .recent-medical-preparation article small { overflow: hidden; color: #71847f; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .recent-medical-preparation article button { grid-column: 1 / -1; min-height: 42px; border-radius: 10px; background: #1f877a; color: #fff; font-size: 13px; font-weight: 700; }
 .guardian-tasks > header { position: relative; min-height: 44px; }
-.guardian-task-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
-.guardian-task-heading > p { display: flex; min-width: 0; max-width: 46%; margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; white-space: nowrap; }
-.guardian-task-heading > p strong { overflow: hidden; min-width: 0; color: rgb(var(--hoho-color-text-primary)); font-weight: 650; text-overflow: ellipsis; }
+.guardian-task-heading { display: flex; min-width: 0; align-items: center; }
 .guardian-task-view { display: flex; min-height: 44px; align-items: center; gap: 6px; color: #17322e; font-size: 19px; font-weight: 780; letter-spacing: -.02em; }
 .guardian-task-view svg { width: 19px; transition: transform 160ms ease; }
 .guardian-task-view[aria-expanded='true'] svg { transform: rotate(180deg); }
