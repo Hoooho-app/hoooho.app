@@ -9,6 +9,8 @@
     "start:prod": "node server/app.mjs",
     "build": "npm run typecheck && npm run test:avatar-assets && vite build --config vite.config.ts && npm run test:viewport && npm run test:auth-build",
     "test:auth-build": "node scripts/check-auth-build.mjs",
+    "test:domain": "node --test server/domain-routing.test.mjs server/legacy-domain-service-worker.test.mjs",
+    "test:e2e:legacy-domain": "node --test tests/legacy-domain/retirement.test.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:auth": "node --test server/auth/auth-service.test.mjs server/auth/password-auth.test.mjs server/auth/session-diagnostics.test.mjs",
     "test:guest": "node --test server/auth/guest-session-regression.test.mjs server/auth/session-repository.test.mjs server/auth/browser-session-service.test.mjs server/auth/storage/json-store.test.mjs server/auth/storage/transaction.test.mjs server/account/account-service.test.mjs",
