@@ -145,6 +145,19 @@ test('进食入口保留通用勺子且时间线按具体饮食类型显示语�
   assert.match(journalRecorder, /记录喂养\/饮食/)
 })
 
+test('健康随记日期栏只保留单日导航并直接切换列表与缩略图', () => {
+  assert.doesNotMatch(timeView, /'day' \| 'month'|切换到月视图|切换到日视图|这个月还没有记录|shiftMonth/)
+  assert.match(timeView, /const groups = journalDayGroups\(entries, day, localSortOrder\)/)
+  assert.match(timeView, /aria-label="前一天"/)
+  assert.match(timeView, /aria-label="后一天"/)
+  assert.match(timeView, /当前为列表视图，点击切换为缩略图视图/)
+  assert.match(timeView, /当前为缩略图视图，点击切换为列表视图/)
+  assert.match(timeView, /已切换为列表视图/)
+  assert.match(timeView, /已切换为缩略图视图/)
+  assert.match(timeView, /data-layout-mode=\{layoutMode\}/)
+  assert.match(timeView, /data-record-id=\{entry\.id\}/)
+})
+
 test('快捷记录全过程保留连续待机视频且成功视频就绪后再交接', () => {
   assert.match(nurse, /idleActive=\{active\}/)
   assert.match(nurse, /state="idle"/)
