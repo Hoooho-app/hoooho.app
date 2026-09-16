@@ -164,7 +164,9 @@ export function normalizeAllergyArchive(value: unknown, memberId: string, accoun
     const id = String(item.id ?? `legacy-allergy-${index + 1}`)
     const ownerMemberId = String(item.memberId ?? memberId)
     return [{
-      id, accountId: String(item.accountId ?? accountId), memberId: ownerMemberId, category, name,
+      // Profile sections are already scoped to the authenticated account by the server.
+      // Canonicalize legacy records because older clients accidentally stored the session token here.
+      id, accountId: accountId || String(item.accountId ?? ''), memberId: ownerMemberId, category, name,
       customName: String(item.customName ?? ''), currentStatus: normalizeStatus(String(item.currentStatus ?? item.certainty ?? '')),
       statusUpdatedAt: optionalString(item.statusUpdatedAt), excludedAt: optionalString(item.excludedAt),
       toleranceSince: optionalString(item.toleranceSince), lastReactionAt: optionalString(item.lastReactionAt),
@@ -180,7 +182,7 @@ export function normalizeAllergyArchive(value: unknown, memberId: string, accoun
 
 export function readAllergyItems(storageValue: string, memberId: string, accountId = '') {
   try {
-    return normalizeAllergyArchive(JSON.parse(storageValue), memberId, accountId).items.filter(item => item.memberId === memberId && (!accountId || !item.accountId || item.accountId === accountId))
+    return normalizeAllergyArchive(JSON.parse(storageValue), memberId, accountId).items.filter(item => item.memberId === memberId && (!accountId || item.accountId === accountId))
   } catch { return [] }
 }
 
