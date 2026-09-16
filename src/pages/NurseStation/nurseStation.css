@@ -35,16 +35,17 @@
 .nurse-more-services { margin-top: 10px; }
 .nurse-more-services h2 { margin: 0 0 5px 4px; color: #657780; font-size: 13px; font-weight: 680; }
 .nurse-more-services > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.nurse-more-service { display: grid; min-width: 0; min-height: 72px; place-items: center; align-content: center; gap: 5px; color: #17322e; }
+.nurse-more-service { display: grid; min-width: 0; min-height: 72px; place-items: center; align-content: center; gap: 5px; background: #fff; color: #17322e; }
 .nurse-more-service > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; background: #e6f7f3; color: #168f80; }
 .nurse-more-service--allergy-card > span { background: #eaf5fb; color: #3485b6; }
 .nurse-more-service--food > span { background: #fff5dc; color: #c98b16; }
 .nurse-more-service--nearby > span { background: #f0edff; color: #7365bd; }
 .nurse-more-service svg { width: 22px; height: 22px; stroke-width: 1.8; }
 .nurse-more-service strong { overflow: hidden; width: 100%; font-size: 11.5px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.nurse-more-service--unavailable { color: #82908e; }
+.nurse-more-service--unavailable { color: #687875; cursor: not-allowed; }
 .nurse-more-service--unavailable > span { background: #f1f4f3; color: #97a4a2; }
-.nurse-more-service-notice { position: fixed; z-index: 82; bottom: max(var(--hoho-space-6), env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); border-radius: var(--hoho-radius-pill); padding: var(--hoho-space-2) var(--hoho-space-4); background: rgb(var(--hoho-color-text-primary)); color: rgb(var(--hoho-color-surface)); box-shadow: var(--hoho-shadow-floating); font-size: var(--hoho-font-size-label); font-weight: 650; white-space: nowrap; }
+.nurse-more-service--unavailable:disabled { opacity: 1; }
+.nurse-more-services-status { margin: 2px 4px 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 1.45; }
 .nurse-more-services .journal-subject-summary { display: grid; width: auto; min-width: 0; min-height: 72px; height: auto; grid-template-columns: none; place-items: center; align-content: center; gap: 5px; border: 0; padding: 0; background: transparent; color: #17322e; box-shadow: none; }
 .nurse-more-services .journal-subject-summary .hoho-button__content { display: grid; min-width: 0; place-items: center; align-content: center; gap: 5px; }
 .nurse-more-services .journal-subject-summary .medical-prep-button__icon { display: grid; width: 40px; height: 40px; margin: 0; place-items: center; border-radius: 50%; background: #e6f7f3; color: #168f80; }
@@ -100,8 +101,6 @@
 .guardian-tasks { margin-top: 10px; }
 .guardian-task-tabs { display:flex; overflow-x:auto; scrollbar-width:none; }
 .guardian-task-tabs button { flex:0 0 33.333%; min-width:33.333%; }
-.guardian-plan-tags { display:flex; gap:4px; margin-top:5px; flex-wrap:wrap; }
-.guardian-plan-tags i { font-style:normal; color:rgb(var(--hoho-color-text-secondary)); background:rgb(var(--hoho-color-surface-muted)); border-radius:var(--hoho-radius-sm); padding:2px 6px; font-size:10px; }
 .guardian-task-card[data-status='due'] em { color:rgb(var(--hoho-color-danger)); background:rgb(var(--hoho-color-danger-soft)); }
 .guardian-task-card[data-status='snoozed'] em { color:#a16409; background:#fff5df; }
 .guardian-task-card[data-status='skipped_current'] em,.guardian-task-card[data-status='paused'] em,.guardian-task-card[data-status='ended'] em { color:rgb(var(--hoho-color-text-secondary)); background:rgb(var(--hoho-color-surface-muted)); }
@@ -138,27 +137,42 @@
 .recent-medical-preparation article strong { font-size: 14px; }
 .recent-medical-preparation article small { overflow: hidden; color: #71847f; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .recent-medical-preparation article button { grid-column: 1 / -1; min-height: 42px; border-radius: 10px; background: #1f877a; color: #fff; font-size: 13px; font-weight: 700; }
-.guardian-tasks > header { position: relative; min-height: 42px; }
-.guardian-task-view { display: flex; min-height: 42px; align-items: center; gap: 6px; color: #17322e; font-size: 19px; font-weight: 780; letter-spacing: -.02em; }
+.guardian-tasks > header { position: relative; min-height: 44px; }
+.guardian-task-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
+.guardian-task-heading > p { display: flex; min-width: 0; max-width: 46%; margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; white-space: nowrap; }
+.guardian-task-heading > p strong { overflow: hidden; min-width: 0; color: rgb(var(--hoho-color-text-primary)); font-weight: 650; text-overflow: ellipsis; }
+.guardian-task-view { display: flex; min-height: 44px; align-items: center; gap: 6px; color: #17322e; font-size: 19px; font-weight: 780; letter-spacing: -.02em; }
 .guardian-task-view svg { width: 19px; transition: transform 160ms ease; }
 .guardian-task-view[aria-expanded='true'] svg { transform: rotate(180deg); }
-.guardian-task-view-menu { position: absolute; z-index: 8; top: 40px; left: 0; display: grid; width: 142px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgb(15 50 44 / .14); }
-.guardian-task-view-menu button { min-height: 42px; padding-inline: 12px; color: #294741; font-size: 13px; text-align: left; }
+.guardian-task-view-menu { position: absolute; z-index: 8; top: 42px; left: 0; display: grid; width: 142px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgb(15 50 44 / .14); }
+.guardian-task-view-menu button { min-height: 44px; padding-inline: 12px; color: #294741; font-size: 13px; text-align: left; }
 .guardian-task-view-menu button + button { border-top: 1px solid #edf3f1; }
 .guardian-task-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border: 1px solid #b9e4db; border-radius: 12px; }
-.guardian-task-tabs button { min-width: 0; min-height: 42px; color: #168678; font-size: 13px; font-weight: 720; }
+.guardian-task-tabs button { min-width: 0; min-height: 44px; color: #167c70; font-size: 13px; font-weight: 720; }
 .guardian-task-tabs button + button { border-left: 1px solid #cde9e3; }
-.guardian-task-tabs button[aria-selected='true'] { background: rgb(var(--hoho-color-primary)); color: #fff; }
+.guardian-task-tabs button[aria-selected='true'] { background: #167c70; color: #fff; }
+.guardian-task-tabs button:focus-visible, .guardian-task-card:focus-visible, .guardian-task-view:focus-visible, .nurse-more-service:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: 2px; }
+.guardian-notification-notice, .guardian-data-notice { display: flex; min-height: 44px; align-items: center; gap: 8px; margin-top: 8px; border-radius: 10px; padding: 8px 10px; background: #f5f7f6; color: #526863; font-size: 12px; line-height: 1.45; }
+.guardian-notification-notice svg { width: 18px; height: 18px; flex: 0 0 auto; color: #647b76; }
+.guardian-data-notice { justify-content: space-between; border: 1px solid #dce9e6; background: #f8fbfa; }
+.guardian-data-notice--error { border-color: #ecd8d4; background: #fffafa; color: #70554f; }
+.guardian-data-notice button { min-height: 44px; flex: 0 0 auto; padding-inline: 8px; color: rgb(var(--hoho-color-primary)); font-weight: 700; }
 .guardian-task-list { display: grid; gap: 8px; margin-top: 8px; }
-.guardian-task-card { display: flex; width: 100%; min-height: 72px; align-items: center; gap: 10px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 9px 10px; background: #fff; text-align: left; }
+.guardian-task-card { display: flex; width: 100%; min-height: 72px; align-items: center; gap: 10px; border: 1px solid #d7e8e4; border-radius: 12px; padding: 10px; background: #fff; text-align: left; transition: border-color 140ms ease, background-color 140ms ease, transform 100ms ease; }
+.guardian-task-card:not(:disabled):hover { border-color: #acd9d0; background: #fbfefd; }
+.guardian-task-card:not(:disabled):active { transform: scale(.995); }
+.guardian-task-card:disabled { cursor: not-allowed; opacity: 1; background: #f6f8f7; color: #73827f; }
+.guardian-task-card:disabled .guardian-task-icon { background: #eef2f1; color: #94a19f; }
 .guardian-task-icon { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #fff0ea; color: #e7704e; }
 .guardian-task-icon svg { width: 23px; }
 .guardian-task-copy { display: grid; min-width: 0; flex: 1; gap: 5px; }
-.guardian-task-copy > span { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.guardian-task-copy strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.guardian-task-copy > span { display: flex; min-width: 0; align-items: flex-start; gap: 8px; }
+.guardian-task-copy strong { min-width: 0; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
 .guardian-task-copy em { flex: 0 0 auto; border-radius: 999px; padding: 4px 8px; background: #def5ef; color: #158a7d; font-size: 11px; font-style: normal; font-weight: 700; }
 .guardian-task-card[data-status='paused'] .guardian-task-copy em { background: #eef1f1; color: #687b88; }
-.guardian-task-copy small { overflow: hidden; color: #6b7f8c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.guardian-task-copy small { color: #5f746f; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.guardian-plan-details { display: flex; flex-wrap: wrap; gap: 3px 7px; color: rgb(var(--hoho-color-text-secondary)); font-size: 14px; line-height: 1.45; }
+.guardian-plan-details > span:not(:last-child)::after { content: '·'; margin-left: 7px; color: #9aaba7; }
 .guardian-task-add { margin-top: 8px; }
 .guardian-task-add .guardian-task-icon { background: #def5ef; color: #158a7d; }
 .guardian-task-add .guardian-task-copy > strong { font-size: 15px; }
@@ -167,6 +181,7 @@
 .guardian-task-empty div { display: grid; gap: 3px; }
 .guardian-task-empty strong { color: #17322e; font-size: 14px; }
 .guardian-task-empty span { color: #71847f; font-size: 12px; }
+.guardian-task-empty--unavailable { border-style: solid; border-color: #e0e7e5; background: #f6f8f7; color: #8a9996; }
 
 .nurse-service-sheet .hoho-bottom-sheet__title-group > svg { color: #159486; }
 .medication-reminder-entry { display: grid; width: 100%; min-height: 72px; grid-template-columns: 40px minmax(0, 1fr) 18px; align-items: center; gap: 10px; border: 1px solid #cfe8e2; border-radius: 12px; padding: 10px 12px; background: #f5fbf9; color: #17322e; text-align: left; }
