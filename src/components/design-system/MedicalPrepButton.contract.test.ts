@@ -6,9 +6,10 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const component = read('./MedicalPrepButton.tsx')
 const styles = read('./MedicalPrepButton.css')
 
-test('medical prep button uses the shared report-sheet icon and label', () => {
+test('medical prep button uses the shared report-sheet icon and configurable label', () => {
   assert.match(component, /<ClipboardList[^>]*size=\{24\}[^>]*strokeWidth=\{1\.8\}/)
-  assert.match(component, /<strong>就医准备<\/strong>/)
+  assert.match(component, /label = '就医准备'/)
+  assert.match(component, /<strong>\{label\}<\/strong>/)
   assert.match(component, /<small>孩子情况快速整理<\/small>/)
   assert.doesNotMatch(component, /<circle |WandSparkles|soft-glow|light-band|brandMark|<img/)
   assert.doesNotMatch(component, /setTimeout|setInterval|requestAnimationFrame|medical-prep-button--awake/)
