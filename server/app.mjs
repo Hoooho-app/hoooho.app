@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
 import { BrowserSessionService } from './auth/browser-session-service.mjs'
+import { observeSessionRequest } from './auth/session-diagnostics.mjs'
 import { registerTransactionRoot } from './auth/storage/transaction.mjs'
 import { withAccountLock } from './auth/account-lock.mjs'
 import { assertAuthRuntimeConfig, authConfig } from './auth/config.mjs'
@@ -781,6 +782,7 @@ const server = createServer(async (request, response) => {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
+    observeSessionRequest(request, response, pathname)
     const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
     const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
     if (await withAccountLock(lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return

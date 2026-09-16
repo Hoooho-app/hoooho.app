@@ -18,8 +18,17 @@ export class SessionRepository {
   }
 
   async find(token, now = Date.now()) {
-    if (!/^[A-Za-z0-9_-]{43}$/.test(token ?? '')) return null
-    return (await this.store.read()).sessions.find((item) => item.tokenHash === hash(token) && !item.revokedAt && item.expiresAt > now) ?? null
+    return (await this.inspect(token, now)).session
+  }
+
+  async inspect(token, now = Date.now()) {
+    if (!token) return { state: 'missing-cookie', session: null }
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return { state: 'malformed-cookie', session: null }
+    const session = (await this.store.read()).sessions.find((item) => item.tokenHash === hash(token))
+    if (!session) return { state: 'session-not-found', session: null }
+    if (session.revokedAt) return { state: 'session-revoked', session: null }
+    if (session.expiresAt <= now) return { state: 'session-expired', session: null }
+    return { state: 'valid', session }
   }
 
   async renew(token, now = Date.now()) {

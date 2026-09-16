@@ -1,4 +1,5 @@
 import type { AuthSession } from '../types'
+import { browserLoginStorageDiagnostics } from './loginStorageDiagnostics'
 
 interface SendCodeResponse {
   success: true
@@ -63,6 +64,10 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'X-Hoooho-Request-ID': requestId,
+        ...(path === '/api/auth/session' || path === '/api/auth/nickname/login' ? {
+          'X-Hoooho-Client-Build': import.meta.env?.VITE_BUILD_COMMIT ?? 'local',
+          ...browserLoginStorageDiagnostics()
+        } : {}),
         ...(legacyToken ? { Authorization: `Bearer ${legacyToken}` } : {})
       },
       ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),

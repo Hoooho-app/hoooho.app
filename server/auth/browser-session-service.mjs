@@ -29,11 +29,16 @@ export class BrowserSessionService {
     response.setHeader('Cache-Control', 'no-store')
   }
   async current(request) {
-    const session = await this.sessions.find(cookieToken(request))
-    if (!session) return null
+    return (await this.resolveCurrent(request)).current
+  }
+  async resolveCurrent(request) {
+    const { state, session } = await this.sessions.inspect(cookieToken(request))
+    if (!session) return { state, current: null }
     let user = await this.auth.users.findById(session.accountId)
     if (user && !user.guest && !user.hooohoId) user = await this.auth.users.ensureHooohoId(user.id)
-    return user && !user.mergedInto ? { session, user } : null
+    if (!user) return { state: 'account-not-found', current: null }
+    if (user.mergedInto) return { state: 'account-merged', current: null }
+    return { state: 'valid', current: { session, user } }
   }
   async responseSession(request, response, current) {
     const token = cookieToken(request)
@@ -47,16 +52,21 @@ export class BrowserSessionService {
   }
   async restore(request, response, legacyToken = '') {
     this.assertSameOrigin(request)
-    const current = await this.current(request)
+    const { state, current } = await this.resolveCurrent(request)
+    response.setHeader('X-Hoooho-Session-Outcome', state)
     if (current) {
       const restored = await this.responseSession(request, response, current)
       if (restored) return restored
+      response.setHeader('X-Hoooho-Session-Outcome', 'renewal-rejected')
     }
     if (legacyToken) {
       const payload = this.auth.tokens.verify(legacyToken)
       if (payload && !payload.purpose && !payload.browserSession) {
         const user = payload.guest ? await this.auth.users.createGuest(payload.sub) : await this.auth.users.findById(payload.sub)
-        if (user && !user.mergedInto) return this.issue(request, response, user)
+        if (user && !user.mergedInto) {
+          response.setHeader('X-Hoooho-Session-Outcome', 'legacy-upgraded')
+          return this.issue(request, response, user)
+        }
       }
     }
     if (cookieToken(request)) this.setCookie(request, response, '', { maxAge: 0 })
