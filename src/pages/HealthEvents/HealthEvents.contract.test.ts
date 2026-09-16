@@ -30,7 +30,7 @@ test('健康随身记与前台护士站共用就医准备按钮', () => {
   assert.match(page, /<MedicalPrepButton className="journal-subject-summary"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
   assert.match(station, /<MedicalPrepButton[^>]*disabled=\{unavailable\}/)
-  assert.match(page, /setRecorderMode\('voice'\)/)
+  assert.doesNotMatch(page, /journal-quick-record-action|aria-label="快捷记录"/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
 })
 

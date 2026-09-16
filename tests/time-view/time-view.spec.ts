@@ -146,7 +146,9 @@ test('manual record sheet groups supported care actions under health events', as
 
 test('health journal names the existing summary action medical prep', async ({ page }) => {
   await prepare(page)
-  await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveClass(/medical-prep-button/)
+  const button = page.getByRole('button', { name: '就医准备', exact: true })
+  await expect(button).toHaveClass(/medical-prep-button/)
+  await expect(button.locator('.medical-prep-button__label strong')).toHaveText('就诊情况单')
   await expect(page.getByRole('button', { name: '摘要生成', exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
 })
@@ -223,68 +225,58 @@ test('sleep prompt starts one persistent session, restores after reload and ends
   await expect(page.getByText(/等隔离对象醒来/)).toHaveCount(0)
 })
 
-test('quick record opens the existing voice flow and timeline tools are borderless', async ({ page }) => {
+test('health journal removes the footer quick-record control and keeps timeline tools borderless', async ({ page }) => {
   await prepare(page)
-  const manual = page.getByRole('button', { name: '记一下', exact: true })
-  const quick = page.getByRole('button', { name: '快捷记录', exact: true })
+  const manual = page.getByRole('button', { name: '记录症状', exact: true })
   await expect(manual).toHaveCSS('background-color', 'rgb(27, 122, 110)')
   await expect(manual).toHaveCSS('color', 'rgb(255, 255, 255)')
-  await expect(quick).toBeEnabled()
-  await expect(quick).toHaveCSS('background-color', 'rgb(27, 122, 110)')
-  await expect(quick).toHaveCSS('color', 'rgb(255, 255, 255)')
-  await expect(quick).toHaveCSS('opacity', '1')
-  for (const name of ['搜索健康随身记', '切换记录顺序']) {
-    const tool = page.getByRole('button', { name, exact: true })
+  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
+  for (const tool of [page.getByRole('button', { name: '搜索健康随身记', exact: true }), page.getByRole('button', { name: /^记录顺序：/ })]) {
     await expect(tool).toHaveCSS('border-top-width', '0px')
     await expect(tool).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   }
-  await quick.click()
-  await expect(page.getByRole('dialog', { name: '记录内容' })).toBeVisible()
 })
 
-test('manual record button uses a centered plus and concise label', async ({ page }) => {
+test('symptom record button is centered, compact, and fills the footer', async ({ page }) => {
   await prepare(page)
-  const button = page.getByRole('button', { name: '记一下', exact: true })
+  const button = page.getByRole('button', { name: '记录症状', exact: true })
   await expect(button).not.toContainText('手动记录')
-  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记一下')
-  await expect(button.locator('.lucide-plus')).toBeVisible()
+  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记录症状')
   await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveCount(0)
 
   const layout = await button.evaluate((element) => {
     const visual = element.querySelector('.journal-manual-record-action__visual')!.getBoundingClientRect()
-    const quick = document.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
     const buttonBox = element.getBoundingClientRect()
+    const footerBox = element.closest('.journal-record-actions')!.querySelector(':scope > div')!.getBoundingClientRect()
     return {
       visuallyCentered: Math.abs((visual.left + visual.width / 2) - (buttonBox.left + buttonBox.width / 2)) < 1,
-      sameRow: Math.abs(buttonBox.top - quick.top) < 1,
       buttonHeight: buttonBox.height,
-      quickWidth: quick.width,
+      fillsFooter: Math.abs(buttonBox.width - footerBox.width) < 1,
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ visuallyCentered: true, sameRow: true, buttonHeight: 60, quickWidth: 60, pageOverflows: false })
+  expect(layout).toEqual({ visuallyCentered: true, buttonHeight: 52, fillsFooter: true, pageOverflows: false })
   await page.screenshot({ path: 'test-results/manual-record-concise-iphone-se.png' })
 
   await button.click()
-  await expect(page.getByRole('dialog', { name: '记一下' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: '记录症状' })).toBeVisible()
 })
 
-test('manual record footer stays on one row at the required mobile widths', async ({ page }) => {
+test('symptom record footer stays full width at the required mobile widths', async ({ page }) => {
   for (const width of [375, 390, 430]) {
     await page.setViewportSize({ width, height: 667 })
     await prepare(page)
     const layout = await page.locator('.journal-record-actions > div').evaluate((footer) => {
       const manual = footer.querySelector('.journal-manual-record-action')!.getBoundingClientRect()
-      const quick = footer.querySelector('.journal-quick-record-action')!.getBoundingClientRect()
       const label = footer.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
+      const footerBox = footer.getBoundingClientRect()
       return {
-        oneRow: manual.top === quick.top && manual.bottom === quick.bottom,
+        fullWidth: Math.abs(manual.width - footerBox.width) < 1,
         labelVisible: label.width > 0,
-        quickWidth: quick.width,
         pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       }
     })
-    expect(layout).toEqual({ oneRow: true, labelVisible: true, quickWidth: 60, pageOverflows: false })
+    expect(layout).toEqual({ fullWidth: true, labelVisible: true, pageOverflows: false })
   }
 })
 
@@ -419,13 +411,12 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   const summaryBox = await page.getByRole('button', { name: '就医准备', exact: true }).boundingBox()
   expect(subjectBox!.height).toBe(summaryBox!.height)
   const manualBox = await page.getByRole('button', { name: '记录症状', exact: true }).boundingBox()
-  const quickBox = await page.getByRole('button', { name: '快捷记录', exact: true }).boundingBox()
-  expect(manualBox!.width).toBeGreaterThan(quickBox!.width * 3.5)
-  expect(quickBox!.width).toBe(60)
-  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).not.toContainText('快捷记录')
+  const footerBox = await page.locator('.journal-record-actions > div').boundingBox()
+  expect(manualBox!.width).toBe(footerBox!.width)
+  expect(manualBox!.height).toBe(52)
+  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
   await page.mouse.move(0, 0)
   await expect(page.getByRole('button', { name: '记录症状', exact: true })).toHaveAttribute('data-variant', 'secondary')
-  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveAttribute('data-variant', 'secondary')
   await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveAttribute('data-variant', 'primary')
   const subjectBackground = await page.locator('.journal-subject-card').evaluate((element) => getComputedStyle(element).backgroundColor)
   const summaryBackground = await page.getByRole('button', { name: '就医准备', exact: true }).evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -745,17 +736,9 @@ test('complementary record survives reload and remains isolated to the selected 
   await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toHaveCount(0)
 })
 
-test('quick record button enters listening directly and saves using the existing review flow', async ({ page }) => {
+test('health journal footer does not expose the removed quick record button', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '快捷记录', exact: true }).click()
-  await expect(page.getByText('正在听…', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '结束听写' })).toBeEnabled()
-  await page.getByRole('button', { name: '结束听写' }).click()
-  await expect(page.getByRole('textbox', { name: '编辑识别原话' })).toHaveValue('今天和朋友一起玩了半小时')
-  await page.getByRole('button', { name: '确认保存' }).click()
-  const saved = page.locator('.journal-record').filter({ hasText: '今天和朋友一起玩了半小时' })
-  await expect(saved).toBeVisible()
-  await expect(saved.locator('.journal-record-time')).toHaveText(/^\d{2}:\d{2}$/)
+  await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
 })
 
 test('another member never sees the first member timeline', async ({ page }) => {

@@ -92,13 +92,11 @@
 .hoho-health-events-page[data-view-mode='list'] { height: 100dvh; min-height: 0; background: rgb(var(--hoho-color-page-background)); }
 .hoho-health-events-page[data-view-mode='list'] .health-events-content { padding-bottom: var(--hoho-space-6); }
 .journal-record-actions { flex: none; background: rgb(var(--hoho-color-surface)); border-top: 1px solid rgb(var(--hoho-color-border)); padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); }
-.journal-record-actions > div { display: grid; grid-template-columns: minmax(0, 1fr) 60px; gap: var(--hoho-space-2); width: min(100%, 960px); margin-inline: auto; }
-.journal-record-actions .hoho-button[data-size='large'] { min-height: 60px; padding-inline: var(--hoho-space-3); }
+.journal-record-actions > div { width: min(100%, 960px); margin-inline: auto; }
+.journal-record-actions .hoho-button[data-size='large'] { width: 100%; min-height: 52px; padding-inline: var(--hoho-space-3); }
 .journal-record-actions .hoho-button__content { white-space: nowrap; }
-.journal-record-actions .journal-manual-record-action,
-.journal-record-actions .journal-quick-record-action { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); box-shadow: 0 5px 16px rgb(var(--hoho-color-primary) / 0.14); }
+.journal-record-actions .journal-manual-record-action { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); box-shadow: 0 5px 16px rgb(var(--hoho-color-primary) / 0.14); }
 .journal-record-actions .journal-manual-record-action:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-hover)); box-shadow: 0 7px 18px rgb(var(--hoho-color-primary) / 0.18); }
-.journal-record-actions .journal-quick-record-action { padding-inline: 0; }
 .journal-record-actions .journal-manual-record-action .hoho-button__content { width: 100%; min-width: 0; justify-content: center; }
 .journal-manual-record-action__visual { display: inline-flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); }
 .journal-manual-record-action__icon { flex: 0 0 22px; }
