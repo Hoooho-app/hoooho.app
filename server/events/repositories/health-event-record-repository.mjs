@@ -29,6 +29,7 @@ export class HealthEventRecordRepository {
       measurementMethod: input.measurementMethod ?? null,
       measurementDevice: input.measurementDevice ?? null,
       note: input.note ?? null,
+      ...(input.operationId ? { operationId: input.operationId } : {}),
       changeAnnotations: [],
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
@@ -75,6 +76,19 @@ export class HealthEventRecordRepository {
     return updated
   }
 
+  async restore(snapshot) {
+    let restored = null
+    await this.#store.update((data) => ({
+      ...data,
+      records: data.records.map((record) => {
+        if (record.id !== snapshot.id) return record
+        restored = structuredClone(snapshot)
+        return restored
+      })
+    }))
+    return restored
+  }
+
   async delete(id) {
     let deleted = null
     await this.#store.update((data) => ({
@@ -86,6 +100,23 @@ export class HealthEventRecordRepository {
       })
     }))
     return deleted
+  }
+
+  async replaceContinuousRelations(eventId, rootRecordId, relatedRecordIds, now = new Date()) {
+    let root = null
+    await this.#store.update((data) => ({
+      ...data,
+      records: data.records.map((record) => {
+        if (record.eventId !== eventId || !record.journal?.continuous) return record
+        const continuous = { ...record.journal.continuous }
+        if (record.id === rootRecordId) continuous.relatedRecordIds = relatedRecordIds
+        else delete continuous.relatedRecordIds
+        const updated = { ...record, journal: { ...record.journal, continuous }, updatedAt: now.toISOString() }
+        if (record.id === rootRecordId) root = updated
+        return updated
+      })
+    }))
+    return root
   }
 
   async replaceEventChangeAnnotations(eventId, annotationsByRecordId) {

@@ -40,6 +40,9 @@ const visitTypes = new Set(['outpatient', 'emergency', 'inpatient', 'online_cons
 const visitFollowUpActions = new Set(['home_observation', 'medication_as_instructed', 'awaiting_results', 'follow_up', 'referral', 'hospitalization', 'other'])
 const visitDocumentTypes = new Set(['medical_record', 'prescription', 'examination_report', 'receipt', 'other'])
 const visitRecognitionStatuses = new Set(['not_used', 'draft_unverified', 'user_edited'])
+const continuousKinds = new Set(['description', 'symptom', 'care', 'suspicion', 'history'])
+const continuousRelations = new Set(['initial', 'supplement', 'follow_up'])
+const continuousTimePrecisions = new Set(['approx', 'date', 'exact', 'unknown'])
 const resolver = new TimeResolverService()
 
 function cleanStrings(value, field, limit = 12) {
@@ -48,6 +51,31 @@ function cleanStrings(value, field, limit = 12) {
     throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_DIET')
   }
   return [...new Set(value.map((item) => item.trim()))]
+}
+
+function validateContinuous(value) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || !continuousKinds.has(value.kind) || !continuousRelations.has(value.relation) || !continuousTimePrecisions.has(value.timePrecision)) {
+    throw new HealthEventRecordError('连续记录信息无效', 400, 'INVALID_CONTINUOUS_RECORD')
+  }
+  const result = { kind: value.kind, relation: value.relation, timePrecision: value.timePrecision }
+  if (value.rootRecordId !== undefined) {
+    if (typeof value.rootRecordId !== 'string' || !value.rootRecordId.trim() || value.rootRecordId.length > 80) throw new HealthEventRecordError('连续记录根条目无效', 400, 'INVALID_CONTINUOUS_RECORD')
+    result.rootRecordId = value.rootRecordId.trim()
+  }
+  if (value.timeExpression !== undefined) {
+    if (typeof value.timeExpression !== 'string' || !value.timeExpression.trim() || value.timeExpression.trim().length > 120) throw new HealthEventRecordError('发生时间表达无效', 400, 'INVALID_CONTINUOUS_RECORD')
+    result.timeExpression = value.timeExpression.trim()
+  }
+  if (value.timeReferenceAt !== undefined) {
+    if (typeof value.timeReferenceAt !== 'string' || !Number.isFinite(Date.parse(value.timeReferenceAt))) throw new HealthEventRecordError('时间参照无效', 400, 'INVALID_CONTINUOUS_RECORD')
+    result.timeReferenceAt = new Date(value.timeReferenceAt).toISOString()
+  }
+  const relatedRecordIds = cleanStrings(value.relatedRecordIds, '关联记录', 60)
+  if (relatedRecordIds?.length) result.relatedRecordIds = relatedRecordIds
+  if (value.timePrecision !== 'unknown' && !result.timeExpression) throw new HealthEventRecordError('请填写发生时间', 400, 'INVALID_CONTINUOUS_RECORD')
+  if (value.timePrecision === 'approx' && !result.timeReferenceAt) throw new HealthEventRecordError('大致时间缺少录入参照', 400, 'INVALID_CONTINUOUS_RECORD')
+  return result
 }
 
 function validateDiet(value) {
@@ -375,6 +403,7 @@ export function validateJournal(value) {
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
   const visit = validateVisit(value.visit)
+  const continuous = validateContinuous(value.continuous)
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
@@ -383,11 +412,15 @@ export function validateJournal(value) {
   if (medication && !value.categories.includes('medication')) throw new HealthEventRecordError('用药详情必须归入用药分类', 400, 'INVALID_JOURNAL_MEDICATION')
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
   if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
+  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}), ...(continuous ? { continuous } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
+  if (record.journal?.continuous) {
+    const precision = record.journal.continuous.timePrecision
+    return { ...record, journal: { ...record.journal, occurredAt: record.occurredAt, timePrecision: precision === 'date' ? 'day' : precision === 'approx' ? 'period' : precision } }
+  }
   const selected = ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
   let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {

@@ -24,6 +24,7 @@ export interface JournalEntry extends JournalMetadata {
   latestOccurredAt?: string
   updateCount?: number
   searchContents?: string[]
+  isContinuous?: boolean
 }
 
 export function shiftJournalDate(day: string, amount: number) {
@@ -61,7 +62,8 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       firstOccurredAt,
       latestOccurredAt,
       updateCount: ordered.length - 1,
-      searchContents: ordered.map((record) => record.content)
+      searchContents: ordered.map((record) => record.content),
+      isContinuous: Boolean(first.journal?.continuous)
       }
     })
   })
@@ -143,6 +145,7 @@ export function journalDayPeriod(hour: number): JournalDayPeriod {
 }
 
 export function journalTime(entry: JournalEntry) {
+  if (entry.isContinuous && entry.timePrecision === 'unknown') return { group: '时间不确定', label: '不确定' }
   if (!Number.isFinite(Date.parse(entry.occurredAt))) return { group: '', label: '' }
   const date = new Date(entry.occurredAt)
   const group = journalDayPeriod(date.getHours())

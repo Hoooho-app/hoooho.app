@@ -13,6 +13,8 @@ import { TriggerOpportunityCard } from './TriggerOpportunityCard'
 import { resolveTriggerLocale } from './triggerOpportunityI18n'
 import { selectTriggerOpportunity } from './triggerOpportunitySelector'
 import { readTriggerCardStatus, setTriggerCardStatus, triggerSuggestionKey } from './triggerOpportunityState'
+import { manualContinuousDraftKey } from './manualContinuousDraft'
+import { quickRecordService } from '../../services/quickRecords'
 
 function symptomFacts(entry: JournalEntry) {
   const narrative = entry.symptom?.narrative ?? entry.content
@@ -22,7 +24,7 @@ function symptomFacts(entry: JournalEntry) {
   }
 }
 
-export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
+export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string, isContinuous?: boolean) => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const navigate = useNavigate()
   const [layoutMode, setLayoutMode] = useState<'list' | 'thumbnail'>('list')
   const [layoutNotice, setLayoutNotice] = useState('')
@@ -35,6 +37,9 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
   const accountId = useAppStore((state) => state.authUser?.id ?? 'guest')
   const [cardRevision, setCardRevision] = useState(0)
   const [triggerLocale, setTriggerLocale] = useState(() => resolveTriggerLocale())
+  const [, setDraftRevision] = useState(0)
+  const manualDraftKey = manualContinuousDraftKey(memberId, undefined, 'new')
+  const manualDraft = (() => { try { const value = JSON.parse(localStorage.getItem(manualDraftKey) ?? '{}') as { narrative?: string; relatedRecordIds?: string[]; locations?: unknown[] }; return value.narrative?.trim() || value.relatedRecordIds?.length || value.locations?.length || sessionStorage.getItem(`hoooho-quick-record-photo-draft:continuous-new-new-none:${memberId}`) ? value : null } catch { return null } })()
   useEffect(() => () => {
     if (layoutNoticeTimerRef.current !== null) window.clearTimeout(layoutNoticeTimerRef.current)
   }, [])
@@ -108,13 +113,14 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
       </span>
       <HohoButton size="icon" variant="ghost" aria-label={`记录顺序：${localSortOrder === 'desc' ? '最新在上' : '最新在下'}，点击切换`} aria-pressed={localSortOrder === 'asc'} onClick={() => setLocalSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}><ArrowUpDown size={18} /></HohoButton>
     </div>
+    {manualDraft && <article className="journal-manual-draft"><div><strong>有一条未完成的记录</strong><span>{manualDraft.narrative?.trim() || '已添加选填内容'}</span></div><button onClick={() => navigate('/health-events/continuous/new')} type="button">继续填写</button><button onClick={() => { localStorage.removeItem(manualDraftKey); const photoKey = `hoooho-quick-record-photo-draft:continuous-new-new-none:${memberId}`; const draftId = sessionStorage.getItem(photoKey); sessionStorage.removeItem(photoKey); if (draftId) void quickRecordService.cancelPhotos(draftId, memberId, token).catch(() => undefined); setDraftRevision((value) => value + 1) }} type="button">放弃草稿</button></article>}
     {loading ? <ListSkeleton rows={4} /> : error && entries.length === 0 ? <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} /> : <>
       {error && <div className="journal-refresh-error"><span>刷新失败，正在显示上次内容</span><button onClick={retry} type="button">重新加载</button></div>}
       {day === today && <div className="journal-now-marker"><span>{`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}</span><strong>现在</strong></div>}
       {activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null}
       {groups.length > 0 && <HealthTimeline ariaLabel={`当天记录，${localSortOrder === 'desc' ? '较新的在上方' : '较早的在上方'}`} level="detail" className="journal-timeline" items={groups.map((group) => ({
         id: group.label, label: group.label,
-        content: <div className="journal-hour-records">{group.items.map((entry) => { const facts = symptomFacts(entry); return <button className={`journal-record${entry.symptom ? ' journal-record--symptom' : ''}${layoutMode === 'thumbnail' ? ' journal-record--thumbnail' : ''}`} data-record-id={entry.id} key={entry.id} type="button" onClick={() => onRecordOpen(entry.eventId, entry.id)}>
+        content: <div className="journal-hour-records">{group.items.map((entry) => { const facts = symptomFacts(entry); return <button className={`journal-record${entry.symptom ? ' journal-record--symptom' : ''}${layoutMode === 'thumbnail' ? ' journal-record--thumbnail' : ''}`} data-record-id={entry.id} key={entry.id} type="button" onClick={() => entry.isContinuous ? window.location.assign(`/health-events/continuous/${entry.eventId}`) : onRecordOpen(entry.eventId, entry.id)}>
           <span className="journal-record-time">{journalTime(entry).label}</span>
           <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
           <span className="journal-record-tags">{entry.categories?.includes('elimination') && <HealthTag>{`今天第${bowelOccurrenceNumber(entries, entry)}次`}</HealthTag>}{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{category === 'medication' && (entry.medication?.medications?.length ?? 0) > 1 ? `用药 · 共${entry.medication!.medications!.length}种` : journalCategoryLabels[category]}</HealthTag>)}</span>

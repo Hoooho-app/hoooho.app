@@ -628,3 +628,4 @@
   .symptom-record-scroll { padding-inline: var(--hoho-space-3); }
   .symptom-record-save { margin-inline: calc(var(--hoho-space-3) * -1); padding-inline: var(--hoho-space-3); }
 }
+ .journal-manual-draft{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;margin:10px 0;padding:11px 12px;border:1px solid #cfe4df;border-radius:14px;background:#f4fbf9}.journal-manual-draft div{min-width:0;display:grid;gap:2px}.journal-manual-draft span{font-size:12px;color:#637b77;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.journal-manual-draft button{min-height:44px;border:0;background:transparent;color:#147f70;font-weight:700}.journal-manual-draft button:last-child{color:#6c817e}@media(max-width:374px){.journal-manual-draft{grid-template-columns:1fr auto}.journal-manual-draft button:last-child{grid-column:2}}

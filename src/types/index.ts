@@ -268,6 +268,8 @@ export interface CreateHealthEventRecordInput {
   note?: string | null
   attachments?: CreateEventAttachmentInput[]
   bodyLocations?: string[]
+  journal?: import('./journal').JournalMetadata
+  operationId?: string
 }
 
 export type UpdateHealthEventRecordInput = Partial<Pick<HealthEventRecordApiDto,

@@ -53,12 +53,17 @@ export function eventRecordsApiPlugin(options = {}) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         const eventRecordsMatch = /^\/api\/events\/([^/]+)\/records$/.exec(pathname)
+        const continuousRelationsMatch = /^\/api\/events\/([^/]+)\/continuous-relations$/.exec(pathname)
         const recordMatch = /^\/api\/records\/([^/]+)$/.exec(pathname)
         const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
-        if (!eventRecordsMatch && !recordMatch && !annotationMatch) return next()
+        if (!eventRecordsMatch && !continuousRelationsMatch && !recordMatch && !annotationMatch) return next()
 
         try {
           const accountId = readAccountId(request, tokens)
+          if (continuousRelationsMatch) {
+            const eventId = decodeURIComponent(continuousRelationsMatch[1])
+            if (request.method === 'PUT') return sendJson(response, 200, await records.replaceContinuousRelations(accountId, eventId, await readJson(request)))
+          }
           if (eventRecordsMatch) {
             const eventId = decodeURIComponent(eventRecordsMatch[1])
             if (request.method === 'GET') return sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time'

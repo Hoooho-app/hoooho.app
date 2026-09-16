@@ -95,6 +95,20 @@ export interface JournalSymptomDetails {
   generatedSummary?: string
 }
 
+export type ContinuousRecordKind = 'description' | 'symptom' | 'care' | 'suspicion' | 'history'
+export type ContinuousRecordRelation = 'initial' | 'supplement' | 'follow_up'
+export type ContinuousTimePrecision = 'approx' | 'date' | 'exact' | 'unknown'
+
+export interface JournalContinuousDetails {
+  kind: ContinuousRecordKind
+  relation: ContinuousRecordRelation
+  rootRecordId?: string
+  timePrecision: ContinuousTimePrecision
+  timeExpression?: string
+  timeReferenceAt?: string
+  relatedRecordIds?: string[]
+}
+
 export type MedicationRoute = 'oral' | 'topical' | 'nebulized' | 'inhaled' | 'nasal' | 'ophthalmic' | 'other'
 export type MedicationObservation = 'not_observed_yet' | 'some_relief' | 'no_obvious_change' | 'discomfort_observed'
 
@@ -224,4 +238,5 @@ export interface JournalMetadata {
   medication?: JournalMedicationDetails
   vaccination?: JournalVaccinationDetails
   visit?: JournalVisitDetails
+  continuous?: JournalContinuousDetails
 }

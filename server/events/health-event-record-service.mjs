@@ -111,8 +111,7 @@ export class HealthEventRecordService {
 
   async validateSymptomLinks(accountId, event, journal) {
     const groups = journal?.symptom?.linkedRecordIds
-    if (!groups) return
-    for (const [category, recordIds] of Object.entries(groups)) {
+    for (const [category, recordIds] of Object.entries(groups ?? {})) {
       for (const id of recordIds) {
         const related = await this.repository.findById(id)
         if (!related || related.accountId !== accountId) throw new HealthEventRecordError('关联记录不存在', 400, 'INVALID_RELATED_RECORD')
@@ -122,6 +121,12 @@ export class HealthEventRecordService {
         if (!categories.includes(category)) throw new HealthEventRecordError('关联记录类型不匹配', 400, 'INVALID_RELATED_RECORD')
       }
     }
+    for (const id of journal?.continuous?.relatedRecordIds ?? []) {
+      const related = await this.repository.findById(id)
+      if (!related || related.accountId !== accountId || related.eventId === event.id) throw new HealthEventRecordError('关联记录不存在', 400, 'INVALID_RELATED_RECORD')
+      const relatedEvent = await this.events.findById(related.eventId)
+      if (!relatedEvent || relatedEvent.accountId !== accountId || relatedEvent.memberId !== event.memberId) throw new HealthEventRecordError('只能关联当前记录对象的内容', 400, 'INVALID_RELATED_RECORD')
+    }
   }
 
   async create(accountId, eventId, input, now = new Date()) {
@@ -130,6 +135,12 @@ export class HealthEventRecordService {
     const occurredAt = validateOccurredAt(input.occurredAt, now)
     const journal = input.journal === undefined ? undefined : validateJournal(input.journal)
     await this.validateSymptomLinks(accountId, event, journal)
+    const operationId = typeof input.operationId === 'string' ? input.operationId.trim() : ''
+    if (operationId) {
+      if (!/^[A-Za-z0-9_-]{8,128}$/.test(operationId)) throw new HealthEventRecordError('操作标识无效', 400, 'INVALID_OPERATION_ID')
+      const previous = (await this.repository.findByEventId(eventId)).find((record) => record.operationId === operationId)
+      if (previous) return previous
+    }
     const created = await this.repository.create({
       accountId,
       eventId,
@@ -141,7 +152,8 @@ export class HealthEventRecordService {
       sourceText: validateOptionalText(input.sourceText, '原始记录'),
       measurementMethod: validateMeasurementMethod(input.measurementMethod),
       measurementDevice: validateOptionalText(input.measurementDevice, '测量设备', 200),
-      note: validateOptionalText(input.note, '备注', 1000)
+      note: validateOptionalText(input.note, '备注', 1000),
+      ...(operationId ? { operationId } : {})
     }, now)
     const bodyLocations = Array.isArray(input.bodyLocations)
       ? [...new Set(input.bodyLocations.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean))].slice(0, 12)
@@ -159,6 +171,22 @@ export class HealthEventRecordService {
 
   async listJournal(accountId, eventId, timezone) {
     return (await this.list(accountId, eventId)).map((record) => projectJournalRecord(record, timezone))
+  }
+
+  async replaceContinuousRelations(accountId, eventId, input, now = new Date()) {
+    const event = await this.assertEventOwnership(accountId, eventId)
+    const rootRecordId = typeof input.rootRecordId === 'string' ? input.rootRecordId.trim() : ''
+    const root = rootRecordId ? await this.repository.findById(rootRecordId) : null
+    if (!root || root.accountId !== accountId || root.eventId !== eventId || root.journal?.continuous?.relation !== 'initial') throw new HealthEventRecordError('连续记录根条目不存在', 404, 'CONTINUOUS_ROOT_NOT_FOUND')
+    const selected = [...new Set(Array.isArray(input.relatedRecordIds) ? input.relatedRecordIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()) : [])]
+    const base = Array.isArray(input.baseRelatedRecordIds) ? [...new Set(input.baseRelatedRecordIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()))] : null
+    const current = [...new Set(root.journal.continuous.relatedRecordIds ?? [])]
+    const relatedRecordIds = base
+      ? [...new Set([...current.filter((id) => !base.includes(id) || selected.includes(id)), ...selected.filter((id) => !base.includes(id))])]
+      : selected
+    const journal = { ...root.journal, continuous: { ...root.journal.continuous, relatedRecordIds } }
+    await this.validateSymptomLinks(accountId, event, journal)
+    return this.repository.replaceContinuousRelations(eventId, rootRecordId, relatedRecordIds, now)
   }
 
   async update(accountId, id, input, now = new Date()) {

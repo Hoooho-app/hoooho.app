@@ -1,6 +1,5 @@
 import type { ComponentProps } from 'react'
 import { HohoButton } from '../../components/design-system'
-import { JournalCategoryIcon } from './JournalCategoryIcon'
 
 type ManualRecordButtonProps = Omit<ComponentProps<typeof HohoButton>, 'children' | 'size' | 'variant'>
 
@@ -8,15 +7,15 @@ export function ManualRecordButton({ className = '', onClick: _onClick, ...props
   return (
     <HohoButton
       {...props}
-      aria-label="记录症状"
+      aria-label="记录"
       className={`journal-manual-record-action ${className}`.trim()}
       size="large"
       variant="secondary"
-      onClick={() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'symptom' } }))}
+      onClick={() => window.location.assign('/health-events/continuous/new')}
     >
       <span aria-hidden="true" className="journal-manual-record-action__visual">
-        <JournalCategoryIcon category="symptom" />
-        <span className="journal-manual-record-action__label">记录症状</span>
+        <span className="journal-manual-record-action__plus">＋</span>
+        <span className="journal-manual-record-action__label">记录</span>
       </span>
     </HohoButton>
   )

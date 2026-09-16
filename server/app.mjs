@@ -436,7 +436,8 @@ async function handleGrowthMeasurements(request, response, pathname, searchParam
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
-  if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !photoMatch && !photoContentMatch) return false
+  const statusMatch = /^\/api\/quick-records\/([^/]+)\/status$/.exec(pathname)
+  if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !statusMatch && !photoMatch && !photoContentMatch) return false
   const accountId = await readAccountId(request)
   const photoMemberId = String(request.headers['x-hoooho-member-id'] ?? '').trim()
   if (photoContentMatch) {
@@ -458,7 +459,8 @@ async function handleQuickRecords(request, response, pathname) {
     else if (!photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.cancel(accountId, photoMemberId, draftId))
     else if (photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.delete(accountId, photoMemberId, draftId, photoId))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
-  } else if (pathname === '/api/quick-records/duplicate-check' && request.method === 'POST') sendJson(response, 200, await quickRecords.checkDuplicate(accountId, await readJson(request)))
+  } else if (statusMatch && request.method === 'GET') sendJson(response, 200, await quickRecords.status(accountId, decodeRouteValue(statusMatch[1]), String(new URL(request.url, 'http://localhost').searchParams.get('memberId') ?? '')))
+  else if (pathname === '/api/quick-records/duplicate-check' && request.method === 'POST') sendJson(response, 200, await quickRecords.checkDuplicate(accountId, await readJson(request)))
   else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
@@ -473,11 +475,18 @@ async function handleAccountEntryState(request, response, pathname) {
 
 async function handleEventRecords(request, response, pathname) {
   const eventRecordsMatch = /^\/api\/events\/([^/]+)\/records$/.exec(pathname)
+  const continuousRelationsMatch = /^\/api\/events\/([^/]+)\/continuous-relations$/.exec(pathname)
   const recordMatch = /^\/api\/records\/([^/]+)$/.exec(pathname)
   const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
-  if (!eventRecordsMatch && !recordMatch && !annotationMatch) return false
+  if (!eventRecordsMatch && !continuousRelationsMatch && !recordMatch && !annotationMatch) return false
 
   const accountId = await readAccountId(request)
+  if (continuousRelationsMatch) {
+    const eventId = decodeRouteValue(continuousRelationsMatch[1])
+    if (request.method === 'PUT') sendJson(response, 200, await records.replaceContinuousRelations(accountId, eventId, await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
   if (eventRecordsMatch) {
     const eventId = decodeRouteValue(eventRecordsMatch[1])
     if (request.method === 'GET') sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time'

@@ -50,7 +50,12 @@ function validateInput(input) {
   const journal = validateJournal(input.journal)
   const duplicateAction = ['update', 'create'].includes(input.duplicateAction) ? input.duplicateAction : null
   const duplicateEventId = typeof input.duplicateEventId === 'string' ? input.duplicateEventId.trim() : ''
-  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
+  const targetEventId = typeof input.targetEventId === 'string' ? input.targetEventId.trim() : ''
+  const rootRecordId = typeof input.rootRecordId === 'string' ? input.rootRecordId.trim() : ''
+  const editRecordId = typeof input.editRecordId === 'string' ? input.editRecordId.trim() : ''
+  if (targetEventId && !rootRecordId) throw new HealthEventError('连续记录缺少根条目', 400, 'ROOT_RECORD_REQUIRED')
+  if (editRecordId && !targetEventId) throw new HealthEventError('编辑记录缺少目标情况', 400, 'CONTINUOUS_TARGET_REQUIRED')
+  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId, targetEventId, rootRecordId, editRecordId }
 }
 
 export class QuickRecordService {
@@ -99,6 +104,20 @@ export class QuickRecordService {
     }
   }
 
+  async status(accountId, idempotencyKey, memberId) {
+    idempotencyKey = typeof idempotencyKey === 'string' ? idempotencyKey.trim() : ''
+    memberId = typeof memberId === 'string' ? memberId.trim() : ''
+    if (!keyPattern.test(idempotencyKey) || !memberId) throw new HealthEventError('核实信息无效', 400, 'INVALID_VERIFICATION_REQUEST')
+    const request = await this.requests.find(accountId, idempotencyKey)
+    if (!request) return { status: 'not_found' }
+    const [event, record] = await Promise.all([
+      this.events.repository.findById(request.eventId),
+      this.records.repository.findById(request.recordId)
+    ])
+    if (!event || !record || event.accountId !== accountId || event.memberId !== memberId || record.accountId !== accountId || record.eventId !== event.id) return { status: 'not_found' }
+    return { status: 'completed', eventId: event.id, recordId: record.id }
+  }
+
   async checkDuplicate(accountId, rawInput, now = new Date()) {
     const input = validateInput(rawInput ?? {})
     return { duplicate: await findQuickRecordDuplicate({ accountId, input, events: this.events, records: this.records, now }) }
@@ -118,8 +137,19 @@ export class QuickRecordService {
         }
       }
     }
+    let targetEvent = null
+    let targetRoot = null
+    if (input.targetEventId) {
+      targetEvent = await this.events.repository.findById(input.targetEventId)
+      targetRoot = await this.records.repository.findById(input.rootRecordId)
+      if (!targetEvent || targetEvent.accountId !== accountId || targetEvent.memberId !== input.memberId || !targetRoot || targetRoot.accountId !== accountId || targetRoot.eventId !== targetEvent.id) throw new HealthEventError('目标情况不存在或不属于当前人物', 404, 'CONTINUOUS_TARGET_NOT_FOUND')
+      if (input.editRecordId) {
+        const editing = await this.records.repository.findById(input.editRecordId)
+        if (!editing || editing.accountId !== accountId || editing.eventId !== targetEvent.id) throw new HealthEventError('要编辑的条目不存在', 404, 'CONTINUOUS_ENTRY_NOT_FOUND')
+      }
+    }
     const detectionInput = input.duplicateAction ? { ...input, content: input.rawText } : input
-    const duplicate = await findQuickRecordDuplicate({ accountId, input: detectionInput, events: this.events, records: this.records, now })
+    const duplicate = input.targetEventId ? null : await findQuickRecordDuplicate({ accountId, input: detectionInput, events: this.events, records: this.records, now })
     if (input.duplicateAction === 'update' && (!duplicate || input.duplicateEventId !== duplicate.eventId)) {
       throw new HealthEventError('原记录已发生变化，请重新确认', 409, 'DUPLICATE_TARGET_CHANGED')
     }
@@ -131,15 +161,33 @@ export class QuickRecordService {
       ? await this.photos?.prepareForSave(accountId, input.memberId, input.photoDraftId, input.photoIds)
       : []
     if (input.photoIds.length && !this.photos) throw new HealthEventError('照片服务暂不可用', 503, 'PHOTO_SERVICE_UNAVAILABLE')
-    const event = input.duplicateAction === 'update' && duplicate
+    if (input.editRecordId) {
+      const previous = await this.records.repository.findById(input.editRecordId)
+      let attachedPhotos = []
+      try {
+        const record = await this.records.update(accountId, input.editRecordId, { content: input.content, occurredAt: input.occurredAt, sourceType: input.inputChannel === 'voice' ? 'voice_record' : 'text_record', sourceText: input.rawText, journal: input.journal }, now)
+        attachedPhotos = await this.photos?.attach(accountId, targetEvent.id, record.id, input.memberId, photos, now) ?? []
+        await this.requests.save({ accountId, idempotencyKey: input.idempotencyKey, eventId: targetEvent.id, recordId: record.id }, now)
+        await this.photos?.consume(accountId, input.photoDraftId, photos, now)
+        return { eventId: targetEvent.id, recordId: record.id, photoCount: attachedPhotos.length, idempotent: false }
+      } catch (error) {
+        if (attachedPhotos.length) await this.photos?.rollback(photos).catch(() => undefined)
+        if (previous) {
+          await this.records.repository.restore(previous).catch(() => undefined)
+          await this.records.recomputeAfterMutation(accountId, previous.eventId, now).catch(() => undefined)
+        }
+        throw error
+      }
+    }
+    const event = targetEvent ?? (input.duplicateAction === 'update' && duplicate
       ? await this.events.repository.findById(duplicate.eventId)
       : await this.events.create(accountId, {
       memberId: input.memberId,
       title: input.title,
       category: 'other',
       startTime: input.occurredAt
-    }, now)
-    const createdEvent = input.duplicateAction !== 'update'
+    }, now))
+    const createdEvent = !targetEvent && input.duplicateAction !== 'update'
     let createdRecord = null
     let attachedPhotos = []
     try {
@@ -155,7 +203,7 @@ export class QuickRecordService {
       createdRecord = record
       await this.requests.save({ accountId, idempotencyKey: input.idempotencyKey, eventId: event.id, recordId: record.id, duplicateMatchEventId: duplicate?.eventId ?? null, duplicateChoice: input.duplicateAction }, now)
       attachedPhotos = await this.photos?.attach(accountId, event.id, record.id, input.memberId, photos, now) ?? []
-      await this.records.repository.update(record.id, { note: input.duplicateAction === 'update' ? `event-update:${duplicate.recordId}` : null }, now)
+      await this.records.repository.update(record.id, { note: input.targetEventId ? `event-update:${input.rootRecordId}` : input.duplicateAction === 'update' ? `event-update:${duplicate.recordId}` : null }, now)
       await this.photos?.consume(accountId, input.photoDraftId, photos, now)
       return { eventId: event.id, recordId: record.id, photoCount: attachedPhotos.length, idempotent: false }
     } catch (error) {

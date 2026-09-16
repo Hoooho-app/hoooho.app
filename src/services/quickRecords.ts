@@ -13,6 +13,9 @@ export interface QuickRecordCreateInput {
   photoIds?: string[]
   duplicateAction?: 'update' | 'create'
   duplicateEventId?: string
+  targetEventId?: string
+  rootRecordId?: string
+  editRecordId?: string
 }
 
 export interface QuickRecordCreateResult {
@@ -21,6 +24,8 @@ export interface QuickRecordCreateResult {
   photoCount?: number
   idempotent: boolean
 }
+
+export type QuickRecordSaveStatus = { status: 'not_found' } | { status: 'completed'; eventId: string; recordId: string }
 
 export interface QuickRecordDuplicate {
   eventId: string
@@ -52,6 +57,9 @@ export const quickRecordService = {
   },
   create(input: QuickRecordCreateInput, token: string) {
     return apiRequest<QuickRecordCreateResult>('/api/quick-records', { method: 'POST', body: input, token })
+  },
+  status(idempotencyKey: string, memberId: string, token: string) {
+    return apiRequest<QuickRecordSaveStatus>(`/api/quick-records/${encodeURIComponent(idempotencyKey)}/status?memberId=${encodeURIComponent(memberId)}`, { token })
   },
   listPhotos(draftId: string, memberId: string, token: string) {
     return apiRequest<QuickRecordPhotoDto[]>(`/api/quick-records/${encodeURIComponent(draftId)}/photos`, { token, headers: { 'X-Hoooho-Member-Id': memberId } })

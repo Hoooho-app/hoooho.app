@@ -35,6 +35,13 @@ export const router = createBrowserRouter([
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
       { path: '/health-events/search', lazy: lazyPage(() => import('../pages/HealthEvents/JournalSearchPage'), 'JournalSearchPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
+      { path: '/health-events/continuous/new', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/related', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/:eventId', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/:eventId/add', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/:eventId/edit/:recordId', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/:eventId/related', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
+      { path: '/health-events/continuous/:eventId/source/:recordId', lazy: lazyPage(() => import('../pages/HealthEvents/ManualContinuousRecordPage'), 'ManualContinuousRecordPage') },
       {
         element: <RequireEstablishedHealthData />,
         children: [

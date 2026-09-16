@@ -48,8 +48,10 @@ export function quickRecordsApiPlugin(options = {}) {
     name: 'hoooho-local-quick-records-api',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-        if (pathname !== '/api/quick-records') return next()
+        const url = new URL(request.url ?? '/', 'http://localhost')
+        const pathname = url.pathname
+        const statusMatch = /^\/api\/quick-records\/([^/]+)\/status$/.exec(pathname)
+        if (pathname !== '/api/quick-records' && !statusMatch) return next()
         try {
           const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')
           const payload = match ? tokens.verify(match[1]) : null
@@ -59,6 +61,7 @@ export function quickRecordsApiPlugin(options = {}) {
             error.code = 'UNAUTHORIZED'
             throw error
           }
+          if (statusMatch && request.method === 'GET') return sendJson(response, 200, await service.status(payload.sub, decodeURIComponent(statusMatch[1]), String(url.searchParams.get('memberId') ?? '')))
           if (request.method !== 'POST') return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
           return sendJson(response, 201, await service.create(payload.sub, await readJson(request)))
         } catch (error) {

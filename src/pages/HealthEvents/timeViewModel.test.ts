@@ -44,6 +44,15 @@ test('event updates remain one timeline item and sort by the latest update', () 
   assert.equal(projected[0].updateCount, 1)
   assert.equal(journalUpdateLabel(projected[0]), '16:16 首次记录 · 16:18 有更新')
 })
+test('continuous records remain one timeline item and unknown time is never shown as 00:00', () => {
+  const event: HealthEventApiDto = { id: 'continuous', memberId: 'child', accountId: 'account', title: '皮肤变化', category: 'other', status: 'observing', startTime: '2026-09-05T12:00:00', createdAt: '2026-09-05T12:00:01', updatedAt: '2026-09-05T12:05:01' }
+  const first: HealthEventRecordApiDto = { id: 'root', accountId: 'account', eventId: event.id, type: 'note', content: '不确定是不是痒', occurredAt: event.startTime, createdAt: event.createdAt, updatedAt: event.createdAt, journal: { categories: ['symptom'], timePrecision: 'unknown', continuous: { kind: 'description', relation: 'initial', timePrecision: 'unknown' } } }
+  const supplement: HealthEventRecordApiDto = { ...first, id: 'supplement', note: 'event-update:root', content: '后来看到一点红', createdAt: event.updatedAt, updatedAt: event.updatedAt, journal: { categories: ['symptom'], timePrecision: 'unknown', continuous: { kind: 'symptom', relation: 'supplement', rootRecordId: 'root', timePrecision: 'unknown' } } }
+  const [projected] = flattenJournal([event], new Map([[event.id, [first, supplement]]]), new Map(), 'child')
+  assert.equal(projected.isContinuous, true)
+  assert.equal(projected.updateCount, 1)
+  assert.deepEqual(journalTime(projected), { group: '时间不确定', label: '不确定' })
+})
 test('independent legacy records sharing one event are not mistaken for update nodes', () => {
   const event: HealthEventApiDto = { id: 'event', memberId: 'child', accountId: 'account', title: '日常记录', category: 'other', status: 'observing', startTime: '2026-09-05T12:00:00', createdAt: '2026-09-05T12:00:01', updatedAt: '2026-09-05T13:00:01' }
   const first: HealthEventRecordApiDto = { id: 'diet', accountId: 'account', eventId: event.id, type: 'note', content: '吃午饭', occurredAt: '2026-09-05T12:00:00', createdAt: '2026-09-05T12:00:01', updatedAt: '2026-09-05T12:00:01', journal: { categories: ['diet'] } }
