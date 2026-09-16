@@ -27,3 +27,11 @@ test('过敏汇总严格按当前人物和明确状态', () => {
   assert.deepEqual({ total:result.total, investigating:result.investigating, suspected:result.suspected, doctorConfirmed:result.doctorConfirmed }, { total:4, investigating:1, suspected:1, doctorConfirmed:1 })
   assert.match(result.latest, /^9月4日 · 出现红疹$/)
 })
+
+test('其他家庭成员的过敏对象不计入当前人物概览', () => {
+  const result = buildAllergyOverview([
+    { id:'mine', memberId:'child-1', name:'牛奶', currentStatus:'investigating' },
+    { id:'other', memberId:'child-2', name:'鸡蛋', currentStatus:'confirmed' }
+  ], [], 'child-1')
+  assert.deepEqual({ total:result.total, investigating:result.investigating, doctorConfirmed:result.doctorConfirmed }, { total:1, investigating:1, doctorConfirmed:0 })
+})
