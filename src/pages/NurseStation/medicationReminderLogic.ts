@@ -33,14 +33,18 @@ export function nextOccurrences(plan: Pick<MedicationReminderPlan, 'mode' | 'tim
 }
 
 export function effectiveStatus(status: NurseStationItemStatus, plan: MedicationReminderPlan, notification: NotificationPermission | 'unsupported', now = Date.now()): NurseStationItemStatus {
-  if (['paused', 'completed', 'ended'].includes(status)) return status
-  if (notification !== 'granted') return 'notification_disabled'
-  if (status === 'snoozed' && plan.snoozedUntil && Date.parse(plan.snoozedUntil) <= now) return 'due'
-  if (status === 'skipped_current' && Date.parse(plan.nextOccurrenceAt) <= now) return 'due'
+  const lifecycleStatus = status === 'notification_disabled' ? 'active' : status
+  if (['paused', 'completed', 'ended'].includes(lifecycleStatus)) return lifecycleStatus
+  // Browser notification permission affects delivery, not the plan's lifecycle.
+  // Keep it in the signature for persisted callers while presenting permission
+  // once at the task-area level instead of rewriting every task status.
+  void notification
+  if (lifecycleStatus === 'snoozed' && plan.snoozedUntil && Date.parse(plan.snoozedUntil) <= now) return 'due'
+  if (lifecycleStatus === 'skipped_current' && Date.parse(plan.nextOccurrenceAt) <= now) return 'due'
   if (Date.parse(plan.nextOccurrenceAt) <= now) return 'due'
-  return status === 'pending_confirmation' ? 'active' : status
+  return lifecycleStatus === 'pending_confirmation' ? 'active' : lifecycleStatus
 }
 
 export const planLabel = (plan: MedicationReminderPlan) => plan.mode === 'daily' ? `每日${plan.times.length}次` : plan.mode === 'interval' ? `每${plan.intervalHours}小时` : '仅一次'
 export const routeLabel = (route: string) => ({ oral: '口服', topical: '外用', inhaled: '吸入', nasal: '鼻用', ophthalmic: '眼用', other: '其他' }[route] ?? route)
-export const formatOccurrence = (iso: string) => { const date = new Date(iso); const today = localDate(); const prefix = localDate(date) === today ? '今天' : `${date.getMonth() + 1}月${date.getDate()}日`; return `${prefix}${clock(date)}` }
+export const formatOccurrence = (iso: string) => { const date = new Date(iso); if (Number.isNaN(date.getTime())) return '时间待确认'; const today = localDate(); const prefix = localDate(date) === today ? '今天' : `${date.getMonth() + 1}月${date.getDate()}日`; return `${prefix}${clock(date)}` }

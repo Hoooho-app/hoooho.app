@@ -24,12 +24,36 @@ async function registerMember(page: Page) {
   await page.goto('/nurse-station')
 }
 
+function contrastRatio(foreground: string, background: string) {
+  const channel = (value: number) => {
+    const normalized = value / 255
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = (value: string) => {
+    const channels = value.match(/\d+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0]
+    return 0.2126 * channel(channels[0]) + 0.7152 * channel(channels[1]) + 0.0722 * channel(channels[2])
+  }
+  const first = luminance(foreground)
+  const second = luminance(background)
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+}
+
 test('护士站待机视频仍使用真实单一循环资源', async ({ page }) => {
   await registerMember(page)
   const video = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
   await expect(video).toHaveCount(1)
   await expect(video).toHaveAttribute('loop', '')
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({ height: element.videoHeight, paused: element.paused, width: element.videoWidth }))).toMatchObject({ height: 360, paused: false, width: 360 })
+})
+
+test('护士视频资源失败时页面结构和核心任务仍可使用', async ({ page }) => {
+  await page.route('**/*nurse-station-idle-1*.mp4', (route) => route.abort())
+  await registerMember(page)
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '136px')
+  await expect(page.locator('.idle-nurse-visual video')).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
+  await expect(page.getByRole('tab', { name: '用药提醒' })).toBeVisible()
+  await page.getByRole('tab', { name: '排敏测试' }).click()
+  await expect(page.getByText('还没有排敏测试', { exact: true })).toBeVisible()
 })
 
 test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', async ({ page }) => {
@@ -60,10 +84,19 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   const unavailableServices = page.locator('.nurse-more-service--unavailable')
   await expect(unavailableServices).toHaveCount(3)
   for (const service of await unavailableServices.all()) {
-    await service.click()
-    await expect(page.getByRole('status')).toHaveText('功能即将开放')
+    await expect(service).toBeDisabled()
   }
+  await expect(page.getByText('就医准备需先记录健康情况；其余灰色服务正在准备中。', { exact: true })).toBeVisible()
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.guardian-task-heading')).toContainText('123的任务')
+  await expect(page.locator('.guardian-notification-notice')).toHaveCount(1)
+  await expect(page.locator('.guardian-notification-notice')).toContainText('用药计划仍会保留')
+  const reducedVideo = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
+  await expect(reducedVideo).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
+  await expect.poll(() => reducedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect.poll(() => reducedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false)
+  await page.screenshot({ path: 'test-results/nurse-station-first-screen-375x667.png', fullPage: true })
   const tabs = page.getByRole('tab')
   await expect(tabs).toHaveText(['用药提醒', '排敏测试', '疫苗提醒'])
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
@@ -71,13 +104,21 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await expect(page.getByText('创建下一次用药提醒', { exact: true })).toBeVisible()
   await tabs.nth(1).click()
   await expect(page.getByText('新增排敏测试', { exact: true })).toBeVisible()
+  await expect(page.getByText('还没有排敏测试', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/nurse-station-allergy-empty-375x667.png', fullPage: true })
   await tabs.nth(2).click()
-  await expect(page.getByText('新增疫苗提醒', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /新增疫苗提醒/ })).toBeDisabled()
+  await expect(page.getByText('疫苗提醒暂未开放', { exact: true }).last()).toBeVisible()
+  await page.screenshot({ path: 'test-results/nurse-station-vaccination-unavailable-375x667.png', fullPage: true })
+  for (let index = 0; index < 4; index += 1) {
+    await tabs.nth(index % 3).click()
+  }
+  await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
   await page.locator('.guardian-task-view').click()
   await page.getByRole('button', { name: '已归档任务', exact: true }).click()
   await expect(page.locator('.guardian-task-view')).toHaveText(/已归档任务/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
-  for (const viewport of [{ width: 320, height: 667 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
   }
@@ -87,18 +128,24 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
 test('用药提醒三步在 320x568 与 375x667 一屏完成并持久化', async ({ page }) => {
   await registerMember(page)
   for (const viewport of [{ width: 320, height: 568 }, { width: 375, height: 667 }]) {
+    const medicationName = `复方盐酸西替利嗪儿童滴剂超长名称换行验收${viewport.width}`
     await page.setViewportSize(viewport)
     await page.getByRole('tab', { name: '用药提醒' }).click()
     await page.getByText('新增用药提醒', { exact: true }).click()
     const flow=page.getByRole('dialog',{name:'新增用药提醒'})
-    await flow.getByLabel('药品名称').fill('西替利嗪滴剂')
+    await flow.getByLabel('药品名称').fill(medicationName)
     await flow.getByLabel('每次用量').fill('5')
     await expect(flow).toBeVisible()
     expect(await flow.evaluate((node)=>({h:node.scrollHeight,v:window.innerHeight,w:document.documentElement.scrollWidth}))).toEqual({h:viewport.height,v:viewport.height,w:viewport.width})
     await page.screenshot({path:`test-results/medication-step1-${viewport.width}x${viewport.height}.png`})
     await flow.getByRole('button',{name:/下一步：设置规律/}).click()
-    await flow.getByRole('textbox', { name: '第1次提醒时间', exact: true }).fill('08:00')
+    await flow.getByRole('textbox', { name: '第1次提醒时间', exact: true }).fill(viewport.width === 320 ? '08:00' : '09:15')
     await flow.getByRole('button', { name: '5天', exact: true }).click()
+    if (viewport.width === 375) {
+      await flow.getByRole('button', { name: '每隔一段时间' }).click()
+      await flow.getByLabel('间隔小时数').fill('6')
+      await flow.getByLabel('首次提醒时间').fill('09:15')
+    }
     expect(await flow.evaluate((node)=>node.scrollHeight)).toBeLessThanOrEqual(viewport.height)
     await page.screenshot({path:`test-results/medication-step2-${viewport.width}x${viewport.height}.png`})
     await flow.getByRole('button',{name:/下一步：确认/}).click()
@@ -106,11 +153,108 @@ test('用药提醒三步在 320x568 与 375x667 一屏完成并持久化', async
     expect(await flow.evaluate((node)=>node.scrollHeight)).toBeLessThanOrEqual(viewport.height)
     await page.screenshot({path:`test-results/medication-confirm-${viewport.width}x${viewport.height}.png`})
     await flow.getByRole('button',{name:'确认并开启提醒'}).click()
-    await expect(page.getByText('西替利嗪滴剂',{exact:true}).last()).toBeVisible()
+    await expect(page.getByText(medicationName,{exact:true}).last()).toBeVisible()
+    await expect(page.getByText(/^下次：/).last()).toBeVisible()
+    await expect(page.locator('.guardian-plan-details').last()).toContainText('每次 5')
+    const titleMetrics = await page.getByText(medicationName,{exact:true}).last().evaluate((element) => ({ height: element.getBoundingClientRect().height, whiteSpace: getComputedStyle(element).whiteSpace }))
+    expect(titleMetrics.whiteSpace).toBe('normal')
+    expect(titleMetrics.height).toBeGreaterThan(20)
+    await expect(page.locator('.nurse-station-save-notice')).toBeHidden()
+    await page.screenshot({path:`test-results/nurse-station-long-medication-${viewport.width}x${viewport.height}.png`, fullPage:true})
     await page.reload()
-    await expect(page.getByText('西替利嗪滴剂',{exact:true}).last()).toBeVisible()
-    if(viewport.width===320) await page.getByText('西替利嗪滴剂',{exact:true}).last().click().then(()=>page.getByLabel('关闭').click())
+    await expect(page.getByText(medicationName,{exact:true}).last()).toBeVisible()
+    if(viewport.width===320) await page.getByText(medicationName,{exact:true}).last().click().then(()=>page.getByLabel('关闭').click())
   }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.screenshot({ path: 'test-results/nurse-station-medication-desktop-1440x900.png', fullPage: true })
+})
+
+test('加载失败与可用空状态明确区分且重试可恢复', async ({ page }) => {
+  await registerMember(page)
+  await page.getByText('新增用药提醒', { exact: true }).click()
+  const flow = page.getByRole('dialog', { name: '新增用药提醒' })
+  await flow.getByLabel('药品名称').fill('失败时仍保留的用药计划')
+  await flow.getByLabel('每次用量').fill('1')
+  await flow.getByRole('button', { name: /下一步：设置规律/ }).click()
+  await flow.getByRole('textbox', { name: '第1次提醒时间', exact: true }).fill('08:30')
+  await flow.getByRole('button', { name: '3天', exact: true }).click()
+  await flow.getByRole('button', { name: /下一步：确认/ }).click()
+  await flow.getByRole('button', { name: '确认并开启提醒' }).click()
+  await expect(page.getByText('失败时仍保留的用药计划', { exact: true })).toBeVisible()
+  await page.route('**/api/account/entry-state', async (route) => {
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '测试网络失败' } }) })
+  })
+  await page.reload()
+  await expect(page.getByText('当前人物资料加载失败，已保存内容没有改变。', { exact: true })).toBeVisible()
+  await expect(page.getByText('最新数据加载失败，已保存任务仍会保留。', { exact: true })).toBeVisible()
+  await expect(page.getByText('失败时仍保留的用药计划', { exact: true })).toBeVisible()
+  await expect(page.getByText('还没有用药提醒', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/nurse-station-loading-failure-375x667.png', fullPage: true })
+  await page.unroute('**/api/account/entry-state')
+  await page.getByRole('button', { name: '重新加载' }).last().click()
+  await expect(page.locator('.nurse-station-hero')).toBeVisible()
+  await expect(page.getByText('失败时仍保留的用药计划', { exact: true })).toBeVisible()
+})
+
+test('切换到另一人物时任务归属与标题同步更新', async ({ page }) => {
+  await registerMember(page)
+  await page.goto('/family/new')
+  await page.getByRole('textbox', { name: '姓名' }).fill('这是一个非常非常长的孩子姓名')
+  await page.getByRole('textbox', { name: '出生日期' }).pressSequentially('20260801')
+  await page.getByRole('button', { name: '女', exact: true }).click()
+  await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
+  await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
+  await page.goto('/nurse-station')
+  await page.getByRole('button', { name: '打开菜单' }).click()
+  await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '打开我的孩子' }).click()
+  await page.getByRole('dialog', { name: '我的孩子' }).locator('.current-child-sheet__select').filter({ hasText: '这是一个非常非常长的孩子姓名' }).click()
+  await expect(page.locator('.guardian-task-heading')).toContainText('这是一个非常非常长的孩子姓名')
+  await expect(page.locator('.guardian-task-heading > p strong')).toHaveCSS('text-overflow', 'ellipsis')
+  await expect(page.getByText('还没有用药提醒', { exact: true })).toBeVisible()
+})
+
+test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', async ({ page }, testInfo) => {
+  await registerMember(page)
+  const firstTab = page.getByRole('tab').first()
+  await firstTab.focus()
+  await expect(firstTab).toBeFocused()
+  const measurements = await page.evaluate(() => {
+    const tab = document.querySelector<HTMLElement>('.guardian-task-tabs button[aria-selected="true"]')!
+    const add = document.querySelector<HTMLElement>('.guardian-task-add')!
+    const unavailable = document.querySelector<HTMLElement>('.nurse-more-service--unavailable')!
+    const title = document.querySelector<HTMLElement>('.guardian-task-add strong')!
+    const detail = document.querySelector<HTMLElement>('.guardian-task-add small')!
+    const tabStyle = getComputedStyle(tab)
+    const unavailableStyle = getComputedStyle(unavailable)
+    return {
+      addHeight: add.getBoundingClientRect().height,
+      detailFontSize: detail ? getComputedStyle(detail).fontSize : '',
+      maxPageWidth: document.querySelector<HTMLElement>('.app-shell')?.getBoundingClientRect().width,
+      pageWidth: document.documentElement.scrollWidth,
+      tabBackground: tabStyle.backgroundColor,
+      tabColor: tabStyle.color,
+      tabHeight: tab.getBoundingClientRect().height,
+      titleFontSize: title ? getComputedStyle(title).fontSize : '',
+      unavailableBackground: unavailableStyle.backgroundColor,
+      unavailableColor: unavailableStyle.color,
+      unavailableHeight: unavailable.getBoundingClientRect().height
+    }
+  })
+  expect(measurements.tabHeight).toBeGreaterThanOrEqual(44)
+  expect(measurements.addHeight).toBeGreaterThanOrEqual(72)
+  expect(measurements.unavailableHeight).toBeGreaterThanOrEqual(44)
+  expect(contrastRatio(measurements.tabColor, measurements.tabBackground)).toBeGreaterThanOrEqual(4.5)
+  expect(contrastRatio(measurements.unavailableColor, measurements.unavailableBackground)).toBeGreaterThanOrEqual(4.5)
+
+  await page.addStyleTag({ content: '* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
+  // A 1440px desktop viewport at 200% browser zoom exposes 720 CSS pixels.
+  // Test that equivalent CSS viewport directly because Chromium device emulation
+  // intentionally honours this app's non-scalable mobile viewport contract.
+  await page.setViewportSize({ width: 720, height: 450 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  await page.screenshot({ path: 'test-results/nurse-station-zoom-200-equivalent-720x450.png', fullPage: true })
+  await testInfo.attach('nurse-station-measurements.json', { body: Buffer.from(JSON.stringify({ ...measurements, selectedContrast: contrastRatio(measurements.tabColor, measurements.tabBackground), unavailableContrast: contrastRatio(measurements.unavailableColor, measurements.unavailableBackground), zoomCheck: '1440 desktop at 200% equivalent: 720 CSS px' }, null, 2)), contentType: 'application/json' })
 })
 
 test('编辑提醒完整回填并在三种规律间保留各自输入', async ({ page }) => {
