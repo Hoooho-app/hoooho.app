@@ -25,6 +25,7 @@ export class BrowserSessionService {
     const secure = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || request.socket?.encrypted
     const lifetime = persistent ? `; Max-Age=${maxAge}; Expires=${new Date(Date.now() + maxAge * 1000).toUTCString()}` : ''
     response.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax${lifetime}${secure ? '; Secure' : ''}`)
+    response.setHeader('X-Hoooho-Session-Persistence', maxAge === 0 ? 'cleared' : persistent ? 'persistent' : 'session')
     response.setHeader('Cache-Control', 'no-store')
   }
   async current(request) {
@@ -35,15 +36,21 @@ export class BrowserSessionService {
     return user && !user.mergedInto ? { session, user } : null
   }
   async responseSession(request, response, current) {
-    await this.sessions.renew(cookieToken(request))
-    this.setCookie(request, response, cookieToken(request), { persistent: current.session.persistent !== false })
+    const token = cookieToken(request)
+    const renewed = await this.sessions.renew(token)
+    if (!renewed) {
+      this.setCookie(request, response, '', { maxAge: 0 })
+      return null
+    }
+    this.setCookie(request, response, token, { persistent: renewed.persistent !== false })
     return { token: this.auth.tokens.create({ ...current.user, browserSession: true }), user: this.publicUser(current.user) }
   }
   async restore(request, response, legacyToken = '') {
     this.assertSameOrigin(request)
     const current = await this.current(request)
     if (current) {
-      return this.responseSession(request, response, current)
+      const restored = await this.responseSession(request, response, current)
+      if (restored) return restored
     }
     if (legacyToken) {
       const payload = this.auth.tokens.verify(legacyToken)
@@ -52,6 +59,7 @@ export class BrowserSessionService {
         if (user && !user.mergedInto) return this.issue(request, response, user)
       }
     }
+    if (cookieToken(request)) this.setCookie(request, response, '', { maxAge: 0 })
     return { unauthenticated: true }
   }
   async issue(request, response, user, persistent = true) {
@@ -80,7 +88,11 @@ export class BrowserSessionService {
       if (before?.user.id && current?.user.id !== before.user.id) throw new AuthError('使用状态已变化，请刷新后重试', 409, 'SESSION_CHANGED')
       if (current?.user && !current.user.guest) {
         const expected = hashRegistrationKey(String(input.idempotencyKey ?? ''))
-        if (current.user.registrationKeyHash === expected) return this.responseSession(request, draftResponse, current)
+        if (current.user.registrationKeyHash === expected) {
+          const restored = await this.responseSession(request, draftResponse, current)
+          if (restored) return restored
+          throw new AuthError('使用状态已变化，请刷新后重试', 409, 'SESSION_CHANGED')
+        }
         throw new AuthError('当前账户已完成注册', 409, 'SESSION_EXISTS')
       }
       const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()

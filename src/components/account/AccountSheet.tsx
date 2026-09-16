@@ -6,6 +6,7 @@ import { BottomSheetSurface, HohoButton, HohoSurfaceRow } from '../design-system
 import { maskEmail, maskPhone } from '../../services/account'
 import { useAppStore } from '../../store/useAppStore'
 import { authService } from '../../services/auth'
+import { beginBrowserSessionLogout, endBrowserSessionLogout } from '../auth/SessionBootstrap'
 
 export function MembershipBadge() {
   return <span className="account-free-badge">免费版</span>
@@ -28,6 +29,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
   const openPage = (path: string) => { onClose(); navigate(path) }
   const logout = async () => {
     setLoggingOut(true)
+    beginBrowserSessionLogout()
     try {
       await authService.logout()
       clearAuthSession()
@@ -36,7 +38,10 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
       navigate('/login', { replace: true })
     } catch {
       setLogoutError('退出失败，请检查网络后重试')
-    } finally { setLoggingOut(false) }
+    } finally {
+      endBrowserSessionLogout()
+      setLoggingOut(false)
+    }
   }
 
   return (
