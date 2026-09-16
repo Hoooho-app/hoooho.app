@@ -5,7 +5,7 @@ const shutdownMarker = path.resolve('.codex-tmp/auth-account-shutdown')
 await mkdir(path.dirname(shutdownMarker), { recursive: true })
 await rm(shutdownMarker, { force: true })
 setInterval(() => void access(shutdownMarker).then(() => process.exit()).catch(() => undefined), 200)
-process.env.PORT = '4196'
+process.env.PORT = process.env.AUTH_TEST_PORT || '4196'
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'development'
 process.env.DATA_DIRECTORY = await mkdtemp(path.join(os.tmpdir(), 'hoooho-auth-browser-'))

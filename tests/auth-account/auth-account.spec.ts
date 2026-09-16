@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
 
 let registrationSequence = 0
+const origin = `http://127.0.0.1:${process.env.AUTH_TEST_PORT || '4196'}`
 
 async function register(page: Page, nickname = `测试家长${Date.now().toString().slice(-8)}`) {
   registrationSequence += 1
@@ -19,7 +20,8 @@ async function reopenWithSavedState(browser: Browser, page: Page) {
   expect(storageState.cookies.some((cookie) => cookie.name === 'hoooho_session')).toBe(true)
   await page.context().close()
   const context = await browser.newContext({ storageState, viewport: { width: 375, height: 667 } })
-  const restored = await context.request.get('http://127.0.0.1:4196/api/auth/session')
+  const restored = await context.request.get(`${origin}/api/auth/session`)
+  expect(restored.headers()['x-hoooho-session-outcome']).toBe('valid')
   expect(await restored.json()).not.toEqual({ unauthenticated: true })
   return { context, page: await context.newPage() }
 }
@@ -42,7 +44,11 @@ test('registration creates a durable formal account and default nickname login r
   await expect(page.getByPlaceholder('输入密码')).toHaveAttribute('name', 'password')
   await expect(page.getByPlaceholder('输入密码')).toHaveAttribute('autocomplete', 'current-password')
   await page.getByPlaceholder('输入密码').fill('simple-password')
+  const loginRequest = page.waitForRequest((request) => request.url().endsWith('/api/auth/nickname/login'))
   await page.getByRole('button', { name: '登录', exact: true }).click()
+  const sent = await loginRequest
+  expect(sent.headers()['x-hoooho-nickname-storage']).toBe('present')
+  expect(sent.headers()['x-hoooho-remember-preference']).toBe('true')
   await expect(page).toHaveURL(/nurse-station/)
   const persistentCookie = (await page.context().cookies()).find((item) => item.name === 'hoooho_session')
   expect(persistentCookie?.expires).toBeGreaterThan(Date.now() / 1000)
@@ -72,7 +78,7 @@ test('revoked persistent session falls back to the remembered nickname without s
   await expect(page).toHaveURL(/nurse-station/)
 
   const storageState = await initialContext.storageState()
-  const storedOrigin = storageState.origins.find((origin) => origin.origin === 'http://127.0.0.1:4196')
+  const storedOrigin = storageState.origins.find((item) => item.origin === origin)
   expect(storedOrigin?.localStorage.some((item) => item.name === 'lastLoginNickname' && item.value === nickname)).toBe(true)
   expect(JSON.stringify(storageState.origins)).not.toContain('simple-password')
 

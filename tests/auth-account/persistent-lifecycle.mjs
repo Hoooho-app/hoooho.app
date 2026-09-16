@@ -6,7 +6,7 @@ import path from 'node:path'
 import { chromium, webkit } from '@playwright/test'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const origin = 'http://127.0.0.1:4196'
+const origin = `http://127.0.0.1:${process.env.AUTH_TEST_PORT || '4196'}`
 const password = 'simple-password'
 let registrationSequence = 70
 

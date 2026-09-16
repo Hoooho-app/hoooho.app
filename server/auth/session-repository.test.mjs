@@ -10,6 +10,11 @@ test('opaque browser sessions survive a new repository instance without storing 
   try {
     const repository = new SessionRepository(directory)
     const { token, session } = await repository.create('test-account', 1000)
+    assert.equal((await repository.inspect('', 2000)).state, 'missing-cookie')
+    assert.equal((await repository.inspect('invalid', 2000)).state, 'malformed-cookie')
+    assert.equal((await repository.inspect('z'.repeat(43), 2000)).state, 'session-not-found')
+    assert.equal((await repository.inspect(token, 2000)).state, 'valid')
+    assert.equal((await repository.inspect(token, session.expiresAt)).state, 'session-expired')
     assert.notEqual(token, session.accountId)
     assert.equal(session.expiresAt - session.createdAt, sessionTtlMs)
     assert.ok(sessionTtlMs >= 180 * 86400000)
@@ -20,6 +25,7 @@ test('opaque browser sessions survive a new repository instance without storing 
     assert.equal(await restored.find(token, session.expiresAt), null)
     assert.equal((await restored.renew(token, 3000)).expiresAt, 3000 + sessionTtlMs)
     await restored.revokeAccount('test-account', 4000)
+    assert.equal((await repository.inspect(token, 5000)).state, 'session-revoked')
     assert.equal(await repository.find(token, 5000), null)
   } finally {
     await rm(directory, { recursive: true, force: true })
