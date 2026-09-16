@@ -27,7 +27,7 @@ export function formatGrowthCardUpdatedAt(value: string, today = new Date()) {
 }
 const formatChineseDate = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : `${date.getMonth() + 1}月${date.getDate()}日` }
 export function buildAllergyOverview(rawRecords: Array<Record<string, unknown>> | undefined, events: HealthEventApiDto[], memberId: string) {
-  const records = normalizeAllergyRecords(rawRecords ?? []).filter((record) => present(record.name))
+  const records = normalizeAllergyRecords(rawRecords ?? [], memberId).filter((record) => record.memberId === memberId && present(record.name))
   const latestEvent = events.filter((event) => event.memberId === memberId && event.category === 'allergy').sort((a, b) => b.startTime.localeCompare(a.startTime))[0]
   const latestText = latestEvent?.eventSummary?.displayedResult.summary?.trim() || latestEvent?.title?.trim() || ''
   return { total: records.length, investigating: records.filter((r) => r.currentStatus === 'investigating').length, suspected: records.filter((r) => r.currentStatus === 'suspected').length, doctorConfirmed: records.filter((r) => r.currentStatus === 'confirmed').length, latest: latestEvent && latestText ? `${formatChineseDate(latestEvent.startTime)} · ${latestText}` : '' }
