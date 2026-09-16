@@ -363,12 +363,15 @@ export function AccountSettingsPage() {
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [logoutError, setLogoutError] = useState('')
   const logout = async () => {
+    const { beginBrowserSessionLogout, endBrowserSessionLogout } = await import('../../components/auth/SessionBootstrap')
+    beginBrowserSessionLogout()
     try {
       const { authService } = await import('../../services/auth')
       await authService.logout()
       clearAuthSession()
       navigate('/login', { replace: true })
     } catch { setLogoutError('退出失败，请检查网络后重试') }
+    finally { endBrowserSessionLogout() }
   }
 
   return (

@@ -85,15 +85,31 @@ test('remembered login uses a persistent cookie while session-only login stays n
   try {
     const registered = await f.auth.register('记住测试', 'correct-password', '88888888-8888-4888-8888-888888888888')
     await f.browser.completePasswordLogin(f.request, f.response, registered, true)
-    assert.match(f.headers.get('Set-Cookie'), /Max-Age=/)
-    assert.match(f.headers.get('Set-Cookie'), /Expires=/)
+    assert.match(f.headers.get('Set-Cookie'), /^hoooho_session=[^;]+; Path=\/; HttpOnly; SameSite=Lax; Max-Age=\d+; Expires=[^;]+; Secure$/)
+    assert.equal(f.headers.get('X-Hoooho-Session-Persistence'), 'persistent')
 
     await f.browser.completePasswordLogin(f.request, f.response, registered, false)
     const sessionCookie = f.headers.get('Set-Cookie')
     assert.doesNotMatch(sessionCookie, /Max-Age=|Expires=/)
+    assert.equal(f.headers.get('X-Hoooho-Session-Persistence'), 'session')
     f.request.headers.cookie = sessionCookie.split(';')[0]
     await f.browser.restore({ ...f.request, method: 'GET' }, f.response)
     assert.doesNotMatch(f.headers.get('Set-Cookie'), /Max-Age=|Expires=/)
+  } finally { await rm(f.directory, { recursive: true, force: true }) }
+})
+
+test('restore does not authenticate a session revoked between lookup and renewal', async () => {
+  const f = await fixture()
+  try {
+    const registered = await f.auth.register('续期竞态', 'correct-password', '99999999-9999-4999-8999-999999999999')
+    await f.browser.completePasswordLogin(f.request, f.response, registered, true)
+    f.request.headers.cookie = f.headers.get('Set-Cookie').split(';')[0]
+    const current = await f.browser.current(f.request)
+    await f.browser.sessions.revoke(f.request.headers.cookie.split('=')[1])
+
+    assert.equal(await f.browser.responseSession({ ...f.request, method: 'GET' }, f.response, current), null)
+    assert.match(f.headers.get('Set-Cookie'), /^hoooho_session=; Path=\/; HttpOnly; SameSite=Lax; Max-Age=0;/)
+    assert.equal(f.headers.get('X-Hoooho-Session-Persistence'), 'cleared')
   } finally { await rm(f.directory, { recursive: true, force: true }) }
 })
 

@@ -49,10 +49,12 @@ function publicErrorMessage(path: string, response: Response, data: ApiErrorBody
   return data.error?.message ?? '请求失败，请稍后重试'
 }
 
-export async function postAuthRequest<T>(path: string, body: Record<string, string>, method: 'GET' | 'POST' = 'POST', legacyToken = ''): Promise<T> {
+export async function postAuthRequest<T>(path: string, body: Record<string, string>, method: 'GET' | 'POST' = 'POST', legacyToken = '', signal?: AbortSignal): Promise<T> {
   const requestId = createRequestId()
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), 15_000)
+  const abort = () => controller.abort()
+  signal?.addEventListener('abort', abort, { once: true })
 
   try {
     const response = await fetch(path, {
@@ -98,6 +100,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
     }
     throw new AuthApiError('网络连接异常，请检查网络后重试', 'AUTH_NETWORK_ERROR', undefined, undefined, requestId)
   } finally {
+    signal?.removeEventListener('abort', abort)
     globalThis.clearTimeout(timeout)
   }
 }
@@ -105,7 +108,7 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
 export const authService = {
   register: (nickname: string, password: string, idempotencyKey: string) => postAuthRequest<AuthSession & { upgradedGuest?: boolean }>('/api/auth/register', { nickname, password, idempotencyKey }),
   loginWithPassword: (nickname: string, password: string, remember = true) => postAuthRequest<AuthSession>('/api/auth/nickname/login', { nickname, password, remember: String(remember) }),
-  restore: (legacyToken = '') => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken),
+  restore: (legacyToken = '', signal?: AbortSignal) => postAuthRequest<AuthSession | { unauthenticated: true }>('/api/auth/session', {}, 'GET', legacyToken, signal),
   logout: () => postAuthRequest<{ success: true }>('/api/auth/logout', {}),
   sendCode: (phone: string) => postAuthRequest<SendCodeResponse>('/api/auth/send-code', { phone }),
   login: (phone: string, code: string, guestToken = '') => postAuthRequest<AuthSession>('/api/auth/login', { phone, code, guestToken }),
