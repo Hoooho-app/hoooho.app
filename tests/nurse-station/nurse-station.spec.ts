@@ -291,7 +291,7 @@ test('编辑提醒完整回填并在三种规律间保留各自输入', async ({
 test('就诊情况单从当前人物随记生成病情摘要并支持索引和依据抽屉', async ({ page }) => {
   await registerMember(page)
   await page.goto('/health-events')
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').fill('昨晚左肘窝有点发红，也很痒')
   await expect(form.locator('.symptom-location-input > input')).toHaveValue('左肘窝')

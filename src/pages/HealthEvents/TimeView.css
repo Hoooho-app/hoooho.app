@@ -98,8 +98,6 @@
 .journal-record-actions .journal-manual-record-action { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); box-shadow: 0 5px 16px rgb(var(--hoho-color-primary) / 0.14); }
 .journal-record-actions .journal-manual-record-action:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-hover)); box-shadow: 0 7px 18px rgb(var(--hoho-color-primary) / 0.18); }
 .journal-record-actions .journal-manual-record-action .hoho-button__content { width: 100%; min-width: 0; justify-content: center; }
-.journal-manual-record-action__visual { display: inline-flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); }
-.journal-manual-record-action__icon { flex: 0 0 22px; }
 .journal-manual-record-action__label { font-size: var(--hoho-font-size-body); font-weight: 650; line-height: 1; }
 .journal-category-group { margin-top: var(--hoho-space-5); }
 .journal-category-group > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }

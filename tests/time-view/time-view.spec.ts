@@ -17,7 +17,7 @@ async function prepare(page: Page, member = 'child-one') {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
   }, { token, member })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '记录症状', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
 }
 
 test('symptom entry opens directly, extracts explicit facts, switches card density and saves', async ({ page }) => {
@@ -27,7 +27,7 @@ test('symptom entry opens directly, extracts explicit facts, switches card densi
   await expect(page.getByRole('button', { name: '切换到日视图' })).toHaveCount(0)
   await expect(page.getByLabel('单日时间轴').getByRole('button', { name: '当前为列表视图，点击切换为缩略图视图' })).toBeVisible()
   await page.screenshot({ path: 'test-results/symptom-day-iphone-se.png' })
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await expect(form).toBeVisible()
   await form.getByPlaceholder('描述哪里不舒服、有什么变化').fill('昨晚左肘窝有点发红，也很痒')
@@ -52,7 +52,7 @@ test('symptom entry opens directly, extracts explicit facts, switches card densi
 test('negated fever stays absent and concrete related records persist into detail and edit', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page)
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   const expectedLocalDate = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
   await expect(form.getByLabel('记录时间')).toHaveValue(new RegExp(`^${expectedLocalDate}T`))
@@ -93,7 +93,7 @@ test('negated fever stays absent and concrete related records persist into detai
 
 test('failed symptom save keeps the complete draft and allows retry', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').fill('保存失败后仍需保留的皮疹')
   await form.getByLabel('症状部位').fill('手臂')
@@ -108,7 +108,7 @@ test('failed symptom save keeps the complete draft and allows retry', async ({ p
 test('desktop symptom flow stays aligned through relation selection and detail', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await prepare(page)
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').fill('桌面端出现轻微皮疹')
   await form.getByRole('button', { name: /关联其他记录/ }).click()
@@ -227,7 +227,7 @@ test('sleep prompt starts one persistent session, restores after reload and ends
 
 test('health journal removes the footer quick-record control and keeps timeline tools borderless', async ({ page }) => {
   await prepare(page)
-  const manual = page.getByRole('button', { name: '记录症状', exact: true })
+  const manual = page.getByRole('button', { name: '记一下', exact: true })
   await expect(manual).toHaveCSS('background-color', 'rgb(27, 122, 110)')
   await expect(manual).toHaveCSS('color', 'rgb(255, 255, 255)')
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
@@ -239,13 +239,13 @@ test('health journal removes the footer quick-record control and keeps timeline 
 
 test('symptom record button is centered, compact, and fills the footer', async ({ page }) => {
   await prepare(page)
-  const button = page.getByRole('button', { name: '记录症状', exact: true })
+  const button = page.getByRole('button', { name: '记一下', exact: true })
   await expect(button).not.toContainText('手动记录')
-  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记录症状')
+  await expect(button.locator('.journal-manual-record-action__label')).toHaveText('记一下')
   await expect(button.locator('.journal-manual-record-action__prompt-window')).toHaveCount(0)
 
   const layout = await button.evaluate((element) => {
-    const visual = element.querySelector('.journal-manual-record-action__visual')!.getBoundingClientRect()
+    const visual = element.querySelector('.journal-manual-record-action__label')!.getBoundingClientRect()
     const buttonBox = element.getBoundingClientRect()
     const footerBox = element.closest('.journal-record-actions')!.querySelector(':scope > div')!.getBoundingClientRect()
     return {
@@ -410,13 +410,13 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   const subjectBox = await page.locator('.journal-subject-card').boundingBox()
   const summaryBox = await page.getByRole('button', { name: '就医准备', exact: true }).boundingBox()
   expect(subjectBox!.height).toBe(summaryBox!.height)
-  const manualBox = await page.getByRole('button', { name: '记录症状', exact: true }).boundingBox()
+  const manualBox = await page.getByRole('button', { name: '记一下', exact: true }).boundingBox()
   const footerBox = await page.locator('.journal-record-actions > div').boundingBox()
   expect(manualBox!.width).toBe(footerBox!.width)
   expect(manualBox!.height).toBe(52)
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
   await page.mouse.move(0, 0)
-  await expect(page.getByRole('button', { name: '记录症状', exact: true })).toHaveAttribute('data-variant', 'secondary')
+  await expect(page.getByRole('button', { name: '记一下', exact: true })).toHaveAttribute('data-variant', 'secondary')
   await expect(page.getByRole('button', { name: '就医准备', exact: true })).toHaveAttribute('data-variant', 'primary')
   const subjectBackground = await page.locator('.journal-subject-card').evaluate((element) => getComputedStyle(element).backgroundColor)
   const summaryBackground = await page.getByRole('button', { name: '就医准备', exact: true }).evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -761,7 +761,7 @@ test('failed timeline request offers retry without claiming an empty day', async
 
 test('short keyboard viewport keeps direct symptom form actionable and closeable', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   await page.setViewportSize({ width: 375, height: 430 })
   await page.getByRole('textbox', { name: '主要症状', exact: true }).fill('键盘布局验收')
   const save = page.getByRole('button', { name: '保存', exact: true })
@@ -795,7 +795,7 @@ test('free symptom narratives save without tags and numeric-only locations stay 
   await prepare(page)
   await expect(page.getByRole('heading', { name: '健康随记', exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
   let form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').focus()
   await form.getByLabel('症状部位').focus()
@@ -803,7 +803,7 @@ test('free symptom narratives save without tags and numeric-only locations stay 
   await form.getByRole('button', { name: '关闭', exact: true }).click()
 
   for (const narrative of ['感冒', '手冰凉']) {
-    await page.getByRole('button', { name: '记录症状', exact: true }).click()
+    await page.getByRole('button', { name: '记一下', exact: true }).click()
     form = page.getByRole('dialog', { name: '记录症状' })
     await expect(form.getByText(/正在为：安安/)).toBeVisible()
     await form.getByLabel('主要症状').fill(narrative)
