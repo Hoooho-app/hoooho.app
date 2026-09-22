@@ -12,7 +12,8 @@ test('feedback removes manual page classification and offers exactly ten optiona
   assert.doesNotMatch(page, />问题页面</)
   assert.match(page, /problemPage: null/)
   assert.match(page, /feedbackCategoryOptions/)
-  assert.match(page, /MainAppHeader compact title="反馈意见"/)
+  assert.match(page, /MainAppHeader action=\{<button className="feedback-header-action"/)
+  assert.match(page, /compact title="反馈意见"/)
 })
 
 test('my feedback uses inline expansion, persistent unread replies and inline supplements', () => {

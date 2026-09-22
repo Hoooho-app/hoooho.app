@@ -57,7 +57,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//]
       },
       manifest: {
-        name: 'Hoooho 家庭健康',
+        name: 'Hoooho',
         short_name: 'Hoooho',
         description: '家庭健康随记与就诊准备工具',
         theme_color: '#1B7A6E',
@@ -67,10 +67,22 @@ export default defineConfig({
         lang: 'zh-CN',
         icons: [
           {
-            src: '/icons/app-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
+            src: '/icons/app-icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/app-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/app-icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }
