@@ -17,7 +17,10 @@ export const accountCollections = [
   ['health-information-candidates.json', 'candidates'],
   ['online-consultations.json', 'consultations'],
   ['quick-record-requests.json', 'requests'],
-  ['quick-record-photo-drafts.json', 'photos']
+  ['quick-record-photo-drafts.json', 'photos'],
+  ['routine-preferences.json', 'preferences'],
+  ['routine-templates.json', 'templates'],
+  ['routine-overrides.json', 'overrides']
 ]
 
 export class AccountDataService {

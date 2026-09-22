@@ -126,22 +126,14 @@ test('desktop symptom flow stays aligned through relation selection and detail',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('manual record sheet groups supported care actions under health events', async ({ page }) => {
+test('manual record button keeps its established direct symptom flow', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: '记一下' })
-  const eating = sheet.getByRole('button', { name: '进食', exact: true })
-  await expect(eating).toBeVisible()
-  await expect(eating.locator('.journal-category-icon--spoon')).toBeVisible()
-  await expect(sheet.getByRole('button', { name: '喂养/饮食', exact: true })).toHaveCount(0)
-  const healthEvents = sheet.getByRole('region', { name: '健康事件' })
-  await expect(healthEvents.getByRole('button')).toHaveCount(4)
-  await expect(healthEvents.getByRole('button')).toHaveText(['症状', '用药', '疫苗', '就医'])
-  await expect(sheet.getByRole('region', { name: '照护处理' })).toHaveCount(0)
-  await expect(sheet.getByText('先记下来，不用一次性记完，想到时继续补充', { exact: true })).toHaveCount(0)
-  await expect(sheet.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
-  await expect(sheet.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/manual-record-entries-iphone-se.png' })
+  const form = page.getByRole('dialog', { name: '记录症状' })
+  await expect(form).toBeVisible()
+  await expect(form.getByLabel('主要症状')).toBeVisible()
+  await expect(form.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
+  await page.screenshot({ path: 'test-results/manual-record-direct-symptom-iphone-se.png' })
 })
 
 test('health journal names the existing summary action medical prep', async ({ page }) => {
@@ -157,7 +149,7 @@ test('empty today shows one contextual prompt and current-time marker without th
   await prepare(page, 'child-two')
   const today = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
   await page.getByLabel('选择日期').fill(today)
-  await expect(page.getByText('现在', { exact: true })).toBeVisible()
+  await expect(page.locator('.journal-current-line')).toContainText(/^现在 \d{2}:\d{2}$/)
   await expect(page.locator('.trigger-opportunity-card')).toHaveCount(1)
   const illustration = page.locator('.trigger-opportunity-illustration img')
   const cardId = await page.locator('.trigger-opportunity-card').getAttribute('data-card-id')
@@ -179,12 +171,99 @@ test('empty today shows one contextual prompt and current-time marker without th
   await expect(page.locator('.trigger-opportunity-action')).toBeVisible()
 })
 
+test('24-hour grid persists opted-in routines and converts confirmation into one actual record', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-22T05:26:00.000Z'))
+  await page.setViewportSize({ width: 375, height: 667 })
+  await prepare(page, 'routine-child')
+  await expect(page.locator('.journal-hour-row')).toHaveCount(24)
+  const currentLine = page.locator('[data-hour="13"] .journal-current-line')
+  await expect(currentLine).toContainText('现在 13:26')
+  const lineTop = await currentLine.evaluate((line) => parseFloat(getComputedStyle(line).top))
+  const rowHeight = await page.locator('[data-hour="13"]').evaluate((row) => row.getBoundingClientRect().height)
+  expect(lineTop / rowHeight).toBeGreaterThan(0.53)
+  expect(lineTop / rowHeight).toBeLessThan(0.6)
+
+  await page.getByRole('button', { name: '设置日常作息' }).first().click()
+  const setup = page.getByRole('dialog', { name: '设置日常作息' })
+  await setup.getByRole('checkbox', { name: '午餐' }).check()
+  await setup.getByLabel('午餐通常时间').fill('12:00')
+  await setup.getByRole('button', { name: '保存日常作息' }).click()
+  const lunchTrack = page.locator('.routine-grid-card').filter({ hasText: '午餐' })
+  await expect(lunchTrack).toContainText('日常作息')
+  await expect(lunchTrack).toContainText('平常这个时间吃午餐')
+  await page.reload()
+  await expect(page.locator('.routine-grid-card').filter({ hasText: '午餐' })).toBeVisible()
+  await page.locator('.routine-grid-card').filter({ hasText: '午餐' }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: 'test-results/routine-grid-track-iphone-se.png' })
+  await page.locator('.routine-grid-card').filter({ hasText: '午餐' }).click()
+  const trackSheet = page.getByRole('dialog', { name: '午餐日常轨迹' })
+  await expect(trackSheet.getByRole('button', { name: '按平常记录' })).toBeEnabled()
+  await page.screenshot({ path: 'test-results/routine-grid-confirm-sheet-iphone-se.png' })
+  await trackSheet.getByRole('button', { name: '按平常记录' }).click()
+  await expect(page.getByText('已记录', { exact: true })).toBeVisible()
+  const confirmed = page.locator('.journal-grid-record--confirmed').filter({ hasText: '午餐' })
+  await expect(confirmed).toBeVisible()
+  await expect(confirmed.locator('.routine-confirm-stamp')).toBeVisible()
+  await expect(page.locator('.routine-grid-card').filter({ hasText: '午餐' })).toHaveCount(0)
+  const response = await page.request.get('/api/routines/routine-child?day=2026-09-22', { headers: { Authorization: `Bearer ${token}`, 'X-Hoooho-Timezone': 'Asia/Shanghai' } })
+  expect(response.ok()).toBe(true)
+  const routineDay = await response.json()
+  expect(routineDay.tracks).toHaveLength(1)
+  expect(routineDay.tracks[0]).toMatchObject({ itemKey: 'lunch', status: 'confirmed' })
+  await page.screenshot({ path: 'test-results/routine-grid-confirmed-iphone-se.png' })
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(page.locator('.journal-hour-row')).toHaveCount(24)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/routine-grid-confirmed-desktop.png' })
+  await page.getByLabel('选择日期').fill('2026-09-21')
+  await expect(page.locator('.journal-current-line')).toHaveCount(0)
+  expect((await page.request.delete(`/api/records/${routineDay.tracks[0].recordId}`, { headers: { Authorization: `Bearer ${token}` } })).ok()).toBe(true)
+  await page.request.patch('/api/routines/routine-child', { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Hoooho-Timezone': 'Asia/Shanghai' }, data: { status: 'disabled' } })
+})
+
+test('one hour stays fixed-height while all dense records and a routine remain reachable', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-22T05:26:00.000Z'))
+  await prepare(page, 'routine-child')
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Hoooho-Timezone': 'Asia/Shanghai' }
+  const template = await page.request.patch('/api/routines/routine-child', { headers, data: { effectiveFrom: '2026-09-22', enabled: true, items: { breakfast: { enabled: true, time: '06:30' } } } })
+  expect(template.ok()).toBe(true)
+  const denseRecords = [
+    ['05', '清晨喝了少量温水', 'diet'],
+    ['15', '清晨排便一次', 'elimination'],
+    ['25', '清晨测量体温', 'measurement'],
+    ['35', '清晨服用日常药物', 'medication'],
+    ['45', '清晨在小区散步', 'activity']
+  ] as const
+  const createdRecordIds: string[] = []
+  for (const [index, [minute, content, category]] of denseRecords.entries()) {
+    const occurredAt = `2026-09-22T06:${minute}:00+08:00`
+    const saved = await page.request.post('/api/quick-records', { headers, data: { memberId: 'routine-child', content, occurredAt, inputChannel: 'text', idempotencyKey: `dense-hour-${index}`, title: content, journal: { categories: [category], occurredAt, timePrecision: 'exact' } } })
+    expect(saved.ok()).toBe(true)
+    createdRecordIds.push((await saved.json()).recordId)
+  }
+  await page.reload()
+  const hour = page.locator('[data-hour="6"]')
+  await expect(hour).toHaveCSS('height', '132px')
+  await expect(hour.getByRole('button', { name: '还有 4 条' })).toBeVisible()
+  await hour.getByRole('button', { name: '还有 4 条' }).click()
+  const sheet = page.getByRole('dialog', { name: '这个小时的全部内容' })
+  await expect(sheet.locator('.journal-record')).toHaveCount(5)
+  await expect(sheet.locator('.routine-grid-card')).toHaveCount(1)
+  await expect(sheet.locator('.journal-record-time')).toHaveText(['06:05', '06:15', '06:25', '06:35', '06:45'])
+  await page.screenshot({ path: 'test-results/routine-grid-dense-hour-iphone-se.png' })
+  for (const recordId of createdRecordIds) expect((await page.request.delete(`/api/records/${recordId}`, { headers })).ok()).toBe(true)
+  await page.request.patch('/api/routines/routine-child', { headers, data: { status: 'disabled' } })
+})
+
 test('trigger card switches to English without mixed-language copy or overflow', async ({ page }) => {
   await prepare(page, 'child-two')
   await page.evaluate(() => document.documentElement.lang = 'en')
   const card = page.locator('.trigger-opportunity-card')
   const illustration = card.locator('.trigger-opportunity-illustration img')
-  await expect.poll(() => illustration.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
+  const cardId = await card.getAttribute('data-card-id')
+  if (cardId?.startsWith('sleep')) await expect(illustration).toBeHidden()
+  else await expect.poll(() => illustration.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
   await expect(card).toContainText(/Late night|Morning|Midday|Evening|Record gap|Daytime/)
   await expect(card).not.toContainText(/记录|睡眠|排便|活动/)
   const layout = await card.evaluate((node) => ({ pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth, optionsWrap: [...node.querySelectorAll('.trigger-opportunity-options button')].every((button) => button.scrollWidth <= button.clientWidth && button.scrollHeight <= button.clientHeight + 20) }))
@@ -359,7 +438,7 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   await page.getByRole('button', { name: '前一天', exact: true }).click()
   await expect(page.locator('.journal-day-picker')).toContainText('昨天 ·')
   expect(await page.locator('.journal-day-picker > span').evaluate((date) => date.getBoundingClientRect().right <= document.querySelector('[aria-label="后一天"]')!.getBoundingClientRect().left)).toBe(true)
-  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(10)
+  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
   await page.waitForLoadState('networkidle')
   const requestsBeforeLayoutSwitch = timelineRequests
   const dateBeforeLayoutSwitch = await page.locator('.journal-day-picker').innerText()
@@ -399,12 +478,16 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
     return { tagsAfterIcon: tags.left >= icon.right, summaryAfterTags: summary.left >= tags.right }
   })).toEqual({ tagsAfterIcon: true, summaryAfterTags: true })
   expect(await page.locator('.journal-record-summary').first().evaluate((element) => getComputedStyle(element).fontSize)).toBe('13px')
-  const morning = page.locator('.hoho-timeline-item').filter({ has: page.locator('.hoho-timeline-item__label', { hasText: /^早上$/ }) })
-  await expect(morning.locator('.journal-record')).toHaveCount(3)
-  await expect(morning.locator('.journal-record-time')).toHaveText(['09:45', '09:30', '09:10'])
+  const morning = page.locator('[data-hour="9"]')
+  await expect(morning.locator('.journal-record')).toHaveCount(2)
+  await expect(morning.locator('.journal-record-time')).toHaveText(['09:10', '09:30'])
+  await expect(morning.getByRole('button', { name: '还有 1 条' })).toBeVisible()
+  await morning.getByRole('button', { name: '还有 1 条' }).click()
+  await expect(page.getByRole('dialog', { name: '这个小时的全部内容' }).locator('.journal-record-time')).toHaveText(['09:10', '09:30', '09:45'])
+  await page.getByRole('dialog', { name: '这个小时的全部内容' }).getByRole('button', { name: '关闭这个小时的全部内容' }).click()
   await page.getByRole('button', { name: /^记录顺序：/ }).click()
   await expect(page.getByRole('button', { name: /^记录顺序：/ }).locator('.lucide-arrow-up-down')).toBeVisible()
-  await expect(morning.locator('.journal-record-time')).toHaveText(['09:10', '09:30', '09:45'])
+  await expect(page.locator('[data-hour="9"] .journal-record-time')).toHaveText(['09:10', '09:30'])
   await expect(page.getByText('隔离对象专属记录')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/time-view-iphone-se.png' })
   const subjectBox = await page.locator('.journal-subject-card').boundingBox()
@@ -427,7 +510,7 @@ test('journal search stays minimal, scopes results, highlights matches, and pres
   await prepare(page)
   const list = page.locator('.health-events-content')
   await page.getByRole('button', { name: '前一天' }).click()
-  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(10)
+  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
   await list.evaluate((element) => { element.scrollTop = Math.min(20, element.scrollHeight - element.clientHeight) })
   const originalScrollTop = await list.evaluate((element) => element.scrollTop)
   expect(originalScrollTop).toBeGreaterThan(0)
@@ -756,7 +839,7 @@ test('failed timeline request offers retry without claiming an empty day', async
   failing = false
   await page.getByRole('button', { name: '重新加载', exact: true }).click()
   await page.getByRole('button', { name: '前一天', exact: true }).click()
-  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(10)
+  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
 })
 
 test('short keyboard viewport keeps direct symptom form actionable and closeable', async ({ page }) => {

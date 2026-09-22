@@ -147,7 +147,10 @@ test('进食入口保留通用勺子且时间线按具体饮食类型显示语�
 
 test('健康随记日期栏只保留单日导航并直接切换列表与缩略图', () => {
   assert.doesNotMatch(timeView, /'day' \| 'month'|切换到月视图|切换到日视图|这个月还没有记录|shiftMonth/)
-  assert.match(timeView, /const groups = journalDayGroups\(entries, day, localSortOrder\)/)
+  assert.match(timeView, /const dayEntries = useMemo\(\(\) => entriesForDay\(entries, day\)/)
+  assert.match(timeView, /orderedHours\(localSortOrder\)/)
+  assert.match(timeView, /className="journal-day-grid"/)
+  assert.match(timeView, /data-hour=\{hour\}/)
   assert.match(timeView, /aria-label="前一天"/)
   assert.match(timeView, /aria-label="后一天"/)
   assert.match(timeView, /当前为列表视图，点击切换为缩略图视图/)

@@ -17,7 +17,7 @@ const day = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padSt
 const accountId = 'time-view-test-account'
 const base = { accountId, createdAt: now.toISOString(), updatedAt: now.toISOString() }
 await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ users: [{ id: accountId, email: 'time-view@hoooho.test', createdAt: now.toISOString() }] }))
-await writeFile(path.join(dataDirectory, 'family-members.json'), JSON.stringify({ members: ['child-one', 'child-two'].map((id, index) => ({ ...base, id, name: index ? '隔离对象' : '安安', gender: 'female', relationship: 'child', birthday: '2025-01-05', avatar: null, isSelf: false })) }))
+await writeFile(path.join(dataDirectory, 'family-members.json'), JSON.stringify({ members: ['child-one', 'child-two', 'routine-child'].map((id, index) => ({ ...base, id, name: index === 0 ? '安安' : index === 1 ? '隔离对象' : '作息测试对象', gender: 'female', relationship: 'child', birthday: '2025-01-05', avatar: null, isSelf: false })) }))
 const examples = [
   ['21:15', '身上突然起了一片疹子，有点痒', 'symptom'], ['20:40', '洗澡后涂了保湿霜', 'care'], ['19:10', '和小朋友一起玩了半小时', 'social'],
   ['18:30', '晚饭吃了米饭、鸡肉和西兰花', 'diet'], ['17:30', '去游泳，大约半小时', 'activity'], ['14:20', '午睡1小时20分钟', 'sleep'],

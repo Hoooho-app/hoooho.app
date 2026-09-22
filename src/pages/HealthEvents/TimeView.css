@@ -624,3 +624,78 @@
   .symptom-record-scroll { padding-inline: var(--hoho-space-3); }
   .symptom-record-save { margin-inline: calc(var(--hoho-space-3) * -1); padding-inline: var(--hoho-space-3); }
 }
+
+/* Daily routine tracks: extends the frozen journal visual language without creating
+   a second card or color system. The hour height is intentionally invariant so
+   minute positions remain meaningful even when a row contains several items. */
+.routine-toolbar { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.routine-toolbar > button { display: inline-flex; min-height: var(--hoho-touch-target); align-items: center; gap: 5px; color: rgb(var(--hoho-color-primary)); font-weight: 700; }
+.routine-consent-card { display: grid; gap: var(--hoho-space-2); margin-bottom: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-card); padding: var(--hoho-space-4); background: rgb(var(--hoho-color-primary-soft) / .55); }
+.routine-consent-card strong { color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-card-title); }
+.routine-consent-card p { margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
+.routine-consent-card > div { display: flex; align-items: center; gap: var(--hoho-space-3); }
+.routine-consent-card > div > button:last-child { min-height: var(--hoho-touch-target); padding-inline: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
+.journal-grid-loading { min-height: 34px; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.journal-day-grid { border-top: 1px solid rgb(var(--hoho-color-border)); }
+.journal-hour-row { position: relative; display: grid; height: 132px; grid-template-columns: 66px minmax(0, 1fr); border-bottom: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); }
+.journal-hour-row--current { background: rgb(var(--hoho-color-primary-soft) / .42); }
+.journal-hour-scale { position: relative; border-right: 1px solid rgb(var(--hoho-color-border)); padding: 10px 7px 0 0; color: rgb(var(--hoho-color-text-primary)); text-align: right; }
+.journal-hour-scale strong { font-size: var(--hoho-font-size-body); font-weight: 600; }
+.journal-hour-scale span { position: absolute; right: 7px; color: rgb(var(--hoho-color-text-weak) / .72); font-size: 9px; line-height: 1; }
+.journal-hour-scale span:nth-of-type(1) { top: 33px; }
+.journal-hour-scale span:nth-of-type(2) { top: 65px; }
+.journal-hour-scale span:nth-of-type(3) { top: 98px; }
+.journal-hour-content { position: relative; z-index: 2; display: grid; align-content: center; gap: 4px; min-width: 0; padding: 6px 0 6px 8px; }
+.journal-day-grid .journal-grid-record, .routine-grid-card { display: grid; min-height: 43px; width: 100%; grid-template-columns: 39px 20px auto minmax(0,1fr) 18px; align-items: center; gap: 5px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); padding: 4px 6px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); text-align: left; }
+.journal-day-grid .journal-grid-record .journal-record-time { font-size: 12px; }
+.journal-day-grid .journal-grid-record .journal-record-tags { min-width: 0; max-width: none; overflow: hidden; }
+.journal-day-grid .journal-grid-record .hoho-health-tag { overflow: hidden; max-width: 100%; padding-inline: 5px; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.journal-day-grid .journal-grid-record .journal-record-content { display: block; min-width: 0; overflow: hidden; }
+.journal-day-grid .journal-grid-record .journal-record-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.journal-day-grid .journal-grid-record .journal-symptom-facts, .journal-day-grid .journal-grid-record .journal-record-update-meta, .journal-day-grid .journal-grid-record .journal-attachment { display: none; }
+.journal-day-grid .journal-record--thumbnail { min-height: 43px; grid-template-columns: 39px 20px auto minmax(0,1fr) 18px; border-radius: var(--hoho-radius-small); padding: 4px 6px; }
+.journal-day-grid .journal-record--thumbnail .journal-record-tags, .journal-day-grid .journal-record--thumbnail .journal-record-content { grid-column: auto; grid-row: auto; }
+.journal-day-grid .journal-record--thumbnail > svg:last-child { grid-column: auto; grid-row: auto; }
+.routine-confirm-stamp { color: rgb(var(--hoho-color-primary)); }
+.routine-grid-card { grid-template-columns: 39px 20px minmax(0,1fr) 18px; border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-primary-soft) / .48); color: rgb(var(--hoho-color-primary)); }
+.routine-grid-card--skipped { border-color: rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface-subtle)); color: rgb(var(--hoho-color-text-secondary)); }
+.routine-grid-time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.routine-grid-copy { display: grid; min-width: 0; gap: 1px; }
+.routine-grid-copy > span { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.routine-grid-copy strong { font-size: 13px; }
+.routine-grid-copy small { color: rgb(var(--hoho-color-primary)); font-size: 10px; font-weight: 600; }
+.routine-grid-copy em { overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: 10px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.journal-hour-more { justify-self: start; min-height: 22px; color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 700; }
+.journal-current-line { position: absolute; z-index: 1; right: 0; left: 66px; height: 1px; pointer-events: none; background: rgb(var(--hoho-color-primary)); }
+.journal-current-line::before { position: absolute; left: -4px; top: -4px; width: 9px; height: 9px; border: 2px solid rgb(var(--hoho-color-surface)); border-radius: 50%; background: rgb(var(--hoho-color-primary)); content: ''; }
+.journal-current-line span { position: absolute; top: -12px; left: 7px; border-radius: var(--hoho-radius-pill); padding: 2px 7px; background: rgb(var(--hoho-color-primary)); color: white; font-size: 10px; font-weight: 700; line-height: 18px; white-space: nowrap; }
+.journal-current-line i { position: absolute; inset: 0; }
+.journal-hour-sheet { display: grid; gap: var(--hoho-space-2); padding-bottom: var(--hoho-space-4); }
+.journal-hour-sheet .journal-record, .journal-hour-sheet .routine-grid-card { min-height: 68px; }
+.routine-sheet-intro { margin: 0 0 var(--hoho-space-3); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-body-small); line-height: var(--hoho-line-height-body); }
+.routine-setup-list { display: grid; gap: var(--hoho-space-2); }
+.routine-setup-row { display: grid; grid-template-columns: minmax(92px,1fr) minmax(118px,1fr); align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); padding-block: var(--hoho-space-2); }
+.routine-enable { display: flex !important; min-height: var(--hoho-touch-target); flex-direction: row !important; align-items: center; gap: var(--hoho-space-2) !important; color: rgb(var(--hoho-color-text-primary)) !important; font-weight: 700; }
+.routine-enable input { width: 20px !important; min-height: 20px !important; accent-color: rgb(var(--hoho-color-primary)); }
+.routine-setup-row label { display: grid; gap: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
+.routine-setup-row label input[type='time'] { min-height: 40px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: 8px; color: rgb(var(--hoho-color-text-primary)); }
+.routine-setup-row label:last-child:nth-child(3) { grid-column: 2; }
+.routine-decline { display: block; min-height: var(--hoho-touch-target); margin: var(--hoho-space-2) auto 0; color: rgb(var(--hoho-color-text-secondary)); }
+.routine-track-source { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--hoho-space-3); border-radius: var(--hoho-radius-control); padding: var(--hoho-space-3); background: rgb(var(--hoho-color-primary-soft) / .6); color: rgb(var(--hoho-color-primary)); }
+.routine-track-source span { font-size: var(--hoho-font-size-caption); font-weight: 700; }
+.routine-track-source strong { font-size: var(--hoho-font-size-body); }
+.routine-field { display: grid; grid-template-columns: 92px minmax(0,1fr); align-items: center; gap: var(--hoho-space-2); min-height: 50px; border-bottom: 1px solid rgb(var(--hoho-color-border)); color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-body-small); font-weight: 600; }
+.routine-field input { min-height: 40px; min-width: 0; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-2); font-weight: 400; }
+.routine-sheet-hint { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.routine-sheet-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.routine-sheet-actions button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-primary)); font-weight: 700; }
+.routine-skipped-panel { display: grid; gap: var(--hoho-space-3); text-align: center; }
+.routine-skipped-panel p { color: rgb(var(--hoho-color-text-secondary)); }
+.routine-sheet-error { margin-block: var(--hoho-space-2) 0; color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); }
+
+@media (max-width: 400px) {
+  .journal-hour-row { grid-template-columns: 60px minmax(0, 1fr); }
+  .journal-current-line { left: 60px; }
+  .journal-day-grid .journal-grid-record, .routine-grid-card { grid-template-columns: 36px 18px auto minmax(0,1fr) 16px; gap: 4px; padding-inline: 5px; }
+  .routine-setup-row { grid-template-columns: minmax(86px,1fr) minmax(112px,1.2fr); }
+}

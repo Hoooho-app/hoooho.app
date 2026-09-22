@@ -33,6 +33,7 @@ import { HealthInformationCandidateService } from './health-information/health-i
 import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.mjs'
 import { AccountService } from './account/account-service.mjs'
 import { GrowthMeasurementService } from './growth/growth-measurement-service.mjs'
+import { RoutineService } from './routines/routine-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -69,6 +70,7 @@ const accountEntryState = new AccountEntryStateService(sharedOptions)
 const healthProfileFacts = new HealthProfileFactService(sharedOptions)
 const healthInformationCandidates = new HealthInformationCandidateService({ ...sharedOptions, profileFacts: healthProfileFacts })
 const growthMeasurements = new GrowthMeasurementService(sharedOptions)
+const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -434,6 +436,20 @@ async function handleGrowthMeasurements(request, response, pathname, searchParam
   return true
 }
 
+async function handleRoutines(request, response, pathname, searchParams) {
+  const match = /^\/api\/routines\/([^/]+)(?:\/tracks\/([^/]+))?$/.exec(pathname)
+  if (!match) return false
+  const accountId = await readAccountId(request)
+  const memberId = decodeRouteValue(match[1])
+  const itemKey = match[2] ? decodeRouteValue(match[2]) : null
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone'])
+  if (!itemKey && request.method === 'GET') sendJson(response, 200, await routines.getDay(accountId, memberId, String(searchParams.get('day') ?? ''), timeZone))
+  else if (!itemKey && request.method === 'PATCH') { const input = await readJson(request); sendJson(response, 200, input.status ? await routines.setPreference(accountId, memberId, input.status, new Date(), timeZone) : await routines.saveTemplateVersion(accountId, memberId, input)) }
+  else if (itemKey && request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await routines.setOverride(accountId, memberId, input.day, itemKey, input, new Date(), timeZone)) }
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
@@ -671,6 +687,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (await handleMembers(request, response, pathname)) return true
   if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
+  if (await handleRoutines(request, response, pathname, searchParams)) return true
   if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true
