@@ -64,6 +64,32 @@ test('iOS Safari 全局入口打开双图引导并可关闭恢复焦点', async 
   }
 })
 
+test('iOS Safari 确认已添加后持久隐藏入口', async ({ page }) => {
+  await enterApp(page)
+  const trigger = page.getByRole('button', { name: '添加 Hoooho 到主屏幕' })
+  await trigger.click()
+  await page.getByRole('dialog', { name: '添加到主屏幕' }).getByRole('button', { name: '我已添加，不再显示' }).click()
+  await expect(trigger).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hoooho-install-app-confirmed'))).toBe('true')
+
+  await page.goto('/about')
+  await expect(page.getByRole('button', { name: '添加 Hoooho 到主屏幕' })).toHaveCount(0)
+})
+
+test('其他标签确认安装后当前页面同步隐藏入口', async ({ page }) => {
+  await enterApp(page)
+  const trigger = page.getByRole('button', { name: '添加 Hoooho 到主屏幕' })
+  await expect(trigger).toBeVisible()
+  await page.evaluate(() => {
+    localStorage.setItem('hoooho-install-app-confirmed', 'true')
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'hoooho-install-app-confirmed',
+      newValue: 'true',
+    }))
+  })
+  await expect(trigger).toHaveCount(0)
+})
+
 test('原生安装提示取消后入口保留且不会重复调用', async ({ page }) => {
   await enterApp(page)
   await page.evaluate(() => {
@@ -97,6 +123,7 @@ test('navigator standalone 模式启动时不显示入口', async ({ page }) => 
   await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { configurable: true, value: true }))
   await enterApp(page)
   await expect(page.getByRole('button', { name: '添加 Hoooho 到主屏幕' })).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hoooho-install-app-confirmed'))).toBe('true')
 })
 
 test('Safari 图示加载失败时保留可关闭的最小失败状态', async ({ page }) => {

@@ -124,6 +124,17 @@
     color: rgb(var(--hoho-color-text-secondary));
     font-size: 14px;
   }
+  .install-guide__confirmed {
+    min-height: 44px;
+    flex: 0 0 auto;
+    align-self: center;
+    border: 0;
+    background: transparent;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    color: rgb(var(--hoho-color-primary));
+    font-size: 13px;
+    font-weight: 600;
+  }
 
   .install-app-notice {
     position: fixed;
