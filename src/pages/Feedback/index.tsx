@@ -19,7 +19,7 @@ const isReload = () => (performance.getEntriesByType('navigation')[0] as Perform
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })
 
 function FeedbackHeader({ onHistory }: { onHistory: () => void }) {
-  return <div className="relative"><MainAppHeader compact title="反馈意见"/><button className="feedback-header-action absolute right-3 top-[env(safe-area-inset-top)] z-30 min-h-14" type="button" onClick={onHistory}>我的反馈</button></div>
+  return <MainAppHeader action={<button className="feedback-header-action" type="button" onClick={onHistory}>我的反馈</button>} compact title="反馈意见" />
 }
 
 export function FeedbackPage() {

@@ -1,0 +1,148 @@
+@layer components {
+  .hoho-main-header__actions { gap: var(--hoho-space-1); }
+
+  .install-app-trigger {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    border: 0;
+    background: transparent;
+    padding: 0 2px;
+    color: rgb(var(--hoho-color-primary));
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .install-app-trigger:disabled { opacity: .55; }
+
+  .install-guide-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    justify-content: center;
+    background: rgb(var(--hoho-color-text-primary) / .28);
+  }
+
+  .install-guide {
+    display: flex;
+    width: min(100%, 520px);
+    height: 100dvh;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgb(var(--hoho-color-page-background));
+    color: rgb(var(--hoho-color-text-primary));
+  }
+
+  .install-guide__header {
+    display: grid;
+    min-height: calc(64px + env(safe-area-inset-top));
+    flex: 0 0 auto;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: end;
+    border-bottom: 1px solid rgb(var(--hoho-color-border));
+    padding: env(safe-area-inset-top) 12px 10px;
+  }
+  .install-guide__header::before { content: ''; }
+  .install-guide__header h2 {
+    align-self: center;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+  }
+  .install-guide__close {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    align-self: center;
+    border: 0;
+    border-radius: var(--hoho-radius-pill);
+    background: transparent;
+    color: rgb(var(--hoho-color-text-secondary));
+  }
+  .install-guide__close:hover { background: rgb(var(--hoho-color-primary-soft)); }
+
+  .install-guide__steps {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    align-content: start;
+    gap: 18px;
+    overflow-y: auto;
+    padding: 28px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .install-guide__step {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    margin: 0;
+  }
+  .install-guide__number {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    margin-top: 4px;
+    border-radius: var(--hoho-radius-pill);
+    background: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-surface));
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .install-guide__image-window {
+    position: relative;
+    height: clamp(170px, 29dvh, 220px);
+    overflow: hidden;
+    border: 1px solid rgb(var(--hoho-color-border));
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-surface));
+  }
+  .install-guide__image-window img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .install-guide__image-window--share img { object-position: center 78%; }
+  .install-guide__image-window--add img { object-position: center bottom; }
+  .install-guide__highlight {
+    position: absolute;
+    border: 3px solid #ff6268;
+    border-radius: 10px;
+    pointer-events: none;
+  }
+  .install-guide__highlight--share { top: 14%; left: 8%; width: 70%; height: 24%; }
+  .install-guide__highlight--add { right: 4%; bottom: 4%; left: 4%; height: 25%; }
+  .install-guide__failure {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    place-items: center;
+    color: rgb(var(--hoho-color-text-secondary));
+    font-size: 14px;
+  }
+
+  .install-app-notice {
+    position: fixed;
+    z-index: 90;
+    right: 16px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    left: 16px;
+    width: fit-content;
+    max-width: calc(100% - 32px);
+    margin: auto;
+    border-radius: var(--hoho-radius-control);
+    background: rgb(var(--hoho-color-text-primary));
+    padding: 10px 14px;
+    color: rgb(var(--hoho-color-surface));
+    font-size: 13px;
+  }
+
+  @media (min-width: 560px) {
+    .install-guide { height: min(720px, calc(100dvh - 40px)); margin: auto; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-overlay); box-shadow: var(--hoho-shadow-floating); }
+    .install-guide__header { min-height: 64px; padding-top: 0; }
+  }
+}
