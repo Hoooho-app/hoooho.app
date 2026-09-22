@@ -16,6 +16,7 @@ import { accountEntryStateApiPlugin } from './server/onboarding/vite-account-ent
 import { healthProfileFactsApiPlugin } from './server/health-profile/vite-health-profile-facts-plugin.mjs'
 import { healthInformationCandidatesApiPlugin } from './server/health-information/vite-health-information-candidates-plugin.mjs'
 import { accountApiPlugin } from './server/account/vite-account-plugin.mjs'
+import { routinesApiPlugin } from './server/routines/vite-routines-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
@@ -36,6 +37,7 @@ export default defineConfig({
     accountApiPlugin(),
     accountEntryStateApiPlugin(),
     membersApiPlugin(),
+    routinesApiPlugin(),
     eventsApiPlugin(),
     eventRecordsApiPlugin(),
     quickRecordsApiPlugin(),
