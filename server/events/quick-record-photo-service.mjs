@@ -4,7 +4,8 @@ import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { EventAttachmentRepository } from './repositories/event-attachment-repository.mjs'
-import { validateHealthImage } from './image-attachment-policy.mjs'
+import { validateHealthDocument } from './image-attachment-policy.mjs'
+import { ImageAnalysisService } from '../ai/image-analysis-service.mjs'
 
 const draftIdPattern = /^[A-Za-z0-9_-]{8,128}$/
 const maxPhotos = 10
@@ -27,6 +28,7 @@ export class QuickRecordPhotoService {
     this.store = options.store ?? new JsonStore(path.join(this.dataDirectory, 'quick-record-photo-drafts.json'), { photos: [] })
     this.members = options.members ?? new FamilyMemberRepository(this.dataDirectory)
     this.attachments = options.attachments ?? new EventAttachmentRepository(this.dataDirectory)
+    this.imageAnalysis = options.imageAnalysis ?? new ImageAnalysisService(options)
   }
 
   assertDraftId(draftId) {
@@ -60,11 +62,11 @@ export class QuickRecordPhotoService {
     const memberId = typeof input?.memberId === 'string' ? input.memberId.trim() : ''
     await this.assertMemberOwnership(accountId, memberId)
     let prepared
-    try { prepared = await validateHealthImage(input) } catch (error) {
+    try { prepared = await validateHealthDocument(input) } catch (error) {
       throw new QuickRecordPhotoError(error.message, error.status, error.code)
     }
     const id = randomUUID()
-    const extension = prepared.mimeType === 'image/png' ? 'png' : prepared.mimeType === 'image/webp' ? 'webp' : 'jpg'
+    const extension = prepared.mimeType === 'application/pdf' ? 'pdf' : prepared.mimeType === 'image/png' ? 'png' : prepared.mimeType === 'image/webp' ? 'webp' : 'jpg'
     const storageKey = `${id}.${extension}`
     const buffer = Buffer.from(prepared.dataUrl.slice(prepared.dataUrl.indexOf(',') + 1), 'base64')
     await mkdir(this.filesDirectory, { recursive: true })
@@ -114,6 +116,13 @@ export class QuickRecordPhotoService {
   async read(accountId, memberId, draftId, photoId) {
     const photo = await this.getOwnedPhoto(accountId, memberId, draftId, photoId)
     return { mimeType: photo.mimeType, buffer: await readFile(path.join(this.filesDirectory, path.basename(photo.storageKey))) }
+  }
+
+  async analyze(accountId, memberId, draftId, photoId, now = new Date()) {
+    const photo = await this.getOwnedPhoto(accountId, memberId, draftId, photoId)
+    const buffer = await readFile(path.join(this.filesDirectory, path.basename(photo.storageKey)))
+    const dataUrl = `data:${photo.mimeType};base64,${buffer.toString('base64')}`
+    return this.imageAnalysis.analyze({ ...photo, dataUrl }, now)
   }
 
   async delete(accountId, memberId, draftId, photoId) {

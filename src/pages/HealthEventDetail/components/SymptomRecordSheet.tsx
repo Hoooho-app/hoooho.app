@@ -73,8 +73,6 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
   const [locationError, setLocationError] = useState('')
   const [impactLevel, setImpactLevel] = useState<JournalSymptomDetails['impactLevel'] | ''>('')
   const [triggerText, setTriggerText] = useState('')
-  const [trend, setTrend] = useState<JournalSymptomDetails['trend'] | ''>('')
-  const [shortNote, setShortNote] = useState('')
 
   useEffect(() => {
     if (!entry) return
@@ -90,8 +88,6 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     setLocationError('')
     setImpactLevel(record?.journal?.symptom?.impactLevel ?? '')
     setTriggerText(record?.journal?.symptom?.triggerText ?? '')
-    setTrend(record?.journal?.symptom?.trend ?? '')
-    setShortNote(record?.journal?.symptom?.shortNote ?? '')
     setBusy(false)
     setError('')
   }, [entry, initialEditing, record])
@@ -120,7 +116,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
         measurementMethod: isMeasurement ? measurementMethod : null,
         measurementDevice: isMeasurement ? measurementDevice.trim() || null : null,
         note: note.trim() || null,
-        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
+        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
       })
       onClose()
     } catch (reason) {
@@ -165,7 +161,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
       {editing ? (
         <div className="symptom-record-editor">
           <label><span>记录内容</span><textarea className="hoho-textarea" maxLength={1000} onChange={(event) => { setContent(event.target.value); setError('') }} value={content} /></label>
-          {record?.journal?.symptom && <div className="symptom-record-editor-optional"><label><span>症状部位</span><input aria-describedby={locationError ? 'symptom-editor-location-error' : undefined} aria-invalid={Boolean(locationError)} className="hoho-input" maxLength={120} onChange={(event) => { setLocationText(event.target.value); setLocationError('') }} value={locationText} />{locationError && <small className="symptom-field-error" id="symptom-editor-location-error" role="alert">{locationError}</small>}</label><label><span>严重程度</span><select className="hoho-input" onChange={(event) => setImpactLevel(event.target.value as typeof impactLevel)} value={impactLevel}><option value="">未填写</option><option value="little">轻微</option><option value="some">有些影响</option><option value="clear">明显影响</option></select></label><label><span>触发或诱因</span><input className="hoho-input" maxLength={160} onChange={(event) => setTriggerText(event.target.value)} value={triggerText} /></label><label><span>是否加重或减轻</span><select className="hoho-input" onChange={(event) => setTrend(event.target.value as typeof trend)} value={trend}><option value="">未填写</option><option value="more_noticeable">加重了</option><option value="improving">减轻了</option><option value="same">没有明显变化</option><option value="recurrent">反复出现</option></select></label><label><span>症状备注</span><textarea className="hoho-textarea" maxLength={160} onChange={(event) => setShortNote(event.target.value)} value={shortNote} /></label></div>}
+          {record?.journal?.symptom && <div className="symptom-record-editor-optional"><label><span>症状部位</span><input aria-describedby={locationError ? 'symptom-editor-location-error' : undefined} aria-invalid={Boolean(locationError)} className="hoho-input" maxLength={120} onChange={(event) => { setLocationText(event.target.value); setLocationError('') }} value={locationText} />{locationError && <small className="symptom-field-error" id="symptom-editor-location-error" role="alert">{locationError}</small>}</label><label><span>严重程度</span><select className="hoho-input" onChange={(event) => setImpactLevel(event.target.value as typeof impactLevel)} value={impactLevel}><option value="">未填写</option><option value="little">轻微</option><option value="some">有些影响</option><option value="clear">明显影响</option></select></label><label><span>触发或诱因</span><input className="hoho-input" maxLength={160} onChange={(event) => setTriggerText(event.target.value)} value={triggerText} /></label></div>}
           {record?.journal?.symptom && <button className="symptom-record-related-editor" onClick={() => setRelatedOpen(true)} type="button"><span>关联其他记录</span><strong>{Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0) ? `已关联 ${Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0)} 条` : '选填'}</strong></button>}
           <label><span>发生时间</span><input className="hoho-input" max={localDateTimeValue()} onChange={(event) => { setOccurredAt(event.target.value); setError('') }} type="datetime-local" value={occurredAt} /></label>
           <div className="symptom-record-readonly"><span>记录来源</span><strong>{entry.source.label}</strong></div>

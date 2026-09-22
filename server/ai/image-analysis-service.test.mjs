@@ -66,3 +66,10 @@ test('Vision Provider 失败时返回可恢复状态', async () => {
   assert.equal(result.errorCode, 'VISION_TIMEOUT')
   assert.equal(result.summary, '图片记录')
 })
+
+test('就医资料字段保留来源、页码和不确定性', async () => {
+  const service = new ImageAnalysisService({ provider: { name: 'fixture-vision', analyzeImage: async () => ({ category: 'report', summary: '检查报告', observedText: '', temperatureValue: null, medicationName: null, examinationName: '血常规', confidence: 0.82, relevance: 'health', visitFields: [{ kind: 'diagnosis', value: '支气管炎？', page: 2, confidence: 0.62, uncertain: true }] }) } })
+  const result = await service.analyze({ ...attachment, id: 'document-1', name: '门诊病历.png' })
+  assert.equal(result.visitFields.length, 1)
+  assert.deepEqual({ kind: result.visitFields[0].kind, value: result.visitFields[0].value, sourceDocumentId: result.visitFields[0].sourceDocumentId, sourceName: result.visitFields[0].sourceName, sourcePage: result.visitFields[0].sourcePage, status: result.visitFields[0].status }, { kind: 'diagnosis', value: '支气管炎？', sourceDocumentId: 'document-1', sourceName: '门诊病历.png', sourcePage: 2, status: 'uncertain' })
+})

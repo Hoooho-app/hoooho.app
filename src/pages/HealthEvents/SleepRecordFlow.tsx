@@ -3,16 +3,14 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { HohoButton } from '../../components/design-system'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
-import type { JournalMetadata, JournalSleepDetails } from '../../types/journal'
-import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import type { JournalSleepDetails } from '../../types/journal'
+import type { SaveJournalRecord } from './recordFlowTypes'
+import { RecordRelationSection, type RecordBackfillTarget } from './RecordRelationSection'
+import type { LinkedBackfillResult } from './recordFlowTypes'
 import { clockMinutes, clockMinutesFromPoint, defaultSleepType, durationMinutes, formatClock, formatSleepDuration, sleepRangeFromClocks, snapClockMinutes } from './sleepTime'
 import './TimeView.css'
 
-type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 export type SleepDraft = JournalSleepDetails
-
-const qualities: JournalSleepDetails['quality'][] = ['睡得安稳', '有些翻动', '频繁醒来']
-const observationOptions = ['夜醒', '入睡困难', '咳嗽', '鼻塞', '抓挠', '呼吸不适', '其他']
 
 export function createSleepDraft(now = new Date()): SleepDraft {
   const wakeAt = new Date(now)
@@ -82,10 +80,12 @@ function SleepRing({ draft, onChange }: { draft: SleepDraft; onChange: (draft: S
 
 function clockInputValue(value: string) { return formatClock(value) }
 
-export function SleepRecordFlow({ draft, mode, memberId: _memberId, onDraftChange, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function SleepRecordFlow({ draft, mode, memberId = '', token = '', linkedSymptomRecordIds = [], linkedBackfill, onBackfill, onDraftChange, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; token?: string; linkedSymptomRecordIds?: string[]; linkedBackfill?: LinkedBackfillResult; onBackfill: (target: RecordBackfillTarget) => void; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveJournalRecord; onSaved: (message: string) => void }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [flowMode, setFlowMode] = useState(mode)
+  const [linkedSymptoms, setLinkedSymptoms] = useState(linkedSymptomRecordIds)
+  useEffect(() => { if (linkedBackfill?.relation === 'symptom') setLinkedSymptoms((current) => current.includes(linkedBackfill.recordId) ? current : [...current, linkedBackfill.recordId]) }, [linkedBackfill])
   const layerRef = useRef<HTMLElement>(null)
   usePageScrollLock(true)
   useDialogFocus(true, layerRef)
@@ -106,16 +106,15 @@ export function SleepRecordFlow({ draft, mode, memberId: _memberId, onDraftChang
     const length = durationMinutes(range.start, range.end)
     onDraftChange({ ...draft, sleepAt: range.start.toISOString(), wakeAt: range.end.toISOString(), durationMinutes: length, kind: defaultSleepType(range.start, range.end) })
   }
-  const toggleObservation = (option: string) => onDraftChange({ ...draft, observations: draft.observations?.includes(option) ? draft.observations.filter((item) => item !== option) : [...(draft.observations ?? []), option] })
   const save = async () => {
     if (!valid) { setError(end.getTime() > Date.now() ? '醒来时间不能晚于现在' : '请选择不同的入睡和醒来时间'); return }
     setSaving(true); setError('')
     try {
-      const details: JournalSleepDetails = { sleepAt: draft.sleepAt, wakeAt: draft.wakeAt, durationMinutes: draft.durationMinutes, kind: draft.kind, ...(draft.quality ? { quality: draft.quality } : {}), ...(draft.observations?.length ? { observations: draft.observations } : {}), ...(draft.otherNote?.trim() ? { otherNote: draft.otherNote.trim() } : {}) }
+      const details: JournalSleepDetails = { sleepAt: draft.sleepAt, wakeAt: draft.wakeAt, durationMinutes: draft.durationMinutes, kind: draft.kind, ...(linkedSymptoms.length ? { linkedSymptomRecordIds: linkedSymptoms } : {}) }
       const title = draft.kind === 'night' ? '夜间睡眠' : '白天小睡'
       const content = `${title}\n${formatClock(start)}–${formatClock(end)} · ${formatSleepDuration(draft.durationMinutes)}`
-      const message = await onConfirm(content, draft.wakeAt, 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: details })
-      onSaved(message); onClose()
+      const result = await onConfirm(content, draft.sleepAt, 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: details })
+      onSaved(result.message); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
@@ -125,8 +124,8 @@ export function SleepRecordFlow({ draft, mode, memberId: _memberId, onDraftChang
     const sleepAt = new Date(); sleepAt.setSeconds(0, 0)
     try {
       const details: JournalSleepDetails = { sleepAt: sleepAt.toISOString(), wakeAt: sleepAt.toISOString(), durationMinutes: 0, kind: 'night', status: 'ongoing' }
-      const message = await onConfirm('睡眠已开始', sleepAt.toISOString(), 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: details })
-      onSaved(message); onClose()
+      const result = await onConfirm('睡眠已开始', sleepAt.toISOString(), 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: details })
+      onSaved(result.message); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '开始失败，请重试') }
     finally { setSaving(false) }
   }
@@ -141,8 +140,7 @@ export function SleepRecordFlow({ draft, mode, memberId: _memberId, onDraftChang
         <label><span><Moon size={17} />入睡</span><strong>{clockInputValue(draft.sleepAt)}</strong><ChevronRight size={17} /><input aria-label="精确调整入睡时间" onChange={(event) => setClock('sleep', event.target.value)} type="time" value={clockInputValue(draft.sleepAt)} /></label>
         <label><span><Sun size={17} />醒来</span><strong>{clockInputValue(draft.wakeAt)}</strong><ChevronRight size={17} /><input aria-label="精确调整醒来时间" onChange={(event) => setClock('wake', event.target.value)} type="time" value={clockInputValue(draft.wakeAt)} /></label>
       </div>
-      <fieldset className="sleep-fieldset"><legend>这段睡眠怎么样？<span>（可选）</span></legend><div className="sleep-choice-row">{qualities.map((option) => <button aria-pressed={draft.quality === option} key={option} onClick={() => onDraftChange({ ...draft, quality: draft.quality === option ? undefined : option })} type="button">{option}</button>)}</div></fieldset>
-      <fieldset className="sleep-fieldset"><legend>有没有影响睡眠的情况？<span>（可选）</span></legend><p>不确定可以不填，之后还能补充</p><div className="sleep-choice-row">{observationOptions.map((option) => <button aria-pressed={draft.observations?.includes(option)} key={option} onClick={() => toggleObservation(option)} type="button">{option}</button>)}</div>{draft.observations?.includes('其他') && <input aria-label="其他影响睡眠的情况" maxLength={120} onChange={(event) => onDraftChange({ ...draft, otherNote: event.target.value })} placeholder="补充说明" value={draft.otherNote ?? ''} />}</fieldset>
+      <RecordRelationSection title="补充症状信息" hint="当时出现的身体表现" memberId={memberId} token={token} occurredAt={draft.sleepAt} categories={['symptom']} selectedIds={linkedSymptoms} onChange={setLinkedSymptoms} onBackfill={onBackfill} target="symptom" />
       {!valid && <p className="sleep-validation">{end.getTime() > Date.now() ? '醒来时间不能晚于现在' : '请选择不同的入睡和醒来时间'}</p>}{error && <p aria-live="polite" className="sleep-save-error" role="alert">{error}</p>}
       <div className="sleep-record-save"><HohoButton disabled={!valid} fullWidth loading={saving} onClick={save} size="large">保存记录</HohoButton></div>
     </div>

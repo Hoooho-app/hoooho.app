@@ -46,6 +46,13 @@ export interface QuickRecordPhotoDto {
   consumedAt: string | null
 }
 
+export interface QuickRecordDocumentAnalysis {
+  status: 'completed' | 'needs_confirmation' | 'unavailable' | 'failed' | 'irrelevant' | 'unsafe'
+  summary: string
+  errorCode?: string
+  visitFields?: Array<{ id: string; kind: import('../types/journal').VisitRecognitionFieldKind; value: string; sourceDocumentId: string; sourceName: string; sourcePage?: number; confidence?: number; status: 'recognized' | 'uncertain' | 'user_edited' }>
+}
+
 export const quickRecordService = {
   checkDuplicate(input: QuickRecordCreateInput, token: string) {
     return apiRequest<{ duplicate: QuickRecordDuplicate | null }>('/api/quick-records/duplicate-check', { method: 'POST', body: input, token })
@@ -61,6 +68,9 @@ export const quickRecordService = {
   },
   deletePhoto(draftId: string, photoId: string, memberId: string, token: string) {
     return apiRequest<{ deleted: true }>(`/api/quick-records/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(photoId)}`, { token, method: 'DELETE', headers: { 'X-Hoooho-Member-Id': memberId } })
+  },
+  analyzeDocument(draftId: string, photoId: string, memberId: string, token: string) {
+    return apiRequest<QuickRecordDocumentAnalysis>(`/api/quick-records/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(photoId)}/analyze`, { token, method: 'POST', headers: { 'X-Hoooho-Member-Id': memberId } })
   },
   cancelPhotos(draftId: string, memberId: string, token: string) {
     return apiRequest<{ deleted: number }>(`/api/quick-records/${encodeURIComponent(draftId)}/photos`, { token, method: 'DELETE', headers: { 'X-Hoooho-Member-Id': memberId } })

@@ -3,6 +3,7 @@ import sharp from 'sharp'
 
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 export const MAX_HEALTH_IMAGE_BYTES = 5 * 1024 * 1024
+export const MAX_HEALTH_DOCUMENT_BYTES = 10 * 1024 * 1024
 export const MAX_HEALTH_IMAGE_PIXELS = 40_000_000
 
 function attachmentError(message, status, code) {
@@ -42,4 +43,18 @@ export async function validateHealthImage(input) {
     width: metadata.width, height: metadata.height,
     contentHash: createHash('sha256').update(buffer).digest('hex')
   }
+}
+
+export async function validateHealthDocument(input) {
+  const mimeType = typeof input?.mimeType === 'string' ? input.mimeType.toLowerCase() : ''
+  if (mimeType !== 'application/pdf') return validateHealthImage(input)
+  const name = typeof input?.name === 'string' ? input.name.trim().slice(0, 160) : ''
+  const dataUrl = typeof input?.dataUrl === 'string' ? input.dataUrl : ''
+  if (!name) throw attachmentError('附件名称不能为空', 400, 'INVALID_ATTACHMENT_NAME')
+  const prefix = 'data:application/pdf;base64,'
+  if (!dataUrl.startsWith(prefix)) throw attachmentError('PDF 内容格式错误', 400, 'INVALID_ATTACHMENT_DATA')
+  const buffer = Buffer.from(dataUrl.slice(prefix.length), 'base64')
+  if (!buffer.length || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw attachmentError('PDF 文件损坏或格式不正确', 422, 'ATTACHMENT_DECODE_FAILED')
+  if (buffer.length > MAX_HEALTH_DOCUMENT_BYTES) throw attachmentError('资料超过 10MB，请压缩后重试', 413, 'ATTACHMENT_TOO_LARGE')
+  return { name, mimeType, dataUrl, binarySize: buffer.length, width: 0, height: 0, contentHash: createHash('sha256').update(buffer).digest('hex') }
 }

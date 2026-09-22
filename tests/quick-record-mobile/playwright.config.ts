@@ -3,7 +3,10 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   globalTeardown: './teardown.ts',
   testDir: '.',
-  testMatch: ['quick-record.spec.ts', 'nurse-video.spec.ts', 'medication-record.spec.ts', 'vaccination-record.spec.ts', 'visit-record.spec.ts'],
+  // The legacy quick-record drawer and its embedded nurse video were removed by
+  // the four-entry records-module contract. Their source specs remain as history;
+  // this suite now exercises only the production entry points that still exist.
+  testMatch: ['medication-record.spec.ts', 'vaccination-record.spec.ts', 'visit-record.spec.ts', 'records-module.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,
@@ -18,7 +21,7 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'node serve.mjs',
+    command: 'node --import ../health-timeline-oral-text-stress/windows-fs-retry-preload.mjs serve.mjs',
     url: 'http://127.0.0.1:4190/api/health',
     reuseExistingServer: false,
     timeout: 30_000,

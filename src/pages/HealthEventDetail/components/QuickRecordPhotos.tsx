@@ -11,6 +11,7 @@ export interface QuickRecordPhotoItem {
   serverId?: string
   file?: File
   name: string
+  mimeType?: string
   previewUrl: string
   status: QuickRecordPhotoStatus
   error?: string
@@ -49,7 +50,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     void quickRecordService.listPhotos(stored, memberId, token).then(async (saved) => {
       const hydrated = await Promise.all(saved.map(async (photo) => {
         const blob = await quickRecordService.readPhoto(stored, photo.id, memberId, token)
-        return { localId: photo.id, serverId: photo.id, name: photo.name, previewUrl: URL.createObjectURL(blob), status: 'uploaded' as const }
+        return { localId: photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, previewUrl: URL.createObjectURL(blob), status: 'uploaded' as const }
       }))
       if (active) setPhotos(hydrated)
       else hydrated.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
@@ -62,7 +63,9 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const uploadItem = async (item: QuickRecordPhotoItem, sortOrder: number) => {
     if (!item.file || !memberId || !token) return
     try {
-      const prepared = await prepareHealthImage(item.file)
+      const prepared = item.file.type === 'application/pdf'
+        ? await new Promise<{ name: string; mimeType: string; dataUrl: string }>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('PDF 无法读取，请重新选择')); reader.onload = () => resolve({ name: item.file!.name, mimeType: 'application/pdf', dataUrl: String(reader.result) }); reader.readAsDataURL(item.file!) })
+        : await prepareHealthImage(item.file)
       const saved = await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...prepared, sortOrder }, token)
       setPhotos((current) => current.map((photo) => photo.localId === item.localId
         ? { ...photo, serverId: saved.id, status: 'uploaded', error: undefined }
@@ -81,7 +84,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     if (files.length > available) setNotice(limit === QUICK_RECORD_PHOTO_LIMIT ? '最多上传10张照片' : `最多上传${limit}张照片`)
     else setNotice('')
     const additions = selected.map((file): QuickRecordPhotoItem => ({
-      localId: crypto.randomUUID(), file, name: file.name, previewUrl: URL.createObjectURL(file), status: 'uploading'
+      localId: crypto.randomUUID(), file, name: file.name, mimeType: file.type, previewUrl: URL.createObjectURL(file), status: 'uploading'
     }))
     setPhotos((current) => [...current, ...additions])
     additions.forEach((item, index) => void uploadItem(item, photosRef.current.length + index))
@@ -124,7 +127,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     photoIds: photosRef.current.filter((photo) => photo.status === 'uploaded' && photo.serverId).map((photo) => photo.serverId!)
   })
 
-  return { photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
+  return { photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, draftId: ensureDraftId, blocked: hasUnreadyPhotos(photos) }
 }
 
 export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number }) {

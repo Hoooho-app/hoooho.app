@@ -12,9 +12,10 @@ test('bowel form exposes the confirmed fields without diagnostic or low-value ch
   assert.match(source, /<ScaleChoice label="排便大约用了多久？"/)
 })
 
-test('bowel form keeps image then time then save order and six-photo limit', () => {
-  assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('label="记录时间（默认为现在）"'))
-  assert.ok(source.indexOf('label="记录时间（默认为现在）"') < source.indexOf('保存记录'))
+test('bowel form keeps photos, symptom supplement, actual time and save order', () => {
+  assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('补充症状信息'))
+  assert.ok(source.indexOf('补充症状信息') < source.indexOf('实际排便时间'))
+  assert.ok(source.indexOf('实际排便时间') < source.indexOf('保存记录'))
   assert.match(source, /useQuickRecordPhotos\(memberId, token, 6\)/)
   assert.match(source, />上传照片</)
   assert.doesNotMatch(source, /capture="environment"|>拍照<|从相册选择|照片只用于记录所见/)

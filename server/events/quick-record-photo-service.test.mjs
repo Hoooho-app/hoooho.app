@@ -87,3 +87,19 @@ test('照片确认后以账号、人物、随记和记录元数据关联且仍�
     assert.equal((await state.service.list('account-1', state.member.id, 'draft_attach123')).length, 0)
   } finally { await rm(state.dataDirectory, { recursive: true, force: true }) }
 })
+
+test('就医资料支持 PDF 并使用现有分析服务，不伪造识别结果', async () => {
+  const state = await setup()
+  try {
+    const calls = []
+    state.service.imageAnalysis = { analyze: async (document) => { calls.push(document); return { status: 'unavailable', summary: '图片记录', visitFields: [], errorCode: 'VISION_NOT_CONFIGURED' } } }
+    const buffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF')
+    const created = await state.service.upload('account-1', 'visit_doc_12345', { memberId: state.member.id, sortOrder: 0, name: '门诊病历.pdf', mimeType: 'application/pdf', dataUrl: `data:application/pdf;base64,${buffer.toString('base64')}` })
+    assert.equal(created.mimeType, 'application/pdf')
+    assert.equal(created.width, 0)
+    const analysis = await state.service.analyze('account-1', state.member.id, 'visit_doc_12345', created.id)
+    assert.equal(analysis.status, 'unavailable')
+    assert.equal(calls[0].mimeType, 'application/pdf')
+    assert.match(calls[0].dataUrl, /^data:application\/pdf;base64,/)
+  } finally { await rm(state.dataDirectory, { recursive: true, force: true }) }
+})

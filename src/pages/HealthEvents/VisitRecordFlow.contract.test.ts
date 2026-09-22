@@ -3,18 +3,20 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const flow = readFileSync(new URL('./VisitRecordFlow.tsx', import.meta.url), 'utf8')
-const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url), 'utf8')
+const service = readFileSync(new URL('../../services/quickRecords.ts', import.meta.url), 'utf8')
 
-test('visit entry opens a direct continuous form with the fixed field order', () => {
-  assert.match(recorder, /category === 'visit' \? 'visit-form'/)
-  assert.match(flow, /<h1>记录就医<\/h1>/)
-  for (const label of ['怎么就医？', '为什么去？', '去了哪里？', '看了哪个科？', '就医结果与资料（选填）', '就医时间', '保存记录']) assert.ok(flow.includes(label), label)
-  assert.ok(flow.indexOf('就医时间') < flow.lastIndexOf('保存记录'))
+test('visit flow is document first and has no relationship or required manual medical form', () => {
+  for (const label of ['先上传就医资料', '拍照', '从相册选择', '上传文件', '原始资料', '帮你整理好了', '实际就医时间', '保存就医记录']) assert.match(flow, new RegExp(label))
+  assert.match(flow, /application\/pdf/)
+  assert.doesNotMatch(flow, /关联已有症状|关联上一次就医|医生姓名|看了哪个科|接下来怎么处理/)
 })
 
-test('visit documents keep the requested factual safety boundary', () => {
-  assert.match(flow, /limit=\{6\}/)
-  assert.match(flow, /识别结果待核对/)
-  assert.match(flow, /当前人物还没有可关联的症状记录/)
-  assert.doesNotMatch(flow, /GPS|地图|推荐医院|推荐科室|AI已确认|诊断已核验|治疗建议/)
+test('document recognition keeps source, uncertainty, edit and stale-request protection', () => {
+  assert.match(flow, /analysisVersion/)
+  assert.match(flow, /sourceDocumentId/)
+  assert.match(flow, /sourceName/)
+  assert.match(flow, /status: 'user_edited'/)
+  assert.match(flow, /资料中没有明确时间/)
+  assert.match(flow, /整理失败，可重试或保留原件/)
+  assert.match(service, /analyzeDocument/)
 })

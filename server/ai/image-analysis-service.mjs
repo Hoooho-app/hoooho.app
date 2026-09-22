@@ -51,6 +51,14 @@ export function normalizeImageAnalysis(value, attachment, providerName, now = ne
     ? source.relevance
     : (category === 'other' ? 'irrelevant' : confidence < 0.65 ? 'uncertain' : 'health')
   const facts = []
+  const visitKinds = new Set(['visit_time', 'institution', 'department', 'diagnosis', 'examination_result', 'prescription', 'medical_instruction'])
+  const visitFields = Array.isArray(source.visitFields) ? source.visitFields.flatMap((field) => {
+    if (!field || !visitKinds.has(field.kind)) return []
+    const fieldValue = cleanText(field.value, 800)
+    if (!fieldValue) return []
+    const fieldConfidence = Math.min(1, Math.max(0, Number(field.confidence) || 0))
+    return [{ id: randomUUID(), kind: field.kind, value: fieldValue, sourceDocumentId: attachment.id, sourceName: attachment.name, ...(Number.isInteger(field.page) && field.page > 0 ? { sourcePage: field.page } : {}), confidence: fieldConfidence, status: field.uncertain || fieldConfidence < 0.7 ? 'uncertain' : 'recognized' }]
+  }) : []
 
   if (temperatureValue !== null) {
     facts.push(createFact('temperature', `${temperatureValue}℃`, attachment, now, {
@@ -83,6 +91,7 @@ export function normalizeImageAnalysis(value, attachment, providerName, now = ne
     temperatureValue,
     extractedFacts: facts,
     confidence,
+    visitFields,
     provider: providerName,
     sourceAttachmentId: attachment.id,
     analyzedAt: now.toISOString()

@@ -51,11 +51,13 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType ?? '') ? 'exact' : 'unknown'),
       timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
       diet: first.journal?.diet,
+      bowel: first.journal?.bowel,
       sleep: first.journal?.sleep,
       outdoorActivity: first.journal?.outdoorActivity,
       medication: first.journal?.medication,
       vaccination: first.journal?.vaccination,
       symptom: first.journal?.symptom,
+      visit: first.journal?.visit,
       attachmentCount: files.filter((file) => !file.recordId || ordered.some((record) => record.id === file.recordId)).length,
       status: event.status,
       firstOccurredAt,
@@ -103,11 +105,13 @@ export function journalSearchFields(entry: JournalEntry) {
     ...(entry.searchContents ?? []),
     ...(entry.categories ?? ['other']).map((category) => journalCategoryLabels[category]),
     ...textValues(entry.diet),
+    ...textValues(entry.bowel),
     ...textValues(entry.sleep),
     ...textValues(entry.outdoorActivity),
     ...textValues(entry.medication),
     ...textValues(entry.vaccination),
     ...textValues(entry.symptom),
+    ...textValues(entry.visit),
   ].map((value) => value.trim()).filter(Boolean)
 }
 

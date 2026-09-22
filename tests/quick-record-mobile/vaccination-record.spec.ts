@@ -19,17 +19,12 @@ async function prepare(page: Page) {
   await page.goto('/health-events')
 }
 
-test('iPhone SE 活动、疫苗和就医入口置灰并提示即将开放', async ({ page }) => {
+test('iPhone SE 顶层入口仅保留四个真实记录流程', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记一下' }).click()
+  await page.getByRole('button', { name: '记录', exact: true }).click()
   const entry = page.getByRole('dialog', { name: '记录新情况' })
-  for (const label of ['活动', '疫苗', '就医']) {
-    const button = entry.getByRole('button', { name: label, exact: true })
-    await expect(button).toHaveAttribute('aria-disabled', 'true')
-    await expect(button).toHaveCSS('opacity', '0.52')
-    await button.click({ force: true })
-    await expect(entry.getByRole('status')).toHaveText('即将开放功能')
-    await expect(button).toHaveAttribute('aria-pressed', 'false')
-    await expect(entry.getByRole('button', { name: '开始记录' })).toBeDisabled()
-  }
+  const buttons = entry.locator('.journal-record-entry-grid > button')
+  await expect(buttons).toHaveCount(4)
+  await expect(buttons).toHaveText([/记录症状/, /记录日常/, /记录就医/, /记录用药/])
+  await expect(entry.getByText(/疫苗|活动|即将开放/)).toHaveCount(0)
 })

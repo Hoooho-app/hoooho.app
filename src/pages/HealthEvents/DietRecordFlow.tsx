@@ -1,28 +1,24 @@
 import { ArrowLeft, Pencil, Plus } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
-import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../types/journal'
+import type { JournalDietDetails, DietRecordKind } from '../../types/journal'
 import { familyMemberService } from '../../services/familyMembers'
-import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { useQuickRecordPhotos } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { RecordRelationSection, type RecordBackfillTarget } from './RecordRelationSection'
+import type { LinkedBackfillResult } from './recordFlowTypes'
+import type { SaveJournalRecord } from './recordFlowTypes'
 
 type InputChannel = 'voice' | 'text'
-type SaveRecord = (content: string, occurredAt: string, channel: InputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 
 const kindTitles: Record<DietRecordKind, string> = {
-  feeding: '记录喂养', complementary: '记录辅食', meal: '记录正餐', snack: '记录零食', supplement: '记录补剂'
+  feeding: '记录喂养', complementary: '记录辅食', meal: '记录正餐', snack: '记录零食', supplement: '记录营养补剂'
 }
 
 const feedingMethods = [
   ['breast', '母乳'], ['formula', '配方奶'], ['expressed', '瓶喂母乳'], ['mixed', '混合喂养']
 ] as const
-const feedingStatusOptions = ['顺利', '吐奶', '呛咳', '抗拒']
-const reactionOptions = ['皮肤', '呼吸', '消化']
-const formOptions = [['puree', '泥糊'], ['minced', '碎末'], ['small-pieces', '小颗粒'], ['finger-food', '手指食物']] as const
-const complementaryAmounts = ['尝了几口', '约 1/4 碗', '约 1/2 碗', '大部分', '全部吃完']
-const mealAmounts = ['没吃', '少量', '一半', '大部分', '吃完']
-const appetiteOptions = ['比平时少', '和平时差不多', '比平时多'] as const
 const commonComplementary = ['鸡蛋黄', '南瓜泥', '大米粥']
 const commonMeals = ['番茄牛肉', '米饭', '西兰花']
 const commonSupplements = ['维生素D', '铁剂', '钙剂', 'DHA']
@@ -40,32 +36,8 @@ function formatDuration(seconds: number) {
   return minutes ? `${minutes}分${String(remainder).padStart(2, '0')}秒` : `${remainder}秒`
 }
 
-function toggleValue(values: string[], value: string) {
-  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
-}
-
 function ChoiceGroup({ label, options, value, onChange, optional = false }: { label: string; options: readonly string[]; value: string; onChange: (value: string) => void; optional?: boolean }) {
   return <fieldset className="diet-fieldset"><legend>{label}{optional && <span>（可选）</span>}</legend><div className="diet-choice-row">{options.map((option) => <button aria-pressed={value === option} key={option} onClick={() => onChange(value === option && optional ? '' : option)} type="button">{option}</button>)}</div></fieldset>
-}
-
-function MultiChoiceGroup({ label, options, values, onChange, hint }: { label: string; options: readonly string[]; values: string[]; onChange: (values: string[]) => void; hint?: string }) {
-  return <fieldset className="diet-fieldset"><legend>{label}</legend>{hint && <p className="diet-field-hint">{hint}</p>}<div className="diet-choice-row">{options.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div></fieldset>
-}
-
-function AmountSlider({ options, value, onChange }: { options: readonly string[]; value: string; onChange: (value: string) => void }) {
-  const selectedIndex = Math.max(0, options.indexOf(value))
-  const progress = `${(selectedIndex / (options.length - 1)) * 100}%`
-  return <fieldset className="diet-fieldset diet-amount-slider"><legend>吃了多少</legend>
-    <input aria-label="吃了多少" aria-valuetext={options[selectedIndex]} max={options.length - 1} min="0" onChange={(event) => onChange(options[Number(event.target.value)])} step="1" style={{ '--diet-amount-progress': progress } as CSSProperties} type="range" value={selectedIndex} />
-    <div aria-hidden="true" className="diet-amount-labels">{options.map((option, index) => <span className={index === selectedIndex ? 'is-selected' : ''} key={option}>{option}</span>)}</div>
-  </fieldset>
-}
-
-function ReactionChoices({ values, onChange, hint }: { values: string[]; onChange: (values: string[]) => void; hint?: string }) {
-  return <div aria-label="进食后有无异常" className="diet-reaction-fieldset" role="group">
-    {hint && <p className="diet-field-hint">{hint}</p>}
-    <div className="diet-reaction-grid">{reactionOptions.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div>
-  </div>
 }
 
 function FoodEditor({ foods, onFoodsChange, common, onCommonChange, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
@@ -105,13 +77,13 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, heading = '�
   </section>
 }
 
-function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormProps) {
-  const [method, setMethod] = useState<JournalDietDetails['feedingMethod']>('breast')
+function FeedingForm({ occurredAt, setOccurredAt, onSave, saving, initialMethod }: CommonFormProps & { initialMethod?: JournalDietDetails['feedingMethod'] }) {
+  const [method, setMethod] = useState<JournalDietDetails['feedingMethod']>(initialMethod ?? 'breast')
   const [seconds, setSeconds] = useState({ left: 0, right: 0 })
   const [manualMinutes, setManualMinutes] = useState({ left: '', right: '' })
   const [activeSide, setActiveSide] = useState<'left' | 'right' | null>(null)
   const [bottleMl, setBottleMl] = useState('')
-  const [statuses, setStatuses] = useState<string[]>([])
+  const [formulaName, setFormulaName] = useState('')
   const hasBreast = method === 'breast' || method === 'mixed'
   const hasBottle = method === 'formula' || method === 'expressed' || method === 'mixed'
   useEffect(() => {
@@ -127,8 +99,8 @@ function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormPr
     const parts = [label]
     if (hasBreast) parts.push(total ? `${Math.max(1, Math.round(total / 60))}分钟` : '母乳时长未记录')
     if (hasBottle) parts.push(`${Number(bottleMl)}毫升`)
-    if (statuses.length) parts.push(statuses.join('、'))
-    onSave(parts.join(' · '), { kind: 'feeding', feedingMethod: method, ...(hasBreast ? { breastSeconds: { ...seconds, total } } : {}), ...(hasBottle ? { bottleMl: Number(bottleMl) } : {}), feedingStatuses: statuses })
+    if (method === 'formula' && formulaName.trim()) parts.push(formulaName.trim())
+    onSave(parts.join(' · '), { kind: 'feeding', feedingMethod: method, ...(hasBreast ? { breastSeconds: { ...seconds, total } } : {}), ...(hasBottle ? { bottleMl: Number(bottleMl) } : {}), ...(method === 'formula' && formulaName.trim() ? { formulaName: formulaName.trim() } : {}) })
   }
   const setSideMinutes = (side: 'left' | 'right', value: string) => {
     const minutes = Math.min(1440, Math.max(0, Number(value) || 0))
@@ -137,10 +109,10 @@ function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormPr
     setSeconds((current) => ({ ...current, [side]: Math.round(minutes * 60) }))
   }
   return <>
-    <ChoiceGroup label="喂养方式" options={feedingMethods.map(([, label]) => label)} value={feedingMethods.find(([value]) => value === method)?.[1] ?? ''} onChange={(label) => setMethod(feedingMethods.find(([, item]) => item === label)?.[0] ?? 'breast')} />
+    {!initialMethod && <ChoiceGroup label="喂养方式" options={feedingMethods.filter(([value]) => value !== 'mixed').map(([, label]) => label)} value={feedingMethods.find(([value]) => value === method)?.[1] ?? ''} onChange={(label) => setMethod(feedingMethods.find(([, item]) => item === label)?.[0] ?? 'breast')} />}
     {hasBreast && <section className="diet-form-section"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
-    {hasBottle && <HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" />}
-    <MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} />
+    {hasBottle && <HohoInput inputMode="decimal" label="实际奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" />}
+    {method === 'formula' && <HohoInput label="配方奶名称（选填）" maxLength={100} onChange={(event) => setFormulaName(event.target.value)} placeholder="填写实际使用的名称" value={formulaName} />}
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
@@ -155,12 +127,12 @@ function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFor
   const valid = names.length > 0 && Boolean(amount.trim()) && Number(amount) > 0
   const save = () => {
     const normalizedAmount = amount.trim()
-    onSave(`补剂\n${names.join('、')} · ${normalizedAmount}${unit}`, {
+    onSave(`营养补剂\n${names.join('、')} · ${normalizedAmount}${unit}`, {
       kind: 'supplement', supplementNames: names, supplementAmount: normalizedAmount, supplementUnit: unit
     })
   }
   return <>
-    <FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" />
+    <FoodEditor addLabel="添加营养补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入营养补剂名称" itemsLabel="已添加营养补剂" onFoodsChange={setNames} placeholder="输入营养补剂名称" />
     <HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} />
     <ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} />
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
@@ -170,53 +142,45 @@ function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFor
 
 function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const [foods, setFoods] = useState<string[]>([])
-  const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
-  const amountOptions = kind === 'complementary' ? complementaryAmounts : mealAmounts
-  const [amount, setAmount] = useState(amountOptions[0])
+  const [amount, setAmount] = useState('')
+  const [amountUnit, setAmountUnit] = useState('g')
   const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
-  const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
-  const [reactions, setReactions] = useState<string[]>([])
   const isComplementary = kind === 'complementary'
   const isMeal = kind === 'meal'
   const hasFood = foods.length > 0
-  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite))
+  const valid = hasFood && (!amount || Number(amount) > 0)
   const save = () => {
     const title = isComplementary ? '辅食' : isMeal ? '正餐' : '零食'
     const listedFoods = foods.join('、')
-    const lines = [`${title}${isMeal ? ` · ${meal}` : ''}`, `${listedFoods} · ${amount}`]
-    if (isMeal && appetite) lines.push(`食欲：${appetite}`)
-    if (reactions.length) lines.push(reactions.includes('暂未发现') ? '暂未发现异常' : `进食后观察：${reactions.join('、')}`)
+    const lines = [`${title}${isMeal ? ` · ${meal}` : ''}`, `${listedFoods}${amount ? ` · ${amount}${amountUnit}` : ''}`]
     onSave(lines.join('\n'), {
-      kind, foods, amount,
-      ...(isComplementary ? { foodForm } : {}),
-      ...(isMeal ? { meal, appetite } : kind === 'snack' ? { meal: '零食' as const } : {}),
-      reactions
+      kind, foods, ...(amount ? { amount, amountUnit } : {}),
+      ...(isMeal ? { meal } : kind === 'snack' ? { meal: '零食' as const } : {}),
     })
   }
   return <>
     {isMeal && <ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} />}
     <FoodEditor common={common} foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} />
-    {isComplementary && <ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} />}
-    <AmountSlider options={amountOptions} value={amount} onChange={setAmount} />
-    {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
-    <section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section>
+    <div className="diet-amount-unit"><HohoInput inputMode="decimal" label="食用量（选填）" min="0" onChange={(event) => setAmount(event.target.value)} placeholder="例如 80" step="0.1" type="number" value={amount} /><label><span>单位</span><select aria-label="食用量单位" onChange={(event) => setAmountUnit(event.target.value)} value={amountUnit}><option value="g">克</option><option value="ml">毫升</option><option value="勺">勺</option><option value="个">个</option><option value="碗">碗</option></select></label></div>
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
 function RecordTime({ occurredAt, setOccurredAt }: { occurredAt: string; setOccurredAt: (value: string) => void }) {
-  return <HohoInput label="记录时间（默认为现在）" max={localDateTimeValue()} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
+  return <HohoInput label="实际发生时间" max={localDateTimeValue()} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
 }
 
 function SaveBar({ disabled, onClick, saving }: { disabled: boolean; onClick: () => void; saving: boolean }) {
   return <div className="diet-record-save"><HohoButton disabled={disabled} fullWidth loading={saving} onClick={onClick} size="large">保存记录</HohoButton></div>
 }
 
-export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfirm, onSaved }: { kind: DietRecordKind; memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function DietRecordFlow({ kind, memberId, token, initialFeedingMethod, linkedSymptomRecordIds = [], linkedBackfill, onBackfill, onBack, onClose, onConfirm, onSaved }: { kind: DietRecordKind; memberId: string; token: string; initialFeedingMethod?: JournalDietDetails['feedingMethod']; linkedSymptomRecordIds?: string[]; linkedBackfill?: LinkedBackfillResult; onBackfill: (target: RecordBackfillTarget) => void; onBack: () => void; onClose: () => void; onConfirm: SaveJournalRecord; onSaved: (message: string) => void }) {
   const [occurredAt, setOccurredAt] = useState(() => localDateTimeValue())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [linkedSymptoms, setLinkedSymptoms] = useState(linkedSymptomRecordIds)
+  useEffect(() => { if (linkedBackfill?.relation === 'symptom') setLinkedSymptoms((current) => current.includes(linkedBackfill.recordId) ? current : [...current, linkedBackfill.recordId]) }, [linkedBackfill])
   const layerRef = useRef<HTMLElement>(null)
   const photoModel = useQuickRecordPhotos(memberId, token)
   const [frequentFoods, setFrequentFoods] = useState(defaultFrequentFoods)
@@ -242,9 +206,9 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
     const isoTime = new Date(occurredTimestamp).toISOString()
     setSaving(true); setError('')
     try {
-      const message = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: details })
+      const result = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: { ...details, ...(linkedSymptoms.length ? { linkedSymptomRecordIds: linkedSymptoms } : {}) } })
       photoModel.clearAfterSave()
-      onSaved(message)
+      onSaved(result.message)
       onClose()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '保存失败，请重试')
@@ -258,6 +222,6 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
   }
   return <div className="diet-record-page-layer"><section aria-label={kindTitles[kind]} aria-modal="true" className="diet-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回喂养/饮食类型选择" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>{kindTitles[kind]}</h1><span aria-hidden="true" /></header>
-    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} common={frequentFoods[kind]} kind={kind} onCommonChange={frequentFoodsReady ? (foods) => saveFrequentFoods(kind, foods) : undefined} />}{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
+    <div className="diet-record-scroll">{kind === 'feeding' ? <FeedingForm {...common} initialMethod={initialFeedingMethod} /> : kind === 'supplement' ? <SupplementForm {...common} /> : <FoodRecordForm {...common} common={frequentFoods[kind]} kind={kind} onCommonChange={frequentFoodsReady ? (foods) => saveFrequentFoods(kind, foods) : undefined} />}<RecordRelationSection title="补充症状信息" hint="当时出现的身体表现" memberId={memberId} token={token} occurredAt={occurredAt} categories={['symptom']} selectedIds={linkedSymptoms} onChange={setLinkedSymptoms} onBackfill={onBackfill} target="symptom" />{error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}</div>
   </section></div>
 }

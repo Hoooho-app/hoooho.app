@@ -7,9 +7,11 @@ export interface JournalDietDetails {
   feedingMethod?: 'breast' | 'formula' | 'expressed' | 'mixed'
   breastSeconds?: { left: number; right: number; total: number }
   bottleMl?: number
+  formulaName?: string
   foods?: string[]
   foodForm?: 'puree' | 'minced' | 'small-pieces' | 'finger-food'
   amount?: string
+  amountUnit?: string
   firstTryFoods?: string[]
   reactions?: string[]
   meal?: '早餐' | '午餐' | '晚餐' | '零食'
@@ -19,6 +21,7 @@ export interface JournalDietDetails {
   supplementNames?: string[]
   supplementAmount?: string
   supplementUnit?: '滴' | '毫升' | '粒' | '袋'
+  linkedSymptomRecordIds?: string[]
 }
 
 export interface JournalBowelDetails {
@@ -29,6 +32,7 @@ export interface JournalBowelDetails {
   process?: string
   bloodObservation?: 'none-seen' | 'possibly-seen' | 'small-amount' | 'large-amount'
   observations: string[]
+  linkedSymptomRecordIds?: string[]
 }
 
 export interface JournalSleepDetails {
@@ -40,6 +44,7 @@ export interface JournalSleepDetails {
   quality?: '睡得安稳' | '有些翻动' | '频繁醒来'
   observations?: string[]
   otherNote?: string
+  linkedSymptomRecordIds?: string[]
 }
 
 export type OutdoorActivityKind = 'stroller_outing' | 'walking' | 'free_play' | 'running_jumping' | 'cycling_balance_bike' | 'ball_play' | 'climbing' | 'other'
@@ -81,7 +86,8 @@ export interface JournalSymptomDetails {
   locationText?: string
   /** @deprecated Kept readable for records created before concrete links were supported. */
   supplementalCounts?: Partial<Record<'diet' | 'elimination' | 'medication' | 'visit', number>>
-  linkedRecordIds?: Partial<Record<'diet' | 'elimination' | 'medication' | 'visit', string[]>>
+  linkedRecordIds?: Partial<Record<'daily' | 'diet' | 'sleep' | 'elimination' | 'medication' | 'visit', string[]>>
+  relatedClues?: JournalRelatedClue[]
   otherCategoryText?: string
   locations: JournalSymptomLocation[]
   descriptors: string[]
@@ -93,6 +99,15 @@ export interface JournalSymptomDetails {
   shortNote?: string
   triggerText?: string
   generatedSummary?: string
+}
+
+export interface JournalRelatedClue {
+  id: string
+  relation: 'daily' | 'medication'
+  sourceField: 'narrative' | 'trigger'
+  sourceText: string
+  label: string
+  certainty: 'mentioned' | 'uncertain' | 'negated'
 }
 
 export type MedicationRoute = 'oral' | 'topical' | 'nebulized' | 'inhaled' | 'nasal' | 'ophthalmic' | 'other'
@@ -142,6 +157,7 @@ export interface JournalMedicationDetails {
   suggestedByOther?: string
   observationAfterUse?: MedicationObservation
   linkedSymptomRecordIds?: string[]
+  linkedVisitRecordIds?: string[]
   note?: string
   recognitionSource?: 'camera' | 'album'
   recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
@@ -174,6 +190,29 @@ export interface JournalVaccinationDetails {
 export type VisitType = 'outpatient' | 'emergency' | 'inpatient' | 'online_consultation' | 'follow_up' | 'other'
 export type VisitFollowUpAction = 'home_observation' | 'medication_as_instructed' | 'awaiting_results' | 'follow_up' | 'referral' | 'hospitalization' | 'other'
 export type VisitDocumentType = 'medical_record' | 'prescription' | 'examination_report' | 'receipt' | 'other'
+
+export type VisitRecognitionFieldKind = 'visit_time' | 'institution' | 'department' | 'diagnosis' | 'examination_result' | 'prescription' | 'medical_instruction'
+
+export interface JournalVisitSourceDocument {
+  id: string
+  name: string
+  mimeType: string
+  pageCount?: number
+  recognitionStatus: 'pending' | 'completed' | 'partial' | 'unavailable' | 'failed'
+  errorCode?: string
+}
+
+export interface JournalVisitRecognitionField {
+  id: string
+  kind: VisitRecognitionFieldKind
+  value: string
+  sourceDocumentId: string
+  sourceName: string
+  sourcePage?: number
+  confidence?: number
+  status: 'recognized' | 'uncertain' | 'user_edited'
+  originalValue?: string
+}
 
 export interface JournalVisitDetails {
   visitType: VisitType
@@ -208,7 +247,16 @@ export interface JournalVisitDetails {
   linkedVaccinationRecordIds?: string[]
   documentTypes?: VisitDocumentType[]
   recognitionStatus?: 'not_used' | 'draft_unverified' | 'user_edited'
+  sourceDocuments?: JournalVisitSourceDocument[]
+  recognitionFields?: JournalVisitRecognitionField[]
   note?: string
+}
+
+export interface JournalSaveResult {
+  message: string
+  eventId: string
+  recordId: string
+  idempotent: boolean
 }
 
 export interface JournalMetadata {

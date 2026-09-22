@@ -58,7 +58,7 @@ const audioTranscription = new AudioTranscriptionService(sharedOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
-const quickRecordPhotos = new QuickRecordPhotoService({ ...sharedOptions, attachments: attachments.repository })
+const quickRecordPhotos = new QuickRecordPhotoService({ ...sharedOptions, attachments: attachments.repository, imageAnalysis: attachments.imageAnalysis })
 const quickRecords = new QuickRecordService({ ...sharedOptions, events, records, photos: quickRecordPhotos })
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
@@ -436,11 +436,15 @@ async function handleGrowthMeasurements(request, response, pathname, searchParam
 
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
+  const photoAnalysisMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/analyze$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
-  if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !photoMatch && !photoContentMatch) return false
+  if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !photoMatch && !photoContentMatch && !photoAnalysisMatch) return false
   const accountId = await readAccountId(request)
   const photoMemberId = String(request.headers['x-hoooho-member-id'] ?? '').trim()
-  if (photoContentMatch) {
+  if (photoAnalysisMatch) {
+    if (request.method === 'POST') sendJson(response, 200, await quickRecordPhotos.analyze(accountId, photoMemberId, decodeRouteValue(photoAnalysisMatch[1]), decodeRouteValue(photoAnalysisMatch[2])))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (photoContentMatch) {
     if (request.method === 'GET') {
       const file = await quickRecordPhotos.read(accountId, photoMemberId, decodeRouteValue(photoContentMatch[1]), decodeRouteValue(photoContentMatch[2]))
       setCommonHeaders(response)
@@ -455,7 +459,7 @@ async function handleQuickRecords(request, response, pathname) {
     const draftId = decodeRouteValue(photoMatch[1])
     const photoId = photoMatch[2] ? decodeRouteValue(photoMatch[2]) : null
     if (!photoId && request.method === 'GET') sendJson(response, 200, await quickRecordPhotos.list(accountId, photoMemberId, draftId))
-    else if (!photoId && request.method === 'POST') sendJson(response, 201, await quickRecordPhotos.upload(accountId, draftId, await readJson(request, 7_100_000)))
+    else if (!photoId && request.method === 'POST') sendJson(response, 201, await quickRecordPhotos.upload(accountId, draftId, await readJson(request, 14_000_000)))
     else if (!photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.cancel(accountId, photoMemberId, draftId))
     else if (photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.delete(accountId, photoMemberId, draftId, photoId))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })

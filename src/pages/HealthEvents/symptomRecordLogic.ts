@@ -9,7 +9,7 @@ export interface SymptomNarrativeExtraction {
   confidence?: Record<string, number>
 }
 
-const keywordPatterns = ['红疹', '皮疹', '发红', '瘙痒', '痒', '发热', '发烧', '咳嗽', '鼻塞', '流鼻涕', '呕吐', '腹泻', '腹痛', '头痛', '疼痛', '肿', '起泡']
+const keywordPatterns = ['红疹', '皮疹', '发红', '瘙痒', '痒', '发热', '发烧', '咳嗽', '鼻塞', '流鼻涕', '呕吐', '腹泻', '腹痛', '便秘', '头痛', '疼痛', '肿', '起泡']
 const bodyLocationPatterns = ['左手肘', '右手肘', '左肘窝', '右肘窝', '左手', '右手', '左脚', '右脚', '头部', '额头', '脸部', '面部', '胸口', '腹部', '肚子', '背部', '腰部', '左腿', '右腿']
 
 const negationPrefix = /(?:没(?:有)?|未|无|不|并未|目前没(?:有)?|没有明显|目前没有明显)$/
@@ -68,6 +68,7 @@ export function symptomLocationDisplay(details?: Pick<JournalSymptomDetails, 'lo
 export function extractSymptomNarrative(transcript: string): SymptomNarrativeExtraction {
   const normalized = transcript.trim()
   const keywords = keywordPatterns.filter((keyword) => keywordIsPositive(normalized, keyword))
+  if (/(?:大便|粪便)[^，。！？；,!?;\n]{0,10}(?:偏黑|发黑|黑色|有点黑)|黑便/.test(normalized) && !/(?:没有|没|未|无|不)(?:出现|是|像)?[^，。！？；,!?;\n]{0,4}(?:黑便|偏黑|发黑)/.test(normalized)) keywords.push('大便颜色偏黑')
   const bodyLocation = bodyLocationPatterns.find((location) => normalized.includes(location))
   const occurredAtText = ['昨天晚上', '昨晚', '昨天', '今天早上', '今早', '今天中午', '今天下午', '今天晚上', '今晚', '刚刚'].find((value) => normalized.includes(value))
   return {
@@ -85,7 +86,7 @@ export function inferSymptomCategory(keywords: readonly string[]): SymptomCatego
   if (/发热|发烧/.test(text)) return 'fever'
   if (/咳嗽/.test(text)) return 'respiratory'
   if (/鼻塞|流鼻涕/.test(text)) return 'ent'
-  if (/呕吐|腹泻|腹痛/.test(text)) return 'gastrointestinal'
+  if (/呕吐|腹泻|腹痛|便秘|大便颜色/.test(text)) return 'gastrointestinal'
   if (/头痛|疼痛/.test(text)) return 'pain'
   return 'other'
 }

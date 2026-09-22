@@ -96,7 +96,7 @@ function validateDiet(value) {
     if (!supplementUnits.has(value.supplementUnit)) throw new HealthEventRecordError('补剂单位无效', 400, 'INVALID_JOURNAL_DIET')
     result.supplementUnit = value.supplementUnit
   }
-  for (const key of ['amount', 'voiceTranscript', 'supplementAmount']) {
+  for (const key of ['amount', 'amountUnit', 'formulaName', 'voiceTranscript', 'supplementAmount']) {
     if (value[key] !== undefined) {
       if (typeof value[key] !== 'string' || !value[key].trim() || value[key].trim().length > 1000) throw new HealthEventRecordError('饮食记录内容无效', 400, 'INVALID_JOURNAL_DIET')
       result[key] = value[key].trim()
@@ -105,6 +105,8 @@ function validateDiet(value) {
   if (value.kind === 'supplement' && (!supplementNames?.length || !Number.isFinite(Number(result.supplementAmount)) || Number(result.supplementAmount) <= 0 || !result.supplementUnit)) {
     throw new HealthEventRecordError('补剂名称、用量和单位不能为空', 400, 'INVALID_JOURNAL_DIET')
   }
+  const linkedSymptoms = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 30)
+  if (linkedSymptoms?.length) result.linkedSymptomRecordIds = linkedSymptoms
   return result
 }
 
@@ -122,6 +124,8 @@ function validateBowel(value) {
       result[key] = value[key]
     }
   }
+  const linkedSymptoms = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 30)
+  if (linkedSymptoms?.length) result.linkedSymptomRecordIds = linkedSymptoms
   return result
 }
 
@@ -140,7 +144,8 @@ function validateSleep(value) {
   if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')
   const otherNote = value.otherNote === undefined ? undefined : validateSleepNote(value.otherNote)
   if (otherNote && !observations?.includes('其他')) throw new HealthEventRecordError('睡眠补充说明必须选择其他', 400, 'INVALID_JOURNAL_SLEEP')
-  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.status === 'completed' ? { status: 'completed' } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
+  const linkedSymptoms = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 30)
+  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.status === 'completed' ? { status: 'completed' } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}), ...(linkedSymptoms?.length ? { linkedSymptomRecordIds: linkedSymptoms } : {}) }
 }
 
 function validateSleepNote(value) {
@@ -205,10 +210,23 @@ function validateSymptom(value) {
   if (value.linkedRecordIds !== undefined) {
     if (!value.linkedRecordIds || typeof value.linkedRecordIds !== 'object' || Array.isArray(value.linkedRecordIds)) throw new HealthEventRecordError('关联记录无效', 400, 'INVALID_JOURNAL_SYMPTOM')
     linkedRecordIds = {}
-    for (const key of ['diet', 'elimination', 'medication', 'visit']) {
+    for (const key of ['daily', 'diet', 'sleep', 'elimination', 'medication', 'visit']) {
       const ids = cleanStrings(value.linkedRecordIds[key], '关联记录', 30)
       if (ids?.length) linkedRecordIds[key] = [...new Set(ids)]
     }
+  }
+  let relatedClues
+  if (value.relatedClues !== undefined) {
+    if (!Array.isArray(value.relatedClues) || value.relatedClues.length > 20) throw new HealthEventRecordError('关联线索无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+    const ids = new Set()
+    relatedClues = value.relatedClues.map((item) => {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || !['daily', 'medication'].includes(item.relation) || !['narrative', 'trigger'].includes(item.sourceField) || !['mentioned', 'uncertain', 'negated'].includes(item.certainty)) throw new HealthEventRecordError('关联线索无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+      const sourceText = optionalText(item.sourceText, '线索原文', 240)
+      const label = optionalText(item.label, '线索名称', 80)
+      if (!sourceText || !label) throw new HealthEventRecordError('关联线索无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+      ids.add(item.id)
+      return { id: item.id.trim(), relation: item.relation, sourceField: item.sourceField, sourceText, label, certainty: item.certainty }
+    })
   }
   let supplementalCounts
   if (value.supplementalCounts !== undefined) {
@@ -232,7 +250,7 @@ function validateSymptom(value) {
     }
   }
   if (!narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
-  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
+  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(relatedClues?.length ? { relatedClues } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
 
 function validateMedication(value) {
@@ -271,7 +289,9 @@ function validateMedication(value) {
       return result
     })
     const first = medications[0]
-    return { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral' }
+    const linkedSymptomRecordIds = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 30)
+    const linkedVisitRecordIds = cleanStrings(value.linkedVisitRecordIds, '关联就医', 30)
+    return { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral', ...(linkedSymptomRecordIds?.length ? { linkedSymptomRecordIds } : {}), ...(linkedVisitRecordIds?.length ? { linkedVisitRecordIds } : {}) }
   }
   if (!value || typeof value !== 'object' || typeof value.medicationName !== 'string' || !value.medicationName.trim() || value.medicationName.trim().length > 120 || !medicationRoutes.has(value.administrationRoute)) throw new HealthEventRecordError('用药记录无效', 400, 'INVALID_JOURNAL_MEDICATION')
   const result = { medicationName: value.medicationName.trim(), administrationRoute: value.administrationRoute }
@@ -285,6 +305,7 @@ function validateMedication(value) {
   } else if (value.amountUnit !== undefined) throw new HealthEventRecordError('不能只填写用量单位', 400, 'INVALID_JOURNAL_MEDICATION')
   const reasons = cleanStrings(value.reasons, '使用原因', 8); if (reasons?.length) result.reasons = reasons
   const linked = cleanStrings(value.linkedSymptomRecordIds, '关联症状', 20); if (linked?.length) result.linkedSymptomRecordIds = linked
+  const linkedVisits = cleanStrings(value.linkedVisitRecordIds, '关联就医', 20); if (linkedVisits?.length) result.linkedVisitRecordIds = linkedVisits
   if (value.suggestedBy !== undefined) { if (!medicationSuggestedBy.has(value.suggestedBy)) throw new HealthEventRecordError('建议来源无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.suggestedBy = value.suggestedBy }
   if (value.observationAfterUse !== undefined) { if (!medicationObservations.has(value.observationAfterUse)) throw new HealthEventRecordError('用后观察无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.observationAfterUse = value.observationAfterUse }
   if (value.recognitionSource !== undefined) { if (!medicationRecognitionSources.has(value.recognitionSource) || !medicationRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('识别状态无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.recognitionSource = value.recognitionSource; result.recognitionStatus = value.recognitionStatus }
@@ -349,6 +370,32 @@ function validateVisit(value) {
   if (value.isCurrentlyHospitalized !== undefined) { if (typeof value.isCurrentlyHospitalized !== 'boolean') throw new HealthEventRecordError('住院状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.isCurrentlyHospitalized = value.isCurrentlyHospitalized }
   if (result.dischargedAt && result.admittedAt && Date.parse(result.dischargedAt) < Date.parse(result.admittedAt)) throw new HealthEventRecordError('出院时间不能早于入院时间', 400, 'INVALID_JOURNAL_VISIT')
   if (value.recognitionStatus !== undefined) { if (!visitRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('资料识别状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.recognitionStatus = value.recognitionStatus }
+  if (value.sourceDocuments !== undefined) {
+    if (!Array.isArray(value.sourceDocuments) || value.sourceDocuments.length > 20) throw new HealthEventRecordError('就医原件无效', 400, 'INVALID_JOURNAL_VISIT')
+    const ids = new Set()
+    result.sourceDocuments = value.sourceDocuments.map((item) => {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.name !== 'string' || !item.name.trim() || item.name.trim().length > 180 || typeof item.mimeType !== 'string' || !/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(item.mimeType) || !['pending', 'completed', 'partial', 'unavailable', 'failed'].includes(item.recognitionStatus)) throw new HealthEventRecordError('就医原件无效', 400, 'INVALID_JOURNAL_VISIT')
+      ids.add(item.id)
+      const output = { id: item.id.trim(), name: item.name.trim(), mimeType: item.mimeType, recognitionStatus: item.recognitionStatus }
+      if (item.pageCount !== undefined) { if (!Number.isInteger(item.pageCount) || item.pageCount < 1 || item.pageCount > 200) throw new HealthEventRecordError('就医原件页数无效', 400, 'INVALID_JOURNAL_VISIT'); output.pageCount = item.pageCount }
+      if (typeof item.errorCode === 'string' && item.errorCode.trim()) output.errorCode = item.errorCode.trim().slice(0, 80)
+      return output
+    })
+  }
+  if (value.recognitionFields !== undefined) {
+    if (!Array.isArray(value.recognitionFields) || value.recognitionFields.length > 100) throw new HealthEventRecordError('就医识别结果无效', 400, 'INVALID_JOURNAL_VISIT')
+    const sourceIds = new Set(result.sourceDocuments?.map((item) => item.id) ?? [])
+    const fieldIds = new Set()
+    result.recognitionFields = value.recognitionFields.map((item) => {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || fieldIds.has(item.id) || !['visit_time', 'institution', 'department', 'diagnosis', 'examination_result', 'prescription', 'medical_instruction'].includes(item.kind) || typeof item.value !== 'string' || !item.value.trim() || item.value.trim().length > 2000 || typeof item.sourceDocumentId !== 'string' || !sourceIds.has(item.sourceDocumentId) || typeof item.sourceName !== 'string' || !item.sourceName.trim() || !['recognized', 'uncertain', 'user_edited'].includes(item.status)) throw new HealthEventRecordError('就医识别结果无效', 400, 'INVALID_JOURNAL_VISIT')
+      fieldIds.add(item.id)
+      const output = { id: item.id.trim(), kind: item.kind, value: item.value.trim(), sourceDocumentId: item.sourceDocumentId, sourceName: item.sourceName.trim().slice(0, 180), status: item.status }
+      if (item.sourcePage !== undefined) { if (!Number.isInteger(item.sourcePage) || item.sourcePage < 1 || item.sourcePage > 200) throw new HealthEventRecordError('就医识别页码无效', 400, 'INVALID_JOURNAL_VISIT'); output.sourcePage = item.sourcePage }
+      if (item.confidence !== undefined) { if (!Number.isFinite(item.confidence) || item.confidence < 0 || item.confidence > 1) throw new HealthEventRecordError('就医识别置信度无效', 400, 'INVALID_JOURNAL_VISIT'); output.confidence = item.confidence }
+      if (typeof item.originalValue === 'string' && item.originalValue.trim()) output.originalValue = item.originalValue.trim().slice(0, 2000)
+      return output
+    })
+  }
   return result
 }
 

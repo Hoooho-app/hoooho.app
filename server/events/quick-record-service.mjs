@@ -126,7 +126,7 @@ export class QuickRecordService {
     if (duplicate && (!input.duplicateAction || input.duplicateEventId !== duplicate.eventId)) {
       throw new HealthEventError('这个情况刚刚已经记录过了', 409, 'POSSIBLE_DUPLICATE_RECORD')
     }
-    if (input.journal?.visit) await this.validateVisitLinks(accountId, input.memberId, input.journal.visit)
+    await this.validateJournalLinks(accountId, input.memberId, input.journal)
     const photos = input.photoIds.length
       ? await this.photos?.prepareForSave(accountId, input.memberId, input.photoDraftId, input.photoIds)
       : []
@@ -184,5 +184,33 @@ export class QuickRecordService {
       const event = record ? await this.events.repository.findById(record.eventId) : null
       if (!record || !event || record.accountId !== accountId || event.accountId !== accountId || event.memberId !== memberId || !record.journal?.categories?.includes('visit')) throw new HealthEventError('关联就医记录不存在或不属于当前人物', 400, 'INVALID_VISIT_LINK')
     }
+  }
+
+  async assertLinkedRecord(accountId, memberId, recordId, allowedCategories, code = 'INVALID_JOURNAL_LINK') {
+    const record = await this.records.repository.findById(recordId)
+    const event = record ? await this.events.repository.findById(record.eventId) : null
+    const categories = record?.journal?.categories ?? []
+    if (!record || !event || record.accountId !== accountId || event.accountId !== accountId || event.memberId !== memberId || !allowedCategories.some((category) => categories.includes(category))) {
+      throw new HealthEventError('关联记录不存在或不属于当前人物', 400, code)
+    }
+  }
+
+  async validateJournalLinks(accountId, memberId, journal) {
+    if (!journal) return
+    const symptomLinks = journal.symptom?.linkedRecordIds ?? {}
+    for (const id of symptomLinks.daily ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['diet', 'sleep', 'elimination'])
+    for (const id of symptomLinks.diet ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['diet'])
+    for (const id of symptomLinks.sleep ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['sleep'])
+    for (const id of symptomLinks.elimination ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['elimination'])
+    for (const id of symptomLinks.medication ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['medication'])
+    for (const id of symptomLinks.visit ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['visit'])
+
+    const dailyDetails = [journal.diet, journal.sleep, journal.bowel].filter(Boolean)
+    for (const details of dailyDetails) for (const id of details.linkedSymptomRecordIds ?? []) {
+      await this.assertLinkedRecord(accountId, memberId, id, ['symptom'])
+    }
+    for (const id of journal.medication?.linkedSymptomRecordIds ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['symptom'])
+    for (const id of journal.medication?.linkedVisitRecordIds ?? []) await this.assertLinkedRecord(accountId, memberId, id, ['visit'])
+    if (journal.visit) await this.validateVisitLinks(accountId, memberId, journal.visit)
   }
 }
