@@ -40,7 +40,7 @@ function isIosSafari() {
   return iOS && /Safari/i.test(userAgent) && !competingBrowser
 }
 
-function InstallGuide({ onClose }: { onClose: () => void }) {
+function InstallGuide({ onClose, onConfirmInstalled }: { onClose: () => void; onConfirmInstalled: () => void }) {
   const dialogRef = useRef<HTMLElement>(null)
   const [imageFailed, setImageFailed] = useState(false)
   usePageScrollLock(true)
@@ -83,6 +83,9 @@ function InstallGuide({ onClose }: { onClose: () => void }) {
             </figure>
           </div>
         )}
+        <button className="install-guide__confirmed" onClick={onConfirmInstalled} type="button">
+          我已添加，不再显示
+        </button>
       </section>
     </div>
   )
@@ -106,23 +109,42 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
       setGuideOpen(false)
       setPromptEvent(null)
     }
-    const updateStandalone = () => {
-      if (isStandalone()) setInstalled(true)
+    const syncInstalledState = () => {
+      if (isStandalone()) {
+        writeInstalledMarker()
+        setInstalled(true)
+        return
+      }
+      if (readInstalledMarker()) setInstalled(true)
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') syncInstalledState()
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === installedMarker && event.newValue === 'true') setInstalled(true)
     }
     const mediaQueries = standaloneQueries.map((query) => window.matchMedia(query))
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
     window.addEventListener('appinstalled', onAppInstalled)
+    window.addEventListener('focus', syncInstalledState)
+    window.addEventListener('pageshow', syncInstalledState)
+    window.addEventListener('storage', onStorage)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     mediaQueries.forEach((query) => {
-      if (typeof query.addEventListener === 'function') query.addEventListener('change', updateStandalone)
-      else query.addListener(updateStandalone)
+      if (typeof query.addEventListener === 'function') query.addEventListener('change', syncInstalledState)
+      else query.addListener(syncInstalledState)
     })
-    updateStandalone()
+    syncInstalledState()
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
       window.removeEventListener('appinstalled', onAppInstalled)
+      window.removeEventListener('focus', syncInstalledState)
+      window.removeEventListener('pageshow', syncInstalledState)
+      window.removeEventListener('storage', onStorage)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       mediaQueries.forEach((query) => {
-        if (typeof query.removeEventListener === 'function') query.removeEventListener('change', updateStandalone)
-        else query.removeListener(updateStandalone)
+        if (typeof query.removeEventListener === 'function') query.removeEventListener('change', syncInstalledState)
+        else query.removeListener(syncInstalledState)
       })
     }
   }, [])
@@ -156,10 +178,16 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ activate, busy, visible: !installed }), [activate, busy, installed])
 
+  const confirmInstalled = useCallback(() => {
+    writeInstalledMarker()
+    setInstalled(true)
+    setGuideOpen(false)
+  }, [])
+
   return (
     <InstallAppContext.Provider value={value}>
       {children}
-      {guideOpen && <InstallGuide onClose={() => setGuideOpen(false)} />}
+      {guideOpen && <InstallGuide onClose={() => setGuideOpen(false)} onConfirmInstalled={confirmInstalled} />}
       {unsupportedNotice && <div aria-live="polite" className="install-app-notice" role="status">当前浏览器暂不支持直接添加</div>}
     </InstallAppContext.Provider>
   )
