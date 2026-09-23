@@ -22,6 +22,14 @@ export const healthEventRecordService = {
     })
   },
 
+  endSleep(recordId: string, input: { wakeAt: string; sleepAt?: string }, token: string) {
+    return apiRequest<HealthEventRecordApiDto>(`/api/records/${encodeURIComponent(recordId)}/sleep/end`, {
+      token,
+      method: 'POST',
+      body: input
+    })
+  },
+
   delete(recordId: string, token: string) {
     return apiRequest<{ success: true }>(`/api/records/${encodeURIComponent(recordId)}`, {
       token,

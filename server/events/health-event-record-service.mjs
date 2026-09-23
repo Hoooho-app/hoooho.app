@@ -179,7 +179,7 @@ export class HealthEventRecordService {
       if (key === 'journal') {
         changes.journal = validateJournal(input.journal)
         await this.validateSymptomLinks(accountId, event, changes.journal)
-        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.wakeAt ?? changes.journal.sleep.sleepAt, now)
+        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.sleepAt, now)
       }
     }
     if (!Object.keys(changes).length) {
@@ -188,6 +188,28 @@ export class HealthEventRecordService {
     const updated = await this.repository.update(id, changes, now)
     await this.recomputeAfterMutation(accountId, record.eventId, now)
     return this.repository.findById(updated.id)
+  }
+
+  async endSleep(accountId, id, input = {}, now = new Date()) {
+    const record = await this.getOwnedRecord(accountId, id)
+    const current = record.journal?.sleep
+    if (!current) throw new HealthEventRecordError('这不是睡眠记录', 400, 'NOT_SLEEP_RECORD')
+    if (current.status !== 'ongoing') return record
+
+    const sleepAt = validateOccurredAt(input.sleepAt ?? current.sleepAt, now)
+    const wakeAt = validateOccurredAt(input.wakeAt ?? now.toISOString(), now)
+    const elapsedMilliseconds = Date.parse(wakeAt) - Date.parse(sleepAt)
+    const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
+    if (elapsedMilliseconds <= 0 || durationMinutes > 1440) {
+      throw new HealthEventRecordError('这次睡眠记录尚未结束，请核对时间。', 409, 'SLEEP_TIME_CORRECTION_REQUIRED')
+    }
+    const journal = validateJournal({
+      ...record.journal,
+      sleep: { ...current, sleepAt, wakeAt, durationMinutes, status: 'completed' }
+    })
+    const result = await this.repository.updateIfSleepOngoing(id, { journal, occurredAt: sleepAt }, now)
+    if (result.updated) await this.recomputeAfterMutation(accountId, record.eventId, now)
+    return result.record ?? this.repository.findById(id)
   }
 
   async delete(accountId, id) {

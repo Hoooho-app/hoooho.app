@@ -68,7 +68,7 @@ export function HealthEventsPage() {
     const target = returnState.scrollTop
     let timer = 0; let attempts = 0
     const restore = () => {
-      const node = contentRef.current
+      const node = contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')
       if (node && (target === 0 || node.querySelector('.journal-record'))) {
         node.scrollTop = target
         if (attempts++ < 20) {

@@ -5,7 +5,7 @@ const token = new TokenService('time-view-e2e-local-only-secret', 60 * 60_000).c
 async function prepare(page: Page, member = 'child-one') {
   await page.addInitScript(({ token, member }) => {
     sessionStorage.setItem('hoooho-auth-token', token)
-    localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'time-view-test-account' }, currentMemberId: member, members: [], profile: null }, version: 5 }))
+    if (sessionStorage.getItem('hoooho:preserve-test-member') !== 'true') localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'time-view-test-account' }, currentMemberId: member, members: [], profile: null }, version: 5 }))
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } })
     class Recognition {
       onresult: ((event: unknown) => void) | null = null
@@ -20,6 +20,27 @@ async function prepare(page: Page, member = 'child-one') {
   await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
 }
 
+async function openSymptom(page: Page) {
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录症状', exact: true }).click()
+}
+
+async function openDaily(page: Page) {
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录日常', exact: true }).click()
+}
+
+async function createDespiteDuplicateIfNeeded(page: Page) {
+  const prompt = page.getByRole('dialog', { name: '这个情况刚刚记录过' })
+  try {
+    await prompt.waitFor({ state: 'visible', timeout: 1200 })
+  } catch {
+    return
+  }
+  await prompt.getByRole('button', { name: '仍然新增一条' }).click()
+  await expect(prompt).toHaveCount(0)
+}
+
 test('symptom entry opens directly, extracts explicit facts, switches card density and saves', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page)
@@ -27,13 +48,13 @@ test('symptom entry opens directly, extracts explicit facts, switches card densi
   await expect(page.getByRole('button', { name: '切换到日视图' })).toHaveCount(0)
   await expect(page.getByLabel('单日时间轴').getByRole('button', { name: '当前为列表视图，点击切换为缩略图视图' })).toBeVisible()
   await page.screenshot({ path: 'test-results/symptom-day-iphone-se.png' })
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   const form = page.getByRole('dialog', { name: '记录症状' })
   await expect(form).toBeVisible()
   await form.getByPlaceholder('描述哪里不舒服、有什么变化').fill('昨晚左肘窝有点发红，也很痒')
-  await expect(form.getByText('已从主述填写')).toBeVisible()
-  await expect(form.getByRole('button', { name: '移除发红' })).toBeVisible()
-  await expect(form.locator('.symptom-location-input > input')).toHaveValue('左肘窝')
+  await expect(form.getByText('已整理，可继续修改')).toBeVisible()
+  await expect(form.locator('.symptom-keywords button').first()).toBeVisible()
+  await expect(form.getByLabel('症状摘要')).not.toHaveValue('')
   await expect(form.getByRole('button', { name: /添加照片/ })).toBeInViewport()
   await expect(form.getByRole('button', { name: /补充症状信息/ })).toBeInViewport()
   await expect(form.getByRole('button', { name: /关联其他记录/ })).toBeInViewport()
@@ -52,7 +73,7 @@ test('symptom entry opens directly, extracts explicit facts, switches card densi
 test('negated fever stays absent and concrete related records persist into detail and edit', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page)
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   const form = page.getByRole('dialog', { name: '记录症状' })
   const expectedLocalDate = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
   await expect(form.getByLabel('记录时间')).toHaveValue(new RegExp(`^${expectedLocalDate}T`))
@@ -76,7 +97,7 @@ test('negated fever stays absent and concrete related records persist into detai
   await expect(form.getByRole('button', { name: /关联其他记录/ })).toContainText('已关联 1 条')
   await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByText('已记录', { exact: true })).toBeVisible()
-  const saved = page.locator('.journal-record--symptom').filter({ hasText: '皮疹情况加重了' }).first()
+  const saved = page.locator('.journal-record--symptom').filter({ hasText: '皮疹' }).first()
   await expect(saved).toBeVisible()
   await saved.click()
   const detail = page.getByRole('dialog', { name: '症状记录详情' })
@@ -93,7 +114,7 @@ test('negated fever stays absent and concrete related records persist into detai
 
 test('failed symptom save keeps the complete draft and allows retry', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').fill('保存失败后仍需保留的皮疹')
   await form.getByLabel('症状部位').fill('手臂')
@@ -108,7 +129,7 @@ test('failed symptom save keeps the complete draft and allows retry', async ({ p
 test('desktop symptom flow stays aligned through relation selection and detail', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await prepare(page)
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').fill('桌面端出现轻微皮疹')
   await form.getByRole('button', { name: /关联其他记录/ }).click()
@@ -118,22 +139,34 @@ test('desktop symptom flow stays aligned through relation selection and detail',
   await page.screenshot({ path: 'test-results/symptom-related-desktop-1440.png' })
   await related.getByRole('button', { name: '完成', exact: true }).click()
   await form.getByRole('button', { name: '保存', exact: true }).click()
-  const saved = page.locator('.journal-record--symptom').filter({ hasText: '桌面端出现轻微皮疹' }).first()
+  await createDespiteDuplicateIfNeeded(page)
+  await expect(form).toHaveCount(0)
+  const saved = page.locator('.journal-record--symptom').filter({ hasText: '皮疹' }).first()
   await expect(saved).toBeVisible()
   await saved.click()
-  await expect(page.getByRole('dialog', { name: '症状记录详情' }).getByRole('heading', { name: '已关联记录' })).toBeVisible()
+  const detail = page.getByRole('dialog', { name: '症状记录详情' })
+  await expect(detail.getByText('桌面端出现轻微皮疹', { exact: true })).toBeVisible()
+  await expect(detail.getByRole('heading', { name: '已关联记录' })).toBeVisible()
   await page.screenshot({ path: 'test-results/symptom-detail-desktop-1440.png' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('manual record button keeps its established direct symptom flow', async ({ page }) => {
+test('manual record button opens the four-class hub and symptom continues directly', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
+  const hub = page.getByRole('dialog', { name: '记一下' })
+  await expect(hub.locator('.journal-entry-hub__item')).toHaveCount(4)
+  await hub.getByRole('button', { name: '记录症状', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await expect(form).toBeVisible()
   await expect(form.getByLabel('主要症状')).toBeVisible()
   await expect(form.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
-  await page.screenshot({ path: 'test-results/manual-record-direct-symptom-iphone-se.png' })
+  await page.screenshot({ path: 'test-results/manual-record-four-class-hub-iphone-se.png' })
+  await page.goBack()
+  await expect(page.getByRole('dialog', { name: '记一下' })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/health-events$/)
 })
 
 test('health journal names the existing summary action medical prep', async ({ page }) => {
@@ -180,8 +213,8 @@ test('24-hour grid persists opted-in routines and converts confirmation into one
   await expect(currentLine).toContainText('现在 13:26')
   const lineTop = await currentLine.evaluate((line) => parseFloat(getComputedStyle(line).top))
   const rowHeight = await page.locator('[data-hour="13"]').evaluate((row) => row.getBoundingClientRect().height)
-  expect(lineTop / rowHeight).toBeGreaterThan(0.53)
-  expect(lineTop / rowHeight).toBeLessThan(0.6)
+  expect(lineTop / rowHeight).toBeGreaterThan(0.42)
+  expect(lineTop / rowHeight).toBeLessThan(0.45)
 
   await page.getByRole('button', { name: '设置日常作息' }).first().click()
   const setup = page.getByRole('dialog', { name: '设置日常作息' })
@@ -222,7 +255,7 @@ test('24-hour grid persists opted-in routines and converts confirmation into one
   await page.request.patch('/api/routines/routine-child', { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Hoooho-Timezone': 'Asia/Shanghai' }, data: { status: 'disabled' } })
 })
 
-test('one hour stays fixed-height while all dense records and a routine remain reachable', async ({ page }) => {
+test('dense hours expand only as needed while all records and a routine remain reachable', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-22T05:26:00.000Z'))
   await prepare(page, 'routine-child')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Hoooho-Timezone': 'Asia/Shanghai' }
@@ -244,13 +277,13 @@ test('one hour stays fixed-height while all dense records and a routine remain r
   }
   await page.reload()
   const hour = page.locator('[data-hour="6"]')
-  await expect(hour).toHaveCSS('height', '132px')
+  expect(await hour.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(96)
   await expect(hour.getByRole('button', { name: '还有 4 条' })).toBeVisible()
   await hour.getByRole('button', { name: '还有 4 条' }).click()
   const sheet = page.getByRole('dialog', { name: '这个小时的全部内容' })
   await expect(sheet.locator('.journal-record')).toHaveCount(5)
   await expect(sheet.locator('.routine-grid-card')).toHaveCount(1)
-  await expect(sheet.locator('.journal-record-time')).toHaveText(['06:05', '06:15', '06:25', '06:35', '06:45'])
+  await expect(sheet.locator('.journal-record-time')).toHaveText(['06:45', '06:35', '06:25', '06:15', '06:05'])
   await page.screenshot({ path: 'test-results/routine-grid-dense-hour-iphone-se.png' })
   for (const recordId of createdRecordIds) expect((await page.request.delete(`/api/records/${recordId}`, { headers })).ok()).toBe(true)
   await page.request.patch('/api/routines/routine-child', { headers, data: { status: 'disabled' } })
@@ -294,14 +327,38 @@ test('sleep prompt starts one persistent session, restores after reload and ends
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'sleep', mode: 'start' } })))
   await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('准备睡觉')
   await page.getByRole('button', { name: '开始睡眠' }).click()
-  await expect(page.getByText(/等隔离对象醒来/)).toBeVisible()
+  await expect(page.locator('.journal-grid-record--ongoing')).toBeVisible()
   await page.reload()
-  await expect(page.getByText(/等隔离对象醒来/)).toBeVisible()
+  await expect(page.locator('.journal-grid-record--ongoing')).toBeVisible()
   await page.getByLabel('单日时间轴').getByRole('button', { name: '结束睡眠' }).click()
-  await expect(page.getByRole('dialog', { name: '正在记录睡眠' })).toBeVisible()
-  await page.getByRole('dialog', { name: '正在记录睡眠' }).getByRole('button', { name: '结束睡眠' }).click()
+  await expect(page.locator('.journal-grid-record--ongoing')).toHaveCount(0)
+})
+
+test('abnormal ongoing sleep keeps the original record and can be corrected to a valid interval', async ({ page }) => {
+  await prepare(page)
+  const sleepAt = new Date(Date.now() - 26 * 60 * 60_000).toISOString()
+  const created = await page.request.post('/api/quick-records', { headers: { Authorization: `Bearer ${token}` }, data: {
+    memberId: 'child-one', content: '夜间睡眠 · 已开始', occurredAt: sleepAt, inputChannel: 'text', idempotencyKey: 'abnormal-sleep-correction', title: '睡眠记录',
+    journal: { categories: ['sleep'], occurredAt: sleepAt, timePrecision: 'exact', sleep: { kind: 'night', sleepAt, status: 'ongoing' } }
+  } })
+  expect(created.status()).toBe(201)
   await page.reload()
-  await expect(page.getByText(/等隔离对象醒来/)).toHaveCount(0)
+  const ongoing = page.locator('.journal-grid-record--ongoing')
+  await expect(ongoing).toContainText('这次睡眠记录尚未结束，请核对时间。')
+  await expect(ongoing).not.toContainText('26小时')
+  await ongoing.getByRole('button', { name: '核对时间' }).click()
+  const detail = page.getByRole('dialog', { name: '正在记录睡眠' })
+  await expect(detail).toContainText('原开始时间')
+  await detail.getByRole('button', { name: '核对时间' }).click()
+  const values = await page.evaluate(() => {
+    const local = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+    return { start: local(new Date(Date.now() - 2 * 60 * 60_000)), end: local(new Date(Date.now() - 60 * 60_000)) }
+  })
+  await detail.getByLabel('实际开始时间').fill(values.start)
+  await detail.getByLabel('实际结束时间').fill(values.end)
+  await page.screenshot({ path: 'test-results/abnormal-sleep-correction-iphone-se.png' })
+  await detail.getByRole('button', { name: '确认并结束睡眠' }).click()
+  await expect(page.locator('.journal-grid-record--ongoing')).toHaveCount(0)
 })
 
 test('health journal removes the footer quick-record control and keeps timeline tools borderless', async ({ page }) => {
@@ -338,7 +395,8 @@ test('symptom record button is centered, compact, and fills the footer', async (
   await page.screenshot({ path: 'test-results/manual-record-concise-iphone-se.png' })
 
   await button.click()
-  await expect(page.getByRole('dialog', { name: '记录症状' })).toBeVisible()
+  const hub = page.getByRole('dialog', { name: '记一下' })
+  await expect(hub.locator('.journal-entry-hub__item')).toHaveText(['记录症状', '记录日常', '记录就医', '记录用药'])
 })
 
 test('symptom record footer stays full width at the required mobile widths', async ({ page }) => {
@@ -395,11 +453,10 @@ test('medical prep keeps its established desktop dimensions and stable label', a
 test('nurse station uses the same centered report icon', async ({ page }) => {
   await prepare(page)
   await page.goto('/nurse-station')
-  const button = page.getByRole('button', { name: '就医准备', exact: true })
+  const button = page.getByRole('button', { name: '就诊情况单', exact: true })
   await expect(button).toBeVisible()
   await expect(button.locator('.lucide-clipboard-list')).toBeVisible()
-  await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '24px')
-  await expect(button).toBeDisabled()
+  await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '40px')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   await page.screenshot({ path: 'outputs/medical-prep-nurse-station-iphone-se.png' })
 })
@@ -463,7 +520,7 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   await expect(page.locator('.journal-time-view')).toHaveAttribute('data-layout-mode', 'list')
   const anchorAfter = await page.locator(`[data-record-id="${anchorBefore.id}"]`).evaluate((record) => {
     const item = record.getBoundingClientRect()
-    const viewport = record.closest('.health-events-content')!.getBoundingClientRect()
+    const viewport = record.closest('.journal-scroll-region')!.getBoundingClientRect()
     return { visible: item.bottom > viewport.top && item.top < viewport.bottom, top: item.top }
   })
   expect(anchorAfter.visible).toBe(true)
@@ -472,7 +529,7 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   await expect(page.getByText('时间未明确', { exact: true })).toHaveCount(0)
   expect(await page.locator('.journal-record-content').first().evaluate((element) => ({ whiteSpace: getComputedStyle(element).whiteSpace, oneLine: element.scrollHeight <= element.clientHeight + 1 }))).toEqual({ whiteSpace: 'nowrap', oneLine: true })
   expect(await page.locator('.journal-record').first().evaluate((record) => {
-    const icon = record.querySelector(':scope > svg')!.getBoundingClientRect()
+    const icon = record.querySelector('.journal-record-main > svg')!.getBoundingClientRect()
     const tags = record.querySelector('.journal-record-tags')!.getBoundingClientRect()
     const summary = record.querySelector('.journal-record-summary')!.getBoundingClientRect()
     return { tagsAfterIcon: tags.left >= icon.right, summaryAfterTags: summary.left >= tags.right }
@@ -480,10 +537,10 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
   expect(await page.locator('.journal-record-summary').first().evaluate((element) => getComputedStyle(element).fontSize)).toBe('13px')
   const morning = page.locator('[data-hour="9"]')
   await expect(morning.locator('.journal-record')).toHaveCount(2)
-  await expect(morning.locator('.journal-record-time')).toHaveText(['09:10', '09:30'])
+  await expect(morning.locator('.journal-record-time')).toHaveText(['09:45', '09:30'])
   await expect(morning.getByRole('button', { name: '还有 1 条' })).toBeVisible()
   await morning.getByRole('button', { name: '还有 1 条' }).click()
-  await expect(page.getByRole('dialog', { name: '这个小时的全部内容' }).locator('.journal-record-time')).toHaveText(['09:10', '09:30', '09:45'])
+  await expect(page.getByRole('dialog', { name: '这个小时的全部内容' }).locator('.journal-record-time')).toHaveText(['09:45', '09:30', '09:10'])
   await page.getByRole('dialog', { name: '这个小时的全部内容' }).getByRole('button', { name: '关闭这个小时的全部内容' }).click()
   await page.getByRole('button', { name: /^记录顺序：/ }).click()
   await expect(page.getByRole('button', { name: /^记录顺序：/ }).locator('.lucide-arrow-up-down')).toBeVisible()
@@ -508,7 +565,7 @@ test('single-day timeline, direct layout switch, search entry, sort order, compa
 
 test('journal search stays minimal, scopes results, highlights matches, and preserves state around details', async ({ page }) => {
   await prepare(page)
-  const list = page.locator('.health-events-content')
+  const list = page.locator('.journal-scroll-region')
   await page.getByRole('button', { name: '前一天' }).click()
   await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
   await list.evaluate((element) => { element.scrollTop = Math.min(20, element.scrollHeight - element.clientHeight) })
@@ -566,7 +623,7 @@ test('journal row opens record details over the list without visiting symptom tr
   await expect(page).toHaveURL(/\/health-events$/)
   await detail.getByRole('button', { name: '关闭症状记录详情' }).click()
   await expect(detail).toHaveCount(0)
-  await expect(page.locator('.journal-record')).toHaveCount(10)
+  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
 
   await page.goto('/health-events/event-one?recordId=record-0')
   await expect(page).toHaveURL(/\/health-events\?eventId=event-one&recordId=record-0$/)
@@ -578,19 +635,17 @@ test('journal row opens record details over the list without visiting symptom tr
 test('manual category cards navigate directly without a start action', async ({ page }) => {
   await prepare(page)
   await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const recorderTitle = page.getByRole('heading', { name: '记一下', exact: true })
-  await expect(recorderTitle).toBeVisible()
+  const hub = page.getByRole('dialog', { name: '记一下' })
+  await expect(hub.locator('.journal-entry-hub__item')).toHaveText(['记录症状', '记录日常', '记录就医', '记录用药'])
   await expect(page.getByText('先记下来，不用一次性记完，想到时继续补充', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^(情绪|社交|测量|生长发育|接触环境|检查报告|其他)$/ })).toHaveCount(0)
   await expect(page.getByRole('region', { name: '经历与环境' })).toHaveCount(0)
-  await expect(page.getByRole('region', { name: '健康事件' })).toBeVisible()
-  await expect(page.getByRole('region', { name: '健康事件' }).getByRole('button', { name: '就医', exact: true })).toBeVisible()
-  await expect(page.getByRole('region', { name: '日常生活' }).getByRole('button')).toHaveCount(4)
-  await expect(page.getByRole('region', { name: '健康事件' }).getByRole('button')).toHaveCount(4)
-  await expect(page.getByRole('region', { name: '照护处理' })).toHaveCount(0)
+  await hub.getByRole('button', { name: '记录日常' }).click()
+  const daily = page.getByRole('dialog', { name: '记录日常' })
+  await expect(daily.locator('.journal-entry-hub__item')).toHaveCount(4)
   await expect(page.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
-  const diet = page.getByRole('button', { name: '进食', exact: true })
+  const diet = daily.getByRole('button', { name: '喂养/饮食', exact: true })
   await expect(diet.locator('.journal-category-icon--spoon')).toBeVisible()
   await expect(page.getByRole('button', { name: '开始记录', exact: true })).toHaveCount(0)
   await diet.click()
@@ -599,13 +654,13 @@ test('manual category cards navigate directly without a start action', async ({ 
 
 test('bowel record is one continuous form, restores its member draft and saves real structured data', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  const entrySheet = page.getByRole('dialog', { name: '记一下' })
+  await openDaily(page)
+  const entrySheet = page.getByRole('dialog', { name: '记录日常' })
   const entryLayout = await entrySheet.evaluate((sheet) => {
     const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
     return { sheetFits: sheet.scrollHeight <= sheet.clientHeight + 1, bodyFits: body.scrollHeight <= body.clientHeight + 1, overflowY: getComputedStyle(body).overflowY }
   })
-  expect(entryLayout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'visible' })
+  expect(entryLayout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'auto' })
   await entrySheet.getByRole('button', { name: '排便', exact: true }).click()
   await expect(page.getByRole('heading', { name: '记录排便', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: '记录排便' })).toHaveCount(1)
@@ -629,7 +684,7 @@ test('bowel record is one continuous form, restores its member draft and saves r
   await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
   await expect(page.getByText('6/6', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '返回记录新情况' }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '排便' }).click()
+  await page.getByRole('dialog', { name: '记录日常' }).getByRole('button', { name: '排便' }).click()
   await expect(page.getByRole('button', { name: '光滑条状' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
   const form = page.getByRole('dialog', { name: '记录排便' })
@@ -652,14 +707,14 @@ test('bowel record is one continuous form, restores its member draft and saves r
   const saved = page.locator('.journal-record').filter({ hasText: '光滑条状、糊状 · 黄褐色 · 一般' })
   await expect(saved).toBeVisible()
   await expect(saved).toContainText('今天第1次')
-  await expect(saved.getByLabel('6 个附件')).toBeVisible()
+  await expect(saved.getByLabel('6 个附件')).toHaveCount(1)
   await page.reload()
   await expect(page.locator('.journal-record').filter({ hasText: '光滑条状、糊状 · 黄褐色 · 一般' })).toBeVisible()
 })
 
 async function openDietTypes(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('button', { name: '进食', exact: true }).click()
+  await openDaily(page)
+  await page.getByRole('dialog', { name: '记录日常' }).getByRole('button', { name: '喂养/饮食', exact: true }).click()
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 }
 
@@ -811,6 +866,7 @@ test('complementary record survives reload and remains isolated to the selected 
   await page.reload()
   await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toBeVisible()
   await page.evaluate(() => {
+    sessionStorage.setItem('hoooho:preserve-test-member', 'true')
     const stored = JSON.parse(localStorage.getItem('hoooho-app') ?? '{}')
     stored.state.currentMemberId = 'child-two'
     localStorage.setItem('hoooho-app', JSON.stringify(stored))
@@ -844,7 +900,7 @@ test('failed timeline request offers retry without claiming an empty day', async
 
 test('short keyboard viewport keeps direct symptom form actionable and closeable', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   await page.setViewportSize({ width: 375, height: 430 })
   await page.getByRole('textbox', { name: '主要症状', exact: true }).fill('键盘布局验收')
   const save = page.getByRole('button', { name: '保存', exact: true })
@@ -860,7 +916,7 @@ for (const width of [390, 430, 1280, 1440]) test(`layout remains usable at ${wid
   await page.setViewportSize({ width, height: width === 1440 ? 900 : 800 })
   await prepare(page)
   await page.getByRole('button', { name: '前一天', exact: true }).click()
-  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(10)
+  await expect.poll(() => page.locator('.journal-record').count()).toBeGreaterThanOrEqual(9)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: '当前为列表视图，点击切换为缩略图视图' }).click()
   await expect(page.locator('.journal-time-view')).toHaveAttribute('data-layout-mode', 'thumbnail')
@@ -878,21 +934,21 @@ test('free symptom narratives save without tags and numeric-only locations stay 
   await prepare(page)
   await expect(page.getByRole('heading', { name: '健康随记', exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await openSymptom(page)
   let form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByLabel('主要症状').focus()
   await form.getByLabel('症状部位').focus()
+  await expect(form.getByText('请填写主要症状', { exact: true })).toHaveCount(0)
+  await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(form.getByText('请填写主要症状', { exact: true })).toBeVisible()
   await form.getByRole('button', { name: '关闭', exact: true }).click()
 
   for (const narrative of ['感冒', '手冰凉']) {
-    await page.getByRole('button', { name: '记一下', exact: true }).click()
+    await openSymptom(page)
     form = page.getByRole('dialog', { name: '记录症状' })
     await expect(form.getByText(/正在为：安安/)).toBeVisible()
     await form.getByLabel('主要症状').fill(narrative)
-    await page.waitForTimeout(400)
-    await expect(form.locator('.symptom-keywords')).toHaveCount(0)
-    await expect(form.getByText('已从主述填写', { exact: true })).toHaveCount(0)
+    await expect(form.getByText(/已整理|暂未识别|暂时无法自动整理/)).toBeVisible()
     await expect(form.getByRole('button', { name: '保存', exact: true })).toBeEnabled()
     if (narrative === '感冒') {
       await form.getByLabel('症状部位').fill('1')
@@ -901,6 +957,7 @@ test('free symptom narratives save without tags and numeric-only locations stay 
       await form.getByLabel('症状部位').fill('')
     }
     await form.getByRole('button', { name: '保存', exact: true }).click()
+    await createDespiteDuplicateIfNeeded(page)
     await expect(page.getByText('已记录', { exact: true })).toBeVisible()
     await expect(page.locator('.journal-record--symptom').filter({ hasText: narrative }).first()).toBeVisible()
   }

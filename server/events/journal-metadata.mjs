@@ -133,8 +133,9 @@ function validateSleep(value) {
   if (value.status === 'ongoing') return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing' }
   const wakeAt = new Date(value.wakeAt)
   if (!Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
-  const durationMinutes = Math.round((wakeAt.getTime() - sleepAt.getTime()) / 60_000)
-  if (durationMinutes <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
+  const elapsedMilliseconds = wakeAt.getTime() - sleepAt.getTime()
+  const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
+  if (elapsedMilliseconds <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
   if (value.quality !== undefined && !sleepQualities.has(value.quality)) throw new HealthEventRecordError('睡眠感受无效', 400, 'INVALID_JOURNAL_SLEEP')
   const observations = cleanStrings(value.observations, '睡眠观察', 7)
   if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')

@@ -64,11 +64,16 @@ export function aiApiPlugin(options = {}) {
           }
         }
         const previewMatch = /^\/api\/events\/([^/]+)\/organizations\/preview$/.exec(pathname)
+        const symptomPreviewMatch = /^\/api\/members\/([^/]+)\/symptom-preview$/.exec(pathname)
         const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
-        if (!previewMatch && !match) return next()
+        if (!previewMatch && !symptomPreviewMatch && !match) return next()
 
         try {
           const accountId = readAccountId(request, tokens)
+          if (symptomPreviewMatch) {
+            if (request.method === 'POST') return sendJson(response, 200, await service.previewSymptom(accountId, decodeURIComponent(symptomPreviewMatch[1]), await readJson(request)))
+            return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+          }
           const eventId = decodeURIComponent((previewMatch ?? match)[1])
           if (previewMatch) {
             if (request.method === 'POST') return sendJson(response, 200, await service.preview(accountId, eventId, await readJson(request)))
