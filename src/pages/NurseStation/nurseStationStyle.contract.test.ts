@@ -10,7 +10,8 @@ test('顶部将人物信息、守护天数、轮播事实和真实视频收纳�
   assert.match(source, /<NurseStationFactTypewriter \/>/)
   assert.match(source, /<NurseTriageDesk/)
   assert.match(styles, /\.nurse-station-hero\s*\{[^}]*height:\s*136px[^}]*border:\s*1px solid #dcedea[^}]*border-radius:\s*19px[^}]*background:\s*#fff/)
-  assert.match(styles, /\.nurse-station-fact\s*\{[^}]*height:\s*36px[^}]*margin-top:\s*10px[^}]*overflow:\s*hidden/)
+  assert.match(styles, /\.nurse-station-guarded\s*\{[^}]*margin-top:\s*8px/)
+  assert.match(styles, /\.nurse-station-fact\s*\{[^}]*height:\s*36px[^}]*margin-top:\s*4px[^}]*overflow:\s*hidden/)
   assert.match(styles, /\.nurse-station-fact\s*>\s*span\s*\{[^}]*white-space:\s*nowrap/)
   assert.match(styles, /\.nurse-station-visual\s*\{[^}]*height:\s*114px[^}]*background:\s*#fff/)
   assert.doesNotMatch(styles, /\.nurse-station-visual\s*\{[^}]*(?:gradient|mask-image)/)
@@ -34,14 +35,14 @@ test('核心记录入口为等宽双列，更多服务为可扩展四列宫格',
   assert.doesNotMatch(source, /说明与帮助/)
 })
 
-test('守护任务使用标题下拉和三个等宽类别切换', () => {
-  assert.match(styles, /\.guardian-task-tabs\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
+test('守护任务使用标题下拉和两个等宽类别切换', () => {
+  assert.match(styles, /\.guardian-task-tabs\s*\{[^}]*grid-template-columns:\s*repeat\(2,/)
   assert.match(source, /role="tablist"/)
   assert.match(source, /新增用药提醒/)
   assert.match(source, /guardian-task-heading/)
   assert.doesNotMatch(source, /<strong>\{member\.name\}<\/strong>的任务/)
   assert.match(source, /还没有排敏测试/)
-  assert.match(source, /疫苗提醒暂未开放/)
+  assert.doesNotMatch(source, /疫苗提醒|guardian-notification-notice|用药计划仍会保留/)
   assert.doesNotMatch(source, /本轮暂不新增业务流程|页签已保留，现有记录不会改变/)
   assert.doesNotMatch(source, /共 \{active\.length\}/)
 })

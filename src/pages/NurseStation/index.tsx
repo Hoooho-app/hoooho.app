@@ -1,4 +1,4 @@
-import { Bell, BellOff, BookOpen, ChevronDown, ChevronRight, ClipboardCheck, FileText, Folder, FolderOpen, HeartHandshake, Languages, MapPin, Pause, Pill, Play, Plus, ShieldCheck, Syringe, Thermometer, Utensils, X } from 'lucide-react'
+import { Bell, BookOpen, ChevronDown, ChevronRight, ClipboardCheck, FileText, Folder, FolderOpen, HeartHandshake, Languages, MapPin, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, Utensils, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -22,7 +22,7 @@ import { MedicationActionSheet, MedicationReminderFlow } from './MedicationRemin
 import { effectiveStatus, formatOccurrence, nextOccurrences, planLabel, routeLabel } from './medicationReminderLogic'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
-type TaskCategory = 'medication' | 'allergy' | 'vaccination'
+type TaskCategory = 'medication' | 'allergy'
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -79,7 +79,6 @@ export function NurseStationPage() {
   const guardedDays = getGuardedDays(memberDto?.createdAt)
   const visibleTasks = (taskView === 'archive' ? archived : active).filter((item) => taskCategory === 'medication' ? item.type === 'medication_reminder' : false)
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
-  const notificationPermission = useNotificationPermission()
 
   const updateItem = (id: string, changes: Partial<NurseStationItem>) => setStation((previous) => ({ ...previous, items: previous.items.map((item) => item.id === id ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item) }))
   const closeTaskSheet = () => { setSelected(null); setCompletionOpen(false) }
@@ -141,12 +140,11 @@ export function NurseStationPage() {
       <MoreServices hasHealthData={events.length > 0} loading={listState.status === 'loading'} onMedicalPrep={() => nextActionEventId && navigate(`/visit-summary/${nextActionEventId}`)} />
       <section aria-busy={listState.status === 'loading' || !stationIsCurrent} className="guardian-tasks">
         <header><div className="guardian-task-heading"><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button></div>{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header>
-        <div className="guardian-task-tabs" role="tablist">{([['medication', '用药提醒'], ['allergy', '排敏测试'], ['vaccination', '疫苗提醒']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>
-        {notificationPermission !== 'granted' && <NotificationNotice permission={notificationPermission} />}
+        <div className="guardian-task-tabs" role="tablist">{([['medication', '用药提醒'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>
         {(listState.status === 'loading' || !stationIsCurrent) && <div aria-live="polite" className="guardian-data-notice" role="status">正在同步当前人物的任务…</div>}
         {listState.status === 'error' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>最新数据加载失败，已保存任务仍会保留。</span><button onClick={retryEvents} type="button">重新加载</button></div>}
         {taskView === 'active' && <AddTaskCard category={taskCategory} disabled={!stationIsCurrent} onOpen={() => taskCategory === 'medication' ? setReminderFlow(true) : taskCategory === 'allergy' ? navigate('/health-profile/allergy') : undefined} />}
-        <div className="guardian-task-list">{visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : listState.status === 'loading' || !stationIsCurrent ? null : listState.status === 'error' ? null : taskCategory === 'allergy' ? <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>完成测试后，记录会显示在这里</span></div></div> : taskCategory === 'vaccination' ? <div className="guardian-task-empty guardian-task-empty--unavailable"><Syringe/><div><strong>疫苗提醒暂未开放</strong><span>当前不能创建或查看此类任务</span></div></div> : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>结束的任务会保留在这里</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div>}</div>
+        <div className="guardian-task-list">{visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : listState.status === 'loading' || !stationIsCurrent ? null : listState.status === 'error' ? null : taskCategory === 'allergy' ? <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>完成测试后，记录会显示在这里</span></div></div> : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>结束的任务会保留在这里</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div>}</div>
       </section>
     </div>
     {savedItemId && <p aria-live="polite" className="nurse-station-save-notice" role="status">用药提醒已保存</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={currentItems.flatMap(item=>item.medicationPlan?[item.medicationPlan]:[])}/>}<span hidden />
@@ -160,28 +158,7 @@ function PrimaryEntries({ onJournal, onProfile }: { onJournal: () => void; onPro
 
 function MoreServices({ hasHealthData, loading, onMedicalPrep }: { hasHealthData: boolean; loading: boolean; onMedicalPrep: () => void }) { const services = [{ id: 'allergy-card', label: '过敏出示', icon: Languages }, { id: 'food', label: '能不能吃', icon: Utensils }, { id: 'nearby', label: '附近就医', icon: MapPin }] as const; const unavailable=loading||!hasHealthData; return <section className="nurse-more-services"><h2>更多服务</h2><div><MedicalPrepButton aria-describedby={unavailable ? 'medical-prep-hint' : undefined} aria-label={loading?'就诊情况单，正在加载当前人物记录':'就诊情况单'} className="journal-subject-summary" disabled={unavailable} label="就诊情况单" onClick={onMedicalPrep} />{services.map(({ id, label, icon: Icon }) => <button aria-label={label + '，暂未开放'} className={'nurse-more-service nurse-more-service--unavailable nurse-more-service--' + id} disabled key={id} type="button"><span><Icon aria-hidden="true" /></span><strong>{label}</strong></button>)}</div>{unavailable && <span className="sr-only" id="medical-prep-hint">{loading?'正在加载当前人物记录':'记录健康情况后即可生成'}</span>}</section> }
 
-function AddTaskCard({ category, disabled, onOpen }: { category: TaskCategory; disabled?: boolean; onOpen: () => void }) { const unavailable=category==='vaccination'; const copy = category === 'medication' ? ['新增用药提醒', '创建下一次用药提醒'] : category === 'allergy' ? ['新增排敏测试', '前往过敏档案记录'] : ['新增疫苗提醒', '疫苗提醒暂未开放']; return <button aria-describedby={unavailable?'vaccination-task-hint':undefined} className="guardian-task-card guardian-task-add" disabled={disabled||unavailable} onClick={onOpen} type="button"><span className="guardian-task-icon">{unavailable?<Syringe/>:<Plus />}</span><span className="guardian-task-copy"><strong>{copy[0]}</strong><small id={unavailable?'vaccination-task-hint':undefined}>{copy[1]}</small></span></button> }
-
-function useNotificationPermission(): NotificationPermission | 'unsupported' {
-  const read = () => typeof Notification === 'undefined' ? 'unsupported' as const : Notification.permission
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(read)
-  useEffect(() => {
-    const refresh = () => setPermission(read())
-    window.addEventListener('focus', refresh)
-    document.addEventListener('visibilitychange', refresh)
-    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
-  }, [])
-  return permission
-}
-
-function NotificationNotice({ permission }: { permission: NotificationPermission | 'unsupported' }) {
-  const copy = permission === 'unsupported'
-    ? '当前浏览器不支持通知。用药计划仍会保留，但不会发送浏览器提醒。'
-    : permission === 'denied'
-      ? '浏览器通知已被拒绝。用药计划仍会保留，但不会发送提醒；可在浏览器的网站设置中修改。'
-      : '浏览器通知尚未开启。用药计划仍会保留，但不会发送提醒；需要时请在浏览器的网站设置中允许。'
-  return <div className="guardian-notification-notice" role="status"><BellOff aria-hidden="true" /><span>{copy}</span></div>
-}
+function AddTaskCard({ category, disabled, onOpen }: { category: TaskCategory; disabled?: boolean; onOpen: () => void }) { const copy = category === 'medication' ? ['新增用药提醒', '创建下一次用药提醒'] : ['新增排敏测试', '前往过敏档案记录']; return <button className="guardian-task-card guardian-task-add" disabled={disabled} onClick={onOpen} type="button"><span className="guardian-task-icon"><Plus /></span><span className="guardian-task-copy"><strong>{copy[0]}</strong><small>{copy[1]}</small></span></button> }
 
 function getPlanDetails(plan: NonNullable<NurseStationItem['medicationPlan']>) {
   const details: string[] = []
