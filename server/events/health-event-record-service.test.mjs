@@ -8,7 +8,7 @@ import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from '../members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './vite-events-plugin.mjs'
 import { eventRecordsApiPlugin } from './vite-event-records-plugin.mjs'
-import { validateOccurredAt } from './health-event-record-service.mjs'
+import { HealthEventRecordService, validateOccurredAt } from './health-event-record-service.mjs'
 
 const jsonRequest = (url, method, token, body) => fetch(url, {
   method,
@@ -56,6 +56,52 @@ test('occurredAt 允许当前及历史时间并拒绝所有未来时间', () => 
       (error) => error.code === 'FUTURE_OCCURRED_AT' && error.message === '发生时间不能晚于现在'
     )
   }
+})
+
+test('ending sleep is atomic, idempotent, and keeps the start time as occurredAt', async () => {
+  let current = { id: 'sleep-one', accountId: 'account-one', eventId: 'event-one', occurredAt: '2026-09-21T12:00:00.000Z', journal: { categories: ['sleep'], sleep: { sleepAt: '2026-09-21T12:00:00.000Z', kind: 'night', status: 'ongoing' } } }
+  let mutations = 0
+  const repository = {
+    findById: async () => current,
+    updateIfSleepOngoing: async (_id, changes, now) => {
+      if (current.journal.sleep.status !== 'ongoing') return { record: current, updated: false }
+      current = { ...current, ...changes, updatedAt: now.toISOString() }; mutations += 1
+      return { record: current, updated: true }
+    }
+  }
+  const service = new HealthEventRecordService({
+    repository,
+    events: { findById: async () => ({ id: 'event-one', accountId: 'account-one', memberId: 'member-one' }) },
+    organizations: { invalidateAndRecompute: async () => undefined },
+    changeAnnotations: { recompute: async () => undefined }
+  })
+  const now = new Date('2026-09-21T20:00:00.000Z')
+  const ended = await service.endSleep('account-one', 'sleep-one', { wakeAt: now.toISOString() }, now)
+  const repeated = await service.endSleep('account-one', 'sleep-one', { wakeAt: '2026-09-21T20:30:00.000Z' }, new Date('2026-09-21T20:30:00.000Z'))
+  assert.equal(mutations, 1)
+  assert.equal(ended.occurredAt, '2026-09-21T12:00:00.000Z')
+  assert.equal(ended.journal.sleep.durationMinutes, 480)
+  assert.equal(repeated.journal.sleep.wakeAt, now.toISOString())
+})
+
+test('ending an abnormal sleep requires correction and never drops the record', async () => {
+  const record = { id: 'sleep-old', accountId: 'account-one', eventId: 'event-one', journal: { categories: ['sleep'], sleep: { sleepAt: '2026-09-19T12:00:00.000Z', kind: 'night', status: 'ongoing' } } }
+  const service = new HealthEventRecordService({ repository: { findById: async () => record }, events: { findById: async () => ({ id: 'event-one', accountId: 'account-one' }) }, organizations: { invalidateAndRecompute: async () => undefined }, changeAnnotations: { recompute: async () => undefined } })
+  await assert.rejects(() => service.endSleep('account-one', 'sleep-old', {}, new Date('2026-09-21T20:00:00.000Z')), (error) => error.code === 'SLEEP_TIME_CORRECTION_REQUIRED')
+  assert.equal(record.journal.sleep.status, 'ongoing')
+})
+
+test('a newly started sleep can be ended immediately with a one-minute display duration', async () => {
+  const sleepAt = '2026-09-21T20:00:00.000Z'
+  let current = { id: 'sleep-short', accountId: 'account-one', eventId: 'event-one', occurredAt: sleepAt, journal: { categories: ['sleep'], sleep: { sleepAt, kind: 'night', status: 'ongoing' } } }
+  const repository = {
+    findById: async () => current,
+    updateIfSleepOngoing: async (_id, changes) => { current = { ...current, ...changes }; return { record: current, updated: true } }
+  }
+  const service = new HealthEventRecordService({ repository, events: { findById: async () => ({ id: 'event-one', accountId: 'account-one', memberId: 'member-one' }) }, organizations: { invalidateAndRecompute: async () => undefined }, changeAnnotations: { recompute: async () => undefined } })
+  const ended = await service.endSleep('account-one', 'sleep-short', { wakeAt: '2026-09-21T20:00:20.000Z' }, new Date('2026-09-21T20:00:20.000Z'))
+  assert.equal(ended.journal.sleep.status, 'completed')
+  assert.equal(ended.journal.sleep.durationMinutes, 1)
 })
 
 test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔离', async () => {

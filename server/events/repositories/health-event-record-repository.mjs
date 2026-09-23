@@ -75,6 +75,32 @@ export class HealthEventRecordRepository {
     return updated
   }
 
+  async updateIfSleepOngoing(id, changes, now = new Date()) {
+    let result = { record: null, updated: false }
+    await this.#store.update((data) => ({
+      ...data,
+      records: data.records.map((record) => {
+        if (record.id !== id) return record
+        if (record.journal?.sleep?.status !== 'ongoing') {
+          result = { record, updated: false }
+          return record
+        }
+        const updated = {
+          ...record,
+          ...changes,
+          id: record.id,
+          accountId: record.accountId,
+          eventId: record.eventId,
+          createdAt: record.createdAt,
+          updatedAt: now.toISOString()
+        }
+        result = { record: updated, updated: true }
+        return updated
+      })
+    }))
+    return result
+  }
+
   async delete(id) {
     let deleted = null
     await this.#store.update((data) => ({

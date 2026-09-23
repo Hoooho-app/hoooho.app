@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, HealthTag, HohoButton, StatusNotice } from '../../components/design-system'
 import type { RoutineTrack } from '../../services/routineTracks'
 import { routineTrackService } from '../../services/routineTracks'
+import { healthEventRecordService } from '../../services/healthEventRecords'
 import { formatPlainMonthDay, formatPlainWeekday, parsePlainDate } from '../../utils/localCalendarDate'
 import { bowelOccurrenceNumber, journalCategoryLabels, journalListSummary, journalTime, journalUpdateLabel, shiftJournalDate, type JournalEntry } from './timeViewModel'
 import { symptomLocationDisplay, visibleSymptomKeywords } from './symptomRecordLogic'
@@ -24,17 +25,22 @@ function symptomFacts(entry: JournalEntry) {
   return { keywords: visibleSymptomKeywords(narrative, entry.symptom?.keywords ?? []).join(' · '), location: symptomLocationDisplay(entry.symptom) }
 }
 
-type GridItem = { key: string; minute: number; kind: 'record'; entry: JournalEntry } | { key: string; minute: number; kind: 'routine'; track: RoutineTrack }
+type GridItem = { key: string; minute: number; sortTime: number; createdTime: number; kind: 'record'; entry: JournalEntry } | { key: string; minute: number; sortTime: number; createdTime: number; kind: 'routine'; track: RoutineTrack }
 
-function RecordRow({ confirmed, entry, entries, layoutMode, onOpen }: { confirmed: boolean; entry: JournalEntry; entries: JournalEntry[]; layoutMode: 'list' | 'thumbnail'; onOpen: () => void }) {
+function RecordRow({ confirmed, entry, entries, layoutMode, ending, onEndSleep, onOpen, now }: { confirmed: boolean; entry: JournalEntry; entries: JournalEntry[]; layoutMode: 'list' | 'thumbnail'; ending: boolean; onEndSleep: () => void; onOpen: () => void; now: Date }) {
   const facts = symptomFacts(entry)
-  return <button className={`journal-record journal-grid-record${entry.symptom ? ' journal-record--symptom' : ''}${layoutMode === 'thumbnail' ? ' journal-record--thumbnail' : ''}${confirmed ? ' journal-grid-record--confirmed' : ''}`} data-record-id={entry.id} type="button" onClick={onOpen}>
+  const elapsed = entry.sleep?.status === 'ongoing' ? Math.floor((now.getTime() - Date.parse(entry.sleep.sleepAt)) / 60_000) : 0
+  const abnormal = Boolean(entry.sleep?.status === 'ongoing' && (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 1440))
+  return <article className={`journal-record journal-grid-record${entry.symptom ? ' journal-record--symptom' : ''}${layoutMode === 'thumbnail' ? ' journal-record--thumbnail' : ''}${confirmed ? ' journal-grid-record--confirmed' : ''}${entry.sleep?.status === 'ongoing' ? ' journal-grid-record--ongoing' : ''}`} data-record-id={entry.id}>
+    <button className="journal-record-main" type="button" onClick={onOpen}>
     <span className="journal-record-time">{journalTime(entry).label}</span>
     <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
     <span className="journal-record-tags">{entry.categories?.includes('elimination') && <HealthTag>{`今天第${bowelOccurrenceNumber(entries, entry)}次`}</HealthTag>}{entry.sleep?.quality && <HealthTag>{entry.sleep.quality}</HealthTag>}{(entry.categories?.length ? entry.categories : ['other'] as const).map((category) => <HealthTag key={category}>{category === 'medication' && (entry.medication?.medications?.length ?? 0) > 1 ? `用药 · 共${entry.medication!.medications!.length}种` : journalCategoryLabels[category]}</HealthTag>)}</span>
-    <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : journalListSummary(entry)}</span>{facts.keywords ? <span className="journal-symptom-facts">{facts.keywords}</span> : null}{facts.location ? <span className="journal-symptom-facts">{facts.location}</span> : null}{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
+    <span className="journal-record-content"><span className="journal-record-summary">{entry.sleep ? entry.sleep.status === 'ongoing' ? `${entry.sleep.kind === 'night' ? '夜间睡眠' : '白天小睡'} · 已开始` : sleepTimelineSummary(entry.sleep.kind, entry.sleep.durationMinutes) : journalListSummary(entry)}</span>{facts.keywords ? <span className="journal-symptom-facts">{facts.keywords}</span> : null}{facts.location ? <span className="journal-symptom-facts">{facts.location}</span> : null}{entry.updateCount ? <span className="journal-record-update-meta">{journalUpdateLabel(entry)}</span> : null}{entry.attachmentCount > 0 && <span className="journal-attachment" aria-label={`${entry.attachmentCount} 个附件`}><Paperclip size={13} />{entry.attachmentCount}</span>}</span>
     {confirmed ? <CheckCircle2 aria-label="已确认" className="routine-confirm-stamp" size={18} /> : <ChevronRight aria-hidden="true" className="text-text-secondary" size={16} />}
-  </button>
+    </button>
+    {entry.sleep?.status === 'ongoing' && <div className="journal-sleep-inline-action"><span>{abnormal ? '这次睡眠记录尚未结束，请核对时间。' : `已持续 ${Math.floor(elapsed / 60)}小时${elapsed % 60}分钟`}</span><HohoButton loading={ending} onClick={abnormal ? onOpen : onEndSleep} size="small" variant="secondary">{abnormal ? '核对时间' : '结束睡眠'}</HohoButton></div>}
+  </article>
 }
 
 function RoutineRow({ track, onOpen }: { track: RoutineTrack; onOpen: () => void }) {
@@ -47,22 +53,23 @@ function RoutineRow({ track, onOpen }: { track: RoutineTrack; onOpen: () => void
   </button>
 }
 
-function HourItems({ allEntries, items, layoutMode, tracks, onRecordOpen, onRoutineOpen }: { allEntries: JournalEntry[]; items: GridItem[]; layoutMode: 'list' | 'thumbnail'; tracks: RoutineTrack[]; onRecordOpen: (entry: JournalEntry) => void; onRoutineOpen: (track: RoutineTrack) => void }) {
+function HourItems({ allEntries, endingSleepId, items, layoutMode, now, tracks, onEndSleep, onRecordOpen, onRoutineOpen }: { allEntries: JournalEntry[]; endingSleepId: string; items: GridItem[]; layoutMode: 'list' | 'thumbnail'; now: Date; tracks: RoutineTrack[]; onEndSleep: (entry: JournalEntry) => void; onRecordOpen: (entry: JournalEntry) => void; onRoutineOpen: (track: RoutineTrack) => void }) {
   return <>{items.map((item) => item.kind === 'record'
-    ? <RecordRow confirmed={tracks.some((track) => track.recordId === item.entry.id)} entries={allEntries} entry={item.entry} key={item.key} layoutMode={layoutMode} onOpen={() => onRecordOpen(item.entry)} />
+    ? <RecordRow confirmed={tracks.some((track) => track.recordId === item.entry.id)} ending={endingSleepId === item.entry.id} entries={allEntries} entry={item.entry} key={item.key} layoutMode={layoutMode} now={now} onEndSleep={() => onEndSleep(item.entry)} onOpen={() => onRecordOpen(item.entry)} />
     : <RoutineRow key={item.key} onOpen={() => onRoutineOpen(item.track)} track={item.track} />)}</>
 }
 
 export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpen, onRoutineRecorded, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string) => void; onRoutineRecorded?: () => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
   const navigate = useNavigate()
-  const [layoutMode, setLayoutMode] = useState<'list' | 'thumbnail'>('list')
+  const [layoutMode, setLayoutMode] = useState<'list' | 'thumbnail'>(() => sessionStorage.getItem('hoooho:journal-layout') === 'thumbnail' ? 'thumbnail' : 'list')
   const [layoutNotice, setLayoutNotice] = useState('')
-  const [localSortOrder, setLocalSortOrder] = useState(sortOrder)
+  const [localSortOrder, setLocalSortOrder] = useState<'desc' | 'asc'>(() => sessionStorage.getItem('hoooho:journal-sort') === 'asc' ? 'asc' : sortOrder)
   const [routineRevision, setRoutineRevision] = useState(0)
   const [setupOpen, setSetupOpen] = useState(false)
   const [selectedTrack, setSelectedTrack] = useState<RoutineTrack | null>(null)
   const [expandedHour, setExpandedHour] = useState<number | null>(null)
   const [savedNotice, setSavedNotice] = useState('')
+  const [endingSleepId, setEndingSleepId] = useState('')
   const [now, setNow] = useState(() => new Date())
   const timeViewRef = useRef<HTMLElement>(null)
   const layoutNoticeTimerRef = useRef<number | null>(null)
@@ -70,7 +77,6 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
   const didInitialScrollRef = useRef('')
   const { entries, loading, error, retry } = useJournal(memberId, token, revision)
   const routines = useRoutineTracks(memberId, day, token, routineRevision + revision)
-  const memberName = useAppStore((state) => state.members.find((member) => member.id === memberId)?.name ?? '')
   const accountId = useAppStore((state) => state.authUser?.id ?? 'guest')
   const [cardRevision, setCardRevision] = useState(0)
   const [triggerLocale, setTriggerLocale] = useState(() => resolveTriggerLocale())
@@ -79,7 +85,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
   const activeSleep = entries.find((entry) => entry.sleep?.status === 'ongoing')
   const yesterday = shiftJournalDate(today, -1)
   const relative = day === today ? '今天' : day === yesterday ? '昨天' : formatPlainWeekday(day)
-  const selectedCard = routines.data.consent === 'enabled' ? null : selectTriggerOpportunity(now, day, today, entries, (cardId, cycle) => Boolean(readTriggerCardStatus(accountId, memberId, cardId, cycle)))
+  const selectedCard = activeSleep || routines.data.consent === 'enabled' ? null : selectTriggerOpportunity(now, day, today, entries, (cardId, cycle) => Boolean(readTriggerCardStatus(accountId, memberId, cardId, cycle)))
   const hours = orderedHours(localSortOrder)
 
   useEffect(() => {
@@ -103,18 +109,18 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
   useLayoutEffect(() => {
     if (loading || routines.loading || didInitialScrollRef.current === storageKey) return
     const root = timeViewRef.current
-    const scroller = root?.closest<HTMLElement>('.health-events-content')
+    const scroller = root?.querySelector<HTMLElement>('.journal-scroll-region')
     if (!root || !scroller) return
     didInitialScrollRef.current = storageKey
     const saved = sessionStorage.getItem(storageKey)
     if (saved !== null) { scroller.scrollTop = Number(saved); return }
-    const targetHour = day === today ? now.getHours() : dayEntries[0] ? hourForEntry(dayEntries[0]) : 0
+    const targetHour = day === today ? now.getHours() : dayEntries[0] ? hourForEntry(dayEntries[0], day) : 0
     const row = root.querySelector<HTMLElement>(`[data-hour="${targetHour}"]`)
     if (row) scroller.scrollTop = Math.max(0, row.offsetTop - 180)
   }, [day, dayEntries, loading, now, routines.loading, storageKey, today])
   useEffect(() => {
     const root = timeViewRef.current
-    const scroller = root?.closest<HTMLElement>('.health-events-content')
+    const scroller = root?.querySelector<HTMLElement>('.journal-scroll-region')
     if (!scroller) return
     const save = () => sessionStorage.setItem(storageKey, String(scroller.scrollTop))
     scroller.addEventListener('scroll', save, { passive: true })
@@ -130,7 +136,7 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
     onDayChange(selected > today ? today : selected)
   }
   const captureAnchor = () => {
-    const root = timeViewRef.current; const scroller = root?.closest<HTMLElement>('.health-events-content')
+    const root = timeViewRef.current; const scroller = root?.querySelector<HTMLElement>('.journal-scroll-region')
     if (!root || !scroller) return null
     const item = [...root.querySelectorAll<HTMLElement>('[data-record-id], [data-routine-key]')].find((node) => node.getBoundingClientRect().bottom > scroller.getBoundingClientRect().top + 120)
     const key = item?.dataset.recordId ?? item?.dataset.routineKey
@@ -139,21 +145,21 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
   const toggleLayoutMode = () => {
     layoutAnchorRef.current = captureAnchor()
     const next = layoutMode === 'list' ? 'thumbnail' : 'list'
-    setLayoutMode(next); setLayoutNotice(next === 'list' ? '已切换为列表视图' : '已切换为缩略图视图')
+    sessionStorage.setItem('hoooho:journal-layout', next); setLayoutMode(next); setLayoutNotice(next === 'list' ? '已切换为列表视图' : '已切换为缩略图视图')
     if (layoutNoticeTimerRef.current !== null) window.clearTimeout(layoutNoticeTimerRef.current)
     layoutNoticeTimerRef.current = window.setTimeout(() => setLayoutNotice(''), 1500)
   }
   useLayoutEffect(() => {
-    const anchor = layoutAnchorRef.current; const root = timeViewRef.current; const scroller = root?.closest<HTMLElement>('.health-events-content')
+    const anchor = layoutAnchorRef.current; const root = timeViewRef.current; const scroller = root?.querySelector<HTMLElement>('.journal-scroll-region')
     if (!anchor || !root || !scroller) return
     const node = [...root.querySelectorAll<HTMLElement>('[data-record-id], [data-routine-key]')].find((item) => item.dataset.recordId === anchor.key || item.dataset.routineKey === anchor.key)
     if (node) scroller.scrollTop += node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - anchor.offset
     layoutAnchorRef.current = null
   }, [layoutMode])
   const itemsAtHour = (hour: number) => [
-    ...dayEntries.filter((entry) => hourForEntry(entry) === hour).map((entry): GridItem => ({ key: `record:${entry.id}`, minute: new Date(entry.occurredAt).getMinutes(), kind: 'record', entry })),
-    ...visibleTracks.filter((track) => hourForTrack(track) === hour).map((track): GridItem => ({ key: `routine:${track.trackKey}`, minute: Number(track.time.slice(3, 5)), kind: 'routine', track }))
-  ].sort((left, right) => left.minute - right.minute || left.key.localeCompare(right.key))
+    ...dayEntries.filter((entry) => hourForEntry(entry, day) === hour).map((entry): GridItem => { const occurredAt = entry.sleep?.sleepAt ?? entry.occurredAt; return { key: `record:${entry.id}`, minute: hourForEntry(entry, day) === 0 && new Date(occurredAt).getHours() !== 0 ? 0 : new Date(occurredAt).getMinutes(), sortTime: Date.parse(occurredAt), createdTime: Date.parse(entry.createdAt), kind: 'record', entry } }),
+    ...visibleTracks.filter((track) => hourForTrack(track) === hour).map((track): GridItem => { const sortTime = Date.parse(`${day}T${track.time}:00`); return { key: `routine:${track.trackKey}`, minute: Number(track.time.slice(3, 5)), sortTime, createdTime: sortTime, kind: 'routine', track } })
+  ].sort((left, right) => (localSortOrder === 'asc' ? 1 : -1) * (left.sortTime - right.sortTime || left.createdTime - right.createdTime || left.key.localeCompare(right.key)))
   const openTriggerCard = (optionIndex?: 0 | 1) => {
     if (!selectedCard) return
     const detail = { target: selectedCard.config.category, mode: day === today ? selectedCard.config.mode : 'backfill', day, prefill: optionIndex === undefined ? {} : selectedCard.config.prefill[optionIndex], accountId, memberId, cardId: selectedCard.config.id, cycle: selectedCard.cycle, relatedEventId: selectedCard.prerequisiteEntry?.eventId, relatedRecordId: selectedCard.prerequisiteEntry?.id }
@@ -165,7 +171,19 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
     if (track.status === 'confirmed' && track.eventId && track.recordId) onRecordOpen(track.eventId, track.recordId)
     else setSelectedTrack(track)
   }
-  const currentScrollTop = () => timeViewRef.current?.closest<HTMLElement>('.health-events-content')?.scrollTop ?? 0
+  const endSleep = async (entry: JournalEntry) => {
+    if (!entry.sleep || endingSleepId) return
+    setEndingSleepId(entry.id)
+    try {
+      await healthEventRecordService.endSleep(entry.id, { wakeAt: new Date().toISOString() }, token)
+      showSaved('睡眠记录已结束'); onRoutineRecorded?.(); void retry()
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : '结束睡眠失败，请重试'
+      if (message.includes('核对时间')) onRecordOpen(entry.eventId, entry.id)
+      else showSaved(message)
+    } finally { setEndingSleepId('') }
+  }
+  const currentScrollTop = () => timeViewRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0
 
   return <section className="journal-time-view" data-layout-mode={layoutMode} aria-label="单日时间轴" ref={timeViewRef}>
     <div className="journal-date-navigation">
@@ -175,29 +193,31 @@ export function TimeView({ memberId, token, day, today, onDayChange, onRecordOpe
       <HohoButton size="icon" variant="ghost" aria-label="后一天" disabled={day >= today} onClick={() => onDayChange(shiftJournalDate(day, 1))}><ChevronRight size={22} /></HohoButton>
       <HohoButton size="icon" variant="ghost" aria-label="搜索健康随身记" onClick={() => navigate('/health-events/search', { state: { journalReturn: { day, scrollTop: currentScrollTop() } } })}><Search size={18} /></HohoButton>
       <span className="journal-layout-switch"><HohoButton size="icon" variant="ghost" aria-label={layoutMode === 'list' ? '当前为列表视图，点击切换为缩略图视图' : '当前为缩略图视图，点击切换为列表视图'} onClick={toggleLayoutMode}>{layoutMode === 'list' ? <List size={18} /> : <LayoutGrid size={18} />}</HohoButton>{layoutNotice && <span className="journal-layout-notice" aria-live="polite" role="status">{layoutNotice}</span>}</span>
-      <HohoButton size="icon" variant="ghost" aria-label={`记录顺序：${localSortOrder === 'desc' ? '最新在上' : '最新在下'}，点击切换`} aria-pressed={localSortOrder === 'asc'} onClick={() => setLocalSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}><ArrowUpDown size={18} /></HohoButton>
+      <HohoButton size="icon" variant="ghost" aria-label={`记录顺序：${localSortOrder === 'desc' ? '最新在上' : '最新在下'}，点击切换`} aria-pressed={localSortOrder === 'asc'} onClick={() => setLocalSortOrder((value) => { const next = value === 'desc' ? 'asc' : 'desc'; sessionStorage.setItem('hoooho:journal-sort', next); return next })}><ArrowUpDown size={18} /></HohoButton>
     </div>
     <div className="routine-toolbar"><span>{routines.data.consent === 'enabled' ? '日常作息轨迹' : '全天时间轴'}</span><button onClick={() => setSetupOpen(true)} type="button"><Settings2 size={16} />{routines.data.consent === 'enabled' ? '调整作息' : '设置日常作息'}</button></div>
+    <div className="journal-scroll-region">
     {routines.data.consent === 'unset' && !routines.loading && <article className="routine-consent-card"><strong>把平常的作息留在时间轴上</strong><p>设置后每天都会显示轻量轨迹，不点也没关系，也不会发送催填提醒。</p><div><HohoButton onClick={() => setSetupOpen(true)}>设置作息</HohoButton><button onClick={async () => { await routineTrackService.setConsent(memberId, 'declined', token); refreshRoutines() }} type="button">暂不使用</button></div></article>}
     {(loading || routines.loading) && <div className="journal-grid-loading" role="status">正在加载时间轴…</div>}
     {error && <StatusNotice tone="error" title={entries.length ? '记录刷新失败，正在显示上次内容' : error} action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} />}
     {routines.error && <StatusNotice tone="error" title="日常作息加载失败" action={<HohoButton variant="secondary" onClick={routines.retry}>重新加载</HohoButton>} />}
-    {activeSleep && day === today ? <article className="journal-active-sleep"><strong>{`等${memberName}醒来，点一下就能结束睡眠`}</strong><HohoButton onClick={() => onRecordOpen(activeSleep.eventId, activeSleep.id)} variant="secondary">结束睡眠</HohoButton></article> : selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null}
+    {selectedCard ? <TriggerOpportunityCard locale={triggerLocale} onAction={openTriggerCard} onDismiss={() => { setTriggerCardStatus(accountId, memberId, selectedCard.config.id, selectedCard.cycle, 'dismissed'); setCardRevision((value) => value + 1) }} selected={selectedCard} key={`${memberId}:${selectedCard.config.id}:${selectedCard.cycle}:${cardRevision}`} /> : null}
     <div className="journal-day-grid" aria-label={`${day} 全天时间轴`}>
       {hours.map((hour) => {
         const items = itemsAtHour(hour); const visible = items.slice(0, 2); const isCurrent = day === today && now.getHours() === hour
-        const linePosition = localSortOrder === 'asc' ? minutePosition(now.getMinutes()) : 100 - minutePosition(now.getMinutes())
-        return <section className={`journal-hour-row${isCurrent ? ' journal-hour-row--current' : ''}`} data-hour={hour} key={hour}>
-          <div className="journal-hour-scale"><strong>{String(hour).padStart(2, '0')}:00</strong><span>15</span><span>30</span><span>45</span></div>
-          <div className="journal-hour-content"><HourItems allEntries={dayEntries} items={visible} layoutMode={layoutMode} onRecordOpen={(entry) => onRecordOpen(entry.eventId, entry.id)} onRoutineOpen={openRoutineTrack} tracks={routines.data.tracks} />{items.length > 2 && <button className="journal-hour-more" onClick={() => setExpandedHour(hour)} type="button">还有 {items.length - 2} 条</button>}</div>
+        const linePosition = minutePosition(now.getMinutes())
+        return <section className={`journal-hour-row${isCurrent ? ' journal-hour-row--current' : ''}${items.length ? ' journal-hour-row--populated' : ' journal-hour-row--empty'}`} data-hour={hour} key={hour}>
+          <div className="journal-hour-scale"><strong>{String(hour).padStart(2, '0')}:00</strong>{(items.length > 0 || isCurrent) && <><span>15</span><span>30</span><span>45</span></>}</div>
+          <div className="journal-hour-content"><HourItems allEntries={dayEntries} endingSleepId={endingSleepId} items={visible} layoutMode={layoutMode} now={now} onEndSleep={endSleep} onRecordOpen={(entry) => onRecordOpen(entry.eventId, entry.id)} onRoutineOpen={openRoutineTrack} tracks={routines.data.tracks} />{items.length > 2 && <button className="journal-hour-more" onClick={() => setExpandedHour(hour)} type="button">还有 {items.length - 2} 条</button>}</div>
           {isCurrent && <div className="journal-current-line" style={{ top: `${linePosition}%` }}><span>{`现在 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}</span><i /></div>}
         </section>
       })}
     </div>
+    </div>
     <RoutineSetupSheet effectiveFrom={today} memberId={memberId} onClose={() => setSetupOpen(false)} onSaved={refreshRoutines} open={setupOpen} routineDay={routines.data} token={token} />
     <RoutineTrackSheet memberId={memberId} now={now} onClose={() => setSelectedTrack(null)} onSaved={(message) => { refreshRoutines(); onRoutineRecorded?.(); showSaved(message) }} openTrack={selectedTrack} token={token} />
     <BottomSheetSurface label="这个小时的全部内容" onClose={() => setExpandedHour(null)} open={expandedHour !== null} title={expandedHour === null ? '这个小时' : `${String(expandedHour).padStart(2, '0')}:00`}>
-      {expandedHour !== null && <div className="journal-hour-sheet"><HourItems allEntries={dayEntries} items={itemsAtHour(expandedHour)} layoutMode="thumbnail" onRecordOpen={(entry) => { setExpandedHour(null); onRecordOpen(entry.eventId, entry.id) }} onRoutineOpen={(track) => { setExpandedHour(null); openRoutineTrack(track) }} tracks={routines.data.tracks} /></div>}
+      {expandedHour !== null && <div className="journal-hour-sheet"><HourItems allEntries={dayEntries} endingSleepId={endingSleepId} items={itemsAtHour(expandedHour)} layoutMode="thumbnail" now={now} onEndSleep={endSleep} onRecordOpen={(entry) => { setExpandedHour(null); onRecordOpen(entry.eventId, entry.id) }} onRoutineOpen={(track) => { setExpandedHour(null); openRoutineTrack(track) }} tracks={routines.data.tracks} /></div>}
     </BottomSheetSurface>
     {savedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{savedNotice}</div>}
   </section>

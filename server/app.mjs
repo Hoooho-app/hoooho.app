@@ -491,8 +491,9 @@ async function handleAccountEntryState(request, response, pathname) {
 async function handleEventRecords(request, response, pathname) {
   const eventRecordsMatch = /^\/api\/events\/([^/]+)\/records$/.exec(pathname)
   const recordMatch = /^\/api\/records\/([^/]+)$/.exec(pathname)
+  const sleepEndMatch = /^\/api\/records\/([^/]+)\/sleep\/end$/.exec(pathname)
   const annotationMatch = /^\/api\/records\/([^/]+)\/change-annotations\/([^/]+)$/.exec(pathname)
-  if (!eventRecordsMatch && !recordMatch && !annotationMatch) return false
+  if (!eventRecordsMatch && !recordMatch && !sleepEndMatch && !annotationMatch) return false
 
   const accountId = await readAccountId(request)
   if (eventRecordsMatch) {
@@ -514,6 +515,13 @@ async function handleEventRecords(request, response, pathname) {
     return true
   }
 
+  if (sleepEndMatch) {
+    const recordId = decodeRouteValue(sleepEndMatch[1])
+    if (request.method === 'POST') sendJson(response, 200, await records.endSleep(accountId, recordId, await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
+
   const recordId = decodeRouteValue(recordMatch[1])
   if (request.method === 'PATCH') sendJson(response, 200, await records.update(accountId, recordId, await readJson(request)))
   else if (request.method === 'DELETE') sendJson(response, 200, await records.delete(accountId, recordId))
@@ -523,11 +531,17 @@ async function handleEventRecords(request, response, pathname) {
 
 async function handleOrganizations(request, response, pathname) {
   const previewMatch = /^\/api\/events\/([^/]+)\/organizations\/preview$/.exec(pathname)
+  const symptomPreviewMatch = /^\/api\/members\/([^/]+)\/symptom-preview$/.exec(pathname)
   const confirmMatch = /^\/api\/events\/([^/]+)\/organizations\/confirm$/.exec(pathname)
   const match = /^\/api\/events\/([^/]+)\/organizations$/.exec(pathname)
-  if (!previewMatch && !confirmMatch && !match) return false
+  if (!previewMatch && !symptomPreviewMatch && !confirmMatch && !match) return false
 
   const accountId = await readAccountId(request)
+  if (symptomPreviewMatch) {
+    if (request.method === 'POST') sendJson(response, 200, await organizations.previewSymptom(accountId, decodeRouteValue(symptomPreviewMatch[1]), await readJson(request)))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    return true
+  }
   const eventId = decodeRouteValue((previewMatch ?? confirmMatch ?? match)[1])
   if (previewMatch) {
     if (request.method === 'POST') sendJson(response, 200, await organizations.preview(accountId, eventId, await readJson(request)))

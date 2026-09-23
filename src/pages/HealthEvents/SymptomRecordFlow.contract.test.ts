@@ -8,11 +8,13 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return <div className="symptom-record-page-layer"'))
-  const labels = ['主要症状（主述）', '症状部位', '添加照片', '补充症状信息', '关联其他记录', '记录时间', '保存']
+  const labels = ['主要症状（主述）', '症状摘要', '症状部位', '添加照片', '补充症状信息', '关联其他记录', '记录时间']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述哪里不舒服、有什么变化/)
-  assert.match(source, /已从主述填写/)
+  assert.match(source, /正在整理症状描述/)
+  assert.match(source, /symptomPreviewService\.preview/)
+  assert.match(source, /onBlur=\{\(\) => \{ if \(narrativeRef\.current\) narrativeRef\.current\.scrollTop = 0 \}\}/)
   assert.match(source, /请填写主要症状/)
   assert.match(source, /请填写具体部位，或使用定位/)
   assert.match(source, /正在为：/)

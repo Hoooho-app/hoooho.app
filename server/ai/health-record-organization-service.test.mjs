@@ -41,6 +41,17 @@ test('listing current organizations does not rebuild an existing event summary',
   assert.equal(recordReads, 0)
 })
 
+test('member-scoped symptom preview reuses the AI provider and preserves account isolation', async () => {
+  const service = new HealthRecordOrganizationService({
+    members: { findById: async (id) => id === 'member-one' ? { id, accountId: 'account-one' } : null },
+    ai: { organizeHealthRecord: async () => ({ provider: 'test-provider', healthAIOutput: { facts: [{ type: 'symptom', polarity: 'affirmed', name: '咳嗽', concept: '咳嗽', bodyPart: '咽喉' }] } }) },
+    events: {}, records: {}, repository: {}
+  })
+  const result = await service.previewSymptom('account-one', 'member-one', { rawInput: '咳嗽，喉咙不舒服' })
+  assert.deepEqual(result, { status: 'success', summary: '咳嗽', keywords: ['咳嗽'], bodyLocation: '咽喉', provider: 'test-provider' })
+  await assert.rejects(() => service.previewSymptom('account-two', 'member-one', { rawInput: '咳嗽' }), (error) => error.code === 'FAMILY_MEMBER_NOT_FOUND')
+})
+
 test('结构化健康事实保留原文、识别否定表达并隔离账号', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-ai-organization-'))
   const accountId = 'account-one'

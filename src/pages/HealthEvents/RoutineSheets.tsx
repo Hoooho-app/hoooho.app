@@ -29,24 +29,31 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
   const [items, setItems] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => { if (open) { setItems(initial); setError('') } }, [initial, open])
-  const valid = definitions.some(({ key }) => items[key].enabled) && definitions.every(({ key, sleep }) => !items[key].enabled || (items[key].time && (!sleep || items[key].endTime)))
+  const [attempted, setAttempted] = useState(false)
+  useEffect(() => { if (open) { setItems(initial); setError(''); setAttempted(false) } }, [initial, open])
+  const valid = definitions.every(({ key, sleep }) => !items[key].enabled || (items[key].time && (!sleep || items[key].endTime)))
+  const dirty = JSON.stringify(items) !== JSON.stringify(initial)
+  const close = () => { if (!dirty || window.confirm('作息设置还没有保存，确定退出吗？')) onClose() }
   const save = async () => {
+    setAttempted(true)
     if (!valid || saving) return
     setSaving(true); setError('')
     try {
-      await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled: true, items }, token)
+      const enabled = definitions.some(({ key }) => items[key].enabled)
+      await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled, items: enabled ? items : {} }, token)
       onSaved(); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
-  return <BottomSheetSurface className="routine-setup-sheet" label="设置日常作息" onClose={onClose} open={open} title="设置日常作息" footer={<HohoButton disabled={!valid} fullWidth loading={saving} onClick={() => void save()} size="large">保存日常作息</HohoButton>}>
+  return <BottomSheetSurface className="routine-setup-sheet" label="设置日常作息" onClose={close} open={open} title="设置日常作息" footer={<HohoButton fullWidth loading={saving} onClick={() => void save()} size="large">保存日常作息</HohoButton>}>
     <p className="routine-sheet-intro">按孩子通常的作息生成每天的轻量轨迹。之后可以补充或修改，也不会发送催填提醒。</p>
     <div className="routine-setup-list">
       {definitions.map(({ key, label, sleep }) => <div className="routine-setup-row" key={key}>
         <label className="routine-enable"><input checked={items[key].enabled} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], enabled: event.target.checked } }))} type="checkbox" /><span>{label}</span></label>
-        <label><span>通常时间</span><input aria-label={`${label}通常时间`} disabled={!items[key].enabled} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], time: event.target.value } }))} type="time" value={items[key].time} /></label>
-        {sleep && <label><span>通常醒来</span><input aria-label="夜间睡眠通常醒来时间" disabled={!items[key].enabled} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], endTime: event.target.value } }))} type="time" value={items[key].endTime} /></label>}
+        {!items[key].enabled ? <span className="routine-disabled-copy">未启用</span> : <>
+          <label><span>{sleep ? '通常入睡' : '通常时间'}</span><input aria-label={`${label}${sleep ? '通常入睡' : '通常时间'}`} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], time: event.target.value } }))} type="time" value={items[key].time} />{attempted && !items[key].time && <small role="alert">请选择时间</small>}</label>
+          {sleep && <label><span>通常醒来</span><input aria-label="夜间睡眠通常醒来时间" onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], endTime: event.target.value } }))} type="time" value={items[key].endTime} />{attempted && !items[key].endTime && <small role="alert">请选择醒来时间</small>}{items[key].time && items[key].endTime && items[key].endTime <= items[key].time && <em>次日</em>}</label>}
+        </>}
       </div>)}
     </div>
     {routineDay.consent === 'unset' && <button className="routine-decline" onClick={async () => { await routineTrackService.setConsent(memberId, 'declined', token); onSaved(); onClose() }} type="button">暂不使用</button>}

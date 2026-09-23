@@ -97,6 +97,25 @@ export class HealthRecordOrganizationService {
     return event
   }
 
+  async previewSymptom(accountId, memberId, input, now = new Date()) {
+    if (!this.members) throw new HealthRecordOrganizationError('症状整理服务暂时不可用', 503, 'SYMPTOM_PREVIEW_UNAVAILABLE')
+    const member = await this.members.findById(memberId)
+    if (!member || member.accountId !== accountId) throw new HealthRecordOrganizationError('未找到当前记录对象', 404, 'FAMILY_MEMBER_NOT_FOUND')
+    const rawInput = typeof input?.rawInput === 'string' ? input.rawInput.trim() : ''
+    if (!rawInput) throw new HealthRecordOrganizationError('请先描述主要症状', 400, 'EMPTY_RAW_INPUT')
+    if (rawInput.length > 1000) throw new HealthRecordOrganizationError('主要症状不能超过 1000 个字符', 400, 'RAW_INPUT_TOO_LONG')
+    const organized = await this.ai.organizeHealthRecord(rawInput, {
+      selectedOccurredAt: input?.selectedOccurredAt,
+      timezone: input?.timezone,
+      referenceNow: now
+    })
+    const facts = organized.healthAIOutput.facts.filter((fact) => fact.type === 'symptom' && fact.polarity !== 'negated')
+    const keywords = [...new Set(facts.map((fact) => fact.name || fact.concept).filter(Boolean))].slice(0, 8)
+    const bodyLocation = facts.map((fact) => fact.bodyPart).find(Boolean) ?? ''
+    const summary = keywords.join('、')
+    return { status: summary ? 'success' : 'empty', summary, keywords, bodyLocation, provider: organized.provider }
+  }
+
   async invalidate(eventId, now = new Date()) {
     if (!this.state) return { eventId, revision: 1, status: 'stale', updatedAt: now.toISOString() }
     return this.state.invalidate(eventId, now)

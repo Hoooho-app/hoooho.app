@@ -6,6 +6,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 export interface BottomSheetSurfaceProps {
   children: ReactNode
   className?: string
+  layerClassName?: string
   footer?: ReactNode
   label: string
   leading?: ReactNode
@@ -16,7 +17,7 @@ export interface BottomSheetSurfaceProps {
   title: string
 }
 
-export function BottomSheetSurface({ children, className = '', footer, label, leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, className = '', footer, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
   const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
   useDialogFocus(open, sheetRef)
@@ -33,7 +34,7 @@ export function BottomSheetSurface({ children, className = '', footer, label, le
   if (!open) return null
 
   return (
-    <div className="hoho-bottom-sheet-layer" role="presentation">
+    <div className={`hoho-bottom-sheet-layer ${layerClassName}`} role="presentation">
       <button aria-label={`关闭${label}`} className="hoho-bottom-sheet-backdrop" onClick={onClose} type="button" />
       <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} data-size={size} ref={sheetRef} role="dialog" tabIndex={-1}>
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
