@@ -92,6 +92,16 @@ test('explicitly selected legacy time and optional categories remain compatible'
   assert.throws(() => validateJournal({ categories: ['invalid'] }), /记录分类无效/)
 })
 
+test('an explicitly selected occurrence time wins over relative words in text', () => {
+  const raw = record('昨晚左肘窝有点发红', { sourceType: 'text_record', occurredAt: '2026-09-05T15:00:00Z', journal: { categories: ['symptom'], timePrecision: 'exact' } })
+  const validated = validateJournal(raw.journal)
+  assert.equal(validated.timePrecision, 'exact')
+  const projected = projectJournalRecord({ ...raw, journal: validated }, 'Asia/Shanghai')
+  assert.equal(projected.journal.occurredAt, raw.occurredAt)
+  assert.equal(projected.journal.timePrecision, 'exact')
+  assert.throws(() => validateJournal({ categories: ['symptom'], timePrecision: 'minute-ish' }), /发生时间精度无效/)
+})
+
 test('structured feeding and diet details remain optional and preserve specific first-try foods', () => {
   const complementary = validateJournal({
     categories: ['diet'],
@@ -165,9 +175,12 @@ test('structured visit preserves occurrence facts, links and unverified extracti
 })
 
 test('structured symptom preserves concrete related record ids and optional facts', () => {
-  const result = validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '有皮疹，没发烧', keywords: ['皮疹'], locations: [], descriptors: [], impactLevel: 'some', triggerText: '吃完晚饭后', trend: 'more_noticeable', shortNote: '继续观察', linkedRecordIds: { diet: ['diet-1', 'diet-1'], medication: ['med-1'] } } })
+  const result = validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '有皮疹，没发烧', keywords: ['皮疹'], locations: [], descriptors: [], impactLevel: 'some', triggerText: '吃完晚饭后', trend: 'more_noticeable', recurrent: true, shortNote: '继续观察', linkedRecordIds: { diet: ['diet-1', 'diet-1'], medication: ['med-1'] } } })
   assert.deepEqual(result.symptom.linkedRecordIds, { diet: ['diet-1'], medication: ['med-1'] })
   assert.equal(result.symptom.triggerText, '吃完晚饭后')
+  assert.equal(result.symptom.trend, 'more_noticeable')
+  assert.equal(result.symptom.recurrent, true)
+  assert.throws(() => validateJournal({ categories: ['symptom'], symptom: { symptomCategory: 'other', recurrent: 'yes' } }), /反复出现记录无效/)
 })
 
 test('free symptom narratives save without a recognized category and isolated numeric locations are rejected', () => {

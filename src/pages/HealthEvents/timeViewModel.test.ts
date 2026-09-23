@@ -85,6 +85,12 @@ test('feeding list summaries omit eating statuses but retain method and duration
   assert.equal(journalListSummary(feeding), '母乳 · 1分钟')
 })
 
+test('symptom list summaries prefer the saved optional summary and otherwise keep the raw narrative', () => {
+  const raw = { ...entry('symptom', '2026-09-10T08:49:00'), categories: ['symptom'] as const, content: '原始输入', symptom: { narrative: '孩子说手臂有一点痒' } }
+  assert.equal(journalListSummary(raw), '孩子说手臂有一点痒')
+  assert.equal(journalListSummary({ ...raw, symptom: { ...raw.symptom, generatedSummary: '左手臂轻微发痒' } }), '左手臂轻微发痒')
+})
+
 test('journal search trims whitespace, fuzzy-matches structured fields, and keeps newest first', () => {
   const medication = {
     ...entry('medication', '2026-09-10T12:16:00'), categories: ['medication'] as const, content: '按医嘱服药',

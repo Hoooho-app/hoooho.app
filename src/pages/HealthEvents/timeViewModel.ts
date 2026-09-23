@@ -71,6 +71,7 @@ const feedingMethodLabels = { breast: '母乳', formula: '配方奶', expressed:
 
 export function journalListSummary(entry: JournalEntry) {
   if (entry.sleep?.status === 'ongoing') return '已开始'
+  if (entry.categories?.includes('symptom') && entry.symptom) return entry.symptom.generatedSummary?.trim() || entry.symptom.narrative?.trim() || entry.content
   if (entry.categories?.includes('medication') && entry.medication) {
     const names = entry.medication.medications?.map((item) => item.medicationName.trim()).filter(Boolean)
       ?? [entry.medication.medicationName.trim()].filter(Boolean)

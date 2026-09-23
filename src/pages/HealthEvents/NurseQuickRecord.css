@@ -450,6 +450,32 @@
   animation: quick-record-photo-spin 900ms linear infinite;
 }
 
+.quick-record-photo[data-status='failed'] {
+  display: grid;
+  width: 172px;
+  height: 72px;
+  flex-basis: 172px;
+  grid-template-columns: 62px minmax(0, 1fr);
+}
+
+.quick-record-photo[data-status='failed'] .quick-record-photo__preview {
+  width: 62px;
+  height: 72px;
+}
+
+.quick-record-photo__failed {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 4px;
+  padding: 5px;
+  color: rgb(var(--hoho-color-error));
+  font-size: 10px;
+}
+
+.quick-record-photo__failed > span { grid-column: 1 / -1; }
+.quick-record-photo__failed button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; gap: 2px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); color: rgb(var(--hoho-color-primary)); font-size: 10px; }
+
 .quick-record-photo-notice,
 .quick-record-photo-error {
   margin-top: 4px;
