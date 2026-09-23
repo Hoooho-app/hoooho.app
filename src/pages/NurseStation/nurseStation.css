@@ -10,9 +10,9 @@
 .nurse-station-identity > span { display: grid; min-width: 0; gap: 3px; }
 .nurse-station-identity strong { overflow: hidden; font-size: 16px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-identity em { overflow: hidden; color: #687b88; font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-.nurse-station-guarded { margin-top: 4px; color: #6b827c; font-size: 12px; line-height: 22px; }
+.nurse-station-guarded { margin-top: 8px; color: #6b827c; font-size: 12px; line-height: 22px; }
 .nurse-station-guarded strong { margin-inline: 3px; color: rgb(var(--hoho-color-primary)); font-size: 19px; font-weight: 780; }
-.nurse-station-fact { display: block; height: 36px; max-height: 36px; margin-top: 10px; overflow: hidden; color: #253d39; font-size: 11.5px; line-height: 1.5; }
+.nurse-station-fact { display: block; height: 36px; max-height: 36px; margin-top: 4px; overflow: hidden; color: #253d39; font-size: 11.5px; line-height: 1.5; }
 .nurse-station-fact > span { white-space: nowrap; }
 .nurse-station-fact strong { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 760; }
 .nurse-station-fact i { display: inline-block; width: 1.5px; height: 13px; margin: 0 0 -2px 1px; background: #17322e; animation: nurse-fact-caret 760ms steps(1) infinite; }
@@ -99,7 +99,7 @@
 
 .guardian-tasks { margin-top: 10px; }
 .guardian-task-tabs { display:flex; overflow-x:auto; scrollbar-width:none; }
-.guardian-task-tabs button { flex:0 0 33.333%; min-width:33.333%; }
+.guardian-task-tabs button { flex:0 0 50%; min-width:50%; }
 .guardian-task-card[data-status='due'] em { color:rgb(var(--hoho-color-danger)); background:rgb(var(--hoho-color-danger-soft)); }
 .guardian-task-card[data-status='snoozed'] em { color:#a16409; background:#fff5df; }
 .guardian-task-card[data-status='skipped_current'] em,.guardian-task-card[data-status='paused'] em,.guardian-task-card[data-status='ended'] em { color:rgb(var(--hoho-color-text-secondary)); background:rgb(var(--hoho-color-surface-muted)); }
@@ -144,14 +144,12 @@
 .guardian-task-view-menu { position: absolute; z-index: 8; top: 42px; left: 0; display: grid; width: 142px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgb(15 50 44 / .14); }
 .guardian-task-view-menu button { min-height: 44px; padding-inline: 12px; color: #294741; font-size: 13px; text-align: left; }
 .guardian-task-view-menu button + button { border-top: 1px solid #edf3f1; }
-.guardian-task-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border: 1px solid #b9e4db; border-radius: 12px; }
+.guardian-task-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid #b9e4db; border-radius: 12px; }
 .guardian-task-tabs button { min-width: 0; min-height: 44px; color: #167c70; font-size: 13px; font-weight: 720; }
 .guardian-task-tabs button + button { border-left: 1px solid #cde9e3; }
 .guardian-task-tabs button[aria-selected='true'] { background: #167c70; color: #fff; }
 .guardian-task-tabs button:focus-visible, .guardian-task-card:focus-visible, .guardian-task-view:focus-visible, .nurse-more-service:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: 2px; }
-.guardian-notification-notice, .guardian-data-notice { display: flex; min-height: 44px; align-items: center; gap: 8px; margin-top: 8px; border-radius: 10px; padding: 8px 10px; background: #f5f7f6; color: #526863; font-size: 12px; line-height: 1.45; }
-.guardian-notification-notice svg { width: 18px; height: 18px; flex: 0 0 auto; color: #647b76; }
-.guardian-data-notice { justify-content: space-between; border: 1px solid #dce9e6; background: #f8fbfa; }
+.guardian-data-notice { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; border: 1px solid #dce9e6; border-radius: 10px; padding: 8px 10px; background: #f8fbfa; color: #526863; font-size: 12px; line-height: 1.45; }
 .guardian-data-notice--error { border-color: #ecd8d4; background: #fffafa; color: #70554f; }
 .guardian-data-notice button { min-height: 44px; flex: 0 0 auto; padding-inline: 8px; color: rgb(var(--hoho-color-primary)); font-weight: 700; }
 .guardian-task-list { display: grid; gap: 8px; margin-top: 8px; }
