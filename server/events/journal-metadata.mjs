@@ -88,6 +88,15 @@ function validateDiet(value) {
     if (!meals.has(value.meal)) throw new HealthEventRecordError('餐次无效', 400, 'INVALID_JOURNAL_DIET')
     result.meal = value.meal
   }
+  if (value.startedAt !== undefined || value.endedAt !== undefined) {
+    if (value.kind !== 'meal' || !value.startedAt || !value.endedAt) throw new HealthEventRecordError('用餐起止时间必须同时填写', 400, 'INVALID_JOURNAL_DIET')
+    const startedAt = new Date(value.startedAt)
+    const endedAt = new Date(value.endedAt)
+    const elapsed = endedAt.getTime() - startedAt.getTime()
+    if (!Number.isFinite(startedAt.getTime()) || !Number.isFinite(endedAt.getTime()) || elapsed <= 0 || elapsed > 24 * 60 * 60_000) throw new HealthEventRecordError('用餐时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_DIET')
+    result.startedAt = startedAt.toISOString()
+    result.endedAt = endedAt.toISOString()
+  }
   if (value.appetite !== undefined) {
     if (!appetites.has(value.appetite)) throw new HealthEventRecordError('食欲记录无效', 400, 'INVALID_JOURNAL_DIET')
     result.appetite = value.appetite

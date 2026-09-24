@@ -37,6 +37,12 @@
 .sleep-correction-fields label { display: grid; gap: 4px; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 .sleep-correction-fields input { min-height: 44px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-3); color: rgb(var(--hoho-color-text-primary)); }
 .sleep-delete-action { min-height: 44px; color: rgb(var(--hoho-color-error)); }
+.activity-interval-detail { display: grid; gap: var(--hoho-space-3); }
+.activity-interval-detail dl { display: grid; gap: var(--hoho-space-2); margin: 0; }
+.activity-interval-detail dl > div { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.activity-interval-detail dt { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.activity-interval-detail dd { margin: 0; color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-label); font-variant-numeric: tabular-nums; }
+.activity-interval-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); }
 @media (prefers-reduced-motion: reduce) { .sleep-active-detail *, .trigger-opportunity-card { animation: none !important; transition: none !important; } }
 @media (max-width: 374px) { .trigger-opportunity-card { margin-left: 20px; padding: 12px; }.trigger-opportunity-heading strong { font-size: var(--hoho-font-size-label); } }
 .health-events-toolbar { position: absolute; z-index: 2; top: 0; right: 0; margin: 0; }
@@ -719,3 +725,73 @@
   .journal-day-grid .journal-record-main, .routine-grid-card, .journal-sleep-row { gap: 5px; padding-inline: 7px; }
   .journal-day-grid .journal-record-summary, .routine-grid-copy strong, .journal-sleep-row strong { font-size: 12px; }
 }
+
+/* Final timeline contract: one shared subject frame, one toolbar row, independent one-line cells. */
+.journal-subject-row { display: grid; min-height: 68px; grid-template-columns: minmax(0, 1fr) minmax(126px, 156px); align-items: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); padding: var(--hoho-space-2); background: rgb(var(--hoho-color-surface)); }
+.journal-subject-card, .journal-subject-summary { border: 0; }
+.journal-subject-card { height: auto; min-height: 50px; padding: 0 var(--hoho-space-1); }
+.journal-subject-summary { height: 50px; min-height: 50px; border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-2); }
+.journal-subject-summary .medical-prep-button__label small { display: block; }
+.journal-subject-summary .hoho-button__content { gap: 7px; }
+
+.journal-date-navigation { display: grid; height: 50px; grid-template-columns: 46px 32px minmax(62px, 1fr) 32px 36px 36px 36px; gap: 0; margin-bottom: 6px; padding: 0 3px; }
+.journal-date-navigation .journal-year-picker { justify-content: center; padding: 0; font-size: 14px; font-weight: 650; }
+.journal-date-navigation .journal-year-picker::after { right: 0; }
+.journal-date-navigation .journal-day-picker { font-size: 13px; font-weight: 650; }
+.journal-date-navigation > .hoho-button[data-size='icon'], .journal-yesterday-entry .hoho-button[data-size='icon'] { width: 32px; min-width: 32px; height: 44px; min-height: 44px; }
+.journal-date-navigation > .hoho-button:nth-last-child(-n + 3) { width: 36px; min-width: 36px; }
+.journal-scroll-region { padding-bottom: max(var(--hoho-space-5), env(safe-area-inset-bottom)); }
+
+.journal-day-grid { display: grid; gap: 7px; padding: 0 0 var(--hoho-space-2); }
+.journal-timeline-row { display: grid; min-height: 48px; grid-template-columns: 50px 16px minmax(0, 1fr); align-items: stretch; }
+.journal-timeline-row > time { display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 450; letter-spacing: 0; }
+.journal-timeline-row--hour > time { color: rgb(var(--hoho-color-primary)); font-size: 16px; font-weight: 720; }
+.journal-timeline-marker::before { inset-block: -7px; }
+.journal-day-grid > .journal-timeline-row:first-child .journal-timeline-marker::before { top: 50%; }
+.journal-day-grid > .journal-timeline-row:last-child .journal-timeline-marker::before { bottom: 50%; }
+.journal-timeline-marker > span { width: 7px; height: 7px; background: rgb(var(--hoho-color-primary) / .42); box-shadow: 0 0 0 4px rgb(var(--hoho-color-page-background)); }
+.journal-timeline-row--hour .journal-timeline-marker > span { width: 9px; height: 9px; background: rgb(var(--hoho-color-primary)); }
+.journal-timeline-row--minute .journal-timeline-marker > span { width: 6px; height: 6px; background: rgb(var(--hoho-color-text-tertiary)); }
+.journal-hour-cell { position: relative; min-height: 48px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 7px; background: rgb(var(--hoho-color-surface)); }
+.journal-hour-cell > * { width: 100%; min-width: 0; }
+.journal-empty-cell { display: block; height: 100%; min-height: 46px; }
+.journal-day-grid .journal-record, .journal-day-grid .journal-record-main, .routine-grid-card, .journal-activity-row { height: 46px; min-height: 46px; }
+.journal-day-grid .journal-record-main, .routine-grid-card, .journal-activity-row { display: grid; width: 100%; grid-template-columns: 20px minmax(0, 1fr) 18px; align-items: center; gap: 8px; padding: 0 10px; text-align: left; }
+.journal-day-grid .journal-record-content, .routine-grid-copy, .journal-activity-row > span { display: flex; min-width: 0; align-items: baseline; gap: 5px; overflow: hidden; white-space: nowrap; }
+.journal-day-grid .journal-record-summary, .routine-grid-copy strong, .journal-activity-row strong { min-width: 0; overflow: hidden; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; font-weight: 650; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.routine-grid-copy small, .journal-activity-row small { flex: none; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; }
+.journal-day-grid .journal-record-main > svg:first-child, .routine-grid-card > svg:first-child, .journal-activity-row > svg:first-child { color: rgb(var(--hoho-color-primary)); }
+.journal-day-grid .journal-record-main > svg:last-child, .routine-grid-card > svg:last-child, .journal-activity-row > svg:last-child { justify-self: end; }
+.journal-day-grid .journal-attachment { flex: none; }
+.journal-timeline-row--activity .journal-hour-cell { background: rgb(var(--hoho-color-primary-soft) / .28); }
+.journal-activity-row { color: rgb(var(--hoho-color-text-primary)); }
+.journal-timeline-row--empty .journal-hour-cell { background: rgb(var(--hoho-color-surface)); }
+
+.journal-timeline-row--now { min-height: 50px; }
+.journal-timeline-row--now > time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 500; }
+.journal-timeline-row--now .journal-timeline-marker > span { width: 9px; height: 9px; background: rgb(var(--hoho-color-primary)); }
+.journal-timeline-row--now .journal-hour-cell { border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-surface)); }
+.journal-now-cell { isolation: isolate; display: flex; min-height: 48px; align-items: center; gap: 8px; padding-inline: 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; font-variant-numeric: tabular-nums; }
+.journal-now-cell::before { position: absolute; z-index: -1; inset: 0 auto 0 0; width: var(--journal-now-progress); background: rgb(var(--hoho-color-primary-soft)); content: ''; transition: width 1s linear; }
+.journal-timeline-row--now-reset .journal-now-cell::before { transition: none; }
+.journal-now-cell > svg { flex: none; color: rgb(var(--hoho-color-primary)); }
+.journal-now-cell > svg { width: 18px; min-width: 18px; }
+.journal-now-cell > strong { width: auto; min-width: 0; flex: none; font-size: 14px; font-weight: 700; }
+.journal-now-cell > span { width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 374px) {
+  .journal-subject-row { grid-template-columns: minmax(0, 1fr) 126px; }
+  .journal-subject-card { gap: 6px; padding: 0; }
+  .journal-subject-name strong { font-size: 14px; }
+  .journal-subject-meta { font-size: 11px; white-space: nowrap; }
+  .journal-subject-summary .medical-prep-button__icon { display: inline-flex; width: 20px; height: 20px; flex: 0 0 20px; }
+  .journal-subject-summary .medical-prep-button__icon svg { width: 20px; height: 20px; }
+  .journal-date-navigation { grid-template-columns: 42px 30px minmax(58px, 1fr) 30px 34px 34px 34px; padding-inline: 1px; }
+  .journal-date-navigation > .hoho-button[data-size='icon'], .journal-yesterday-entry .hoho-button[data-size='icon'] { width: 30px; min-width: 30px; }
+  .journal-date-navigation > .hoho-button:nth-last-child(-n + 3) { width: 34px; min-width: 34px; }
+  .journal-timeline-row { grid-template-columns: 45px 14px minmax(0, 1fr); }
+  .journal-timeline-marker::before { left: 6px; }
+  .journal-day-grid .journal-record-main, .routine-grid-card, .journal-activity-row { gap: 6px; padding-inline: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) { .journal-now-cell::before { transition: none; } }

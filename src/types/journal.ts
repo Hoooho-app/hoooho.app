@@ -4,6 +4,9 @@ export type DietRecordKind = 'feeding' | 'complementary' | 'meal' | 'snack' | 's
 
 export interface JournalDietDetails {
   kind: DietRecordKind
+  /** Present only when one real meal has a user-confirmed start and end. */
+  startedAt?: string
+  endedAt?: string
   feedingMethod?: 'breast' | 'formula' | 'expressed' | 'mixed'
   breastSeconds?: { left: number; right: number; total: number }
   bottleMl?: number

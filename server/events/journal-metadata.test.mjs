@@ -2,6 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 
+test('meal intervals preserve one activity identity and validate real start and end', () => {
+  const journal = validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00', endedAt: '2026-09-24T18:40:00+08:00' } })
+  assert.equal(journal.diet.startedAt, '2026-09-24T09:20:00.000Z')
+  assert.equal(journal.diet.endedAt, '2026-09-24T10:40:00.000Z')
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T18:40:00+08:00', endedAt: '2026-09-24T17:20:00+08:00' } }), /用餐时长/)
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00' } }), /必须同时填写/)
+})
+
 test('medication journal keeps dose and route as recorded without calculation', () => {
   const journal = validateJournal({ categories: ['medication'], medication: { medicationName: '氯雷他定片', dosageForm: '片剂', strengthText: '10mg', amountValue: 2.5, amountUnit: 'mL', administrationRoute: 'oral', reasons: ['过敏相关表现'], recognitionSource: 'camera', recognitionStatus: 'draft_unverified' } })
   assert.deepEqual(journal.medication, { medicationName: '氯雷他定片', dosageForm: '片剂', strengthText: '10mg', amountValue: 2.5, amountUnit: 'mL', administrationRoute: 'oral', reasons: ['过敏相关表现'], recognitionSource: 'camera', recognitionStatus: 'draft_unverified' })
