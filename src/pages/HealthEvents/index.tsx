@@ -43,6 +43,25 @@ export function HealthEventsPage() {
   const nextActionEventId = getNurseNextActionEventId(state.status === 'success' ? state.data.events : [], currentMemberId) ?? (journalContext.memberId === currentMemberId ? journalContext.eventId : null)
   useEffect(() => { setNextActionOpen(false); setSelectedRecord(null) }, [currentMemberId])
   useEffect(() => {
+    let interval = 0
+    let timeout = 0
+    const update = () => {
+      const next = getLocalDateKey(new Date())!
+      setToday((previous) => {
+        if (previous === next) return previous
+        setDay((current) => current === previous ? next : current)
+        return next
+      })
+    }
+    const schedule = () => {
+      window.clearTimeout(timeout); window.clearInterval(interval)
+      timeout = window.setTimeout(() => { update(); interval = window.setInterval(update, 60_000) }, 60_000 - Date.now() % 60_000 + 50)
+    }
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') { update(); schedule() } }
+    schedule(); document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { window.clearTimeout(timeout); window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [])
+  useEffect(() => {
     const entry = (location.state as { nurseMedicationEntry?: boolean; nurseRecordEntry?: 'symptom' } | null)
     if (!entry?.nurseMedicationEntry && !entry?.nurseRecordEntry) return
     submissionKeyRef.current = ''
