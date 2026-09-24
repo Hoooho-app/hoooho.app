@@ -186,7 +186,8 @@ test('empty today shows one contextual prompt and current-time marker without th
   const today = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
   await page.getByLabel('选择日期').fill(today)
   await expect(page.locator('.journal-timeline-row--now > time')).toHaveText(/^\d{2}:\d{2}$/)
-  await expect(page.locator('.journal-now-cell')).toContainText('当前')
+  await expect(page.locator('.journal-now-cell')).toHaveText(/^\d{2} : \d{2} : \d{2}$/)
+  await expect(page.locator('.journal-now-cell')).not.toContainText('当前')
   await expect(page.locator('.journal-current-line')).toHaveCount(0)
   await expect(page.locator('.trigger-opportunity-card')).toHaveCount(1)
   const illustration = page.locator('.trigger-opportunity-illustration img')
@@ -293,7 +294,7 @@ test('timeline clock recalibrates on the minute and foreground recovery includin
   await expect(page.locator('.journal-timeline-row--now > time')).toHaveText('23:59')
   await page.clock.runFor(1100)
   await expect(page.locator('.journal-timeline-row--now > time')).toHaveText('00:00', { timeout: 2000 })
-  await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前，本小时已过0分00秒')
+  await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，00 : 00 : 00')
   await expect(page.locator('.journal-timeline-row--now')).toHaveClass(/journal-timeline-row--now-reset/)
   expect(await page.locator('.journal-now-cell').evaluate((cell) => getComputedStyle(cell, '::before').transitionDuration)).toBe('0s')
   await expect(page.getByLabel('选择日期')).toHaveValue('2026-09-25')
@@ -308,17 +309,20 @@ test('current cell uses the whole background as second-level progress without re
   const current = page.locator('.journal-timeline-row--now')
   await expect(current).toHaveCount(1)
   await expect(page.locator('.journal-day-grid > .journal-timeline-row').first()).toHaveClass(/journal-timeline-row--now/)
-  await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前，本小时已过48分12秒')
+  await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，13 : 48 : 12')
   expect(await current.locator('.journal-now-cell').evaluate((cell) => Number.parseFloat((cell as HTMLElement).style.getPropertyValue('--journal-now-progress')))).toBeCloseTo(80.333, 2)
   const scroll = page.locator('.journal-scroll-region')
   await scroll.evaluate((element) => { element.scrollTop = 160 })
   const before = await scroll.evaluate((element) => element.scrollTop)
   await page.clock.runFor(1100)
-  await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前，本小时已过48分13秒')
+  await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，13 : 48 : 13')
   expect(await scroll.evaluate((element) => element.scrollTop)).toBe(before)
   const progressLayer = await current.locator('.journal-now-cell').evaluate((cell) => ({ children: cell.children.length, fill: getComputedStyle(cell, '::before').backgroundColor }))
-  expect(progressLayer.children).toBe(3)
+  expect(progressLayer.children).toBe(2)
   expect(progressLayer.fill).not.toBe('rgba(0, 0, 0, 0)')
+  const dotAnimation = await current.locator('.journal-timeline-marker > span').evaluate((dot) => ({ duration: getComputedStyle(dot).animationDuration, name: getComputedStyle(dot).animationName }))
+  expect(dotAnimation.duration).toBe('1s')
+  expect(dotAnimation.name).toBe('journal-now-dot-tick')
 })
 
 test('one real meal activity projects independent cells, preserves interleaved records, and edits or deletes through the source record', async ({ page }) => {
@@ -341,7 +345,7 @@ test('one real meal activity projects independent cells, preserves interleaved r
   await expect(page.locator('.journal-timeline-row[data-time="18:40"]')).toContainText('晚餐· 共1小时20分')
   await expect(page.locator('.journal-timeline-row[data-time="18:10"]')).toContainText('翻身')
   await expect(page.locator(`.journal-record[data-record-id="${separateMealId}"]`)).toHaveCount(1)
-  await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前，本小时已过48分12秒')
+  await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，20 : 48 : 12')
   await expect(page.locator('.journal-timeline-row[data-time="20:00"]')).toHaveCount(0)
   expect(await page.locator('.journal-now-cell').evaluate((cell) => ({ oneLine: cell.scrollHeight <= cell.clientHeight + 1, visibleText: cell.scrollWidth <= cell.clientWidth + 1 }))).toEqual({ oneLine: true, visibleText: true })
   await page.screenshot({ path: 'outputs/health-events-timeline-iphone-se.png', fullPage: false })
@@ -589,6 +593,7 @@ test('symptom record footer stays full width at the required mobile widths', asy
 })
 
 test('health journal medical prep uses a centered title and report icon', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page)
   const button = page.getByRole('button', { name: '就诊情况单，孩子情况快速整理', exact: true })
   await expect(button).toBeEnabled()
@@ -607,7 +612,7 @@ test('health journal medical prep uses a centered title and report icon', async 
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }
   })
-  expect(layout).toEqual({ buttonHeight: 50, buttonWidth: 126, iconWidth: 20, iconHeight: 20, contentCentered: true, pageOverflows: false })
+  expect(layout).toEqual({ buttonHeight: 50, buttonWidth: 140, iconWidth: 24, iconHeight: 24, contentCentered: true, pageOverflows: false })
   await page.screenshot({ path: 'test-results/medical-prep-report-iphone-se.png' })
 })
 
