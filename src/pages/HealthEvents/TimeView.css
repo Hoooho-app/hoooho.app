@@ -514,7 +514,10 @@
 .symptom-heading { display: flex; align-items: center; justify-content: space-between; }.symptom-heading h2 { margin: 0; }.symptom-heading em { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-style: normal; }
 .symptom-photo-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .symptom-photo-actions > button { display: flex; min-height: 54px; align-items: center; justify-content: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary-soft) / .34); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 600; }
-.symptom-photo-section .quick-record-photos { margin-top: var(--hoho-space-2); }.symptom-photo-section .quick-record-photos__heading { display: none; }
+.symptom-photo-section .quick-record-photos { margin: 0; padding: 0 8px 8px; }.symptom-photo-section .quick-record-photos__heading { display: none; }
+.symptom-photo-section .quick-record-photos__rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; overflow: visible; touch-action: auto; }
+.symptom-photo-section .quick-record-photo { width: 100%; height: auto; aspect-ratio: 1; min-width: 0; border-radius: 7px; }
+.symptom-photo-section .quick-record-photo__delete { top: 1px; right: 1px; width: 18px; height: 18px; }
 .symptom-supplement { border-block: 1px solid rgb(var(--hoho-color-border)); }
 .symptom-supplement > button { display: grid; width: 100%; min-height: 66px; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--hoho-space-2); text-align: left; }
 .symptom-supplement > button span { display: grid; gap: 2px; }.symptom-supplement > button strong { font-size: var(--hoho-font-size-label); }.symptom-supplement > button small, .symptom-supplement > button em { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-style: normal; }
@@ -540,7 +543,7 @@
 .symptom-heading button { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: rgb(var(--hoho-color-primary)); }
 .symptom-heading button.is-listening { background: rgb(var(--hoho-color-primary-soft)); }
 .symptom-narrative { position: relative; }
-.symptom-narrative textarea { width: 100%; min-height: 88px; max-height: 180px; resize: none; overflow-y: auto; overflow-wrap: anywhere; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 11px 12px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); font-size: 16px; line-height: 1.45; }
+.symptom-narrative textarea { width: 100%; min-height: 88px; max-height: 180px; resize: none; overflow-y: auto; overflow-wrap: anywhere; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 11px 12px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 1.45; }
 .symptom-narrative textarea:focus, .symptom-location-input > input:focus { border-color: rgb(var(--hoho-color-primary)); outline: 2px solid rgb(var(--hoho-color-primary) / .12); }
 .symptom-summary-field { display: grid; gap: 4px; margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
 .symptom-summary-field input { min-height: 42px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 8px 10px; color: rgb(var(--hoho-color-text-primary)); }
@@ -579,6 +582,11 @@
 .symptom-optional-fields label { display: grid; gap: 5px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
 .symptom-optional-fields input, .symptom-optional-fields select, .symptom-optional-fields textarea { min-height: 42px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 8px 10px; color: rgb(var(--hoho-color-text-primary)); }
 .symptom-optional-fields textarea { min-height: 64px; resize: vertical; }
+.symptom-optional-fields .symptom-impact-range > span:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.symptom-optional-fields .symptom-impact-range > span:first-child strong { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 650; }
+.symptom-optional-fields .symptom-impact-range input[type='range'] { min-height: 32px; border: 0; border-radius: 0; padding: 0; accent-color: rgb(var(--hoho-color-primary)); }
+.symptom-impact-scale { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; color: rgb(var(--hoho-color-text-secondary)); font-size: 10px; }
+.symptom-impact-scale i { font-style: normal; text-align: center; }
 .symptom-compact-row .is-open { transform: rotate(90deg); }
 .symptom-related-list { display: grid; gap: 8px; }
 .symptom-related-list > button:not(.symptom-related-back) { display: grid; min-height: 66px; grid-template-columns: minmax(0,1fr) 24px; align-items: center; gap: 8px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 9px 11px; text-align: left; }
@@ -658,8 +666,8 @@
 .routine-setup-row label input[type='time'] { min-height: 40px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: 8px; color: rgb(var(--hoho-color-text-primary)); }
 .routine-setup-row label small { color: rgb(var(--hoho-color-error)); }
 .routine-setup-row label em { color: rgb(var(--hoho-color-primary)); font-size: 10px; font-style: normal; }
+.routine-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 6px; }
 .routine-disabled-copy { justify-self: end; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
-.routine-setup-row label:last-child:nth-child(3) { grid-column: 2; }
 .routine-decline { display: block; min-height: var(--hoho-touch-target); margin: var(--hoho-space-2) auto 0; color: rgb(var(--hoho-color-text-secondary)); }
 .routine-track-source { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--hoho-space-3); border-radius: var(--hoho-radius-control); padding: var(--hoho-space-3); background: rgb(var(--hoho-color-primary-soft) / .6); color: rgb(var(--hoho-color-primary)); }
 .routine-track-source span { font-size: var(--hoho-font-size-caption); font-weight: 700; }

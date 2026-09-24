@@ -24,8 +24,8 @@ const cleanItems = (input) => Object.entries(itemDefinitions).flatMap(([key, def
   const item = input?.[key]
   if (!item?.enabled) return []
   if (!timePattern.test(item.time ?? '')) throw new RoutineError(`${definition.title}时间无效`)
-  if (key === 'nightSleep' && !timePattern.test(item.endTime ?? '')) throw new RoutineError('夜间睡眠结束时间无效')
-  return [{ key, title: definition.title, category: definition.category, ...(definition.meal ? { meal: definition.meal } : {}), time: item.time, ...(key === 'nightSleep' ? { endTime: item.endTime } : {}) }]
+  if (!timePattern.test(item.endTime ?? '')) throw new RoutineError(`${definition.title}结束时间无效`)
+  return [{ key, title: definition.title, category: definition.category, ...(definition.meal ? { meal: definition.meal } : {}), time: item.time, endTime: item.endTime }]
 })
 
 export class RoutineService {
@@ -153,7 +153,11 @@ export class RoutineService {
     let occurredAt = scheduled.toISOString()
     if (track.category === 'diet') {
       const foods = Array.isArray(input.foods) ? input.foods.map(String).map((item) => item.trim()).filter(Boolean).slice(0, 12) : []
-      journal = { categories: ['diet'], occurredAt, timePrecision: 'exact', diet: { kind: 'meal', meal: track.meal, ...(foods.length ? { foods } : {}) } }
+      const startedAt = new Date(input.startedAt ?? input.occurredAt)
+      const endedAt = track.endTime ? new Date(input.endedAt) : null
+      if (track.endTime && (Number.isNaN(endedAt.getTime()) || endedAt <= startedAt || endedAt > now)) throw new RoutineError('请填写已经结束的真实用餐时间', 400, 'INVALID_ROUTINE_MEAL')
+      if (endedAt) occurredAt = endedAt.toISOString()
+      journal = { categories: ['diet'], occurredAt, timePrecision: 'exact', diet: { kind: 'meal', meal: track.meal, ...(foods.length ? { foods } : {}), ...(endedAt ? { startedAt: startedAt.toISOString(), endedAt: endedAt.toISOString() } : {}) } }
       content = foods.length ? `${track.title} · ${foods.join('、')}` : track.title
     } else {
       const sleepAt = new Date(input.sleepAt)

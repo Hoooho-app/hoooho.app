@@ -21,33 +21,35 @@ async function fixture() {
 
 test('routine versions are day-scoped, idempotent and not backfilled before consent', async () => {
   const { service, member } = await fixture()
-  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { breakfast: { enabled: true, time: '08:10' } } }, new Date('2026-09-22T00:00:00Z'))
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { breakfast: { enabled: true, time: '08:10', endTime: '08:40' } } }, new Date('2026-09-22T00:00:00Z'))
   assert.equal((await service.getDay('account-1', member.id, '2026-09-21')).tracks.length, 0)
   assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks[0].time, '08:10')
-  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-23', items: { breakfast: { enabled: true, time: '08:40' } } }, new Date('2026-09-23T00:00:00Z'))
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-23', items: { breakfast: { enabled: true, time: '08:40', endTime: '09:10' } } }, new Date('2026-09-23T00:00:00Z'))
   assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks[0].time, '08:10')
   assert.equal((await service.getDay('account-1', member.id, '2026-09-23')).tracks[0].time, '08:40')
 })
 
 test('confirmation creates one actual fact while skipped remains only an override', async () => {
   const { service, member, calls } = await fixture()
-  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { lunch: { enabled: true, time: '12:10' } } }, new Date('2026-09-22T00:00:00Z'))
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { lunch: { enabled: true, time: '12:10', endTime: '12:40' } } }, new Date('2026-09-22T00:00:00Z'))
   await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'skipped' }, new Date('2026-09-22T12:30:00Z'))
   assert.equal(calls.length, 0)
   await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'reset' }, new Date('2026-09-22T12:31:00Z'))
-  await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'confirm', occurredAt: '2026-09-22T12:10:00Z', idempotencyKey: 'routine-confirm-one' }, new Date('2026-09-22T12:40:00Z'))
-  await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'confirm', occurredAt: '2026-09-22T12:10:00Z', idempotencyKey: 'routine-confirm-one' }, new Date('2026-09-22T12:41:00Z'))
+  await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'confirm', occurredAt: '2026-09-22T12:10:00Z', startedAt: '2026-09-22T12:10:00Z', endedAt: '2026-09-22T12:40:00Z', idempotencyKey: 'routine-confirm-one' }, new Date('2026-09-22T12:40:00Z'))
+  await service.setOverride('account-1', member.id, '2026-09-22', 'lunch', { action: 'confirm', occurredAt: '2026-09-22T12:10:00Z', startedAt: '2026-09-22T12:10:00Z', endedAt: '2026-09-22T12:40:00Z', idempotencyKey: 'routine-confirm-one' }, new Date('2026-09-22T12:41:00Z'))
   assert.equal(calls.length, 1)
   assert.equal(calls[0].journal.diet.meal, '午餐')
+  assert.equal(calls[0].journal.diet.startedAt, '2026-09-22T12:10:00.000Z')
+  assert.equal(calls[0].journal.diet.endedAt, '2026-09-22T12:40:00.000Z')
   assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks[0].status, 'confirmed')
 })
 
 test('deleted or moved confirmed records restore the routine track and another member cannot read it', async () => {
   const { service, member, members, recordMap } = await fixture()
   const sibling = await members.create({ accountId: 'account-1', name: '乐乐', relationship: 'child' })
-  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { dinner: { enabled: true, time: '18:10' } } }, new Date('2026-09-22T00:00:00Z'))
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { dinner: { enabled: true, time: '18:10', endTime: '18:40' } } }, new Date('2026-09-22T00:00:00Z'))
   assert.equal((await service.getDay('account-1', sibling.id, '2026-09-22')).tracks.length, 0)
-  await service.setOverride('account-1', member.id, '2026-09-22', 'dinner', { action: 'confirm', occurredAt: '2026-09-22T10:10:00Z', idempotencyKey: 'dinner-confirm' }, new Date('2026-09-22T12:00:00Z'))
+  await service.setOverride('account-1', member.id, '2026-09-22', 'dinner', { action: 'confirm', occurredAt: '2026-09-22T10:10:00Z', startedAt: '2026-09-22T10:10:00Z', endedAt: '2026-09-22T10:40:00Z', idempotencyKey: 'dinner-confirm' }, new Date('2026-09-22T12:00:00Z'))
   const confirmed = (await service.getDay('account-1', member.id, '2026-09-22')).tracks[0]
   assert.equal(confirmed.status, 'confirmed')
   assert.equal(confirmed.eventId, 'event-1')
