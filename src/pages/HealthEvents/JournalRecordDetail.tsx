@@ -9,9 +9,10 @@ import { useAppStore } from '../../store/useAppStore'
 import { healthEventRecordService } from '../../services/healthEventRecords'
 import { localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
 
-export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
+export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose }: {
   eventId: string
   recordId: string
+  startSleepCorrection?: boolean
   onChanged: () => void
   onClose: () => void
 }) {
@@ -26,6 +27,18 @@ export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
   const [sleepAtInput, setSleepAtInput] = useState('')
   const [wakeAtInput, setWakeAtInput] = useState('')
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer) }, [])
+  useEffect(() => {
+    if (state.status !== 'success' || !startSleepCorrection) return
+    const current = state.data.records.find((item) => item.id === recordId)
+    const sleep = current?.journal?.sleep
+    if (!sleep || sleep.status !== 'ongoing') return
+    const elapsed = Math.floor((Date.now() - Date.parse(sleep.sleepAt)) / 60_000)
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 1440) return
+    setSleepAtInput(localDateTimeValue(new Date(sleep.sleepAt)))
+    setWakeAtInput('')
+    setCorrectionOpen(true)
+    setEndError('')
+  }, [recordId, startSleepCorrection, state])
 
   if (state.status === 'loading') return <StatusSheet onClose={onClose}><StatusNotice title="正在读取记录详情" /></StatusSheet>
   if (state.status === 'error') return <StatusSheet onClose={onClose}><StatusNotice action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} tone="error" title={state.message} /></StatusSheet>
@@ -38,9 +51,29 @@ export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
     const sleep = record.journal.sleep
     const elapsed = Math.floor((now - Date.parse(sleep.sleepAt)) / 60_000)
     const abnormal = !Number.isFinite(elapsed) || elapsed < 0 || elapsed > 1440
+    const originalSleepAt = localDateTimeValue(new Date(sleep.sleepAt))
+    const correctionDirty = correctionOpen && (sleepAtInput !== originalSleepAt || wakeAtInput !== '')
+    const close = () => { if (!correctionDirty || window.confirm('时间修改还没有保存，确定退出吗？')) onClose() }
+    const validateCorrection = () => {
+      if (!correctionOpen) return ''
+      if (!sleepAtInput) return '请填写实际开始时间。'
+      if (!wakeAtInput) return '请填写实际结束时间。'
+      const start = Date.parse(sleepAtInput)
+      const end = Date.parse(wakeAtInput)
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return '时间格式无效，请重新选择。'
+      if (start > Date.now()) return '实际开始时间不能晚于现在。'
+      if (end > Date.now()) return '实际结束时间不能晚于现在。'
+      if (end <= start) return '实际结束时间必须晚于实际开始时间。'
+      if (end - start > 86_400_000) return '睡眠时长不能超过24小时。'
+      return ''
+    }
+    const correctionError = validateCorrection()
+    const correctionSpan = correctionOpen && sleepAtInput && wakeAtInput && Number.isFinite(Date.parse(sleepAtInput)) && Number.isFinite(Date.parse(wakeAtInput))
+      ? Math.round((Date.parse(wakeAtInput) - Date.parse(sleepAtInput)) / 60_000)
+      : null
     const openCorrection = () => {
-      setSleepAtInput(localDateTimeValue(new Date(sleep.sleepAt)))
-      setWakeAtInput(localDateTimeValue())
+      setSleepAtInput(originalSleepAt)
+      setWakeAtInput('')
       setCorrectionOpen(true); setEndError('')
     }
     const endSleep = async () => {
@@ -50,14 +83,14 @@ export function JournalRecordDetail({ eventId, recordId, onChanged, onClose }: {
       try {
         const sleepAt = correctionOpen ? localDateTimeToIso(sleepAtInput) : sleep.sleepAt
         const wakeAt = correctionOpen ? localDateTimeToIso(wakeAtInput) : new Date().toISOString()
-        const duration = Math.round((Date.parse(wakeAt) - Date.parse(sleepAt)) / 60_000)
-        if (Date.parse(sleepAt) > Date.now() || Date.parse(wakeAt) > Date.now() || duration <= 0 || duration > 1440) throw new Error('请确认结束时间晚于开始时间，且睡眠时长不超过24小时。')
+        if (correctionError) throw new Error(correctionError)
         await healthEventRecordService.endSleep(record.id, { sleepAt, wakeAt }, token)
         onChanged(); onClose()
       } catch (error) { setEndError(error instanceof Error ? error.message : '结束睡眠失败，请重试') }
       finally { setEnding(false) }
     }
-    return <BottomSheetSurface label="正在记录睡眠" onClose={onClose} open title="正在记录睡眠"><div className="sleep-active-detail"><span><Moon aria-hidden="true" size={30} /></span>{abnormal ? <><h2>这次睡眠记录尚未结束，请核对时间。</h2><p>{`原开始时间：${new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}`}</p></> : <><strong>{`${Math.floor(elapsed / 60)}小时${elapsed % 60}分钟`}</strong><h2>{`${state.data.member.name}开始睡觉了`}</h2></>}{correctionOpen && <div className="sleep-correction-fields"><label><span>实际开始时间</span><input aria-label="实际开始时间" max={localDateTimeValue()} onChange={(event) => setSleepAtInput(event.target.value)} type="datetime-local" value={sleepAtInput} /></label><label><span>实际结束时间</span><input aria-label="实际结束时间" max={localDateTimeValue()} onChange={(event) => setWakeAtInput(event.target.value)} type="datetime-local" value={wakeAtInput} /></label></div>}<HohoButton fullWidth loading={ending} onClick={() => void endSleep()} size="large">{correctionOpen ? '确认并结束睡眠' : abnormal ? '核对时间' : '结束睡眠'}</HohoButton><p>离开页面也会继续记录</p>{endError && <p role="alert">{endError}</p>}<button className="sleep-delete-action" onClick={async () => { if (!window.confirm('确定删除这条睡眠记录吗？')) return; await deleteRecord(record.id); onChanged(); onClose() }} type="button">删除这条记录</button></div></BottomSheetSurface>
+    const correctionSpanCopy = correctionSpan === null || correctionSpan <= 0 ? '' : `当前区间跨度：${Math.floor(correctionSpan / 1440)}天${Math.floor((correctionSpan % 1440) / 60)}小时${correctionSpan % 60}分钟`
+    return <BottomSheetSurface label={abnormal ? '睡眠时间未补全' : '正在记录睡眠'} onClose={close} open title={abnormal ? '睡眠时间未补全' : '正在记录睡眠'}><div className="sleep-active-detail"><span><Moon aria-hidden="true" size={30} /></span>{abnormal ? <><h2>这次睡眠尚未补全时间</h2><p>{`原始开始时间：${new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}`}</p></> : <><strong>{`${Math.floor(elapsed / 60)}小时${elapsed % 60}分钟`}</strong><h2>{`${state.data.member.name}开始睡觉了`}</h2></>}{correctionOpen && <div className="sleep-correction-fields"><label><span>实际开始时间</span><input aria-label="实际开始时间" max={localDateTimeValue()} onChange={(event) => setSleepAtInput(event.target.value)} type="datetime-local" value={sleepAtInput} /></label><label><span>实际结束时间</span><input aria-label="实际结束时间" max={localDateTimeValue()} onChange={(event) => setWakeAtInput(event.target.value)} type="datetime-local" value={wakeAtInput} /></label>{correctionSpanCopy && <p>{correctionSpanCopy}</p>}{correctionError && <p role="alert">{correctionError}</p>}</div>}<HohoButton disabled={Boolean(correctionError)} fullWidth loading={ending} onClick={() => void endSleep()} size="large">{correctionOpen ? '确认并结束睡眠' : abnormal ? '核对时间' : '结束睡眠'}</HohoButton>{!abnormal && <p>离开页面也会继续记录</p>}{endError && <p role="alert">{endError}</p>}<button className="sleep-delete-action" onClick={async () => { if (!window.confirm('确定删除这条睡眠记录吗？')) return; await deleteRecord(record.id); onChanged(); onClose() }} type="button">删除这条记录</button></div></BottomSheetSurface>
   }
 
   return <SymptomRecordSheet

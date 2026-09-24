@@ -87,6 +87,8 @@ export interface JournalSymptomDetails {
   descriptors: string[]
   impactLevel?: SymptomImpactLevel
   onsetApprox?: 'just_now' | 'today' | 'yesterday' | 'two_three_days' | 'within_week' | 'earlier'
+  /** Independent recurrence observation. Legacy records may still store `trend: recurrent`. */
+  recurrent?: boolean
   trend?: 'same' | 'more_noticeable' | 'improving' | 'returned' | 'recurrent' | 'unclear'
   associatedSymptoms?: string[]
   symptomSpecificData?: Record<string, string | number | boolean | string[]>

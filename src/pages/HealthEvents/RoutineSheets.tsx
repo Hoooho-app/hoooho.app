@@ -21,7 +21,7 @@ function localInput(iso: string) {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16)
 }
 
-export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, token, onClose, onSaved }: { effectiveFrom: string; memberId: string; open: boolean; routineDay: RoutineDay; token: string; onClose: () => void; onSaved: () => void }) {
+export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, token, onClose, onSaved }: { effectiveFrom: string; memberId: string; open: boolean; routineDay: RoutineDay; token: string; onClose: () => void; onSaved: (message: string) => void }) {
   const initial = useMemo(() => Object.fromEntries(definitions.map(({ key }) => {
     const item = routineDay.template?.items.find((candidate) => candidate.key === key)
     return [key, { enabled: Boolean(item), time: item?.time ?? '', endTime: item?.endTime ?? '' }]
@@ -41,7 +41,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     try {
       const enabled = definitions.some(({ key }) => items[key].enabled)
       await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled, items: enabled ? items : {} }, token)
-      onSaved(); onClose()
+      onSaved('已保存，日常作息已更新'); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
@@ -56,8 +56,18 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
         </>}
       </div>)}
     </div>
-    {routineDay.consent === 'unset' && <button className="routine-decline" onClick={async () => { await routineTrackService.setConsent(memberId, 'declined', token); onSaved(); onClose() }} type="button">暂不使用</button>}
-    {routineDay.consent === 'enabled' && <button className="routine-decline" onClick={async () => { await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled: false, items: {} }, token); onSaved(); onClose() }} type="button">停用日常作息</button>}
+    {routineDay.consent === 'unset' && <button className="routine-decline" disabled={saving} onClick={async () => {
+      setSaving(true); setError('')
+      try { await routineTrackService.setConsent(memberId, 'declined', token); onSaved('已暂不使用日常作息'); onClose() }
+      catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
+      finally { setSaving(false) }
+    }} type="button">暂不使用</button>}
+    {routineDay.consent === 'enabled' && <button className="routine-decline" disabled={saving} onClick={async () => {
+      setSaving(true); setError('')
+      try { await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled: false, items: {} }, token); onSaved('已保存，日常作息已更新'); onClose() }
+      catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
+      finally { setSaving(false) }
+    }} type="button">停用日常作息</button>}
     {error && <p className="routine-sheet-error" role="alert">{error}</p>}
   </BottomSheetSurface>
 }

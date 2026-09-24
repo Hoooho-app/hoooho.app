@@ -191,6 +191,7 @@ function validateSymptom(value) {
   if (associatedSymptoms?.includes('没有特别发现') && associatedSymptoms.length > 1) throw new HealthEventRecordError('伴随表现选项互斥', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (value.impactLevel !== undefined && !symptomImpacts.has(value.impactLevel)) throw new HealthEventRecordError('影响程度无效', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (value.onsetApprox !== undefined && !symptomOnsets.has(value.onsetApprox)) throw new HealthEventRecordError('开始时间无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (value.recurrent !== undefined && typeof value.recurrent !== 'boolean') throw new HealthEventRecordError('反复出现记录无效', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (value.trend !== undefined && !symptomTrends.has(value.trend)) throw new HealthEventRecordError('变化记录无效', 400, 'INVALID_JOURNAL_SYMPTOM')
   const optionalText = (source, field, limit) => source === undefined ? undefined : typeof source === 'string' && source.trim() && source.trim().length <= limit ? source.trim() : (() => { throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_SYMPTOM') })()
   const otherCategoryText = optionalText(value.otherCategoryText, '其他症状', 80)
@@ -233,7 +234,7 @@ function validateSymptom(value) {
     }
   }
   if (!narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
-  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
+  return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.recurrent === true ? { recurrent: true } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
 
 function validateMedication(value) {
@@ -384,12 +385,13 @@ export function validateJournal(value) {
   if (medication && !value.categories.includes('medication')) throw new HealthEventRecordError('用药详情必须归入用药分类', 400, 'INVALID_JOURNAL_MEDICATION')
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
   if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
-  return { categories: [...new Set(value.categories)], ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
+  if (value.timePrecision !== undefined && !['exact', 'period', 'unknown'].includes(value.timePrecision)) throw new HealthEventRecordError('发生时间精度无效', 400, 'INVALID_JOURNAL_TIME')
+  return { categories: [...new Set(value.categories)], ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
-  const selected = ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
+  const selected = record.journal?.timePrecision === 'exact' || ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
   let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {
     const text = record.sourceText || record.content || ''

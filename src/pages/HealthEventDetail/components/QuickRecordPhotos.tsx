@@ -30,6 +30,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const photosRef = useRef(photos)
   const draftIdRef = useRef('')
+  const uploadVersionsRef = useRef(new Map<string, number>())
   photosRef.current = photos
 
   const ensureDraftId = () => {
@@ -59,19 +60,35 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
 
   useEffect(() => () => photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl)), [])
 
-  const uploadItem = async (item: QuickRecordPhotoItem, sortOrder: number) => {
+  const uploadItem = async (item: QuickRecordPhotoItem, sortOrder: number, version: number) => {
     if (!item.file || !memberId || !token) return
     try {
       const prepared = await prepareHealthImage(item.file)
       const saved = await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...prepared, sortOrder }, token)
-      setPhotos((current) => current.map((photo) => photo.localId === item.localId
-        ? { ...photo, serverId: saved.id, status: 'uploaded', error: undefined }
-        : photo))
+      if (uploadVersionsRef.current.get(item.localId) !== version) return
+      setPhotos((current) => {
+        const next = current.map((photo): QuickRecordPhotoItem => photo.localId === item.localId
+          ? { ...photo, serverId: saved.id, status: 'uploaded', error: undefined }
+          : photo)
+        photosRef.current = next
+        return next
+      })
     } catch (reason) {
-      setPhotos((current) => current.map((photo) => photo.localId === item.localId
-        ? { ...photo, status: 'failed', error: reason instanceof Error ? reason.message : '上传失败，请重试' }
-        : photo))
+      if (uploadVersionsRef.current.get(item.localId) !== version) return
+      setPhotos((current) => {
+        const next = current.map((photo): QuickRecordPhotoItem => photo.localId === item.localId
+          ? { ...photo, status: 'failed', error: reason instanceof Error ? reason.message : '上传失败，请重试' }
+          : photo)
+        photosRef.current = next
+        return next
+      })
     }
+  }
+
+  const beginUpload = (item: QuickRecordPhotoItem, sortOrder: number) => {
+    const version = (uploadVersionsRef.current.get(item.localId) ?? 0) + 1
+    uploadVersionsRef.current.set(item.localId, version)
+    void uploadItem(item, sortOrder, version)
   }
 
   const chooseFiles = (files: FileList | null) => {
@@ -83,29 +100,39 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     const additions = selected.map((file): QuickRecordPhotoItem => ({
       localId: crypto.randomUUID(), file, name: file.name, previewUrl: URL.createObjectURL(file), status: 'uploading'
     }))
-    setPhotos((current) => [...current, ...additions])
-    additions.forEach((item, index) => void uploadItem(item, photosRef.current.length + index))
+    const previousCount = photosRef.current.length
+    const next = [...photosRef.current, ...additions]
+    photosRef.current = next
+    setPhotos(next)
+    additions.forEach((item, index) => beginUpload(item, previousCount + index))
     return additions.map((item) => item.localId)
   }
 
   const retry = (localId: string) => {
     const item = photosRef.current.find((photo) => photo.localId === localId)
-    if (!item) return
-    setPhotos((current) => current.map((photo) => photo.localId === localId ? { ...photo, status: 'uploading', error: undefined } : photo))
-    void uploadItem(item, photosRef.current.findIndex((photo) => photo.localId === localId))
+    if (!item || item.status !== 'failed') return
+    const next = photosRef.current.map((photo): QuickRecordPhotoItem => photo.localId === localId ? { ...photo, status: 'uploading', error: undefined } : photo)
+    photosRef.current = next
+    setPhotos(next)
+    beginUpload(item, photosRef.current.findIndex((photo) => photo.localId === localId))
   }
 
   const remove = (localId: string) => {
     const item = photosRef.current.find((photo) => photo.localId === localId)
     if (!item) return
+    uploadVersionsRef.current.set(localId, (uploadVersionsRef.current.get(localId) ?? 0) + 1)
     URL.revokeObjectURL(item.previewUrl)
-    setPhotos((current) => current.filter((photo) => photo.localId !== localId))
+    const next = photosRef.current.filter((photo) => photo.localId !== localId)
+    photosRef.current = next
+    setPhotos(next)
     setPreviewIndex(null)
     if (item.serverId && memberId && token && draftIdRef.current) void quickRecordService.deletePhoto(draftIdRef.current, item.serverId, memberId, token).catch(() => undefined)
   }
 
   const clearLocal = () => {
     photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+    uploadVersionsRef.current.clear()
+    photosRef.current = []
     setPhotos([])
     setPreviewIndex(null)
     setNotice('')
@@ -127,7 +154,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   return { photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
-export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number }) {
+export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lightboxRef = useRef<HTMLDivElement>(null)
   const { photos, notice, previewIndex } = model
@@ -147,14 +174,14 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT }: {
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
           <button aria-label={`查看照片 ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button"><img alt="" src={photo.previewUrl} /></button>
           {photo.status === 'uploading' && <span aria-label="上传中" className="quick-record-photo__status"><LoaderCircle className="is-spinning" size={17} /></span>}
-          {photo.status === 'failed' && <button aria-label={`重试上传 ${photo.name}`} className="quick-record-photo__status" onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={16} /></button>}
-          <button aria-label={`删除照片 ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>
+          {photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
+          {photo.status !== 'failed' && <button aria-label={`删除照片 ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}
         </div>)}
-        {photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
+        {showAddButton && photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
       </div>
-      <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
+      {showAddButton && <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />}
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}
-      {model.blocked && <p className="quick-record-photo-error" role="alert">请重试或删除上传失败的照片后再保存</p>}
+      {model.blocked && <p className="quick-record-photo-error" role="alert">{photos.some((photo) => photo.status === 'failed') ? '有照片上传失败，请重试或移除' : '照片上传中，请稍候'}</p>}
     </div>
     {selected && <div aria-label="照片预览" aria-modal="true" className="quick-record-photo-lightbox" ref={lightboxRef} role="dialog" tabIndex={-1}>
       <button aria-label="关闭大图预览" className="quick-record-photo-lightbox__close" onClick={() => model.setPreviewIndex(null)} type="button"><X size={25} /></button>
