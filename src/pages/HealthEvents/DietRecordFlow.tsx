@@ -176,10 +176,12 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, commo
   const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
   const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
   const [reactions, setReactions] = useState<string[]>([])
+  const [endedAt, setEndedAt] = useState('')
   const isComplementary = kind === 'complementary'
   const isMeal = kind === 'meal'
   const hasFood = foods.length > 0
-  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite))
+  const intervalValid = !endedAt || Date.parse(endedAt) > Date.parse(occurredAt)
+  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite)) && intervalValid
   const save = () => {
     const title = isComplementary ? '辅食' : isMeal ? '正餐' : '零食'
     const listedFoods = foods.join('、')
@@ -189,7 +191,7 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, commo
     onSave(lines.join('\n'), {
       kind, foods, amount,
       ...(isComplementary ? { foodForm } : {}),
-      ...(isMeal ? { meal, appetite } : kind === 'snack' ? { meal: '零食' as const } : {}),
+      ...(isMeal ? { meal, appetite, ...(endedAt ? { startedAt: new Date(occurredAt).toISOString(), endedAt: new Date(endedAt).toISOString() } : {}) } : kind === 'snack' ? { meal: '零食' as const } : {}),
       reactions
     })
   }
@@ -201,6 +203,7 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, commo
     {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
     <section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section>
     <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
+    {isMeal && <HohoInput error={endedAt && !intervalValid ? '结束时间必须晚于开始时间' : undefined} label="结束时间（可选）" max={localDateTimeValue()} min={occurredAt} onChange={(event) => setEndedAt(event.target.value)} type="datetime-local" value={endedAt} hint="填写后，时间轴会按同一次用餐展示开始、持续和总时长" />}
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
