@@ -12,7 +12,7 @@ import { TriggerOpportunityCard } from './TriggerOpportunityCard'
 import { resolveTriggerLocale } from './triggerOpportunityI18n'
 import { selectTriggerOpportunity } from './triggerOpportunitySelector'
 import { readTriggerCardStatus, setTriggerCardStatus, triggerSuggestionKey } from './triggerOpportunityState'
-import { entriesForDay, formatHourElapsed, hourProgress, isCurrentOngoingSleep, orderedHours, projectActivityInterval, type ActivityProjectionPoint } from './timeGridModel'
+import { entriesForDay, hourProgress, isCurrentOngoingSleep, orderedHours, projectActivityInterval, type ActivityProjectionPoint } from './timeGridModel'
 import { journalCategoryLabels, journalListSummary, shiftJournalDate, type JournalEntry } from './timeViewModel'
 import { useJournal } from './useJournal'
 import { useRoutineTracks } from './useRoutineTracks'
@@ -28,6 +28,10 @@ type TimelineItem = TimelineItemBase & (
 )
 
 function clockLabel(hour: number, minute: number) { return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` }
+
+function currentClockLabel(date: Date) {
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((value) => String(value).padStart(2, '0')).join(' : ')
+}
 
 function formatTimelineDuration(minutes: number) {
   const safeMinutes = Math.max(0, Math.round(minutes))
@@ -50,8 +54,8 @@ function CurrentTimeRow() {
   const { now, reset } = state
   const style = { '--journal-now-progress': `${hourProgress(now) * 100}%` } as CSSProperties
   return <div className={`journal-timeline-row journal-timeline-row--now${reset ? ' journal-timeline-row--now-reset' : ''}`} data-time={clockLabel(now.getHours(), now.getMinutes())}>
-    <time dateTime={now.toISOString()}>{clockLabel(now.getHours(), now.getMinutes())}</time><span aria-hidden="true" className="journal-timeline-marker"><span /></span>
-    <div aria-label={`当前，本小时已过${formatHourElapsed(now)}`} className="journal-hour-cell journal-now-cell" style={style}><Clock3 aria-hidden="true" size={18} /><strong>当前</strong><span>{formatHourElapsed(now)}</span></div>
+    <time dateTime={now.toISOString()}>{clockLabel(now.getHours(), now.getMinutes())}</time><span aria-hidden="true" className="journal-timeline-marker"><span key={now.getSeconds()} /></span>
+    <div aria-label={`当前时间，${currentClockLabel(now)}`} className="journal-hour-cell journal-now-cell" style={style}><Clock3 aria-hidden="true" size={18} /><span>{currentClockLabel(now)}</span></div>
   </div>
 }
 
