@@ -151,7 +151,7 @@ test('健康随记日期栏保留单日导航且时间轨迹统一为紧凑小�
   assert.match(timeView, /focusRecord\?\.entry/)
   assert.match(timeView, /const displayItems = useMemo/)
   assert.match(timeView, /kind: 'empty'/)
-  assert.match(timeView, /<CurrentTimeRow \/>/)
+  assert.match(timeView, /<CurrentTimeRow key="current-hour" \/>/)
   assert.match(timeView, /className="journal-day-grid"/)
   assert.match(timeView, /data-hour=\{item\.hour\}/)
   assert.match(timeView, /aria-label="前一天"/)

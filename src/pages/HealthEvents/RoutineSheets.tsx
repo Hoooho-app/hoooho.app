@@ -31,7 +31,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
   const [error, setError] = useState('')
   const [attempted, setAttempted] = useState(false)
   useEffect(() => { if (open) { setItems(initial); setError(''); setAttempted(false) } }, [initial, open])
-  const valid = definitions.every(({ key, sleep }) => !items[key].enabled || (items[key].time && (!sleep || items[key].endTime)))
+  const valid = definitions.every(({ key }) => !items[key].enabled || (items[key].time && items[key].endTime))
   const dirty = JSON.stringify(items) !== JSON.stringify(initial)
   const close = () => { if (!dirty || window.confirm('作息设置还没有保存，确定退出吗？')) onClose() }
   const save = async () => {
@@ -50,10 +50,10 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     <div className="routine-setup-list">
       {definitions.map(({ key, label, sleep }) => <div className="routine-setup-row" key={key}>
         <label className="routine-enable"><input checked={items[key].enabled} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], enabled: event.target.checked } }))} type="checkbox" /><span>{label}</span></label>
-        {!items[key].enabled ? <span className="routine-disabled-copy">未启用</span> : <>
-          <label><span>{sleep ? '通常入睡' : '通常时间'}</span><input aria-label={`${label}${sleep ? '通常入睡' : '通常时间'}`} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], time: event.target.value } }))} type="time" value={items[key].time} />{attempted && !items[key].time && <small role="alert">请选择时间</small>}</label>
-          {sleep && <label><span>通常醒来</span><input aria-label="夜间睡眠通常醒来时间" onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], endTime: event.target.value } }))} type="time" value={items[key].endTime} />{attempted && !items[key].endTime && <small role="alert">请选择醒来时间</small>}{items[key].time && items[key].endTime && items[key].endTime <= items[key].time && <em>次日</em>}</label>}
-        </>}
+        {!items[key].enabled ? <span className="routine-disabled-copy">未启用</span> : <div className="routine-time-fields">
+          <label><span>{sleep ? '通常入睡' : '开始'}</span><input aria-label={`${label}${sleep ? '通常入睡' : '开始时间'}`} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], time: event.target.value } }))} type="time" value={items[key].time} />{attempted && !items[key].time && <small role="alert">请选择开始时间</small>}</label>
+          <label><span>{sleep ? '通常醒来' : '结束'}</span><input aria-label={`${label}${sleep ? '通常醒来' : '结束时间'}`} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], endTime: event.target.value } }))} type="time" value={items[key].endTime} />{attempted && !items[key].endTime && <small role="alert">请选择结束时间</small>}{items[key].time && items[key].endTime && items[key].endTime <= items[key].time && <em>次日</em>}</label>
+        </div>}
       </div>)}
     </div>
     {routineDay.consent === 'unset' && <button className="routine-decline" disabled={saving} onClick={async () => {
@@ -90,7 +90,7 @@ export function RoutineTrackSheet({ memberId, now, openTrack, token, onClose, on
   }, [track])
   if (!track) return null
   const future = new Date(occurredAt).getTime() > now.getTime()
-  const incompleteSleep = track.category === 'sleep' && (!wakeAt || new Date(wakeAt).getTime() > now.getTime() || new Date(wakeAt) <= new Date(occurredAt))
+  const incompleteInterval = Boolean(track.endTime) && (!wakeAt || new Date(wakeAt).getTime() > now.getTime() || new Date(wakeAt) <= new Date(occurredAt))
   const act = async (action: 'confirm' | 'skipped' | 'reset') => {
     if (saving) return
     setSaving(true); setError('')
@@ -99,7 +99,7 @@ export function RoutineTrackSheet({ memberId, now, openTrack, token, onClose, on
       const saved = await routineTrackService.act(memberId, track.itemKey, {
         action, day: track.day, idempotencyKey: idempotencyRef.current,
         occurredAt: occurredAt ? new Date(occurredAt).toISOString() : undefined,
-        ...(track.category === 'diet' ? { foods: foods.split(/[，,、]/).map((item) => item.trim()).filter(Boolean) } : { sleepAt: occurredAt ? new Date(occurredAt).toISOString() : undefined, wakeAt: wakeAt ? new Date(wakeAt).toISOString() : undefined })
+        ...(track.category === 'diet' ? { foods: foods.split(/[，,、]/).map((item) => item.trim()).filter(Boolean), startedAt: occurredAt ? new Date(occurredAt).toISOString() : undefined, endedAt: wakeAt ? new Date(wakeAt).toISOString() : undefined } : { sleepAt: occurredAt ? new Date(occurredAt).toISOString() : undefined, wakeAt: wakeAt ? new Date(wakeAt).toISOString() : undefined })
       }, token)
       onSaved(action === 'confirm' ? '已记录' : action === 'skipped' ? '已标记当天未发生' : '已恢复日常轨迹', { eventId: saved.eventId, recordId: saved.recordId ?? undefined })
       onClose()
@@ -108,13 +108,13 @@ export function RoutineTrackSheet({ memberId, now, openTrack, token, onClose, on
   }
   const icon = track.category === 'sleep' ? <Moon size={24} /> : <Utensils size={24} />
   return <BottomSheetSurface className="routine-track-sheet" label={`${track.title}日常轨迹`} leading={icon} onClose={onClose} open title={track.title}>
-    <div className="routine-track-source"><span>日常作息</span><strong>{track.endTime ? `${track.time}–次日 ${track.endTime}` : track.time}</strong></div>
+    <div className="routine-track-source"><span>日常作息</span><strong>{track.endTime ? `${track.time}–${track.endTime <= track.time ? '次日 ' : ''}${track.endTime}` : track.time}</strong></div>
     {track.status === 'skipped' ? <div className="routine-skipped-panel"><p>{track.category === 'diet' ? '今天没吃' : '本次未发生'}</p><HohoButton fullWidth loading={saving} onClick={() => void act('reset')} variant="secondary">恢复日常轨迹</HohoButton></div> : <>
-      <label className="routine-field"><span>{track.category === 'sleep' ? '开始时间' : '时间'}</span><input max={localInput(now.toISOString())} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} /></label>
-      {track.category === 'sleep' && <label className="routine-field"><span>结束时间</span><input max={localInput(now.toISOString())} onChange={(event) => setWakeAt(event.target.value)} type="datetime-local" value={wakeAt} /></label>}
+      <label className="routine-field"><span>{track.endTime ? '开始时间' : '时间'}</span><input max={localInput(now.toISOString())} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} /></label>
+      {track.endTime && <label className="routine-field"><span>结束时间</span><input max={localInput(now.toISOString())} onChange={(event) => setWakeAt(event.target.value)} type="datetime-local" value={wakeAt} /></label>}
       {details && track.category === 'diet' && <label className="routine-field"><span>吃了什么（选填）</span><input onChange={(event) => setFoods(event.target.value)} placeholder="没有填写也可以保存" value={foods} /></label>}
-      {(future || incompleteSleep) && <p className="routine-sheet-hint">{track.category === 'sleep' ? '完整睡眠需要填写已经结束的真实时间。' : '尚未到达这个时间，可以调整为实际发生时间后保存。'}</p>}
-      <HohoButton disabled={future || incompleteSleep} fullWidth loading={saving} onClick={() => void act('confirm')} size="large"><CheckCircle2 size={20} />按平常记录</HohoButton>
+      {(future || incompleteInterval) && <p className="routine-sheet-hint">{track.endTime ? `完整${track.category === 'sleep' ? '睡眠' : '用餐'}需要填写已经结束的真实时间。` : '尚未到达这个时间，可以调整为实际发生时间后保存。'}</p>}
+      <HohoButton disabled={future || incompleteInterval} fullWidth loading={saving} onClick={() => void act('confirm')} size="large"><CheckCircle2 size={20} />按平常记录</HohoButton>
       <div className="routine-sheet-actions"><button onClick={() => setDetails((value) => !value)} type="button">{details ? '收起详情' : '调整详情'}</button><button disabled={saving} onClick={() => void act('skipped')} type="button">{track.category === 'diet' ? '今天没吃' : '本次未发生'}</button></div>
     </>}
     {error && <p className="routine-sheet-error" role="alert">{error}</p>}
