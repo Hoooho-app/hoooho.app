@@ -7,11 +7,10 @@ const records = readFileSync(new URL('./GrowthRecordsPage.tsx', import.meta.url)
 const chart = readFileSync(new URL('./GrowthCurveChart.tsx', import.meta.url), 'utf8')
 const reassurance = readFileSync(new URL('./GrowthReassurancePage.tsx', import.meta.url), 'utf8')
 
-test('基础页只保留核心字段、独立血型和明确保存状态', () => {
+test('基础页只保留成长核心字段和明确保存状态', () => {
   for (const copy of ['基础信息', '更新成长数据', '保存本次更新', '测量日期']) assert.match(basic, new RegExp(copy))
-  for (const removed of ['头围', '腰围', '出生身长', '体脂率', '补充更多信息', '保存成长快照']) assert.doesNotMatch(basic, new RegExp(removed))
-  assert.match(basic, /aria-pressed=\{abo === value\}/)
-  assert.match(basic, /rh === 'unknown'/)
+  for (const removed of ['头围', '腰围', '出生身长', '体脂率', '补充更多信息', '保存成长快照', '血型', 'Rh血型']) assert.doesNotMatch(basic, new RegExp(removed))
+  assert.match(basic, /体重减少0\.1千克/)
   assert.match(basic, /growthMeasurementService\.upsert/)
 })
 

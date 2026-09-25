@@ -1,6 +1,6 @@
 export const heightStep = 0.1
 export const weightStepGrams = 1
-export const weightStepKg = 0.001
+export const weightStepKg = 0.1
 
 export function kgToGrams(value: number | null | undefined) {
   return value == null ? '' : String(Math.round(value * 1000))
@@ -13,7 +13,7 @@ export function gramsToKg(value: string) {
 export function formatWeightKg(value: string | number | boolean | null | undefined) {
   if (value == null || typeof value === 'boolean' || String(value).trim() === '') return ''
   const number = Number(value)
-  return Number.isFinite(number) ? String(Math.round(number * 1000) / 1000) : ''
+  return Number.isFinite(number) ? number.toFixed(1) : ''
 }
 
 export function validWeightGrams(value: string) {
@@ -40,14 +40,14 @@ export function stepWeightGramsValue(value: string, direction: 1 | -1) {
 export function validWeightKg(value: string) {
   const normalized = value.trim()
   const number = Number(normalized)
-  return /^\d+(?:\.\d{1,3})?$/.test(normalized) && number >= 1 && number <= 500
+  return /^\d+(?:\.\d)?$/.test(normalized) && number >= 1 && number <= 500
 }
 
 export function stepWeightKgValue(value: string, direction: 1 | -1) {
   const current = Number(value)
   if (!Number.isFinite(current)) return value
-  const next = Math.round((current + direction * weightStepKg) * 1000) / 1000
-  return next >= 1 && next <= 500 ? String(next) : value
+  const next = Math.round((current + direction * weightStepKg) * 10) / 10
+  return next >= 1 && next <= 500 ? next.toFixed(1) : value
 }
 
 export function formatSigned(value: number, digits = 1) {

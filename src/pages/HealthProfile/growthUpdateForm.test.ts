@@ -21,13 +21,13 @@ test('体重步进每次1克且允许下降', () => {
   assert.equal(stepWeightGramsValue('11000', 1), '11001')
 })
 
-test('千克表达仍按0.001 kg步进并保留原有精度', () => {
-  assert.equal(formatWeightKg(10.996), '10.996')
-  assert.equal(formatWeightKg(10.9965), '10.997')
+test('千克表达统一保留一位小数并按0.1 kg步进', () => {
+  assert.equal(formatWeightKg(10.996), '11.0')
+  assert.equal(formatWeightKg(10.94), '10.9')
   assert.equal(formatWeightKg(false), '')
-  assert.equal(validWeightKg('10.996'), true)
-  assert.equal(validWeightKg('10.9965'), false)
-  assert.equal(stepWeightKgValue('10.996', -1), '10.995')
-  assert.equal(stepWeightKgValue('10.996', 1), '10.997')
+  assert.equal(validWeightKg('10.9'), true)
+  assert.equal(validWeightKg('10.99'), false)
+  assert.equal(stepWeightKgValue('11.0', -1), '10.9')
+  assert.equal(stepWeightKgValue('11.0', 1), '11.1')
   assert.equal(stepWeightKgValue('1', -1), '1')
 })
