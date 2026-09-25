@@ -5,6 +5,7 @@ import type { JournalMedicationDetails, JournalMedicationItem, JournalMetadata, 
 import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { medicationSummary, medicationUnits, normalizeDose } from './medicationRecordLogic'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type DraftDrug = JournalMedicationItem & { photoLocalIds?: string[] }
@@ -62,7 +63,7 @@ function reminderSummary(reminder: MedicationReminder) {
   return `每天 ${reminder.timesPerDay} 次 · ${times} · 共 ${reminder.durationDays} 天`
 }
 
-export function MedicationRecordFlow({ memberId, token, initialMedication, initialOccurredAt, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; initialMedication?: JournalMedicationDetails; initialOccurredAt?: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function MedicationRecordFlow({ memberId, token, selectedDay, today, initialMedication, initialOccurredAt, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; initialMedication?: JournalMedicationDetails; initialOccurredAt?: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => {
     if (initialMedication) {
       const medications = initialMedication.medications?.length ? initialMedication.medications : [{ id: crypto.randomUUID(), medicationName: initialMedication.medicationName, amountValue: initialMedication.amountValue ?? 0, amountUnit: initialMedication.amountUnit ?? 'mL', dosageStep: 0.5 as const, reminder: newReminder() }]
@@ -71,6 +72,7 @@ export function MedicationRecordFlow({ memberId, token, initialMedication, initi
     try { const saved = JSON.parse(sessionStorage.getItem(keyFor(memberId)) ?? 'null'); return saved?.medications?.length ? saved : blankDraft() } catch { return blankDraft() }
   })
   const [reminderOpen, setReminderOpen] = useState(false)
+  const occurrence = useOccurrenceTime(selectedDay, today, initialOccurredAt)
   const [reminderDraft, setReminderDraft] = useState<ReminderEditor>(() => reminderEditor())
   const [reminderError, setReminderError] = useState('')
   const [photoSourceOpen, setPhotoSourceOpen] = useState(false)
@@ -128,9 +130,9 @@ export function MedicationRecordFlow({ memberId, token, initialMedication, initi
 
   const save = async () => {
     const invalid = draft.medications.find((item) => !complete(item)); if (invalid) { setDraft((current) => ({ ...current, activeId: invalid.id })); setError(!invalid.medicationName.trim() ? '请选择或填写药品' : '请填写本次用量'); return }
-    const timestamp = Date.parse(draft.occurredAt); if (!Number.isFinite(timestamp) || timestamp > Date.now()) { setError('记录时间不能晚于现在'); return }
+    const occurredAt = occurrence.capture(); if (!occurredAt) return
     setSaving(true); setError('')
-    try { const medications = draft.medications.map(({ photoLocalIds = [], ...item }) => ({ ...item, medicationName: item.medicationName.trim(), photoIds: photos.photos.filter((photo) => photoLocalIds.includes(photo.localId) && photo.serverId).map((photo) => photo.serverId!) })); const first = medications[0]; const details: JournalMedicationDetails = { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral' }; await onConfirm(medicationSummary(details), new Date(timestamp).toISOString(), 'text', photos.payload(), { categories: ['medication'], medication: details }); photos.clearAfterSave(); if (!initialMedication) sessionStorage.removeItem(keyFor(memberId)); onSaved('已记录'); onClose() } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
+    try { const medications = draft.medications.map(({ photoLocalIds = [], ...item }) => ({ ...item, medicationName: item.medicationName.trim(), photoIds: photos.photos.filter((photo) => photoLocalIds.includes(photo.localId) && photo.serverId).map((photo) => photo.serverId!) })); const first = medications[0]; const details: JournalMedicationDetails = { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral' }; await onConfirm(medicationSummary(details), occurredAt, 'text', photos.payload(), { categories: ['medication'], medication: details }); photos.clearAfterSave(); if (!initialMedication) sessionStorage.removeItem(keyFor(memberId)); onSaved('已记录'); onClose() } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
 
   const activePhoto = photos.photos.find((photo) => active.photoLocalIds?.includes(photo.localId))
@@ -144,7 +146,7 @@ export function MedicationRecordFlow({ memberId, token, initialMedication, initi
     <div className="medication-record-scroll">
       <section className="medication-compact-section"><h2>药品名称</h2><div className="medication-picker"><span className="medication-package-thumb">{activePhoto ? <img alt="药品图片" src={activePhoto.previewUrl} /> : <Pill />}</span><input aria-label="药品名称" onChange={(event) => updateActive({ medicationName: event.target.value, recognitionStatus: active.recognitionSource ? 'user_edited' : 'not_used' })} placeholder="搜索或选择药品" value={active.medicationName} /><button aria-label="添加药品图片" onClick={() => setPhotoSourceOpen(true)} type="button"><Camera /></button></div><input ref={cameraRef} accept="image/*" capture="environment" hidden onChange={(event) => { choosePackage('camera', event.target.files); event.currentTarget.value = '' }} type="file" /><input ref={albumRef} accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => { choosePackage('album', event.target.files); event.currentTarget.value = '' }} type="file" />{active.recognitionSource && <small className="medication-recognition-note">图片已上传，识别结果需核对</small>}{photos.photos.length > 0 && <QuickRecordPhotos limit={6} model={photos} />}</section>
       <section className="medication-compact-section"><h2>剂量</h2><div className="medication-amount-row"><button aria-label="减少用量" onClick={() => updateActive({ amountValue: normalizeDose(active.amountValue - active.dosageStep, active.dosageStep) })} type="button"><Minus /></button><input aria-label="本次用量" inputMode="decimal" min="0" onChange={(event) => updateActive({ amountValue: Math.max(0, Number(event.target.value)) })} step="any" type="number" value={active.amountValue || ''} /><button aria-label="增加用量" onClick={() => updateActive({ amountValue: normalizeDose(active.amountValue + active.dosageStep, active.dosageStep) })} type="button"><Plus /></button><span className="medication-unit-select"><select aria-label="用量单位" onChange={(event) => updateActive({ amountUnit: event.target.value, dosageStep: ['片', '粒', '袋', '揿'].includes(event.target.value) ? 1 : 0.5 })} value={active.amountUnit}>{units.map((unit) => <option key={unit}>{unit}</option>)}</select><ChevronDown aria-hidden="true" /></span></div></section>
-      <label className="medication-time-row-main"><strong>记录时间（默认是现在）</strong><span>{formatOccurredAt(draft.occurredAt)}</span><ChevronRight /><input aria-label="记录时间" max={localDateTimeValue()} onChange={(event) => setDraft((current) => ({ ...current, occurredAt: event.target.value }))} type="datetime-local" value={draft.occurredAt} /></label>
+      <OccurrenceTimeField model={occurrence} label="记录时间" />
       <section className="medication-reminder-main"><label><Bell /><strong>设置用药提醒</strong><input checked={reminder.enabled} onChange={(event) => { if (!event.target.checked) updateActive({ reminder: { ...reminder, enabled: false } }); else if (reminder.configured || active.reminder?.enabled) updateActive({ reminder: { ...reminder, enabled: true, configured: true } }); else openReminder() }} role="switch" type="checkbox" /></label>{reminder.enabled && <button className="medication-reminder-summary" onClick={openReminder} type="button"><span>{reminderSummary(reminder)}</span><em>编辑</em></button>}</section>
       {draft.medications.length > 1 && <button className="medication-remove-current" onClick={removeDrug} type="button">删除当前药品</button>}
       {error && <p className="medication-save-error" role="alert">{error}</p>}

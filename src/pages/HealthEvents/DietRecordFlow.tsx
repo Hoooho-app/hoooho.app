@@ -6,6 +6,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../types/journal'
 import { familyMemberService } from '../../services/familyMembers'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type InputChannel = 'voice' | 'text'
 type SaveRecord = (content: string, occurredAt: string, channel: InputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
@@ -105,7 +106,7 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, heading = '�
   </section>
 }
 
-function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormProps) {
+function FeedingForm({ occurrence, onSave, saving }: CommonFormProps) {
   const [method, setMethod] = useState<JournalDietDetails['feedingMethod']>('breast')
   const [seconds, setSeconds] = useState({ left: 0, right: 0 })
   const [manualMinutes, setManualMinutes] = useState({ left: '', right: '' })
@@ -141,14 +142,14 @@ function FeedingForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormPr
     {hasBreast && <section className="diet-form-section"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
     {hasBottle && <HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" />}
     <MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} />
-    <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
+    <RecordTime occurrence={occurrence} />
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
-interface CommonFormProps { occurredAt: string; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean }
+interface CommonFormProps { occurredAt: string; occurrence: ReturnType<typeof useOccurrenceTime>; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean }
 
-function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFormProps) {
+function SupplementForm({ occurrence, onSave, saving }: CommonFormProps) {
   const [names, setNames] = useState<string[]>([])
   const [amount, setAmount] = useState('')
   const [unit, setUnit] = useState<JournalDietDetails['supplementUnit']>('滴')
@@ -163,12 +164,12 @@ function SupplementForm({ occurredAt, setOccurredAt, onSave, saving }: CommonFor
     <FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" />
     <HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} />
     <ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} />
-    <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
+    <RecordTime occurrence={occurrence} />
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
-function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
+function FoodRecordForm({ kind, occurredAt, occurrence, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const [foods, setFoods] = useState<string[]>([])
   const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
   const amountOptions = kind === 'complementary' ? complementaryAmounts : mealAmounts
@@ -202,22 +203,24 @@ function FoodRecordForm({ kind, occurredAt, setOccurredAt, onSave, saving, commo
     <AmountSlider options={amountOptions} value={amount} onChange={setAmount} />
     {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
     <section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section>
-    <RecordTime occurredAt={occurredAt} setOccurredAt={setOccurredAt} />
+    <RecordTime occurrence={occurrence} />
     {isMeal && <HohoInput error={endedAt && !intervalValid ? '结束时间必须晚于开始时间' : undefined} label="结束时间（可选）" max={localDateTimeValue()} min={occurredAt} onChange={(event) => setEndedAt(event.target.value)} type="datetime-local" value={endedAt} hint="填写后，时间轴会按同一次用餐展示开始、持续和总时长" />}
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
-function RecordTime({ occurredAt, setOccurredAt }: { occurredAt: string; setOccurredAt: (value: string) => void }) {
-  return <HohoInput label="记录时间（默认为现在）" max={localDateTimeValue()} onChange={(event) => setOccurredAt(event.target.value)} type="datetime-local" value={occurredAt} />
+function RecordTime({ occurrence }: { occurrence: ReturnType<typeof useOccurrenceTime> }) {
+  return <OccurrenceTimeField model={occurrence} label="记录时间" />
 }
 
 function SaveBar({ disabled, onClick, saving }: { disabled: boolean; onClick: () => void; saving: boolean }) {
   return <div className="diet-record-save"><HohoButton disabled={disabled} fullWidth loading={saving} onClick={onClick} size="large">保存记录</HohoButton></div>
 }
 
-export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfirm, onSaved }: { kind: DietRecordKind; memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
-  const [occurredAt, setOccurredAt] = useState(() => localDateTimeValue())
+export function DietRecordFlow({ kind, memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { kind: DietRecordKind; memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+  const occurrence = useOccurrenceTime(selectedDay, today)
+  const occurredAt = occurrence.mode === 'now' ? localDateTimeValue(occurrence.now) : occurrence.specifiedValue
+  const setOccurredAt = occurrence.setSpecifiedValue
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const layerRef = useRef<HTMLElement>(null)
@@ -240,12 +243,12 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onBack, photoModel.previewIndex, saving])
   const save = async (content: string, details: JournalDietDetails, channel: InputChannel = 'text') => {
-    const occurredTimestamp = Date.parse(occurredAt)
-    if (!occurredAt || !Number.isFinite(occurredTimestamp) || occurredTimestamp > Date.now()) { setError('记录时间不能晚于现在'); return }
-    const isoTime = new Date(occurredTimestamp).toISOString()
+    const isoTime = occurrence.capture()
+    if (!isoTime) return
+    const normalizedDetails = details.startedAt ? { ...details, startedAt: isoTime } : details
     setSaving(true); setError('')
     try {
-      const message = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: details })
+      const message = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: normalizedDetails })
       photoModel.clearAfterSave()
       onSaved(message)
       onClose()
@@ -253,7 +256,7 @@ export function DietRecordFlow({ kind, memberId, token, onBack, onClose, onConfi
       setError(reason instanceof Error ? reason.message : '保存失败，请重试')
     } finally { setSaving(false) }
   }
-  const common = { occurredAt, setOccurredAt, onSave: save, saving }
+  const common = { occurredAt, occurrence, setOccurredAt, onSave: save, saving }
   const saveFrequentFoods = async (foodKind: 'complementary' | 'meal' | 'snack', foods: string[]) => {
     const next = { ...frequentFoods, [foodKind]: foods }
     const member = await familyMemberService.update(memberId, { dietFrequentFoods: next }, token)
