@@ -727,6 +727,36 @@ test('symptom record button is centered, compact, and fills the footer', async (
   await button.click()
   const hub = page.getByRole('dialog', { name: '记一下' })
   await expect(hub.locator('.journal-entry-hub__item')).toHaveText(['记录症状', '记录日常', '记录就医', '记录用药'])
+  await expect(hub.locator('.journal-entry-hub__image')).toHaveCount(4)
+  expect(await hub.locator('.journal-entry-hub__image').evaluateAll((images) => images.every((image) => image.getAttribute('aria-hidden') === 'true'))).toBe(true)
+  await hub.evaluate((sheet) => Promise.all(sheet.getAnimations().map((animation) => animation.finished)))
+  await page.screenshot({ path: 'test-results/manual-record-image-cards-iphone-se.png' })
+})
+
+test('record entry image cards stay in a two-column grid without viewport overflow', async ({ page }) => {
+  for (const viewport of [{ width: 375, height: 667 }, { width: 390, height: 667 }, { width: 430, height: 667 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport)
+    await prepare(page)
+    await page.getByRole('button', { name: '记一下', exact: true }).click()
+    const hub = page.getByRole('dialog', { name: '记一下' })
+    await expect(hub).toBeVisible()
+    await expect(hub.locator('.journal-entry-hub__image')).toHaveCount(4)
+    await hub.evaluate((sheet) => Promise.all(sheet.getAnimations().map((animation) => animation.finished)))
+    const layout = await hub.evaluate((sheet) => {
+      const cards = [...sheet.querySelectorAll<HTMLElement>('.journal-entry-hub__item')].map((card) => card.getBoundingClientRect())
+      const imagesLoaded = [...sheet.querySelectorAll<HTMLImageElement>('.journal-entry-hub__image')].every((image) => image.complete && image.naturalWidth === 512 && image.naturalHeight === 512)
+      const sheetBox = sheet.getBoundingClientRect()
+      return {
+        imagesLoaded,
+        twoColumns: cards.length === 4 && Math.abs(cards[0].left - cards[2].left) < 1 && Math.abs(cards[1].left - cards[3].left) < 1,
+        noOverlap: cards.length === 4 && cards[0].bottom <= cards[2].top && cards[1].bottom <= cards[3].top,
+        insideViewport: sheetBox.left >= -1 && sheetBox.right <= window.innerWidth + 1 && sheetBox.top >= -1 && sheetBox.bottom <= window.innerHeight + 1,
+        pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      }
+    })
+    expect(layout).toEqual({ imagesLoaded: true, twoColumns: true, noOverlap: true, insideViewport: true, pageOverflows: false })
+    await hub.getByRole('button', { name: '关闭记一下' }).click()
+  }
 })
 
 test('symptom record footer stays full width at the required mobile widths', async ({ page }) => {
