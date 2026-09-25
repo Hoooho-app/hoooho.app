@@ -30,6 +30,11 @@ async function openDaily(page: Page) {
   await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录日常', exact: true }).click()
 }
 
+async function openVisit(page: Page) {
+  await page.getByRole('button', { name: '记一下', exact: true }).click()
+  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录就医', exact: true }).click()
+}
+
 async function createDespiteDuplicateIfNeeded(page: Page) {
   const prompt = page.getByRole('dialog', { name: '这个情况刚刚记录过' })
   try {
@@ -996,6 +1001,27 @@ test('manual category cards navigate directly without a start action', async ({ 
   await expect(page.getByRole('button', { name: '开始记录', exact: true })).toHaveCount(0)
   await diet.click()
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
+})
+
+test('visit form keeps allergy departments and removes redundant result fields', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await prepare(page)
+  await openVisit(page)
+  const form = page.getByRole('dialog', { name: '记录就医' })
+  const departments = form.locator('.visit-department-grid').first().getByRole('button')
+  await expect(departments).toHaveText(['变态反应科', '儿科', '儿童皮肤科', '儿童呼吸科', '儿童消化科', '儿童耳鼻喉科', '儿童眼科', '其他', '不清楚'])
+  await expect(form.getByLabel('医生姓名（选填）')).toHaveCount(0)
+  await form.getByRole('button', { name: /就医结果与资料/ }).click()
+  await expect(form.getByRole('button', { name: '拍病历或处方', exact: true })).toBeVisible()
+  await expect(form.getByRole('button', { name: '从相册选择', exact: true })).toHaveCount(0)
+  await expect(form.getByText('医生怎么说？（医嘱）', { exact: true })).toBeVisible()
+  await expect(form.getByText('备注（选填）', { exact: true })).toHaveCount(0)
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 667 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  }
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.screenshot({ path: 'test-results/visit-record-allergy-iphone-se.png', fullPage: true })
 })
 
 test('bowel record is one continuous form, restores its member draft and saves real structured data', async ({ page }) => {
