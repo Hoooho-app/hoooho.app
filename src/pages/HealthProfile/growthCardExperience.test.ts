@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 
 const home = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
+const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
 test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.match(home, /铸造成长身份卡/)
@@ -29,6 +30,7 @@ test('基础信息使用明确保存、克制入口和成长记录联动', () =>
   assert.match(editor, /<small>kg<\/small>/)
   assert.match(editor, /aria-label="测量日期"/)
   assert.doesNotMatch(editor, /growth-update-member|点击数值可手动编辑|<label>测量日期|<small>g<\/small>/)
+  assert.match(polish, /\.growth-update-content \{[^}]*align-content: start/)
   assert.doesNotMatch(editor, /今日成长落点|填写后自动保存|查看完整成长曲线|头围|腰围|体脂率/)
   assert.doesNotMatch(editor, /积分|签到|连续填写|超过.*用户/)
 })
