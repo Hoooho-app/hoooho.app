@@ -24,11 +24,11 @@ async function api(url,body,method='POST'){
 try{
   assert.equal((await context.request.get(`${baseURL}/api/health`)).status(),200)
   await page.goto(`${baseURL}/login`)
+  await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`情况单验收${randomUUID().slice(0,6)}`)
   await page.getByPlaceholder('设置一个密码').fill(randomUUID())
   await page.getByRole('button',{name:'注册并进入'}).click()
-  await page.getByRole('button',{name:'进入 Hoooho'}).click()
-  await page.waitForURL(/health-events/)
+  await page.waitForURL(/nurse-station/)
   memberId=(await api('/api/members',{name:'情况单验收（合成）',relationship:'child',birthday:'2024-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId})
   const occurredAt=new Date(Date.now()-86400000).toISOString()
@@ -72,6 +72,6 @@ finally{
   for(const id of recordIds)await api(`/api/records/${id}`,undefined,'DELETE')
   if(eventId)await api(`/api/events/${eventId}`,undefined,'DELETE')
   if(memberId)await api(`/api/members/${memberId}`,undefined,'DELETE')
-  console.log('Removed only this smoke run\'s synthetic records, event and member; isolated account/report audit remains.')
+  if(memberId)console.log('Removed only this smoke run\'s synthetic records, event and member; isolated account/report audit remains.')
   await context.close();await browser.close()
 }
