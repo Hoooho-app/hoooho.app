@@ -18,6 +18,7 @@ import { healthInformationCandidatesApiPlugin } from './server/health-informatio
 import { accountApiPlugin } from './server/account/vite-account-plugin.mjs'
 import { routinesApiPlugin } from './server/routines/vite-routines-plugin.mjs'
 import { medicationRemindersApiPlugin } from './server/medication-reminders/vite-medication-reminders-plugin.mjs'
+import { desensitizationTestsApiPlugin } from './server/desensitization-tests/vite-desensitization-tests-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
@@ -40,6 +41,7 @@ export default defineConfig({
     membersApiPlugin(),
     routinesApiPlugin(),
     medicationRemindersApiPlugin(),
+    desensitizationTestsApiPlugin(),
     eventsApiPlugin(),
     eventRecordsApiPlugin(),
     quickRecordsApiPlugin(),

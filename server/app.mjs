@@ -35,6 +35,7 @@ import { AccountService } from './account/account-service.mjs'
 import { GrowthMeasurementService } from './growth/growth-measurement-service.mjs'
 import { RoutineService } from './routines/routine-service.mjs'
 import { MedicationReminderService } from './medication-reminders/medication-reminder-service.mjs'
+import { DesensitizationTestService } from './desensitization-tests/desensitization-test-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -73,6 +74,7 @@ const healthInformationCandidates = new HealthInformationCandidateService({ ...s
 const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
 const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
+const desensitizationTests = new DesensitizationTestService(sharedOptions)
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -472,6 +474,35 @@ async function handleMedicationReminders(request, response, pathname, searchPara
   return true
 }
 
+async function handleDesensitizationTests(request, response, pathname, searchParams) {
+  if (!pathname.startsWith('/api/desensitization-tests')) return false
+  const accountId = await readAccountId(request)
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone']) ?? 'Asia/Shanghai'
+  const collection = pathname === '/api/desensitization-tests'
+  const recordMatch = /^\/api\/desensitization-tests\/([^/]+)\/records(?:\/([^/]+)(?:\/(withdraw|restore|undo-update))?)?$/.exec(pathname)
+  const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan)$/.exec(pathname)
+  const taskMatch = /^\/api\/desensitization-tests\/([^/]+)$/.exec(pathname)
+  if (collection && request.method === 'GET') sendJson(response, 200, await desensitizationTests.list(accountId, String(searchParams.get('memberId') ?? ''), new Date(), timeZone))
+  else if (collection && request.method === 'POST') sendJson(response, 201, await desensitizationTests.create(accountId, await readJson(request), new Date(), timeZone))
+  else if (recordMatch) {
+    const taskId = decodeRouteValue(recordMatch[1]), recordId = recordMatch[2] ? decodeRouteValue(recordMatch[2]) : '', action = recordMatch[3]
+    if (!recordId && request.method === 'POST') sendJson(response, 201, await desensitizationTests.saveRecord(accountId, taskId, await readJson(request)))
+    else if (recordId && !action && request.method === 'PATCH') sendJson(response, 200, await desensitizationTests.updateRecord(accountId, taskId, recordId, await readJson(request)))
+    else if (recordId && action === 'withdraw' && request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.withdrawRecord(accountId, taskId, recordId, Number.isInteger(input.version) ? input.version : null)) }
+    else if (recordId && action === 'restore' && request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.restoreRecord(accountId, taskId, recordId, Number(input.version))) }
+    else if (recordId && action === 'undo-update' && request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.undoRecordUpdate(accountId, taskId, recordId, Number(input.version))) }
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (actionMatch) {
+    const id = decodeRouteValue(actionMatch[1]), action = actionMatch[2]
+    if (action === 'plan' && request.method === 'PUT') sendJson(response, 200, await desensitizationTests.savePlan(accountId, id, await readJson(request)))
+    else if (request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.mutateTask(accountId, id, action, new Date(), Number.isInteger(input.version) ? input.version : null)) }
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  } else if (taskMatch && request.method === 'PATCH') sendJson(response, 200, await desensitizationTests.updateName(accountId, decodeRouteValue(taskMatch[1]), await readJson(request)))
+  else if (taskMatch && request.method === 'DELETE') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.mutateTask(accountId, decodeRouteValue(taskMatch[1]), 'delete', new Date(), Number.isInteger(input.version) ? input.version : null)) }
+  else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  return true
+}
+
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
@@ -725,6 +756,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
   if (await handleRoutines(request, response, pathname, searchParams)) return true
   if (await handleMedicationReminders(request, response, pathname, searchParams)) return true
+  if (await handleDesensitizationTests(request, response, pathname, searchParams)) return true
   if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true

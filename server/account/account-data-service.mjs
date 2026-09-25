@@ -21,7 +21,9 @@ export const accountCollections = [
   ['routine-preferences.json', 'preferences'],
   ['routine-templates.json', 'templates'],
   ['routine-overrides.json', 'overrides'],
-  ['medication-reminders.json', 'reminders']
+  ['medication-reminders.json', 'reminders'],
+  ['desensitization-tests.json', 'tasks'],
+  ['desensitization-tests.json', 'records']
 ]
 
 export class AccountDataService {

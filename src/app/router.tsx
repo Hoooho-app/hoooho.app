@@ -31,6 +31,7 @@ export const router = createBrowserRouter([
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
+      { path: '/nurse-station/desensitization/new', lazy: lazyPage(() => import('../pages/NurseStation/DesensitizationTestNewPage'), 'DesensitizationTestNewPage') },
       { path: '/visit-summary/:eventId', lazy: lazyPage(() => import('../pages/VisitSummary'), 'VisitSummaryPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
       { path: '/health-events/search', lazy: lazyPage(() => import('../pages/HealthEvents/JournalSearchPage'), 'JournalSearchPage') },

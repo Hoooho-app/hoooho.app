@@ -1,5 +1,5 @@
 import { Bell, BookOpen, ChevronDown, ChevronRight, ClipboardCheck, FileText, Folder, FolderOpen, HeartHandshake, Languages, MapPin, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, Utensils, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HohoButton, MedicalPrepButton } from '../../components/design-system'
@@ -11,6 +11,7 @@ import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import { medicationReminderService, type MedicationReminderDto } from '../../services/medicationReminders'
+import { desensitizationTestService, type DesensitizationTaskDto } from '../../services/desensitizationTests'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import { useJournal } from '../HealthEvents/useJournal'
@@ -21,9 +22,13 @@ import './nurseStation.css'
 import { MedicationReminderFlow } from './MedicationReminderFlow'
 import { MedicationReminderCard } from './MedicationReminderCard'
 import { effectiveStatus, formatOccurrence, planLabel, routeLabel } from './medicationReminderLogic'
+import { DesensitizationTaskCard } from './DesensitizationTaskCard'
+import { DesensitizationTaskSheet } from './DesensitizationTaskSheet'
+import './desensitization.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 type TaskCategory = 'medication' | 'allergy'
+type DesensitizationView = 'record'|'trend'|'history'|'scope'|'plan'|'manage'
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -53,6 +58,13 @@ export function NurseStationPage() {
   const [busyReminderId, setBusyReminderId] = useState('')
   const [openReminderId, setOpenReminderId] = useState('')
   const [deleteReminder, setDeleteReminder] = useState<MedicationReminderDto | null>(null)
+  const [desensitizationTasks, setDesensitizationTasks] = useState<DesensitizationTaskDto[]>([])
+  const [desensitizationStatus, setDesensitizationStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [selectedDesensitization, setSelectedDesensitization] = useState<{ id: string; view: DesensitizationView } | null>(null)
+  const [openDesensitizationId, setOpenDesensitizationId] = useState('')
+  const [busyDesensitizationId, setBusyDesensitizationId] = useState('')
+  const [deleteDesensitization, setDeleteDesensitization] = useState<DesensitizationTaskDto | null>(null)
+  const [desensitizationNotice, setDesensitizationNotice] = useState<{ message: string; undo?: () => Promise<void> } | null>(null)
   const [now, setNow] = useState(() => new Date())
   const migratingIds = useRef(new Set<string>())
 
@@ -84,10 +96,22 @@ export function NurseStationPage() {
   }, [])
 
   useEffect(() => {
+    const close = (event: PointerEvent) => { if (!(event.target as HTMLElement).closest('.desensitization-card')) setOpenDesensitizationId('') }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [])
+
+  useEffect(() => {
     if (!medicationNotice) return
     const timer = window.setTimeout(() => setMedicationNotice(''), 2400)
     return () => window.clearTimeout(timer)
   }, [medicationNotice])
+
+  useEffect(() => {
+    if (!desensitizationNotice || desensitizationNotice.undo) return
+    const timer = window.setTimeout(() => setDesensitizationNotice(null), 3200)
+    return () => window.clearTimeout(timer)
+  }, [desensitizationNotice])
 
   useEffect(() => {
     let active = true
@@ -96,6 +120,32 @@ export function NurseStationPage() {
     void medicationReminderService.list(currentMemberId, token).then((items) => { if (active) { setMedicationReminders(items); setMedicationStatus('success') } }).catch(() => { if (active) setMedicationStatus('error') })
     return () => { active = false }
   }, [currentMemberId, token])
+
+  const refreshDesensitization = useCallback(async () => {
+    if (!token || !currentMemberId) return
+    const result = await desensitizationTestService.list(currentMemberId, token)
+    setDesensitizationTasks(result.tasks)
+    setDesensitizationStatus('success')
+  }, [currentMemberId, token])
+
+  useEffect(() => {
+    let active = true
+    setDesensitizationStatus('loading'); setDesensitizationTasks([]); setSelectedDesensitization(null); setDeleteDesensitization(null)
+    if (!token || !currentMemberId) return () => { active = false }
+    void desensitizationTestService.list(currentMemberId, token).then((result) => { if (active) { setDesensitizationTasks(result.tasks); setDesensitizationStatus('success') } }).catch(() => { if (active) setDesensitizationStatus('error') })
+    return () => { active = false }
+  }, [currentMemberId, token])
+
+  useEffect(() => {
+    if (desensitizationStatus !== 'success') return
+    const requestedId = new URLSearchParams(location.search).get('desensitization')
+    const notice = (location.state as { desensitizationNotice?: string } | null)?.desensitizationNotice
+    if (notice) setDesensitizationNotice({ message: notice })
+    if (!requestedId || !desensitizationTasks.some((item) => item.id === requestedId)) return
+    setTaskCategory('allergy'); setTaskView(desensitizationTasks.find((item) => item.id === requestedId)?.status === 'archived' ? 'archive' : 'active')
+    setSelectedDesensitization({ id: requestedId, view: 'trend' })
+    navigate('/nurse-station', { replace: true, state: null })
+  }, [desensitizationStatus, desensitizationTasks, location.search, location.state, navigate])
 
   const members = listState.status === 'success' ? listState.data.members : cachedMembers
   const member = members.find((item) => item.id === currentMemberId) ?? null
@@ -114,8 +164,9 @@ export function NurseStationPage() {
   const archived = getArchivedTasks(currentItems)
   const memberDto = listState.status === 'success' ? listState.data.memberDtos.find((item) => item.id === member?.id) : null
   const guardedDays = getGuardedDays(memberDto?.createdAt)
-  const visibleTasks = (taskView === 'archive' ? archived : active).filter((item) => item.type !== 'medication_reminder')
   const visibleMedicationReminders = medicationReminders.filter((item) => taskView === 'archive' ? item.status === 'archived' : item.status === 'active')
+  const visibleDesensitizationTasks = desensitizationTasks.filter((item) => taskView === 'archive' ? item.status === 'archived' : item.status === 'active')
+  const selectedDesensitizationTask = selectedDesensitization ? desensitizationTasks.find((item) => item.id === selectedDesensitization.id) ?? null : null
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
 
   const updateItem = (id: string, changes: Partial<NurseStationItem>) => setStation((previous) => ({ ...previous, items: previous.items.map((item) => item.id === id ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item) }))
@@ -159,6 +210,40 @@ export function NurseStationPage() {
     finally { setBusyReminderId('') }
   }
 
+  const desensitizationAction = async (task: DesensitizationTaskDto, action: 'archive' | 'restore' | 'delete') => {
+    if (!token || busyDesensitizationId) return
+    setBusyDesensitizationId(task.id); setDesensitizationNotice(null)
+    try {
+      if (action === 'archive') {
+        const archivedTask = await desensitizationTestService.archive(task.id, task.version, token)
+        setDesensitizationNotice({ message: '已归档，记录和医生安排仍会保留', undo: async () => {
+          await desensitizationTestService.restore(task.id, archivedTask.version, token)
+          await refreshDesensitization()
+          setDesensitizationNotice({ message: '已撤销归档' })
+        } })
+      } else if (action === 'restore') {
+        const restoredTask = await desensitizationTestService.restore(task.id, task.version, token)
+        setTaskView('active'); setDesensitizationNotice({ message: '已恢复观察', undo: async () => {
+          await desensitizationTestService.archive(task.id, restoredTask.version, token)
+          await refreshDesensitization()
+          setDesensitizationNotice({ message: '已撤销恢复' })
+        } })
+      } else {
+        const deletedTask = await desensitizationTestService.delete(task.id, task.version, token)
+        setDesensitizationNotice({ message: '排敏测试已删除，健康随记原记录未改变', undo: async () => {
+          await desensitizationTestService.undoDelete(task.id, deletedTask.version, token)
+          await refreshDesensitization()
+          setDesensitizationNotice({ message: '已撤销删除' })
+        } })
+        setDeleteDesensitization(null)
+      }
+      setOpenDesensitizationId(''); setSelectedDesensitization(null)
+      await refreshDesensitization()
+    } catch (error) {
+      setDesensitizationNotice({ message: error instanceof Error ? error.message : '操作没有完成，请重试' })
+    } finally { setBusyDesensitizationId('') }
+  }
+
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
       <MainAppHeader title="前台" />
@@ -191,18 +276,21 @@ export function NurseStationPage() {
       <PrimaryEntries onJournal={() => navigate('/health-events')} onProfile={() => navigate('/health-profile')} />
       <MoreServices hasHealthData={events.length > 0} loading={listState.status === 'loading'} onMedicalPrep={() => nextActionEventId && navigate(`/visit-summary/${nextActionEventId}`)} />
       <section aria-busy={listState.status === 'loading' || !stationIsCurrent} className="guardian-tasks">
-        <header><div className="guardian-task-heading"><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button></div>{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header>
+        <header className={taskCategory==='allergy'&&taskView==='active'?'guardian-task-header--with-add':undefined}><div className="guardian-task-heading"><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button></div>{taskCategory==='allergy'&&taskView==='active'&&<button className="desensitization-add" disabled={!stationIsCurrent} onClick={()=>navigate('/nurse-station/desensitization/new')} type="button"><Plus/>新增</button>}{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header>
         <div className="guardian-task-tabs" role="tablist">{([['medication', '用药提醒'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>
-        {(listState.status === 'loading' || !stationIsCurrent || medicationStatus === 'loading') && <div aria-live="polite" className="guardian-data-notice" role="status">正在同步当前人物的任务…</div>}
+        {(listState.status === 'loading' || !stationIsCurrent || (taskCategory==='medication'?medicationStatus==='loading':desensitizationStatus==='loading')) && <div aria-live="polite" className="guardian-data-notice" role="status">正在同步当前人物的任务…</div>}
         {listState.status === 'error' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>最新数据加载失败，已保存任务仍会保留。</span><button onClick={retryEvents} type="button">重新加载</button></div>}
         {medicationStatus === 'error' && taskCategory === 'medication' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>用药提醒加载失败，请稍后重试。</span></div>}
-        {taskView === 'active' && <AddTaskCard category={taskCategory} disabled={!stationIsCurrent} onOpen={() => taskCategory === 'medication' ? setReminderFlow(true) : taskCategory === 'allergy' ? navigate('/health-profile/allergy') : undefined} />}
-        <div className="guardian-task-list">{taskCategory === 'medication' ? visibleMedicationReminders.length ? visibleMedicationReminders.map((reminder) => <MedicationReminderCard busy={busyReminderId === reminder.id} key={reminder.id} now={now} onArchive={() => void reminderAction(reminder, 'archive')} onDelete={() => { setDeleteReminder(reminder); setOpenReminderId('') }} onOpen={(value) => setOpenReminderId(value ? reminder.id : '')} onTake={() => void reminderAction(reminder, 'take')} onUndo={() => void reminderAction(reminder, 'undo')} open={openReminderId === reminder.id} reminder={reminder} />) : medicationStatus === 'loading' ? null : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>归档后会保留计划与服用记录</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div> : visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>完成测试后，记录会显示在这里</span></div></div>}</div>
+        {desensitizationStatus === 'error' && taskCategory === 'allergy' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>排敏测试加载失败，现有记录没有改变。</span><button onClick={()=>{setDesensitizationStatus('loading');void refreshDesensitization().catch(()=>setDesensitizationStatus('error'))}} type="button">重新加载</button></div>}
+        {taskView === 'active' && taskCategory==='medication' && <AddTaskCard category={taskCategory} disabled={!stationIsCurrent} onOpen={() => setReminderFlow(true)} />}
+        <div className="guardian-task-list">{taskCategory === 'medication' ? visibleMedicationReminders.length ? visibleMedicationReminders.map((reminder) => <MedicationReminderCard busy={busyReminderId === reminder.id} key={reminder.id} now={now} onArchive={() => void reminderAction(reminder, 'archive')} onDelete={() => { setDeleteReminder(reminder); setOpenReminderId('') }} onOpen={(value) => setOpenReminderId(value ? reminder.id : '')} onTake={() => void reminderAction(reminder, 'take')} onUndo={() => void reminderAction(reminder, 'undo')} open={openReminderId === reminder.id} reminder={reminder} />) : medicationStatus === 'loading' ? null : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>归档后会保留计划与服用记录</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div> : visibleDesensitizationTasks.length ? visibleDesensitizationTasks.map((task) => <DesensitizationTaskCard busy={busyDesensitizationId===task.id} key={task.id} onArchive={()=>void desensitizationAction(task,'archive')} onDelete={()=>setDeleteDesensitization(task)} onOpen={(view)=>setSelectedDesensitization({id:task.id,view})} onRestore={()=>void desensitizationAction(task,'restore')} onToggle={(value)=>setOpenDesensitizationId(value?task.id:'')} open={openDesensitizationId===task.id} task={task}/>) : desensitizationStatus==='loading' ? null : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake/><div><strong>暂无已归档观察</strong><span>归档不会删除记录和医生安排</span></div></div> : <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>点右上角“新增”开始一项观察</span></div></div>}</div>
       </section>
     </div>
-    {(savedItemId || medicationNotice) && <p aria-live="polite" className="nurse-station-save-notice" role="status">{medicationNotice || '用药提醒已保存'}</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={medicationReminders.map(item=>item.plan)}/>}<span hidden />
+    {(savedItemId || medicationNotice) && <p aria-live="polite" className="nurse-station-save-notice" role="status">{medicationNotice || '用药提醒已保存'}</p>}{desensitizationNotice&&<p aria-live="polite" className="nurse-station-save-notice desensitization-notice" role="status"><span>{desensitizationNotice.message}</span>{desensitizationNotice.undo&&<button onClick={()=>{const undo=desensitizationNotice.undo;setDesensitizationNotice(null);void undo?.().catch((error)=>setDesensitizationNotice({message:error instanceof Error?error.message:'撤销失败，请重试'}))}} type="button">撤销</button>}</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={medicationReminders.map(item=>item.plan)}/>}<span hidden />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
+    {selectedDesensitizationTask&&selectedDesensitization&&<DesensitizationTaskSheet initialView={selectedDesensitization.view} onArchive={()=>void desensitizationAction(selectedDesensitizationTask,'archive')} onClose={()=>setSelectedDesensitization(null)} onDelete={()=>setDeleteDesensitization(selectedDesensitizationTask)} onNotice={(message,undo)=>setDesensitizationNotice({message,undo})} onRefresh={refreshDesensitization} onRestore={()=>void desensitizationAction(selectedDesensitizationTask,'restore')} task={selectedDesensitizationTask} token={token}/>}
     {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyReminderId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除提醒？</h2><p>删除后，这条提醒和它生成的服用记录都会移除，无法恢复。</p><div><button disabled={Boolean(busyReminderId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyReminderId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyReminderId ? '删除中…' : '删除提醒'}</button></div></section></div>}
+    {deleteDesensitization&&<div className="medication-delete-layer" onMouseDown={(event)=>{if(event.target===event.currentTarget&&!busyDesensitizationId)setDeleteDesensitization(null)}} role="presentation"><section aria-labelledby="desensitization-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="desensitization-delete-title">删除“{deleteDesensitization.displayName}”观察？</h2><p>这会删除排敏测试及其中记录；健康随记里的原始饮食记录不会删除。完成后可立即撤销。</p><div><button disabled={Boolean(busyDesensitizationId)} onClick={()=>setDeleteDesensitization(null)} type="button">取消</button><button disabled={Boolean(busyDesensitizationId)} onClick={()=>void desensitizationAction(deleteDesensitization,'delete')} type="button">{busyDesensitizationId?'删除中…':'删除观察'}</button></div></section></div>}
   </main>
 }
 
