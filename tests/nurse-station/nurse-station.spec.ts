@@ -119,10 +119,10 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   const tabs = page.getByRole('tab')
   await expect(tabs).toHaveText(['用药提醒', '排敏测试'])
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByText('新增用药提醒', { exact: true })).toBeVisible()
-  await expect(page.getByText('创建下一次用药提醒', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '新增提醒', exact: true })).toBeVisible()
+  await expect(page.locator('.guardian-task-add')).toHaveCount(0)
   await tabs.nth(1).click()
-  await expect(page.getByRole('button', { name: '新增', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '新增测试', exact: true })).toBeVisible()
   await expect(page.getByText('还没有排敏测试', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/nurse-station-allergy-empty-375x667.png', fullPage: true })
   for (let index = 0; index < 4; index += 1) {
@@ -144,9 +144,9 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
 test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭环', async ({ page }) => {
   await registerMember(page)
   await page.getByRole('tab', { name: '排敏测试' }).click()
-  await page.getByRole('button', { name: '新增', exact: true }).click()
+  await page.getByRole('button', { name: '新增测试', exact: true }).click()
   await expect(page).toHaveURL(/\/nurse-station\/desensitization\/new$/)
-  await expect(page.getByText('当前孩子', { exact: true })).toBeVisible()
+  await expect(page.getByText('当前孩子', { exact: true })).toHaveCount(0)
   await page.getByPlaceholder('输入食物名称，如牛肉').fill('牛')
   await expect(page.getByText('你指的是？')).toBeVisible()
   await page.screenshot({ path: 'test-results/desensitization-new-ambiguous-375x667.png', fullPage: true })
@@ -174,7 +174,7 @@ test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭�
   await page.getByRole('button', { name: '没吃过', exact: true }).click()
   await page.screenshot({ path: 'test-results/desensitization-record-severe-cross-region-375x667.png', fullPage: true })
   await page.getByRole('button', { name: '保存记录' }).click()
-  await expect(page.getByText('记录已保存，趋势已更新')).toBeVisible()
+  await expect(page.getByText('记录已保存，趋势已更新')).toHaveCount(0)
   await expect(card.getByText('暂停进阶', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/desensitization-card-symptom-375x667.png', fullPage: true })
 
@@ -205,7 +205,7 @@ test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭�
   await page.screenshot({ path: 'test-results/desensitization-execution-card-375x667.png', fullPage: true })
   await page.getByRole('dialog', { name: /牛肉.*变化与下一步/ }).getByLabel(/关闭牛肉.*变化与下一步/).click()
 
-  await page.getByRole('button', { name: '新增', exact: true }).click()
+  await page.getByRole('button', { name: '新增测试', exact: true }).click()
   await page.getByPlaceholder('输入食物名称，如牛肉').fill('牛奶')
   await page.getByRole('button', { name: '开始观察' }).click()
   await page.getByRole('dialog', { name: /牛奶.*变化与下一步/ }).getByLabel(/关闭牛奶.*变化与下一步/).click()
@@ -214,7 +214,7 @@ test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭�
   await page.getByRole('button', { name: '没症状', exact: true }).click()
   await page.getByRole('button', { name: '吃过', exact: true }).click()
   await page.getByRole('button', { name: '保存记录' }).click()
-  await expect(page.getByText('记录已保存，趋势已更新')).toBeVisible()
+  await expect(page.getByText('记录已保存，趋势已更新')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/desensitization-multiple-cards-375x667.png', fullPage: true })
 
   await milkCard.getByRole('button', { name: /管理牛奶排敏测试/ }).click()
@@ -259,7 +259,7 @@ test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭�
 test('排敏记录未保存保护与草稿在刷新后继续', async ({ page }) => {
   await registerMember(page)
   await page.getByRole('tab', { name: '排敏测试' }).click()
-  await page.getByRole('button', { name: '新增', exact: true }).click()
+  await page.getByRole('button', { name: '新增测试', exact: true }).click()
   await page.getByPlaceholder('输入食物名称，如牛肉').fill('鸡蛋')
   await page.getByRole('button', { name: '开始观察' }).click()
   await page.getByRole('dialog', { name: /鸡蛋.*变化与下一步/ }).getByLabel(/关闭鸡蛋.*变化与下一步/).click()
@@ -290,7 +290,7 @@ test('用药提醒三步在 320x568 与 375x667 一屏完成并持久化', async
     const medicationName = `复方盐酸西替利嗪儿童滴剂超长名称换行验收${viewport.width}`
     await page.setViewportSize(viewport)
     await page.getByRole('tab', { name: '用药提醒' }).click()
-    await page.getByText('新增用药提醒', { exact: true }).click()
+    await page.getByRole('button', { name: '新增提醒', exact: true }).click()
     const flow=page.getByRole('dialog',{name:'新增用药提醒'})
     await flow.getByLabel('药品名称').fill(medicationName)
     await flow.getByLabel('每次用量').fill('5')
@@ -330,7 +330,7 @@ test('用药提醒三步在 320x568 与 375x667 一屏完成并持久化', async
 
 test('加载失败与可用空状态明确区分且重试可恢复', async ({ page }) => {
   await registerMember(page)
-  await page.getByText('新增用药提醒', { exact: true }).click()
+  await page.getByRole('button', { name: '新增提醒', exact: true }).click()
   const flow = page.getByRole('dialog', { name: '新增用药提醒' })
   await flow.getByLabel('药品名称').fill('失败时仍保留的用药计划')
   await flow.getByLabel('每次用量').fill('1')
@@ -379,28 +379,25 @@ test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', as
   await expect(firstTab).toBeFocused()
   const measurements = await page.evaluate(() => {
     const tab = document.querySelector<HTMLElement>('.guardian-task-tabs button[aria-selected="true"]')!
-    const add = document.querySelector<HTMLElement>('.guardian-task-add')!
+    const add = document.querySelector<HTMLElement>('.desensitization-add')!
     const unavailable = document.querySelector<HTMLElement>('.nurse-more-service--unavailable')!
-    const title = document.querySelector<HTMLElement>('.guardian-task-add strong')!
-    const detail = document.querySelector<HTMLElement>('.guardian-task-add small')!
     const tabStyle = getComputedStyle(tab)
     const unavailableStyle = getComputedStyle(unavailable)
     return {
       addHeight: add.getBoundingClientRect().height,
-      detailFontSize: detail ? getComputedStyle(detail).fontSize : '',
+      actionFontSize: getComputedStyle(add).fontSize,
       maxPageWidth: document.querySelector<HTMLElement>('.app-shell')?.getBoundingClientRect().width,
       pageWidth: document.documentElement.scrollWidth,
       tabBackground: tabStyle.backgroundColor,
       tabColor: tabStyle.color,
       tabHeight: tab.getBoundingClientRect().height,
-      titleFontSize: title ? getComputedStyle(title).fontSize : '',
       unavailableBackground: unavailableStyle.backgroundColor,
       unavailableColor: unavailableStyle.color,
       unavailableHeight: unavailable.getBoundingClientRect().height
     }
   })
   expect(measurements.tabHeight).toBeGreaterThanOrEqual(44)
-  expect(measurements.addHeight).toBeGreaterThanOrEqual(72)
+  expect(measurements.addHeight).toBeGreaterThanOrEqual(44)
   expect(measurements.unavailableHeight).toBeGreaterThanOrEqual(44)
   expect(contrastRatio(measurements.tabColor, measurements.tabBackground)).toBeGreaterThanOrEqual(4.5)
   expect(contrastRatio(measurements.unavailableColor, measurements.unavailableBackground)).toBeGreaterThanOrEqual(4.5)

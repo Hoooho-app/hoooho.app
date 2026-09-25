@@ -38,7 +38,8 @@ test('核心记录入口为等宽双列，更多服务为可扩展四列宫格',
 test('守护任务使用标题下拉和两个等宽类别切换', () => {
   assert.match(styles, /\.guardian-task-tabs\s*\{[^}]*grid-template-columns:\s*repeat\(2,/)
   assert.match(source, /role="tablist"/)
-  assert.match(source, /新增用药提醒/)
+  assert.match(source, /'新增测试':'新增提醒'/)
+  assert.doesNotMatch(source, /guardian-task-add/)
   assert.match(source, /guardian-task-heading/)
   assert.doesNotMatch(source, /<strong>\{member\.name\}<\/strong>的任务/)
   assert.match(source, /还没有排敏测试/)
