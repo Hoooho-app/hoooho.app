@@ -25,7 +25,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 - `StatusNotice`: information, success, warning and error messaging with icon, text and optional action.
 - `EmptyState`: compact message and one clear recovery action.
 - `ListSkeleton`: reusable non-blocking loading placeholder with reduced-motion support.
-- `BottomSheetSurface` and the main drawer: scroll containment, Escape, focus trap, focus restoration and safe-area padding.
+- `BottomSheetSurface` and the main drawer: scroll containment, Escape, focus trap, focus restoration and safe-area padding. Focused subflows may pair a leading back action with the optional text dismissal action; ordinary sheets keep the standard close icon.
 - Grouped navigation and settings lists: one flat continuous surface with row dividers; do not wrap every row in an independent card.
 - Record subject identity: one shared compact member surface; detail pages must not nest it inside a second card.
 

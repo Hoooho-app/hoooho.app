@@ -15,9 +15,10 @@ export interface BottomSheetSurfaceProps {
   open: boolean
   size?: 'default' | 'workspace'
   title: string
+  dismissText?: string
 }
 
-export function BottomSheetSurface({ children, className = '', footer, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, className = '', dismissText, footer, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
   const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
   useDialogFocus(open, sheetRef)
@@ -40,8 +41,8 @@ export function BottomSheetSurface({ children, className = '', footer, label, la
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
         <header className="hoho-bottom-sheet__header">
           <div className="hoho-bottom-sheet__title-group">{leading}<h2 className="hoho-text-section-title">{title}</h2></div>
-          <button aria-label={`关闭${label}`} className="hoho-bottom-sheet__close" onClick={onClose} type="button">
-            <X size={21} strokeWidth={1.8} />
+          <button aria-label={dismissText ?? `关闭${label}`} className="hoho-bottom-sheet__close" data-text={Boolean(dismissText)} onClick={onClose} type="button">
+            {dismissText ?? <X size={21} strokeWidth={1.8} />}
           </button>
         </header>
         {navigation && <div className="hoho-bottom-sheet__navigation">{navigation}</div>}

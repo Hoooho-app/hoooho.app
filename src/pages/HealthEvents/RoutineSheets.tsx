@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Clock3, Moon, Plus, Trash2, Utensils } from 'lucide-react'
-import { BottomSheetSurface, ConfirmDialog, HohoButton, HohoToggle } from '../../components/design-system'
+import { ArrowLeft, CheckCircle2, Clock3, Moon, PencilLine, Plus, Trash2, Utensils } from 'lucide-react'
+import { BottomSheetSurface, ConfirmDialog, HohoButton, HohoInput, HohoToggle } from '../../components/design-system'
 import { routineTrackService, type RoutineDay, type RoutineFixedItemKey, type RoutineItemKey, type RoutineTrack } from '../../services/routineTracks'
 
 const definitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: boolean }> = [
@@ -11,7 +11,10 @@ const definitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: bool
 ]
 
 type RoutineDraftItem = { enabled: boolean; title: string; time: string; endTime: string }
-type PendingRoutineChange = { action: 'disable' | 'remove'; key: RoutineItemKey; label: string }
+type RoutineNameEditor = { mode: 'add'; value: string } | { mode: 'edit'; key: RoutineItemKey; value: string }
+type PendingRoutineDelete = { key: RoutineItemKey; label: string }
+
+const normalizeRoutineName = (value: string) => value.trim().replace(/\s+/g, ' ')
 
 function localIso(day: string, time: string) {
   const value = new Date(`${day}T${time}:00`)
@@ -37,30 +40,51 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [attempted, setAttempted] = useState(false)
-  const [pendingChange, setPendingChange] = useState<PendingRoutineChange | null>(null)
-  useEffect(() => { if (open) { setItems(initial); setError(''); setAttempted(false); setPendingChange(null) } }, [initial, open])
+  const [nameEditor, setNameEditor] = useState<RoutineNameEditor | null>(null)
+  const [nameError, setNameError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<PendingRoutineDelete | null>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (open) { setItems(initial); setError(''); setAttempted(false); setNameEditor(null); setNameError(''); setNotice(''); setPendingDelete(null) } }, [initial, open])
+  useEffect(() => {
+    if (!nameEditor) return
+    const frame = window.requestAnimationFrame(() => nameInputRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [nameEditor])
   const itemEntries = Object.entries(items) as Array<[RoutineItemKey, RoutineDraftItem]>
   const customEntries = itemEntries.filter(([key]) => key.startsWith('custom:'))
   const valid = itemEntries.every(([key, item]) => !item.enabled || (item.time && item.endTime && (!key.startsWith('custom:') || item.title.trim())))
   const dirty = JSON.stringify(items) !== JSON.stringify(initial)
   const close = () => { if (!dirty || window.confirm('作息设置还没有保存，确定退出吗？')) onClose() }
-  const setEnabled = (key: RoutineItemKey, label: string, enabled: boolean) => {
-    if (!enabled && items[key].enabled) return setPendingChange({ action: 'disable', key, label })
+  const setEnabled = (key: RoutineItemKey, enabled: boolean) => {
     setItems((value) => ({ ...value, [key]: { ...value[key], enabled } }))
+    setNotice('')
   }
-  const confirmChange = () => {
-    if (!pendingChange) return
-    setItems((value) => {
-      if (pendingChange.action === 'remove') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== pendingChange.key)) as Record<RoutineItemKey, RoutineDraftItem>
-      return { ...value, [pendingChange.key]: { ...value[pendingChange.key], enabled: false } }
-    })
-    setPendingChange(null)
+  const removeCustom = (key: RoutineItemKey) => {
+    setItems((value) => Object.fromEntries(Object.entries(value).filter(([itemKey]) => itemKey !== key)) as Record<RoutineItemKey, RoutineDraftItem>)
+    setPendingDelete(null)
   }
-  const addCustom = () => {
+  const openAddCustom = () => {
     if (customEntries.length >= 8) return setError('最多添加8项其他作息')
-    const key = `custom:${crypto.randomUUID().replaceAll('-', '')}` as RoutineItemKey
-    setItems((value) => ({ ...value, [key]: { enabled: true, title: '', time: '', endTime: '' } }))
-    setError('')
+    setNameEditor({ mode: 'add', value: '' }); setNameError(''); setNotice(''); setError('')
+  }
+  const openEditName = (key: RoutineItemKey, value: string) => {
+    setNameEditor({ mode: 'edit', key, value }); setNameError(''); setNotice('')
+  }
+  const saveName = () => {
+    if (!nameEditor) return
+    const title = normalizeRoutineName(nameEditor.value)
+    if (!title) return setNameError('请输入作息名称')
+    const editingKey = nameEditor.mode === 'edit' ? nameEditor.key : null
+    if (itemEntries.some(([key, item]) => key !== editingKey && normalizeRoutineName(item.title) === title)) return setNameError('已存在同名作息')
+    if (nameEditor.mode === 'add') {
+      const key = `custom:${crypto.randomUUID().replaceAll('-', '')}` as RoutineItemKey
+      setItems((value) => ({ ...value, [key]: { enabled: true, title, time: '', endTime: '' } }))
+    } else {
+      setItems((value) => ({ ...value, [nameEditor.key]: { ...value[nameEditor.key], title } }))
+      setNotice('名称已更新')
+    }
+    setNameEditor(null); setNameError('')
   }
   const save = async () => {
     setAttempted(true)
@@ -81,20 +105,37 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
       <label><span>{sleep ? '通常醒来' : '结束'}</span><span className={`routine-time-control${nextDay ? ' routine-time-control--next-day' : ''}`}><input aria-label={`${label}${sleep ? '通常醒来' : '结束时间'}`} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], endTime: event.target.value } }))} type="time" value={item.endTime} />{nextDay && <em>次日</em>}</span>{attempted && !item.endTime && <small role="alert">请选择结束时间</small>}</label>
     </div>
   }
+  if (nameEditor) {
+    const editing = nameEditor.mode === 'edit'
+    const title = editing ? '编辑名称' : '添加自定义作息'
+    const nameFormId = 'routine-name-form'
+    return <BottomSheetSurface className="routine-name-sheet" dismissText="取消" footer={<HohoButton disabled={!nameEditor.value.trim()} form={nameFormId} fullWidth size="large" type="submit">{editing ? '保存名称' : '添加'}</HohoButton>} label={title} leading={<button aria-label="返回作息列表" className="hoho-bottom-sheet__back" onClick={() => { setNameEditor(null); setNameError('') }} type="button"><ArrowLeft size={20} /></button>} onClose={() => { setNameEditor(null); setNameError('') }} open={open} title={title}>
+      <form className="routine-name-form" id={nameFormId} onSubmit={(event) => { event.preventDefault(); saveName() }}>
+        <HohoInput autoComplete="off" error={nameError} hint={editing ? '仅修改名称，保留时间与启用状态' : '添加后仍可修改名称'} label="名称" maxLength={20} onChange={(event) => { setNameEditor((value) => value ? { ...value, value: event.target.value } : value); setNameError('') }} placeholder="例如：吃药、早午餐" ref={nameInputRef} type="search" value={nameEditor.value} />
+        {editing && <button className="routine-name-delete" onClick={() => {
+          const key = nameEditor.key
+          const label = items[key].title
+          setNameEditor(null); setNameError('')
+          if (routineDay.template?.items.some((candidate) => candidate.key === key)) setPendingDelete({ key, label })
+          else removeCustom(key)
+        }} type="button"><Trash2 aria-hidden="true" size={17} />删除这项作息</button>}
+      </form>
+    </BottomSheetSurface>
+  }
   return <><BottomSheetSurface className="routine-setup-sheet" label="设置日常作息" onClose={close} open={open} title="设置日常作息" footer={<HohoButton fullWidth loading={saving} onClick={() => void save()} size="large">保存并执行</HohoButton>}>
     <p className="routine-sheet-intro">按孩子通常的作息生成每天的轻量轨迹。之后可以补充或修改，也不会发送催填提醒。</p>
+    {notice && <div aria-live="polite" className="routine-local-toast" role="status"><CheckCircle2 aria-hidden="true" size={18} />{notice}</div>}
     <div className="routine-setup-list">
       {definitions.map(({ key, label, sleep }) => <div className="routine-setup-row" key={key}>
-        <div className="routine-enable"><HohoToggle checked={items[key].enabled} label={`${label}作息`} onChange={(enabled) => setEnabled(key, label, enabled)} /><span>{label}</span></div>
-        {!items[key].enabled ? <span className="routine-disabled-copy">未启用</span> : renderTimes(key, label, sleep)}
+        <div className="routine-row-heading"><strong>{label}</strong>{!items[key].enabled && <span className="routine-disabled-copy">未启用</span>}<HohoToggle checked={items[key].enabled} label={`${label}作息`} onChange={(enabled) => setEnabled(key, enabled)} /></div>
+        {items[key].enabled && renderTimes(key, label, sleep)}
       </div>)}
       {customEntries.map(([key, item], index) => <div className="routine-setup-row routine-setup-row--custom" key={key}>
-        <div className="routine-custom-heading"><HohoToggle checked={item.enabled} label={`${item.title || `其他作息${index + 1}`}作息`} onChange={(enabled) => setEnabled(key, item.title || `其他作息${index + 1}`, enabled)} /><input aria-label={`其他作息${index + 1}名称`} maxLength={20} onChange={(event) => setItems((value) => ({ ...value, [key]: { ...value[key], title: event.target.value } }))} placeholder="作息名称" value={item.title} /><button aria-label={`删除${item.title || `其他作息${index + 1}`}`} onClick={() => routineDay.template?.items.some((candidate) => candidate.key === key) ? setPendingChange({ action: 'remove', key, label: item.title || `其他作息${index + 1}` }) : setItems((value) => Object.fromEntries(Object.entries(value).filter(([itemKey]) => itemKey !== key)) as Record<RoutineItemKey, RoutineDraftItem>)} type="button"><Trash2 aria-hidden="true" size={17} /></button></div>
+        <div className="routine-row-heading"><span className="routine-custom-title"><strong>{item.title || `自定义作息${index + 1}`}</strong><button aria-label={`修改${item.title || `自定义作息${index + 1}`}名称`} onClick={() => openEditName(key, item.title)} type="button"><PencilLine aria-hidden="true" size={16} /></button></span>{!item.enabled && <span className="routine-disabled-copy">未启用</span>}<HohoToggle checked={item.enabled} label={`${item.title || `自定义作息${index + 1}`}作息`} onChange={(enabled) => setEnabled(key, enabled)} /></div>
         {item.enabled && renderTimes(key, item.title || `其他作息${index + 1}`)}
-        {attempted && item.enabled && !item.title.trim() && <small className="routine-custom-error" role="alert">请输入作息名称</small>}
       </div>)}
     </div>
-    <button className="routine-add-custom" disabled={saving || customEntries.length >= 8} onClick={addCustom} type="button"><Plus aria-hidden="true" size={17} />添加其他作息</button>
+    <button className="routine-add-custom" disabled={saving || customEntries.length >= 8} onClick={openAddCustom} type="button"><Plus aria-hidden="true" size={21} />添加自定义作息</button>
     {routineDay.consent === 'unset' && <button className="routine-decline" disabled={saving} onClick={async () => {
       setSaving(true); setError('')
       try { await routineTrackService.setConsent(memberId, 'declined', token); onSaved('已暂不使用日常作息'); onClose() }
@@ -102,7 +143,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
       finally { setSaving(false) }
     }} type="button">暂不使用</button>}
     {error && <p className="routine-sheet-error" role="alert">{error}</p>}
-  </BottomSheetSurface><ConfirmDialog cancelLabel="继续使用" confirmLabel={pendingChange?.action === 'remove' ? '删除设置' : '关闭作息'} danger={pendingChange?.action === 'remove'} description={`关闭“${pendingChange?.label ?? ''}”后，此前的记录保留，之后的作息将不再延续记录。`} onCancel={() => setPendingChange(null)} onConfirm={confirmChange} open={Boolean(pendingChange)} title={pendingChange?.action === 'remove' ? '删除这项作息？' : '关闭这项作息？'} /></>
+  </BottomSheetSurface><ConfirmDialog cancelLabel="保留" confirmLabel="删除设置" danger description={`删除“${pendingDelete?.label ?? ''}”后，此前的记录保留，之后的作息将不再延续。`} onCancel={() => setPendingDelete(null)} onConfirm={() => { if (pendingDelete) removeCustom(pendingDelete.key) }} open={Boolean(pendingDelete)} title="删除这项作息？" /></>
 }
 
 export function RoutineTrackSheet({ memberId, now, openTrack, token, onClose, onSaved }: { memberId: string; now: Date; openTrack: RoutineTrack | null; token: string; onClose: () => void; onSaved: (message: string, record?: { eventId?: string; recordId?: string }) => void }) {
