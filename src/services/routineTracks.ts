@@ -1,7 +1,9 @@
 import { apiRequest } from './apiClient'
 
 export type RoutineConsent = 'unset' | 'declined' | 'enabled' | 'disabled'
-export type RoutineItemKey = 'nightSleep' | 'breakfast' | 'lunch' | 'dinner'
+export type RoutineFixedItemKey = 'nightSleep' | 'breakfast' | 'lunch' | 'dinner'
+export type RoutineItemKey = RoutineFixedItemKey | `custom:${string}`
+export type RoutineCategory = 'diet' | 'sleep' | 'activity'
 export type RoutineTrackStatus = 'routine' | 'confirmed' | 'skipped'
 
 export interface RoutineTrack {
@@ -10,7 +12,7 @@ export interface RoutineTrack {
   day: string
   itemKey: RoutineItemKey
   title: string
-  category: 'diet' | 'sleep'
+  category: RoutineCategory
   meal?: string
   time: string
   endTime?: string
@@ -23,7 +25,7 @@ export interface RoutineTemplate {
   id: string
   effectiveFrom: string
   enabled: boolean
-  items: Array<{ key: RoutineItemKey; title: string; category: 'diet' | 'sleep'; meal?: string; time: string; endTime?: string }>
+  items: Array<{ key: RoutineItemKey; title: string; category: RoutineCategory; meal?: string; time: string; endTime?: string }>
 }
 
 export interface RoutineDay {
@@ -35,7 +37,7 @@ export interface RoutineDay {
 export interface RoutineTemplateInput {
   effectiveFrom: string
   enabled: boolean
-  items: Partial<Record<RoutineItemKey, { enabled: boolean; time: string; endTime?: string }>>
+  items: Partial<Record<RoutineItemKey, { enabled: boolean; title?: string; time: string; endTime?: string }>>
 }
 
 const base = (memberId: string) => `/api/routines/${encodeURIComponent(memberId)}`
