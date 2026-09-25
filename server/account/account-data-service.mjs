@@ -20,7 +20,8 @@ export const accountCollections = [
   ['quick-record-photo-drafts.json', 'photos'],
   ['routine-preferences.json', 'preferences'],
   ['routine-templates.json', 'templates'],
-  ['routine-overrides.json', 'overrides']
+  ['routine-overrides.json', 'overrides'],
+  ['medication-reminders.json', 'reminders']
 ]
 
 export class AccountDataService {

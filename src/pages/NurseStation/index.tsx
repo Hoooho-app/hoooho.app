@@ -1,5 +1,5 @@
 import { Bell, BookOpen, ChevronDown, ChevronRight, ClipboardCheck, FileText, Folder, FolderOpen, HeartHandshake, Languages, MapPin, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, Utensils, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HohoButton, MedicalPrepButton } from '../../components/design-system'
@@ -10,7 +10,7 @@ import { readNurseStationState, reconcileNurseStationItems, writeNurseStationSta
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import { quickRecordService } from '../../services/quickRecords'
+import { medicationReminderService, type MedicationReminderDto } from '../../services/medicationReminders'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { getNurseNextActionEventId } from '../HealthEvents/nurseNextActionContext'
 import { useJournal } from '../HealthEvents/useJournal'
@@ -18,8 +18,9 @@ import '../HealthEvents/TimeView.css'
 import { getArchivedTasks, getGuardedDays, sortActiveTasks, taskNextStep, taskStatus, taskTitle } from './nurseStationView'
 import { NurseStationFactTypewriter } from './NurseStationFactTypewriter'
 import './nurseStation.css'
-import { MedicationActionSheet, MedicationReminderFlow } from './MedicationReminderFlow'
-import { effectiveStatus, formatOccurrence, nextOccurrences, planLabel, routeLabel } from './medicationReminderLogic'
+import { MedicationReminderFlow } from './MedicationReminderFlow'
+import { MedicationReminderCard } from './MedicationReminderCard'
+import { effectiveStatus, formatOccurrence, planLabel, routeLabel } from './medicationReminderLogic'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 type TaskCategory = 'medication' | 'allergy'
@@ -46,6 +47,14 @@ export function NurseStationPage() {
   const [completionOpen, setCompletionOpen] = useState(false)
   const [completionResult, setCompletionResult] = useState('已恢复')
   const [savedItemId, setSavedItemId] = useState('')
+  const [medicationReminders, setMedicationReminders] = useState<MedicationReminderDto[]>([])
+  const [medicationStatus, setMedicationStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [medicationNotice, setMedicationNotice] = useState('')
+  const [busyReminderId, setBusyReminderId] = useState('')
+  const [openReminderId, setOpenReminderId] = useState('')
+  const [deleteReminder, setDeleteReminder] = useState<MedicationReminderDto | null>(null)
+  const [now, setNow] = useState(() => new Date())
+  const migratingIds = useRef(new Set<string>())
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -59,6 +68,34 @@ export function NurseStationPage() {
     setStationMemberId(currentMemberId)
     setSelected(null); setReminderFlow(null)
   }, [identityId, currentMemberId])
+
+  useEffect(() => {
+    const tick = () => setNow(new Date())
+    const timer = window.setInterval(tick, 1000)
+    document.addEventListener('visibilitychange', tick)
+    window.addEventListener('focus', tick)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', tick); window.removeEventListener('focus', tick) }
+  }, [])
+
+  useEffect(() => {
+    const close = (event: PointerEvent) => { if (!(event.target as HTMLElement).closest('.medication-course-card')) setOpenReminderId('') }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [])
+
+  useEffect(() => {
+    if (!medicationNotice) return
+    const timer = window.setTimeout(() => setMedicationNotice(''), 2400)
+    return () => window.clearTimeout(timer)
+  }, [medicationNotice])
+
+  useEffect(() => {
+    let active = true
+    setMedicationStatus('loading'); setMedicationReminders([]); setOpenReminderId(''); setDeleteReminder(null); migratingIds.current.clear()
+    if (!token || !currentMemberId) return () => { active = false }
+    void medicationReminderService.list(currentMemberId, token).then((items) => { if (active) { setMedicationReminders(items); setMedicationStatus('success') } }).catch(() => { if (active) setMedicationStatus('error') })
+    return () => { active = false }
+  }, [currentMemberId, token])
 
   const members = listState.status === 'success' ? listState.data.members : cachedMembers
   const member = members.find((item) => item.id === currentMemberId) ?? null
@@ -77,34 +114,40 @@ export function NurseStationPage() {
   const archived = getArchivedTasks(currentItems)
   const memberDto = listState.status === 'success' ? listState.data.memberDtos.find((item) => item.id === member?.id) : null
   const guardedDays = getGuardedDays(memberDto?.createdAt)
-  const visibleTasks = (taskView === 'archive' ? archived : active).filter((item) => taskCategory === 'medication' ? item.type === 'medication_reminder' : false)
+  const visibleTasks = (taskView === 'archive' ? archived : active).filter((item) => item.type !== 'medication_reminder')
+  const visibleMedicationReminders = medicationReminders.filter((item) => taskView === 'archive' ? item.status === 'archived' : item.status === 'active')
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
 
   const updateItem = (id: string, changes: Partial<NurseStationItem>) => setStation((previous) => ({ ...previous, items: previous.items.map((item) => item.id === id ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item) }))
   const closeTaskSheet = () => { setSelected(null); setCompletionOpen(false) }
   const finishObservation = () => { if (selected) { updateItem(selected.id, { status: 'completed', completedAt: new Date().toISOString(), completionResult }); closeTaskSheet() } }
-  const saveMedicationPlan = (plan: NonNullable<NurseStationItem['medicationPlan']>) => {
-    const now = new Date().toISOString()
-    const id = reminderFlow && reminderFlow !== true ? reminderFlow.id : `med-reminder-${crypto.randomUUID()}`
-    if (reminderFlow && reminderFlow !== true) updateItem(id, { medicationPlan: plan, reminder: { at: plan.nextOccurrenceAt, paused: false }, status: 'active', title: plan.medicationName })
-    else if (stationIsCurrent) setStation((previous) => ({ ...previous, items: [...previous.items, { id, memberId: currentMemberId, sourceEventId: '', relatedEventIds: [], type: 'medication_reminder', status: 'active', title: plan.medicationName, sourceLabel: '用药提醒', createdAt: now, updatedAt: now, medicationPlan: plan, reminder: { at: plan.nextOccurrenceAt, paused: false } }] }))
-    setSavedItemId(id); window.setTimeout(() => document.querySelector<HTMLElement>(`[data-task-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0); window.setTimeout(() => setSavedItemId(current => current === id ? '' : current), 2400)
+  useEffect(() => {
+    if (medicationStatus !== 'success' || !token || !stationIsCurrent) return
+    for (const item of station.items.filter((entry) => entry.type === 'medication_reminder' && entry.medicationPlan)) {
+      if (medicationReminders.some((entry) => entry.clientId === item.id) || migratingIds.current.has(item.id)) continue
+      migratingIds.current.add(item.id)
+      void medicationReminderService.create(currentMemberId, item.medicationPlan!, token, item.id).then((created) => setMedicationReminders((current) => current.some((entry) => entry.id === created.id) ? current : [...current, created])).catch(() => setMedicationNotice('旧提醒同步失败，请稍后重试')).finally(() => migratingIds.current.delete(item.id))
+    }
+  }, [currentMemberId, medicationReminders, medicationStatus, station.items, stationIsCurrent, token])
+
+  const saveMedicationPlan = async (plan: NonNullable<NurseStationItem['medicationPlan']>) => {
+    if (!token || !stationIsCurrent) throw new Error('登录状态无效')
+    const created = await medicationReminderService.create(currentMemberId, plan, token, `med-reminder-${crypto.randomUUID()}`)
+    setMedicationReminders((current) => [...current, created])
+    setSavedItemId(created.id); window.setTimeout(() => document.querySelector<HTMLElement>(`[data-reminder-id="${created.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0); window.setTimeout(() => setSavedItemId(current => current === created.id ? '' : current), 2400)
     setReminderFlow(null); setTaskCategory('medication'); setTaskView('active')
   }
-  const handleMedicationAction = async (action: 'taken'|'snooze'|'skip'|'adjust'|'cancel_snooze'|'pause'|'resume'|'end', detail?: string) => {
-    if (!selected?.medicationPlan) return
-    const plan = selected.medicationPlan; const now = new Date(); const future = nextOccurrences(plan, new Date(Date.parse(plan.nextOccurrenceAt) + 60_000), 1)[0]
-    if (action === 'taken') {
-      if (!token || plan.confirmedOccurrenceKeys.includes(plan.occurrenceKey)) return
-      const idempotencyKey = `medication-reminder-${selected.id}-${plan.occurrenceKey}`.replaceAll(/[^a-zA-Z0-9_-]/g, '')
-      await quickRecordService.create({ memberId: currentMemberId, content: `已服用${plan.medicationName} ${plan.amount}${plan.unit}，${routeLabel(plan.route)}`, occurredAt: now.toISOString(), inputChannel: 'text', idempotencyKey, title: plan.medicationName, journal: { categories: ['medication'], medication: { medicationName: plan.medicationName, amountValue: plan.amount, amountUnit: plan.unit, administrationRoute: (['oral','topical','inhaled','nasal','ophthalmic','other'].includes(plan.route) ? plan.route : 'other') as 'oral', medications: [{ id: crypto.randomUUID(), medicationName: plan.medicationName, amountValue: plan.amount, amountUnit: plan.unit, dosageStep: 1 }] } } }, token)
-      updateItem(selected.id, { status: future ? 'active' : 'completed', completedAt: future ? undefined : now.toISOString(), medicationPlan: { ...plan, lastTakenAt: now.toISOString(), nextOccurrenceAt: future?.toISOString() ?? plan.nextOccurrenceAt, occurrenceKey: future?.toISOString() ?? plan.occurrenceKey, confirmedOccurrenceKeys: [...plan.confirmedOccurrenceKeys, plan.occurrenceKey], snoozedUntil: undefined, originalOccurrenceAt: undefined } }); setSelected(null); return
-    }
-    if (action === 'snooze') { const until = new Date(now.getTime()+600_000).toISOString(); updateItem(selected.id,{status:'snoozed',medicationPlan:{...plan,originalOccurrenceAt:plan.originalOccurrenceAt??plan.nextOccurrenceAt,snoozedUntil:until,nextOccurrenceAt:until}}); setSelected(null); return }
-    if (action === 'cancel_snooze') { const next=nextOccurrences(plan,now,1)[0]; updateItem(selected.id,{status:'active',medicationPlan:{...plan,nextOccurrenceAt:(next??now).toISOString(),snoozedUntil:undefined,originalOccurrenceAt:undefined}}); setSelected(null); return }
-    if (action === 'skip') { updateItem(selected.id,{status:'skipped_current',medicationPlan:{...plan,skippedAt:now.toISOString(),skipReason:detail,nextOccurrenceAt:future?.toISOString()??plan.nextOccurrenceAt,occurrenceKey:future?.toISOString()??plan.occurrenceKey}}); setSelected(null); return }
-    if (action === 'pause' || action === 'resume' || action === 'end') { updateItem(selected.id,{status:action==='pause'?'paused':action==='end'?'ended':'active'}); setSelected(null); return }
-    setSelected(null); setReminderFlow(selected)
+  const replaceReminder = (updated: MedicationReminderDto) => setMedicationReminders((current) => current.map((item) => item.id === updated.id ? updated : item))
+  const reminderAction = async (reminder: MedicationReminderDto, action: 'take' | 'undo' | 'archive' | 'delete') => {
+    if (!token || busyReminderId) return
+    setBusyReminderId(reminder.id); setMedicationNotice('')
+    try {
+      if (action === 'take') { if (!reminder.nextOccurrence) return; replaceReminder(await medicationReminderService.complete(reminder.id, reminder.nextOccurrence.id, authUser?.id ?? identityId, token)); setMedicationNotice('本次已记录') }
+      else if (action === 'undo') { replaceReminder(await medicationReminderService.undo(reminder.id, token)); setMedicationNotice('已撤回最近一次记录') }
+      else if (action === 'archive') { replaceReminder(await medicationReminderService.archive(reminder.id, token)); setOpenReminderId(''); setMedicationNotice('已归档') }
+      else { await medicationReminderService.delete(reminder.id, token); setMedicationReminders((current) => current.filter((item) => item.id !== reminder.id)); if (reminder.clientId) setStation((current) => ({ ...current, items: current.items.filter((item) => item.id !== reminder.clientId) })); setDeleteReminder(null); setOpenReminderId(''); setMedicationNotice('提醒已删除') }
+    } catch (error) { setMedicationNotice(error instanceof Error ? error.message : '操作没有完成，请重试') }
+    finally { setBusyReminderId('') }
   }
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
@@ -141,14 +184,16 @@ export function NurseStationPage() {
       <section aria-busy={listState.status === 'loading' || !stationIsCurrent} className="guardian-tasks">
         <header><div className="guardian-task-heading"><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button></div>{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header>
         <div className="guardian-task-tabs" role="tablist">{([['medication', '用药提醒'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>
-        {(listState.status === 'loading' || !stationIsCurrent) && <div aria-live="polite" className="guardian-data-notice" role="status">正在同步当前人物的任务…</div>}
+        {(listState.status === 'loading' || !stationIsCurrent || medicationStatus === 'loading') && <div aria-live="polite" className="guardian-data-notice" role="status">正在同步当前人物的任务…</div>}
         {listState.status === 'error' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>最新数据加载失败，已保存任务仍会保留。</span><button onClick={retryEvents} type="button">重新加载</button></div>}
+        {medicationStatus === 'error' && taskCategory === 'medication' && <div className="guardian-data-notice guardian-data-notice--error" role="alert"><span>用药提醒加载失败，请稍后重试。</span></div>}
         {taskView === 'active' && <AddTaskCard category={taskCategory} disabled={!stationIsCurrent} onOpen={() => taskCategory === 'medication' ? setReminderFlow(true) : taskCategory === 'allergy' ? navigate('/health-profile/allergy') : undefined} />}
-        <div className="guardian-task-list">{visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : listState.status === 'loading' || !stationIsCurrent ? null : listState.status === 'error' ? null : taskCategory === 'allergy' ? <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>完成测试后，记录会显示在这里</span></div></div> : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>结束的任务会保留在这里</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div>}</div>
+        <div className="guardian-task-list">{taskCategory === 'medication' ? visibleMedicationReminders.length ? visibleMedicationReminders.map((reminder) => <MedicationReminderCard busy={busyReminderId === reminder.id} key={reminder.id} now={now} onArchive={() => void reminderAction(reminder, 'archive')} onDelete={() => { setDeleteReminder(reminder); setOpenReminderId('') }} onOpen={(value) => setOpenReminderId(value ? reminder.id : '')} onTake={() => void reminderAction(reminder, 'take')} onUndo={() => void reminderAction(reminder, 'undo')} open={openReminderId === reminder.id} reminder={reminder} />) : medicationStatus === 'loading' ? null : taskView === 'archive' ? <div className="guardian-task-empty"><HeartHandshake /><div><strong>暂无已归档任务</strong><span>归档后会保留计划与服用记录</span></div></div> : <div className="guardian-task-empty"><Pill/><div><strong>还没有用药提醒</strong><span>需要时可以从上方创建</span></div></div> : visibleTasks.length ? visibleTasks.map((item) => <TaskCard item={item} key={item.id} onOpen={() => setSelected(item)} />) : <div className="guardian-task-empty"><Bell/><div><strong>还没有排敏测试</strong><span>完成测试后，记录会显示在这里</span></div></div>}</div>
       </section>
     </div>
-    {savedItemId && <p aria-live="polite" className="nurse-station-save-notice" role="status">用药提醒已保存</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={currentItems.flatMap(item=>item.medicationPlan?[item.medicationPlan]:[])}/>}<span hidden />
-    {selected?.type==='medication_reminder' && selected.medicationPlan ? <MedicationActionSheet item={selected} onClose={()=>setSelected(null)} onAction={(action,detail)=>void handleMedicationAction(action,detail)}/> : selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
+    {(savedItemId || medicationNotice) && <p aria-live="polite" className="nurse-station-save-notice" role="status">{medicationNotice || '用药提醒已保存'}</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={medicationReminders.map(item=>item.plan)}/>}<span hidden />
+    {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
+    {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyReminderId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除提醒？</h2><p>停止后续提醒，保留已有服用记录。</p><div><button disabled={Boolean(busyReminderId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyReminderId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyReminderId ? '删除中…' : '删除提醒'}</button></div></section></div>}
   </main>
 }
 
