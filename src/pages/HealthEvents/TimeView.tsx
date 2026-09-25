@@ -55,7 +55,7 @@ function CurrentTimeRow() {
   const style = { '--journal-now-progress': `${hourProgress(now) * 100}%` } as CSSProperties
   return <div className={`journal-timeline-row journal-timeline-row--now${reset ? ' journal-timeline-row--now-reset' : ''}`} data-time="now">
     <time dateTime={now.toISOString()}>现在</time><span aria-hidden="true" className="journal-timeline-marker"><span key={now.getSeconds()} /></span>
-    <div aria-label={`当前时间，${currentClockLabel(now)}`} className="journal-hour-cell journal-now-cell" style={style}><Clock3 aria-hidden="true" size={18} /><span>{currentClockLabel(now)}</span></div>
+    <div aria-label={`当前时间，${currentClockLabel(now)}`} className="journal-hour-cell journal-now-cell" style={style}><span>{currentClockLabel(now)}</span></div>
   </div>
 }
 

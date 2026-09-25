@@ -243,7 +243,7 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   await prepare(page, 'routine-child')
   await expect(page.locator('.journal-timeline-row--now')).toHaveCount(1)
   await expect(page.locator('.journal-timeline-row--now > time')).toHaveText('现在')
-  await expect(page.locator('.journal-now-cell svg')).toBeVisible()
+  await expect(page.locator('.journal-now-cell svg')).toHaveCount(0)
   await expect(page.locator('.journal-timeline-row--empty')).toHaveCount(14)
   expect(await page.locator('.journal-timeline-row[data-hour]').evaluateAll((rows) => rows.every((row) => Number((row as HTMLElement).dataset.hour) <= 13))).toBe(true)
 
@@ -443,7 +443,7 @@ test('current cell uses the whole background as second-level progress without re
       clockFontWeight: getComputedStyle(clock).fontWeight,
     }
   })
-  expect(typography).toEqual({ rowHeight: 40, cellHeight: 40, labelFontSize: '12px', clockFontSize: '12px', clockFontWeight: '400' })
+  expect(typography).toEqual({ rowHeight: 36, cellHeight: 36, labelFontSize: '12px', clockFontSize: '12px', clockFontWeight: '400' })
   expect(await current.locator('.journal-now-cell').evaluate((cell) => Number.parseFloat((cell as HTMLElement).style.getPropertyValue('--journal-now-progress')))).toBeCloseTo(80.333, 2)
   const scroll = page.locator('.journal-scroll-region')
   await scroll.evaluate((element) => { element.scrollTop = 160 })
@@ -452,7 +452,7 @@ test('current cell uses the whole background as second-level progress without re
   await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，13:48:13')
   expect(await scroll.evaluate((element) => element.scrollTop)).toBe(before)
   const progressLayer = await current.locator('.journal-now-cell').evaluate((cell) => ({ children: cell.children.length, fill: getComputedStyle(cell, '::before').backgroundColor }))
-  expect(progressLayer.children).toBe(2)
+  expect(progressLayer.children).toBe(1)
   expect(progressLayer.fill).not.toBe('rgba(0, 0, 0, 0)')
   const dotAnimation = await current.locator('.journal-timeline-marker > span').evaluate((dot) => ({ duration: getComputedStyle(dot).animationDuration, name: getComputedStyle(dot).animationName }))
   expect(dotAnimation.duration).toBe('1s')
