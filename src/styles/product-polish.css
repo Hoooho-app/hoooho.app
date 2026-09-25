@@ -172,6 +172,7 @@
   .growth-identity-card > p { margin-top: 10px; color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; }
   .growth-identity-card > p strong { color: rgb(var(--hoho-color-primary)); font-size: 18px; }
   .growth-identity-card__metrics, .growth-card-preview__metrics, .growth-card-reveal__card > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border) / 0.72); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface) / 0.72); }
+  .growth-identity-card__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .growth-identity-card__metrics > span, .growth-card-preview__metrics > span, .growth-card-reveal__card > div > span { display: flex; min-width: 0; min-height: 54px; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 3px; padding: 6px 4px; text-align: center; }
   .growth-identity-card__metrics > span + span, .growth-card-preview__metrics > span + span, .growth-card-reveal__card > div > span + span { border-left: 1px solid rgb(var(--hoho-color-border) / 0.72); }
   .growth-identity-card__metrics small, .growth-card-preview__metrics small, .growth-card-reveal__card small { width: 100%; color: rgb(var(--hoho-color-text-secondary)); font-size: 10px; }
