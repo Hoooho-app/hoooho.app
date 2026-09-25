@@ -48,7 +48,7 @@ try{
   await page.getByRole('button',{name:'保存并更新情况单'}).click()
   await page.getByRole('heading',{name:'合成验收：希望核对下一次记录',exact:true}).waitFor()
   await page.goto(`${baseURL}/health-events`)
-  await page.getByRole('button',{name:'就医准备',exact:true}).click()
+  await page.getByRole('button',{name:'就诊情况单，孩子情况快速整理',exact:true}).click()
   await page.getByRole('heading',{name:'病情数据',exact:true}).waitFor()
   const updated=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')
   assert.equal(updated.report.id,initial.report.id);assert.equal(updated.report.version,initial.report.version+1);assert.equal(updated.report.focus.mode,'custom')
