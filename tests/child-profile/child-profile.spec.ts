@@ -199,7 +199,7 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
 })
 
 test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在健康档案', async ({ page, request }, testInfo) => {
-  test.skip(!['iphone-se', 'mobile-390', 'wechat-webview', 'safari-iphone', 'desktop-1280'].includes(testInfo.project.name), '覆盖固定 iPhone SE、390px、微信、iOS WebKit 与桌面对照')
+  test.skip(!['iphone-se', 'mobile-390', 'mobile-430', 'wechat-webview', 'safari-iphone', 'desktop-1280'].includes(testInfo.project.name), '覆盖固定 iPhone SE、390px、430px、微信、iOS WebKit 与桌面对照')
   const account = 'profile-navigation-' + testInfo.project.name
   const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
   const createdResponse = await request.post('/api/members', {
@@ -231,6 +231,11 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     await expect(page).toHaveURL(/\/health-profile$/)
     await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: '健康随身记' })).toHaveCount(0)
+    const growthMetrics = page.locator('.growth-identity-card__metrics')
+    await expect(growthMetrics).toContainText('身高')
+    await expect(growthMetrics).toContainText('体重')
+    await expect(growthMetrics).not.toContainText('血型')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
     await page.getByRole('button', { name: '打开菜单' }).click()
     await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('button', { name: '关闭菜单' }).click()
