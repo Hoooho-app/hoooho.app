@@ -339,6 +339,7 @@
 .medication-amount select, .medication-note textarea { width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: inherit; padding: 0 var(--hoho-space-3); }
 .medication-photo-actions, .medication-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .medication-photo-actions button, .medication-choice-grid button { min-height: var(--hoho-touch-target); display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
+.visit-results .medication-photo-actions button:only-child { grid-column: 1 / -1; }
 .medication-choice-grid { grid-template-columns: repeat(3, 1fr); }
 .medication-photo-actions button:focus-visible, .medication-choice-grid button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: 2px; }
 .medication-choice-grid button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); color: white; }
