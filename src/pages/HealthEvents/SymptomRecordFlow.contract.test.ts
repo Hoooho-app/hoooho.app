@@ -8,7 +8,7 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return <div className="symptom-record-page-layer"'), source.indexOf('export function RelatedRecordsSheet'))
-  const labels = ['主要症状（主述）', '症状部位（选填）', '添加照片', '补充症状信息', '发生时间']
+  const labels = ['主要症状（主诉）', '症状部位（选填）', '附件', '补充', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述哪里不舒服、有什么变化/)
@@ -22,6 +22,7 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂未生成摘要，可直接保存原文/)
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
+  assert.doesNotMatch(source, /语音输入症状|SpeechRecognition|webkitSpeechRecognition/)
   assert.match(source, /placeholder="例如：左肘窝"/)
   assert.match(source, /buttonLabel="部位定位器"/)
   assert.match(source, /影响程度、触发或诱因/)
@@ -43,5 +44,5 @@ test('symptom photos use an isolated six-photo draft and structured real save', 
   assert.match(source, /photos\.payload\(\)/)
   assert.match(source, /categories: \['symptom'\], symptom: details/)
   assert.match(source, /sessionStorage\.removeItem\(draftKey\(memberId\)\)/)
-  assert.doesNotMatch(source, /添加照片.*拍照.*从相册选择/s)
+  assert.doesNotMatch(source, /附件.*拍照.*从相册选择/s)
 })
