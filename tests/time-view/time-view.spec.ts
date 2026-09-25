@@ -431,6 +431,19 @@ test('current cell uses the whole background as second-level progress without re
   await expect(current).toHaveCount(1)
   await expect(page.locator('.journal-day-grid > .journal-timeline-row').first()).toHaveClass(/journal-timeline-row--now/)
   await expect(current.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，13:48:12')
+  const typography = await current.evaluate((row) => {
+    const label = row.querySelector(':scope > time')!
+    const cell = row.querySelector<HTMLElement>('.journal-now-cell')!
+    const clock = cell.querySelector<HTMLElement>('span')!
+    return {
+      rowHeight: row.getBoundingClientRect().height,
+      cellHeight: cell.getBoundingClientRect().height,
+      labelFontSize: getComputedStyle(label).fontSize,
+      clockFontSize: getComputedStyle(clock).fontSize,
+      clockFontWeight: getComputedStyle(clock).fontWeight,
+    }
+  })
+  expect(typography).toEqual({ rowHeight: 40, cellHeight: 40, labelFontSize: '12px', clockFontSize: '12px', clockFontWeight: '400' })
   expect(await current.locator('.journal-now-cell').evaluate((cell) => Number.parseFloat((cell as HTMLElement).style.getPropertyValue('--journal-now-progress')))).toBeCloseTo(80.333, 2)
   const scroll = page.locator('.journal-scroll-region')
   await scroll.evaluate((element) => { element.scrollTop = 160 })
