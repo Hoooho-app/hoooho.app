@@ -33,6 +33,7 @@ export const router = createBrowserRouter([
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/nurse-station/desensitization/new', lazy: lazyPage(() => import('../pages/NurseStation/DesensitizationTestNewPage'), 'DesensitizationTestNewPage') },
       { path: '/visit-summary/:eventId', lazy: lazyPage(() => import('../pages/VisitSummary'), 'VisitSummaryPage') },
+      { path: '/visit-summary', lazy: lazyPage(() => import('../pages/VisitSummary'), 'VisitSummaryPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
       { path: '/health-events/search', lazy: lazyPage(() => import('../pages/HealthEvents/JournalSearchPage'), 'JournalSearchPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },

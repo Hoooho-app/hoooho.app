@@ -1,0 +1,79 @@
+.hoho-fact-distribution {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+.hoho-fact-distribution svg {
+  width: 112px;
+  max-width: 36%;
+  flex-shrink: 0;
+}
+.hoho-fact-distribution figcaption {
+  flex: 1;
+  font-size: 13px;
+}
+.hoho-fact-distribution figcaption > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0;
+}
+.hoho-fact-distribution figcaption strong {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--hoho-color-primary));
+}
+.hoho-chart-key {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.hoho-chart-tone-0 {
+  stroke: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-primary));
+}
+.hoho-chart-tone-1 {
+  stroke: rgb(var(--hoho-color-info));
+  color: rgb(var(--hoho-color-info));
+}
+.hoho-chart-tone-2 {
+  stroke: rgb(var(--hoho-color-warning));
+  color: rgb(var(--hoho-color-warning));
+}
+.hoho-chart-tone-3 {
+  stroke: rgb(var(--hoho-color-text-secondary));
+  color: rgb(var(--hoho-color-text-secondary));
+}
+.hoho-chart-total {
+  font-size: 23px;
+  fill: rgb(var(--hoho-color-primary));
+  font-weight: 600;
+}
+.hoho-chart-unit {
+  font-size: 10px;
+  fill: rgb(var(--hoho-color-text-secondary));
+}
+.hoho-fact-line {
+  width: 100%;
+  display: block;
+  margin: 20px 0;
+  overflow: visible;
+}
+.hoho-fact-line text {
+  font-size: 10px;
+  fill: rgb(var(--hoho-color-text-secondary));
+}
+.hoho-chart-axis {
+  stroke: rgb(var(--hoho-color-border));
+}
+.hoho-chart-trace {
+  stroke: rgb(var(--hoho-color-primary));
+}
+.hoho-chart-point {
+  fill: rgb(var(--hoho-color-primary));
+  stroke: white;
+  stroke-width: 2;
+}

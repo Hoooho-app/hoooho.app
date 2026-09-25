@@ -36,6 +36,7 @@ import { GrowthMeasurementService } from './growth/growth-measurement-service.mj
 import { RoutineService } from './routines/routine-service.mjs'
 import { MedicationReminderService } from './medication-reminders/medication-reminder-service.mjs'
 import { DesensitizationTestService } from './desensitization-tests/desensitization-test-service.mjs'
+import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -75,6 +76,7 @@ const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
 const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
+const visitSheets = new VisitSheetService(sharedOptions)
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -752,6 +754,15 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  const visitSheetMatch = /^\/api\/members\/([^/]+)\/visit-sheet$/.exec(pathname)
+  if (visitSheetMatch) {
+    const accountId = await readAccountId(request)
+    const memberId = decodeRouteValue(visitSheetMatch[1])
+    if (request.method === 'GET') sendJson(response, 200, await visitSheets.get(accountId, memberId))
+    else if (request.method === 'PUT') sendJson(response, 200, await visitSheets.save(accountId, memberId, await readJson(request, 60_000)))
+    else sendEmpty(response, 405)
+    return true
+  }
   if (await handleMembers(request, response, pathname)) return true
   if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
   if (await handleRoutines(request, response, pathname, searchParams)) return true

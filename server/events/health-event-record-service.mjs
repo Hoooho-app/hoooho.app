@@ -185,7 +185,8 @@ export class HealthEventRecordService {
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')
     }
-    const updated = await this.repository.update(id, changes, now)
+    const revisions = [...(record.revisions ?? []), { at: now.toISOString(), before: Object.fromEntries(Object.keys(changes).map(key => [key, record[key] ?? null])), after: changes }]
+    const updated = await this.repository.update(id, { ...changes, revisions }, now)
     await this.recomputeAfterMutation(accountId, record.eventId, now)
     return this.repository.findById(updated.id)
   }
