@@ -162,7 +162,7 @@
   .symptom-record-editor .symptom-record-note { min-height: 80px; }
   .symptom-record-readonly { @apply grid gap-2; }
   .symptom-record-readonly strong { @apply flex min-h-11 items-center rounded-control border bg-surface px-3 text-sm font-medium; }
-  .symptom-record-editor-actions { @apply grid grid-cols-2 gap-2; }
+  .symptom-record-editor-actions, .symptom-record-detail-actions { @apply grid grid-cols-2 gap-2; }
   .symptom-record-delete-confirm { @apply grid gap-2 rounded-card border p-3; border-color: rgb(var(--hoho-color-danger) / 0.22); background: rgb(var(--hoho-color-danger) / 0.05); }
   .symptom-record-delete-confirm > strong { @apply text-sm font-semibold text-text-primary; }
   .symptom-record-delete-confirm > p { @apply text-xs leading-5 text-text-secondary; }
