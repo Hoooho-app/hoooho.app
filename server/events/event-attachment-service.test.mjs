@@ -31,6 +31,12 @@ const completedAnalysis = { analyze: async (attachment) => ({
   provider: 'fixture-vision', confidence: 0.95, sourceAttachmentId: attachment.id, analyzedAt: attachment.createdAt
 }) }
 
+test('已有 dataUrl 原件通过相同权限校验读取，跨账号和跨事件不可读',async()=>{
+  const input=await pngInput();const service=new EventAttachmentService({records:{},imageAnalysis:completedAnalysis,events:{findById:async()=>({accountId:'a'})},repository:{findById:async()=>({...input,accountId:'a',eventId:'e'})}})
+  const result=await service.read('a','e','p');assert.equal(result.mimeType,'image/png');assert.ok(result.buffer.length>0)
+  await assert.rejects(service.read('b','e','p'));await assert.rejects(service.read('a','other','p'))
+})
+
 test('图片先预览后确认，预览阶段零正式附件', async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-event-attachment-preview-'))
   try {

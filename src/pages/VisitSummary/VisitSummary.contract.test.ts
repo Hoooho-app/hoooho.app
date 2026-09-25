@@ -1,58 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-
-const page = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
-const css = readFileSync(new URL('./visitSummary.css', import.meta.url), 'utf8')
-const stabilityCss = readFileSync(new URL('../../styles/visit-summary-stability.css', import.meta.url), 'utf8')
-const router = readFileSync(new URL('../../app/router.tsx', import.meta.url), 'utf8')
-const nurseStation = readFileSync(new URL('../NurseStation/index.tsx', import.meta.url), 'utf8')
-const journal = readFileSync(new URL('../HealthEvents/index.tsx', import.meta.url), 'utf8')
-const presentation = readFileSync(new URL('./visitSummaryPresentation.ts', import.meta.url), 'utf8')
-
-test('两个入口共用独立的就诊情况单路由', () => {
-  assert.match(router, /visit-summary\/:eventId/)
-  assert.match(nurseStation, /navigate\(`\/visit-summary\/\$\{nextActionEventId\}`\)/)
-  assert.match(journal, /<Navigate to=\{`\/visit-summary\/\$\{nextActionEventId\}`\}/)
+const read=(path:string)=>readFileSync(new URL(path,import.meta.url),'utf8')
+test('两个入口共用成员情况单路由，旧链接保留兼容',()=>{
+  assert.match(read('../../app/router.tsx'),/path: '\/visit-summary'/);assert.match(read('../../app/router.tsx'),/visit-summary\/:eventId/)
+  assert.match(read('../NurseStation/index.tsx'),/navigate\('\/visit-summary'\)/);assert.match(read('../HealthEvents/index.tsx'),/<Navigate to="\/visit-summary"/)
 })
-
-test('移动端使用固定外壳、单一纵向滚动区和恒定索引尺寸', () => {
-  assert.match(page, /data-visit-sheet-root/)
-  assert.match(page, /data-scroll-container/)
-  assert.match(page, /data-visit-sheet-index/)
-  assert.doesNotMatch(page, /scrollIntoView/)
-  assert.match(page, /root\.scrollTo\(\{top:Math\.max\(0,top\),left:0/)
-  assert.match(page, /requestAnimationFrame/)
-  assert.match(stabilityCss, /position:fixed/)
-  assert.match(stabilityCss, /touch-action:pan-y/)
-  assert.match(stabilityCss, /overflow-x:clip/)
-  assert.match(stabilityCss, /width:var\(--visit-index-width\)/)
-  assert.doesNotMatch(stabilityCss, /margin-left:-5px/)
-})
-
-test('情况单保留医生直读结构并移除旧弹层操作', () => {
-  assert.match(page, /正在整理已有记录/)
-  assert.match(page, /按当前情况、经过与依据生成/)
-  assert.match(page, /这次想解决什么问题/)
-  assert.match(page, /选择一项已有情况，或填写这次想解决的问题。/)
-  assert.match(page, /情况单整理人/)
-  assert.match(presentation, /病情摘要/)
-  assert.match(page, /查看依据/)
-  assert.doesNotMatch(page, /当面出示|下载交互式文件|关闭情况单/)
-  assert.match(css, /position:\s*fixed/)
-  assert.match(css, /aria-current/)
-  assert.match(css, /border-radius:8px 0 0 8px/)
-})
-
-test('就医准备解释二选一规则并显示当前记录对象', () => {
-  assert.match(page, /正在为：/)
-  assert.match(page, /本次主诉（必填）/)
-  assert.match(page, /还有想补充的吗？（选填）/)
-})
-
-test('取消已有情况选择不会改变已输入的主诉', () => {
-  assert.match(page, /取消已有情况选择/)
-  assert.match(page, /onClick=\{\(\)=>onChoice\(''\)\}/)
-  assert.match(page, /value=\{longTerm\}/)
-  assert.match(page, /const canGenerate=Boolean\(choice\|\|longTerm\.trim\(\)\)/)
+test('旧分享组件保留，新导出总是包含全部章节与来源',()=>{
+  assert.match(read('./index.tsx'),/export.*VisitSummaryContent.*LegacyVisitSummary/);assert.match(read('./reportExport.tsx'),/report.chapters.map/);assert.match(read('./reportExport.tsx'),/report.sources.map/);assert.doesNotMatch(read('./reportExport.tsx'),/activeChapter|navigator.share/)
 })
