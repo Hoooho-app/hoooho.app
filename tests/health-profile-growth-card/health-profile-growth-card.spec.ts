@@ -74,13 +74,22 @@ test('iPhone SE saves, backfills, persists and updates both curves', async ({ pa
   await expect(page.locator('.growth-record-row').nth(1)).toContainText(backfill)
   await page.getByRole('tab', { name: /身长曲线|身高曲线/ }).click()
   await expect(page.locator('.growth-chart-record')).toHaveCount(2)
+  await expect(page.locator('.growth-curve-view header p')).toContainText(/ · (?:[<>]?P\d+|暂无百分位)$/)
+  await expect(page.locator('.growth-chart-selected')).toHaveCount(0)
+  await expect(page.getByText('参考标准：世界卫生组织儿童生长标准 2006')).toHaveCount(0)
+  await expect(page.getByText('数据来源：WHO Child Growth Standards，适用 0–5 岁。')).toHaveCount(0)
+  await expect(page.getByText('单次位置不代表成长趋势，建议持续记录观察。')).toHaveCount(0)
   await page.getByRole('tab', { name: '体重曲线' }).click()
   await expect(page.locator('.growth-chart-record')).toHaveCount(2)
   await expect(page.getByText('体重（g）')).toBeVisible()
+  await expect(page.locator('.growth-curve-view header p')).toContainText(/ · (?:[<>]?P\d+|暂无百分位)$/)
 
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: 844 })
-    await page.goto('/health-profile/basic')
+    await page.goto('/health-profile/growth')
+    await page.getByRole('tab', { name: '体重曲线' }).click()
+    await expect(page.locator('.growth-curve-view header p')).toContainText(/ · (?:[<>]?P\d+|暂无百分位)$/)
+    await expect(page.locator('.growth-chart-selected')).toHaveCount(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
   }
 })

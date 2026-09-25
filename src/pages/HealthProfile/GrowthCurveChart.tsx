@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
 import { Avatar } from '../../components/common'
-import { calculateGrowthPosition, exactAgeInMonths, growthValueAtZScore } from '../../features/health-profile/utils/childGrowthReference'
+import { exactAgeInMonths, growthValueAtZScore } from '../../features/health-profile/utils/childGrowthReference'
 import type { GrowthMeasurementApiDto, Member } from '../../types'
 
 const percentiles = [{ label: 'P3', z: -1.8808 }, { label: 'P15', z: -1.0364 }, { label: 'P50', z: 0 }, { label: 'P85', z: 1.0364 }, { label: 'P97', z: 1.8808 }]
@@ -10,7 +10,7 @@ const displayUnit = (measure: Measure) => measure === 'height' ? 'cm' : 'g'
 
 export function GrowthCurveChart({ compact = false, measure, member, records }: { compact?: boolean; measure: Measure; member: Member; records: GrowthMeasurementApiDto[] }) {
   const rawId = useId(), pathId = `growth-journey-${rawId.replace(/:/g, '')}`
-  const [reduced, setReduced] = useState(false), [selectedId, setSelectedId] = useState(''), [animationDone, setAnimationDone] = useState(false)
+  const [reduced, setReduced] = useState(false), [animationDone, setAnimationDone] = useState(false)
   const latestRecordId = records[0]?.id ?? ''
   useEffect(() => { const query = matchMedia('(prefers-reduced-motion: reduce)'); const update = () => setReduced(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update) }, [])
   useEffect(() => {
@@ -45,8 +45,6 @@ export function GrowthCurveChart({ compact = false, measure, member, records }: 
     return { points, latest, min, max, maxAge, x, y, referencePaths, bandPath, actualPath, animationPath, xTicks, yTicks }
   }, [measure, member.birthday, member.gender, records])
   if (!model) return <div className="growth-chart-empty">记录一次{measure === 'height' ? '身长或身高' : '体重'}后查看曲线</div>
-  const selected = model.points.find((item) => item.record.id === selectedId) ?? model.latest
-  const selectedPosition = calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: selected.record.measuredAt, measure, value: selected.value })
   return <div className={`growth-curve-chart ${compact ? 'growth-curve-chart--compact' : ''}`} data-reduced-motion={reduced}>
     <svg aria-label={`${measure === 'height' ? '身长身高' : '体重'}成长曲线`} role="img" viewBox="0 0 340 286">
       <path className="growth-chart-band" d={model.bandPath} />
@@ -55,12 +53,11 @@ export function GrowthCurveChart({ compact = false, measure, member, records }: 
       {model.referencePaths.map((line, index) => <g key={line.label}><path className={`growth-chart-reference growth-chart-reference--${index}`} d={line.path} /><text className="growth-chart-percentile" x="306" y={model.y(line.values.at(-1)?.value ?? 0) + 3}>{line.label}</text></g>)}
       {animationDone && model.points.length > 1 && <path className="growth-chart-actual" d={model.actualPath} />}
       {!animationDone && <path className="growth-chart-journey" d={model.animationPath} id={pathId} />}
-      {model.points.map((point, index) => <g aria-label={`${point.record.measuredAt}，${displayValue(measure, point.value)}${measure === 'height' ? '厘米' : '克'}`} className="growth-chart-record" key={point.record.id} onClick={() => setSelectedId(point.record.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(point.record.id) }} role="button" style={{ '--record-index': index } as CSSProperties} tabIndex={0}><circle className={point.record.dataStatus === 'pending_confirmation' ? 'pending' : ''} cx={model.x(point.age)} cy={model.y(point.value)} r="6" /><title>{point.record.measuredAt} · {displayValue(measure, point.value)} {displayUnit(measure)}</title></g>)}
+      {model.points.map((point, index) => <g className="growth-chart-record" key={point.record.id} style={{ '--record-index': index } as CSSProperties}><circle className={point.record.dataStatus === 'pending_confirmation' ? 'pending' : ''} cx={model.x(point.age)} cy={model.y(point.value)} r="6" /><title>{point.record.measuredAt} · {displayValue(measure, point.value)} {displayUnit(measure)}</title></g>)}
       {!reduced && !animationDone && <foreignObject height="38" width="38" x="-19" y="-19"><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div><animateMotion begin="0s" dur="2.2s" fill="freeze" key={`${measure}-${latestRecordId}`} path={model.animationPath} /></foreignObject>}
       <circle className="growth-chart-current-halo" cx={model.x(model.latest.age)} cy={model.y(model.latest.value)} r="12" />
       {animationDone && <foreignObject className="growth-chart-final-avatar" height="38" width="38" x={model.x(model.latest.age) - 19} y={model.y(model.latest.value) - 19}><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div></foreignObject>}
     </svg>
-    <div className="growth-chart-selected"><strong>{selected.record.measuredAt} · {displayValue(measure, selected.value)} {displayUnit(measure)}</strong><span>{Math.floor(selected.age / 12)}岁{Math.floor(selected.age % 12)}个月 · {selectedPosition?.percentileLabel ?? '暂无百分位'}{selected.record.dataStatus === 'pending_confirmation' ? ' · 待确认' : ''}</span></div>
     <p className="growth-chart-footnote">横轴：年龄（月） · 纵轴：{displayUnit(measure)}。深色线和圆点仅代表真实测量记录。</p>
   </div>
 }
