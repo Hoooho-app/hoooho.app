@@ -393,6 +393,14 @@
     color: rgb(var(--hoho-color-text-secondary));
   }
 
+  .hoho-bottom-sheet__close[data-text='true'] {
+    width: auto;
+    min-width: var(--hoho-touch-target);
+    padding-inline: var(--hoho-space-1);
+    border-radius: var(--hoho-radius-control);
+    font-size: var(--hoho-font-size-body-small);
+  }
+
   .hoho-bottom-sheet__navigation {
     flex: 0 0 auto;
     padding: var(--hoho-space-1) var(--hoho-space-5) var(--hoho-space-3);
