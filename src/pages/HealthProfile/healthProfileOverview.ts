@@ -3,6 +3,7 @@ import type { HealthEventApiDto, Member } from '../../types'
 type SectionRecords = ReadonlyMap<string, Array<Record<string, unknown>>>
 const present = (value: unknown) => value !== null && value !== undefined && value !== '' && value !== false
 const numberText = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? String(value) : typeof value === 'string' && value.trim() && Number.isFinite(Number(value)) ? value.trim() : ''
+export const formatGrowthMetric = (value: string) => value && Number.isFinite(Number(value)) ? Number(value).toFixed(1) : value
 export function buildBasicOverview(member: Member, records: SectionRecords) {
   const birth = records.get('birth')?.[0] ?? {}, growth = [...(records.get('growth') ?? [])].sort((a, b) => String(b.date ?? b._savedAt ?? '').localeCompare(String(a.date ?? a._savedAt ?? '')))[0] ?? {}, basic = records.get('basic')?.[0] ?? {}
   const weeks = Number(birth.gestationalWeeks), birthSummary = Number.isFinite(weeks) && weeks > 0 ? (weeks >= 37 ? '足月出生' : '早产出生') : ''

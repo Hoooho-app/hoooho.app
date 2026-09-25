@@ -12,6 +12,10 @@ test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.match(home, /怀疑过的，也可以先记下来/)
   assert.match(home, /记录过敏信息/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
+  assert.match(home, /const openGrowthEditor = \(\) => navigate\('\/health-profile\/basic'\)/)
+  assert.match(home, /className="growth-identity-card__member" onClick=\{openGrowthEditor\}/)
+  assert.match(home, /className="growth-identity-card__action" onClick=\{openGrowthEditor\}/)
+  assert.doesNotMatch(home, /makeMemberProfileOpenState|openMember/)
 })
 
 test('基础信息使用明确保存、克制入口和成长记录联动', () => {

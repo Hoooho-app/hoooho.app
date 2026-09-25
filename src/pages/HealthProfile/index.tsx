@@ -4,14 +4,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { Typography } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
-import { getCurrentPath, makeMemberProfileOpenState } from '../../components/navigation/navigationState'
 import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
 import { healthEventService } from '../../services/healthEvents'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { useAppStore } from '../../store/useAppStore'
 import type { GrowthMeasurementApiDto, HealthEventApiDto, Member } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { buildAllergyOverview, buildBasicOverview, formatGrowthCardUpdatedAt } from './healthProfileOverview'
+import { buildAllergyOverview, buildBasicOverview, formatGrowthCardUpdatedAt, formatGrowthMetric } from './healthProfileOverview'
 
 const lockedSections: Array<{ title: string; icon: LucideIcon }> = [
   { title: '检查 / 体检报告', icon: ClipboardPlus }, { title: '慢性病史', icon: HeartPulse },
@@ -28,7 +27,7 @@ function exactCurrentMember(currentMemberId: string, members: Member[], profile:
 }
 
 function GrowthMetric({ label, unit, value }: { label: string; unit?: string; value: string }) {
-  return <span><small>{label}</small><strong>{value || '待补充'}</strong>{value && unit && <small>{unit}</small>}</span>
+  return <span><small>{label}</small><strong>{formatGrowthMetric(value) || '待补充'}</strong>{value && unit && <small>{unit}</small>}</span>
 }
 
 export function HealthProfilePage() {
@@ -79,18 +78,15 @@ export function HealthProfilePage() {
     return () => controller.abort()
   }, [currentMemberId, token])
 
-  const openMember = () => {
-    const returnTo = getCurrentPath(location.pathname, location.search, location.hash)
-    navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) })
-  }
+  const openGrowthEditor = () => navigate('/health-profile/basic')
 
   return <main className="app-shell health-profile-overview"><MainAppHeader title="健康档案" /><div className="page-content pb-10">
     <section className={`growth-identity-card ${basic.complete ? 'growth-identity-card--complete' : ''}`} aria-labelledby="growth-card-title">
-      <button className="growth-identity-card__member" onClick={openMember} type="button"><Avatar name={member.name} size={basic.complete ? 'lg' : 'md'} src={member.avatar} /><span><strong id="growth-card-title">{member.name}</strong><small>{genderLabels[member.gender ?? '']} · {age}</small></span>{basic.complete && <em><Check size={13} />已建立</em>}</button>
+      <button className="growth-identity-card__member" onClick={openGrowthEditor} type="button"><Avatar name={member.name} size={basic.complete ? 'lg' : 'md'} src={member.avatar} /><span><strong id="growth-card-title">{member.name}</strong><small>{genderLabels[member.gender ?? '']} · {age}</small></span>{basic.complete && <em><Check size={13} />已建立</em>}</button>
       {!basic.complete && <p>再补充 <strong>{basic.missingCount}</strong> 项，就能生成成长身份卡</p>}
       <div aria-busy={growthMeasurements === null} className="growth-identity-card__metrics"><GrowthMetric label="身高" unit="cm" value={growthMeasurements === null ? '' : basic.height} /><GrowthMetric label="体重" unit="kg" value={growthMeasurements === null ? '' : basic.weight} /><GrowthMetric label="血型" unit="血型" value={basic.bloodType ? `${basic.bloodType}型` : ''} /></div>
       {growthError && <p role="alert">{growthError} <button onClick={() => { setGrowthMeasurements(null); setGrowthError(''); growthMeasurementService.list(currentMemberId, token ?? '').then(setGrowthMeasurements).catch(() => { setGrowthMeasurements([]); setGrowthError('成长数据加载失败，请重试') }) }} type="button">重新加载</button></p>}
-      <button className="growth-identity-card__action" onClick={() => navigate('/health-profile/basic')} type="button">{basic.complete ? '更新成长数据' : '铸造成长身份卡'}<ChevronRight aria-hidden="true" size={18} /></button>
+      <button className="growth-identity-card__action" onClick={openGrowthEditor} type="button">{basic.complete ? '更新成长数据' : '铸造成长身份卡'}<ChevronRight aria-hidden="true" size={18} /></button>
       {basic.complete && formatGrowthCardUpdatedAt(basic.updatedAt) && <small className="growth-identity-card__updated">{formatGrowthCardUpdatedAt(basic.updatedAt)}</small>}
     </section>
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { HealthEventApiDto, Member } from '../../types'
-import { buildAllergyOverview, buildBasicOverview, formatGrowthCardUpdatedAt } from './healthProfileOverview.ts'
+import { buildAllergyOverview, buildBasicOverview, formatGrowthCardUpdatedAt, formatGrowthMetric } from './healthProfileOverview.ts'
 
 const member: Member = { id: 'child-1', name: '孩子', age: '1岁', relation: '子女', heightCm: 78, weightKg: 9.2 }
 
@@ -19,6 +19,12 @@ test('成长身份卡由身高体重建立，血型保持可选', () => {
   assert.equal(result.missingCount, 0)
   assert.equal(result.bloodType, 'AB')
   assert.equal(formatGrowthCardUpdatedAt('2026-09-10T02:00:00.000Z', new Date('2026-09-10T12:00:00.000Z')), '更新于今天')
+})
+
+test('成长身份卡数值统一四舍五入到小数点后一位', () => {
+  assert.equal(formatGrowthMetric('10.996'), '11.0')
+  assert.equal(formatGrowthMetric('82'), '82.0')
+  assert.equal(formatGrowthMetric(''), '')
 })
 
 test('过敏汇总严格按当前人物和明确状态', () => {
