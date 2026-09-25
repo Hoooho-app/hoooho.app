@@ -6,6 +6,7 @@ import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { useJournal } from './useJournal'
 import { visitSummary } from './visitRecordLogic'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type Draft = {
@@ -26,7 +27,7 @@ const followUps: Array<[VisitFollowUpAction, string]> = [['home_observation', '�
 const documentTypes: Array<[NonNullable<JournalVisitDetails['documentTypes']>[number], string]> = [['medical_record', '病历'], ['prescription', '处方'], ['examination_report', '检查报告'], ['receipt', '费用单'], ['other', '其他']]
 const toggle = <T,>(items: T[], item: T) => items.includes(item) ? items.filter((value) => value !== item) : [...items, item]
 const iso = (value: string) => value ? new Date(value).toISOString() : undefined
-export function VisitRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function VisitRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => { try { return { ...blankDraft(), ...JSON.parse(sessionStorage.getItem(draftKey(memberId)) ?? '{}') } } catch { return blankDraft() } })
   const [resultsOpen, setResultsOpen] = useState(false)
   const [symptomsOpen, setSymptomsOpen] = useState(false)
@@ -36,6 +37,7 @@ export function VisitRecordFlow({ memberId, token, onBack, onClose, onConfirm, o
   const [confirmSparse, setConfirmSparse] = useState(false)
   const cameraRef = useRef<HTMLInputElement>(null); const albumRef = useRef<HTMLInputElement>(null)
   const photos = useQuickRecordPhotos(memberId, token, 6, 'visit')
+  const occurrence = useOccurrenceTime(selectedDay, today)
   const { entries } = useJournal(memberId, token, 0)
   const symptomEntries = entries.filter((entry) => entry.categories?.includes('symptom')).slice(0, 12)
   const recentVisits = entries.filter((entry) => entry.categories?.includes('visit') && entry.visit?.institutionName).slice(0, 3)
@@ -47,9 +49,9 @@ export function VisitRecordFlow({ memberId, token, onBack, onClose, onConfirm, o
   const save = async (confirmed = false) => {
     if (!draft.visitType) { setError('请选择怎么就医'); return }
     if (draft.visitType === 'other' && !draft.visitTypeOtherText.trim()) { setError('请填写实际就医方式'); return }
-    const timestamp = Date.parse(draft.occurredAt)
-    if (!Number.isFinite(timestamp) || timestamp > Date.now()) { setError('就医时间不能晚于现在'); return }
     if (!draft.reasonText.trim() && !draft.linkedSymptomRecordIds.length && !photos.photos.length && !confirmed) { setConfirmSparse(true); return }
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) return
     setSaving(true); setError('')
     try {
       const details: JournalVisitDetails = {
@@ -69,7 +71,7 @@ export function VisitRecordFlow({ memberId, token, onBack, onClose, onConfirm, o
         ...(iso(draft.emergencyArrivalAt) ? { emergencyArrivalAt: iso(draft.emergencyArrivalAt) } : {}), ...(iso(draft.emergencyDepartureAt) ? { emergencyDepartureAt: iso(draft.emergencyDepartureAt) } : {}),
         ...(draft.documentTypes?.length ? { documentTypes: draft.documentTypes } : {}), ...(photos.photos.length ? { recognitionStatus: draft.recognitionStatus } : {}), ...(draft.note.trim() ? { note: draft.note.trim() } : {})
       }
-      await onConfirm(visitSummary(details, symptomLabels), new Date(timestamp).toISOString(), 'text', photos.payload(), { categories: ['visit'], visit: details })
+      await onConfirm(visitSummary(details, symptomLabels), occurredAt, 'text', photos.payload(), { categories: ['visit'], visit: details })
       photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved('已记录'); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
@@ -90,7 +92,7 @@ export function VisitRecordFlow({ memberId, token, onBack, onClose, onConfirm, o
         <fieldset className="medication-fieldset"><legend>接下来怎么处理？<span>（选填，可多选）</span></legend><small className="visit-fact-hint">请按本次就医实际情况记录</small><div className="visit-department-grid">{followUps.map(([value, label]) => <button aria-pressed={draft.followUpActions.includes(value)} key={value} onClick={() => update('followUpActions', toggle(draft.followUpActions, value))} type="button">{label}</button>)}</div>{draft.followUpActions.includes('medication_as_instructed') && <button className="visit-secondary-link" type="button">保存后补充用药记录</button>}{draft.followUpActions.includes('awaiting_results') && <HohoInput label="预计何时出结果（选填）" onChange={(event) => update('expectedResultAt', event.target.value)} type="datetime-local" value={draft.expectedResultAt} />}{draft.followUpActions.includes('follow_up') && <><HohoInput label="复诊时间（可选）" onChange={(event) => update('followUpAt', event.target.value)} type="datetime-local" value={draft.followUpAt} /><HohoInput label="或写下大约时间" onChange={(event) => update('followUpRelativeText', event.target.value)} placeholder="如大约3天后、尚未确定" value={draft.followUpRelativeText} /></>}{draft.followUpActions.includes('referral') && <><HohoInput label="转诊机构（选填）" onChange={(event) => update('referralInstitution', event.target.value)} value={draft.referralInstitution} /><HohoInput label="转诊科室（选填）" onChange={(event) => update('referralDepartment', event.target.value)} value={draft.referralDepartment} /><HohoInput label="转诊原因（选填）" onChange={(event) => update('referralReason', event.target.value)} value={draft.referralReason} /></>}</fieldset>
         <label className="medication-note"><span>备注（选填）</span><textarea maxLength={300} onChange={(event) => update('note', event.target.value)} placeholder="还可以记录其他需要说明的情况" rows={3} value={draft.note} /></label>
       </div>}</section>
-      <HohoInput label="就医时间" max={localDateTimeValue()} onChange={(event) => update('occurredAt', event.target.value)} type="datetime-local" value={draft.occurredAt} />{error && <p className="medication-save-error" role="alert">{error}</p>}<div className="medication-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
+      <OccurrenceTimeField model={occurrence} label="就医时间" />{error && <p className="medication-save-error" role="alert">{error}</p>}<div className="medication-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
     </div>
     {confirmSparse && <div className="medication-confirm-layer" role="dialog" aria-modal="true" aria-label="确认保存"><div><h2>还没有记录本次为什么就医，仍要保存吗？</h2><p>可以保存后再继续补充。</p><HohoButton fullWidth onClick={() => { setConfirmSparse(false); void save(true) }}>仍要保存</HohoButton><HohoButton fullWidth variant="secondary" onClick={() => setConfirmSparse(false)}>返回补充</HohoButton></div></div>}
   </section></div>

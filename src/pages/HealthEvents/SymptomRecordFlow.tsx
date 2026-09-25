@@ -10,6 +10,7 @@ import { symptomPreviewService } from '../../services/symptomPreview'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { inferSymptomCategory, toSymptomLocations } from './symptomRecordLogic'
 import { journalCategoryLabels, journalListSummary, type JournalEntry } from './timeViewModel'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type SupplementKey = 'diet' | 'elimination' | 'medication' | 'visit'
@@ -41,7 +42,7 @@ function symptomOptionalSummary(draft: Draft) {
   return count ? `补充信息 · ${primary || `已填${count}项`}${count > 1 && primary ? `等${count}项` : ''}` : ''
 }
 
-export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => restoreDraft(memberId))
   const [saving, setSaving] = useState(false), [pageError, setPageError] = useState('')
   const [recognition, setRecognition] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle')
@@ -52,6 +53,7 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
   const previewVersionRef = useRef(0)
   const memberName = useAppStore((state) => state.members.find((member) => member.id === memberId)?.name ?? (state.currentMemberId === memberId ? state.profile?.nickname : '') ?? '')
   const photos = useQuickRecordPhotos(memberId, token, 6, 'symptom')
+  const occurrence = useOccurrenceTime(selectedDay, today)
   useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
   useEffect(() => {
     if (composing) return
@@ -66,7 +68,8 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
     const timer = window.setTimeout(async () => {
       setRecognition('loading')
       try {
-        const result = await symptomPreviewService.preview(memberId, { rawInput: narrative, selectedOccurredAt: localDateTimeToIso(draft.occurredAt), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, token, controller.signal)
+        const previewOccurredAt = occurrence.mode === 'now' ? new Date().toISOString() : localDateTimeToIso(occurrence.specifiedValue)
+        const result = await symptomPreviewService.preview(memberId, { rawInput: narrative, selectedOccurredAt: previewOccurredAt, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, token, controller.signal)
         if (previewVersionRef.current !== version) return
         setDraft((current) => current.narrative.trim() !== narrative ? current : {
           ...current,
@@ -80,7 +83,7 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
       }
     }, 420)
     return () => { window.clearTimeout(timer); controller.abort() }
-  }, [composing, draft.narrative, draft.occurredAt, memberId, token])
+  }, [composing, draft.narrative, memberId, occurrence.mode, occurrence.specifiedValue, token])
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setPageError('') }
   const updateNarrative = (value: string) => {
     setDraft((current) => ({ ...current, narrative: value, keywords: [] }))
@@ -88,8 +91,7 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
     setFieldErrors((current) => ({ ...current, narrative: undefined }))
     setPageError('')
   }
-  const validTime = Boolean(draft.occurredAt && Number.isFinite(Date.parse(draft.occurredAt)) && Date.parse(draft.occurredAt) <= Date.now())
-  const canSave = Boolean(draft.narrative.trim() && validTime && !photos.blocked)
+  const canSave = Boolean(draft.narrative.trim() && !photos.blocked)
   const isDirty = Boolean(draft.narrative.trim() || draft.summary.trim() || draft.locationText.trim() || draft.locations.length || draft.triggerText.trim() || draft.impactLevel || photos.photos.length)
   const leave = (action: () => void) => { if (!isDirty || window.confirm('这条症状还没有保存，确定退出吗？')) action() }
   const startVoice = () => {
@@ -102,13 +104,13 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
   const save = async () => {
     if (saving) return
     if (!draft.narrative.trim()) { setFieldErrors((current) => ({ ...current, narrative: '请填写主要症状' })); narrativeRef.current?.focus(); return }
-    if (!validTime) { setFieldErrors((current) => ({ ...current, time: '发生时间不能晚于现在' })); return }
     if (!canSave) return
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) return
     setSaving(true); setPageError(''); setFieldErrors({})
     try {
       const details: JournalSymptomDetails = { symptomCategory: inferSymptomCategory(draft.keywords), narrative: draft.narrative, keywords: draft.keywords, locations: toSymptomLocations(draft.locations), descriptors: [], linkedRecordIds: {}, ...(draft.locationText.trim() ? { locationText: draft.locationText.trim() } : {}), ...(draft.impactLevel ? { impactLevel: draft.impactLevel } : {}), ...(draft.triggerText.trim() ? { triggerText: draft.triggerText.trim() } : {}) }
       if (draft.summary.trim()) details.generatedSummary = draft.summary.trim()
-      const occurredAt = localDateTimeToIso(draft.occurredAt)
       const message = await onConfirm(draft.narrative.trim(), occurredAt, 'text', photos.payload(), { categories: ['symptom'], symptom: details, occurredAt, timePrecision: 'exact' })
       photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved(message); onClose()
     } catch (reason) {
@@ -129,7 +131,7 @@ export function SymptomRecordFlow({ memberId, token, onBack, onClose, onConfirm,
         <section className={`symptom-compact-row symptom-photo-section${photos.photos.length ? ' is-expanded' : ''}`}><button onClick={() => photoInputRef.current?.click()} type="button"><span><Paperclip size={19} /><strong>添加照片</strong></span><span>{photos.photos.length ? `${photos.photos.length}张` : null}<ChevronRight size={18} /></span></button>{photos.photos.length > 0 && <QuickRecordPhotos limit={6} model={photos} showAddButton={false} />}</section>
         <section className={`symptom-compact-row${optionalOpen ? ' is-expanded' : ''}`}><button onClick={() => setOptionalOpen((value) => !value)} type="button"><span><Plus size={19} /><strong>{optionalSummary || '补充症状信息'}</strong><small>影响程度、触发或诱因</small></span><span>{optionalSummary ? '已填写' : null}<ChevronRight className={optionalOpen ? 'is-open' : ''} size={18} /></span></button>{optionalOpen && <div className="symptom-optional-fields"><label className="symptom-impact-range"><span>影响程度<strong>{draft.impactLevel ? impactLabels[draft.impactLevel] : '未填写'}</strong></span><small>观察吃饭、睡眠、活动或情绪；不确定可不填</small><input aria-label="影响程度" aria-valuetext={draft.impactLevel ? impactLabels[draft.impactLevel] : '未填写'} max="3" min="0" onChange={(event) => update('impactLevel', impactScale[Number(event.target.value)])} step="1" type="range" value={Math.max(0, impactScale.indexOf(draft.impactLevel))} /><span aria-hidden="true" className="symptom-impact-scale"><i>未填写</i><i>轻微</i><i>有些</i><i>明显</i></span></label><label><span>触发或诱因</span><input maxLength={160} onChange={(event) => update('triggerText', event.target.value)} value={draft.triggerText} /></label></div>}</section>
       </div>
-      <label className="symptom-time-row"><span>发生时间</span><input aria-describedby={fieldErrors.time ? 'symptom-time-error' : undefined} aria-invalid={Boolean(fieldErrors.time)} aria-label="发生时间" max={localDateTimeValue()} onChange={(event) => { update('occurredAt', event.target.value); setFieldErrors((current) => ({ ...current, time: undefined })) }} type="datetime-local" value={draft.occurredAt} />{fieldErrors.time && <small className="symptom-field-error" id="symptom-time-error" role="alert">{fieldErrors.time}</small>}</label>
+      <OccurrenceTimeField model={occurrence} label="发生时间" />
       {pageError && <p className="symptom-save-error" role="alert">{pageError}</p>}{photos.blocked && <p className="symptom-save-error" role="alert">{photos.photos.some((photo) => photo.status === 'failed') ? '有照片上传失败，请重试或移除' : '照片上传中，请稍候'}</p>}<div className="symptom-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存</HohoButton></div>
     </div>
     <input ref={photoInputRef} accept="image/*" hidden multiple onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />

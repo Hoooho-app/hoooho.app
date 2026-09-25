@@ -5,6 +5,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalBowelDetails, JournalMetadata } from '../../types/journal'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type Draft = JournalBowelDetails & { occurredAt: string }
@@ -63,24 +64,25 @@ export function bowelSummary(details: JournalBowelDetails) {
   return [primary || '排便', secondary.length ? secondary.join('、') : ''].filter(Boolean).join('\n')
 }
 
-export function BowelRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState(() => readDraft(memberId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const layerRef = useRef<HTMLElement>(null)
   const photos = useQuickRecordPhotos(memberId, token, 6)
+  const occurrence = useOccurrenceTime(selectedDay, today)
   usePageScrollLock(true)
   useDialogFocus(true, layerRef)
   useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const updateObservation = (option: string) => update('observations', toggle(draft.observations, option))
   const save = async () => {
-    const timestamp = Date.parse(draft.occurredAt)
-    if (!draft.occurredAt || !Number.isFinite(timestamp) || timestamp > Date.now()) { setError('记录时间不能晚于现在'); return }
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) return
     setSaving(true); setError('')
     try {
       const details: JournalBowelDetails = { shapes: draft.shapes, observations: draft.observations, ...(draft.color ? { color: draft.color } : {}), ...(draft.amount ? { amount: draft.amount } : {}), ...(draft.durationRange ? { durationRange: draft.durationRange } : {}), ...(draft.process ? { process: draft.process } : {}), ...(draft.bloodObservation ? { bloodObservation: draft.bloodObservation } : {}) }
-      const message = await onConfirm(bowelSummary(details), new Date(timestamp).toISOString(), 'text', photos.payload(), { categories: ['elimination'], bowel: details })
+      const message = await onConfirm(bowelSummary(details), occurredAt, 'text', photos.payload(), { categories: ['elimination'], bowel: details })
       photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved(message); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
@@ -96,7 +98,7 @@ export function BowelRecordFlow({ memberId, token, onBack, onClose, onConfirm, o
       {draft.bloodObservation && draft.bloodObservation !== 'none-seen' && <p className="bowel-gentle-hint">建议拍照留存，方便之后继续观察</p>}
       <fieldset className="bowel-fieldset"><legend>还观察到什么？<span>（可多选）</span></legend><div className="bowel-choice-grid">{bowelObservations.map((option) => <button aria-pressed={draft.observations.includes(option)} key={option} onClick={() => updateObservation(option)} type="button">{option}</button>)}</div></fieldset>
       <BowelPhotos model={photos} />
-      <HohoInput label="记录时间（默认为现在）" max={localDateTimeValue()} onChange={(event) => update('occurredAt', event.target.value)} type="datetime-local" value={draft.occurredAt} />
+      <OccurrenceTimeField model={occurrence} label="记录时间" />
       {error && <p className="diet-save-error" role="alert">{error}</p>}
       <div className="diet-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={save} size="large">保存记录</HohoButton></div>
     </div>

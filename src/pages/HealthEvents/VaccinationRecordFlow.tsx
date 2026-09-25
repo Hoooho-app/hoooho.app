@@ -4,6 +4,7 @@ import { HohoButton, HohoInput } from '../../components/design-system'
 import type { JournalMetadata, JournalVaccinationDetails, JournalVaccinationItem, VaccinationDose, VaccinationObservation, VaccinationSite } from '../../types/journal'
 import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
+import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 interface Draft { items: JournalVaccinationItem[]; institutionName: string; observations: VaccinationObservation[]; note: string; occurredAt: string; recognitionSource?: 'camera' | 'album'; recognitionStatus?: JournalVaccinationDetails['recognitionStatus'] }
@@ -17,13 +18,14 @@ const observationChoices: Array<[VaccinationObservation, string]> = [['not_obser
 const doseLabel = (dose: VaccinationDose) => doses.find(([value]) => value === dose)?.[1] ?? '不清楚'
 const observationLabel = (value: VaccinationObservation) => observationChoices.find(([key]) => key === value)?.[1] ?? value
 
-export function VaccinationRecordFlow({ memberId, token, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function VaccinationRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => { try { const saved = JSON.parse(sessionStorage.getItem(draftKey(memberId)) ?? '{}'); return { ...blankDraft(), ...saved, items: saved.items?.length ? saved.items : [newItem()] } } catch { return blankDraft() } })
   const [supplementOpen, setSupplementOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const cameraRef = useRef<HTMLInputElement>(null); const albumRef = useRef<HTMLInputElement>(null)
   const photos = useQuickRecordPhotos(memberId, token, 6, 'vaccination')
+  const occurrence = useOccurrenceTime(selectedDay, today)
   const recent: Array<Pick<JournalVaccinationItem, 'vaccineName' | 'commonAbbreviation' | 'manufacturerName'>> = (() => { try { return JSON.parse(localStorage.getItem(recentKey(memberId)) ?? '[]') } catch { return [] } })()
   useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
   const updateItem = (id: string, change: Partial<JournalVaccinationItem>) => { setDraft((current) => ({ ...current, items: current.items.map((item) => item.id === id ? { ...item, ...change } : item), ...(current.recognitionSource ? { recognitionStatus: 'user_edited' as const } : {}) })); setError('') }
@@ -36,13 +38,13 @@ export function VaccinationRecordFlow({ memberId, token, onBack, onClose, onConf
   const save = async () => {
     if (draft.items.some((item) => !item.vaccineName.trim())) { setError('请填写每种疫苗的名称'); return }
     if (draft.items.some((item) => !item.doseSequence)) { setError('请选择每种疫苗的剂次'); return }
-    const timestamp = Date.parse(draft.occurredAt)
-    if (!Number.isFinite(timestamp) || timestamp > Date.now()) { setError('接种时间不能晚于现在'); return }
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) return
     setSaving(true); setError('')
     try {
       const details: JournalVaccinationDetails = { items: draft.items.map((item) => ({ ...item, vaccineName: item.vaccineName.trim(), ...(item.manufacturerName?.trim() ? { manufacturerName: item.manufacturerName.trim() } : {}), ...(item.batchNumber?.trim() ? { batchNumber: item.batchNumber } : {}) })), ...(draft.institutionName.trim() ? { institutionName: draft.institutionName.trim() } : {}), ...(draft.observations.length ? { observations: draft.observations } : {}), ...(draft.note.trim() ? { note: draft.note.trim() } : {}), ...(draft.recognitionSource ? { recognitionSource: draft.recognitionSource, recognitionStatus: draft.recognitionStatus } : {}) }
       const content = details.items.length > 1 ? `疫苗接种 · 共${details.items.length}种 · ${details.items.map((item) => `${item.vaccineName} · ${doseLabel(item.doseSequence)}`).join('；')}` : `疫苗接种 · ${details.items[0].vaccineName} · ${doseLabel(details.items[0].doseSequence)}`
-      await onConfirm(content, new Date(timestamp).toISOString(), 'text', photos.payload(), { categories: ['vaccination'], vaccination: details })
+      await onConfirm(content, occurredAt, 'text', photos.payload(), { categories: ['vaccination'], vaccination: details })
       const nextRecent = [...details.items.map(({ vaccineName, commonAbbreviation, manufacturerName }) => ({ vaccineName, commonAbbreviation, manufacturerName })), ...recent].filter((item, index, all) => all.findIndex((candidate) => candidate.vaccineName === item.vaccineName) === index).slice(0, 6)
       localStorage.setItem(recentKey(memberId), JSON.stringify(nextRecent)); photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved('已记录'); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
@@ -55,7 +57,7 @@ export function VaccinationRecordFlow({ memberId, token, onBack, onClose, onConf
       <button className="vaccination-add" onClick={() => setDraft((current) => ({ ...current, items: [...current.items, newItem()] }))} type="button"><Plus size={18} />添加同次接种的其他疫苗</button>
       <input ref={cameraRef} accept="image/*" capture="environment" hidden onChange={(event) => { chooseCertificate('camera', event.target.files); event.currentTarget.value = '' }} type="file" /><input ref={albumRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { chooseCertificate('album', event.target.files); event.currentTarget.value = '' }} type="file" />{draft.recognitionSource && <div className="medication-recognition"><Syringe size={18} /><span><strong>识别结果待核对</strong><small>请按接种凭证核对，也可以直接修改</small></span></div>}
       <section className="medication-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen((value) => !value)} type="button"><span><strong>再补充一点（选填）</strong><small>{supplemented ? `已补充${supplemented}项` : '接种机构、批号、部位和接种后观察都可以以后补充'}</small></span><ChevronDown data-open={supplementOpen} size={18} /></button>{supplementOpen && <div className="medication-supplement-body"><HohoInput label="接种机构（可选）" onChange={(event) => setDraft((current) => ({ ...current, institutionName: event.target.value }))} placeholder="搜索或输入接种机构名称" value={draft.institutionName} />{draft.items.map((item, index) => <section className="vaccination-details" key={item.id}><h3>{draft.items.length > 1 ? item.vaccineName || `疫苗 ${index + 1}` : '疫苗信息'}</h3><HohoInput label="疫苗厂家（可选）" onChange={(event) => updateItem(item.id, { manufacturerName: event.target.value })} value={item.manufacturerName ?? ''} /><HohoInput label="疫苗批号（可选）" onChange={(event) => updateItem(item.id, { batchNumber: event.target.value })} value={item.batchNumber ?? ''} /><fieldset className="medication-fieldset"><legend>接种部位<span>（可选）</span></legend><div className="medication-choice-grid">{sites.map(([value, label]) => <button aria-pressed={item.injectionSite === value} key={value} onClick={() => updateItem(item.id, { injectionSite: value })} type="button">{label}</button>)}</div>{item.injectionSite === 'other' && <HohoInput label="其他接种部位" onChange={(event) => updateItem(item.id, { injectionSiteOtherText: event.target.value })} value={item.injectionSiteOtherText ?? ''} />}</fieldset></section>)}<section className="medication-section"><h2>接种凭证<span>（可选，{photos.photos.length}/6）</span></h2>{photos.photos.length > 0 ? <QuickRecordPhotos limit={6} model={photos} /> : <button className="vaccination-certificate-empty" onClick={() => albumRef.current?.click()} type="button"><ImagePlus size={20} />上传照片</button>}</section><fieldset className="medication-fieldset"><legend>接种后观察<span>（可选，可多选）</span></legend><div className="medication-choice-grid vaccination-observations">{observationChoices.map(([value, label]) => <button aria-pressed={draft.observations.includes(value)} key={value} onClick={() => toggleObservation(value)} type="button">{label}</button>)}</div><small className="vaccination-causality">这里只记录时间上的先后，不代表由疫苗引起</small>{draft.observations.some((item) => !['not_observed_yet', 'nothing_notable'].includes(item)) && <button className="medication-reaction-link" type="button">记录具体症状</button>}</fieldset><label className="medication-note"><span>备注（可选）</span><textarea maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} placeholder="还可以记录其他需要说明的情况" rows={3} value={draft.note} /></label></div>}</section>
-      <HohoInput label="接种时间" max={localDateTimeValue()} onChange={(event) => setDraft((current) => ({ ...current, occurredAt: event.target.value }))} type="datetime-local" value={draft.occurredAt} />{error && <p className="medication-save-error" role="alert">{error}</p>}<div className="medication-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
+      <OccurrenceTimeField model={occurrence} label="接种时间" />{error && <p className="medication-save-error" role="alert">{error}</p>}<div className="medication-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存记录</HohoButton></div>
     </div>
   </section></div>
 }

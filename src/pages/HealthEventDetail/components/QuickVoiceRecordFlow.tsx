@@ -5,6 +5,8 @@ import { HohoButton } from '../../../components/design-system'
 import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecordCandidate } from '../../../features/quick-record'
 import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, quickRecordSaveErrorMessage, type MicrophoneFailure } from './quickRecordPresentation'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from './QuickRecordPhotos'
+import { OccurrenceTimeField, useOccurrenceTime } from '../../HealthEvents/OccurrenceTimeField'
+import { getLocalDateKey } from '../../../utils/localCalendarDate'
 
 type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'previewing' | 'review' | 'voice_help' | 'browser_help' | 'saving' | 'saved'
 export type QuickRecordActivity = 'idle' | 'attention' | 'listening' | 'reviewing' | 'saving' | 'saved' | 'error'
@@ -38,6 +40,8 @@ interface QuickVoiceRecordFlowProps {
   voiceCapability?: BrowserVoiceCapability
   photoMemberId?: string
   photoToken?: string
+  selectedDay?: string
+  today?: string
 }
 
 export type QuickRecordInputChannel = 'voice' | 'text'
@@ -50,7 +54,7 @@ const recognitionConstructor = () => {
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
-export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken, selectedDay, today }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -83,6 +87,8 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const onSavedRef = useRef(onSaved)
   const inputChannelRef = useRef<QuickRecordInputChannel>('voice')
   const photoModel = useQuickRecordPhotos(photoMemberId, photoToken)
+  const currentDay = getLocalDateKey(new Date())!
+  const occurrence = useOccurrenceTime(selectedDay ?? currentDay, today ?? currentDay)
   const photoModelRef = useRef(photoModel)
   photoModelRef.current = photoModel
   onCloseRef.current = onClose
@@ -104,6 +110,9 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
   const saveFinal = useCallback(async () => {
     const value = transcriptRef.current.trim()
     if (!value || submittingRef.current || (onPreviewRef.current && !candidatesRef.current.length)) return
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) { setInputError('发生时间不能晚于现在'); return }
+    occurredAtRef.current = occurredAt
     submittingRef.current = true
     setState('saving')
     setInputError('')
@@ -122,12 +131,13 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
       setInputError(quickRecordSaveErrorMessage(reason))
       submittingRef.current = false
     }
-  }, [presentation, scheduleClose])
+  }, [occurrence.capture, presentation, scheduleClose])
 
   const prepareNaturalInput = useCallback(async () => {
     const value = transcriptRef.current.trim()
     if (!value || submittingRef.current) return
-    const occurredAt = new Date().toISOString()
+    const occurredAt = occurrence.capture()
+    if (!occurredAt) { setInputError('发生时间不能晚于现在'); return }
     occurredAtRef.current = occurredAt
     if (!onPreviewRef.current) {
       candidatesRef.current = []
@@ -162,7 +172,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     } finally {
       submittingRef.current = false
     }
-  }, [scheduleClose])
+  }, [occurrence.capture, scheduleClose])
 
   const stopSession = useCallback((discard = false) => {
     const recognition = recognitionRef.current
@@ -435,6 +445,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
           />
           {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
           <QuickRecordPhotos model={photoModel} />
+          <OccurrenceTimeField model={occurrence} />
           <div className="nurse-quick-record-actions">
             <button className="nurse-quick-record-secondary" disabled={submittingRef.current} onClick={restartListening} type="button">重新说</button>
             <HohoButton disabled={!transcript.trim() || submittingRef.current || photoModel.blocked} onClick={() => void saveFinal()}>确认保存</HohoButton>
@@ -464,6 +475,7 @@ export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         <label className="quick-record-natural-input"><strong>写下发生了什么</strong><textarea aria-label="快捷记录文字" className="hoho-textarea" disabled={state === 'previewing'} onChange={(event) => { setTranscript(event.target.value); setInputError('') }} placeholder="例如：晚上九点给她吃了5毫升美林，刚刚量了38.5度" value={transcript} /></label>
         {inputError && <p className="quick-record-input-error" role="alert">{inputError}</p>}
         <QuickRecordPhotos model={photoModel} />
+        <OccurrenceTimeField model={occurrence} />
         <div className="quick-record-text-actions"><button className="quick-record-cancel" disabled={state === 'previewing'} onClick={cancel} type="button">取消</button><button className="quick-record-voice-link" disabled={state === 'previewing'} onClick={() => capability.canAttemptMicrophone ? void startListening() : setState('voice_help')} type="button"><Mic size={16} />想用语音记录？</button><HohoButton disabled={!transcript.trim() || state === 'previewing' || photoModel.blocked} onClick={() => void prepareNaturalInput()}>{state === 'previewing' ? '正在核对…' : '继续核对'}</HohoButton></div>
       </section>
     )

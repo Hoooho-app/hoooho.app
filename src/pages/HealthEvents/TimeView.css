@@ -776,7 +776,7 @@
 .journal-timeline-row--empty .journal-hour-cell { background: rgb(var(--hoho-color-surface)); }
 
 .journal-timeline-row--now { min-height: 50px; }
-.journal-timeline-row--now > time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 500; }
+.journal-timeline-row--now > time { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 700; }
 .journal-timeline-row--now .journal-timeline-marker > span { width: 9px; height: 9px; background: rgb(var(--hoho-color-primary)); animation: journal-now-dot-tick 1s ease-out; transform-origin: center; }
 .journal-timeline-row--now .journal-hour-cell { border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-surface)); }
 .journal-now-cell { isolation: isolate; display: flex; min-height: 48px; align-items: center; gap: 8px; padding-inline: 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -785,6 +785,14 @@
 .journal-now-cell > svg { flex: none; color: rgb(var(--hoho-color-primary)); }
 .journal-now-cell > svg { width: 18px; min-width: 18px; }
 .journal-now-cell > span { width: auto; min-width: 0; overflow: hidden; font-size: 14px; font-weight: 700; letter-spacing: .08em; text-overflow: ellipsis; white-space: nowrap; }
+
+.occurrence-time-field { display: grid; gap: 8px; margin-top: 12px; }
+.occurrence-time-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; }
+.occurrence-time-heading > div { display: inline-flex; padding: 2px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 10px; background: rgb(var(--hoho-color-surface)); }
+.occurrence-time-heading button { min-height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.occurrence-time-heading button[aria-pressed='true'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 700; }
+.occurrence-time-now { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; padding: 0 12px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 650; letter-spacing: .04em; }
+.occurrence-time-error { margin: 0; color: rgb(var(--hoho-color-danger)); font-size: 12px; }
 
 @keyframes journal-now-dot-tick {
   0%, 100% { transform: scale(1); }

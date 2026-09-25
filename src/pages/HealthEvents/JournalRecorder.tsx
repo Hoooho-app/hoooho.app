@@ -17,8 +17,8 @@ import { VisitRecordFlow } from './VisitRecordFlow'
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen; depth: number; dietKind: DietRecordKind | null }
 
-export function JournalRecorder({ mode, memberId, token, initialCategory, onClose, onConfirm, onSaved }: {
-  mode: 'manual' | 'voice'; memberId: string; token: string; onClose: () => void
+export function JournalRecorder({ mode, memberId, token, selectedDay, today, initialCategory, onClose, onConfirm, onSaved }: {
+  mode: 'manual' | 'voice'; memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   suggestedMode?: 'start' | 'backfill' | 'nap'
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
@@ -87,14 +87,15 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
   }, [])
   const sourceBack = initialCategory ? closeRecorder : () => backOneLevel('categories')
   const dailyBack = initialCategory ? closeRecorder : () => backOneLevel('daily-types')
-  if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} token={token} onBack={() => backOneLevel('diet-types')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  const occurrenceDay = suggestion?.day ?? selectedDay
+  if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={() => backOneLevel('diet-types')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} mode={suggestion?.mode} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; icon: ReactNode }[] = [
     { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', icon: <JournalDietIcon kind="feeding" size={24} strokeWidth={1.7} /> },
     { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒', icon: <JournalDietIcon kind="complementary" size={24} strokeWidth={1.7} /> },
@@ -120,6 +121,7 @@ export function JournalRecorder({ mode, memberId, token, initialCategory, onClos
     footer={undefined}>
     {screen === 'categories' ? <div className="journal-entry-hub">{hubCategories.map(({ category, label, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily">{dailyCategories.map(([category, label]) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button">{icon}<span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
+        selectedDay={occurrenceDay} today={today}
         onActivityChange={(activity) => setSaving(activity === 'saving')}
         onClose={closeRecorder}
         onConfirm={(text, occurredAt, _candidates, channel, photos) => onConfirm(text, occurredAt, channel, photos, { categories: selected })} />}
