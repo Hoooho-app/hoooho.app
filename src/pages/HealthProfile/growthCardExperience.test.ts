@@ -16,6 +16,8 @@ test('健康档案首页提供成长身份卡和克制的过敏空态', () => {
   assert.match(home, /const openGrowthEditor = \(\) => navigate\('\/health-profile\/basic'\)/)
   assert.match(home, /className="growth-identity-card__member" onClick=\{openGrowthEditor\}/)
   assert.match(home, /className="growth-identity-card__action" onClick=\{openGrowthEditor\}/)
+  assert.doesNotMatch(home, /GrowthMetric label="血型"/)
+  assert.match(polish, /\.growth-identity-card__metrics \{ grid-template-columns: repeat\(2/)
   assert.doesNotMatch(home, /makeMemberProfileOpenState|openMember/)
 })
 
