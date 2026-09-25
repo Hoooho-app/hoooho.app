@@ -545,10 +545,8 @@
 .symptom-record-scroll > * + * { margin-top: 0; }
 .symptom-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .symptom-heading h2 { margin: 0; color: rgb(var(--hoho-color-text-primary)); font-size: 14px; font-weight: 650; }
-.symptom-heading button { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: rgb(var(--hoho-color-primary)); }
-.symptom-heading button.is-listening { background: rgb(var(--hoho-color-primary-soft)); }
 .symptom-narrative { position: relative; }
-.symptom-narrative textarea { width: 100%; min-height: 88px; max-height: 180px; resize: none; overflow-y: auto; overflow-wrap: anywhere; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 11px 12px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 1.45; }
+.symptom-narrative textarea { width: 100%; min-height: 104px; max-height: 200px; resize: none; overflow-y: auto; overflow-wrap: anywhere; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 11px 12px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 1.45; }
 .symptom-narrative textarea:focus, .symptom-location-input > input:focus { border-color: rgb(var(--hoho-color-primary)); outline: 2px solid rgb(var(--hoho-color-primary) / .12); }
 .symptom-summary-field { display: grid; gap: 4px; margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
 .symptom-summary-field input { min-height: 42px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 8px 10px; color: rgb(var(--hoho-color-text-primary)); }
@@ -567,7 +565,7 @@
 .symptom-location-preview small { color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
 .symptom-location-silhouette { position: relative; display: grid; width: 70px; height: 48px; place-items: center; border-radius: 9px; background: rgb(var(--hoho-color-primary) / .08); color: rgb(var(--hoho-color-primary)); }
 .symptom-location-silhouette i { position: absolute; z-index: 1; left: 20px; top: 19px; display: grid; width: 17px; height: 17px; place-items: center; border: 2px solid white; border-radius: 50%; background: rgb(var(--hoho-color-primary)); color: white; font-size: 9px; font-style: normal; }
-.symptom-compact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.symptom-compact-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .symptom-compact-grid > .is-expanded, .symptom-compact-grid .quick-record-photos { grid-column: 1 / -1; }
 .symptom-compact-grid .symptom-compact-row small { display: none; }
 .symptom-compact-grid .symptom-compact-row > button > span:first-child strong { font-size: 13px; white-space: nowrap; }
@@ -618,7 +616,7 @@
 .journal-symptom-facts { color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
 @media (max-height: 680px) {
   .symptom-record-scroll { gap: 8px; padding-top: 8px; }
-  .symptom-narrative textarea { height: 68px; min-height: 68px; }
+  .symptom-narrative textarea { height: 88px; min-height: 88px; }
   .symptom-location-input .body-location-picker-row { min-height: 44px; padding-block: 0; }
   .symptom-compact-grid .symptom-compact-row small { display: none; }
   .symptom-compact-grid .symptom-compact-row > button { padding-inline: 8px; }
@@ -732,11 +730,11 @@
 .journal-timeline-row--sleep .journal-hour-cell { background: rgb(var(--hoho-color-surface-subtle)); }
 .journal-timeline-row--sleep .journal-timeline-marker::before { width: 2px; background: rgb(var(--hoho-color-primary) / .16); }
 .journal-timeline-row--sleep .journal-timeline-marker > span { width: 4px; height: 4px; background: rgb(var(--hoho-color-primary) / .42); box-shadow: 0 0 0 3px rgb(var(--hoho-color-surface)); }
-.journal-timeline-row--now { min-height: 36px; }
+.journal-timeline-row--now { min-height: 32px; }
 .journal-timeline-row--now > time { font-size: 13px; font-weight: 720; }
 .journal-timeline-row--now .journal-timeline-marker > span { width: 7px; height: 7px; background: rgb(var(--hoho-color-primary)); }
 .journal-timeline-row--now .journal-hour-cell { border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-primary-soft) / .42); }
-.journal-now-cell { display: flex; min-height: 36px; align-items: center; gap: 6px; padding-inline: 10px; color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 650; }
+.journal-now-cell { display: flex; min-height: 32px; align-items: center; gap: 6px; padding-inline: 10px; color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 650; }
 .journal-grid-record--highlighted { border: 0 !important; border-radius: 0; box-shadow: inset 0 0 0 2px rgb(var(--hoho-color-primary) / .7); }
 
 @media (max-width: 340px) {
@@ -787,11 +785,11 @@
 .journal-activity-row { color: rgb(var(--hoho-color-text-primary)); }
 .journal-timeline-row--empty .journal-hour-cell { background: rgb(var(--hoho-color-surface)); }
 
-.journal-timeline-row--now { min-height: 36px; }
+.journal-timeline-row--now { min-height: 32px; }
 .journal-timeline-row--now > time { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 700; }
 .journal-timeline-row--now .journal-timeline-marker > span { width: 9px; height: 9px; background: rgb(var(--hoho-color-primary)); animation: journal-now-dot-tick 1s ease-out; transform-origin: center; }
 .journal-timeline-row--now .journal-hour-cell { border-color: rgb(var(--hoho-color-primary-border)); background: rgb(var(--hoho-color-surface)); }
-.journal-now-cell { isolation: isolate; display: flex; min-height: 36px; align-items: center; padding-inline: 10px; color: rgb(var(--hoho-color-text-primary)); font-size: 12px; font-variant-numeric: tabular-nums; }
+.journal-now-cell { isolation: isolate; display: flex; min-height: 32px; align-items: center; padding-inline: 10px; color: rgb(var(--hoho-color-text-primary)); font-size: 12px; font-variant-numeric: tabular-nums; }
 .journal-now-cell::before { position: absolute; z-index: -1; inset: 0 auto 0 0; width: var(--journal-now-progress); background: rgb(var(--hoho-color-primary-soft)); content: ''; transition: width 1s linear; }
 .journal-timeline-row--now-reset .journal-now-cell::before { transition: none; }
 .journal-now-cell > span { width: auto; min-width: 0; overflow: hidden; font-size: 12px; font-weight: 400; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
