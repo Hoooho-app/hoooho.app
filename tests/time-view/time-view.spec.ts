@@ -1154,27 +1154,41 @@ async function openDietTypes(page: Page) {
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 }
 
-test('feeding and diet type sheet is complete, non-scrollable and returns with selection preserved', async ({ page }) => {
+test('feeding and diet type sheet uses responsive image cards and returns with selection preserved', async ({ page }) => {
   await prepare(page)
   await openDietTypes(page)
   const dialog = page.getByRole('dialog', { name: '记录喂养/饮食' })
   await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toHaveCount(0)
-  await expect(dialog.getByRole('button', { name: /^喂养/ }).locator('.diet-type-icon--feeding-bottle')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /^辅食/ }).locator('.journal-category-icon--spoon')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /^正餐/ }).locator('.diet-type-icon--meal-pot')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /^补剂/ }).locator('.diet-type-icon--supplement-bottle')).toBeVisible()
+  for (const name of [/^喂养/, /^辅食/, /^正餐/, /^零食/, /^补剂/]) {
+    const image = dialog.getByRole('button', { name }).locator('img')
+    await expect(image).toBeVisible()
+    await expect(image).toHaveJSProperty('complete', true)
+    expect(await image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0)
+  }
   await expect(dialog.getByRole('button', { name: /^辅食/ })).toContainText('泥糊 / 颗粒')
   await expect(dialog.getByRole('button', { name: /^辅食/ })).not.toContainText('手指食物')
   await expect(dialog.getByText(/推荐/)).toHaveCount(0)
   await expect(dialog.getByText(/个月|记录对象|已按年龄优先显示/)).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: '开始记录', exact: true })).toHaveCount(0)
-  const layout = await dialog.evaluate((sheet) => {
-    const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
-    const handle = sheet.querySelector('.hoho-bottom-sheet__handle') as HTMLElement
-    return { sheetFits: sheet.scrollHeight <= sheet.clientHeight + 1, bodyFits: body.scrollHeight <= body.clientHeight + 1, overflowY: getComputedStyle(body).overflowY, handle: getComputedStyle(handle).display }
-  })
-  expect(layout).toEqual({ sheetFits: true, bodyFits: true, overflowY: 'visible', handle: 'none' })
-  await page.screenshot({ path: 'test-results/diet-types-icons-iphone-se.png' })
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: width === 430 ? 932 : width === 390 ? 844 : 667 })
+    const layout = await dialog.evaluate((sheet) => {
+      const body = sheet.querySelector('.hoho-bottom-sheet__body') as HTMLElement
+      const grid = sheet.querySelector('.diet-type-grid') as HTMLElement
+      const cards = [...sheet.querySelectorAll('.diet-type-direct-entry')] as HTMLElement[]
+      const handle = sheet.querySelector('.hoho-bottom-sheet__handle') as HTMLElement
+      return {
+        horizontalFit: grid.scrollWidth <= grid.clientWidth + 1,
+        twoColumns: Math.abs(cards[0].getBoundingClientRect().width - cards[1].getBoundingClientRect().width) < 1,
+        lastIsHalfWidth: Math.abs(cards[4].getBoundingClientRect().width - cards[0].getBoundingClientRect().width) < 1,
+        overflowY: getComputedStyle(body).overflowY,
+        handle: getComputedStyle(handle).display
+      }
+    })
+    expect(layout).toEqual({ horizontalFit: true, twoColumns: true, lastIsHalfWidth: true, overflowY: 'auto', handle: 'none' })
+    await page.screenshot({ path: `test-results/diet-types-image-cards-${width}.png` })
+  }
+  await page.setViewportSize({ width: 375, height: 667 })
 
   const choices = [
     { button: /^喂养/, heading: '记录喂养' },
