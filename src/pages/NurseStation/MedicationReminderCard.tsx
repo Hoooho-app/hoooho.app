@@ -20,10 +20,11 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
   const activeCompletions = reminder.completions.filter((item) => !item.undoneAt)
   const { allComplete, due, next, todayCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
   const archived = reminder.status === 'archived'
+  const actionOffset = archived ? 72 : 144
   const rows = useMemo(() => weekRows(reminder), [reminder])
 
   const down = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (archived || (event.target as HTMLElement).closest('button')) return
+    if ((event.target as HTMLElement).closest('button')) return
     start.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -32,7 +33,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
     const dx = event.clientX - start.current.x
     const dy = event.clientY - start.current.y
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) { start.current = null; setDrag(0); return }
-    if (Math.abs(dx) > 8) { event.preventDefault(); setDrag(Math.max(-144, Math.min(0, (open ? -144 : 0) + dx))) }
+    if (Math.abs(dx) > 8) { event.preventDefault(); setDrag(Math.max(-actionOffset, Math.min(0, (open ? -actionOffset : 0) + dx))) }
   }
   const up = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!start.current || start.current.pointerId !== event.pointerId) return
@@ -43,8 +44,11 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
   }
 
   return <article className={`medication-course-card${open ? ' is-open' : ''}${archived ? ' is-archived' : ''}`} data-reminder-id={reminder.id}>
-    {!archived && <div aria-hidden={!open} className="medication-course-card__swipe-actions"><button disabled={busy} onClick={onArchive} type="button"><Archive />归档</button><button disabled={busy} onClick={onDelete} type="button"><Trash2 />删除提醒</button></div>}
-    <div className="medication-course-card__surface" onPointerCancel={() => { start.current = null; setDrag(0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} style={{ transform: `translateX(${drag || (open ? -144 : 0)}px)` }}>
+    <div aria-hidden={!open} className="medication-course-card__swipe-actions" onPointerDown={(event) => event.stopPropagation()} style={{ gridTemplateColumns: `repeat(${archived ? 1 : 2}, minmax(0, 1fr))`, width: actionOffset }}>
+      {!archived && <button disabled={busy} onClick={onArchive} type="button"><Archive />归档</button>}
+      <button disabled={busy} onClick={onDelete} type="button"><Trash2 />删除提醒</button>
+    </div>
+    <div className="medication-course-card__surface" onPointerCancel={() => { start.current = null; setDrag(0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} style={{ transform: `translateX(${drag || (open ? -actionOffset : 0)}px)` }}>
       <div className="medication-course-card__top">
         <div className="medication-course-card__summary">
           <h3><span><Pill /></span>{reminder.plan.medicationName}</h3>
@@ -66,7 +70,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           </div>)}
         </div>
       </div>
-      {!archived && <div className="medication-course-card__desktop-actions"><button disabled={busy} onClick={onArchive} type="button"><Archive />归档</button><button disabled={busy} onClick={onDelete} type="button"><Trash2 />删除提醒</button></div>}
+      <div className="medication-course-card__desktop-actions">{!archived && <button disabled={busy} onClick={onArchive} type="button"><Archive />归档</button>}<button disabled={busy} onClick={onDelete} type="button"><Trash2 />删除提醒</button></div>
     </div>
   </article>
 }

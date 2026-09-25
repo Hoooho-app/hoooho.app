@@ -145,7 +145,16 @@ export function NurseStationPage() {
       if (action === 'take') { if (!reminder.nextOccurrence) return; replaceReminder(await medicationReminderService.complete(reminder.id, reminder.nextOccurrence.id, authUser?.id ?? identityId, token)); setMedicationNotice('本次已记录') }
       else if (action === 'undo') { replaceReminder(await medicationReminderService.undo(reminder.id, token)); setMedicationNotice('已撤回最近一次记录') }
       else if (action === 'archive') { replaceReminder(await medicationReminderService.archive(reminder.id, token)); setOpenReminderId(''); setMedicationNotice('已归档') }
-      else { await medicationReminderService.delete(reminder.id, token); setMedicationReminders((current) => current.filter((item) => item.id !== reminder.id)); if (reminder.clientId) setStation((current) => ({ ...current, items: current.items.filter((item) => item.id !== reminder.clientId) })); setDeleteReminder(null); setOpenReminderId(''); setMedicationNotice('提醒已删除') }
+      else {
+        await medicationReminderService.delete(reminder.id, token)
+        setMedicationReminders((current) => current.filter((item) => item.id !== reminder.id))
+        if (reminder.clientId) setStation((current) => {
+          const next = { ...current, items: current.items.filter((item) => item.id !== reminder.clientId) }
+          writeNurseStationState(identityId, currentMemberId, next)
+          return next
+        })
+        setDeleteReminder(null); setOpenReminderId(''); setMedicationNotice('提醒及记录已删除')
+      }
     } catch (error) { setMedicationNotice(error instanceof Error ? error.message : '操作没有完成，请重试') }
     finally { setBusyReminderId('') }
   }
@@ -193,7 +202,7 @@ export function NurseStationPage() {
     </div>
     {(savedItemId || medicationNotice) && <p aria-live="polite" className="nurse-station-save-notice" role="status">{medicationNotice || '用药提醒已保存'}</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={medicationReminders.map(item=>item.plan)}/>}<span hidden />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
-    {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyReminderId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除提醒？</h2><p>停止后续提醒，保留已有服用记录。</p><div><button disabled={Boolean(busyReminderId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyReminderId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyReminderId ? '删除中…' : '删除提醒'}</button></div></section></div>}
+    {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyReminderId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除提醒？</h2><p>删除后，这条提醒和它生成的服用记录都会移除，无法恢复。</p><div><button disabled={Boolean(busyReminderId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyReminderId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyReminderId ? '删除中…' : '删除提醒'}</button></div></section></div>}
   </main>
 }
 

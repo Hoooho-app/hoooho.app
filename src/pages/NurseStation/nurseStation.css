@@ -209,8 +209,9 @@
 .medication-course-card__day i { display: block; width: 100%; height: 6px; border: 1px solid #d8e1df; border-radius: 2px; background: #edf1f0; }
 .medication-course-card__day i.is-completed { border-color: #24a38f; background: #24a38f; }
 .medication-course-card__day i.is-empty { border-color: transparent; background: transparent; }
-.medication-course-card__swipe-actions { position: absolute; z-index: 0; inset: 0 0 0 auto; display: grid; width: 144px; grid-template-columns: 1fr 1fr; }
-.medication-course-card__swipe-actions button { display: grid; min-width: 0; place-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.medication-course-card__swipe-actions { position: absolute; z-index: 2; inset: 0 0 0 auto; display: grid; opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.medication-course-card.is-open .medication-course-card__swipe-actions { opacity: 1; pointer-events: auto; }
+.medication-course-card__swipe-actions button { display: grid; min-width: 0; place-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 700; text-align: center; touch-action: manipulation; }
 .medication-course-card__swipe-actions button:first-child { background: #4f8f86; }
 .medication-course-card__swipe-actions button:last-child { background: #d65d58; }
 .medication-course-card__swipe-actions svg { width: 18px; height: 18px; margin-inline: auto; }
