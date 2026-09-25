@@ -233,10 +233,20 @@ export class MedicationReminderService {
     return publicReminder(saved, now)
   }
 
-  async delete(accountId, id, now = new Date()) {
-    const reminder = await this.owned(accountId, id, { includeDeleted: true })
-    if (reminder.status === 'deleted') return { deleted: true, idempotent: true }
-    await this.store.update((data) => ({ ...data, reminders: data.reminders.map((item) => item.id === id ? { ...item, status: 'deleted', deletedAt: now.toISOString(), updatedAt: now.toISOString() } : item) }))
-    return { deleted: true, idempotent: false }
+  async delete(accountId, id) {
+    return accountTransaction(this.dataDirectory, async () => {
+      const data = await this.store.read()
+      const reminder = data.reminders.find((item) => item.id === id)
+      if (!reminder) return { deleted: true, idempotent: true }
+      if (reminder.accountId !== accountId) throw new MedicationReminderError('未找到这条用药提醒', 404, 'MEDICATION_REMINDER_NOT_FOUND')
+      for (const completion of reminder.completions) {
+        const record = await this.records.repository.findById(completion.recordId)
+        if (record?.accountId === accountId) await this.records.repository.delete(completion.recordId)
+        const event = await this.events.repository.findById(completion.eventId)
+        if (event?.accountId === accountId) await this.events.repository.delete(completion.eventId)
+      }
+      await this.store.update((current) => ({ ...current, reminders: current.reminders.filter((item) => item.id !== id) }))
+      return { deleted: true, idempotent: false }
+    })
   }
 }

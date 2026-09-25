@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
+import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { MedicationReminderService, buildOccurrences, zonedDateTime } from './medication-reminder-service.mjs'
 
 const basePlan = { medicationName: '阿司匹林', medicationType: 'tablet', amount: 1, unit: '粒', route: 'oral', mode: 'daily', times: ['08:00', '20:00'], startDate: '2026-01-01', durationDays: 28, reminderTargets: ['我'], timezone: 'Asia/Shanghai' }
@@ -77,7 +78,7 @@ test('服务端校验到点、顺序和幂等，并逐次跨周撤回', async ()
   } finally { await rm(value.dataDirectory, { recursive: true, force: true }) }
 })
 
-test('账号人物隔离、归档与删除保留既有用药记录', async () => {
+test('账号人物隔离、归档保留进度，删除彻底移除提醒及关联服用事件', async () => {
   const value = await context()
   const now = new Date('2026-01-01T13:00:00.000Z')
   try {
@@ -88,13 +89,17 @@ test('账号人物隔离、归档与删除保留既有用药记录', async () =>
     await assert.rejects(value.service.archive('account-2', reminder.id, now), (error) => error.code === 'MEDICATION_REMINDER_NOT_FOUND')
     reminder = await value.service.complete('account-1', reminder.id, reminder.nextOccurrence.id, {}, now)
     const records = new HealthEventRecordRepository(value.dataDirectory)
+    const events = new HealthEventRepository(value.dataDirectory)
     assert.equal((await records.findByAccountId('account-1')).length, 1)
+    assert.equal((await events.findByAccountId('account-1')).length, 1)
     reminder = await value.service.archive('account-1', reminder.id, now)
     assert.equal(reminder.status, 'archived')
     assert.equal(reminder.completions.filter((item) => !item.undoneAt).length, 1)
     await assert.rejects(value.service.complete('account-1', reminder.id, reminder.nextOccurrence.id, {}, now), (error) => error.code === 'MEDICATION_REMINDER_INACTIVE')
     assert.deepEqual(await value.service.delete('account-1', reminder.id, now), { deleted: true, idempotent: false })
     assert.equal((await value.service.list('account-1', value.member.id, now)).length, 0)
-    assert.equal((await records.findByAccountId('account-1')).length, 1)
+    assert.equal((await records.findByAccountId('account-1')).length, 0)
+    assert.equal((await events.findByAccountId('account-1')).length, 0)
+    assert.deepEqual(await value.service.delete('account-1', reminder.id, now), { deleted: true, idempotent: true })
   } finally { await rm(value.dataDirectory, { recursive: true, force: true }) }
 })
