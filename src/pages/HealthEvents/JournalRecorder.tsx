@@ -5,6 +5,10 @@ import symptomCardImage from '../../assets/health-events/quick-record/symptom.we
 import dailyCardImage from '../../assets/health-events/quick-record/daily.webp'
 import visitCardImage from '../../assets/health-events/quick-record/visit.webp'
 import medicationCardImage from '../../assets/health-events/quick-record/medication.webp'
+import dailyFeedingImage from '../../assets/health-events/daily-record/feeding.webp'
+import dailySleepImage from '../../assets/health-events/daily-record/sleep.webp'
+import dailyBowelImage from '../../assets/health-events/daily-record/bowel.webp'
+import dailyActivityImage from '../../assets/health-events/daily-record/activity.webp'
 import type { DietRecordKind, JournalCategory, JournalMetadata } from '../../types/journal'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
@@ -113,7 +117,12 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     setSelected([category])
     navigateScreen(categoryScreen(category))
   }
-  const dailyCategories: readonly (readonly [JournalCategory, string])[] = [['diet', '喂养/饮食'], ['sleep', '睡眠'], ['elimination', '排便'], ['activity', '户外活动']]
+  const dailyCategories: readonly { category: JournalCategory; label: string; image: string }[] = [
+    { category: 'diet', label: '喂养/饮食', image: dailyFeedingImage },
+    { category: 'sleep', label: '睡眠', image: dailySleepImage },
+    { category: 'elimination', label: '排便', image: dailyBowelImage },
+    { category: 'activity', label: '户外活动', image: dailyActivityImage }
+  ]
   const hubCategories: readonly { category: JournalCategory; label: string; image: string; action?: () => void }[] = [
     { category: 'symptom', label: '记录症状', image: symptomCardImage },
     { category: 'other', label: '记录日常', image: dailyCardImage, action: () => navigateScreen('daily-types') },
@@ -121,9 +130,9 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     { category: 'medication', label: '记录用药', image: medicationCardImage }
   ]
   const sheetTitle = screen === 'daily-types' ? '记录日常' : isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记一下'
-  return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : ''}`} open label={sheetTitle} title={sheetTitle} onClose={() => { if (!saving) closeRecorder() }}
+  return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : screen === 'daily-types' ? 'journal-daily-sheet' : ''}`} open label={sheetTitle} title={sheetTitle} onClose={() => { if (!saving) closeRecorder() }}
     footer={undefined}>
-    {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily">{dailyCategories.map(([category, label]) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button">{icon}<span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
+    {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily journal-entry-hub--illustrated">{dailyCategories.map(({ category, label, image }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button">{icon}<span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
         selectedDay={occurrenceDay} today={today}
         onActivityChange={(activity) => setSaving(activity === 'saving')}
