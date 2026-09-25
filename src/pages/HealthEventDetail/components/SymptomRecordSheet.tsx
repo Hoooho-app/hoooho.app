@@ -148,12 +148,17 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     }
   }
 
-  const footer = editing
+  const footer = confirmingDelete
+    ? <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条症状记录？"><strong>删除这条症状记录？</strong><p>删除后将从当前症状跟踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>
+    : editing
     ? <div className="symptom-record-editor-actions">
         <HohoButton disabled={busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
         <HohoButton disabled={busy} onClick={() => void save()}><Save size={17} />{busy ? '保存中…' : '保存'}</HohoButton>
       </div>
-    : <HohoButton className="w-full" disabled={!canEdit} onClick={() => setEditing(true)}><Pencil size={17} />编辑症状记录</HohoButton>
+    : <div className="symptom-record-detail-actions">
+        <HohoButton disabled={!canEdit || busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
+        <HohoButton disabled={!canEdit || busy} onClick={() => setEditing(true)}><Pencil size={17} />编辑症状记录</HohoButton>
+      </div>
 
   const originalSymptom = record?.journal?.symptom
   const dirty = editing && Boolean(record) && (
@@ -192,20 +197,19 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
             <label><span>测量方式</span><select className="hoho-input" onChange={(event) => setMeasurementMethod(event.target.value as HealthMeasurementMethod)} value={measurementMethod}>{measurementMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label>
           </>}
           <label><span>备注（可选）</span><textarea className="hoho-textarea symptom-record-note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="补充这条记录的说明" value={note} /></label>
-          {confirmingDelete && <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条症状记录？"><strong>删除这条症状记录？</strong><p>删除后将从当前症状跟踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
           <RelatedRecordsSheet entries={relatedEntries} error={relatedError} linked={linkedRecordIds} loading={relatedLoading} onChange={setLinkedRecordIds} onClose={() => setRelatedOpen(false)} onRetry={onRelatedRetry} open={relatedOpen} />
         </div>
       ) : (
         <div className="symptom-record-detail">
-          <section><h3>主要症状</h3><p className="symptom-record-original">{originalNarrative}</p></section>
-          {detailKeywords.length > 0 && <section><h3>症状标签</h3><div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></section>}
+          <section><h3>主要症状</h3><p className="symptom-record-original">{originalNarrative}</p>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}</section>
           {detailLocation && <section><h3>症状部位</h3><p className="symptom-record-original">{detailLocation}</p></section>}
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
           {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}
           <section><h3>记录信息</h3><dl><div><dt>发生时间</dt><dd>{formatRecordDateTime(record?.occurredAt ?? entry.time)}</dd></div>{record?.createdAt && <div><dt>创建时间</dt><dd>{formatRecordDateTime(record.createdAt)}</dd></div>}<div><dt>记录对象</dt><dd>{memberName}</dd></div></dl></section>
           <section><h3>来源信息</h3><dl><div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>{isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}{isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}{entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}</dl></section>
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
+          {error && <p className="symptom-record-error" role="alert">{error}</p>}
         </div>
       )}
     </BottomSheetSurface>
