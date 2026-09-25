@@ -994,11 +994,18 @@ test('manual category cards navigate directly without a start action', async ({ 
   await hub.getByRole('button', { name: '记录日常' }).click()
   const daily = page.getByRole('dialog', { name: '记录日常' })
   await expect(daily.locator('.journal-entry-hub__item')).toHaveCount(4)
+  await expect(daily.locator('.journal-entry-hub__image')).toHaveCount(4)
+  expect(await daily.locator('.journal-entry-hub__image').evaluateAll((images) => images.every((image) => {
+    const asset = image as HTMLImageElement
+    return asset.complete && asset.naturalWidth === 640 && asset.naturalHeight === 640 && asset.getAttribute('aria-hidden') === 'true'
+  }))).toBe(true)
   await expect(page.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
   const diet = daily.getByRole('button', { name: '喂养/饮食', exact: true })
-  await expect(diet.locator('.journal-category-icon--spoon')).toBeVisible()
+  await expect(diet.locator('.journal-entry-hub__image')).toBeVisible()
   await expect(page.getByRole('button', { name: '开始记录', exact: true })).toHaveCount(0)
+  await daily.evaluate((sheet) => Promise.all(sheet.getAnimations().map((animation) => animation.finished)))
+  await page.screenshot({ path: 'test-results/daily-record-image-cards-iphone-se.png' })
   await diet.click()
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 })
