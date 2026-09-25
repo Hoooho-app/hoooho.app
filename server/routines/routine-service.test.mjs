@@ -15,7 +15,7 @@ async function fixture() {
   const eventMap = new Map()
   const records = { repository: { findByAccountId: async () => [...recordMap.values()], findById: async (id) => recordMap.get(id) ?? null } }
   const events = { repository: { findById: async (id) => eventMap.get(id) ?? null } }
-  const quickRecords = { records, events, create: async (_accountId, input) => { calls.push(input); const record = { id: 'record-1', accountId: 'account-1', eventId: 'event-1', occurredAt: input.occurredAt, journal: input.journal }; recordMap.set(record.id, record); eventMap.set('event-1', { id: 'event-1', accountId: 'account-1', memberId: member.id }); return { eventId: 'event-1', recordId: record.id, idempotent: false } } }
+  const quickRecords = { records, events, create: async (_accountId, input) => { calls.push(input); const record = { id: 'record-1', accountId: 'account-1', eventId: 'event-1', occurredAt: input.occurredAt, content: input.content, journal: input.journal }; recordMap.set(record.id, record); eventMap.set('event-1', { id: 'event-1', accountId: 'account-1', memberId: member.id }); return { eventId: 'event-1', recordId: record.id, idempotent: false } } }
   return { service: new RoutineService({ dataDirectory, members, quickRecords, records, events }), member, members, calls, recordMap, eventMap }
 }
 
@@ -69,4 +69,29 @@ test('cross-midnight sleep is one completed fact with the real duration', async 
   assert.equal(calls.length, 1)
   assert.equal(calls[0].journal.sleep.durationMinutes, 640)
   assert.equal(calls[0].journal.sleep.status, 'completed')
+})
+
+test('custom routines keep a stable identity, create an activity fact and do not guess matches by title', async () => {
+  const { service, member, calls, recordMap } = await fixture()
+  const key = 'custom:outdoor_walk_20260922'
+  const saved = await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { [key]: { enabled: true, title: '傍晚散步', time: '17:20', endTime: '17:50' } } }, new Date('2026-09-22T00:00:00Z'))
+  assert.deepEqual(saved.items[0], { key, title: '傍晚散步', category: 'activity', time: '17:20', endTime: '17:50' })
+  const track = (await service.getDay('account-1', member.id, '2026-09-22')).tracks[0]
+  assert.equal(track.itemKey, key)
+  assert.equal(track.status, 'routine')
+  await service.setOverride('account-1', member.id, '2026-09-22', key, { action: 'confirm', occurredAt: '2026-09-22T09:20:00Z', startedAt: '2026-09-22T09:20:00Z', endedAt: '2026-09-22T09:50:00Z', idempotencyKey: 'custom-routine-confirm' }, new Date('2026-09-22T10:00:00Z'))
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].content, '傍晚散步')
+  assert.deepEqual(calls[0].journal.categories, ['activity'])
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks[0].status, 'confirmed')
+  recordMap.get('record-1').content = '调整后的散步记录'
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks[0].status, 'confirmed')
+})
+
+test('disabling the latest routine preserves earlier day templates and records', async () => {
+  const { service, member } = await fixture()
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { breakfast: { enabled: true, time: '08:10', endTime: '08:40' } } }, new Date('2026-09-22T00:00:00Z'))
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-23', enabled: false, items: {} }, new Date('2026-09-23T00:00:00Z'))
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-22')).tracks.length, 1)
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-23')).tracks.length, 0)
 })

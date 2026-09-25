@@ -5,6 +5,7 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
+const customKeyPattern = /^custom:[A-Za-z0-9_-]{8,64}$/
 const itemDefinitions = {
   nightSleep: { title: '夜间睡眠', category: 'sleep' },
   breakfast: { title: '早餐', category: 'diet', meal: '早餐' },
@@ -20,13 +21,27 @@ const dateKey = (value, timeZone) => new Intl.DateTimeFormat('en-CA', {
   timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
 }).format(new Date(value))
 
-const cleanItems = (input) => Object.entries(itemDefinitions).flatMap(([key, definition]) => {
-  const item = input?.[key]
-  if (!item?.enabled) return []
-  if (!timePattern.test(item.time ?? '')) throw new RoutineError(`${definition.title}时间无效`)
-  if (!timePattern.test(item.endTime ?? '')) throw new RoutineError(`${definition.title}结束时间无效`)
-  return [{ key, title: definition.title, category: definition.category, ...(definition.meal ? { meal: definition.meal } : {}), time: item.time, endTime: item.endTime }]
-})
+const cleanItems = (input) => {
+  const source = input && typeof input === 'object' ? input : {}
+  const fixedItems = Object.entries(itemDefinitions).flatMap(([key, definition]) => {
+    const item = source[key]
+    if (!item?.enabled) return []
+    if (!timePattern.test(item.time ?? '')) throw new RoutineError(`${definition.title}时间无效`)
+    if (!timePattern.test(item.endTime ?? '')) throw new RoutineError(`${definition.title}结束时间无效`)
+    return [{ key, title: definition.title, category: definition.category, ...(definition.meal ? { meal: definition.meal } : {}), time: item.time, endTime: item.endTime }]
+  })
+  const customEntries = Object.entries(source).filter(([key, item]) => item?.enabled && !(key in itemDefinitions))
+  if (customEntries.length > 8) throw new RoutineError('最多添加8项其他作息')
+  const customItems = customEntries.map(([key, item]) => {
+    if (!customKeyPattern.test(key)) throw new RoutineError('自定义作息标识无效')
+    const title = String(item.title ?? '').trim().replace(/\s+/g, ' ')
+    if (!title || title.length > 20) throw new RoutineError('自定义作息名称需为1至20个字')
+    if (!timePattern.test(item.time ?? '')) throw new RoutineError(`${title}开始时间无效`)
+    if (!timePattern.test(item.endTime ?? '')) throw new RoutineError(`${title}结束时间无效`)
+    return { key, title, category: 'activity', time: item.time, endTime: item.endTime }
+  })
+  return [...fixedItems, ...customItems]
+}
 
 export class RoutineService {
   constructor(options = {}) {
@@ -91,6 +106,7 @@ export class RoutineService {
   }
 
   async actualMatches(accountId, memberId, day, item, timeZone) {
+    if (item.category === 'activity') return []
     if (!this.records || !this.events) return []
     const records = await this.records.repository.findByAccountId(accountId)
     const matches = []
@@ -106,6 +122,7 @@ export class RoutineService {
     if (!event || event.memberId !== memberId) return null
     if (item.category === 'diet' && record.journal?.diet?.meal === item.meal && dateKey(record.occurredAt, timeZone) === day) return event
     if (item.category === 'sleep' && record.journal?.sleep?.kind === 'night' && record.journal.sleep.sleepAt && dateKey(record.journal.sleep.sleepAt, timeZone) === day) return event
+    if (item.category === 'activity' && record.journal?.categories?.includes('activity') && dateKey(record.occurredAt, timeZone) === day) return event
     return null
   }
 
@@ -159,13 +176,20 @@ export class RoutineService {
       if (endedAt) occurredAt = endedAt.toISOString()
       journal = { categories: ['diet'], occurredAt, timePrecision: 'exact', diet: { kind: 'meal', meal: track.meal, ...(foods.length ? { foods } : {}), ...(endedAt ? { startedAt: startedAt.toISOString(), endedAt: endedAt.toISOString() } : {}) } }
       content = foods.length ? `${track.title} · ${foods.join('、')}` : track.title
-    } else {
+    } else if (track.category === 'sleep') {
       const sleepAt = new Date(input.sleepAt)
       const wakeAt = new Date(input.wakeAt)
       if ([sleepAt, wakeAt].some((value) => Number.isNaN(value.getTime())) || wakeAt <= sleepAt || wakeAt > now) throw new RoutineError('请填写已经结束的真实睡眠时间', 400, 'INVALID_ROUTINE_SLEEP')
       occurredAt = wakeAt.toISOString()
       journal = { categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes: Math.round((wakeAt - sleepAt) / 60000), kind: 'night', status: 'completed' } }
       content = '夜间睡眠'
+    } else {
+      const startedAt = new Date(input.startedAt ?? input.occurredAt)
+      const endedAt = track.endTime ? new Date(input.endedAt) : null
+      if (Number.isNaN(startedAt.getTime()) || (endedAt && (Number.isNaN(endedAt.getTime()) || endedAt <= startedAt || endedAt > now))) throw new RoutineError('请填写已经结束的真实作息时间', 400, 'INVALID_CUSTOM_ROUTINE')
+      if (endedAt) occurredAt = endedAt.toISOString()
+      journal = { categories: ['activity'], occurredAt, timePrecision: 'exact' }
+      content = track.title
     }
     const saved = await this.quickRecords.create(accountId, { memberId, content, occurredAt, inputChannel: 'text', title: content, idempotencyKey: String(input.idempotencyKey ?? ''), journal }, now)
     await this.saveOverride(accountId, memberId, day, itemKey, { status: 'confirmed', recordId: saved.recordId }, now)
