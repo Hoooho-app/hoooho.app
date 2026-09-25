@@ -8,21 +8,17 @@ type Measure = 'height' | 'weight'
 const displayValue = (measure: Measure, value: number) => measure === 'height' ? String(value) : String(Math.round(value * 1000))
 const displayUnit = (measure: Measure) => measure === 'height' ? 'cm' : 'g'
 
-export function GrowthCurveChart({ compact = false, measure, member, records, replayKey = 0 }: { compact?: boolean; measure: Measure; member: Member; records: GrowthMeasurementApiDto[]; replayKey?: number }) {
+export function GrowthCurveChart({ compact = false, measure, member, records }: { compact?: boolean; measure: Measure; member: Member; records: GrowthMeasurementApiDto[] }) {
   const rawId = useId(), pathId = `growth-journey-${rawId.replace(/:/g, '')}`
   const [reduced, setReduced] = useState(false), [selectedId, setSelectedId] = useState(''), [animationDone, setAnimationDone] = useState(false)
   const latestRecordId = records[0]?.id ?? ''
   useEffect(() => { const query = matchMedia('(prefers-reduced-motion: reduce)'); const update = () => setReduced(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update) }, [])
   useEffect(() => {
-    const key = `hoho-growth-animation:${member.id}:${measure}`
-    const previousLatest = sessionStorage.getItem(key)
-    const shouldAnimate = !reduced && (replayKey > 0 || previousLatest !== latestRecordId)
-    setAnimationDone(!shouldAnimate)
-    if (!shouldAnimate) return
-    sessionStorage.setItem(key, latestRecordId)
+    setAnimationDone(reduced)
+    if (reduced) return
     const timer = window.setTimeout(() => setAnimationDone(true), 2200)
     return () => window.clearTimeout(timer)
-  }, [latestRecordId, measure, member.id, reduced, replayKey])
+  }, [latestRecordId, measure, member.id, reduced])
   const model = useMemo(() => {
     const points = records.flatMap((record) => {
       const value = measure === 'height' ? record.heightCm : record.weightKg
@@ -42,13 +38,12 @@ export function GrowthCurveChart({ compact = false, measure, member, records, re
     const upper = referencePaths.at(-1)!.values, lower = [...referencePaths[0].values].reverse()
     const bandPath = `${pathFor(upper)} ${lower.map((point) => `L${x(point.age).toFixed(1)},${y(point.value).toFixed(1)}`).join(' ')} Z`
     const actualPath = pathFor(points)
-    const startAtBirth = replayKey > 0 || points.length === 1
-    const animationPoints = startAtBirth ? [{ age: 0, value: growthValueAtZScore({ ageInMonths: 0, gender: member.gender ?? '', measure, zScore: 0 }) ?? points[0].value }, ...points] : points.slice(-2)
+    const animationPoints = [{ age: 0, value: growthValueAtZScore({ ageInMonths: 0, gender: member.gender ?? '', measure, zScore: 0 }) ?? points[0].value }, ...points]
     const animationPath = pathFor(animationPoints)
     const xTicks = [0, .25, .5, .75, 1].map((ratio) => Math.round(maxAge * ratio))
     const yTicks = [0, .25, .5, .75, 1].map((ratio) => Math.round((min + (max - min) * ratio) * 10) / 10)
     return { points, latest, min, max, maxAge, x, y, referencePaths, bandPath, actualPath, animationPath, xTicks, yTicks }
-  }, [measure, member.birthday, member.gender, records, replayKey])
+  }, [measure, member.birthday, member.gender, records])
   if (!model) return <div className="growth-chart-empty">记录一次{measure === 'height' ? '身长或身高' : '体重'}后查看曲线</div>
   const selected = model.points.find((item) => item.record.id === selectedId) ?? model.latest
   const selectedPosition = calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: selected.record.measuredAt, measure, value: selected.value })
@@ -58,10 +53,10 @@ export function GrowthCurveChart({ compact = false, measure, member, records, re
       {model.yTicks.map((value) => <g key={value}><line className="growth-chart-grid" x1="42" x2="300" y1={model.y(value)} y2={model.y(value)} /><text className="growth-chart-axis growth-chart-axis--y" x="36" y={model.y(value) + 3}>{displayValue(measure, value)}</text></g>)}
       {model.xTicks.map((month) => <g key={month}><line className="growth-chart-grid" x1={model.x(month)} x2={model.x(month)} y1="36" y2="244" /><text className="growth-chart-axis" x={model.x(month)} y="266">{month}</text></g>)}
       {model.referencePaths.map((line, index) => <g key={line.label}><path className={`growth-chart-reference growth-chart-reference--${index}`} d={line.path} /><text className="growth-chart-percentile" x="306" y={model.y(line.values.at(-1)?.value ?? 0) + 3}>{line.label}</text></g>)}
-      {model.points.length > 1 && <path className="growth-chart-actual" d={model.actualPath} />}
+      {animationDone && model.points.length > 1 && <path className="growth-chart-actual" d={model.actualPath} />}
       {!animationDone && <path className="growth-chart-journey" d={model.animationPath} id={pathId} />}
       {model.points.map((point, index) => <g aria-label={`${point.record.measuredAt}，${displayValue(measure, point.value)}${measure === 'height' ? '厘米' : '克'}`} className="growth-chart-record" key={point.record.id} onClick={() => setSelectedId(point.record.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(point.record.id) }} role="button" style={{ '--record-index': index } as CSSProperties} tabIndex={0}><circle className={point.record.dataStatus === 'pending_confirmation' ? 'pending' : ''} cx={model.x(point.age)} cy={model.y(point.value)} r="6" /><title>{point.record.measuredAt} · {displayValue(measure, point.value)} {displayUnit(measure)}</title></g>)}
-      {!reduced && !animationDone && <foreignObject height="38" width="38" x="-19" y="-19"><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div><animateMotion begin="0s" dur="2.2s" fill="freeze" key={`${replayKey}-${measure}-${latestRecordId}`} path={model.animationPath} /></foreignObject>}
+      {!reduced && !animationDone && <foreignObject height="38" width="38" x="-19" y="-19"><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div><animateMotion begin="0s" dur="2.2s" fill="freeze" key={`${measure}-${latestRecordId}`} path={model.animationPath} /></foreignObject>}
       <circle className="growth-chart-current-halo" cx={model.x(model.latest.age)} cy={model.y(model.latest.value)} r="12" />
       {animationDone && <foreignObject className="growth-chart-final-avatar" height="38" width="38" x={model.x(model.latest.age) - 19} y={model.y(model.latest.value) - 19}><div className="growth-chart-moving-avatar"><Avatar name={member.name} size="sm" src={member.avatar} /></div></foreignObject>}
     </svg>

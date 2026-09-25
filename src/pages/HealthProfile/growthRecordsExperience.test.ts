@@ -25,9 +25,17 @@ test('成长记录包含历史 CRUD、双曲线和标准说明', () => {
 test('成长动效绑定真实 SVG 路径并尊重 reduced motion', () => {
   assert.match(chart, /animateMotion/)
   assert.match(chart, /path=\{model\.animationPath\}/)
+  assert.match(chart, /const animationPoints = \[\{ age: 0/)
+  assert.match(chart, /animationDone && model\.points\.length/)
   assert.match(chart, /prefers-reduced-motion/)
   assert.match(chart, /model\.points\.map/)
+  assert.doesNotMatch(chart, /sessionStorage|replayKey/)
   assert.doesNotMatch(chart, /fake|mock/i)
+})
+
+test('成长曲线标题显示身高数值并移除重播入口和状态说明卡', () => {
+  assert.match(records, /`身高 \$\{latestHeight\?\.heightCm \?\? '—'\} cm`/)
+  assert.doesNotMatch(records, /重看成长轨迹|重看轨迹|growth-current-reading|轨迹稳定|先看孩子自己的变化/)
 })
 
 test('安心解读先解释、确认测量、看轨迹，再关联真实健康记录', () => {
