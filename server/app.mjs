@@ -34,6 +34,7 @@ import { AVATAR_PHOTO_MAX_REQUEST_LENGTH } from '../shared/avatar-photo-policy.m
 import { AccountService } from './account/account-service.mjs'
 import { GrowthMeasurementService } from './growth/growth-measurement-service.mjs'
 import { RoutineService } from './routines/routine-service.mjs'
+import { MedicationReminderService } from './medication-reminders/medication-reminder-service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -71,6 +72,7 @@ const healthProfileFacts = new HealthProfileFactService(sharedOptions)
 const healthInformationCandidates = new HealthInformationCandidateService({ ...sharedOptions, profileFacts: healthProfileFacts })
 const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
+const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -450,6 +452,26 @@ async function handleRoutines(request, response, pathname, searchParams) {
   return true
 }
 
+async function handleMedicationReminders(request, response, pathname, searchParams) {
+  const collection = pathname === '/api/medication-reminders'
+  const match = /^\/api\/medication-reminders\/([^/]+)(?:\/(complete|undo|archive))?$/.exec(pathname)
+  if (!collection && !match) return false
+  const accountId = await readAccountId(request)
+  const timeZone = validTimeZone(request.headers['x-hoooho-timezone']) ?? 'Asia/Shanghai'
+  if (collection && request.method === 'GET') sendJson(response, 200, await medicationReminders.list(accountId, String(searchParams.get('memberId') ?? '')))
+  else if (collection && request.method === 'POST') sendJson(response, 201, await medicationReminders.create(accountId, await readJson(request), new Date(), timeZone))
+  else {
+    const id = decodeRouteValue(match[1])
+    const action = match[2]
+    if (action === 'complete' && request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await medicationReminders.complete(accountId, id, String(input.occurrenceId ?? ''), input)) }
+    else if (action === 'undo' && request.method === 'POST') sendJson(response, 200, await medicationReminders.undo(accountId, id))
+    else if (action === 'archive' && request.method === 'POST') sendJson(response, 200, await medicationReminders.archive(accountId, id))
+    else if (!action && request.method === 'DELETE') sendJson(response, 200, await medicationReminders.delete(accountId, id))
+    else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+  }
+  return true
+}
+
 async function handleQuickRecords(request, response, pathname) {
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
@@ -702,6 +724,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleMembers(request, response, pathname)) return true
   if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
   if (await handleRoutines(request, response, pathname, searchParams)) return true
+  if (await handleMedicationReminders(request, response, pathname, searchParams)) return true
   if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
   if (await handleAttachments(request, response, pathname)) return true

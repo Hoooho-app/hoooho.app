@@ -17,6 +17,7 @@
     "test:account": "node --test server/account/account-service.test.mjs",
     "test:members": "node --test server/members/family-member-service.test.mjs",
     "test:growth": "node --test server/growth/growth-measurement-service.test.mjs",
+    "test:medication-reminders": "node --test server/medication-reminders/medication-reminder-service.test.mjs",
     "test:onboarding": "node --test server/onboarding/account-entry-state-service.test.mjs",
     "test:events": "node --test server/events/health-event-service.test.mjs",
     "test:records": "node --test server/events/health-event-record-service.test.mjs",
