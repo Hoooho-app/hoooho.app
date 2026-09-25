@@ -659,11 +659,11 @@
 @keyframes journal-record-highlight { 0%, 100% { background: rgb(var(--hoho-color-surface)); } 45% { background: rgb(var(--hoho-color-primary-soft)); } }
 .routine-sheet-intro { margin: 0 0 var(--hoho-space-3); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-body-small); line-height: var(--hoho-line-height-body); }
 .routine-setup-list { display: grid; gap: var(--hoho-space-2); }
-.routine-setup-row { display: grid; grid-template-columns: minmax(92px,1fr) minmax(118px,1fr); align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); padding-block: var(--hoho-space-2); }
+.routine-setup-row { display: grid; grid-template-columns: 104px minmax(0,1fr); align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); padding-block: var(--hoho-space-2); }
 .routine-enable { display: flex !important; min-height: var(--hoho-touch-target); flex-direction: row !important; align-items: center; gap: var(--hoho-space-2) !important; color: rgb(var(--hoho-color-text-primary)) !important; font-weight: 700; }
 .routine-enable input { width: 20px !important; min-height: 20px !important; accent-color: rgb(var(--hoho-color-primary)); }
-.routine-setup-row label { display: grid; gap: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
-.routine-setup-row label input[type='time'] { min-height: 40px; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: 8px; color: rgb(var(--hoho-color-text-primary)); }
+.routine-setup-row label { display: grid; min-width: 0; gap: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
+.routine-setup-row label input[type='time'] { box-sizing: border-box; min-width: 0; min-height: 40px; width: 100%; max-width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding-inline: 8px; color: rgb(var(--hoho-color-text-primary)); }
 .routine-setup-row label small { color: rgb(var(--hoho-color-error)); }
 .routine-setup-row label em { color: rgb(var(--hoho-color-primary)); font-size: 10px; font-style: normal; }
 .routine-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 6px; }
@@ -680,10 +680,6 @@
 .routine-skipped-panel { display: grid; gap: var(--hoho-space-3); text-align: center; }
 .routine-skipped-panel p { color: rgb(var(--hoho-color-text-secondary)); }
 .routine-sheet-error { margin-block: var(--hoho-space-2) 0; color: rgb(var(--hoho-color-error)); font-size: var(--hoho-font-size-caption); }
-
-@media (max-width: 400px) {
-  .routine-setup-row { grid-template-columns: minmax(86px,1fr) minmax(112px,1.2fr); }
-}
 
 /* Compact timeline: the left rail carries time; contiguous right cells share one hour frame. */
 .journal-day-grid { border: 0; padding-top: 2px; }
