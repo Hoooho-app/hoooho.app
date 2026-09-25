@@ -1,17 +1,22 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import symptomCardImage from '../../assets/health-events/quick-record/symptom.webp'
 import dailyCardImage from '../../assets/health-events/quick-record/daily.webp'
 import visitCardImage from '../../assets/health-events/quick-record/visit.webp'
 import medicationCardImage from '../../assets/health-events/quick-record/medication.webp'
+import feedingImage from '../../assets/health-events/diet-types/feeding.webp'
+import complementaryImage from '../../assets/health-events/diet-types/complementary.webp'
+import mealImage from '../../assets/health-events/diet-types/meal.webp'
+import snackImage from '../../assets/health-events/diet-types/snack.webp'
+import supplementImage from '../../assets/health-events/diet-types/supplement.webp'
 import type { DietRecordKind, JournalCategory, JournalMetadata } from '../../types/journal'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { DietRecordFlow } from './DietRecordFlow'
 import { BowelRecordFlow } from './BowelRecordFlow'
 import { OutdoorActivityRecordFlow } from './OutdoorActivityRecordFlow'
-import { JournalCategoryIcon, JournalDietIcon } from './JournalCategoryIcon'
+import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { createSleepDraft, SleepRecordFlow, type SleepDraft } from './SleepRecordFlow'
 import { SymptomRecordFlow } from './SymptomRecordFlow'
 import { MedicationRecordFlow } from './MedicationRecordFlow'
@@ -100,12 +105,12 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; icon: ReactNode }[] = [
-    { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', icon: <JournalDietIcon kind="feeding" size={24} strokeWidth={1.7} /> },
-    { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒', icon: <JournalDietIcon kind="complementary" size={24} strokeWidth={1.7} /> },
-    { kind: 'meal', title: '正餐', description: '早餐 / 午餐 / 晚餐', icon: <JournalDietIcon kind="meal" size={24} strokeWidth={1.7} /> },
-    { kind: 'snack', title: '零食', description: '点心 / 水果 / 饮品', icon: <JournalDietIcon kind="snack" size={24} strokeWidth={1.7} /> },
-    { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', icon: <JournalDietIcon kind="supplement" size={24} strokeWidth={1.7} /> }
+  const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; image: string }[] = [
+    { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', image: feedingImage },
+    { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒', image: complementaryImage },
+    { kind: 'meal', title: '正餐', description: '早餐 / 午餐 / 晚餐', image: mealImage },
+    { kind: 'snack', title: '零食', description: '点心 / 水果 / 饮品', image: snackImage },
+    { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', image: supplementImage }
   ]
   const isDietTypes = screen === 'diet-types'
   const categoryScreen = (category: JournalCategory) => category === 'diet' ? 'diet-types' : category === 'sleep' ? 'sleep-form' : category === 'elimination' ? 'bowel-form' : category === 'activity' ? 'activity-form' : category === 'symptom' ? 'symptom-form' : category === 'medication' ? 'medication-form' : category === 'vaccination' ? 'vaccination-form' : category === 'visit' ? 'visit-form' : 'generic'
@@ -123,7 +128,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const sheetTitle = screen === 'daily-types' ? '记录日常' : isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记一下'
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : ''}`} open label={sheetTitle} title={sheetTitle} onClose={() => { if (!saving) closeRecorder() }}
     footer={undefined}>
-    {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily">{dailyCategories.map(([category, label]) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, icon }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button">{icon}<span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
+    {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily">{dailyCategories.map(([category, label]) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><JournalCategoryIcon category={category} />{label}</HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, image }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button"><img alt="" aria-hidden="true" src={image} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
         selectedDay={occurrenceDay} today={today}
         onActivityChange={(activity) => setSaving(activity === 'saving')}
