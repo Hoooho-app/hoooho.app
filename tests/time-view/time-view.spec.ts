@@ -255,6 +255,35 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   const sleepStartBox = await setup.getByLabel('夜间睡眠通常入睡').boundingBox()
   const sleepEndBox = await setup.getByLabel('夜间睡眠通常醒来').boundingBox()
   expect(Math.abs(sleepStartBox!.y - sleepEndBox!.y)).toBeLessThan(3)
+  expect(sleepStartBox!.width).toBeGreaterThanOrEqual(90)
+  expect(sleepEndBox!.width).toBeGreaterThanOrEqual(90)
+  expect(sleepStartBox!.x + sleepStartBox!.width).toBeLessThanOrEqual(sleepEndBox!.x)
+  const routineLayout = await setup.locator('.routine-setup-row').first().evaluate((row) => {
+    const rowBox = row.getBoundingClientRect()
+    const fieldsBox = row.querySelector('.routine-time-fields')!.getBoundingClientRect()
+    return {
+      fieldsWithinRow: fieldsBox.left >= rowBox.left && fieldsBox.right <= rowBox.right,
+      horizontalOverflow: row.scrollWidth > row.clientWidth
+    }
+  })
+  expect(routineLayout).toEqual({ fieldsWithinRow: true, horizontalOverflow: false })
+  for (const width of [390, 430]) {
+    await page.setViewportSize({ width, height: 667 })
+    const responsiveLayout = await setup.locator('.routine-setup-row').first().evaluate((row) => {
+      const rowBox = row.getBoundingClientRect()
+      const fieldsBox = row.querySelector('.routine-time-fields')!.getBoundingClientRect()
+      const inputs = Array.from(row.querySelectorAll<HTMLInputElement>("input[type='time']"))
+      return {
+        fieldsWithinRow: fieldsBox.left >= rowBox.left && fieldsBox.right <= rowBox.right,
+        horizontalOverflow: row.scrollWidth > row.clientWidth,
+        inputWidths: inputs.map((input) => input.getBoundingClientRect().width)
+      }
+    })
+    expect(responsiveLayout.fieldsWithinRow).toBe(true)
+    expect(responsiveLayout.horizontalOverflow).toBe(false)
+    expect(responsiveLayout.inputWidths.every((inputWidth) => inputWidth >= 90)).toBe(true)
+  }
+  await page.setViewportSize({ width: 375, height: 667 })
   await page.screenshot({ path: 'outputs/routine-setup-sleep-inline-iphone-se.png' })
   await setup.getByRole('checkbox', { name: '夜间睡眠' }).uncheck()
   await setup.getByRole('checkbox', { name: '午餐' }).check()
