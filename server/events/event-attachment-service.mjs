@@ -91,6 +91,11 @@ export class EventAttachmentService {
       if (embedded) return { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
-    return { mimeType: attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(attachment.storageKey))) }
+    try {
+      return { mimeType: attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(attachment.storageKey))) }
+    } catch (error) {
+      if (error.code === 'ENOENT') throw new EventAttachmentError('附件原件已失效或不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
+      throw error
+    }
   }
 }

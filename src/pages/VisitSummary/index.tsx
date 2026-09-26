@@ -22,7 +22,8 @@ import type {
 import { SourceRecordEditor } from './SourceRecordEditor'
 import { ApiRequestError } from '../../services/apiClient'
 import { ReportChapter, reportTime, SourceText } from './ReportChapter'
-import { downloadReport, printReport, reportText } from './reportExport'
+import { downloadReport, printReport, reportText, summaryText, downloadContent, type ExportResources } from './reportExport'
+import { ReportPhotos, PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
@@ -64,10 +65,15 @@ function VisitSheetReader({
     [sourceEdit, setSourceEdit] = useState<VisitSource | null>(null),
     [search, setSearch] = useState(''),
     [notice, setNotice] = useState('')
+  const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null),[editChapter,setEditChapter]=useState<VisitChapterId>('overview')
+  const parentEvidence=useRef<string[]|null>(null)
+  const modalTrigger=useRef<HTMLElement|null>(null)
   const scroll = useRef<HTMLDivElement>(null),
-    positions = useRef<Partial<Record<VisitChapterId, number>>>({}),
     version = useRef(0)
   const report = state?.report ?? null
+  const modalOpen = !!(menu || editing || exporting || evidence || sourceEdit || photoPicker || photoId)
+  useEffect(()=>{document.body.classList.add('visit-report-active');return()=>document.body.classList.remove('visit-report-active')},[])
+  useEffect(()=>{if(modalOpen&&!modalTrigger.current)modalTrigger.current=document.activeElement as HTMLElement;if(scroll.current){scroll.current.inert=modalOpen;scroll.current.style.overflowY=modalOpen?'hidden':'auto'}if(!modalOpen&&modalTrigger.current)requestAnimationFrame(()=>modalTrigger.current?.focus({preventScroll:true}))},[modalOpen])
   const accept = (result: VisitSheetState) => {
     if (!alive.current) return
     version.current = result.report?.version ?? version.current
@@ -178,12 +184,11 @@ function VisitSheetReader({
     }
   }
   const chooseChapter = (id: VisitChapterId) => {
-    positions.current[active] = scroll.current?.scrollTop ?? 0
     setActive(id)
     setMenu(false)
     setSearch('')
     requestAnimationFrame(() =>
-      scroll.current?.scrollTo({ top: positions.current[id] ?? 0, left: 0 }),
+      scroll.current?.querySelector(`#chapter-${id}`)?.scrollIntoView({block:'start'}),
     )
   }
   const openEvidence = (ids: string[]) => {
@@ -192,7 +197,7 @@ function VisitSheetReader({
   }
   const sources = report?.sources ?? []
   return (
-    <main className="visit-report" data-visit-sheet-root>
+    <main className="visit-report" data-visit-sheet-root onClickCapture={event=>{if(!modalOpen){const trigger=(event.target as Element).closest<HTMLElement>('button,a,input');if(trigger)modalTrigger.current=trigger}}}>
       <header className="visit-report-header">
         <button aria-label="返回" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} />
@@ -200,14 +205,14 @@ function VisitSheetReader({
         <strong>就诊情况单</strong>
         <button
           aria-label="章节目录"
-          disabled={!report}
+          disabled={!report?.sources.length}
           onClick={() => setMenu(true)}
         >
           <List size={21} />
         </button>
         <button
           aria-label="导出情况单"
-          disabled={!report}
+          disabled={!report?.sources.length}
           onClick={() => setExporting(true)}
         >
           <Download size={20} />
@@ -219,6 +224,9 @@ function VisitSheetReader({
         ref={scroll}
         onScroll={(e) => {
           if (e.currentTarget.scrollLeft) e.currentTarget.scrollLeft = 0
+          const top=e.currentTarget.getBoundingClientRect().top
+          const current=[...e.currentTarget.querySelectorAll<HTMLElement>('.visit-chapter')].reverse().find(el=>el.getBoundingClientRect().top<=top+100)
+          if(current)setActive(current.id.replace('chapter-','') as VisitChapterId)
         }}
       >
         {loading && !report ? (
@@ -286,28 +294,16 @@ function VisitSheetReader({
             ).map((w) => (
               <StatusNotice title={w} tone="warning" key={w} />
             ))}
-            {active === 'overview' && (
+            {!sources.length && <section className="visit-report-state"><h2>病情数据</h2><p>当前孩子尚无已保存资料。</p><HohoButton onClick={()=>navigate('/health-events')}>补充健康记录</HohoButton></section>}
+            {!!sources.length && report.chapters.map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={report} onEvidence={openEvidence} action={chapter.id==='overview'?<button onClick={()=>{setError('');setEditing('focus')}}>更改主诉</button>:undefined} leading={chapter.id==='overview'? <>
               <section className="visit-report-focus">
-                <div>
-                  <span>本次主诉</span>
-                  <button
-                    onClick={() => {
-                      setError('')
-                      setEditing('focus')
-                    }}
-                  >
-                    更改
-                  </button>
-                </div>
-                <h2>{report.complaint}</h2>
+                <h1>{report.complaint}</h1>
+                <p className="visit-focus-meta">{report.focus.mode==='custom'?'家长本次陈述':`${report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.timeKind || '记录时间'} ${reportTime(report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.at??null)}`}</p>
               </section>
-            )}
-            <ReportChapter
-              chapter={report.chapters.find((c) => c.id === active)!}
-              report={report}
-              onEvidence={openEvidence}
-            />
-            {active === 'sources' && (
+              <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
+              </>:undefined} trailing={<>
+            {chapter.id==='overview'&&<details className="visit-fact-block"><summary>集中核对资料缺口</summary>{report.gaps?.map(g=><p key={g}>{g}</p>)}</details>}
+            {chapter.id === 'sources' && (
               <>
                 <label className="visit-source-search">
                   检索全部资料
@@ -318,9 +314,12 @@ function VisitSheetReader({
                   />
                 </label>
                 <p className="visit-muted">
-                  搜索仅影响阅读；导出始终包含完整当前快照。附件导出仅含索引。
+                  {report.scope} 搜索只影响阅读；导出照片范围另行核对。
                 </p>
-                {sources
+                {[...new Set(sources.map(s=>s.category))].map(category=><section className="visit-source-group" key={category}>
+                <h3>{{record:'健康记录',course:'症状与病程记录',temperature:'体温记录',allergy:'过敏与观察记录',history:'既往记录',visits:'就诊检查记录',attachment:'附件原件索引',profile:'健康档案',fact:'结构化健康事实',growth:'成长测量',medication:'用药与执行记录','medication-plan':'用药计划','observation-plan':'观察计划',observation:'观察结果',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养记录',examination:'检查档案',hospitalization:'住院史',vaccination:'接种史',legacy:'旧版情况单'}[category]||'其他档案资料'} · {sources.filter(s=>s.category===category).length} 项资料</h3>
+                <p className="visit-muted">资料项数不等于症状次数、服药次数或病情程度。</p>
+                {sources.filter(s=>s.category===category)
                   .filter((s) =>
                     [s.title, s.text, s.occurredAt, s.id]
                       .join(' ')
@@ -336,7 +335,7 @@ function VisitSheetReader({
                       <span>
                         <strong>{s.title}</strong>
                         <small>
-                          {s.identity} ·{' '}
+                          {s.code} · {s.identity} ·{' '}
                           {reportTime(
                             s.occurredAt || s.createdAt,
                             report.timezone,
@@ -345,14 +344,14 @@ function VisitSheetReader({
                       </span>
                       <span>›</span>
                     </button>
-                  ))}
+                  ))}</section>)}
                 {report.changes.length > 0 && (
                   <details className="visit-change-history">
                     <summary>查看修改记录（{report.changes.length}）</summary>
                     {report.changes.map((c, i) => (
                       <article key={i}>
                         <p>
-                          {reportTime(c.at)} · {c.sourceId}
+                          {reportTime(c.at)} · {sources.find(s=>s.id===c.sourceId)?.code ?? '家长报告编辑'}
                         </p>
                         <p>修改前：{c.before}</p>
                         <p>修改后：{c.after}</p>
@@ -366,18 +365,15 @@ function VisitSheetReader({
               variant="text"
               onClick={() => {
                 setError('')
+                setEditChapter(chapter.id)
                 setEditing('note')
               }}
             >
-              {active === 'overview'
+              {chapter.id === 'overview'
                 ? '编辑本次想问 / 补充报告说明'
-                : '补充本章说明'}
+                : `补充 / 校订 · ${chapter.title}`}
             </HohoButton>
-            {!sources.length && (
-              <HohoButton onClick={() => navigate('/health-events')}>
-                补充健康记录
-              </HohoButton>
-            )}
+            </>}/>)}
             <footer className="visit-report-footer">
               <p>来自已保存的资料，用于就医沟通。</p>
               <button disabled={working} onClick={() => void update()}>
@@ -418,7 +414,7 @@ function VisitSheetReader({
         <ReportEditor
           report={report}
           kind={editing}
-          chapter={active}
+          chapter={editChapter}
           working={working}
           error={error}
           onClose={() => setEditing(null)}
@@ -427,7 +423,6 @@ function VisitSheetReader({
             if (success) {
               setEditing(null)
               if (changes.focus) {
-                positions.current.overview = 0
                 chooseChapter('overview')
               }
             }
@@ -456,7 +451,7 @@ function VisitSheetReader({
                     )
                     .join('、')}
                 </p>
-                {s.attachmentId && (
+                {(s.attachmentId || s.contentPath) && (
                   <AttachmentPreview source={s} token={token} />
                 )}
                 {sources
@@ -474,6 +469,7 @@ function VisitSheetReader({
                   <HohoButton
                     variant="text"
                     onClick={() => {
+                      parentEvidence.current=evidence
                       setEvidence(null)
                       setSourceEdit(s)
                     }}
@@ -501,7 +497,7 @@ function VisitSheetReader({
           token={token}
           eventId={sourceEdit.eventId}
           recordId={sourceEdit.recordId}
-          onClose={() => setSourceEdit(null)}
+          onClose={() => {setSourceEdit(null);setEvidence(parentEvidence.current);parentEvidence.current=null}}
           onChanged={() => {
             setNotice('原始记录已保存，正在更新情况单')
             void update()
@@ -509,8 +505,10 @@ function VisitSheetReader({
         />
       )}
       {report && exporting && (
-        <ExportSheet report={report} onClose={() => setExporting(false)} />
+        <ExportSheet report={report} token={token} memberId={memberId} onClose={() => setExporting(false)} />
       )}
+      {report&&photoPicker&&<PhotoPicker report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async ids=>{const success=await update({selectedPhotoIds:ids});if(success)setPhotoPicker(false);return success}}/>}
+      {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
     </main>
   )
 }
@@ -555,7 +553,7 @@ function ReportEditor({
               ? { mode: 'custom' as const, text: custom.trim() }
               : focus,
         }
-      : { question, notes: { ...report.notes, [chapter]: note } }
+      : { ...(chapter==='overview'&&question!==report.question ? { question } : {}), notes: { ...report.notes, [chapter]: note } }
   const valid = kind !== 'focus' || focus.mode !== 'custom' || !!custom.trim()
   return (
     <BottomSheetSurface
@@ -623,6 +621,7 @@ function ReportEditor({
               <label>
                 本次主诉（家长陈述）
                 <textarea
+                  autoFocus
                   value={custom}
                   maxLength={1000}
                   onChange={(e) => setCustom(e.target.value)}
@@ -689,6 +688,7 @@ function AttachmentPreview({
   token: string
 }) {
   const [url, setUrl] = useState(''),
+    [image, setImage] = useState(false),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false)
   useEffect(
@@ -702,14 +702,16 @@ function AttachmentPreview({
     setError('')
     try {
       const result = await fetch(
-        `/api/events/${encodeURIComponent(source.eventId!)}/attachments/${encodeURIComponent(source.attachmentId!)}/content`,
+        source.contentPath && /^\/api\/members\/[^/]+\/visit-sheet\/resources\/[a-f0-9]{24}$/.test(source.contentPath) ? source.contentPath : `/api/events/${encodeURIComponent(source.eventId!)}/attachments/${encodeURIComponent(source.attachmentId!)}/content`,
         {
           headers: { Authorization: `Bearer ${token}` },
           signal: AbortSignal.timeout(10000),
         },
       )
       if (!result.ok) throw new Error('附件读取失败，可重试')
-      setUrl(URL.createObjectURL(await result.blob()))
+      const blob=await result.blob()
+      setImage(blob.type.startsWith('image/'))
+      setUrl(URL.createObjectURL(blob))
     } catch {
       setError('附件读取失败，原件信息仍保留，请重试')
     } finally {
@@ -721,11 +723,11 @@ function AttachmentPreview({
       <strong>{source.title}</strong>
       {url ? (
         <>
-          <img
+          {image && <img
             src={url}
             alt={source.title}
             onError={() => setError('预览失败，请打开原件查看')}
-          />
+          />}
           <a href={url} target="_blank" rel="noreferrer">
             打开原件
           </a>
@@ -746,13 +748,37 @@ function AttachmentPreview({
 function ExportSheet({
   report,
   onClose,
+  token,
+  memberId,
 }: {
   report: VisitSheet
   onClose: () => void
+  token: string
+  memberId: string
 }) {
   const [notice, setNotice] = useState(''),
     [fallback, setFallback] = useState(false)
+  const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
+  const controller=useRef(new AbortController()),lock=useRef(false)
+  useEffect(()=>()=>controller.current.abort(),[])
+  const validate=async()=>{
+    const current=await visitSheetService.get(memberId,token,controller.current.signal)
+    if(!current.report||current.stale||current.report.version!==report.version)throw new Error('资料或版本已变化，请先关闭并更新情况单，再核对导出范围')
+  }
+  const resources=async()=>{
+    await validate()
+    const result:ExportResources={images:{},omitted:[]}
+    for(const id of selected){
+      const source=report.sources.find(s=>s.id===id)!
+      try{const blob=await readPhoto(source,token,controller.current.signal);if(blob.size>20*1024*1024)throw new Error('原件超过单图 20 MB 离线容量');result.images[id]=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(blob)})}
+      catch(e){if(controller.current.signal.aborted)throw e;result.omitted.push(`${source.title}：${e instanceof Error?e.message:'原图未附'}`)}
+    }
+    await validate()
+    return result
+  }
+  const run=async(task:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setRunning(true);try{await task()}catch(e){if(!controller.current.signal.aborted)setNotice(e instanceof Error?e.message:'输出未完成，请重试')}finally{lock.current=false;if(!controller.current.signal.aborted)setRunning(false)}}
   const copy = async () => {
+    await validate()
     try {
       await navigator.clipboard.writeText(reportText(report))
       setNotice('已复制当前版本全文')
@@ -766,38 +792,28 @@ function ExportSheet({
       open
       label="导出情况单"
       title="导出当前版本"
-      onClose={onClose}
+      onClose={()=>{controller.current.abort();onClose()}}
     >
       <div className="visit-export-options">
         <p>
           {report.member.name} · v{report.version} · 全部九章与完整依据
         </p>
-        <p className="visit-muted">固定只读快照；附件仅含索引，不含原件。</p>
+        <p className="visit-muted">{report.scope} HTML 与打印包含下方选中且成功内嵌的影像；其他附件只含索引。重点摘要不含全部原文，AI 文本包含摘要和全部原文，但都不含照片。</p>
+        <details><summary>核对导出照片 · 已选 {selected.length} 张</summary><p>与页面展示选择独立。未选图片字节不会写入文件。</p>{report.photos?.map(p=><label key={p.sourceId}><input type="checkbox" disabled={running} checked={selected.includes(p.sourceId)} onChange={e=>setSelected(e.target.checked?[...selected,p.sourceId]:selected.filter(id=>id!==p.sourceId))}/>{p.title} · {p.location} · {p.timeKind} {reportTime(p.capturedAt||p.uploadedAt)}</label>)}{!report.photos?.length&&<p>暂无可嵌入的关联附件照片。</p>}</details>
         <HohoButton
-          onClick={() => {
-            try {
-              downloadReport(report)
-              setNotice('文件已准备好，请查看浏览器下载')
-            } catch {
-              setNotice('文件准备失败，请重试')
-            }
-          }}
+          loading={running}
+          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;downloadReport(report,result);setNotice(`文件已准备好，内嵌 ${Object.keys(result.images).length} 张影像。${result.omitted.length?'原图未附：'+result.omitted.join('；'):''}`)})}
         >
-          保存离线 HTML
+          保存完整离线报告（HTML）
         </HohoButton>
-        <HohoButton variant="secondary" onClick={() => void copy()}>
+        <HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{await validate();downloadContent(summaryText(report),'Hoooho-就诊重点摘要.txt','text/plain;charset=utf-8');setNotice('重点摘要已准备好，不含完整原文或照片')})}>保存重点摘要（文本）</HohoButton>
+        <HohoButton variant="secondary" disabled={running} onClick={() => void run(copy)}>
           复制给 AI
         </HohoButton>
         <HohoButton
           variant="secondary"
-          onClick={() => {
-            try {
-              printReport(report)
-              setNotice('已打开浏览器打印，可选择另存 PDF')
-            } catch {
-              setNotice('打印未能打开，请保存 HTML 后重试')
-            }
-          }}
+          disabled={running}
+          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;printReport(report,result);setNotice(`已准备完整打印报告，可在浏览器保存 PDF。${result.omitted.length?'原图未附：'+result.omitted.join('；'):''}`)})}
         >
           打印 / 另存 PDF
         </HohoButton>

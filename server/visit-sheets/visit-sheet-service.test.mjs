@@ -154,3 +154,64 @@ test('已删除的手动焦点不阻塞重新生成，也不泄露旧来源编�
   await assert.rejects(svc.get(a, m), { status: 503 })
   assert.equal((await svc.store.read()).reports[0].current.version, 3)
 })
+
+test('纯编辑不改资料截至、幂等重放不泄露已删除来源，照片跨成员拒绝',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const first=await svc.save(a,m,{expectedVersion:0,requestId:'original'},new Date('2026-09-26T00:00:00Z'))
+  const edited=await svc.save(a,m,{expectedVersion:1,requestId:'edit',notes:{course:'仅报告补充'}},new Date('2026-09-26T01:00:00Z'))
+  assert.equal(edited.report.dataAsOf,first.report.dataAsOf)
+  assert.equal(edited.report.generatedAt,first.report.generatedAt)
+  assert.notEqual(edited.report.editedAt,first.report.editedAt)
+  await assert.rejects(svc.save(a,m,{expectedVersion:2,requestId:'photos',selectedPhotoIds:['attachment:foreign']}),{status:400})
+  f.records=f.records.filter(r=>r.id!=='s7')
+  await assert.rejects(svc.save(a,m,{expectedVersion:1,requestId:'edit'}),{status:409})
+})
+
+test('首次部分读取失败不能保存为无记录；章节补充不改变问题来源身份',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  svc.growth.list=async()=>{throw new Error('unavailable')}
+  await assert.rejects(svc.save(a,m,{expectedVersion:0,requestId:'partial'}),{status:503})
+  assert.equal((await svc.store.read()).reports.length,0)
+  svc.growth.list=async()=>f.growth
+  f.records[0].content+='。想问需要补充什么观察？'
+  const first=await svc.save(a,m,{expectedVersion:0,requestId:'question'})
+  assert.equal(first.report.questionOrigin,'据家长记录整理')
+  const edited=await svc.save(a,m,{expectedVersion:1,requestId:'chapter',notes:{sources:'附件核对'}})
+  assert.equal(edited.report.question,first.report.question)
+  assert.equal(edited.report.questionOrigin,first.report.questionOrigin)
+  assert.equal(edited.report.questionEdited,false)
+})
+
+test('档案原件读取重新校验成员、账号和删除状态，报告不含字节',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const data='data:image/png;base64,aGVsbG8='
+  await svc.profiles.update(()=>({sections:[{accountId:a,memberId:m,sectionId:'examination',records:[{id:'original',name:'检查记录',imageDataUrl:data}]}]}))
+  const saved=await svc.save(a,m,{expectedVersion:0,requestId:'resource'})
+  assert.ok(!JSON.stringify(saved.report).includes('aGVsbG8='))
+  const s=saved.report.sources.find(s=>s.contentPath)
+  assert.ok(s)
+  const id=s.contentPath.split('/').at(-1)
+  assert.equal((await svc.readProfileResource(a,m,id)).buffer.toString(),'hello')
+  await assert.rejects(svc.readProfileResource('foreign',m,id),{status:404})
+  await assert.rejects(svc.readProfileResource(a,'foreign',id),{status:404})
+  await svc.profiles.update(()=>({sections:[]}))
+  await assert.rejects(svc.readProfileResource(a,m,id),{status:404})
+  assert.equal((await svc.get(a,m)).report,null)
+})
+
+test('删除来源不能通过报告编辑历史回流，包括缺少依赖信息的旧历史',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const source=f.records.find(r=>r.id==='s0');source.content=source.journal.symptom.narrative='SYNTHETIC_DELETED_SOURCE'
+  await svc.save(a,m,{expectedVersion:0,requestId:'history-first',focus:{mode:'source',sourceId:'record:s0'}})
+  const second=await svc.save(a,m,{expectedVersion:1,requestId:'history-switch',focus:{mode:'source',sourceId:'record:s1'}})
+  assert.ok(JSON.stringify(second.report.changes).includes('SYNTHETIC_DELETED_SOURCE'))
+  await svc.store.update(data=>({...data,reports:data.reports.map(row=>({...row,current:{...row.current,changes:[...row.current.changes,{sourceId:'家长报告编辑',before:'SYNTHETIC_DELETED_SOURCE',after:'legacy',at:new Date().toISOString()}]}}))}))
+  f.records=f.records.filter(r=>r.id!=='s0')
+  const updated=await svc.save(a,m,{expectedVersion:2,requestId:'history-deleted'})
+  assert.ok(!JSON.stringify(updated.report).includes('SYNTHETIC_DELETED_SOURCE'))
+  const linked=f.records.find(r=>r.id==='m0');linked.content='SYNTHETIC_LINKED_DELETED'
+  await svc.save(a,m,{expectedVersion:3,requestId:'linked'})
+  f.records=f.records.filter(r=>r.id!=='m0')
+  const unlinked=await svc.save(a,m,{expectedVersion:4,requestId:'unlinked'})
+  assert.ok(!JSON.stringify(unlinked.report).includes('SYNTHETIC_LINKED_DELETED'))
+})

@@ -63,11 +63,15 @@ export function FactLineChart({
   unit,
   label,
   onPoint,
+  scatter = false,
+  domain,
 }: {
   points: Array<{ value: number; at: string; sourceId: string }>
   unit: string
   label: string
   onPoint?: (id: string) => void
+  scatter?: boolean
+  domain?: [number, number]
 }) {
   if (points.length < 2) return null
   const times = points.map((p) => Date.parse(p.at)),
@@ -81,9 +85,9 @@ export function FactLineChart({
         ? ({ hour: '2-digit', minute: '2-digit' } as const)
         : ({ month: 'numeric', day: 'numeric' } as const)),
     }).format(new Date(at))
-  const min = Math.min(...values),
-    max = Math.max(...values),
-    pad = Math.max((max - min) * 0.15, 0.1)
+  const min = Math.min(...values, domain?.[0] ?? Infinity),
+    max = Math.max(...values, domain?.[1] ?? -Infinity),
+    pad = domain ? 0 : Math.max((max - min) * 0.15, 0.1)
   const coords = points.map((p, i) => ({
     x: 42 + ((times[i] - minTime) / span) * 250,
     y: 125 - ((p.value - min + pad) / (max - min + pad * 2)) * 100,
@@ -105,12 +109,12 @@ export function FactLineChart({
         {min}
       </text>
       <path d="M40 22 V130 H300" className="hoho-chart-axis" fill="none" />
-      <polyline
+      {!scatter && <polyline
         points={coords.map((p) => `${p.x},${p.y}`).join(' ')}
         fill="none"
         className="hoho-chart-trace"
         strokeWidth="2"
-      />
+      />}
       {points.map((p, i) => (
         <g key={`${p.sourceId}:${i}`}>
           <circle
