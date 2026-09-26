@@ -393,14 +393,16 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
     const inputStyle = getComputedStyle(input)
     return {
       clipsNativeControl: controlStyle.overflow === 'hidden',
+      compactHeight: controlBox.height <= 40.5 && inputBox.height <= 40.5,
       hasOwnBorder: Number.parseFloat(controlStyle.borderLeftWidth) >= 1,
       inputWithinControl: inputBox.left >= controlBox.left && inputBox.right <= controlBox.right,
-      nativeAppearanceRemoved: inputStyle.appearance === 'none' || inputStyle.webkitAppearance === 'none'
+      nativeAppearanceRemoved: inputStyle.appearance === 'none' || inputStyle.webkitAppearance === 'none',
+      textAlign: inputStyle.textAlign
     }
   }))
   expect(mobileTimeControls).toEqual([
-    { clipsNativeControl: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true },
-    { clipsNativeControl: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true }
+    { clipsNativeControl: true, compactHeight: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true, textAlign: 'left' },
+    { clipsNativeControl: true, compactHeight: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true, textAlign: 'left' }
   ])
   const routineLayout = await setup.locator('.routine-setup-row').first().evaluate((row) => {
     const rowBox = row.getBoundingClientRect()
