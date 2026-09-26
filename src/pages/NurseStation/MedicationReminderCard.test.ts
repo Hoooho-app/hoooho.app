@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { MedicationReminderDto, MedicationReminderOccurrence } from '../../services/medicationReminders.ts'
-import { reminderActionState, reminderCourseText, weekRows } from './medicationCardLogic.ts'
+import { reminderActionState, reminderCoursePlanText, reminderCourseText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic.ts'
 
 function reminder(days: number): MedicationReminderDto {
   const start = new Date('2026-09-01T00:00:00.000Z')
@@ -27,6 +27,14 @@ test('不足一周只输出真实天数且疗程日按日期位置计算', () =>
   assert.equal(reminderCourseText(value, new Date('2026-09-08T12:00:00.000Z')), '共9天 · 第8天')
   assert.equal(reminderCourseText(value, new Date('2026-08-31T12:00:00.000Z')), '共9天 · 尚未开始')
   assert.equal(reminderCourseText(value, new Date('2026-09-11T12:00:00.000Z')), '共9天 · 疗程已结束')
+})
+
+test('卡片摘要使用疗程规律文案且短疗程按当前天数标注进度', () => {
+  const short = reminder(3)
+  assert.equal(reminderCoursePlanText(short), '共3天，每天2次')
+  assert.equal(reminderProgressGroupLabel(short, new Date('2026-09-01T12:00:00.000Z'), 0), '第1天')
+  assert.equal(reminderProgressGroupLabel(short, new Date('2026-09-02T12:00:00.000Z'), 0), '第2天')
+  assert.equal(reminderProgressGroupLabel(reminder(9), new Date('2026-09-08T12:00:00.000Z'), 1), '第2周')
 })
 
 test('未到点禁用，到点启用，完成后重新判断下一条计划', () => {

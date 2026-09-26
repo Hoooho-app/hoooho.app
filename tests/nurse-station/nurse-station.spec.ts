@@ -486,22 +486,37 @@ test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', as
 
 test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均持久化', async ({ browser, page }) => {
   await registerMember(page)
+  await createReminder(page, { name: '每日一次排版用药', days: 3, times: ['00:00'] })
   await createReminder(page, { name: '四周到点用药', days: 28, times: ['00:00', '00:01', '00:02', '00:03'] })
   await createReminder(page, { name: '五周换行用药', days: 35, times: ['23:59'], startOffsetDays: 1 })
   await createReminder(page, { name: '短疗程用药', days: 5, times: ['23:59'], startOffsetDays: 1 })
   await createReminder(page, { name: '移动删除用药', days: 7, times: ['23:59'], startOffsetDays: 1 })
   await page.reload()
+  const dailyCard = page.locator('.medication-course-card').filter({ hasText: '每日一次排版用药' })
+  await expect(dailyCard).toContainText('疗程：共3天，每天1次')
+  await expect(dailyCard).toContainText('用法：每次1粒（口服）')
+  await dailyCard.getByRole('button', { name: '已服用' }).click()
+  await expect(dailyCard).toContainText('今日：1/1')
+  await expect(dailyCard.locator('.medication-course-card__week > span')).toHaveText('第1天')
+  await expect(page.locator('.nurse-station-save-notice')).toBeHidden()
+  await dailyCard.screenshot({ path: 'test-results/medication-card-daily-copy-375x667.png' })
   const dueCard = page.locator('.medication-course-card').filter({ hasText: '四周到点用药' })
-  await expect(dueCard).toContainText('今日 0/4')
+  await expect(dueCard).toContainText('疗程：共28天，每天4次')
+  await expect(dueCard).toContainText('用法：每次1粒（口服）')
+  await expect(dueCard).toContainText('今日：0/4')
   await expect(dueCard.getByRole('button', { name: '已服用' })).toBeEnabled()
   const cardAlignment = await dueCard.evaluate((card) => {
     const today = card.querySelector<HTMLElement>('.medication-course-card__today')!
     const next = card.querySelector<HTMLElement>('.medication-course-card__next')!
     const take = card.querySelector<HTMLElement>('.medication-course-card__take')!
     const undo = card.querySelector<HTMLElement>('.medication-course-card__undo')!
+    const summary = card.querySelector<HTMLElement>('.medication-course-card__summary')!
+    const summaryLines = [summary.querySelector<HTMLElement>('h3')!, ...summary.querySelectorAll<HTMLElement>('p')]
     return {
-      summaryContainsToday: card.querySelector('.medication-course-card__summary')?.contains(today),
+      summaryContainsToday: summary.contains(today),
       controlsContainToday: card.querySelector('.medication-course-card__controls')?.contains(today),
+      summaryFontSizes: summaryLines.map((line) => getComputedStyle(line).fontSize),
+      summaryFontWeights: summaryLines.map((line) => getComputedStyle(line).fontWeight),
       takeTop: take.getBoundingClientRect().top,
       todayTop: today.getBoundingClientRect().top,
       todayBottom: today.getBoundingClientRect().bottom,
@@ -511,6 +526,8 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   })
   expect(cardAlignment.summaryContainsToday).toBe(true)
   expect(cardAlignment.controlsContainToday).toBe(false)
+  expect(cardAlignment.summaryFontSizes).toEqual(['12px', '12px', '12px', '12px', '12px'])
+  expect(cardAlignment.summaryFontWeights).toEqual(['400', '400', '400', '400', '400'])
   expect(cardAlignment.todayBottom).toBeLessThanOrEqual(cardAlignment.nextTop)
   expect(cardAlignment.takeTop).toBeLessThan(cardAlignment.todayTop)
   expect(cardAlignment.undoTop).toBeLessThan(cardAlignment.nextTop)
@@ -520,15 +537,15 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   await dueCard.screenshot({ path: 'test-results/medication-card-enabled-320x568.png' })
   await page.setViewportSize({ width: 375, height: 667 })
   await dueCard.getByRole('button', { name: '已服用' }).click()
-  await expect(dueCard).toContainText('今日 1/4')
+  await expect(dueCard).toContainText('今日：1/4')
   await expect(dueCard.locator('i.is-completed')).toHaveCount(1)
   await dueCard.getByRole('button', { name: '撤回' }).click()
-  await expect(dueCard).toContainText('今日 0/4')
+  await expect(dueCard).toContainText('今日：0/4')
   await expect(dueCard.locator('i.is-completed')).toHaveCount(0)
   await page.route('**/api/medication-reminders/*/complete', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '记录暂时失败' } }) }))
   await dueCard.getByRole('button', { name: '已服用' }).click()
   await expect(page.locator('.nurse-station-save-notice')).toContainText('记录暂时失败')
-  await expect(dueCard).toContainText('今日 0/4')
+  await expect(dueCard).toContainText('今日：0/4')
   await page.unroute('**/api/medication-reminders/*/complete')
   await expect(page.locator('.nurse-station-save-notice')).toBeHidden()
   const futureCard = page.locator('.medication-course-card').filter({ hasText: '短疗程用药' })
