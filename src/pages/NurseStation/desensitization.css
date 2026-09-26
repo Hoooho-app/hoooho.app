@@ -47,7 +47,7 @@
   z-index: 1;
   display: grid;
   height: 100%;
-  grid-template-rows: 32px 1fr 36px;
+  grid-template-rows: 44px 36px 44px;
   background: rgb(var(--hoho-color-surface));
   transition: transform var(--hoho-motion-base) var(--hoho-ease-emphasized);
   touch-action: pan-y;
@@ -60,16 +60,11 @@
 .desensitization-card__surface > footer,
 .desensitization-card__summary { display: flex; align-items: center; }
 
-.desensitization-card__surface > header { justify-content: space-between; padding: 5px 8px 0 12px; }
-.desensitization-card__surface > header > div { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.desensitization-card__surface > header { justify-content: space-between; padding-left: 12px; }
 .desensitization-card__surface > header strong { overflow: hidden; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.desensitization-card__surface > header span { flex: 0 0 auto; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); padding: 2px 7px; color: rgb(var(--hoho-color-primary)); font-size: 10px; font-weight: 650; }
-.desensitization-card__surface > header > button { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; color: rgb(var(--hoho-color-text-secondary)); }
-.desensitization-card__surface > header svg { width: 19px; }
+.desensitization-card__record { min-width: 76px; flex: 0 0 auto; border-block: 0 !important; border-right: 0 !important; border-radius: 0 var(--hoho-radius-large) 0 var(--hoho-radius-control) !important; box-shadow: none !important; }
 
-.desensitization-card__summary { min-height: 0; justify-content: space-between; gap: 8px; padding: 2px 12px; }
-.desensitization-card__summary button { min-width: 0; text-align: left; }
-.desensitization-card__summary button:first-child { flex: 1; }
+.desensitization-card__summary { display: grid; min-height: 0; align-content: center; padding: 0 12px; }
 .desensitization-card__summary strong,
 .desensitization-card__summary small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desensitization-card__summary strong { font-size: 13px; font-weight: 650; }
@@ -79,10 +74,11 @@
 .desensitization-spark .clear { fill: rgb(var(--hoho-color-surface)); stroke: rgb(var(--hoho-color-primary)); stroke-width: 1.7; }
 .desensitization-spark .unknown { fill: none; stroke: rgb(var(--hoho-color-text-weak)); stroke-linecap: round; stroke-width: 1.7; }
 
-.desensitization-card__surface > footer { justify-content: space-between; border-top: 1px solid rgb(var(--hoho-color-border)); padding: 0 8px 0 12px; }
-.desensitization-card__surface > footer button { min-height: 34px; color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 650; }
-.desensitization-card__surface > footer button:first-child { display: flex; min-width: 0; flex: 1; align-items: center; justify-content: space-between; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.desensitization-card__surface > footer button:last-child { flex: 0 0 auto; padding-inline: 8px; }
+.desensitization-card__surface > footer { border-top: 1px solid rgb(var(--hoho-color-border)); }
+.desensitization-card__surface > footer button { display: flex; width: 100%; min-width: 0; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; color: rgb(var(--hoho-color-primary)); font-size: 11px; font-weight: 650; }
+.desensitization-card__surface > footer button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary) / .35); outline-offset: -3px; }
+.desensitization-card__surface > footer span { flex: 0 0 auto; }
+.desensitization-card__surface > footer .desensitization-spark { margin-left: auto; }
 
 .desensitization-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .desensitization-notice button { min-height: 36px; color: rgb(var(--hoho-color-surface)); font-weight: 700; text-decoration: underline; }
