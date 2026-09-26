@@ -75,6 +75,10 @@ export interface JournalSymptomLocation {
   bodyRegion?: string
   localRegion: string
   markedArea?: string
+  schemaVersion?: string
+  surface?: import('../features/body-location/childBodyCatalog').ChildSurface
+  coverage?: 'specific' | 'whole' | 'uncertain'
+  modelAtSelection?: 'boy' | 'girl'
 }
 
 export interface JournalSymptomDetails {

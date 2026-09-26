@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0.0",
+  "coordinateSystem": "normalized-source-image-x-y-width-height",
+  "atlases": [
+    {
+      "asset": "assets/hand-left.png",
+      "side": "left",
+      "panels": [
+        {
+          "id": "palm",
+          "label": "手掌",
+          "bounds": [
+            0,
+            0,
+            0.5,
+            1
+          ]
+        },
+        {
+          "id": "dorsal",
+          "label": "手背",
+          "bounds": [
+            0.5,
+            0,
+            0.5,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "asset": "assets/foot-left.png",
+      "side": "left",
+      "panels": [
+        {
+          "id": "dorsal",
+          "label": "脚背",
+          "bounds": [
+            0,
+            0,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "plantar",
+          "label": "足底",
+          "bounds": [
+            0.5,
+            0,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "medial",
+          "label": "内侧／足弓",
+          "bounds": [
+            0,
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "lateral",
+          "label": "外侧",
+          "bounds": [
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "asset": "assets/hand-right.png",
+      "side": "right",
+      "panels": [
+        {
+          "id": "palm",
+          "label": "手掌",
+          "bounds": [
+            0,
+            0,
+            0.5,
+            1
+          ]
+        },
+        {
+          "id": "dorsal",
+          "label": "手背",
+          "bounds": [
+            0.5,
+            0,
+            0.5,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "asset": "assets/foot-right.png",
+      "side": "right",
+      "panels": [
+        {
+          "id": "dorsal",
+          "label": "脚背",
+          "bounds": [
+            0,
+            0,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "plantar",
+          "label": "足底",
+          "bounds": [
+            0.5,
+            0,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "medial",
+          "label": "内侧／足弓",
+          "bounds": [
+            0,
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "lateral",
+          "label": "外侧",
+          "bounds": [
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    }
+  ]
+}

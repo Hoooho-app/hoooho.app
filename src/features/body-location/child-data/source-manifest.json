@@ -1,0 +1,298 @@
+{
+  "package": "Hoooho child body locator",
+  "version": "1.0.0",
+  "freezeDate": "2026-09-27",
+  "styleReference": "reference/reference-freeze.png",
+  "entrypoint": "index.html",
+  "instruction": "docs/03-codex-prompt.md",
+  "profileSexControlsModel": true,
+  "productGlobalViewControls": [
+    "front",
+    "back"
+  ],
+  "counts": {
+    "regions": 40,
+    "locations": 569,
+    "illustrationAssets": 10
+  },
+  "coordinateUse": "First-level callout and local zoom only; second-level semantic selections use stable IDs.",
+  "files": [
+    {
+      "path": "QA_REPORT.md",
+      "bytes": 2841,
+      "sha256": "c78c5d5983ae54e9e9fbd77bdfc1e4cb4cc8b9b8d02eb7010c06b259f00f3974"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3523,
+      "sha256": "875f8a1618f1d50001671f3503119092279d1bb878408db27399d370a27c0b3f"
+    },
+    {
+      "path": "asset-boy-notes.md",
+      "bytes": 4736,
+      "sha256": "60bfd37dea7afe6ca8839468204b763f298a6c181d0225e05d61a43e5f23d583"
+    },
+    {
+      "path": "asset-extremity-notes.md",
+      "bytes": 4289,
+      "sha256": "6c4b42670195431f6acf3b253222b000424ea0b12e0457211787af64ea26edc8"
+    },
+    {
+      "path": "asset-girl-notes.md",
+      "bytes": 5283,
+      "sha256": "69b78d8584a832da1d3e86e9d9461fab308b6038c87b99fbfaa75d974f456c3b"
+    },
+    {
+      "path": "assets/boy-back.png",
+      "bytes": 1626683,
+      "sha256": "4ef8e2ccc31a1b549dc840cba7fbcbf23a365e75b88e9eed21df92b239b1dc4a",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/boy-face.png",
+      "bytes": 1691842,
+      "sha256": "f73c0387516ef05b7dfe3039bd317f66e07d2724783203533928e365eb9f6047",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/boy-front.png",
+      "bytes": 1333603,
+      "sha256": "32fc2e281d24cdcfdcae5c31bd784b7611876b6ea4412bbefe2dc007bc03fa69",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/foot-left.png",
+      "bytes": 1043614,
+      "sha256": "d1f6258512ee3fac52867a9b93835f9ea77f34a1a1950bf3f4dd1b635544fcc7",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/foot-right.png",
+      "bytes": 1367437,
+      "sha256": "4fffda76fe2ea7d94b447decc364268f8b4b25f184ab0fd2b22cdf6950cde68a",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/girl-back.png",
+      "bytes": 1277952,
+      "sha256": "9e21712707b4adad9b1f4ab21289f90cf6e2706b67ceac87abd463c7021abd38",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/girl-face.png",
+      "bytes": 2014388,
+      "sha256": "e72422322274190a9554404a47b66f221126ecab7768ca171c6fc177586646fc",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/girl-front.png",
+      "bytes": 1267691,
+      "sha256": "5fe6a83e43b3c38e98221414a0499ba40a1ddcc4679d054822e447f63bb0f5bd",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/hand-left.png",
+      "bytes": 1312625,
+      "sha256": "3fb5f7f6b0610c71e3e65a5544874cc4891c77cdc69b243995d48d2f20fe6ef0",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "assets/hand-right.png",
+      "bytes": 1593096,
+      "sha256": "bac5aa732351a3507962f791306050de59500fd5421f52967ec775ab9f86291e",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "build_viewer.py",
+      "bytes": 950,
+      "sha256": "284c4da6ab13434e0ebed59d261bb3728b602720c5fb41c49ccae12b224a4056"
+    },
+    {
+      "path": "data/atlas-layouts.json",
+      "bytes": 2621,
+      "sha256": "73ee0b925da8b4ed338af67470c58ecc4a0a917e091a285f8ea93fc212c69e30"
+    },
+    {
+      "path": "data/locations.csv",
+      "bytes": 117775,
+      "sha256": "99ad4297de78ea0d2ae922bcca343033324e5d87b3d631bf29815164a267cf2a"
+    },
+    {
+      "path": "data/locations.json",
+      "bytes": 317417,
+      "sha256": "a27f8f8fdfa290b7b513671396f2eb7aa99f53535daa40342cfc518d9e80776e"
+    },
+    {
+      "path": "data/locations.schema.json",
+      "bytes": 5037,
+      "sha256": "0e7e4187df667270a4f2efe3b673ea7d50ea2efc3764615c79f46b3b89045a39"
+    },
+    {
+      "path": "data/region-anchors.json",
+      "bytes": 43410,
+      "sha256": "f592b03d9c15e06848f44d8dfe5a4ab45a641693f0cc7e7a1790cee71b48629f"
+    },
+    {
+      "path": "docs/01-style-freeze.md",
+      "bytes": 7738,
+      "sha256": "0bf49c5ed29cac29f8bac26e60ccbe16921d5a990adb3b6982ab247fdbda0fab"
+    },
+    {
+      "path": "docs/02-interaction-spec.md",
+      "bytes": 13417,
+      "sha256": "0ba1684a7a9188166a34f207bbf4c573a8845aca300cf57054be74157e5ebfc5"
+    },
+    {
+      "path": "docs/03-codex-prompt.md",
+      "bytes": 9634,
+      "sha256": "c42001e8ecb2a73835646b9fafb5f8c6cd885a6a7b83ac6b6bce229f4b3b0f51"
+    },
+    {
+      "path": "docs/04-acceptance-checklist.md",
+      "bytes": 8273,
+      "sha256": "a1373132bc9fff25feb641cdff3f5c67f658e08feb5843ca133bdffe8baf3d6e"
+    },
+    {
+      "path": "docs/data-dictionary.md",
+      "bytes": 10953,
+      "sha256": "0d644a2a74c033a1f18c534cacfd974bce86030d777b069ab4e6600eeef560c2"
+    },
+    {
+      "path": "index.html",
+      "bytes": 245302,
+      "sha256": "059a8ff19dd27b05d91bbe241e92c8fd73dcb61b5b9f6585c0e4d4bcb5529eee"
+    },
+    {
+      "path": "integration/README.md",
+      "bytes": 935,
+      "sha256": "ae7bd9617fa687695c7ed6e6c52efc869173e7cd9d885179d7bc4749e8546eac"
+    },
+    {
+      "path": "integration/example-record.json",
+      "bytes": 533,
+      "sha256": "b9cb12adb9a82a2839e51e33242dad7d90a5dabf425862a895ded05599ea9947"
+    },
+    {
+      "path": "integration/locator-core.mjs",
+      "bytes": 3552,
+      "sha256": "78b2351bf676972fcc2314919f033b776e58b46193a00495d76a36d044cdcb6f"
+    },
+    {
+      "path": "preview/01-girl-front.png",
+      "bytes": 112127,
+      "sha256": "159cd316de4594719f9928673c95baf66ce4aab9745875ca64154948b790df68",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/02-face-selected.png",
+      "bytes": 85922,
+      "sha256": "ef929b58930578dea785d506e1ceeea7e5607004225327f1f7a54cfba1827576",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/03-foot-selected.png",
+      "bytes": 81917,
+      "sha256": "d27ea6d258a5889909726d9d519bf9cf41f5470cb1aa015a78ee65406578152a",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/04-girl-back-selected.png",
+      "bytes": 106381,
+      "sha256": "930155df3f8a02422304cba25af95022a33cfebf05f2eeceb8a7e0b20e10f444",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/05-form-result.png",
+      "bytes": 40279,
+      "sha256": "9f72d5d90db6c7ed64971241e41bf4268ff20abb4bd0e9a647a1658e038aadd6",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/06-boy-front.png",
+      "bytes": 115807,
+      "sha256": "6daee4649a385ab08d97aa06a817622d297114d1f03fa3a8bc024628d6125b7b",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/07-narrow-product.png",
+      "bytes": 110069,
+      "sha256": "d1352b340a03a6d4d9bbd5e928ec43dcbc5c73e0db04fd138006f87a9b8b7dc6",
+      "width": 375,
+      "height": 668,
+      "mode": "RGB"
+    },
+    {
+      "path": "preview/browser-check.json",
+      "bytes": 2251,
+      "sha256": "2c1e7a8191d32f6e99f3a700f98f4b37278298217dc12d7671e9b02a92cbdbf3"
+    },
+    {
+      "path": "preview/desktop.png",
+      "bytes": 252146,
+      "sha256": "63f8daf3c00ace7629d7e71a41879e4e1bac242a3b9f17fb34f28874dedc702d",
+      "width": 1260,
+      "height": 1000,
+      "mode": "RGB"
+    },
+    {
+      "path": "reference/reference-freeze.png",
+      "bytes": 1627190,
+      "sha256": "0a2b403622b559c64b68ab7527b1f7de95b61edf686a207fda0f771d27309d55",
+      "width": 1870,
+      "height": 841,
+      "mode": "RGB"
+    },
+    {
+      "path": "tests/validate.mjs",
+      "bytes": 3378,
+      "sha256": "9d3fd58bdee5e71e7df58a8c2a22e66dfa4bc89548c3702cee5a835dd0225625"
+    },
+    {
+      "path": "tools/build_geometry.py",
+      "bytes": 4331,
+      "sha256": "ccf6a6d14ab55a599ffdbeea802dcd926c64950d691d64ab278f357e015c0f07"
+    },
+    {
+      "path": "tools/build_manifest.py",
+      "bytes": 1324,
+      "sha256": "b409cf151885c30b6ee7ee14a6e4daf3c2afc3247f73b300d1d7a24046e77a9d"
+    },
+    {
+      "path": "viewer.template.html",
+      "bytes": 31774,
+      "sha256": "400c45c377b3de762c1c53e5888807631c1ed250fcde57a32fce3a4d49236bc5"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CreateHealthEventRecordInput,
   CreateEventAttachmentInput,
@@ -34,12 +34,14 @@ interface LoadedDetailData {
 
 type HealthEventDetailState =
   | { status: 'loading' }
-  | { status: 'success'; data: LoadedDetailData }
+  | { status: 'success'; data: LoadedDetailData; refreshError?: string }
   | { status: 'not-found' }
   | { status: 'error'; message: string }
 
-export function useHealthEventDetail(eventId: string | undefined) {
+export function useHealthEventDetail(eventId: string | undefined, preserveOnSessionRefresh = false) {
   const token = useAppStore((state) => state.authToken)
+  const accountId = useAppStore((state) => state.authUser?.id)
+  const loadContext = useRef<{eventId?: string; accountId?: string; token: string | null}>()
   const clearAuthSession = useAppStore((state) => state.clearAuthSession)
   const [state, setState] = useState<HealthEventDetailState>({ status: 'loading' })
 
@@ -58,7 +60,10 @@ export function useHealthEventDetail(eventId: string | undefined) {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!eventId || !token) return
-    setState((current) => current.status === 'loading' ? current : { status: 'loading' })
+    const previous = loadContext.current
+    const keepEditor = preserveOnSessionRefresh && previous?.eventId === eventId && previous.accountId === accountId && Boolean(accountId) && previous.token !== token
+    loadContext.current = { eventId, accountId, token }
+    setState((current) => keepEditor && current.status === 'success' && current.data.eventDto.id === eventId && current.data.eventDto.accountId === accountId ? current : current.status === 'loading' ? current : { status: 'loading' })
     try {
       const eventDto = await healthEventService.getById(eventId, token, signal)
       const [records, memberDto, organizations, allEvents] = await Promise.all([
@@ -111,9 +116,14 @@ export function useHealthEventDetail(eventId: string | undefined) {
         else console.warn('[Hoooho] attachment list did not load', error)
       }
     } catch (error) {
+      if (signal?.aborted) return
+      if (keepEditor && !(error instanceof ApiRequestError && [401,403,404].includes(error.status))) {
+        setState(current=>current.status==='success' ? {...current,refreshError:'记录暂时无法刷新，当前未保存的修改已保留。'} : {status:'error',message:'健康随记加载失败，请稍后重试'})
+        return
+      }
       handleRequestError(error)
     }
-  }, [clearAuthSession, eventId, handleRequestError, token])
+  }, [accountId, clearAuthSession, eventId, handleRequestError, preserveOnSessionRefresh, token])
 
   useEffect(() => {
     const controller = new AbortController()

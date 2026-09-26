@@ -2,6 +2,18 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 
+test('child locator metadata persists without dropping legacy snapshots or requiring nonempty selections', () => {
+  const locations = [
+    { id: 'unknown-old', label: '旧定位原文', locationNumber: 1, locationLayer: 'surface', localRegion: '旧图位置', markedArea: 'legacy point 20,30' },
+    { id: 'foot_left_arch', label: '左足弓区域', locationNumber: 2, locationLayer: 'surface', localRegion: '左足弓区域', bodySide: 'left', bodyView: 'front', bodyRegion: 'foot_left', schemaVersion: '1.0.0', surface: 'plantar', coverage: 'specific', modelAtSelection: 'girl' }
+  ]
+  const journal = { categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '发红', locationText: '手工补充原文', locations, descriptors: [] } }
+  assert.deepEqual(validateJournal(journal).symptom.locations, locations)
+  assert.equal(validateJournal(journal).symptom.locationText, '手工补充原文')
+  assert.deepEqual(validateJournal({ ...journal, symptom: { ...journal.symptom, locations: [] } }).symptom.locations, [])
+  assert.throws(() => validateJournal({ ...journal, symptom: { ...journal.symptom, locations: [{ ...locations[1], locationNumber: 1, surface: 'made-up' }] } }), /部位描述无效/)
+})
+
 test('meal intervals preserve one activity identity and validate real start and end', () => {
   const journal = validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00', endedAt: '2026-09-24T18:40:00+08:00' } })
   assert.equal(journal.diet.startedAt, '2026-09-24T09:20:00.000Z')

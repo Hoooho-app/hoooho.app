@@ -193,6 +193,17 @@ function validateSymptom(value) {
     if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || typeof item.label !== 'string' || !item.label.trim() || item.locationNumber !== index + 1 || !['surface', 'organ'].includes(item.locationLayer)) throw new HealthEventRecordError('症状位置无效', 400, 'INVALID_JOURNAL_SYMPTOM')
     const result = { id: item.id.trim(), label: item.label.trim(), locationNumber: item.locationNumber, locationLayer: item.locationLayer, localRegion: typeof item.localRegion === 'string' && item.localRegion.trim() ? item.localRegion.trim() : item.label.trim() }
     for (const key of ['bodySide', 'bodyView', 'bodyRegion', 'markedArea']) if (typeof item[key] === 'string' && item[key].trim()) result[key] = item[key].trim()
+    // Additive locator snapshots; legacy IDs and labels remain valid and are never reclassified.
+    if (item.schemaVersion !== undefined) {
+      if (typeof item.schemaVersion !== 'string' || !/^\d+\.\d+\.\d+$/.test(item.schemaVersion) || item.schemaVersion.length > 24) throw new HealthEventRecordError('部位版本无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+      result.schemaVersion = item.schemaVersion
+    }
+    for (const [key, allowed] of Object.entries({ surface: ['anterior', 'posterior', 'medial', 'lateral', 'superior', 'inferior', 'palmar', 'dorsal', 'plantar', 'circumferential', 'mucosal', 'external', 'unspecified'], coverage: ['specific', 'whole', 'uncertain'], modelAtSelection: ['boy', 'girl'] })) {
+      if (item[key] !== undefined) {
+        if (!allowed.includes(item[key])) throw new HealthEventRecordError('部位描述无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+        result[key] = item[key]
+      }
+    }
     return result
   })
   const descriptors = cleanStrings(value.descriptors, '症状表现', 20) ?? []
