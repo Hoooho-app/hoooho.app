@@ -334,7 +334,7 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   expect(Math.abs(sleepStartBox!.y - sleepEndBox!.y)).toBeLessThan(3)
   expect(sleepStartBox!.width).toBeGreaterThanOrEqual(90)
   expect(sleepEndBox!.width).toBeGreaterThanOrEqual(90)
-  expect(sleepStartBox!.x + sleepStartBox!.width).toBeLessThanOrEqual(sleepEndBox!.x)
+  expect(sleepEndBox!.x - (sleepStartBox!.x + sleepStartBox!.width)).toBeGreaterThanOrEqual(14)
   const routineLayout = await setup.locator('.routine-setup-row').first().evaluate((row) => {
     const rowBox = row.getBoundingClientRect()
     const fieldsBox = row.querySelector('.routine-time-fields')!.getBoundingClientRect()
@@ -353,12 +353,14 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
       return {
         fieldsWithinRow: fieldsBox.left >= rowBox.left && fieldsBox.right <= rowBox.right,
         horizontalOverflow: row.scrollWidth > row.clientWidth,
-        inputWidths: inputs.map((input) => input.getBoundingClientRect().width)
+        inputWidths: inputs.map((input) => input.getBoundingClientRect().width),
+        inputGap: inputs[1].getBoundingClientRect().left - inputs[0].getBoundingClientRect().right
       }
     })
     expect(responsiveLayout.fieldsWithinRow).toBe(true)
     expect(responsiveLayout.horizontalOverflow).toBe(false)
     expect(responsiveLayout.inputWidths.every((inputWidth) => inputWidth >= 90)).toBe(true)
+    expect(responsiveLayout.inputGap).toBeGreaterThanOrEqual(14)
   }
   await page.setViewportSize({ width: 375, height: 667 })
   await page.screenshot({ path: 'outputs/routine-setup-sleep-inline-iphone-se.png' })

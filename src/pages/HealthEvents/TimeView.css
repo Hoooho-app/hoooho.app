@@ -686,6 +686,11 @@
 .routine-time-control > em { position: absolute; top: 50%; right: 25px; transform: translateY(-50%); border-radius: var(--hoho-radius-pill); padding-inline: 2px; background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); font-size: 9px; font-style: normal; line-height: 16px; pointer-events: none; }
 .routine-time-control--next-day > input[type='time'] { padding-right: 44px; }
 .routine-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--hoho-space-2); padding: 0 0 var(--hoho-space-1); }
+@media (max-width: 480px) {
+  .routine-time-fields { column-gap: var(--hoho-space-4); }
+  .routine-time-fields > label, .routine-time-control { width: 100%; }
+  .routine-setup-row label input[type='time'] { display: block; margin: 0; }
+}
 .routine-disabled-copy { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); white-space: nowrap; }
 .routine-custom-title { display: flex; min-width: 0; align-items: center; gap: 2px; }
 .routine-custom-title > strong { overflow: hidden; color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-body); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
