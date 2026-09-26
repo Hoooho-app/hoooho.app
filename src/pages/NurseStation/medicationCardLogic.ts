@@ -52,17 +52,18 @@ export function reminderProgressGroupLabel(reminder: MedicationReminderDto, now:
 export function reminderActionState(reminder: MedicationReminderDto, now: Date) {
   const today = reminderDateKey(now, reminder.plan.timezone)
   const todayOccurrences = reminder.occurrences.filter((item) => item.day === today)
-  const todayCompleted = todayOccurrences.filter((item) => item.completed).length
+  const todayScheduledCompleted = todayOccurrences.filter((item) => item.completed).length
+  const todayCompleted = reminder.completions.filter((item) => !item.undoneAt && reminderDateKey(new Date(item.actualTakenAt), reminder.plan.timezone) === today).length
   const next = reminder.nextOccurrence
   const allComplete = reminder.occurrences.length > 0 && !next
-  const todayDone = Boolean(next && next.day > today && todayOccurrences.length && todayCompleted === todayOccurrences.length)
+  const todayDone = Boolean(next && next.day > today && todayOccurrences.length && todayScheduledCompleted === todayOccurrences.length)
   return {
     allComplete,
     due: Boolean(next && Date.parse(next.scheduledAt) <= now.getTime()),
     next,
     todayCompleted,
     todayDone,
-    todayTotal: todayOccurrences.length,
+    todayTotal: Math.max(todayOccurrences.length, todayCompleted),
     takeLabel: allComplete ? '疗程已完成' : todayDone ? '今日已完成' : '已服用'
   }
 }

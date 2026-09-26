@@ -2,7 +2,7 @@ import { Archive, Pill, RotateCcw, Trash2 } from 'lucide-react'
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MedicationReminderDto } from '../../services/medicationReminders'
 import { routeLabel } from './medicationReminderLogic'
-import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderCourseText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
+import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
 
 export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTake, onUndo, onArchive, onDelete }: {
   reminder: MedicationReminderDto
@@ -62,7 +62,6 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
         </div>
       </div>
       <div className="medication-course-card__course">
-        <p>{reminderCourseText(reminder, now)}</p>
         <div aria-label={`${reminder.plan.medicationName}疗程进度`} className="medication-course-card__week-rows">
           {rows.map((weeks, rowIndex) => <div className="medication-course-card__week-row" key={rowIndex} style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
             {weeks.map((week) => <section className="medication-course-card__week" key={week.weekIndex}><span>{reminderProgressGroupLabel(reminder, now, week.weekIndex)}</span><div className="medication-course-card__days" style={{ gridTemplateColumns: `repeat(${week.days.length}, minmax(0, 1fr))` }}>
