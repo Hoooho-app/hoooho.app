@@ -278,9 +278,38 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   expect(await latestDivider.evaluate((row) => {
     const cell = row.querySelector<HTMLElement>('.journal-hour-cell')!
     const line = row.querySelector<HTMLElement>('.journal-hour-divider-line')!
-    const dot = row.querySelector<HTMLElement>('.journal-timeline-marker > span')!
-    return { rowHeight: row.getBoundingClientRect().height, lineHeight: line.getBoundingClientRect().height, borderWidth: getComputedStyle(cell).borderTopWidth, dotDisplay: getComputedStyle(dot).display }
-  })).toEqual({ rowHeight: 18, lineHeight: 1, borderWidth: '0px', dotDisplay: 'none' })
+    const marker = row.querySelector<HTMLElement>('.journal-timeline-marker')!
+    const dot = marker.querySelector<HTMLElement>('span')!
+    const lineStyle = getComputedStyle(line)
+    const dotStyle = getComputedStyle(dot)
+    const railStyle = getComputedStyle(marker, '::before')
+    const connectorStyle = getComputedStyle(marker, '::after')
+    return {
+      rowHeight: row.getBoundingClientRect().height,
+      lineHeight: line.getBoundingClientRect().height,
+      borderWidth: getComputedStyle(cell).borderTopWidth,
+      lineStyle: lineStyle.borderTopStyle,
+      connectorStyle: connectorStyle.borderTopStyle,
+      dotDisplay: dotStyle.display,
+      dotWidth: dot.getBoundingClientRect().width,
+      dotHeight: dot.getBoundingClientRect().height,
+      lineMatchesDot: lineStyle.borderTopColor === dotStyle.backgroundColor,
+      railWidth: railStyle.width,
+      railIsVisible: railStyle.backgroundColor !== 'rgba(0, 0, 0, 0)'
+    }
+  })).toEqual({
+    rowHeight: 18,
+    lineHeight: 1,
+    borderWidth: '0px',
+    lineStyle: 'dashed',
+    connectorStyle: 'dashed',
+    dotDisplay: 'block',
+    dotWidth: 7,
+    dotHeight: 7,
+    lineMatchesDot: true,
+    railWidth: '1px',
+    railIsVisible: true
+  })
   expect(await page.locator('.journal-timeline-row[data-hour]').evaluateAll((rows) => rows.every((row) => Number((row as HTMLElement).dataset.hour) <= 13))).toBe(true)
 
   await page.getByRole('button', { name: '调整作息' }).click()
