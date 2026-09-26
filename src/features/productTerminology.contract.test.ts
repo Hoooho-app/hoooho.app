@@ -25,13 +25,11 @@ test('用户可见运行时代码统一使用健康随记', () => {
   ]
   const leftovers = files.flatMap((file) => {
     const source = readFileSync(file, 'utf8')
-    // The reminder board category and nurse-station homepage card intentionally
-    // use “健康事件”. Keep both approved exceptions local and exact.
+    // The reminder board category intentionally uses “健康事件”.
+    // Keep the approved exception local and exact.
     const checkedSource = file.pathname.endsWith('/pages/HealthEvents/timeViewModel.ts')
       ? source.replace("label: '健康事件'", '')
-      : file.pathname.endsWith('/pages/NurseStation/index.tsx')
-        ? source.replace('健康事件记录', '').replace('健康事件记一下', '')
-        : source
+      : source
     return checkedSource.includes('健康事件') ? [file.pathname] : []
   })
 

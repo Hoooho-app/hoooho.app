@@ -28,10 +28,10 @@ const requireAuth = read('../../components/auth/RequireAuth.tsx')
 const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
-test('健康随身记与前台护士站共用就医准备按钮', () => {
+test('健康随记与前台护士站都保留就诊情况单真实入口', () => {
   assert.match(page, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
-  assert.match(station, /<MedicalPrepButton[^>]*disabled=\{unavailable\}/)
+  assert.match(station, /title: '就诊情况单'.*to: '\/visit-summary'/)
   assert.doesNotMatch(page, /journal-quick-record-action|aria-label="快捷记录"/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
 })

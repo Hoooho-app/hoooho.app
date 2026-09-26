@@ -129,17 +129,19 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
     expect(metrics.scrollHeight).toBeLessThanOrEqual(36)
     expect(metrics.clientHeight).toBeLessThanOrEqual(36)
   }
-  await expect(page.locator('.nurse-primary-entries strong')).toHaveText(['健康事件记录', '健康档案'])
-  await expect(page.locator('.nurse-primary-entries small span')).toHaveText(['健康事件记一下', '日常喂养记一下', '病症用药记一下', '补充基础信息', '补充过敏史', '补充家族史'])
-  await expect(page.locator('.nurse-more-service--unavailable strong')).toHaveText(['过敏出示', '能不能吃', '附近就医'])
-  const unavailableServices = page.locator('.nurse-more-service--unavailable')
-  await expect(unavailableServices).toHaveCount(3)
-  for (const service of await unavailableServices.all()) {
-    await expect(service).toBeDisabled()
-  }
-  await expect(page.getByRole('button', { name: '就诊情况单', exact: true })).toBeDisabled()
+  const entries = page.locator('.nurse-home-entry')
+  await expect(entries).toHaveCount(4)
+  await expect(entries.locator('strong')).toHaveText(['健康随记', '健康档案', '就诊情况单', '忌口出示卡'])
+  await expect(entries.locator('small')).toHaveText(['记录日常与身体变化', '整理家人的健康信息', '就诊前，一页理清病情', '哪些不能吃，出示就懂'])
+  await expect(page.getByRole('link', { name: '健康随记', exact: true })).toHaveAttribute('href', '/health-events')
+  await expect(page.getByRole('link', { name: '健康档案', exact: true })).toHaveAttribute('href', '/health-profile')
+  await expect(page.getByRole('link', { name: '就诊情况单', exact: true })).toHaveAttribute('href', '/visit-summary')
   await expect(page.getByText(/正在准备中。/, { exact: true })).toHaveCount(0)
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('更多服务', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('能不能吃', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('附近就医', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('过敏出示', { exact: true })).toHaveCount(0)
   await expect(page.locator('.guardian-task-heading > p')).toHaveCount(0)
   await expect(page.locator('.guardian-notification-notice')).toHaveCount(0)
   const reducedVideo = page.locator('.idle-nurse-visual video[data-video-phase="idle1"]')
@@ -148,6 +150,15 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect.poll(() => reducedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false)
   await page.screenshot({ path: 'test-results/nurse-station-first-screen-375x667.png', fullPage: true })
+  await page.getByRole('button', { name: '忌口出示卡', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('忌口出示卡功能暂未开放')
+  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary']] as const) {
+    await page.getByRole('link', { name, exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`))
+    await page.goBack()
+    await expect(page).toHaveURL(/\/nurse-station$/)
+    await expect(page.locator('.nurse-home-entry')).toHaveCount(4)
+  }
   const tabs = page.getByRole('tab')
   await expect(tabs).toHaveText(['用药提醒', '排敏测试'])
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
@@ -165,10 +176,21 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await page.locator('.guardian-task-view').click()
   await page.getByRole('button', { name: '已归档任务', exact: true }).click()
   await expect(page.locator('.guardian-task-view')).toHaveText(/已归档任务/)
+  await page.locator('.guardian-task-view').click()
+  await page.getByRole('button', { name: '守护任务', exact: true }).click()
+  await expect(page.locator('.guardian-task-view')).toHaveText(/守护任务/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
   for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
+    const cardMetrics = await entries.evaluateAll((cards) => cards.map((card) => {
+      const title = card.querySelector('strong')!
+      const subtitle = card.querySelector('small')!
+      return { height: card.getBoundingClientRect().height, subtitleFits: subtitle.scrollHeight <= subtitle.clientHeight, titleFits: title.scrollWidth <= title.clientWidth }
+    }))
+    expect(cardMetrics).toHaveLength(4)
+    expect(cardMetrics.every((metric) => metric.height === 88 && metric.titleFits && metric.subtitleFits)).toBe(true)
+    if (viewport.width === 1440) await page.screenshot({ path: 'test-results/nurse-station-home-desktop-1440x900.png', fullPage: true })
   }
   expect(errors).toEqual([])
 })
@@ -421,27 +443,28 @@ test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', as
   const measurements = await page.evaluate(() => {
     const tab = document.querySelector<HTMLElement>('.guardian-task-tabs button[aria-selected="true"]')!
     const add = document.querySelector<HTMLElement>('.guardian-task-empty-add, .desensitization-add')!
-    const unavailable = document.querySelector<HTMLElement>('.nurse-more-service--unavailable')!
+    const entry = document.querySelector<HTMLElement>('.nurse-home-entry')!
+    const entrySubtitle = entry.querySelector<HTMLElement>('small')!
     const tabStyle = getComputedStyle(tab)
-    const unavailableStyle = getComputedStyle(unavailable)
+    const entryStyle = getComputedStyle(entry)
     return {
       addHeight: add.getBoundingClientRect().height,
       actionFontSize: getComputedStyle(add).fontSize,
+      entryBackground: entryStyle.backgroundColor,
+      entryHeight: entry.getBoundingClientRect().height,
+      entrySubtitleColor: getComputedStyle(entrySubtitle).color,
       maxPageWidth: document.querySelector<HTMLElement>('.app-shell')?.getBoundingClientRect().width,
       pageWidth: document.documentElement.scrollWidth,
       tabBackground: tabStyle.backgroundColor,
       tabColor: tabStyle.color,
-      tabHeight: tab.getBoundingClientRect().height,
-      unavailableBackground: unavailableStyle.backgroundColor,
-      unavailableColor: unavailableStyle.color,
-      unavailableHeight: unavailable.getBoundingClientRect().height
+      tabHeight: tab.getBoundingClientRect().height
     }
   })
   expect(measurements.tabHeight).toBeGreaterThanOrEqual(44)
   expect(measurements.addHeight).toBeGreaterThanOrEqual(44)
-  expect(measurements.unavailableHeight).toBeGreaterThanOrEqual(44)
+  expect(measurements.entryHeight).toBe(88)
   expect(contrastRatio(measurements.tabColor, measurements.tabBackground)).toBeGreaterThanOrEqual(4.5)
-  expect(contrastRatio(measurements.unavailableColor, measurements.unavailableBackground)).toBeGreaterThanOrEqual(4.5)
+  expect(contrastRatio(measurements.entrySubtitleColor, measurements.entryBackground)).toBeGreaterThanOrEqual(4.5)
 
   await page.addStyleTag({ content: '* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
@@ -451,7 +474,7 @@ test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', as
   await page.setViewportSize({ width: 720, height: 450 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
   await page.screenshot({ path: 'test-results/nurse-station-zoom-200-equivalent-720x450.png', fullPage: true })
-  await testInfo.attach('nurse-station-measurements.json', { body: Buffer.from(JSON.stringify({ ...measurements, selectedContrast: contrastRatio(measurements.tabColor, measurements.tabBackground), unavailableContrast: contrastRatio(measurements.unavailableColor, measurements.unavailableBackground), zoomCheck: '1440 desktop at 200% equivalent: 720 CSS px' }, null, 2)), contentType: 'application/json' })
+  await testInfo.attach('nurse-station-measurements.json', { body: Buffer.from(JSON.stringify({ ...measurements, entrySubtitleContrast: contrastRatio(measurements.entrySubtitleColor, measurements.entryBackground), selectedContrast: contrastRatio(measurements.tabColor, measurements.tabBackground), zoomCheck: '1440 desktop at 200% equivalent: 720 CSS px' }, null, 2)), contentType: 'application/json' })
 })
 
 test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均持久化', async ({ browser, page }) => {
@@ -568,7 +591,7 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   await expect(page.getByText('暂无已归档任务', { exact: true })).toBeVisible()
 })
 
-test('就诊情况单从当前人物随记生成病情摘要并支持索引和依据抽屉', async ({ page }) => {
+test('就诊情况单从当前人物随记生成报告并支持目录和依据抽屉', async ({ page }) => {
   await registerMember(page)
   await page.goto('/health-events')
   await page.getByRole('button', { name: '记一下', exact: true }).click()
@@ -580,32 +603,22 @@ test('就诊情况单从当前人物随记生成病情摘要并支持索引和�
   await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByText('已记录', { exact: true })).toBeVisible()
   await page.goto('/nurse-station')
-  await page.getByRole('button', { name: '就诊情况单', exact: true }).click()
-  await expect(page).toHaveURL(/\/visit-summary\//)
-  await expect(page.getByRole('heading', { name: '这次想解决什么问题' })).toBeVisible()
-  await expect(page.getByText('选择一项已有情况，或填写这次想解决的问题。', { exact: true })).toBeVisible()
-  await expect(page.getByText(/正在为：/)).toBeVisible()
-  await expect(page.getByRole('button', { name: '生成病情摘要' })).toBeDisabled()
-  await page.screenshot({ path: 'test-results/visit-summary-chooser-iphone-se.png', fullPage: true })
-  await page.getByRole('radio').first().check()
-  await expect(page.getByText('还有想补充的吗？（选填）', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '生成病情摘要' })).toBeEnabled()
-  await page.screenshot({ path: 'test-results/visit-summary-selected-iphone-se.png', fullPage: true })
-  await page.getByRole('button', { name: '取消已有情况选择' }).click()
-  await expect(page.getByText('本次主诉（必填）', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '生成病情摘要' })).toBeDisabled()
-  await page.getByRole('radio').first().check()
-  await page.getByRole('button', { name: '生成病情摘要' }).click()
-  await expect(page.getByRole('heading', { name: '病情摘要' })).toBeVisible()
-  await page.getByRole('button', { name: '病程' }).click()
-  await expect(page.locator('.visit-summary-rail').getByRole('button', { name: '病程' })).toHaveAttribute('aria-current', 'location')
-  await page.getByRole('button', { name: '查看依据 ›' }).first().click()
-  const evidence = page.getByRole('dialog', { name: /原始依据/ })
-  await expect(evidence.getByText('来源', { exact: true }).first()).toBeVisible()
-  await expect(evidence.getByText('记录时间', { exact: true }).first()).toBeVisible()
-  await expect(evidence.getByText('状态', { exact: true }).first()).toBeVisible()
-  await evidence.getByRole('button', { name: '关闭依据' }).click()
+  await page.getByRole('link', { name: '就诊情况单', exact: true }).click()
+  await expect(page).toHaveURL(/\/visit-summary$/)
+  await expect(page.getByRole('button', { name: '章节目录' })).toBeEnabled()
+  await expect(page.locator('[data-visit-sheet-root]')).toContainText('左肘窝')
   await page.screenshot({ path: 'test-results/visit-summary-iphone-se.png', fullPage: true })
+  await page.getByRole('button', { name: '章节目录' }).click()
+  const directory = page.getByRole('dialog', { name: '章节目录' })
+  await expect(directory.locator('[data-visit-sheet-index] button')).not.toHaveCount(0)
+  await directory.getByRole('button', { name: '关闭' }).click()
+  const evidenceAction = page.getByRole('button', { name: /查看 \d+ 条依据/ }).first()
+  await expect(evidenceAction).toBeVisible()
+  await evidenceAction.click()
+  const evidence = page.getByRole('dialog', { name: '原始依据' })
+  await expect(evidence).toContainText('发生：')
+  await expect(evidence).toContainText('录入：')
+  await evidence.getByRole('button', { name: '关闭' }).click()
   await page.setViewportSize({ width: 1440, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   await page.screenshot({ path: 'test-results/visit-summary-desktop-1440x900.png', fullPage: true })

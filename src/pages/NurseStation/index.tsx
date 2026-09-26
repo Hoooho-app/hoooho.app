@@ -1,8 +1,12 @@
-import { Bell, BookOpen, ChevronDown, ChevronRight, ClipboardCheck, FileText, Folder, FolderOpen, HeartHandshake, Languages, MapPin, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, Utensils, X } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, HeartHandshake, Pause, Pill, Play, Plus, ShieldCheck, Thermometer, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.png'
+import healthDiaryImage from '../../assets/nurse-station/home-entries/health-diary.png'
+import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.png'
+import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-summary.png'
 import { Avatar } from '../../components/common'
-import { HohoButton, MedicalPrepButton } from '../../components/design-system'
+import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { getCurrentPath, makeMemberProfileOpenState } from '../../components/navigation/navigationState'
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
@@ -274,8 +278,7 @@ export function NurseStationPage() {
     <MainAppHeader title="前台" />
     <div className="nurse-station-scroll">
       {listState.status === 'loading' ? <section aria-label="正在加载当前人物" className="nurse-station-hero nurse-station-hero--loading"><span/><span/></section> : listState.status === 'error' ? <section className="nurse-station-load-error"><p>当前人物资料加载失败，已保存内容没有改变。</p><button onClick={retryEvents} type="button">重新加载</button></section> : member && <section className="nurse-station-hero"><div className="nurse-station-copy"><button className="nurse-station-identity" onClick={() => { const returnTo = getCurrentPath(location.pathname, location.search, location.hash); navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) }) }} type="button"><Avatar name={member.name} src={member.avatar} size="lg" /><span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span></button><p className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</p><NurseStationFactTypewriter /></div><div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div></section>}
-      <PrimaryEntries onJournal={() => navigate('/health-events')} onProfile={() => navigate('/health-profile')} />
-      <MoreServices hasHealthData={Boolean(member)} loading={listState.status === 'loading'} onMedicalPrep={() => currentMemberId && navigate('/visit-summary')} />
+      <HomeEntries />
       <section aria-busy={listState.status === 'loading' || !stationIsCurrent} className="guardian-tasks">
         <header className={taskView==='active'&&activeCategoryHasTasks?'guardian-task-header--with-add':undefined}><div className="guardian-task-heading"><button aria-expanded={taskViewOpen} className="guardian-task-view" onClick={() => setTaskViewOpen((value) => !value)} type="button">{taskView === 'active' ? '守护任务' : '已归档任务'}<ChevronDown /></button></div>{taskView==='active'&&activeCategoryHasTasks&&<button className="desensitization-add" disabled={!stationIsCurrent} onClick={taskCategory==='allergy'?()=>navigate('/nurse-station/desensitization/new'):()=>setReminderFlow(true)} type="button"><Plus/>{taskCategory==='allergy'?'新增测试':'新增提醒'}</button>}{taskViewOpen && <div className="guardian-task-view-menu"><button onClick={() => { setTaskView('active'); setTaskViewOpen(false) }} type="button">守护任务</button><button onClick={() => { setTaskView('archive'); setTaskViewOpen(false) }} type="button">已归档任务</button></div>}</header>
         <div className="guardian-task-tabs" role="tablist">{([['medication', '用药提醒'], ['allergy', '排敏测试']] as const).map(([id, label]) => <button aria-selected={taskCategory === id} key={id} onClick={() => setTaskCategory(id)} role="tab" type="button">{label}</button>)}</div>
@@ -296,9 +299,28 @@ export function NurseStationPage() {
 
 function TaskCard({ item, onOpen }: { item: NurseStationItem; onOpen: () => void }) { const plan=item.medicationPlan; const status=plan?effectiveStatus(item.status,plan,'granted'):item.status; const label=({active:'进行中',pending_confirmation:'待提醒',due:'待处理',snoozed:'已推迟',skipped_current:'本次跳过',paused:'已暂停',completed:'已结束',ended:'已结束',notification_disabled:'通知未开启'} as Record<string,string>)[status]??taskStatus(item); const details=plan?getPlanDetails(plan):[]; return <button className="guardian-task-card" data-status={status} data-task-id={item.id} onClick={onOpen} type="button"><span className="guardian-task-icon">{item.type === 'medication_reminder' ? <Pill /> : <Thermometer />}</span><span className="guardian-task-copy"><span><strong>{plan?.medicationName??taskTitle(item)}</strong><em>{label}</em></span><small>{plan ? (status==='snoozed' ? `本次已推迟至 ${formatOccurrence(plan.nextOccurrenceAt)}；原计划 ${formatOccurrence(plan.originalOccurrenceAt??plan.nextOccurrenceAt)}` : `下次：${formatOccurrence(plan.nextOccurrenceAt)} · ${planLabel(plan)}`) : taskNextStep(item)}</small>{details.length>0&&<span className="guardian-plan-details">{details.map((detail)=><span key={detail}>{detail}</span>)}</span>}</span></button> }
 
-function PrimaryEntries({ onJournal, onProfile }: { onJournal: () => void; onProfile: () => void }) { return <section aria-label="核心记录入口" className="nurse-primary-entries"><button onClick={onJournal} type="button"><span className="nurse-primary-entry-copy"><span className="nurse-primary-entry-title"><BookOpen aria-hidden="true" /><strong>健康事件记录</strong></span><small><span>健康事件记一下</span><span>日常喂养记一下</span><span>病症用药记一下</span></small></span></button><button onClick={onProfile} type="button"><span className="nurse-primary-entry-copy"><span className="nurse-primary-entry-title"><Folder aria-hidden="true" /><strong>健康档案</strong></span><small><span>补充基础信息</span><span>补充过敏史</span><span>补充家族史</span></small></span></button></section> }
+const homeEntries = [
+  { id: 'diary', title: '健康随记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
+  { id: 'profile', title: '健康档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
+  { id: 'visit', title: '就诊情况单', subtitle: '就诊前，一页理清病情', image: visitSummaryImage, to: '/visit-summary' },
+  { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: null }
+] as const
 
-function MoreServices({ hasHealthData, loading, onMedicalPrep }: { hasHealthData: boolean; loading: boolean; onMedicalPrep: () => void }) { const services = [{ id: 'allergy-card', label: '过敏出示', icon: Languages }, { id: 'food', label: '能不能吃', icon: Utensils }, { id: 'nearby', label: '附近就医', icon: MapPin }] as const; const unavailable=loading||!hasHealthData; return <section className="nurse-more-services"><h2>更多服务</h2><div><MedicalPrepButton aria-describedby={unavailable ? 'medical-prep-hint' : undefined} aria-label={loading?'就诊情况单，正在加载当前人物记录':'就诊情况单'} className="journal-subject-summary" disabled={unavailable} label="就诊情况单" onClick={onMedicalPrep} />{services.map(({ id, label, icon: Icon }) => <button aria-label={label + '，暂未开放'} className={'nurse-more-service nurse-more-service--unavailable nurse-more-service--' + id} disabled key={id} type="button"><span><Icon aria-hidden="true" /></span><strong>{label}</strong></button>)}</div>{unavailable && <span className="sr-only" id="medical-prep-hint">{loading?'正在加载当前人物记录':'请选择当前孩子后打开'}</span>}</section> }
+function HomeEntryContent({ entry }: { entry: (typeof homeEntries)[number] }) {
+  return <><span className="nurse-home-entry__copy"><strong>{entry.title}</strong><small>{entry.subtitle}</small></span><span aria-hidden="true" className="nurse-home-entry__visual"><img alt="" decoding="async" height="384" onError={(event) => { event.currentTarget.hidden = true }} src={entry.image} width="384" /></span></>
+}
+
+function HomeEntries() {
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(''), 2400)
+    return () => window.clearTimeout(timer)
+  }, [notice])
+  return <><section aria-label="首页服务入口" className="nurse-home-entries">{homeEntries.map((entry) => entry.to
+    ? <Link aria-label={entry.title} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>
+    : <button aria-label={entry.title} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} onClick={() => setNotice('忌口出示卡功能暂未开放')} type="button"><HomeEntryContent entry={entry} /></button>)}</section>{notice && <p aria-live="polite" className="nurse-station-save-notice" role="status">{notice}</p>}</>
+}
 
 function getPlanDetails(plan: NonNullable<NurseStationItem['medicationPlan']>) {
   const details: string[] = []
