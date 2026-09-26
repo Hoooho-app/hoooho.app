@@ -2,7 +2,7 @@ import { Archive, Pill, RotateCcw, Trash2 } from 'lucide-react'
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MedicationReminderDto } from '../../services/medicationReminders'
 import { routeLabel } from './medicationReminderLogic'
-import { formatReminderOccurrence, reminderActionState, reminderCourseText, weekRows } from './medicationCardLogic'
+import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderCourseText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
 
 export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTake, onUndo, onArchive, onDelete }: {
   reminder: MedicationReminderDto
@@ -52,9 +52,10 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
       <div className="medication-course-card__top">
         <div className="medication-course-card__summary">
           <h3><span><Pill /></span>{reminder.plan.medicationName}</h3>
-          <p>每次{reminder.plan.amount}{reminder.plan.unit} · {routeLabel(reminder.plan.route)}</p>
-          <p className="medication-course-card__today">今日 <strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></p>
-          {archived ? <p className="medication-course-card__next">计划已停止</p> : allComplete ? <p className="medication-course-card__next">疗程已完成</p> : next ? <p className="medication-course-card__next">下次：{formatReminderOccurrence(next, reminder.plan.timezone, now)}</p> : null}
+          <p>疗程：{reminderCoursePlanText(reminder)}</p>
+          <p>用法：每次{reminder.plan.amount}{reminder.plan.unit}（{routeLabel(reminder.plan.route)}）</p>
+          <p className="medication-course-card__today">今日：<strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></p>
+          <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : next ? formatReminderOccurrence(next, reminder.plan.timezone, now) : '暂无'}</p>
         </div>
         <div className="medication-course-card__controls">
           {archived ? <span className="medication-course-card__archived">已归档</span> : <><button className="medication-course-card__take" disabled={busy || !due || allComplete || todayDone} onClick={onTake} type="button">{busy ? '处理中…' : takeLabel}</button><button className="medication-course-card__undo" disabled={busy || activeCompletions.length === 0} onClick={onUndo} type="button"><RotateCcw />撤回</button></>}
@@ -64,7 +65,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
         <p>{reminderCourseText(reminder, now)}</p>
         <div aria-label={`${reminder.plan.medicationName}疗程进度`} className="medication-course-card__week-rows">
           {rows.map((weeks, rowIndex) => <div className="medication-course-card__week-row" key={rowIndex} style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
-            {weeks.map((week) => <section className="medication-course-card__week" key={week.weekIndex}><span>第{week.weekIndex + 1}周</span><div className="medication-course-card__days" style={{ gridTemplateColumns: `repeat(${week.days.length}, minmax(0, 1fr))` }}>
+            {weeks.map((week) => <section className="medication-course-card__week" key={week.weekIndex}><span>{reminderProgressGroupLabel(reminder, now, week.weekIndex)}</span><div className="medication-course-card__days" style={{ gridTemplateColumns: `repeat(${week.days.length}, minmax(0, 1fr))` }}>
               {week.days.map((day) => <div className="medication-course-card__day" key={day.day}>{Array.from({ length: week.rows }, (_, slot) => { const occurrence = day.occurrences[slot]; return occurrence ? <i aria-label={`${day.day}第${slot + 1}次${occurrence.completed ? '已记录' : '未记录'}`} className={occurrence.completed ? 'is-completed' : ''} key={occurrence.id} /> : <i aria-hidden="true" className="is-empty" key={`${day.day}-${slot}`} /> })}</div>)}
             </div></section>)}
           </div>)}

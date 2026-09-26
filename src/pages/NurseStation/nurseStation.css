@@ -165,15 +165,15 @@
 .medication-course-card__surface { position: relative; z-index: 1; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; background: rgb(var(--hoho-color-surface)); transition: transform 180ms ease; touch-action: pan-y; will-change: transform; }
 .medication-course-card__top { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 10px; padding: 10px 10px 9px; }
 .medication-course-card__summary { min-width: 0; }
-.medication-course-card__summary h3 { display: flex; min-width: 0; align-items: center; gap: 6px; margin: 0; color: rgb(var(--hoho-color-text)); font-size: 15px; font-weight: 760; line-height: 1.35; overflow-wrap: anywhere; }
-.medication-course-card__summary h3 > span { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border-radius: 8px; background: #fff0ea; color: #df6f51; }
-.medication-course-card__summary h3 svg { width: 15px; height: 15px; }
-.medication-course-card__summary p { margin: 4px 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.35; }
-.medication-course-card__summary .medication-course-card__today { margin-top: 5px; font-size: 13px; }
-.medication-course-card__today strong { color: inherit; font-size: inherit; }
-.medication-course-card__today strong.has-completed { color: rgb(var(--hoho-color-primary)); }
+.medication-course-card__summary h3 { display: flex; min-width: 0; align-items: center; gap: 6px; margin: 0; color: rgb(var(--hoho-color-text)); font-size: 12px; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+.medication-course-card__summary h3 > span { display: grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center; border-radius: 7px; background: #fff0ea; color: #df6f51; }
+.medication-course-card__summary h3 svg { width: 14px; height: 14px; }
+.medication-course-card__summary p { margin: 3px 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 400; line-height: 1.35; }
+.medication-course-card__summary .medication-course-card__today { margin-top: 3px; font-size: 12px; }
+.medication-course-card__today strong { color: inherit; font-size: inherit; font-weight: 400; }
+.medication-course-card__today strong.has-completed { color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .medication-course-card__today span { color: rgb(var(--hoho-color-text-secondary)); }
-.medication-course-card__summary .medication-course-card__next { margin-top: 5px; color: #284943; font-size: 13px; font-weight: 650; }
+.medication-course-card__summary .medication-course-card__next { margin-top: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 400; }
 .medication-course-card__controls { display: grid; align-content: start; gap: 5px; }
 .medication-course-card__controls button { min-height: 38px; border-radius: 9px; font-size: 13px; font-weight: 700; }
 .medication-course-card__take { background: rgb(var(--hoho-color-primary)); color: #fff; }

@@ -30,6 +30,25 @@ export function reminderCourseText(reminder: MedicationReminderDto, now: Date) {
   return reminder.totalDays ? `共${reminder.totalDays}天 · 第${day}天` : `长期 · 第${day}天`
 }
 
+export function reminderCoursePlanText(reminder: MedicationReminderDto) {
+  const duration = reminder.totalDays ? `共${reminder.totalDays}天` : '长期'
+  const schedule = reminder.plan.mode === 'daily'
+    ? `每天${reminder.plan.times.length}次`
+    : reminder.plan.mode === 'interval'
+      ? `每${reminder.plan.intervalHours}小时一次`
+      : '仅一次'
+  return `${duration}，${schedule}`
+}
+
+export function reminderProgressGroupLabel(reminder: MedicationReminderDto, now: Date, weekIndex: number) {
+  if (!reminder.totalDays || reminder.totalDays >= 7) return `第${weekIndex + 1}周`
+  const today = reminderDateKey(now, reminder.plan.timezone)
+  if (today < reminder.plan.startDate) return '尚未开始'
+  const toUtc = (day: string) => { const [year, month, date] = day.split('-').map(Number); return Date.UTC(year, month - 1, date) }
+  const day = Math.floor((toUtc(today) - toUtc(reminder.plan.startDate)) / 86_400_000) + 1
+  return day > reminder.totalDays ? '疗程已结束' : `第${day}天`
+}
+
 export function reminderActionState(reminder: MedicationReminderDto, now: Date) {
   const today = reminderDateKey(now, reminder.plan.timezone)
   const todayOccurrences = reminder.occurrences.filter((item) => item.day === today)
