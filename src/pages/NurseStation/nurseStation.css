@@ -169,12 +169,12 @@
 .medication-course-card__summary h3 > span { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border-radius: 8px; background: #fff0ea; color: #df6f51; }
 .medication-course-card__summary h3 svg { width: 15px; height: 15px; }
 .medication-course-card__summary p { margin: 4px 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.35; }
+.medication-course-card__summary .medication-course-card__today { margin-top: 5px; font-size: 13px; }
+.medication-course-card__today strong { color: inherit; font-size: inherit; }
+.medication-course-card__today strong.has-completed { color: rgb(var(--hoho-color-primary)); }
+.medication-course-card__today span { color: rgb(var(--hoho-color-text-secondary)); }
 .medication-course-card__summary .medication-course-card__next { margin-top: 5px; color: #284943; font-size: 13px; font-weight: 650; }
 .medication-course-card__controls { display: grid; align-content: start; gap: 5px; }
-.medication-course-card__controls > p { margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; line-height: 1.35; text-align: center; }
-.medication-course-card__controls > p strong { color: inherit; font-size: inherit; }
-.medication-course-card__controls > p strong.has-completed { color: rgb(var(--hoho-color-primary)); }
-.medication-course-card__controls > p span { color: rgb(var(--hoho-color-text-secondary)); }
 .medication-course-card__controls button { min-height: 38px; border-radius: 9px; font-size: 13px; font-weight: 700; }
 .medication-course-card__take { background: rgb(var(--hoho-color-primary)); color: #fff; }
 .medication-course-card__take:disabled { background: #e4e9e8; color: #8a9996; }

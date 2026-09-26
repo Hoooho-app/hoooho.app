@@ -53,10 +53,10 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
         <div className="medication-course-card__summary">
           <h3><span><Pill /></span>{reminder.plan.medicationName}</h3>
           <p>每次{reminder.plan.amount}{reminder.plan.unit} · {routeLabel(reminder.plan.route)}</p>
+          <p className="medication-course-card__today">今日 <strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></p>
           {archived ? <p className="medication-course-card__next">计划已停止</p> : allComplete ? <p className="medication-course-card__next">疗程已完成</p> : next ? <p className="medication-course-card__next">下次：{formatReminderOccurrence(next, reminder.plan.timezone, now)}</p> : null}
         </div>
         <div className="medication-course-card__controls">
-          <p>今日 <strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></p>
           {archived ? <span className="medication-course-card__archived">已归档</span> : <><button className="medication-course-card__take" disabled={busy || !due || allComplete || todayDone} onClick={onTake} type="button">{busy ? '处理中…' : takeLabel}</button><button className="medication-course-card__undo" disabled={busy || activeCompletions.length === 0} onClick={onUndo} type="button"><RotateCcw />撤回</button></>}
         </div>
       </div>

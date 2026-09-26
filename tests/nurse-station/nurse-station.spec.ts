@@ -485,6 +485,26 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   const dueCard = page.locator('.medication-course-card').filter({ hasText: '四周到点用药' })
   await expect(dueCard).toContainText('今日 0/4')
   await expect(dueCard.getByRole('button', { name: '已服用' })).toBeEnabled()
+  const cardAlignment = await dueCard.evaluate((card) => {
+    const today = card.querySelector<HTMLElement>('.medication-course-card__today')!
+    const next = card.querySelector<HTMLElement>('.medication-course-card__next')!
+    const take = card.querySelector<HTMLElement>('.medication-course-card__take')!
+    const undo = card.querySelector<HTMLElement>('.medication-course-card__undo')!
+    return {
+      summaryContainsToday: card.querySelector('.medication-course-card__summary')?.contains(today),
+      controlsContainToday: card.querySelector('.medication-course-card__controls')?.contains(today),
+      takeTop: take.getBoundingClientRect().top,
+      todayTop: today.getBoundingClientRect().top,
+      todayBottom: today.getBoundingClientRect().bottom,
+      nextTop: next.getBoundingClientRect().top,
+      undoTop: undo.getBoundingClientRect().top
+    }
+  })
+  expect(cardAlignment.summaryContainsToday).toBe(true)
+  expect(cardAlignment.controlsContainToday).toBe(false)
+  expect(cardAlignment.todayBottom).toBeLessThanOrEqual(cardAlignment.nextTop)
+  expect(cardAlignment.takeTop).toBeLessThan(cardAlignment.todayTop)
+  expect(cardAlignment.undoTop).toBeLessThan(cardAlignment.nextTop)
   await dueCard.screenshot({ path: 'test-results/medication-card-enabled-375x667.png' })
   await page.setViewportSize({ width: 320, height: 568 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
