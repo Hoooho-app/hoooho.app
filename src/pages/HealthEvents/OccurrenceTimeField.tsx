@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeValue } from '../../utils/healthOccurredAt'
 import { captureOccurrenceTime, formatOccurrenceTimeLabel, occurrenceInitialState, type OccurrenceTimeMode } from './occurrenceTimeModel'
 
@@ -42,10 +42,10 @@ export function useOccurrenceTime(selectedDay: string, today: string, initialOcc
   return { mode, specifiedValue, now, error, today, setMode, setSpecifiedValue, capture }
 }
 
-export function OccurrenceTimeField({ model, label = '发生时间', onValueChange, showDateContext = false }: { model: ReturnType<typeof useOccurrenceTime>; label?: string; onValueChange?: (value: string) => void; showDateContext?: boolean }) {
+export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, onValueChange, showDateContext = false }: { model: ReturnType<typeof useOccurrenceTime>; label?: string; labelIcon?: ReactNode; onValueChange?: (value: string) => void; showDateContext?: boolean }) {
   const value = model.mode === 'now' ? localDateTimeValue(model.now) : model.specifiedValue
   return <section className="occurrence-time-field" aria-labelledby="occurrence-time-label">
-    <strong id="occurrence-time-label">{label}</strong>
+    <strong id="occurrence-time-label">{labelIcon}{label}</strong>
     <label className="occurrence-time-control"><span aria-hidden="true">{formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input aria-describedby={model.error ? 'occurrence-time-error' : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
     {model.error && <p className="occurrence-time-error" id="occurrence-time-error" role="alert">{model.error}</p>}
   </section>
