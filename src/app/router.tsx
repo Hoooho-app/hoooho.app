@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { installChildBodyHistory } from '../features/body-location/childBodyHistory'
 import { RequireAuth } from '../components/auth/RequireAuth'
 import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
 import { RequireOpsAuth } from '../components/auth/RequireOpsAuth'
@@ -12,6 +13,7 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
   }
 }
 
+installChildBodyHistory()
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/nurse-station" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },

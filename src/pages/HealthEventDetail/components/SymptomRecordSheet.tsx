@@ -1,14 +1,18 @@
 import { Pencil, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
+import { ChildBodyLocationPicker } from '../../../components/health/body-location/ChildBodyLocationPicker'
+import type { BodyLocationSelection } from '../../../features/body-location'
 import type { HealthEventRecordApiDto, HealthMeasurementMethod, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
 import { isFutureOccurredAt, localDateTimeValue } from '../../../utils/healthOccurredAt'
-import { extractSymptomNarrative, inferSymptomCategory, symptomLocationDisplay, visibleSymptomKeywords } from '../../HealthEvents/symptomRecordLogic'
+import { extractSymptomNarrative, inferSymptomCategory, symptomLocationDisplay, visibleSymptomKeywords, fromSymptomLocations, toSymptomLocations } from '../../HealthEvents/symptomRecordLogic'
 import { RelatedRecordsSheet, type SymptomLinkedRecordIds } from '../../HealthEvents/SymptomRecordFlow'
 import { journalCategoryLabels, journalListSummary, type JournalEntry } from '../../HealthEvents/timeViewModel'
 import type { JournalSymptomDetails } from '../../../types/journal'
 
 interface SymptomRecordSheetProps {
+  memberId: string
+  refreshError?: string
   entry: TimelineEntry | null
   memberName: string
   record: HealthEventRecordApiDto | null
@@ -57,7 +61,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
   return entry.source.label
 }
 
-export function SymptomRecordSheet({ entry, memberName, record, initialEditing = false, onClose, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
+export function SymptomRecordSheet({ entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
@@ -72,6 +76,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
   const [linkedRecordIds, setLinkedRecordIds] = useState<SymptomLinkedRecordIds>({})
   const [relatedOpen, setRelatedOpen] = useState(false)
   const [locationText, setLocationText] = useState('')
+  const [locations, setLocations] = useState<BodyLocationSelection[]>([])
   const [locationError, setLocationError] = useState('')
   const [impactLevel, setImpactLevel] = useState<JournalSymptomDetails['impactLevel'] | ''>('')
   const [triggerText, setTriggerText] = useState('')
@@ -80,9 +85,11 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
   const [generatedSummary, setGeneratedSummary] = useState('')
   const [shortNote, setShortNote] = useState('')
 
-  useEffect(() => {
+  const initializeEditor = (nextEditing: boolean) => {
     if (!entry) return
-    setEditing(initialEditing)
+    setEditing(nextEditing)
+    setConfirmExit(false)
+    setRelatedOpen(false)
     setConfirmingDelete(false)
     setContent(record?.journal?.symptom?.narrative ?? record?.content ?? symptomRecordTitle(entry))
     setOccurredAt(localDateTimeValue(new Date(record?.occurredAt ?? entry.time)))
@@ -91,6 +98,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     setNote(record?.note ?? entry.source.note ?? '')
     setLinkedRecordIds(record?.journal?.symptom?.linkedRecordIds ?? {})
     setLocationText(record?.journal?.symptom?.locationText ?? '')
+    setLocations(fromSymptomLocations(record?.journal?.symptom?.locations ?? []))
     setLocationError('')
     setImpactLevel(record?.journal?.symptom?.impactLevel ?? '')
     setTriggerText(record?.journal?.symptom?.triggerText ?? '')
@@ -101,7 +109,10 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     setTemperature(String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? ''))
     setBusy(false)
     setError('')
-  }, [entry, initialEditing, record])
+  }
+  // Same-record session refreshes preserve active edits; entering edit always reads the latest record.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { initializeEditor(initialEditing) }, [entry?.id, initialEditing, memberId, record?.id])
 
   if (!entry) return null
   const title = symptomRecordTitle(entry)
@@ -128,7 +139,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
         measurementMethod: isMeasurement ? measurementMethod : null,
         measurementDevice: isMeasurement ? measurementDevice.trim() || null : null,
         note: note.trim() || null,
-        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, ...(hasStructuredTemperature ? { symptomSpecificData: { ...symptom.symptomSpecificData, currentTemperature: Number(temperature) } } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
+        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, locations: toSymptomLocations(locations), ...(hasStructuredTemperature ? { symptomSpecificData: { ...symptom.symptomSpecificData, currentTemperature: Number(temperature) } } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
       })
       onClose()
     } catch (reason) {
@@ -162,7 +173,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
       </div>
     : <div className="symptom-record-detail-actions">
         <HohoButton disabled={!canEdit || busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
-        <HohoButton disabled={!canEdit || busy} onClick={() => setEditing(true)}><Pencil size={17} />编辑症状记录</HohoButton>
+        <HohoButton disabled={!canEdit || busy} onClick={() => initializeEditor(true)}><Pencil size={17} />编辑症状记录</HohoButton>
       </div>
 
   const originalSymptom = record?.journal?.symptom
@@ -171,6 +182,7 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
     || occurredAt !== localDateTimeValue(new Date(record?.occurredAt ?? entry.time))
     || generatedSummary !== (originalSymptom?.generatedSummary ?? '')
     || locationText !== (originalSymptom?.locationText ?? '')
+    || JSON.stringify(locations) !== JSON.stringify(fromSymptomLocations(originalSymptom?.locations ?? []))
     || impactLevel !== (originalSymptom?.impactLevel ?? '')
     || triggerText !== (originalSymptom?.triggerText ?? '')
     || trend !== (originalSymptom?.trend === 'recurrent' ? '' : originalSymptom?.trend ?? '')
@@ -191,11 +203,12 @@ export function SymptomRecordSheet({ entry, memberName, record, initialEditing =
       size={editing ? 'workspace' : 'default'}
       title={editing ? '编辑症状记录' : '症状记录详情'}
     >
+      {refreshError && <p role="alert">{refreshError}</p>}
       {confirmExit && <div role="alert"><p>还有未保存的修改</p><HohoButton loading={busy} onClick={()=>void save()}>保存</HohoButton><HohoButton variant="secondary" onClick={onClose}>放弃修改</HohoButton><HohoButton variant="text" onClick={()=>setConfirmExit(false)}>继续编辑</HohoButton></div>}
       {editing ? (
         <div className="symptom-record-editor">
           <label><span>记录内容</span><textarea className="hoho-textarea" maxLength={1000} onChange={(event) => { setContent(event.target.value); setError('') }} value={content} /></label>
-          {record?.journal?.symptom && <div className="symptom-record-editor-optional"><label><span>症状摘要（选填）</span><input className="hoho-input" maxLength={180} onChange={(event) => setGeneratedSummary(event.target.value)} value={generatedSummary} /></label><label><span>症状部位（选填）</span><input aria-describedby={locationError ? 'symptom-editor-location-error' : undefined} aria-invalid={Boolean(locationError)} className="hoho-input" maxLength={120} onChange={(event) => { setLocationText(event.target.value); setLocationError('') }} value={locationText} />{locationError && <small className="symptom-field-error" id="symptom-editor-location-error" role="alert">{locationError}</small>}</label><label><span>影响程度</span><small>观察吃饭、睡眠、活动或情绪；不确定可不填</small><select className="hoho-input" aria-label="影响程度" onChange={(event) => setImpactLevel(event.target.value as typeof impactLevel)} value={impactLevel}><option value="">未填写</option><option value="little">轻微影响</option><option value="some">有些影响</option><option value="clear">明显影响</option></select></label><label><span>触发或诱因</span><input className="hoho-input" maxLength={160} onChange={(event) => setTriggerText(event.target.value)} value={triggerText} /></label><label><span>变化趋势</span><select className="hoho-input" aria-label="变化趋势" onChange={(event) => setTrend(event.target.value as typeof trend)} value={trend}><option value="">未填写</option><option value="more_noticeable">加重了</option><option value="improving">减轻了</option><option value="same">没有明显变化</option></select></label><label className="symptom-recurrent"><input checked={recurrent} onChange={(event) => setRecurrent(event.target.checked)} type="checkbox" /><span>反复出现</span></label><label><span>症状备注</span><textarea className="hoho-textarea" maxLength={160} onChange={(event) => setShortNote(event.target.value)} value={shortNote} /></label></div>}
+          {record?.journal?.symptom && <div className="symptom-record-editor-optional"><label><span>症状摘要（选填）</span><input className="hoho-input" maxLength={180} onChange={(event) => setGeneratedSummary(event.target.value)} value={generatedSummary} /></label><ChildBodyLocationPicker key={record.id} memberId={memberId} value={locations} onChange={setLocations} /><label><span>症状部位（选填）</span><input aria-describedby={locationError ? 'symptom-editor-location-error' : undefined} aria-invalid={Boolean(locationError)} className="hoho-input" maxLength={120} onChange={(event) => { setLocationText(event.target.value); setLocationError('') }} value={locationText} />{locationError && <small className="symptom-field-error" id="symptom-editor-location-error" role="alert">{locationError}</small>}</label><label><span>影响程度</span><small>观察吃饭、睡眠、活动或情绪；不确定可不填</small><select className="hoho-input" aria-label="影响程度" onChange={(event) => setImpactLevel(event.target.value as typeof impactLevel)} value={impactLevel}><option value="">未填写</option><option value="little">轻微影响</option><option value="some">有些影响</option><option value="clear">明显影响</option></select></label><label><span>触发或诱因</span><input className="hoho-input" maxLength={160} onChange={(event) => setTriggerText(event.target.value)} value={triggerText} /></label><label><span>变化趋势</span><select className="hoho-input" aria-label="变化趋势" onChange={(event) => setTrend(event.target.value as typeof trend)} value={trend}><option value="">未填写</option><option value="more_noticeable">加重了</option><option value="improving">减轻了</option><option value="same">没有明显变化</option></select></label><label className="symptom-recurrent"><input checked={recurrent} onChange={(event) => setRecurrent(event.target.checked)} type="checkbox" /><span>反复出现</span></label><label><span>症状备注</span><textarea className="hoho-textarea" maxLength={160} onChange={(event) => setShortNote(event.target.value)} value={shortNote} /></label></div>}
           {record?.journal?.symptom && <><button className="symptom-record-related-editor" onClick={() => setRelatedOpen(true)} type="button"><span>关联其他记录</span><strong>{Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0) ? `已关联 ${Object.values(linkedRecordIds).reduce((sum, ids) => sum + (ids?.length ?? 0), 0)} 条` : '选填'}</strong></button><LinkedRecordDetails entries={relatedEntries} linked={linkedRecordIds} /></>}
           <label><span>发生时间</span><input className="hoho-input" max={localDateTimeValue()} onChange={(event) => { setOccurredAt(event.target.value); setError('') }} type="datetime-local" value={occurredAt} /></label>
           <div className="symptom-record-readonly"><span>记录来源</span><strong>{entry.source.label}</strong></div>
