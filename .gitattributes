@@ -1,0 +1,2 @@
+# Frozen source data is checked byte-for-byte against the supplied manifest.
+src/features/body-location/child-data/*.json -text

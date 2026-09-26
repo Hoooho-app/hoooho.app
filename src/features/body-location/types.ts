@@ -17,6 +17,12 @@ export interface BodyLocationSelection {
   locationType: BodyLocationType
   laterality?: BodyLocationLaterality
   view?: BodyLocationView
+  schemaVersion?: string
+  surface?: import('./childBodyCatalog').ChildSurface
+  coverage?: 'specific' | 'whole' | 'uncertain'
+  modelAtSelection?: 'boy' | 'girl'
+  /** Unmodified journal fields (including legacy point descriptions) survive an edit. */
+  recordSnapshot?: import('../../types/journal').JournalSymptomLocation
 }
 
 export interface BodyLocationOption extends BodyLocationSelection {

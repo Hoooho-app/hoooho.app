@@ -97,6 +97,7 @@ export function TimelineSection({ event, focusedRecordId, memberName, records, o
       )}
 
       <SymptomRecordSheet
+        memberId={event.memberId}
         entry={selection?.entry ?? null}
         initialEditing={selection?.editing}
         memberName={memberName}

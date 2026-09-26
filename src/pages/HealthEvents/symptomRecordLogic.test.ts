@@ -32,6 +32,7 @@ test('location validation rejects isolated numbering and displays locator names 
   assert.equal(isSemanticSymptomLocation('左肘窝'), true)
   assert.equal(symptomLocationDisplay({ locationText: '1', locations: [] }), '')
   assert.equal(symptomLocationDisplay({ locationText: '左肘窝', locations: [{ id: 'left-elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', localRegion: '左肘窝' }] }), '左肘窝 · 1号区域')
+  assert.equal(symptomLocationDisplay({ locationText: '衣领接触处', locations: [{ id: 'legacy-neck', label: '颈部', locationLayer: 'surface', localRegion: '颈部' }] }), '颈部、衣领接触处')
 })
 
 test('symptom locations preserve structured position and stable numbering', () => {

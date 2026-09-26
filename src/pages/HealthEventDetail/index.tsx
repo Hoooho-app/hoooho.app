@@ -32,7 +32,7 @@ export function HealthEventDetailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const currentMemberId = useAppStore((appState) => appState.currentMemberId)
-  const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateTitle, retry } = useHealthEventDetail(eventId)
+  const { state, addRecord, commitRecord, previewRecord, confirmPreview, previewAttachment, addAttachment, organizeRecord, updateRecord, deleteRecord, updateChangeAnnotation, deleteChangeAnnotation, updateTitle, retry } = useHealthEventDetail(eventId, true)
   const focusedRecordId = searchParams.get('recordId')
   const healthInformation = useHealthInformationCandidates(eventId, state.status === 'success' && hasPersistedHealthEventRecords(state.data.records))
   const [actionOpen, setActionOpen] = useState(false)
@@ -220,6 +220,7 @@ export function HealthEventDetailPage() {
         />
       </div>
       <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {state.refreshError && <p role="alert">{state.refreshError}</p>}
         {!hasRecords ? (
           <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={(message) => { setRecordedMessage(message || '已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
         ) : (

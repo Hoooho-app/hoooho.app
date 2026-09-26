@@ -16,7 +16,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   onChanged: () => void
   onClose: () => void
 }) {
-  const { state, retry, updateRecord, deleteRecord } = useHealthEventDetail(eventId)
+  const { state, retry, updateRecord, deleteRecord } = useHealthEventDetail(eventId, true)
   const memberId = useAppStore((value) => value.currentMemberId)
   const token = useAppStore((value) => value.authToken ?? '')
   const relatedJournal = useJournal(memberId, token, 0)
@@ -117,6 +117,8 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   }
 
   return <SymptomRecordSheet
+    memberId={state.data.member.id}
+    refreshError={state.refreshError}
     entry={entry}
     memberName={state.data.member.name}
     onClose={onClose}
