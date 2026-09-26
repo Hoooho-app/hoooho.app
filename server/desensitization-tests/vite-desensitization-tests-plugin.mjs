@@ -16,11 +16,19 @@ export function desensitizationTestsApiPlugin(options = {}) {
     try {
       const accountId = account(request, tokens); const timeZone = String(request.headers['x-hoooho-timezone'] || 'Asia/Shanghai')
       const collection = url.pathname === '/api/desensitization-tests'
+      const resolvePath = url.pathname === '/api/desensitization-tests/resolve'
+      const commitPath = url.pathname === '/api/desensitization-tests/commit'
+      const undoOperationMatch = /^\/api\/desensitization-tests\/operations\/([^/]+)\/undo$/.exec(url.pathname)
+      const associationMatch = /^\/api\/desensitization-tests\/([^/]+)\/associations$/.exec(url.pathname)
       const recordMatch = /^\/api\/desensitization-tests\/([^/]+)\/records(?:\/([^/]+)(?:\/(withdraw|restore|undo-update))?)?$/.exec(url.pathname)
       const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan)$/.exec(url.pathname)
       const taskMatch = /^\/api\/desensitization-tests\/([^/]+)$/.exec(url.pathname)
       if (collection && request.method === 'GET') return send(response, 200, await service.list(accountId, String(url.searchParams.get('memberId') ?? ''), new Date(), timeZone))
       if (collection && request.method === 'POST') return send(response, 201, await service.create(accountId, await body(request), new Date(), timeZone))
+      if (resolvePath && request.method === 'POST') return send(response, 200, await service.resolve(accountId, await body(request), new Date(), timeZone))
+      if (commitPath && request.method === 'POST') return send(response, 200, await service.commitResolution(accountId, await body(request), new Date(), timeZone))
+      if (undoOperationMatch && request.method === 'POST') return send(response, 200, await service.undoOperation(accountId, decodeURIComponent(undoOperationMatch[1]), new Date(), timeZone))
+      if (associationMatch && request.method === 'POST') return send(response, 200, await service.manageAssociation(accountId, decodeURIComponent(associationMatch[1]), await body(request), new Date(), timeZone))
       if (recordMatch) { const taskId = decodeURIComponent(recordMatch[1]); const recordId = recordMatch[2] ? decodeURIComponent(recordMatch[2]) : ''; const action = recordMatch[3]
         if (!recordId && request.method === 'POST') return send(response, 201, await service.saveRecord(accountId, taskId, await body(request)))
         if (recordId && !action && request.method === 'PATCH') return send(response, 200, await service.updateRecord(accountId, taskId, recordId, await body(request)))

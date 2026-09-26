@@ -32,7 +32,7 @@ import './desensitization.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 type TaskCategory = 'medication' | 'allergy'
-type DesensitizationView = 'record'|'trend'|'history'|'scope'|'plan'|'manage'
+type DesensitizationView = 'record'|'trend'|'history'|'scope'|'plan'|'manage'|'associations'
 
 export function NurseStationPage() {
   const navigate = useNavigate()
@@ -63,8 +63,9 @@ export function NurseStationPage() {
   const [openReminderId, setOpenReminderId] = useState('')
   const [deleteReminder, setDeleteReminder] = useState<MedicationReminderDto | null>(null)
   const [desensitizationTasks, setDesensitizationTasks] = useState<DesensitizationTaskDto[]>([])
+  const [desensitizationRedirects, setDesensitizationRedirects] = useState<Array<{ taskId:string; targetTaskId:string; filterLabel:string }>>([])
   const [desensitizationStatus, setDesensitizationStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [selectedDesensitization, setSelectedDesensitization] = useState<{ id: string; view: DesensitizationView } | null>(null)
+  const [selectedDesensitization, setSelectedDesensitization] = useState<{ id: string; view: DesensitizationView; initialFilterLabel?: string } | null>(null)
   const [openDesensitizationId, setOpenDesensitizationId] = useState('')
   const [busyDesensitizationId, setBusyDesensitizationId] = useState('')
   const [deleteDesensitization, setDeleteDesensitization] = useState<DesensitizationTaskDto | null>(null)
@@ -129,27 +130,31 @@ export function NurseStationPage() {
     if (!token || !currentMemberId) return
     const result = await desensitizationTestService.list(currentMemberId, token)
     setDesensitizationTasks(result.tasks)
+    setDesensitizationRedirects(result.redirects)
     setDesensitizationStatus('success')
   }, [currentMemberId, token])
 
   useEffect(() => {
     let active = true
-    setDesensitizationStatus('loading'); setDesensitizationTasks([]); setSelectedDesensitization(null); setDeleteDesensitization(null)
+    setDesensitizationStatus('loading'); setDesensitizationTasks([]); setDesensitizationRedirects([]); setSelectedDesensitization(null); setDeleteDesensitization(null)
     if (!token || !currentMemberId) return () => { active = false }
-    void desensitizationTestService.list(currentMemberId, token).then((result) => { if (active) { setDesensitizationTasks(result.tasks); setDesensitizationStatus('success') } }).catch(() => { if (active) setDesensitizationStatus('error') })
+    void desensitizationTestService.list(currentMemberId, token).then((result) => { if (active) { setDesensitizationTasks(result.tasks); setDesensitizationRedirects(result.redirects); setDesensitizationStatus('success') } }).catch(() => { if (active) setDesensitizationStatus('error') })
     return () => { active = false }
   }, [currentMemberId, token])
 
   useEffect(() => {
     if (desensitizationStatus !== 'success') return
     const requestedId = new URLSearchParams(location.search).get('desensitization')
-    const notice = (location.state as { desensitizationNotice?: string } | null)?.desensitizationNotice
-    if (notice) setDesensitizationNotice({ message: notice })
-    if (!requestedId || !desensitizationTasks.some((item) => item.id === requestedId)) return
-    setTaskCategory('allergy'); setTaskView(desensitizationTasks.find((item) => item.id === requestedId)?.status === 'archived' ? 'archive' : 'active')
-    setSelectedDesensitization({ id: requestedId, view: 'trend' })
+    const routeState = location.state as { desensitizationNotice?: string; desensitizationOperationId?:string|null } | null
+    const notice = routeState?.desensitizationNotice, operationId=routeState?.desensitizationOperationId
+    if (notice) setDesensitizationNotice({ message: notice, undo:operationId?async()=>{await desensitizationTestService.undoOperation(operationId,token);await refreshDesensitization()}:undefined })
+    if (!requestedId) return
+    const redirect=desensitizationRedirects.find((item)=>item.taskId===requestedId), targetId=redirect?.targetTaskId??requestedId
+    if(!desensitizationTasks.some((item)=>item.id===targetId))return
+    setTaskCategory('allergy'); setTaskView(desensitizationTasks.find((item) => item.id === targetId)?.status === 'archived' ? 'archive' : 'active')
+    setSelectedDesensitization({ id: targetId, view: 'trend', initialFilterLabel: redirect?.filterLabel })
     navigate('/nurse-station', { replace: true, state: null })
-  }, [desensitizationStatus, desensitizationTasks, location.search, location.state, navigate])
+  }, [desensitizationRedirects, desensitizationStatus, desensitizationTasks, location.search, location.state, navigate, refreshDesensitization, token])
 
   const members = listState.status === 'success' ? listState.data.members : cachedMembers
   const member = members.find((item) => item.id === currentMemberId) ?? null
@@ -291,7 +296,7 @@ export function NurseStationPage() {
     </div>
     {(savedItemId || medicationNotice) && <p aria-live="polite" className="nurse-station-save-notice" role="status">{medicationNotice || '用药提醒已保存'}</p>}{desensitizationNotice&&<p aria-live="polite" className="nurse-station-save-notice desensitization-notice" role="status"><span>{desensitizationNotice.message}</span>{desensitizationNotice.undo&&<button onClick={()=>{const undo=desensitizationNotice.undo;setDesensitizationNotice(null);void undo?.().catch((error)=>setDesensitizationNotice({message:error instanceof Error?error.message:'撤销失败，请重试'}))}} type="button">撤销</button>}</p>}{reminderFlow && member && <MedicationReminderFlow initial={reminderFlow===true?undefined:reminderFlow} memberName={member.name} onClose={()=>setReminderFlow(null)} onSave={saveMedicationPlan} recentPlans={medicationReminders.map(item=>item.plan)}/>}<span hidden />
     {selected && <TaskDetailSheet completionOpen={completionOpen} completionResult={completionResult} item={selected} onClose={closeTaskSheet} onComplete={finishObservation} onCompletionOpen={setCompletionOpen} onCompletionResult={setCompletionResult} onNavigate={() => navigate(`/health-events/${selected.sourceEventId}`)} onUpdate={(changes) => updateItem(selected.id, changes)} />}
-    {selectedDesensitizationTask&&selectedDesensitization&&<DesensitizationTaskSheet initialView={selectedDesensitization.view} onArchive={()=>void desensitizationAction(selectedDesensitizationTask,'archive')} onClose={()=>setSelectedDesensitization(null)} onDelete={()=>setDeleteDesensitization(selectedDesensitizationTask)} onNotice={(message,undo)=>{if(message!=='记录已保存，趋势已更新')setDesensitizationNotice({message,undo})}} onRefresh={refreshDesensitization} onRestore={()=>void desensitizationAction(selectedDesensitizationTask,'restore')} task={selectedDesensitizationTask} token={token}/>}
+    {selectedDesensitizationTask&&selectedDesensitization&&<DesensitizationTaskSheet initialFilterLabel={selectedDesensitization.initialFilterLabel} initialView={selectedDesensitization.view} onArchive={()=>void desensitizationAction(selectedDesensitizationTask,'archive')} onClose={()=>setSelectedDesensitization(null)} onDelete={()=>setDeleteDesensitization(selectedDesensitizationTask)} onNotice={(message,undo)=>{if(message!=='记录已保存，趋势已更新')setDesensitizationNotice({message,undo})}} onRefresh={refreshDesensitization} onRestore={()=>void desensitizationAction(selectedDesensitizationTask,'restore')} task={selectedDesensitizationTask} token={token}/>}
     {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyReminderId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除提醒？</h2><p>删除后，这条提醒和它生成的服用记录都会移除，无法恢复。</p><div><button disabled={Boolean(busyReminderId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyReminderId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyReminderId ? '删除中…' : '删除提醒'}</button></div></section></div>}
     {deleteDesensitization&&<div className="medication-delete-layer" onMouseDown={(event)=>{if(event.target===event.currentTarget&&!busyDesensitizationId)setDeleteDesensitization(null)}} role="presentation"><section aria-labelledby="desensitization-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="desensitization-delete-title">删除“{deleteDesensitization.displayName}”观察？</h2><p>这会删除排敏测试及其中记录；健康随记里的原始饮食记录不会删除。完成后可立即撤销。</p><div><button disabled={Boolean(busyDesensitizationId)} onClick={()=>setDeleteDesensitization(null)} type="button">取消</button><button disabled={Boolean(busyDesensitizationId)} onClick={()=>void desensitizationAction(deleteDesensitization,'delete')} type="button">{busyDesensitizationId?'删除中…':'删除观察'}</button></div></section></div>}
   </main>

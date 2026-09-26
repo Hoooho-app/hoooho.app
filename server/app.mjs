@@ -481,11 +481,19 @@ async function handleDesensitizationTests(request, response, pathname, searchPar
   const accountId = await readAccountId(request)
   const timeZone = validTimeZone(request.headers['x-hoooho-timezone']) ?? 'Asia/Shanghai'
   const collection = pathname === '/api/desensitization-tests'
+  const resolvePath = pathname === '/api/desensitization-tests/resolve'
+  const commitPath = pathname === '/api/desensitization-tests/commit'
+  const undoOperationMatch = /^\/api\/desensitization-tests\/operations\/([^/]+)\/undo$/.exec(pathname)
+  const associationMatch = /^\/api\/desensitization-tests\/([^/]+)\/associations$/.exec(pathname)
   const recordMatch = /^\/api\/desensitization-tests\/([^/]+)\/records(?:\/([^/]+)(?:\/(withdraw|restore|undo-update))?)?$/.exec(pathname)
   const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan)$/.exec(pathname)
   const taskMatch = /^\/api\/desensitization-tests\/([^/]+)$/.exec(pathname)
   if (collection && request.method === 'GET') sendJson(response, 200, await desensitizationTests.list(accountId, String(searchParams.get('memberId') ?? ''), new Date(), timeZone))
   else if (collection && request.method === 'POST') sendJson(response, 201, await desensitizationTests.create(accountId, await readJson(request), new Date(), timeZone))
+  else if (resolvePath && request.method === 'POST') sendJson(response, 200, await desensitizationTests.resolve(accountId, await readJson(request), new Date(), timeZone))
+  else if (commitPath && request.method === 'POST') sendJson(response, 200, await desensitizationTests.commitResolution(accountId, await readJson(request), new Date(), timeZone))
+  else if (undoOperationMatch && request.method === 'POST') sendJson(response, 200, await desensitizationTests.undoOperation(accountId, decodeRouteValue(undoOperationMatch[1]), new Date(), timeZone))
+  else if (associationMatch && request.method === 'POST') sendJson(response, 200, await desensitizationTests.manageAssociation(accountId, decodeRouteValue(associationMatch[1]), await readJson(request), new Date(), timeZone))
   else if (recordMatch) {
     const taskId = decodeRouteValue(recordMatch[1]), recordId = recordMatch[2] ? decodeRouteValue(recordMatch[2]) : '', action = recordMatch[3]
     if (!recordId && request.method === 'POST') sendJson(response, 201, await desensitizationTests.saveRecord(accountId, taskId, await readJson(request)))
