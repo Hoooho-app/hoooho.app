@@ -73,6 +73,38 @@ test('护士视频资源失败时页面结构和核心任务仍可使用', async
   await expect(page.getByText('还没有排敏测试', { exact: true })).toBeVisible()
 })
 
+test('用药与排敏空状态在框内最右侧提供加号创建入口', async ({ page }) => {
+  await registerMember(page)
+  const header = page.locator('.guardian-tasks > header')
+  const assertEmptyCreate = async (label: '新增提醒' | '新增测试') => {
+    const empty = page.locator('.guardian-task-empty--create')
+    const add = empty.getByRole('button', { name: label, exact: true })
+    await expect(empty.locator(':scope > svg')).toHaveCount(0)
+    await expect(add).toBeVisible()
+    await expect(add).toHaveCSS('width', '44px')
+    const positions = await empty.evaluate((element) => {
+      const copy = element.querySelector(':scope > div')?.getBoundingClientRect()
+      const button = element.querySelector(':scope > button')?.getBoundingClientRect()
+      return { buttonLeft: button?.left ?? 0, copyRight: copy?.right ?? 0 }
+    })
+    expect(positions.buttonLeft).toBeGreaterThanOrEqual(positions.copyRight)
+    await expect(header.getByRole('button', { name: label, exact: true })).toHaveCount(0)
+    return add
+  }
+
+  const medicationAdd = await assertEmptyCreate('新增提醒')
+  await page.screenshot({ fullPage: true, path: 'test-results/guardian-medication-empty-add-375x667.png' })
+  await medicationAdd.click()
+  await expect(page.getByRole('dialog', { name: '新增用药提醒' })).toBeVisible()
+  await page.getByRole('dialog', { name: '新增用药提醒' }).getByRole('button', { name: '返回' }).click()
+
+  await page.getByRole('tab', { name: '排敏测试' }).click()
+  const allergyAdd = await assertEmptyCreate('新增测试')
+  await page.screenshot({ fullPage: true, path: 'test-results/guardian-allergy-empty-add-375x667.png' })
+  await allergyAdd.click()
+  await expect(page).toHaveURL(/\/nurse-station\/desensitization\/new$/)
+})
+
 test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -388,7 +420,7 @@ test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', as
   await expect(firstTab).toBeFocused()
   const measurements = await page.evaluate(() => {
     const tab = document.querySelector<HTMLElement>('.guardian-task-tabs button[aria-selected="true"]')!
-    const add = document.querySelector<HTMLElement>('.desensitization-add')!
+    const add = document.querySelector<HTMLElement>('.guardian-task-empty-add, .desensitization-add')!
     const unavailable = document.querySelector<HTMLElement>('.nurse-more-service--unavailable')!
     const tabStyle = getComputedStyle(tab)
     const unavailableStyle = getComputedStyle(unavailable)
