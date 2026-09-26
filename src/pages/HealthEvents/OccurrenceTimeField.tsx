@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeValue } from '../../utils/healthOccurredAt'
-import { captureOccurrenceTime, occurrenceInitialState, type OccurrenceTimeMode } from './occurrenceTimeModel'
+import { captureOccurrenceTime, formatOccurrenceTimeLabel, occurrenceInitialState, type OccurrenceTimeMode } from './occurrenceTimeModel'
 
 export function useOccurrenceTime(selectedDay: string, today: string, initialOccurredAt?: string) {
   const initial = useRef(occurrenceInitialState(selectedDay, today, initialOccurredAt))
@@ -42,19 +42,11 @@ export function useOccurrenceTime(selectedDay: string, today: string, initialOcc
   return { mode, specifiedValue, now, error, today, setMode, setSpecifiedValue, capture }
 }
 
-function displayLabel(value: string, today: string) {
-  const [day, time = ''] = value.split('T')
-  const minute = time.slice(0, 5)
-  if (day === today) return minute
-  const [, month, date] = day.split('-')
-  return `${Number(month)}月${Number(date)}日 ${minute}`
-}
-
-export function OccurrenceTimeField({ model, label = '发生时间' }: { model: ReturnType<typeof useOccurrenceTime>; label?: string }) {
+export function OccurrenceTimeField({ model, label = '发生时间', onValueChange, showDateContext = false }: { model: ReturnType<typeof useOccurrenceTime>; label?: string; onValueChange?: (value: string) => void; showDateContext?: boolean }) {
   const value = model.mode === 'now' ? localDateTimeValue(model.now) : model.specifiedValue
   return <section className="occurrence-time-field" aria-labelledby="occurrence-time-label">
     <strong id="occurrence-time-label">{label}</strong>
-    <label className="occurrence-time-control"><span aria-hidden="true">{displayLabel(value, model.today)}</span><input aria-describedby={model.error ? 'occurrence-time-error' : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now')} type="datetime-local" value={value} /></label>
+    <label className="occurrence-time-control"><span aria-hidden="true">{formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input aria-describedby={model.error ? 'occurrence-time-error' : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
     {model.error && <p className="occurrence-time-error" id="occurrence-time-error" role="alert">{model.error}</p>}
   </section>
 }

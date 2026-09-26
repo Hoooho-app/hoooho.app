@@ -130,7 +130,7 @@ test('喂养饮食使用五类确认页、独立记录页和结构化真实保�
   assert.doesNotMatch(dietFlow, /getSpeechRecognitionConstructor|语音记录|diet-collapsible|观察到的情况/)
   assert.match(dietFlow, /className="diet-reaction-section"/)
   assert.match(occurrenceTime, /type="datetime-local"/)
-  assert.match(occurrenceTime, /displayLabel\(value, model\.today\)/)
+  assert.match(occurrenceTime, /formatOccurrenceTimeLabel\(value, model\.today, showDateContext\)/)
   assert.doesNotMatch(occurrenceTime, />现在<\/button>|>指定时间<\/button>|当前发生时间/)
   assert.match(occurrenceTimeModel, /FUTURE_OCCURRED_AT_MESSAGE/)
   assert.match(page, /journal,/)

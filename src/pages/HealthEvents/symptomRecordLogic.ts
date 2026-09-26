@@ -1,6 +1,20 @@
 import type { BodyLocationSelection } from '../../features/body-location'
 import type { JournalSymptomDetails, JournalSymptomLocation, SymptomCategory } from '../../types/journal'
 
+const optionalImpactLabels = { little: '轻度', some: '中度', clear: '重度' } as const
+const optionalTrendLabels: Partial<Record<NonNullable<JournalSymptomDetails['trend']>, string>> = {
+  improving: '减轻', same: '无明显变化', more_noticeable: '加重', returned: '再次出现', recurrent: '反复出现', unclear: '变化不明确'
+}
+
+export function symptomOptionalSummary(draft: Pick<JournalSymptomDetails, 'impactLevel' | 'triggerText' | 'trend' | 'shortNote'>) {
+  return [
+    draft.impactLevel ? optionalImpactLabels[draft.impactLevel] : '',
+    draft.triggerText?.trim() ?? '',
+    draft.trend ? optionalTrendLabels[draft.trend] ?? draft.trend : '',
+    draft.shortNote?.trim() ?? ''
+  ].filter(Boolean).join(' · ')
+}
+
 export interface SymptomNarrativeExtraction {
   transcript: string
   keywords: string[]

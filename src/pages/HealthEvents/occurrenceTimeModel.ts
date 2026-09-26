@@ -19,3 +19,12 @@ export function captureOccurrenceTime(mode: OccurrenceTimeMode, specifiedValue: 
   if (new Date(value).getTime() > now.getTime()) throw new Error(FUTURE_OCCURRED_AT_MESSAGE)
   return value
 }
+
+export function formatOccurrenceTimeLabel(value: string, today: string, showDateContext = false) {
+  const [day, time = ''] = value.split('T')
+  const minute = time.slice(0, 5)
+  if (day === today) return showDateContext ? `今天 ${minute}` : minute
+  const [year, month, date] = day.split('-')
+  const currentYear = today.split('-')[0]
+  return `${year === currentYear ? '' : `${year}年`}${Number(month)}月${Number(date)}日 ${minute}`
+}

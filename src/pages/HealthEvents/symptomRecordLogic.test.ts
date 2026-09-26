@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { descriptorsFor, extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, isSemanticSymptomLocation, symptomLocationDisplay, toggleExclusive, toSymptomLocations, visibleSymptomKeywords } from './symptomRecordLogic.ts'
+import { descriptorsFor, extractSymptomNarrative, generateSymptomSummary, inferSymptomCategory, isSemanticSymptomLocation, symptomLocationDisplay, symptomOptionalSummary, toggleExclusive, toSymptomLocations, visibleSymptomKeywords } from './symptomRecordLogic.ts'
 
 test('narrative extraction only keeps explicitly stated symptom facts', () => {
   const result = extractSymptomNarrative('昨晚左肘窝有点发红，也很痒')
@@ -61,4 +61,10 @@ test('deterministic summary uses only recorded facts and never invents diagnosis
 test('omitted optional facts do not appear in summary', () => {
   const summary = generateSymptomSummary({ symptomCategory: 'fever', locations: [{ id: 'whole', label: '全身', locationNumber: 1, locationLayer: 'surface', localRegion: '全身' }], descriptors: [] })
   assert.doesNotMatch(summary, /开始|相比|影响|照片/)
+})
+
+test('collapsed supplement summary contains only real values in the confirmed order', () => {
+  assert.equal(symptomOptionalSummary({ impactLevel: undefined, triggerText: '', trend: undefined, shortNote: '' }), '')
+  assert.equal(symptomOptionalSummary({ impactLevel: 'some', triggerText: '出汗后明显', trend: 'more_noticeable', shortNote: '' }), '中度 · 出汗后明显 · 加重')
+  assert.equal(symptomOptionalSummary({ impactLevel: undefined, triggerText: '', trend: undefined, shortNote: '晚上更明显' }), '晚上更明显')
 })
