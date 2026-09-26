@@ -9,7 +9,12 @@ test.beforeEach(async({context})=>{
   if(!process.env.BODY_BASE_URL)return
   await context.route('**/api/**',async route=>{
     const url=new URL(route.request().url())
-    const response=await context.request.fetch(`http://127.0.0.1:4197${url.pathname}${url.search}`,{method:route.request().method(),headers:route.request().headers(),data:route.request().postData()??undefined})
+    const headers={...route.request().headers()}
+    // The fixture receives a same-origin browser request through this proxy.
+    // Translate origin metadata too, keeping its CSRF checks enabled.
+    if(headers.origin)headers.origin='http://127.0.0.1:4197'
+    if(headers.referer){const ref=new URL(headers.referer);headers.referer=`http://127.0.0.1:4197${ref.pathname}${ref.search}`}
+    const response=await context.request.fetch(`http://127.0.0.1:4197${url.pathname}${url.search}`,{method:route.request().method(),headers,data:route.request().postData()??undefined})
     await route.fulfill({response})
   })
 })
@@ -193,6 +198,7 @@ test('changing children isolates confirmed locations and preserves each form dra
     await page.getByRole('button',{name:'打开菜单',exact:true}).click()
     await page.getByRole('button',{name:'打开我的孩子',exact:true}).click()
     await page.getByRole('dialog',{name:'我的孩子',exact:true}).getByRole('button',{name:`切换到${name}`,exact:true}).first().click()
+    await expect(page.getByRole('dialog',{name:'我的孩子',exact:true})).toHaveCount(0)
     await page.getByRole('button',{name:'记一下',exact:true}).click()
     await page.getByRole('dialog',{name:'记一下',exact:true}).getByRole('button',{name:'记录症状',exact:true}).click()
   }
