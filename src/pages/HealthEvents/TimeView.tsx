@@ -24,7 +24,7 @@ type TimelineItem = TimelineItemBase & (
   | { kind: 'routine'; track: RoutineTrack }
   | { kind: 'activity-record'; activity: 'sleep' | 'meal'; entry: JournalEntry; projection: IntervalProjection; durationMinutes: number; title: string }
   | { kind: 'activity-routine'; activity: 'sleep' | 'meal' | 'activity'; track: RoutineTrack; projection: Exclude<IntervalProjection, 'open'>; durationMinutes: number; title: string }
-  | { kind: 'empty' }
+  | { kind: 'hour-divider' }
 )
 
 function clockLabel(hour: number, minute: number) { return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` }
@@ -83,17 +83,16 @@ function routineInterval(track: RoutineTrack) {
 }
 
 function timelineItemContent(item: TimelineItem, props: { allTracks: RoutineTrack[]; highlightedRecordId: string; onRecordOpen: (entry: JournalEntry) => void; onRoutineOpen: (track: RoutineTrack) => void }) {
-  if (item.kind === 'empty') return <span aria-hidden="true" className="journal-empty-cell" />
+  if (item.kind === 'hour-divider') return <span aria-hidden="true" className="journal-hour-divider-line" />
   if (item.kind === 'record') return <RecordRow confirmed={props.allTracks.some((track) => track.recordId === item.entry.id)} entry={item.entry} highlighted={props.highlightedRecordId === item.entry.id} onOpen={() => props.onRecordOpen(item.entry)} />
   if (item.kind === 'routine') return <RoutineRow onOpen={() => props.onRoutineOpen(item.track)} track={item.track} />
   return <ActivityRow highlighted={item.kind === 'activity-record' && props.highlightedRecordId === item.entry.id} item={item} onOpen={() => item.kind === 'activity-record' ? props.onRecordOpen(item.entry) : props.onRoutineOpen(item.track)} />
 }
 
 function timelineRowClass(item: TimelineItem) {
-  const precision = item.minute === 0 ? ' journal-timeline-row--hour' : ' journal-timeline-row--minute'
-  const empty = item.kind === 'empty' ? ' journal-timeline-row--empty' : ''
+  const precision = item.kind === 'hour-divider' ? ' journal-timeline-row--hour-divider' : item.minute === 0 ? ' journal-timeline-row--event-at-hour' : ' journal-timeline-row--minute'
   const activity = item.kind === 'activity-record' || item.kind === 'activity-routine' ? ` journal-timeline-row--activity journal-timeline-row--${item.activity}` : ''
-  return `journal-timeline-row${precision}${empty}${activity}`
+  return `journal-timeline-row${precision}${activity}`
 }
 
 export function TimeView({ memberId, token, day, today, focusRecord, onFocusHandled, onDayChange, onRecordOpen, onRoutineRecorded, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; focusRecord?: { recordId: string; day: string; revision: number; entry: JournalEntry } | null; onFocusHandled?: () => void; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string, options?: { correctSleep?: boolean }) => void; onRoutineRecorded?: () => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
@@ -116,9 +115,9 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
     const addRoutine = (track: RoutineTrack) => { const interval = routineInterval(track); if (!interval) { const at = new Date(`${track.day}T${track.time}:00`); if (track.day === day && !(day === today && at > now)) items.push({ createdTime: at.getTime(), hour: at.getHours(), key: `routine:${track.trackKey}`, kind: 'routine', minute: at.getMinutes(), sortTime: at.getTime(), track }); return } if (track.recordId && (track.category === 'activity' ? dayEntries.some((entry) => entry.id === track.recordId) : actualActivityIds.has(track.recordId))) return; if (interval.start > now && day === today) return; const visibleEnd = day === today && now < interval.end ? now : interval.end; const includeEnd = visibleEnd.getTime() === interval.end.getTime(); for (const point of projectActivityInterval(interval.start, visibleEnd, day, includeEnd)) items.push({ activity: track.category === 'sleep' ? 'sleep' : track.category === 'diet' ? 'meal' : 'activity', createdTime: interval.start.getTime(), durationMinutes: interval.durationMinutes, hour: point.hour, key: `routine-activity:${track.trackKey}:${point.key}`, kind: 'activity-routine', minute: point.minute, projection: point.kind, sortTime: point.at.getTime(), title: track.category === 'sleep' ? '睡眠' : track.title, track }) }
     visiblePreviousTracks.filter((track) => Boolean(track.endTime)).forEach(addRoutine); visibleTracks.forEach(addRoutine)
     const lastHour = day === today ? now.getHours() : 23
-    for (const hour of orderedHours(localSortOrder).filter((candidate) => candidate <= lastHour)) if (!items.some((item) => item.hour === hour && item.minute === 0)) { const at = new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`); items.push({ createdTime: at.getTime(), hour, key: `empty:${hour}`, kind: 'empty', minute: 0, sortTime: at.getTime() }) }
+    for (const hour of orderedHours(localSortOrder).filter((candidate) => candidate <= lastHour)) { const at = new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`); items.push({ createdTime: at.getTime(), hour, key: `hour-divider:${hour}`, kind: 'hour-divider', minute: 0, sortTime: at.getTime() }) }
     const direction = localSortOrder === 'asc' ? 1 : -1
-    return items.sort((left, right) => direction * (left.sortTime - right.sortTime) || right.createdTime - left.createdTime || right.key.localeCompare(left.key))
+    return items.sort((left, right) => direction * (left.sortTime - right.sortTime) || (left.kind === 'hour-divider' ? -1 : right.kind === 'hour-divider' ? 1 : 0) || right.createdTime - left.createdTime || right.key.localeCompare(left.key))
   }, [day, dayEntries, localSortOrder, now, today, visiblePreviousTracks, visibleTracks])
 
   const storageKey = `hoooho:journal-grid-scroll:${memberId}:${day}:${localSortOrder}`
@@ -129,7 +128,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
   const selectMonth = (month: string) => { if (!/^\d{4}-\d{2}$/.test(month)) return; const [year, monthNumber] = month.split('-').map(Number); const currentDay = parsePlainDate(day)?.day ?? 1; const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate(); const selected = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, '0')}`; onDayChange(selected > today ? today : selected) }
   const openTriggerCard = (optionIndex?: 0 | 1) => { if (!selectedCard) return; const detail = { target: selectedCard.config.category, mode: day === today ? selectedCard.config.mode : 'backfill', day, prefill: optionIndex === undefined ? {} : selectedCard.config.prefill[optionIndex], accountId, memberId, cardId: selectedCard.config.id, cycle: selectedCard.cycle, relatedEventId: selectedCard.prerequisiteEntry?.eventId, relatedRecordId: selectedCard.prerequisiteEntry?.id }; sessionStorage.setItem(triggerSuggestionKey, JSON.stringify(detail)); window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail })) }
   const refreshRoutines = () => setRoutineRevision((value) => value + 1); const showSaved = (message: string) => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }; const openRoutineTrack = (track: RoutineTrack) => { if (track.status === 'confirmed' && track.eventId && track.recordId) onRecordOpen(track.eventId, track.recordId); else setSelectedTrack(track) }; const currentScrollTop = () => timeViewRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0
-  const timelineRows = displayItems.map((item) => <div className={timelineRowClass(item)} data-hour={item.hour} data-time={clockLabel(item.hour, item.minute)} key={item.key}><time>{clockLabel(item.hour, item.minute)}</time><span aria-hidden="true" className="journal-timeline-marker"><span /></span><div className="journal-hour-cell">{timelineItemContent(item, { allTracks, highlightedRecordId, onRecordOpen: (entry) => onRecordOpen(entry.eventId, entry.id), onRoutineOpen: openRoutineTrack })}</div></div>)
+  const timelineRows = displayItems.map((item) => { const label = clockLabel(item.hour, item.minute); return <div className={timelineRowClass(item)} data-hour={item.hour} data-hour-divider={item.kind === 'hour-divider' ? label : undefined} data-time={item.kind === 'hour-divider' ? undefined : label} key={item.key}><time>{label}</time><span aria-hidden="true" className="journal-timeline-marker"><span /></span><div className="journal-hour-cell">{timelineItemContent(item, { allTracks, highlightedRecordId, onRecordOpen: (entry) => onRecordOpen(entry.eventId, entry.id), onRoutineOpen: openRoutineTrack })}</div></div> })
   if (day === today) {
     const currentRow = <CurrentTimeRow key="current-time" />
     if (localSortOrder === 'desc') timelineRows.unshift(currentRow)

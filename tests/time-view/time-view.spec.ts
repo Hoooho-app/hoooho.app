@@ -271,7 +271,16 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   await expect(page.locator('.journal-timeline-row--now')).toHaveCount(1)
   await expect(page.locator('.journal-timeline-row--now > time')).toHaveText('现在')
   await expect(page.locator('.journal-now-cell svg')).toHaveCount(0)
-  await expect(page.locator('.journal-timeline-row--empty')).toHaveCount(14)
+  const hourDividers = page.locator('.journal-timeline-row--hour-divider')
+  await expect(hourDividers).toHaveCount(14)
+  const latestDivider = page.locator('[data-hour-divider="13:00"]')
+  await expect(latestDivider.locator('.journal-record, .journal-activity-row, .routine-grid-card')).toHaveCount(0)
+  expect(await latestDivider.evaluate((row) => {
+    const cell = row.querySelector<HTMLElement>('.journal-hour-cell')!
+    const line = row.querySelector<HTMLElement>('.journal-hour-divider-line')!
+    const dot = row.querySelector<HTMLElement>('.journal-timeline-marker > span')!
+    return { rowHeight: row.getBoundingClientRect().height, lineHeight: line.getBoundingClientRect().height, borderWidth: getComputedStyle(cell).borderTopWidth, dotDisplay: getComputedStyle(dot).display }
+  })).toEqual({ rowHeight: 18, lineHeight: 1, borderWidth: '0px', dotDisplay: 'none' })
   expect(await page.locator('.journal-timeline-row[data-hour]').evaluateAll((rows) => rows.every((row) => Number((row as HTMLElement).dataset.hour) <= 13))).toBe(true)
 
   await page.getByRole('button', { name: '调整作息' }).click()
@@ -364,7 +373,7 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   await page.screenshot({ path: 'test-results/routine-grid-confirmed-iphone-se.png' })
 
   await page.setViewportSize({ width: 1440, height: 900 })
-  await expect(page.locator('.journal-timeline-row--empty')).not.toHaveCount(0)
+  await expect(page.locator('.journal-timeline-row--hour-divider')).not.toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/routine-grid-confirmed-desktop.png' })
   await page.getByLabel('选择日期').fill('2026-09-21')
@@ -549,11 +558,19 @@ test('one real meal activity projects independent cells, preserves interleaved r
   await expect(page.locator(`.journal-record[data-record-id="${separateMealId}"]`)).toHaveCount(1)
   await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，20:48:12')
   await expect(page.locator('.journal-timeline-row--now')).toHaveAttribute('data-time', 'now')
-  const currentHourOrder = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll((rows, recordId) => ({ current: rows.findIndex((row) => row.classList.contains('journal-timeline-row--now')), recent: rows.findIndex((row) => row.querySelector(`[data-record-id="${recordId}"]`)), hour: rows.findIndex((row) => (row as HTMLElement).dataset.time === '20:00') }), currentHourNoteId)
+  const currentHourOrder = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll((rows, recordId) => ({ current: rows.findIndex((row) => row.classList.contains('journal-timeline-row--now')), recent: rows.findIndex((row) => row.querySelector(`[data-record-id="${recordId}"]`)), hour: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '20:00') }), currentHourNoteId)
   expect(currentHourOrder.recent).toBeGreaterThanOrEqual(0)
   expect(currentHourOrder.current).toBeLessThan(currentHourOrder.recent)
   expect(currentHourOrder.recent).toBeLessThan(currentHourOrder.hour)
   expect(await page.locator('.journal-now-cell').evaluate((cell) => ({ oneLine: cell.scrollHeight <= cell.clientHeight + 1, visibleText: cell.scrollWidth <= cell.clientWidth + 1 }))).toEqual({ oneLine: true, visibleText: true })
+  const exactHourDivider = page.locator('[data-hour-divider="18:00"]')
+  const exactHourEvent = page.locator('.journal-timeline-row[data-time="18:00"]')
+  await expect(exactHourDivider).toHaveCount(1)
+  await expect(exactHourEvent).toContainText('晚餐· 持续')
+  const exactHourOrder = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll((rows) => ({ divider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '18:00'), event: rows.findIndex((row) => (row as HTMLElement).dataset.time === '18:00'), nextDivider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '17:00') }))
+  expect(Object.values(exactHourOrder).every((index) => index >= 0)).toBe(true)
+  expect(exactHourOrder.divider).toBeLessThan(exactHourOrder.event)
+  expect(exactHourOrder.event).toBeLessThan(exactHourOrder.nextDivider)
   await page.getByRole('button', { name: /记录顺序/ }).click()
   await expect(page.locator('.journal-day-grid > .journal-timeline-row').last()).toHaveClass(/journal-timeline-row--now/)
   await expect(page.locator('.journal-timeline-row--now')).toHaveCount(1)
