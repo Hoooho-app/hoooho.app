@@ -303,7 +303,7 @@ const homeEntries = [
   { id: 'diary', title: '健康随记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
   { id: 'profile', title: '健康档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
   { id: 'visit', title: '就诊情况单', subtitle: '就诊前，一页理清病情', image: visitSummaryImage, to: '/visit-summary' },
-  { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: null }
+  { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: '/dietary-card' }
 ] as const
 
 function HomeEntryContent({ entry }: { entry: (typeof homeEntries)[number] }) {
@@ -311,15 +311,8 @@ function HomeEntryContent({ entry }: { entry: (typeof homeEntries)[number] }) {
 }
 
 function HomeEntries() {
-  const [notice, setNotice] = useState('')
-  useEffect(() => {
-    if (!notice) return
-    const timer = window.setTimeout(() => setNotice(''), 2400)
-    return () => window.clearTimeout(timer)
-  }, [notice])
-  return <><section aria-label="首页服务入口" className="nurse-home-entries">{homeEntries.map((entry) => entry.to
-    ? <Link aria-label={entry.title} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>
-    : <button aria-label={entry.title} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} onClick={() => setNotice('忌口出示卡功能暂未开放')} type="button"><HomeEntryContent entry={entry} /></button>)}</section>{notice && <p aria-live="polite" className="nurse-station-save-notice" role="status">{notice}</p>}</>
+  return <section aria-label="首页服务入口" className="nurse-home-entries">{homeEntries.map((entry) =>
+    <Link aria-label={entry.title} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>)}</section>
 }
 
 function getPlanDetails(plan: NonNullable<NurseStationItem['medicationPlan']>) {

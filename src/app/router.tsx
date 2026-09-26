@@ -48,6 +48,8 @@ export const router = createBrowserRouter([
       {
         element: <RequireEstablishedHealthData requireHealthRecord={false} />,
         children: [
+          { path: '/dietary-card', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardPage') },
+          { path: '/dietary-card/edit', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardEditPage') },
           { path: '/health-profile', lazy: lazyPage(() => import('../pages/HealthProfile'), 'HealthProfilePage') },
           { path: '/health-profile/growth', lazy: lazyPage(() => import('../pages/HealthProfile/GrowthRecordsPage'), 'GrowthRecordsPage') },
           { path: '/health-profile/growth/reassurance', lazy: lazyPage(() => import('../pages/HealthProfile/GrowthReassurancePage'), 'GrowthReassurancePage') },

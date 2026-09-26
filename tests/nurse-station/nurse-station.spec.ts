@@ -150,9 +150,7 @@ test('参考图首页在 iPhone SE 上保持核心入口和守护任务交互', 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect.poll(() => reducedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false)
   await page.screenshot({ path: 'test-results/nurse-station-first-screen-375x667.png', fullPage: true })
-  await page.getByRole('button', { name: '忌口出示卡', exact: true }).click()
-  await expect(page.getByRole('status')).toHaveText('忌口出示卡功能暂未开放')
-  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary']] as const) {
+  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card']] as const) {
     await page.getByRole('link', { name, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`))
     await page.goBack()
