@@ -1,21 +1,30 @@
 import { createHash } from 'node:crypto'
+import { refineVisitSheet } from './v5-projection.mjs'
 
 export const chapters = [
   ['overview', '病情数据'],
-  ['course', '病程'],
-  ['temperature', '体温'],
-  ['allergy', '过敏与排敏'],
-  ['medication', '用药'],
+  ['course', '病程与变化'],
+  ['medication', '用药与处理'],
+  ['allergy', '过敏与饮食观察'],
+  ['history', '既往与相关背景'],
+  ['temperature', '体温记录'],
   ['growth', '成长与日常'],
-  ['history', '既往与家族'],
-  ['visits', '就诊检查'],
-  ['sources', '附件与依据'],
+  ['visits', '就诊与检查'],
+  ['sources', '附件与完整依据'],
 ]
 const text = (value) => (typeof value === 'string' ? value.trim() : '')
 const finite = (value) => typeof value === 'number' && Number.isFinite(value)
 const date = (value) =>
   value && Number.isFinite(Date.parse(value)) ? value : null
 const unique = (values) => [...new Set(values.filter(Boolean))]
+function memberScoped(value,memberId){
+  if(Array.isArray(value))return value.map(v=>memberScoped(v,memberId)).filter(v=>v!==undefined)
+  if(value&&typeof value==='object'){
+    if(value.memberId&&value.memberId!==memberId)return undefined
+    return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,memberScoped(v,memberId)]).filter(([,v])=>v!==undefined))
+  }
+  return value
+}
 const isTemperature = (r) =>
   r.type === 'temperature' ||
   r.sourceType === 'measurement' ||
@@ -45,14 +54,18 @@ const symptomRecord = (r) =>
     r.journal?.symptom ||
       r.journal?.categories?.some((c) => ['symptom', 'injury'].includes(c)) ||
       ['symptom', 'injury'].includes(r.type) ||
-      r.organizedFacts?.some((f) => f.type === 'symptom'),
+      r.organizedFacts?.some((f) => f.type === 'symptom' && eligibleFact(f)),
   )
+const eligibleFact = f => f.polarity !== 'negated' && !['future','conditional'].includes(f.temporality) && !['family_member','other_person'].includes(f.subject) && f.status !== 'superseded'
 const byTime = (a, b) =>
   (Date.parse(b.occurredAt || b.createdAt) || 0) -
     (Date.parse(a.occurredAt || a.createdAt) || 0) ||
   (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) ||
   b.id.localeCompare(a.id)
 const labels = {
+  birthDate:'出生日期',gestationalWeeks:'孕周（周）',gestationalDays:'额外孕日（天）',birthWeight:'出生体重（kg）',birthLength:'出生身长（cm）',delivery:'分娩方式',neonatal:'新生儿期记录',
+  manifestations:'表现',duration:'每次通常持续',customDuration:'每次持续时间补充',triggers:'家长记录诱因（未确认因果）',lifeImpacts:'生活影响',legacy:'历史记录',postoperativeStatusTags:'术后情况',implantTags:'植入物记录',locations:'部位',legacyNote:'原有补充',customRelationship:'亲属补充',healthIssues:'家族健康事项',certainty:'家长记录的诊断了解程度',onset:'大概发现时间 / 年龄',knowledge:'家长对问题名称的了解',symptomSystems:'表现涉及系统',legacyLocationNotes:'原有部位描述',legacyImplantNote:'原有植入物说明',aggravatingFactors:'家长记录加重因素（未确认因果）',relievingFactors:'家长记录缓解因素（未确认因果）',
+  method:'喂养方式',milkAmount:'奶量（ml）',solidStatus:'辅食情况',solidStartedAt:'辅食开始日期',mainFoods:'主要食物',treatment:'已有处理',organization:'机构',summary:'原记录摘要',type:'记录类型',doseNumber:'剂次',imageName:'附件名称',fileName:'文件名',mimeType:'文件类型',filename:'文件名',size:'文件大小（字节）',evidenceStatus:'依据状态',confirmedByUser:'家长已确认关联',preparation:'处理方式',exposureAnswer:'摄入记录',symptomAnswer:'观察结果',actualFood:'实际食物',amount:'用量',
   medicationName: '药品', amountValue: '用量', amountUnit: '单位', administrationRoute: '使用途径', medications: '药品明细', reminder: '原记录提醒设置', enabled: '启用', timesPerDay: '每日次数', times: '时刻', durationDays: '计划天数', dosageStep: '录入步长', photoIds: '附件引用', shortNote: '补充说明', configured: '已配置', recognitionStatus: '识别状态', locationNumber: '部位编号', locationLayer: '部位层级', localRegion: '部位', label: '名称',
   name: '名称',
   title: '名称',
@@ -119,7 +132,7 @@ function readable(value) {
     .filter(
       ([key]) =>
         !key.startsWith('_') &&
-        !/^(id|.*Id|accountId|memberId|createdAt|updatedAt|evidenceLinks|version|revision)$/.test(
+        !/^(id|.*Ids?|accountId|memberId|createdAt|updatedAt|evidenceLinks|version|revision)$/.test(
           key,
         ),
     )
@@ -133,7 +146,7 @@ function readable(value) {
     .join('；')
 }
 const profileDestination = (id) =>
-  id === 'allergy'
+  id === 'medication' ? 'medication' : id === 'allergy'
     ? 'allergy'
     : ['basic', 'growth', 'diet', 'feeding', 'sleep', 'exercise'].includes(id)
       ? 'growth'
@@ -232,6 +245,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const records = input.records
     .map((r) => ({
       ...r,
+      occurredAt: r.journal?.timePrecision === 'unknown' ? null : r.occurredAt,
       organizedFacts: (input.organizations ?? [])
         .filter(
           (o) =>
@@ -239,7 +253,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
             (!o.sourceRecordUpdatedAt ||
               o.sourceRecordUpdatedAt === r.updatedAt),
         )
-        .flatMap((o) => o.healthAIOutput?.facts ?? []),
+        .flatMap((o) => o.healthAIOutput?.facts ?? []).filter(eligibleFact),
     }))
     .sort(byTime)
   for (const r of records)
@@ -299,9 +313,10 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     if (r.id === selected.id) return true
     if (selectedLocations.length)
       return (
-        r.journal?.symptom?.locations?.some((l) =>
+        (!selected.journal?.symptom?.symptomCategory || r.journal?.symptom?.symptomCategory === selected.journal.symptom.symptomCategory) &&
+        (r.journal?.symptom?.locations?.some((l) =>
           selectedLocations.includes(l.label),
-        ) ?? false
+        ) ?? false)
       )
     return selected.journal?.symptom?.symptomCategory
       ? r.journal?.symptom?.symptomCategory ===
@@ -438,6 +453,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
             at,
             sourceId: `record:${r.id}`,
             detail,
+            measurementMethod: f.measurementMethod ?? r.measurementMethod,
+            measurementDevice: f.measurementDevice ?? r.measurementDevice,
           })
       }
   }
@@ -484,7 +501,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       for (const item of items) {
         if (item.memberId && item.memberId !== input.member.id) continue
         const id = add({
-          id: `profile:${archive.sectionId}:${item.id ?? index}`,
+          id: `profile:${archive.sectionId}:${item.id ?? createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0,16)}`,
           profileSection: archive.sectionId,
           category: archive.sectionId,
           title:
@@ -495,10 +512,10 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
               medication: '长期用药',
             }[archive.sectionId] ??
               '健康档案'),
-          text: readable(item),
-          occurredAt: date(item.occurredAt || item.date || item.firstFoundAt),
-          createdAt: date(item.createdAt),
-          updatedAt: date(item.updatedAt),
+          text: readable(memberScoped(item,input.member.id)) + `；档案修订 ${archive.revision ?? '未提供'}`,
+          occurredAt: date(item.occurredAt || item.date || item.firstFoundAt || item.birthDate || item.testedAt || item.startedAt),
+          createdAt: date(item.createdAt || item._savedAt),
+          updatedAt: date(item.updatedAt || item._savedAt),
           identity: '家长保存的健康档案',
           destinations: [profileDestination(archive.sectionId)],
         })
@@ -513,6 +530,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     }
   }
   for (const task of input.tasks) {
+    const taskSource=add({id:`observation-plan:${task.id}`,category:'observation-plan',title:`${task.displayName} · 观察计划`,text:`${task.displayName}；${task.status==='active'?'进行中':'已归档'}；创建观察计划 ${displayTime(task.createdAt)}。这是观察计划，不代表摄入或症状已发生。`,occurredAt:null,createdAt:date(task.createdAt),updatedAt:date(task.updatedAt),identity:'家长观察计划',destinations:['allergy']})
     const items = task.records.filter((r) => !r.withdrawnAt).sort(byTime)
     const ids = items.map((r) =>
       add({
@@ -530,6 +548,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
           r.note,
           r.actualFood,
           r.amount,
+          r.exposureAnswer === 'eaten' ? '家长确认有摄入' : r.exposureAnswer === 'not_eaten' ? '家长明确未摄入' : '摄入情况未填写',
+          r.preparation,
           r.status === 'draft' ? '未提交草稿，不计入有效观察' : '',
         ]
           .filter(Boolean)
@@ -561,17 +581,18 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       'allergy',
       `${task.displayName} · ${task.status === 'active' ? '进行中' : '已归档'}`,
       [
-        `开始记录：${displayTime(task.createdAt)}；${effective.length} 条有效观察，${items.length - effective.length} 条草稿另列。`,
+        `创建观察计划：${displayTime(task.createdAt)}；${effective.length} 条有效观察，${items.length - effective.length} 条草稿另列。`,
         `最近结果：${items[0] ? sourceMap.get(ids[0]).text : '尚无观察记录'}`,
         `关联饮食 ${linkedDiet.length} 条（来自已有食物关联，尚不能据此确认同属本次过程），不重复计入观察结果。`,
         '分类是观察记录构成，不表示过敏概率或因果判断。',
       ],
-      [...ids, ...linkedDiet],
-      { distribution },
+      [taskSource, ...ids, ...linkedDiet],
+      { distribution, taskId: task.id },
     )
   }
   const completionRecords = new Set()
   for (const reminder of input.reminders) {
+    const planSource=add({id:`medication-plan:${reminder.id}`,category:'medication-plan',title:`${reminder.plan.medicationName} · 用药计划`,text:`原记录计划：${reminder.plan.medicationName}；开始 ${reminder.plan.startDate}；结束 ${reminder.plan.endDate||'未提供'}；计划用量 ${reminder.plan.amount} ${reminder.plan.unit}；${statuses[reminder.plan.route]??reminder.plan.route}；${reminder.plan.times.join('、')}。计划不代表已使用。`,occurredAt:null,createdAt:date(reminder.createdAt),updatedAt:date(reminder.updatedAt),identity:'家长用药计划',destinations:['medication']})
     const due = reminder.occurrences.filter(
       (o) => Date.parse(o.scheduledAt) <= now.getTime(),
     )
@@ -580,17 +601,18 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     )
     const ids = due.map((o) => {
       if (o.completion?.recordId) completionRecords.add(o.completion.recordId)
+      const linked=records.find(r=>r.id===o.completion?.recordId)
       return add({
         id: `dose:${o.id}`,
         category: 'medication',
         title: reminder.plan.medicationName,
-        text: `计划：${displayTime(o.scheduledAt)}；${o.completed ? '确认已服，实际时间 ' + displayTime(o.completion.actualTakenAt) : '尚未确认'}；计划用量 ${reminder.plan.amount} ${reminder.plan.unit}，${statuses[reminder.plan.route]??reminder.plan.route}${records.some(r=>r.id===o.completion?.recordId)?'\n关联的实际服用记录：'+recordText(records.find(r=>r.id===o.completion.recordId)):''}`,
+        text: `计划：${displayTime(o.scheduledAt)}；${o.completed ? '确认已服，实际时间 ' + displayTime(o.completion.actualTakenAt) : '尚未确认'}；计划用量 ${reminder.plan.amount} ${reminder.plan.unit}，${statuses[reminder.plan.route]??reminder.plan.route}${linked?'\n关联的实际服用记录：'+recordText(linked):o.completion?.recordId?'\n关联的使用记录已失效，以上仅保留独立执行确认。':''}${linked && linked.occurredAt!==o.completion?.actualTakenAt?'\n关联使用记录发生时间：'+displayTime(linked.occurredAt)+'；与执行确认时间不同，待核对。':''}`,
         occurredAt: o.completion?.actualTakenAt ?? null,
-        createdAt: reminder.createdAt,
+        createdAt: o.completed ? o.completion?.completedAt ?? null : reminder.createdAt,
         updatedAt: reminder.updatedAt,
         identity: o.completed ? '家长执行确认' : '计划节点（不是服用事实）',
-        recordId: o.completion?.recordId,
-        eventId: o.completion?.eventId,
+        recordId: linked?.id,
+        eventId: linked?.eventId,
         destinations: ['medication'],
       })
     })
@@ -602,8 +624,9 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         `分母为截至 ${displayTime(now.toISOString())} 已到期的 ${due.length} 个计划节点；未来 ${future.length} 个节点另列。`,
         '现有执行接口不提供“明确未服”状态，未确认不会归为漏服。',
       ],
-      ids,
+      [planSource,...ids],
       {
+        reminderId: reminder.id,
         distribution: [
           { label: '确认已服', count: due.filter((o) => o.completed).length },
           { label: '尚未确认', count: due.filter((o) => !o.completed).length },
@@ -618,7 +641,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
           (o) =>
             `${displayTime(o.scheduledAt)} · ${reminder.plan.medicationName}`,
         ),
-        [],
+        [planSource],
       )
   }
   for (const r of records.filter(
@@ -716,6 +739,13 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       identity: '原始附件',
       destinations: ['sources'],
     })
+  for(const resource of input.profileResources??[])add({
+    id:`profile-image:${resource.resourceId}`,category:'attachment',title:resource.title,
+    text:`家长保存的档案原件；${resource.mimeType}。不代表已完整解析。`,
+    profileSection:resource.sectionId,relatedSourceIds:[resource.parentId],
+    contentPath:`/api/members/${encodeURIComponent(input.member.id)}/visit-sheet/resources/${resource.resourceId}`,
+    mimeType:resource.mimeType,createdAt:resource.uploadedAt,identity:'家长保存的档案原件',destinations:[profileDestination(resource.sectionId)],
+  })
   // Preserve legacy summaries as explicitly labelled sources, never as counted symptom/measurement facts.
   for (const e of input.events.filter((e) => e.medicalPreparation))
     add({
@@ -739,7 +769,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       s.summary = s.blocks.length
         ? '根据已保存资料整理；全部提炼保留来源入口。'
         : '本章暂无可读取资料。未提供不等于没有相关经历。'
-  return {
+  return refineVisitSheet({
     memberId: input.member.id,
     member: {
       name: input.member.name,
@@ -762,5 +792,5 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     generatedAt: now.toISOString(),
     fingerprint: reportFingerprint(input, now),
     changes: [],
-  }
+  }, input, preferences)
 }

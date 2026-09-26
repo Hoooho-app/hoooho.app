@@ -754,6 +754,13 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  const visitResourceMatch=/^\/api\/members\/([^/]+)\/visit-sheet\/resources\/([a-f0-9]{24})$/.exec(pathname)
+  if(visitResourceMatch){
+    if(request.method!=='GET'){sendEmpty(response,405);return true}
+    const result=await visitSheets.readProfileResource(await readAccountId(request),decodeRouteValue(visitResourceMatch[1]),visitResourceMatch[2])
+    response.writeHead(200,{'Content-Type':result.mimeType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Length':result.buffer.length})
+    response.end(result.buffer);return true
+  }
   const visitSheetMatch = /^\/api\/members\/([^/]+)\/visit-sheet$/.exec(pathname)
   if (visitSheetMatch) {
     const accountId = await readAccountId(request)

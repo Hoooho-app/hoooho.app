@@ -9,6 +9,7 @@ export interface VisitSheetUpdate {
   requestId: string
   focus?: VisitFocus
   question?: string
+  selectedPhotoIds?: string[]
   notes?: Partial<Record<VisitChapterId, string>>
 }
 export const visitSheetService = {

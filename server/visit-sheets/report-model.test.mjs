@@ -24,9 +24,9 @@ test('主诉同步改变分母、病程和引用，其他来源保留，自填�
     )
   assert.equal(b.focusSourceIds.length, 2)
   assert.equal(a.focusSourceIds.length, 6)
-  assert.equal(chapter(b, 'course').blocks.length, 2)
+  assert.equal(chapter(b, 'course').blocks.filter(b=>!b.distribution).length, 2)
   assert.equal(
-    chapter(b, 'overview').blocks[1].distribution.reduce(
+    chapter(b, 'course').blocks.find(b=>b.distribution).distribution.reduce(
       (n, c) => n + c.count,
       0,
     ),

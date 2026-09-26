@@ -15,6 +15,13 @@ export interface VisitFocus {
 }
 export interface VisitSource {
   id: string
+  code?: string
+  locations?: string[]
+  symptomCategory?: string | null
+  relatedSourceIds?: string[]
+  narrative?: string
+  impactLevel?: string | null
+  timePrecision?: string
   category: string
   title: string
   text: string
@@ -26,6 +33,7 @@ export interface VisitSource {
   recordId?: string
   attachmentId?: string
   mimeType?: string
+  contentPath?: string
   profileSection?: string
   taskId?: string
   destinations: VisitChapterId[]
@@ -44,6 +52,21 @@ export interface VisitBlock {
   distribution?: Array<{ label: string; count: number }>
   unit?: string
   points?: VisitPoint[]
+  secondary?: boolean
+  related?: boolean
+  chartMode?: 'scatter'
+  distributionNote?: string
+  entries?: Array<{ title: string; lines: string[]; sourceIds: string[] }>
+}
+export interface VisitPhoto {
+  sourceId: string
+  relatedSourceIds: string[]
+  title: string
+  location: string
+  capturedAt: string | null
+  uploadedAt: string | null
+  timeKind: string
+  mimeType: string
 }
 export interface VisitChapter {
   id: VisitChapterId
@@ -56,6 +79,19 @@ export interface VisitSheet {
   memberId: string
   version: number
   generatedAt: string
+  editedAt?: string
+  schemaVersion?: number
+  scope?: string
+  photoKey?: string
+  photos?: VisitPhoto[]
+  photoCandidates?: string[]
+  selectedPhotoIds?: string[]
+  photoSelections?: Record<string, string[]>
+  gaps?: string[]
+  questionEdited?: boolean
+  questionOrigin?: string
+  questionSourceIds?: string[]
+  sourceGroups?: Array<{category: string; sourceIds: string[]}>
   dataAsOf: string
   timezone: string
   fingerprint: string
@@ -78,6 +114,7 @@ export interface VisitSheet {
   }>
   changes: Array<{
     sourceId: string
+    sourceIds?: string[]
     before: string
     after: string
     at: string

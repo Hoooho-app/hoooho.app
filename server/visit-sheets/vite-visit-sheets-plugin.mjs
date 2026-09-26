@@ -9,7 +9,7 @@ export function visitSheetsApiPlugin(options = {}) {
     name: 'hoooho-local-visit-sheets',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const match = /^\/api\/members\/([^/]+)\/visit-sheet$/.exec(
+        const match = /^\/api\/members\/([^/]+)\/visit-sheet(?:\/resources\/([a-f0-9]{24}))?$/.exec(
           (req.url ?? '').split('?')[0],
         )
         if (!match) return next()
@@ -25,6 +25,11 @@ export function visitSheetsApiPlugin(options = {}) {
           )
           if (!payload) return send(401, { error: { message: '请重新登录' } })
           const memberId = decodeURIComponent(match[1])
+          if(match[2]){
+            if(req.method!=='GET')return send(405,{error:{message:'请求方法不支持'}})
+            const result=await service.readProfileResource(payload.sub,memberId,match[2])
+            res.statusCode=200;res.setHeader('Content-Type',result.mimeType);res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.end(result.buffer);return
+          }
           if (req.method === 'GET')
             return send(200, await service.get(payload.sub, memberId))
           if (req.method !== 'PUT')

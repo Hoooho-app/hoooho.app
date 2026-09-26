@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile, access, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
+import sharp from 'sharp'
 import { visitFixture } from '../../server/visit-sheets/fixtures.mjs'
 import { buildOccurrences } from '../../server/medication-reminders/medication-reminder-service.mjs'
 const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-visit-e2e-'))
@@ -16,6 +17,12 @@ setInterval(
 const f = visitFixture(),
   now = new Date().toISOString(),
   accountId = f.member.accountId
+// Synthetic aspect-ratio fixtures: colored geometry, never clinical imagery.
+const imageFixtures=[]
+for(const [i,[width,height,color]] of [[360,960,'#1b7a6e'],[1000,260,'#a66922'],[480,480,'#526966']].entries()){
+  const buffer=await sharp({create:{width,height,channels:3,background:color}}).png().toBuffer()
+  imageFixtures.push({id:`v5-image-${i}`,eventId:'event-a',recordId:i===2?'s0':'s7',name:`测试原图-${i}.png`,mimeType:'image/png',createdAt:`2026-09-${20+i}T10:00:00Z`,dataUrl:`data:image/png;base64,${buffer.toString('base64')}`,width,height})
+}
 const seed = async (file, data) =>
   writeFile(path.join(dataDirectory, file), JSON.stringify(data), 'utf8')
 await seed('.cleanup-test-data-2026-08-09-v1', { fixture: true })
@@ -110,12 +117,12 @@ await seed('desensitization-tests.json', {
   ),
 })
 await seed('event-attachments.json', {
-  attachments: f.attachments.map((a) => ({
+  attachments: [...f.attachments.map((a) => ({
     ...a,
     accountId,
     memberId: f.member.id,
     storageKey: 'missing-fixture.png',
-  })),
+  })),...imageFixtures.map(a=>({...a,accountId,memberId:f.member.id}))],
 })
 process.env.DATA_DIRECTORY = dataDirectory
 process.env.AUTH_TOKEN_SECRET = 'visit-sheet-e2e-secret'
