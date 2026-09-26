@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile } from 'node:fs/promises'
-import { chromium, devices } from '@playwright/test'
+import { chromium, devices, expect } from '@playwright/test'
 import {pathToFileURL} from 'node:url'
 import path from 'node:path'
 
@@ -38,7 +38,7 @@ try{
   const record=await api(`/api/events/${eventId}/records`,{type:'note',sourceType:'user_record',content:'发布验收：肘窝皮肤发红',occurredAt,journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'发布验收：肘窝皮肤发红',locations:[],descriptors:[],impactLevel:'little'}}})
   recordIds.push(record.id)
   await page.goto(`${baseURL}/nurse-station`)
-  await page.getByRole('button',{name:'就诊情况单',exact:true}).click()
+  await page.getByRole('link',{name:'就诊情况单',exact:true}).click()
   await page.getByRole('heading',{name:'病情数据',exact:true}).waitFor()
   const initial=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')
   assert.equal(initial.report.complaintSourceId,`record:${record.id}`)
@@ -60,7 +60,7 @@ try{
     await page.getByRole('button',{name:'章节目录',exact:true}).click()
     await page.getByRole('dialog',{name:'章节目录'}).getByRole('button',{name:new RegExp(title)}).click()
     await page.getByRole('heading',{name:title,exact:true}).waitFor()
-    assert.ok((await page.getByRole('heading',{name:title,exact:true}).boundingBox()).y<180)
+    await expect.poll(async()=>{const box=await page.getByRole('heading',{name:title,exact:true}).boundingBox();return !!box&&box.y>=56&&box.y<180},{message:`目录定位完成：${title}`}).toBe(true)
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
   }
   await page.getByRole('button',{name:'补充 / 校订 · 附件与完整依据',exact:true}).click()
