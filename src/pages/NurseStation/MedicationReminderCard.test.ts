@@ -51,6 +51,16 @@ test('今日与整个疗程完成使用准确的按钮状态且撤回后可恢�
   const value = reminder(2)
   value.occurrences[0] = { ...value.occurrences[0], completed: true }
   value.occurrences[1] = { ...value.occurrences[1], completed: true }
+  value.completions = value.occurrences.slice(0, 2).map((occurrence, index) => ({
+    id: `completion-${index}`,
+    occurrenceId: occurrence.id,
+    scheduledAt: occurrence.scheduledAt,
+    actualTakenAt: occurrence.scheduledAt,
+    completedAt: occurrence.scheduledAt,
+    undoneAt: null,
+    eventId: `event-${index}`,
+    recordId: `record-${index}`
+  }))
   value.nextOccurrence = value.occurrences[2]
   let state = reminderActionState(value, new Date('2026-09-01T20:01:00.000Z'))
   assert.deepEqual({ label: state.takeLabel, todayDone: state.todayDone, count: state.todayCompleted }, { label: '今日已完成', todayDone: true, count: 2 })
@@ -62,4 +72,27 @@ test('今日与整个疗程完成使用准确的按钮状态且撤回后可恢�
   value.nextOccurrence = value.occurrences[0]
   state = reminderActionState(value, new Date('2026-09-02T20:01:00.000Z'))
   assert.deepEqual({ label: state.takeLabel, due: state.due }, { label: '已服用', due: true })
+})
+
+test('补记逾期服用后按实际服用日更新今日计数', () => {
+  const value = reminder(2)
+  value.occurrences = [value.occurrences[0], value.occurrences[3]]
+  const completion = {
+    id: 'completion-overdue',
+    occurrenceId: value.occurrences[0].id,
+    scheduledAt: value.occurrences[0].scheduledAt,
+    actualTakenAt: '2026-09-02T00:01:00.000Z',
+    completedAt: '2026-09-02T00:01:00.000Z',
+    undoneAt: null,
+    eventId: 'event-overdue',
+    recordId: 'record-overdue'
+  }
+  value.completions = [completion]
+  value.occurrences[0] = { ...value.occurrences[0], completed: true, completion }
+  value.nextOccurrence = value.occurrences[1]
+
+  const state = reminderActionState(value, new Date('2026-09-02T00:01:00.000Z'))
+  assert.deepEqual({ count: state.todayCompleted, total: state.todayTotal }, { count: 1, total: 1 })
+  value.completions[0] = { ...value.completions[0], undoneAt: '2026-09-02T00:02:00.000Z' }
+  assert.equal(reminderActionState(value, new Date('2026-09-02T00:02:00.000Z')).todayCompleted, 0)
 })
