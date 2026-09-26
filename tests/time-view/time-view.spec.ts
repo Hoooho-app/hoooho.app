@@ -385,6 +385,23 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
   expect(sleepStartBox!.width).toBeGreaterThanOrEqual(90)
   expect(sleepEndBox!.width).toBeGreaterThanOrEqual(90)
   expect(sleepEndBox!.x - (sleepStartBox!.x + sleepStartBox!.width)).toBeGreaterThanOrEqual(14)
+  const mobileTimeControls = await setup.locator('.routine-time-control').evaluateAll((controls) => controls.slice(0, 2).map((control) => {
+    const controlBox = control.getBoundingClientRect()
+    const input = control.querySelector<HTMLInputElement>("input[type='time']")!
+    const inputBox = input.getBoundingClientRect()
+    const controlStyle = getComputedStyle(control)
+    const inputStyle = getComputedStyle(input)
+    return {
+      clipsNativeControl: controlStyle.overflow === 'hidden',
+      hasOwnBorder: Number.parseFloat(controlStyle.borderLeftWidth) >= 1,
+      inputWithinControl: inputBox.left >= controlBox.left && inputBox.right <= controlBox.right,
+      nativeAppearanceRemoved: inputStyle.appearance === 'none' || inputStyle.webkitAppearance === 'none'
+    }
+  }))
+  expect(mobileTimeControls).toEqual([
+    { clipsNativeControl: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true },
+    { clipsNativeControl: true, hasOwnBorder: true, inputWithinControl: true, nativeAppearanceRemoved: true }
+  ])
   const routineLayout = await setup.locator('.routine-setup-row').first().evaluate((row) => {
     const rowBox = row.getBoundingClientRect()
     const fieldsBox = row.querySelector('.routine-time-fields')!.getBoundingClientRect()

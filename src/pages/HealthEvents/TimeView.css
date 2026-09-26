@@ -692,8 +692,11 @@
 .routine-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--hoho-space-2); padding: 0 0 var(--hoho-space-1); }
 @media (max-width: 480px) {
   .routine-time-fields { column-gap: var(--hoho-space-4); }
-  .routine-time-fields > label, .routine-time-control { width: 100%; }
-  .routine-setup-row label input[type='time'] { display: block; margin: 0; }
+  .routine-time-fields > label { width: 100%; overflow: hidden; }
+  .routine-time-control { width: 100%; max-width: 100%; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); isolation: isolate; }
+  .routine-time-control:focus-within { border-color: rgb(var(--hoho-color-primary)); box-shadow: 0 0 0 2px rgb(var(--hoho-color-primary) / .12); }
+  .routine-setup-row label input[type='time'] { display: block; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 0; background: transparent; text-align: center; }
+  .routine-setup-row label input[type='time']::-webkit-date-and-time-value { min-width: 0; text-align: center; }
 }
 .routine-disabled-copy { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); white-space: nowrap; }
 .routine-custom-title { display: flex; min-width: 0; align-items: center; gap: 2px; }
