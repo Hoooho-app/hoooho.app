@@ -154,6 +154,11 @@
 .guardian-task-empty div { display: grid; gap: 3px; }
 .guardian-task-empty strong { color: #17322e; font-size: 14px; }
 .guardian-task-empty span { color: #71847f; font-size: 12px; }
+.guardian-task-empty--create > div { min-width: 0; flex: 1; }
+.guardian-task-empty-add { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; margin-left: auto; border-radius: 50%; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+.guardian-task-empty-add svg { width: 20px; height: 20px; }
+.guardian-task-empty-add:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: 2px; }
+.guardian-task-empty-add:disabled { color: rgb(var(--hoho-color-text-tertiary)); }
 .guardian-task-empty--unavailable { border-style: solid; border-color: #e0e7e5; background: #f6f8f7; color: #8a9996; }
 
 .medication-course-card { position: relative; width: 100%; overflow: hidden; border-radius: 12px; background: #edf4f2; }
