@@ -7,7 +7,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 
 const baseURL = process.argv[2]
-if (!['https://hoooho.com', 'https://staging.hoooho.com', 'https://hooohoapp-staging.up.railway.app'].includes(baseURL)) throw new Error('Explicit verified target required')
+if (!['http://127.0.0.1:4196', 'https://hoooho.com', 'https://staging.hoooho.com', 'https://hooohoapp-staging.up.railway.app'].includes(baseURL)) throw new Error('Explicit verified target required')
 const browser=await chromium.launch()
 const context=await browser.newContext({...devices['iPhone SE (3rd gen)'],timezoneId:'Asia/Shanghai'})
 const page=await context.newPage(), failures=[]
@@ -30,7 +30,19 @@ try{
   await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`情况单验收${randomUUID().slice(0,6)}`)
   await page.getByPlaceholder('设置一个密码').fill(randomUUID())
-  await page.getByRole('button',{name:'注册并进入'}).click()
+  for(let attempt=0;attempt<3;attempt++){
+    const pendingRegistration=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST')
+    await page.getByRole('button',{name:'注册并进入'}).click()
+    const response=await pendingRegistration
+    if(response.ok())break
+    const error=(await response.json().catch(()=>({}))).error
+    const retryAfter=Number(error?.retryAfter)
+    assert.ok(response.status()===429&&error?.code==='REGISTER_RATE_LIMITED'&&retryAfter>0&&retryAfter<=900&&attempt<2,`Registration unavailable: HTTP ${response.status()}, code ${error?.code??'unknown'}`)
+    // Respect the server's window; keep the same form/session and never alter rate-limit identity.
+    let remaining=(retryAfter+2)*1000
+    console.log(`Registration rate limited; respecting retryAfter=${retryAfter}s`)
+    while(remaining>0){const pause=Math.min(remaining,30000);await new Promise(resolve=>setTimeout(resolve,pause));remaining-=pause;console.log(`Registration retry wait remaining=${Math.ceil(remaining/1000)}s`)}
+  }
   await page.waitForURL(/nurse-station/)
   memberId=(await api('/api/members',{name:'情况单验收（合成）',relationship:'child',birthday:'2024-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId})
@@ -39,7 +51,7 @@ try{
   const record=await api(`/api/events/${eventId}/records`,{type:'note',sourceType:'user_record',content:'发布验收：肘窝皮肤发红',occurredAt,journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'发布验收：肘窝皮肤发红',locations:[],descriptors:[],impactLevel:'little'}}})
   recordIds.push(record.id)
   await page.goto(`${baseURL}/nurse-station`)
-  await page.getByRole('link',{name:'就诊情况单',exact:true}).click()
+  await page.getByRole('link',{name:'就诊情况单，就诊前，一页理清病情',exact:true}).click()
   await page.getByRole('heading',{name:'病情数据',exact:true}).waitFor()
   const initial=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')
   assert.equal(initial.report.complaintSourceId,`record:${record.id}`)
