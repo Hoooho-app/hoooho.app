@@ -11,11 +11,26 @@ if (!['http://127.0.0.1:4196', 'https://hoooho.com', 'https://staging.hoooho.com
 const browser=await chromium.launch()
 const context=await browser.newContext({...devices['iPhone SE (3rd gen)'],timezoneId:'Asia/Shanghai'})
 const page=await context.newPage(), failures=[]
+const started=new WeakMap()
+const safePath=url=>new URL(url).pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,':id')
+page.on('request',r=>started.set(r,Date.now()))
+page.on('requestfinished',r=>{const elapsed=Date.now()-(started.get(r)??Date.now());if(r.url().startsWith(baseURL+'/api/')&&elapsed>5000)console.log(`Slow API ${r.method()} ${safePath(r.url())}: ${elapsed}ms`)})
+page.on('requestfailed',r=>{if(r.url().startsWith(baseURL+'/api/'))console.log(`API transport failure ${r.method()} ${safePath(r.url())}: ${r.failure()?.errorText??'unknown'}`)})
 page.on('pageerror',()=>failures.push('pageerror'))
 page.on('response',r=>{if(r.status()>=500)failures.push(`${new URL(r.url()).pathname}: ${r.status()}`)})
 await mkdir('outputs/visit-sheet-v6',{recursive:true})
 const prefix=`outputs/visit-sheet-v6/${new URL(baseURL).hostname}`
-let memberId,eventId,recordIds=[],attachmentEvents=[]
+let memberId,eventId,recordIds=[],attachmentEvents=[],readRetries=0
+async function waitForReport(){
+  const heading=page.getByRole('heading',{name:'病情数据',exact:true})
+  await expect(heading.or(page.getByText('情况单暂时无法打开',{exact:true}))).toBeVisible({timeout:35000})
+  if(await heading.isVisible())return
+  readRetries++
+  console.log('Report load showed a recoverable error; testing one explicit UI retry')
+  await page.screenshot({path:`${prefix}-read-retry-${readRetries}.png`})
+  await page.getByRole('button',{name:'重试',exact:true}).click()
+  await expect(heading).toBeVisible({timeout:35000})
+}
 async function api(url,body,method='POST'){
   return page.evaluate(async({url,body,method})=>{
     const session=await(await fetch('/api/auth/session')).json()
@@ -52,7 +67,7 @@ try{
   recordIds.push(record.id)
   await page.goto(`${baseURL}/nurse-station`)
   await page.getByRole('link',{name:'就诊情况单，就诊前，一页理清病情',exact:true}).click()
-  await page.getByRole('heading',{name:'病情数据',exact:true}).waitFor()
+  await waitForReport()
   const initial=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')
   assert.equal(initial.report.complaintSourceId,`record:${record.id}`)
   assert.equal(initial.report.chapters.length,9)
@@ -66,7 +81,7 @@ try{
   await page.getByRole('heading',{name:'合成验收：希望核对下一次记录',exact:true}).waitFor()
   await page.goto(`${baseURL}/health-events`)
   await page.getByRole('button',{name:'就诊情况单，孩子情况快速整理',exact:true}).click()
-  await page.getByRole('heading',{name:'病情数据',exact:true}).waitFor()
+  await waitForReport()
   const updated=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')
   assert.equal(updated.report.id,initial.report.id);assert.equal(updated.report.version,initial.report.version+1);assert.equal(updated.report.focus.mode,'custom')
   for(const title of ['病程与变化','用药与处理','过敏与饮食观察','既往与相关背景','体温记录','成长与日常','就诊与检查','附件与完整依据']){
@@ -105,7 +120,7 @@ try{
   await offline.getByRole('button',{name:'编辑本次想问',exact:true}).click();await offline.getByRole('textbox',{name:'本次想问',exact:true}).fill('离线问题（合成）');await offline.getByRole('button',{name:'保存本地修改'}).click();await offline.reload()
   assert.equal(await offline.locator('#copy-question').textContent(),'离线问题（合成）');await offlineContext.close()
   assert.deepEqual(failures,[])
-  console.log(JSON.stringify({target:baseURL,health:'PASS',bothEntries:'PASS',autoGenerate:'PASS',persistedFocus:'PASS',persistedQuestion:'PASS',realPhotoUploadSaveReload:'PASS',nineChapters:'PASS',defaultCollapsed:'PASS',offlineOpenEditReload:'PASS',widths:[320,375,390,420,430,1280],runtimeErrors:0}))
+  console.log(JSON.stringify({target:baseURL,health:'PASS',bothEntries:'PASS',autoGenerate:'PASS',persistedFocus:'PASS',persistedQuestion:'PASS',realPhotoUploadSaveReload:'PASS',nineChapters:'PASS',defaultCollapsed:'PASS',offlineOpenEditReload:'PASS',widths:[320,375,390,420,430,1280],readRetries,runtimeErrors:0}))
 }catch(error){await page.screenshot({path:`${prefix}-failure.png`}).catch(()=>{});throw error}
 finally{
   // Only identifiers created above in this isolated synthetic account are removed.

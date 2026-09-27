@@ -124,9 +124,9 @@ function VisitSheetReader({
           }
         } else
           setError(
-            reason instanceof Error
+            reason instanceof Error && !/abort|fetch|timeout|timed out/i.test(reason.message)
               ? reason.message
-              : '首次整理没有完成，请重试',
+              : '情况单读取超时或连接中断，请重试。已有资料未修改。',
           )
       }
     } finally {
@@ -180,7 +180,7 @@ function VisitSheetReader({
           }
         }
         setError(
-          `${reason instanceof Error&&!/abort|fetch|timeout/i.test(reason.message) ? reason.message : '保存结果暂未确认，请重试核验'}。原报告仍可阅读，填写内容保留。`,
+          `${reason instanceof Error&&!/abort|fetch|timeout|timed out/i.test(reason.message) ? reason.message : '保存结果暂未确认，请重试核验'}。原报告仍可阅读，填写内容保留。`,
         )
       }
       return false

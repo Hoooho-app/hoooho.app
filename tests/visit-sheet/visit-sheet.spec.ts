@@ -23,6 +23,25 @@ test('用药剂量与体温数值写回真实结构化字段',async({page})=>{
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({
   id: 'visit-test',
 })
+test('读取超时显示可理解提示并可重试恢复原报告',async({page})=>{
+  await enter(page)
+  const headers={Authorization:`Bearer ${token}`}
+  const before=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()
+  await page.addInitScript(()=>{
+    const original=window.fetch.bind(window);let failNext=true
+    window.fetch=(input,init)=>{
+      if(failNext&&String(input).endsWith('/visit-sheet')){failNext=false;return Promise.reject(new DOMException('signal timed out','TimeoutError'))}
+      return original(input,init)
+    }
+  })
+  await page.reload()
+  await expect(page.getByText('情况单读取超时或连接中断，请重试。已有资料未修改。',{exact:true})).toBeVisible()
+  await expect(page.getByText('signal timed out',{exact:true})).toHaveCount(0)
+  await page.getByRole('button',{name:'重试',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'病情数据',exact:true})).toBeVisible()
+  const after=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()
+  expect(after.report.id).toBe(before.report.id);expect(after.report.version).toBe(before.report.version)
+})
 async function enter(page: Page, member = 'child-a') {
   await page.addInitScript(
     ({ token, member }) => {
