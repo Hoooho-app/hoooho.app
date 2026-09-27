@@ -1,0 +1,18 @@
+.medication-course-card--readonly{margin:12px 0;border:1px solid rgb(var(--hoho-color-border));border-radius:12px;background:rgb(var(--hoho-color-surface));overflow:hidden}
+.medication-course-card--readonly .medication-course-card__surface{padding:12px;border:0;transform:none;will-change:auto;transition:none}
+.medication-course-card--readonly h3{display:flex;gap:8px;align-items:center;font-size:16px;line-height:1.5;margin:0}
+.medication-course-card--readonly h3 svg{width:18px;height:18px;color:rgb(var(--hoho-color-primary));flex-shrink:0}
+.medication-course-card--readonly p{font-size:13px;line-height:1.6;margin:6px 0;color:rgb(var(--hoho-color-text-secondary))}
+.medication-course-card--readonly .medication-course-card__course{padding:10px 0 0;border-top:1px solid rgb(var(--hoho-color-border))}
+.medication-course-card--readonly .medication-course-card__week-rows{display:grid;gap:10px}
+.medication-course-card--readonly .medication-course-card__week{padding:8px;margin:6px 0;border:1px solid rgb(var(--hoho-color-border));border-radius:8px;background:rgb(var(--hoho-color-surface-muted))}
+.medication-course-card--readonly .medication-course-card__week>span{display:block;font-size:12px;margin-bottom:8px;line-height:1.5;color:rgb(var(--hoho-color-text-secondary))}
+.medication-course-card--readonly .medication-course-card__days{display:grid;gap:3px}
+.medication-course-card--readonly .medication-course-card__day{display:grid;min-width:0;align-content:start;gap:3px;text-align:center}
+.medication-course-card--readonly .medication-course-card__day small{font-size:10px;white-space:nowrap;color:rgb(var(--hoho-color-text-secondary))}
+.medication-course-card--readonly .medication-course-card__day button,.medication-course-card--readonly .medication-course-card__day a{display:grid;place-items:center;min-height:32px;width:100%;padding:0;border-radius:4px;background:#e9eeed;font-size:14px;color:#53635e;text-decoration:none}
+.medication-course-card--readonly .medication-course-card__day .is-completed{background:rgb(var(--hoho-color-primary));color:white}
+.medication-course-card--readonly .medication-course-card__day .is-future{background:#f2f5f4;color:#6d7975}
+.medication-course-card--readonly .medication-course-card__day .is-empty{display:block;height:32px;background:transparent;border:0}
+.medication-course-card--readonly summary{padding:10px 0;cursor:pointer;color:rgb(var(--hoho-color-primary));font-size:13px}
+@media print{.medication-course-card--readonly{break-inside:auto}.medication-course-card--readonly .medication-course-card__week{break-inside:avoid}}

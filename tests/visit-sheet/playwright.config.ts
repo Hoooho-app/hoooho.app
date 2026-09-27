@@ -14,6 +14,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    {name:'strictmode-se',testMatch:'strictmode.spec.ts',use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium',baseURL:'http://127.0.0.1:4197'}},
     {
       name: 'iphone-se',
       use: { ...devices['iPhone SE (3rd gen)'], browserName: 'chromium' },

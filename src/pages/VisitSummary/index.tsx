@@ -21,10 +21,12 @@ import type {
 } from '../../types/visitSheet'
 import { SourceRecordEditor } from './SourceRecordEditor'
 import { ApiRequestError } from '../../services/apiClient'
-import { ReportChapter, reportTime, SourceText } from './ReportChapter'
+import { ReportChapter, reportTime, SourceText, sourceCategoryLabel } from './ReportChapter'
 import { downloadReport, printReport, reportText, summaryText, downloadContent, type ExportResources } from './reportExport'
 import { ReportPhotos, PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
+import { ReportDirectory } from './ReportDirectory'
+import nursePortrait from '../../assets/nurse-triage/nurse-station-idle-1-poster.webp'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
@@ -59,14 +61,15 @@ function VisitSheetReader({
     [error, setError] = useState('')
   const [active, setActive] = useState<VisitChapterId>('overview'),
     [menu, setMenu] = useState(false),
-    [editing, setEditing] = useState<'focus' | 'note' | null>(null),
+    [editing, setEditing] = useState<'focus' | 'question' | null>(null),
     [exporting, setExporting] = useState(false)
   const [evidence, setEvidence] = useState<string[] | null>(null),
     [sourceEdit, setSourceEdit] = useState<VisitSource | null>(null),
     [search, setSearch] = useState(''),
     [notice, setNotice] = useState('')
-  const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null),[editChapter,setEditChapter]=useState<VisitChapterId>('overview')
+  const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
   const parentEvidence=useRef<string[]|null>(null)
+  const pendingSave=useRef<{key:string;requestId:string}|null>(null)
   const modalTrigger=useRef<HTMLElement|null>(null)
   const scroll = useRef<HTMLDivElement>(null),
     version = useRef(0)
@@ -144,18 +147,21 @@ function VisitSheetReader({
     setWorking(true)
     setError('')
     try {
+      const key=JSON.stringify(changes)
+      if(pendingSave.current?.key!==key)pendingSave.current={key,requestId:crypto.randomUUID()}
       const result = await visitSheetService.save(
         memberId,
         token,
         {
           ...changes,
           expectedVersion: version.current,
-          requestId: crypto.randomUUID(),
+          requestId: pendingSave.current.requestId,
         },
         controller.current?.signal,
       )
       if (!alive.current) return false
       accept(result)
+      pendingSave.current=null
       setNotice('情况单已更新')
       return true
     } catch (reason) {
@@ -174,7 +180,7 @@ function VisitSheetReader({
           }
         }
         setError(
-          `${reason instanceof Error ? reason.message : '更新失败'}。这次更新没有完成，原报告仍保留。`,
+          `${reason instanceof Error&&!/abort|fetch|timeout/i.test(reason.message) ? reason.message : '保存结果暂未确认，请重试核验'}。原报告仍可阅读，填写内容保留。`,
         )
       }
       return false
@@ -269,10 +275,7 @@ function VisitSheetReader({
                 </p>
               </div>
             </div>
-            <p className="visit-report-meta">
-              资料截至 {reportTime(report.dataAsOf, report.timezone)} · v
-              {report.version}
-            </p>
+            <div className="visit-nurse-signature"><img src={nursePortrait} alt="Hoooho 虚拟护士"/><div><p>由 Hoooho 虚拟护士整理 · 依据家长记录</p><small>资料截至 {reportTime(report.dataAsOf, report.timezone)} · 非医护审核</small></div></div>
             {state?.stale && (
               <StatusNotice
                 title="有新资料待同步"
@@ -301,10 +304,12 @@ function VisitSheetReader({
                 <p className="visit-focus-meta">{report.focus.mode==='custom'?'家长本次陈述':`${report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.timeKind || '记录时间'} ${reportTime(report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.at??null)}`}</p>
               </section>
               <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
+              <section className="visit-question"><div className="visit-section-actions"><h2>本次想问</h2><button onClick={()=>{setError('');setEditing('question')}}>编辑本次想问</button></div><p>{report.question||'尚未填写'}</p><small>{report.questionOrigin||'家长填写'}</small>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>openEvidence(report.questionSourceIds!)}>查看问题原话</button>}</section>
               </>:undefined} trailing={<>
-            {chapter.id==='overview'&&<details className="visit-fact-block"><summary>集中核对资料缺口</summary>{report.gaps?.map(g=><p key={g}>{g}</p>)}</details>}
             {chapter.id === 'sources' && (
               <>
+                <div className="visit-source-categories">{report.sourceGroups?.map(group=><button key={group.category} onClick={()=>{const detail=scroll.current?.querySelector<HTMLDetailsElement>('[data-all-sources]');if(detail){detail.open=true;requestAnimationFrame(()=>scroll.current?.querySelector(`[data-source-category="${group.category}"]`)?.scrollIntoView({block:'start'}))}}}>{sourceCategoryLabel(group.category)} · {group.sourceIds.length} ›</button>)}</div>
+                <details className="visit-chapter-details" data-all-sources><summary>查看全部 {sources.length} 项来源</summary>
                 <label className="visit-source-search">
                   检索全部资料
                   <input
@@ -316,7 +321,7 @@ function VisitSheetReader({
                 <p className="visit-muted">
                   {report.scope} 搜索只影响阅读；导出照片范围另行核对。
                 </p>
-                {[...new Set(sources.map(s=>s.category))].map(category=><section className="visit-source-group" key={category}>
+                {[...new Set(sources.map(s=>s.category))].map(category=><section className="visit-source-group" data-source-category={category} key={category}>
                 <h3>{{record:'健康记录',course:'症状与病程记录',temperature:'体温记录',allergy:'过敏与观察记录',history:'既往记录',visits:'就诊检查记录',attachment:'附件原件索引',profile:'健康档案',fact:'结构化健康事实',growth:'成长测量',medication:'用药与执行记录','medication-plan':'用药计划','observation-plan':'观察计划',observation:'观察结果',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养记录',examination:'检查档案',hospitalization:'住院史',vaccination:'接种史',legacy:'旧版情况单'}[category]||'其他档案资料'} · {sources.filter(s=>s.category===category).length} 项资料</h3>
                 <p className="visit-muted">资料项数不等于症状次数、服药次数或病情程度。</p>
                 {sources.filter(s=>s.category===category)
@@ -359,20 +364,9 @@ function VisitSheetReader({
                     ))}
                   </details>
                 )}
+                </details>
               </>
             )}
-            <HohoButton
-              variant="text"
-              onClick={() => {
-                setError('')
-                setEditChapter(chapter.id)
-                setEditing('note')
-              }}
-            >
-              {chapter.id === 'overview'
-                ? '编辑本次想问 / 补充报告说明'
-                : `补充 / 校订 · ${chapter.title}`}
-            </HohoButton>
             </>}/>)}
             <footer className="visit-report-footer">
               <p>来自已保存的资料，用于就医沟通。</p>
@@ -389,32 +383,11 @@ function VisitSheetReader({
           </p>
         )}
       </div>
-      <BottomSheetSurface
-        open={menu}
-        label="章节目录"
-        title="报告目录"
-        onClose={() => setMenu(false)}
-        className="visit-directory"
-        layerClassName="visit-directory-layer"
-      >
-        <nav data-visit-sheet-index>
-          {report?.chapters.map((c, i) => (
-            <button
-              key={c.id}
-              aria-current={active === c.id ? 'page' : undefined}
-              onClick={() => chooseChapter(c.id)}
-            >
-              <span>{String(i + 1).padStart(2, '0')}</span>
-              {c.title}
-            </button>
-          ))}
-        </nav>
-      </BottomSheetSurface>
+      {menu&&report&&<ReportDirectory chapters={report.chapters} active={active} onClose={()=>setMenu(false)} onChoose={chooseChapter}/>}
       {report && editing && (
         <ReportEditor
           report={report}
           kind={editing}
-          chapter={editChapter}
           working={working}
           error={error}
           onClose={() => setEditing(null)}
@@ -507,7 +480,7 @@ function VisitSheetReader({
       {report && exporting && (
         <ExportSheet report={report} token={token} memberId={memberId} onClose={() => setExporting(false)} />
       )}
-      {report&&photoPicker&&<PhotoPicker report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async ids=>{const success=await update({selectedPhotoIds:ids});if(success)setPhotoPicker(false);return success}}/>}
+      {report&&photoPicker&&<PhotoPicker key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
       {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
     </main>
   )
@@ -516,15 +489,13 @@ function VisitSheetReader({
 function ReportEditor({
   report,
   kind,
-  chapter,
   working,
   error,
   onClose,
   onSave,
 }: {
   report: VisitSheet
-  kind: 'focus' | 'note'
-  chapter: VisitChapterId
+  kind: 'focus' | 'question'
   working: boolean
   error: string
   onClose: () => void
@@ -533,13 +504,12 @@ function ReportEditor({
   const [focus, setFocus] = useState<VisitFocus>(report.focus),
     [custom, setCustom] = useState(report.focus.text ?? ''),
     [question, setQuestion] = useState(report.question),
-    [note, setNote] = useState(report.notes[chapter] ?? ''),
+    [query, setQuery] = useState(''),
     [confirmExit, setConfirmExit] = useState(false)
   const dirty =
     JSON.stringify(focus) !== JSON.stringify(report.focus) ||
     custom !== (report.focus.text ?? '') ||
-    question !== report.question ||
-    note !== (report.notes[chapter] ?? '')
+    question !== report.question
   const close = () => {
     if (working) return
     if (dirty) setConfirmExit(true)
@@ -553,13 +523,15 @@ function ReportEditor({
               ? { mode: 'custom' as const, text: custom.trim() }
               : focus,
         }
-      : { ...(chapter==='overview'&&question!==report.question ? { question } : {}), notes: { ...report.notes, [chapter]: note } }
+      : { question }
   const valid = kind !== 'focus' || focus.mode !== 'custom' || !!custom.trim()
+  // Group exact equivalent labels only; never merge different symptoms by guesswork.
+  const groups=[...new Set(report.candidates.map(c=>c.text.trim()))].map(text=>report.candidates.filter(c=>c.text.trim()===text))
   return (
     <BottomSheetSurface
       open
-      label={kind === 'focus' ? '更改主诉' : '补充报告说明'}
-      title={kind === 'focus' ? '更改本次主诉' : '家长补充'}
+      label={kind === 'focus' ? '更改主诉' : '编辑本次想问'}
+      title={kind === 'focus' ? '这次主要想了解什么？' : '本次想问'}
       onClose={close}
       size="workspace"
       footer={
@@ -576,6 +548,8 @@ function ReportEditor({
       <div className="visit-report-editor">
         {kind === 'focus' ? (
           <>
+            <label className="visit-focus-option"><input type="radio" name="focus" checked={focus.mode==='custom'} onChange={()=>setFocus({mode:'custom',text:custom})}/><strong>自己描述</strong></label>
+            <label>本次主诉（家长陈述）<textarea value={custom} maxLength={1000} placeholder="用自己的话描述这次想了解的问题" onChange={e=>{setCustom(e.target.value);setFocus({mode:'custom',text:e.target.value})}}/></label>
             <label className="visit-focus-option">
               <input
                 type="radio"
@@ -584,17 +558,20 @@ function ReportEditor({
                 onChange={() => setFocus({ mode: 'auto' })}
               />
               <span>
-                <strong>按最近症状</strong>
+                <strong>自动按最新症状整理</strong>
                 <small>后续更新随最近有效症状调整</small>
+                <small>{report.candidates[0]?`${report.candidates[0].text} · ${reportTime(report.candidates[0].at,report.timezone)}`:'暂无有效症状'}</small>
               </span>
             </label>
-            {report.candidates.map((c) => (
+            <h3>从已记录的症状选择</h3><label>搜索症状、部位或关键词<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索，例如：前臂、皮疹"/></label>
+            {!report.candidates.some(c=>[c.text,report.sources.find(s=>s.id===c.sourceId)?.text].join(' ').toLowerCase().includes(query.toLowerCase()))&&<p>没有匹配症状，可以在上方自己描述。当前选择不会因搜索改变。</p>}
+            {groups.filter(group=>group.some(c=>[c.text,report.sources.find(s=>s.id===c.sourceId)?.text].join(' ').toLowerCase().includes(query.toLowerCase()))).map((group) => {const c=group[0];return (
               <label className="visit-focus-option" key={c.sourceId}>
                 <input
                   type="radio"
                   name="focus"
                   checked={
-                    focus.mode === 'source' && focus.sourceId === c.sourceId
+                    focus.mode === 'source' && group.some(c=>focus.sourceId===c.sourceId)
                   }
                   onChange={() =>
                     setFocus({ mode: 'source', sourceId: c.sourceId })
@@ -603,38 +580,17 @@ function ReportEditor({
                 <span>
                   <strong>{c.text}</strong>
                   <small>
-                    {c.timeKind} · {reportTime(c.at, report.timezone)}
+                    {group.length} 条同文记录 · 最近 {c.timeKind} · {reportTime(c.at, report.timezone)}
                   </small>
                 </span>
               </label>
-            ))}
-            <label className="visit-focus-option">
-              <input
-                type="radio"
-                name="focus"
-                checked={focus.mode === 'custom'}
-                onChange={() => setFocus({ mode: 'custom', text: custom })}
-              />
-              <strong>自己填写主诉</strong>
-            </label>
-            {focus.mode === 'custom' && (
-              <label>
-                本次主诉（家长陈述）
-                <textarea
-                  autoFocus
-                  value={custom}
-                  maxLength={1000}
-                  onChange={(e) => setCustom(e.target.value)}
-                />
-              </label>
-            )}
+            )})}
             <p className="visit-muted">
-              调整报告焦点；原始资料保留。家长问题与补充会保留，请确认是否仍适用。
+              调整报告焦点，原始资料保留。手写问题保留，请确认是否仍适用。
             </p>
           </>
         ) : (
           <>
-            {chapter === 'overview' && (
               <label>
                 本次想问
                 <textarea
@@ -643,15 +599,6 @@ function ReportEditor({
                   onChange={(e) => setQuestion(e.target.value)}
                 />
               </label>
-            )}
-            <label>
-              本章补充说明
-              <textarea
-                value={note}
-                maxLength={5000}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </label>
             <p className="visit-muted">
               标为家长陈述，仅保存到报告，不覆盖原始记录。
             </p>
@@ -691,6 +638,8 @@ function AttachmentPreview({
     [image, setImage] = useState(false),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false)
+  const request=useRef<AbortController|null>(null)
+  useEffect(()=>()=>request.current?.abort(),[])
   useEffect(
     () => () => {
       if (url) URL.revokeObjectURL(url)
@@ -698,6 +647,8 @@ function AttachmentPreview({
     [url],
   )
   const load = async () => {
+    request.current?.abort()
+    const controller=new AbortController();request.current=controller
     setLoading(true)
     setError('')
     try {
@@ -705,17 +656,18 @@ function AttachmentPreview({
         source.contentPath && /^\/api\/members\/[^/]+\/visit-sheet\/resources\/[a-f0-9]{24}$/.test(source.contentPath) ? source.contentPath : `/api/events/${encodeURIComponent(source.eventId!)}/attachments/${encodeURIComponent(source.attachmentId!)}/content`,
         {
           headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.any([controller.signal,AbortSignal.timeout(10000)]),
         },
       )
       if (!result.ok) throw new Error('附件读取失败，可重试')
       const blob=await result.blob()
+      if(controller.signal.aborted)return
       setImage(blob.type.startsWith('image/'))
       setUrl(URL.createObjectURL(blob))
     } catch {
-      setError('附件读取失败，原件信息仍保留，请重试')
+      if(!controller.signal.aborted)setError('附件读取失败，原件信息仍保留，请重试')
     } finally {
-      setLoading(false)
+      if(!controller.signal.aborted)setLoading(false)
     }
   }
   return (
@@ -760,7 +712,7 @@ function ExportSheet({
     [fallback, setFallback] = useState(false)
   const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
   const controller=useRef(new AbortController()),lock=useRef(false)
-  useEffect(()=>()=>controller.current.abort(),[])
+  useEffect(()=>{const current=new AbortController();controller.current=current;return()=>current.abort()},[])
   const validate=async()=>{
     const current=await visitSheetService.get(memberId,token,controller.current.signal)
     if(!current.report||current.stale||current.report.version!==report.version)throw new Error('资料或版本已变化，请先关闭并更新情况单，再核对导出范围')
@@ -776,7 +728,7 @@ function ExportSheet({
     await validate()
     return result
   }
-  const run=async(task:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setRunning(true);try{await task()}catch(e){if(!controller.current.signal.aborted)setNotice(e instanceof Error?e.message:'输出未完成，请重试')}finally{lock.current=false;if(!controller.current.signal.aborted)setRunning(false)}}
+  const run=async(task:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setRunning(true);try{await task()}catch(e){if(!controller.current.signal.aborted)setNotice(e instanceof Error&&!/abort|fetch|timeout|timed out/i.test(e.message)?e.message:'输出读取超时或连接中断，未生成新文件，请重试')}finally{lock.current=false;if(!controller.current.signal.aborted)setRunning(false)}}
   const copy = async () => {
     await validate()
     try {

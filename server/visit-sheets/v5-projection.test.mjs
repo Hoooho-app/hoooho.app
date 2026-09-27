@@ -72,7 +72,7 @@ test('混合测量条件、同刻冲突、零值、身长身高分开',()=>{
   const r=buildVisitSheet(f,{},now);assert.equal(section(r,'temperature').blocks.length,2);assert.ok(section(r,'temperature').blocks.some(b=>b.lines.some(l=>l.includes('同一时刻'))));assert.equal(section(r,'growth').blocks.filter(b=>b.points).length,3);assert.equal(section(r,'growth').blocks.find(b=>b.title==='体重').points[0].value,0)
 })
 test('有内容的就诊与档案、转述身份、嵌套成员、问题来源',()=>{
-  const f=visitFixture();f.records.push({id:'visit',eventId:'event-a',type:'visit',content:'复诊资料',occurredAt:'2026-09-25T00:00:00Z',journal:{timePrecision:'unknown',visit:{institutionName:'虚构机构',doctorStatement:'家长转述医生建议观察',examinationTypes:['血常规'],note:'想问后续如何记录？'}}})
+  const f=visitFixture();f.records.push({id:'visit',eventId:'event-a',type:'visit',content:'复诊资料',occurredAt:'2026-09-25T00:00:00Z',journal:{timePrecision:'unknown',visit:{linkedSymptomRecordIds:['s7'],institutionName:'虚构机构',doctorStatement:'家长转述医生建议观察',examinationTypes:['血常规'],note:'想问后续如何记录？'}}})
   f.profiles=[{sectionId:'allergy',revision:2,records:[{_allergyArchive:{items:[{id:'background',name:'背景资料',memberId:f.member.id,reactions:[{memberId:'other-child',notes:'PRIVATE CHILD'},{notes:'保留本孩子观察'}]}]}}]}]
   const r=buildVisitSheet(f,{},now);assert.ok(!JSON.stringify(r).includes('PRIVATE CHILD'));const b=section(r,'visits').blocks[0];assert.match(b.lines.join(''),/发生：未提供/);assert.match(b.lines.join(''),/家长转述医生建议观察/);assert.equal(r.questionOrigin,'据家长记录整理')
   const edited=buildVisitSheet(f,{question:'我自己写的问题',questionEdited:true},now);assert.equal(edited.questionOrigin,'家长填写')

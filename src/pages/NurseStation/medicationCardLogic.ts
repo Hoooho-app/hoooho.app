@@ -1,4 +1,6 @@
 import type { MedicationReminderDto, MedicationReminderOccurrence } from '../../services/medicationReminders'
+import type { VisitMedicationSnapshot } from '../../types/visitSheet'
+type CalendarData = Pick<VisitMedicationSnapshot, 'plan' | 'totalDays' | 'occurrences'>
 
 const addDays = (day: string, amount: number) => {
   const [year, month, date] = day.split('-').map(Number)
@@ -30,7 +32,7 @@ export function reminderCourseText(reminder: MedicationReminderDto, now: Date) {
   return reminder.totalDays ? `共${reminder.totalDays}天 · 第${day}天` : `长期 · 第${day}天`
 }
 
-export function reminderCoursePlanText(reminder: MedicationReminderDto) {
+export function reminderCoursePlanText(reminder: CalendarData) {
   const duration = reminder.totalDays ? `共${reminder.totalDays}天` : '长期'
   const schedule = reminder.plan.mode === 'daily'
     ? `每天${reminder.plan.times.length}次`
@@ -40,7 +42,7 @@ export function reminderCoursePlanText(reminder: MedicationReminderDto) {
   return `${duration}，${schedule}`
 }
 
-export function reminderProgressGroupLabel(reminder: MedicationReminderDto, now: Date, weekIndex: number) {
+export function reminderProgressGroupLabel(reminder: CalendarData, now: Date, weekIndex: number) {
   if (!reminder.totalDays || reminder.totalDays >= 7) return `第${weekIndex + 1}周`
   const today = reminderDateKey(now, reminder.plan.timezone)
   if (today < reminder.plan.startDate) return '尚未开始'
@@ -68,7 +70,7 @@ export function reminderActionState(reminder: MedicationReminderDto, now: Date) 
   }
 }
 
-export function weekRows(reminder: MedicationReminderDto) {
+export function weekRows(reminder: CalendarData) {
   const lastWeek = reminder.totalDays ? Math.ceil(reminder.totalDays / 7) : Math.max(1, ...reminder.occurrences.map((item) => item.weekIndex + 1))
   const weeks = Array.from({ length: lastWeek }, (_, weekIndex) => {
     const remaining = reminder.totalDays === null ? 7 : Math.max(0, reminder.totalDays - weekIndex * 7)

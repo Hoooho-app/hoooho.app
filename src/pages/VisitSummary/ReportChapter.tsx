@@ -1,4 +1,5 @@
 import { MapPin } from 'lucide-react'
+import { ReadOnlyMedicationReminderCard } from '../NurseStation/MedicationReminderCard'
 import type { ReactNode } from 'react'
 import {
   FactDistribution,
@@ -20,6 +21,7 @@ export const reportTime = (value: string | null, timeZone = 'Asia/Shanghai') =>
         day: 'numeric',
         ...(value.length > 10 ? { hour: '2-digit', minute: '2-digit' } : {}),
       }).format(new Date(value))
+export const sourceCategoryLabel=(category:string)=>({record:'健康记录',course:'症状记录',temperature:'体温',allergy:'过敏',history:'既往',visits:'就诊检查',attachment:'附件原件',profile:'健康档案',fact:'健康事实',growth:'成长测量',medication:'用药执行','medication-plan':'用药计划','observation-plan':'观察计划',observation:'饮食观察',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养',examination:'检查',hospitalization:'住院',vaccination:'接种',legacy:'历史情况单'}[category]||'其他资料')
 export function Emphasized({ text }: { text: string }) {
   return (
     <>
@@ -77,30 +79,11 @@ export function ReportChapter({
         ).padStart(2, '0')}{' '}
         / </span>{chapter.title}</h2>{action}</div>}
       {leading}
+      {chapter.id!=='overview'&&<div className={`visit-chapter-overview${chapter.id==='course'?' visit-course-nodes':''}`} data-chapter-overview={chapter.id}>{chapter.overview?.items.map((item,i)=><article key={i}><h3>{item.title}</h3><p>{item.detail}</p>{item.sourceIds.length>0&&(readOnly?item.sourceIds.map(id=><a key={id} href={`#${id}`}>[{report.sources.find(s=>s.id===id)?.code}]</a>):<button className="visit-text-action" onClick={()=>onEvidence?.(item.sourceIds)}>查看依据</button>)}</article>)}</div>}
+      {chapter.overview?.lines.map((line,i)=><p className="visit-muted" key={i}>{line}</p>)}
+      {chapter.id==='medication'&&report.medicationReminders?.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly}/>)}
+      {!!chapter.blocks.length&&<details className="visit-chapter-details" open={readOnly}><summary>{{overview:'展开病情数据与依据',course:'展开经过与依据',medication:'查看完整用药经过',allergy:'展开过敏资料与观察过程',history:'展开既往与其他背景',temperature:'展开体温曲线与测量记录',growth:'展开成长曲线与日常记录',visits:'展开就诊与检查依据',sources:'展开资料说明'}[chapter.id]}</summary>
       {chapter.summary && <p className="visit-intro">{chapter.summary}</p>}
-      {chapter.id === 'overview' && (
-        <>
-          <div className="visit-focus-meta">
-            {report.focus.mode === 'auto'
-              ? '根据最近一次有效症状预选'
-              : report.focus.mode === 'custom'
-                ? '家长本次陈述'
-                : '家长选择的已有症状'}
-            {report.complaintSourceId && (
-              <span>
-                {' '}
-                ·{' '}
-                {reportTime(
-                  report.candidates.find(
-                    (c) => c.sourceId === report.complaintSourceId,
-                  )?.at ?? null,
-                  report.timezone,
-                )}
-              </span>
-            )}
-          </div>
-        </>
-      )}
       {chapter.blocks.map((block, index) => {
         const content = <>
           <h3>{block.title}</h3>
@@ -177,24 +160,9 @@ export function ReportChapter({
         </>
         return block.secondary && !readOnly ? <details className="visit-fact-block" key={index}><summary>{block.title} · 展开明细</summary>{content}</details> : <section className="visit-fact-block" data-report-source-ids={readOnly?JSON.stringify(block.sourceIds):undefined} key={index}>{content}</section>
       })}
-      {chapter.id === 'overview' && (
-        <section className="visit-fact-block">
-          <h2>本次想问</h2>
-          <p>{report.question || '尚未填写，可以用自己的话补充。'}</p>
-          {report.question && (
-            <small>{report.questionOrigin || '家长填写'}；更改主诉后请确认是否仍适用。</small>
-          )}
-          {!!report.questionSourceIds?.length && <button className="visit-text-action" onClick={()=>onEvidence?.(report.questionSourceIds!)}>查看问题原话</button>}
-        </section>
-      )}
+      </details>}
       {trailing}
-      {report.notes[chapter.id] && (
-        <section className="visit-parent-note">
-          <h2>家长补充</h2>
-          <p>{report.notes[chapter.id]}</p>
-          <small>报告说明，不替代原始记录；主诉变化后请确认是否仍适用。</small>
-        </section>
-      )}
+      {chapter.id==='sources'&&Object.values(report.notes).some(Boolean)&&<details className="visit-parent-note" open={readOnly}><summary>历史家长补充 · 报告说明</summary>{Object.entries(report.notes).filter(([,v])=>v).map(([id,note])=><section key={id}><h3>{report.chapters.find(c=>c.id===id)?.title}</h3><p>{note}</p></section>)}<small>保留已有说明，不替代原始记录。</small></details>}
     </section>
   )
 }

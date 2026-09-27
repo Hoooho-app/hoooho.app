@@ -3,6 +3,7 @@ import type {
   VisitChapterId,
   VisitFocus,
   VisitSheetState,
+  VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
   expectedVersion: number
@@ -10,6 +11,8 @@ export interface VisitSheetUpdate {
   focus?: VisitFocus
   question?: string
   selectedPhotoIds?: string[]
+  photoDraft?: { draftId: string; photoIds: string[] }
+  photoDetails?: Record<string, VisitPhotoDetail>
   notes?: Partial<Record<VisitChapterId, string>>
 }
 export const visitSheetService = {

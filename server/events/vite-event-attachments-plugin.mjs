@@ -39,12 +39,18 @@ export function eventAttachmentsApiPlugin(options = {}) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
-        if (!match) return next()
+        const contentMatch = /^\/api\/events\/([^/]+)\/attachments\/([^/]+)\/content$/.exec(pathname)
+        if (!match&&!contentMatch) return next()
         try {
           const tokenMatch = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')
           const payload = tokenMatch ? tokens.verify(tokenMatch[1]) : null
           if (!payload) throw new EventAttachmentError('登录状态无效或已过期', 401, 'UNAUTHORIZED')
-          const eventId = decodeURIComponent(match[1])
+          const eventId = decodeURIComponent((match||contentMatch)[1])
+          if(contentMatch){
+            if(request.method!=='GET')return sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'请求方法不支持'}})
+            const file=await service.read(payload.sub,eventId,decodeURIComponent(contentMatch[2]))
+            response.statusCode=200;response.setHeader('Content-Type',file.mimeType);response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.end(file.buffer);return
+          }
           if (request.method === 'POST' && match[2] === 'preview') return sendJson(response, 200, await service.preview(payload.sub, eventId, await readJson(request)))
           if (request.method === 'GET') return sendJson(response, 200, await service.list(payload.sub, eventId))
           if (request.method === 'POST') return sendJson(response, 201, await service.create(payload.sub, eventId, await readJson(request)))
