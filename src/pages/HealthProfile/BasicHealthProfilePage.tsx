@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronRight, LineChart, Minus, Pencil, Plus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { heightMeasureLabel } from '../../features/health-profile/utils/childGrowthReference'
 import { requiresMeasurementConfirmation } from '../../features/health-profile/utils/growthTrend'
 import { getBasicHealthProfileValues } from '../../features/health-profile/utils/healthProfileBasicInfo'
+import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import { familyMemberService } from '../../services/familyMembers'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
@@ -19,7 +20,9 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 type Snapshot = { measuredAt: string; height: string; weightKg: string }
 
 export function BasicHealthProfilePage({ member }: { member: Member }) {
-  const navigate = useNavigate(), token = useAppStore((state) => state.authToken), members = useAppStore((state) => state.members), setMembers = useAppStore((state) => state.setMembers)
+  const navigate = useNavigate(), location = useLocation(), token = useAppStore((state) => state.authToken), setMembers = useAppStore((state) => state.setMembers)
+  const rawReturnTo = (location.state as { returnTo?: unknown } | null)?.returnTo
+  const returnTo = typeof rawReturnTo === 'string' && rawReturnTo.startsWith('/') && rawReturnTo !== '/health-profile/basic' ? rawReturnTo : ''
   const basic = useMemo(() => getBasicHealthProfileValues(member), [member])
   const [records, setRecords] = useState<GrowthMeasurementApiDto[]>([]), [loading, setLoading] = useState(true)
   const [measuredAt, setMeasuredAt] = useState(localToday()), [height, setHeight] = useState(String(basic.height ?? '')), [weightKg, setWeightKg] = useState(formatWeightKg(basic.weight))
@@ -32,8 +35,10 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
     const controller = new AbortController()
     setLoading(true)
     growthMeasurementService.list(member.id, token, controller.signal).then((items) => {
-      const todayRecord = items.find((item) => item.measuredAt === localToday()), source = todayRecord ?? items[0]
-      const nextHeight = source?.heightCm?.toFixed(1) ?? String(basic.height ?? ''), nextWeight = formatWeightKg(source?.weightKg ?? basic.weight)
+      const todayRecord = items.find((item) => item.measuredAt === localToday())
+      const current = resolveCurrentGrowthMeasurements(member, items, member.id)
+      const nextHeight = todayRecord?.heightCm == null ? formatGrowthMeasurement(current.heightCm) : todayRecord.heightCm.toFixed(1)
+      const nextWeight = formatWeightKg(todayRecord?.weightKg ?? current.weightKg ?? undefined)
       const snapshot = { measuredAt: localToday(), height: nextHeight, weightKg: nextWeight }
       setRecords(items); setMeasuredAt(snapshot.measuredAt); setHeight(snapshot.height); setWeightKg(snapshot.weightKg)
       initialHeightRef.current = validHeight(nextHeight) ? Number(nextHeight) : null; baselineRef.current = snapshot
@@ -62,17 +67,17 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
         saved = await growthMeasurementService.upsert(payload, token)
         setRecords((items) => [saved!, ...items.filter((item) => item.id !== saved!.id)].sort((a, b) => b.measuredAt.localeCompare(a.measuredAt)))
       }
-      const isLatestMeasurement = !records.some((item) => item.measuredAt > measuredAt)
-      const heightCm = growthChanged && isLatestMeasurement ? saved?.heightCm ?? null : member.heightCm ?? null
-      const savedWeightKg = growthChanged && isLatestMeasurement ? saved?.weightKg ?? null : member.weightKg ?? null
-      const updated = await familyMemberService.update(member.id, { heightCm, weightKg: savedWeightKg }, token)
-      setMembers(members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
+      const nextRecords = saved ? [saved, ...records.filter((item) => item.id !== saved.id)] : records
+      const current = resolveCurrentGrowthMeasurements(member, nextRecords, member.id)
+      const updated = await familyMemberService.update(member.id, current, token)
+      const store = useAppStore.getState()
+      setMembers(store.members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
       baselineRef.current = snapshot; setSaveState('saved'); setMessage('已保存，并加入成长记录')
     } catch (error) { setSaveState('error'); setMessage(error instanceof Error ? error.message : '保存失败，请检查后重试') }
   }
 
-  return <main className="app-shell health-profile-detail-shell growth-update-page"><WebPageHeader fallback="/health-profile" title="基础信息" /><div className="page-content growth-update-content">
-    <button className="growth-record-entry" onClick={() => navigate('/health-profile/growth')} type="button"><i><LineChart aria-hidden="true" /></i><span><strong>成长记录</strong><small>查看记录与成长曲线</small></span><ChevronRight aria-hidden="true" /></button>
+  return <main className="app-shell health-profile-detail-shell growth-update-page"><WebPageHeader fallback="/health-profile" onBack={returnTo ? () => navigate(returnTo, { replace: true }) : undefined} title="基础信息" /><div className="page-content growth-update-content">
+    <button className="growth-record-entry" onClick={() => navigate('/health-profile/growth', { state: returnTo ? { returnTo } : undefined })} type="button"><i><LineChart aria-hidden="true" /></i><span><strong>成长记录</strong><small>查看记录与成长曲线</small></span><ChevronRight aria-hidden="true" /></button>
     <section className="growth-update-form" aria-busy={loading}><header><h1>更新成长数据</h1><input aria-label="测量日期" max={localToday()} onChange={(event) => { setMeasuredAt(event.target.value); setSaveState('idle') }} type="date" value={measuredAt} /></header>
       <div className="growth-step-grid"><GrowthStepCard delta={heightDelta == null ? '暂无上次记录' : `较上次 ${formatSigned(heightDelta)} cm`} error={!heightValid ? '请输入 20–260 cm' : ''} label="身高">
         <button aria-label="身高减少0.1厘米" disabled={!validHeight(height) || heightAtFloor} onClick={() => { setHeight(stepHeightValue(height, -1, initialHeightRef.current)); setSaveState('idle') }} type="button"><Minus /></button>{editing === 'height' ? <input aria-label="手动编辑身高 cm" autoFocus inputMode="decimal" max="260" min="20" onBlur={() => setEditing(null)} onChange={(event) => { setHeight(event.target.value); setSaveState('idle') }} step="0.1" type="number" value={height} /> : <button className="growth-step-value" onClick={() => setEditing('height')} type="button"><strong>{height || '—'}</strong><small>cm</small><Pencil aria-hidden="true" /></button>}<button aria-label="身高增加0.1厘米" disabled={!validHeight(height)} onClick={() => { setHeight(stepHeightValue(height, 1, initialHeightRef.current)); setSaveState('idle') }} type="button"><Plus /></button>

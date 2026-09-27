@@ -66,7 +66,7 @@ test('护士站待机视频仍使用真实单一循环资源', async ({ page }) 
 test('护士视频资源失败时页面结构和核心任务仍可使用', async ({ page }) => {
   await page.route('**/*nurse-station-idle-1*.mp4', (route) => route.abort())
   await registerMember(page)
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '136px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '202px')
   await expect(page.locator('.idle-nurse-visual video')).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
   await expect(page.getByRole('link', { name: /用药提醒/ })).toBeVisible()
   await page.getByRole('link', { name: /排敏测试/ }).click()
@@ -103,7 +103,7 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
   await expect(page.locator('.nurse-station-guarded')).toHaveCSS('margin-top', '8px')
   await expect(page.locator('.nurse-station-fact')).toHaveCSS('margin-top', '4px')
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '136px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '202px')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
@@ -158,6 +158,78 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
     if (viewport.width === 1440) await page.screenshot({ path: 'test-results/nurse-station-home-desktop-1440x900.png', fullPage: true })
   }
   expect(errors).toEqual([])
+})
+
+test('成长数据入口迁移并保持血型独立编辑与部分测量值', async ({ page }) => {
+  await registerMember(page)
+  await expect(page.getByRole('button', { name: /身高，未记录，查看成长数据/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /体重，未记录，查看成长数据/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /血型，未填写，编辑/ })).toBeVisible()
+
+  await page.getByRole('button', { name: /查看123的成长数据/ }).click()
+  await expect(page).toHaveURL(/\/health-profile\/basic$/)
+  await expect(page.getByRole('heading', { name: '基础信息', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /成长记录/ })).toBeVisible()
+  await page.getByRole('button', { name: '返回' }).click()
+  await expect(page).toHaveURL(/\/nurse-station$/)
+
+  await page.getByRole('button', { name: /血型，未填写，编辑/ }).click()
+  const editor = page.getByRole('dialog', { name: '编辑血型' })
+  await editor.getByRole('button', { name: 'AB型', exact: true }).click()
+  await editor.getByRole('button', { name: '阴性', exact: true }).click()
+  await page.screenshot({ path: 'test-results/nurse-station-blood-type-editor-375x667.png', fullPage: true })
+  await editor.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(page.getByRole('button', { name: /血型，未填写，编辑/ })).toBeVisible()
+
+  await page.getByRole('button', { name: /血型，未填写，编辑/ }).click()
+  await editor.getByRole('button', { name: 'AB型', exact: true }).click()
+  await editor.getByRole('button', { name: '阴性', exact: true }).click()
+  await page.route('**/api/members/*', (route) => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '测试保存失败' } }) })
+    : route.continue())
+  await editor.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(editor.getByRole('alert')).toContainText('测试保存失败')
+  await expect(editor.getByRole('button', { name: 'AB型', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.unroute('**/api/members/*')
+  await editor.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(editor).toBeHidden()
+  await expect(page.getByRole('button', { name: /血型，AB型 Rh−，编辑/ })).toBeVisible()
+
+  const token = pageTokens.get(page) ?? ''
+  await page.evaluate(async (authToken) => {
+    const membersResponse = await fetch('/api/members', { headers: { Authorization: `Bearer ${authToken}` } })
+    const members = await membersResponse.json() as Array<{ id: string; name: string }>
+    const member = members.find((item) => item.name === '123')!
+    const save = (body: Record<string, unknown>) => fetch('/api/growth-measurements', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: member.id, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006', ...body }),
+    })
+    const first = await save({ measuredAt: '2026-09-20', heightCm: null, weightKg: 10.7 })
+    const second = await save({ measuredAt: '2026-09-21', heightCm: 84.2, weightKg: null })
+    if (!first.ok || !second.ok) throw new Error('无法建立成长数据测试记录')
+  }, token)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.reload()
+  await expect(page.getByRole('button', { name: /身高，84.2，查看成长数据/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /体重，10.7，查看成长数据/ })).toBeVisible()
+  await expect(page.locator('.nurse-station-fact > span')).toHaveText('全球食物过敏率约3%～8%')
+  await expect.poll(() => page.locator('.idle-nurse-visual video').evaluate((element: HTMLVideoElement) => element.videoWidth)).toBe(360)
+  await page.screenshot({ path: 'test-results/nurse-station-growth-data-375x667.png', fullPage: true })
+
+  await page.getByRole('link', { name: /健康档案/ }).click()
+  await expect(page.locator('.growth-identity-card--compact')).toBeVisible()
+  await expect(page.locator('.growth-identity-card__metrics')).toHaveCount(0)
+  await expect(page.locator('.growth-identity-card + .health-profile-allergy-card')).toBeVisible()
+  await page.screenshot({ path: 'test-results/health-profile-without-growth-card-375x667.png', fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await page.screenshot({ path: 'test-results/health-profile-without-growth-card-1440x900.png', fullPage: true })
+  await page.goto('/nurse-station')
+  await expect(page.getByRole('button', { name: /身高，84.2，查看成长数据/ })).toBeVisible()
+  await expect.poll(() => page.locator('.idle-nurse-visual video').evaluate((element: HTMLVideoElement) => element.videoWidth)).toBe(360)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await page.screenshot({ path: 'test-results/nurse-station-growth-data-1440x900.png', fullPage: true })
 })
 
 test('排敏测试从新增到症状记录、趋势和刷新持久化形成闭环', async ({ page }) => {
