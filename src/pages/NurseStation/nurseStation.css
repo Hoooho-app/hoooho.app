@@ -30,6 +30,8 @@
 .nurse-station-growth-data em { color: #637a74; font-size: 10px; font-style: normal; line-height: 12px; }
 .nurse-station-growth-data > button > span { display: flex; max-width: 100%; align-items: center; justify-content: center; gap: 4px; }
 .nurse-station-growth-data svg { width: 13px; height: 13px; flex: 0 0 auto; color: #66807a; }
+.nurse-station-growth-data .nurse-station-blood-type > span { flex-direction: column; gap: 0; }
+.nurse-station-growth-data .nurse-station-blood-type svg { width: 12px; height: 12px; }
 @keyframes nurse-fact-caret { 0%, 46% { opacity: 1; } 47%, 100% { opacity: 0; } }
 
 .nurse-home-entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
@@ -268,7 +270,9 @@
 .completion-options label { display: flex; min-height: 44px; align-items: center; gap: 10px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; padding: 0 12px; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.blood-type-sheet__description { margin: 0 0 18px; color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; line-height: 1.5; }
+.blood-type-sheet__heading { display: flex; min-height: 40px; align-items: center; gap: 10px; padding-right: 44px; }
+.blood-type-sheet__heading .sheet-icon { width: 20px; height: 20px; flex: 0 0 auto; }
+.nurse-station-sheet .blood-type-sheet__heading h2 { margin: 0; }
 .blood-type-sheet__fields { display: grid; gap: 18px; }
 .blood-type-sheet__error { margin-top: 14px; border-radius: var(--hoho-radius-control); padding: 10px 12px; background: #fff1f1; color: rgb(var(--hoho-color-error)); font-size: 12px; line-height: 1.5; }
 .blood-type-sheet__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }

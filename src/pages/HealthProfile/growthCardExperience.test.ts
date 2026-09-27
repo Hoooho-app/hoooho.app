@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 
 const home = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const nurseStation = readFileSync(new URL('../NurseStation/index.tsx', import.meta.url), 'utf8')
+const bloodTypeEditor = readFileSync(new URL('../NurseStation/BloodTypeEditorSheet.tsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
@@ -18,6 +19,9 @@ test('健康档案首页保留紧凑人物卡并直接衔接过敏记录', () =>
   assert.match(nurseStation, /nurse-station-growth-data/)
   assert.match(nurseStation, /openGrowthData[\s\S]*\/health-profile\/basic/)
   assert.match(nurseStation, /BloodTypeEditorSheet/)
+  assert.doesNotMatch(bloodTypeEditor, /ProfileChoiceGroup label="RhD"/)
+  assert.doesNotMatch(bloodTypeEditor, /当前：/)
+  assert.match(bloodTypeEditor, /blood-type-sheet__heading/)
   assert.match(polish, /\.growth-identity-card--compact/)
   assert.doesNotMatch(home, /makeMemberProfileOpenState|openMember/)
 })

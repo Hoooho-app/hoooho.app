@@ -175,15 +175,16 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
 
   await page.getByRole('button', { name: /血型，未填写，编辑/ }).click()
   const editor = page.getByRole('dialog', { name: '编辑血型' })
+  await expect(editor.getByText(/当前：/)).toHaveCount(0)
+  await expect(editor.getByText('RhD', { exact: true })).toHaveCount(0)
+  await expect(editor.locator('.blood-type-sheet__heading')).toHaveCSS('display', 'flex')
   await editor.getByRole('button', { name: 'AB型', exact: true }).click()
-  await editor.getByRole('button', { name: '阴性', exact: true }).click()
   await page.screenshot({ path: 'test-results/nurse-station-blood-type-editor-375x667.png', fullPage: true })
   await editor.getByRole('button', { name: '取消', exact: true }).click()
   await expect(page.getByRole('button', { name: /血型，未填写，编辑/ })).toBeVisible()
 
   await page.getByRole('button', { name: /血型，未填写，编辑/ }).click()
   await editor.getByRole('button', { name: 'AB型', exact: true }).click()
-  await editor.getByRole('button', { name: '阴性', exact: true }).click()
   await page.route('**/api/members/*', (route) => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '测试保存失败' } }) })
     : route.continue())
@@ -193,7 +194,14 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
   await page.unroute('**/api/members/*')
   await editor.getByRole('button', { name: '保存', exact: true }).click()
   await expect(editor).toBeHidden()
-  await expect(page.getByRole('button', { name: /血型，AB型 Rh−，编辑/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /血型，AB型，编辑/ })).toBeVisible()
+  const bloodValueLayout = await page.locator('.nurse-station-blood-type > span').evaluate((element) => ({
+    direction: getComputedStyle(element).flexDirection,
+    iconTop: element.querySelector('svg')?.getBoundingClientRect().top ?? 0,
+    textBottom: element.querySelector('strong')?.getBoundingClientRect().bottom ?? 0,
+  }))
+  expect(bloodValueLayout.direction).toBe('column')
+  expect(bloodValueLayout.iconTop).toBeGreaterThanOrEqual(bloodValueLayout.textBottom)
 
   const token = pageTokens.get(page) ?? ''
   await page.evaluate(async (authToken) => {
