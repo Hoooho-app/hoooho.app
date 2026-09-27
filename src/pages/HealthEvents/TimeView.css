@@ -89,15 +89,6 @@
 .journal-attachment { display: inline-flex; align-items: center; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
 .journal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-2); min-height: var(--hoho-touch-target); }
 .journal-toolbar-actions { display: flex; align-items: center; gap: var(--hoho-space-1); margin-left: auto; }
-.journal-subject-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: var(--hoho-space-2); }
-.journal-subject-card, .journal-subject-summary { min-height: 52px; height: 52px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); }
-.journal-subject-card { display: flex; align-items: center; gap: var(--hoho-space-2); min-width: 0; padding: var(--hoho-space-2) var(--hoho-space-3); background: rgb(var(--hoho-color-surface)); }
-.journal-subject-copy { display: grid; min-width: 0; line-height: 1.25; }
-.journal-subject-name { display: flex; align-items: baseline; gap: var(--hoho-space-2); min-width: 0; white-space: nowrap; }
-.journal-subject-name strong { overflow: hidden; text-overflow: ellipsis; font-size: var(--hoho-font-size-body); }
-.journal-subject-name span, .journal-subject-meta { font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
-.journal-subject-summary { white-space: nowrap; padding-inline: var(--hoho-space-3); border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); }
-.journal-subject-summary .hoho-button__content { width: 100%; justify-content: center; }
 .hoho-health-events-page[data-view-mode='list'] .health-events-view-switch button { min-height: 36px; padding-inline: var(--hoho-space-3); }
 .hoho-health-events-page[data-view-mode='list'] { height: 100dvh; min-height: 0; background: rgb(var(--hoho-color-page-background)); }
 .hoho-health-events-page[data-view-mode='list'] .health-events-content { padding-bottom: var(--hoho-space-6); }
@@ -644,7 +635,6 @@
   .diet-type-grid > button > span { padding-block: var(--hoho-space-1) var(--hoho-space-2); }
 }
 @media (max-width: 400px) {
-  .journal-subject-summary { padding-inline: var(--hoho-space-2); }
   .diet-type-sheet > .hoho-bottom-sheet__body { padding-inline: var(--hoho-space-3); }
   .diet-type-grid { gap: var(--hoho-space-2); }
   .diet-type-grid > button:last-child:nth-child(odd) { width: calc((100% - var(--hoho-space-2)) / 2); }
@@ -775,14 +765,7 @@
   .journal-day-grid .journal-record-summary, .routine-grid-copy strong, .journal-sleep-row strong { font-size: 12px; }
 }
 
-/* Final timeline contract: one shared subject frame, one toolbar row, independent one-line cells. */
-.journal-subject-row { display: grid; min-height: 68px; grid-template-columns: minmax(0, 1fr) 140px; align-items: center; gap: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); padding: var(--hoho-space-2); background: rgb(var(--hoho-color-surface)); }
-.journal-subject-card, .journal-subject-summary { border: 0; }
-.journal-subject-card { height: auto; min-height: 50px; padding: 0 var(--hoho-space-1); }
-.journal-subject-summary { height: 50px; min-height: 50px; border-radius: var(--hoho-radius-control); padding-inline: var(--hoho-space-2); }
-.journal-subject-summary .medical-prep-button__label small { display: block; }
-.journal-subject-summary .hoho-button__content { gap: 7px; }
-
+/* Final timeline contract: one toolbar row and independent one-line cells. */
 .journal-date-navigation { display: grid; height: 50px; grid-template-columns: 46px 32px minmax(62px, 1fr) 32px 36px 36px 36px; gap: 0; margin-bottom: 6px; padding: 0 3px; }
 .journal-date-navigation .journal-year-picker { justify-content: center; padding: 0; font-size: 14px; font-weight: 650; }
 .journal-date-navigation .journal-year-picker::after { right: 0; }
@@ -840,12 +823,6 @@
 }
 
 @media (max-width: 374px) {
-  .journal-subject-row { grid-template-columns: minmax(0, 1fr) 126px; }
-  .journal-subject-card { gap: 6px; padding: 0; }
-  .journal-subject-name strong { font-size: 14px; }
-  .journal-subject-meta { font-size: 11px; white-space: nowrap; }
-  .journal-subject-summary .medical-prep-button__icon { display: inline-flex; width: 20px; height: 20px; flex: 0 0 20px; }
-  .journal-subject-summary .medical-prep-button__icon svg { width: 20px; height: 20px; }
   .journal-date-navigation { grid-template-columns: 42px 30px minmax(58px, 1fr) 30px 34px 34px 34px; padding-inline: 1px; }
   .journal-date-navigation > .hoho-button[data-size='icon'], .journal-yesterday-entry .hoho-button[data-size='icon'] { width: 30px; min-width: 30px; }
   .journal-date-navigation > .hoho-button:nth-last-child(-n + 3) { width: 34px; min-width: 34px; }

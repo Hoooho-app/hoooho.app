@@ -1,0 +1,57 @@
+.journal-subject-row {
+  display: grid;
+  min-height: 68px;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  align-items: center;
+  gap: var(--hoho-space-2);
+  border: 1px solid rgb(var(--hoho-color-border));
+  border-radius: var(--hoho-radius-card);
+  padding: var(--hoho-space-2);
+  background: rgb(var(--hoho-color-surface));
+}
+
+.journal-subject-card,
+.journal-subject-summary {
+  height: 52px;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--hoho-radius-control);
+}
+
+.journal-subject-card {
+  display: flex;
+  height: auto;
+  min-width: 0;
+  min-height: 50px;
+  align-items: center;
+  gap: var(--hoho-space-2);
+  padding: 0 var(--hoho-space-1);
+  background: rgb(var(--hoho-color-surface));
+}
+
+.journal-subject-copy { display: grid; min-width: 0; line-height: 1.25; }
+.journal-subject-name { display: flex; min-width: 0; align-items: baseline; gap: var(--hoho-space-2); white-space: nowrap; }
+.journal-subject-name strong { overflow: hidden; font-size: var(--hoho-font-size-body); text-overflow: ellipsis; }
+.journal-subject-name span,
+.journal-subject-meta { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+
+.journal-subject-summary {
+  height: 50px;
+  min-height: 50px;
+  padding-inline: var(--hoho-space-2);
+  border-color: rgb(var(--hoho-color-primary));
+  background: rgb(var(--hoho-color-primary));
+  white-space: nowrap;
+}
+
+.journal-subject-summary .hoho-button__content { width: 100%; justify-content: center; gap: 7px; }
+.journal-subject-summary .medical-prep-button__label small { display: block; }
+
+@media (max-width: 374px) {
+  .journal-subject-row { grid-template-columns: minmax(0, 1fr) 126px; }
+  .journal-subject-card { gap: 6px; padding: 0; }
+  .journal-subject-name strong { font-size: 14px; }
+  .journal-subject-meta { font-size: 11px; white-space: nowrap; }
+  .journal-subject-summary .medical-prep-button__icon { display: inline-flex; width: 20px; height: 20px; flex: 0 0 20px; }
+  .journal-subject-summary .medical-prep-button__icon svg { width: 20px; height: 20px; }
+}
