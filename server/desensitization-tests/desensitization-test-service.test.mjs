@@ -66,6 +66,35 @@ test('same-category tasks do not duplicate and archived tasks are returned for a
   assert.equal((await service.list(accountId, memberId, now)).tasks[0].status, 'active')
 })
 
+test('explicit conclusion is saved separately from archive and only references owned effective observations', async (t) => {
+  const { service, cleanup } = await fixture(); t.after(cleanup)
+  const { task } = await service.create(accountId, { memberId, displayName: '牛奶' }, now)
+  const observation = await service.saveRecord(accountId, task.id, {
+    status: 'effective', symptomAnswer: 'present', exposureAnswer: 'eaten', symptoms: [], note: '皮肤发红',
+    actualFood: '牛奶', preparation: '', amount: '', occurredAt: '2026-09-25T01:00:00.000Z'
+  }, now)
+  const fresh = (await service.list(accountId, memberId, now)).tasks[0]
+  const concluded = await service.saveConclusion(accountId, task.id, {
+    value: 'confirmed', observationIds: [observation.record.id, 'not-owned'], taskVersion: fresh.version
+  }, now)
+  assert.equal(concluded.conclusion.value, 'confirmed')
+  assert.deepEqual(concluded.conclusion.observationIds, [observation.record.id])
+  const archived = await service.mutateTask(accountId, task.id, 'archive', now, concluded.version)
+  assert.equal(archived.status, 'archived')
+  assert.equal(archived.conclusion.value, 'confirmed')
+  assert.equal(archived.conclusionHistory.length, 1)
+  await assert.rejects(service.saveConclusion(accountId, task.id, { value: 'investigating', observationIds: [], taskVersion: concluded.version }, now), (error) => error.code === 'VERSION_CONFLICT')
+})
+
+test('archive without a conclusion remains medically undecided', async (t) => {
+  const { service, cleanup } = await fixture(); t.after(cleanup)
+  const { task } = await service.create(accountId, { memberId, displayName: '花生' }, now)
+  const archived = await service.mutateTask(accountId, task.id, 'archive', now, task.version)
+  assert.equal(archived.status, 'archived')
+  assert.equal(archived.conclusion, null)
+  assert.deepEqual(archived.conclusionHistory, [])
+})
+
 test('effective records require two explicit answers, support symptom without exposure, and preserve pause state', async (t) => {
   const { service, cleanup } = await fixture(); t.after(cleanup)
   const { task } = await service.create(accountId, { memberId, displayName: '鸡蛋' }, now)

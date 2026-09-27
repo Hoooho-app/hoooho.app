@@ -17,7 +17,7 @@ export function desensitizationTestsApiPlugin(options = {}) {
       const accountId = account(request, tokens); const timeZone = String(request.headers['x-hoooho-timezone'] || 'Asia/Shanghai')
       const collection = url.pathname === '/api/desensitization-tests'
       const recordMatch = /^\/api\/desensitization-tests\/([^/]+)\/records(?:\/([^/]+)(?:\/(withdraw|restore|undo-update))?)?$/.exec(url.pathname)
-      const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan)$/.exec(url.pathname)
+      const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan|conclusion)$/.exec(url.pathname)
       const taskMatch = /^\/api\/desensitization-tests\/([^/]+)$/.exec(url.pathname)
       if (collection && request.method === 'GET') return send(response, 200, await service.list(accountId, String(url.searchParams.get('memberId') ?? ''), new Date(), timeZone))
       if (collection && request.method === 'POST') return send(response, 201, await service.create(accountId, await body(request), new Date(), timeZone))
@@ -30,6 +30,7 @@ export function desensitizationTestsApiPlugin(options = {}) {
       }
       if (actionMatch) { const id = decodeURIComponent(actionMatch[1]); const action = actionMatch[2]
         if (action === 'plan' && request.method === 'PUT') return send(response, 200, await service.savePlan(accountId, id, await body(request)))
+        if (action === 'conclusion' && request.method === 'PUT') return send(response, 200, await service.saveConclusion(accountId, id, await body(request)))
         if (request.method === 'POST') { const input = await body(request); return send(response, 200, await service.mutateTask(accountId, id, action, new Date(), Number.isInteger(input.version) ? input.version : null)) }
       }
       if (taskMatch && request.method === 'PATCH') return send(response, 200, await service.updateName(accountId, decodeURIComponent(taskMatch[1]), await body(request)))

@@ -54,15 +54,27 @@ test('P-002 仅一项已确认食物直接进入明确不能吃并可生成完�
 })
 
 test('P-002 仅一项暂避食物也直接显示且不制造明确不能吃分组', () => {
-  const snapshot = snapshotFromSources(memberId, deriveDietarySources(storage([allergy('鸡蛋', 'suspected')]), memberId, accountId), at)
+  const temporary = allergy('鸡蛋', 'suspected')
+  temporary.dietaryAction = 'temporary'
+  const snapshot = snapshotFromSources(memberId, deriveDietarySources(storage([temporary]), memberId, accountId), at)
   const card = presentDietaryCard(snapshot, 'zh')
   assert.equal(card.avoid.length, 0)
   assert.deepEqual(card.temporary.map((item) => item.name), ['鸡蛋'])
 })
 
+test('普通待排查、动物和仅报告线索不会自动变成忌口', () => {
+  const suspected = allergy('花生', 'investigating')
+  const animal = allergy('猫', 'confirmed', memberId, 'animal')
+  const reportOnly = allergy('牛乳', 'investigating')
+  reportOnly.sourceType = 'report'
+  assert.deepEqual(deriveDietarySources(storage([suspected, animal, reportOnly]), memberId, accountId), [])
+})
+
 test('P-003 多项记录按明确和暂避分组、全量进入导出且高度随内容增长', () => {
   const names = ['牛奶', '鸡蛋', '花生', '小麦', '大豆', '芝麻', '核桃', '杏仁', '腰果', '虾', '蟹', '鱼', '芒果', '猕猴桃', '草莓', '桃', '番茄', '燕麦']
-  const sources = deriveDietarySources(storage(names.map((name, index) => allergy(name, index < 12 ? 'confirmed' : 'investigating'))), memberId, accountId)
+  const records = names.map((name, index) => allergy(name, index < 12 ? 'confirmed' : 'investigating'))
+  records.slice(12).forEach((item) => { item.dietaryAction = 'temporary' })
+  const sources = deriveDietarySources(storage(records), memberId, accountId)
   const snapshot = snapshotFromSources(memberId, sources, at)
   const full = buildDietaryCardExportLayout(snapshot, 'zh')
   const short = buildDietaryCardExportLayout(snapshotFromSources(memberId, sources.slice(0, 1), at), 'zh')
@@ -99,7 +111,9 @@ test('P-004 保存快照可为空且只改变出示清单，不删除健康档�
 })
 
 test('更新保留手工项、重命名、改组和隐藏状态，来源删除后仅需复核', () => {
-  const originalSources = deriveDietarySources(storage([allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'suspected')]), memberId, accountId)
+  const temporary = allergy('鸡蛋', 'suspected')
+  temporary.dietaryAction = 'temporary'
+  const originalSources = deriveDietarySources(storage([allergy('牛奶', 'confirmed'), temporary]), memberId, accountId)
   const snapshot = snapshotFromSources(memberId, originalSources, at)
   snapshot.items[0] = { ...snapshot.items[0], name: '乳制品', nameAdjusted: true, visible: false }
   snapshot.items[1] = { ...snapshot.items[1], group: 'avoid', groupAdjusted: true }

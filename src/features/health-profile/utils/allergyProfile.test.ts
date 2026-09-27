@@ -1,14 +1,115 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { allergyReactionSummary, allergyTestResultLabel, allergyOptions, appendUniqueAllergyItems, buildTemporalStatement, createAllergyItem, createUnknownAllergyItem, formatElapsedSince, normalizeAllergyArchive, normalizeAllergyReports, readAllergyItems, testSupportsNumericValue, testSupportsStructuredResult } from './allergyProfile.ts'
+import {
+  allergyGroup,
+  allergyOptions,
+  applyAllergyReport,
+  createAllergyItem,
+  linkJournalObservation,
+  mergeDesensitizationConclusion,
+  normalizeAllergyArchive,
+  readAllergyArchive,
+  saveQuickAllergy,
+  serializeAllergyArchive,
+  type AllergyArchive,
+  type AllergyReportRecord,
+  type QuickAllergyInput
+} from './allergyProfile.ts'
 
-test('旧过敏记录兼容迁移且绑定当前人物',()=>{const archive=normalizeAllergyArchive([{name:'猫毛',type:'环境',certainty:'怀疑中'}],'child-1','account-1');assert.equal(archive.version,2);assert.deepEqual({name:archive.items[0].name,category:archive.items[0].category,status:archive.items[0].currentStatus,memberId:archive.items[0].memberId},{name:'猫毛',category:'environment',status:'suspected',memberId:'child-1'})})
-test('同分类同名去重但允许不同分类同名',()=>{const first=createAllergyItem('m1','food','自定义项');const next=appendUniqueAllergyItems([first],[createAllergyItem('m1','food','自定义项'),createAllergyItem('m1','contact','自定义项')]);assert.equal(next.length,2)})
-test('六类常见选项独立且检查结果不改变状态',()=>{assert.equal(Object.keys(allergyOptions).length,6);assert.deepEqual(allergyOptions.food.slice(0,2),['牛奶','鸡蛋']);assert.deepEqual(allergyOptions.drug.slice(0,2),['青霉素类','头孢类']);const item=createAllergyItem('m1','food','牛奶');item.tests.push({id:'t',allergyItemId:item.id,memberId:'m1',testType:'血清特异性 IgE',result:'negative',value:'',unit:'',testedAt:'2026-09-01',institution:'',reportFiles:[],clinicianInterpretation:'',notes:''});assert.equal(item.currentStatus,'')})
-test('日期持续时间和时间关联文案不声称因果',()=>{assert.equal(formatElapsedSince('2026-09-01',new Date('2026-09-11T00:00:00Z')),'10天');const statement=buildTemporalStatement('牛奶','饮用牛奶','皮肤发红','30分钟');assert.equal(statement,'饮用牛奶后约30分钟记录到皮肤发红');assert.doesNotMatch(statement,/导致/)})
-test('无效报告被忽略且有效报告保留人工整理状态',()=>{const reports=normalizeAllergyReports([{id:'r1',name:'报告.pdf',dataUrl:'data:application/pdf;base64,AA',parsingStatus:'已识别'},{}]);assert.equal(reports.length,1);assert.equal(reports[0].parsingStatus,'待人工整理')})
-test('读取过敏史只返回当前人物的数据',()=>{const current=createAllergyItem('member-current','food','牛奶','account-1');const other=createAllergyItem('member-other','drug','青霉素类','account-1');const items=readAllergyItems(JSON.stringify({version:2,items:[current,other]}),'member-current','account-1');assert.deepEqual(items.map(item=>item.memberId),['member-current']);assert.deepEqual(items.map(item=>item.name),['牛奶'])})
-test('服务端账户档案中的旧 accountId 会归一且嵌套记录归属当前成员',()=>{const current=createAllergyItem('member-current','food','牛奶','legacy-session-token');current.reactions.push({id:'r',allergyItemId:current.id,memberId:'member-other',symptomSystems:['皮肤'],symptoms:'发红',exposureAmount:'',latency:'立即',bodyLocations:'',handling:'',aggravatingFactors:'',relievingFactors:'',occurredAt:'2026-09-11T00:00:00Z',photos:[],notes:''});const items=readAllergyItems(JSON.stringify([current]),'member-current','account-1');assert.equal(items.length,1);assert.equal(items[0].accountId,'account-1');assert.equal(items[0].reactions[0].memberId,'member-current')})
-test('尚未明确每次建立独立对象而其他分类继续去重',()=>{const first=createUnknownAllergyItem('m1');const second=createUnknownAllergyItem('m1');assert.equal(appendUniqueAllergyItems([first],[second]).length,2);assert.notEqual(first.id,second.id)})
-test('症状摘要优先保留用户原文并如实回退到类别',()=>{const item=createAllergyItem('m1','food','牛奶');const base={id:'r',allergyItemId:item.id,memberId:'m1',symptomSystems:['皮肤'],symptoms:'',exposureAmount:'',latency:'说不清',bodyLocations:'',handling:'',aggravatingFactors:'',relievingFactors:'',occurredAt:'2026-09-11',photos:[],notes:''};assert.equal(allergyReactionSummary(base),'皮肤');assert.equal(allergyReactionSummary({...base,symptoms:'嘴角发红\n持续半小时'}),'嘴角发红\n持续半小时')})
-test('检查类型按医学记录形态显示适用字段但不解释结果',()=>{assert.equal(testSupportsStructuredResult('血清特异性 IgE'),true);assert.equal(testSupportsNumericValue('血清特异性 IgE'),true);assert.equal(testSupportsStructuredResult('回避—再引入观察'),false);assert.equal(testSupportsNumericValue('皮肤点刺试验'),false);assert.equal(allergyTestResultLabel(''),'结果未填写')})
+const baseInput: QuickAllergyInput = {
+  mutationKey: 'mutation-1', memberId: 'member-1', accountId: 'account-1', name: '牛乳', category: 'food',
+  certainty: 'investigating', reaction: '', occurredAt: '', sourceType: 'caregiver', sourceLabel: '', dietaryAction: '', ingredientNames: []
+}
+
+test('旧记录兼容为 V3，昆虫并入动物且只读取当前成员', () => {
+  const archive = normalizeAllergyArchive([
+    { id: 'old-insect', accountId: 'legacy-token', memberId: 'member-1', name: '蜜蜂', category: 'insect', certainty: '怀疑中' },
+    { id: 'other', accountId: 'account-1', memberId: 'member-2', name: '牛奶', category: 'food', certainty: '医生已确认' }
+  ], 'member-1', 'account-1')
+  assert.equal(archive.version, 3)
+  assert.deepEqual(archive.items.map((item) => [item.name, item.category, item.currentStatus, item.accountId]), [['蜜蜂', 'animal', 'suspected', 'account-1']])
+  assert.equal(archive.reports.length, 0)
+  assert.deepEqual(Object.keys(allergyOptions), ['food', 'drug', 'animal', 'environment', 'contact', 'unknown'])
+})
+
+test('同页快速添加保留原始层级、候选原料并按状态分组', () => {
+  const items = saveQuickAllergy([], { ...baseInput, name: '面包', reaction: '食用后皮肤发红', ingredientNames: ['小麦', '牛乳', '鸡蛋'] })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].name, '面包')
+  assert.deepEqual(items[0].ingredientRelations.map((item) => [item.name, item.relation]), [['小麦', 'candidate'], ['牛乳', 'candidate'], ['鸡蛋', 'candidate']])
+  assert.equal(allergyGroup(items[0]), 'investigating')
+  assert.equal(items[0].reactions[0].symptoms, '食用后皮肤发红')
+})
+
+test('重复提交幂等、精确同名更新，但部分重叠名称不合并', () => {
+  const first = saveQuickAllergy([], baseInput)
+  const repeated = saveQuickAllergy(first, baseInput)
+  assert.strictEqual(repeated, first)
+  const confirmed = saveQuickAllergy(first, { ...baseInput, mutationKey: 'mutation-2', certainty: 'confirmed' })
+  assert.equal(confirmed.length, 1)
+  assert.equal(confirmed[0].currentStatus, 'confirmed')
+  const wheat = saveQuickAllergy(confirmed, { ...baseInput, mutationKey: 'mutation-3', name: '小麦' })
+  const gluten = saveQuickAllergy(wheat, { ...baseInput, mutationKey: 'mutation-4', name: '麸质' })
+  assert.deepEqual(gluten.map((item) => item.name), ['牛乳', '小麦', '麸质'])
+})
+
+test('编辑保存保留既有证据并追加状态历史', () => {
+  const item = createAllergyItem('member-1', 'food', '牛奶', 'account-1')
+  item.currentStatus = 'investigating'
+  item.sourceReferences.push({ id: 'source-1', type: 'journal', sourceId: 'record-1', label: '健康随记', active: true, createdAt: '2026-09-01' })
+  const next = saveQuickAllergy([item], { ...baseInput, id: item.id, mutationKey: 'edit-1', name: '牛乳', certainty: 'confirmed', sourceType: 'clinician', sourceLabel: '医生告知' })
+  assert.equal(next[0].id, item.id)
+  assert.equal(next[0].sourceReferences[0].sourceId, 'record-1')
+  assert.equal(next[0].history.at(-1)?.status, 'confirmed')
+})
+
+test('报告可一次核对多项，阳性不自动确诊，阴性不删除既有明确记录', () => {
+  const confirmed = createAllergyItem('member-1', 'food', '鸡蛋', 'account-1')
+  confirmed.currentStatus = 'confirmed'
+  const report: AllergyReportRecord = {
+    recordType: 'allergy-report', id: 'report-1', accountId: 'account-1', memberId: 'member-1', fileName: '报告.pdf',
+    mimeType: 'application/pdf', dataUrl: 'data:application/pdf;base64,AA', recognitionStatus: 'manual_review_required', createdAt: '2026-09-20', updatedAt: '2026-09-20',
+    items: [
+      { id: 'line-1', name: '花生', category: 'food', result: 'positive', testedAt: '2026-09-18', adopted: true, unclear: false, originalName: '', originalResult: '' },
+      { id: 'line-2', name: '鸡蛋', category: 'food', result: 'negative', testedAt: '2026-09-18', adopted: true, unclear: false, originalName: '', originalResult: '' },
+      { id: 'line-3', name: '未核对项', category: 'food', result: '', testedAt: '', adopted: false, unclear: true, originalName: '', originalResult: '' }
+    ]
+  }
+  const next = applyAllergyReport({ version: 3, items: [confirmed], reports: [] }, report)
+  assert.equal(next.reports[0].recognitionStatus, 'user_reviewed')
+  assert.equal(next.items.find((item) => item.name === '花生')?.currentStatus, 'investigating')
+  assert.equal(next.items.find((item) => item.name === '鸡蛋')?.currentStatus, 'confirmed')
+  assert.equal(next.items.some((item) => item.name === '未核对项'), false)
+})
+
+test('排敏明确和待排查结论均保留独立来源引用', () => {
+  const confirmed = mergeDesensitizationConclusion([], { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'confirmed', observationIds: ['obs-1'], occurredAt: '2026-09-20' })
+  assert.equal(confirmed[0].currentStatus, 'confirmed')
+  assert.equal(confirmed[0].sourceReferences[0].sourceId, 'task-1')
+  assert.deepEqual(confirmed[0].sourceReferences[0].recordIds, ['obs-1'])
+  const investigating = mergeDesensitizationConclusion(confirmed, { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'investigating', observationIds: ['obs-1'], occurredAt: '2026-09-21' })
+  assert.equal(investigating[0].currentStatus, 'investigating')
+  assert.equal(investigating[0].sourceReferences.length, 1)
+})
+
+test('健康随记只有用户明确关联后进入待排查，并按记录 ID 防重复', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
+  const first = linkJournalObservation([], input)
+  const repeated = linkJournalObservation(first, input)
+  assert.equal(first[0].name, '尚未明确')
+  assert.equal(first[0].category, 'unknown')
+  assert.equal(first[0].currentStatus, 'investigating')
+  assert.equal(repeated[0].evidenceLinks.length, 1)
+  assert.equal(repeated[0].reactions.length, 1)
+})
+
+test('序列化继续使用 records 数组并同时保留报告，读取时按账户与成员隔离', () => {
+  const current = saveQuickAllergy([], baseInput)[0]
+  const other = createAllergyItem('member-2', 'drug', '青霉素', 'account-1')
+  const report = { recordType: 'allergy-report', id: 'report-1', accountId: 'account-1', memberId: 'member-1', fileName: '报告', mimeType: 'image/png', dataUrl: 'data:image/png;base64,AA', recognitionStatus: 'manual_review_required', items: [], createdAt: '2026-09-20', updatedAt: '2026-09-20' } satisfies AllergyReportRecord
+  const records = serializeAllergyArchive({ version: 3, items: [current, other], reports: [report] } satisfies AllergyArchive)
+  assert.equal(Array.isArray(records), true)
+  const restored = readAllergyArchive(JSON.stringify(records), 'member-1', 'account-1')
+  assert.deepEqual(restored.items.map((item) => item.name), ['牛乳'])
+  assert.deepEqual(restored.reports.map((item) => item.id), ['report-1'])
+})

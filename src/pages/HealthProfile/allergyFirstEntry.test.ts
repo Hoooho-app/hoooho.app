@@ -4,77 +4,49 @@ import test from 'node:test'
 
 const page = readFileSync(new URL('./AllergyProfilePage.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
+const journalLink = readFileSync(new URL('../HealthEventDetail/components/AllergyLinkSheet.tsx', import.meta.url), 'utf8')
 
-test('首次进入直接显示当前人物和带示例的六分类入口', () => {
-  assert.match(page, /if \(items\.length\) return <Dashboard/)
-  assert.match(page, /return <CategoryPage member=\{member\} parent="\/health-profile"/)
-  assert.match(page, /<Identity member=\{member\}/)
-  assert.match(page, /allergyCategoryExamples\[id\]/)
-  for (const category of ['food', 'drug', 'environment', 'insect', 'contact', 'unknown']) assert.match(page, new RegExp(`id: '${category}'`))
+test('过敏史二级页使用紧凑头部、报告入口和两组共享容器', () => {
+  assert.match(page, /title="过敏史"/)
+  assert.match(page, /检查报告/)
+  assert.match(page, /label="已明确"/)
+  assert.match(page, /label="待排查"/)
+  assert.match(page, /className="allergy-history-row"/)
+  assert.doesNotMatch(page, /<Identity/)
 })
 
-test('页面统一使用过敏与反应记录且不存在旧空状态和独立成功页', () => {
-  assert.match(page, /title="过敏与反应记录"/)
-  for (const removed of ['allergy-empty', '暂无过敏信息', 'ShieldCheck', 'SuccessPage', "sub[1] === 'success'", '排敏测试进行中']) assert.doesNotMatch(page, new RegExp(removed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+test('添加在当前页使用单层底部弹窗，六类含动物且没有搜索向导', () => {
+  assert.match(page, /<BottomSheetSurface className="allergy-quick-sheet"/)
+  assert.match(page, /label="过敏对象"/)
+  for (const category of ['food', 'drug', 'animal', 'environment', 'contact', 'unknown']) assert.match(page, new RegExp(`id:'${category}'`))
+  assert.doesNotMatch(page, /id:'insect'/)
+  assert.doesNotMatch(page, /搜索过敏原/)
+  assert.doesNotMatch(page, /下一步/)
 })
 
-test('页内返回使用明确父级和 replace 防止历史栈往返', () => {
-  assert.match(page, /navigate\(parent, \{ replace: true \}\)/)
-  assert.match(page, /Header parent="\/health-profile\/allergy\/choose"/)
-  assert.match(page, /Header parent=\{itemPath\(item\.id\)\}/)
-  assert.match(page, /Header parent="\/health-profile\/allergy"/)
-  assert.match(page, /replace: true, state: \{ notice:/)
+test('报告为模块级上传并明确无 OCR 时采用人工多项核对', () => {
+  assert.match(page, /当前没有可用的自动识别能力/)
+  assert.match(page, /添加报告项目/)
+  assert.match(page, /阳性只作为待排查线索，阴性不会删除已有过敏史/)
+  assert.match(page, /查看原件/)
 })
 
-test('对象详情同时提供新增操作和真实症状检查回看入口', () => {
-  assert.match(page, /症状记录（\$\{reactions\.length\}）/)
-  assert.match(page, /检查与报告（\$\{tests\.length\}）/)
-  assert.match(page, /reactions\/\$\{record\.id\}/)
-  assert.match(page, /tests\/\$\{record\.id\}/)
-  assert.match(page, /allergyReactionSummary\(record\)/)
-  assert.match(page, /allergyTestResultLabel\(record\.result\)/)
+test('对象详情不再创建第四级记录查看页', () => {
+  assert.match(page, /allergy-inline-record/)
+  assert.doesNotMatch(page, /reactions\/\$\{record\.id\}/)
+  assert.doesNotMatch(page, /tests\/\$\{record\.id\}/)
 })
 
-test('症状页提前标注最低保存条件并保留可选具体表现', () => {
-  assert.match(page, /required title="出现了哪些表现？"/)
-  assert.match(page, /具体表现（选填）/)
-  assert.match(page, /required title="接触后多久出现？"/)
-  assert.match(page, /说不清/)
-  assert.match(page, /disabled=\{!systems\.length \|\| !latency\}/)
-  assert.match(page, /正在记录与该对象相关的症状/)
+test('健康随记明确关联只建立待排查线索并保留记录 ID', () => {
+  assert.match(journalLink, /linkJournalObservation/)
+  assert.match(journalLink, /不会自动写成已明确过敏/)
+  assert.match(journalLink, /recordId/)
+  assert.match(journalLink, /尚未明确/)
 })
 
-test('深层页面均显示紧凑当前成员身份并校验成员归属', () => {
-  assert.ok((page.match(/<Identity compact member=\{member\}/g) ?? []).length >= 7)
-  assert.match(page, /candidate\.memberId === member\.id/)
-  assert.match(page, /record\.memberId === member\.id/)
-  assert.match(page, /没有找到属于当前家庭成员的这条记录/)
-})
-
-test('尚未明确跳过名称选择并直接创建独立对象进入症状记录', () => {
-  assert.match(page, /if \(id === 'unknown'\)/)
-  assert.match(page, /createUnknownAllergyItem\(member\.id, accountId\)/)
-  assert.match(page, /navigate\(`\$\{itemPath\(unknown\.id\)\}\/reaction`, \{ replace: true \}\)/)
-})
-
-test('重复对象可查看继续补充且不会计入选择数量', () => {
-  assert.doesNotMatch(page, /disabled=\{duplicate\}/)
-  assert.match(page, /查看／继续补充/)
-  assert.match(page, /onOpenExisting\(duplicate\.id\)/)
-})
-
-test('检查表单按类型适配字段并提供真实附件状态', () => {
-  assert.match(page, /testSupportsStructuredResult\(type\)/)
-  assert.match(page, /testSupportsNumericValue\(type\)/)
-  assert.match(page, /补充信息（选填）/)
-  assert.match(page, /reader\.readAsDataURL\(file\)/)
-  assert.match(page, /未上传／待补充/)
-  assert.match(page, /移除附件/)
-})
-
-test('iPhone SE 布局保留点击面积和底部安全空间', () => {
-  assert.match(styles, /@media \(max-height: 667px\) and \(max-width: 430px\)/)
-  assert.match(styles, /allergy-content\.allergy-content--with-action[^}]*safe-area-inset-bottom/)
-  assert.match(styles, /\.allergy-choice button\{[^}]*min-height:44px/)
+test('iPhone SE 规则保持 44px 点击区、紧凑间距和安全区', () => {
+  assert.match(styles, /@media\(max-height:667px\) and \(max-width:430px\)/)
+  assert.match(styles, /allergy-category-options button[^}]*min-height:48px/)
+  assert.match(styles, /allergy-history-content[^}]*safe-area-inset-bottom/)
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)/)
 })
