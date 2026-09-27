@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
-import type { VisitPhoto, VisitSheet, VisitSource } from '../../types/visitSheet'
+import type { VisitPhoto, VisitPhotoDetail, VisitSheet, VisitSource } from '../../types/visitSheet'
+import type { VisitSheetUpdate } from '../../services/visitSheets'
+import { useReportPhotoDraft } from './useReportPhotoDraft'
 import { reportTime } from './ReportChapter'
 
 export async function readPhoto(source: VisitSource, token: string, signal?: AbortSignal) {
@@ -16,7 +18,7 @@ export function PhotoImage({source,token,onOpen}:{source:VisitSource;token:strin
   useEffect(()=>{
     const controller=new AbortController();let objectUrl=''
     setUrl('');setError('')
-    void readPhoto(source,token,controller.signal).then(blob=>{if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}}).catch(e=>{if(!controller.signal.aborted)setError(e.message)})
+    void readPhoto(source,token,controller.signal).then(blob=>{if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}}).catch(e=>{if(!controller.signal.aborted)setError(/abort|fetch|timeout|timed out/i.test(e.message)?'照片读取超时或连接中断，请重试':e.message)})
     return()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl)}
   },[source.id,source.updatedAt,token,attempt])
   return error ? <div role="alert"><p>{error}</p><HohoButton variant="text" onClick={()=>setAttempt(n=>n+1)}>重试照片</HohoButton></div> : url ? <button className="visit-photo-image" onClick={onOpen} disabled={!onOpen} aria-label={`查看原图：${source.title}`}><img src={url} alt={source.title} onError={()=>setError('图片解码失败，请重试原件')}/></button> : <p role="status">正在读取照片…</p>
@@ -26,19 +28,29 @@ export function PhotoCaption({photo}:{photo:VisitPhoto}) {
 }
 export function ReportPhotos({report,token,onChoose,onOpen}:{report:VisitSheet;token:string;onChoose:()=>void;onOpen:(id:string)=>void}) {
   const photos=(report.photos??[]).filter(p=>report.selectedPhotoIds?.includes(p.sourceId))
-  return <section className="visit-photos" aria-label="近期相关照片"><div className="visit-section-actions"><h3>近期相关照片</h3><button onClick={onChoose}>调整照片</button></div>
+  return <section className="visit-photos" aria-label="近期相关照片"><div className="visit-section-actions"><h3>近期相关照片 · {photos.length} 张</h3><button onClick={onChoose}>添加 / 调整照片</button></div>
     {photos.length ? <><div className="visit-photo-grid">{photos.map(p=><figure key={p.sourceId}><PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token} onOpen={()=>onOpen(p.sourceId)}/><PhotoCaption photo={p}/></figure>)}</div><p className="visit-muted">照片按关联记录呈现；不据此判断病情轻重或治疗前后。</p></> : <p className="visit-muted">{report.photoCandidates?.length ? '本次未展示照片。原附件仍保留。' : '没有与这项主诉明确关联的照片。'}</p>}
   </section>
 }
-export function PhotoPicker({report,token,onClose,onSave,working,error}:{report:VisitSheet;token:string;onClose:()=>void;onSave:(ids:string[])=>Promise<boolean>;working:boolean;error:string}) {
-  const [ids,setIds]=useState(report.selectedPhotoIds??[]),[discard,setDiscard]=useState(false)
-  const close=()=>JSON.stringify(ids)!==JSON.stringify(report.selectedPhotoIds??[]) ? setDiscard(true) : onClose()
-  return <BottomSheetSurface open label="调整照片" title="本次展示照片" size="workspace" onClose={()=>{if(!working)close()}} footer={<HohoButton fullWidth loading={working} onClick={()=>void onSave(ids)}>保存展示选择</HohoButton>}>
-    <p>仅改变本主题的展示，不删除原附件。导出时可另行核对包含范围。</p>
-    {(report.photos??[]).filter(p=>report.photoCandidates?.includes(p.sourceId)).map(p=><div className="visit-photo-choice" key={p.sourceId}><label><input type="checkbox" checked={ids.includes(p.sourceId)} onChange={e=>setIds(e.target.checked?[...ids,p.sourceId]:ids.filter(id=>id!==p.sourceId))}/>{p.title}</label><PhotoCaption photo={p}/><PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token}/></div>)}
-    {!report.photoCandidates?.length&&<p>暂无明确关联的可选照片。</p>}{error&&<p role="alert">尚未保存：{error}</p>}
-    {discard&&<div role="alert"><p>展示选择尚未保存</p><HohoButton onClick={()=>setDiscard(false)}>继续选择</HohoButton><HohoButton variant="text" onClick={onClose}>放弃修改</HohoButton></div>}
+export function PhotoPicker({report,memberId,token,onClose,onSave,working,error}:{report:VisitSheet;memberId:string;token:string;onClose:()=>void;onSave:(changes:Partial<VisitSheetUpdate>)=>Promise<boolean>;working:boolean;error:string}) {
+  const [ids,setIds]=useState(report.selectedPhotoIds??[]),[discard,setDiscard]=useState(false),[details,setDetails]=useState<Record<string,VisitPhotoDetail>>({}),[existing,setExisting]=useState(false)
+  const draft=useReportPhotoDraft(memberId,token),input=useRef<HTMLInputElement>(null)
+  const dirty=JSON.stringify(ids)!==JSON.stringify(report.selectedPhotoIds??[])||Object.keys(details).length>0||draft.photos.length>0
+  const close=()=>dirty?setDiscard(true):onClose()
+  const change=(id:string,value:VisitPhotoDetail)=>setDetails(d=>({...d,[id]:{...d[id],...value}}))
+  const save=()=>draft.save(photoDraft=>onSave({selectedPhotoIds:[...ids,...photoDraft.photoIds.map(id=>`draft:${id}`)],photoDetails:details,...(photoDraft.photoIds.length?{photoDraft}:{})}))
+  return <BottomSheetSurface open label="添加 / 调整照片" title="添加 / 调整照片" size="workspace" onClose={()=>{if(!working)close()}} footer={<HohoButton fullWidth loading={working} disabled={draft.photos.some(p=>p.status!=='uploaded')} onClick={()=>void save()}>保存照片选择</HohoButton>}>
+    <p>照片由家长选择关联本主题，不代表医学关联。保存后可刷新读取；原附件不会因取消展示而删除。</p>
+    <fieldset disabled={working} className="visit-photo-edit-fields"><div className="visit-image-toolbar"><HohoButton variant="secondary" disabled={working} onClick={()=>input.current?.click()}>从相册添加</HohoButton><HohoButton variant="secondary" onClick={()=>setExisting(v=>!v)}>选择已有记录</HohoButton></div><input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple aria-label="选择要上传的照片" className="visit-file-input" onChange={e=>{draft.choose(e.target.files);e.target.value=''}}/>
+    {draft.notice&&<p role="status">{draft.notice}</p>}
+    {draft.photos.map(p=><div className="visit-photo-choice" key={p.localId}><img src={p.url} alt={p.file.name}/><p>{p.file.name} · {p.status==='uploaded'?'上传完成，待保存':p.status==='uploading'?'处理中 / 上传中':'上传失败'}</p>{p.error&&<p role="alert">{p.error}</p>}{p.status==='failed'&&<HohoButton onClick={()=>draft.retry(p.localId)}>重试上传</HohoButton>}<HohoButton variant="text" disabled={working} onClick={()=>draft.remove(p.localId)}>取消这张照片</HohoButton>{p.serverId&&<PhotoMetadata value={details[`draft:${p.serverId}`]??{}} onChange={value=>change(`draft:${p.serverId}`,value)}/>}</div>)}
+    {(report.photos??[]).filter(p=>existing||report.selectedPhotoIds?.includes(p.sourceId)||ids.includes(p.sourceId)).map(p=><div className="visit-photo-choice" key={p.sourceId}><label><input type="checkbox" checked={ids.includes(p.sourceId)} onChange={e=>setIds(e.target.checked?[...ids,p.sourceId]:ids.filter(id=>id!==p.sourceId))}/>{p.title}</label><PhotoCaption photo={p}/><PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token}/><PhotoMetadata value={{label:p.title,location:p.location,capturedAt:p.capturedAt,capturePrecision:p.capturePrecision??(p.capturedAt?.length===10?'day':p.capturedAt?'exact':'unknown'),...details[p.sourceId]}} onChange={value=>change(p.sourceId,value)}/></div>)}
+    {existing&&!report.photos?.length&&<p>暂无已有照片，可从相册添加。</p>}</fieldset>{error&&<p role="alert">尚未确认保存：{error}</p>}
+    {discard&&<div role="alert"><p>照片或说明尚未保存</p><HohoButton onClick={()=>setDiscard(false)}>继续选择</HohoButton><HohoButton variant="text" onClick={onClose}>放弃修改</HohoButton></div>}
   </BottomSheetSurface>
+}
+function PhotoMetadata({value,onChange}:{value:VisitPhotoDetail;onChange:(value:VisitPhotoDetail)=>void}){
+  return <details className="visit-photo-metadata"><summary>编辑照片说明</summary><p className="visit-muted">保存为报告内的家长说明，不改写原始附件。仅改说明不会改变已有拍摄时刻。</p><label>照片说明<input maxLength={200} value={value.label??''} onChange={e=>onChange({label:e.target.value})}/></label><label>部位 / 对象<input maxLength={200} value={value.location??''} onChange={e=>onChange({location:e.target.value})}/></label><p>当前拍摄时间：{value.capturedAt?reportTime(value.capturedAt):'未知'}</p><label>补充 / 改为拍摄日期<input type="date" value={value.capturePrecision==='day'?value.capturedAt??'':''} onChange={e=>onChange({capturedAt:e.target.value||null,capturePrecision:e.target.value?'day':'unknown'})}/></label><button className="visit-text-action" onClick={()=>onChange({capturedAt:null,capturePrecision:'unknown'})}>设为拍摄时间未知</button></details>
 }
 export function PhotoViewer({report,token,id,onClose}:{report:VisitSheet;token:string;id:string;onClose:()=>void}) {
   const photos=(report.photos??[]).filter(p=>report.selectedPhotoIds?.includes(p.sourceId)),[index,setIndex]=useState(Math.max(0,photos.findIndex(p=>p.sourceId===id))),[zoom,setZoom]=useState(1)

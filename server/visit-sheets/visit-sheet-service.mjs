@@ -2,6 +2,9 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withAccountLock } from '../auth/account-lock.mjs'
+import { accountTransaction } from '../auth/storage/transaction.mjs'
+import { QuickRecordPhotoService } from '../events/quick-record-photo-service.mjs'
+import { photoDetails } from './photo-preferences.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
@@ -25,6 +28,8 @@ const failure = (message, status = 400) =>
   })
 export class VisitSheetService {
   constructor(options) {
+    this.dataDirectory=options.dataDirectory
+    this.photos=options.photos??new QuickRecordPhotoService(options)
     this.members =
       options.members ?? new FamilyMemberRepository(options.dataDirectory)
     this.events =
@@ -176,7 +181,7 @@ export class VisitSheetService {
       // Never serve a removed source through a saved/exportable snapshot.
       const current = buildVisitSheet(input, report)
       const allowed = new Set(current.sources.map((s) => s.id))
-      if (report.schemaVersion !== 5 || report.sources.some((s) => !allowed.has(s.id)))
+      if (report.schemaVersion !== 6 || report.sources.some((s) => !allowed.has(s.id)))
         return {
           report: null,
           expectedVersion: report.version,
@@ -197,8 +202,8 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date()) {
-    return withAccountLock(accountId, async () => {
-      const input = await this.collect(accountId, memberId, now)
+    return withAccountLock(accountId, () => accountTransaction(this.dataDirectory, async () => {
+      let input = await this.collect(accountId, memberId, now)
       const saved = (await this.store.read()).reports.find(
         (r) => r.accountId === accountId && r.memberId === memberId,
       )
@@ -258,18 +263,44 @@ export class VisitSheetService {
           503,
         )
       const photoSelections = { ...(previous?.photoSelections ?? {}) }
+      let attachmentEventId=saved?.attachmentEventId
+      const aliases=new Map()
+      let prepared=[]
+      if(request.photoDraft!==undefined){
+        const draft=request.photoDraft
+        if(!draft||typeof draft.draftId!=='string'||!Array.isArray(draft.photoIds)||draft.photoIds.some(id=>typeof id!=='string'))throw failure('照片草稿格式无效')
+        prepared=await this.photos.prepareForSave(accountId,memberId,draft.draftId,draft.photoIds)
+        for(const photo of prepared)await this.photos.read(accountId,memberId,draft.draftId,photo.id)
+        if(prepared.length){
+          // Photo-only container: no symptom/clinical record, diagnosis or AI analysis.
+          let event=attachmentEventId?await this.events.findById(attachmentEventId):null
+          if(!event||event.accountId!==accountId||event.memberId!==memberId){
+            event=await this.events.create({accountId,memberId,title:'就诊资料照片',category:'other',status:'observing',startTime:now.toISOString()},now)
+            attachmentEventId=event.id
+          }
+          const attached=await this.photos.attach(accountId,event.id,null,memberId,prepared,now)
+          if(attached.length!==prepared.length)throw failure('照片已在其他位置保存，请重新读取并核对',409)
+          for(const a of attached)aliases.set(`draft:${a.draftPhotoId}`,`attachment:${a.id}`)
+          input=await this.collect(accountId,memberId,now)
+          if(input.warnings.length)throw failure('照片资料核验失败，原报告和上传草稿仍保留，请重试',503)
+        }
+      }
+      const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, photoSelections }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, photoSelections, photoDetails:details }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }
       if (request.selectedPhotoIds !== undefined) {
-        if (!Array.isArray(request.selectedPhotoIds) || request.selectedPhotoIds.length > 500 || request.selectedPhotoIds.some(id => typeof id !== 'string' || !report.photoCandidates.includes(id))) throw failure('所选照片已不可用或不属于本次主诉，请重新核对')
-        photoSelections[report.photoKey] = [...new Set(request.selectedPhotoIds)]
+        if (!Array.isArray(request.selectedPhotoIds) || request.selectedPhotoIds.length > 500 || request.selectedPhotoIds.some(id => typeof id !== 'string' || !report.photos.some(p=>p.sourceId===(aliases.get(id)||id)))) throw failure('所选照片已不可用或不属于当前孩子，请重新核对')
+        photoSelections[report.photoKey] = [...new Set(request.selectedPhotoIds.map(id=>aliases.get(id)||id))]
         report.selectedPhotoIds = photoSelections[report.photoKey]
         report.photoSelections[report.photoKey] = report.selectedPhotoIds
+        report.photoCandidates=[...new Set([...report.photoCandidates,...report.selectedPhotoIds])]
       }
+      if(prepared.length&&!request.selectedPhotoIds)throw failure('请明确选择本次展示的上传照片')
+      if(Object.keys(request.photoDetails??{}).some(id=>!report.photos.some(p=>p.sourceId===(aliases.get(id)||id))))throw failure('照片说明对应原件已不可用')
       // Report edits do not claim that the underlying health information changed.
       if (previous?.fingerprint === report.fingerprint) {
         report.dataAsOf = previous.dataAsOf
@@ -292,7 +323,7 @@ export class VisitSheetService {
       report.changes = [
         ...(previous?.changes ?? []).filter(
           (c) => c.sourceId === '家长报告编辑'
-            ? c.sourceIds ? c.sourceIds.every(id=>available.has(id)) : !removedSources && previous?.schemaVersion===5
+            ? c.sourceIds ? c.sourceIds.every(id=>available.has(id)) : !removedSources && previous?.schemaVersion>=5
             : available.has(c.sourceId) && (c.sourceIds ? c.sourceIds.every(id=>available.has(id)) : !removedSources),
         ),
         ...report.sources
@@ -330,6 +361,7 @@ export class VisitSheetService {
             memberId,
             current: report,
             requestId: request.requestId,
+            attachmentEventId,
             history: [
               ...(saved?.history ?? []),
               ...(previous ? [previous] : []),
@@ -337,12 +369,13 @@ export class VisitSheetService {
           },
         ],
       }))
+      if(prepared.length)await this.photos.consume(accountId,request.photoDraft.draftId,prepared,now)
       return {
         report,
         stale: false,
         warnings: report.warnings,
         hasLegacy: input.events.some((e) => e.medicalPreparation),
       }
-    })
+    }))
   }
 }

@@ -67,12 +67,24 @@ export interface VisitPhoto {
   uploadedAt: string | null
   timeKind: string
   mimeType: string
+  capturePrecision?: 'unknown' | 'day' | 'exact'
+  annotated?: boolean
+}
+export interface VisitPhotoDetail { label?: string; location?: string; capturedAt?: string | null; capturePrecision?: 'unknown' | 'day' | 'exact' }
+export interface VisitMedicationSnapshot {
+  id: string
+  status: string
+  plan: { medicationName: string; amount?: number; unit?: string; route?: string; mode: string; times: string[]; intervalHours?: number; startDate: string; endDate?: string | null; timezone: string }
+  totalDays: number | null
+  occurrences: Array<{id: string; scheduledAt: string; day: string; dayIndex: number; weekIndex: number; slotIndex: number; completed: boolean; sourceId?: string}>
+  sourceIds: string[]
 }
 export interface VisitChapter {
   id: VisitChapterId
   title: string
   summary: string
   blocks: VisitBlock[]
+  overview?: { lines: string[]; items: Array<{title: string; detail: string; sourceIds: string[]; at?: string; timeKind?: string}> }
 }
 export interface VisitSheet {
   id: string
@@ -87,6 +99,8 @@ export interface VisitSheet {
   photoCandidates?: string[]
   selectedPhotoIds?: string[]
   photoSelections?: Record<string, string[]>
+  photoDetails?: Record<string, VisitPhotoDetail>
+  medicationReminders?: VisitMedicationSnapshot[]
   gaps?: string[]
   questionEdited?: boolean
   questionOrigin?: string

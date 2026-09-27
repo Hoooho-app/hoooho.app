@@ -174,7 +174,7 @@ test('首次部分读取失败不能保存为无记录；章节补充不改变�
   assert.equal((await svc.store.read()).reports.length,0)
   svc.growth.list=async()=>f.growth
   f.records[0].content+='。想问需要补充什么观察？'
-  const first=await svc.save(a,m,{expectedVersion:0,requestId:'question'})
+  const first=await svc.save(a,m,{expectedVersion:0,requestId:'question',focus:{mode:'source',sourceId:'record:s0'}})
   assert.equal(first.report.questionOrigin,'据家长记录整理')
   const edited=await svc.save(a,m,{expectedVersion:1,requestId:'chapter',notes:{sources:'附件核对'}})
   assert.equal(edited.report.question,first.report.question)

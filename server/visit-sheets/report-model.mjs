@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
+import { refineV6 } from './v6-projection.mjs'
+import { profileSourceId } from './source-identity.mjs'
 
 export const chapters = [
   ['overview', '病情数据'],
@@ -501,7 +503,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       for (const item of items) {
         if (item.memberId && item.memberId !== input.member.id) continue
         const id = add({
-          id: `profile:${archive.sectionId}:${item.id ?? createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0,16)}`,
+          id: profileSourceId(archive.sectionId,item),
           profileSection: archive.sectionId,
           category: archive.sectionId,
           title:
@@ -530,7 +532,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     }
   }
   for (const task of input.tasks) {
-    const taskSource=add({id:`observation-plan:${task.id}`,category:'observation-plan',title:`${task.displayName} · 观察计划`,text:`${task.displayName}；${task.status==='active'?'进行中':'已归档'}；创建观察计划 ${displayTime(task.createdAt)}。这是观察计划，不代表摄入或症状已发生。`,occurredAt:null,createdAt:date(task.createdAt),updatedAt:date(task.updatedAt),identity:'家长观察计划',destinations:['allergy']})
+    const taskSource=add({id:`observation-plan:${task.id}`,category:'observation-plan',title:`${task.displayName} · 观察计划`,text:`${task.displayName}；${task.status==='active'?'进行中':task.status==='archived'?'已归档':'状态未提供'}；创建观察计划 ${displayTime(task.createdAt)}。这是观察计划，不代表摄入或症状已发生。`,occurredAt:null,createdAt:date(task.createdAt),updatedAt:date(task.updatedAt),identity:'家长观察计划',destinations:['allergy']})
     const items = task.records.filter((r) => !r.withdrawnAt).sort(byTime)
     const ids = items.map((r) =>
       add({
@@ -579,7 +581,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       .filter((id) => sourceMap.has(id))
     block(
       'allergy',
-      `${task.displayName} · ${task.status === 'active' ? '进行中' : '已归档'}`,
+      `${task.displayName} · ${task.status === 'active' ? '进行中' : task.status === 'archived' ? '已归档' : '状态未提供'}`,
       [
         `创建观察计划：${displayTime(task.createdAt)}；${effective.length} 条有效观察，${items.length - effective.length} 条草稿另列。`,
         `最近结果：${items[0] ? sourceMap.get(ids[0]).text : '尚无观察记录'}`,
@@ -642,6 +644,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
             `${displayTime(o.scheduledAt)} · ${reminder.plan.medicationName}`,
         ),
         [planSource],
+        { reminderId: reminder.id },
       )
   }
   for (const r of records.filter(
@@ -769,7 +772,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       s.summary = s.blocks.length
         ? '根据已保存资料整理；全部提炼保留来源入口。'
         : '本章暂无可读取资料。未提供不等于没有相关经历。'
-  return refineVisitSheet({
+  return refineV6(refineVisitSheet({
     memberId: input.member.id,
     member: {
       name: input.member.name,
@@ -787,10 +790,10 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     sources,
     chapters: sections,
     candidates,
-    warnings: input.warnings ?? [],
+    warnings: [...(input.warnings ?? [])],
     dataAsOf: now.toISOString(),
     generatedAt: now.toISOString(),
     fingerprint: reportFingerprint(input, now),
     changes: [],
-  }, input, preferences)
+  }, input, preferences), input, preferences, now)
 }

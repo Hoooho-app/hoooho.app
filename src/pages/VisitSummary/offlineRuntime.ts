@@ -37,11 +37,12 @@ export function offlineRuntime() {
       const present=(parent:Element,s:any)=>{const item=el('article');paragraph(item,`${s.timePrecision==='unknown'?'发生时间未知':s.timePrecision==='day'||s.timePrecision==='period'?`${s.occurredAt?.slice(0,10)||'未提供'}（日期 / 时段精度）`:s.occurredAt||'发生时间未知'} · ${s.locations?.join('、')||s.identity}`);paragraph(item,s.narrative||s.text||s.title);const link=el('a',`${s.code} 查看依据`) as HTMLAnchorElement;link.href=`#${s.id}`;item.append(link);parent.append(item)}
       if(treatments.length){overview.append(el('h3','明确关联的处理 / 就诊'));treatments.forEach((s:any)=>present(overview,s))}
       if(history.length){overview.append(el('h3','相关背景'));history.forEach((s:any)=>present(overview,s))}
-      const nodes=[...related,...treatments.filter((s:any)=>!ids.has(s.id))].sort((a,b)=>(Date.parse(b.occurredAt||b.createdAt)||0)-(Date.parse(a.occurredAt||a.createdAt)||0))
+      const nodes=[...related,...treatments.filter((s:any)=>!ids.has(s.id))].sort((a,b)=>(Date.parse(a.occurredAt||a.createdAt)||0)-(Date.parse(b.occurredAt||b.createdAt)||0))
       nodes.forEach((s:any)=>present(course,s))
       if(related.length){const counts=new Map<string,number>();for(const s of related){const label=({little:'影响较小',some:'有些影响',clear:'明显影响'} as Record<string,string>)[s.impactLevel]||'影响程度未填写';counts.set(label,(counts.get(label)||0)+1)}const detail=el('details');detail.append(el('summary','家长记录的影响程度 · 展开明细'));paragraph(detail,[...counts].map(([label,count])=>`${label} ${count} 条`).join('；'));paragraph(detail,'按本次相关症状记录互斥分类，不是发作次数、医学严重度或跨部位改善评分。');course.append(detail)}
       if(!related.length)paragraph(course,'此主诉尚无相关经过，不套用原主题图表。')
       document.querySelectorAll('[data-copy-relation]').forEach(node=>node.textContent='本地已更改主诉；明确关联内容已在本次经过中列出，本章其余资料保留，不据时间先后推断因果。')
+      const oldHistory=document.querySelector('[data-chapter-overview="history"]');if(oldHistory){oldHistory.replaceChildren();paragraph(oldHistory,history.length?'与本次明确关联的背景已在上方经过列出。':'尚未建立与本次明确关联的背景。')}
       document.querySelectorAll<HTMLElement>('[data-report-source-ids]').forEach(node=>{const refs=JSON.parse(node.dataset.reportSourceIds!);const label=node.querySelector('[data-copy-related]');if(label)label.textContent=refs.some((id:string)=>ids.has(id)||explicit.some((s:any)=>s.id===id))?'与本次有明确记录关联':'与本次关系尚未建立，保留供核对'})
       report.gaps=['最早记录不等于起病时间；家长问题与补充仍保留，请核对是否适用于当前主诉。',...(!treatments.length?['尚未建立此主诉与处理 / 就诊资料的明确关联。']:[]),...(!history.length?['尚未建立此主诉与既往资料的明确关联。']:[])]
       const gaps=document.getElementById('copy-gaps')!;gaps.replaceChildren();report.gaps.forEach((text:string)=>paragraph(gaps,text))
@@ -52,7 +53,7 @@ export function offlineRuntime() {
   const open=(title:string)=>{returnFocus=document.activeElement as HTMLElement;panel.replaceChildren(el('h2',title));panel.showModal()}
   const close=()=>{panel.close();returnFocus?.focus({preventScroll:true})}
   const actions=(save:()=>void|boolean)=>{const submit=el('button','保存本地修改');submit.onclick=()=>{if(save()===false)return;persist();close()};const cancel=el('button','取消');cancel.onclick=close;panel.append(submit,cancel)}
-  document.getElementById('copy-edit-question')!.onclick=()=>{open('本次想问 · 本地副本');const field=el('textarea') as HTMLTextAreaElement;field.value=data.report.question;field.setAttribute('aria-label','本次想问');panel.append(field);actions(()=>{data.report.question=field.value;data.report.questionOrigin='家长填写（本地副本）';data.report.questionSourceIds=[];document.getElementById('copy-question-sources')?.replaceChildren()});field.focus()}
+  document.getElementById('copy-edit-question')!.onclick=()=>{open('本次想问 · 本地副本');const field=el('textarea') as HTMLTextAreaElement;field.value=data.report.question;field.setAttribute('aria-label','本次想问');panel.append(field);actions(()=>{data.report.question=field.value;data.report.questionEdited=true;data.report.questionOrigin='家长填写（本地副本）';data.report.questionSourceIds=[];document.getElementById('copy-question-sources')?.replaceChildren()});field.focus()}
   document.querySelectorAll<HTMLElement>('[data-edit-note]').forEach(button=>button.onclick=()=>{const id=button.dataset.editNote!;open('章节补充 · 本地副本');const field=el('textarea') as HTMLTextAreaElement;field.value=data.report.notes[id]||'';field.setAttribute('aria-label','章节补充');panel.append(field);actions(()=>{data.report.notes[id]=field.value});field.focus()})
   document.getElementById('copy-edit-focus')!.onclick=()=>{
     open('更改主诉 · 仅使用副本内已有资料')
@@ -73,14 +74,22 @@ export function offlineRuntime() {
       data.report.photoSelections[data.report.photoKey]=data.report.selectedPhotoIds
       const theme=selected?.id||`custom:${text}`;data.report.photoKey=theme
       const eligible=data.report.photos.filter((p:any)=>p.relatedSourceIds.some((id:string)=>data.report.focusSourceIds.includes(id))).map((p:any)=>p.sourceId)
-      data.report.selectedPhotoIds=(data.report.photoSelections[theme]??eligible.slice(0,3)).filter((id:string)=>eligible.includes(id))
+      data.report.selectedPhotoIds=(data.report.photoSelections[theme]??(selected?eligible.slice(0,3):[])).filter((id:string)=>data.report.photos.some((p:any)=>p.sourceId===id))
+      if(!data.report.questionEdited){
+        const refs=new Set(data.report.focusSourceIds),linked=sources().filter((s:any)=>refs.has(s.id)||s.relatedSourceIds?.some((id:string)=>refs.has(id))||related.some((f:any)=>f.relatedSourceIds?.includes(s.id)))
+        const questionSources=linked.filter((s:any)=>s.category!=='attachment'&&/(?:想问|希望了解|想了解|请问|是否.*[？?])/.test(s.text))
+        data.report.questionSourceIds=questionSources.map((s:any)=>s.id)
+        data.report.question=questionSources.flatMap((s:any)=>s.text.split(/\n/).filter((t:string)=>/(?:想问|希望了解|想了解|请问|是否.*[？?])/.test(t))).slice(0,3).join('\n')
+        data.report.questionOrigin=data.report.question?'据家长记录整理':'可参考的问题'
+        if(!data.report.question)data.report.question='这些表现需要进一步了解或检查什么？\n哪些变化需要记录，何时需要再就医？\n日常照护有哪些需要向医生确认的事项？'
+      }
       data.focusChanged=true
     })
   }
   document.getElementById('copy-edit-photos')!.onclick=()=>{
     open('副本内已包含的影像');paragraph(panel,'未导出的照片不在副本中，无法从在线账户取回。')
     const ids=new Set<string>(data.report.selectedPhotoIds)
-    for(const p of data.report.photos.filter((p:any)=>p.relatedSourceIds.some((id:string)=>data.report.focusSourceIds.includes(id)))){const label=el('label',`${p.title} · ${p.timeKind} ${p.capturedAt||p.uploadedAt||'未知'}`);const checkbox=el('input') as HTMLInputElement;checkbox.type='checkbox';checkbox.checked=ids.has(p.sourceId);checkbox.onchange=()=>checkbox.checked?ids.add(p.sourceId):ids.delete(p.sourceId);label.prepend(checkbox);panel.append(label)}
+    for(const p of data.report.photos){const label=el('label',`${p.title} · ${p.timeKind} ${p.capturedAt||p.uploadedAt||'未知'}`);const checkbox=el('input') as HTMLInputElement;checkbox.type='checkbox';checkbox.checked=ids.has(p.sourceId);checkbox.onchange=()=>checkbox.checked?ids.add(p.sourceId):ids.delete(p.sourceId);label.prepend(checkbox);panel.append(label)}
     actions(()=>{data.report.selectedPhotoIds=[...ids];data.report.photoSelections[data.report.photoKey]=[...ids]})
   }
   document.getElementById('copy-download')!.onclick=()=>{

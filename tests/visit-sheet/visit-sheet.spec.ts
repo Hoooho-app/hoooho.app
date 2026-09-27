@@ -11,7 +11,7 @@ test('用药剂量与体温数值写回真实结构化字段',async({page})=>{
       {type:'note',sourceType:'measurement',content:'结构化体温验收 37℃',occurredAt:'2026-09-01T09:00:00Z',journal:{categories:['symptom'],symptom:{symptomCategory:'fever',narrative:'结构化体温验收',locations:[],descriptors:[],symptomSpecificData:{currentTemperature:37}}}}
     ]){const response=await page.request.post('/api/events/event-a/records',{headers,data});expect(response.ok()).toBeTruthy();ids.push((await response.json()).id)}
     await enter(page);await page.getByRole('button',{name:'重新整理已有记录'}).click();await expect(page.getByRole('status').filter({hasText:'情况单已更新'})).toBeVisible()
-    await chapter(page,'附件与完整依据');await page.getByPlaceholder('搜索原文、日期或来源').fill('结构化药物验收');await page.locator('.visit-source-row').first().click();await page.getByRole('button',{name:'查看 / 修改原始记录'}).click()
+    await chapter(page,'附件与完整依据');await page.locator('[data-all-sources] > summary').click();await page.getByPlaceholder('搜索原文、日期或来源').fill('结构化药物验收');await page.locator('.visit-source-row').first().click();await page.getByRole('button',{name:'查看 / 修改原始记录'}).click()
     await page.getByRole('spinbutton',{name:'本次用量'}).fill('2');await page.getByRole('button',{name:'保存记录',exact:true}).click();await expect(page.getByRole('dialog',{name:'记录用药',exact:true})).toHaveCount(0)
     const records=await(await page.request.get('/api/events/event-a/records',{headers})).json();expect(records.find((r:{id:string})=>r.id===ids[0]).journal.medication.amountValue).toBe(2)
     await page.getByRole('dialog',{name:'原始依据'}).getByRole('button',{name:'关闭原始依据',exact:true}).click()
@@ -93,7 +93,7 @@ test('自动结果、九章目录、手机无溢出、主诉修改持久化及�
     page.getByRole('heading', { name: '病情数据', exact: true }),
   ).toBeVisible()
   await expect(
-    page.getByRole('heading', { name: '肘窝皮肤发红，第1条观察', exact: true }),
+    page.getByRole('heading', { name: '肘窝皮肤发红，第1条观察', exact: true, level:1 }),
   ).toBeVisible()
   for (const title of [
     '病程与变化',
@@ -109,6 +109,7 @@ test('自动结果、九章目录、手机无溢出、主诉修改持久化及�
     await width(page)
     await page.screenshot({ path: info.outputPath(`chapter-${title}.png`) })
   }
+  await page.locator('[data-all-sources] > summary').click()
   await page.getByPlaceholder('搜索原文、日期或来源').fill('虚构图片')
   await page.getByRole('button', { name: /虚构图片/ }).click()
   await page.locator('.visit-attachment').filter({hasText:'虚构图片.png'}).getByRole('button', { name: '读取附件原件' }).click()
@@ -148,8 +149,7 @@ test('取消、失败保留输入和旧版本；复制拒绝全文回退；无�
 }, info) => {
   await enter(page)
   await page.getByRole('button', { name: '更改主诉', exact: true }).click()
-  await page.getByLabel('自己填写主诉').check()
-  await page.getByLabel('本次主诉（家长陈述）').fill('本次自填问题')
+    await page.getByLabel('本次主诉（家长陈述）').fill('本次自填问题')
   await page.route('**/api/members/child-a/visit-sheet', (route) =>
     route.request().method() === 'PUT'
       ? route.fulfill({
@@ -208,6 +208,7 @@ test('取消、失败保留输入和旧版本；复制拒绝全文回退；无�
 test('原始症状结构化写回、报告重新计算及修改追溯', async ({ page }, info) => {
   await enter(page)
   await chapter(page, '附件与完整依据')
+  await page.locator('[data-all-sources] > summary').click()
   await page
     .getByPlaceholder('搜索原文、日期或来源')
     .fill('肘窝皮肤发红，第1条观察')
@@ -246,18 +247,14 @@ test('原始症状结构化写回、报告重新计算及修改追溯', async ({
   await page.screenshot({ path: info.outputPath('source-edit-history.png') })
   await chapter(page, '病情数据')
   await page.getByRole('button', { name: '更改主诉', exact: true }).click()
-  await page.getByLabel('自己填写主诉').check()
-  await page.getByLabel('本次主诉（家长陈述）').fill('没有匹配的新问题')
+    await page.getByLabel('本次主诉（家长陈述）').fill('没有匹配的新问题')
   await page.getByRole('button', { name: '保存并更新情况单' }).click()
-  await expect(
-    page.getByText(
-      '关于此主诉暂无足够症状资料。其他已有资料仍保留在对应章节。',
-    ),
-  ).toBeVisible()
+  await expect(page.locator('#chapter-overview h1')).toHaveText('没有匹配的新问题')
+  await expect(page.locator('#chapter-course')).toContainText('此主诉尚无匹配经过')
   await expect(page.locator('#chapter-overview .hoho-fact-distribution')).toHaveCount(0)
   await expect(page.locator('#chapter-course .hoho-fact-distribution')).toHaveCount(0)
   await page.getByRole('button', { name: '更改主诉', exact: true }).click()
-  await page.getByLabel('按最近症状', { exact: false }).check()
+  await page.getByLabel('自动按最新症状整理', { exact: false }).check()
   await page.getByRole('button', { name: '保存并更新情况单' }).click()
   await expect(page.getByRole('dialog', { name: '更改主诉' })).toHaveCount(0)
 })
@@ -283,10 +280,10 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
   await viewer.getByRole('button',{name:'还原完整比例'}).click()
   await viewer.getByRole('button',{name:'关闭照片原图',exact:true}).click()
   await expect(trigger).toBeFocused()
-  await page.getByRole('button',{name:'调整照片',exact:true}).click()
+  await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
   await page.getByRole('checkbox',{name:'测试原图-1.png',exact:true}).uncheck()
-  await page.getByRole('button',{name:'保存展示选择'}).click()
-  await expect(page.getByRole('dialog',{name:'调整照片'})).toHaveCount(0)
+  await page.getByRole('button',{name:'保存照片选择'}).click()
+  await expect(page.getByRole('dialog',{name:'添加 / 调整照片'})).toHaveCount(0)
   await page.reload();await expect(page.locator('.visit-photos img')).toHaveCount(1)
   await page.getByRole('button',{name:'查看原图：测试原图-0.png',exact:true}).click()
   await expect(page.getByRole('dialog',{name:'照片原图'}).getByRole('button',{name:'下一张照片'})).toBeDisabled()
@@ -296,6 +293,7 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
     const heading=page.getByRole('heading',{name:title,exact:true});const bounds=await heading.boundingBox();expect(bounds!.y).toBeLessThan(180)
     await page.screenshot({path:info.outputPath(`v5-${title}.png`)})
   }
+  await page.locator('[data-all-sources] > summary').click()
   await page.getByPlaceholder('搜索原文、日期或来源').fill('前臂皮肤发红，第8条观察')
   await page.getByRole('button',{name:'导出情况单',exact:true}).click()
   const exports=page.getByRole('dialog',{name:'导出情况单'})
@@ -325,7 +323,9 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
     const printHtml=await page.locator('iframe[title="打印当前情况单"]').getAttribute('srcdoc')
     const printPage=await browser.newPage();await printPage.setContent(printHtml!);await printPage.emulateMedia({media:'print'})
     await expect(printPage.getByText('第九章导出核对标记',{exact:true})).toBeVisible()
-    await expect(printPage.getByRole('heading',{name:'集中核对资料缺口',exact:true})).toBeVisible()
+    expect(printHtml).not.toContain(excluded.toString('base64'))
+    await expect(printPage.locator('[data-readonly-reminder]')).toHaveCount(1)
+    await expect(printPage.locator('.medication-course-card__week').first()).toBeVisible()
     await printPage.pdf({path:info.outputPath('v5-full-report.pdf'),format:'A4',printBackground:true});await printPage.close()
   }
   const offlineContext=await browser.newContext({viewport:{width:375,height:667},serviceWorkers:'block'})
@@ -342,7 +342,8 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
   await expect(offline.locator('#copy-revision')).toContainText('本地修订')
   await expect(offline.locator('[data-copy-photo]:visible')).toHaveCount(1)
   await expect(offline.locator('[data-copy-original]')).toHaveCount(2)
-  await expect(offline.getByRole('heading',{name:'集中核对资料缺口',exact:true})).toBeVisible()
+  await expect(offline.getByRole('heading',{name:'集中核对资料缺口',exact:true})).toHaveCount(0)
+  await offline.getByText('历史家长补充 · 报告说明',{exact:true}).click()
   await expect(offline.getByText('第九章导出核对标记',{exact:true})).toBeVisible()
   await offline.getByRole('button',{name:'编辑本次想问',exact:true}).click()
   await offline.getByRole('textbox',{name:'本次想问',exact:true}).fill('本地问题 </script><img src=x onerror=alert(1)>')
@@ -369,21 +370,23 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
   await offlineContext.close()
 })
 
-test('v5 大字连续重排、章节补充真实持久化且不冒充问题来源',async({page},info)=>{
+test('v6 大字连续重排、历史补充保留收起且无新增入口',async({page},info)=>{
   await enter(page)
   const headers={Authorization:`Bearer ${token}`},before=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()
-  await chapter(page,'病程与变化')
-  await page.getByRole('button',{name:'补充 / 校订 · 病程与变化',exact:true}).click()
-  await page.getByRole('dialog',{name:'补充报告说明'}).getByRole('textbox').fill(`本章补充 ${info.project.name}`)
-  await page.getByRole('button',{name:'保存并更新情况单'}).click()
-  await expect(page.getByRole('dialog',{name:'补充报告说明'})).toHaveCount(0)
-  await page.reload();await chapter(page,'病程与变化');await expect(page.locator('#chapter-course')).toContainText(`本章补充 ${info.project.name}`)
+  const result=await page.request.put('/api/members/child-a/visit-sheet',{headers,data:{expectedVersion:before.report.version,requestId:`legacy-note-${info.project.name}`,notes:{...before.report.notes,course:`历史补充 ${info.project.name}`}}})
+  expect(result.ok()).toBeTruthy()
+  await page.reload();await chapter(page,'附件与完整依据')
+  await expect(page.getByRole('button',{name:/补充 \/ 校订|补充报告说明/})).toHaveCount(0)
+  const legacy=page.locator('.visit-parent-note')
+  await expect(legacy).not.toHaveAttribute('open','')
+  await legacy.locator('summary').click()
+  await expect(legacy).toContainText(`历史补充 ${info.project.name}`)
   const after=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json();expect(after.report.questionOrigin).toBe(before.report.questionOrigin);expect(after.report.questionEdited).toBe(before.report.questionEdited)
   await page.evaluate(()=>document.documentElement.style.fontSize='200%')
   await width(page)
-  await page.screenshot({path:info.outputPath('v5-200-percent-text.png')})
+  await page.screenshot({path:info.outputPath('v6-200-percent-text.png')})
   await page.getByRole('button',{name:'章节目录',exact:true}).click()
-  await expect(page.getByRole('dialog',{name:'章节目录'}).locator('[aria-current="page"]')).toContainText('病程与变化')
+  await expect(page.getByRole('dialog',{name:'章节目录'}).locator('[aria-current="page"]')).toContainText('附件与完整依据')
   await page.getByRole('dialog',{name:'章节目录'}).getByRole('button',{name:'关闭章节目录',exact:true}).click()
   await expect(page.getByRole('button',{name:'章节目录',exact:true})).toBeFocused()
 })
@@ -423,14 +426,141 @@ test('v5 二十五张候选与长主诉可滚动核对，放弃选择不保存',
     await route.fulfill({response,json:state})
   })
   await enter(page);await width(page)
-  await page.getByRole('button',{name:'调整照片',exact:true}).click()
-  const picker=page.getByRole('dialog',{name:'调整照片'})
+  await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
+  const picker=page.getByRole('dialog',{name:'添加 / 调整照片'})
+  await picker.getByRole('button',{name:'选择已有记录',exact:true}).click()
   await expect(picker.getByRole('checkbox')).toHaveCount(25)
   await picker.getByRole('checkbox',{name:'候选原图-25',exact:true}).check()
   await page.screenshot({path:info.outputPath('v5-25-photos-long-text.png')})
   expect(await picker.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBeTruthy()
-  await picker.getByRole('button',{name:'关闭调整照片',exact:true}).click()
-  await expect(picker.getByRole('alert')).toContainText('展示选择尚未保存')
+  await picker.getByRole('button',{name:'关闭添加 / 调整照片',exact:true}).click()
+  await expect(picker.getByRole('alert')).toContainText('照片或说明尚未保存')
   await picker.getByRole('button',{name:'放弃修改',exact:true}).click()
   await expect(page.locator('.visit-photos img')).toHaveCount(3)
+})
+
+test('v6 概览默认收起、两端病程、侧栏焦点、症状搜索不丢选择和只读周历',async({page},info)=>{
+  const headers={Authorization:`Bearer ${token}`},before=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()
+  expect((await page.request.put('/api/members/child-a/visit-sheet',{headers,data:{expectedVersion:before.report?.version??before.expectedVersion??0,requestId:`v6-overview-${info.project.name}`,focus:{mode:'source',sourceId:'record:s0'}}})).ok()).toBeTruthy()
+  await enter(page)
+  await expect(page.locator('.visit-chapter-details[open]')).toHaveCount(0)
+  await expect(page.locator('.visit-parent-note[open]')).toHaveCount(0)
+  await expect(page.locator('#chapter-course [data-chapter-overview] article')).toHaveCount(2)
+  expect(await page.locator('.visit-photos').evaluate(e=>e.nextElementSibling?.classList.contains('visit-question'))).toBeTruthy()
+  const writes:string[]=[];page.on('request',r=>{if(r.url().includes('/api/medication-reminders')&&r.method()!=='GET')writes.push(r.url())})
+  await chapter(page,'用药与处理')
+  const med=page.locator('[data-readonly-reminder]')
+  await expect(med).toHaveCount(1)
+  await expect(med.getByRole('button',{name:/管理|归档|删除|撤回|已服用/})).toHaveCount(0)
+  await expect(med).toContainText('未确认')
+  await med.getByText(/展开其他周与未来计划/).click()
+  await med.getByRole('button',{name:/未来计划/}).first().click()
+  await expect(page.getByRole('dialog',{name:'原始依据'})).toContainText('用药计划')
+  await page.getByRole('dialog',{name:'原始依据'}).getByRole('button',{name:'关闭原始依据',exact:true}).click()
+  expect(writes).toEqual([])
+  await page.screenshot({path:info.outputPath('v6-medication-readonly.png')})
+  for(const id of ['course','medication','allergy','history','temperature','growth','visits']){
+    const detail=page.locator(`#chapter-${id} > .visit-chapter-details`)
+    if(await detail.count()){await detail.locator(':scope > summary').click();await expect(detail).toHaveAttribute('open','');await width(page);await detail.locator(':scope > summary').click();await expect(detail).not.toHaveAttribute('open','')}
+  }
+  await page.getByRole('button',{name:'章节目录',exact:true}).click()
+  const directory=page.getByRole('dialog',{name:'章节目录'})
+  // Desktop preserves the application's centered drawer host; on phones its x is 0.
+  // In both cases the directory must start at the LEFT edge, not a bottom sheet.
+  await expect.poll(async()=>{const host=await directory.boundingBox(),panel=await directory.locator('aside').boundingBox();return panel!.x-host!.x}).toBe(0)
+  expect((await directory.locator('aside').boundingBox())!.height).toBeGreaterThan(600)
+  await directory.getByRole('button',{name:'关闭章节目录',exact:true}).focus();await page.keyboard.press('Shift+Tab');await expect(directory.getByRole('button',{name:/09/})).toBeFocused()
+  await page.screenshot({path:info.outputPath('v6-side-directory.png')});await page.keyboard.press('Escape')
+  await expect(page.getByRole('button',{name:'章节目录',exact:true})).toBeFocused()
+  await chapter(page,'病情数据');await page.getByRole('button',{name:'更改主诉',exact:true}).click()
+  await page.getByRole('radio',{name:/^前臂皮肤发红，第8条观察/}).check()
+  await page.getByPlaceholder('搜索，例如：前臂、皮疹').fill('没有此症状xyz')
+  await expect(page.getByText(/没有匹配症状/)).toBeVisible()
+  await page.getByRole('button',{name:'保存并更新情况单'}).click()
+  await expect(page.locator('#chapter-overview h1')).toHaveText('前臂皮肤发红，第8条观察')
+})
+
+test('v6 从相册真实上传、失败重试、照片说明精度保存及主题隔离',async({page},info)=>{
+  await enter(page);await chapter(page,'病情数据')
+  const headers={Authorization:`Bearer ${token}`},name=`上传测试 ${info.project.name}`
+  await page.getByRole('button',{name:'更改主诉',exact:true}).click();await page.getByLabel('本次主诉（家长陈述）').fill(name)
+  await expect(page.getByRole('radio',{name:'自己描述',exact:true})).toBeChecked()
+  await page.getByRole('button',{name:'保存并更新情况单'}).click();await expect(page.locator('#chapter-overview h1')).toHaveText(name)
+  await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
+  const picker=page.getByRole('dialog',{name:'添加 / 调整照片'}),buffer=await(await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers})).body()
+  let failed=false
+  await page.route('**/api/quick-records/*/photos',route=>{if(route.request().method()==='POST'&&!failed){failed=true;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成上传故障'}})})}return route.continue()})
+  await picker.getByLabel('选择要上传的照片').setInputFiles({name:'本地上传.png',mimeType:'image/png',buffer})
+  await expect(picker.getByRole('alert')).toContainText('合成上传故障');await expect(picker.getByRole('button',{name:'保存照片选择'})).toBeDisabled()
+  await picker.getByRole('button',{name:'重试上传'}).click();await expect(picker.getByText(/上传完成，待保存/)).toBeVisible()
+  await picker.getByText('编辑照片说明',{exact:true}).click();await picker.getByLabel('照片说明',{exact:true}).fill(name);await picker.getByLabel('部位 / 对象',{exact:true}).fill('前臂')
+  await page.screenshot({path:info.outputPath('v6-upload-real.png')})
+  await picker.getByRole('button',{name:'保存照片选择'}).click();await expect(picker).toHaveCount(0)
+  await page.reload();await expect(page.locator('.visit-photos img')).toHaveCount(1);await expect(page.locator('.visit-photos')).toContainText('拍摄时间未提供')
+  const saved=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json(),photo=saved.report.photos.find((p:any)=>p.title===name)
+  expect(photo.capturedAt).toBeNull();expect(photo.location).toBe('前臂')
+  const capturedAt='2026-09-01T03:04:05.000Z'
+  expect((await page.request.put('/api/members/child-a/visit-sheet',{headers,data:{expectedVersion:saved.report.version,requestId:`photo-exact-${info.project.name}`,photoDetails:{[photo.sourceId]:{capturedAt,capturePrecision:'exact'}}}})).ok()).toBeTruthy()
+  await page.reload();await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click();await picker.getByText('编辑照片说明',{exact:true}).click();await picker.getByLabel('照片说明',{exact:true}).fill(`${name} 已核对`);await picker.getByRole('button',{name:'保存照片选择'}).click();await expect(picker).toHaveCount(0)
+  const changed=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json();expect(changed.report.photos.find((p:any)=>p.sourceId===photo.sourceId).capturedAt).toBe(capturedAt)
+  for(const text of [name+' B',name]){await page.getByRole('button',{name:'更改主诉',exact:true}).click();await page.getByLabel('本次主诉（家长陈述）').fill(text);await page.getByRole('button',{name:'保存并更新情况单'}).click();await expect(page.locator('#chapter-overview h1')).toHaveText(text);await expect(page.locator('.visit-photos img')).toHaveCount(text===name?1:0)}
+  await page.getByRole('button',{name:'编辑本次想问',exact:true}).click();await page.getByRole('dialog',{name:'编辑本次想问'}).getByRole('textbox',{name:'本次想问',exact:true}).fill('');await page.getByRole('button',{name:'保存并更新情况单'}).click();await expect(page.getByRole('dialog',{name:'编辑本次想问'})).toHaveCount(0)
+  await page.reload();const empty=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json();expect(empty.report.questionEdited).toBeTruthy();expect(empty.report.question).toBe('')
+})
+
+test('v6 关闭照片面板后的迟到上传不进入报告、不残留草稿',async({page})=>{
+  await enter(page);await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
+  const headers={Authorization:`Bearer ${token}`},buffer=await(await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers})).body()
+  let release!:()=>void,uploaded!:()=>void,draftId='';const gate=new Promise<void>(r=>release=r),ready=new Promise<void>(r=>uploaded=r)
+  await page.route('**/api/quick-records/*/photos',async route=>{if(route.request().method()!=='POST')return route.continue();draftId=new URL(route.request().url()).pathname.split('/')[3];const response=await route.fetch();uploaded();await gate;await route.fulfill({response}).catch(()=>{})})
+  await page.getByLabel('选择要上传的照片').setInputFiles({name:'迟到上传.png',mimeType:'image/png',buffer});await ready
+  const picker=page.getByRole('dialog',{name:'添加 / 调整照片'});await picker.getByRole('button',{name:'关闭添加 / 调整照片',exact:true}).click();await picker.getByRole('button',{name:'放弃修改',exact:true}).click();release()
+  await expect(picker).toHaveCount(0)
+  await expect.poll(async()=>{const response=await page.request.get(`/api/quick-records/${draftId}/photos`,{headers:{...headers,'X-Hoooho-Member-Id':'child-a'}});return (await response.json()).length}).toBe(0)
+  const result=await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json();expect(result.report.photos.some((p:any)=>p.title==='迟到上传.png')).toBeFalsy()
+})
+
+test('v6 压缩尚未完成时取消并重开，不把旧照片传入新面板',async({page})=>{
+  await enter(page)
+  await page.evaluate(()=>{
+    const original=HTMLCanvasElement.prototype.toBlob
+    let first=true
+    HTMLCanvasElement.prototype.toBlob=function(callback,...args){
+      if(!first)return original.call(this,callback,...args)
+      first=false
+      original.call(this,blob=>{(window as any).__releaseVisitCompression=()=>callback(blob)},...args)
+    }
+  })
+  const headers={Authorization:`Bearer ${token}`},buffer=await(await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers})).body(),uploads:string[]=[]
+  page.on('request',r=>{if(r.method()==='POST'&&/\/api\/quick-records\/[^/]+\/photos$/.test(new URL(r.url()).pathname))uploads.push(r.url())})
+  await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
+  await page.getByLabel('选择要上传的照片').setInputFiles({name:'旧压缩.png',mimeType:'image/png',buffer})
+  await expect.poll(()=>page.evaluate(()=>typeof (window as any).__releaseVisitCompression)).toBe('function')
+  const picker=page.getByRole('dialog',{name:'添加 / 调整照片'})
+  await picker.getByRole('button',{name:'关闭添加 / 调整照片',exact:true}).click();await picker.getByRole('button',{name:'放弃修改',exact:true}).click()
+  await page.getByRole('button',{name:'添加 / 调整照片',exact:true}).click()
+  await page.getByLabel('选择要上传的照片').setInputFiles({name:'新面板.png',mimeType:'image/png',buffer})
+  await expect(picker.getByText(/上传完成，待保存/)).toBeVisible()
+  await page.evaluate(()=>(window as any).__releaseVisitCompression())
+  await expect(picker.getByText(/旧压缩/)).toHaveCount(0)
+  await expect(picker.locator('.visit-photo-choice').filter({hasText:'新面板.png'})).toHaveCount(1)
+  expect(uploads).toHaveLength(1)
+  await picker.getByRole('button',{name:'关闭添加 / 调整照片',exact:true}).click();await picker.getByRole('button',{name:'放弃修改',exact:true}).click()
+})
+
+test('v6 单周全未来提醒也默认折叠，展开只查看来源',async({page})=>{
+  await page.route('**/api/members/child-a/visit-sheet',async route=>{
+    const response=await route.fetch(),state=await response.json()
+    if(state.report?.medicationReminders?.[0]){
+      const reminder=state.report.medicationReminders[0],future=new Date(Date.parse(state.report.generatedAt)+86400000).toISOString()
+      reminder.totalDays=3;reminder.occurrences=reminder.occurrences.slice(0,3).map((o:any,i:number)=>({...o,completed:false,scheduledAt:future,weekIndex:0,dayIndex:i}))
+    }
+    await route.fulfill({response,json:state})
+  })
+  await enter(page);await chapter(page,'用药与处理')
+  const card=page.locator('[data-readonly-reminder]').first()
+  await expect(card.locator('.visit-med-weeks')).toHaveCount(1)
+  await expect(card.getByRole('button',{name:/未来计划/})).toHaveCount(0)
+  await card.getByText(/展开其他周与未来计划/).click()
+  await expect(card.getByRole('button',{name:/未来计划/})).toHaveCount(3)
 })

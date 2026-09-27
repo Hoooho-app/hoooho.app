@@ -26,6 +26,25 @@ const sendJson = (response, status, data) => {
   response.end(JSON.stringify(data))
 }
 
+// Subscribe before queuing: a StrictMode request may close while another
+// request owns the account lock. A late close listener would never settle.
+export async function withResponseAccountLock(accountId, request, response, next) {
+  let settle
+  const completed = new Promise(resolve => { settle = resolve })
+  response.once('finish', settle)
+  response.once('close', settle)
+  try {
+    await withAccountLock(accountId, async () => {
+      if (request.aborted || response.destroyed || response.writableEnded) return
+      next()
+      await completed
+    })
+  } finally {
+    response.removeListener('finish', settle)
+    response.removeListener('close', settle)
+  }
+}
+
 export function authApiPlugin(options = {}) {
   const auth = new AuthService(options)
   const sessions = new BrowserSessionService(auth)
@@ -38,11 +57,9 @@ export function authApiPlugin(options = {}) {
         try { accountId = token ? auth.tokens.verify(token)?.sub : String(request.url).startsWith('/api/auth/') ? (await sessions.current(request))?.user.id : null }
         catch { return sendJson(response, 503, { error: { code: 'SESSION_UNAVAILABLE', message: '暂时无法恢复使用状态，请重试' } }) }
         if (!accountId) return next()
-        void withAccountLock(accountId, () => new Promise((resolve) => {
-          response.once('finish', resolve)
-          response.once('close', resolve)
-          next()
-        }))
+        void withResponseAccountLock(accountId, request, response, next).catch(error => {
+          if (!response.destroyed && !response.writableEnded) next(error)
+        })
       })
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname

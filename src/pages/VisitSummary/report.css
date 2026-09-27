@@ -438,7 +438,7 @@
     display: none;
   }
   .visit-copy-controls,#copy-editor {display:none!important;}
-  .visit-source-appendix {break-before:page;}
+  .visit-source-appendix {break-before:auto;margin-top:24px;}
   h1,h2,h3,summary {break-after:avoid;}
   .visit-chapter {
     break-before: auto;
@@ -449,6 +449,9 @@
   .visit-source-appendix details {break-inside:avoid;padding:8px 0;}
   .visit-source-appendix details > h3 {display:none;}
   .visit-offline .visit-fact-block {padding-block:10px;}
+  .visit-offline .visit-fact-block:has(.visit-observation-entry) {break-inside:auto;}
+  .visit-observation-entry,.medication-course-card__week,.visit-question {break-inside:avoid;}
+  .visit-chapter-details>summary,.visit-statistics>summary {display:none;}
   .visit-fact-block,
   figure,
   svg {
@@ -458,3 +461,43 @@
 body.visit-report-active { min-width: 0; }
 .visit-source-group { margin-block: 24px; }
 [data-copy-original] img { max-width: 100%; max-height: 320px; object-fit: contain; }
+.visit-nurse-signature{display:flex;gap:10px;align-items:center;margin:16px 0 8px}
+.visit-nurse-signature img{width:40px;height:40px;object-fit:cover;object-position:center 20%;border-radius:50%;background:rgb(var(--hoho-color-primary-soft))}
+.visit-nurse-signature p{font-size:13px;margin:0}
+.visit-nurse-signature small{font-size:12px}
+.visit-question{padding:16px;margin:18px 0;background:rgb(var(--hoho-color-primary-soft));border-radius:12px}
+.visit-question p{white-space:pre-wrap}
+.visit-question h2{font-size:16px}
+.visit-chapter-details{border-top:1px solid rgb(var(--hoho-color-border));margin-top:14px}
+.visit-chapter-details>summary{padding:14px 0;color:rgb(var(--hoho-color-primary));cursor:pointer;font-size:14px;min-height:44px}
+.visit-chapter-overview{display:grid;gap:10px}
+.visit-chapter-overview article{min-width:0;padding:12px;border:1px solid rgb(var(--hoho-color-border));border-radius:10px}
+.visit-chapter-overview h3{font-size:16px;margin:0}
+.visit-chapter-overview p{font-size:14px;margin:6px 0}
+.visit-course-nodes{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:12px}
+.visit-course-nodes article{position:relative;background:rgb(var(--hoho-color-primary-soft));border:0}
+.visit-course-nodes article:not(:last-child)::after{content:'→';position:absolute;right:-11px;top:35px;color:rgb(var(--hoho-color-text-secondary));font-size:12px}
+.visit-source-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.visit-source-categories button{padding:12px 8px;border:1px solid rgb(var(--hoho-color-border));border-radius:8px;text-align:left;font-size:13px}
+.visit-directory-layer.hoho-drawer-layer{display:block;z-index:90}
+.visit-directory-backdrop{position:absolute;inset:0;background:rgb(15 32 35 / .45);width:100%;height:100%}
+.visit-directory.hoho-drawer{position:absolute;inset:0 auto 0 0;width:min(86vw,352px);height:100dvh;max-height:100dvh;overflow-y:auto;border-radius:0;padding:calc(20px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));background:rgb(var(--hoho-color-surface));transform:none}
+.visit-directory header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px}
+.visit-directory header button{width:44px;height:44px;display:grid;place-items:center}
+.visit-directory nav{display:grid;gap:4px}
+.visit-directory nav button{min-height:48px;display:flex;gap:12px;text-align:left;padding:10px;border-radius:8px;font-size:15px}
+.visit-directory nav [aria-current]{background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary))}
+.visit-file-input{position:absolute;width:1px!important;height:1px;clip-path:inset(50%);overflow:hidden}
+.visit-photo-choice>img{max-width:100%;max-height:180px;object-fit:contain}
+.visit-photo-metadata label{display:grid;gap:6px;margin:12px 0}
+.visit-photo-metadata input{width:100%;max-width:100%;border:1px solid rgb(var(--hoho-color-border));border-radius:8px;padding:10px}
+.visit-photos .visit-photo-grid img{height:132px;max-height:132px;object-fit:contain}
+.visit-chapter--overview>.visit-section-actions>button{min-height:44px;padding:8px 12px;background:rgb(var(--hoho-color-primary));color:white;border-radius:10px;font-weight:600}
+.visit-course-nodes:has(article:nth-child(3)){grid-template-columns:1fr}
+.visit-course-nodes:has(article:nth-child(3)) article{padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:3px}
+.visit-course-nodes:has(article:nth-child(3)) article h3{font-size:14px}
+.visit-course-nodes:has(article:nth-child(3)) article p{grid-column:1;font-size:12px;margin:0}
+.visit-course-nodes:has(article:nth-child(3)) article button{grid-column:2;grid-row:1/3;align-self:center;font-size:12px}
+.visit-course-nodes:has(article:nth-child(3)) article:not(:last-child)::after{content:'↓';top:auto;bottom:-14px;left:20px;right:auto}
+.visit-photo-edit-fields{border:0;padding:0;margin:0;min-width:0}
+.visit-report-scroll > #chapter-sources{min-height:calc(100dvh - 80px - env(safe-area-inset-top))}
