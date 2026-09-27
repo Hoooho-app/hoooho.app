@@ -353,11 +353,20 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
     const line = row.querySelector<HTMLElement>('.journal-hour-divider-line')!
     const marker = row.querySelector<HTMLElement>('.journal-timeline-marker')!
     const dot = marker.querySelector<HTMLElement>('span')!
+    const dividerTime = row.querySelector<HTMLElement>('time')!
+    const timeProbe = document.createElement('div')
+    timeProbe.className = 'journal-timeline-row journal-timeline-row--minute'
+    timeProbe.innerHTML = '<time>12:34</time>'
+    document.body.append(timeProbe)
+    const eventTime = timeProbe.querySelector<HTMLElement>('time')!
     const lineStyle = getComputedStyle(line)
     const dotStyle = getComputedStyle(dot)
+    const dividerTimeStyle = getComputedStyle(dividerTime)
+    const eventTimeStyle = getComputedStyle(eventTime)
     const railStyle = getComputedStyle(marker, '::before')
     const connectorStyle = getComputedStyle(marker, '::after')
-    return {
+    const lineAlpha = Number(lineStyle.borderTopColor.match(/,\s*([\d.]+)\)$/)?.[1] ?? 1)
+    const result = {
       rowHeight: row.getBoundingClientRect().height,
       lineHeight: line.getBoundingClientRect().height,
       borderWidth: getComputedStyle(cell).borderTopWidth,
@@ -366,10 +375,16 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
       dotDisplay: dotStyle.display,
       dotWidth: dot.getBoundingClientRect().width,
       dotHeight: dot.getBoundingClientRect().height,
-      lineMatchesDot: lineStyle.borderTopColor === dotStyle.backgroundColor,
+      connectorMatchesLine: connectorStyle.borderTopColor === lineStyle.borderTopColor,
+      lineAlpha,
+      dividerTime: { color: dividerTimeStyle.color, size: dividerTimeStyle.fontSize, weight: dividerTimeStyle.fontWeight },
+      eventTime: { color: eventTimeStyle.color, size: eventTimeStyle.fontSize, weight: eventTimeStyle.fontWeight },
+      eventTimeMatchesDot: eventTimeStyle.color === dotStyle.backgroundColor,
       railWidth: railStyle.width,
       railIsVisible: railStyle.backgroundColor !== 'rgba(0, 0, 0, 0)'
     }
+    timeProbe.remove()
+    return result
   })).toEqual({
     rowHeight: 18,
     lineHeight: 1,
@@ -379,7 +394,11 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
     dotDisplay: 'block',
     dotWidth: 7,
     dotHeight: 7,
-    lineMatchesDot: true,
+    connectorMatchesLine: true,
+    lineAlpha: 0.18,
+    dividerTime: { color: 'rgb(82, 105, 102)', size: '12px', weight: '450' },
+    eventTime: { color: 'rgb(27, 122, 110)', size: '14px', weight: '700' },
+    eventTimeMatchesDot: true,
     railWidth: '1px',
     railIsVisible: true
   })

@@ -793,7 +793,7 @@
 
 .journal-day-grid { display: grid; gap: 6px; padding: 0 0 var(--hoho-space-2); }
 .journal-timeline-row { display: grid; min-height: 48px; grid-template-columns: 50px 16px minmax(0, 1fr); align-items: stretch; }
-.journal-timeline-row > time { display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 450; letter-spacing: 0; }
+.journal-timeline-row > time { display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: rgb(var(--hoho-color-primary)); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0; }
 .journal-timeline-marker::before { inset-block: -7px; background: rgb(var(--hoho-color-primary) / .28); }
 .journal-day-grid > .journal-timeline-row:first-child .journal-timeline-marker::before { top: 50%; }
 .journal-day-grid > .journal-timeline-row:last-child .journal-timeline-marker::before { bottom: 50%; }
@@ -802,11 +802,11 @@
 .journal-hour-cell { position: relative; min-height: 48px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 7px; background: rgb(var(--hoho-color-surface)); }
 .journal-hour-cell > * { width: 100%; min-width: 0; }
 .journal-timeline-row--hour-divider { min-height: 18px; }
-.journal-timeline-row--hour-divider > time { color: rgb(var(--hoho-color-primary)); font-size: 14px; font-weight: 700; line-height: 1; }
+.journal-timeline-row--hour-divider > time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; line-height: 1; }
 .journal-timeline-row--hour-divider .journal-timeline-marker > span { display: block; background: rgb(var(--hoho-color-primary)); }
-.journal-timeline-row--hour-divider .journal-timeline-marker::after { position: absolute; top: 50%; right: 0; left: 50%; height: 0; border-top: 1px dashed rgb(var(--hoho-color-primary)); content: ''; transform: translateY(-50%); }
+.journal-timeline-row--hour-divider .journal-timeline-marker::after { position: absolute; top: 50%; right: 0; left: 50%; height: 0; border-top: 1px dashed rgb(var(--hoho-color-primary) / .18); content: ''; transform: translateY(-50%); }
 .journal-timeline-row--hour-divider .journal-hour-cell { display: flex; min-height: 18px; align-items: center; overflow: visible; border: 0; border-radius: 0; background: transparent; }
-.journal-hour-divider-line { display: block; height: 0; min-height: 0; border-top: 1px dashed rgb(var(--hoho-color-primary)); }
+.journal-hour-divider-line { display: block; height: 0; min-height: 0; border-top: 1px dashed rgb(var(--hoho-color-primary) / .18); }
 .journal-day-grid .journal-record, .journal-day-grid .journal-record-main, .routine-grid-card, .journal-activity-row { height: 46px; min-height: 46px; }
 .journal-day-grid .journal-record-main, .routine-grid-card, .journal-activity-row { display: grid; width: 100%; grid-template-columns: 20px minmax(0, 1fr) 18px; align-items: center; gap: 8px; padding: 0 10px; text-align: left; }
 .journal-day-grid .journal-record-content, .routine-grid-copy, .journal-activity-row > span { display: flex; min-width: 0; align-items: baseline; gap: 5px; overflow: hidden; white-space: nowrap; }
