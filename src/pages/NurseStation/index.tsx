@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardCheck, FileText, FolderOpen, ShieldCheck } from 'lucide-react'
+import { ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import desensitizationTestsImage from '../../assets/nurse-station/home-entries/desensitization-tests.png'
@@ -10,17 +10,21 @@ import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-sum
 import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
-import { getCurrentPath, makeMemberProfileOpenState } from '../../components/navigation/navigationState'
+import { getCurrentPath } from '../../components/navigation/navigationState'
+import { formatBloodTypeDisplay } from '../../features/health-profile/utils/healthProfileBasicInfo'
+import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
 import { readNurseStationState, reconcileNurseStationItems, writeNurseStationState } from '../../features/nurse-station/state'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { desensitizationTestService, type DesensitizationTaskDto } from '../../services/desensitizationTests'
+import { growthMeasurementService } from '../../services/growthMeasurements'
 import { medicationReminderService, type MedicationReminderDto } from '../../services/medicationReminders'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
+import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
 import { NurseStationFactTypewriter } from './NurseStationFactTypewriter'
 import './nurseStation.css'
 
@@ -48,7 +52,13 @@ export function NurseStationPage() {
   const [desensitizationTasks, setDesensitizationTasks] = useState<DesensitizationTaskDto[]>([])
   const [desensitizationStatus, setDesensitizationStatus] = useState<EntryStatus>('loading')
   const [desensitizationMemberId, setDesensitizationMemberId] = useState('')
+  const [growthMeasurements, setGrowthMeasurements] = useState<Awaited<ReturnType<typeof growthMeasurementService.list>>>([])
+  const [growthStatus, setGrowthStatus] = useState<EntryStatus>('loading')
+  const [growthMemberId, setGrowthMemberId] = useState('')
+  const [bloodEditorMemberId, setBloodEditorMemberId] = useState('')
   const migratingIds = useRef(new Set<string>())
+  const member = cachedMembers.find((item) => item.id === currentMemberId)
+    ?? (listState.status === 'success' ? listState.data.members.find((item) => item.id === currentMemberId) : null)
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -69,7 +79,7 @@ export function NurseStationPage() {
     setMedicationMemberId('')
     setMedicationReminders([])
     migratingIds.current.clear()
-    if (!token || !currentMemberId) return () => { active = false }
+    if (!token || !currentMemberId || !member) return () => { active = false }
     void medicationReminderService.list(currentMemberId, token)
       .then((items) => {
         if (!active) return
@@ -83,14 +93,14 @@ export function NurseStationPage() {
         setMedicationStatus('error')
       })
     return () => { active = false }
-  }, [currentMemberId, token])
+  }, [currentMemberId, member, token])
 
   useEffect(() => {
     let active = true
     setDesensitizationStatus('loading')
     setDesensitizationMemberId('')
     setDesensitizationTasks([])
-    if (!token || !currentMemberId) return () => { active = false }
+    if (!token || !currentMemberId || !member) return () => { active = false }
     void desensitizationTestService.list(currentMemberId, token)
       .then((result) => {
         if (!active) return
@@ -104,10 +114,33 @@ export function NurseStationPage() {
         setDesensitizationStatus('error')
       })
     return () => { active = false }
-  }, [currentMemberId, token])
+  }, [currentMemberId, member, token])
 
-  const members = listState.status === 'success' ? listState.data.members : cachedMembers
-  const member = members.find((item) => item.id === currentMemberId) ?? null
+  useEffect(() => {
+    const controller = new AbortController()
+    setGrowthStatus('loading')
+    setGrowthMemberId('')
+    setGrowthMeasurements([])
+    if (!token || !currentMemberId || !member) return () => controller.abort()
+    void growthMeasurementService.list(currentMemberId, token, controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted || useAppStore.getState().currentMemberId !== currentMemberId) return
+        setGrowthMeasurements(items)
+        setGrowthMemberId(currentMemberId)
+        setGrowthStatus('success')
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return
+        setGrowthMemberId(currentMemberId)
+        setGrowthStatus('error')
+      })
+    return () => controller.abort()
+  }, [currentMemberId, member, token])
+
+  useEffect(() => {
+    if (bloodEditorMemberId && bloodEditorMemberId !== currentMemberId) setBloodEditorMemberId('')
+  }, [bloodEditorMemberId, currentMemberId])
+
   const events = listState.status === 'success' ? listState.data.events.filter((event) => event.memberId === currentMemberId) : []
 
   useEffect(() => {
@@ -140,6 +173,17 @@ export function NurseStationPage() {
   const desensitizationCount = desensitizationMemberId === currentMemberId
     ? desensitizationTasks.filter((item) => item.status === 'active').length
     : null
+  const growth = growthStatus === 'success' && growthMemberId === currentMemberId && member
+    ? resolveCurrentGrowthMeasurements(member, growthMeasurements, currentMemberId)
+    : null
+  const growthValue = (value: number | null | undefined) => {
+    if (growthStatus === 'loading' || growthMemberId !== currentMemberId) return '读取中'
+    if (growthStatus === 'error') return '加载失败'
+    return formatGrowthMeasurement(value ?? null) || '未记录'
+  }
+  const openGrowthData = () => navigate('/health-profile/basic', {
+    state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) },
+  })
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
@@ -176,18 +220,22 @@ export function NurseStationPage() {
           <section className="nurse-station-load-error"><p>当前人物资料加载失败，已保存内容没有改变。</p><button onClick={retryEvents} type="button">重新加载</button></section>
         ) : member ? (
           <section className="nurse-station-hero">
-            <div className="nurse-station-copy">
-              <button className="nurse-station-identity" onClick={() => {
-                const returnTo = getCurrentPath(location.pathname, location.search, location.hash)
-                navigate(returnTo, { replace: true, state: makeMemberProfileOpenState(member.id, returnTo, location.state as Record<string, unknown> | null, window.scrollY) })
-              }} type="button">
+            <button aria-label={`查看${member.name}的成长数据`} className="nurse-station-hero__main" onClick={openGrowthData} type="button">
+              <span className="nurse-station-copy" role="presentation">
+              <span className="nurse-station-identity">
                 <Avatar name={member.name} src={member.avatar} size="lg" />
                 <span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
-              </button>
-              <p className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</p>
+              </span>
+              <span className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</span>
               <NurseStationFactTypewriter />
+              </span>
+              <span className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></span>
+            </button>
+            <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">
+              <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={openGrowthData} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}</button>
+              <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={openGrowthData} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}</button>
+              <button aria-label={`血型，${formatBloodTypeDisplay(member.bloodType, member.rhBloodType) || '未填写'}，编辑`} onClick={() => setBloodEditorMemberId(member.id)} type="button"><small>血型</small><span><strong>{formatBloodTypeDisplay(member.bloodType, member.rhBloodType) || '未填写'}</strong><Pencil aria-hidden="true" /></span></button>
             </div>
-            <div className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></div>
           </section>
         ) : null}
         <HomeEntries
@@ -197,6 +245,7 @@ export function NurseStationPage() {
           medicationStatus={medicationStatus}
         />
       </div>
+      {member && bloodEditorMemberId === member.id && <BloodTypeEditorSheet member={member} onClose={() => setBloodEditorMemberId('')} onSaved={() => setBloodEditorMemberId('')} token={token} />}
     </main>
   )
 }

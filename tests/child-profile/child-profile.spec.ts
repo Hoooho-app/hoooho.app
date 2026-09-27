@@ -69,7 +69,7 @@ test('从已加载家人列表进入编辑页时不等待后台成员刷新', as
 
   try {
     await page.goto('/nurse-station')
-    await expect(page.getByRole('button', { name: /加载测试宝宝的3D/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /查看加载测试宝宝的成长数据/ })).toBeVisible()
     const tutorialClose = page.getByRole('button', { name: '关闭教程' })
     if (await tutorialClose.isVisible()) await tutorialClose.click()
     await page.route('**/api/members/' + created.id, async (route) => {
@@ -231,10 +231,10 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     await expect(page).toHaveURL(/\/health-profile$/)
     await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: '健康随身记' })).toHaveCount(0)
-    const growthMetrics = page.locator('.growth-identity-card__metrics')
-    await expect(growthMetrics).toContainText('身高')
-    await expect(growthMetrics).toContainText('体重')
-    await expect(growthMetrics).not.toContainText('血型')
+    await expect(page.locator('.growth-identity-card--compact')).toBeVisible()
+    await expect(page.locator('.growth-identity-card__metrics')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /更新成长数据|铸造成长身份卡/ })).toHaveCount(0)
+    await expect(page.locator('.growth-identity-card + .health-profile-allergy-card')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
     await page.getByRole('button', { name: '打开菜单' }).click()
     await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案' })).toHaveAttribute('aria-current', 'page')

@@ -54,5 +54,5 @@ export function NurseStationFactTypewriter() {
   const visibleText = visibleLength >= 0
     ? nurseStationFacts[factIndex].slice(0, visibleLength)
     : nurseStationFacts[factIndex].slice(0, Math.abs(visibleLength) - 1)
-  return <p aria-label={nurseStationFacts[factIndex]} className="nurse-station-fact"><span aria-hidden="true">{highlighted(visibleText)}<i /></span></p>
+  return <span aria-label={nurseStationFacts[factIndex]} className="nurse-station-fact"><span aria-hidden="true">{highlighted(visibleText)}<i /></span></span>
 }
