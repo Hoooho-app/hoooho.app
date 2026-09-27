@@ -624,6 +624,8 @@ test('today excludes future routine points and projects one cross-night sleep su
   await expect(summary).toContainText('睡眠· 共11小时28分')
   await expect(summary).not.toContainText('按作息推算')
   await expect(page.locator('.journal-timeline-row[data-time="08:28"]')).toContainText('睡眠· 共11小时28分')
+  await expect(page.locator('.journal-timeline-row--sleep').filter({ has: page.locator('.journal-activity-row--ongoing') }).first().locator(':scope > time')).toBeEmpty()
+  await expect(page.locator('.journal-timeline-row[data-time="08:28"] > time')).toHaveText('08:28')
   const sleepTimeStyle = await page.locator('.journal-timeline-row--sleep > time').first().evaluate((time) => {
     const style = getComputedStyle(time)
     return { color: style.color, size: style.fontSize, weight: style.fontWeight }
@@ -701,6 +703,9 @@ test('one real meal activity projects independent cells, preserves interleaved r
   await expect(page.locator('.journal-timeline-row[data-time="17:20"]')).toContainText('晚餐· 开始')
   await expect(page.locator('.journal-timeline-row[data-time="18:00"]')).toContainText('晚餐· 持续')
   await expect(page.locator('.journal-timeline-row[data-time="18:40"]')).toContainText('晚餐· 共1小时20分')
+  await expect(page.locator('.journal-timeline-row[data-time="17:20"] > time')).toHaveText('17:20')
+  await expect(page.locator('.journal-timeline-row[data-time="18:00"] > time')).toBeEmpty()
+  await expect(page.locator('.journal-timeline-row[data-time="18:40"] > time')).toHaveText('18:40')
   await expect(page.locator('.journal-timeline-row[data-time="18:10"]')).toContainText('翻身')
   await expect(page.locator(`.journal-record[data-record-id="${separateMealId}"]`)).toHaveCount(1)
   await expect(page.locator('.journal-now-cell')).toHaveAccessibleName('当前时间，20:48:12')
