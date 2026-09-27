@@ -624,6 +624,11 @@ test('today excludes future routine points and projects one cross-night sleep su
   await expect(summary).toContainText('睡眠· 共11小时28分')
   await expect(summary).not.toContainText('按作息推算')
   await expect(page.locator('.journal-timeline-row[data-time="08:28"]')).toContainText('睡眠· 共11小时28分')
+  const sleepTimeStyle = await page.locator('.journal-timeline-row--sleep > time').first().evaluate((time) => {
+    const style = getComputedStyle(time)
+    return { color: style.color, size: style.fontSize, weight: style.fontWeight }
+  })
+  expect(sleepTimeStyle).toEqual({ color: 'rgb(82, 105, 102)', size: '12px', weight: '450' })
   await page.screenshot({ path: 'test-results/timeline-cross-night-iphone-se.png', fullPage: true })
   await page.request.patch('/api/routines/child-two', { headers, data: { status: 'disabled' } })
 })
@@ -709,6 +714,18 @@ test('one real meal activity projects independent cells, preserves interleaved r
   const exactHourEvent = page.locator('.journal-timeline-row[data-time="18:00"]')
   await expect(exactHourDivider).toHaveCount(1)
   await expect(exactHourEvent).toContainText('晚餐· 持续')
+  const [mealTimeStyle, noteTimeStyle] = await Promise.all([
+    exactHourEvent.locator(':scope > time').evaluate((time) => {
+      const style = getComputedStyle(time)
+      return { color: style.color, size: style.fontSize, weight: style.fontWeight }
+    }),
+    page.locator('.journal-timeline-row[data-time="18:10"] > time').evaluate((time) => {
+      const style = getComputedStyle(time)
+      return { color: style.color, size: style.fontSize, weight: style.fontWeight }
+    }),
+  ])
+  expect(mealTimeStyle).toEqual({ color: 'rgb(82, 105, 102)', size: '12px', weight: '450' })
+  expect(noteTimeStyle).toEqual({ color: 'rgb(27, 122, 110)', size: '14px', weight: '700' })
   const exactHourOrder = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll((rows) => ({ divider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '18:00'), event: rows.findIndex((row) => (row as HTMLElement).dataset.time === '18:00'), nextDivider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '17:00') }))
   expect(Object.values(exactHourOrder).every((index) => index >= 0)).toBe(true)
   expect(exactHourOrder.divider).toBeLessThan(exactHourOrder.event)
