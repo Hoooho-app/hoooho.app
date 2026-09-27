@@ -4,6 +4,8 @@ import test from 'node:test'
 
 const styles = readFileSync(new URL('./nurseStation.css', import.meta.url), 'utf8')
 const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+const taskSource = readFileSync(new URL('./GuardianTaskListPage.tsx', import.meta.url), 'utf8')
+const taskStyles = readFileSync(new URL('./guardianTasks.css', import.meta.url), 'utf8')
 
 test('顶部将人物信息、守护天数、轮播事实和真实视频收纳为单一品牌区域', () => {
   assert.match(source, /className="nurse-station-hero"/)
@@ -18,7 +20,7 @@ test('顶部将人物信息、守护天数、轮播事实和真实视频收纳�
   assert.doesNotMatch(source, /今天想让我们帮你做什么|容易忘、需要持续观察/)
 })
 
-test('首页四入口使用紧凑双列卡片和独立图文层', () => {
+test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.match(styles, /\.nurse-home-entries\s*\{[^}]*grid-template-columns:\s*repeat\(2,[^}]*gap:\s*10px/)
   assert.match(styles, /\.nurse-home-entry\s*\{[^}]*height:\s*88px[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*58px/)
   assert.match(styles, /\.nurse-home-entry__copy strong\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/)
@@ -28,29 +30,32 @@ test('首页四入口使用紧凑双列卡片和独立图文层', () => {
   assert.match(source, /健康档案.*整理家人的健康信息.*healthProfileImage.*\/health-profile/)
   assert.match(source, /就诊情况单.*就诊前，一页理清病情.*visitSummaryImage.*\/visit-summary/)
   assert.match(source, /忌口出示卡.*哪些不能吃，出示就懂.*dietaryCardImage/)
-  assert.match(source, /<Link aria-label=\{entry\.title\}/)
+  assert.match(source, /title: '用药提醒'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)
+  assert.match(source, /title: '排敏测试'[\s\S]*desensitizationTestsImage[\s\S]*\/desensitization-tests/)
+  assert.match(source, /`\$\{count\} 个\$\{noun\}任务`/)
+  assert.match(source, /<Link aria-label=\{`\$\{entry\.title\}，\$\{entry\.subtitle\}`\}/)
   assert.match(source, /<img alt=""[^>]*onError=/)
   assert.doesNotMatch(source, /健康事件记录|更多服务|过敏出示|能不能吃|附近就医/)
   assert.doesNotMatch(source, /nurse-primary-entries|nurse-more-services/)
 })
 
-test('守护任务使用标题下拉和两个等宽类别切换', () => {
-  assert.match(styles, /\.guardian-task-tabs\s*\{[^}]*grid-template-columns:\s*repeat\(2,/)
-  assert.match(source, /role="tablist"/)
-  assert.match(source, /'新增测试':'新增提醒'/)
-  assert.doesNotMatch(source, /guardian-task-add/)
-  assert.match(source, /guardian-task-heading/)
-  assert.doesNotMatch(source, /<strong>\{member\.name\}<\/strong>的任务/)
-  assert.match(source, /还没有排敏测试/)
-  assert.doesNotMatch(source, /疫苗提醒|guardian-notification-notice|用药计划仍会保留/)
-  assert.doesNotMatch(source, /本轮暂不新增业务流程|页签已保留，现有记录不会改变/)
-  assert.doesNotMatch(source, /共 \{active\.length\}/)
+test('任务管理迁移到两个独立二级页并常驻进行中与已归档', () => {
+  assert.match(taskStyles, /\.guardian-task-page__tabs\s*\{[^}]*grid-template-columns:\s*repeat\(2,/)
+  assert.match(taskSource, /role="tablist"/)
+  assert.match(taskSource, /进行中/)
+  assert.match(taskSource, /已归档/)
+  assert.match(taskSource, /管理.*左滑卡片/)
+  assert.match(taskSource, /export function MedicationReminderListPage/)
+  assert.match(taskSource, /export function DesensitizationTestListPage/)
+  assert.doesNotMatch(source, /guardian-tasks|guardian-task-tabs|新增提醒|新增测试/)
 })
 
 test('任务卡展示真实下次时间、可换行标题和可读详情', () => {
-  assert.match(source, /下次：\$\{formatOccurrence/)
-  assert.match(source, /guardian-plan-details/)
-  assert.match(styles, /\.guardian-task-copy strong\s*\{[^}]*font-size:\s*16px[^}]*overflow-wrap:\s*anywhere/)
-  assert.match(styles, /\.guardian-task-copy small\s*\{[^}]*font-size:\s*14px[^}]*overflow-wrap:\s*anywhere/)
-  assert.doesNotMatch(styles, /\.guardian-task-copy small\s*\{[^}]*text-overflow:\s*ellipsis/)
+  const medicationCard = readFileSync(new URL('./MedicationReminderCard.tsx', import.meta.url), 'utf8')
+  assert.match(medicationCard, /下次：\{archived[\s\S]*formatReminderOccurrence/)
+  assert.match(medicationCard, /疗程：/)
+  assert.match(medicationCard, /用法：/)
+  assert.match(medicationCard, /今日：/)
+  assert.match(medicationCard, /medication-course-card__week/)
+  assert.match(medicationCard, /task-management__trigger/)
 })
