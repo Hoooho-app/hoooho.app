@@ -3,26 +3,31 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 
 const home = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+const healthEvents = readFileSync(new URL('../HealthEvents/index.tsx', import.meta.url), 'utf8')
+const subjectHeader = readFileSync(new URL('../../components/health/HealthRecordSubjectHeader.tsx', import.meta.url), 'utf8')
 const nurseStation = readFileSync(new URL('../NurseStation/index.tsx', import.meta.url), 'utf8')
 const bloodTypeEditor = readFileSync(new URL('../NurseStation/BloodTypeEditorSheet.tsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
-test('健康档案首页保留紧凑人物卡并直接衔接过敏记录', () => {
-  assert.match(home, /growth-identity-card--compact/)
+test('健康档案首页复用健康随记的记录对象页头并直接衔接过敏记录', () => {
+  assert.match(home, /HealthRecordSubjectHeader className="health-profile-record-subject"/)
+  assert.match(healthEvents, /HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
+  assert.match(subjectHeader, /journal-subject-row/)
+  assert.match(subjectHeader, /就诊情况单/)
+  assert.match(subjectHeader, /formatAgeFromBirthday/)
   assert.match(home, /暂无过敏信息/)
   assert.match(home, /怀疑过的，也可以先记下来/)
   assert.match(home, /记录过敏信息/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
-  assert.doesNotMatch(home, /更新成长数据|铸造成长身份卡|growth-identity-card__metrics|growth-identity-card__action|growth-identity-card__updated/)
-  assert.match(home, /growth-identity-card--compact[\s\S]*health-profile-allergy-card/)
+  assert.doesNotMatch(home, /已建立|growth-identity-card|更新成长数据|铸造成长身份卡|growth-identity-card__metrics|growth-identity-card__action|growth-identity-card__updated/)
+  assert.match(home, /health-profile-record-subject[\s\S]*health-profile-allergy-card/)
   assert.match(nurseStation, /nurse-station-growth-data/)
   assert.match(nurseStation, /openGrowthData[\s\S]*\/health-profile\/basic/)
   assert.match(nurseStation, /BloodTypeEditorSheet/)
   assert.doesNotMatch(bloodTypeEditor, /ProfileChoiceGroup label="RhD"/)
   assert.doesNotMatch(bloodTypeEditor, /当前：/)
   assert.match(bloodTypeEditor, /blood-type-sheet__heading/)
-  assert.match(polish, /\.growth-identity-card--compact/)
   assert.doesNotMatch(home, /makeMemberProfileOpenState|openMember/)
 })
 

@@ -1,23 +1,21 @@
-import { Check, ChevronRight, ClipboardPlus, HeartPulse, Hospital, LockKeyhole, Scissors, ShieldPlus, UsersRound, type LucideIcon } from 'lucide-react'
+import { ChevronRight, ClipboardPlus, HeartPulse, Hospital, LockKeyhole, Scissors, ShieldPlus, UsersRound, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar } from '../../components/common'
 import { Typography } from '../../components/design-system'
+import { HealthRecordSubjectHeader } from '../../components/health'
 import { MainAppHeader } from '../../components/navigation'
 import { getStoredHealthProfileSectionSnapshots } from '../../features/health-profile/utils/getHealthProfileSectionGroups'
 import { healthEventService } from '../../services/healthEvents'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventApiDto, Member } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { buildAllergyOverview, buildBasicOverview } from './healthProfileOverview'
+import { buildAllergyOverview } from './healthProfileOverview'
 
 const lockedSections: Array<{ title: string; icon: LucideIcon }> = [
   { title: '检查 / 体检报告', icon: ClipboardPlus }, { title: '慢性病史', icon: HeartPulse },
   { title: '手术史', icon: Scissors }, { title: '住院 / 急诊史', icon: Hospital },
   { title: '家族遗传史', icon: UsersRound },
 ]
-const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
-
 function exactCurrentMember(currentMemberId: string, members: Member[], profile: ReturnType<typeof useAppStore.getState>['profile']): Member {
   const member = members.find((item) => item.id === currentMemberId)
   if (member) return member
@@ -35,9 +33,7 @@ export function HealthProfilePage() {
   const allergyPrompts = ['怀疑过的，也可以先记下来','记得孩子对什么不舒服吗？','检查阴性，也可以保留当时的怀疑','有过红疹、腹泻或喘咳，可以回想一下诱因','家里人说过的过敏，也值得先存下来','不用确定，先留下线索']
   const stored = useMemo(() => getStoredHealthProfileSectionSnapshots(currentMemberId), [currentMemberId])
   const records = useMemo(() => new Map(stored.map((item) => [item.id, item.records])), [stored])
-  const basic = useMemo(() => buildBasicOverview(member, records), [member, records])
   const allergy = useMemo(() => buildAllergyOverview(records.get('allergy'), allergyEvents, currentMemberId), [allergyEvents, currentMemberId, records])
-  const age = member.birthday ? formatAgeFromBirthday(member.birthday) : member.age
 
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -53,9 +49,7 @@ export function HealthProfilePage() {
   }, [currentMemberId, token])
 
   return <main className="app-shell health-profile-overview"><MainAppHeader title="健康档案" /><div className="page-content pb-10">
-    <section className="growth-identity-card growth-identity-card--compact" aria-labelledby="growth-card-title">
-      <div className="growth-identity-card__member"><Avatar name={member.name} size="lg" src={member.avatar} /><span><strong id="growth-card-title">{member.name}</strong><small>{genderLabels[member.gender ?? '']} · {age}</small></span>{basic.complete && <em><Check size={13} />已建立</em>}</div>
-    </section>
+    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} onSummary={() => navigate('/visit-summary')} />
 
     <button className="health-profile-allergy-card" onClick={() => navigate('/health-profile/allergy')} type="button"><header><span className="health-profile-open-card__icon"><ShieldPlus aria-hidden="true" size={22} /></span><span><Typography variant="cardTitle">过敏与反应记录</Typography><Typography variant="caption">{allergy.total || allergy.latest ? '食物、环境、动物、药物及其他相关线索' : '暂无过敏信息'}</Typography></span><ChevronRight aria-hidden="true" size={19} /></header>{allergy.total > 0 ? <div className="health-profile-allergy-stats"><span>正在排查<strong>{allergy.investigating}</strong></span><span>怀疑中<strong>{allergy.suspected}</strong></span><span>医生已确认<strong>{allergy.doctorConfirmed}</strong></span></div> : <p className="health-profile-allergy-prompt" key={allergyPromptIndex}>{allergyPrompts[allergyPromptIndex]}</p>}{allergy.latest && <span className="health-profile-open-card__summary"><small>最近一次反应</small>{allergy.latest}</span>}<span className="health-profile-allergy-card__action">记录过敏信息<ChevronRight aria-hidden="true" size={17} /></span></button>
 

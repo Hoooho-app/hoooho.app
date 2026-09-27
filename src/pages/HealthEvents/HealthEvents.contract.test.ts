@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const page = read('./index.tsx')
+const subjectHeader = read('../../components/health/HealthRecordSubjectHeader.tsx')
 const firstMember = read('./FirstMemberFrontDesk.tsx')
 const nurse = read('./NurseQuickRecord.tsx')
 const trigger = read('../../components/health/QuickRecordTrigger.tsx')
@@ -29,7 +30,8 @@ const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
 test('健康随记与前台护士站都保留就诊情况单真实入口', () => {
-  assert.match(page, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
+  assert.match(page, /<HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
+  assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
   assert.match(station, /title: '就诊情况单'.*to: '\/visit-summary'/)
   assert.doesNotMatch(page, /journal-quick-record-action|aria-label="快捷记录"/)
