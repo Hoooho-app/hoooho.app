@@ -27,6 +27,8 @@
 .nurse-home-entry--profile { border-color: #f0e5e1; background: #fbf5f3; }
 .nurse-home-entry--visit { border-color: #e2eaf0; background: #f2f6f9; }
 .nurse-home-entry--dietary { border-color: #efe9d8; background: #fbf8f0; }
+.nurse-home-entry--medication { border-color: #dcece5; background: #f3f8f5; }
+.nurse-home-entry--desensitization { border-color: #eee6d5; background: #fbf8ee; }
 .nurse-home-entry:hover { border-color: #c5dcd6; }
 .nurse-home-entry:active { transform: scale(.99); }
 .nurse-home-entry:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: 2px; }
@@ -176,6 +178,14 @@
 .medication-course-card__summary .medication-course-card__next { margin-top: 3px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 400; }
 .medication-course-card__controls { display: grid; align-content: start; gap: 5px; }
 .medication-course-card__controls button { min-height: 38px; border-radius: 9px; font-size: 13px; font-weight: 700; }
+.task-management { position: relative; min-width: 0; }
+.task-management__trigger { display: inline-flex; width: 100%; min-height: 38px; align-items: center; justify-content: center; gap: 2px; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-weight: 600; white-space: nowrap; }
+.task-management__trigger svg { width: 17px; height: 17px; }
+.task-management__menu { position: absolute; z-index: 12; top: calc(100% + 4px); right: 0; display: grid; width: 136px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); box-shadow: var(--hoho-shadow-floating); }
+.task-management__menu button { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 7px; border-radius: 0; padding-inline: 11px; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-weight: 600; text-align: left; }
+.task-management__menu button + button { border-top: 1px solid rgb(var(--hoho-color-border)); }
+.task-management__menu button.is-danger { color: rgb(var(--hoho-color-error)); }
+.task-management__menu svg { width: 15px; height: 15px; }
 .medication-course-card__take { background: rgb(var(--hoho-color-primary)); color: #fff; }
 .medication-course-card__take:disabled { background: #e4e9e8; color: #8a9996; }
 .medication-course-card__undo { display: flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #b7ddd6; color: rgb(var(--hoho-color-primary)); }
@@ -248,5 +258,5 @@
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 @media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-hero { height: 134px; padding-inline: 10px 8px; } .nurse-station-visual { height: 112px; } .nurse-station-visual .nurse-triage-desk { width: min(100%, 150px); } .nurse-home-entry { grid-template-columns: minmax(0, 1fr) 48px; gap: 3px; padding-inline: 9px 7px; } .nurse-home-entry__visual { width: 48px; height: 48px; } .guardian-task-tabs button { font-size: 12px; } }
-@media (min-width: 768px) { .medication-course-card__surface { transform: none !important; } .medication-course-card__swipe-actions { display: none; } .medication-course-card__desktop-actions { display: flex; justify-content: flex-end; gap: 14px; border-top: 1px solid #eef3f2; padding: 6px 10px; } .medication-course-card__desktop-actions button { display: flex; min-height: 34px; align-items: center; gap: 4px; color: #4c6863; font-size: 12px; } .medication-course-card__desktop-actions button:last-child { color: #bd4e49; } .medication-course-card__desktop-actions svg { width: 14px; } }
+@media (min-width: 768px) { .medication-course-card__surface { transform: none !important; } .medication-course-card__swipe-actions { display: none; } }
 @media (prefers-reduced-motion: reduce) { .nurse-home-entry, .nurse-service-entry, .nurse-station-visual, .guardian-task-card, .nurse-station-sheet { animation: none !important; transition: none !important; } }

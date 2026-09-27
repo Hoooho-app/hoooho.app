@@ -1,5 +1,5 @@
-import { Archive, Pill, RotateCcw, Trash2 } from 'lucide-react'
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Archive, MoreHorizontal, Pill, RotateCcw, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MedicationReminderDto } from '../../services/medicationReminders'
 import { routeLabel } from './medicationReminderLogic'
 import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
@@ -16,12 +16,23 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
   onDelete: () => void
 }) {
   const start = useRef<{ x: number; y: number; pointerId: number } | null>(null)
+  const managementRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState(0)
+  const [managementOpen, setManagementOpen] = useState(false)
   const activeCompletions = reminder.completions.filter((item) => !item.undoneAt)
   const { allComplete, due, next, todayCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
   const archived = reminder.status === 'archived'
   const actionOffset = archived ? 72 : 144
   const rows = useMemo(() => weekRows(reminder), [reminder])
+
+  useEffect(() => {
+    if (!managementOpen) return
+    const close = (event: PointerEvent) => { if (!managementRef.current?.contains(event.target as Node)) setManagementOpen(false) }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [managementOpen])
+
+  const runManagementAction = (action: () => void) => { setManagementOpen(false); action() }
 
   const down = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return
@@ -58,6 +69,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : next ? formatReminderOccurrence(next, reminder.plan.timezone, now) : '暂无'}</p>
         </div>
         <div className="medication-course-card__controls">
+          <div className="task-management" ref={managementRef}><button aria-expanded={managementOpen} className="task-management__trigger" onClick={() => setManagementOpen((value) => !value)} type="button">管理<MoreHorizontal aria-hidden="true" /></button>{managementOpen && <div className="task-management__menu" role="menu">{!archived && <button disabled={busy} onClick={() => runManagementAction(onArchive)} role="menuitem" type="button"><Archive aria-hidden="true" />归档</button>}<button className="is-danger" disabled={busy} onClick={() => runManagementAction(onDelete)} role="menuitem" type="button"><Trash2 aria-hidden="true" />删除提醒</button></div>}</div>
           {archived ? <span className="medication-course-card__archived">已归档</span> : <><button className="medication-course-card__take" disabled={busy || !due || allComplete || todayDone} onClick={onTake} type="button">{busy ? '处理中…' : takeLabel}</button><button className="medication-course-card__undo" disabled={busy || activeCompletions.length === 0} onClick={onUndo} type="button"><RotateCcw />撤回</button></>}
         </div>
       </div>
@@ -70,7 +82,6 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           </div>)}
         </div>
       </div>
-      <div className="medication-course-card__desktop-actions">{!archived && <button disabled={busy} onClick={onArchive} type="button"><Archive />归档</button>}<button disabled={busy} onClick={onDelete} type="button"><Trash2 />删除提醒</button></div>
     </div>
   </article>
 }

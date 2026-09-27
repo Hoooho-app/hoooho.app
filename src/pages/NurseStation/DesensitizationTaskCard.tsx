@@ -1,4 +1,4 @@
-import { Archive, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react'
 import { useRef } from 'react'
 import { HohoButton } from '../../components/design-system'
 import type { DesensitizationTaskDto } from '../../services/desensitizationTests'
@@ -11,7 +11,7 @@ export function DesensitizationTaskCard({ task, open, busy, onOpen, onToggle, on
   return <article className={`desensitization-card${open?' is-open':''}${task.status==='archived'?' is-archived':''}`} data-testid={`desensitization-card-${task.displayName}`}>
     <div className="desensitization-card__actions">{task.status==='active'?<button disabled={busy} onClick={onArchive} type="button"><Archive/>归档</button>:<button disabled={busy} onClick={onRestore} type="button"><RotateCcw/>恢复</button>}<button disabled={busy} onClick={onDelete} type="button"><Trash2/>删除</button></div>
     <section className="desensitization-card__surface" onPointerDown={(event)=>{start.current={x:event.clientX,y:event.clientY}}} onPointerUp={(event)=>{const point=start.current;start.current=null;if(!point)return;const dx=event.clientX-point.x,dy=event.clientY-point.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.5)onToggle(dx<0)}}>
-      <header><strong>{task.displayName}</strong>{task.status==='active'&&<HohoButton className="desensitization-card__record" disabled={busy} onClick={()=>onOpen('record')} size="small" variant="secondary">记一笔</HohoButton>}</header>
+      <header><strong>{task.displayName}</strong><div className="desensitization-card__header-actions"><button className="task-management__trigger" disabled={busy} onClick={()=>onOpen('manage')} type="button">管理<MoreHorizontal aria-hidden="true"/></button>{task.status==='active'&&<HohoButton className="desensitization-card__record" disabled={busy} onClick={()=>onOpen('record')} size="small" variant="secondary">记一笔</HohoButton>}</div></header>
       <div className="desensitization-card__summary"><strong>{task.latestSummary}</strong><small>{task.records[0]?.exposureAnswer==='eaten'?'最近记录有摄入':task.records[0]?.exposureAnswer==='not_eaten'?'最近记录未摄入':'摄入情况见详情'}</small></div>
       <footer><button aria-label={`查看${task.displayName}近7日趋势`} onClick={()=>onOpen('trend')} type="button"><span>近7日趋势</span><MiniTrend task={task}/></button></footer>
     </section>
