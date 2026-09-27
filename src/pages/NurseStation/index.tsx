@@ -11,7 +11,6 @@ import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { getCurrentPath } from '../../components/navigation/navigationState'
-import { formatBloodTypeDisplay } from '../../features/health-profile/utils/healthProfileBasicInfo'
 import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
 import { readNurseStationState, reconcileNurseStationItems, writeNurseStationState } from '../../features/nurse-station/state'
@@ -29,6 +28,7 @@ import { NurseStationFactTypewriter } from './NurseStationFactTypewriter'
 import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
+const formatAboBloodType = (bloodType?: string) => bloodType ? `${bloodType}型` : '未填写'
 
 type EntryStatus = 'loading' | 'success' | 'error'
 
@@ -234,7 +234,7 @@ export function NurseStationPage() {
             <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">
               <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={openGrowthData} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}</button>
               <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={openGrowthData} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}</button>
-              <button aria-label={`血型，${formatBloodTypeDisplay(member.bloodType, member.rhBloodType) || '未填写'}，编辑`} onClick={() => setBloodEditorMemberId(member.id)} type="button"><small>血型</small><span><strong>{formatBloodTypeDisplay(member.bloodType, member.rhBloodType) || '未填写'}</strong><Pencil aria-hidden="true" /></span></button>
+              <button aria-label={`血型，${formatAboBloodType(member.bloodType)}，编辑`} className="nurse-station-blood-type" onClick={() => setBloodEditorMemberId(member.id)} type="button"><small>血型</small><span><strong>{formatAboBloodType(member.bloodType)}</strong><Pencil aria-hidden="true" /></span></button>
             </div>
           </section>
         ) : null}

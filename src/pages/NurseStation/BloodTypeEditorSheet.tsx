@@ -18,7 +18,6 @@ const bloodTypeLabels = { A: 'A型', B: 'B型', AB: 'AB型', O: 'O型' } as cons
 
 export function BloodTypeEditorSheet({ member, onClose, onSaved, token }: BloodTypeEditorSheetProps) {
   const [bloodType, setBloodType] = useState(member.bloodType ? bloodTypeLabels[member.bloodType] : '')
-  const [rhBloodType, setRhBloodType] = useState(member.rhBloodType === 'positive' ? '阳性' : member.rhBloodType === 'negative' ? '阴性' : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -41,10 +40,8 @@ export function BloodTypeEditorSheet({ member, onClose, onSaved, token }: BloodT
     setError('')
     try {
       const normalizedBloodType = bloodType.replace('型', '') as Member['bloodType'] | ''
-      const normalizedRh = rhBloodType === '阳性' ? 'positive' : rhBloodType === '阴性' ? 'negative' : null
       const updated = await familyMemberService.update(member.id, {
         bloodType: normalizedBloodType || null,
-        rhBloodType: normalizedRh,
       }, token)
       const store = useAppStore.getState()
       store.setMembers(store.members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
@@ -58,13 +55,10 @@ export function BloodTypeEditorSheet({ member, onClose, onSaved, token }: BloodT
 
   return <div className="nurse-station-modal-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose() }}>
     <section aria-labelledby="blood-type-editor-title" aria-modal="true" className="nurse-station-sheet blood-type-sheet" role="dialog">
-      <Droplets aria-hidden="true" className="sheet-icon" />
-      <h2 id="blood-type-editor-title">编辑血型</h2>
+      <header className="blood-type-sheet__heading"><Droplets aria-hidden="true" className="sheet-icon" /><h2 id="blood-type-editor-title">编辑血型</h2></header>
       <button aria-label="关闭血型编辑" className="sheet-close" disabled={saving} onClick={onClose} ref={closeRef} type="button"><X /></button>
-      <p className="blood-type-sheet__description">当前：{member.name}。未确认的项目可以保持未填写。</p>
       <div className="blood-type-sheet__fields">
-        <ProfileChoiceGroup label="ABO 血型" onChange={(value) => setBloodType(String(value))} options={['A型', 'B型', 'AB型', 'O型']} value={bloodType} />
-        <ProfileChoiceGroup label="RhD" onChange={(value) => setRhBloodType(String(value))} options={['阳性', '阴性']} value={rhBloodType} />
+        <ProfileChoiceGroup label="ABO 血型" onChange={(value) => setBloodType(String(value))} options={['A型', 'B型', 'O型', 'AB型']} value={bloodType} />
       </div>
       {error && <p className="blood-type-sheet__error" role="alert">{error}</p>}
       <div className="blood-type-sheet__actions">
