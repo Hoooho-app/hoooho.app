@@ -181,7 +181,7 @@ export class DesensitizationTestService {
       if (existing) { result = { task: existing, existing: true }; return data }
       const deleted = data.tasks.find((item) => item.accountId === accountId && item.memberId === memberId && item.categoryKey === classification.categoryKey && item.status === 'deleted')
       const timestamp = now.toISOString()
-      const task = deleted ? { ...deleted, displayName, status: 'archived', deletedAt: null, updatedAt: timestamp, version: deleted.version + 1 } : { id: randomUUID(), accountId, memberId, displayName, ...classification, status: 'active', version: 1, planVersions: [], progressionPaused: false, archivedAt: null, deletedAt: null, createdAt: timestamp, updatedAt: timestamp }
+      const task = deleted ? { ...deleted, displayName, status: 'archived', deletedAt: null, updatedAt: timestamp, version: deleted.version + 1 } : { id: randomUUID(), accountId, memberId, displayName, ...classification, status: 'active', version: 1, planVersions: [], progressionPaused: false, conclusion: null, conclusionHistory: [], archivedAt: null, deletedAt: null, createdAt: timestamp, updatedAt: timestamp }
       result = { task, existing: Boolean(deleted), restoredArchived: Boolean(deleted) }
       return { ...data, tasks: deleted ? data.tasks.map((item) => item.id === deleted.id ? task : item) : [...data.tasks, task] }
     })
@@ -284,5 +284,20 @@ export class DesensitizationTestService {
     let saved
     await this.store.update((data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, planVersions: [...item.planVersions, plan], progressionPaused: input?.resumeProgression === true && plan.complete ? false : item.progressionPaused, pausedAt: input?.resumeProgression === true && plan.complete ? null : item.pausedAt, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))
     return { task: saved, plan }
+  }
+
+  async saveConclusion(accountId, taskId, input, now = new Date()) {
+    const task = await this.owned(accountId, taskId)
+    if (Number.isInteger(input?.taskVersion) && task.version !== input.taskVersion) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
+    const value = input?.value === 'confirmed' ? 'confirmed' : input?.value === 'investigating' ? 'investigating' : null
+    if (!value) throw new DesensitizationTestError('请选择本次结论', 400, 'INVALID_CONCLUSION')
+    const data = await this.store.read()
+    const effectiveIds = new Set(data.records.filter((record) => record.taskId === task.id && record.status === 'effective' && !record.withdrawnAt).map((record) => record.id))
+    const observationIds = [...new Set((Array.isArray(input?.observationIds) ? input.observationIds : []).map(String).filter((id) => effectiveIds.has(id)))]
+    const timestamp = now.toISOString()
+    const conclusion = { id: randomUUID(), value, source: 'caregiver_explicit', observationIds, createdAt: timestamp }
+    let saved
+    await this.store.update((current) => ({ ...current, tasks: current.tasks.map((item) => item.id === task.id ? (saved = { ...item, conclusion, conclusionHistory: [...(item.conclusionHistory ?? []), conclusion], updatedAt: timestamp, version: item.version + 1 }) : item) }))
+    return saved
   }
 }

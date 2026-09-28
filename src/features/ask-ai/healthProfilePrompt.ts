@@ -23,7 +23,7 @@ export function createHealthProfilePromptSections(snapshots: StoredHealthProfile
         item.reactions.length ? `已记录反应：${item.reactions.length} 次` : '',
         item.tests.length ? `已记录检查：${item.tests.length} 份` : '',
       ].filter(Boolean) }))
-      return entries.length ? [{ id: 'allergy', title: '过敏与反应记录', entries }] : []
+      return entries.length ? [{ id: 'allergy', title: '过敏史', entries }] : []
     }
     const fields = new Map(section.fields.map((field) => [field.id, field]))
     const entries = snapshot.records.flatMap((record, index) => {

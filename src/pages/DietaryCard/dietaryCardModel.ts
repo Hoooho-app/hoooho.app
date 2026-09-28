@@ -78,7 +78,8 @@ function sourceGroup(item: AllergyHistoryItem): DietaryCardGroup | null {
   if (item.category !== 'food' || ignoredFoodNames.has(normalizeFoodName(item.name))) return null
   if (item.currentStatus === 'excluded' || item.currentStatus === 'tolerated') return null
   if (item.currentStatus === 'confirmed') return 'avoid'
-  if (item.currentStatus === 'suspected' || item.currentStatus === 'investigating' || item.reactions.length > 0) return 'temporary'
+  if (item.dietaryAction === 'temporary') return 'temporary'
+  if (item.dietaryAction === 'avoid') return 'avoid'
   return null
 }
 

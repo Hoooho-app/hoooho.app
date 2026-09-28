@@ -18,7 +18,7 @@ test('健康档案首页复用健康随记的记录对象页头并直接衔接�
   assert.match(subjectHeader, /formatAgeFromBirthday/)
   assert.match(home, /暂无过敏信息/)
   assert.match(home, /怀疑过的，也可以先记下来/)
-  assert.match(home, /记录过敏信息/)
+  assert.match(home, /查看过敏史/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
   assert.doesNotMatch(home, /已建立|growth-identity-card|更新成长数据|铸造成长身份卡|growth-identity-card__metrics|growth-identity-card__action|growth-identity-card__updated/)
   assert.match(home, /health-profile-record-subject[\s\S]*health-profile-allergy-card/)

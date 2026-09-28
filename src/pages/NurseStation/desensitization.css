@@ -277,3 +277,10 @@
 @media (prefers-reduced-motion: reduce) {
   .desensitization-card__surface { transition: none; }
 }
+
+.desensitization-conclusion { display: grid; gap: 10px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); padding: 12px; }
+.desensitization-conclusion > p { margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.5; }
+.desensitization-conclusion > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.desensitization-conclusion > div > button { min-height: 44px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); }
+.desensitization-conclusion > div > button[aria-pressed="true"] { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 600; }
+.desensitization-conclusion > small { color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }

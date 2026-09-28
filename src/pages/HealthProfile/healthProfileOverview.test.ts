@@ -30,7 +30,7 @@ test('成长身份卡数值统一四舍五入到小数点后一位', () => {
 test('过敏汇总严格按当前人物和明确状态', () => {
   const event = (id: string, memberId: string, startTime: string): HealthEventApiDto => ({ id, accountId: 'a', memberId, title: '出现红疹', category: 'allergy', status: 'observing', startTime, createdAt: startTime, updatedAt: startTime })
   const result = buildAllergyOverview([{ id:'1', certainty:'正在排查', subject:'花生' },{ id:'2', certainty:'怀疑中', subject:'花粉' },{ id:'3', certainty:'医生已确认', subject:'猫毛' },{ id:'4', certainty:'已明确', subject:'旧记录' },{ id:'empty' }], [event('other','child-2','2026-09-05T00:00:00Z'),event('mine','child-1','2026-09-04T00:00:00Z')], 'child-1')
-  assert.deepEqual({ total:result.total, investigating:result.investigating, suspected:result.suspected, doctorConfirmed:result.doctorConfirmed }, { total:4, investigating:1, suspected:1, doctorConfirmed:1 })
+  assert.deepEqual({ total:result.total, investigating:result.investigating, suspected:result.suspected, doctorConfirmed:result.doctorConfirmed }, { total:4, investigating:1, suspected:1, doctorConfirmed:2 })
   assert.match(result.latest, /^9月4日 · 出现红疹$/)
 })
 

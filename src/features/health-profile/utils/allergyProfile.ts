@@ -1,238 +1,86 @@
-export type AllergyCategory = 'food' | 'drug' | 'environment' | 'insect' | 'contact' | 'unknown'
+export type AllergyCategory = 'food' | 'drug' | 'animal' | 'environment' | 'contact' | 'unknown'
 export type AllergyStatus = 'suspected' | 'investigating' | 'confirmed' | 'excluded' | 'tolerated' | ''
+export type AllergySourceType = 'caregiver' | 'journal' | 'desensitization' | 'report' | 'clinician' | ''
+export type DietaryAction = 'temporary' | 'avoid' | ''
 
-export interface AllergyReactionRecord {
-  id: string
-  allergyItemId: string
-  memberId: string
-  linkedHealthEventId?: string
-  symptomSystems: string[]
-  symptoms: string
-  exposureAmount: string
-  latency: string
-  bodyLocations: string
-  handling: string
-  aggravatingFactors: string
-  relievingFactors: string
-  occurredAt: string
-  photos: string[]
-  notes: string
-}
-
-export interface AllergyTestRecord {
-  id: string
-  allergyItemId: string
-  memberId: string
-  testType: string
-  result: 'positive' | 'negative' | 'borderline' | ''
-  value: string
-  unit: string
-  testedAt: string
-  institution: string
-  reportFiles: string[]
-  clinicianInterpretation: string
-  notes: string
-}
-
-export interface AllergyEvidenceLink {
-  id: string
-  allergyItemId: string
-  healthEventId: string
-  relationType: 'temporal' | 'keyword' | 'manual'
-  confidence: number
-  source: 'rule' | 'manual' | 'existing'
-  confirmedByUser: boolean
-  createdAt: string
-}
+export interface AllergyReactionRecord { id:string; allergyItemId:string; memberId:string; linkedHealthEventId?:string; linkedHealthRecordId?:string; symptomSystems:string[]; symptoms:string; exposureAmount:string; latency:string; bodyLocations:string; handling:string; aggravatingFactors:string; relievingFactors:string; occurredAt:string; photos:string[]; notes:string }
+export interface AllergyTestRecord { id:string; allergyItemId:string; memberId:string; reportId?:string; testType:string; result:'positive'|'negative'|'borderline'|''; value:string; unit:string; testedAt:string; institution:string; reportFiles:string[]; clinicianInterpretation:string; notes:string }
+export interface AllergyEvidenceLink { id:string; allergyItemId:string; healthEventId:string; healthRecordId?:string; relationType:'temporal'|'keyword'|'manual'; confidence:number; source:'rule'|'manual'|'existing'; confirmedByUser:boolean; createdAt:string }
+export interface AllergySourceReference { id:string; type:Exclude<AllergySourceType,''>; sourceId:string; recordIds?:string[]; label:string; occurredAt?:string; active:boolean; createdAt:string }
+export interface AllergyIngredientRelation { id:string; name:string; relation:'candidate'|'confirmed'; sourceId?:string; sourceLabel:string; createdAt:string }
+export interface AllergyHistoryEntry { id:string; status:AllergyStatus; label:string; sourceType:AllergySourceType; sourceId?:string; occurredAt:string }
 
 export interface AllergyHistoryItem {
-  id: string
-  accountId: string
-  memberId: string
-  category: AllergyCategory
-  name: string
-  customName: string
-  currentStatus: AllergyStatus
-  statusUpdatedAt?: string
-  excludedAt?: string
-  toleranceSince?: string
-  lastReactionAt?: string
-  clinician?: string
-  clinicianNote?: string
-  createdAt: string
-  updatedAt: string
-  reactions: AllergyReactionRecord[]
-  tests: AllergyTestRecord[]
-  evidenceLinks: AllergyEvidenceLink[]
+  id:string; accountId:string; memberId:string; category:AllergyCategory; name:string; customName:string; currentStatus:AllergyStatus
+  sourceType:AllergySourceType; sourceLabel:string; dietaryAction:DietaryAction; ingredientRelations:AllergyIngredientRelation[]
+  sourceReferences:AllergySourceReference[]; history:AllergyHistoryEntry[]; lastMutationKey?:string; statusUpdatedAt?:string
+  excludedAt?:string; toleranceSince?:string; lastReactionAt?:string; clinician?:string; clinicianNote?:string
+  createdAt:string; updatedAt:string; reactions:AllergyReactionRecord[]; tests:AllergyTestRecord[]; evidenceLinks:AllergyEvidenceLink[]
 }
 
-export interface AllergyArchive { version: 2; items: AllergyHistoryItem[] }
+export interface AllergyReportItem { id:string; name:string; category:AllergyCategory; result:AllergyTestRecord['result']; testedAt:string; adopted:boolean; unclear:boolean; originalName:string; originalResult:AllergyTestRecord['result']; allergyItemId?:string }
+export interface AllergyReportRecord { recordType:'allergy-report'; id:string; accountId:string; memberId:string; fileName:string; mimeType:string; dataUrl:string; recognitionStatus:'manual_review_required'|'user_reviewed'; items:AllergyReportItem[]; createdAt:string; updatedAt:string }
+export interface AllergyArchive { version:3; items:AllergyHistoryItem[]; reports:AllergyReportRecord[] }
 
-export const allergyCategoryLabels: Record<AllergyCategory, string> = {
-  food: '食物', drug: '药物', environment: '环境', insect: '昆虫', contact: '接触物', unknown: '尚未明确'
-}
+export const allergyCategoryLabels:Record<AllergyCategory,string>={food:'食物',drug:'药物',animal:'动物',environment:'环境',contact:'接触物',unknown:'尚未明确'}
+export const allergyCategoryExamples:Record<AllergyCategory,string>={food:'食品、原料或成分',drug:'药品或药物成分',animal:'猫、狗、昆虫等',environment:'尘螨、花粉、霉菌等',contact:'乳胶、金属、洗护用品等',unknown:'对象或来源还说不清'}
+export const allergyStatusLabels:Record<Exclude<AllergyStatus,''>,string>={suspected:'待排查',investigating:'待排查',confirmed:'已明确',excluded:'已排除',tolerated:'曾经有，目前已耐受'}
+export const allergySourceLabels:Record<Exclude<AllergySourceType,''>,string>={caregiver:'家长记录',journal:'来自随记',desensitization:'来自排敏',report:'来自报告',clinician:'医生告知'}
+export const allergyOptions:Record<AllergyCategory,string[]>={food:['牛奶','鸡蛋','花生','坚果','小麦','大豆','鱼类','甲壳类'],drug:['青霉素类','头孢类','解热镇痛药','疫苗','造影剂','麻醉药'],animal:['猫','狗','蜜蜂','黄蜂','蚊虫','其他动物或昆虫'],environment:['尘螨','花粉','霉菌','动物皮屑','蟑螂','粉尘'],contact:['乳胶','金属','洗护用品','消毒剂','织物','植物'],unknown:['尚未明确']}
+export const allergyTestTypes=['血清特异性 IgE','皮肤点刺试验','斑贴试验','过敏原组分检测','医疗监督下激发试验','回避—再引入观察','其他'] as const
 
-export const allergyCategoryExamples: Record<AllergyCategory, string> = {
-  food: '牛奶、鸡蛋、坚果等',
-  drug: '抗生素、退热药等',
-  environment: '尘螨、花粉、霉菌等',
-  insect: '蜂、蚊虫等',
-  contact: '乳胶、金属、洗护用品等',
-  unknown: '暂时说不清具体对象'
-}
+const observationalTestTypes=new Set<string>(['回避—再引入观察','其他'])
+const now=()=>new Date().toISOString()
+const makeId=(prefix:string)=>`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+const optionalString=(value:unknown)=>typeof value==='string'&&value?value:undefined
+const normalizeName=(value:unknown)=>String(value??'').trim().replace(/\s+/g,' ')
+type LegacyRecord=Record<string,unknown>
 
-export const allergyStatusLabels: Record<Exclude<AllergyStatus, ''>, string> = {
-  suspected: '怀疑中', investigating: '正在排查', confirmed: '医生已确认', excluded: '已排除', tolerated: '曾经有，目前已耐受'
-}
+function normalizeCategory(value:unknown,legacyType=''):AllergyCategory { const category=String(value??''); if(category==='insect')return'animal'; if(['food','drug','animal','environment','contact','unknown'].includes(category))return category as AllergyCategory; const text=`${category}${legacyType}`; return text.includes('药')?'drug':text.includes('动物')||text.includes('虫')?'animal':text.includes('环境')?'environment':text.includes('接触')?'contact':text.includes('食')?'food':'unknown' }
+const normalizeStatus=(value:string):AllergyStatus=>{if(['suspected','investigating','confirmed','excluded','tolerated'].includes(value))return value as AllergyStatus;return value.includes('医生')||value.includes('明确')?'confirmed':value.includes('排查')?'investigating':value.includes('排除')?'excluded':value.includes('耐受')?'tolerated':value.includes('怀疑')?'suspected':''}
+const normalizeSourceType=(value:unknown):AllergySourceType=>['caregiver','journal','desensitization','report','clinician'].includes(String(value))?value as AllergySourceType:''
 
-export const allergyOptions: Record<AllergyCategory, string[]> = {
-  food: ['牛奶', '鸡蛋', '花生', '坚果', '小麦', '大豆', '鱼类', '甲壳类'],
-  drug: ['青霉素类', '头孢类', '解热镇痛药', '疫苗', '造影剂', '麻醉药'],
-  environment: ['尘螨', '花粉', '霉菌', '猫狗皮屑', '蟑螂', '粉尘'],
-  insect: ['蜜蜂', '黄蜂', '蚊虫', '蚂蚁', '跳蚤', '其他昆虫'],
-  contact: ['乳胶', '金属', '洗护用品', '消毒剂', '织物', '植物'],
-  unknown: ['尚未明确']
-}
+function normalizeReaction(value:unknown,itemId:string,memberId:string):AllergyReactionRecord|null { if(!value||typeof value!=='object')return null;const record=value as LegacyRecord;return{id:String(record.id??makeId('reaction')),allergyItemId:String(record.allergyItemId??itemId),memberId,linkedHealthEventId:optionalString(record.linkedHealthEventId),linkedHealthRecordId:optionalString(record.linkedHealthRecordId),symptomSystems:Array.isArray(record.symptomSystems)?record.symptomSystems.map(String):[],symptoms:String(record.symptoms??''),exposureAmount:String(record.exposureAmount??''),latency:String(record.latency??''),bodyLocations:String(record.bodyLocations??''),handling:String(record.handling??''),aggravatingFactors:String(record.aggravatingFactors??''),relievingFactors:String(record.relievingFactors??''),occurredAt:String(record.occurredAt??now()),photos:Array.isArray(record.photos)?record.photos.map(String):[],notes:String(record.notes??'')} }
+function normalizeTest(value:unknown,itemId:string,memberId:string):AllergyTestRecord|null { if(!value||typeof value!=='object')return null;const record=value as LegacyRecord;const result=['positive','negative','borderline'].includes(String(record.result))?record.result as AllergyTestRecord['result']:'';return{id:String(record.id??makeId('test')),allergyItemId:String(record.allergyItemId??itemId),memberId,reportId:optionalString(record.reportId),testType:String(record.testType??''),result,value:String(record.value??''),unit:String(record.unit??''),testedAt:String(record.testedAt??''),institution:String(record.institution??''),reportFiles:Array.isArray(record.reportFiles)?record.reportFiles.map(String):[],clinicianInterpretation:String(record.clinicianInterpretation??''),notes:String(record.notes??'')} }
+function normalizeIngredients(value:unknown):AllergyIngredientRelation[]{if(!Array.isArray(value))return[];return value.flatMap(entry=>{if(!entry||typeof entry!=='object')return[];const item=entry as LegacyRecord,name=normalizeName(item.name);return name?[{id:String(item.id??makeId('ingredient')),name,relation:item.relation==='confirmed'?'confirmed' as const:'candidate' as const,sourceId:optionalString(item.sourceId),sourceLabel:String(item.sourceLabel??'来源待核实'),createdAt:String(item.createdAt??now())}]:[]})}
+function normalizeReferences(value:unknown):AllergySourceReference[]{if(!Array.isArray(value))return[];return value.flatMap(entry=>{if(!entry||typeof entry!=='object')return[];const item=entry as LegacyRecord,type=normalizeSourceType(item.type),sourceId=String(item.sourceId??'');return type&&sourceId?[{id:String(item.id??makeId('source')),type:type as Exclude<AllergySourceType,''>,sourceId,recordIds:Array.isArray(item.recordIds)?item.recordIds.map(String):undefined,label:String(item.label??allergySourceLabels[type as Exclude<AllergySourceType,''>]),occurredAt:optionalString(item.occurredAt),active:item.active!==false,createdAt:String(item.createdAt??now())}]:[]})}
+function normalizeHistory(value:unknown):AllergyHistoryEntry[]{if(!Array.isArray(value))return[];return value.flatMap(entry=>{if(!entry||typeof entry!=='object')return[];const item=entry as LegacyRecord;return[{id:String(item.id??makeId('history')),status:normalizeStatus(String(item.status??'')),label:String(item.label??'状态更新'),sourceType:normalizeSourceType(item.sourceType),sourceId:optionalString(item.sourceId),occurredAt:String(item.occurredAt??now())}]})}
 
-export const allergyTestTypes = ['血清特异性 IgE', '皮肤点刺试验', '斑贴试验', '过敏原组分检测', '医疗监督下激发试验', '回避—再引入观察', '其他'] as const
+export function createAllergyItem(memberId:string,category:AllergyCategory,name:string,accountId=''):AllergyHistoryItem { const timestamp=now(),normalized=normalizeName(name);return{id:makeId('allergy'),accountId,memberId,category,name:normalized,customName:allergyOptions[category].includes(normalized)?'':normalized,currentStatus:'',sourceType:'',sourceLabel:'',dietaryAction:'',ingredientRelations:[],sourceReferences:[],history:[],createdAt:timestamp,updatedAt:timestamp,reactions:[],tests:[],evidenceLinks:[]} }
+export function createUnknownAllergyItem(memberId:string,accountId=''){return createAllergyItem(memberId,'unknown','尚未明确',accountId)}
 
-const observationalTestTypes = new Set<string>(['回避—再引入观察', '其他'])
-const now = () => new Date().toISOString()
-const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-const isCategory = (value: unknown): value is AllergyCategory => Object.keys(allergyCategoryLabels).includes(String(value))
-const optionalString = (value: unknown) => typeof value === 'string' && value ? value : undefined
-type LegacyRecord = Record<string, unknown>
+function normalizeItem(entry:unknown,index:number,memberId:string,accountId:string):AllergyHistoryItem|null { if(!entry||typeof entry!=='object')return null;const item=entry as LegacyRecord;if(item.recordType==='allergy-report')return null;const name=normalizeName(item.name??item.subject);if(!name)return null;const category=normalizeCategory(item.category,String(item.type??'')),timestamp=String(item.updatedAt??item._savedAt??item.createdAt??now()),id=String(item.id??`legacy-allergy-${index+1}`),ownerMemberId=String(item.memberId??memberId),currentStatus=normalizeStatus(String(item.currentStatus??item.certainty??'')),sourceType=normalizeSourceType(item.sourceType);return{id,accountId:accountId||String(item.accountId??''),memberId:ownerMemberId,category,name,customName:String(item.customName??''),currentStatus,sourceType,sourceLabel:String(item.sourceLabel??(sourceType?allergySourceLabels[sourceType as Exclude<AllergySourceType,''>]:'')),dietaryAction:['temporary','avoid'].includes(String(item.dietaryAction))?item.dietaryAction as DietaryAction:'',ingredientRelations:normalizeIngredients(item.ingredientRelations),sourceReferences:normalizeReferences(item.sourceReferences),history:normalizeHistory(item.history),lastMutationKey:optionalString(item.lastMutationKey),statusUpdatedAt:optionalString(item.statusUpdatedAt),excludedAt:optionalString(item.excludedAt),toleranceSince:optionalString(item.toleranceSince),lastReactionAt:optionalString(item.lastReactionAt),clinician:String(item.clinician??''),clinicianNote:String(item.clinicianNote??''),createdAt:String(item.createdAt??timestamp),updatedAt:timestamp,reactions:Array.isArray(item.reactions)?item.reactions.map(record=>normalizeReaction(record,id,ownerMemberId)).filter((record):record is AllergyReactionRecord=>Boolean(record)):[],tests:Array.isArray(item.tests)?item.tests.map(record=>normalizeTest(record,id,ownerMemberId)).filter((record):record is AllergyTestRecord=>Boolean(record)):[],evidenceLinks:Array.isArray(item.evidenceLinks)?item.evidenceLinks as AllergyEvidenceLink[]:[]} }
+function normalizeReport(entry:unknown,memberId:string,accountId:string):AllergyReportRecord|null { if(!entry||typeof entry!=='object')return null;const report=entry as LegacyRecord;if(report.recordType!=='allergy-report')return null;const ownerMemberId=String(report.memberId??memberId);return{recordType:'allergy-report',id:String(report.id??makeId('report')),accountId:accountId||String(report.accountId??''),memberId:ownerMemberId,fileName:String(report.fileName??report.name??'检查报告'),mimeType:String(report.mimeType??''),dataUrl:String(report.dataUrl??''),recognitionStatus:report.recognitionStatus==='user_reviewed'?'user_reviewed':'manual_review_required',items:Array.isArray(report.items)?report.items.flatMap(entryItem=>{if(!entryItem||typeof entryItem!=='object')return[];const line=entryItem as LegacyRecord,result=['positive','negative','borderline'].includes(String(line.result))?line.result as AllergyTestRecord['result']:'';return[{id:String(line.id??makeId('report-item')),name:normalizeName(line.name),category:normalizeCategory(line.category),result,testedAt:String(line.testedAt??''),adopted:line.adopted!==false,unclear:Boolean(line.unclear),originalName:String(line.originalName??''),originalResult:['positive','negative','borderline'].includes(String(line.originalResult))?line.originalResult as AllergyTestRecord['result']:'',allergyItemId:optionalString(line.allergyItemId)}]}):[],createdAt:String(report.createdAt??now()),updatedAt:String(report.updatedAt??report.createdAt??now())} }
 
-export function createAllergyItem(memberId: string, category: AllergyCategory, name: string, accountId = ''): AllergyHistoryItem {
-  const timestamp = now()
-  return {
-    id: makeId('allergy'), accountId, memberId, category, name,
-    customName: allergyOptions[category].includes(name) ? '' : name,
-    currentStatus: '', createdAt: timestamp, updatedAt: timestamp,
-    reactions: [], tests: [], evidenceLinks: []
-  }
-}
+export function normalizeAllergyArchive(value:unknown,memberId:string,accountId=''):AllergyArchive { const raw=Array.isArray(value)?value:value&&typeof value==='object'&&Array.isArray((value as {items?:unknown[]}).items)?[...(value as {items:unknown[]}).items,...(((value as {reports?:unknown[]}).reports)??[])]:[];const items=raw.map((entry,index)=>normalizeItem(entry,index,memberId,accountId)).filter((item):item is AllergyHistoryItem=>Boolean(item)).filter(item=>item.memberId===memberId&&(!accountId||item.accountId===accountId));const reports=raw.map(entry=>normalizeReport(entry,memberId,accountId)).filter((report):report is AllergyReportRecord=>Boolean(report)).filter(report=>report.memberId===memberId&&(!accountId||report.accountId===accountId));return{version:3,items,reports} }
+export function readAllergyArchive(storageValue:string,memberId:string,accountId=''):AllergyArchive{try{return normalizeAllergyArchive(JSON.parse(storageValue),memberId,accountId)}catch{return{version:3,items:[],reports:[]}}}
+export function readAllergyItems(storageValue:string,memberId:string,accountId=''){return readAllergyArchive(storageValue,memberId,accountId).items}
+export function serializeAllergyArchive(archive:AllergyArchive){return[...archive.items,...archive.reports]}
 
-export function createUnknownAllergyItem(memberId: string, accountId = '') {
-  return createAllergyItem(memberId, 'unknown', '尚未明确', accountId)
-}
+const itemKey=(item:Pick<AllergyHistoryItem,'category'|'name'>)=>`${item.category}:${normalizeName(item.name).toLocaleLowerCase('zh-CN')}`
+export function appendUniqueAllergyItems(items:AllergyHistoryItem[],additions:AllergyHistoryItem[]){const keys=new Set(items.filter(item=>item.category!=='unknown').map(itemKey));return[...items,...additions.filter(item=>item.category==='unknown'||(!keys.has(itemKey(item))&&Boolean(keys.add(itemKey(item)))))]}
 
-const legacyCategory = (value: string): AllergyCategory => value.includes('药') ? 'drug' : value.includes('环境') ? 'environment' : value.includes('虫') ? 'insect' : value.includes('接触') ? 'contact' : value.includes('食') ? 'food' : 'unknown'
-const normalizeStatus = (value: string): AllergyStatus => {
-  if (['suspected', 'investigating', 'confirmed', 'excluded', 'tolerated'].includes(value)) return value as AllergyStatus
-  return value.includes('医生') ? 'confirmed' : value.includes('排查') ? 'investigating' : value.includes('排除') ? 'excluded' : value.includes('耐受') ? 'tolerated' : value.includes('怀疑') ? 'suspected' : ''
-}
+export interface QuickAllergyInput { id?:string; mutationKey:string; memberId:string; accountId:string; name:string; category:AllergyCategory; certainty:'confirmed'|'investigating'; reaction:string; occurredAt:string; sourceType:Exclude<AllergySourceType,''>; sourceLabel:string; dietaryAction:DietaryAction; ingredientNames:string[] }
+export function saveQuickAllergy(items:AllergyHistoryItem[],input:QuickAllergyInput){const existing=input.id?items.find(item=>item.id===input.id):items.find(item=>item.memberId===input.memberId&&item.category===input.category&&normalizeName(item.name).toLocaleLowerCase('zh-CN')===normalizeName(input.name).toLocaleLowerCase('zh-CN'));if(existing?.lastMutationKey===input.mutationKey)return items;const timestamp=now(),base=existing??createAllergyItem(input.memberId,input.category,input.name,input.accountId),reaction=input.reaction.trim()?normalizeReaction({id:makeId('reaction'),symptoms:input.reaction.trim(),occurredAt:input.occurredAt||timestamp},base.id,input.memberId):null,ingredients=input.category==='food'?input.ingredientNames.map(name=>({id:makeId('ingredient'),name:normalizeName(name),relation:'candidate' as const,sourceLabel:input.sourceLabel||allergySourceLabels[input.sourceType],createdAt:timestamp})).filter(item=>item.name):[],changedStatus=base.currentStatus!==input.certainty;const next:AllergyHistoryItem={...base,accountId:input.accountId,memberId:input.memberId,category:input.category,name:normalizeName(input.name),customName:allergyOptions[input.category].includes(normalizeName(input.name))?'':normalizeName(input.name),currentStatus:input.certainty,sourceType:input.sourceType,sourceLabel:input.sourceLabel.trim()||allergySourceLabels[input.sourceType],dietaryAction:input.category==='food'?input.dietaryAction:'',ingredientRelations:ingredients.length?ingredients:base.ingredientRelations,lastMutationKey:input.mutationKey,reactions:reaction&&!base.reactions.some(item=>item.symptoms===reaction.symptoms&&item.occurredAt===reaction.occurredAt)?[...base.reactions,reaction]:base.reactions,lastReactionAt:reaction?.occurredAt??base.lastReactionAt,statusUpdatedAt:changedStatus?timestamp:base.statusUpdatedAt,history:changedStatus?[...base.history,{id:makeId('history'),status:input.certainty,label:input.certainty==='confirmed'?'标记为已明确':'标记为待排查',sourceType:input.sourceType,occurredAt:timestamp}]:base.history,updatedAt:timestamp};return existing?items.map(item=>item.id===existing.id?next:item):[...items,next]}
 
-function normalizeReaction(value: unknown, itemId: string, memberId: string): AllergyReactionRecord | null {
-  if (!value || typeof value !== 'object') return null
-  const record = value as LegacyRecord
-  return {
-    id: String(record.id ?? makeId('reaction')),
-    allergyItemId: String(record.allergyItemId ?? itemId), memberId,
-    linkedHealthEventId: optionalString(record.linkedHealthEventId),
-    symptomSystems: Array.isArray(record.symptomSystems) ? record.symptomSystems.map(String) : [],
-    symptoms: String(record.symptoms ?? ''), exposureAmount: String(record.exposureAmount ?? ''),
-    latency: String(record.latency ?? ''), bodyLocations: String(record.bodyLocations ?? ''),
-    handling: String(record.handling ?? ''), aggravatingFactors: String(record.aggravatingFactors ?? ''),
-    relievingFactors: String(record.relievingFactors ?? ''), occurredAt: String(record.occurredAt ?? now()),
-    photos: Array.isArray(record.photos) ? record.photos.map(String) : [], notes: String(record.notes ?? '')
-  }
-}
+export function mergeDesensitizationConclusion(items:AllergyHistoryItem[],input:{accountId:string;memberId:string;taskId:string;name:string;conclusion:'confirmed'|'investigating';observationIds:string[];occurredAt:string}){const timestamp=input.occurredAt||now(),existing=items.find(item=>item.memberId===input.memberId&&item.category==='food'&&normalizeName(item.name)===normalizeName(input.name)),base=existing??createAllergyItem(input.memberId,'food',input.name,input.accountId),reference:AllergySourceReference={id:`desensitization:${input.taskId}`,type:'desensitization',sourceId:input.taskId,recordIds:[...new Set(input.observationIds)],label:'排敏测试结论',occurredAt:timestamp,active:true,createdAt:timestamp},status=input.conclusion==='confirmed'?'confirmed':'investigating',next={...base,accountId:input.accountId,currentStatus:status as AllergyStatus,sourceType:'desensitization' as const,sourceLabel:'来自排敏',sourceReferences:[...base.sourceReferences.filter(item=>item.id!==reference.id),reference],statusUpdatedAt:timestamp,history:[...base.history,{id:makeId('history'),status:status as AllergyStatus,label:input.conclusion==='confirmed'?'排敏测试保存为已明确过敏':'排敏测试仍待排查',sourceType:'desensitization' as const,sourceId:input.taskId,occurredAt:timestamp}],updatedAt:timestamp};return existing?items.map(item=>item.id===existing.id?next:item):[...items,next]}
 
-function normalizeTest(value: unknown, itemId: string, memberId: string): AllergyTestRecord | null {
-  if (!value || typeof value !== 'object') return null
-  const record = value as LegacyRecord
-  const result = ['positive', 'negative', 'borderline'].includes(String(record.result)) ? record.result as AllergyTestRecord['result'] : ''
-  return {
-    id: String(record.id ?? makeId('test')), allergyItemId: String(record.allergyItemId ?? itemId), memberId,
-    testType: String(record.testType ?? ''), result, value: String(record.value ?? ''), unit: String(record.unit ?? ''),
-    testedAt: String(record.testedAt ?? ''), institution: String(record.institution ?? ''),
-    reportFiles: Array.isArray(record.reportFiles) ? record.reportFiles.map(String) : [],
-    clinicianInterpretation: String(record.clinicianInterpretation ?? ''), notes: String(record.notes ?? '')
-  }
-}
+export function linkJournalObservation(items:AllergyHistoryItem[],input:{accountId:string;memberId:string;eventId:string;recordId:string;name:string;category:AllergyCategory;reaction:string;occurredAt:string}){const name=normalizeName(input.name)||'尚未明确',category=name==='尚未明确'?'unknown':input.category,existing=items.find(item=>item.memberId===input.memberId&&item.category===category&&normalizeName(item.name)===name),base=existing??createAllergyItem(input.memberId,category,name,input.accountId);if(base.evidenceLinks.some(link=>link.healthRecordId===input.recordId))return items;const timestamp=now(),link:AllergyEvidenceLink={id:makeId('link'),allergyItemId:base.id,healthEventId:input.eventId,healthRecordId:input.recordId,relationType:'manual',confidence:1,source:'manual',confirmedByUser:true,createdAt:timestamp},reference:AllergySourceReference={id:`journal:${input.recordId}`,type:'journal',sourceId:input.recordId,label:'健康随记',occurredAt:input.occurredAt,active:true,createdAt:timestamp},next:AllergyHistoryItem={...base,accountId:input.accountId,currentStatus:base.currentStatus==='confirmed'?base.currentStatus:'investigating',sourceType:base.sourceType||'journal',sourceLabel:base.sourceLabel||'来自随记',evidenceLinks:[...base.evidenceLinks,link],sourceReferences:[...base.sourceReferences,reference],updatedAt:timestamp};if(input.reaction.trim()&&!next.reactions.some(record=>record.linkedHealthRecordId===input.recordId))next.reactions=[...next.reactions,{id:makeId('reaction'),allergyItemId:next.id,memberId:input.memberId,linkedHealthEventId:input.eventId,linkedHealthRecordId:input.recordId,symptomSystems:[],symptoms:input.reaction.trim(),exposureAmount:'',latency:'',bodyLocations:'',handling:'',aggravatingFactors:'',relievingFactors:'',occurredAt:input.occurredAt||timestamp,photos:[],notes:'来自已明确关联的健康随记'}];return existing?items.map(item=>item.id===existing.id?next:item):[...items,next]}
 
-export function normalizeAllergyArchive(value: unknown, memberId: string, accountId = ''): AllergyArchive {
-  const raw = Array.isArray(value) ? value : value && typeof value === 'object' && Array.isArray((value as { items?: unknown[] }).items) ? (value as { items: unknown[] }).items : []
-  const items = raw.flatMap((entry, index) => {
-    if (!entry || typeof entry !== 'object') return []
-    const item = entry as LegacyRecord
-    const name = String(item.name ?? item.subject ?? '').trim()
-    if (!name) return []
-    const category = isCategory(item.category) ? item.category : legacyCategory(String(item.type ?? ''))
-    const timestamp = String(item.updatedAt ?? item._savedAt ?? item.createdAt ?? now())
-    const id = String(item.id ?? `legacy-allergy-${index + 1}`)
-    const ownerMemberId = String(item.memberId ?? memberId)
-    return [{
-      // Profile sections are already scoped to the authenticated account by the server.
-      // Canonicalize legacy records because older clients accidentally stored the session token here.
-      id, accountId: accountId || String(item.accountId ?? ''), memberId: ownerMemberId, category, name,
-      customName: String(item.customName ?? ''), currentStatus: normalizeStatus(String(item.currentStatus ?? item.certainty ?? '')),
-      statusUpdatedAt: optionalString(item.statusUpdatedAt), excludedAt: optionalString(item.excludedAt),
-      toleranceSince: optionalString(item.toleranceSince), lastReactionAt: optionalString(item.lastReactionAt),
-      clinician: String(item.clinician ?? ''), clinicianNote: String(item.clinicianNote ?? ''),
-      createdAt: String(item.createdAt ?? timestamp), updatedAt: timestamp,
-      reactions: Array.isArray(item.reactions) ? item.reactions.map(record => normalizeReaction(record, id, ownerMemberId)).filter((record): record is AllergyReactionRecord => Boolean(record)) : [],
-      tests: Array.isArray(item.tests) ? item.tests.map(record => normalizeTest(record, id, ownerMemberId)).filter((record): record is AllergyTestRecord => Boolean(record)) : [],
-      evidenceLinks: Array.isArray(item.evidenceLinks) ? item.evidenceLinks as AllergyEvidenceLink[] : []
-    } satisfies AllergyHistoryItem]
-  })
-  return { version: 2, items }
-}
+export function applyAllergyReport(archive:AllergyArchive,report:AllergyReportRecord){let items=[...archive.items];const reviewed={...report,recognitionStatus:'user_reviewed' as const,updatedAt:now(),items:report.items.map(line=>({...line}))};for(const line of reviewed.items.filter(line=>line.adopted&&line.name.trim())){const existing=items.find(item=>item.memberId===report.memberId&&item.category===line.category&&normalizeName(item.name)===normalizeName(line.name)),base=existing??createAllergyItem(report.memberId,line.category,line.name,report.accountId),test:AllergyTestRecord={id:`report-test:${report.id}:${line.id}`,allergyItemId:base.id,memberId:report.memberId,reportId:report.id,testType:'检查报告',result:line.result,value:'',unit:'',testedAt:line.testedAt,institution:'',reportFiles:[report.dataUrl],clinicianInterpretation:'',notes:line.unclear?'报告项目识别不清，已由用户核对后采用':'由报告核对后采用'},reference:AllergySourceReference={id:`report:${report.id}:${line.id}`,type:'report',sourceId:report.id,label:'检查报告',occurredAt:line.testedAt,active:true,createdAt:report.createdAt},next:AllergyHistoryItem={...base,accountId:report.accountId,currentStatus:base.currentStatus==='confirmed'?base.currentStatus:'investigating',sourceType:base.sourceType||'report',sourceLabel:base.sourceLabel||'来自报告',tests:base.tests.some(item=>item.id===test.id)?base.tests:[...base.tests,test],sourceReferences:[...base.sourceReferences.filter(item=>item.id!==reference.id),reference],updatedAt:reviewed.updatedAt};line.allergyItemId=next.id;items=existing?items.map(item=>item.id===existing.id?next:item):[...items,next]}return{version:3 as const,items,reports:[...archive.reports.filter(item=>item.id!==report.id),reviewed]}}
 
-export function readAllergyItems(storageValue: string, memberId: string, accountId = '') {
-  try {
-    return normalizeAllergyArchive(JSON.parse(storageValue), memberId, accountId).items.filter(item => item.memberId === memberId && (!accountId || item.accountId === accountId))
-  } catch { return [] }
-}
+export function allergyGroup(item:AllergyHistoryItem){return item.currentStatus==='confirmed'?'confirmed' as const:['excluded','tolerated'].includes(item.currentStatus)?'history' as const:'investigating' as const}
+export function allergyReactionSummary(record:AllergyReactionRecord){return record.symptoms.trim()||record.symptomSystems.join('、')||'具体表现未补充'}
+export function allergyTestResultLabel(result:AllergyTestRecord['result']){return({positive:'阳性',negative:'阴性',borderline:'临界','':'结果未填写'} as const)[result]}
+export function testSupportsStructuredResult(testType:string){return Boolean(testType)&&!observationalTestTypes.has(testType)}
+export function testSupportsNumericValue(testType:string){return['血清特异性 IgE','过敏原组分检测'].includes(testType)}
+export function formatAllergyDate(value:string){if(!value)return'时间未填写';const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'})}
+export function formatElapsedSince(value?:string,reference=new Date()){if(!value)return'';const date=new Date(value);if(Number.isNaN(date.getTime()))return'';const days=Math.max(0,Math.floor((reference.getTime()-date.getTime())/86400000));if(days<31)return`${days}天`;const months=Math.floor(days/30);if(months<12)return`${months}个月`;return`${Math.floor(months/12)}年${months%12?`${months%12}个月`:''}`}
+export function buildTemporalStatement(_itemName:string,exposureTitle:string,symptomTitle:string,latency=''){return`${exposureTitle}${latency?`后约${latency}`:'后'}记录到${symptomTitle}`}
 
-export function appendUniqueAllergyItems(items: AllergyHistoryItem[], additions: AllergyHistoryItem[]) {
-  const keys = new Set(items.filter(item => item.category !== 'unknown').map(item => `${item.category}:${item.name.trim().toLocaleLowerCase()}`))
-  return [...items, ...additions.filter(item => {
-    if (item.category === 'unknown') return true
-    const key = `${item.category}:${item.name.trim().toLocaleLowerCase()}`
-    if (keys.has(key)) return false
-    keys.add(key)
-    return true
-  })]
-}
-
-export function allergyReactionSummary(record: AllergyReactionRecord) {
-  return record.symptoms.trim() || record.symptomSystems.join('、') || '具体表现未补充'
-}
-
-export function allergyTestResultLabel(result: AllergyTestRecord['result']) {
-  return ({ positive: '阳性', negative: '阴性', borderline: '临界', '': '结果未填写' } as const)[result]
-}
-
-export function testSupportsStructuredResult(testType: string) { return Boolean(testType) && !observationalTestTypes.has(testType) }
-export function testSupportsNumericValue(testType: string) { return ['血清特异性 IgE', '过敏原组分检测'].includes(testType) }
-
-export function formatAllergyDate(value: string) {
-  if (!value) return '时间未填写'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
-}
-
-export function formatElapsedSince(value?: string, reference = new Date()) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const days = Math.max(0, Math.floor((reference.getTime() - date.getTime()) / 86400000))
-  if (days < 31) return `${days}天`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}个月`
-  return `${Math.floor(months / 12)}年${months % 12 ? `${months % 12}个月` : ''}`
-}
-
-export function buildTemporalStatement(_itemName: string, exposureTitle: string, symptomTitle: string, latency = '') {
-  return `${exposureTitle}${latency ? `后约${latency}` : '后'}记录到${symptomTitle}`
-}
-
-// Compatibility exports for existing readers and migrations.
-export type AllergyProfileRecord = AllergyHistoryItem
-export function emptyAllergyRecord(sequence: number) { return createAllergyItem('', 'unknown', `过敏 / 反应 ${sequence}`) }
-export function nextAllergySequence(records: readonly unknown[]) { return records.length + 1 }
-export interface AllergyReport { id: string; name: string; date: string; dataUrl: string; mimeType: string; parsingStatus: '待人工整理' }
-export function normalizeAllergyRecords(records: readonly LegacyRecord[], memberId = '') { return normalizeAllergyArchive(records, memberId).items.filter(item => !memberId || item.memberId === memberId) }
-export function normalizeAllergyReports(value: unknown): AllergyReport[] { return Array.isArray(value) ? value.flatMap(item => item && typeof item === 'object' && 'id' in item && 'name' in item && 'dataUrl' in item ? [{ ...(item as AllergyReport), parsingStatus: '待人工整理' as const }] : []) : [] }
+export type AllergyProfileRecord=AllergyHistoryItem
+export function emptyAllergyRecord(sequence:number){return createAllergyItem('','unknown',`过敏 / 反应 ${sequence}`)}
+export function nextAllergySequence(records:readonly unknown[]){return records.length+1}
+export interface AllergyReport { id:string; name:string; date:string; dataUrl:string; mimeType:string; parsingStatus:'待人工整理' }
+export function normalizeAllergyRecords(records:readonly LegacyRecord[],memberId=''){return normalizeAllergyArchive(records,memberId).items.filter(item=>!memberId||item.memberId===memberId)}
+export function normalizeAllergyReports(value:unknown):AllergyReport[]{return Array.isArray(value)?value.flatMap(item=>item&&typeof item==='object'&&'id'in item&&'name'in item&&'dataUrl'in item?[{...(item as AllergyReport),parsingStatus:'待人工整理' as const}]:[]):[]}

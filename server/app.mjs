@@ -482,7 +482,7 @@ async function handleDesensitizationTests(request, response, pathname, searchPar
   const timeZone = validTimeZone(request.headers['x-hoooho-timezone']) ?? 'Asia/Shanghai'
   const collection = pathname === '/api/desensitization-tests'
   const recordMatch = /^\/api\/desensitization-tests\/([^/]+)\/records(?:\/([^/]+)(?:\/(withdraw|restore|undo-update))?)?$/.exec(pathname)
-  const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan)$/.exec(pathname)
+  const actionMatch = /^\/api\/desensitization-tests\/([^/]+)\/(archive|restore|undo-delete|plan|conclusion)$/.exec(pathname)
   const taskMatch = /^\/api\/desensitization-tests\/([^/]+)$/.exec(pathname)
   if (collection && request.method === 'GET') sendJson(response, 200, await desensitizationTests.list(accountId, String(searchParams.get('memberId') ?? ''), new Date(), timeZone))
   else if (collection && request.method === 'POST') sendJson(response, 201, await desensitizationTests.create(accountId, await readJson(request), new Date(), timeZone))
@@ -497,6 +497,7 @@ async function handleDesensitizationTests(request, response, pathname, searchPar
   } else if (actionMatch) {
     const id = decodeRouteValue(actionMatch[1]), action = actionMatch[2]
     if (action === 'plan' && request.method === 'PUT') sendJson(response, 200, await desensitizationTests.savePlan(accountId, id, await readJson(request)))
+    else if (action === 'conclusion' && request.method === 'PUT') sendJson(response, 200, await desensitizationTests.saveConclusion(accountId, id, await readJson(request)))
     else if (request.method === 'POST') { const input = await readJson(request); sendJson(response, 200, await desensitizationTests.mutateTask(accountId, id, action, new Date(), Number.isInteger(input.version) ? input.version : null)) }
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   } else if (taskMatch && request.method === 'PATCH') sendJson(response, 200, await desensitizationTests.updateName(accountId, decodeRouteValue(taskMatch[1]), await readJson(request)))

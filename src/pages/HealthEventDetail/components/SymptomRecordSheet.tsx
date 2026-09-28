@@ -1,4 +1,4 @@
-import { Pencil, Save, Trash2 } from 'lucide-react'
+import { Link2, Pencil, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import { ChildBodyLocationPicker } from '../../../components/health/body-location/ChildBodyLocationPicker'
@@ -9,6 +9,7 @@ import { extractSymptomNarrative, inferSymptomCategory, symptomLocationDisplay, 
 import { RelatedRecordsSheet, type SymptomLinkedRecordIds } from '../../HealthEvents/SymptomRecordFlow'
 import { journalCategoryLabels, journalListSummary, type JournalEntry } from '../../HealthEvents/timeViewModel'
 import type { JournalSymptomDetails } from '../../../types/journal'
+import { AllergyLinkSheet } from './AllergyLinkSheet'
 
 interface SymptomRecordSheetProps {
   memberId: string
@@ -84,6 +85,8 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
   const [recurrent, setRecurrent] = useState(false)
   const [generatedSummary, setGeneratedSummary] = useState('')
   const [shortNote, setShortNote] = useState('')
+  const [allergyLinkOpen, setAllergyLinkOpen] = useState(false)
+  const [allergyLinked, setAllergyLinked] = useState(false)
 
   const initializeEditor = (nextEditing: boolean) => {
     if (!entry) return
@@ -193,7 +196,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
   const detailDirty = dirty || (editing && (measurementMethod !== (record?.measurementMethod ?? entry.source.measurementMethod ?? 'unspecified') || measurementDevice !== (record?.measurementDevice ?? entry.source.measurementDevice ?? '') || note !== (record?.note ?? entry.source.note ?? '') || temperature !== String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? '')))
   const close = () => { if (busy) return; if (detailDirty) setConfirmExit(true); else onClose() }
 
-  return (
+  return <>
     <BottomSheetSurface
       className="symptom-record-sheet"
       footer={footer}
@@ -228,13 +231,15 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
           {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}
           <section><h3>记录信息</h3><dl><div><dt>发生时间</dt><dd>{formatRecordDateTime(record?.occurredAt ?? entry.time)}</dd></div>{record?.createdAt && <div><dt>创建时间</dt><dd>{formatRecordDateTime(record.createdAt)}</dd></div>}<div><dt>记录对象</dt><dd>{memberName}</dd></div></dl></section>
+          {record && <button className="symptom-allergy-link" disabled={allergyLinked} onClick={() => setAllergyLinkOpen(true)} type="button"><Link2 size={18}/><span><strong>{allergyLinked ? '已关联到过敏史' : '标记为过敏相关'}</strong><small>{allergyLinked ? '已保存为可追溯的待排查线索' : '由你确认后加入待排查，不会自动确诊'}</small></span></button>}
           <section><h3>来源信息</h3><dl><div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>{isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}{isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}{entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}</dl></section>
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
         </div>
       )}
     </BottomSheetSurface>
-  )
+    {record && <AllergyLinkSheet eventId={record.eventId} memberId={memberId} occurredAt={record.occurredAt} onClose={() => setAllergyLinkOpen(false)} onLinked={() => setAllergyLinked(true)} open={allergyLinkOpen} reaction={originalNarrative} recordId={record.id}/>}
+  </>
 }
 
 function SymptomOptionalDetails({ symptom }: { symptom: NonNullable<NonNullable<HealthEventRecordApiDto['journal']>['symptom']> }) {
