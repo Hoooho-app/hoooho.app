@@ -288,12 +288,14 @@ export class DesensitizationTestService {
 
   async saveConclusion(accountId, taskId, input, now = new Date()) {
     const task = await this.owned(accountId, taskId)
-    if (Number.isInteger(input?.taskVersion) && task.version !== input.taskVersion) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     const value = input?.value === 'confirmed' ? 'confirmed' : input?.value === 'investigating' ? 'investigating' : null
     if (!value) throw new DesensitizationTestError('请选择本次结论', 400, 'INVALID_CONCLUSION')
     const data = await this.store.read()
     const effectiveIds = new Set(data.records.filter((record) => record.taskId === task.id && record.status === 'effective' && !record.withdrawnAt).map((record) => record.id))
     const observationIds = [...new Set((Array.isArray(input?.observationIds) ? input.observationIds : []).map(String).filter((id) => effectiveIds.has(id)))]
+    const previousIds = task.conclusion?.observationIds ?? []
+    if (task.conclusion?.value === value && observationIds.length === previousIds.length && observationIds.every((id) => previousIds.includes(id))) return task
+    if (Number.isInteger(input?.taskVersion) && task.version !== input.taskVersion) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     const timestamp = now.toISOString()
     const conclusion = { id: randomUUID(), value, source: 'caregiver_explicit', observationIds, createdAt: timestamp }
     let saved
