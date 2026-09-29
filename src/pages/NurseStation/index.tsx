@@ -24,7 +24,7 @@ import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
-import { NurseStationFactTypewriter } from './NurseStationFactTypewriter'
+import { FOOD_ALLERGY_INDEX_STATUS } from './foodAllergyStatusIndexContent'
 import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
@@ -227,7 +227,6 @@ export function NurseStationPage() {
                 <span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
               </span>
               <span className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</span>
-              <NurseStationFactTypewriter />
               </span>
               <span className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></span>
             </button>
@@ -238,6 +237,18 @@ export function NurseStationPage() {
             </div>
           </section>
         ) : null}
+        {member && (
+          <button
+            aria-label={`食物过敏状态指数，${FOOD_ALLERGY_INDEX_STATUS.label}，查看说明`}
+            className="nurse-station-allergy-index"
+            onClick={() => navigate('/food-allergy-status-index', { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } })}
+            type="button"
+          >
+            <span>食物过敏状态指数</span>
+            <strong>{FOOD_ALLERGY_INDEX_STATUS.label}</strong>
+            <ChevronRight aria-hidden="true" />
+          </button>
+        )}
         <HomeEntries
           desensitizationCount={desensitizationCount}
           desensitizationStatus={desensitizationStatus}
