@@ -18,6 +18,7 @@ import { adaptFamilyMember, adaptHealthEventDetail } from '../services/healthEve
 import { healthEventRecordService } from '../services/healthEventRecords'
 import { healthEventService } from '../services/healthEvents'
 import { healthRecordOrganizationService } from '../services/healthRecordOrganization'
+import { syncJournalObservationToAllergy } from '../features/health-profile/utils/allergySync'
 import { eventAttachmentService } from '../services/eventAttachments'
 import { useAppStore } from '../store/useAppStore'
 
@@ -176,17 +177,19 @@ export function useHealthEventDetail(eventId: string | undefined, preserveOnSess
   }, [eventId, token])
 
   const updateRecord = useCallback(async (recordId: string, input: UpdateHealthEventRecordInput) => {
-    if (!token) throw new Error('登录状态无效')
+    if (!token || !accountId || state.status !== 'success' || state.data.eventDto.id !== eventId) throw new Error('登录状态或健康随记无效')
     await healthEventRecordService.update(recordId, input, token)
     const records = await refreshAfterRecordMutation()
+    await syncJournalObservationToAllergy({ accountId, memberId: state.data.eventDto.memberId, recordId, action: 'update', occurredAt: new Date().toISOString() })
     return records.find((record) => record.id === recordId)
-  }, [refreshAfterRecordMutation, token])
+  }, [accountId, eventId, refreshAfterRecordMutation, state, token])
 
   const deleteRecord = useCallback(async (recordId: string) => {
-    if (!token) throw new Error('登录状态无效')
+    if (!token || !accountId || state.status !== 'success' || state.data.eventDto.id !== eventId) throw new Error('登录状态或健康随记无效')
     await healthEventRecordService.delete(recordId, token)
     await refreshAfterRecordMutation()
-  }, [refreshAfterRecordMutation, token])
+    await syncJournalObservationToAllergy({ accountId, memberId: state.data.eventDto.memberId, recordId, action: 'delete', occurredAt: new Date().toISOString() })
+  }, [accountId, eventId, refreshAfterRecordMutation, state, token])
 
   const updateChangeAnnotation = useCallback(async (recordId: string, annotationId: string, changeType: HealthChangeType) => {
     if (!token) throw new Error('登录状态无效')
