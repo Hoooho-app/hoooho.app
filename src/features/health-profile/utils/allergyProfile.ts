@@ -97,7 +97,7 @@ export function linkJournalObservation(items:AllergyHistoryItem[],input:{account
   const existing=items.find(item=>item.accountId===input.accountId&&item.memberId===input.memberId&&item.category===category&&normalizeName(item.name)===name)
   const base=existing??createAllergyItem(input.memberId,category,name,input.accountId)
   const previous=base.sourceReferences.find(reference=>reference.id===`journal:${input.recordId}`)
-  if(previous?.active)return items
+  if(previous?.active||!previous&&base.evidenceLinks.some(link=>link.healthRecordId===input.recordId))return items
   const timestamp=now()
   const reference:AllergySourceReference={id:`journal:${input.recordId}`,type:'journal',sourceId:input.recordId,label:'健康随记',occurredAt:input.occurredAt,active:true,createdAt:previous?.createdAt??timestamp}
   const link:AllergyEvidenceLink={id:makeId('link'),allergyItemId:base.id,healthEventId:input.eventId,healthRecordId:input.recordId,relationType:'manual',confidence:1,source:'manual',confirmedByUser:true,createdAt:timestamp}
