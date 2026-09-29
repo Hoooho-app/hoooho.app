@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   allergyGroup,
+  activeAllergyReactions,
   allergyOptions,
   applyAllergyReport,
   createAllergyItem,
@@ -10,6 +11,7 @@ import {
   normalizeAllergyArchive,
   reconcileDesensitizationObservation,
   readAllergyArchive,
+  reconcileJournalObservation,
   saveQuickAllergy,
   serializeAllergyArchive,
   type AllergyArchive,
@@ -134,6 +136,26 @@ test('健康随记只有用户明确关联后进入待排查，并按记录 ID �
   assert.equal(first[0].currentStatus, 'investigating')
   assert.equal(repeated[0].evidenceLinks.length, 1)
   assert.equal(repeated[0].reactions.length, 1)
+})
+
+test('随记修改或删除后原反应不计数，保留历史并允许明确重新关联', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '牛奶', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
+  const linked = linkJournalObservation([], input)
+  const other = createAllergyItem('member-2', 'food', '牛奶', 'account-1')
+  const changed = reconcileJournalObservation([...linked, other], { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'update', occurredAt: '2026-09-21' })
+  assert.equal(changed[0].sourceReferences[0].active, false)
+  assert.equal(activeAllergyReactions(changed[0]).length, 0)
+  assert.equal(changed[0].reactions[0].symptoms, '皮肤发红')
+  assert.strictEqual(changed[1], other)
+  assert.strictEqual(reconcileJournalObservation(changed, { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'delete', occurredAt: '2026-09-22' })[0], changed[0])
+  const relinked = linkJournalObservation(changed, { ...input, reaction: '皮肤轻微发红', occurredAt: '2026-09-23' })
+  assert.equal(relinked[0].sourceReferences[0].active, true)
+  assert.deepEqual(activeAllergyReactions(relinked[0]).map(record=>record.symptoms), ['皮肤轻微发红'])
+  assert.equal(relinked[0].reactions.length, 2)
+  const deleted = reconcileJournalObservation(relinked, { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'delete', occurredAt: '2026-09-24' })
+  const restored = readAllergyArchive(JSON.stringify(serializeAllergyArchive({ version: 3, items: deleted, reports: [] })), 'member-1', 'account-1')
+  assert.equal(activeAllergyReactions(restored.items[0]).length, 0)
+  assert.equal(restored.items[0].history.at(-1)?.label, '关联的健康随记已删除，原反应保留备查')
 })
 
 test('序列化继续使用 records 数组并同时保留报告，读取时按账户与成员隔离', () => {

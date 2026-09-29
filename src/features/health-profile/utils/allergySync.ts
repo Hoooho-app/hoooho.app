@@ -1,5 +1,5 @@
 import { readProfileSection, saveProfileSection } from '../../../services/profileSectionStorage'
-import { mergeDesensitizationConclusion, readAllergyArchive, reconcileDesensitizationObservation, serializeAllergyArchive } from './allergyProfile'
+import { mergeDesensitizationConclusion, readAllergyArchive, reconcileDesensitizationObservation, reconcileJournalObservation, serializeAllergyArchive } from './allergyProfile'
 
 export async function syncDesensitizationConclusionToAllergy(input: {
   accountId: string
@@ -27,6 +27,20 @@ export async function syncDesensitizationObservationToAllergy(input: {
   const key = `hoho-health-profile:${input.memberId}:allergy`
   const archive = readAllergyArchive(readProfileSection(key), input.memberId, input.accountId)
   const items = reconcileDesensitizationObservation(archive.items, input)
+  if (items.every((item, index) => item === archive.items[index])) return
+  await saveProfileSection(key, serializeAllergyArchive({ ...archive, items }))
+}
+
+export async function syncJournalObservationToAllergy(input: {
+  accountId: string
+  memberId: string
+  recordId: string
+  action: 'update' | 'delete'
+  occurredAt: string
+}) {
+  const key = `hoho-health-profile:${input.memberId}:allergy`
+  const archive = readAllergyArchive(readProfileSection(key), input.memberId, input.accountId)
+  const items = reconcileJournalObservation(archive.items, input)
   if (items.every((item, index) => item === archive.items[index])) return
   await saveProfileSection(key, serializeAllergyArchive({ ...archive, items }))
 }
