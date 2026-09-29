@@ -8,6 +8,7 @@ import {
   linkJournalObservation,
   mergeDesensitizationConclusion,
   normalizeAllergyArchive,
+  reconcileDesensitizationObservation,
   readAllergyArchive,
   saveQuickAllergy,
   serializeAllergyArchive,
@@ -101,6 +102,27 @@ test('排敏待排查不覆盖人工确认，重试同步不重复追加历史',
   assert.equal(linked[0].sourceReferences[0].sourceId, 'task-1')
   assert.equal(linked[0].history.at(-1)?.status, 'investigating')
   assert.strictEqual(mergeDesensitizationConclusion(linked, input), linked)
+})
+
+test('排敏观察撤回、恢复及修改同步引用并保留结论历史，隔离其他成员', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'confirmed' as const, observationIds: ['obs-1', 'obs-2'], occurredAt: '2026-09-20' }
+  const other = createAllergyItem('member-2', 'food', '牛奶', 'account-1')
+  const initial = [...mergeDesensitizationConclusion([], input), other]
+  const change = { accountId: input.accountId, memberId: input.memberId, taskId: input.taskId, recordId: 'obs-1', occurredAt: '2026-09-21' }
+  const withdrawn = reconcileDesensitizationObservation(initial, { ...change, action: 'withdraw' })
+  assert.deepEqual(withdrawn[0].sourceReferences[0].recordIds, ['obs-2'])
+  assert.equal(withdrawn[0].currentStatus, 'confirmed')
+  assert.equal(withdrawn[0].history.at(-1)?.label, '排敏观察已撤回，原结论需复核')
+  assert.strictEqual(withdrawn[1], other)
+  const repeated = reconcileDesensitizationObservation(withdrawn, { ...change, action: 'withdraw' })
+  assert.strictEqual(repeated[0], withdrawn[0])
+  const restored = reconcileDesensitizationObservation(withdrawn, { ...change, action: 'restore', occurredAt: '2026-09-22' })
+  assert.deepEqual(restored[0].sourceReferences[0].recordIds, ['obs-2', 'obs-1'])
+  const updated = reconcileDesensitizationObservation(restored, { ...change, action: 'update', occurredAt: '2026-09-23' })
+  assert.equal(updated[0].history.at(-1)?.label, '排敏观察已修改，原结论需复核')
+  assert.equal(updated[0].history.at(-1)?.sourceId, 'obs-1')
+  const retry = reconcileDesensitizationObservation(updated, { ...change, action: 'update', occurredAt: '2026-09-23' })
+  assert.strictEqual(retry[0], updated[0])
 })
 
 test('健康随记只有用户明确关联后进入待排查，并按记录 ID 防重复', () => {
