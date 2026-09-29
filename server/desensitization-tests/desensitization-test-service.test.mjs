@@ -79,6 +79,11 @@ test('explicit conclusion is saved separately from archive and only references o
   }, now)
   assert.equal(concluded.conclusion.value, 'confirmed')
   assert.deepEqual(concluded.conclusion.observationIds, [observation.record.id])
+  const repeated = await service.saveConclusion(accountId, task.id, {
+    value: 'confirmed', observationIds: [observation.record.id], taskVersion: fresh.version
+  }, now)
+  assert.equal(repeated.version, concluded.version)
+  assert.equal(repeated.conclusionHistory.length, 1)
   const archived = await service.mutateTask(accountId, task.id, 'archive', now, concluded.version)
   assert.equal(archived.status, 'archived')
   assert.equal(archived.conclusion.value, 'confirmed')

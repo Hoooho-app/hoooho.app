@@ -92,6 +92,17 @@ test('排敏明确和待排查结论均保留独立来源引用', () => {
   assert.equal(investigating[0].sourceReferences.length, 1)
 })
 
+test('排敏待排查不覆盖人工确认，重试同步不重复追加历史', () => {
+  const manual = saveQuickAllergy([], { ...baseInput, name: '牛奶', certainty: 'confirmed', sourceType: 'clinician', sourceLabel: '医生告知' })
+  const input = { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'investigating' as const, observationIds: ['obs-1'], occurredAt: '2026-09-20' }
+  const linked = mergeDesensitizationConclusion(manual, input)
+  assert.equal(linked[0].currentStatus, 'confirmed')
+  assert.equal(linked[0].sourceLabel, '医生告知')
+  assert.equal(linked[0].sourceReferences[0].sourceId, 'task-1')
+  assert.equal(linked[0].history.at(-1)?.status, 'investigating')
+  assert.strictEqual(mergeDesensitizationConclusion(linked, input), linked)
+})
+
 test('健康随记只有用户明确关联后进入待排查，并按记录 ID 防重复', () => {
   const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
   const first = linkJournalObservation([], input)
