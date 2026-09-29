@@ -1,0 +1,59 @@
+/* Shared visual layer for the existing health-record workflows. */
+.diet-record-page,.sleep-record-page,.medication-record-page{background:rgb(var(--hoho-color-page-background))}
+.diet-record-page>header,.sleep-record-page>header,.medication-record-page>header{min-height:58px;height:auto;border-bottom-color:rgb(var(--hoho-color-border)/.78);background:rgb(var(--hoho-color-surface)/.97);backdrop-filter:blur(16px)}
+.diet-record-page>header button,.sleep-record-page>header button,.medication-record-page>header button{width:var(--hoho-touch-target);height:var(--hoho-touch-target);border:1px solid rgb(var(--hoho-color-border)/.72);border-radius:50%;background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card)}
+.diet-record-page>header button:disabled,.sleep-record-page>header button:disabled,.medication-record-page>header button:disabled{opacity:.46}
+.diet-record-page>header h1,.sleep-record-page>header h1,.medication-record-page>header h1{font-size:var(--hoho-font-size-section-title);font-weight:600;letter-spacing:-.01em}
+.diet-record-scroll,.sleep-record-scroll,.medication-record-scroll{scrollbar-gutter:stable;background:rgb(var(--hoho-color-page-background))}
+.diet-record-scroll{padding:var(--hoho-space-3) var(--hoho-page-gutter) 0}
+.diet-record-scroll>*+*{margin-top:var(--hoho-space-3)}
+.record-form-group,.record-time-group,.bowel-record-page .bowel-fieldset,.bowel-record-page .bowel-photo-section,.outdoor-record-page .outdoor-fieldset,.outdoor-record-page .outdoor-photo-section,.sleep-record-page .sleep-fieldset,.visit-record-page .medication-fieldset,.visit-record-page .medication-section,.visit-record-page .visit-dynamic-fields,.medication-record-compact .medication-compact-section,.medication-record-compact .medication-reminder-main{border:1px solid rgb(var(--hoho-color-border)/.84);border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card);padding:var(--hoho-space-4)}
+.record-form-group>.diet-form-section,.record-form-group>.diet-fieldset,.record-form-group>.hoho-field,.record-time-group>.hoho-field{margin:0}
+.record-intake-group,.record-dose-group,.record-time-group{display:grid;gap:var(--hoho-space-4)}
+.record-combined-group{display:grid;gap:var(--hoho-space-4)}
+.record-combined-group>*+*{border-top:1px solid rgb(var(--hoho-color-border)/.72);padding-top:var(--hoho-space-4)}
+.bowel-record-page .record-combined-group>.bowel-fieldset,.outdoor-record-page .record-combined-group>.outdoor-fieldset{border:0;border-radius:0;background:transparent;box-shadow:none;padding:0}
+.bowel-record-page .record-combined-group>.bowel-fieldset+*,.outdoor-record-page .record-combined-group>.outdoor-fieldset+*{padding-top:var(--hoho-space-4)}
+.record-intake-group>*+*,.record-dose-group>*+*,.record-time-group>*+*{border-top:1px solid rgb(var(--hoho-color-border)/.72);padding-top:var(--hoho-space-4)}
+.diet-form-section h2,.diet-fieldset>legend,.diet-reaction-section h2,.bowel-fieldset legend,.bowel-section-heading h2,.outdoor-fieldset legend,.outdoor-heading h2,.sleep-fieldset legend,.medication-section h2,.medication-fieldset>legend,.medication-compact-section h2{font-size:var(--hoho-font-size-body);font-weight:600;line-height:var(--hoho-line-height-body)}
+.diet-choice-row,.sleep-choice-row{gap:var(--hoho-space-2)}
+.diet-choice-row>button,.diet-reaction-grid>button,.sleep-choice-row>button,.visit-choice-grid>button,.visit-department-grid>button,.medication-sheet-options>button{min-height:var(--hoho-touch-target);border-color:rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-secondary))}
+.diet-choice-row>button[aria-pressed='true'],.diet-reaction-grid>button[aria-pressed='true'],.sleep-choice-row>button[aria-pressed='true'],.visit-choice-grid>button[aria-pressed='true'],.visit-department-grid>button[aria-pressed='true'],.medication-sheet-options>button[aria-pressed='true']{border-color:rgb(var(--hoho-color-primary)/.56);background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary));box-shadow:inset 0 0 0 1px rgb(var(--hoho-color-primary)/.06);font-weight:600}
+.diet-food-input input,.diet-common-editor input,.sleep-fieldset>input,.medication-record-page input,.medication-record-page select,.medication-record-page textarea{border-color:rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface))}
+.diet-food-input input::placeholder,.diet-common-editor input::placeholder,.medication-record-page input::placeholder,.medication-record-page textarea::placeholder{color:rgb(var(--hoho-color-text-weak)/.72)}
+.diet-common-foods{align-items:stretch}
+.diet-common-foods button{min-height:36px;max-width:100%;height:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.35;text-align:left}
+.diet-amount-slider input[type='range'],.bowel-scale-fieldset input[type='range']{min-height:var(--hoho-touch-target)}
+.diet-record-page .occurrence-time-field,.medication-record-page .occurrence-time-field{min-height:48px;grid-template-columns:minmax(116px,auto) minmax(0,1fr);gap:var(--hoho-space-3);margin:0}
+.diet-record-page .occurrence-time-field>strong,.medication-record-page .occurrence-time-field>strong{display:inline-flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-body);font-weight:600}
+.diet-record-page .occurrence-time-field>strong svg,.medication-record-page .occurrence-time-field>strong svg{color:rgb(var(--hoho-color-primary))}
+.diet-record-page .occurrence-time-control,.medication-record-page .occurrence-time-control{min-height:var(--hoho-touch-target);border:0;padding-inline:0;color:rgb(var(--hoho-color-text-secondary));box-shadow:none}
+.diet-record-page .occurrence-time-control:focus-within,.medication-record-page .occurrence-time-control:focus-within{background:rgb(var(--hoho-color-primary-soft)/.48);box-shadow:0 0 0 2px rgb(var(--hoho-color-primary)/.12)}
+.diet-record-save,.sleep-record-save,.medication-fixed-save{margin-top:var(--hoho-space-4);border-top-color:rgb(var(--hoho-color-border)/.78);background:rgb(var(--hoho-color-surface)/.98);box-shadow:0 -8px 24px rgb(18 92 85/.035);backdrop-filter:blur(16px)}
+.diet-record-save .hoho-button,.sleep-record-save .hoho-button,.medication-fixed-save .hoho-button,.medication-record-save .hoho-button{min-height:52px;border-radius:var(--hoho-radius-control)}
+.diet-record-save .hoho-button:not(:disabled),.sleep-record-save .hoho-button:not(:disabled),.medication-fixed-save .hoho-button:not(:disabled),.medication-record-save .hoho-button:not(:disabled){box-shadow:0 8px 20px rgb(var(--hoho-color-primary)/.14)}
+.bowel-record-page .bowel-fieldset,.outdoor-record-page .outdoor-fieldset{margin:0}
+.bowel-record-page .bowel-gentle-hint,.outdoor-record-page .outdoor-photo-section>p,.sleep-record-page .sleep-fieldset>p{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
+.bowel-record-page .bowel-shape-grid>button,.bowel-record-page .bowel-choice-grid>button,.outdoor-record-page .outdoor-choice-grid>button,.outdoor-record-page .outdoor-duration-grid>button,.outdoor-record-page .outdoor-state-grid>button,.outdoor-record-page .outdoor-observation-grid>button{border-color:rgb(var(--hoho-color-border));box-shadow:none}
+.sleep-ring-wrap{border:1px solid rgb(var(--hoho-color-border)/.84);border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card);padding:var(--hoho-space-2)}
+.sleep-time-cards{overflow:hidden;border:1px solid rgb(var(--hoho-color-border)/.84);border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card)}
+.sleep-time-cards>label{border:0;border-radius:0;box-shadow:none}
+.sleep-time-cards>label+label{border-left:1px solid rgb(var(--hoho-color-border)/.76)}
+.sleep-record-scroll{display:block;padding:var(--hoho-space-3) var(--hoho-page-gutter) 0}
+.sleep-record-scroll>*{margin-top:0}
+.sleep-record-scroll>*+*{margin-top:var(--hoho-space-3)}
+.bowel-record-page .bowel-fieldset>legend,.outdoor-record-page .outdoor-fieldset>legend,.visit-record-page .medication-fieldset>legend,.sleep-record-page .sleep-fieldset>legend{float:left;width:100%;margin:0 0 var(--hoho-space-2);padding:0}
+.bowel-record-page .bowel-fieldset>legend+*,.outdoor-record-page .outdoor-fieldset>legend+*,.visit-record-page .medication-fieldset>legend+*,.sleep-record-page .sleep-fieldset>legend+*{clear:both}
+.visit-record-scroll{padding:var(--hoho-space-3) var(--hoho-page-gutter) calc(var(--hoho-space-5) + env(safe-area-inset-bottom))}
+.visit-record-scroll>*+*{margin-top:var(--hoho-space-3)}
+.visit-record-page .visit-results{overflow:hidden;padding:0}
+.visit-record-page .visit-results>button{padding:var(--hoho-space-4)}
+.visit-record-page .visit-results-body{border-top:1px solid rgb(var(--hoho-color-border)/.72);padding:0 var(--hoho-space-4) var(--hoho-space-4)}
+.visit-record-page .visit-results-body .medication-fieldset,.visit-record-page .visit-results-body .medication-section{border:0;border-radius:0;background:transparent;box-shadow:none;padding:var(--hoho-space-4) 0 0}
+.visit-record-scroll>.visit-datetime-row{border:1px solid rgb(var(--hoho-color-border)/.84);border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card);padding:var(--hoho-space-4)}
+.medication-record-compact .medication-record-scroll{padding:var(--hoho-space-3) var(--hoho-page-gutter) var(--hoho-space-3)}
+.medication-record-compact .medication-compact-section{margin:0 0 var(--hoho-space-3);border-bottom:1px solid rgb(var(--hoho-color-border)/.84);padding:var(--hoho-space-4)}
+.medication-record-compact .occurrence-time-field,.medication-record-compact .medication-reminder-main{margin-bottom:var(--hoho-space-3)}
+.medication-record-compact .occurrence-time-field{border:1px solid rgb(var(--hoho-color-border)/.84);border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));box-shadow:var(--hoho-shadow-card);padding:var(--hoho-space-2) var(--hoho-space-4)}
+@media(max-height:667px) and (max-width:430px){.diet-record-scroll,.sleep-record-scroll,.visit-record-scroll,.medication-record-compact .medication-record-scroll{padding-top:var(--hoho-space-2)}.record-form-group,.record-time-group,.bowel-record-page .bowel-fieldset,.bowel-record-page .bowel-photo-section,.outdoor-record-page .outdoor-fieldset,.outdoor-record-page .outdoor-photo-section,.sleep-record-page .sleep-fieldset,.visit-record-page .medication-fieldset,.visit-record-page .medication-section,.visit-record-page .visit-dynamic-fields,.medication-record-compact .medication-compact-section,.medication-record-compact .medication-reminder-main{padding:var(--hoho-space-3)}.diet-record-scroll>*+*,.visit-record-scroll>*+*{margin-top:var(--hoho-space-2)}}
+@media(min-width:768px){.diet-record-page-layer,.sleep-record-page-layer,.medication-record-page-layer{align-items:center;padding:var(--hoho-space-6)}.diet-record-page,.sleep-record-page,.medication-record-page{width:min(100%,680px);height:min(900px,calc(100dvh - 48px));border:1px solid rgb(var(--hoho-color-border)/.82);border-radius:var(--hoho-radius-overlay);box-shadow:var(--hoho-shadow-overlay)}}

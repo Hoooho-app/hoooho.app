@@ -138,11 +138,11 @@ function FeedingForm({ occurrence, onSave, saving }: CommonFormProps) {
     setSeconds((current) => ({ ...current, [side]: Math.round(minutes * 60) }))
   }
   return <>
-    <ChoiceGroup label="喂养方式" options={feedingMethods.map(([, label]) => label)} value={feedingMethods.find(([value]) => value === method)?.[1] ?? ''} onChange={(label) => setMethod(feedingMethods.find(([, item]) => item === label)?.[0] ?? 'breast')} />
-    {hasBreast && <section className="diet-form-section"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
-    {hasBottle && <HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" />}
-    <MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} />
-    <RecordTime occurrence={occurrence} />
+    <section className="record-form-group"><ChoiceGroup label="喂养方式" options={feedingMethods.map(([, label]) => label)} value={feedingMethods.find(([value]) => value === method)?.[1] ?? ''} onChange={(label) => setMethod(feedingMethods.find(([, item]) => item === label)?.[0] ?? 'breast')} /></section>
+    {hasBreast && <section className="diet-form-section record-form-group"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
+    {hasBottle && <section className="record-form-group"><HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" /></section>}
+    <section className="record-form-group"><MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} /></section>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
@@ -161,10 +161,9 @@ function SupplementForm({ occurrence, onSave, saving }: CommonFormProps) {
     })
   }
   return <>
-    <FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" />
-    <HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} />
-    <ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} />
-    <RecordTime occurrence={occurrence} />
+    <div className="record-form-group"><FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" /></div>
+    <section className="record-form-group record-dose-group"><HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} /><ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} /></section>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
@@ -197,14 +196,12 @@ function FoodRecordForm({ kind, occurredAt, occurrence, onSave, saving, common, 
     })
   }
   return <>
-    {isMeal && <ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} />}
-    <FoodEditor common={common} foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} />
-    {isComplementary && <ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} />}
-    <AmountSlider options={amountOptions} value={amount} onChange={setAmount} />
-    {isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}
-    <section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section>
-    <RecordTime occurrence={occurrence} />
-    {isMeal && <HohoInput error={endedAt && !intervalValid ? '结束时间必须晚于开始时间' : undefined} label="结束时间（可选）" max={localDateTimeValue()} min={occurredAt} onChange={(event) => setEndedAt(event.target.value)} type="datetime-local" value={endedAt} hint="填写后，时间轴会按同一次用餐展示开始、持续和总时长" />}
+    {isMeal && <section className="record-form-group"><ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} /></section>}
+    <div className="record-form-group"><FoodEditor common={common} foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
+    {isComplementary && <section className="record-form-group"><ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} /></section>}
+    <section className="record-form-group record-intake-group"><AmountSlider options={amountOptions} value={amount} onChange={setAmount} />{isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}</section>
+    <div className="record-form-group"><section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section></div>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} />{isMeal && <HohoInput error={endedAt && !intervalValid ? '结束时间必须晚于开始时间' : undefined} label="结束时间（可选）" max={localDateTimeValue()} min={occurredAt} onChange={(event) => setEndedAt(event.target.value)} type="datetime-local" value={endedAt} hint="填写后，时间轴会按同一次用餐展示开始、持续和总时长" />}</section>
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
