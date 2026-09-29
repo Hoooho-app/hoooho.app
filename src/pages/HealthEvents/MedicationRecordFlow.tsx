@@ -6,6 +6,7 @@ import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { medicationSummary, medicationUnits, normalizeDose } from './medicationRecordLogic'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import './RecordForm.css'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type DraftDrug = JournalMedicationItem & { photoLocalIds?: string[] }

@@ -91,14 +91,16 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
     <div className="diet-record-scroll">
       <fieldset className="bowel-fieldset"><legend>形状 <span>（可多选）</span></legend><div className="bowel-shape-grid">{bowelShapes.map((shape, index) => <button aria-pressed={draft.shapes.includes(shape)} key={shape} onClick={() => update('shapes', toggle(draft.shapes, shape))} type="button"><i data-shape={index} aria-hidden="true"><b /><b /><b /></i><span>{shape}</span></button>)}</div></fieldset>
       <fieldset className="bowel-fieldset"><legend>颜色</legend><div className="bowel-color-grid">{bowelColors.map((color) => <button aria-pressed={draft.color === color} key={color} onClick={() => update('color', draft.color === color ? undefined : color)} type="button"><i data-color={color} /><span>{color}</span></button>)}</div>{draft.color && ['灰白', '近黑', '红色'].includes(draft.color) && <p className="bowel-gentle-hint">建议拍照留存；如有担心，可及时咨询医生</p>}</fieldset>
-      <ScaleChoice label="分量" optional={false} options={bowelAmounts} value={draft.amount} onChange={(value) => update('amount', value)} />
-      <ScaleChoice label="排便大约用了多久？" options={bowelDurations} value={draft.durationRange} onChange={(value) => update('durationRange', value)} />
-      <Choice label="排便过程" options={bowelProcesses} value={draft.process} onChange={(value) => update('process', value)} />
+      <section className="record-form-group record-combined-group">
+        <ScaleChoice label="分量" optional={false} options={bowelAmounts} value={draft.amount} onChange={(value) => update('amount', value)} />
+        <ScaleChoice label="排便大约用了多久？" options={bowelDurations} value={draft.durationRange} onChange={(value) => update('durationRange', value)} />
+        <Choice label="排便过程" options={bowelProcesses} value={draft.process} onChange={(value) => update('process', value)} />
+      </section>
       <Choice label="有没有看到血迹？" options={['未发现', '疑似看到', '少量', '多量']} value={draft.bloodObservation === 'none-seen' ? '未发现' : draft.bloodObservation === 'possibly-seen' ? '疑似看到' : draft.bloodObservation === 'small-amount' ? '少量' : draft.bloodObservation === 'large-amount' ? '多量' : undefined} onChange={(value) => update('bloodObservation', value === '未发现' ? 'none-seen' : value === '疑似看到' ? 'possibly-seen' : value === '少量' ? 'small-amount' : value === '多量' ? 'large-amount' : undefined)} />
       {draft.bloodObservation && draft.bloodObservation !== 'none-seen' && <p className="bowel-gentle-hint">建议拍照留存，方便之后继续观察</p>}
       <fieldset className="bowel-fieldset"><legend>还观察到什么？<span>（可多选）</span></legend><div className="bowel-choice-grid">{bowelObservations.map((option) => <button aria-pressed={draft.observations.includes(option)} key={option} onClick={() => updateObservation(option)} type="button">{option}</button>)}</div></fieldset>
       <BowelPhotos model={photos} />
-      <OccurrenceTimeField model={occurrence} label="记录时间" />
+      <section className="record-time-group"><OccurrenceTimeField model={occurrence} label="记录时间" /></section>
       {error && <p className="diet-save-error" role="alert">{error}</p>}
       <div className="diet-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={save} size="large">保存记录</HohoButton></div>
     </div>

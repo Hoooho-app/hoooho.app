@@ -1506,6 +1506,88 @@ test('complementary record survives reload and remains isolated to the selected 
   await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toHaveCount(0)
 })
 
+test('ten record forms share the visual shell at phone and desktop widths', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await prepare(page)
+  const capture = async (id: string, title: string) => {
+    const form = page.getByRole('dialog', { name: title, exact: true })
+    await expect(form).toBeVisible()
+    await expect(form.getByRole('heading', { name: title, exact: true })).toBeVisible()
+    for (const width of [375, 390, 430, 1280]) {
+      await page.setViewportSize({ width, height: width === 1280 ? 900 : 667 })
+      await expect(form).toBeVisible()
+      const layout = await form.evaluate((node) => ({
+        width: node.getBoundingClientRect().width,
+        viewport: innerWidth,
+        overflow: node.scrollWidth > node.clientWidth + 1,
+        save: Boolean(node.querySelector('.diet-record-save,.sleep-record-save,.medication-record-save,.medication-fixed-save'))
+      }))
+      expect(layout.overflow, `${id} ${width}px form overflows`).toBe(false)
+      expect(layout.width).toBeLessThanOrEqual(layout.viewport)
+      expect(layout.save).toBe(true)
+      await page.screenshot({ path: testInfo.outputPath(`${id}-${width}.png`) })
+    }
+    await page.setViewportSize({ width: 375, height: 667 })
+  }
+  for (const [id, button, title] of [
+    ['P-001', /^喂养/, '记录喂养'], ['P-002', /^辅食/, '记录辅食'],
+    ['P-003', /^正餐/, '记录正餐'], ['P-004', /^零食/, '记录零食'],
+    ['P-005', /^补剂/, '记录补剂']
+  ] as const) {
+    await openDietTypes(page)
+    await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: button }).click()
+    await capture(id, title)
+    await page.reload()
+    await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  }
+  for (const [id, button, title] of [
+    ['P-006', '睡眠', '记录睡眠'], ['P-007', '排便', '记录排便'],
+    ['P-008', '户外活动', '记录户外活动']
+  ] as const) {
+    await openDaily(page)
+    await page.getByRole('dialog', { name: '记录日常' }).getByRole('button', { name: button, exact: true }).click()
+    await capture(id, title)
+    await page.reload()
+    await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  }
+  for (const [id, entry, title] of [
+    ['P-009', '记录就医', '记录就医'], ['P-010', '记录用药', '记录用药']
+  ] as const) {
+    await page.getByRole('button', { name: '记一下', exact: true }).click()
+    await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: entry, exact: true }).click()
+    await capture(id, title)
+    await page.reload()
+    await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  }
+})
+
+test('record subflows keep conditional fields, uploads and reminder choices usable', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await prepare(page)
+  await openVisit(page)
+  const visit = page.getByRole('dialog', { name: '记录就医', exact: true })
+  await visit.getByRole('button', { name: '住院', exact: true }).click()
+  await expect(visit.getByLabel('入院时间')).toBeVisible()
+  await visit.getByRole('button', { name: /就医结果与资料/ }).click()
+  await expect(visit.getByText('上传资料（可选）')).toBeVisible()
+  await visit.locator('input[type="file"]').setInputFiles({ name: 'visit.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') })
+  await expect(visit.getByText('识别结果待核对')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('P-011-visit-upload-375.png') })
+  await visit.getByRole('button', { name: '返回记录新情况' }).click()
+  await expect(page.getByRole('dialog', { name: '记一下' })).toBeVisible()
+  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录用药', exact: true }).click()
+  const medication = page.getByRole('dialog', { name: '记录用药', exact: true })
+  await medication.getByLabel('药品名称').fill('测试药品')
+  await medication.getByRole('button', { name: '添加另一种药' }).click()
+  await expect(medication.getByRole('tab', { name: /药品 2/ })).toHaveAttribute('aria-selected', 'true')
+  await medication.getByRole('switch', { name: '设置用药提醒' }).click()
+  const reminder = page.getByRole('dialog', { name: '设置用药提醒' })
+  await expect(reminder.getByRole('button', { name: '每周', exact: true })).toBeVisible()
+  await reminder.getByRole('button', { name: '每周', exact: true }).click()
+  await expect(reminder.getByText('每周哪几天')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('P-011-medication-reminder-375.png') })
+})
+
 test('health journal footer does not expose the removed quick record button', async ({ page }) => {
   await prepare(page)
   await expect(page.getByRole('button', { name: '快捷记录', exact: true })).toHaveCount(0)
