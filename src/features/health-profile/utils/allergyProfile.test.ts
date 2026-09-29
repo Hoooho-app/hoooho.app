@@ -158,6 +158,14 @@ test('随记修改或删除后原反应不计数，保留历史并允许明确�
   assert.equal(restored.items[0].history.at(-1)?.label, '关联的健康随记已删除，原反应保留备查')
 })
 
+test('旧随记关联缺少来源引用时重复提交不生成第二次反应', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '牛奶', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
+  const linked = linkJournalObservation([], input)
+  const legacy = [{ ...linked[0], sourceReferences: [] }]
+  assert.strictEqual(linkJournalObservation(legacy, input), legacy)
+  assert.equal(legacy[0].reactions.length, 1)
+})
+
 test('序列化继续使用 records 数组并同时保留报告，读取时按账户与成员隔离', () => {
   const current = saveQuickAllergy([], baseInput)[0]
   const other = createAllergyItem('member-2', 'drug', '青霉素', 'account-1')
