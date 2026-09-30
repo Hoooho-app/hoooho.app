@@ -165,15 +165,6 @@
 .diet-choice-row { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .diet-choice-row > button { min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-surface)); padding: var(--hoho-space-2) var(--hoho-space-3); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); line-height: 1.2; }
 .diet-choice-row > button[aria-pressed='true'] { border-color: rgb(var(--hoho-color-primary) / 0.42); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
-.diet-amount-slider { display: grid; gap: var(--hoho-space-2); }
-.diet-amount-slider input[type='range'] { width: 100%; height: var(--hoho-touch-target); margin: 0; appearance: none; background: transparent; touch-action: pan-x; }
-.diet-amount-slider input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: var(--hoho-radius-pill); background: linear-gradient(to right, rgb(var(--hoho-color-primary)) 0 var(--diet-amount-progress), rgb(var(--hoho-color-border)) var(--diet-amount-progress) 100%); }
-.diet-amount-slider input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -9px; appearance: none; border: 3px solid rgb(var(--hoho-color-surface)); border-radius: 50%; background: rgb(var(--hoho-color-primary)); box-shadow: 0 1px 5px rgb(var(--hoho-color-text-primary) / 0.2); }
-.diet-amount-labels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
-.diet-amount-labels span { color: rgb(var(--hoho-color-text-secondary)); font-size: 10px; line-height: 1.3; text-align: center; }
-.diet-amount-labels span:first-child { text-align: left; }
-.diet-amount-labels span:last-child { text-align: right; }
-.diet-amount-labels .is-selected { color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .diet-reaction-section, .diet-reaction-fieldset { display: grid; gap: var(--hoho-space-2); }
 .diet-reaction-section h2 { font-size: var(--hoho-font-size-label); font-weight: 650; }
 .diet-reaction-section h2 em { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-style: normal; font-weight: 400; }
@@ -183,11 +174,15 @@
 .diet-food-input { display: grid; grid-template-columns: minmax(0, 1fr) var(--hoho-touch-target); gap: var(--hoho-space-2); }
 .diet-food-input input { width: 100%; min-height: var(--hoho-touch-target); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); padding-inline: var(--hoho-space-3); font-size: 16px; outline: none; }
 .diet-food-input input:focus { border-color: rgb(var(--hoho-color-primary) / 0.55); box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / 0.08); }
+.diet-food-input--inline { position: relative; display: block; }
+.diet-food-input--inline input { padding-right: calc(var(--hoho-touch-target) + var(--hoho-space-2)); }
+.diet-food-input--inline .hoho-button { position: absolute; top: 0; right: 0; min-width: var(--hoho-touch-target); min-height: var(--hoho-touch-target); border: 0; background: transparent; }
 .diet-food-chips, .diet-common-foods { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hoho-space-1); }
 .diet-food-chips button, .diet-common-foods button { min-height: 34px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); padding-inline: var(--hoho-space-3); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); }
 .diet-food-chips button { display: inline-flex; align-items: center; gap: var(--hoho-space-1); }
 .diet-common-header { display: flex; min-height: 32px; align-items: center; justify-content: space-between; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 .diet-common-header button { display: inline-flex; min-height: 32px; align-items: center; gap: 4px; border-radius: var(--hoho-radius-pill); padding-inline: var(--hoho-space-2); color: rgb(var(--hoho-color-primary)); font-weight: 650; }
+.diet-food-editor--inline-actions .diet-common-foods > .diet-common-edit { display: inline-flex; min-height: var(--hoho-touch-target); align-items: center; gap: 4px; margin-left: auto; border: 0; background: transparent; color: rgb(var(--hoho-color-primary)); font-weight: 650; }
 .diet-common-foods button { border: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); }
 .diet-common-foods button span { margin-left: var(--hoho-space-1); color: rgb(var(--hoho-color-primary)); }
 .diet-common-foods button:disabled { opacity: 0.45; }
