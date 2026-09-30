@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
+import { validateJournal } from '../events/journal-metadata.mjs'
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -109,8 +110,10 @@ export class RoutineService {
     if (item.category === 'activity') return []
     if (!this.records || !this.events) return []
     const records = await this.records.repository.findByAccountId(accountId)
+    const instanceLinks = item.category === 'sleep' ? (await this.overrides.read()).overrides : []
     const matches = []
     for (const record of records) {
+      if (instanceLinks.some(link => link.accountId === accountId && link.memberId === memberId && link.recordId === record.id && link.day !== day)) continue
       if (await this.recordMatchesTrack(accountId, memberId, day, item, timeZone, record)) matches.push(record)
     }
     return matches
@@ -140,17 +143,20 @@ export class RoutineService {
       let status = override?.status ?? 'routine'
       let recordId = override?.recordId ?? null
       let eventId = null
+      let sleep
       if (status === 'confirmed' && recordId) {
         const record = await this.records?.repository.findById(recordId)
-        const event = await this.recordMatchesTrack(accountId, memberId, day, item, timeZone, record)
+        const event = item.category === 'sleep' && record?.accountId === accountId && record.journal?.sleep
+          ? await this.events.repository.findById(record.eventId).then(event => event?.memberId === memberId ? event : null)
+          : await this.recordMatchesTrack(accountId, memberId, day, item, timeZone, record)
         if (!event) { status = 'routine'; recordId = null }
-        else eventId = event.id
+        else { eventId = event.id; sleep = record.journal?.sleep }
       }
       if (status === 'routine') {
         const matches = await this.actualMatches(accountId, memberId, day, item, timeZone)
-        if (matches.length === 1) { status = 'confirmed'; recordId = matches[0].id; eventId = matches[0].eventId }
+        if (matches.length === 1) { status = 'confirmed'; recordId = matches[0].id; eventId = matches[0].eventId; sleep = matches[0].journal?.sleep }
       }
-      tracks.push({ trackKey: `${template.id}:${day}:${item.key}`, templateId: template.id, day, itemKey: item.key, title: item.title, category: item.category, meal: item.meal, time: item.time, endTime: item.endTime, status, recordId, eventId })
+      tracks.push({ trackKey: `${template.id}:${day}:${item.key}`, templateId: template.id, day, itemKey: item.key, title: item.title, category: item.category, meal: item.meal, time: item.time, endTime: item.endTime, status, recordId, eventId, timeZone, ...(sleep ? { sleep: { ...sleep, timeZone: sleep.timeZone ?? timeZone } } : {}) })
     }
     return { consent: preference?.status ?? 'unset', template, tracks }
   }
@@ -162,7 +168,7 @@ export class RoutineService {
     if (input.action === 'reset') { await this.removeOverride(accountId, memberId, day, itemKey); return { ...track, status: 'routine', recordId: null } }
     if (input.action === 'skipped') return this.saveOverride(accountId, memberId, day, itemKey, { status: 'skipped', recordId: null }, now)
     if (input.action !== 'confirm' || !this.quickRecords) throw new RoutineError('操作无效')
-    if (track.status === 'confirmed' && track.recordId) return { ...track, idempotent: true }
+    if (track.status === 'confirmed' && track.recordId && track.category !== 'sleep') return { ...track, idempotent: true }
     const scheduled = new Date(track.category === 'sleep' ? input.sleepAt : input.occurredAt)
     if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() > now.getTime()) throw new RoutineError('尚未到达这个时间，请调整为实际发生时间后保存', 400, 'FUTURE_ROUTINE_CONFIRMATION')
     let journal
@@ -179,9 +185,11 @@ export class RoutineService {
     } else if (track.category === 'sleep') {
       const sleepAt = new Date(input.sleepAt)
       const wakeAt = new Date(input.wakeAt)
-      if ([sleepAt, wakeAt].some((value) => Number.isNaN(value.getTime())) || wakeAt <= sleepAt || wakeAt > now) throw new RoutineError('请填写已经结束的真实睡眠时间', 400, 'INVALID_ROUTINE_SLEEP')
-      occurredAt = wakeAt.toISOString()
-      journal = { categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes: Math.round((wakeAt - sleepAt) / 60000), kind: 'night', status: 'completed' } }
+      // Legacy confirm calls explicitly record a completed fact. The new editor always sends its state.
+      const status = input.sleepStatus ?? track.sleep?.status ?? 'completed'
+      if (!['ongoing', 'completed'].includes(status) || [sleepAt, wakeAt].some((value) => Number.isNaN(value.getTime())) || wakeAt <= sleepAt || (status === 'completed' && wakeAt > now)) throw new RoutineError('请核对入睡、醒来时间与实际完成状态', 400, 'INVALID_ROUTINE_SLEEP')
+      occurredAt = status === 'ongoing' ? sleepAt.toISOString() : wakeAt.toISOString()
+      journal = validateJournal({ categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), kind: 'night', status, timeZone: input.timeZone ?? track.sleep?.timeZone ?? timeZone, quality: input.quality, observations: input.observations, otherNote: input.otherNote } })
       content = '夜间睡眠'
     } else {
       const startedAt = new Date(input.startedAt ?? input.occurredAt)
@@ -190,6 +198,11 @@ export class RoutineService {
       if (endedAt) occurredAt = endedAt.toISOString()
       journal = { categories: ['activity'], occurredAt, timePrecision: 'exact' }
       content = track.title
+    }
+    if (track.category === 'sleep' && track.recordId) {
+      await this.records.update(accountId, track.recordId, { content, journal }, now)
+      await this.saveOverride(accountId, memberId, day, itemKey, { status: 'confirmed', recordId: track.recordId }, now)
+      return { ...track, sleep: journal.sleep }
     }
     const saved = await this.quickRecords.create(accountId, { memberId, content, occurredAt, inputChannel: 'text', title: content, idempotencyKey: String(input.idempotencyKey ?? ''), journal }, now)
     await this.saveOverride(accountId, memberId, day, itemKey, { status: 'confirmed', recordId: saved.recordId }, now)

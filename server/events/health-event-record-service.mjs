@@ -201,7 +201,7 @@ export class HealthEventRecordService {
     const wakeAt = validateOccurredAt(input.wakeAt ?? now.toISOString(), now)
     const elapsedMilliseconds = Date.parse(wakeAt) - Date.parse(sleepAt)
     const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
-    if (elapsedMilliseconds <= 0 || durationMinutes > 1440) {
+    if (elapsedMilliseconds <= 0 || (durationMinutes > 1440 && !input.wakeAt)) {
       throw new HealthEventRecordError('这次睡眠记录尚未结束，请核对时间。', 409, 'SLEEP_TIME_CORRECTION_REQUIRED')
     }
     const journal = validateJournal({

@@ -138,19 +138,23 @@ function validateSleep(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !sleepKinds.has(value.kind)) throw new HealthEventRecordError('睡眠类型无效', 400, 'INVALID_JOURNAL_SLEEP')
   const sleepAt = new Date(value.sleepAt)
+  if (value.timeZone !== undefined) {
+    try { if (typeof value.timeZone !== 'string' || !value.timeZone) throw new Error(); new Intl.DateTimeFormat('en', { timeZone: value.timeZone }) }
+    catch { throw new HealthEventRecordError('睡眠记录时区无效', 400, 'INVALID_JOURNAL_SLEEP') }
+  }
   if (!Number.isFinite(sleepAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
-  if (value.status === 'ongoing') return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing' }
+  if (value.status === 'ongoing' && !value.wakeAt) return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing', ...(value.timeZone ? { timeZone: value.timeZone } : {}) }
   const wakeAt = new Date(value.wakeAt)
   if (!Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
   const elapsedMilliseconds = wakeAt.getTime() - sleepAt.getTime()
   const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
-  if (elapsedMilliseconds <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
+  if (elapsedMilliseconds <= 0) throw new HealthEventRecordError('睡眠时长必须大于0', 400, 'INVALID_JOURNAL_SLEEP')
   if (value.quality !== undefined && !sleepQualities.has(value.quality)) throw new HealthEventRecordError('睡眠感受无效', 400, 'INVALID_JOURNAL_SLEEP')
   const observations = cleanStrings(value.observations, '睡眠观察', 7)
   if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')
   const otherNote = value.otherNote === undefined ? undefined : validateSleepNote(value.otherNote)
   if (otherNote && !observations?.includes('其他')) throw new HealthEventRecordError('睡眠补充说明必须选择其他', 400, 'INVALID_JOURNAL_SLEEP')
-  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.status === 'completed' ? { status: 'completed' } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
+  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.timeZone ? { timeZone: value.timeZone } : {}), ...(['completed', 'ongoing'].includes(value.status) ? { status: value.status } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
 }
 
 function validateSleepNote(value) {

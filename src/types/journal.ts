@@ -35,6 +35,7 @@ export interface JournalBowelDetails {
 }
 
 export interface JournalSleepDetails {
+  timeZone?: string
   sleepAt: string
   wakeAt: string
   durationMinutes: number
