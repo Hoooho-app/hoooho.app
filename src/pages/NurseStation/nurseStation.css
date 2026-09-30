@@ -3,7 +3,7 @@
 .nurse-station-scroll { height: calc(100vh - 64px - env(safe-area-inset-top)); height: calc(100dvh - 64px - env(safe-area-inset-top)); overflow-y: auto; scrollbar-width: none; padding: 8px 16px max(24px, env(safe-area-inset-bottom)); }
 .nurse-station-scroll::-webkit-scrollbar { display: none; }
 
-.nurse-station-hero { display: grid; min-height: 174px; overflow: hidden; grid-template-rows: 112px 62px; border: 1px solid #dcedea; border-radius: 19px; background: #fff; box-shadow: 0 2px 8px rgb(23 50 46 / .025); }
+.nurse-station-hero { display: grid; min-height: 190px; overflow: hidden; grid-template-rows: 120px 70px; border: 1px solid #dcedea; border-radius: 19px; background: #fff; box-shadow: 0 2px 8px rgb(23 50 46 / .025); }
 .nurse-station-hero__main { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(128px, .92fr); align-items: center; padding: 9px 10px 7px 12px; color: inherit; text-align: left; }
 .nurse-station-hero__main:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: -3px; }
 .nurse-station-copy { display: grid; min-width: 0; align-content: center; }
@@ -12,8 +12,8 @@
 .nurse-station-identity > span { display: grid; min-width: 0; gap: 3px; }
 .nurse-station-identity strong { overflow: hidden; font-size: 16px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-identity em { overflow: hidden; color: #687b88; font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-.nurse-station-guarded { margin-top: 7px; color: #5f766f; font-size: 12.5px; line-height: 19px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.nurse-station-guarded strong { margin-inline: 2px; color: inherit; font-size: inherit; font-weight: 600; }
+.nurse-station-guarded { margin-top: 7px; margin-left: 51px; color: #5f766f; font-size: 12.5px; line-height: 19px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nurse-station-guarded strong { margin-inline: 2px; color: rgb(var(--hoho-color-primary)); font-size: inherit; font-weight: 760; }
 .nurse-station-fact { display: block; height: 36px; max-height: 36px; margin-top: 4px; overflow: hidden; color: #253d39; font-size: 11.5px; line-height: 1.5; }
 .nurse-station-fact > span { white-space: nowrap; }
 .nurse-station-fact strong { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 760; }
@@ -22,8 +22,8 @@
 .nurse-station-visual .nurse-triage-desk { width: min(100%, 154px); margin: 0; }
 .nurse-station-page .idle-nurse-visual { background: #fff; }
 .nurse-station-growth-data { display: grid; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 10px; border-top: 1px solid #e3efec; }
-.nurse-station-growth-data > button { display: grid; min-width: 0; min-height: 61px; align-content: center; justify-items: center; gap: 1px; padding: 5px 3px; color: #17322e; text-align: center; }
-.nurse-station-growth-data > button + button { border-left: 1px solid #e3efec; }
+.nurse-station-growth-data > button { display: grid; min-width: 0; min-height: 69px; align-content: center; justify-items: center; gap: 1px; padding: 6px 3px; color: #17322e; text-align: center; }
+.nurse-station-growth-data > button:not(:last-child) { border-right: 1px solid #d6e8e3; }
 .nurse-station-growth-data > button:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: -3px; }
 .nurse-station-growth-data small { color: #637a74; font-size: 11px; line-height: 15px; }
 .nurse-station-growth-data strong { max-width: 100%; overflow: hidden; color: #17322e; font-size: 16px; font-weight: 760; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }

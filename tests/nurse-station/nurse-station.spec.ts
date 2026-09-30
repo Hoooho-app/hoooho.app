@@ -74,7 +74,7 @@ test('护士站待机视频仍使用真实单一循环资源', async ({ page }) 
 test('护士视频资源失败时页面结构和核心任务仍可使用', async ({ page }) => {
   await page.route('**/*nurse-station-idle-1*.mp4', (route) => route.abort())
   await registerMember(page)
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '174px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '190px')
   await expect(page.locator('.idle-nurse-visual video')).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
   await expect(page.getByRole('link', { name: /用药提醒/ })).toBeVisible()
   await page.getByRole('link', { name: /排敏测试/ }).click()
@@ -111,15 +111,31 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
   await expect(page.locator('.nurse-station-guarded')).toHaveCSS('margin-top', '7px')
   await expect(page.locator('.nurse-station-fact')).toHaveCount(0)
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '174px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '190px')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   const guardedTypography = await page.locator('.nurse-station-guarded').evaluate((element) => ({
     fontSize: getComputedStyle(element).fontSize,
     numberFontSize: getComputedStyle(element.querySelector('strong')!).fontSize,
+    numberColor: getComputedStyle(element.querySelector('strong')!).color,
   }))
-  expect(guardedTypography).toEqual({ fontSize: '12.5px', numberFontSize: '12.5px' })
+  expect(guardedTypography).toEqual({ fontSize: '12.5px', numberFontSize: '12.5px', numberColor: 'rgb(27, 122, 110)' })
+  const heroAlignment = await page.locator('.nurse-station-hero').evaluate((element) => {
+    const gender = element.querySelector<HTMLElement>('.nurse-station-identity em')!
+    const guarded = element.querySelector<HTMLElement>('.nurse-station-guarded')!
+    const growth = element.querySelector<HTMLElement>('.nurse-station-growth-data')!
+    const buttons = Array.from(growth.querySelectorAll<HTMLElement>('button'))
+    return {
+      genderLeft: gender.getBoundingClientRect().left,
+      guardedLeft: guarded.getBoundingClientRect().left,
+      growthHeight: growth.getBoundingClientRect().height,
+      dividerWidths: buttons.slice(0, -1).map((button) => getComputedStyle(button).borderRightWidth),
+    }
+  })
+  expect(Math.abs(heroAlignment.genderLeft - heroAlignment.guardedLeft)).toBeLessThanOrEqual(1)
+  expect(heroAlignment.growthHeight).toBeGreaterThanOrEqual(69)
+  expect(heroAlignment.dividerWidths).toEqual(['1px', '1px'])
   const indexEntry = page.getByRole('button', { name: '食物过敏状态指数，暂未开放计算，查看说明' })
   await expect(indexEntry).toBeVisible()
   await expect(indexEntry).toContainText('暂未开放计算')
