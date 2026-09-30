@@ -47,8 +47,8 @@ function VisitSummaryLoaded({candidates,context,eventId,initial,memberName,onBac
       const summary=withPreferences(buildMedicalPreparation(context),complaint,longTerm,organizer,organizerRelation)
       const result=await healthEventService.saveMedicalPreparation(eventId,{sourceFingerprint:fingerprint,summary},token)
       setPreparation(result.medicalPreparation);setStatus('reading')
-    }catch{
-      setError('这次整理没有完成，请检查网络或资料后重试。');setStatus('error')
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'这次整理没有完成，请检查网络或资料后重试。');setStatus('error')
     }
   }
   const share=async()=>{

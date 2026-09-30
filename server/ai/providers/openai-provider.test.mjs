@@ -47,3 +47,37 @@ test('OpenAI Vision 使用 Responses 图片输入和严格结构化输出', asyn
   assert.equal(requestBody.text.format.type, 'json_schema')
   assert.equal(requestBody.text.format.strict, true)
 })
+
+test('OpenAI 病情摘要使用 Responses 严格结构化输出且关闭服务端存储', async () => {
+  let requestBody
+  const provider = new OpenAIProvider({
+    apiKey: 'test-key',
+    model: 'summary-test-model',
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body)
+      return {
+        ok: true,
+        json: async () => ({
+          output: [{ content: [{ type: 'output_text', text: JSON.stringify({
+            overview: '昨晚开始咳嗽，今早体温 37.8℃。',
+            keyPoints: ['咳嗽从昨晚开始', '今早体温 37.8℃'],
+            missingInformation: ['咳嗽频率尚未记录']
+          }) }] }]
+        })
+      }
+    }
+  })
+
+  const result = await provider.summarizeMedicalPreparation({ sections: [
+    { id: 'basic', title: '当前人物', lines: ['姓名：测试成员', '年龄：8岁'] },
+    { id: 'visit_preferences', title: '本次整理设置', lines: ['整理人：测试家长', '主诉：咳嗽'] }
+  ] })
+  assert.equal(result.overview, '昨晚开始咳嗽，今早体温 37.8℃。')
+  assert.equal(requestBody.model, 'summary-test-model')
+  assert.equal(requestBody.store, false)
+  assert.equal(requestBody.max_output_tokens, 800)
+  assert.equal(requestBody.text.format.type, 'json_schema')
+  assert.equal(requestBody.text.format.strict, true)
+  assert.match(requestBody.instructions, /不得提供治疗、处方或用药建议/)
+  assert.doesNotMatch(requestBody.input, /姓名：测试成员|整理人：测试家长/)
+})

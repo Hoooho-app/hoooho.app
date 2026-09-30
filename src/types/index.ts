@@ -139,6 +139,13 @@ export interface MedicalPreparationSummaryApiDto {
   sections: Array<{ id: string; title: string; lines: string[] }>
   selectedSourceIds: string[]
   text: string
+  aiSummary?: {
+    overview: string
+    keyPoints: string[]
+    missingInformation: string[]
+    provider: 'openai'
+    model: string
+  }
 }
 
 export interface MedicalPreparationApiDto {
