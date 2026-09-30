@@ -7,7 +7,7 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
-  const formSource = source.slice(source.indexOf('return <div className="symptom-record-page-layer"'), source.indexOf('export function RelatedRecordsSheet'))
+  const formSource = source.slice(source.indexOf('return createPortal('), source.indexOf('export function RelatedRecordsSheet'))
   const labels = ['哪里不舒服？', '症状部位', '照片与附件', '补充信息', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
@@ -22,17 +22,18 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂未生成摘要，可直接保存原文/)
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
-  assert.doesNotMatch(source, /语音输入症状|SpeechRecognition|webkitSpeechRecognition/)
+  assert.match(source, /useSymptomVoice/)
+  assert.match(source, /voice\.busy \? '结束' : '语音记录'/)
+  assert.match(source, /aria-label="关闭" disabled=\{saving\} onClick=\{onClose\}/)
   assert.match(source, /placeholder="例如：左肘窝"/)
   assert.match(source, /buttonLabel=\{draft\.locations\.length \? '修改' : '选择部位'\}/)
-  assert.match(source, /尚未选择部位/)
+  assert.doesNotMatch(formSource, /尚未选择部位|手动补充部位/)
+  assert.match(formSource, /symptom-location-entry/)
   assert.match(source, /完成并返回症状记录/)
-  assert.match(source, /严重程度、诱因、变化、备注/)
+  assert.match(source, /optionalSummary \|\| '严重程度'/)
   assert.match(source, /\['little', '轻度'\].*\['some', '中度'\].*\['clear', '重度'\]/)
-  assert.match(source, /\['improving', '减轻'\].*\['same', '无明显变化'\].*\['more_noticeable', '加重'\]/)
-  assert.match(source, /placeholder="还有什么需要补充？"/)
+  assert.doesNotMatch(formSource, /触发或诱因|症状变化|还有什么需要补充/)
   assert.match(source, /aria-pressed=\{draft\.impactLevel === value\}/)
-  assert.match(source, /aria-pressed=\{draft\.trend === value\}/)
   assert.doesNotMatch(source, /type="range"/)
   assert.doesNotMatch(formSource, /症状摘要（选填）|反复出现|关联其他记录/)
   assert.doesNotMatch(source, /确认医学准确性|诊断/)
@@ -42,7 +43,7 @@ test('legacy related-record editor remains available outside the simplified crea
   assert.match(source, /linkedRecordIds/)
   assert.match(source, /aria-pressed=\{checked\}/)
   assert.match(source, /没有可关联的/)
-  assert.doesNotMatch(source.slice(source.indexOf('return <div className="symptom-record-page-layer"'), source.indexOf('export function RelatedRecordsSheet')), /关联其他记录/)
+  assert.doesNotMatch(source.slice(source.indexOf('return createPortal('), source.indexOf('export function RelatedRecordsSheet')), /关联其他记录/)
 })
 
 test('symptom photos use an isolated six-photo draft and structured real save', () => {
