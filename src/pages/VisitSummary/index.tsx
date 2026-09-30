@@ -27,6 +27,7 @@ import { ReportPhotos, PhotoPicker, PhotoViewer, readPhoto } from './ReportPhoto
 import './report.css'
 import { ReportDirectory } from './ReportDirectory'
 import nursePortrait from '../../assets/nurse-triage/nurse-station-idle-1-poster.webp'
+import { MedicalAISummary } from './MedicalAISummary'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
@@ -58,6 +59,8 @@ function VisitSheetReader({
   const [state, setState] = useState<VisitSheetState | null>(null),
     [loading, setLoading] = useState(true),
     [working, setWorking] = useState(false),
+    [aiWorking, setAIWorking] = useState(false),
+    [aiFailed, setAIFailed] = useState(false),
     [error, setError] = useState('')
   const [active, setActive] = useState<VisitChapterId>('overview'),
     [menu, setMenu] = useState(false),
@@ -145,6 +148,9 @@ function VisitSheetReader({
     if (busy.current) return false
     busy.current = true
     setWorking(true)
+    setAIWorking(changes.generateAI === true)
+    setAIFailed(false)
+    setNotice('')
     setError('')
     try {
       const key=JSON.stringify(changes)
@@ -161,11 +167,13 @@ function VisitSheetReader({
       )
       if (!alive.current) return false
       accept(result)
+      if (changes.generateAI) setAIFailed(false)
       pendingSave.current=null
-      setNotice('情况单已更新')
+      setNotice(changes.generateAI ? 'AI 病情摘要已生成' : '情况单已更新')
       return true
     } catch (reason) {
       if (alive.current) {
+        if (changes.generateAI) setAIFailed(true)
         if (reason instanceof ApiRequestError && reason.status === 409) {
           try {
             accept(
@@ -187,6 +195,7 @@ function VisitSheetReader({
     } finally {
       busy.current = false
       if (alive.current) setWorking(false)
+      if (alive.current) setAIWorking(false)
     }
   }
   const chooseChapter = (id: VisitChapterId) => {
@@ -249,7 +258,7 @@ function VisitSheetReader({
             action={
               !report ? (
                 <HohoButton onClick={() => void load()}>重试</HohoButton>
-              ) : undefined
+              ) : aiFailed ? <HohoButton disabled={working} onClick={() => void update({ generateAI: true })}>重试 AI 摘要</HohoButton> : undefined
             }
           >
             {error}
@@ -275,7 +284,7 @@ function VisitSheetReader({
                 </p>
               </div>
             </div>
-            <div className="visit-nurse-signature"><img src={nursePortrait} alt="Hoooho 虚拟护士"/><div><p>由 Hoooho 虚拟护士整理 · 依据家长记录</p><small>资料截至 {reportTime(report.dataAsOf, report.timezone)} · 非医护审核</small></div></div>
+            <div className="visit-nurse-signature"><img src={nursePortrait} alt="Hoooho 虚拟护士"/><div><p>由 Hoooho 虚拟护士整理 · 依据家长记录</p><small>本地事实整理 · 资料截至 {reportTime(report.dataAsOf, report.timezone)} · 非医护审核</small></div></div>
             {state?.stale && (
               <StatusNotice
                 title="有新资料待同步"
@@ -303,6 +312,11 @@ function VisitSheetReader({
                 <h1>{report.complaint}</h1>
                 <p className="visit-focus-meta">{report.focus.mode==='custom'?'家长本次陈述':`${report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.timeKind || '记录时间'} ${reportTime(report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.at??null)}`}</p>
               </section>
+              <section className="visit-question">
+                <HohoButton loading={aiWorking} disabled={working || !sources.length} onClick={() => void update({ generateAI: true })}>{aiWorking ? '正在生成 AI 病情摘要' : report.aiSummary ? '重新生成 AI 病情摘要' : '生成 AI 病情摘要'}</HohoButton>
+                {!report.aiSummary && <p className="visit-muted">AI 摘要尚未生成，下方本地事实仍可查看和导出。</p>}
+              </section>
+              <MedicalAISummary report={report}/>
               <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
               <section className="visit-question"><div className="visit-section-actions"><h2>本次想问</h2><button onClick={()=>{setError('');setEditing('question')}}>编辑本次想问</button></div><p>{report.question||'尚未填写'}</p><small>{report.questionOrigin||'家长填写'}</small>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>openEvidence(report.questionSourceIds!)}>查看问题原话</button>}</section>
               </>:undefined} trailing={<>

@@ -5,6 +5,29 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { visitFixture } from '../../server/visit-sheets/fixtures.mjs'
 import { buildOccurrences } from '../../server/medication-reminders/medication-reminder-service.mjs'
+// Only this isolated fixture server can install the AI test double. Runtime code
+// never reads this flag, and no fixture is written to the normal data directory.
+if (process.env.VISIT_AI_TEST === '1') {
+  const { createServer } = await import('node:http')
+  let mode = 'success', calls = 0
+  const nativeFetch = globalThis.fetch
+  process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
+  process.env.AI_MODEL = 'fixture-summary-model'
+  process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1'
+  globalThis.fetch = async (url, init) => {
+    if (String(url) !== 'https://api.openai.com/v1/responses') return nativeFetch(url, init)
+    calls++
+    await new Promise(resolve => setTimeout(resolve, 400))
+    if (mode === 'failure') return new Response(JSON.stringify({ error: { type: 'insufficient_quota', code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: 429, headers: { 'x-request-id': 'req_fixture' } })
+    return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ overview: `测试替身摘要第 ${calls} 版：依据当前成员已保存的皮肤观察。`, keyPoints: ['健康随记已有皮肤发红记录'], missingInformation: ['皮肤观察变化待核对'] }) }] }] })
+  }
+  createServer((req, res) => {
+    if (req.url === '/success') mode = 'success'
+    if (req.url === '/failure') mode = 'failure'
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify({ mode, calls }))
+  }).listen(4198, '127.0.0.1')
+}
 const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-visit-e2e-'))
 const shutdownFile = new URL('./.shutdown', import.meta.url)
 await unlink(shutdownFile).catch(() => {})

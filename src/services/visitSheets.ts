@@ -6,6 +6,7 @@ import type {
   VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
+  generateAI?: boolean
   expectedVersion: number
   requestId: string
   focus?: VisitFocus

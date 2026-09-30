@@ -3,6 +3,7 @@ import type { VisitSheet } from '../../types/visitSheet'
 import { ReportChapter, reportTime, SourceText } from './ReportChapter'
 import { PhotoCaption } from './ReportPhotos'
 import { offlineRuntime } from './offlineRuntime'
+import { MedicalAISummary } from './MedicalAISummary'
 import css from './report.css?inline'
 import chartCss from '../../components/design-system/FactCharts.css?inline'
 import tokens from '../../styles/tokens.css?inline'
@@ -16,6 +17,12 @@ export function summaryText(report:VisitSheet) {
     `Hoooho 就诊情况单 · ${report.member.name} · v${report.version}`,
     `资料截至 ${report.dataAsOf}；生成 ${report.generatedAt}；报告编辑 ${report.editedAt||report.generatedAt}；时区 ${report.timezone}`,
     '重点摘要：不包含全部原文和照片，不是完整档案。',
+    ...(report.aiSummary?.provider === 'openai' ? [
+      '\nAI 病情摘要（固定生成快照）：', report.aiSummary.overview,
+      ...report.aiSummary.keyPoints, ...report.aiSummary.missingInformation.map(line => `待核对：${line}`),
+      ...(report.aiSummaryStale ? ['资料已变化，此 AI 摘要尚未重新生成。'] : [])
+    ] : []),
+    '\n本地事实整理：',
     `本次主诉：${report.complaint} [${refs(report,report.complaintSourceId?[report.complaintSourceId]:[])}]`,
     ...report.chapters.filter(c=>c.id!=='sources').flatMap(c=>[
       `\n${c.title}`,...(c.overview?.lines??[]),
@@ -46,6 +53,7 @@ function copyReport(report:VisitSheet,resources:ExportResources):VisitSheet {
   const mapBlock=(b:VisitSheet['chapters'][number]['blocks'][number])=>({title:b.title,lines:b.lines,distribution:b.distribution,distributionNote:b.distributionNote,locations:b.locations,unit:b.unit,chartMode:b.chartMode,secondary:b.secondary,related:b.related,sourceIds:b.sourceIds.map(id),points:b.points?.map(p=>({...p,sourceId:id(p.sourceId)})),entries:b.entries?.map(e=>({...e,sourceIds:e.sourceIds.map(id)}))})
   return {
     id:'local-copy', memberId:'local-subject',version:report.version, member:report.member,
+    aiSummary:report.aiSummary?.provider==='openai'?report.aiSummary:undefined,aiSummaryStale:report.aiSummaryStale,
     timezone:report.timezone,dataAsOf:report.dataAsOf,generatedAt:report.generatedAt,editedAt:report.editedAt,fingerprint:'',scope:report.scope,
     focus:{...report.focus,...(report.focus.sourceId?{sourceId:id(report.focus.sourceId)}:{})},complaint:report.complaint,complaintSourceId:report.complaintSourceId?id(report.complaintSourceId):null,
     focusSourceIds:report.focusSourceIds.map(id),range:report.range,question:report.question,questionEdited:report.questionEdited,questionOrigin:report.questionOrigin,questionSourceIds:report.questionSourceIds?.map(id),notes:report.notes,
@@ -64,6 +72,8 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
     <header><strong>Hoooho · 就诊情况单</strong><h1>{report.member.name}</h1><p id="copy-revision">原快照 v{report.version} · {editable?'可编辑本地副本，不回写在线档案':'打印快照'}</p><p>资料截至 {reportTime(report.dataAsOf)} · 生成 {reportTime(report.generatedAt)} · 编辑 {reportTime(report.editedAt??report.generatedAt)}</p></header>
     <p>{report.scope}</p><p>包含 {Object.keys(resources.images).length} 张影像原件；其他附件仅为索引，原图未附。文字范围与照片范围分别核对。</p>
     {resources.omitted.length>0&&<p>未附原件：{resources.omitted.join('；')}</p>}
+    <MedicalAISummary report={copy} snapshot/>
+    <p className="visit-muted">本地事实整理 · 以下保留各章与原始依据</p>
     {copy.warnings.map((warning,i)=><p key={i} className="visit-warning">{warning}</p>)}
     <details className="visit-offline-nav"><summary>章节目录</summary><nav>{copy.chapters.map(c=><a key={c.id} href={`#chapter-${c.id}`}>{c.title}</a>)}</nav></details>
     {editable&&<div className="visit-copy-controls"><button id="copy-download">下载更新副本</button><p id="copy-status" role="status"/></div>}

@@ -15,6 +15,8 @@ import { HealthProfileFactService } from '../health-profile/health-profile-fact-
 import { MedicationReminderService } from '../medication-reminders/medication-reminder-service.mjs'
 import { DesensitizationTestService } from '../desensitization-tests/desensitization-test-service.mjs'
 import {profileResources} from './profile-resources.mjs'
+import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
+import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from './visit-ai-summary.mjs'
 import {
   buildVisitSheet,
   chapters,
@@ -28,6 +30,7 @@ const failure = (message, status = 400) =>
   })
 export class VisitSheetService {
   constructor(options) {
+    this.medicalSummary = options.medicalSummary ?? new MedicalSummaryService(options)
     this.dataDirectory=options.dataDirectory
     this.photos=options.photos??new QuickRecordPhotoService(options)
     this.members =
@@ -202,6 +205,7 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date()) {
+    if (request.generateAI !== undefined && typeof request.generateAI !== 'boolean') throw failure('AI 生成设置无效')
     return withAccountLock(accountId, () => accountTransaction(this.dataDirectory, async () => {
       let input = await this.collect(accountId, memberId, now)
       const saved = (await this.store.read()).reports.find(
@@ -350,6 +354,23 @@ export class VisitSheetService {
           after: `主诉：${report.complaint}；本次想问：${report.question||'未填写'}；${chapters.filter(([id])=>notes[id]).map(([id,title])=>`${title}补充：${notes[id]}`).join('；')}`,
           at: now.toISOString(),
         })
+      // Local report generation remains independent of AI availability. Never
+      // send client-supplied report text; collect() is account/member scoped.
+      const aiFingerprint = visitAISummaryFingerprint(report)
+      if (request.generateAI) {
+        if (!visitAISources(report).length) throw failure('请先补充当前成员的健康资料')
+        const aiSummary = await this.medicalSummary.generate(visitAISummaryInput(report))
+        if (aiSummary.provider !== 'openai') throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
+        report.aiSummary = { ...aiSummary, generatedAt: now.toISOString() }
+        report.aiSourceFingerprint = aiFingerprint
+        report.aiSourceIds = visitAISources(report).map(source => source.id)
+        report.aiSummaryStale = false
+      } else if (previous?.aiSummary && previous.aiSourceIds?.every(id => available.has(id))) {
+        report.aiSummary = previous.aiSummary
+        report.aiSourceFingerprint = previous.aiSourceFingerprint
+        report.aiSourceIds = previous.aiSourceIds
+        report.aiSummaryStale = previous.aiSourceFingerprint !== aiFingerprint
+      }
       await this.store.update((data) => ({
         ...data,
         reports: [

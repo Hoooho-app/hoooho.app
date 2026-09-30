@@ -25,6 +25,8 @@
     "test:health-changes": "node --test server/events/health-change-annotation-service.test.mjs",
     "test:ai": "node --test server/ai/health-record-organization-service.test.mjs server/ai/providers/openai-provider.test.mjs server/ai/medical-summary-service.test.mjs",
     "test:ai:live": "cross-env RUN_OPENAI_LIVE=1 node --env-file=.env.local --test server/ai/medical-summary-live.test.mjs",
+    "test:visit-sheets": "node --test server/visit-sheets/*.test.mjs",
+    "test:e2e:medical-summary": "playwright test --config tests/ai-medical-summary/playwright.config.ts",
     "test:ai:adversarial": "node server/ai/adversarial/run-health-event-ai-adversarial.mjs",
     "test:ai:adversarial:state": "node --test server/ai/adversarial/health-event-state-adversarial.test.mjs",
     "test:timeline:multimodal": "node --test tests/health-timeline-multimodal/*.test.mjs",
