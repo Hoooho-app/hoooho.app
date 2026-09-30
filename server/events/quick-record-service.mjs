@@ -50,7 +50,7 @@ function validateInput(input) {
   const journal = validateJournal(input.journal)
   const duplicateAction = ['update', 'create'].includes(input.duplicateAction) ? input.duplicateAction : null
   const duplicateEventId = typeof input.duplicateEventId === 'string' ? input.duplicateEventId.trim() : ''
-  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
+  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.status === 'ongoing' ? journal.sleep.sleepAt : journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
 }
 
 export class QuickRecordService {

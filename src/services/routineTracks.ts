@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import type { JournalSleepDetails } from '../types/journal'
 
 export type RoutineConsent = 'unset' | 'declined' | 'enabled' | 'disabled'
 export type RoutineFixedItemKey = 'nightSleep' | 'breakfast' | 'lunch' | 'dinner'
@@ -19,6 +20,8 @@ export interface RoutineTrack {
   status: RoutineTrackStatus
   recordId?: string | null
   eventId?: string | null
+  sleep?: JournalSleepDetails
+  timeZone?: string
 }
 
 export interface RoutineTemplate {

@@ -1,0 +1,36 @@
+.sleep-editor { display: grid; gap: var(--hoho-space-1); }
+.sleep-editor-ring { width: 250px; max-width: 100%; margin: auto; display: block; touch-action: none; user-select: none; overflow: visible; }
+.sleep-editor--automatic { gap: 2px; }
+.sleep-editor--automatic .sleep-editor-ring { width: 196px; }
+.sleep-editor-track { stroke: rgb(var(--hoho-color-surface-subtle)); stroke-width: 9; fill: none; }
+.sleep-editor-arc { stroke: rgb(var(--hoho-color-primary)); stroke-width: 7; fill: none; }
+.sleep-editor-node { cursor: grab; touch-action: none; }
+.sleep-editor-node:focus-visible > circle { stroke: rgb(var(--hoho-color-focus)); stroke-width: 3; }
+.sleep-editor-node > svg, .sleep-editor-node-label { pointer-events: none; }
+.sleep-editor-node-label { font-size: 10px; font-weight: 600; fill: rgb(var(--hoho-color-text-primary)); paint-order: stroke; stroke: white; stroke-width: 3; }
+.sleep-editor-hint { color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; text-align: center; }
+.sleep-editor-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--hoho-space-2); }
+.sleep-editor-card { display: grid; position: relative; gap: 2px; text-align: left; padding: var(--hoho-space-2); border: 1px solid var(--sleep-accent); border-radius: var(--hoho-radius-control); background: var(--sleep-background); }
+.sleep-editor-card > span { display: flex; align-items: center; gap: 4px; color: var(--sleep-accent); font-size: 13px; line-height: 20px; }
+.sleep-editor-card strong { color: rgb(var(--hoho-color-text-primary)); font-size: 24px; line-height: 28px; font-variant-numeric: tabular-nums; }
+.sleep-editor-card small { color: rgb(var(--hoho-color-text-secondary)); font-size: 10px; line-height: 13px; }
+.sleep-editor-card em { position: absolute; right: 6px; top: 8px; font-style: normal; font-size: 10px; padding: 2px 4px; border-radius: var(--hoho-radius-pill); }
+.sleep-editor-inputs { display: flex; flex-wrap: wrap; gap: 8px; }
+.sleep-editor-inputs label { min-width: 0; flex: 1 1 100px; font-size: 12px; }
+.sleep-editor input:not([type=checkbox]), .sleep-editor select { min-height: 44px; max-width: 100%; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 4px; font-size: 16px; background: white; }
+.sleep-editor-status { display: flex; align-items: center; min-height: 44px; gap: 8px; font-size: 12px; }
+.sleep-editor-status input { width: 20px; height: 20px; }
+.sleep-editor-supplement { border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 0 8px; }
+.sleep-editor-supplement > button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; font-size: 13px; text-align: left; }
+.sleep-editor-supplement small,.sleep-editor-supplement p { font-size: 11px; color: rgb(var(--hoho-color-text-secondary)); }
+.sleep-editor-supplement p { padding-bottom: 6px; }
+.sleep-editor-supplement .sleep-choice-row { padding-bottom: 8px; }
+.sleep-editor-save { display: grid; gap: 8px; padding-bottom: max(12px,env(safe-area-inset-bottom)); }
+.hoho-bottom-sheet.sleep-editor-sheet { max-height: 96dvh; }
+.sleep-editor-sheet .hoho-bottom-sheet__body { padding: 0 12px 8px; }
+.sleep-editor-sheet .sleep-editor-save .hoho-button { min-height: 44px; height: 44px; }
+.sleep-editor-sheet .hoho-bottom-sheet__title-group { flex: 1; justify-content: center; margin-left: 44px; }
+.sleep-editor-sheet .hoho-bottom-sheet__header { min-height: 44px; }
+.sleep-editor-sheet .hoho-bottom-sheet__handle { margin-top: 8px; }
+.sleep-editor--automatic .sleep-editor-save { padding-bottom: 4px; }
+.sleep-editor--automatic .sleep-editor-hint { line-height: 14px; }

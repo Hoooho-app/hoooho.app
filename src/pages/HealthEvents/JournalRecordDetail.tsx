@@ -64,7 +64,6 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
       if (start > Date.now()) return '实际开始时间不能晚于现在。'
       if (end > Date.now()) return '实际结束时间不能晚于现在。'
       if (end <= start) return '实际结束时间必须晚于实际开始时间。'
-      if (end - start > 86_400_000) return '睡眠时长不能超过24小时。'
       return ''
     }
     const correctionError = validateCorrection()

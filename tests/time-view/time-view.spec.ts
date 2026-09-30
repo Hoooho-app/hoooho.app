@@ -836,8 +836,8 @@ test('00:15 sleep option opens the existing flow with scoped prefill and dismiss
 test('sleep prompt starts one persistent session, restores after reload and ends it', async ({ page }) => {
   await prepare(page, 'child-two')
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'sleep', mode: 'start' } })))
-  await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('准备睡觉')
-  await page.getByRole('button', { name: '开始睡眠' }).click()
+  await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('预计睡眠时长')
+  await page.getByRole('button', { name: '保存记录', exact: true }).click()
   const activeSleep = page.locator('.journal-activity-row--sleep:not(.journal-activity-row--routine)').first()
   await expect(activeSleep).toBeVisible()
   await page.reload()
