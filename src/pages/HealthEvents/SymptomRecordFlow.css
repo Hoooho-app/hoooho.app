@@ -4,6 +4,7 @@
   --symptom-neutral-border: rgb(var(--hoho-color-text-primary) / .065);
   --symptom-card-radius: calc(var(--hoho-radius-card) + var(--hoho-space-1));
   background: rgb(var(--hoho-color-surface));
+  height: 100%;
 }
 
 .symptom-record-page--brand-white > header {
@@ -53,7 +54,7 @@
   color: rgb(var(--hoho-color-primary));
 }
 .symptom-record-page--brand-white .symptom-narrative textarea,
-.symptom-record-page--brand-white .symptom-manual-location input,
+.symptom-record-page--brand-white .symptom-location-entry input,
 .symptom-record-page--brand-white .symptom-optional-fields input,
 .symptom-record-page--brand-white .symptom-optional-fields textarea {
   display: block;
@@ -64,14 +65,17 @@
   font-size: 16px;
   line-height: 1.5;
   scroll-margin-block: var(--hoho-space-4);
+  width: 100%;
+  min-width: 0;
 }
 .symptom-record-page--brand-white .symptom-narrative textarea { min-height: 88px; }
 .symptom-record-page--brand-white .symptom-narrative [aria-invalid='true'] { border-color: rgb(var(--hoho-color-error)); }
 .symptom-record-page--brand-white .symptom-narrative textarea:focus,
-.symptom-record-page--brand-white .symptom-manual-location input:focus,
+.symptom-record-page--brand-white .symptom-location-entry input:focus,
 .symptom-record-page--brand-white .symptom-optional-fields input:focus,
 .symptom-record-page--brand-white .symptom-optional-fields textarea:focus { border-color: rgb(var(--hoho-color-primary)); }
-.symptom-record-page--brand-white .symptom-card-heading .body-location-picker-action,
+.symptom-record-page--brand-white .symptom-location-entry .body-location-picker-action,
+.symptom-record-page--brand-white .symptom-voice-action,
 .symptom-record-page--brand-white .symptom-card-action > span,
 .symptom-record-page.symptom-record-page--brand-white .occurrence-time-control {
   display: inline-flex;
@@ -89,7 +93,12 @@
   font-weight: 500;
 }
 .symptom-record-page--brand-white .symptom-card-action > span { min-width: 76px; }
-.symptom-record-page--brand-white .symptom-card-heading .body-location-picker-action { text-decoration: none; }
+.symptom-record-page--brand-white .symptom-location-entry .body-location-picker-action { text-decoration: none; }
+.symptom-record-page--brand-white .symptom-location-entry { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--hoho-space-2); align-items: center; margin-top: var(--hoho-space-2); }
+.symptom-record-page--brand-white .symptom-location-entry input { border: 1px solid var(--symptom-neutral-border); padding: 7px 9px; text-align: left; }
+.symptom-record-page--brand-white .symptom-heading { display: flex; align-items: center; justify-content: space-between; }
+.symptom-record-page--brand-white .symptom-narrative textarea { resize: none; }
+.symptom-record-page--brand-white .symptom-record-scroll { overflow-x: hidden; touch-action: pan-y; }
 .symptom-record-page--brand-white .symptom-photo-section,
 .symptom-record-page--brand-white .symptom-supplement-card,
 .symptom-record-page.symptom-record-page--brand-white .occurrence-time-field { padding-block: var(--hoho-space-2); }

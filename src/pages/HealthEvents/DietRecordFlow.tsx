@@ -1,5 +1,5 @@
 import { ArrowLeft, Pencil, Plus } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
@@ -20,10 +20,6 @@ const feedingMethods = [
 ] as const
 const feedingStatusOptions = ['顺利', '吐奶', '呛咳', '抗拒']
 const reactionOptions = ['皮肤', '呼吸', '消化']
-const formOptions = [['puree', '泥糊'], ['minced', '碎末'], ['small-pieces', '小颗粒'], ['finger-food', '手指食物']] as const
-const complementaryAmounts = ['尝了几口', '约 1/4 碗', '约 1/2 碗', '大部分', '全部吃完']
-const mealAmounts = ['没吃', '少量', '一半', '大部分', '吃完']
-const appetiteOptions = ['比平时少', '和平时差不多', '比平时多'] as const
 const commonComplementary = ['鸡蛋黄', '南瓜泥', '大米粥']
 const commonMeals = ['番茄牛肉', '米饭', '西兰花']
 const commonSupplements = ['维生素D', '铁剂', '钙剂', 'DHA']
@@ -53,15 +49,6 @@ function MultiChoiceGroup({ label, options, values, onChange, hint }: { label: s
   return <fieldset className="diet-fieldset"><legend>{label}</legend>{hint && <p className="diet-field-hint">{hint}</p>}<div className="diet-choice-row">{options.map((option) => <button aria-pressed={values.includes(option)} key={option} onClick={() => onChange(toggleValue(values, option))} type="button">{option}</button>)}</div></fieldset>
 }
 
-function AmountSlider({ options, value, onChange }: { options: readonly string[]; value: string; onChange: (value: string) => void }) {
-  const selectedIndex = Math.max(0, options.indexOf(value))
-  const progress = `${(selectedIndex / (options.length - 1)) * 100}%`
-  return <fieldset className="diet-fieldset diet-amount-slider"><legend>吃了多少</legend>
-    <input aria-label="吃了多少" aria-valuetext={options[selectedIndex]} max={options.length - 1} min="0" onChange={(event) => onChange(options[Number(event.target.value)])} step="1" style={{ '--diet-amount-progress': progress } as CSSProperties} type="range" value={selectedIndex} />
-    <div aria-hidden="true" className="diet-amount-labels">{options.map((option, index) => <span className={index === selectedIndex ? 'is-selected' : ''} key={option}>{option}</span>)}</div>
-  </fieldset>
-}
-
 function ReactionChoices({ values, onChange, hint }: { values: string[]; onChange: (values: string[]) => void; hint?: string }) {
   return <div aria-label="进食后有无异常" className="diet-reaction-fieldset" role="group">
     {hint && <p className="diet-field-hint">{hint}</p>}
@@ -69,7 +56,7 @@ function ReactionChoices({ values, onChange, hint }: { values: string[]; onChang
   </div>
 }
 
-function FoodEditor({ foods, onFoodsChange, common, onCommonChange, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void>; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
+function FoodEditor({ foods, onFoodsChange, common, onCommonChange, inlineActions = false, heading = '吃了什么', placeholder = '输入食物或菜品', inputLabel = '输入食物名称', addLabel = '添加食物', commonLabel = '常吃', itemsLabel = '已添加食物' }: { foods: string[]; onFoodsChange: (foods: string[]) => void; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void>; inlineActions?: boolean; heading?: string; placeholder?: string; inputLabel?: string; addLabel?: string; commonLabel?: string; itemsLabel?: string }) {
   const [draft, setDraft] = useState('')
   const [editingCommon, setEditingCommon] = useState(false)
   const [commonDraft, setCommonDraft] = useState('')
@@ -95,12 +82,13 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, heading = '�
     catch (reason) { setCommonError(reason instanceof Error ? reason.message : '常吃食物保存失败') }
     finally { setSavingCommon(false) }
   }
-  return <section className="diet-form-section" aria-labelledby="diet-foods-heading">
+  const editCommonButton = onCommonChange && <button aria-expanded={editingCommon} className={inlineActions ? 'diet-common-edit' : undefined} disabled={savingCommon} onClick={() => editingCommon ? void finishCommon() : setEditingCommon(true)} type="button"><Pencil size={14} />{editingCommon ? savingCommon ? '保存中' : '完成' : '编辑'}</button>
+  return <section className={`diet-form-section${inlineActions ? ' diet-food-editor--inline-actions' : ''}`} aria-labelledby="diet-foods-heading">
     <h2 id="diet-foods-heading">{heading}</h2>
-    <div className="diet-food-input"><input aria-label={inputLabel} maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder={placeholder} value={draft} /><HohoButton aria-label={addLabel} disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton></div>
+    <div className={`diet-food-input${inlineActions ? ' diet-food-input--inline' : ''}`}><input aria-label={inputLabel} maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder={placeholder} value={draft} />{(!inlineActions || draft.trim()) && <HohoButton aria-label={addLabel} disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton>}</div>
     {foods.length > 0 && <div className="diet-food-chips" aria-label={itemsLabel}>{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true">×</span></button>)}</div>}
-    <div className="diet-common-header"><span>{commonLabel}</span>{onCommonChange && <button aria-expanded={editingCommon} disabled={savingCommon} onClick={() => editingCommon ? void finishCommon() : setEditingCommon(true)} type="button"><Pencil size={14} />{editingCommon ? savingCommon ? '保存中' : '完成' : '编辑'}</button>}</div>
-    <div className="diet-common-foods">{(editingCommon ? editableCommon : common).map((food) => <button aria-label={editingCommon ? `删除常吃食物${food}` : undefined} disabled={!editingCommon && foods.includes(food)} key={food} onClick={() => editingCommon ? setEditableCommon((current) => current.filter((item) => item !== food)) : add(food)} type="button">{food}{editingCommon && <span aria-hidden="true">×</span>}</button>)}</div>
+    <div className="diet-common-header"><span>{commonLabel}</span>{!inlineActions && editCommonButton}</div>
+    <div className="diet-common-foods">{(editingCommon ? editableCommon : common).map((food) => <button aria-label={editingCommon ? `删除常吃食物${food}` : undefined} disabled={!editingCommon && foods.includes(food)} key={food} onClick={() => editingCommon ? setEditableCommon((current) => current.filter((item) => item !== food)) : add(food)} type="button">{food}{editingCommon && <span aria-hidden="true">×</span>}</button>)}{inlineActions && editCommonButton}</div>
     {editingCommon && <div className="diet-common-editor"><input aria-label="添加常吃食物" maxLength={30} onChange={(event) => setCommonDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCommon() } }} placeholder="添加常吃食物" value={commonDraft} /><button aria-label="确认添加常吃食物" disabled={!commonDraft.trim() || editableCommon.length >= 12} onClick={addCommon} type="button"><Plus size={17} /></button></div>}
     {commonError && <p aria-live="polite" className="diet-inline-message">{commonError}</p>}
   </section>
@@ -161,47 +149,34 @@ function SupplementForm({ occurrence, onSave, saving }: CommonFormProps) {
     })
   }
   return <>
-    <div className="record-form-group"><FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" /></div>
-    <section className="record-form-group record-dose-group"><HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} /><ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} /></section>
-    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <div className="record-form-group"><FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" inlineActions foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" /></div>
+    <section className="record-form-group record-dose-group supplement-record-dose-group"><HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} /><ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} /></section>
+    <section className="record-time-group supplement-record-time-group"><RecordTime occurrence={occurrence} /></section>
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
 
-function FoodRecordForm({ kind, occurredAt, occurrence, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
+function FoodRecordForm({ kind, occurrence, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const [foods, setFoods] = useState<string[]>([])
-  const [foodForm, setFoodForm] = useState<JournalDietDetails['foodForm']>()
-  const amountOptions = kind === 'complementary' ? complementaryAmounts : mealAmounts
-  const [amount, setAmount] = useState(amountOptions[0])
-  const [meal, setMeal] = useState<'早餐' | '午餐' | '晚餐'>(() => { const hour = new Date().getHours(); return hour < 10 ? '早餐' : hour < 16 ? '午餐' : '晚餐' })
-  const [appetite, setAppetite] = useState<JournalDietDetails['appetite']>()
   const [reactions, setReactions] = useState<string[]>([])
-  const [endedAt, setEndedAt] = useState('')
   const isComplementary = kind === 'complementary'
-  const isMeal = kind === 'meal'
   const hasFood = foods.length > 0
-  const intervalValid = !endedAt || Date.parse(endedAt) > Date.parse(occurredAt)
-  const valid = hasFood && Boolean(amount) && (!isComplementary || Boolean(foodForm)) && (!isMeal || Boolean(appetite)) && intervalValid
+  const isSnack = kind === 'snack'
+  const valid = hasFood
   const save = () => {
-    const title = isComplementary ? '辅食' : isMeal ? '正餐' : '零食'
+    const title = isComplementary ? '辅食' : isSnack ? '零食' : '正餐'
     const listedFoods = foods.join('、')
-    const lines = [`${title}${isMeal ? ` · ${meal}` : ''}`, `${listedFoods} · ${amount}`]
-    if (isMeal && appetite) lines.push(`食欲：${appetite}`)
+    const lines = [title, listedFoods]
     if (reactions.length) lines.push(reactions.includes('暂未发现') ? '暂未发现异常' : `进食后观察：${reactions.join('、')}`)
     onSave(lines.join('\n'), {
-      kind, foods, amount,
-      ...(isComplementary ? { foodForm } : {}),
-      ...(isMeal ? { meal, appetite, ...(endedAt ? { startedAt: new Date(occurredAt).toISOString(), endedAt: new Date(endedAt).toISOString() } : {}) } : kind === 'snack' ? { meal: '零食' as const } : {}),
+      kind, foods, ...(isSnack ? { meal: '零食' as const } : {}),
       reactions
     })
   }
   return <>
-    {isMeal && <section className="record-form-group"><ChoiceGroup label="餐次" options={['早餐', '午餐', '晚餐']} value={meal} onChange={(value) => setMeal(value as typeof meal)} /></section>}
-    <div className="record-form-group"><FoodEditor common={common} foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
-    {isComplementary && <section className="record-form-group"><ChoiceGroup label="食物形态" options={formOptions.map(([, label]) => label)} value={formOptions.find(([value]) => value === foodForm)?.[1] ?? ''} onChange={(label) => setFoodForm(formOptions.find(([, item]) => item === label)?.[0])} /></section>}
-    <section className="record-form-group record-intake-group"><AmountSlider options={amountOptions} value={amount} onChange={setAmount} />{isMeal && <ChoiceGroup label="食欲" options={appetiteOptions} value={appetite ?? ''} onChange={(value) => setAppetite(value as JournalDietDetails['appetite'])} />}</section>
+    <div className="record-form-group"><FoodEditor common={common} inlineActions foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
     <div className="record-form-group"><section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等够观察时间" values={reactions} onChange={setReactions} /></section></div>
-    <section className="record-time-group"><RecordTime occurrence={occurrence} />{isMeal && <HohoInput error={endedAt && !intervalValid ? '结束时间必须晚于开始时间' : undefined} label="结束时间（可选）" max={localDateTimeValue()} min={occurredAt} onChange={(event) => setEndedAt(event.target.value)} type="datetime-local" value={endedAt} hint="填写后，时间轴会按同一次用餐展示开始、持续和总时长" />}</section>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }

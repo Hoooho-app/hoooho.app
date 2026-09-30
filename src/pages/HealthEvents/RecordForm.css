@@ -15,6 +15,11 @@
 .bowel-record-page .record-combined-group>.bowel-fieldset,.outdoor-record-page .record-combined-group>.outdoor-fieldset{border:0;border-radius:0;background:transparent;box-shadow:none;padding:0}
 .bowel-record-page .record-combined-group>.bowel-fieldset+*,.outdoor-record-page .record-combined-group>.outdoor-fieldset+*{padding-top:var(--hoho-space-4)}
 .record-intake-group>*+*,.record-dose-group>*+*,.record-time-group>*+*{border-top:1px solid rgb(var(--hoho-color-border)/.72);padding-top:var(--hoho-space-4)}
+.supplement-record-dose-group{grid-template-columns:minmax(86px,.8fr) minmax(0,2fr);gap:var(--hoho-space-2)}
+.supplement-record-dose-group>*+*{min-width:0;border-top:0;padding-top:0}
+.supplement-record-dose-group .diet-choice-row{gap:var(--hoho-space-1)}
+.supplement-record-dose-group .diet-choice-row>button{min-height:var(--hoho-touch-target);padding-inline:var(--hoho-space-2)}
+.record-time-group.supplement-record-time-group{padding-block:var(--hoho-space-2)}
 .diet-form-section h2,.diet-fieldset>legend,.diet-reaction-section h2,.bowel-fieldset legend,.bowel-section-heading h2,.outdoor-fieldset legend,.outdoor-heading h2,.sleep-fieldset legend,.medication-section h2,.medication-fieldset>legend,.medication-compact-section h2{font-size:var(--hoho-font-size-body);font-weight:600;line-height:var(--hoho-line-height-body)}
 .diet-choice-row,.sleep-choice-row{gap:var(--hoho-space-2)}
 .diet-choice-row>button,.diet-reaction-grid>button,.sleep-choice-row>button,.visit-choice-grid>button,.visit-department-grid>button,.medication-sheet-options>button{min-height:var(--hoho-touch-target);border-color:rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-secondary))}
@@ -23,7 +28,7 @@
 .diet-food-input input::placeholder,.diet-common-editor input::placeholder,.medication-record-page input::placeholder,.medication-record-page textarea::placeholder{color:rgb(var(--hoho-color-text-weak)/.72)}
 .diet-common-foods{align-items:stretch}
 .diet-common-foods button{min-height:36px;max-width:100%;height:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.35;text-align:left}
-.diet-amount-slider input[type='range'],.bowel-scale-fieldset input[type='range']{min-height:var(--hoho-touch-target)}
+.bowel-scale-fieldset input[type='range']{min-height:var(--hoho-touch-target)}
 .diet-record-page .occurrence-time-field,.medication-record-page .occurrence-time-field{min-height:48px;grid-template-columns:minmax(116px,auto) minmax(0,1fr);gap:var(--hoho-space-3);margin:0}
 .diet-record-page .occurrence-time-field>strong,.medication-record-page .occurrence-time-field>strong{display:inline-flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-body);font-weight:600}
 .diet-record-page .occurrence-time-field>strong svg,.medication-record-page .occurrence-time-field>strong svg{color:rgb(var(--hoho-color-primary))}

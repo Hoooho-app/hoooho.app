@@ -25,10 +25,115 @@ async function openSymptom(page: Page) {
   await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录症状', exact: true }).click()
 }
 
+test('symptom voice click-start streams interim text, ends without duplication and preserves text on errors', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 }); await prepare(page); await openSymptom(page)
+  await page.evaluate(() => {
+    const fixture = { instance: null as any, starts: 0, stops: 0, aborts: 0, tracksStopped: 0 }
+    ;(window as any).symptomVoiceFixture = fixture
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => fixture.tracksStopped++ }] }) } })
+    class StreamingRecognition {
+      onresult: any = null; onend: any = null; onerror: any = null; lang = ''; continuous = false; interimResults = false
+      constructor() { fixture.instance = this }
+      start() { fixture.starts++ }
+      stop() { fixture.stops++; this.onend?.() }
+      abort() { fixture.aborts++ }
+    }
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: StreamingRecognition })
+  })
+  const form = page.getByRole('dialog', { name: '记录症状' }), text = form.getByLabel('哪里不舒服')
+  await text.fill('已有症状'); await text.blur(); await form.getByRole('button', { name: '语音记录', exact: true }).click()
+  await expect(form.getByRole('button', { name: '结束', exact: true })).toBeVisible()
+  await expect(form.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+  await page.evaluate(() => (window as any).symptomVoiceFixture.instance.onresult({ resultIndex: 0, results: [{ 0: { transcript: '左肘' }, isFinal: false }] }))
+  await expect(text).toHaveValue('已有症状\n左肘')
+  await page.evaluate(() => (window as any).symptomVoiceFixture.instance.onresult({ resultIndex: 0, results: [{ 0: { transcript: '左肘窝发红' }, isFinal: true }, { 0: { transcript: '、发痒' }, isFinal: false }] }))
+  await expect(text).toHaveValue('已有症状\n左肘窝发红、发痒')
+  await page.screenshot({ path: 'outputs/symptom-voice-listening-375.png' })
+  await form.getByRole('button', { name: '结束', exact: true }).click()
+  await expect(form.getByRole('button', { name: '语音记录', exact: true })).toBeVisible()
+  await expect(text).toHaveValue('已有症状\n左肘窝发红、发痒')
+  await text.fill('左肘窝发红、发痒，手动修改'); await form.getByRole('button', { name: '语音记录', exact: true }).click()
+  await expect(form.getByRole('button', { name: '结束', exact: true })).toBeVisible()
+  await page.evaluate(() => (window as any).symptomVoiceFixture.instance.onresult({ resultIndex: 0, results: [{ 0: { transcript: '晚上明显' }, isFinal: false }] }))
+  await expect(text).toHaveValue('左肘窝发红、发痒，手动修改\n晚上明显')
+  await page.evaluate(() => (window as any).symptomVoiceFixture.instance.onerror({ error: 'network' }))
+  await expect(form.getByText('语音识别暂不可用，请重试或手动输入')).toBeVisible()
+  await expect(text).toHaveValue('左肘窝发红、发痒，手动修改\n晚上明显')
+  await page.evaluate(() => { (navigator.mediaDevices as any).getUserMedia = async () => { throw new DOMException('denied', 'NotAllowedError') } })
+  await form.getByRole('button', { name: '语音记录', exact: true }).click(); await expect(form.getByText('无法使用麦克风，请检查浏览器权限')).toBeVisible()
+  await page.evaluate(() => { Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined }); Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined }) })
+  await form.getByRole('button', { name: '语音记录', exact: true }).click(); await expect(form.getByText('当前浏览器不支持语音记录，请手动输入')).toBeVisible()
+  await form.getByRole('button', { name: '保存', exact: true }).click(); await createDespiteDuplicateIfNeeded(page); await expect(form).toHaveCount(0)
+})
+
+test('symptom form fixes viewport, puts location input before tags and removes requested fields', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 }); await prepare(page); await openSymptom(page)
+  const form = page.getByRole('dialog', { name: '记录症状' })
+  expect(await form.getByLabel('哪里不舒服').evaluate(el => document.activeElement === el)).toBe(false)
+  await expect(form.getByText('尚未选择部位')).toHaveCount(0); await expect(form.getByText('手动补充部位', { exact: true })).toHaveCount(0)
+  await form.getByLabel('手动补充症状部位').fill('手臂')
+  const layout = await form.locator('.symptom-location-entry').evaluate(el => {
+    const input = el.querySelector('input')!.getBoundingClientRect(), button = el.querySelector('button')!.getBoundingClientRect(), tags = el.nextElementSibling!.getBoundingClientRect()
+    return { inputLeft: input.left < button.left, sameRow: Math.abs(input.top - button.top) < 2, tagsAfter: tags.top >= input.bottom, touch: button.height >= 44 }
+  })
+  expect(layout).toEqual({ inputLeft: true, sameRow: true, tagsAfter: true, touch: true })
+  await form.getByRole('button', { name: /补充信息.*展开/ }).click()
+  await expect(form.getByLabel('触发或诱因')).toHaveCount(0); await expect(form.getByRole('group', { name: '症状变化' })).toHaveCount(0); await expect(form.getByLabel('备注')).toHaveCount(0)
+  await form.getByRole('button', { name: '中度', exact: true }).click(); await form.getByRole('button', { name: /补充信息.*收起/ }).click()
+  await expect(form.getByText('中度', { exact: true })).toBeVisible()
+  for (const width of [375,390,430]) {
+    await page.setViewportSize({ width, height: 667 }); await form.locator('.symptom-record-scroll').evaluate(el => { el.scrollTop = 0 })
+    await expect(form.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: `outputs/symptom-updated-${width}.png` })
+  }
+  await page.setViewportSize({ width: 375, height: 430 }); await form.getByLabel('哪里不舒服').fill('键盘下仍可记录')
+  await page.mouse.wheel(0,800)
+  const header = await form.locator('header').boundingBox(), save = await form.getByRole('button', { name: '保存', exact: true }).boundingBox()
+  expect(header!.y).toBeGreaterThanOrEqual(0); expect(header!.y).toBeLessThan(1); expect(save!.y + save!.height).toBeLessThanOrEqual(430)
+  expect(await page.evaluate(() => ({ y: scrollY, position: document.body.style.position }))).toEqual({ y: 0, position: 'fixed' })
+  const unexpectedDialogs: string[] = []; page.on('dialog', dialog => { unexpectedDialogs.push(dialog.message()); void dialog.dismiss() })
+  await form.getByRole('button', { name: '关闭', exact: true }).click()
+  await expect(form).toHaveCount(0); expect(unexpectedDialogs).toEqual([])
+  expect(await page.evaluate(() => document.body.style.position)).toBe('')
+})
+
 async function openDaily(page: Page) {
   await page.getByRole('button', { name: '记一下', exact: true }).click()
   await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录日常', exact: true }).click()
 }
+
+test('symptom voice cancels pending permission and close aborts recording without an unsaved prompt', async ({ page }) => {
+  await prepare(page); await openSymptom(page)
+  await page.evaluate(() => {
+    const fixture = { starts: 0, aborts: 0, released: 0, resolve: null as any, instance: null as any }
+    ;(window as any).symptomVoiceFixture = fixture
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: () => new Promise(resolve => { fixture.resolve = resolve }) } })
+    class Recognition {
+      onresult: any = null; onerror: any = null; onend: any = null
+      constructor() { fixture.instance = this }
+      start() { fixture.starts++ }
+      stop() { this.onend?.() }
+      abort() { fixture.aborts++ }
+    }
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
+  })
+  const form = page.getByRole('dialog', { name: '记录症状' })
+  await form.getByRole('button', { name: '语音记录', exact: true }).click()
+  await form.getByRole('button', { name: '结束', exact: true }).click()
+  await page.evaluate(() => { const fixture = (window as any).symptomVoiceFixture; fixture.resolve({ getTracks: () => [{ stop: () => fixture.released++ }] }); (navigator.mediaDevices as any).getUserMedia = async () => ({ getTracks: () => [{ stop: () => fixture.released++ }] }) })
+  await expect.poll(() => page.evaluate(() => (window as any).symptomVoiceFixture.released)).toBe(1)
+  expect(await page.evaluate(() => (window as any).symptomVoiceFixture.starts)).toBe(0)
+  await form.getByRole('button', { name: '语音记录', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).symptomVoiceFixture.starts)).toBe(1)
+  await page.evaluate(() => (window as any).symptomVoiceFixture.instance.onresult({ resultIndex: 0, results: [{ 0: { transcript: '关闭后保留的语音草稿' }, isFinal: false }] }))
+  await expect(form.getByLabel('哪里不舒服')).toHaveValue('关闭后保留的语音草稿')
+  const prompts: string[] = []; page.on('dialog', dialog => { prompts.push(dialog.message()); void dialog.dismiss() })
+  await form.getByRole('button', { name: '关闭', exact: true }).click(); await expect(form).toHaveCount(0)
+  expect(prompts).toEqual([]); expect(await page.evaluate(() => (window as any).symptomVoiceFixture.aborts)).toBe(1)
+  await openSymptom(page); await expect(form.getByLabel('哪里不舒服')).toHaveValue('关闭后保留的语音草稿')
+  await expect(form.getByRole('button', { name: '语音记录', exact: true })).toBeVisible()
+})
 
 async function openVisit(page: Page) {
   await page.getByRole('button', { name: '记一下', exact: true }).click()
@@ -120,8 +225,8 @@ test('confirmed symptom visual states preserve location edits, time and suppleme
   await prepare(page)
   await openSymptom(page)
   const form = page.getByRole('dialog', { name: '记录症状' })
-  await expect(form.getByText('尚未选择部位', { exact: true })).toBeVisible()
-  await expect(form.getByText('严重程度、诱因、变化、备注', { exact: true })).toBeVisible()
+  await expect(form.getByText('尚未选择部位', { exact: true })).toHaveCount(0)
+  await expect(form.getByText('严重程度', { exact: true })).toBeVisible()
   await expect(form.locator('.symptom-segmented-options')).toHaveCount(0)
   await expect(form.getByRole('textbox', { name: '发生时间' })).toBeInViewport()
   await expect(form.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
@@ -160,11 +265,10 @@ test('confirmed symptom visual states preserve location edits, time and suppleme
 
   await form.getByRole('button', { name: /补充信息.*展开/ }).click()
   await form.getByRole('button', { name: '中度', exact: true }).click()
-  await form.getByLabel('触发或诱因').fill('出汗后明显')
-  await form.getByRole('button', { name: '加重', exact: true }).click()
-  await form.getByLabel('备注').fill('晚上更明显')
+  await expect(form.getByLabel('触发或诱因')).toHaveCount(0)
+  await expect(form.getByRole('button', { name: '加重', exact: true })).toHaveCount(0)
+  await expect(form.getByLabel('备注')).toHaveCount(0)
   await expect(form.getByRole('textbox', { name: '发生时间' })).toHaveValue(selectedTime)
-  await form.getByLabel('备注').blur()
   await form.locator('.symptom-supplement-card').evaluate((card) => card.scrollIntoView({ block: 'start' }))
   await page.screenshot({ path: 'outputs/symptom-record-supplement-open-iphone-se.png' })
 
@@ -176,7 +280,7 @@ test('confirmed symptom visual states preserve location edits, time and suppleme
   await picker.locator('[data-region-id="elbow_right"]').click()
   await picker.locator('[data-location-id="elbow_right_crease"]').click()
   await picker.getByRole('button', { name: /完成并返回症状记录/ }).click()
-  await expect(form.getByText('尚未选择部位', { exact: true })).toBeVisible()
+  await expect(form.getByText('尚未选择部位', { exact: true })).toHaveCount(0)
   await expect(form.getByRole('textbox', { name: '发生时间' })).toHaveValue(selectedTime)
 })
 
@@ -196,14 +300,13 @@ test('negated fever stays absent and the compact symptom fields persist', async 
   await expect(page.getByRole('dialog', { name: '添加照片' })).toHaveCount(0)
   await form.getByRole('button', { name: /补充信息.*展开/ }).click()
   await form.getByRole('button', { name: '中度', exact: true }).click()
-  await form.getByLabel('触发或诱因').fill('出汗后明显')
-  await form.getByRole('button', { name: '加重', exact: true }).click()
-  await form.getByLabel('备注').fill('晚上更明显')
+  await expect(form.getByLabel('触发或诱因')).toHaveCount(0)
+  await expect(form.getByRole('button', { name: '加重', exact: true })).toHaveCount(0)
+  await expect(form.getByLabel('备注')).toHaveCount(0)
   await expect(form.getByRole('button', { name: '中度', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(form.getByRole('button', { name: '加重', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.screenshot({ path: 'outputs/symptom-form-impact-slider-iphone-se.png' })
   await form.getByRole('button', { name: /补充信息.*收起/ }).click()
-  await expect(form.getByText('中度 · 出汗后明显 · 加重 · 晚上更明显', { exact: true })).toBeVisible()
+  await expect(form.getByText('中度', { exact: true })).toBeVisible()
   await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByText('已记录', { exact: true })).toBeVisible()
   const saved = page.locator('.journal-record--symptom').filter({ hasText: '皮疹' }).first()
@@ -263,7 +366,8 @@ test('desktop symptom flow stays aligned through save and detail', async ({ page
   const form = page.getByRole('dialog', { name: '记录症状' })
   await page.screenshot({ path: 'outputs/symptom-record-initial-desktop.png' })
   await form.getByRole('button', { name: /补充信息.*展开/ }).click()
-  await expect(form.getByLabel('备注')).toBeVisible()
+  await expect(form.getByLabel('备注')).toHaveCount(0)
+  await expect(form.getByRole('button', { name: '中度', exact: true })).toBeVisible()
   await page.screenshot({ path: 'outputs/symptom-record-supplement-open-desktop.png', animations: 'disabled' })
   await form.getByRole('button', { name: /补充信息.*收起/ }).click()
   await form.getByLabel('哪里不舒服').fill('桌面端出现轻微皮疹')
@@ -1409,18 +1513,14 @@ test('five diet record kinds save through the real API and show only the concise
   await page.getByRole('button', { name: '南瓜泥', exact: true }).click()
   await expect(page.getByText('上传照片', { exact: true })).toHaveCount(0)
   await expect(page.getByText('首次尝试这种食物', { exact: true })).toHaveCount(0)
-  await page.getByRole('group', { name: '食物形态' }).getByRole('button', { name: '泥糊' }).click()
-  const amountSlider = page.getByRole('slider', { name: '吃了多少' })
-  await expect(amountSlider).toHaveAttribute('aria-valuetext', '尝了几口')
-  await amountSlider.press('ArrowRight')
-  await amountSlider.press('ArrowRight')
-  await expect(amountSlider).toHaveAttribute('aria-valuetext', '约 1/2 碗')
+  await expect(page.getByRole('group', { name: '食物形态' })).toHaveCount(0)
+  await expect(page.getByRole('slider', { name: '吃了多少' })).toHaveCount(0)
   const reactions = page.getByRole('group', { name: '进食后有无异常' })
   await expect(reactions.getByRole('button', { name: /^(皮肤|呼吸|消化)$/ })).toHaveCount(3)
   await expect(reactions.getByRole('button', { name: '暂未发现', exact: true })).toHaveCount(0)
   await expect(reactions.getByRole('button', { name: '其他', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
-  const complementary = page.locator('.journal-record').filter({ hasText: '鸡蛋黄、南瓜泥 · 约 1/2 碗' })
+  const complementary = page.locator('.journal-record').filter({ hasText: '鸡蛋黄、南瓜泥' })
   await expect(complementary).toBeVisible()
 
   await openDietTypes(page)
@@ -1428,16 +1528,15 @@ test('five diet record kinds save through the real API and show only the concise
   await page.getByRole('button', { name: '米饭', exact: true }).click()
   await expect(page.getByRole('button', { name: '语音记录', exact: true })).toHaveCount(0)
   await expect(page.getByText('上传照片', { exact: true })).toHaveCount(0)
-  const mealAmount = page.getByRole('slider', { name: '吃了多少' })
-  await mealAmount.press('ArrowRight')
-  await mealAmount.press('ArrowRight')
-  await expect(mealAmount).toHaveAttribute('aria-valuetext', '一半')
-  await page.getByRole('group', { name: '食欲' }).getByRole('button', { name: '和平时差不多' }).click()
+  await expect(page.getByRole('group', { name: '餐次' })).toHaveCount(0)
+  await expect(page.getByRole('slider', { name: '吃了多少' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: '食欲' })).toHaveCount(0)
+  await expect(page.getByLabel('结束时间（可选）')).toHaveCount(0)
   await expect(page.getByRole('group', { name: '进食后有无异常' }).getByRole('button', { name: /^(皮肤|呼吸|消化)$/ })).toHaveCount(3)
   await expect(page.getByText('观察到的情况', { exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/meal-observations-iphone-se.png', fullPage: true })
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
-  await expect(page.locator('.journal-record').filter({ hasText: '正餐 ·' })).toBeVisible()
+  await expect(page.locator('.journal-record').filter({ hasText: '米饭' })).toBeVisible()
 
   await openDietTypes(page)
   await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^零食/ }).click()
@@ -1445,9 +1544,7 @@ test('five diet record kinds save through the real API and show only the concise
   await page.getByRole('button', { name: '添加食物' }).click()
   await expect(page.getByRole('button', { name: '语音记录', exact: true })).toHaveCount(0)
   await expect(page.getByText('上传照片', { exact: true })).toHaveCount(0)
-  const snackAmount = page.getByRole('slider', { name: '吃了多少' })
-  await snackAmount.press('ArrowRight')
-  await expect(snackAmount).toHaveAttribute('aria-valuetext', '少量')
+  await expect(page.getByRole('slider', { name: '吃了多少' })).toHaveCount(0)
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
   await expect(page.locator('.journal-record').filter({ hasText: '零食' })).toBeVisible()
 
@@ -1490,12 +1587,12 @@ test('complementary record survives reload and remains isolated to the selected 
   await openDietTypes(page)
   await page.getByRole('dialog', { name: '记录喂养/饮食' }).getByRole('button', { name: /^辅食/ }).click()
   await page.getByRole('button', { name: '大米粥', exact: true }).click()
-  await page.getByRole('group', { name: '食物形态' }).getByRole('button', { name: '小颗粒' }).click()
-  await expect(page.getByRole('slider', { name: '吃了多少' })).toHaveAttribute('aria-valuetext', '尝了几口')
+  await expect(page.getByRole('group', { name: '食物形态' })).toHaveCount(0)
+  await expect(page.getByRole('slider', { name: '吃了多少' })).toHaveCount(0)
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
-  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toBeVisible()
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥' })).toBeVisible()
   await page.reload()
-  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toBeVisible()
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥' })).toBeVisible()
   await page.evaluate(() => {
     sessionStorage.setItem('hoooho:preserve-test-member', 'true')
     const stored = JSON.parse(localStorage.getItem('hoooho-app') ?? '{}')
@@ -1503,7 +1600,7 @@ test('complementary record survives reload and remains isolated to the selected 
     localStorage.setItem('hoooho-app', JSON.stringify(stored))
   })
   await page.reload()
-  await expect(page.locator('.journal-record').filter({ hasText: '大米粥 · 尝了几口' })).toHaveCount(0)
+  await expect(page.locator('.journal-record').filter({ hasText: '大米粥' })).toHaveCount(0)
 })
 
 test('ten record forms share the visual shell at phone and desktop widths', async ({ page }, testInfo) => {
