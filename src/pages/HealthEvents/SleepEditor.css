@@ -1,6 +1,7 @@
 .sleep-editor { display: grid; gap: var(--hoho-space-1); }
 .sleep-editor-ring { width: 250px; max-width: 100%; margin: auto; display: block; touch-action: none; user-select: none; overflow: visible; }
-.sleep-editor--automatic .sleep-editor-ring { width: 212px; }
+.sleep-editor--automatic { gap: 2px; }
+.sleep-editor--automatic .sleep-editor-ring { width: 196px; }
 .sleep-editor-track { stroke: rgb(var(--hoho-color-surface-subtle)); stroke-width: 9; fill: none; }
 .sleep-editor-arc { stroke: rgb(var(--hoho-color-primary)); stroke-width: 7; fill: none; }
 .sleep-editor-node { cursor: grab; touch-action: none; }
