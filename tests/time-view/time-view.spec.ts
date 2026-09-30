@@ -501,7 +501,7 @@ test('compact hour cells stop at now, persist routines and convert confirmation 
     connectorMatchesLine: true,
     lineAlpha: 0.18,
     dividerTime: { color: 'rgb(82, 105, 102)', size: '12px', weight: '450' },
-    eventTime: { color: 'rgb(27, 122, 110)', size: '14px', weight: '700' },
+    eventTime: { color: 'rgb(27, 122, 110)', size: '12px', weight: '700' },
     eventTimeMatchesDot: true,
     railWidth: '1px',
     railIsVisible: true
@@ -834,7 +834,15 @@ test('one real meal activity projects independent cells, preserves interleaved r
     }),
   ])
   expect(mealTimeStyle).toEqual({ color: 'rgb(82, 105, 102)', size: '12px', weight: '450' })
-  expect(noteTimeStyle).toEqual({ color: 'rgb(27, 122, 110)', size: '14px', weight: '700' })
+  expect(noteTimeStyle).toEqual({ color: 'rgb(27, 122, 110)', size: '12px', weight: '700' })
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 667 })
+    const sizes = await page.locator('.journal-timeline-row > time, .journal-now-cell > span').evaluateAll((times) => times.map((time) => getComputedStyle(time).fontSize))
+    expect(sizes.length).toBeGreaterThan(0)
+    expect([...new Set(sizes)]).toEqual(['12px'])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await page.setViewportSize({ width: 375, height: 667 })
   const exactHourOrder = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll((rows) => ({ divider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '18:00'), event: rows.findIndex((row) => (row as HTMLElement).dataset.time === '18:00'), nextDivider: rows.findIndex((row) => (row as HTMLElement).dataset.hourDivider === '17:00') }))
   expect(Object.values(exactHourOrder).every((index) => index >= 0)).toBe(true)
   expect(exactHourOrder.divider).toBeLessThan(exactHourOrder.event)

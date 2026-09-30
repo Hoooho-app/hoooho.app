@@ -771,7 +771,7 @@
 
 .journal-day-grid { display: grid; gap: 6px; padding: 0 0 var(--hoho-space-2); }
 .journal-timeline-row { display: grid; min-height: 48px; grid-template-columns: 50px 16px minmax(0, 1fr); align-items: stretch; }
-.journal-timeline-row > time { display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: rgb(var(--hoho-color-primary)); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0; }
+.journal-timeline-row > time { display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: rgb(var(--hoho-color-primary)); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0; }
 .journal-timeline-row--sleep > time, .journal-timeline-row--meal > time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; }
 .journal-timeline-marker::before { inset-block: -7px; background: rgb(var(--hoho-color-primary) / .28); }
 .journal-day-grid > .journal-timeline-row:first-child .journal-timeline-marker::before { top: 50%; }
