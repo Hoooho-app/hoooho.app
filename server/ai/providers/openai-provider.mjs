@@ -1,5 +1,6 @@
 import { buildHealthEventOrganizerInput, healthEventOrganizerInstructions, healthAIOutputSchema } from '../ai-prompt.mjs'
 import { normalizeHealthAIOutput } from '../ai-types.mjs'
+import { readOpenAIErrorDetails, safeOpenAIErrorDetails } from './openai-error.mjs'
 
 function readOutputText(response) {
   for (const output of response?.output ?? []) {
@@ -142,14 +143,25 @@ export class OpenAIProvider {
       signal: AbortSignal.timeout(20_000)
     })
 
-    if (!response.ok) throw Object.assign(new Error('AI 病情摘要暂时不可用'), { code: 'AI_SUMMARY_PROVIDER_ERROR', status: response.status })
-    const text = readOutputText(await response.json())
-    if (!text) throw Object.assign(new Error('AI 未返回可用病情摘要'), { code: 'EMPTY_AI_SUMMARY' })
+    if (!response.ok) throw Object.assign(new Error('AI 病情摘要暂时不可用'), {
+      code: 'AI_SUMMARY_PROVIDER_ERROR', status: response.status,
+      upstream: await readOpenAIErrorDetails(response)
+    })
+    const upstream = safeOpenAIErrorDetails({
+      httpStatus: response.status, requestId: response.headers?.get('x-request-id'), retryAfter: response.headers?.get('retry-after')
+    })
+    let text
+    try {
+      text = readOutputText(await response.json())
+    } catch {
+      throw Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', upstream })
+    }
+    if (!text) throw Object.assign(new Error('AI 未返回可用病情摘要'), { code: 'EMPTY_AI_SUMMARY', upstream })
     try {
       return normalizeMedicalSummary(JSON.parse(text))
     } catch (error) {
-      if (error?.code === 'EMPTY_AI_SUMMARY') throw error
-      throw Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', cause: error })
+      if (error?.code === 'EMPTY_AI_SUMMARY') throw Object.assign(error, { upstream })
+      throw Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', upstream })
     }
   }
 

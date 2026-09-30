@@ -34,6 +34,9 @@
 - 模型不得诊断、判断严重程度或提供治疗、处方及用药建议；AI 内容的“查看依据”仍指向原始健康随记和健康档案。
 - 模型调用失败时返回可重试错误，不写入新版本，也不覆盖上一版病情摘要。
 - 开发环境从 Git 忽略的 `.env.local` 读取 `OPENAI_API_KEY`；密钥不得进入前端、日志或仓库。
+- 病情摘要失败时仅在服务端记录 HTTP 状态、`error.type`、`error.code`、脱敏消息、`x-request-id` 和 `Retry-After`。消息只保留允许的通用限额说明，其他上游文字统一隐藏；不记录请求、病情输入、Authorization 或完整响应，异常 cause 也不保留原始内容。前端仍收到通用失败提示。
+- 网络异常和摘要解析异常另保留允许列表内的错误码，避免把成功 HTTP 后的空输出误判为网络错误；日志不包含原始异常消息。
+- 摘要 Provider 使用单次 fetch，不自动重试。`rate_limit_exceeded`／`slow_down` 表示频率限制；`credit_balance_exhausted` 表示余额耗尽；`project_spend_limit_exceeded`、`organization_spend_limit_exceeded`、`organization_usage_limit_exceeded` 分别表示项目消费、组织消费、组织使用限额。只有 `insufficient_quota` 时保留为原因未细分，不推断具体余额或限额。
 
 AI 提示词只允许整理明示事实，禁止诊断、病因推断、风险判断、治疗或用药建议。
 
