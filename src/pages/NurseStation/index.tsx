@@ -24,7 +24,6 @@ import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
-import { useFoodAllergyIndex } from '../../hooks/useFoodAllergyIndex'
 import './nurseStation.css'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
@@ -33,7 +32,6 @@ const formatAboBloodType = (bloodType?: string) => bloodType ? `${bloodType}型`
 type EntryStatus = 'loading' | 'success' | 'error'
 
 export function NurseStationPage() {
-  const allergyIndex = useFoodAllergyIndex()
   const navigate = useNavigate()
   const location = useLocation()
   const authUser = useAppStore((value) => value.authUser)
@@ -238,19 +236,6 @@ export function NurseStationPage() {
             </div>
           </section>
         ) : null}
-        {member && (
-          <button
-            aria-label={`食物过敏记录指数，${allergyIndex.label}，查看详情`}
-            className="nurse-station-allergy-index"
-            onClick={() => navigate('/food-allergy-status-index', { state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) } })}
-            type="button"
-          >
-            <span>食物过敏记录指数</span>
-            <strong>{allergyIndex.label}</strong>
-            <ChevronRight aria-hidden="true" />
-          </button>
-        )}
-        {member && allergyIndex.error && <p role="status">{allergyIndex.data ? '指数更新失败，保留上次结果。' : '指数加载失败。'}<button onClick={allergyIndex.retry} type="button">重试</button></p>}
         <HomeEntries
           desensitizationCount={desensitizationCount}
           desensitizationStatus={desensitizationStatus}
