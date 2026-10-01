@@ -26,7 +26,7 @@ test('sidebar uses the approved concise navigation copy', () => {
 })
 
 test('sidebar service and account summary use the current member context', () => {
-  assert.match(drawer, /label: '前台', icon: Stethoscope/)
+  assert.match(drawer, /label: '前台', icon: House/)
   assert.match(drawer, /member\.primaryRecorderRelationship/)
   assert.match(drawer, /accountRelationship/)
 })

@@ -32,11 +32,6 @@
 .nurse-station-growth-data svg { width: 13px; height: 13px; flex: 0 0 auto; color: #66807a; }
 .nurse-station-growth-data .nurse-station-blood-type > span { flex-direction: column; gap: 0; }
 .nurse-station-growth-data .nurse-station-blood-type svg { width: 12px; height: 12px; }
-.nurse-station-allergy-index { display: grid; width: 100%; min-height: 48px; grid-template-columns: minmax(0, 1fr) auto 20px; align-items: center; gap: 8px; margin-top: 8px; border: 1px solid #dcedea; border-radius: 14px; padding: 0 12px; background: #fff; color: #17322e; text-align: left; }
-.nurse-station-allergy-index > span { min-width: 0; overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.nurse-station-allergy-index > strong { color: rgb(var(--hoho-color-primary)); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.nurse-station-allergy-index > svg { width: 18px; color: #526b66; }
-.nurse-station-allergy-index:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: 1px; }
 @keyframes nurse-fact-caret { 0%, 46% { opacity: 1; } 47%, 100% { opacity: 0; } }
 
 .nurse-home-entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }

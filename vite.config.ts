@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite'
-import { foodAllergyIndexApiPlugin } from './server/food-allergy-index/vite-food-allergy-index-plugin.mjs'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import packageMetadata from './package.json'
@@ -37,7 +36,6 @@ export default defineConfig({
     host: true
   },
   plugins: [
-    foodAllergyIndexApiPlugin(),
     authApiPlugin(),
     accountApiPlugin(),
     accountEntryStateApiPlugin(),

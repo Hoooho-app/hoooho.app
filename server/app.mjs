@@ -4,7 +4,6 @@ import { access, readFile, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import path from 'node:path'
-import { FoodAllergyIndexService } from './food-allergy-index/food-allergy-index-service.mjs'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
@@ -78,7 +77,6 @@ const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
 const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
-const foodAllergyIndex = new FoodAllergyIndexService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
@@ -800,10 +798,6 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleGrowthMeasurements(request, response, pathname, searchParams)) return true
   if (await handleRoutines(request, response, pathname, searchParams)) return true
   if (await handleMedicationReminders(request, response, pathname, searchParams)) return true
-  if (pathname === '/api/food-allergy-index' && request.method === 'GET') {
-    sendJson(response, 200, await foodAllergyIndex.get(await readAccountId(request), String(searchParams.get('memberId') ?? '')))
-    return true
-  }
   if (await handleDesensitizationTests(request, response, pathname, searchParams)) return true
   if (await handleQuickRecords(request, response, pathname)) return true
   if (await handleAudioTranscription(request, response, pathname)) return true
