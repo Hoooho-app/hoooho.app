@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium, devices } from '@playwright/test'
 const baseURL = process.argv[2]
@@ -6,9 +7,18 @@ if (!['https://hooohoapp-staging.up.railway.app','https://hoooho.com'].includes(
 const staging = baseURL.includes('-staging.')
 const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
 const context = await browser.newContext({ ...devices['iPhone SE (3rd gen)'], baseURL, serviceWorkers: 'block' })
-const request = context.request
 const errors = []
 const page = await context.newPage()
+await page.goto(baseURL + '/api/health')
+// Browser fetch uses the same network stack and cookies as the deployed page.
+const send = async (path, options = {}) => {
+  const result = await page.evaluate(async ({ path, options }) => {
+    const response = await fetch(path, { method: options.method ?? 'GET', credentials: 'same-origin', headers: { ...options.headers, ...(options.data ? { 'Content-Type': 'application/json' } : {}) }, ...(options.data ? { body: JSON.stringify(options.data) } : {}), signal: AbortSignal.timeout(15000) })
+    return { status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }
+  }, { path, options })
+  return { status: () => result.status, headers: () => result.headers, json: async () => JSON.parse(result.body), text: async () => result.body }
+}
+const request = { get: (path, options) => send(path, options), post: (path, options) => send(path, { ...options, method: 'POST' }) }
 page.on('pageerror', error => errors.push(error.message))
 page.on('response', response => { if (response.status() >= 500) errors.push('5xx ' + new URL(response.url()).pathname) })
 try {
@@ -17,13 +27,25 @@ try {
   assert.equal(unauth.status(), 401)
   const sessionResponse = await request.get('/api/auth/session')
   assert.equal(sessionResponse.status(), 200)
-  const session = await sessionResponse.json()
+  let session = await sessionResponse.json()
+  if (!session.token) {
+    // A dedicated QA account; never use the user's credentials or profile.
+    const registered = await request.post('/api/auth/register', { data: { nickname: 'indexqa' + randomBytes(4).toString('hex'), password: randomBytes(24).toString('base64url'), idempotencyKey: randomUUID() } })
+    assert.equal(registered.status(), 200, 'QA registration')
+    session = await registered.json()
+  }
   assert.ok(session.token)
   const headers = { Authorization: 'Bearer ' + session.token, Origin: baseURL }
   const membersResponse = await request.get('/api/members', { headers })
   assert.equal(membersResponse.status(), 200)
   const members = await membersResponse.json()
   let memberId = members[0]?.id
+  if (!memberId) {
+    const self = await request.post('/api/members/self', { headers, data: { name: '发布验收账号' } })
+    assert.equal(self.status(), 201, 'QA self member')
+    memberId = (await self.json()).id
+    assert.equal((await request.post('/api/auth/current-member', { headers, data: { memberId } })).status(), 200)
+  }
   assert.ok(memberId)
   const index = async id => {
     const response = await request.get('/api/food-allergy-index?memberId=' + encodeURIComponent(id), { headers })
@@ -50,7 +72,7 @@ try {
   await page.goto(baseURL + '/nurse-station')
   const home = page.locator('.nurse-station-allergy-index')
   if (staging) {
-    await home.waitFor({ timeout: 20000 })
+    await home.locator('strong').filter({ hasText: '75%' }).waitFor({ timeout: 20000 })
     assert.match(await home.innerText(), /75%/)
     await home.click()
   } else await page.goto(baseURL + '/food-allergy-status-index')
