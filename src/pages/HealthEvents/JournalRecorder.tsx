@@ -31,9 +31,10 @@ import { AIBusinessComposer } from '../../features/ai-business/AIBusinessCompose
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic' | 'ai'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen; depth: number; dietKind: DietRecordKind | null }
 
-export function JournalRecorder({ mode, memberId, token, selectedDay, today, initialCategory, onClose, onConfirm, onSaved }: {
+export function JournalRecorder({ mode, memberId, token, selectedDay, today, initialCategory, initialDietKind, onClose, onConfirm, onSaved }: {
   mode: 'manual' | 'voice'; memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
+  initialDietKind?: DietRecordKind
   suggestedMode?: 'start' | 'backfill' | 'nap'
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
@@ -42,10 +43,10 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
   const suggestedDietKind = suggestion?.prefill?.kind
-  const initialScreen = initialCategory === 'diet' ? suggestedDietKind ? 'diet-form' : 'diet-types' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
+  const initialScreen = initialCategory === 'diet' ? 'diet-form' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'elimination' ? 'bowel-form' : initialCategory === 'visit' ? 'visit-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
   const [screen, setScreen] = useState<RecorderScreen>(initialScreen)
   const [selected, setSelected] = useState<JournalCategory[]>([])
-  const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => ['feeding','complementary','meal','snack','supplement'].includes(String(suggestedDietKind)) ? suggestedDietKind as DietRecordKind : null)
+  const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => ['feeding','complementary','meal','snack','supplement'].includes(String(suggestedDietKind)) ? suggestedDietKind as DietRecordKind : initialDietKind ?? 'feeding')
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => {
     const draft = createSleepDraft()
     const quality = typeof suggestion?.prefill?.quality === 'string' ? suggestion.prefill.quality as SleepDraft['quality'] : undefined
@@ -105,7 +106,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const occurrenceDay = suggestion?.day ?? selectedDay
   const confirmPrefilled:typeof onConfirm=(content,at,channel,photos,journal)=>onConfirm(aiPrefill?.raw?`${content}\n原始描述（AI 预填后人工核对，修改后的表单为当前值）：${aiPrefill.raw}`:content,at,channel,photos,journal)
   if(screen==='ai'||(screen==='generic'&&mode==='voice'))return <AIBusinessComposer key={memberId} memberId={memberId} token={token} onClose={closeRecorder} onSaved={onSaved} onApply={item=>{setAiPrefill({journal:item.journal,at:item.time.resolvedStart??undefined,raw:item.originText??''});if(item.journal.sleep){setSleepDraft({...createSleepDraft(),...item.journal.sleep});navigateScreen('sleep-form')}else if(item.journal.bowel)navigateScreen('bowel-form');else if(item.journal.outdoorActivity)navigateScreen('activity-form')}}/>
-  if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={() => backOneLevel('diet-types')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.bowel} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} mode={suggestion?.mode} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.outdoorActivity} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
@@ -121,7 +122,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', image: supplementImage }
   ]
   const isDietTypes = screen === 'diet-types'
-  const categoryScreen = (category: JournalCategory) => category === 'diet' ? 'diet-types' : category === 'sleep' ? 'sleep-form' : category === 'elimination' ? 'bowel-form' : category === 'activity' ? 'activity-form' : category === 'symptom' ? 'symptom-form' : category === 'medication' ? 'medication-form' : category === 'vaccination' ? 'vaccination-form' : category === 'visit' ? 'visit-form' : 'generic'
+  const categoryScreen = (category: JournalCategory) => category === 'diet' ? 'diet-form' : category === 'sleep' ? 'sleep-form' : category === 'elimination' ? 'bowel-form' : category === 'activity' ? 'activity-form' : category === 'symptom' ? 'symptom-form' : category === 'medication' ? 'medication-form' : category === 'vaccination' ? 'vaccination-form' : category === 'visit' ? 'visit-form' : 'generic'
   const chooseCategory = (category: JournalCategory) => {
     setSelected([category])
     navigateScreen(categoryScreen(category))

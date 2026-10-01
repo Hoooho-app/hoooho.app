@@ -17,12 +17,11 @@ async function prepare(page: Page, member = 'child-one') {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
   }, { token, member })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '记录日常', exact: true })).toBeVisible()
 }
 
 async function openSymptom(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记录症状', exact: true }).click()
 }
 
 test('symptom voice click-start streams interim text, ends without duplication and preserves text on errors', async ({ page }) => {
@@ -99,8 +98,7 @@ test('symptom form fixes viewport, puts location input before tags and removes r
 })
 
 async function openDaily(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录日常', exact: true }).click()
+  await page.getByRole('button', { name: '记录日常', exact: true }).click()
 }
 
 test('symptom voice cancels pending permission and close aborts recording without an unsaved prompt', async ({ page }) => {
@@ -136,8 +134,7 @@ test('symptom voice cancels pending permission and close aborts recording withou
 })
 
 async function openVisit(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录就医', exact: true }).click()
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'visit' } })))
 }
 
 async function createDespiteDuplicateIfNeeded(page: Page) {
@@ -729,7 +726,13 @@ test('sleep has one running start and two completed endpoints at normal height d
   const sleepRows = page.locator('.journal-timeline-row--sleep')
   await expect(sleepRows).toHaveCount(1)
   await expect(sleepRows.locator(':scope > time')).toHaveText('11:10')
-  await expect(sleepRows).toContainText('睡眠· 开始入睡 · 持续')
+  await expect(sleepRows).toContainText('睡眠· 开始入睡 · 持续...')
+  const dots = sleepRows.locator('.journal-sleep-ongoing-dots')
+  await expect(dots).toHaveAttribute('aria-hidden', 'true')
+  expect(await dots.locator('span').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).animationName))).toEqual(['journal-sleep-dot', 'journal-sleep-dot', 'journal-sleep-dot'])
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await dots.locator('span').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).animationName))).toEqual(['none', 'none', 'none'])
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   for (const width of [375, 390, 430]) {
     await page.setViewportSize({ width, height: 667 })
     expect(await sleepRows.locator('button').evaluate(row => row.getBoundingClientRect().height)).toBe(46)
@@ -747,7 +750,8 @@ test('sleep has one running start and two completed endpoints at normal height d
   expect(ended.ok(), await ended.text()).toBe(true)
   await page.reload(); await expect(sleepRows).toHaveCount(2)
   await expect(sleepRows.locator(':scope > time')).toHaveText(['15:40', '11:10'])
-  await expect(sleepRows).toHaveText([/睡眠· 醒了 · 共4小时30分钟/, /睡眠· 开始入睡/])
+  await expect(sleepRows).toHaveText([/睡眠· 醒了 · 共4小时30分钟/, /睡眠· 开始于11点10分入睡/])
+  await expect(sleepRows.locator('.journal-sleep-ongoing-dots')).toHaveCount(0)
   await expect(sleepRows.filter({ hasText: '持续' })).toHaveCount(0)
   const order = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll(rows => rows.filter(row => row.classList.contains('journal-timeline-row--sleep') || row.textContent?.includes('睡眠中插入事件')).map(row => row.classList.contains('journal-timeline-row--sleep') ? 'sleep' : 'event'))
   expect(order).toEqual(['sleep', 'event', 'sleep'])
@@ -794,7 +798,7 @@ test('multi-day actual sleep has exactly two dated endpoints and no middle-day c
   await page.getByLabel('选择日期').fill('2026-09-22')
   await expect(rows).toHaveCount(1)
   await expect(rows.locator(':scope > time')).toHaveText('13:00')
-  await expect(rows).toContainText('开始入睡')
+  await expect(rows).toContainText('开始于13点00分入睡')
   await expect(rows).not.toContainText('持续')
   const records = await page.request.get(`/api/events/${source.eventId}/records?view=time`, { headers })
   expect((await records.json()).filter((record: any) => record.id === source.recordId)).toHaveLength(1)

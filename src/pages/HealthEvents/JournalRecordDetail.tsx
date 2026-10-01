@@ -8,6 +8,8 @@ import { useJournal } from './useJournal'
 import { useAppStore } from '../../store/useAppStore'
 import { healthEventRecordService } from '../../services/healthEventRecords'
 import { localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
+import { DietRecordFlow } from './DietRecordFlow'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
 
 export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose }: {
   eventId: string
@@ -21,6 +23,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   const token = useAppStore((value) => value.authToken ?? '')
   const relatedJournal = useJournal(memberId, token, 0)
   const [now, setNow] = useState(() => Date.now())
+  const [editingDiet,setEditingDiet] = useState(false)
   const [ending, setEnding] = useState(false)
   const [endError, setEndError] = useState('')
   const [correctionOpen, setCorrectionOpen] = useState(false)
@@ -116,12 +119,14 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
     />
   }
 
+  if (editingDiet && record?.journal?.diet) return <DietRecordFlow key={record.id} kind={record.journal.diet.kind} initialDiet={record.journal.diet} initialOccurredAt={record.occurredAt} recordId={record.id} memberId={state.data.member.id} token={token} selectedDay={getLocalDateKey(new Date(record.occurredAt))!} today={getLocalDateKey(new Date())!} onBack={()=>setEditingDiet(false)} onClose={onClose} onSaved={()=>onChanged()} onConfirm={async(content,occurredAt,_channel,_photos,journal)=>{await updateRecord(record.id,{content,occurredAt,journal:{...record.journal,...journal}});return '记录已更新'}}/>
   return <SymptomRecordSheet
     memberId={state.data.member.id}
     refreshError={state.refreshError}
     entry={entry}
     memberName={state.data.member.name}
     onClose={onClose}
+    onEditDiet={record?.journal?.diet?()=>setEditingDiet(true):undefined}
     onDelete={async (id) => { await deleteRecord(id); onChanged() }}
     onUpdate={async (id, input) => { const updated = await updateRecord(id, input); onChanged(); return updated }}
     record={record}
