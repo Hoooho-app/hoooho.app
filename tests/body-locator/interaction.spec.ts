@@ -1,7 +1,7 @@
 import {expect,test,type Page} from '@playwright/test'
 import {mkdir,writeFile} from 'node:fs/promises'
 import {TokenService} from '../../server/auth/token-service.mjs'
-import {isolateLiveApi} from './helpers'
+import {choose,complete,isolateLiveApi,openRegion} from './helpers'
 const authToken=new TokenService('body-locator-local-test-only',3600000).create({id:'body-locator-test-account'})
 test('locator v2 fixed workspace and explicit sides retain palm and dorsum selections',async({page},info)=>{
   await isolateLiveApi(page)
@@ -31,5 +31,11 @@ test('locator v2 fixed workspace and explicit sides retain palm and dorsum selec
   await p.getByRole('button',{name:/完成并返回症状记录/}).click();await expect(p).toHaveCount(0);await expect(form.locator('.symptom-location-tags')).toContainText('左掌心');await expect(form.locator('.symptom-location-tags')).not.toContainText('号区域')
   await page.screenshot({path:`${dir}/form-result.png`})
   await expect(form.locator('.child-body-open')).toBeFocused()
+  await form.locator('.child-body-open').click();await openRegion(page,'foot_left');await p.getByRole('button',{name:'内侧',exact:true}).click();await choose(page,'foot_left_medial_arch');await complete(page)
+  await form.locator('.child-body-open').click();await p.getByRole('button',{name:'查看全部',exact:true}).click();await page.getByRole('dialog',{name:'已选 3 处',exact:true}).getByRole('button',{name:'左足弓内侧',exact:true}).click()
+  await expect(p.getByRole('button',{name:'左足',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('button',{name:'内侧',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('img',{name:'女孩左足内侧示意图',exact:true})).toBeVisible()
+  await p.getByRole('button',{name:'外侧',exact:true}).click();await choose(page,'foot_left_lateral_arch');await complete(page)
+  await form.locator('.child-body-open').click();await p.getByRole('button',{name:'查看全部',exact:true}).click();await page.getByRole('dialog',{name:'已选 4 处',exact:true}).getByRole('button',{name:'左足中部外侧',exact:true}).click()
+  await expect(p.getByRole('button',{name:'外侧',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('img',{name:'女孩左足外侧示意图',exact:true})).toBeVisible();await page.screenshot({path:`${dir}/foot-side-restored.png`});await complete(page)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
