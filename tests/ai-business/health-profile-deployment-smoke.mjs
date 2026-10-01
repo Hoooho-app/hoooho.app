@@ -14,11 +14,12 @@ page.on('response',response=>{if(response.status()>=500&&!response.url().include
 const output=`outputs/health-profile/${environment}`
 await mkdir(output,{recursive:true})
 let token,memberId,aiStatus='not-tested'
-async function api(path,method='GET',data){const response=await context.request.fetch(baseURL+path,{method,headers:{...(token?{Authorization:`Bearer ${token}`} : {}),'Content-Type':'application/json'},...(data===undefined?{}:{data}),timeout:120000});if(!response.ok())throw new Error(`Synthetic QA ${method} ${path.replace(/[0-9a-f-]{30,}/gi,':id')}: HTTP ${response.status()}`);return response.json()}
+async function request(path,method='GET',data){return page.evaluate(async({path,method,data,token})=>{const response=await fetch(path,{method,credentials:'same-origin',headers:{...(token?{Authorization:`Bearer ${token}`} : {}),'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)}),signal:AbortSignal.timeout(120000)});return {status:response.status,body:await response.text()}},{path,method,data,token})}
+async function api(path,method='GET',data){const response=await request(path,method,data);if(response.status>=400)throw new Error(`Synthetic QA ${method} ${path.replace(/[0-9a-f-]{30,}/gi,':id')}: HTTP ${response.status}`);return JSON.parse(response.body)}
 try {
   await page.goto(baseURL+'/api/health')
-  assert.equal((await context.request.get(baseURL+'/')).status(),200)
-  assert.equal((await context.request.get(baseURL+'/api/health')).status(),200)
+  assert.equal((await request('/')).status,200)
+  assert.equal((await request('/api/health')).status,200)
   let session=await api('/api/auth/session')
   if(!session.token)session=await api('/api/auth/register','POST',{nickname:`hpqa${randomBytes(5).toString('hex')}`,password:randomBytes(24).toString('base64url'),idempotencyKey:randomUUID()})
   token=session.token;assert.ok(token)
@@ -50,7 +51,7 @@ try {
   await save.click();await expect(sheet.getByText(/已保存 \d+ 条记录/,{exact:true})).toBeVisible({timeout:30000})
   const saved=await api(`/api/members/${memberId}/ai-drafts/${draft.id}`),repeated=await api(`/api/members/${memberId}/ai-drafts/${draft.id}/save`,'POST',{version:draft.version,confirmed:true});assert.deepEqual(repeated.result,saved.result)
   const first=saved.result.records[0],files=await api(`/api/events/${first.eventId}/attachments`);assert.ok(files.length>0)
-  assert.equal((await context.request.get(`${baseURL}/api/events/${first.eventId}/attachments/${files[0].id}/content`,{headers:{Authorization:`Bearer ${token}`}})).status(),200)
+  assert.equal((await request(`/api/events/${first.eventId}/attachments/${files[0].id}/content`)).status,200)
   await sheet.getByRole('button',{name:'完成',exact:true}).click();await page.screenshot({path:`${output}/saved.png`})
   await page.goto(baseURL+'/health-profile');await expect(page.locator('.health-profile-entry')).toHaveCount(5);await expect(page.getByText(/待排查 \d+ · 已明确 \d+/)).toBeVisible();await page.screenshot({path:`${output}/home-after-save.png`})
   await page.getByRole('button',{name:'就诊情况单，孩子情况快速整理'}).click();await expect(page).toHaveURL(/visit-summary/)
