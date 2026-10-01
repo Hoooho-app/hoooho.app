@@ -97,7 +97,10 @@ export class AIBusinessService {
     const task=['record','report','visit','archive'].includes(input.task)?input.task:'record'
     const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
-    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length)return publicDraft(previous)
+    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
+      if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
+      return publicDraft(previous)
+    }
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false
