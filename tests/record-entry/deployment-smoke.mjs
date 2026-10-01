@@ -6,8 +6,9 @@ import { chromium, devices } from '@playwright/test'
 const baseURL=process.argv[2]
 assert.ok(['https://hooohoapp-staging.up.railway.app','https://hoooho.com'].includes(baseURL),'Explicit deployment URL required')
 const environment=baseURL.includes('-staging.')?'staging':'production'
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
-const context=await browser.newContext({...devices['iPhone SE'],viewport:{width:375,height:667},baseURL,timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
+// Keep only this task's synthetic session in an ignored, separate browser profile.
+// Retries reuse its cookies instead of creating more accounts or using personal profiles.
+const context=await chromium.launchPersistentContext(`.codex-tmp/record-entry-qa-${environment}`,{headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...devices['iPhone SE'],viewport:{width:375,height:667},baseURL,timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
 const page=await context.newPage(),errors=[],verified=[]
 page.on('pageerror',e=>errors.push(e.message))
 page.on('response',r=>{if(r.status()>=500)errors.push(`5xx ${new URL(r.url()).pathname}`)})
@@ -18,13 +19,17 @@ try {
   await page.goto(baseURL+'/api/health')
   for(const path of ['/','/api/health','/health-events'])assert.equal((await request(path)).status,200,path)
   // Explicitly authorized synthetic QA account, no user's browser profile or credentials.
-  const registration=await request('/api/auth/register','POST',{nickname:`entryqa${randomBytes(5).toString('hex')}`,password:randomBytes(24).toString('base64url'),idempotencyKey:randomUUID()})
-  assert.equal(registration.status,200,'Dedicated QA registration')
-  const session=JSON.parse(registration.body),token=session.token
+  let session=JSON.parse((await request('/api/auth/session')).body)
+  if(!session.token){
+    const registration=await request('/api/auth/register','POST',{nickname:`entryqa${randomBytes(5).toString('hex')}`,password:randomBytes(24).toString('base64url'),idempotencyKey:randomUUID()})
+    assert.equal(registration.status,200,registration.status===429?`QA registration rate limited; retry after ${JSON.parse(registration.body).error?.retryAfter??'server window'} seconds`:'Dedicated QA registration')
+    session=JSON.parse(registration.body)
+  }
+  const token=session.token
   assert.ok(token)
-  const child=await request('/api/members','POST',{name:'记录入口发布验收',birthday:'2024-12-20',gender:'female',relationship:'child',avatar:''},token)
-  assert.equal(child.status,201,'QA child')
-  const memberId=JSON.parse(child.body).id
+  const members=JSON.parse((await request('/api/members','GET',undefined,token)).body)
+  let memberId=members.find(m=>m.name==='记录入口发布验收')?.id
+  if(!memberId){const child=await request('/api/members','POST',{name:'记录入口发布验收',birthday:'2024-12-20',gender:'female',relationship:'child',avatar:''},token);assert.equal(child.status,201,'QA child');memberId=JSON.parse(child.body).id}
   assert.equal((await request('/api/auth/current-member','POST',{memberId},token)).status,200)
   await page.goto(baseURL+'/health-events')
   await page.getByRole('button',{name:'记录日常',exact:true}).waitFor()
@@ -40,7 +45,7 @@ try {
   for(const [button,title] of [['记录症状','记录症状'],['记录补剂','记录补剂'],['记录用药','记录用药']]){
     await page.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await form.waitFor()
-    await form.getByRole('button',{name:title==='记录症状'?'关闭':'返回',exact:true}).click()
+    await form.getByRole('button',{name:title==='记录症状'?'关闭':/^返回/,exact:title==='记录症状'}).click()
   }
   for(const [method,label] of [['breast','母乳'],['formula','配方奶'],['expressed','瓶喂母乳'],['mixed','混合喂养'],['complementary','辅食'],['meal','正餐'],['snack','零食']]){
     await daily.click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:'喂养/饮食'}).click()
@@ -83,4 +88,4 @@ try {
   assert.deepEqual(errors,[])
   const summary={environment,verified,health:'PASS',entry:'PASS',smart:'PASS',history:'PASS',errors,syntheticAccount:true,checkedAt:new Date().toISOString()}
   await writeFile(`${output}/smoke.json`,JSON.stringify(summary,null,2));console.log(JSON.stringify(summary))
-}finally{await context.close();await browser.close()}
+}catch(error){await page.screenshot({path:`${output}/failure.png`});throw error}finally{await context.close()}
