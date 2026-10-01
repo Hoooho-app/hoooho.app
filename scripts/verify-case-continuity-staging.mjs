@@ -13,7 +13,7 @@ const browser = await chromium.launch({executablePath:'C:/Program Files/Google/C
 const context = await browser.newContext({...devices['iPhone SE'],timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
 const page = await context.newPage();page.setDefaultTimeout(45000)
 const result = {target:base,startedAt:new Date().toISOString(),checks:{},screenshots:[],runtimeErrors:0,http5xx:0,cleanup:{},realASR:'NOT_VERIFIED',physicalIOSCamera:'NOT_VERIFIED',systemNotification:'BLOCKED_CHANNEL_UNVERIFIED'}
-let token,memberId,aiDraftId
+let token,memberId,aiDraftId,registered=false
 page.on('pageerror',()=>result.runtimeErrors++)
 page.on('response',response=>{if(response.status()>=500 && !/ai-drafts/.test(response.url()))result.http5xx++})
 async function api(url,data,method='POST') {
@@ -31,7 +31,7 @@ try {
   await page.goto(base+'/login');await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill('情况验收'+randomUUID().slice(0,8));await page.getByPlaceholder('设置一个密码').fill(randomUUID())
   const registration=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST')
-  await page.getByRole('button',{name:'注册并进入',exact:true}).click();assert.ok((await registration).ok())
+  await page.getByRole('button',{name:'注册并进入',exact:true}).click();assert.ok((await registration).ok());registered=true
   const session=await(await context.request.get(base+'/api/auth/session')).json();token=session.token;assert.ok(token)
   memberId=(await api('/api/members',{name:'合成验收，非真实患者',relationship:'child',gender:'female',birthday:'2025-01-01'})).id
   await api('/api/auth/current-member',{memberId});await page.goto(base+'/nurse-station');await expect(page.getByText('还没有正在跟进的情况')).toBeVisible()
@@ -60,6 +60,6 @@ try {
 finally {
   if (aiDraftId) {await api(`/api/members/${memberId}/ai-drafts/${aiDraftId}`,undefined,'DELETE').then(()=>result.cleanup.draft='REMOVED').catch(()=>result.cleanup.draft='FAILED')}
   if (memberId) {await api(`/api/members/${memberId}`,undefined,'DELETE').then(()=>result.cleanup.syntheticMember='REMOVED').catch(()=>result.cleanup.syntheticMember='FAILED')}
-  result.cleanup.isolatedAcceptanceAccount='RETAINED_NO_IDENTITY_DELETION_BYPASS';result.finishedAt=new Date().toISOString()
+  result.cleanup.isolatedAcceptanceAccount=registered?'RETAINED_NO_IDENTITY_DELETION_BYPASS':'NOT_CREATED';result.finishedAt=new Date().toISOString()
   await writeFile(path.join(output,'verification.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));await context.close();await browser.close()
 }

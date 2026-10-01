@@ -162,3 +162,41 @@ It does not prove physical camera, real partial ASR or background push delivery.
 Do not merge/release Production while the required Staging AI/device acceptance
 gate is blocked. Final delivery must give actual commit/deployment/health evidence,
 not label deployment N/A or use an HTTP200 as full functional acceptance.
+
+## Actual release evidence (2026-10-02)
+
+- Runtime candidate commit: `9f5ad71b16ac7e17f48c3fd52c025ffd4f17d8a3`.
+- Branch: `codex/continuity-v3-20261002`; remote SHA verified equal to local.
+- Draft PR: https://github.com/Hoooho-app/hoooho.app/pull/282.
+- Railway Staging deployment: `2930e4f1-7628-42b3-8ca6-5614be00cd9d`,
+  SUCCESS, RUNNING, startup on port 8080, original `/data` volume preserved.
+- CLI upload has no `meta.commitHash`; it names candidate `9f5ad71`. A deployed
+  SHA must NOT be inferred from that message. Public live artifact verification
+  is blocked, not passed.
+- Staging domain and target 8080 were confirmed from Railway configuration.
+  HTTPS health requests from Playwright, curl and Node timed out at the existing
+  Railway-native domain. Independent DNS confirms the same address. The configured
+  custom `staging.hoooho.com` returns ENOTFOUND. Web fetch was also inaccessible.
+- An existing-key SSH read-only artifact check was attempted, but no SSH key is
+  available. No SSH identity was generated/registered and no security setting
+  or domain was changed to bypass this boundary.
+- The live acceptance runner stopped before account/member creation, before any
+  Staging business writes, and before its single real-provider attempt. Thus
+  neither live persistence nor OCR was accepted. Evidence: ignored
+  `outputs/continuity-v3/staging/verification.json`.
+- The missing Staging AI key remains an independent real-OCR gate. No Production
+  secret was reused. Physical iOS camera/live partial ASR and push remain unverified.
+- `main` remains `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`; this PR was not merged.
+  Production deployment was not executed; its existing health endpoint returned
+  HTTP200/ok. This is not verification of the candidate on Production.
+
+Local runtime results: client 550/550; server 199/199 plus guest 21/21; AI,
+visit-sheet and case unit checks 82/82; journal 23/23; parser evaluation 30/30;
+build/typecheck and whitespace check PASS. Browser suites: case 8/8, report
+28/28, AI 9/9, nurse/task 14/14, record entry 15/15. Lint is N/A (no script).
+Screenshots are local runtime evidence, not Staging/Production screenshots;
+synthetic source material and simulated ASR/OCR remain explicitly distinguished.
+
+Overall release status: BLOCKED, not DONE. Required next steps are restoring
+access to the existing Staging HTTPS endpoint, configuring an authorized Staging
+AI provider, running live acceptance, then main/Production integration and checks.
