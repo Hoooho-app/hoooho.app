@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type ChildRegion, type ChildView } from '../../../features/body-location/childBodyCatalog'
-import { type Bounds, type LocalAngle } from '../../../features/body-location/childBodyGeometry'
+import { localAngles, type Bounds, type LocalAngle } from '../../../features/body-location/childBodyGeometry'
 import { LOCATOR_CATEGORIES, applicableLocation, categoryId, type LocatorModel } from '../../../features/body-location/locatorDictionary'
 import { bodyZone, cropLocatorZone, locatorAssetUrl, locatorVisual, locatorZones, type LocatorZone } from '../../../features/body-location/locatorGeometry'
 
@@ -50,8 +50,9 @@ export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onTog
     }
     onToggle(z.id)
   }
+  const viewLabel=region&&(region.zoom==='hand'||region.zoom==='foot') ? localAngles(region).find(item=>item.id===angle)?.label??'' : view==='front'?'正面':'背面'
   return <div className="locator-stage" ref={host} data-asset={visual?.asset} data-angle={visual?.angle} data-visible-entries={visible.map(z=>z.id).join(',')}>
-    {visual&&status==='ready'&&<svg className="locator-canvas" viewBox={`0 0 ${size.width} ${size.height}`} aria-label={`${model==='girl'?'女孩':model==='boy'?'男孩':'中性儿童'}${region?region.label:'全身'}${view==='front'?'正面':'背面'}示意图`}>
+    {visual&&status==='ready'&&<svg className="locator-canvas" viewBox={`0 0 ${size.width} ${size.height}`} aria-label={`${model==='girl'?'女孩':model==='boy'?'男孩':'中性儿童'}${region?region.label:'全身'}${viewLabel}示意图`}>
       <svg x={ix} y={iy} width={imageW} height={imageH} viewBox={`${zx} ${zy} ${zw} ${zh}`} preserveAspectRatio="none">
         <image href={locatorAssetUrl(visual)} x={-visual.bounds[0]/visual.bounds[2]} y={-visual.bounds[1]/visual.bounds[3]} width={1/visual.bounds[2]} height={1/visual.bounds[3]} preserveAspectRatio="none"/>
         {zones.map((z,i)=><g key={`${z.id}:${i}`}><path d={z.path} data-zone-id={z.id} className="locator-zone" data-selected={isSelected(z)} onClick={()=>activate(z)}><title>{z.label}</title></path>{isSelected(z)&&<text className="locator-check" x={z.point[0]} y={z.point[1]} textAnchor="middle" dominantBaseline="middle" fontSize={.045*Math.min(zw,zh)}>✓</text>}</g>)}

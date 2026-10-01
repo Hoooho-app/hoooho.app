@@ -95,7 +95,7 @@ export function ChildBodyLocationPicker({memberId,value,onChange,buttonLabel,con
     const nextSide:LocatorSide=restore?.laterality==='left'||restore?.laterality==='right'?restore.laterality:knownSide==='left'||knownSide==='right'?knownSide:''
     const r=locatorRegion(c,nextSide),v=restore?.view==='back'?'back':restore?.view==='front'?'front':view
     setCategoryId(id);setSide(nextSide);setDrawer(null);setQuery('');setZoom(null);setView(r&&!r.views.includes(v)?r.views[0]:v)
-    setAngle(restore?.surface==='dorsal'?'dorsal':restore?.surface==='plantar'?'plantar':c?.id==='foot'?'dorsal':'palm')
+    setAngle(c?.id==='foot'&&restore?.surface==='medial'?'medial':c?.id==='foot'&&restore?.surface==='lateral'?'lateral':restore?.surface==='dorsal'?'dorsal':restore?.surface==='plantar'?'plantar':c?.id==='foot'?'dorsal':'palm')
   }
   const choose=(next:BodyLocationSelection)=>setDraft(current=>{const result=toggleLocatorSelection(current,next);if(result.length>20){setNotice('每次最多选择20个部位，请先移除已有部位。');return current}setNotice('');return result})
   const toggle=(id:string)=>choose({...locatorSelection(id,model),view:region?.zoom==='hand'?(angle==='palm'?'palm':'dorsum'):region?.zoom==='foot'?(angle==='plantar'?'sole':'front'):view})
