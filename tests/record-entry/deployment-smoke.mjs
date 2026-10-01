@@ -33,6 +33,8 @@ try {
   assert.equal((await request('/api/auth/current-member','POST',{memberId},token)).status,200)
   await page.goto(baseURL+'/health-events')
   await page.getByRole('button',{name:'记录日常',exact:true}).waitFor()
+  await page.waitForFunction(()=>[...document.querySelectorAll('.record-entry-actions img')].every(img=>img.complete&&img.naturalWidth>0))
+  await page.getByText('正在加载时间轴...', {exact:true}).waitFor({state:'hidden'})
   assert.deepEqual(await page.locator('.record-entry-grid button').allTextContents(),['记录症状','记录日常','记录补剂','记录用药'])
   assert.equal(await page.locator('.record-smart-action svg').count(),1)
   await page.screenshot({path:`${output}/home-375.png`})
@@ -40,6 +42,7 @@ try {
   await daily.click()
   assert.deepEqual(await page.locator('.daily-record-options button').allTextContents(),['喂养/饮食','睡眠','排便','户外活动'])
   assert.equal(await page.getByRole('dialog').count(),0)
+  await page.waitForFunction(()=>[...document.querySelectorAll('.daily-record-options img')].every(img=>img.complete&&img.naturalWidth>0))
   await page.screenshot({path:`${output}/daily-open-375.png`})
   await daily.click()
   for(const [button,title] of [['记录症状','记录症状'],['记录补剂','记录补剂'],['记录用药','记录用药']]){
@@ -57,6 +60,7 @@ try {
     if(method==='breast'||method==='mixed')await form.getByLabel('左侧手填分钟').fill('2')
     if(milk&&method!=='breast')await form.getByLabel('喂奶量').fill('105')
     if(!milk){await form.getByLabel('输入食物名称').fill(`发布验收食物${method}`);await form.getByRole('button',{name:'添加食物'}).click()}
+    if(method==='complementary')await form.getByRole('button',{name:'编辑',exact:true}).waitFor()
     if(method==='breast'||method==='complementary')await page.screenshot({path:`${output}/${milk?'milk':'food'}-375.png`})
     const saved=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/quick-records'&&r.request().method()==='POST')
     await form.getByRole('button',{name:'保存记录',exact:true}).click()
