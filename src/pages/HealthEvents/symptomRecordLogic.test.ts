@@ -26,17 +26,17 @@ test('display tags remove negated and exact duplicate facts without hiding unrel
   assert.deepEqual(visibleSymptomKeywords('脸色不好', ['发红']), ['发红'])
 })
 
-test('location validation rejects isolated numbering and displays locator names with numbers', () => {
+test('location validation rejects isolated numbering and displays concrete locator names without ordinals', () => {
   assert.equal(isSemanticSymptomLocation('1'), false)
   assert.equal(isSemanticSymptomLocation(' 1号区域 '), false)
   assert.equal(isSemanticSymptomLocation('左肘窝'), true)
   assert.equal(symptomLocationDisplay({ locationText: '1', locations: [] }), '')
-  assert.equal(symptomLocationDisplay({ locationText: '左肘窝', locations: [{ id: 'left-elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', localRegion: '左肘窝' }] }), '左肘窝 · 1号区域')
+  assert.equal(symptomLocationDisplay({ locationText: '左肘窝', locations: [{ id: 'left-elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', localRegion: '左肘窝' }] }), '左肘窝')
   assert.equal(symptomLocationDisplay({ locationText: '衣领接触处', locations: [{ id: 'legacy-neck', label: '颈部', locationLayer: 'surface', localRegion: '颈部' }] }), '颈部、衣领接触处')
 })
 
-test('symptom locations preserve structured position and stable numbering', () => {
-  assert.deepEqual(toSymptomLocations([{ id: 'upper_limb_elbow_left', label: '左肘', parentId: 'upper_limb', locationType: 'surface', laterality: 'left', view: 'front' }]), [{ id: 'upper_limb_elbow_left', label: '左肘', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘', markedArea: '1号区域' }])
+test('symptom locations preserve structured position and internal ordering without numbered marked areas', () => {
+  assert.deepEqual(toSymptomLocations([{ id: 'upper_limb_elbow_left', label: '左肘', parentId: 'upper_limb', locationType: 'surface', laterality: 'left', view: 'front' }]), [{ id: 'upper_limb_elbow_left', label: '左肘', locationNumber: 1, locationLayer: 'surface', bodySide: 'left', bodyView: 'front', bodyRegion: 'upper_limb', localRegion: '左肘', markedArea: undefined }])
 })
 
 test('none observed is mutually exclusive with associated symptoms', () => {
@@ -52,7 +52,7 @@ test('ENT descriptors follow the selected visible location', () => {
 
 test('deterministic summary uses only recorded facts and never invents diagnosis or cause', () => {
   const summary = generateSymptomSummary({ symptomCategory: 'skin', locations: [{ id: 'elbow', label: '左肘窝', locationNumber: 1, locationLayer: 'surface', localRegion: '左肘窝' }], descriptors: ['发红', '痒'], impactLevel: 'some', onsetApprox: 'today', trend: 'more_noticeable', associatedSymptoms: ['影响睡觉'] }, 2)
-  assert.match(summary, /左肘窝1号区域/)
+  assert.match(summary, /左肘窝皮肤变化/)
   assert.match(summary, /发红、痒/)
   assert.match(summary, /今天开始/)
   assert.match(summary, /2张现场照片/)

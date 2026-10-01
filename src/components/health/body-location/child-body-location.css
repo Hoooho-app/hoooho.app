@@ -47,3 +47,51 @@
 .child-body-text-reference { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-body-small); }
 .child-body-sheet button:focus-visible,.child-body-sheet a:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: 2px; }
 @media(max-width: 600px) { .child-body-sheet.hoho-bottom-sheet { height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; } .child-body-sheet .hoho-bottom-sheet__handle { display: none; } }
+
+/* Fixed image workspace; overflow choices and selections live in bounded drawers. */
+.locator-session { position: relative; z-index: 90; }
+.child-body-sheet .hoho-bottom-sheet__body { display: flex; flex: 1; padding: 0 12px; overflow: hidden; min-height: 0; }
+.locator-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 4px; }
+.locator-context { display: flex; align-items: center; justify-content: space-between; min-height: 28px; gap: 8px; font-size: 14px; }
+.locator-context span { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.locator-stage { flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; }
+.locator-canvas { width: 100%; height: 100%; display: block; }
+.locator-zone { fill: transparent; stroke: transparent; stroke-width: .003; cursor: pointer; }
+.locator-zone:hover { fill: rgb(var(--hoho-color-primary) / .12); stroke: rgb(var(--hoho-color-primary) / .5); }
+.locator-zone[data-selected=true] { fill: rgb(var(--hoho-color-primary) / .34); stroke: rgb(var(--hoho-color-primary)); stroke-width: .004; }
+.locator-check { fill: rgb(var(--hoho-color-primary)); font-weight: 700; pointer-events: none; }
+.locator-leader { fill: none; stroke: rgb(var(--hoho-color-primary) / .35); stroke-width: 1; pointer-events: none; }
+.locator-callout { position: absolute; display: flex; gap: 2px; align-items: center; justify-content: center; min-height: 44px; height: 44px; padding: 3px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 11px; background: rgb(var(--hoho-color-surface) / .98); color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
+.locator-callout[aria-pressed=true] { background: rgb(var(--hoho-color-primary-soft)); border-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
+.locator-callout svg { flex-shrink: 0; }
+.locator-image-status { position: absolute; inset: 0 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: rgb(var(--hoho-color-text-secondary)); font-size: 14px; }
+.locator-image-status button,.locator-more-trigger,.locator-zoom-back { min-height: 44px; color: rgb(var(--hoho-color-primary)); font-size: 14px; }
+.locator-more-trigger { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); padding: 0 12px; background: rgb(var(--hoho-color-surface) / .95); border-radius: 10px; }
+.locator-zoom-back { position: absolute; bottom: 0; left: 0; padding: 0 12px; background: rgb(var(--hoho-color-surface)); border-radius: 10px; }
+.locator-secondary { display: flex; gap: 8px; flex-shrink: 0; padding-bottom: 4px; }
+.locator-secondary button { flex: 1; min-height: 44px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 11px; font-size: 14px; }
+.locator-side-empty { flex: 1; display: grid; place-content: center; text-align: center; color: rgb(var(--hoho-color-text-secondary)); font-size: 14px; }
+.locator-side-empty p { margin: 5px 0; }
+.child-body-footer { position: relative; gap: 4px; }
+.locator-selected-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 44px; font-size: 12px; }
+.locator-selected-line > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.locator-selected-line button { flex-shrink: 0; min-height: 44px; color: rgb(var(--hoho-color-primary)); font-size: 14px; }
+.locator-notice { position: absolute; bottom: 100%; left: 0; right: 0; padding: 8px; font-size: 12px; background: rgb(var(--hoho-color-surface)); border: 1px solid rgb(var(--hoho-color-border)); border-radius: 8px; }
+.locator-profile-error { flex-shrink: 0; min-height: 44px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; }
+.locator-drawer-layer { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; z-index: 92; }
+.locator-drawer-backdrop { position: absolute; inset: 0; background: rgb(20 50 45 / .3); }
+.locator-drawer { position: relative; display: flex; flex-direction: column; width: min(100%,620px); max-height: 78dvh; min-height: 180px; padding: 12px 16px max(12px,env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: rgb(var(--hoho-color-surface)); overflow: hidden; font-size: 14px; }
+.locator-drawer header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 44px; }
+.locator-drawer h3,.locator-drawer h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.locator-drawer header button { width: 44px; height: 44px; display: grid; place-items: center; }
+.locator-drawer-scroll,.locator-middle-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; flex: 1; }
+.locator-drawer-scroll p { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.5; }
+.locator-selected-tags { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
+.locator-selected-tags > div { display: flex; max-width: 100%; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); border-radius: 14px; }
+.locator-selected-tags button { min-height: 44px; padding: 6px 8px; font-size: 13px; }
+.locator-selected-tags button:first-child { flex: 1; text-align: left; }
+.locator-selected-tags button:last-child { flex-shrink: 0; width: 44px; display: grid; place-items: center; }
+.locator-drawer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-top: 12px; }
+.locator-drawer-actions > button { flex: 1; min-height: 44px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; }
+.locator-drawer .child-body-search { flex-shrink: 0; margin: 4px 0 12px; }
+.locator-drawer button:focus-visible,.locator-callout:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: -2px; }

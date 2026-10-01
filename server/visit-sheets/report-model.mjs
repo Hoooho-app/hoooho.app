@@ -1,3 +1,4 @@
+import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
@@ -303,7 +304,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         ? text(selected.journal?.symptom?.narrative) || text(selected.content)
         : '尚无有效症状记录，可补充本次想了解的问题'
   const selectedLocations =
-    selected?.journal?.symptom?.locations?.map((l) => l.label) ?? []
+    selected?.journal?.symptom?.locations?.map(bodyLocationLabel) ?? []
   const related = symptoms.filter((r) => {
     if (focus.mode === 'custom')
       return (
@@ -317,7 +318,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       return (
         (!selected.journal?.symptom?.symptomCategory || r.journal?.symptom?.symptomCategory === selected.journal.symptom.symptomCategory) &&
         (r.journal?.symptom?.locations?.some((l) =>
-          selectedLocations.includes(l.label),
+          selectedLocations.includes(bodyLocationLabel(l)),
         ) ?? false)
       )
     return selected.journal?.symptom?.symptomCategory
@@ -366,7 +367,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         distribution: [...counts].map(([label, count]) => ({ label, count })),
         locations: unique(
           related.flatMap(
-            (r) => r.journal?.symptom?.locations?.map((l) => l.label) ?? [],
+            (r) => r.journal?.symptom?.locations?.map(bodyLocationLabel) ?? [],
           ),
         ),
       },

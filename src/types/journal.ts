@@ -79,7 +79,13 @@ export interface JournalSymptomLocation {
   schemaVersion?: string
   surface?: import('../features/body-location/childBodyCatalog').ChildSurface
   coverage?: 'specific' | 'whole' | 'uncertain'
-  modelAtSelection?: 'boy' | 'girl'
+  modelAtSelection?: 'boy' | 'girl' | 'neutral'
+  regionId?: string
+  categoryId?: string
+  precision?: 'category' | 'region'
+  displayLabel?: string
+  medicalLabel?: string
+  dictionaryVersion?: string
 }
 
 export interface JournalSymptomDetails {
