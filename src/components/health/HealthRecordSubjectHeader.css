@@ -41,7 +41,7 @@
   height: 50px;
   min-height: 50px;
   padding-inline: var(--hoho-space-2);
-  border-color: rgb(var(--hoho-color-border));
+  border: 1px solid rgb(var(--hoho-color-primary) / .4);
   background: rgb(var(--hoho-color-visit-entry-surface));
   color: rgb(var(--hoho-color-text-primary));
   white-space: nowrap;

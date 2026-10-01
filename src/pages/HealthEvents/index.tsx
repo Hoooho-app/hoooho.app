@@ -23,7 +23,6 @@ import { TimeView } from './TimeView'
 import type { JournalEntry } from './timeViewModel'
 import './TimeView.css'
 import './RecordForm.css'
-import { completeCurrentTriggerSuggestion } from './triggerOpportunityState'
 import '../NurseStation/nurseStation.css'
 
 interface PendingDuplicate { duplicate: QuickRecordDuplicate; input: QuickRecordCreateInput; resolve: (message: string) => void; reject: (reason: unknown) => void }
@@ -104,17 +103,16 @@ export function HealthEventsPage() {
     return () => window.clearTimeout(timer)
   }, [location.pathname, location.search, navigate, returnState?.scrollTop])
   useEffect(() => {
-    const openPrompt = (event: Event) => {
+    const openManualRecord = (event: Event) => {
       const detail = (event as CustomEvent<{ target: JournalCategory | 'other' }>).detail
       submissionKeyRef.current = ''
-      sessionStorage.setItem('hoooho:journal-suggestion', JSON.stringify((event as CustomEvent).detail))
       setRecorderInitialCategory(detail.target === 'other' ? undefined : detail.target)
       setRecorderMode(detail.target === 'other' ? 'voice' : 'manual')
     }
-    window.addEventListener('hoooho:timeline-prompt', openPrompt)
-    return () => window.removeEventListener('hoooho:timeline-prompt', openPrompt)
+    window.addEventListener('hoooho:manual-record', openManualRecord)
+    return () => window.removeEventListener('hoooho:manual-record', openManualRecord)
   }, [])
-  const finishSave = () => { completeCurrentTriggerSuggestion(); submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
+  const finishSave = () => { submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
   const saveJournalRecord = async (content: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
     if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
