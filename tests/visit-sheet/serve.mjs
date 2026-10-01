@@ -9,7 +9,7 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 // never reads this flag, and no fixture is written to the normal data directory.
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
-  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null
+  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
   process.env.AI_MODEL = 'fixture-summary-model'
@@ -24,7 +24,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (mode === 'failure') return new Response(JSON.stringify({ error: { type: 'insufficient_quota', code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: 429, headers: { 'x-request-id': 'req_fixture' } })
     const body=JSON.parse(init.body)
     if(body.text.format.name==='hoooho_business'){
-      if(body.text.format.schema.properties.text)return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({text:'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
+      if(body.text.format.schema.properties.text)return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]
       const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
       return Response.json({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
@@ -35,7 +35,7 @@ if (process.env.VISIT_AI_TEST === '1') {
   createServer(async(req, res) => {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
-    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);draftItems=JSON.parse(Buffer.concat(chunks).toString()).items??null}
+    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null}
     if (req.url === '/success') mode = 'success'
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')

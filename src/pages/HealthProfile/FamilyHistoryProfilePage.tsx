@@ -187,7 +187,7 @@ export function FamilyHistoryProfilePage({ member, storageKey }: { member: Membe
 
   return (
     <main className="app-shell health-profile-detail-shell">
-      <WebPageHeader fallback="/health-profile" title="家族遗传史" />
+      <WebPageHeader fallback="/health-profile" title="家族史" />
       <div className="page-content health-profile-page-content">
         <MemberIdentityCard member={member} recordSubject />
         {!editor && records.length > 0 && (

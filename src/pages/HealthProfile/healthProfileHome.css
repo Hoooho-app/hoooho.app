@@ -1,0 +1,18 @@
+.health-profile-home{padding:12px 16px 20px!important}
+body:has(.health-profile-overview),body:has(.health-profile-materials){min-width:0}
+.health-profile-home .health-profile-record-subject{margin:0 0 12px}
+.health-profile-entries{background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);overflow:hidden}
+.health-profile-entry{display:flex;align-items:center;gap:12px;width:100%;min-height:66px;padding:10px 12px;border:0;background:transparent;text-align:left;position:relative;color:rgb(var(--hoho-color-text-secondary))}
+.health-profile-entry:not(:last-child)::after{content:'';height:1px;position:absolute;bottom:0;left:56px;right:12px;background:rgb(var(--hoho-color-border))}
+.health-profile-entry__icon{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:10px;background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary))}
+.health-profile-entry__text{flex:1;min-width:0;display:grid;gap:3px}
+.health-profile-entry strong{font-size:1rem;font-weight:600;color:rgb(var(--hoho-color-text-primary));line-height:1.5}
+.health-profile-entry small{font-size:.8125rem;line-height:1.4}
+.health-profile-entry:active{background:rgb(var(--hoho-color-primary-soft))}
+.health-profile-smart-record{display:flex;align-items:center;gap:14px;width:100%;min-height:92px;margin-top:22px;padding:14px 16px;border:0;border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-surface));text-align:left}
+.health-profile-smart-record>svg{flex-shrink:0}.health-profile-smart-record>span{flex:1;min-width:0;display:grid;gap:4px}
+.health-profile-smart-record strong{font-size:1.125rem;font-weight:600;line-height:1.4}.health-profile-smart-record small{font-size:.8125rem;line-height:1.5}
+.health-profile-smart-record:active{background:rgb(var(--hoho-color-primary-active))}.health-profile-smart-record:disabled,.health-profile-entry:disabled{opacity:.6}
+.health-profile-summary-retry{padding:10px;color:rgb(var(--hoho-color-primary));font-size:.8125rem}
+.health-profile-materials{display:grid;gap:12px}.health-profile-materials a,.health-profile-materials>button{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgb(var(--hoho-color-border));padding:12px 0;text-align:left;min-height:44px;color:inherit}
+.health-profile-materials small{display:block;color:rgb(var(--hoho-color-text-secondary))}.health-profile-materials h2{font-size:1rem;font-weight:600;margin-top:12px}
