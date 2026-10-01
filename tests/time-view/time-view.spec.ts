@@ -417,7 +417,7 @@ test('health journal names the existing summary action medical prep', async ({ p
   await page.screenshot({ path: 'test-results/medical-prep-copy-iphone-se.png' })
 })
 
-test('empty today shows one contextual prompt and current-time marker without the old empty state', async ({ page }) => {
+test('empty today has no contextual reminders and keeps the current-time marker', async ({ page }) => {
   await prepare(page, 'child-two')
   const today = await page.evaluate(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` })
   await page.getByLabel('选择日期').fill(today)
@@ -858,7 +858,7 @@ test('current cell uses the whole background as second-level progress without re
       clockFontWeight: getComputedStyle(clock).fontWeight,
     }
   })
-  expect(typography).toEqual({ rowHeight: 32, cellHeight: 32, labelFontSize: '12px', clockFontSize: '12px', clockFontWeight: '400' })
+  expect(typography).toEqual({ rowHeight: 26, cellHeight: 26, labelFontSize: '12px', clockFontSize: '12px', clockFontWeight: '400' })
   expect(await current.locator('.journal-now-cell').evaluate((cell) => Number.parseFloat((cell as HTMLElement).style.getPropertyValue('--journal-now-progress')))).toBeCloseTo(80.333, 2)
   const scroll = page.locator('.journal-scroll-region')
   await scroll.evaluate((element) => { element.scrollTop = 160 })
