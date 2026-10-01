@@ -35,12 +35,15 @@
 .journal-subject-name span,
 .journal-subject-meta { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 
-.journal-subject-summary {
+.hoho-button.journal-subject-summary,
+.hoho-button.journal-subject-summary:hover:not(:disabled),
+.hoho-button.journal-subject-summary:active:not(:disabled) {
   height: 50px;
   min-height: 50px;
   padding-inline: var(--hoho-space-2);
-  border-color: rgb(var(--hoho-color-primary));
-  background: rgb(var(--hoho-color-primary));
+  border-color: rgb(var(--hoho-color-border));
+  background: rgb(var(--hoho-color-visit-entry-surface));
+  color: rgb(var(--hoho-color-text-primary));
   white-space: nowrap;
 }
 

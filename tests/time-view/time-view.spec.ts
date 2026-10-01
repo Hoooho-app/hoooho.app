@@ -714,56 +714,94 @@ test('custom routines use a focused naming flow, preserve settings and reject du
   expect((await disabled.json()).tracks).toHaveLength(0)
 })
 
-test('continuous sleep compresses to two-card height and inserted events split it without changing the source', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-09-24T03:52:00+08:00') })
+test('sleep has one running start and two completed endpoints at normal height despite inserted events', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-09-24T15:52:00+08:00') })
   const headers = { Authorization: `Bearer ${token}`, 'X-Hoooho-Timezone': 'Asia/Shanghai' }
   const memberResponse = await page.request.post('/api/members', { headers, data: { name: '睡眠压缩测试', birthday: '2025-01-01', gender: 'female', relationship: 'child' } })
   expect(memberResponse.ok()).toBe(true)
   const memberId = (await memberResponse.json()).id
   await prepare(page, memberId)
-  const startedAt = '2026-09-23T23:10:00+08:00'
+  const startedAt = '2026-09-24T11:10:00+08:00'
   const saved = await page.request.post('/api/quick-records', { headers, data: { memberId, content: '夜间睡眠', occurredAt: startedAt, inputChannel: 'text', idempotencyKey: 'compact-sleep-source', title: '睡眠', journal: { categories: ['sleep'], occurredAt: startedAt, timePrecision: 'exact', sleep: { kind: 'night', sleepAt: startedAt, status: 'ongoing' } } } })
   expect(saved.ok()).toBe(true)
   const source = await saved.json()
   await page.reload()
-  const segments = page.locator('.journal-timeline-row--sleep-segment')
-  await expect(segments).toHaveCount(1)
-  await expect(segments.locator(':scope > time')).toHaveText('03:5200:00')
-  await expect(segments).toContainText('睡眠· 持续')
+  const sleepRows = page.locator('.journal-timeline-row--sleep')
+  await expect(sleepRows).toHaveCount(1)
+  await expect(sleepRows.locator(':scope > time')).toHaveText('11:10')
+  await expect(sleepRows).toContainText('睡眠· 开始入睡 · 持续')
   for (const width of [375, 390, 430]) {
     await page.setViewportSize({ width, height: 667 })
-    expect(await segments.evaluate(row => row.getBoundingClientRect().height)).toBe(100)
+    expect(await sleepRows.locator('button').evaluate(row => row.getBoundingClientRect().height)).toBe(46)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await expect(page.locator('[data-hour-divider="02:00"]')).toHaveCount(0)
+    await expect(page.locator('[data-hour-divider="12:00"]')).toHaveCount(1)
   }
   await page.setViewportSize({ width: 375, height: 667 })
-  await page.screenshot({ path: 'outputs/sleep-compressed-375.png' })
-  const inserted = await page.request.post('/api/quick-records', { headers, data: { memberId, content: '睡眠中插入事件', title: '备注 · 睡眠中插入事件', occurredAt: '2026-09-24T01:20:00+08:00', inputChannel: 'text', idempotencyKey: 'compact-sleep-insertion', journal: { categories: ['other'], occurredAt: '2026-09-24T01:20:00+08:00', timePrecision: 'exact' } } })
+  await page.screenshot({ path: 'outputs/sleep-endpoints-ongoing-375.png' })
+  const inserted = await page.request.post('/api/quick-records', { headers, data: { memberId, content: '睡眠中插入事件', title: '备注 · 睡眠中插入事件', occurredAt: '2026-09-24T12:20:00+08:00', inputChannel: 'text', idempotencyKey: 'compact-sleep-insertion', journal: { categories: ['other'], occurredAt: '2026-09-24T12:20:00+08:00', timePrecision: 'exact' } } })
   expect(inserted.ok(), await inserted.text()).toBe(true)
   const note = await inserted.json()
-  await page.reload(); await expect(segments).toHaveCount(2)
-  await expect(segments.locator(':scope > time')).toHaveText(['03:5201:20', '01:2000:00'])
-  const order = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll(rows => rows.filter(row => row.classList.contains('journal-timeline-row--sleep-segment') || row.textContent?.includes('睡眠中插入事件')).map(row => row.classList.contains('journal-timeline-row--sleep-segment') ? 'sleep' : 'event'))
+  await page.reload(); await expect(sleepRows).toHaveCount(1)
+  await expect(page.locator(`.journal-record[data-record-id="${note.recordId}"]`)).toContainText('睡眠中插入事件')
+  const ended = await page.request.post(`/api/records/${source.recordId}/sleep/end`, { headers, data: { wakeAt: '2026-09-24T15:40:00+08:00' } })
+  expect(ended.ok(), await ended.text()).toBe(true)
+  await page.reload(); await expect(sleepRows).toHaveCount(2)
+  await expect(sleepRows.locator(':scope > time')).toHaveText(['15:40', '11:10'])
+  await expect(sleepRows).toHaveText([/睡眠· 醒了 · 共4小时30分钟/, /睡眠· 开始入睡/])
+  await expect(sleepRows.filter({ hasText: '持续' })).toHaveCount(0)
+  const order = await page.locator('.journal-day-grid > .journal-timeline-row').evaluateAll(rows => rows.filter(row => row.classList.contains('journal-timeline-row--sleep') || row.textContent?.includes('睡眠中插入事件')).map(row => row.classList.contains('journal-timeline-row--sleep') ? 'sleep' : 'event'))
   expect(order).toEqual(['sleep', 'event', 'sleep'])
-  await page.screenshot({ path: 'outputs/sleep-split-375.png' })
+  await page.screenshot({ path: 'outputs/sleep-endpoints-completed-375.png' })
   const records = await page.request.get(`/api/events/${source.eventId}/records?view=time`, { headers })
   expect((await records.json()).filter((record: any) => record.id === source.recordId)).toHaveLength(1)
-  await segments.first().locator('button').click()
-  await expect(page.getByRole('dialog', { name: '正在记录睡眠' })).toBeVisible()
-  await page.getByRole('dialog', { name: '正在记录睡眠' }).getByRole('button', { name: '关闭正在记录睡眠', exact: true }).click()
+  await page.getByRole('button', { name: '记录顺序：最新在上，点击切换' }).click()
+  await expect(sleepRows.locator(':scope > time')).toHaveText(['11:10', '15:40'])
+  for (const row of await sleepRows.locator('button').all()) {
+    await row.click()
+    const detail = page.getByRole('dialog', { name: '睡眠记录详情' })
+    await expect(detail).toBeVisible()
+    await detail.getByRole('button', { name: '关闭睡眠记录详情', exact: true }).click()
+  }
   await page.locator(`.journal-record[data-record-id="${note.recordId}"] button`).click()
   await page.getByRole('button', { name: '删除这条记录', exact: true }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click()
   // Deleting the sole record intentionally leaves its parent event on the timeline.
-  // Remove this test-owned event too before asserting there is no intervening event.
+  // Remove this test-owned parent event too; endpoints must stay unchanged.
   const removedEvent = await page.request.delete(`/api/events/${note.eventId}`, { headers })
   expect(removedEvent.ok()).toBe(true)
   await page.reload()
-  await expect(segments).toHaveCount(1)
+  await expect(sleepRows).toHaveCount(2)
+  await expect(page.locator('.journal-timeline-row--sleep-segment')).toHaveCount(0)
   await page.request.delete(`/api/members/${memberId}`, { headers })
 })
 
-test('today excludes future routine points and projects one cross-night sleep summary', async ({ page }) => {
+test('multi-day actual sleep has exactly two dated endpoints and no middle-day continuation', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-09-24T15:52:00+08:00') })
+  const headers = { Authorization: `Bearer ${token}`, 'X-Hoooho-Timezone': 'Asia/Shanghai' }
+  const member = await page.request.post('/api/members', { headers, data: { name: '跨日睡眠节点测试', birthday: '2025-01-01', gender: 'female', relationship: 'child' } })
+  const memberId = (await member.json()).id
+  const sleepAt = '2026-09-22T13:00:00+08:00', wakeAt = '2026-09-24T14:30:00+08:00'
+  const saved = await page.request.post('/api/quick-records', { headers, data: { memberId, content: '跨日睡眠', occurredAt: sleepAt, inputChannel: 'text', idempotencyKey: 'multi-day-sleep-endpoints', title: '睡眠', journal: { categories: ['sleep'], occurredAt: sleepAt, timePrecision: 'exact', sleep: { kind: 'night', sleepAt, wakeAt, durationMinutes: 2970, status: 'completed' } } } })
+  expect(saved.ok(), await saved.text()).toBe(true)
+  const source = await saved.json()
+  await prepare(page, memberId)
+  const rows = page.locator('.journal-timeline-row--sleep')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.locator(':scope > time')).toHaveText('14:30')
+  await expect(rows).toContainText('醒了 · 共49小时30分钟')
+  await page.getByLabel('选择日期').fill('2026-09-23')
+  await expect(rows).toHaveCount(0)
+  await page.getByLabel('选择日期').fill('2026-09-22')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.locator(':scope > time')).toHaveText('13:00')
+  await expect(rows).toContainText('开始入睡')
+  await expect(rows).not.toContainText('持续')
+  const records = await page.request.get(`/api/events/${source.eventId}/records?view=time`, { headers })
+  expect((await records.json()).filter((record: any) => record.id === source.recordId)).toHaveLength(1)
+  await page.request.delete(`/api/members/${memberId}`, { headers })
+})
+
+test('today excludes future routine points and shows only the cross-night wake endpoint', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-24T05:04:00.000Z'))
   await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page, 'child-two')
@@ -782,13 +820,13 @@ test('today excludes future routine points and projects one cross-night sleep su
   await expect(page.locator('.journal-activity-row--sleep.journal-activity-row--ongoing')).toHaveCount(0)
   const summary = page.locator('.journal-activity-row--sleep.journal-activity-row--end')
   await expect(summary).toHaveCount(1)
-  await expect(summary).toContainText('睡眠· 共11小时28分')
+  await expect(summary).toContainText('睡眠· 醒了 · 共11小时28分钟')
   await expect(summary).not.toContainText('按作息推算')
-  const compact = page.locator('.journal-timeline-row--sleep-segment')
-  await expect(compact).toHaveCount(1)
-  await expect(compact.locator(':scope > time')).toHaveText('08:2800:00')
-  expect(await compact.evaluate(row => row.getBoundingClientRect().height)).toBe(100)
-  await expect(page.locator('[data-hour-divider="04:00"]')).toHaveCount(0)
+  const sleepRows = page.locator('.journal-timeline-row--sleep')
+  await expect(sleepRows).toHaveCount(1)
+  await expect(sleepRows.locator(':scope > time')).toHaveText('08:28')
+  expect(await summary.evaluate(row => row.getBoundingClientRect().height)).toBe(46)
+  await expect(page.locator('[data-hour-divider="04:00"]')).toHaveCount(1)
   const sleepTimeStyle = await page.locator('.journal-timeline-row--sleep > time').first().evaluate((time) => {
     const style = getComputedStyle(time)
     return { color: style.color, size: style.fontSize, weight: style.fontWeight }
@@ -1244,6 +1282,19 @@ test('medical prep keeps its established desktop dimensions and stable label', a
   await expect(button.locator('.medical-prep-button__label strong')).toHaveText('就诊情况单')
   await expect(button.locator('.medical-prep-button__label small')).toHaveText('孩子情况快速整理')
   expect(await button.evaluate((element) => element.scrollWidth === element.clientWidth)).toBe(true)
+})
+
+test('journal medical prep matches the front-page visit entry background in all interaction states', async ({ page }) => {
+  await prepare(page)
+  const button = page.getByRole('button', { name: '就诊情况单，孩子情况快速整理', exact: true })
+  await expect(button).toHaveCSS('background-color', 'rgb(242, 246, 249)')
+  await expect(button).toHaveCSS('color', 'rgb(24, 49, 47)')
+  await button.hover()
+  await expect(button).toHaveCSS('background-color', 'rgb(242, 246, 249)')
+  await button.evaluate(element => { element.focus() })
+  await expect(button).toHaveCSS('background-color', 'rgb(242, 246, 249)')
+  await page.goto('/nurse-station')
+  await expect(page.locator('.nurse-home-entry--visit')).toHaveCSS('background-color', 'rgb(242, 246, 249)')
 })
 
 test('nurse station uses the same centered report icon', async ({ page }) => {
