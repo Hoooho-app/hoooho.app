@@ -171,5 +171,5 @@ process.chdir(fileURLToPath(new URL('../../',import.meta.url)))
 await import('../../server/app.mjs')
 // Independent development server exercises React StrictMode and real Vite APIs.
 const { createServer } = await import('vite')
-const dev = await createServer({root:fileURLToPath(new URL('../../',import.meta.url)),configFile:fileURLToPath(new URL('../../vite.config.ts',import.meta.url)),server:{host:'127.0.0.1',port:4197,strictPort:true},clearScreen:false})
+const dev = await createServer({root:fileURLToPath(new URL('../../',import.meta.url)),configFile:fileURLToPath(new URL('../../vite.config.ts',import.meta.url)),server:{host:'127.0.0.1',port:Number(process.env.VISIT_E2E_DEV_PORT ?? 4197),strictPort:true},clearScreen:false})
 await dev.listen()

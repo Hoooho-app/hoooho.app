@@ -65,7 +65,9 @@ export class HealthRecordOrganizationError extends Error {
 
 export class HealthRecordOrganizationService {
   constructor(options = {}) {
-    this.ai = options.ai ?? new AIService(options)
+    // Ordinary/manual records remain deterministic even when the server has an
+    // API key. Paid generation is only invoked through explicit AI workflows.
+    this.ai = options.ai ?? new AIService({ ...options, primaryProvider: options.primaryProvider ?? false })
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
     this.records = options.records ?? new HealthEventRecordRepository(options.dataDirectory)
     this.repository = options.repository ?? new HealthRecordOrganizationRepository(options.dataDirectory)

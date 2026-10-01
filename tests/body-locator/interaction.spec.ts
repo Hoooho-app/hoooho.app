@@ -1,7 +1,7 @@
 import {expect,test,type Page} from '@playwright/test'
 import {mkdir,writeFile} from 'node:fs/promises'
 import {TokenService} from '../../server/auth/token-service.mjs'
-import {isolateLiveApi} from './helpers'
+import {choose,complete,isolateLiveApi,openRegion} from './helpers'
 const authToken=new TokenService('body-locator-local-test-only',3600000).create({id:'body-locator-test-account'})
 test('locator v2 fixed workspace and explicit sides retain palm and dorsum selections',async({page},info)=>{
   await isolateLiveApi(page)
@@ -18,10 +18,12 @@ test('locator v2 fixed workspace and explicit sides retain palm and dorsum selec
   await hand.click();await expect(p.getByRole('button',{name:'左手',exact:true})).toHaveAttribute('aria-pressed','false');await expect(p.getByRole('button',{name:'右手',exact:true})).toHaveAttribute('aria-pressed','false')
   await expect(p.locator('[data-asset]')).toHaveCount(0)
   await p.getByRole('button',{name:'左手',exact:true}).click();await expect(p.locator('[data-asset="assets/hand-left.png"]')).toBeVisible()
+  await expect(p.getByRole('img',{name:'女孩左手手掌示意图',exact:true})).toBeVisible()
   await p.locator('[data-location-id="hand_left_palm_center"]').click()
   const footer=await p.locator('.hoho-bottom-sheet__footer').boundingBox(),image=await p.locator('.locator-stage').boundingBox()
   await page.screenshot({path:`${dir}/left-palm-selected.png`})
   await p.getByRole('button',{name:'手背',exact:true}).click();await p.locator('[data-location-id="hand_left_dorsum"]').click()
+  await expect(p.getByRole('img',{name:'女孩左手手背示意图',exact:true})).toBeVisible()
   await expect(p.locator('.locator-selected-line')).toContainText('已选 2 处');await page.screenshot({path:`${dir}/left-dorsum-selected.png`})
   expect(await p.locator('.hoho-bottom-sheet__footer').boundingBox()).toEqual(footer);expect(await p.locator('.locator-stage').boundingBox()).toEqual(image)
   await p.getByRole('button',{name:'查看全部',exact:true}).click();const d=page.getByRole('dialog',{name:'已选 2 处',exact:true});await expect(d).toContainText('左掌心');await expect(d).toContainText('左手背')
@@ -29,5 +31,11 @@ test('locator v2 fixed workspace and explicit sides retain palm and dorsum selec
   await p.getByRole('button',{name:/完成并返回症状记录/}).click();await expect(p).toHaveCount(0);await expect(form.locator('.symptom-location-tags')).toContainText('左掌心');await expect(form.locator('.symptom-location-tags')).not.toContainText('号区域')
   await page.screenshot({path:`${dir}/form-result.png`})
   await expect(form.locator('.child-body-open')).toBeFocused()
+  await form.locator('.child-body-open').click();await openRegion(page,'foot_left');await p.getByRole('button',{name:'内侧',exact:true}).click();await choose(page,'foot_left_medial_arch');await complete(page)
+  await form.locator('.child-body-open').click();await p.getByRole('button',{name:'查看全部',exact:true}).click();await page.getByRole('dialog',{name:'已选 3 处',exact:true}).getByRole('button',{name:'左足弓内侧',exact:true}).click()
+  await expect(p.getByRole('button',{name:'左足',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('button',{name:'内侧',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('img',{name:'女孩左足内侧示意图',exact:true})).toBeVisible()
+  await p.getByRole('button',{name:'外侧',exact:true}).click();await choose(page,'foot_left_lateral_arch');await complete(page)
+  await form.locator('.child-body-open').click();await p.getByRole('button',{name:'查看全部',exact:true}).click();await page.getByRole('dialog',{name:'已选 4 处',exact:true}).getByRole('button',{name:'左足中部外侧',exact:true}).click()
+  await expect(p.getByRole('button',{name:'外侧',exact:true})).toHaveAttribute('aria-pressed','true');await expect(p.getByRole('img',{name:'女孩左足外侧示意图',exact:true})).toBeVisible();await page.screenshot({path:`${dir}/foot-side-restored.png`});await complete(page)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
