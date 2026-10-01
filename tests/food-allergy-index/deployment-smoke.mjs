@@ -55,11 +55,15 @@ try {
   }
   assert.equal((await index(memberId)).percentage, 0)
   assert.equal((await request.get('/api/food-allergy-index?memberId=unowned', { headers })).status(), 404)
-  if (staging) {
+  // The product selects children on bootstrap, so a QA self member alone is
+  // insufficient for page acceptance. This child has no clinical data in Prod.
+  {
     const childResponse = await request.post('/api/members', { headers, data: { name: '指数验收测试孩子', birthday: '2024-12-20', gender: 'female', avatar: '', relationship: 'child' } })
     assert.equal(childResponse.status(), 201, await childResponse.text())
     memberId = (await childResponse.json()).id
     assert.equal((await request.post('/api/auth/current-member', { headers, data: { memberId } })).status(), 200)
+  }
+  if (staging) {
     const full = { id: 'qa-reaction', memberId, symptoms: '中度反应，红疹', handling: '未用药', exposureAmount: '5克' }
     const records = [{ id: 'qa-egg', memberId, category: 'food', name: '鸡蛋', reactions: [full] }, { id: 'qa-milk', memberId, category: 'food', name: '牛奶', reactions: [{ id: 'qa-second', symptoms: '红疹', handling: '未治疗' }] }]
     const save = await request.post('/api/auth/profile-sections', { headers, data: { memberId, sectionId: 'allergy', records, revision: 0 } })
