@@ -28,6 +28,7 @@ interface Recognition {
 type RecognitionConstructor = new () => Recognition
 
 interface QuickVoiceRecordFlowProps {
+  eventId?: string
   onClose: () => void
   onConfirm: (transcript: string, occurredAt: string, candidates: QuickRecordCandidate[], inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload) => Promise<string | void>
   onIgnored?: (message: string) => void
@@ -56,7 +57,7 @@ const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
 export function QuickVoiceRecordFlow(props:QuickVoiceRecordFlowProps){
-  if(props.open&&props.photoMemberId&&props.photoToken&&!props.recognitionApi)return <AIBusinessComposer key={props.photoMemberId} memberId={props.photoMemberId} token={props.photoToken} onClose={props.onClose} onSaved={message=>{props.onActivityChange?.('saved');props.onSaved?.(message,props.initialInputChannel??'text')}}/>
+  if(props.open&&props.photoMemberId&&props.photoToken&&!props.recognitionApi)return <AIBusinessComposer key={props.photoMemberId} memberId={props.photoMemberId} token={props.photoToken} eventId={props.eventId} onClose={props.onClose} onSaved={message=>{props.onActivityChange?.('saved');props.onSaved?.(message,props.initialInputChannel??'text')}}/>
   return <BrowserQuickVoiceRecordFlow {...props}/>
 }
 

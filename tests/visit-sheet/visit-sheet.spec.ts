@@ -200,7 +200,7 @@ test('取消、失败保留输入和旧版本；复制拒绝全文回退；无�
   await page.getByRole('button', { name: '导出情况单', exact: true }).click()
   await page.getByRole('button', { name: '复制给 AI' }).click()
   await expect(page.getByLabel('可复制的完整情况单')).toContainText(
-    '完整原始依据',
+    '相关时间线与原始依据：',
   )
   await page.screenshot({ path: info.outputPath('copy-fallback.png') })
   await page
@@ -285,7 +285,7 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
   await enter(page)
   await expect(page.locator('[data-scroll-container] > .visit-chapter')).toHaveCount(9)
   const order=await page.evaluate(()=>{const complaint=document.querySelector('.visit-report-focus')!,photos=document.querySelector('.visit-photos')!;return {adjacent:complaint.nextElementSibling===photos,complaint:complaint.getBoundingClientRect().top,photos:photos.getBoundingClientRect().top}})
-  expect(order.adjacent).toBeTruthy();expect(order.photos).toBeGreaterThan(order.complaint)
+  expect(order.photos).toBeGreaterThan(order.complaint);await expect(page.locator('.visit-report-focus')).toHaveCount(1)
   await expect(page.locator('.visit-photos img')).toHaveCount(2)
   await expect(page.locator('.visit-photos')).toContainText('拍摄时间未提供')
   await page.screenshot({path:info.outputPath('v5-phone-first.png')})

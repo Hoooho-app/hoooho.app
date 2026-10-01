@@ -58,7 +58,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await shot(page,`home-${width}`)
   const daily=page.getByRole('button',{name:'记录日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
-  await expect(options.getByRole('button')).toHaveText(['喂养/饮食','睡眠','排便','户外活动'])
+  await expect(options.getByRole('button')).toHaveText(['喂养/饮食','睡眠','排便','身体涂抹'])
   await expect(daily).toHaveAttribute('aria-pressed','true')
   expect((await options.boundingBox())!.y+(await options.boundingBox())!.height).toBeLessThan((await daily.boundingBox())!.y)
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -70,13 +70,13 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     if(title==='记录症状')await form.getByRole('button',{name:'关闭',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
-  for(const [option,title] of [['喂养/饮食','喂养/饮食'],['睡眠','记录睡眠'],['排便','记录排便'],['户外活动','记录户外活动']]){
+  for(const [option,title] of [['喂养/饮食','喂养/饮食'],['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]){
     await daily.click();await options.getByRole('button',{name:option,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
   await footer.getByRole('button',{name:'智能记录',exact:true}).click()
-  await expect(page.getByRole('dialog',{name:/整理/})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
 })
 test('drafts, common food fields, timer pause, reload and no automatic saves',async({page})=>{
   await prepare(page);const form=await diet(page)

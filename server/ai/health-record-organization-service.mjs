@@ -144,6 +144,11 @@ export class HealthRecordOrganizationService {
       const previousByRecord = new Map(previous.map((item) => [item.recordId, item]))
       const inputs = []
       for (const record of records) {
+        if (record.caseContext && (['external_ai','pending'].includes(record.caseContext.identity) || (record.caseContext.identity !== 'parent' && !record.caseContext.confirmed))) {
+          const neutral = await this.ai.organizeHealthRecord('资料保留，尚未核对为健康事实', { selectedOccurredAt: record.occurredAt, timezone: options.timezone })
+          inputs.push({ accountId, eventId, recordId: record.id, rawInput: record.content, healthAIOutput: { ...neutral.healthAIOutput, facts: [] }, provider: neutral.provider, bodyLocations: [], sourceRecordUpdatedAt: record.updatedAt })
+          continue
+        }
         const organized = await this.ai.organizeHealthRecord(record.content, { selectedOccurredAt: record.occurredAt, timezone: options.timezone })
         const bodyLocations = options.bodyLocationsByRecord?.[record.id] ?? previousByRecord.get(record.id)?.bodyLocations ?? []
         const merged = mergeStructuredHealthFacts(organized.healthAIOutput, { bodyLocations, rawInput: record.content, occurredAt: record.occurredAt })

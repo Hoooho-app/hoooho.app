@@ -14,13 +14,14 @@ import supplementImage from '../../assets/health-events/diet-types/supplement.we
 import dailyFeedingImage from '../../assets/health-events/daily-record/feeding.webp'
 import dailySleepImage from '../../assets/health-events/daily-record/sleep.webp'
 import dailyBowelImage from '../../assets/health-events/daily-record/bowel.webp'
-import dailyActivityImage from '../../assets/health-events/daily-record/activity.webp'
+import dailyActivityImage from '../../assets/health-events/quick-record/medication.webp'
 import type { DietRecordKind, JournalCategory, JournalMetadata } from '../../types/journal'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { DietRecordFlow } from './DietRecordFlow'
 import { BowelRecordFlow } from './BowelRecordFlow'
 import { OutdoorActivityRecordFlow } from './OutdoorActivityRecordFlow'
+import { TopicalRecordFlow } from './TopicalRecordFlow'
 import { createSleepDraft, SleepRecordFlow, type SleepDraft } from './SleepRecordFlow'
 import { SymptomRecordFlow } from './SymptomRecordFlow'
 import { MedicationRecordFlow } from './MedicationRecordFlow'
@@ -28,7 +29,7 @@ import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 import { VisitRecordFlow } from './VisitRecordFlow'
 import { AIBusinessComposer } from '../../features/ai-business/AIBusinessComposer'
 
-type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic' | 'ai'
+type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'topical-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic' | 'ai'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen; depth: number; dietKind: DietRecordKind | null }
 
 export function JournalRecorder({ mode, memberId, token, selectedDay, today, initialCategory, initialDietKind, onClose, onConfirm, onSaved }: {
@@ -40,7 +41,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
 }) {
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
-  const initialScreen = initialCategory === 'diet' ? 'diet-form' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'elimination' ? 'bowel-form' : initialCategory === 'visit' ? 'visit-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
+  const initialScreen = initialCategory === 'care' ? 'topical-form' : initialCategory === 'diet' ? 'diet-form' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'elimination' ? 'bowel-form' : initialCategory === 'visit' ? 'visit-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
   const [screen, setScreen] = useState<RecorderScreen>(initialScreen)
   const [selected, setSelected] = useState<JournalCategory[]>([])
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => initialDietKind ?? 'feeding')
@@ -93,6 +94,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const sourceBack = initialCategory ? closeRecorder : () => backOneLevel('categories')
   const dailyBack = initialCategory ? closeRecorder : () => backOneLevel('daily-types')
   const occurrenceDay = selectedDay
+  if (screen === 'topical-form') return <TopicalRecordFlow memberId={memberId} token={token} selectedDay={occurrenceDay} today={today} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)}/>
   const confirmPrefilled:typeof onConfirm=(content,at,channel,photos,journal)=>onConfirm(aiPrefill?.raw?`${content}\n原始描述（AI 预填后人工核对，修改后的表单为当前值）：${aiPrefill.raw}`:content,at,channel,photos,journal)
   if(screen==='ai'||(screen==='generic'&&mode==='voice'))return <AIBusinessComposer key={memberId} memberId={memberId} token={token} onClose={closeRecorder} onSaved={onSaved} onApply={item=>{setAiPrefill({journal:item.journal,at:item.time.resolvedStart??undefined,raw:item.originText??''});if(item.journal.sleep){setSleepDraft({...createSleepDraft(),...item.journal.sleep});navigateScreen('sleep-form')}else if(item.journal.bowel)navigateScreen('bowel-form');else if(item.journal.outdoorActivity)navigateScreen('activity-form')}}/>
   if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
@@ -111,7 +113,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     { kind: 'supplement', title: '补剂', description: '维生素 / 矿物质 / 其他', image: supplementImage }
   ]
   const isDietTypes = screen === 'diet-types'
-  const categoryScreen = (category: JournalCategory) => category === 'diet' ? 'diet-form' : category === 'sleep' ? 'sleep-form' : category === 'elimination' ? 'bowel-form' : category === 'activity' ? 'activity-form' : category === 'symptom' ? 'symptom-form' : category === 'medication' ? 'medication-form' : category === 'vaccination' ? 'vaccination-form' : category === 'visit' ? 'visit-form' : 'generic'
+  const categoryScreen = (category: JournalCategory) => category === 'care' ? 'topical-form' : category === 'diet' ? 'diet-form' : category === 'sleep' ? 'sleep-form' : category === 'elimination' ? 'bowel-form' : category === 'activity' ? 'activity-form' : category === 'symptom' ? 'symptom-form' : category === 'medication' ? 'medication-form' : category === 'vaccination' ? 'vaccination-form' : category === 'visit' ? 'visit-form' : 'generic'
   const chooseCategory = (category: JournalCategory) => {
     setSelected([category])
     navigateScreen(categoryScreen(category))
@@ -120,7 +122,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     { category: 'diet', label: '喂养/饮食', image: dailyFeedingImage },
     { category: 'sleep', label: '睡眠', image: dailySleepImage },
     { category: 'elimination', label: '排便', image: dailyBowelImage },
-    { category: 'activity', label: '户外活动', image: dailyActivityImage }
+    { category: 'care', label: '身体涂抹', image: dailyActivityImage }
   ]
   const hubCategories: readonly { category: JournalCategory; label: string; image: string; action?: () => void }[] = [
     { category: 'symptom', label: '记录症状', image: symptomCardImage },

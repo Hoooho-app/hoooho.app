@@ -6,6 +6,7 @@ import type {
   VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
+  selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
   generateAI?: boolean
   expectedVersion: number
   requestId: string

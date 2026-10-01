@@ -7,7 +7,7 @@ await mkdir(path.dirname(shutdownMarker), { recursive: true })
 await rm(shutdownMarker, { force: true })
 setInterval(() => void access(shutdownMarker).then(() => process.exit()).catch(() => undefined), 200)
 
-process.env.PORT = '4197'
+process.env.PORT = process.env.NURSE_TEST_PORT ?? '4197'
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'development'
 process.env.DATA_DIRECTORY = await mkdtemp(path.join(os.tmpdir(), 'hoooho-nurse-station-browser-'))

@@ -20,7 +20,6 @@ import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from '
 import {
   buildVisitSheet,
   chapters,
-  reportFingerprint,
 } from './report-model.mjs'
 
 const failure = (message, status = 400) =>
@@ -173,6 +172,7 @@ export class VisitSheetService {
       (r) => r.accountId === accountId && r.memberId === memberId,
     )
     const report = saved?.current ?? null
+    let stale = false
     if (report) {
       // An unavailable source is not proof that it has been deleted. Fail closed
       // on cold reads; an already-open reader keeps its last successful result.
@@ -183,6 +183,7 @@ export class VisitSheetService {
         )
       // Never serve a removed source through a saved/exportable snapshot.
       const current = buildVisitSheet(input, report)
+      stale = report.fingerprint !== current.fingerprint
       const allowed = new Set(current.sources.map((s) => s.id))
       if (report.schemaVersion !== 6 || report.sources.some((s) => !allowed.has(s.id)))
         return {
@@ -198,7 +199,7 @@ export class VisitSheetService {
     }
     return {
       report,
-      stale: !!report && report.fingerprint !== reportFingerprint(input),
+      stale,
       warnings: input.warnings,
       hasLegacy: input.events.some((e) => e.medicalPreparation),
       ...(report ? {} : { expectedVersion: saved?.current.version ?? 0 }),
@@ -236,6 +237,13 @@ export class VisitSheetService {
           409,
         )
       const focus = request.focus ?? previous?.focus ?? { mode: 'auto' }
+      const selection = request.selection ?? previous?.selection
+      if (selection) {
+        if (!Array.isArray(selection.eventIds) || selection.eventIds.length > 100 || selection.eventIds.some(id => !input.events.some(event => event.id === id && event.memberId === memberId)) || typeof selection.includeBackground !== 'boolean') throw failure('资料范围不属于当前人物或格式无效')
+        for (const date of [selection.from, selection.to]) if (date && (!Number.isFinite(Date.parse(date)) || Date.parse(date) > now.getTime())) throw failure('资料时间范围无效')
+        if (selection.from && selection.to && Date.parse(selection.to) < Date.parse(selection.from)) throw failure('资料时间范围倒置')
+      }
+      if (focus.caseEventId && !input.events.some(event => event.id === focus.caseEventId && event.memberId === memberId)) throw failure('这次情况不属于当前人物', 404)
       if (!['auto', 'source', 'custom'].includes(focus.mode))
         throw failure('主诉选择无效')
       if (
@@ -292,7 +300,7 @@ export class VisitSheetService {
       const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, photoSelections, photoDetails:details }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }

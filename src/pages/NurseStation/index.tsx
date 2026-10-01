@@ -25,6 +25,7 @@ import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
 import './nurseStation.css'
+import { FollowUpHome } from '../../features/case-continuity/CaseCards'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 const formatAboBloodType = (bloodType?: string) => bloodType ? `${bloodType}型` : '未填写'
@@ -236,6 +237,7 @@ export function NurseStationPage() {
             </div>
           </section>
         ) : null}
+        <FollowUpHome key={currentMemberId} />
         <HomeEntries
           desensitizationCount={desensitizationCount}
           desensitizationStatus={desensitizationStatus}

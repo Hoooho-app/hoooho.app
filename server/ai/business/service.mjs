@@ -95,7 +95,11 @@ export class AIBusinessService {
     const raw=text(input.text,15000);if(!raw&&!(input.files?.length)&&!previous?.documents?.length)throw fail('请先填写文字或上传资料')
     const prepared=input.files?.length?await prepareDocuments(input.files):{documents:previous?.documents??[],pages:previous?.pages??[]}
     const task=['record','report','visit','archive'].includes(input.task)?input.task:'record'
-    const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task])
+    const targetEventId = input.eventId ?? previous?.targetEventId ?? null
+    const sourceIdentity = input.sourceIdentity ?? previous?.sourceIdentity ?? null
+    if (targetEventId) { const target = await this.events.get(accountId, targetEventId); if (target.memberId !== memberId || target.caseArchivedAt) throw fail('资料必须接回当前人物未归档的情况', 409) }
+    if (sourceIdentity && !['parent','medical_consultation','examination_report','external_ai','pending'].includes(sourceIdentity)) throw fail('资料来源无效')
+    const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
@@ -104,7 +108,10 @@ export class AIBusinessService {
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false
+    draft.targetEventId = targetEventId; draft.sourceIdentity = sourceIdentity
     await this.write(draft)
+    // Store the original in the existing draft repository before any model call.
+    if (input.deferRecognition === true) { draft.state = 'changed'; return this.write(draft) }
     try {
       if(raw)draft.sources.push({id:'input',page:1,text:raw,status:'readable'})
       for(const page of draft.pages){
@@ -172,6 +179,8 @@ export class AIBusinessService {
   }
   async edit(accountId,memberId,id,input){
     const d=await this.get(accountId,memberId,id);if(d.state==='saved'||d.version!==input.version)throw fail('草稿状态已变化，请重新加载',409)
+    if (input.eventId) { const event = await this.events.get(accountId, input.eventId); if (event.memberId !== memberId || event.caseArchivedAt) throw fail('资料归属无效',409); d.targetEventId = event.id }
+    if (input.sourceIdentity) { if (!['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.sourceIdentity)) throw fail('资料来源无效'); d.sourceIdentity = input.sourceIdentity }
     if(input.deleteItem)d.items=d.items.filter(i=>i.id!==input.deleteItem)
     if(input.itemId){const item=d.items.find(i=>i.id===input.itemId);if(!item)throw fail('待确认记录不存在',404)
       if(input.category){if(!categories.includes(input.category))throw fail('记录类型无效');item.category=input.category;item.categoryEditedBy='user'}
@@ -204,12 +213,15 @@ export class AIBusinessService {
       if(d.unmappedRows?.length)throw fail('有含结果或剂量的原文行尚未进入记录，请补齐或更正草稿后重新整理，本次未保存',422,'AI_SOURCE_COVERAGE_GAP')
       if(d.documentWarnings?.length&&!d.confirmPageWarnings)throw fail('材料存在页码缺失或重复，请先核对并明确按不完整材料保存',422,'AI_DOCUMENT_PAGE_GAP')
       const ownedEvents=await this.events.repository.findByAccountId(accountId),eventIds=new Set(ownedEvents.filter(e=>e.memberId===memberId).map(e=>e.id))
-      const existing=(await this.records.repository.findByAccountId(accountId)).filter(r=>eventIds.has(r.eventId))
+      const existing=(await this.records.repository.findByAccountId(accountId)).filter(r=>eventIds.has(r.eventId) && (!d.targetEventId || r.eventId === d.targetEventId))
+      const targetEvent = d.targetEventId ? await this.events.get(accountId, d.targetEventId) : null
+      if (targetEvent && (targetEvent.memberId !== memberId || targetEvent.caseArchivedAt)) throw fail('这次情况已归档或归属已变更，本次未保存', 409)
       const saved=[],history=[]
       let profileData=structuredClone(await this.profiles.read())
       const profileBefore=structuredClone(profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId))
       for(const original of mergeItems(d.items)){
         let item=this.resolve(original,d)
+        if (d.sourceIdentity === 'external_ai' || d.sourceIdentity === 'pending') item = { ...item, category: 'other', archiveCategory: null, journal: { categories: ['other'], timePrecision: item.time?.precision === 'unknown' ? 'unknown' : 'exact' } }
         item.fields=item.fields.map(f=>({...f,confirmed:true}))
         if(item.journal.visit)item.journal.visit.recognitionStatus='user_edited'
         let key=keyFor(item,d),match=existing.find(r=>r.aiProvenance?.key===key&&contentFor(r.aiProvenance)===r.content)
@@ -223,15 +235,17 @@ export class AIBusinessService {
         else{
           const occurredAt=item.time?.resolvedStart??d.referenceNow
           const relatedEvent=conflictRecords.length?ownedEvents.find(e=>e.id===conflictRecords[0].eventId):null
-          event=relatedEvent??await this.events.create(accountId,{memberId,title:item.title,category:'other',startTime:occurredAt},this.now())
-          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',content,occurredAt,journal:item.journal,sourceType:d.documents.length?'medical_file':'text_record',sourceText:d.raw.slice(0,5000)},this.now())
-          history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!relatedEvent})
+          event=targetEvent??relatedEvent??await this.events.create(accountId,{memberId,title:item.title,category:'other',startTime:occurredAt},this.now())
+          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:d.documents.length?'medical_file':'text_record',sourceText:d.raw.slice(0,5000)},this.now())
+          history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!targetEvent&&!relatedEvent})
         }
         const sources=[...(record.aiProvenance?.sources??[]),...item.fields.flatMap(f=>f.sources)],refs=[]
         for(const document of d.documents.filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':'openai',confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
         await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,category:item.category,timeText:item.timeText,time:item.time,fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
-        profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now()})
+        if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { identity: d.sourceIdentity, confirmed: true, attachmentIds: refs, originalText: d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
+        if (targetEvent) await this.events.repository.update(event.id, { caseTracking: true }, this.now())
+        if (!['external_ai','pending'].includes(d.sourceIdentity)) profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now()})
         history[history.length-1].afterKey=revisionKey(await this.records.repository.findById(record.id))
         if(!ownedEvents.some(e=>e.id===event.id))ownedEvents.push(event)
         const finalRecord=await this.records.repository.findById(record.id),position=existing.findIndex(r=>r.id===record.id)
@@ -240,6 +254,7 @@ export class AIBusinessService {
       }
       const changedSections=profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId&&JSON.stringify(s)!==JSON.stringify(profileBefore.find(p=>p.sectionId===s.sectionId))).map(s=>({sectionId:s.sectionId,revision:s.revision,before:profileBefore.find(p=>p.sectionId===s.sectionId)??null}))
       if(changedSections.length)await this.profiles.update(()=>profileData)
+      if (targetEvent) await this.records.recomputeAfterMutation(accountId, targetEvent.id, this.now())
       d.state='saved';d.result={records:saved,count:saved.length};d.undo=history;d.profileUndo=changedSections;d.documents=[];d.pages=[];d.version++
       return this.write(d)
     })

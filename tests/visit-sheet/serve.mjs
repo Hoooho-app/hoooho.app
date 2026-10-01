@@ -114,6 +114,10 @@ await seed('growth-measurements.json', {
     updatedAt: now,
   })),
 })
+// Keep this synthetic 28-day plan straddling the actual test date. Fixed
+// September dates would turn all future-plan assertions into past-plan checks.
+const planDay = offset => { const value = new Date(); value.setDate(value.getDate()+offset); return value.toLocaleDateString('en-CA',{timeZone:'Asia/Shanghai'}) }
+f.reminders = f.reminders.map(r => ({...r,plan:{...r.plan,startDate:planDay(-12),endDate:planDay(15)}}))
 await seed('medication-reminders.json', {
   reminders: f.reminders.map((r) => ({
     ...r,

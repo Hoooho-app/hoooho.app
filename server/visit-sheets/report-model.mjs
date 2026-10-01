@@ -198,6 +198,12 @@ export function reportFingerprint(input, now = new Date()) {
     .digest('hex')
 }
 export function buildVisitSheet(input, preferences = {}, now = new Date()) {
+  const selection = preferences.selection
+  if (selection) {
+    const ids = new Set(selection.eventIds), records = input.records.filter(r => ids.has(r.eventId) && (!selection.from || Date.parse(r.occurredAt) >= Date.parse(selection.from)) && (!selection.to || Date.parse(r.occurredAt) <= Date.parse(selection.to)))
+    const recordIds = new Set(records.map(r => r.id))
+    input = { ...input, events: input.events.filter(e => ids.has(e.id)), records, attachments: input.attachments.filter(a => ids.has(a.eventId) && (!a.recordId || recordIds.has(a.recordId))), organizations: (input.organizations ?? []).filter(o => recordIds.has(o.recordId)), ...(!selection.includeBackground ? { growth:[],facts:[],profiles:[],profileResources:[],reminders:[],tasks:[] } : {}) }
+  }
   const sources = []
   const sourceMap = new Map()
   const displayTime = (value) =>
@@ -245,7 +251,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       if (s) s.destinations = unique([...s.destinations, id])
     })
   }
-  const records = input.records
+  const allRecords = input.records
     .map((r) => ({
       ...r,
       occurredAt: r.journal?.timePrecision === 'unknown' ? null : r.occurredAt,
@@ -259,21 +265,21 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         .flatMap((o) => o.healthAIOutput?.facts ?? []).filter(eligibleFact),
     }))
     .sort(byTime)
-  for (const r of records)
+  const records = allRecords.filter(r => !r.caseContext || (r.caseContext.identity !== 'external_ai' && r.caseContext.identity !== 'pending' && (r.caseContext.identity === 'parent' || r.caseContext.confirmed)))
+  for (const r of allRecords)
     add({
       id: `record:${r.id}`,
       recordId: r.id,
       eventId: r.eventId,
-      category: recordDestination(r),
+      category: records.includes(r) ? recordDestination(r) : 'sources',
       title:
         text(r.journal?.symptom?.narrative) || text(r.content).slice(0, 100),
       text: recordText(r),
       occurredAt: date(r.occurredAt),
       createdAt: date(r.createdAt),
       updatedAt: date(r.updatedAt),
-      identity:
-        r.sourceType === 'doctor_confirmation' ? '医生记录' : '家长记录',
-      destinations: [recordDestination(r)],
+      identity: r.caseContext ? ({ parent: '家长原话', medical_consultation: '医生问诊消息', examination_report: '检查报告', external_ai: '外部AI参考答复（不是医嘱）', pending: '资料身份待核对' }[r.caseContext.identity] || '资料来源未确认') : r.sourceType === 'doctor_confirmation' ? '医生记录' : '家长记录',
+      destinations: [records.includes(r) ? recordDestination(r) : 'sources'],
     })
   // Only actual symptom records qualify. Event titles, reminders and archive timestamps do not.
   const symptoms = records.filter(
@@ -306,6 +312,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const selectedLocations =
     selected?.journal?.symptom?.locations?.map(bodyLocationLabel) ?? []
   const related = symptoms.filter((r) => {
+    if (focus.caseEventId) return r.eventId === focus.caseEventId
     if (focus.mode === 'custom')
       return (
         text(focus.text).length >= 2 &&
@@ -773,7 +780,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       s.summary = s.blocks.length
         ? '根据已保存资料整理；全部提炼保留来源入口。'
         : '本章暂无可读取资料。未提供不等于没有相关经历。'
-  return refineV6(refineVisitSheet({
+  const report = refineV6(refineVisitSheet({
     memberId: input.member.id,
     member: {
       name: input.member.name,
@@ -782,6 +789,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     },
     timezone: input.timezone,
     focus,
+    ...(selection ? { selection } : {}),
     complaint,
     complaintSourceId: selected ? `record:${selected.id}` : null,
     focusSourceIds: refs,
@@ -797,4 +805,6 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     fingerprint: reportFingerprint(input, now),
     changes: [],
   }, input, preferences), input, preferences, now)
+  if (selection) report.scope = `仅纳入明确选择的${new Set(selection.eventIds).size}次情况${selection.from || selection.to ? '及指定时间范围' : ''}；${selection.includeBackground ? '含当前人物所选既往背景、成长及独立计划' : '未纳入既往背景、成长或独立计划'}。未提供不等于没有。`
+  return report
 }

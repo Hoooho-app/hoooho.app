@@ -38,6 +38,8 @@ import { MedicationReminderService } from './medication-reminders/medication-rem
 import { DesensitizationTestService } from './desensitization-tests/desensitization-test-service.mjs'
 import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
+import { CaseContinuityService } from './events/case-continuity-service.mjs'
+import { caseApiResult } from './events/case-api.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -79,6 +81,7 @@ const medicationReminders = new MedicationReminderService({ ...sharedOptions, ev
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
+const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
 
@@ -759,6 +762,10 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  if (/^\/api\/members\/[^/]+\/(cases|case-records)(?:\/|$)/.test(pathname)) {
+    const result = await caseApiResult(caseContinuity, await readAccountId(request), request.method, pathname, limit => readJson(request, limit), searchParams)
+    if (result) { sendJson(response, result.status ?? 200, result.data); return true }
+  }
   const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
   const businessMatch=/^\/api\/members\/([^/]+)\/ai-drafts(?:\/([^/]+)(?:\/(save|speech|undo))?)?$/.exec(pathname)

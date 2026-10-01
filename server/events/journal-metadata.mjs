@@ -407,6 +407,13 @@ export function validateJournal(value) {
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
   const visit = validateVisit(value.visit)
+  let topical
+  if (value.topical !== undefined) {
+    const t = value.topical
+    if (!t || !['care','skincare','external_medication','other'].includes(t.kind) || !value.categories.includes('care') || !Array.isArray(t.bodyLocations) || t.bodyLocations.length > 20 || t.bodyLocations.some(v => typeof v !== 'string' || v.length > 100)) throw new HealthEventRecordError('身体外用详情无效', 400, 'INVALID_JOURNAL_TOPICAL')
+    topical = { kind: t.kind, bodyLocations: [...new Set(t.bodyLocations)] }
+    for (const key of ['productName','amount','reason','change']) if (t[key] !== undefined) { if (typeof t[key] !== 'string' || t[key].length > 1000) throw new HealthEventRecordError('身体外用内容过长',400,'INVALID_JOURNAL_TOPICAL'); if (t[key].trim()) topical[key] = t[key].trim() }
+  }
   if (diet && !value.categories.includes('diet')) throw new HealthEventRecordError('饮食详情必须归入喂养/饮食分类', 400, 'INVALID_JOURNAL_DIET')
   if (bowel && !value.categories.includes('elimination')) throw new HealthEventRecordError('排便详情必须归入排便分类', 400, 'INVALID_JOURNAL_BOWEL')
   if (sleep && !value.categories.includes('sleep')) throw new HealthEventRecordError('睡眠详情必须归入睡眠分类', 400, 'INVALID_JOURNAL_SLEEP')
@@ -416,11 +423,12 @@ export function validateJournal(value) {
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
   if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
   if (value.timePrecision !== undefined && !['exact', 'period', 'unknown'].includes(value.timePrecision)) throw new HealthEventRecordError('发生时间精度无效', 400, 'INVALID_JOURNAL_TIME')
-  return { categories: [...new Set(value.categories)], ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
+  return { categories: [...new Set(value.categories)], ...(topical ? { topical } : {}), ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
+  if (record.journal?.timePrecision === 'unknown') return { ...record, journal: { ...record.journal, timePrecision: 'unknown', occurredAt: record.occurredAt } }
   const selected = record.journal?.timePrecision === 'exact' || ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
   let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {
