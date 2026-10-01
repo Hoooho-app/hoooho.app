@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import symptomCardImage from '../../assets/health-events/quick-record/symptom.webp'
 import dailyCardImage from '../../assets/health-events/quick-record/daily.webp'
@@ -139,6 +140,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   ]
   const sheetTitle = screen === 'daily-types' ? '记录日常' : isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记一下'
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : screen === 'daily-types' ? 'journal-daily-sheet' : ''}`} open label={sheetTitle} title={sheetTitle} onClose={() => { if (!saving) closeRecorder() }}
+    leading={(screen === 'daily-types' || isDietTypes) ? <button aria-label={screen === 'daily-types' ? '返回记录入口' : '返回记录日常'} className="hoho-bottom-sheet__back" onClick={() => screen === 'daily-types' ? backOneLevel('categories') : initialCategory ? closeRecorder() : backOneLevel('daily-types')} type="button"><ArrowLeft aria-hidden="true" size={20} /></button> : undefined}
     footer={undefined}>
     {screen==='categories'&&<HohoButton variant="secondary" onClick={()=>navigateScreen('ai')}>说一说 / 上传资料整理</HohoButton>}
     {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily journal-entry-hub--illustrated">{dailyCategories.map(({ category, label, image }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, image }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button"><img alt="" aria-hidden="true" src={image} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :

@@ -1,0 +1,33 @@
+import {expect,test,type Page} from '@playwright/test'
+import {mkdir,writeFile} from 'node:fs/promises'
+import {TokenService} from '../../server/auth/token-service.mjs'
+import {isolateLiveApi} from './helpers'
+const authToken=new TokenService('body-locator-local-test-only',3600000).create({id:'body-locator-test-account'})
+test('locator v2 fixed workspace and explicit sides retain palm and dorsum selections',async({page},info)=>{
+  await isolateLiveApi(page)
+  const memberId=`body-girl-${info.project.name}`
+  await page.addInitScript(({authToken,memberId})=>{sessionStorage.setItem('hoooho-auth-token',authToken);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'body-locator-test-account'},currentMemberId:memberId,members:[],profile:null},version:5}))},{authToken,memberId})
+  await page.goto('/health-events');await page.getByRole('button',{name:'记一下',exact:true}).click();await page.getByRole('dialog',{name:'记一下',exact:true}).getByRole('button',{name:'记录症状',exact:true}).click()
+  const form=page.getByRole('dialog',{name:'记录症状',exact:true});await form.locator('.child-body-open').click()
+  const p=page.getByRole('dialog',{name:'身体部位定位器',exact:true})
+  await expect(p.locator('[data-asset="assets/girl-front.png"]')).toBeVisible()
+  await page.waitForTimeout(300)
+  const dir=`outputs/body-locator/v2/${info.project.name}`;await mkdir(dir,{recursive:true});await page.screenshot({path:`${dir}/global-front.png`})
+  await writeFile(`${dir}/layout.json`,JSON.stringify(await p.locator('.locator-stage').evaluate(stage=>({stage:{width:stage.clientWidth,height:stage.clientHeight},entries:stage.getAttribute('data-visible-entries')?.split(','),buttons:Array.from(stage.querySelectorAll('.locator-callout')).map(button=>({id:button.getAttribute('data-region-id'),width:button.getBoundingClientRect().width,height:button.getBoundingClientRect().height,font:getComputedStyle(button).fontSize})),image:(()=>{const rect=stage.querySelector('svg > svg')?.getBoundingClientRect();return rect?{width:rect.width,height:rect.height}:null})()})),null,2))
+  let hand=p.locator('[data-region-id="hand"]');if(!await hand.count()){await p.getByRole('button',{name:'更多部位',exact:true}).click();hand=page.getByRole('dialog',{name:'更多部位',exact:true}).locator('[data-region-id="hand"]')}
+  await hand.click();await expect(p.getByRole('button',{name:'左手',exact:true})).toHaveAttribute('aria-pressed','false');await expect(p.getByRole('button',{name:'右手',exact:true})).toHaveAttribute('aria-pressed','false')
+  await expect(p.locator('[data-asset]')).toHaveCount(0)
+  await p.getByRole('button',{name:'左手',exact:true}).click();await expect(p.locator('[data-asset="assets/hand-left.png"]')).toBeVisible()
+  await p.locator('[data-location-id="hand_left_palm_center"]').click()
+  const footer=await p.locator('.hoho-bottom-sheet__footer').boundingBox(),image=await p.locator('.locator-stage').boundingBox()
+  await page.screenshot({path:`${dir}/left-palm-selected.png`})
+  await p.getByRole('button',{name:'手背',exact:true}).click();await p.locator('[data-location-id="hand_left_dorsum"]').click()
+  await expect(p.locator('.locator-selected-line')).toContainText('已选 2 处');await page.screenshot({path:`${dir}/left-dorsum-selected.png`})
+  expect(await p.locator('.hoho-bottom-sheet__footer').boundingBox()).toEqual(footer);expect(await p.locator('.locator-stage').boundingBox()).toEqual(image)
+  await p.getByRole('button',{name:'查看全部',exact:true}).click();const d=page.getByRole('dialog',{name:'已选 2 处',exact:true});await expect(d).toContainText('左掌心');await expect(d).toContainText('左手背')
+  await page.screenshot({path:`${dir}/selected-drawer.png`});await d.getByRole('button',{name:'继续选择',exact:true}).click();await expect(p.getByRole('button',{name:'查看全部',exact:true})).toBeFocused()
+  await p.getByRole('button',{name:/完成并返回症状记录/}).click();await expect(p).toHaveCount(0);await expect(form.locator('.symptom-location-tags')).toContainText('左掌心');await expect(form.locator('.symptom-location-tags')).not.toContainText('号区域')
+  await page.screenshot({path:`${dir}/form-result.png`})
+  await expect(form.locator('.child-body-open')).toBeFocused()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})

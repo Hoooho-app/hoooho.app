@@ -2,13 +2,16 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   allergyGroup,
+  activeAllergyReactions,
   allergyOptions,
   applyAllergyReport,
   createAllergyItem,
   linkJournalObservation,
   mergeDesensitizationConclusion,
   normalizeAllergyArchive,
+  reconcileDesensitizationObservation,
   readAllergyArchive,
+  reconcileJournalObservation,
   saveQuickAllergy,
   serializeAllergyArchive,
   type AllergyArchive,
@@ -92,6 +95,38 @@ test('排敏明确和待排查结论均保留独立来源引用', () => {
   assert.equal(investigating[0].sourceReferences.length, 1)
 })
 
+test('排敏待排查不覆盖人工确认，重试同步不重复追加历史', () => {
+  const manual = saveQuickAllergy([], { ...baseInput, name: '牛奶', certainty: 'confirmed', sourceType: 'clinician', sourceLabel: '医生告知' })
+  const input = { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'investigating' as const, observationIds: ['obs-1'], occurredAt: '2026-09-20' }
+  const linked = mergeDesensitizationConclusion(manual, input)
+  assert.equal(linked[0].currentStatus, 'confirmed')
+  assert.equal(linked[0].sourceLabel, '医生告知')
+  assert.equal(linked[0].sourceReferences[0].sourceId, 'task-1')
+  assert.equal(linked[0].history.at(-1)?.status, 'investigating')
+  assert.strictEqual(mergeDesensitizationConclusion(linked, input), linked)
+})
+
+test('排敏观察撤回、恢复及修改同步引用并保留结论历史，隔离其他成员', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', taskId: 'task-1', name: '牛奶', conclusion: 'confirmed' as const, observationIds: ['obs-1', 'obs-2'], occurredAt: '2026-09-20' }
+  const other = createAllergyItem('member-2', 'food', '牛奶', 'account-1')
+  const initial = [...mergeDesensitizationConclusion([], input), other]
+  const change = { accountId: input.accountId, memberId: input.memberId, taskId: input.taskId, recordId: 'obs-1', occurredAt: '2026-09-21' }
+  const withdrawn = reconcileDesensitizationObservation(initial, { ...change, action: 'withdraw' })
+  assert.deepEqual(withdrawn[0].sourceReferences[0].recordIds, ['obs-2'])
+  assert.equal(withdrawn[0].currentStatus, 'confirmed')
+  assert.equal(withdrawn[0].history.at(-1)?.label, '排敏观察已撤回，原结论需复核')
+  assert.strictEqual(withdrawn[1], other)
+  const repeated = reconcileDesensitizationObservation(withdrawn, { ...change, action: 'withdraw' })
+  assert.strictEqual(repeated[0], withdrawn[0])
+  const restored = reconcileDesensitizationObservation(withdrawn, { ...change, action: 'restore', occurredAt: '2026-09-22' })
+  assert.deepEqual(restored[0].sourceReferences[0].recordIds, ['obs-2', 'obs-1'])
+  const updated = reconcileDesensitizationObservation(restored, { ...change, action: 'update', occurredAt: '2026-09-23' })
+  assert.equal(updated[0].history.at(-1)?.label, '排敏观察已修改，原结论需复核')
+  assert.equal(updated[0].history.at(-1)?.sourceId, 'obs-1')
+  const retry = reconcileDesensitizationObservation(updated, { ...change, action: 'update', occurredAt: '2026-09-23' })
+  assert.strictEqual(retry[0], updated[0])
+})
+
 test('健康随记只有用户明确关联后进入待排查，并按记录 ID 防重复', () => {
   const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
   const first = linkJournalObservation([], input)
@@ -101,6 +136,34 @@ test('健康随记只有用户明确关联后进入待排查，并按记录 ID �
   assert.equal(first[0].currentStatus, 'investigating')
   assert.equal(repeated[0].evidenceLinks.length, 1)
   assert.equal(repeated[0].reactions.length, 1)
+})
+
+test('随记修改或删除后原反应不计数，保留历史并允许明确重新关联', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '牛奶', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
+  const linked = linkJournalObservation([], input)
+  const other = createAllergyItem('member-2', 'food', '牛奶', 'account-1')
+  const changed = reconcileJournalObservation([...linked, other], { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'update', occurredAt: '2026-09-21' })
+  assert.equal(changed[0].sourceReferences[0].active, false)
+  assert.equal(activeAllergyReactions(changed[0]).length, 0)
+  assert.equal(changed[0].reactions[0].symptoms, '皮肤发红')
+  assert.strictEqual(changed[1], other)
+  assert.strictEqual(reconcileJournalObservation(changed, { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'delete', occurredAt: '2026-09-22' })[0], changed[0])
+  const relinked = linkJournalObservation(changed, { ...input, reaction: '皮肤轻微发红', occurredAt: '2026-09-23' })
+  assert.equal(relinked[0].sourceReferences[0].active, true)
+  assert.deepEqual(activeAllergyReactions(relinked[0]).map(record=>record.symptoms), ['皮肤轻微发红'])
+  assert.equal(relinked[0].reactions.length, 2)
+  const deleted = reconcileJournalObservation(relinked, { accountId: 'account-1', memberId: 'member-1', recordId: 'record-1', action: 'delete', occurredAt: '2026-09-24' })
+  const restored = readAllergyArchive(JSON.stringify(serializeAllergyArchive({ version: 3, items: deleted, reports: [] })), 'member-1', 'account-1')
+  assert.equal(activeAllergyReactions(restored.items[0]).length, 0)
+  assert.equal(restored.items[0].history.at(-1)?.label, '关联的健康随记已删除，原反应保留备查')
+})
+
+test('旧随记关联缺少来源引用时重复提交不生成第二次反应', () => {
+  const input = { accountId: 'account-1', memberId: 'member-1', eventId: 'event-1', recordId: 'record-1', name: '牛奶', category: 'food' as const, reaction: '皮肤发红', occurredAt: '2026-09-20' }
+  const linked = linkJournalObservation([], input)
+  const legacy = [{ ...linked[0], sourceReferences: [] }]
+  assert.strictEqual(linkJournalObservation(legacy, input), legacy)
+  assert.equal(legacy[0].reactions.length, 1)
 })
 
 test('序列化继续使用 records 数组并同时保留报告，读取时按账户与成员隔离', () => {

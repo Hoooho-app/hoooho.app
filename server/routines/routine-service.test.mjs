@@ -13,7 +13,7 @@ async function fixture() {
   const calls = []
   const recordMap = new Map()
   const eventMap = new Map()
-  const records = { repository: { findByAccountId: async () => [...recordMap.values()], findById: async (id) => recordMap.get(id) ?? null } }
+  const records = { repository: { findByAccountId: async () => [...recordMap.values()], findById: async (id) => recordMap.get(id) ?? null }, update: async (accountId, id, input) => { const previous = recordMap.get(id); assert.equal(previous.accountId, accountId); const next = { ...previous, ...input }; recordMap.set(id, next); return next } }
   const events = { repository: { findById: async (id) => eventMap.get(id) ?? null } }
   const quickRecords = { records, events, create: async (_accountId, input) => { calls.push(input); const record = { id: 'record-1', accountId: 'account-1', eventId: 'event-1', occurredAt: input.occurredAt, content: input.content, journal: input.journal }; recordMap.set(record.id, record); eventMap.set('event-1', { id: 'event-1', accountId: 'account-1', memberId: member.id }); return { eventId: 'event-1', recordId: record.id, idempotent: false } } }
   return { service: new RoutineService({ dataDirectory, members, quickRecords, records, events }), member, members, calls, recordMap, eventMap }
@@ -69,6 +69,28 @@ test('cross-midnight sleep is one completed fact with the real duration', async 
   assert.equal(calls.length, 1)
   assert.equal(calls[0].journal.sleep.durationMinutes, 640)
   assert.equal(calls[0].journal.sleep.status, 'completed')
+})
+
+test('sleep instance keeps projected state, supplements, identity and date edits without changing template', async () => {
+  const { service, member, calls, recordMap } = await fixture()
+  const now = new Date('2026-09-30T14:00:00Z')
+  await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-29', items: { nightSleep: { enabled: true, time: '21:10', endTime: '06:00' } } }, now)
+  const input = { action: 'confirm', sleepAt: '2026-09-30T13:10:00Z', wakeAt: '2026-10-01T22:00:00Z', sleepStatus: 'ongoing', quality: '睡得安稳', observations: ['其他'], otherNote: '环境变化', idempotencyKey: 'sleep-editor-one' }
+  await service.setOverride('account-1', member.id, '2026-09-30', 'nightSleep', input, now)
+  let track = (await service.getDay('account-1', member.id, '2026-09-30')).tracks[0]
+  assert.equal(track.sleep.status, 'ongoing'); assert.equal(track.sleep.durationMinutes, 1970)
+  assert.equal(track.sleep.otherNote, '环境变化'); assert.equal(calls[0].occurredAt, input.sleepAt.replace('Z','.000Z'))
+  await service.setOverride('account-1', member.id, '2026-09-30', 'nightSleep', { ...input, sleepAt: '2026-09-29T13:10:00Z', wakeAt: '2026-09-30T10:00:00Z' }, now)
+  track = (await service.getDay('account-1', member.id, '2026-09-30')).tracks[0]
+  assert.equal(track.sleep.status, 'ongoing') // past projected end is not actual completion
+  assert.equal(track.sleep.sleepAt, '2026-09-29T13:10:00.000Z'); assert.equal(calls.length, 1); assert.equal(recordMap.size, 1)
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-29')).tracks[0].status, 'routine')
+  assert.equal(track.time, '21:10'); assert.equal(track.endTime, '06:00')
+  await service.setOverride('account-1', member.id, '2026-09-30', 'nightSleep', { ...input, wakeAt: '2026-09-30T13:50:00Z', sleepStatus: 'completed' }, now)
+  assert.equal(recordMap.get(track.recordId).journal.sleep.status, 'completed')
+  await assert.rejects(service.setOverride('account-2', member.id, '2026-09-30', 'nightSleep', input, now), /当前记录对象/)
+  await service.setOverride('account-1', member.id, '2026-09-30', 'nightSleep', { action: 'skipped' }, now)
+  assert.equal((await service.getDay('account-1', member.id, '2026-09-30')).tracks[0].status, 'skipped')
 })
 
 test('custom routines keep a stable identity, create an activity fact and do not guess matches by title', async () => {

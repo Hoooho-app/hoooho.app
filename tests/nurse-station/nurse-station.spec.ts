@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 let registrationSequence = 0
 const pageTokens = new WeakMap<Page, string>()
@@ -17,11 +17,19 @@ async function registerAccount(page: Page) {
   await expect(page).toHaveURL(/\/nurse-station$/)
 }
 
+async function fillDateInput(input: Locator, isoDate: string) {
+  await input.fill(isoDate)
+  if (await input.inputValue() !== isoDate) {
+    await input.pressSequentially(isoDate.replaceAll('-', ''))
+  }
+  await expect(input).toHaveValue(isoDate)
+}
+
 async function registerMember(page: Page) {
   await registerAccount(page)
   await page.goto('/family/new')
   await page.getByRole('textbox', { name: '姓名' }).fill('123')
-  await page.getByRole('textbox', { name: '出生日期' }).pressSequentially('20260901')
+  await fillDateInput(page.getByRole('textbox', { name: '出生日期' }), '2026-09-01')
   await page.getByRole('button', { name: '男', exact: true }).click()
   await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
   await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
@@ -66,7 +74,7 @@ test('护士站待机视频仍使用真实单一循环资源', async ({ page }) 
 test('护士视频资源失败时页面结构和核心任务仍可使用', async ({ page }) => {
   await page.route('**/*nurse-station-idle-1*.mp4', (route) => route.abort())
   await registerMember(page)
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '202px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '190px')
   await expect(page.locator('.idle-nurse-visual video')).toHaveAttribute('poster', /nurse-station-idle-1-poster/)
   await expect(page.getByRole('link', { name: /用药提醒/ })).toBeVisible()
   await page.getByRole('link', { name: /排敏测试/ }).click()
@@ -101,22 +109,37 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await expect(page.locator('.nurse-station-hero')).toBeVisible()
   await expect(page.locator('.nurse-station-identity')).toContainText('123')
   await expect(page.locator('.nurse-station-guarded')).toContainText('已守护')
-  await expect(page.locator('.nurse-station-guarded')).toHaveCSS('margin-top', '8px')
-  await expect(page.locator('.nurse-station-fact')).toHaveCSS('margin-top', '4px')
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('height', '202px')
+  await expect(page.locator('.nurse-station-guarded')).toHaveCSS('margin-top', '7px')
+  await expect(page.locator('.nurse-station-fact')).toHaveCount(0)
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '190px')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  const facts = ['全球食物过敏率约3%～8%', '低龄儿童更容易发生食物过敏', '时间、诱因和频率都是重要线索', '早点留下记录，就能少一点麻烦']
-  for (const fact of facts) {
-    const metrics = await page.locator('.nurse-station-fact').evaluate((element, text) => {
-      const copy = element.querySelector('span')
-      if (copy) copy.textContent = text
-      return { clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }
-    }, fact)
-    expect(metrics.scrollHeight).toBeLessThanOrEqual(36)
-    expect(metrics.clientHeight).toBeLessThanOrEqual(36)
-  }
+  const guardedTypography = await page.locator('.nurse-station-guarded').evaluate((element) => ({
+    fontSize: getComputedStyle(element).fontSize,
+    numberFontSize: getComputedStyle(element.querySelector('strong')!).fontSize,
+    numberColor: getComputedStyle(element.querySelector('strong')!).color,
+  }))
+  expect(guardedTypography).toEqual({ fontSize: '12.5px', numberFontSize: '12.5px', numberColor: 'rgb(27, 122, 110)' })
+  const heroAlignment = await page.locator('.nurse-station-hero').evaluate((element) => {
+    const gender = element.querySelector<HTMLElement>('.nurse-station-identity em')!
+    const guarded = element.querySelector<HTMLElement>('.nurse-station-guarded')!
+    const growth = element.querySelector<HTMLElement>('.nurse-station-growth-data')!
+    const buttons = Array.from(growth.querySelectorAll<HTMLElement>('button'))
+    return {
+      genderLeft: gender.getBoundingClientRect().left,
+      guardedLeft: guarded.getBoundingClientRect().left,
+      growthHeight: growth.getBoundingClientRect().height,
+      dividerWidths: buttons.slice(0, -1).map((button) => getComputedStyle(button).borderRightWidth),
+    }
+  })
+  expect(Math.abs(heroAlignment.genderLeft - heroAlignment.guardedLeft)).toBeLessThanOrEqual(1)
+  expect(heroAlignment.growthHeight).toBeGreaterThanOrEqual(69)
+  expect(heroAlignment.dividerWidths).toEqual(['1px', '1px'])
+  const indexEntry = page.getByRole('button', { name: '食物过敏状态指数，暂未开放计算，查看说明' })
+  await expect(indexEntry).toBeVisible()
+  await expect(indexEntry).toContainText('暂未开放计算')
+  expect((await indexEntry.boundingBox())?.height).toBeGreaterThanOrEqual(44)
   const entries = page.locator('.nurse-home-entry')
   await expect(entries).toHaveCount(6)
   await expect(entries.locator('strong')).toHaveText(['健康随记', '健康档案', '就诊情况单', '忌口出示卡', '用药提醒', '排敏测试'])
@@ -137,6 +160,19 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect.poll(() => reducedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false)
   await page.screenshot({ path: 'test-results/nurse-station-first-screen-375x667.png', fullPage: true })
+  await page.locator('.nurse-station-guarded strong').evaluate((element) => { element.textContent = '99999' })
+  const fiveDigitLayout = await page.locator('.nurse-station-hero__main').evaluate((element) => {
+    const guarded = element.querySelector<HTMLElement>('.nurse-station-guarded')!
+    const visual = element.querySelector<HTMLElement>('.nurse-station-visual')!
+    return {
+      guardedRight: guarded.getBoundingClientRect().right,
+      visualLeft: visual.getBoundingClientRect().left,
+      overflow: guarded.scrollWidth > guarded.clientWidth,
+    }
+  })
+  expect(fiveDigitLayout.overflow).toBe(false)
+  expect(fiveDigitLayout.guardedRight).toBeLessThanOrEqual(fiveDigitLayout.visualLeft)
+  await page.screenshot({ path: 'test-results/nurse-station-five-digit-guarded-days-375x667.png', fullPage: true })
   for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['排敏测试', '/desensitization-tests']] as const) {
     await page.getByRole('link', { name: new RegExp(name) }).click()
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`))
@@ -157,6 +193,34 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
     expect(cardMetrics.every((metric) => metric.height === 88 && metric.titleFits && metric.subtitleFits)).toBe(true)
     if (viewport.width === 1440) await page.screenshot({ path: 'test-results/nurse-station-home-desktop-1440x900.png', fullPage: true })
   }
+
+  await page.setViewportSize({ width: 375, height: 667 })
+  await indexEntry.click()
+  await expect(page).toHaveURL(/\/food-allergy-status-index$/)
+  await expect(page.getByRole('heading', { name: '食物过敏状态指数', exact: true })).toBeVisible()
+  await expect(page.getByText('暂未开放计算', { exact: true })).toBeVisible()
+  await expect(page.getByText('算法结构草案，参数尚待验证。', { exact: true })).toBeVisible()
+  await expect(page.getByText('反应严重程度', { exact: true })).toBeVisible()
+  await expect(page.getByText('治疗强度', { exact: true })).toBeVisible()
+  await expect(page.getByText('诱发剂量', { exact: true })).toBeVisible()
+  await expect(page.getByText('72%', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('治愈率', { exact: false })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '公式里的变量', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '这些资料从哪里来', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '何时更新', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '如何理解百分比', exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/food-allergy-status-index-375x667.png' })
+  await page.locator('.food-allergy-index-scroll').evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await page.screenshot({ path: 'test-results/food-allergy-status-index-lower-375x667.png' })
+  for (const viewport of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
+    const formulasFit = await page.locator('.food-allergy-index-formulas p').evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth))
+    expect(formulasFit).toBe(true)
+  }
+  await page.getByRole('button', { name: '返回前台' }).click()
+  await expect(page).toHaveURL(/\/nurse-station$/)
+  await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   expect(errors).toEqual([])
 })
 
@@ -168,8 +232,8 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
 
   await page.getByRole('button', { name: /查看123的成长数据/ }).click()
   await expect(page).toHaveURL(/\/health-profile\/basic$/)
-  await expect(page.getByRole('heading', { name: '基础信息', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: /成长记录/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '成长数据', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /记录列表/ })).toBeVisible()
   await page.getByRole('button', { name: '返回' }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
 
@@ -221,14 +285,14 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
   await page.reload()
   await expect(page.getByRole('button', { name: /身高，84.2，查看成长数据/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /体重，10.7，查看成长数据/ })).toBeVisible()
-  await expect(page.locator('.nurse-station-fact > span')).toHaveText('全球食物过敏率约3%～8%')
+  await expect(page.locator('.nurse-station-fact')).toHaveCount(0)
   await expect.poll(() => page.locator('.idle-nurse-visual video').evaluate((element: HTMLVideoElement) => element.videoWidth)).toBe(360)
   await page.screenshot({ path: 'test-results/nurse-station-growth-data-375x667.png', fullPage: true })
 
   await page.getByRole('link', { name: /健康档案/ }).click()
-  await expect(page.locator('.growth-identity-card--compact')).toBeVisible()
+  await expect(page.locator('.health-profile-record-subject')).toBeVisible()
   await expect(page.locator('.growth-identity-card__metrics')).toHaveCount(0)
-  await expect(page.locator('.growth-identity-card + .health-profile-allergy-card')).toBeVisible()
+  await expect(page.locator('.health-profile-record-subject + .health-profile-allergy-card')).toBeVisible()
   await page.screenshot({ path: 'test-results/health-profile-without-growth-card-375x667.png', fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
@@ -474,7 +538,7 @@ test('切换到另一人物时任务归属同步更新且不显示人物任务�
   await registerMember(page)
   await page.goto('/family/new')
   await page.getByRole('textbox', { name: '姓名' }).fill('这是一个非常非常长的孩子姓名')
-  await page.getByRole('textbox', { name: '出生日期' }).pressSequentially('20260801')
+  await fillDateInput(page.getByRole('textbox', { name: '出生日期' }), '2026-08-01')
   await page.getByRole('button', { name: '女', exact: true }).click()
   await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
   await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
@@ -710,14 +774,14 @@ test('就诊情况单从当前人物随记生成报告并支持目录和依据�
   await page.getByRole('button', { name: '章节目录' }).click()
   const directory = page.getByRole('dialog', { name: '章节目录' })
   await expect(directory.locator('[data-visit-sheet-index] button')).not.toHaveCount(0)
-  await directory.getByRole('button', { name: '关闭' }).click()
-  const evidenceAction = page.getByRole('button', { name: /查看依据 · \d+ 项/ }).first()
+  await directory.getByRole('button', { name: '关闭章节目录', exact: true }).click()
+  const evidenceAction = page.getByRole('button', { name: '查看依据', exact: true }).first()
   await expect(evidenceAction).toBeVisible()
   await evidenceAction.click()
   const evidence = page.getByRole('dialog', { name: '原始依据' })
   await expect(evidence).toContainText('发生：')
   await expect(evidence).toContainText('录入：')
-  await evidence.getByRole('button', { name: '关闭' }).click()
+  await evidence.getByRole('button', { name: '关闭原始依据', exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   await page.screenshot({ path: 'test-results/visit-summary-desktop-1440x900.png', fullPage: true })

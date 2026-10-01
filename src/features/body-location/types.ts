@@ -20,7 +20,13 @@ export interface BodyLocationSelection {
   schemaVersion?: string
   surface?: import('./childBodyCatalog').ChildSurface
   coverage?: 'specific' | 'whole' | 'uncertain'
-  modelAtSelection?: 'boy' | 'girl'
+  modelAtSelection?: 'boy' | 'girl' | 'neutral'
+  regionId?: string
+  categoryId?: string
+  precision?: 'category' | 'region'
+  displayLabel?: string
+  medicalLabel?: string
+  dictionaryVersion?: string
   /** Unmodified journal fields (including legacy point descriptions) survive an edit. */
   recordSnapshot?: import('../../types/journal').JournalSymptomLocation
 }

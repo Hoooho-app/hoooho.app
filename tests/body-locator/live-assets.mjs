@@ -24,4 +24,10 @@ for (const file of images) {
   assert.match(response.headers.get('content-type') || '', /image\/png/)
   assert.equal(createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex'), file.sha256, file.path)
 }
-console.log(JSON.stringify({ base, health: 'PASS', entryAssets: assets, frozenImages: images.length, hashes: 'PASS' }, null, 2))
+const neutral=JSON.parse(await readFile('public/body-locator/v2/manifest.json','utf8'))
+for(const file of neutral.files){
+  const response=await get(`/body-locator/v2/${file.name}`)
+  assert.match(response.headers.get('content-type')||'',/image\/png/)
+  assert.equal(createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex'),file.sha256,file.name)
+}
+console.log(JSON.stringify({ base, health: 'PASS', entryAssets: assets, frozenImages: images.length, neutralImages:neutral.files.length, hashes: 'PASS' }, null, 2))

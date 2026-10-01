@@ -138,19 +138,23 @@ function validateSleep(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !sleepKinds.has(value.kind)) throw new HealthEventRecordError('睡眠类型无效', 400, 'INVALID_JOURNAL_SLEEP')
   const sleepAt = new Date(value.sleepAt)
+  if (value.timeZone !== undefined) {
+    try { if (typeof value.timeZone !== 'string' || !value.timeZone) throw new Error(); new Intl.DateTimeFormat('en', { timeZone: value.timeZone }) }
+    catch { throw new HealthEventRecordError('睡眠记录时区无效', 400, 'INVALID_JOURNAL_SLEEP') }
+  }
   if (!Number.isFinite(sleepAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
-  if (value.status === 'ongoing') return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing' }
+  if (value.status === 'ongoing' && !value.wakeAt) return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing', ...(value.timeZone ? { timeZone: value.timeZone } : {}) }
   const wakeAt = new Date(value.wakeAt)
   if (!Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
   const elapsedMilliseconds = wakeAt.getTime() - sleepAt.getTime()
   const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
-  if (elapsedMilliseconds <= 0 || durationMinutes > 1440) throw new HealthEventRecordError('睡眠时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_SLEEP')
+  if (elapsedMilliseconds <= 0) throw new HealthEventRecordError('睡眠时长必须大于0', 400, 'INVALID_JOURNAL_SLEEP')
   if (value.quality !== undefined && !sleepQualities.has(value.quality)) throw new HealthEventRecordError('睡眠感受无效', 400, 'INVALID_JOURNAL_SLEEP')
   const observations = cleanStrings(value.observations, '睡眠观察', 7)
   if (observations?.some((item) => !sleepObservations.has(item))) throw new HealthEventRecordError('睡眠观察无效', 400, 'INVALID_JOURNAL_SLEEP')
   const otherNote = value.otherNote === undefined ? undefined : validateSleepNote(value.otherNote)
   if (otherNote && !observations?.includes('其他')) throw new HealthEventRecordError('睡眠补充说明必须选择其他', 400, 'INVALID_JOURNAL_SLEEP')
-  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.status === 'completed' ? { status: 'completed' } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
+  return { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), durationMinutes, kind: value.kind, ...(value.timeZone ? { timeZone: value.timeZone } : {}), ...(['completed', 'ongoing'].includes(value.status) ? { status: value.status } : {}), ...(value.quality ? { quality: value.quality } : {}), ...(observations?.length ? { observations } : {}), ...(otherNote ? { otherNote } : {}) }
 }
 
 function validateSleepNote(value) {
@@ -193,12 +197,18 @@ function validateSymptom(value) {
     if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || typeof item.label !== 'string' || !item.label.trim() || item.locationNumber !== index + 1 || !['surface', 'organ'].includes(item.locationLayer)) throw new HealthEventRecordError('症状位置无效', 400, 'INVALID_JOURNAL_SYMPTOM')
     const result = { id: item.id.trim(), label: item.label.trim(), locationNumber: item.locationNumber, locationLayer: item.locationLayer, localRegion: typeof item.localRegion === 'string' && item.localRegion.trim() ? item.localRegion.trim() : item.label.trim() }
     for (const key of ['bodySide', 'bodyView', 'bodyRegion', 'markedArea']) if (typeof item[key] === 'string' && item[key].trim()) result[key] = item[key].trim()
+    for (const key of ['regionId', 'categoryId', 'displayLabel', 'medicalLabel', 'dictionaryVersion']) {
+      if (item[key] !== undefined) {
+        if (typeof item[key] !== 'string' || !item[key].trim() || item[key].length > 160) throw new HealthEventRecordError('部位语义无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+        result[key] = item[key].trim()
+      }
+    }
     // Additive locator snapshots; legacy IDs and labels remain valid and are never reclassified.
     if (item.schemaVersion !== undefined) {
       if (typeof item.schemaVersion !== 'string' || !/^\d+\.\d+\.\d+$/.test(item.schemaVersion) || item.schemaVersion.length > 24) throw new HealthEventRecordError('部位版本无效', 400, 'INVALID_JOURNAL_SYMPTOM')
       result.schemaVersion = item.schemaVersion
     }
-    for (const [key, allowed] of Object.entries({ surface: ['anterior', 'posterior', 'medial', 'lateral', 'superior', 'inferior', 'palmar', 'dorsal', 'plantar', 'circumferential', 'mucosal', 'external', 'unspecified'], coverage: ['specific', 'whole', 'uncertain'], modelAtSelection: ['boy', 'girl'] })) {
+    for (const [key, allowed] of Object.entries({ surface: ['anterior', 'posterior', 'medial', 'lateral', 'superior', 'inferior', 'palmar', 'dorsal', 'plantar', 'circumferential', 'mucosal', 'external', 'unspecified'], coverage: ['specific', 'whole', 'uncertain'], precision: ['category','region'], modelAtSelection: ['boy', 'girl','neutral'] })) {
       if (item[key] !== undefined) {
         if (!allowed.includes(item[key])) throw new HealthEventRecordError('部位描述无效', 400, 'INVALID_JOURNAL_SYMPTOM')
         result[key] = item[key]

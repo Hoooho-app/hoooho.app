@@ -1,4 +1,5 @@
 import type { BodyLocationSelection } from '../../features/body-location'
+import { bodyLocationLabel } from '../../../shared/body-location-label.mjs'
 import type { JournalSymptomDetails, JournalSymptomLocation, SymptomCategory } from '../../types/journal'
 
 const optionalImpactLabels = { little: '轻度', some: '中度', clear: '重度' } as const
@@ -75,7 +76,7 @@ export function isSemanticSymptomLocation(value: string) {
 
 export function symptomLocationDisplay(details?: Pick<JournalSymptomDetails, 'locationText' | 'locations'>) {
   if (!details) return ''
-  const labels = details.locations.map((item) => `${item.label}${item.locationNumber ? ` · ${item.locationNumber}号区域` : ''}`)
+  const labels = details.locations.map(bodyLocationLabel)
   const manual = details.locationText?.trim()
   if (manual && isSemanticSymptomLocation(manual) && !details.locations.some(item => item.label === manual)) labels.push(manual)
   return labels.join('、')
@@ -146,11 +147,11 @@ const trendLabels = { same: '与刚出现时差不多', more_noticeable: '与刚
 const impactLabels = { little: '不太影响照常活动', some: '对日常活动有些影响', clear: '已明显影响吃饭、睡觉或活动' } as const
 
 export function toSymptomLocations(values: readonly BodyLocationSelection[]): JournalSymptomLocation[] {
-  return values.map((item, index) => ({ ...item.recordSnapshot, id: item.id, label: item.label, locationNumber: index + 1, locationLayer: item.locationType, bodySide: item.laterality, bodyView: item.view, bodyRegion: item.parentId, localRegion: item.recordSnapshot?.localRegion ?? item.label, markedArea: item.recordSnapshot ? item.recordSnapshot.markedArea : `${index + 1}号区域`, ...(item.schemaVersion ? { schemaVersion: item.schemaVersion, surface: item.surface, coverage: item.coverage, modelAtSelection: item.modelAtSelection } : {}) }))
+  return values.map((item, index) => ({ ...item.recordSnapshot, id: item.id, label: item.label, locationNumber: index + 1, locationLayer: item.locationType, bodySide: item.laterality, bodyView: item.view, bodyRegion: item.parentId, localRegion: item.recordSnapshot?.localRegion ?? item.label, markedArea: item.recordSnapshot?.markedArea, ...(item.schemaVersion ? { schemaVersion: item.schemaVersion, surface: item.surface, coverage: item.coverage, modelAtSelection: item.modelAtSelection } : {}), ...(item.dictionaryVersion ? {regionId:item.regionId,categoryId:item.categoryId,precision:item.precision,displayLabel:item.displayLabel,medicalLabel:item.medicalLabel,dictionaryVersion:item.dictionaryVersion}: {}) }))
 }
 
 export function fromSymptomLocations(values: readonly JournalSymptomLocation[]): BodyLocationSelection[] {
-  return values.map(item => ({ id: item.id, label: item.label, locationType: item.locationLayer, laterality: item.bodySide, view: item.bodyView, parentId: item.bodyRegion, schemaVersion: item.schemaVersion, surface: item.surface, coverage: item.coverage, modelAtSelection: item.modelAtSelection, recordSnapshot: { ...item } }))
+  return values.map(item => ({ id: item.id, label: item.label, locationType: item.locationLayer, laterality: item.bodySide, view: item.bodyView, parentId: item.bodyRegion, schemaVersion: item.schemaVersion, surface: item.surface, coverage: item.coverage, modelAtSelection: item.modelAtSelection,regionId:item.regionId,categoryId:item.categoryId,precision:item.precision,displayLabel:item.displayLabel,medicalLabel:item.medicalLabel,dictionaryVersion:item.dictionaryVersion, recordSnapshot: { ...item } }))
 }
 
 export function toggleExclusive(values: readonly string[], value: string) {
@@ -161,7 +162,7 @@ export function toggleExclusive(values: readonly string[], value: string) {
 
 export function generateSymptomSummary(details: JournalSymptomDetails, photoCount = 0) {
   if (details.narrative?.trim()) return details.narrative.trim()
-  const locations = details.locations.map((item) => `${item.label}${item.locationNumber}号区域`).join('、')
+  const locations = details.locations.map(bodyLocationLabel).join('、')
   const subject = details.symptomCategory === 'other' ? details.otherCategoryText?.trim() || '不舒服' : categoryLabel[details.symptomCategory]
   const facts = [locations && `${locations}${subject}`, details.descriptors.length ? `表现为${details.descriptors.join('、')}` : '', details.impactLevel ? impactLabels[details.impactLevel] : ''].filter(Boolean).join('，')
   const specific = details.symptomSpecificData ?? {}

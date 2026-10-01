@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Clock3, Moon, PencilLine, Plus, Trash2, Utensils } from 'lucide-react'
 import { BottomSheetSurface, ConfirmDialog, HohoButton, HohoInput, HohoToggle } from '../../components/design-system'
 import { routineTrackService, type RoutineDay, type RoutineFixedItemKey, type RoutineItemKey, type RoutineTrack } from '../../services/routineTracks'
+import { AutomaticSleepSheet } from './AutomaticSleepSheet'
 
 const definitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: boolean }> = [
   { key: 'nightSleep', label: '夜间睡眠', sleep: true },
@@ -163,6 +164,7 @@ export function RoutineTrackSheet({ memberId, now, openTrack, token, onClose, on
     setFoods(''); setDetails(false); setError(''); idempotencyRef.current = ''
   }, [track])
   if (!track) return null
+  if (track.category === 'sleep' && track.status !== 'skipped') return <AutomaticSleepSheet key={track.trackKey} memberId={memberId} onClose={onClose} onSaved={onSaved} token={token} track={track} />
   const future = new Date(occurredAt).getTime() > now.getTime()
   const incompleteInterval = Boolean(track.endTime) && (!wakeAt || new Date(wakeAt).getTime() > now.getTime() || new Date(wakeAt) <= new Date(occurredAt))
   const act = async (action: 'confirm' | 'skipped' | 'reset') => {

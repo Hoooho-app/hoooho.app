@@ -121,7 +121,7 @@ test('喂养饮食使用五类确认页、独立记录页和结构化真实保�
   assert.match(dietFlow, /feedingStatusOptions = \['顺利', '吐奶', '呛咳', '抗拒'\]/)
   assert.doesNotMatch(dietFlow, /hint="默认为现在"/)
   assert.doesNotMatch(dietFlow, /首次尝试这种食物|firstTryFoods/)
-  assert.match(dietFlow, /diet-amount-slider/)
+  assert.doesNotMatch(dietFlow, /diet-amount-slider|食物形态|结束时间（可选）/)
   assert.match(dietFlow, /const reactionOptions = \['皮肤', '呼吸', '消化'\]/)
   assert.doesNotMatch(dietFlow, /diet-no-reaction|onChange\(\['暂未发现'\]\)/)
   assert.match(dietFlow, /dietFrequentFoods/)

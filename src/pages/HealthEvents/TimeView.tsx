@@ -16,8 +16,9 @@ import { entriesForDay, hourProgress, isCurrentOngoingSleep, orderedHours, proje
 import { journalCategoryLabels, journalListSummary, shiftJournalDate, type JournalEntry } from './timeViewModel'
 import { useJournal } from './useJournal'
 import { useRoutineTracks } from './useRoutineTracks'
+import { compactSleepTimeline, type SleepRange, type SleepSegment } from './compactSleepTimeline'
 
-type TimelineItemBase = { createdTime: number; hour: number; key: string; minute: number; sortTime: number }
+type TimelineItemBase = { createdTime: number; hour: number; key: string; minute: number; sortTime: number; sleepRange?: SleepRange; sleepSegment?: SleepSegment }
 type IntervalProjection = ActivityProjectionPoint['kind'] | 'open'
 type TimelineItem = TimelineItemBase & (
   | { kind: 'record'; entry: JournalEntry }
@@ -28,6 +29,15 @@ type TimelineItem = TimelineItemBase & (
 )
 
 function clockLabel(hour: number, minute: number) { return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` }
+function sleepRange(source: string, start: Date, end: Date, day: string, ongoing: boolean): SleepRange | undefined {
+  const dayStart = new Date(`${day}T00:00:00`).getTime(), dayEnd = new Date(`${shiftJournalDate(day, 1)}T00:00:00`).getTime()
+  const from = Math.max(start.getTime(), dayStart), to = Math.min(end.getTime(), dayEnd)
+  return to > from ? { source, start: from, end: to, ongoing } : undefined
+}
+function segmentClock(at: number, day: string) {
+  const date = new Date(at)
+  return `${getLocalDateKey(date) !== day ? '次日 ' : ''}${clockLabel(date.getHours(), date.getMinutes())}`
+}
 
 function currentClockLabel(date: Date) {
   return [date.getHours(), date.getMinutes(), date.getSeconds()].map((value) => String(value).padStart(2, '0')).join(':')
@@ -70,9 +80,10 @@ function RoutineRow({ track, onOpen }: { track: RoutineTrack; onOpen: () => void
 }
 
 function ActivityRow({ highlighted, item, onOpen }: { highlighted: boolean; item: Extract<TimelineItem, { kind: 'activity-record' | 'activity-routine' }>; onOpen: () => void }) {
-  const status = item.projection === 'start' || item.projection === 'open' ? '开始' : item.projection === 'ongoing' ? '持续' : `共${formatTimelineDuration(item.durationMinutes)}`
+  const status = item.sleepSegment ? item.sleepSegment.ongoing ? '持续' : `共${formatTimelineDuration(item.durationMinutes)}` : item.projection === 'start' || item.projection === 'open' ? '开始' : item.projection === 'ongoing' ? '持续' : `共${formatTimelineDuration(item.durationMinutes)}`
   const isRoutine = item.kind === 'activity-routine'; const recordId = item.kind === 'activity-record' ? item.entry.id : undefined; const Icon = item.activity === 'sleep' ? Moon : item.activity === 'meal' ? Utensils : Clock3
-  return <button aria-label={`${item.title}，${status}`} className={`journal-activity-row journal-activity-row--${item.activity} journal-activity-row--${item.projection}${isRoutine ? ' journal-activity-row--routine' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={recordId} data-routine-key={isRoutine ? item.track.trackKey : undefined} onClick={onOpen} type="button"><Icon aria-hidden="true" size={18} /><span><strong>{item.title}</strong><small>· {status}</small></span><ChevronRight aria-hidden="true" size={16} /></button>
+  const projection = item.sleepSegment ? item.sleepSegment.ongoing ? 'ongoing' : 'end' : item.projection
+  return <button aria-label={`${item.title}，${status}`} className={`journal-activity-row journal-activity-row--${item.activity} journal-activity-row--${projection}${isRoutine ? ' journal-activity-row--routine' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={recordId} data-routine-key={isRoutine ? item.track.trackKey : undefined} onClick={onOpen} type="button"><Icon aria-hidden="true" size={18} /><span><strong>{item.title}</strong><small>· {status}</small></span><ChevronRight aria-hidden="true" size={16} /></button>
 }
 
 function routineInterval(track: RoutineTrack) {
@@ -92,7 +103,7 @@ function timelineItemContent(item: TimelineItem, props: { allTracks: RoutineTrac
 function timelineRowClass(item: TimelineItem) {
   const precision = item.kind === 'hour-divider' ? ' journal-timeline-row--hour-divider' : item.minute === 0 ? ' journal-timeline-row--event-at-hour' : ' journal-timeline-row--minute'
   const activity = item.kind === 'activity-record' || item.kind === 'activity-routine' ? ` journal-timeline-row--activity journal-timeline-row--${item.activity}` : ''
-  return `journal-timeline-row${precision}${activity}`
+  return `journal-timeline-row${precision}${activity}${item.sleepSegment ? ' journal-timeline-row--sleep-segment' : ''}`
 }
 
 function hidesContinuationTime(item: TimelineItem) {
@@ -112,18 +123,18 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
 
   const displayItems = useMemo(() => {
     const items: TimelineItem[] = []; const actualActivityIds = new Set(dayEntries.filter((entry) => entry.sleep || entry.diet?.startedAt).map((entry) => entry.id))
-    const addProjection = (source: { entry: JournalEntry; activity: 'sleep' | 'meal'; start: Date; end: Date; includeEnd: boolean; durationMinutes: number; title: string }) => { for (const point of projectActivityInterval(source.start, source.end, day, source.includeEnd)) items.push({ activity: source.activity, createdTime: Date.parse(source.entry.createdAt), durationMinutes: source.durationMinutes, entry: source.entry, hour: point.hour, key: `${source.activity}:${source.entry.id}:${point.key}`, kind: 'activity-record', minute: point.minute, projection: point.kind, sortTime: point.at.getTime(), title: source.title }) }
+    const addProjection = (source: { entry: JournalEntry; activity: 'sleep' | 'meal'; start: Date; end: Date; includeEnd: boolean; durationMinutes: number; title: string }) => { for (const point of projectActivityInterval(source.start, source.end, day, source.includeEnd)) items.push({ activity: source.activity, createdTime: Date.parse(source.entry.createdAt), durationMinutes: source.durationMinutes, entry: source.entry, hour: point.hour, key: `${source.activity}:${source.entry.id}:${point.key}`, kind: 'activity-record', minute: point.minute, projection: point.kind, sortTime: point.at.getTime(), title: source.title, sleepRange: source.activity === 'sleep' ? sleepRange(`record:${source.entry.id}`, source.start, source.end, day, !source.includeEnd) : undefined }) }
     for (const entry of dayEntries) {
       if (entry.sleep) { const startedAt = new Date(entry.sleep.sleepAt); const current = isCurrentOngoingSleep(entry, now); if (entry.sleep.status === 'ongoing' && !current) { if (getLocalDateKey(startedAt) === day) items.push({ activity: 'sleep', createdTime: Date.parse(entry.createdAt), durationMinutes: 0, entry, hour: startedAt.getHours(), key: `sleep-open:${entry.id}`, kind: 'activity-record', minute: startedAt.getMinutes(), projection: 'open', sortTime: startedAt.getTime(), title: '睡眠' }) } else { const end = entry.sleep.status === 'ongoing' ? now : new Date(entry.sleep.wakeAt); addProjection({ entry, activity: 'sleep', start: startedAt, end, includeEnd: entry.sleep.status !== 'ongoing', durationMinutes: entry.sleep.status === 'ongoing' ? Math.max(0, Math.round((now.getTime() - startedAt.getTime()) / 60_000)) : entry.sleep.durationMinutes, title: '睡眠' }) } continue }
       if (entry.diet?.startedAt && entry.diet.endedAt) { const start = new Date(entry.diet.startedAt); const end = new Date(entry.diet.endedAt); addProjection({ entry, activity: 'meal', start, end, includeEnd: true, durationMinutes: Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)), title: entry.diet.meal ?? '用餐' }); continue }
       const occurredAt = new Date(entry.occurredAt); items.push({ createdTime: Date.parse(entry.createdAt), entry, hour: occurredAt.getHours(), key: `record:${entry.id}`, kind: 'record', minute: occurredAt.getMinutes(), sortTime: occurredAt.getTime() })
     }
-    const addRoutine = (track: RoutineTrack) => { const interval = routineInterval(track); if (!interval) { const at = new Date(`${track.day}T${track.time}:00`); if (track.day === day && !(day === today && at > now)) items.push({ createdTime: at.getTime(), hour: at.getHours(), key: `routine:${track.trackKey}`, kind: 'routine', minute: at.getMinutes(), sortTime: at.getTime(), track }); return } if (track.recordId && (track.category === 'activity' ? dayEntries.some((entry) => entry.id === track.recordId) : actualActivityIds.has(track.recordId))) return; if (interval.start > now && day === today) return; const visibleEnd = day === today && now < interval.end ? now : interval.end; const includeEnd = visibleEnd.getTime() === interval.end.getTime(); for (const point of projectActivityInterval(interval.start, visibleEnd, day, includeEnd)) items.push({ activity: track.category === 'sleep' ? 'sleep' : track.category === 'diet' ? 'meal' : 'activity', createdTime: interval.start.getTime(), durationMinutes: interval.durationMinutes, hour: point.hour, key: `routine-activity:${track.trackKey}:${point.key}`, kind: 'activity-routine', minute: point.minute, projection: point.kind, sortTime: point.at.getTime(), title: track.category === 'sleep' ? '睡眠' : track.title, track }) }
+    const addRoutine = (track: RoutineTrack) => { const interval = routineInterval(track); if (!interval) { const at = new Date(`${track.day}T${track.time}:00`); if (track.day === day && !(day === today && at > now)) items.push({ createdTime: at.getTime(), hour: at.getHours(), key: `routine:${track.trackKey}`, kind: 'routine', minute: at.getMinutes(), sortTime: at.getTime(), track }); return } if (track.recordId && (track.category === 'activity' ? dayEntries.some((entry) => entry.id === track.recordId) : actualActivityIds.has(track.recordId))) return; if (interval.start > now && day === today) return; const visibleEnd = day === today && now < interval.end ? now : interval.end; const includeEnd = visibleEnd.getTime() === interval.end.getTime(); for (const point of projectActivityInterval(interval.start, visibleEnd, day, includeEnd)) items.push({ activity: track.category === 'sleep' ? 'sleep' : track.category === 'diet' ? 'meal' : 'activity', createdTime: interval.start.getTime(), durationMinutes: interval.durationMinutes, hour: point.hour, key: `routine-activity:${track.trackKey}:${point.key}`, kind: 'activity-routine', minute: point.minute, projection: point.kind, sortTime: point.at.getTime(), title: track.category === 'sleep' ? '睡眠' : track.title, track, sleepRange: track.category === 'sleep' ? sleepRange(`routine:${track.trackKey}`, interval.start, visibleEnd, day, !includeEnd) : undefined }) }
     visiblePreviousTracks.filter((track) => Boolean(track.endTime)).forEach(addRoutine); visibleTracks.forEach(addRoutine)
     const lastHour = day === today ? now.getHours() : 23
     for (const hour of orderedHours(localSortOrder).filter((candidate) => candidate <= lastHour)) { const at = new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`); items.push({ createdTime: at.getTime(), hour, key: `hour-divider:${hour}`, kind: 'hour-divider', minute: 0, sortTime: at.getTime() }) }
     const direction = localSortOrder === 'asc' ? 1 : -1
-    return items.sort((left, right) => direction * (left.sortTime - right.sortTime) || (left.kind === 'hour-divider' ? -1 : right.kind === 'hour-divider' ? 1 : 0) || right.createdTime - left.createdTime || right.key.localeCompare(left.key))
+    return compactSleepTimeline(items).sort((left, right) => direction * (left.sortTime - right.sortTime) || (left.kind === 'hour-divider' ? -1 : right.kind === 'hour-divider' ? 1 : 0) || right.createdTime - left.createdTime || right.key.localeCompare(left.key))
   }, [day, dayEntries, localSortOrder, now, today, visiblePreviousTracks, visibleTracks])
 
   const storageKey = `hoooho:journal-grid-scroll:${memberId}:${day}:${localSortOrder}`
@@ -133,8 +144,16 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
 
   const selectMonth = (month: string) => { if (!/^\d{4}-\d{2}$/.test(month)) return; const [year, monthNumber] = month.split('-').map(Number); const currentDay = parsePlainDate(day)?.day ?? 1; const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate(); const selected = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, '0')}`; onDayChange(selected > today ? today : selected) }
   const openTriggerCard = (optionIndex?: 0 | 1) => { if (!selectedCard) return; const detail = { target: selectedCard.config.category, mode: day === today ? selectedCard.config.mode : 'backfill', day, prefill: optionIndex === undefined ? {} : selectedCard.config.prefill[optionIndex], accountId, memberId, cardId: selectedCard.config.id, cycle: selectedCard.cycle, relatedEventId: selectedCard.prerequisiteEntry?.eventId, relatedRecordId: selectedCard.prerequisiteEntry?.id }; sessionStorage.setItem(triggerSuggestionKey, JSON.stringify(detail)); window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail })) }
-  const refreshRoutines = () => setRoutineRevision((value) => value + 1); const showSaved = (message: string) => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }; const openRoutineTrack = (track: RoutineTrack) => { if (track.status === 'confirmed' && track.eventId && track.recordId) onRecordOpen(track.eventId, track.recordId); else setSelectedTrack(track) }; const currentScrollTop = () => timeViewRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0
-  const timelineRows = displayItems.map((item) => { const label = clockLabel(item.hour, item.minute); const hideTime = hidesContinuationTime(item); return <div className={timelineRowClass(item)} data-hour={item.hour} data-hour-divider={item.kind === 'hour-divider' ? label : undefined} data-time={item.kind === 'hour-divider' ? undefined : label} key={item.key}><time aria-hidden={hideTime || undefined}>{hideTime ? '' : label}</time><span aria-hidden="true" className="journal-timeline-marker"><span /></span><div className="journal-hour-cell">{timelineItemContent(item, { allTracks, highlightedRecordId, onRecordOpen: (entry) => onRecordOpen(entry.eventId, entry.id), onRoutineOpen: openRoutineTrack })}</div></div> })
+  const refreshRoutines = () => setRoutineRevision((value) => value + 1); const showSaved = (message: string) => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }; const openRoutineTrack = (track: RoutineTrack) => { if (track.category !== 'sleep' && track.status === 'confirmed' && track.eventId && track.recordId) onRecordOpen(track.eventId, track.recordId); else setSelectedTrack(track) }; const currentScrollTop = () => timeViewRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0
+  const timelineRows = displayItems.map((item) => {
+    const label = clockLabel(item.hour, item.minute), hideTime = hidesContinuationTime(item), segment = item.sleepSegment
+    const boundaries = segment ? localSortOrder === 'desc' ? [segment.end, segment.start] : [segment.start, segment.end] : []
+    return <div className={timelineRowClass(item)} data-hour={item.hour} data-hour-divider={item.kind === 'hour-divider' ? label : undefined} data-time={segment ? 'sleep-segment' : item.kind === 'hour-divider' ? undefined : label} data-segment-start={segment ? new Date(segment.start).toISOString() : undefined} data-segment-end={segment ? new Date(segment.end).toISOString() : undefined} key={item.key}>
+      <time aria-hidden={!segment && hideTime || undefined}>{segment ? boundaries.map(at => <span key={at}>{segmentClock(at, day)}</span>) : hideTime ? '' : label}</time>
+      <span aria-hidden="true" className="journal-timeline-marker"><span /></span>
+      <div className="journal-hour-cell">{timelineItemContent(item, { allTracks, highlightedRecordId, onRecordOpen: (entry) => { const track = allTracks.find(track => track.category === 'sleep' && track.recordId === entry.id); if (track) setSelectedTrack(track); else onRecordOpen(entry.eventId, entry.id) }, onRoutineOpen: openRoutineTrack })}</div>
+    </div>
+  })
   if (day === today) {
     const currentRow = <CurrentTimeRow key="current-time" />
     if (localSortOrder === 'desc') timelineRows.unshift(currentRow)

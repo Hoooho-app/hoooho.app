@@ -22,6 +22,7 @@ import { getNurseNextActionEventId } from './nurseNextActionContext'
 import { TimeView } from './TimeView'
 import type { JournalEntry } from './timeViewModel'
 import './TimeView.css'
+import './RecordForm.css'
 import { completeCurrentTriggerSuggestion } from './triggerOpportunityState'
 import '../NurseStation/nurseStation.css'
 
