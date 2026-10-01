@@ -785,10 +785,6 @@
 .journal-hour-cell { position: relative; min-height: 48px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 7px; background: rgb(var(--hoho-color-surface)); }
 .journal-hour-cell > * { width: 100%; min-width: 0; }
 .journal-timeline-row--hour-divider { min-height: 18px; }
-.journal-timeline-row--sleep-segment { height: 100px; min-height: 100px; }
-.journal-timeline-row--sleep-segment > time { flex-direction: column; align-items: flex-end; justify-content: space-between; padding-block: 5px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; }
-.journal-timeline-row--sleep-segment > time > span { white-space: nowrap; }
-.journal-timeline-row--sleep-segment .journal-hour-cell, .journal-day-grid .journal-timeline-row--sleep-segment .journal-activity-row { height: 100%; min-height: 0; }
 .journal-timeline-row--hour-divider > time { color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; line-height: 1; }
 .journal-timeline-row--hour-divider .journal-timeline-marker > span { display: block; background: rgb(var(--hoho-color-primary)); }
 .journal-timeline-row--hour-divider .journal-timeline-marker::after { position: absolute; top: 50%; right: 0; left: 50%; height: 0; border-top: 1px dashed rgb(var(--hoho-color-primary) / .18); content: ''; transform: translateY(-50%); }

@@ -6,6 +6,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 
 - Brand: Hoooho Green `27 122 110` (`#1B7A6E`), Deep Teal `18 92 85`, Soft Mint `233 246 242`, Warm Clinical `245 248 246`, Ink `24 49 47` and Muted `82 105 102`.
 - Surfaces: page, primary, subtle and elevated roles; ordinary content uses borders instead of ubiquitous shadows.
+- Visit-summary entry surfaces share `--hoho-color-visit-entry-surface` (`#F2F6F9`) between the front-page entry and the journal subject action; text remains dark for contrast.
 - Text: primary, secondary and readable tertiary roles. Error, warning, success and information colors are semantic and never the only carrier of meaning.
 - Font: platform-first Chinese stack covering SF Pro Display, PingFang SC, Microsoft YaHei and Noto Sans CJK, with stable system fallbacks and tabular numeric data. Product headings use 600, labels use 500 and body copy uses 400; avoid synthetic extra-bold display text.
 - Type: display, page, section, card, body, label, caption and data roles.
