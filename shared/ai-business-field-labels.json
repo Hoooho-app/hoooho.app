@@ -40,5 +40,9 @@
   "historyName": "历史事项名称",
   "frequency": "频率原文",
   "route": "方式原文",
-  "statusRaw": "状态原文"
+  "statusRaw": "状态原文",
+  "relationship": "亲属关系",
+  "vaccineName": "疫苗名称",
+  "manufacturerName": "生产企业",
+  "batchNumber": "批号"
 }

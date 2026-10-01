@@ -4,7 +4,8 @@ import { TimeResolverService } from '../time-resolver-service.mjs'
 import { validateJournal } from '../../events/journal-metadata.mjs'
 
 export const categories = ['diet','sleep','elimination','activity','emotion','social','symptom','measurement','growth','injury','medication','care','vaccination','environment','visit','examination','other']
-export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','ABC_A','ABC_B','ABC_C','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw']
+export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','ABC_A','ABC_B','ABC_C','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
+export const archiveCategories = ['allergy','chronic','medication','surgery','family-history','vaccination','important','examination','medical-history']
 export const fail = (message, status = 422, code = 'AI_BUSINESS_INVALID') => Object.assign(new Error(message), { status, code })
 export const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const safeText = (value, limit = 500) => typeof value === 'string' && value.length <= limit ? value.trim() : ''
@@ -42,8 +43,7 @@ export function validateExtraction(output, sources) {
     const itemSources=new Set(fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
     if (timeText && !fields.some(field => field.sources.some(ref => ref.quote.includes(timeText))) && !sources.some(source => itemSources.has(`${source.id}:${source.page}`)&&source.text.includes(timeText))) throw fail('发生时间缺少同一条资料的原文依据')
     if (!fields.length) return []
-    const allowedArchive = ['allergy','chronic','medication','surgery','important','examination','medical-history']
-    if (item.archiveCategory != null && !allowedArchive.includes(item.archiveCategory)) throw fail('归档栏目无效')
+    if (item.archiveCategory != null && !archiveCategories.includes(item.archiveCategory)) throw fail('归档栏目无效')
     return [{ id: `item-${index + 1}`, category: item.category, title: fields[0].value.slice(0,80), timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
   })
 }
@@ -82,6 +82,10 @@ export function buildJournal(item) {
   // A food and amount alone do not specify feeding, snack or meal. Keep their
   // sourced fields and real category without inventing the legacy required kind.
   if (item.category === 'visit') journal.visit = { visitType: 'other', visitTypeOtherText:'原资料未明确就医方式',institutionName: field(item,'institution'), department: field(item,'department'), doctorStatement: field(item,'doctorStatement'),reasonText:field(item,'chiefComplaint'), recognitionStatus: 'draft_unverified' }
+  if (item.category === 'vaccination' && field(item,'vaccineName')) {
+    const dose=field(item,'doseOriginal')??'', match=/^(?:第)?([1-4一二三四])(?:剂|针|次)?$/.exec(dose), number=match&&({'一':1,'二':2,'三':3,'四':4}[match[1]]??Number(match[1]))
+    journal.vaccination={items:[{id:item.id,vaccineName:field(item,'vaccineName'),doseSequence:number?`dose_${number}`:/加强/.test(dose)?'booster':'unknown',manufacturerName:field(item,'manufacturerName'),batchNumber:field(item,'batchNumber')}],institutionName:field(item,'institution'),observations:[],note:item.fields.map(f=>f.value).join('；'),recognitionStatus:'user_edited'}
+  }
   return validateJournal(journal)
 }
 

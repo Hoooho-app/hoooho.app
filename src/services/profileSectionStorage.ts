@@ -25,6 +25,7 @@ export async function loadProfileSections(token: string, members: Member[], sign
       next.set(key, item)
     }
   }
+  signal?.throwIfAborted()
   sections.clear()
   next.forEach((value, key) => sections.set(key, value))
   activeToken = token
