@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "generator": "builtin-imagegen",
+  "files": [
+    {
+      "name": "neutral-front.png",
+      "width": 1024,
+      "height": 1536,
+      "sha256": "4658a15790510a4a751f2ea63c81b75d3d981f2ea3d7d01fe737db7818a51f93"
+    },
+    {
+      "name": "neutral-back.png",
+      "width": 1024,
+      "height": 1536,
+      "sha256": "5cbab001101d7ac79bef099711dfc058adaddd6f017476a5306e0f41e1d09048"
+    }
+  ]
+}

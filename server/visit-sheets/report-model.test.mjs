@@ -4,6 +4,16 @@ import { buildVisitSheet } from './report-model.mjs'
 import { visitFixture } from './fixtures.mjs'
 const now = new Date('2026-09-26T00:00:00Z'),
   chapter = (r, id) => r.chapters.find((c) => c.id === id)
+test('visit sheet and sources display reliable anatomical names without mutating legacy snapshots',()=>{
+  const fixture=visitFixture()
+  const original={id:'head_crown',label:'头顶3号区域',locationNumber:1,locationLayer:'surface',markedArea:'legacy x=12,y=34'}
+  fixture.records[7].journal.symptom.locations=[original]
+  const result=buildVisitSheet(fixture,{},now)
+  const source=result.sources.find(s=>s.id==='record:s7')
+  assert.deepEqual(source.locations,['头顶'])
+  assert.equal(original.label,'头顶3号区域');assert.equal(original.markedArea,'legacy x=12,y=34')
+  assert.ok(result.chapters.flatMap(c=>c.blocks??[]).some(b=>b.locations?.includes('头顶')))
+})
 test('自动主诉按发生时间，忽略碎片、用药和新补录时间', () => {
   const f = visitFixture()
   f.records[0].createdAt = '2026-09-26T00:00:00Z'

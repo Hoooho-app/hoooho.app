@@ -2,6 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 
+test('v2 semantics include neutral model, coarse precision and original labels without numbered marked areas',()=>{
+  const item={id:'hand_left_whole',label:'左手（具体位置待补充）',displayLabel:'左手（具体位置待补充）',medicalLabel:'左手（具体位置待补充）',locationNumber:1,locationLayer:'surface',localRegion:'左手（具体位置待补充）',bodySide:'left',bodyView:'palm',bodyRegion:'hand_left',regionId:'hand_left',categoryId:'hand',precision:'category',schemaVersion:'1.0.0',dictionaryVersion:'2.0.0',surface:'unspecified',coverage:'whole',modelAtSelection:'neutral'}
+  const journal={categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'掌心发红',locations:[item],descriptors:[]}}
+  assert.deepEqual(validateJournal(journal).symptom.locations,[item])
+  assert.throws(()=>validateJournal({...journal,symptom:{...journal.symptom,locations:[{...item,precision:'exact-cell'}]}}),/部位描述无效/)
+})
+
 test('child locator metadata persists without dropping legacy snapshots or requiring nonempty selections', () => {
   const locations = [
     { id: 'unknown-old', label: '旧定位原文', locationNumber: 1, locationLayer: 'surface', localRegion: '旧图位置', markedArea: 'legacy point 20,30' },

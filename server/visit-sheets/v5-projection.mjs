@@ -1,3 +1,4 @@
+import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
 // Deterministic presentation projection. No diagnosis, free-form model output,
 // image interpretation or demo values are used here.
 const validDate = v => typeof v === 'string' && Number.isFinite(Date.parse(v)) ? v : null
@@ -21,7 +22,7 @@ export function refineVisitSheet(report, input, preferences) {
     const r = records.get(s.recordId)
     if (s.id.startsWith('record:') && r) {
       s.identity = role(r)
-      s.locations = r.journal?.symptom?.locations?.map(l => l.label) ?? []
+      s.locations = r.journal?.symptom?.locations?.map(bodyLocationLabel) ?? []
       s.symptomCategory = r.journal?.symptom?.symptomCategory ?? null
       s.narrative = concise(r.journal?.symptom?.narrative || r.content)
       s.impactLevel = r.journal?.symptom?.impactLevel ?? null
@@ -41,7 +42,7 @@ export function refineVisitSheet(report, input, preferences) {
     const linkedRecords = input.records.filter(r => r.id === a.recordId || (r.attachmentIds ?? []).includes(a.id) || Object.values(r.journal ?? {}).some(j => j && typeof j === 'object' && (j.photoIds ?? []).includes?.(a.id)))
     return {
       sourceId: `attachment:${a.id}`, relatedSourceIds: linkedRecords.map(r => `record:${r.id}`),
-      title: a.name, location: uniq(linkedRecords.flatMap(r => r.journal?.symptom?.locations?.map(l => l.label) ?? [])).join('、') || '对象 / 部位未提供',
+      title: a.name, location: uniq(linkedRecords.flatMap(r => r.journal?.symptom?.locations?.map(bodyLocationLabel) ?? [])).join('、') || '对象 / 部位未提供',
       capturedAt: validDate(a.capturedAt), uploadedAt: validDate(a.createdAt),
       timeKind: validDate(a.capturedAt) ? '拍摄于' : '上传于（拍摄时间未提供）',
       mimeType: a.mimeType,
