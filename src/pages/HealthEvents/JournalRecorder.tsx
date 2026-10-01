@@ -35,26 +35,16 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   mode: 'manual' | 'voice'; memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   initialDietKind?: DietRecordKind
-  suggestedMode?: 'start' | 'backfill' | 'nap'
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
   onSaved?: (message: string) => void
 }) {
-  const suggestion = (() => { try { return JSON.parse(sessionStorage.getItem('hoooho:journal-suggestion') ?? 'null') as { mode?: 'start' | 'backfill' | 'nap'; day?: string; prefill?: Record<string, string | boolean> } | null } catch { return null } })()
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
-  const suggestedDietKind = suggestion?.prefill?.kind
   const initialScreen = initialCategory === 'diet' ? 'diet-form' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'elimination' ? 'bowel-form' : initialCategory === 'visit' ? 'visit-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : mode === 'voice' ? 'generic' : 'categories'
   const [screen, setScreen] = useState<RecorderScreen>(initialScreen)
   const [selected, setSelected] = useState<JournalCategory[]>([])
-  const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => ['feeding','complementary','meal','snack','supplement'].includes(String(suggestedDietKind)) ? suggestedDietKind as DietRecordKind : initialDietKind ?? 'feeding')
-  const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => {
-    const draft = createSleepDraft()
-    const quality = typeof suggestion?.prefill?.quality === 'string' ? suggestion.prefill.quality as SleepDraft['quality'] : undefined
-    if (!suggestion?.day) return { ...draft, ...(suggestion?.mode === 'nap' ? { kind: 'nap' as const } : {}), ...(quality ? { quality } : {}) }
-    const start = new Date(`${suggestion.day}T${suggestion.mode === 'nap' ? '12:30' : '20:00'}:00`)
-    const end = new Date(`${suggestion.day}T${suggestion.mode === 'nap' ? '14:00' : '23:00'}:00`)
-    return { ...draft, sleepAt: start.toISOString(), wakeAt: end.toISOString(), durationMinutes: Math.round((end.getTime() - start.getTime()) / 60_000), kind: suggestion.mode === 'nap' ? 'nap' : 'night', ...(quality ? { quality } : {}) }
-  })
+  const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => initialDietKind ?? 'feeding')
+  const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
   const [saving, setSaving] = useState(false)
   const [aiPrefill,setAiPrefill]=useState<{journal:JournalMetadata;at?:string;raw:string}|null>(null)
   const flowIdRef = useRef(globalThis.crypto?.randomUUID?.() ?? `recorder-${Date.now()}`)
@@ -69,7 +59,6 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   }
   const closeRecorder = () => {
     const current = historyEntry()
-    sessionStorage.removeItem('hoooho:journal-suggestion')
     onClose()
     if (current?.id === flowIdRef.current) window.history.go(-(current.depth + 1))
   }
@@ -103,12 +92,12 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   }, [])
   const sourceBack = initialCategory ? closeRecorder : () => backOneLevel('categories')
   const dailyBack = initialCategory ? closeRecorder : () => backOneLevel('daily-types')
-  const occurrenceDay = suggestion?.day ?? selectedDay
+  const occurrenceDay = selectedDay
   const confirmPrefilled:typeof onConfirm=(content,at,channel,photos,journal)=>onConfirm(aiPrefill?.raw?`${content}\n原始描述（AI 预填后人工核对，修改后的表单为当前值）：${aiPrefill.raw}`:content,at,channel,photos,journal)
   if(screen==='ai'||(screen==='generic'&&mode==='voice'))return <AIBusinessComposer key={memberId} memberId={memberId} token={token} onClose={closeRecorder} onSaved={onSaved} onApply={item=>{setAiPrefill({journal:item.journal,at:item.time.resolvedStart??undefined,raw:item.originText??''});if(item.journal.sleep){setSleepDraft({...createSleepDraft(),...item.journal.sleep});navigateScreen('sleep-form')}else if(item.journal.bowel)navigateScreen('bowel-form');else if(item.journal.outdoorActivity)navigateScreen('activity-form')}}/>
   if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.bowel} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} mode={suggestion?.mode} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.outdoorActivity} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />

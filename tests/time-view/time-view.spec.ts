@@ -134,7 +134,7 @@ test('symptom voice cancels pending permission and close aborts recording withou
 })
 
 async function openVisit(page: Page) {
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'visit' } })))
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:manual-record', { detail: { target: 'visit' } })))
 }
 
 async function createDespiteDuplicateIfNeeded(page: Page) {
@@ -425,25 +425,10 @@ test('empty today shows one contextual prompt and current-time marker without th
   await expect(page.locator('.journal-now-cell')).toHaveText(/^\d{2}:\d{2}:\d{2}$/)
   await expect(page.locator('.journal-now-cell')).not.toContainText('当前')
   await expect(page.locator('.journal-current-line')).toHaveCount(0)
-  await expect(page.locator('.trigger-opportunity-card')).toHaveCount(1)
-  const illustration = page.locator('.trigger-opportunity-illustration img')
-  const cardId = await page.locator('.trigger-opportunity-card').getAttribute('data-card-id')
-  if (cardId?.startsWith('sleep')) await expect(illustration).toBeHidden()
-  else {
-    await expect(illustration).toBeVisible()
-    await expect.poll(() => illustration.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
-  }
-  await expect(page.locator('.trigger-opportunity-options button')).toHaveCount(2)
-  await expect(page.getByRole('button', { name: '暂时关闭此提醒' })).toBeVisible()
-  await expect(page.getByText('不是这件事，记点别的', { exact: true })).toHaveCount(0)
-  const promptLayout = await page.locator('.trigger-opportunity-card').evaluate((card) => ({ height: card.getBoundingClientRect().height, overflows: document.documentElement.scrollWidth > document.documentElement.clientWidth }))
-  expect(promptLayout.height).toBeLessThanOrEqual(cardId?.startsWith('sleep') ? 300 : 440)
-  expect(promptLayout.overflows).toBe(false)
-  await expect(page.getByText('这一天还没有记录', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('饮食、活动或身体变化，都可以记下来。', { exact: true })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/journal-context-prompt-iphone-se.png' })
-  await page.locator('.trigger-opportunity-action').scrollIntoViewIfNeeded()
-  await expect(page.locator('.trigger-opportunity-action')).toBeVisible()
+  await expect(page.locator('.trigger-opportunity-card')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '暂时关闭此提醒' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '记录日常', exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/journal-no-context-reminders-iphone-se.png' })
 })
 
 test('compact hour cells stop at now, persist routines and convert confirmation into one actual record', async ({ page }) => {
@@ -1013,58 +998,26 @@ test('dense hours keep every record expanded inside one growing hour cell', asyn
   await page.request.patch('/api/routines/routine-child', { headers, data: { status: 'disabled' } })
 })
 
-test('trigger card switches to English without mixed-language copy or overflow', async ({ page }) => {
+test('time-based reminders stay removed across dayparts, language, reload and legacy signals', async ({ page }) => {
   await prepare(page, 'child-two')
-  await page.evaluate(() => document.documentElement.lang = 'en')
-  const card = page.locator('.trigger-opportunity-card')
-  const illustration = card.locator('.trigger-opportunity-illustration img')
-  const cardId = await card.getAttribute('data-card-id')
-  if (cardId?.startsWith('sleep')) await expect(illustration).toBeHidden()
-  else await expect.poll(() => illustration.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
-  await expect(card).toContainText(/Late night|Morning|Midday|Evening|Record gap|Daytime/)
-  await expect(card).not.toContainText(/记录|睡眠|排便|活动/)
-  const layout = await card.evaluate((node) => ({ pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth, optionsWrap: [...node.querySelectorAll('.trigger-opportunity-options button')].every((button) => button.scrollWidth <= button.clientWidth && button.scrollHeight <= button.clientHeight + 20) }))
-  expect(layout.pageOverflows).toBe(false)
-  expect(layout.optionsWrap).toBe(true)
-  await page.screenshot({ path: 'test-results/journal-trigger-card-en-iphone-se.png' })
-  await card.locator('.trigger-opportunity-action').scrollIntoViewIfNeeded()
-})
-
-test('00:15 sleep option opens the existing flow with scoped prefill and dismissal persists', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-09-12T16:15:00.000Z'))
-  await prepare(page, 'child-two')
-  const card = page.locator('.trigger-opportunity-card')
-  await expect(card).toContainText('今晚入睡顺利吗？')
-  await expect(card).not.toContainText('昨晚')
-  await card.getByRole('button', { name: '已经睡着', exact: true }).click()
+  for (const hour of [0, 2, 8, 13, 18, 22]) {
+    await page.clock.setFixedTime(new Date(`2026-09-24T${String(hour).padStart(2, '0')}:15:00+08:00`))
+    await page.getByLabel('选择日期').fill('2026-09-24')
+    await expect(page.locator('.trigger-opportunity-card')).toHaveCount(0)
+    await page.evaluate(() => document.documentElement.lang = 'en')
+    await expect(page.locator('.trigger-opportunity-card')).toHaveCount(0)
+  }
+  await page.evaluate(() => {
+    sessionStorage.setItem('hoooho:journal-suggestion', JSON.stringify({ target: 'sleep', mode: 'start', day: '2026-09-24', prefill: { quality: 'poor' } }))
+    window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'sleep', mode: 'start' } }))
+  })
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.trigger-opportunity-card')).toHaveCount(0)
+  await page.getByRole('button', { name: '记录日常', exact: true }).click()
+  await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: '睡眠', exact: true }).click()
   await expect(page.getByRole('dialog', { name: '记录睡眠' })).toBeVisible()
-  const suggestion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('hoooho:journal-suggestion') ?? '{}'))
-  expect(suggestion).toMatchObject({ accountId:'time-view-test-account',memberId:'child-two',cardId:'sleep-late',prefill:{status:'ongoing'} })
-  await page.reload()
-  await page.getByRole('button', { name: '暂时关闭此提醒' }).click()
-  await page.reload()
-  await expect(page.locator('[data-card-id="sleep-late"]')).toHaveCount(0)
-})
-
-test('sleep prompt starts one persistent session, restores after reload and ends it', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-09-24T03:00:00+08:00') })
-  await prepare(page, 'child-two')
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'sleep', mode: 'start' } })))
-  await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('预计睡眠时长')
-  await page.getByRole('button', { name: '保存记录', exact: true }).click()
-  const activeSleep = page.locator('.journal-activity-row--sleep:not(.journal-activity-row--routine)').first()
-  await expect(activeSleep).toBeVisible()
-  await page.reload()
-  await expect(activeSleep).toBeVisible()
-  await page.clock.runFor(60_000)
-  await activeSleep.click()
-  const detail = page.getByRole('dialog', { name: '记录睡眠' })
-  await detail.getByRole('button', { name: /^醒来 / }).click()
-  await detail.getByLabel('醒来时间', { exact: true }).fill('03:01')
-  await detail.getByLabel('已实际醒来').check()
-  await detail.getByRole('button', { name: '保存记录', exact: true }).click()
-  await expect(detail).toHaveCount(0)
-  await expect(page.locator('.journal-activity-row--sleep.journal-activity-row--end:not(.journal-activity-row--routine)')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: '记录睡眠' })).toContainText('睡眠时长')
 })
 
 test('records in the same minute share one hour cell with aligned times and no overlap', async ({ page }) => {

@@ -29,6 +29,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 - `BottomSheetSurface` and the main drawer: scroll containment, Escape, focus trap, focus restoration and safe-area padding. Focused subflows may pair a leading back action with the optional text dismissal action; ordinary sheets keep the standard close icon.
 - Grouped navigation and settings lists: one flat continuous surface with row dividers; do not wrap every row in an independent card.
 - Record subject identity: one shared compact member surface; detail pages must not nest it inside a second card.
+- Journal record actions are text-only with 44px direct-entry targets and a centered text-only smart action. Timeline markers align with the year separator; time-based recording reminder cards and their prefill/trigger lifecycle are retired. Explicit manual recording, routine tracks and medication reminders remain independent.
 
 ## Interaction hierarchy
 
