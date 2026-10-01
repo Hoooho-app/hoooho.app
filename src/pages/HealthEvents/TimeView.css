@@ -795,6 +795,12 @@
 .journal-day-grid .journal-record-content, .routine-grid-copy, .journal-activity-row > span { display: flex; min-width: 0; align-items: baseline; gap: 5px; overflow: hidden; white-space: nowrap; }
 .journal-day-grid .journal-record-summary, .routine-grid-copy strong, .journal-activity-row strong { min-width: 0; overflow: hidden; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; font-weight: 650; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .routine-grid-copy small, .journal-activity-row small { flex: none; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; font-weight: 450; }
+.journal-sleep-ongoing-dots { display: inline-flex; width: 12px; }
+.journal-sleep-ongoing-dots > span { width: 4px; animation: journal-sleep-dot 1.4s steps(1, end) infinite; }
+.journal-sleep-ongoing-dots > span:nth-child(2) { animation-delay: 0.2s; }
+.journal-sleep-ongoing-dots > span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes journal-sleep-dot { 0%, 70% { opacity: 1; } 71%, 100% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .journal-sleep-ongoing-dots > span { animation: none; opacity: 1; } }
 .journal-day-grid .journal-record-main > svg:first-child, .routine-grid-card > svg:first-child, .journal-activity-row > svg:first-child { color: rgb(var(--hoho-color-primary)); }
 .journal-day-grid .journal-record-main > svg:last-child, .routine-grid-card > svg:last-child, .journal-activity-row > svg:last-child { justify-self: end; }
 .journal-day-grid .journal-attachment { flex: none; }
