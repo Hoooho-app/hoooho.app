@@ -78,3 +78,87 @@ ABC percentage remains incomplete: the required scoring formula is not defined;
 source-backed inputs and missing-field indications work without fabricated scores.
 The five high-severity dependency audit entries remain separately documented in
 `ai-business-integration.md`; this release does not run automatic dependency fixes.
+
+## Actual Production outcome — release successful, AI acceptance BLOCKED
+
+- PR: https://github.com/Hoooho-app/hoooho.app/pull/272 (merged, preserving original commits).
+- Production deployed commit: `d3a20df7ce0fa0eb0629112d0a1169fcebcd8f20`.
+- Railway deployment: `4e408e03-c229-4acf-a86b-92221cbcd674`, `SUCCESS`.
+- `/`, `/api/health`, `/login`, `/nurse-station`, `/health-events`, `/visit-summary`: HTTP 200.
+- Live entry JS: HTTP 200, JavaScript MIME, references newly delivered AI-business chunks.
+- Current Production variables match the approved key and requested model configuration.
+  Direct container configuration reading was unavailable because the local Railway
+  SSH identity was missing. It is not reported as a successful runtime inspection.
+  The actual service request reached OpenAI and returned a concrete billing error;
+  model access and successful structured output remain unverified.
+- Actual iPhone SE browser acceptance: dedicated nickname account, fictional child;
+  manual saved record, nine-chapter local report, real HTML download and offline
+  nine-chapter opening all PASS; no horizontal overflow or JS runtime error observed.
+- After AI failure, the saved report was identical to its previous version, the
+  retry entry was visible, and local HTML export still worked (PASS).
+- Real OpenAI calls: **1**, automatic retries: **0**. No new model diagnostic request.
+- Single-page report/text extraction, ASR and TTS: **NOT RUN**, stopped after first failure.
+- No observed regression of those existing core flows, so source rollback was not triggered.
+  Staging was not changed. No payment, credit purchase, limit change or DB reset.
+
+### Concrete error recovered from this deployment's existing safe log
+
+Acceptance window: `2026-10-01T14:30:43.847Z` to `2026-10-01T14:31:04.531Z`.
+
+| Field | Actual value |
+| --- | --- |
+| Application status/code | 503 / `AI_MEDICAL_SUMMARY_UNAVAILABLE` |
+| Upstream HTTP status | 429 |
+| error.type | `insufficient_quota` |
+| error.code | `credit_balance_exhausted` |
+| Sanitized error.message | `[REDACTED_UPSTREAM_MESSAGE]` |
+| x-request-id | `req_38f82752bada44de8feb7a2199986ed4` |
+| Retry-After | not present |
+| Classified cause | prepaid credit balance exhausted |
+
+The safe adapter deliberately does not expose arbitrary upstream wording. This
+concrete code identifies balance exhaustion, not transient rate limiting, project
+spend limit, organization spend limit or organization-assigned usage limit. See
+[official error codes](https://developers.openai.com/api/docs/guides/error-codes).
+Do not rotate keys, change models, raise caps or repeatedly retry this error.
+
+The connected Platform plugin returned available organizations `hoooho` (default)
+and `Personal`, each with `Default project`. It does not expose balances, usage,
+model permissions or enforcement limits, nor does this target list prove this
+key's precise organization/project mapping. No balance amount has been read.
+The sole AI recovery action is to open
+[API billing](https://platform.openai.com/settings/organization/billing), select
+the organization owning this existing Hoooho key, and check credit balance,
+credit validity/expiration and billing status. An owner must resolve that balance
+condition before a later explicitly authorized verification; no payment action
+was performed here. If it shows available valid credits, give Support the above
+request ID rather than sending another diagnostic request.
+
+### Cleanup boundary (not full account deletion)
+
+Both isolated runs removed their own newly created records, events and fictional
+member through ownership-checked live APIs. The first verifier run stopped at a
+duplicate export-close selector **before any model call**; the selector was fixed,
+and only the second run reached the one upstream request.
+
+Two dedicated accounts and their inaccessible report history remain:
+
+- `AI发布验收88a9be96` — `201285ee-2967-4fe1-a478-ea97ee403c71`
+- `AI发布验收cbdd3d7d` — `b8545e62-ef08-4e94-800b-620b83e7eb1b`
+
+The nickname-only accounts have no verified phone/email. Existing full deletion
+requires verified-identity `deleteToken`; this was not bypassed. No direct
+cross-process rewrite of live JSON stores or formal-user record was attempted.
+Account/report-history cleanup is incomplete and requires an authorized safe
+administrative or verified-identity deletion path. Do not claim all acceptance
+data has been erased.
+
+### Actual screenshots (Production, fictional data)
+
+- [Local summary](ai-business/production-screenshots/production-local-summary.png)
+- [Real failure and preserved local report](ai-business/production-screenshots/production-ai-failure.png)
+- [Offline export entry](ai-business/production-screenshots/production-export.png)
+
+Post-release changes to this verifier/document/evidence do not change app runtime
+or frontend output. They are saved to the existing feature branch; no additional
+production deployment is needed merely to publish evidence.

@@ -68,7 +68,7 @@ async function exportLocal() {
   assert.equal(await offline.locator('main > section.visit-chapter').count(), 9)
   await offlineContext.close()
   await screenshot('production-export')
-  await page.getByRole('button', { name: '关闭导出情况单', exact: true }).click()
+  await page.getByRole('dialog', { name: '导出情况单', exact: true }).getByRole('button', { name: '关闭导出情况单', exact: true }).click()
   result.checks.localExportOffline = 'PASS'
 }
 try {
@@ -175,7 +175,8 @@ try {
   }
 } catch (error) {
   if (modelStopped && !result.modelFailure) result.modelFailure = error.safe ?? { code: 'ACCEPTANCE_MODEL_FAILED' }
-  else result.acceptanceFailure = error.safe ?? { code: 'ACCEPTANCE_ASSERTION_FAILED', message: String(error.message).replace(/https?:\/\/\S+/g, '[url]').slice(0, 160) }
+  // Playwright exceptions may include request headers; never serialize them.
+  else result.acceptanceFailure = error.safe ?? { code: 'ACCEPTANCE_ASSERTION_FAILED' }
   await screenshot('production-acceptance-stop').catch(() => {})
 } finally {
   // Authenticated removal of only identifiers created by this run. Do not SSH
