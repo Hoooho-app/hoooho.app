@@ -68,6 +68,9 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
     )
   }
 
+  if (options.method && options.method !== 'GET' && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hoooho-data-changed'))
+  }
   return data as T
 }
 
