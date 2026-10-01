@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, CircleHelp, Folder, Info, MessageCircle, Settings, Stethoscope, UserRound, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -22,7 +22,7 @@ export const sidebarMenuGroups = [
   {
     title: '健康管理',
     items: [
-    { label: '前台', icon: Stethoscope, to: '/nurse-station' },
+    { label: '前台', icon: House, to: '/nurse-station' },
     { label: '健康记录', icon: BookOpen, to: '/health-events' },
     { label: '健康档案', icon: Folder, to: '/health-profile' }
     ]
