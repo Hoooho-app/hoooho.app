@@ -6,6 +6,7 @@ import test from 'node:test'
 import { VisitSheetService } from './visit-sheet-service.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { visitFixture } from './fixtures.mjs'
+import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 async function setup(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'visit-sheet-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
@@ -86,6 +87,69 @@ test('成员权限、版本持久化、旧结果保护、幂等、乱序拒绝',
     }),
   )
   assert.equal((await svc.get(a, m)).report.version, 3)
+})
+
+test('AI 摘要只取当前账号成员服务端资料、保留本地整理并幂等生成', async (t) => {
+  const { svc, f } = await setup(t)
+  const a = f.member.accountId, m = f.member.id
+  let calls = 0, input
+  svc.medicalSummary = { generate: async value => {
+    calls++; input = value
+    return { overview: '测试替身摘要', keyPoints: ['保存的皮肤观察'], missingInformation: ['待核对'], provider: 'openai', model: 'test-model' }
+  } }
+  await svc.profiles.update(() => ({ sections: [
+    { accountId: a, memberId: m, sectionId: 'medical-history', records: [{ id: 'current-profile', name: '当前成员健康档案' }] },
+    { accountId: 'foreign', memberId: m, sectionId: 'medical-history', records: [{ id: 'foreign-profile', name: 'OTHER_ACCOUNT_SECRET' }] },
+    { accountId: a, memberId: 'foreign', sectionId: 'medical-history', records: [{ id: 'foreign-member', name: 'OTHER_MEMBER_SECRET' }] }
+  ] }))
+  const local = await svc.save(a, m, { expectedVersion: 0, requestId: 'local' })
+  assert.equal(calls, 0)
+  assert.equal(local.report.aiSummary, undefined)
+  const request = { expectedVersion: 1, requestId: 'ai', generateAI: true, summary: { text: 'CLIENT_FORGED_INPUT' } }
+  const result = await svc.save(a, m, request)
+  assert.equal(calls, 1)
+  assert.equal(result.report.aiSummary.provider, 'openai')
+  assert.deepEqual(result.report.chapters, local.report.chapters)
+  assert.doesNotMatch(JSON.stringify(input), /other child|OTHER_ACCOUNT_SECRET|OTHER_MEMBER_SECRET|CLIENT_FORGED_INPUT/)
+  assert.doesNotMatch(JSON.stringify(input), new RegExp(f.member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  assert.ok(local.report.sources.some(source=>source.text.includes('当前成员健康档案')))
+  assert.doesNotMatch(JSON.stringify(input), /当前成员健康档案/, '未关联本次主诉的背景保留在原报告，但不发送给模型')
+  await svc.save(a, m, request)
+  assert.equal(calls, 1)
+  await assert.rejects(svc.save('foreign', m, { ...request, requestId: 'foreign' }), { status: 404 })
+  assert.equal(calls, 1)
+})
+
+test('AI 失败不覆盖上一版，重试可成功，未配置仍可本地查看和更新', async (t) => {
+  const { svc, f } = await setup(t)
+  const a = f.member.accountId, m = f.member.id
+  svc.medicalSummary = { generate: async () => ({ overview: '第一版', keyPoints: [], missingInformation: [], provider: 'openai', model: 'test-model' }) }
+  const first = await svc.save(a, m, { expectedVersion: 0, requestId: 'first', generateAI: true })
+  const savedFirst = (await svc.get(a, m)).report
+  svc.medicalSummary.generate = async () => { throw new MedicalSummaryError('AI 暂不可用') }
+  await assert.rejects(svc.save(a, m, { expectedVersion: 1, requestId: 'retry', generateAI: true }), { status: 503 })
+  assert.deepEqual((await svc.get(a, m)).report, savedFirst)
+  assert.equal(savedFirst.version, first.report.version)
+  const local = await svc.save(a, m, { expectedVersion: 1, requestId: 'local' })
+  assert.equal(local.report.aiSummary.overview, '第一版')
+  svc.medicalSummary.generate = async () => ({ overview: '第二版', keyPoints: [], missingInformation: [], provider: 'openai', model: 'test-model' })
+  const next = await svc.save(a, m, { expectedVersion: 2, requestId: 'retry', generateAI: true })
+  assert.equal(next.report.aiSummary.overview, '第二版')
+  svc.medicalSummary.generate = async () => ({ overview: '本地结果', provider: 'local' })
+  await assert.rejects(svc.save(a, m, { expectedVersion: 3, requestId: 'local-as-ai', generateAI: true }), { status: 503 })
+  assert.equal((await svc.get(a, m)).report.version, 3)
+})
+
+test('来源变化标记 AI 旧版本，删除来源时不再携带旧 AI 摘要', async (t) => {
+  const { svc, f } = await setup(t)
+  const a = f.member.accountId, m = f.member.id
+  svc.medicalSummary = { generate: async () => ({ overview: '此前摘要', keyPoints: [], missingInformation: [], provider: 'openai', model: 'test-model' }) }
+  await svc.save(a, m, { expectedVersion: 0, requestId: 'ai', generateAI: true })
+  const changed = await svc.save(a, m, { expectedVersion: 1, requestId: 'change-focus', focus: { mode: 'custom', text: '另一主诉' } })
+  assert.equal(changed.report.aiSummaryStale, true)
+  f.records = f.records.filter(r => r.id !== 's7')
+  const removed = await svc.save(a, m, { expectedVersion: 2, requestId: 'source-removed' })
+  assert.equal(removed.report.aiSummary, undefined)
 })
 test('部分读取失败不覆盖已有版本，删除来源后旧快照不再导出', async (t) => {
   const { svc, f } = await setup(t)

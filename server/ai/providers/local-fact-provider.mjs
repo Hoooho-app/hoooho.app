@@ -536,11 +536,11 @@ function finalizeFacts(facts, rawInput) {
     const correctionTail = rawInput.slice(Math.max(0, correctionAt))
     const correctedTime = correctionTail.match(/(?:今天|昨天|前天|昨晚)(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间)?(?:\s*[一二两三四五六七八九十\d]{1,3}(?:点(?:(?:半)|[一二两三四五六七八九十\d]{1,3}分?)?|:\d{1,2}))?/)?.[0]
       ?? extractRawTime(correctionTail)
-    output = output.map((item) => item.type === 'symptom' ? {
+    output = correctedTime ? output.map((item) => item.type === 'symptom' ? {
       ...item,
-      polarity: 'affirmed', status: 'active', assertionType: 'correction',
+      ...semanticsFor({sourceText:item.originalText},rawInput.slice(0,correctionAt)),assertionType:'correction',
       time: { ...item.time, raw: correctedTime, precision: timePrecision(correctedTime) }
-    } : item)
+    } : item) : output
   }
 
   if (/差不多还是那样/.test(rawInput)) {

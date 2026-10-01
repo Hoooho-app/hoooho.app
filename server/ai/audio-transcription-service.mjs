@@ -1,4 +1,5 @@
 import { OpenAIProvider } from './providers/openai-provider.mjs'
+import { MedicalSummaryError } from './medical-summary-service.mjs'
 
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024
@@ -24,11 +25,15 @@ function validateAudio(input) {
 export class AudioTranscriptionService {
   constructor(options = {}) {
     this.provider = Object.prototype.hasOwnProperty.call(options, 'provider') ? options.provider : (process.env.OPENAI_API_KEY ? new OpenAIProvider(options) : null)
+    const configured=Number(options.maxCallsPerHour??process.env.AI_ASR_MAX_CALLS_PER_HOUR??60)
+    this.maxCallsPerHour=Number.isInteger(configured)&&configured>0&&configured<=1000?configured:60
+    this.calls=new Map()
   }
 
-  async transcribe(input) {
+  async transcribe(input,accountId=null) {
     const audio = validateAudio(input)
     if (!this.provider?.transcribeAudio) throw new AudioTranscriptionError('语音转写服务尚未配置，请改用文字记录', 503, 'ASR_NOT_CONFIGURED')
+    if(accountId){const now=Date.now();for(const [id,c] of this.calls)if(now-c.started>=3600000)this.calls.delete(id);const count=this.calls.get(accountId)??{started:now,count:0};if(count.count>=this.maxCallsPerHour)throw new AudioTranscriptionError('本小时转写次数已达上限，请继续文字记录',429,'ASR_CALL_LIMIT');count.count++;this.calls.set(accountId,count)}
     try {
       const result = await this.provider.transcribeAudio(audio)
       const transcript = typeof result?.transcript === 'string' ? result.transcript.trim() : ''
@@ -36,7 +41,9 @@ export class AudioTranscriptionService {
       return { transcript, provider: this.provider.name, model: result.model ?? null }
     } catch (error) {
       if (error instanceof AudioTranscriptionError) throw error
-      throw new AudioTranscriptionError('语音转写暂时不可用，请稍后重试', 503, error?.code ?? 'ASR_UPSTREAM_UNAVAILABLE')
+      const failure=new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字','ASR_UPSTREAM_UNAVAILABLE',error)
+      console.warn('[Hoooho AI] transcription failed',{...failure.upstream,...failure.failureCodes})
+      throw failure
     }
   }
 }

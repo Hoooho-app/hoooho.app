@@ -18,6 +18,15 @@ const accountId = 'account-1'
 const memberId = 'member-current'
 const at = '2026-09-26T00:00:00.000Z'
 
+test('人工译名优先，资料重新同步不覆盖人工译名，不扩展食物范围',()=>{
+  const sources=deriveDietarySources(storage([allergy('牛奶','confirmed')]),memberId,accountId)
+  const snapshot=snapshotFromSources(memberId,sources,at)
+  snapshot.items[0].englishName='Cow milk'
+  const merged=mergeDietarySources(snapshot,sources,at)
+  assert.equal(translateFood(merged.items[0],'en-zh'),'Cow milk / 牛奶')
+  assert.equal(merged.items.length,1)
+})
+
 function allergy(name: string, status: AllergyHistoryItem['currentStatus'], owner = memberId, category: AllergyHistoryItem['category'] = 'food') {
   const item = createAllergyItem(owner, category, name, accountId)
   item.id = `${owner}-${name}`

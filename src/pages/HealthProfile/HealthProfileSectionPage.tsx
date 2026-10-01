@@ -147,6 +147,7 @@ export function HealthProfileSectionPage() {
             <button aria-label="编辑记录" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary" onClick={() => editRecord(record, index)} type="button"><Pencil size={17} /></button>
             <button aria-label="删除记录" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-danger" onClick={() => deleteRecord(index)} type="button"><Trash2 size={17} /></button>
           </div>
+          {typeof record.sourceEventId==='string'&&typeof record.sourceRecordId==='string'&&<a className="text-sm text-primary" href={`/health-events?eventId=${encodeURIComponent(record.sourceEventId)}&recordId=${encodeURIComponent(record.sourceRecordId)}`}>查看归档原文与原件</a>}
         </article>)}</div>
       </section>}
 

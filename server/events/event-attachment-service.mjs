@@ -87,7 +87,7 @@ export class EventAttachmentService {
       throw new EventAttachmentError('未找到这张照片', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     if (!attachment.storageKey) {
-      const embedded = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
+      const embedded = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
       if (embedded) return { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }

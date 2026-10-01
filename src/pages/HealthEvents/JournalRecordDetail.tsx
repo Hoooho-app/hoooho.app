@@ -44,6 +44,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   if (state.status === 'error') return <StatusSheet onClose={onClose}><StatusNotice action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} tone="error" title={state.message} /></StatusSheet>
   if (state.status === 'not-found') return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="未找到这条健康随记" /></StatusSheet>
 
+  if(state.data.member.id!==memberId)return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="这条记录不属于当前家庭成员" /></StatusSheet>
   const entry = state.data.viewModel.event.timeline.find((item) => item.sourceRecordId === recordId) ?? null
   const record = state.data.records.find((item) => item.id === recordId) ?? null
   if (!entry) return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="未找到这条记录" /></StatusSheet>

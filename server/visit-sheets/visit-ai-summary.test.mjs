@@ -1,0 +1,4 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { visitAISources,visitAISummaryInput } from './visit-ai-summary.mjs'
+test('焦点、正反向明确关联都纳入，无关背景不发送，原文不截断',()=>{const report={member:{name:'测试人物'},complaint:'皮疹',question:'核对经过',focusSourceIds:['focus'],sources:[{id:'focus',category:'record',relatedSourceIds:['visit'],text:'原文'.repeat(600),identity:'家长记录'},{id:'profile',category:'history',relatedSourceIds:['focus'],text:'相关背景',identity:'档案'},{id:'visit',category:'visits',text:'医生原话',identity:'医生'},{id:'unrelated',category:'history',text:'无关背景',identity:'档案'}]};assert.deepEqual(visitAISources(report).map(s=>s.id),['focus','profile','visit']);assert.match(JSON.stringify(visitAISummaryInput(report)),new RegExp('原文'.repeat(600)));assert.doesNotMatch(JSON.stringify(visitAISummaryInput(report)),/无关背景/)})

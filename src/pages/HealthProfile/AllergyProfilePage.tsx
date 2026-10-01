@@ -11,7 +11,9 @@ import {
 } from '../../features/health-profile/utils/allergyProfile'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { healthEventService } from '../../services/healthEvents'
-import { readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
+import { loadProfileSections, readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
+import { AIBusinessComposer } from '../../features/ai-business/AIBusinessComposer'
+import { HealthInsights } from '../../features/ai-business/HealthInsights'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventApiDto, Member } from '../../types'
 
@@ -39,6 +41,7 @@ export function AllergyProfilePage({member,storageKey}:{member:Member;storageKey
   const [archive,setArchive]=useState(()=>readAllergyArchive(readProfileSection(storageKey),member.id,accountId))
   const [events,setEvents]=useState<HealthEventApiDto[]>([]),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
   const [editor,setEditor]=useState<AllergyHistoryItem|null|undefined>(undefined),[reportOpen,setReportOpen]=useState(false)
+  const [aiOpen,setAiOpen]=useState(false)
   const parts=location.pathname.split('/').filter(Boolean),sub=parts.slice(2)
   const item=archive.items.find(candidate=>candidate.id===sub[0]&&candidate.memberId===member.id&&(!accountId||candidate.accountId===accountId))
 
@@ -57,7 +60,10 @@ export function AllergyProfilePage({member,storageKey}:{member:Member;storageKey
   if(legacyDetail)return <MissingItem onBack={()=>navigate('/health-profile/allergy',{replace:true})}/>
 
   return <>
-    <Dashboard archive={archive} onAdd={()=>setEditor(null)} onBack={()=>navigate('/health-profile',{replace:true})} onOpen={id=>navigate(itemPath(id))} onReport={()=>setReportOpen(true)}/>
+    <Dashboard archive={archive} onAdd={()=>setEditor(null)} onBack={()=>navigate('/health-profile',{replace:true})} onOpen={id=>navigate(itemPath(id))} onReport={()=>setAiOpen(true)}/>
+    <button type="button" onClick={()=>setReportOpen(true)}>手动核对上传报告（无需 AI）</button>
+    {token&&<HealthInsights key={member.id} memberId={member.id} token={token}/>}
+    {aiOpen&&token&&<AIBusinessComposer key={member.id} memberId={member.id} token={token} initialTask="report" onClose={()=>setAiOpen(false)} onSaved={message=>{setNotice(message);void loadProfileSections(token,useAppStore.getState().members).then(()=>{if(useAppStore.getState().currentMemberId===member.id)setArchive(readAllergyArchive(readProfileSection(storageKey),member.id,accountId))})}}/>}
     <QuickAddSheet accountId={accountId} error={error} item={editor??null} member={member} onClose={()=>{if(!saving){setEditor(undefined);setError('')}}} onSave={saveEditor} open={editor!==undefined} saving={saving}/>
     <ReportSheet accountId={accountId} error={error} member={member} onClose={()=>{if(!saving){setReportOpen(false);setError('')}}} onSave={saveReport} open={reportOpen} saving={saving}/>
     {notice&&<Toast onClose={closeNotice}>{notice}</Toast>}
@@ -143,7 +149,7 @@ function DetailPage({events,item,onBack,onEdit,onRecord}:{events:HealthEventApiD
     {item.sourceReferences.length>0&&<section className="allergy-detail-section"><h2>来源与原始证据</h2>{item.sourceReferences.map(reference=><article className="allergy-evidence-row" key={reference.id}><span><strong>{reference.label}</strong><small>{reference.occurredAt?formatAllergyDate(reference.occurredAt):'时间未填写'} · {reference.active?'当前可追溯':'来源已变更'}</small></span></article>)}</section>}
     {reactions.length>0&&<section className="allergy-detail-section"><h2>症状与观察</h2>{reactions.map(record=><article className="allergy-inline-record" key={record.id}><strong>{allergyReactionSummary(record)}</strong><small>{formatAllergyDate(record.occurredAt)}{record.latency?` · 接触后${record.latency}`:''}</small>{record.notes&&<p>{record.notes}</p>}</article>)}</section>}
     {tests.length>0&&<section className="allergy-detail-section"><h2>检查与报告</h2>{tests.map(record=><article className="allergy-inline-record" key={record.id}><strong>{record.testType||'检查报告'} · {allergyTestResultLabel(record.result)}</strong><small>{formatAllergyDate(record.testedAt)} · 单项结果不等于确诊</small>{record.reportFiles[0]&&<a href={record.reportFiles[0]} rel="noreferrer" target="_blank">查看报告原件</a>}</article>)}</section>}
-    {item.evidenceLinks.length>0&&<section className="allergy-detail-section"><h2>关联的健康随记</h2>{item.evidenceLinks.map(link=><article className="allergy-evidence-row" key={link.id}><span><strong>{item.sourceReferences.find(reference=>reference.id===`journal:${link.healthRecordId}`)?.active===false?'来源已变更，等待重新核对':'用户已确认关联'}</strong><small>原始记录 ID：{link.healthRecordId||link.healthEventId}</small></span></article>)}</section>}
+    {item.evidenceLinks.length>0&&<section className="allergy-detail-section"><h2>关联的健康随记</h2>{item.evidenceLinks.map(link=><article className="allergy-evidence-row" key={link.id}><span><strong>{item.sourceReferences.find(reference=>reference.id===`journal:${link.healthRecordId}`)?.active===false?'来源已变更，等待重新核对':'用户已确认关联'}</strong><small>原始记录 ID：{link.healthRecordId||link.healthEventId}</small>{link.healthRecordId&&item.sourceReferences.find(reference=>reference.id===`journal:${link.healthRecordId}`)?.active!==false&&<a href={`/health-events?eventId=${encodeURIComponent(link.healthEventId)}&recordId=${encodeURIComponent(link.healthRecordId)}`}>查看随记与原件</a>}</span></article>)}</section>}
     {candidates.length>0&&<section className="allergy-detail-section allergy-candidate-note"><h2>可能相关的已有观察</h2><p>发现 {candidates.length} 条名称或类别相关的健康随记。只有用户确认后才建立关联，不据此判断因果。</p></section>}
     {item.history.length>0&&<details className="allergy-history-log"><summary><History/>历史变化 <span>{item.history.length}</span><ChevronDown/></summary>{[...item.history].reverse().map(entry=><article key={entry.id}><strong>{entry.label}</strong><small>{formatAllergyDate(entry.occurredAt)} · {entry.sourceType?allergySourceLabels[entry.sourceType as Exclude<AllergySourceType,''>]:'手工记录'}</small></article>)}</details>}
   </div></main>

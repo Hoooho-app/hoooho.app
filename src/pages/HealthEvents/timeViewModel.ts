@@ -48,7 +48,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       return {
       id: first.id, eventId: event.id, content: first.content, occurredAt: latestOccurredAt, createdAt: latest.createdAt,
       categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
-      timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType ?? '') ? 'exact' : 'unknown'),
+      timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (!first.sourceType || ['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType) ? 'exact' : 'unknown'),
       timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
       diet: first.journal?.diet,
       sleep: first.journal?.sleep,
@@ -108,15 +108,30 @@ export function journalSearchFields(entry: JournalEntry) {
     ...textValues(entry.outdoorActivity),
     ...textValues(entry.medication),
     ...textValues(entry.vaccination),
-    ...textValues(entry.symptom),
+    ...textValues(entry.symptom?{...entry.symptom,linkedRecordIds:undefined}:undefined),
   ].map((value) => value.trim()).filter(Boolean)
 }
 
-export function searchJournalEntries(entries: readonly JournalEntry[], query: string) {
-  const needle = normalizeJournalSearch(query)
+export function searchJournalEntries(entries: readonly JournalEntry[], query: string, now = new Date()) {
+  let raw=query.trim(),from:number|null=null,to:number|null=null
+  const midnight=new Date(now);midnight.setHours(0,0,0,0)
+  if(/上个?月/.test(raw)){const end=new Date(midnight);end.setDate(1);to=end.getTime();const start=new Date(end);start.setMonth(start.getMonth()-1);from=start.getTime();raw=raw.replace(/上个?月/g,'')}
+  else if(/上周|上星期/.test(raw)){const end=new Date(midnight);end.setDate(end.getDate()-((end.getDay()+6)%7));to=end.getTime();const start=new Date(end);start.setDate(start.getDate()-7);from=start.getTime();raw=raw.replace(/上周|上星期/g,'')}
+  else if(/昨天|昨日|今天|今日/.test(raw)){const start=new Date(midnight);if(/昨天|昨日/.test(raw))start.setDate(start.getDate()-1);from=start.getTime();to=from+86400000;raw=raw.replace(/昨天|昨日|今天|今日/g,'')}
+  const latest=/最近一次|上次/.test(raw)
+  raw=raw.replace(/的检查/g,'检查').replace(/最近一次|上次|的记录|的随记|记录|随记|帮我找|查找|搜索|什么时候|有没有|出现过|过的|的|喝|吃|后|了/g,' ').trim()
+  const exclusions=[...raw.matchAll(/(?:不含|排除|不要)([^\s，,]+)/g)].map(m=>normalizeJournalSearch(m[1]));raw=raw.replace(/(?:不含|排除|不要)[^\s，,]+/g,'')
+  const synonyms:Record<string,string[]>={发烧:['发烧','发热'],起疹子:['疹','红疹','皮疹'],奶:['奶','milk'],检查:['检查','报告','examination'],呕吐:['呕吐','吐']}
+  const needle = normalizeJournalSearch(raw)
   if (!needle) return []
-  return entries.filter((entry) => journalSearchFields(entry).some((value) => normalizeJournalSearch(value).includes(needle)))
+  const terms=raw.split(/[\s，,]+/).filter(Boolean).map(term=>synonyms[term]??[term])
+  const scopedById=new Map(entries.map(e=>[e.id,e]))
+  const results=entries.filter(entry=>{const linked=Object.values(entry.symptom?.linkedRecordIds??{}).flat().flatMap(id=>scopedById.has(id)?[scopedById.get(id)!]:[]),values=[...journalSearchFields(entry),...linked.flatMap(journalSearchFields)].map(normalizeJournalSearch),at=Date.parse(entry.occurredAt)
+    if(from!==null&&(entry.timePrecision==='unknown'||at<from||at>=to!))return false
+    if(exclusions.some(term=>values.some(v=>v.includes(term))))return false
+    return values.some(v=>v.includes(needle))||terms.every(alternatives=>alternatives.some(term=>values.some(v=>v.includes(normalizeJournalSearch(term)))))})
     .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt) || right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
+  return latest?results.slice(0,1):results
 }
 
 export function journalSearchResultSummary(entry: JournalEntry, query: string) {
@@ -144,6 +159,7 @@ export function journalDayPeriod(hour: number): JournalDayPeriod {
 }
 
 export function journalTime(entry: JournalEntry) {
+  if(entry.timePrecision==='unknown')return {group:'时间未明确',label:'时间未明确'}
   if (!Number.isFinite(Date.parse(entry.occurredAt))) return { group: '', label: '' }
   const date = new Date(entry.occurredAt)
   const group = journalDayPeriod(date.getHours())

@@ -1,4 +1,6 @@
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
+import path from 'node:path'
+import { JsonStore } from '../auth/storage/json-store.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
 import sharp from 'sharp'
 import {
@@ -179,6 +181,7 @@ function validateDietFrequentFoods(value) {
 
 export class FamilyMemberService {
   constructor(options = {}) {
+    this.aiDrafts=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'ai-business-drafts.json'),{drafts:[]}):null
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
   }
 
@@ -255,6 +258,7 @@ export class FamilyMemberService {
 
   async delete(accountId, id) {
     await this.get(accountId, id)
+    if(this.aiDrafts)await this.aiDrafts.update(data=>({...data,drafts:data.drafts.filter(d=>d.accountId!==accountId||d.memberId!==id)}))
     await this.repository.delete(id)
     return { success: true }
   }

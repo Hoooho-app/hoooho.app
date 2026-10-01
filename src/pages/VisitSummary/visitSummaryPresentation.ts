@@ -19,9 +19,10 @@ export function createVisitSummaryPresentation(preparation:MedicalPreparationApi
     const status=line.match(/待核对|正在排查|怀疑中|医生已确认|已排除|已耐受/)?.[0]??'已保存'
     return{text:line,source,recordedAt:date,status}
   }
-  const make=(id:VisitSectionId,label:string,title:string,lines:string[]):VisitSection=>({id,label,title,lines,evidence:{id:`evidence-${id}`,label:`${title}的原始依据`,lines,items:lines.map(evidenceItem)}})
-  sections.push(make('overview','概览','病情摘要',unique([...current.slice(0,4),...(longTerm?[`另希望了解：${longTerm}`]:[])])));sections.push(make('complaint','主诉','本次就诊目的',unique([complaint,...current.slice(1,5)])))
+  const make=(id:VisitSectionId,label:string,title:string,lines:string[],evidenceLines=lines):VisitSection=>({id,label,title,lines,evidence:{id:`evidence-${id}`,label:`${title}的原始依据`,lines:evidenceLines,items:evidenceLines.map(evidenceItem)}})
+  const ai=preparation.summary.aiSummary;const overview=ai?unique([ai.overview,...ai.keyPoints]):unique([...current.slice(0,4),...(longTerm?[`另希望了解：${longTerm}`]:[])])
+  sections.push(make('overview','概览','病情摘要',overview,unique([...current,...raw])));sections.push(make('complaint','主诉','本次就诊目的',unique([complaint,...current.slice(1,5)])))
   const course=unique([...raw,...history].filter(line=>!rules.medication.test(line)&&!rules.examinations.test(line)));if(course.length)sections.push(make('course','病程','病程与关键变化',course))
-  for(const item of visitIndex.slice(3)){const pattern=rules[item.id as keyof typeof rules];const lines=all.filter(line=>pattern.test(line)&&!used.has(line));lines.forEach(line=>used.add(line));if(lines.length)sections.push(make(item.id,item.label,item.id==='examinations'?'检查与就诊':item.label,lines))}
-  return{complaint,longTerm,organizer,overview:current,sections}
+  for(const item of visitIndex.slice(3)){const pattern=rules[item.id as keyof typeof rules];const lines=unique([...all.filter(line=>pattern.test(line)&&!used.has(line)),...(item.id==='questions'?(ai?.missingInformation??[]):[])]);lines.forEach(line=>used.add(line));if(lines.length)sections.push(make(item.id,item.label,item.id==='examinations'?'检查与就诊':item.label,lines,item.id==='questions'?all:lines))}
+  return{complaint,longTerm,organizer,overview,sections}
 }

@@ -2,6 +2,7 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
 import { randomBytes } from 'node:crypto'
+import { MedicalSummaryError, MedicalSummaryService } from '../ai/medical-summary-service.mjs'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -76,6 +77,7 @@ export class HealthEventService {
     this.repository = options.repository ?? new HealthEventRepository(options.dataDirectory)
     this.members = options.members ?? new FamilyMemberRepository(options.dataDirectory)
     this.summaryRefresher = options.summaryRefresher ?? null
+    this.medicalSummary = options.medicalSummary ?? new MedicalSummaryService(options)
   }
 
   async assertMemberOwnership(accountId, memberId) {
@@ -161,6 +163,13 @@ export class HealthEventService {
     if (existing?.sourceFingerprint === input.sourceFingerprint.trim()) {
       return { status: 'current', medicalPreparation: existing }
     }
+    let aiSummary
+    try {
+      aiSummary = await this.medicalSummary.generate(summary)
+    } catch (error) {
+      if (error instanceof MedicalSummaryError) throw new HealthEventError(error.message, error.status, error.code)
+      throw error
+    }
     const timestamp = now.toISOString()
     const medicalPreparation = {
       version: existing ? existing.version + 1 : 1,
@@ -168,7 +177,7 @@ export class HealthEventService {
       updatedAt: timestamp,
       shareToken: randomBytes(24).toString('base64url'),
       sourceFingerprint: input.sourceFingerprint.trim(),
-      summary: { ...summary, generatedAt: timestamp }
+      summary: { ...summary, aiSummary, generatedAt: timestamp }
     }
     const medicalPreparationSnapshots = event.medicalPreparation && existing?.shareToken === event.medicalPreparation.shareToken
       ? [...(event.medicalPreparationSnapshots ?? []), existing].slice(-20)

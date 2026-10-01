@@ -59,7 +59,7 @@ const report = {
   totals: { designed: results.length, executed: results.length, passed: results.length - failed.length, failed: failed.length, skipped: 0, ...severities },
   feverSpecial: { total: fever.length, passed: fever.filter((x) => x.status === 'passed').length, failed: fever.filter((x) => x.status === 'failed').length },
   blocked: [
-    'OpenAI provider not executed: OPENAI_API_KEY is not configured; no paid calls were authorized.',
+    'OpenAI provider not executed: this deterministic runner does not read server credentials or perform paid calls.',
     'Browser E2E not executed: this runner targets deterministic parser and projection layers only.'
   ],
   results
@@ -86,7 +86,7 @@ ${executiveSummary}
 
 - 已执行：LocalFactProvider、事实规范化、结构化投影、发热派生规则；固定攻击、发热矩阵、变形与固定种子组合。
 - 未执行：真实 OpenAI Provider、HTTP API 进程、浏览器 E2E、付费模型非确定性重复。
-- 阻塞：未配置 OPENAI_API_KEY；本轮禁止产生明显外部费用；E2E 需独立测试账号/环境。
+- 边界：本确定性 runner 不读取服务端凭据或执行真实模型调用；HTTP 和浏览器业务验收见独立隔离测试报告。
 
 ## 总体结果
 

@@ -92,7 +92,7 @@ export function DietaryCardPage() {
   const location = useLocation()
   const member = useCurrentMember()
   const { accountId, currentMemberId, members, reload, setState, state, token } = useDietaryCardData()
-  const [language, setLanguage] = useState<DietaryCardLanguage>('zh')
+  const [language, setLanguage] = useState<DietaryCardLanguage>('en-zh')
   const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState(() => (location.state as { notice?: string } | null)?.notice ?? '')
@@ -156,7 +156,7 @@ export function DietaryCardPage() {
   </main>
 }
 
-interface FoodEditorState { id?: string; name: string; group: DietaryCardGroup }
+interface FoodEditorState { id?: string; name: string; englishName?:string; group: DietaryCardGroup }
 
 export function DietaryCardEditPage() {
   const navigate = useNavigate()
@@ -175,7 +175,7 @@ export function DietaryCardEditPage() {
   }, [currentMemberId, draft, state])
 
   const openEditor = (item?: DietaryCardItem) => {
-    setEditor(item ? { id: item.id, name: item.name, group: item.group } : { name: '', group: 'temporary' })
+    setEditor(item ? { id: item.id, name: item.name, englishName:item.englishName, group: item.group } : { name: '', group: 'temporary' })
     setEditorError('')
   }
 
@@ -187,12 +187,12 @@ export function DietaryCardEditPage() {
     if (dietaryItemExists(draft.items, name, editor.id)) { setEditorError('已在清单中'); return }
     if (editor.id) {
       setDraft({ ...draft, items: draft.items.map((item) => item.id === editor.id ? {
-        ...item, name, foodId: foodIdFor(name), group: editor.group, visible: true,
+        ...item, name, englishName:editor.englishName?.trim(), foodId: foodIdFor(name), group: editor.group, visible: true,
         nameAdjusted: item.sourceName ? name !== item.sourceName : true,
         groupAdjusted: item.sourceGroup ? editor.group !== item.sourceGroup : true,
         needsReview: false
       } : item) })
-    } else setDraft({ ...draft, items: [...draft.items, createManualDietaryItem(name, editor.group)] })
+    } else setDraft({ ...draft, items: [...draft.items, {...createManualDietaryItem(name, editor.group),englishName:editor.englishName?.trim()}] })
     setEditor(null)
   }
 
@@ -226,6 +226,7 @@ export function DietaryCardEditPage() {
     </div>
     <footer className="dietary-edit-footer"><HohoButton disabled={saving} fullWidth loading={saving} onClick={() => void save()} size="large">保存并更新</HohoButton></footer>
     <BottomSheetSurface footer={<HohoButton disabled={!editor?.name.trim()} form="dietary-food-editor" fullWidth size="large" type="submit">{editor?.id ? '保存修改' : '添加到清单'}</HohoButton>} label={editor?.id ? '修改食物' : '添加食物'} onClose={() => setEditor(null)} open={Boolean(editor)} title={editor?.id ? '修改食物' : '添加食物'}>
+      {editor&&<HohoInput label="英文食物名称（可核对修改）" maxLength={80} value={editor.englishName??''} onChange={e=>setEditor({...editor,englishName:e.target.value})} placeholder="未明确译名时保留中文，不扩大忌口范围"/>}
       {editor && <form className="dietary-food-editor" id="dietary-food-editor" onSubmit={submitEditor}><HohoInput autoFocus error={editorError} label="食物名称" maxLength={30} onChange={(event) => { setEditor({ ...editor, name: event.target.value }); setEditorError('') }} placeholder="例如：牛奶" value={editor.name} /><label><span className="hoho-text-label">所属分组</span><select aria-label="所属分组" onChange={(event) => setEditor({ ...editor, group: event.target.value as DietaryCardGroup })} value={editor.group}><option value="temporary">暂时请避开（安全默认）</option><option value="avoid">明确不能吃</option></select></label></form>}
     </BottomSheetSurface>
   </main>

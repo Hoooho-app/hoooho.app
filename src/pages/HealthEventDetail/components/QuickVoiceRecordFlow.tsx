@@ -7,6 +7,7 @@ import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecordi
 import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload } from './QuickRecordPhotos'
 import { OccurrenceTimeField, useOccurrenceTime } from '../../HealthEvents/OccurrenceTimeField'
 import { getLocalDateKey } from '../../../utils/localCalendarDate'
+import { AIBusinessComposer } from '../../../features/ai-business/AIBusinessComposer'
 
 type FlowState = 'requesting_permission' | 'recording' | 'error' | 'text_entry' | 'previewing' | 'review' | 'voice_help' | 'browser_help' | 'saving' | 'saved'
 export type QuickRecordActivity = 'idle' | 'attention' | 'listening' | 'reviewing' | 'saving' | 'saved' | 'error'
@@ -54,7 +55,12 @@ const recognitionConstructor = () => {
 const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
-export function QuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken, selectedDay, today }: QuickVoiceRecordFlowProps) {
+export function QuickVoiceRecordFlow(props:QuickVoiceRecordFlowProps){
+  if(props.open&&props.photoMemberId&&props.photoToken&&!props.recognitionApi)return <AIBusinessComposer key={props.photoMemberId} memberId={props.photoMemberId} token={props.photoToken} onClose={props.onClose} onSaved={message=>{props.onActivityChange?.('saved');props.onSaved?.(message,props.initialInputChannel??'text')}}/>
+  return <BrowserQuickVoiceRecordFlow {...props}/>
+}
+
+function BrowserQuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken, selectedDay, today }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')

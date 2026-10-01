@@ -8,6 +8,7 @@ import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { membersApiPlugin } from '../members/vite-members-plugin.mjs'
 import { eventsApiPlugin } from './vite-events-plugin.mjs'
 import { HealthEventService, validateStartTime } from './health-event-service.mjs'
+import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 
 const jsonRequest = (url, method, token, body) => fetch(url, {
   method,
@@ -94,7 +95,15 @@ test('就诊情况单更新为新版本且已分享版本保持固定快照', as
     update: async (_id, changes, now) => (stored = { ...stored, ...changes, updatedAt: now.toISOString() })
   }
   const members = { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) }
-  const service = new HealthEventService({ repository, members })
+  const service = new HealthEventService({
+    repository,
+    members,
+    medicalSummary: {
+      generate: async () => ({
+        overview: '咳嗽情况待就诊沟通。', keyPoints: ['已记录咳嗽'], missingInformation: [], provider: 'openai', model: 'test-model'
+      })
+    }
+  })
   const summary = { memberName: '乐乐', prompt: '请整理健康资料', text: '病情摘要', selectedSourceIds: ['current'], sections: [{ id: 'current', title: '当前状态', lines: ['咳嗽'] }] }
   const created = await service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'first-fingerprint', summary }, new Date('2026-09-08T01:00:00.000Z'))
   assert.equal(created.status, 'created'); assert.equal(created.medicalPreparation.version, 1)
@@ -106,6 +115,28 @@ test('就诊情况单更新为新版本且已分享版本保持固定快照', as
   const shared = await service.getSharedMedicalPreparation(created.medicalPreparation.shareToken)
   assert.equal(shared.version, 1)
   assert.equal(shared.summary.text, '病情摘要')
+  assert.equal(updated.medicalPreparation.summary.aiSummary.provider, 'openai')
+})
+
+test('AI 病情摘要失败时保留上一版本且返回可重试错误', async () => {
+  const existing = { version: 1, sourceFingerprint: 'old', shareToken: 'old-token', summary: { text: '上一版' } }
+  let updated = false
+  const service = new HealthEventService({
+    repository: {
+      findById: async () => ({ id: 'event-1', accountId: 'account-1', memberId: 'member-1', medicalPreparation: existing }),
+      findByAccountId: async () => [{ memberId: 'member-1', medicalPreparation: existing }],
+      update: async () => { updated = true }
+    },
+    members: { findById: async () => ({ id: 'member-1', accountId: 'account-1' }) },
+    medicalSummary: { generate: async () => { throw new MedicalSummaryError('AI 病情摘要暂时没有生成成功，请稍后重试。') } }
+  })
+  const summary = { memberName: '乐乐', prompt: '请整理健康资料', text: '新摘要', selectedSourceIds: ['current'], sections: [{ id: 'current', title: '当前状态', lines: ['咳嗽'] }] }
+
+  await assert.rejects(
+    () => service.saveMedicalPreparation('account-1', 'event-1', { sourceFingerprint: 'new', summary }),
+    (error) => error.code === 'AI_MEDICAL_SUMMARY_UNAVAILABLE' && error.status === 503
+  )
+  assert.equal(updated, false)
 })
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {

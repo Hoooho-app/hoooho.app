@@ -63,13 +63,13 @@ export function bowelSummary(details: JournalBowelDetails) {
   return [primary || '排便', secondary.length ? secondary.join('、') : ''].filter(Boolean).join('\n')
 }
 
-export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
-  const [draft, setDraft] = useState(() => readDraft(memberId))
+export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved,initialJournal,initialOccurredAt }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void;initialJournal?:JournalBowelDetails;initialOccurredAt?:string }) {
+  const [draft, setDraft] = useState<Draft>(() => {if(!initialJournal)return readDraft(memberId);try{return {...readDraft(memberId),...initialJournal,...JSON.parse(sessionStorage.getItem(draftKey(memberId))??'{}')}}catch{return {...readDraft(memberId),...initialJournal}}})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const layerRef = useRef<HTMLElement>(null)
   const photos = useQuickRecordPhotos(memberId, token, 6)
-  const occurrence = useOccurrenceTime(selectedDay, today)
+  const occurrence = useOccurrenceTime(selectedDay, today,initialOccurredAt)
   usePageScrollLock(true)
   useDialogFocus(true, layerRef)
   useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])

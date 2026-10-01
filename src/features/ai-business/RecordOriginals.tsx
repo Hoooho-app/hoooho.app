@@ -1,0 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
+import { useAppStore } from '../../store/useAppStore'
+export function RecordOriginals({eventId,attachmentIds}:{eventId:string;attachmentIds:string[]}){
+  const token=useAppStore(s=>s.authToken),[links,setLinks]=useState<Record<string,string>>({}),[error,setError]=useState(''),[busy,setBusy]=useState(false),controller=useRef<AbortController|null>(null),urls=useRef<string[]>([]),generation=useRef(0)
+  useEffect(()=>{generation.current++;setLinks({});setError('');return()=>{generation.current++;controller.current?.abort();urls.current.forEach(URL.revokeObjectURL);urls.current=[]}},[eventId,token])
+  async function read(id:string){if(!token||busy)return;const turn=generation.current,c=new AbortController();controller.current=c;setBusy(true);setError('');try{const r=await fetch(`/api/events/${encodeURIComponent(eventId)}/attachments/${encodeURIComponent(id)}/content`,{headers:{Authorization:`Bearer ${token}`},signal:c.signal});if(!r.ok)throw new Error('原件暂不可用，请重试');const blob=await r.blob();if(turn!==generation.current)return;const objectUrl=URL.createObjectURL(blob);urls.current.push(objectUrl);setLinks(v=>({...v,[id]:objectUrl}))}catch(e){if(!c.signal.aborted&&turn===generation.current)setError(e instanceof Error?e.message:'原件暂不可用')}finally{if(turn===generation.current)setBusy(false)}}
+  return <section><h3>原始资料</h3>{attachmentIds.map((id,i)=><div key={id}>{links[id]?<a href={links[id]} target="_blank" rel="noreferrer">查看原件 {i+1}</a>:<button type="button" disabled={busy} onClick={()=>void read(id)}>读取原件 {i+1}</button>}</div>)}{error&&<p role="alert">{error}</p>}</section>
+}

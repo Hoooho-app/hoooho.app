@@ -8,6 +8,26 @@ import { HealthEventService } from '../events/health-event-service.mjs'
 import { HealthEventRecordService } from '../events/health-event-record-service.mjs'
 import { HealthRecordOrganizationService } from './health-record-organization-service.mjs'
 
+test('manual organization stays local with a configured API key and never requests a model', async () => {
+  const previous = process.env.OPENAI_API_KEY
+  process.env.OPENAI_API_KEY = 'test-only-not-a-real-key'
+  try {
+    let calls = 0
+    const service = new HealthRecordOrganizationService({
+      events: {}, records: {}, repository: {},
+      fetch: async () => { calls++; throw new Error('manual record must not call upstream') }
+    })
+    const result = await service.ai.organizeHealthRecord('咳嗽，没有发热')
+    assert.equal(calls, 0)
+    assert.equal(result.provider, service.ai.fallbackProvider.name)
+    assert.equal(service.ai.primaryProvider, false)
+    assert.ok(result.healthAIOutput.facts.some(fact => fact.polarity === 'negated'))
+  } finally {
+    if (previous === undefined) delete process.env.OPENAI_API_KEY
+    else process.env.OPENAI_API_KEY = previous
+  }
+})
+
 test('listing current organizations does not rebuild an existing event summary', async () => {
   let eventReads = 0
   let recordReads = 0

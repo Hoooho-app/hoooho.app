@@ -87,6 +87,10 @@ export interface VisitChapter {
   overview?: { lines: string[]; items: Array<{title: string; detail: string; sourceIds: string[]; at?: string; timeKind?: string}> }
 }
 export interface VisitSheet {
+  aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai'; model: string; generatedAt: string }
+  aiSummaryStale?: boolean
+  aiSourceFingerprint?: string
+  aiSourceIds?: string[]
   id: string
   memberId: string
   version: number

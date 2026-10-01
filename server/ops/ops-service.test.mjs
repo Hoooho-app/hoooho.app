@@ -82,8 +82,11 @@ test('scheduled refresh respects weekly cadence and pauses sources that need log
     railway: async () => { throw Object.assign(new Error('expired'), { code: 'AUTH_REQUIRED' }) },
     'automatic-screenshot': async (item) => { order.push(item.id); return pixel }, api: async (item) => { order.push(item.id); return pixel }
   } })
-  await service.refreshScheduled(new Date('2026-09-01T08:00:00+08:00'))
-  await service.refreshScheduled(new Date('2026-09-02T08:00:00+08:00'))
+  // history() prunes against wall-clock time. Keep this weekly-cadence fixture
+  // inside retention without weakening either cadence or login-pause assertions.
+  const second=new Date(),first=new Date(second.getTime()-86400000)
+  await service.refreshScheduled(first)
+  await service.refreshScheduled(second)
   assert.equal(order.filter((id) => id === 'github').length, 1)
   assert.equal((await service.history('railway')).snapshots.length, 1)
 })
