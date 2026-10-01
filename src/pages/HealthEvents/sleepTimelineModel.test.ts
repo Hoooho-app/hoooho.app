@@ -14,7 +14,7 @@ test('ongoing sleep emits only its actual start, including a zero elapsed start'
 })
 test('completed same-day sleep has exactly two endpoints and replaces the running copy', () => {
   assert.deepEqual(kinds(date(30, 13), date(30, 14, 30), date(30, 0)), [['start', 13, 0], ['end', 14, 30]])
-  assert.equal(sleepEndpointStatus('start', false, 90), '开始入睡')
+  assert.equal(sleepEndpointStatus('start', false, 90, date(30, 13)), '开始于13点00分入睡')
   assert.equal(sleepEndpointStatus('end', false, 90), '醒了 · 共1小时30分钟')
 })
 test('cross-day sleep has one endpoint on each actual date, without a midnight continuation', () => {
@@ -33,4 +33,10 @@ test('midnight wake is only an end on the new date and sub-hour duration is read
 test('invalid times never invent a wake endpoint', () => {
   assert.deepEqual(projectSleepEndpoints('invalid', undefined, '2026-09-30'), [])
   assert.deepEqual(kinds(date(30, 13), date(30, 12), date(30, 0)), [['start', 13, 0]])
+})
+test('completed start copy uses its actual local sleep time, not wake or current time', () => {
+  assert.equal(sleepEndpointStatus('start', false, 530, date(30, 21, 10)), '开始于21点10分入睡')
+  assert.equal(sleepEndpointStatus('start', false, 90, date(30, 0, 5)), '开始于0点05分入睡')
+  assert.equal(sleepEndpointStatus('start', true, 90, date(30, 21, 10)), '开始入睡 · 持续')
+  assert.equal(sleepEndpointStatus('start', false, 90, 'invalid'), '开始入睡')
 })

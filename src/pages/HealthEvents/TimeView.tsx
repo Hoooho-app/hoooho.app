@@ -71,10 +71,11 @@ function RoutineRow({ track, onOpen }: { track: RoutineTrack; onOpen: () => void
 }
 
 function ActivityRow({ highlighted, item, onOpen }: { highlighted: boolean; item: Extract<TimelineItem, { kind: 'activity-record' | 'activity-routine' }>; onOpen: () => void }) {
-  const status = item.activity === 'sleep' ? sleepEndpointStatus(item.projection === 'end' ? 'end' : item.projection === 'open' ? 'open' : 'start', Boolean(item.sleepOngoing), item.durationMinutes) : item.projection === 'start' || item.projection === 'open' ? '开始' : item.projection === 'ongoing' ? '持续' : `共${formatTimelineDuration(item.durationMinutes)}`
+  const status = item.activity === 'sleep' ? sleepEndpointStatus(item.projection === 'end' ? 'end' : item.projection === 'open' ? 'open' : 'start', Boolean(item.sleepOngoing), item.durationMinutes, new Date(item.sortTime)) : item.projection === 'start' || item.projection === 'open' ? '开始' : item.projection === 'ongoing' ? '持续' : `共${formatTimelineDuration(item.durationMinutes)}`
+  const ongoingSleep = item.activity === 'sleep' && item.sleepOngoing && item.projection !== 'end'
   const isRoutine = item.kind === 'activity-routine'; const recordId = item.kind === 'activity-record' ? item.entry.id : undefined; const Icon = item.activity === 'sleep' ? Moon : item.activity === 'meal' ? Utensils : Clock3
   const projection = item.projection
-  return <button aria-label={`${item.title}，${status}`} className={`journal-activity-row journal-activity-row--${item.activity} journal-activity-row--${projection}${isRoutine ? ' journal-activity-row--routine' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={recordId} data-routine-key={isRoutine ? item.track.trackKey : undefined} onClick={onOpen} type="button"><Icon aria-hidden="true" size={18} /><span><strong>{item.title}</strong><small>· {status}</small></span><ChevronRight aria-hidden="true" size={16} /></button>
+  return <button aria-label={`${item.title}，${status}${ongoingSleep ? '中' : ''}`} className={`journal-activity-row journal-activity-row--${item.activity} journal-activity-row--${projection}${isRoutine ? ' journal-activity-row--routine' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={recordId} data-routine-key={isRoutine ? item.track.trackKey : undefined} onClick={onOpen} type="button"><Icon aria-hidden="true" size={18} /><span><strong>{item.title}</strong><small>· {status}{ongoingSleep && <span aria-hidden="true" className="journal-sleep-ongoing-dots"><span>.</span><span>.</span><span>.</span></span>}</small></span><ChevronRight aria-hidden="true" size={16} /></button>
 }
 
 function routineInterval(track: RoutineTrack) {
