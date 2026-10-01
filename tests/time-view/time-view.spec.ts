@@ -17,12 +17,11 @@ async function prepare(page: Page, member = 'child-one') {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: Recognition })
   }, { token, member })
   await page.goto('/health-events')
-  await expect(page.getByRole('button', { name: '记一下', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '记录日常', exact: true })).toBeVisible()
 }
 
 async function openSymptom(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录症状', exact: true }).click()
+  await page.getByRole('button', { name: '记录症状', exact: true }).click()
 }
 
 test('symptom voice click-start streams interim text, ends without duplication and preserves text on errors', async ({ page }) => {
@@ -99,8 +98,7 @@ test('symptom form fixes viewport, puts location input before tags and removes r
 })
 
 async function openDaily(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录日常', exact: true }).click()
+  await page.getByRole('button', { name: '记录日常', exact: true }).click()
 }
 
 test('symptom voice cancels pending permission and close aborts recording without an unsaved prompt', async ({ page }) => {
@@ -136,8 +134,7 @@ test('symptom voice cancels pending permission and close aborts recording withou
 })
 
 async function openVisit(page: Page) {
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录就医', exact: true }).click()
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('hoooho:timeline-prompt', { detail: { target: 'visit' } })))
 }
 
 async function createDespiteDuplicateIfNeeded(page: Page) {

@@ -1,0 +1,4 @@
+.hoho-record-segmented-control { display:flex; gap:var(--hoho-space-1); padding:var(--hoho-space-1); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-control); background:rgb(var(--hoho-color-surface-subtle)); }
+.hoho-record-segmented-control > button { display:flex; flex:1 1 0; min-width:0; min-height:var(--hoho-touch-target); align-items:center; justify-content:center; gap:var(--hoho-space-2); padding:var(--hoho-space-1); border-radius:calc(var(--hoho-radius-control) - var(--hoho-space-1)); color:rgb(var(--hoho-color-text-primary)); font-size:var(--hoho-font-size-caption); font-weight:500; white-space:nowrap; }
+.hoho-record-segmented-control > button[aria-checked='true'] { background:rgb(var(--hoho-color-primary)); color:rgb(var(--hoho-color-surface)); }
+.hoho-record-segmented-control > button:disabled { opacity:.6; cursor:wait; }

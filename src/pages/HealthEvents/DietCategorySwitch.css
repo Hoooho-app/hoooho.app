@@ -1,0 +1,5 @@
+.diet-category-switches { display:grid; gap:var(--hoho-space-2); }
+.diet-family-panel[hidden] { display:none; }
+.diet-family-panel > * + * { margin-top:var(--hoho-space-3); }
+.diet-record-page--combined .diet-category-switches > .hoho-record-segmented-control:first-child > button { font-size:var(--hoho-font-size-body); }
+.diet-record-page--combined .diet-family-panel { margin-top:var(--hoho-space-3); }
