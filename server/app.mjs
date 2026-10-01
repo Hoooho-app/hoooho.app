@@ -37,6 +37,7 @@ import { RoutineService } from './routines/routine-service.mjs'
 import { MedicationReminderService } from './medication-reminders/medication-reminder-service.mjs'
 import { DesensitizationTestService } from './desensitization-tests/desensitization-test-service.mjs'
 import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
+import { AIBusinessService } from './ai/business/service.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -77,6 +78,9 @@ const routines = new RoutineService({ ...sharedOptions, events, records, quickRe
 const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
+const aiBusiness = new AIBusinessService(sharedOptions)
+const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
+aiDraftCleanup.unref()
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -639,8 +643,8 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 
 async function handleAudioTranscription(request, response, pathname) {
   if (pathname !== '/api/ai/audio/transcriptions') return false
-  await readAccountId(request)
-  if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000)))
+  const accountId=await readAccountId(request)
+  if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000),accountId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -755,6 +759,25 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
+  if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
+  const businessMatch=/^\/api\/members\/([^/]+)\/ai-drafts(?:\/([^/]+)(?:\/(save|speech|undo))?)?$/.exec(pathname)
+  const draftFileMatch=/^\/api\/members\/([^/]+)\/ai-drafts\/([^/]+)\/files\/([^/]+)$/.exec(pathname)
+  if(draftFileMatch&&request.method==='GET'){const file=await aiBusiness.file(await readAccountId(request),...draftFileMatch.slice(1).map(decodeRouteValue));setCommonHeaders(response);response.setHeader('Cache-Control','no-store');response.setHeader('Content-Type',file.mimeType);response.end(file.buffer);return true}
+  if(businessMatch){
+    const accountId=await readAccountId(request),memberId=decodeRouteValue(businessMatch[1]),id=businessMatch[2]&&decodeRouteValue(businessMatch[2]),action=businessMatch[3]
+    let result
+    if(request.method==='GET'&&!id){sendJson(response,200,await aiBusiness.latest(accountId,memberId));return true}
+    if(request.method==='POST'&&!id){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});result=await aiBusiness.prepare(accountId,memberId,await readJson(request,22*1024*1024),controller.signal)}
+    else if(request.method==='GET'&&id&&!action)result=await aiBusiness.read(accountId,memberId,id)
+    else if(request.method==='PATCH'&&id&&!action)result=await aiBusiness.edit(accountId,memberId,id,await readJson(request,80000))
+    else if(request.method==='DELETE'&&id&&!action)result=await aiBusiness.cancel(accountId,memberId,id)
+    else if(request.method==='POST'&&id&&action==='save')result=await aiBusiness.save(accountId,memberId,id,await readJson(request))
+    else if(request.method==='POST'&&id&&action==='speech'){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});result=await aiBusiness.speak(accountId,memberId,id,controller.signal)}
+    else if(request.method==='POST'&&id&&action==='undo')result=await aiBusiness.undo(accountId,memberId,id)
+    else {sendJson(response,405,{message:'请求方法不支持'});return true}
+    sendJson(response,200,result);return true
+  }
   const visitResourceMatch=/^\/api\/members\/([^/]+)\/visit-sheet\/resources\/([a-f0-9]{24})$/.exec(pathname)
   if(visitResourceMatch){
     if(request.method!=='GET'){sendEmpty(response,405);return true}

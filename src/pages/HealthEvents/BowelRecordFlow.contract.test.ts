@@ -15,7 +15,8 @@ test('bowel form exposes the confirmed fields without diagnostic or low-value ch
 test('bowel form keeps image then time then save order and six-photo limit', () => {
   assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('<OccurrenceTimeField'))
   assert.ok(source.indexOf('<OccurrenceTimeField') < source.indexOf('保存记录'))
-  assert.match(source, /useOccurrenceTime\(selectedDay, today\)/)
+  assert.match(source, /useOccurrenceTime\(selectedDay, today,initialOccurredAt\)/)
+  assert.match(source, /initialJournal\?:JournalBowelDetails/)
   assert.match(source, /useQuickRecordPhotos\(memberId, token, 6\)/)
   assert.match(source, />上传照片</)
   assert.doesNotMatch(source, /capture="environment"|>拍照<|从相册选择|照片只用于记录所见/)

@@ -138,7 +138,7 @@ test('OpenAI 病情摘要使用 Responses 严格结构化输出且关闭服务�
         json: async () => ({
           output: [{ content: [{ type: 'output_text', text: JSON.stringify({
             overview: '昨晚开始咳嗽，今早体温 37.8℃。',
-            keyPoints: ['咳嗽从昨晚开始', '今早体温 37.8℃'],
+            keyPoints: [{text:'咳嗽从昨晚开始',sectionId:'record',quote:'昨晚开始咳嗽'},{text:'今早体温 37.8℃',sectionId:'record',quote:'今早体温 37.8℃'}],
             missingInformation: ['咳嗽频率尚未记录']
           }) }] }]
         })
@@ -148,14 +148,27 @@ test('OpenAI 病情摘要使用 Responses 严格结构化输出且关闭服务�
 
   const result = await provider.summarizeMedicalPreparation({ sections: [
     { id: 'basic', title: '当前人物', lines: ['姓名：测试成员', '年龄：8岁'] },
-    { id: 'visit_preferences', title: '本次整理设置', lines: ['整理人：测试家长', '主诉：咳嗽'] }
+    { id: 'visit_preferences', title: '本次整理设置', lines: ['整理人：测试家长', '主诉：咳嗽'] },
+    {id:'record',title:'已保存随记',lines:['[record:test-record] 昨晚开始咳嗽，今早体温 37.8℃']}
   ] })
   assert.equal(result.overview, '昨晚开始咳嗽，今早体温 37.8℃。')
+  assert.equal(result.keyPointEvidence[0].sourceId,'record:test-record')
   assert.equal(requestBody.model, 'summary-test-model')
   assert.equal(requestBody.store, false)
-  assert.equal(requestBody.max_output_tokens, 800)
+  assert.ok(requestBody.max_output_tokens >= 3000 && requestBody.max_output_tokens <= 12000)
   assert.equal(requestBody.text.format.type, 'json_schema')
   assert.equal(requestBody.text.format.strict, true)
   assert.match(requestBody.instructions, /不得提供治疗、处方或用药建议/)
   assert.doesNotMatch(requestBody.input, /姓名：测试成员|整理人：测试家长/)
+})
+test('摘要概览不能补造数值、剂量或反转否定；引文不能缩掉否定前缀',async()=>{
+  for(const [overview,text,quote] of [['体温39℃','未发热','未发热'],['发热','未见发热','未见发热'],['已确诊肺炎','未见发热','未见发热'],['发热','发热','发热']]){
+    const provider=new OpenAIProvider({apiKey:'fixture-key',fetchImpl:async()=>Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({overview,keyPoints:[{text,sectionId:'record',quote}],missingInformation:[]})}]}]})})
+    await assert.rejects(()=>provider.summarizeMedicalPreparation({sections:[{id:'record',title:'来源',lines:['[record:synthetic] 未见发热；未发热']}]}))
+  }
+})
+test('API转写发送实际二进制、匹配的扩展名与独立语音模型',async()=>{
+  let file,model;const provider=new OpenAIProvider({apiKey:'fixture',fetchImpl:async(_url,init)=>{file=init.body.get('file');model=init.body.get('model');return Response.json({text:'合成转写'})}})
+  const bytes=Buffer.from('synthetic-audio');await provider.transcribeAudio({buffer:bytes,mimeType:'audio/webm',name:'no-extension'})
+  assert.equal(file.name,'recording.webm');assert.deepEqual(Buffer.from(await file.arrayBuffer()),bytes);assert.equal(model,process.env.ASR_MODEL??'gpt-4o-mini-transcribe')
 })

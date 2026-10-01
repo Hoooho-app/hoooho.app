@@ -16,7 +16,7 @@ test('one day period contains multiple peer records in occurrence order, regardl
 test('all records use the four normalized day periods', () => {
   assert.deepEqual([0, 5, 6, 11, 12, 17, 18, 23].map(journalDayPeriod), ['凌晨', '凌晨', '早上', '早上', '下午', '下午', '夜间', '夜间'])
   assert.deepEqual(journalTime({ ...entry('a', '2026-09-05T18:00:00'), timePrecision: 'period', timeLabel: '晚上' }), { group: '夜间', label: '夜间' })
-  assert.equal(journalTime({ ...entry('b', '2026-09-05T23:59:00'), timePrecision: 'unknown' }).label, '23:59')
+  assert.equal(journalTime({ ...entry('b', '2026-09-05T23:59:00'), timePrecision: 'unknown' }).label, '时间未明确')
 })
 test('member and account scope is enforced and legacy event-only data is retained', () => {
   const event: HealthEventApiDto = { id: 'event', memberId: 'child', accountId: 'account', title: '原始内容', category: 'other', status: 'observing', startTime: '2026-09-05T09:00:00', createdAt: '2026-09-05T09:01:00', updatedAt: '2026-09-05T09:01:00' }
@@ -103,4 +103,14 @@ test('journal search trims whitespace, fuzzy-matches structured fields, and keep
   const updated = { ...medication, id: 'updated', searchContents: ['最初记录', '补充描述：服药后缓解'] }
   assert.deepEqual(searchJournalEntries([updated], '  服药 后缓解 ').map((item) => item.id), ['updated'])
   assert.equal(journalSearchResultSummary(updated, '服药后缓解'), '补充描述：服药后缓解')
+})
+test('自然语言搜索日期、类型、食物和症状；关联只取已有成员范围内的记录',()=>{
+  const diet={...entry('milk','2026-09-10T08:00:00'),categories:['diet'] as const,content:'牛奶',diet:{kind:'meal' as const,foods:['牛奶']}}
+  const symptom={...entry('rash','2026-09-10T08:20:00'),categories:['symptom'] as const,content:'起疹子',symptom:{narrative:'起疹子',linkedRecordIds:{diet:['milk','not-in-scope']}}}
+  const exam={...entry('exam','2026-09-12T08:20:00'),categories:['examination'] as const,content:'检查报告'}
+  const now=new Date('2026-10-01T12:00:00')
+  assert.deepEqual(searchJournalEntries([diet,symptom,exam],'上次喝奶后起疹子的记录',now).map(e=>e.id),['rash'])
+  assert.deepEqual(searchJournalEntries([diet,symptom,exam],'上个月的检查',now).map(e=>e.id),['exam'])
+  assert.deepEqual(searchJournalEntries([diet,symptom,exam],'检查 不含牛奶',now).map(e=>e.id),['exam'])
+  assert.deepEqual(searchJournalEntries([symptom],'上次喝奶后起疹子的记录',now),[])
 })

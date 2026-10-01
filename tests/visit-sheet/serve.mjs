@@ -9,23 +9,37 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 // never reads this flag, and no fixture is written to the normal data directory.
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
-  let mode = 'success', calls = 0
+  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
   process.env.AI_MODEL = 'fixture-summary-model'
   process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1'
   globalThis.fetch = async (url, init) => {
-    if (String(url) !== 'https://api.openai.com/v1/responses') return nativeFetch(url, init)
+    if(!String(url).startsWith('https://api.openai.com/v1/'))return nativeFetch(url,init)
+    if(String(url)==='https://api.openai.com/v1/audio/transcriptions'){asrCalls++;return Response.json({text:transcript})}
+    if(String(url)==='https://api.openai.com/v1/audio/speech'){speechCalls++;const wave=Buffer.alloc(44+3200);wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);wave.writeUInt32LE(16000,24);wave.writeUInt32LE(32000,28);wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);wave.write('data',36);wave.writeUInt32LE(3200,40);return new Response(wave,{headers:{'Content-Type':'audio/wav'}})}
+    if(String(url)!=='https://api.openai.com/v1/responses')throw new Error('Unconfigured synthetic OpenAI endpoint; network prohibited')
     calls++
     await new Promise(resolve => setTimeout(resolve, 400))
     if (mode === 'failure') return new Response(JSON.stringify({ error: { type: 'insufficient_quota', code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: 429, headers: { 'x-request-id': 'req_fixture' } })
-    return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ overview: `测试替身摘要第 ${calls} 版：依据当前成员已保存的皮肤观察。`, keyPoints: ['健康随记已有皮肤发红记录'], missingInformation: ['皮肤观察变化待核对'] }) }] }] })
+    const body=JSON.parse(init.body)
+    if(body.text.format.name==='hoooho_business'){
+      if(body.text.format.schema.properties.text)return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({text:'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
+      const data=JSON.parse(body.input),first=data.sources[0]
+      const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
+      return Response.json({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
+    }
+    const input=JSON.parse(body.input.split('\n\n').at(-1)),line=input.sections.find(s=>s.id==='record')?.lines[0]??input.sections[0].lines[0],sectionId=input.sections.find(s=>s.lines.includes(line)).id
+    return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ overview: `测试替身摘要：${line}`, keyPoints: [{text:'健康随记已有皮肤观察记录',sectionId,quote:line}], missingInformation: ['皮肤观察变化待核对'] }) }] }] })
   }
-  createServer((req, res) => {
+  createServer(async(req, res) => {
+    const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
+    if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
+    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);draftItems=JSON.parse(Buffer.concat(chunks).toString()).items??null}
     if (req.url === '/success') mode = 'success'
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify({ mode, calls }))
+    res.end(JSON.stringify({ mode, calls,asrCalls,speechCalls }))
   }).listen(4198, '127.0.0.1')
 }
 const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-visit-e2e-'))

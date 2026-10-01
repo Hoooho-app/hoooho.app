@@ -43,6 +43,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   if (state.status === 'loading') return <StatusSheet onClose={onClose}><StatusNotice title="正在读取记录详情" /></StatusSheet>
   if (state.status === 'error') return <StatusSheet onClose={onClose}><StatusNotice action={<HohoButton variant="secondary" onClick={retry}>重新加载</HohoButton>} tone="error" title={state.message} /></StatusSheet>
   if (state.status === 'not-found') return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="未找到这条健康随记" /></StatusSheet>
+  if(state.data.member.id!==memberId)return <StatusSheet onClose={onClose}><StatusNotice title="当前人物已切换，请重新打开对应记录"/></StatusSheet>
 
   const entry = state.data.viewModel.event.timeline.find((item) => item.sourceRecordId === recordId) ?? null
   const record = state.data.records.find((item) => item.id === recordId) ?? null

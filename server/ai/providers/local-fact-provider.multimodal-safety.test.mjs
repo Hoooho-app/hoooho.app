@@ -5,6 +5,13 @@ import { AIService } from '../ai-service.mjs'
 const ai = new AIService({ primaryProvider: false })
 const context = { referenceNow: new Date('2026-08-31T04:00:00.000Z'), timezone: 'Asia/Shanghai' }
 
+test('没有给出更正值时不复活不确定症状；仅改日期也不反转否定',async()=>{
+  for(const raw of ['本人说：我昨天不确定有没有发烧，不对，后半句说错了。','昨天没有呕吐，不对，是前天。','昨天不确定有没有发烧，不对，是前天。']){
+    const result=await facts(raw)
+    assert.ok(!result.some(f=>f.type==='symptom'&&f.polarity==='affirmed'&&['发热','呕吐'].includes(f.name)))
+  }
+})
+
 async function facts(input) {
   return (await ai.organizeHealthRecord(input, context)).healthAIOutput.facts
 }

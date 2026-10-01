@@ -36,7 +36,7 @@ function resultDateLabel(day: string, today: string) {
 function groupResults(entries: readonly JournalEntry[]) {
   const groups = new Map<string, JournalEntry[]>()
   for (const entry of entries) {
-    const day = getLocalDateKey(entry.occurredAt)
+    const day = entry.timePrecision==='unknown'?'unknown':getLocalDateKey(entry.occurredAt)
     if (day) groups.set(day, [...(groups.get(day) ?? []), entry])
   }
   return [...groups].map(([day, items]) => ({ day, items }))
@@ -59,8 +59,9 @@ export function JournalSearchPage() {
   const returnState = (location.state as { journalReturn?: JournalReturnState } | null)?.journalReturn
   const leaveSearch = () => navigate('/health-events', { replace: true, state: { journalReturn: returnState } })
   const normalizedQuery = debouncedQuery.trim()
-  const earliest = results.at(-1)
-  const latest = results[0]
+  const datedResults=results.filter(entry=>entry.timePrecision!=='unknown')
+  const earliest = datedResults.at(-1)
+  const latest = datedResults[0]
   const recentDay = latest ? getLocalDateKey(latest.occurredAt) : null
   const recentLabel = recentDay === today ? '今天' : recentDay === (() => { const date = new Date(`${today}T12:00:00`); date.setDate(date.getDate() - 1); return getLocalDateKey(date) })() ? '昨天' : recentDay ? formatPlainMonthDay(recentDay) : ''
 
@@ -79,9 +80,9 @@ export function JournalSearchPage() {
 
     <section aria-live="polite" className="journal-search-body">
       {normalizedQuery && !loading && !error && results.length > 0 && <>
-        <div className="journal-search-summary"><strong>找到 {results.length} 条相关随记</strong><span>最早 {formatPlainMonthDay(getLocalDateKey(earliest!.occurredAt)!)} · 最近 {recentLabel}</span></div>
+        <div className="journal-search-summary"><strong>找到 {results.length} 条相关随记</strong><span>{earliest?`已知时间：最早 ${formatPlainMonthDay(getLocalDateKey(earliest.occurredAt)!)} · 最近 ${recentLabel}`:'发生时间未明确'}{datedResults.length<results.length?' · 含时间未知记录':''}</span></div>
         <div className="journal-search-results">{groups.map((group) => <section className="journal-search-date-group" key={group.day}>
-          <h2>{resultDateLabel(group.day, today)}</h2>
+          <h2>{group.day==='unknown'?'时间未明确':resultDateLabel(group.day, today)}</h2>
           <div>{group.items.map((entry) => <button className="journal-search-result" key={entry.id} onClick={() => setSelected({ eventId: entry.eventId, recordId: entry.id })} type="button">
             <time>{journalTime(entry).label}</time>
             <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />

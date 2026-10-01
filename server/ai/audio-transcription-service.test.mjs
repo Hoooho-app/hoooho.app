@@ -44,3 +44,7 @@ test('ASR 未配置和伪造 WAV 返回可行动错误且不伪造转写', async
   await assert.rejects(() => service.transcribe({ name: 'fake.wav', mimeType: 'audio/wav', dataUrl: 'data:audio/wav;base64,aGVsbG8=' }), (error) => error.code === 'AUDIO_DECODE_FAILED')
   await fixture.cleanup()
 })
+test('转写预算由认证账号计数，超限不请求模型；账号之间独立',async()=>{
+  let calls=0;const service=new AudioTranscriptionService({maxCallsPerHour:1,provider:{name:'test',transcribeAudio:async()=>{calls++;return {transcript:'合成转写'}}}}),input={mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${realWavBuffer().toString('base64')}`}
+  await service.transcribe(input,'synthetic-a');await assert.rejects(()=>service.transcribe(input,'synthetic-a'),{code:'ASR_CALL_LIMIT'});await service.transcribe(input,'synthetic-b');assert.equal(calls,2)
+})

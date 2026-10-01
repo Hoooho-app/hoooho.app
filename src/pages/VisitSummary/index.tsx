@@ -28,6 +28,7 @@ import './report.css'
 import { ReportDirectory } from './ReportDirectory'
 import nursePortrait from '../../assets/nurse-triage/nurse-station-idle-1-poster.webp'
 import { MedicalAISummary } from './MedicalAISummary'
+import { consultationPrompt, doctorQuestionTemplates } from '../../features/ai-business/consultationPrompt'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
@@ -607,6 +608,7 @@ function ReportEditor({
           <>
               <label>
                 本次想问
+                <div className="visit-section-actions">{doctorQuestionTemplates.map(template=><button type="button" key={template} onClick={()=>setQuestion(previous=>previous?`${previous}\n${template}`:template)}>{template}</button>)}</div>
                 <textarea
                   value={question}
                   maxLength={5000}
@@ -725,6 +727,7 @@ function ExportSheet({
   const [notice, setNotice] = useState(''),
     [fallback, setFallback] = useState(false)
   const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
+  const [promptText,setPromptText]=useState(()=>consultationPrompt(report))
   const controller=useRef(new AbortController()),lock=useRef(false)
   useEffect(()=>{const current=new AbortController();controller.current=current;return()=>current.abort()},[])
   const validate=async()=>{
@@ -746,8 +749,8 @@ function ExportSheet({
   const copy = async () => {
     await validate()
     try {
-      await navigator.clipboard.writeText(reportText(report))
-      setNotice('已复制当前版本全文')
+      await navigator.clipboard.writeText(promptText)
+      setNotice('已复制已核对的问诊提示词')
     } catch {
       setFallback(true)
       setNotice('浏览器未允许复制，请全选下方全文手动复制')
@@ -776,6 +779,7 @@ function ExportSheet({
         <HohoButton variant="secondary" disabled={running} onClick={() => void run(copy)}>
           复制给 AI
         </HohoButton>
+        <details><summary>核对 / 编辑问诊提示词</summary><textarea aria-label="问诊提示词" value={promptText} maxLength={60000} onChange={e=>setPromptText(e.target.value)}/><small>只编辑对外复制内容，不覆盖原始健康资料。</small></details>
         <HohoButton
           variant="secondary"
           disabled={running}
@@ -789,7 +793,7 @@ function ExportSheet({
             可复制的完整情况单
             <textarea
               readOnly
-              value={reportText(report)}
+              value={promptText}
               onFocus={(e) => e.target.select()}
             />
           </label>

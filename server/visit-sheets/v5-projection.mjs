@@ -25,6 +25,7 @@ export function refineVisitSheet(report, input, preferences) {
       s.symptomCategory = r.journal?.symptom?.symptomCategory ?? null
       s.narrative = concise(r.journal?.symptom?.narrative || r.content)
       s.impactLevel = r.journal?.symptom?.impactLevel ?? null
+      if(r.aiProvenance?.notice)s.text+=`\n${r.aiProvenance.notice}`
       s.timePrecision = r.journal?.timePrecision ?? 'exact'
       if (s.timePrecision === 'unknown') { s.occurredAt=null; s.text += '\n发生时间未知；录入时间另列。' }
       else if (s.timePrecision !== 'exact') s.text += `\n原记录时间精度：${s.timePrecision === 'day' ? '日期' : '时段'}；不是精确发生时刻。`

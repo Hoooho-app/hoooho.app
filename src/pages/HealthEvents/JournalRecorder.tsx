@@ -25,8 +25,9 @@ import { SymptomRecordFlow } from './SymptomRecordFlow'
 import { MedicationRecordFlow } from './MedicationRecordFlow'
 import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 import { VisitRecordFlow } from './VisitRecordFlow'
+import { AIBusinessComposer } from '../../features/ai-business/AIBusinessComposer'
 
-type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
+type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic' | 'ai'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen; depth: number; dietKind: DietRecordKind | null }
 
 export function JournalRecorder({ mode, memberId, token, selectedDay, today, initialCategory, onClose, onConfirm, onSaved }: {
@@ -53,6 +54,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
     return { ...draft, sleepAt: start.toISOString(), wakeAt: end.toISOString(), durationMinutes: Math.round((end.getTime() - start.getTime()) / 60_000), kind: suggestion.mode === 'nap' ? 'nap' : 'night', ...(quality ? { quality } : {}) }
   })
   const [saving, setSaving] = useState(false)
+  const [aiPrefill,setAiPrefill]=useState<{journal:JournalMetadata;at?:string;raw:string}|null>(null)
   const flowIdRef = useRef(globalThis.crypto?.randomUUID?.() ?? `recorder-${Date.now()}`)
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, inset: 0 })
   const historyEntry = () => (window.history.state?.hooohoRecorder ?? null) as RecorderHistoryEntry | null
@@ -100,10 +102,12 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const sourceBack = initialCategory ? closeRecorder : () => backOneLevel('categories')
   const dailyBack = initialCategory ? closeRecorder : () => backOneLevel('daily-types')
   const occurrenceDay = suggestion?.day ?? selectedDay
+  const confirmPrefilled:typeof onConfirm=(content,at,channel,photos,journal)=>onConfirm(aiPrefill?.raw?`${content}\n原始描述（AI 预填后人工核对，修改后的表单为当前值）：${aiPrefill.raw}`:content,at,channel,photos,journal)
+  if(screen==='ai'||(screen==='generic'&&mode==='voice'))return <AIBusinessComposer key={memberId} memberId={memberId} token={token} onClose={closeRecorder} onSaved={onSaved} onApply={item=>{setAiPrefill({journal:item.journal,at:item.time.resolvedStart??undefined,raw:item.originText??''});if(item.journal.sleep){setSleepDraft({...createSleepDraft(),...item.journal.sleep});navigateScreen('sleep-form')}else if(item.journal.bowel)navigateScreen('bowel-form');else if(item.journal.outdoorActivity)navigateScreen('activity-form')}}/>
   if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={() => backOneLevel('diet-types')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} mode={suggestion?.mode} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.bowel} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} mode={suggestion?.mode} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} initialJournal={aiPrefill?.journal.outdoorActivity} initialOccurredAt={aiPrefill?.at} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmPrefilled} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
@@ -136,6 +140,7 @@ export function JournalRecorder({ mode, memberId, token, selectedDay, today, ini
   const sheetTitle = screen === 'daily-types' ? '记录日常' : isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记一下'
   return <div style={{ '--journal-viewport-height': `${viewport.height}px`, '--journal-keyboard-inset': `${viewport.inset}px` } as CSSProperties}><BottomSheetSurface className={`journal-recorder-sheet ${isDietTypes ? 'diet-type-sheet' : screen === 'categories' ? 'journal-category-sheet' : screen === 'daily-types' ? 'journal-daily-sheet' : ''}`} open label={sheetTitle} title={sheetTitle} onClose={() => { if (!saving) closeRecorder() }}
     footer={undefined}>
+    {screen==='categories'&&<HohoButton variant="secondary" onClick={()=>navigateScreen('ai')}>说一说 / 上传资料整理</HohoButton>}
     {screen === 'categories' ? <div className="journal-entry-hub journal-entry-hub--illustrated">{hubCategories.map(({ category, label, image, action }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={label} onClick={action ?? (() => chooseCategory(category))}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : screen === 'daily-types' ? <div className="journal-entry-hub journal-entry-hub--daily journal-entry-hub--illustrated">{dailyCategories.map(({ category, label, image }) => <HohoButton className="journal-entry-hub__item" variant="secondary" key={category} onClick={() => chooseCategory(category)}><img alt="" aria-hidden="true" className="journal-entry-hub__image" src={image} /><span className="journal-entry-hub__label">{label}</span></HohoButton>)}</div> : isDietTypes ? <div className="diet-type-grid">{dietOptions.map(({ kind, title, description, image }) => <button className="diet-type-direct-entry" key={kind} onClick={() => navigateScreen('diet-form', kind)} type="button"><img alt="" aria-hidden="true" src={image} /><span><strong>{title}</strong><small>{description}</small></span></button>)}</div> :
       <QuickVoiceRecordFlow open presentation="nurse-inline" initialInputChannel={mode === 'voice' ? 'voice' : 'text'} photoMemberId={memberId} photoToken={token}
         selectedDay={occurrenceDay} today={today}

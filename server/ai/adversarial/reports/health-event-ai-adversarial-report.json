@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "startedAt": "2026-08-31T01:48:54.455Z",
-  "finishedAt": "2026-08-31T01:48:54.479Z",
+  "startedAt": "2026-09-30T20:32:21.851Z",
+  "finishedAt": "2026-09-30T20:32:21.879Z",
   "provider": "local-fact-extractor",
   "model": null,
   "temperature": null,
@@ -23,7 +23,7 @@
     "failed": 0
   },
   "blocked": [
-    "OpenAI provider not executed: OPENAI_API_KEY is not configured; no paid calls were authorized.",
+    "OpenAI provider not executed: this deterministic runner does not read server credentials or perform paid calls.",
     "Browser E2E not executed: this runner targets deterministic parser and projection layers only."
   ],
   "results": [
@@ -1464,7 +1464,7 @@
               "assertionType": "correction",
               "source": "measurement",
               "time": {
-                "raw": "六点",
+                "raw": "三十六点八",
                 "resolvedStart": null,
                 "resolvedEnd": null,
                 "precision": "unknown",
@@ -1505,7 +1505,7 @@
           "attachments": [],
           "timeline": [
             {
-              "time": "六点",
+              "time": "三十六点八",
               "content": "说错了，是三十六点八",
               "relatedSymptoms": []
             }
@@ -1604,6 +1604,45 @@
               },
               "confidence": 0.9,
               "requiresConfirmation": false
+            },
+            {
+              "id": "fact-3",
+              "type": "status_change",
+              "category": "status_change",
+              "concept": "发热消失",
+              "name": "发热消失",
+              "bodyPart": null,
+              "bodyRegion": null,
+              "laterality": null,
+              "severity": null,
+              "severityScale": null,
+              "frequency": null,
+              "occurrenceCount": null,
+              "duration": null,
+              "originalText": "其实体温正常",
+              "sourceText": "其实体温正常",
+              "sourceRecordId": null,
+              "organizationRevision": null,
+              "polarity": "affirmed",
+              "temporality": "current",
+              "status": "resolved",
+              "subject": "event_subject",
+              "subjectMemberId": null,
+              "subjectKind": "event_subject",
+              "subjectText": null,
+              "assertionType": "correction",
+              "source": "user_report",
+              "time": {
+                "raw": null,
+                "resolvedStart": null,
+                "resolvedEnd": null,
+                "precision": "unknown",
+                "source": "user_text"
+              },
+              "confidence": 0.92,
+              "requiresConfirmation": false,
+              "target": "发热",
+              "change": "resolved"
             }
           ],
           "confidence": 0.9,
@@ -2782,7 +2821,7 @@
               "organizationRevision": null,
               "polarity": "negated",
               "temporality": "current",
-              "status": "not_applicable",
+              "status": "resolved",
               "subject": "event_subject",
               "subjectMemberId": null,
               "subjectKind": "event_subject",
@@ -4474,8 +4513,46 @@
       "failures": [],
       "actual": {
         "healthAIOutput": {
-          "facts": [],
-          "confidence": 0,
+          "facts": [
+            {
+              "id": "fact-1",
+              "type": "symptom",
+              "category": "symptom",
+              "concept": "恶心",
+              "name": "恶心",
+              "bodyPart": null,
+              "bodyRegion": null,
+              "laterality": null,
+              "severity": "mild",
+              "severityScale": null,
+              "frequency": null,
+              "occurrenceCount": null,
+              "duration": null,
+              "originalText": "只是以前打针后有点恶心",
+              "sourceText": "只是以前打针后有点恶心",
+              "sourceRecordId": null,
+              "organizationRevision": null,
+              "polarity": "affirmed",
+              "temporality": "historical",
+              "status": "active",
+              "subject": "event_subject",
+              "subjectMemberId": null,
+              "subjectKind": "event_subject",
+              "subjectText": null,
+              "assertionType": "observation",
+              "source": "user_report",
+              "time": {
+                "raw": "以前",
+                "resolvedStart": null,
+                "resolvedEnd": null,
+                "precision": "fuzzy",
+                "source": "user_text"
+              },
+              "confidence": 0.9,
+              "requiresConfirmation": false
+            }
+          ],
+          "confidence": 0.9,
           "parserVersion": "3.0.0",
           "promptVersion": "health-facts-v4-subject-state-contract",
           "timeConflict": {
@@ -4491,7 +4568,15 @@
           "examinations": [],
           "concerns": [],
           "attachments": [],
-          "timeline": []
+          "timeline": [
+            {
+              "time": "以前",
+              "content": "只是以前打针后有点恶心",
+              "relatedSymptoms": [
+                "恶心"
+              ]
+            }
+          ]
         }
       }
     },
@@ -4902,7 +4987,7 @@
               "assertionType": "correction",
               "source": "measurement",
               "time": {
-                "raw": "刚才",
+                "raw": "三十六点八",
                 "resolvedStart": null,
                 "resolvedEnd": null,
                 "precision": "unknown",
@@ -4943,7 +5028,7 @@
           "attachments": [],
           "timeline": [
             {
-              "time": "刚才",
+              "time": "三十六点八",
               "content": "说错了，是三十六点八",
               "relatedSymptoms": []
             }
@@ -6270,7 +6355,7 @@
               "bodyRegion": null,
               "laterality": null,
               "severity": null,
-              "severityScale": null,
+              "severityScale": "3/10",
               "frequency": null,
               "occurrenceCount": null,
               "duration": null,
@@ -6307,7 +6392,7 @@
               "bodyRegion": null,
               "laterality": null,
               "severity": null,
-              "severityScale": null,
+              "severityScale": "3/10",
               "frequency": null,
               "occurrenceCount": null,
               "duration": null,

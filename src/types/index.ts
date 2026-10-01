@@ -247,6 +247,7 @@ export interface HealthChangeAnnotationApiDto {
 }
 
 export interface HealthEventRecordApiDto {
+  aiProvenance?:{sources:Array<{sourceId:string;page:number;quote:string}>;fields:Array<{name:string;value:string;editedBy:string}>;attachmentIds:string[];originalVersions:string[];notice:string|null;time:{precision:string;resolvedStart:string|null;resolvedEnd:string|null}}
   journal?: import('./journal').JournalMetadata
   id: string
   accountId: string

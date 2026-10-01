@@ -7,6 +7,7 @@ import { QuickRecordPhotos, useQuickRecordPhotos, type QuickRecordPhotoPayload }
 import { useJournal } from './useJournal'
 import { visitSummary } from './visitRecordLogic'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import { AIBusinessComposer } from '../../features/ai-business/AIBusinessComposer'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type Draft = {
@@ -30,6 +31,7 @@ const iso = (value: string) => value ? new Date(value).toISOString() : undefined
 export function VisitRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [draft, setDraft] = useState<Draft>(() => { try { return { ...blankDraft(), ...JSON.parse(sessionStorage.getItem(draftKey(memberId)) ?? '{}') } } catch { return blankDraft() } })
   const [resultsOpen, setResultsOpen] = useState(false)
+  const [aiOpen,setAiOpen]=useState(false)
   const [symptomsOpen, setSymptomsOpen] = useState(false)
   const [reasonOpen, setReasonOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -76,6 +78,8 @@ export function VisitRecordFlow({ memberId, token, selectedDay, today, onBack, o
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
   return <div className="medication-record-page-layer"><section aria-label="记录就医" aria-modal="true" className="medication-record-page visit-record-page" role="dialog">
+    <HohoButton variant="secondary" onClick={()=>setAiOpen(true)}>从病历 / 检查资料整理</HohoButton>
+    {aiOpen&&<AIBusinessComposer memberId={memberId} token={token} initialTask="visit" onClose={()=>setAiOpen(false)} onSaved={onSaved}/>}
     <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录就医</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X size={21} /></button></header>
     <div className="medication-record-scroll visit-record-scroll">
       <fieldset className="medication-fieldset"><legend>怎么就医？</legend><div className="visit-choice-grid">{visitTypes.map(([value, label]) => <button aria-pressed={draft.visitType === value} key={value} onClick={() => update('visitType', value)} type="button">{label}</button>)}</div>{draft.visitType === 'other' && <HohoInput label="实际就医方式" maxLength={80} onChange={(event) => update('visitTypeOtherText', event.target.value)} placeholder="写下实际就医方式" value={draft.visitTypeOtherText} />}</fieldset>

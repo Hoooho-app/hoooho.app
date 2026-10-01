@@ -8,6 +8,7 @@ export interface DietaryCardItem {
   sourceId?: string
   foodId?: string
   name: string
+  englishName?: string
   group: DietaryCardGroup
   visible: boolean
   manuallyAdded: boolean
@@ -68,9 +69,9 @@ export function foodIdFor(name: string) {
   return foodIds[normalizeFoodName(name)]
 }
 
-export function translateFood(item: Pick<DietaryCardItem, 'foodId' | 'name'>, language: DietaryCardLanguage) {
+export function translateFood(item: Pick<DietaryCardItem, 'foodId' | 'name' | 'englishName'>, language: DietaryCardLanguage) {
   if (language === 'zh') return item.name
-  const translation = item.foodId ? foodTranslations[item.foodId] : undefined
+  const translation = item.englishName?.trim() || (item.foodId ? foodTranslations[item.foodId] : undefined)
   return translation ? `${translation} / ${item.name}` : `${item.name}（英文待补充）`
 }
 
@@ -122,7 +123,7 @@ export function readDietarySnapshot(storageValue: string, memberId: string): Die
       return [{
         id: String(value.id ?? `manual:${cryptoSafeId()}`), ...(value.sourceId ? { sourceId: String(value.sourceId) } : {}),
         ...(value.foodId ? { foodId: String(value.foodId) } : foodIdFor(name) ? { foodId: foodIdFor(name) } : {}),
-        name, group: value.group as DietaryCardGroup, visible: value.visible !== false, manuallyAdded: Boolean(value.manuallyAdded),
+        name, ...(value.englishName ? {englishName:String(value.englishName).slice(0,80)} : {}), group: value.group as DietaryCardGroup, visible: value.visible !== false, manuallyAdded: Boolean(value.manuallyAdded),
         nameAdjusted: Boolean(value.nameAdjusted), groupAdjusted: Boolean(value.groupAdjusted),
         ...(value.sourceName ? { sourceName: String(value.sourceName) } : {}),
         ...(value.sourceGroup && ['avoid', 'temporary'].includes(value.sourceGroup) ? { sourceGroup: value.sourceGroup } : {}),
@@ -142,7 +143,7 @@ export function mergeDietarySources(snapshot: DietaryCardSnapshot, sources: Diet
     if (!item.sourceId) return [{ ...item, needsReview: false }]
     const source = sourcesById.get(item.sourceId)
     if (!source) {
-      if (item.manuallyAdded || item.nameAdjusted || item.groupAdjusted || !item.visible) return [{ ...item, needsReview: true }]
+      if (item.manuallyAdded || item.nameAdjusted || item.groupAdjusted || item.englishName || !item.visible) return [{ ...item, needsReview: true }]
       return []
     }
     sourcesById.delete(item.sourceId)
@@ -185,7 +186,7 @@ export function presentDietaryCard(snapshot: DietaryCardSnapshot, language: Diet
     avoid: visible.filter((item) => item.group === 'avoid'),
     temporary: visible.filter((item) => item.group === 'temporary'),
     visibleCount: visible.length,
-    missingTranslations: language === 'en-zh' ? visible.filter((item) => !item.foodId || !foodTranslations[item.foodId]).map((item) => item.name) : []
+    missingTranslations: language === 'en-zh' ? visible.filter((item) => !item.englishName && (!item.foodId || !foodTranslations[item.foodId])).map((item) => item.name) : []
   }
 }
 
