@@ -6,6 +6,23 @@ import path from 'node:path'
 import { FamilyMemberRepository } from '../../members/repositories/family-member-repository.mjs'
 import { AIBusinessService } from './service.mjs'
 
+test('来源失败可读结果独立隔离，正式保存继续拒绝，账号成员不泄露',async t=>{
+ const f=await fixture(t)
+ f.service.model.structured=async()=>({value:{items:[{category:'symptom',title:'合成观察',subject:'current',timeText:null,archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'呕吐',quote:'没有呕吐',sourceId:'input',page:1}]}]},diagnostics:{provider:'bailian',model:'qwen3.7-plus',requestId:'synthetic'}})
+ await assert.rejects(()=>f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'}),{code:'AI_EVIDENCE_MISMATCH'})
+ const failed=await f.service.latest('synthetic-a',f.member.id)
+ assert.equal(failed.state,'failed');assert.equal(failed.items.length,0);assert.match(failed.preview.text,/呕吐/);assert.equal(failed.preview.issues[0].fieldPath,'/items/0/fields/0');assert.equal(failed.inputText,'没有呕吐')
+ await assert.rejects(()=>f.service.save('synthetic-a',f.member.id,failed.id,{version:failed.version,confirmed:true}),{status:409})
+ await assert.rejects(()=>f.service.read('foreign',f.member.id,failed.id),{status:404})
+ const other=await f.members.create({accountId:'synthetic-a',name:'虚构另一成员',relationship:'child'})
+ assert.equal(await f.service.latest('synthetic-a',other.id),null);assert.equal((await f.service.events.repository.findByAccountId('synthetic-a')).length,0)
+})
+test('模型没有可读响应不虚构预览，旧版和原稿仍保留',async t=>{
+ const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'});f.fail()
+ await assert.rejects(()=>f.service.prepare('synthetic-a',f.member.id,{id:d.id,version:d.version,text:'没有呕吐，仍需核对'}))
+ const failed=await f.service.read('synthetic-a',f.member.id,d.id);assert.equal(failed.preview,null);assert.equal(failed.items[0].fields[0].value,'没有呕吐');assert.equal(failed.inputText,'没有呕吐，仍需核对')
+})
+
 async function fixture(t){const dataDirectory=await mkdtemp(path.join(os.tmpdir(),'hoooho-ai-business-'));t.after(()=>rm(dataDirectory,{recursive:true,force:true}));const members=new FamilyMemberRepository(dataDirectory),member=await members.create({accountId:'synthetic-a',name:'测试人物',relationship:'self'});let calls=0,failed=false;const model={async structured(){calls++;if(failed)throw Object.assign(new Error('测试替身服务不可用'),{code:'AI_BUSINESS_UNAVAILABLE',status:503});return {value:{items:[{category:'symptom',title:'症状记录',timeText:null,fields:[{name:'symptom',value:'没有呕吐',quote:'没有呕吐',sourceId:'input',page:1}],subject:'current',archiveCategory:null,relationKey:null}]},diagnostics:{task:'test',elapsedMs:1,inputTokens:1,outputTokens:1}}}};return {service:new AIBusinessService({dataDirectory,model}),member,calls:()=>calls,fail:()=>{failed=true},members}}
 test('同一输入只生成一次，确认后实际写入；重复保存幂等，原文可追溯',async t=>{const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'});assert.equal(d.state,'ready');assert.equal(d.questions.length,2);const cached=await f.service.prepare('synthetic-a',f.member.id,{id:d.id,version:d.version,text:'没有呕吐'});assert.equal(f.calls(),1);const saved=await f.service.save('synthetic-a',f.member.id,d.id,{version:cached.version,confirmed:true});assert.equal(saved.result.count,1);assert.equal((await f.service.save('synthetic-a',f.member.id,d.id,{version:cached.version,confirmed:true})).result.records[0].recordId,saved.result.records[0].recordId);const record=await f.service.records.getOwnedRecord('synthetic-a',saved.result.records[0].recordId);assert.equal(record.content,'症状原话：没有呕吐');assert.equal(record.journal.timePrecision,'unknown');assert.equal(record.aiProvenance.sources[0].quote,'没有呕吐');assert.equal(f.calls(),1)})
 test('跨账号、跨成员读取及保存拒绝；失败保留原输入及上一版；跳过问题不再追问',async t=>{const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'});await assert.rejects(()=>f.service.get('synthetic-b',f.member.id,d.id));const other=await f.members.create({accountId:'synthetic-a',name:'其他人物',relationship:'other'});await assert.rejects(()=>f.service.get('synthetic-a',other.id,d.id));const edited=await f.service.edit('synthetic-a',f.member.id,d.id,{version:d.version,skipQuestion:d.questions[0].id});assert.equal(edited.questions.length,1);f.fail();await assert.rejects(()=>f.service.prepare('synthetic-a',f.member.id,{id:d.id,version:edited.version,text:'没有呕吐，补充原文'}));const failed=await f.service.get('synthetic-a',f.member.id,d.id);assert.equal(failed.state,'failed');assert.equal(failed.raw,'没有呕吐，补充原文');assert.equal(failed.items[0].fields[0].value,'没有呕吐');await f.service.cancel('synthetic-a',f.member.id,d.id);await assert.rejects(()=>f.service.get('synthetic-a',f.member.id,d.id))})

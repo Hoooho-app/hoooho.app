@@ -11,6 +11,7 @@ export class MedicalSummaryError extends Error {
     super(cause instanceof SafeAIProviderError ? cause.message : message, safeCause ? { cause: safeCause } : undefined)
     this.status = 503
     this.code = code
+    if(cause?.preview)Object.defineProperty(this,'preview',{value:cause.preview,enumerable:false})
     if(cause instanceof SafeAIProviderError&&cause.validation)this.validation=cause.validation
     if (upstream) {
       this.upstream = upstream

@@ -1,15 +1,18 @@
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
+import type { AIUnverifiedPreview } from '../features/ai-business/AIResultPreview'
 
 interface ApiErrorBody {
   error?: {
     code?: string
     message?: string
+    preview?: AIUnverifiedPreview
   }
 }
 
 export class ApiRequestError extends Error {
   code: string
   status: number
+  preview?: AIUnverifiedPreview
 
   constructor(message: string, status: number, code = 'API_REQUEST_FAILED') {
     super(message)
@@ -61,11 +64,13 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
         throw new ApiRequestError('暂时无法恢复使用状态，请检查网络后重试', 503, 'SESSION_RECOVERY_FAILED')
       }
     }
-    throw new ApiRequestError(
+    const failure=new ApiRequestError(
       errorBody?.error?.message ?? '请求失败，请稍后重试',
       response.status,
       errorBody?.error?.code
     )
+    Object.defineProperty(failure,'preview',{value:errorBody?.error?.preview,enumerable:false})
+    throw failure
   }
 
   if (options.method && options.method !== 'GET' && typeof window !== 'undefined') {

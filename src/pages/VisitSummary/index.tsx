@@ -28,6 +28,8 @@ import './report.css'
 import { ReportDirectory } from './ReportDirectory'
 import nursePortrait from '../../assets/nurse-triage/nurse-station-idle-1-poster.webp'
 import { MedicalAISummary } from './MedicalAISummary'
+import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
+import { preliminarySummaryExport } from './preliminarySummaryExport'
 import { consultationPrompt, doctorQuestionTemplates } from '../../features/ai-business/consultationPrompt'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
@@ -74,6 +76,8 @@ function VisitSheetReader({
   const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
   const parentEvidence=useRef<string[]|null>(null)
   const pendingSave=useRef<{key:string;requestId:string}|null>(null)
+  const [aiPreview,setAIPreview]=useState<AIUnverifiedPreview|null>(null),[previewText,setPreviewText]=useState('')
+  const [aiCandidate,setAICandidate]=useState<VisitSheetState['aiCandidate']>(),[candidateOverview,setCandidateOverview]=useState('')
   const modalTrigger=useRef<HTMLElement|null>(null)
   const scroll = useRef<HTMLDivElement>(null),
     version = useRef(0)
@@ -161,20 +165,23 @@ function VisitSheetReader({
         token,
         {
           ...changes,
+          ...(changes.generateAI?{previewAI:true}:{}),
           expectedVersion: version.current,
           requestId: pendingSave.current.requestId,
         },
         controller.current?.signal,
       )
       if (!alive.current) return false
+      if(result.aiCandidate){setAICandidate(result.aiCandidate);setCandidateOverview(result.aiCandidate.summary.overview);setAIPreview(null);setPreviewText('');setAIFailed(false);pendingSave.current=null;setNotice('AI 病情摘要草稿已返回，核对并确认后才保存');return true}
       accept(result)
-      if (changes.generateAI) setAIFailed(false)
+      if(changes.confirmAI){setAICandidate(undefined);setCandidateOverview('')}
+      if (changes.generateAI) {setAIFailed(false);setAIPreview(null);setPreviewText('')}
       pendingSave.current=null
       setNotice(changes.generateAI ? 'AI 病情摘要已生成' : '情况单已更新')
       return true
     } catch (reason) {
       if (alive.current) {
-        if (changes.generateAI) setAIFailed(true)
+        if (changes.generateAI) {setAIFailed(true);if(reason instanceof ApiRequestError&&reason.preview){setAIPreview(reason.preview);setPreviewText(reason.preview.text)}}
         if (reason instanceof ApiRequestError && reason.status === 409) {
           try {
             accept(
@@ -318,6 +325,8 @@ function VisitSheetReader({
                 {!report.aiSummary && <p className="visit-muted">AI 摘要尚未生成，下方本地事实仍可查看和导出。</p>}
               </section>
               <MedicalAISummary report={report}/>
+              {aiCandidate&&<section aria-label="AI病情摘要待确认"><h3>AI病情摘要草稿 · 待确认</h3><p>真实 {aiCandidate.summary.provider==='bailian'?'百炼':'OpenAI'} · {aiCandidate.summary.model} 返回，已通过程序核对，尚未保存或覆盖旧版。</p><label>修改摘要概述<textarea aria-label="修改摘要概述" maxLength={1000} value={candidateOverview} onChange={e=>setCandidateOverview(e.target.value)}/></label><ul>{aiCandidate.summary.keyPoints.map((point,i)=><li key={i}>{point}<details><summary>核对引用原话</summary><p>{aiCandidate.summary.keyPointEvidence?.[i]?.quote}</p></details></li>)}</ul><HohoButton disabled={working||!candidateOverview.trim()} onClick={()=>void update({confirmAI:aiCandidate.id,aiOverview:candidateOverview})}>已核对，保存AI摘要</HohoButton><HohoButton variant="secondary" onClick={()=>setAICandidate(undefined)}>不保存这份摘要</HohoButton></section>}
+              {aiPreview&&<AIResultPreview preview={aiPreview} value={previewText} onChange={setPreviewText}><p>这是独立预览，未保存为正式摘要；下方旧摘要与本地整理保持不变。</p><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'text'),'Hoooho-AI初步摘要-待核对.txt','text/plain;charset=utf-8')}>导出待核对摘要（文本）</HohoButton><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'html'),'Hoooho-AI初步摘要-待核对.html','text/html;charset=utf-8')}>导出待核对摘要（离线HTML）</HohoButton></AIResultPreview>}
               <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
               <section className="visit-question"><div className="visit-section-actions"><h2>本次想问</h2><button onClick={()=>{setError('');setEditing('question')}}>编辑本次想问</button></div><p>{report.question||'尚未填写'}</p><small>{report.questionOrigin||'家长填写'}</small>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>openEvidence(report.questionSourceIds!)}>查看问题原话</button>}</section>
               </>:undefined} trailing={<>

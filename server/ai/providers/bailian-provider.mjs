@@ -6,6 +6,7 @@ import { controlledCall } from './call-control.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
 import {syntheticEvidenceProof,safeSyntheticStage} from '../business/synthetic-evidence-proof.mjs'
+import { readablePreview, quarantinePreview } from './readable-preview.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
@@ -55,6 +56,7 @@ export class BailianProvider extends OpenAIProvider {
       const task = imageCount ? (format.name === 'health_image_analysis' ? 'image-analysis' : 'document-page') : format.name === 'hoooho_medical_summary' ? 'medical-summary' : format.name === 'health_ai_output' ? 'health-organization' : 'draft-extraction'
       const started = Date.now()
       let upstream
+      let preview
       return controlledCall(async () => {
         try {
           const response = await transport(`${config.baseUrl}/chat/completions`, {
@@ -76,6 +78,10 @@ export class BailianProvider extends OpenAIProvider {
           if(!result||typeof result!=='object'||Array.isArray(result))throw outputFailure('百炼响应外层结构无效；原内容未更新','response_unpack','/','invalid_envelope')
           upstream = safeOpenAIErrorDetails({ httpStatus: response.status, requestId: response.headers?.get('x-request-id') ?? response.headers?.get('x-dashscope-request-id') ?? result.request_id, retryAfter: response.headers?.get('retry-after') })
           const choice = result.choices?.[0]
+          if (!choice?.message?.refusal && choice?.finish_reason !== 'content_filter') {
+            preview=readablePreview(choice?.message?.content,{provider:this.name,model,requestId:upstream.requestId,inputTokens:tokenCount(result.usage?.prompt_tokens),outputTokens:tokenCount(result.usage?.completion_tokens)})
+            if(preview&&typeof init.onReadableOutput==='function')init.onReadableOutput(preview)
+          }
           if(init.syntheticEvidence===syntheticEvidenceProof&&typeof init.onSyntheticOutput==='function'){
             const evidence=safeSyntheticStage({task,content:choice?.message?.content,requestId:upstream.requestId,inputTokens:tokenCount(result.usage?.prompt_tokens),outputTokens:tokenCount(result.usage?.completion_tokens)})
             if(evidence)init.onSyntheticOutput(evidence)
@@ -100,6 +106,7 @@ export class BailianProvider extends OpenAIProvider {
           const codes = safeOpenAIFailureCodes(error)
           const safe = error?.code?.startsWith('AI_') ? error : configurationError(codes.transportCode === 'TIMEOUT' || codes.transportCode === 'ABORTED' ? '百炼请求超时或已取消；原内容与旧摘要仍保留' : '百炼连接暂不可用；原内容与旧摘要仍保留', codes.transportCode === 'TIMEOUT' ? 'AI_TIMEOUT' : 'AI_NETWORK_ERROR')
           if (upstream) safe.upstream = upstream
+          if(preview&&safe.validation)Object.defineProperty(safe,'preview',{value:quarantinePreview(preview,safe.validation),enumerable:false})
           this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({ provider: this.name, model, task, elapsedMs: Date.now() - started, success: false, ...upstream, ...codes, code: safe.code,...(safe.validation?{validation:safe.validation}:{}) }))
           throw safe
         }

@@ -13,6 +13,7 @@ import { BusinessModel } from './model.mjs'
 import { reconcileExtraction } from './extraction-quality.mjs'
 import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-replay.mjs'
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
+import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
 import { withAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, recognizePage } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
@@ -23,7 +24,7 @@ const instructions = `将用户原文整理成当前人物的待确认记录，�
 const text = (v, limit = 10000) => typeof v === 'string' && v.length <= limit ? v.trim() : ''
 const field = (item, name) => item.fields.find(f => f.name === name)?.value
 const keyFor = (item,draft) => fingerprint({category:item.category,time:item.time?.resolvedStart ?? item.timeText ?? draft.referenceNow,fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value))})
-const publicDraft = d => ({id:d.id,version:d.version,state:d.state,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
+const publicDraft = d => ({id:d.id,version:d.version,state:d.state,preview:d.preview??null,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
 const contentFor=item=>item.fields.map(f=>`${fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
 const revisionKey=r=>fingerprint([r.type,r.content,r.occurredAt,r.journal,r.aiProvenance])
 const groupFor=item=>{
@@ -108,9 +109,10 @@ export class AIBusinessService {
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false
+    draft.preview=null
     await this.write(draft)
-    let syntheticCapture=null,extractionDiagnostics=null
-    const syntheticStages=[],syntheticOptions=syntheticRequested?{syntheticEvidence:syntheticEvidenceProof,onSyntheticOutput:e=>syntheticStages.push(e)}:{}
+    let syntheticCapture=null,extractionDiagnostics=null,readable=null
+    const syntheticStages=[],syntheticOptions={...(syntheticRequested?{syntheticEvidence:syntheticEvidenceProof,onSyntheticOutput:e=>syntheticStages.push(e)}:{}),onReadableOutput:p=>{readable=p}}
     try {
       if(syntheticRequested)assertSyntheticRequest(input,await this.context(accountId,memberId,raw))
       if(raw)draft.sources.push({id:'input',page:1,text:raw,status:'readable'})
@@ -131,6 +133,7 @@ export class AIBusinessService {
       draft.callCount++;await this.write(draft)
       const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。',signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,sources:draft.sources.map(({id,page,text})=>({id,page,text}))})})
       extractionDiagnostics=diagnostics
+      readable=readablePreview(JSON.stringify(value),diagnostics)??readable
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
       const extracted=await reconcileExtraction(validateExtraction(value,draft.sources),draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       draft.items=mergeItems(extracted).map(item=>this.resolve(item,draft))
@@ -159,6 +162,10 @@ export class AIBusinessService {
       const result=await this.write(draft)
       return syntheticRequested?{...result,syntheticReplay:syntheticCapture,syntheticStages,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}:result
     }catch(error){
+      // Failed output is display-only. Retain the last verified items and never
+      // promote the preview to ready, archive it, or use it as model evidence.
+      draft.items=previous?.items??[]
+      draft.preview=error.preview??quarantinePreview(readable,error.validation)
       if(typeof extractionDiagnostics?.requestId==='string'&&/^[A-Za-z0-9_.:-]{1,200}$/.test(extractionDiagnostics.requestId))error.upstream={...error.upstream,requestId:extractionDiagnostics.requestId}
       if(syntheticCapture)error.details={...error.details,syntheticReplay:{...syntheticCapture,validation:error.validation??{stage:'semantic_validation',fieldPath:'/items',reason:'invalid_extraction'},businessCode:/^[A-Z_]{1,80}$/.test(error.code??'')?error.code:null}}
       if(syntheticRequested&&syntheticStages.length)error.details={...error.details,syntheticStages,syntheticFixtureId:input.syntheticReplay,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}
