@@ -26,6 +26,21 @@ const provider=(fetchImpl,extras={})=>new BailianProvider({env,fetchImpl,logger:
 const modelFor=(fetchImpl,extras={})=>new BusinessModel({provider:provider(fetchImpl,extras),logger:silent})
 const structured=model=>model.structured({task:'synthetic',schema,instructions:'只整理资料',input:'SYNTHETIC_MEDICAL_INPUT'})
 
+test('协议结构失败保留白名单可读预览，不进入日志、不重试、不变成成功',async()=>{
+ let calls=0;const logs=[]
+ const p=provider(async()=>{calls++;return success({text:'合成测试原文',status:'readable',unexpected:'ignored'})},{logger:{info:(...a)=>logs.push(a),warn:(...a)=>logs.push(a)}})
+ await assert.rejects(()=>structured(new BusinessModel({provider:p,logger:silent})),e=>{assert.equal(e.code,'AI_OUTPUT_INVALID');assert.equal(e.preview.status,'unverified');assert.equal(e.preview.text,'合成测试原文');assert.equal(e.preview.requestId,requestId);assert.equal(Object.keys(e).includes('preview'),false);return true})
+ assert.equal(calls,1);assert.doesNotMatch(JSON.stringify(logs),/合成测试原文|unexpected|ignored/)
+})
+test('成功OCR后提取失败仍可读取识别原文，不能保存无效抽取',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'hoooho-preview-'));t.after(()=>rm(dir,{recursive:true,force:true}));const members=new FamilyMemberRepository(dir),member=await members.create({accountId:'synthetic',name:'虚构',relationship:'child'})
+ let calls=0;const model=modelFor(async()=>{calls++;return calls===1?success({text:'合成测试没有呕吐',status:'readable'}):success({items:[] ,unexpected:true})})
+ const service=new AIBusinessService({dataDirectory:dir,model}),image=await sharp({create:{width:80,height:60,channels:3,background:'white'}}).png().toBuffer()
+ await assert.rejects(()=>service.prepare('synthetic',member.id,{files:[{name:'合成.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${image.toString('base64')}`}]}))
+ const draft=await service.latest('synthetic',member.id);assert.equal(draft.sources[0].text,'合成测试没有呕吐');assert.equal(draft.state,'failed');assert.equal(calls,2)
+ await assert.rejects(()=>service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true}),{status:409})
+})
+
 test('仅进程内白名单能力允许捕获schema失败的内容；不进入供应商请求或日志',async()=>{
  const traces=[],logs=[];let body
  const model=modelFor(async(_url,init)=>{body=JSON.parse(init.body);return success({text:12})},{logger:{info:(...a)=>logs.push(a),warn:(...a)=>logs.push(a)}})

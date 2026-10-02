@@ -37,6 +37,8 @@ interface QuickVoiceRecordFlowProps {
   open: boolean
   presentation?: QuickRecordPresentation
   initialInputChannel?: QuickRecordInputChannel
+  forceManual?: boolean
+  initialText?: string
   recognitionApi?: RecognitionConstructor | null
   voiceCapability?: BrowserVoiceCapability
   photoMemberId?: string
@@ -56,11 +58,11 @@ const wechatHintKey = 'hoooho-wechat-voice-hint-seen'
 const nursePanelExitDuration = 160
 
 export function QuickVoiceRecordFlow(props:QuickVoiceRecordFlowProps){
-  if(props.open&&props.photoMemberId&&props.photoToken&&!props.recognitionApi)return <AIBusinessComposer key={props.photoMemberId} memberId={props.photoMemberId} token={props.photoToken} onClose={props.onClose} onSaved={message=>{props.onActivityChange?.('saved');props.onSaved?.(message,props.initialInputChannel??'text')}}/>
+  if(props.open&&props.photoMemberId&&props.photoToken&&!props.recognitionApi&&!props.forceManual)return <AIBusinessComposer key={props.photoMemberId} memberId={props.photoMemberId} token={props.photoToken} onClose={props.onClose} onSaved={message=>{props.onActivityChange?.('saved');props.onSaved?.(message,props.initialInputChannel??'text')}}/>
   return <BrowserQuickVoiceRecordFlow {...props}/>
 }
 
-function BrowserQuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, recognitionApi, voiceCapability, photoMemberId, photoToken, selectedDay, today }: QuickVoiceRecordFlowProps) {
+function BrowserQuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onIgnored, onPreview, onSaved, open, presentation = 'default', initialInputChannel, initialText='', recognitionApi, voiceCapability, photoMemberId, photoToken, selectedDay, today }: QuickVoiceRecordFlowProps) {
   const capability = useMemo(() => voiceCapability ?? getBrowserVoiceCapability(), [voiceCapability])
   const RecognitionApi = useMemo(() => recognitionApi === undefined ? recognitionConstructor() : recognitionApi, [recognitionApi])
   const [state, setState] = useState<FlowState>('requesting_permission')
@@ -250,6 +252,7 @@ function BrowserQuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
     setSavedMessage('已记录')
     setInputError('')
     inputChannelRef.current = 'text'
+    setTranscript(initialText)
     if (initialInputChannel === 'voice' && capability.canAttemptMicrophone && !capability.isWechat) {
       inputChannelRef.current = 'voice'
       void startListening()
@@ -279,7 +282,7 @@ function BrowserQuickVoiceRecordFlow({ onActivityChange, onClose, onConfirm, onI
         closeTimerRef.current = null
       }
     }
-  }, [capability.canAttemptMicrophone, capability.isWechat, open, presentation, initialInputChannel, startListening, stopSession])
+  }, [capability.canAttemptMicrophone, capability.isWechat, open, presentation, initialInputChannel, initialText, startListening, stopSession])
 
   useEffect(() => {
     if (presentation !== 'nurse-inline') return

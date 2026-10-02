@@ -7,6 +7,9 @@ import type {
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
   generateAI?: boolean
+  previewAI?: boolean
+  confirmAI?: string
+  aiOverview?: string
   expectedVersion: number
   requestId: string
   focus?: VisitFocus
@@ -41,8 +44,8 @@ export const visitSheetService = {
         method: 'PUT',
         body,
         signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
-          : AbortSignal.timeout(30000),
+          ? AbortSignal.any([signal, AbortSignal.timeout(body.generateAI?130000:30000)])
+          : AbortSignal.timeout(body.generateAI?130000:30000),
       },
     )
   },

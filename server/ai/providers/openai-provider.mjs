@@ -1,6 +1,7 @@
 import { buildHealthEventOrganizerInput, healthEventOrganizerInstructions, healthAIOutputSchema } from '../ai-prompt.mjs'
 import { normalizeHealthAIOutput } from '../ai-types.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails } from './openai-error.mjs'
+import { readablePreview, quarantinePreview } from './readable-preview.mjs'
 
 function readOutputText(response) {
   for (const output of response?.output ?? []) {
@@ -54,7 +55,7 @@ const medicalSummaryInstructions = `你负责为就诊前准备生成一份简�
 overview 用一到三句话概括本次主诉和已经记录的经过；keyPoints 只列对就诊沟通有帮助的明确事实；missingInformation 只列输入中确实缺失、值得向用户核对的信息。
 每条 keyPoints 包含 text、输入 sectionId 和该节逐字 quote；引用必须支持整条事实，数字、单位、否定、疑似不可改写。原文中的来源编号保留到引文。不同时间、不同剂量、已排除与未明确、旧情况与当前情况不得混为一件。overview 不添加 keyPoints 没有支持的新事实。否定、疑似、待核对和来源不明的内容必须保留其不确定性。不要把姓名或其他身份信息重复写入摘要。输出必须符合 JSON Schema。`
 
-function normalizeMedicalSummary(value,input) {
+export function normalizeMedicalSummary(value,input) {
   const source = value && typeof value === 'object' ? value : {}
   const clean = (text, maxLength) => typeof text === 'string' ? text.trim().slice(0, maxLength) : ''
   const unique = (items, maxItems) => Array.isArray(items)
@@ -139,8 +140,10 @@ export class OpenAIProvider {
     if (!this.apiKey) throw Object.assign(new Error('AI 服务尚未配置'), { code: 'AI_NOT_CONFIGURED' })
     const input=medicalSummaryInput(summary),serialized=JSON.stringify(input)
     if(serialized.length>60000)throw Object.assign(new Error('本次关联资料过长，请缩小焦点范围；未截断原文'),{code:'INVALID_AI_SUMMARY'})
+    let preview
     const response = await this.fetch(`${this.baseUrl}/responses`, {
       method: 'POST',
+      onReadableOutput:p=>{preview=p},
       headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: this.model,
@@ -179,8 +182,9 @@ export class OpenAIProvider {
     try {
       return normalizeMedicalSummary(JSON.parse(text),input)
     } catch (error) {
-      if (error?.code === 'EMPTY_AI_SUMMARY') throw Object.assign(error, { upstream })
-      throw Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', upstream })
+      const failure=Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', upstream })
+      Object.defineProperty(failure,'preview',{value:quarantinePreview(preview??readablePreview(text,{provider:this.name,model:this.model,requestId:upstream.requestId}),{stage:'semantic_validation',fieldPath:'/summary'}),enumerable:false})
+      throw failure
     }
   }
 

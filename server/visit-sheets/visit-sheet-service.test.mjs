@@ -7,6 +7,24 @@ import { VisitSheetService } from './visit-sheet-service.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { visitFixture } from './fixtures.mjs'
 import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
+import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
+
+test('摘要预览不覆盖旧版，确认无需模型调用，修改及成员来源重新核验',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ const local=await svc.save(a,m,{requestId:'local-preview',expectedVersion:0});let calls=0
+ svc.medicalSummary={generate:async input=>{calls++;const section=input.sections.find(s=>s.id==='record'&&s.lines.length),quote=section.lines[0];return {...normalizeMedicalSummary({overview:'合成观察',keyPoints:[{text:'合成观察',sectionId:section.id,quote}],missingInformation:[]},input),provider:'bailian',model:'qwen3.7-plus'}}}
+ const request={requestId:'generate-preview',expectedVersion:local.report.version,generateAI:true,previewAI:true}
+ const preview=await svc.save(a,m,request)
+ assert.equal(preview.report.aiSummary,undefined);assert.equal((await svc.get(a,m)).report.version,local.report.version);assert.equal(preview.aiCandidate.summary.provider,'bailian')
+ assert.equal((await svc.save(a,m,request)).aiCandidate.id,preview.aiCandidate.id);assert.equal(calls,1)
+ await assert.rejects(()=>svc.save('foreign',m,{requestId:'foreign-confirm',expectedVersion:local.report.version,confirmAI:preview.aiCandidate.id}),{status:404})
+ await assert.rejects(()=>svc.save(a,m,{requestId:'invalid-confirm',expectedVersion:local.report.version,confirmAI:preview.aiCandidate.id,aiOverview:'确诊需要使用500mg药物'}),{status:422})
+ assert.equal((await svc.get(a,m)).report.aiSummary,undefined)
+ const confirmed=await svc.save(a,m,{requestId:'confirm-preview',expectedVersion:local.report.version,confirmAI:preview.aiCandidate.id,aiOverview:'合成观察'})
+ assert.equal(confirmed.report.aiSummary.overview,'合成观察');assert.equal(confirmed.report.version,local.report.version+1);assert.equal(calls,1)
+ for(const record of f.records)record.content='合成来源已更改'
+ await assert.rejects(()=>svc.save(a,m,{requestId:'stale-confirm',expectedVersion:confirmed.report.version,confirmAI:preview.aiCandidate.id}),{status:409})
+})
 async function setup(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'visit-sheet-'))
   t.after(() => rm(dir, { recursive: true, force: true }))

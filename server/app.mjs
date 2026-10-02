@@ -926,7 +926,7 @@ const server = createServer(async (request, response) => {
       if (safeAI) console.error('[Hoooho AI] request failed', JSON.stringify({ code, status, ...error.upstream, ...error.failureCodes,...(error.validation?{validation:error.validation}:{}) }))
       else console.error(error)
     }
-    sendJson(response, status, { error: { code, message, ...(error?.details ?? {}) } })
+    sendJson(response, status, { error: { code, message, ...(error?.details ?? {}), ...(safeAI&&error.preview?{preview:error.preview}:{}) } })
   }
 })
 

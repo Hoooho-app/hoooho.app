@@ -139,6 +139,7 @@ export interface VisitSheet {
   }>
 }
 export interface VisitSheetState {
+  aiCandidate?: {id:string;summary:NonNullable<VisitSheet['aiSummary']>}
   report: VisitSheet | null
   stale: boolean
   warnings: string[]

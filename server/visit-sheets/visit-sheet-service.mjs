@@ -16,6 +16,7 @@ import { MedicationReminderService } from '../medication-reminders/medication-re
 import { DesensitizationTestService } from '../desensitization-tests/desensitization-test-service.mjs'
 import {profileResources} from './profile-resources.mjs'
 import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
+import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from './visit-ai-summary.mjs'
 import {
   buildVisitSheet,
@@ -32,6 +33,7 @@ export class VisitSheetService {
   constructor(options) {
     this.medicalSummary = options.medicalSummary ?? new MedicalSummaryService(options)
     this.dataDirectory=options.dataDirectory
+    this.aiCandidates=new JsonStore(path.join(options.dataDirectory,'visit-ai-candidates.json'),{candidates:[]})
     this.photos=options.photos??new QuickRecordPhotoService(options)
     this.members =
       options.members ?? new FamilyMemberRepository(options.dataDirectory)
@@ -206,6 +208,9 @@ export class VisitSheetService {
   }
   async save(accountId, memberId, request, now = new Date()) {
     if (request.generateAI !== undefined && typeof request.generateAI !== 'boolean') throw failure('AI 生成设置无效')
+    if(request.previewAI!==undefined&&typeof request.previewAI!=='boolean')throw failure('AI 预览设置无效')
+    if(request.confirmAI!==undefined&&(typeof request.confirmAI!=='string'||request.generateAI))throw failure('摘要确认设置无效')
+    if((request.previewAI||request.confirmAI)&&Object.keys(request).some(k=>!['generateAI','previewAI','confirmAI','aiOverview','requestId','expectedVersion'].includes(k)))throw failure('摘要预览或确认不能同时修改其他资料')
     return withAccountLock(accountId, () => accountTransaction(this.dataDirectory, async () => {
       let input = await this.collect(accountId, memberId, now)
       const saved = (await this.store.read()).reports.find(
@@ -357,6 +362,23 @@ export class VisitSheetService {
       // Local report generation remains independent of AI availability. Never
       // send client-supplied report text; collect() is account/member scoped.
       const aiFingerprint = visitAISummaryFingerprint(report)
+      if(request.generateAI&&request.previewAI){
+        if(!visitAISources(report).length)throw failure('请先补充当前成员的健康资料')
+        const cached=(await this.aiCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.fingerprint===aiFingerprint&&Date.parse(c.expiresAt)>now.getTime())
+        const candidate=cached??{id:randomUUID(),accountId,memberId,requestId:request.requestId,fingerprint:aiFingerprint,summary:await this.medicalSummary.generate(visitAISummaryInput(report),accountId),expiresAt:new Date(now.getTime()+86400000).toISOString()}
+        candidate.summary.generatedAt??=now.toISOString()
+        if(!['openai','bailian'].includes(candidate.summary.provider))throw failure('AI 摘要暂不可用',503)
+        if(!cached)await this.aiCandidates.update(data=>({candidates:[...data.candidates.filter(c=>Date.parse(c.expiresAt)>now.getTime()&&!(c.accountId===accountId&&c.memberId===memberId)),candidate]}))
+        return {report:previous??null,stale:false,warnings:input.warnings,hasLegacy:false,aiCandidate:{id:candidate.id,summary:candidate.summary}}
+      }
+      if(request.confirmAI){
+        const candidate=(await this.aiCandidates.read()).candidates.find(c=>c.id===request.confirmAI&&c.accountId===accountId&&c.memberId===memberId&&Date.parse(c.expiresAt)>now.getTime())
+        if(!candidate||candidate.fingerprint!==aiFingerprint)throw failure('摘要草稿已过期或来源变化，请重新生成；原摘要保留',409)
+        const overview=request.aiOverview??candidate.summary.overview
+        let checked
+        try{checked=normalizeMedicalSummary({overview,keyPoints:candidate.summary.keyPointEvidence.map(e=>({text:e.text,sectionId:e.sectionId,quote:e.quote})),missingInformation:candidate.summary.missingInformation},visitAISummaryInput(report))}catch{throw failure('修改后的摘要未通过事实核对，请对照来源修改；旧摘要未改变',422)}
+        report.aiSummary={...candidate.summary,...checked,generatedAt:now.toISOString()};report.aiSourceFingerprint=aiFingerprint;report.aiSourceIds=visitAISources(report).map(s=>s.id);report.aiSummaryStale=false
+      }
       if (request.generateAI) {
         if (!visitAISources(report).length) throw failure('请先补充当前成员的健康资料')
         const aiSummary = await this.medicalSummary.generate(visitAISummaryInput(report), accountId)
@@ -365,7 +387,7 @@ export class VisitSheetService {
         report.aiSourceFingerprint = aiFingerprint
         report.aiSourceIds = visitAISources(report).map(source => source.id)
         report.aiSummaryStale = false
-      } else if (previous?.aiSummary && previous.aiSourceIds?.every(id => available.has(id))) {
+      } else if (!request.confirmAI&&previous?.aiSummary && previous.aiSourceIds?.every(id => available.has(id))) {
         report.aiSummary = previous.aiSummary
         report.aiSourceFingerprint = previous.aiSourceFingerprint
         report.aiSourceIds = previous.aiSourceIds

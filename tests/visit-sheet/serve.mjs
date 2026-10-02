@@ -9,7 +9,7 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 // never reads this flag, and no fixture is written to the normal data directory.
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
-  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null
+  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
   process.env.AI_MODEL = 'fixture-summary-model'
@@ -35,13 +35,14 @@ if (process.env.VISIT_AI_TEST === '1') {
       const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
       return fixtureResponse({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
     }
+    if(summaryOutput)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(summaryOutput)}]}]})
     const input=JSON.parse(body.input.split('\n\n').at(-1)),line=input.sections.find(s=>s.id==='record')?.lines[0]??input.sections[0].lines[0],sectionId=input.sections.find(s=>s.lines.includes(line)).id
     return fixtureResponse({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ overview: `测试替身摘要：${line}`, keyPoints: [{text:'健康随记已有皮肤观察记录',sectionId,quote:line}], missingInformation: ['皮肤观察变化待核对'] }) }] }] })
   }
   createServer(async(req, res) => {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
-    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null}
+    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null}
     if (req.url === '/success') mode = 'success'
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')

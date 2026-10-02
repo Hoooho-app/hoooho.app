@@ -182,6 +182,7 @@ function validateDietFrequentFoods(value) {
 export class FamilyMemberService {
   constructor(options = {}) {
     this.aiDrafts=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'ai-business-drafts.json'),{drafts:[]}):null
+    this.aiCandidates=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'visit-ai-candidates.json'),{candidates:[]}):null
     this.repository = options.repository ?? new FamilyMemberRepository(options.dataDirectory)
   }
 
@@ -259,6 +260,7 @@ export class FamilyMemberService {
   async delete(accountId, id) {
     await this.get(accountId, id)
     if(this.aiDrafts)await this.aiDrafts.update(data=>({...data,drafts:data.drafts.filter(d=>d.accountId!==accountId||d.memberId!==id)}))
+    if(this.aiCandidates)await this.aiCandidates.update(data=>({...data,candidates:data.candidates.filter(c=>c.accountId!==accountId||c.memberId!==id)}))
     await this.repository.delete(id)
     return { success: true }
   }
