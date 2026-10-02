@@ -2,7 +2,7 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
 import { randomBytes } from 'node:crypto'
-import { MedicalSummaryError, MedicalSummaryService } from '../ai/medical-summary-service.mjs'
+import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -154,6 +154,7 @@ export class HealthEventService {
 
   async saveMedicalPreparation(accountId, id, input, now = new Date()) {
     const event = await this.get(accountId, id)
+    await this.assertMemberOwnership(accountId, event.memberId)
     const summary = validateMedicalPreparation(input)
     const accountEvents = await this.repository.findByAccountId(accountId)
     const existing = accountEvents
@@ -163,13 +164,9 @@ export class HealthEventService {
     if (existing?.sourceFingerprint === input.sourceFingerprint.trim()) {
       return { status: 'current', medicalPreparation: existing }
     }
-    let aiSummary
-    try {
-      aiSummary = await this.medicalSummary.generate(summary)
-    } catch (error) {
-      if (error instanceof MedicalSummaryError) throw new HealthEventError(error.message, error.status, error.code)
-      throw error
-    }
+    // Preserve the branded, sanitized error so the server may safely expose its
+    // actionable provider message without logging submitted medical content.
+    const aiSummary = await this.medicalSummary.generate(summary, accountId)
     const timestamp = now.toISOString()
     const medicalPreparation = {
       version: existing ? existing.version + 1 : 1,
