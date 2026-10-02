@@ -99,9 +99,12 @@ test('就诊情况单更新为新版本且已分享版本保持固定快照', as
     repository,
     members,
     medicalSummary: {
-      generate: async () => ({
+      generate: async (_summary, accountId) => {
+        assert.equal(accountId, 'account-1')
+        return {
         overview: '咳嗽情况待就诊沟通。', keyPoints: ['已记录咳嗽'], missingInformation: [], provider: 'openai', model: 'test-model'
-      })
+        }
+      }
     }
   })
   const summary = { memberName: '乐乐', prompt: '请整理健康资料', text: '病情摘要', selectedSourceIds: ['current'], sections: [{ id: 'current', title: '当前状态', lines: ['咳嗽'] }] }
@@ -137,6 +140,17 @@ test('AI 病情摘要失败时保留上一版本且返回可重试错误', async
     (error) => error.code === 'AI_MEDICAL_SUMMARY_UNAVAILABLE' && error.status === 503
   )
   assert.equal(updated, false)
+})
+
+test('旧事件摘要在家庭成员已失效或不属于账号时不调用模型', async () => {
+  let calls = 0
+  const service = new HealthEventService({
+    repository: { findById: async () => ({ id: 'event-1', accountId: 'account-1', memberId: 'removed-member' }) },
+    members: { findById: async () => ({ id: 'removed-member', accountId: 'another-account' }) },
+    medicalSummary: { generate: async () => { calls++; return {} } }
+  })
+  await assert.rejects(() => service.saveMedicalPreparation('account-1', 'event-1', {}), error => error.code === 'MEMBER_NOT_FOUND')
+  assert.equal(calls, 0)
 })
 
 test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号', async () => {
