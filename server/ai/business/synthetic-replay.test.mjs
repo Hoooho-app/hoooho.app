@@ -3,12 +3,15 @@ import assert from 'node:assert/strict'
 import {mkdtemp,rm} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import {readFileSync} from 'node:fs'
 import {FamilyMemberRepository} from '../../members/repositories/family-member-repository.mjs'
 import {AIBusinessService} from './service.mjs'
 import {LocalFactProvider} from '../providers/local-fact-provider.mjs'
 import {isCurrentPositiveSymptom} from '../health-fact-policy.mjs'
 import {validateExtraction} from './contract.mjs'
 import {captureSyntheticOutput,replaySyntheticCapture} from './synthetic-replay.mjs'
+import {assertSyntheticRequest} from './synthetic-replay.mjs'
+import {syntheticImageFixtureId} from './synthetic-contract.mjs'
 import {syntheticCases,syntheticFixtureId,syntheticText} from './fixtures/synthetic-evidence-cases.mjs'
 const input={text:syntheticText,syntheticReplay:syntheticFixtureId,timezone:'Asia/Shanghai',task:'record'}
 const referenceNow='2026-10-02T18:08:06.804Z'
@@ -86,4 +89,24 @@ test('捕获不接收额外headers/credentials字段或疑似凭据文本',()=>{
  const output=syntheticCases()[0].output
  assert.equal(wrap({...output,Authorization:'fixture-credential'}),null)
  const unsafe=structuredClone(output);unsafe.items[0].title='Bearer fixture-credential';assert.equal(wrap(unsafe),null)
+})
+
+test('schema/来源通过后journal映射失败也返回合成证据，可离线重放；不持久化',async t=>{
+ const output=syntheticCases()[0].output;output.items[1].fields[0].name='reaction'
+ const f=await fixture(t,output)
+ let error;try{await f.service.prepare('synthetic-replay-owner',f.member.id,input)}catch(e){error=e}
+ assert.equal(error.code,'INVALID_JOURNAL_SYMPTOM');assert.ok(error.details.syntheticReplay)
+ assert.deepEqual(error.details.syntheticReplay.output,output)
+ const replay=await replaySyntheticCapture(error.details.syntheticReplay)
+ assert.equal(replay.code,'INVALID_JOURNAL_SYMPTOM');assert.equal(replay.validation.fieldPath,'/items/1/journal')
+ assert.equal((await f.service.store.read()).drafts[0].raw,syntheticText);assert.equal(f.calls(),1)
+})
+
+test('图片取证只接受固定PNG哈希，拒绝变造图、混入文字和历史上下文',()=>{
+ const dataUrl='data:image/png;base64,'+readFileSync(new URL('./fixtures/synthetic-report.png.b64',import.meta.url),'utf8').trim()
+ const imageInput={syntheticReplay:syntheticImageFixtureId,task:'report',files:[{mimeType:'image/png',dataUrl}]}
+ assert.equal(assertSyntheticRequest(imageInput,{existingContext:[]}),true)
+ assert.throws(()=>assertSyntheticRequest({...imageInput,text:'真实原文'}),{code:'AI_SYNTHETIC_REPLAY_DENIED'})
+ assert.throws(()=>assertSyntheticRequest({...imageInput,files:[{mimeType:'image/png',dataUrl:dataUrl.slice(0,-8)}]}),{code:'AI_SYNTHETIC_REPLAY_DENIED'})
+ assert.throws(()=>assertSyntheticRequest(imageInput,{existingContext:[{}]}),{code:'AI_SYNTHETIC_REPLAY_DENIED'})
 })

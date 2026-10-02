@@ -5,6 +5,7 @@ import { bailianConfiguration, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
+import {syntheticEvidenceProof,safeSyntheticStage} from '../business/synthetic-evidence-proof.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
@@ -75,6 +76,10 @@ export class BailianProvider extends OpenAIProvider {
           if(!result||typeof result!=='object'||Array.isArray(result))throw outputFailure('百炼响应外层结构无效；原内容未更新','response_unpack','/','invalid_envelope')
           upstream = safeOpenAIErrorDetails({ httpStatus: response.status, requestId: response.headers?.get('x-request-id') ?? response.headers?.get('x-dashscope-request-id') ?? result.request_id, retryAfter: response.headers?.get('retry-after') })
           const choice = result.choices?.[0]
+          if(init.syntheticEvidence===syntheticEvidenceProof&&typeof init.onSyntheticOutput==='function'){
+            const evidence=safeSyntheticStage({task,content:choice?.message?.content,requestId:upstream.requestId,inputTokens:tokenCount(result.usage?.prompt_tokens),outputTokens:tokenCount(result.usage?.completion_tokens)})
+            if(evidence)init.onSyntheticOutput(evidence)
+          }
           if (choice?.finish_reason === 'length') throw outputFailure('百炼输出达到长度上限，请缩小资料范围；原内容未更新','output_truncation','/choices/0/finish_reason','length_limit','AI_OUTPUT_INCOMPLETE')
           if (choice?.message?.refusal || choice?.finish_reason === 'content_filter') throw configurationError('这份资料暂不能识别，仍可手动记录', 'AI_REFUSAL')
           if (choice?.finish_reason !== 'stop' || choice?.message?.tool_calls || typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw outputFailure('没有获得完整可用的百炼结果；原内容未更新','response_unpack','/choices/0/message/content','missing_content','AI_OUTPUT_EMPTY')
