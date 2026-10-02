@@ -157,7 +157,7 @@ export class AIBusinessService {
       signal?.throwIfAborted()
       const latest=await this.get(accountId,memberId,draft.id);if(latest.version!==draft.version)throw fail('本次整理已被更新取消',409)
       const result=await this.write(draft)
-      return syntheticRequested?{...result,syntheticReplay:syntheticCapture,syntheticStages}:result
+      return syntheticRequested?{...result,syntheticReplay:syntheticCapture,syntheticStages,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}:result
     }catch(error){
       if(typeof extractionDiagnostics?.requestId==='string'&&/^[A-Za-z0-9_.:-]{1,200}$/.test(extractionDiagnostics.requestId))error.upstream={...error.upstream,requestId:extractionDiagnostics.requestId}
       if(syntheticCapture)error.details={...error.details,syntheticReplay:{...syntheticCapture,validation:error.validation??{stage:'semantic_validation',fieldPath:'/items',reason:'invalid_extraction'},businessCode:/^[A-Z_]{1,80}$/.test(error.code??'')?error.code:null}}
