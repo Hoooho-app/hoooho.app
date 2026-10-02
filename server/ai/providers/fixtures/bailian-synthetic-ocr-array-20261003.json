@@ -1,0 +1,7 @@
+{
+  "origin": "real-synthetic-supplier-response",
+  "requestId": "c8b57aea-ea1d-95c6-80a9-586829d51515",
+  "inputTokens": 741,
+  "outputTokens": 68,
+  "content": "[\n  {\n    \"text\": \"合成验收资料（测试）\\n不是真实医疗报告，无个人信息\\n观察记录：今天没有呕吐，只是恶心。\\n本页全部为虚构测试内容。\\n第1页，共1页\",\n    \"status\": \"readable\"\n  }\n]"
+}
