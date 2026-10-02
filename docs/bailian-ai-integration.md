@@ -2,7 +2,7 @@
 
 本报告逐项核对 `ai-business-integration.md` 原 20 项编号（不是补造新 20 项）。最初百炼接入基线为 `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`；2026-10-03 质量修复基线为远端 `production/main` 的 `effbfb0bc62602aa7da607032df7501e1ad7e0b0`，包含已发布的百炼与账号隔离补丁。保留现有分支及提交，没有合入未知功能分支。当前用户明确授权 **Production 主环境，不使用 Staging**。
 
-真实调用累计 **3 次**（bailian / qwen3.7-plus）：初轮文字分类/日期质量未达标、图片HTTP200但应用 `AI_OUTPUT_INVALID`（共2次）；修复后文字复验1次，`422 / AI_EVIDENCE_MISMATCH`，首个失败即停。真实摘要和AI导出仍**未执行**。当前来源取证工作新增真实请求 **0 次**；原响应缺失，不能称本次真实失败已修复。Production密钥、Base URL、模型与消费限制原值保留。
+历史真实响应 **3 次**（bailian / qwen3.7-plus）：初轮文字分类/日期质量未达标、图片HTTP200但应用 `AI_OUTPUT_INVALID`（共2次）；随后文字复验1次，`422 / AI_EVIDENCE_MISMATCH`。当前持续业务任务新增 **3 次供应商出站尝试/12次预算**：1次获真实结构化响应但journal业务映射失败，2次ETIMEDOUT未获供应商HTTP响应；保守全部计入预算，自动重试0，按持续网络故障停止条件不继续消耗剩余9次。真实文字保存、图片全链路、摘要和AI导出尚未通过。Production密钥、Base URL、模型与消费限制原值保留。
 
 状态定义：**已完成**=相应代码/文档已落实；**代码验证通过**=本地替身/回归通过，不能代表真实调用；**真实调用验证通过**=收到百炼真实响应并核对供应商与诊断；**主环境验证通过**=已发布版本的实际隔离账号业务验收通过。未达到后两种状态不得称 AI 全部接通。
 
@@ -154,6 +154,14 @@
 新增供应商HTTP请求总预算12、自动重试0、最多3轮修复发布。先文字取证/确认保存，再固定哈希合成PNG的OCR/抽取/确认保存，再同一虚构成员摘要/文本与HTML导出；业务校验失败留证据、离线修复后继续，鉴权/额度/权限或持续网络故障停止外部调用。本任务不扩展ASR/TTS。
 
 第一请求（本任务1/12）：HTTP400/INVALID_JOURNAL_SYMPTOM，旧捕获只在error.validation存在时附输出，导致journal映射错误未捕获，不据此猜事实根因。补齐所有业务错误的固定合成包出口、离线journal映射回放，以及仅固定PNG SHA256可启用的OCR/抽取阶段证据：进程内Symbol能力、不进入请求body/日志、24KB/疑似凭据过滤、成员权限和空existingContext检查。普通请求无原文日志或回放，校验判断不放宽。详细本任务预算与实际结果持续保存在忽略的outputs/bailian-ai/continuous-acceptance。
+
+第1次标识`0c492e63-ef80-9c2d-a9fc-0557565b9e34`，502输入/115输出Token；第2、3次间隔人工复验均AI_NETWORK_ERROR/ETIMEDOUT，没有供应商HTTP响应、标识或Token数据，不能猜DNS/TCP/TLS子阶段或认定额度问题。第3次后停止所有模型请求，失败原稿保留，无错误结果自动保存。图片、摘要未发请求。首个真实结构化输出仍缺失，不称已修复真实journal或旧cdcd3b13错误。
+
+当前离线综合206/206、客户端549/549、Bailian替身E2E10/10、typecheck/build/guards PASS；人工stage回放覆盖OCR JSON/schema、抽取引用/否定、新增事实、journal映射失败及来源不一致拒绝，所有均人工fixture不是原响应。阶段CLI `node scripts/replay-ai-business-stages.mjs <artifact.json>`重跑OCR→抽取→来源→领域/journal；原文不打印，0网络。已有单阶段CLI继续保留。
+
+手机入口：健康随记 `/health-events` →“智能记录”（文字输入或上传资料，生成后必须点击核对保存）；病情数据 `/visit-summary` →“生成 AI 病情摘要”→“导出情况单”→文本/完整离线HTML。当前AI真实业务阻塞，不建议将入口存在视为功能验收通过；普通手动记录/本地事实整理/导出继续可用。ASR/TTS未配置，不能用文字模型替代。
+
+本任务发布前生产基线914411544073e8f0baf5c12cafad601a355e6c8d；第1轮取证发布main=3b062902dfa5da96abd7edea862aa585069337e0。无数据库或消费配置变更。需回滚时对本任务聚焦PR逐个逆序正常revert合入main/Production，不reset、不改密钥/变量、不清库。现有源/否定/日精度规则没有放宽。解除真实阻塞仅需恢复Railway Production后端到已配置北京百炼兼容域名的出站HTTPS；桌面代理切换不能证明服务端恢复。不要重新输入密钥或充值。
 
 本轮 npm audit 仍为 5 high、0 critical。13 个新增包来自锁定的 PDF.js/Canvas 平台依赖及 Ajv 的直接声明；**既有包版本未升级**。
 
