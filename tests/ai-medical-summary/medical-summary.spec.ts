@@ -4,20 +4,26 @@ import { TokenService } from '../../server/auth/token-service.mjs'
 
 const token = new TokenService('visit-sheet-e2e-secret', 60 * 60_000).create({ id: 'visit-test' })
 test('当前成员本地整理、AI 成功/失败/重试、重新生成和离线导出', async ({ page, request }) => {
+  const callsBefore=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
   await page.addInitScript(token => {
     sessionStorage.setItem('hoooho-auth-token', token)
     if (!localStorage.getItem('hoooho-app')) localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: 'child-a', members: [], profile: null }, version: 5 }))
   }, token)
   await page.goto('/visit-summary')
   await expect(page.getByRole('heading', { name: '病情数据', exact: true })).toBeVisible()
+  // A combined provider suite can already have added records in earlier cases.
+  // Synchronize local facts rather than bypass the export's stale-source guard.
+  const refreshLocal=page.getByRole('button',{name:'更新情况单',exact:true})
+  if(await refreshLocal.isVisible()){await refreshLocal.click();await expect(refreshLocal).toHaveCount(0)}
   await expect(page.getByText(/本地事实整理 · 资料截至/)).toBeVisible()
   await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls).toBe(0)
+  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(0)
   await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-local.png' })
   await request.get('http://127.0.0.1:4198/failure')
   await page.getByRole('button', { name: '生成 AI 病情摘要', exact: true }).click()
   await expect(page.getByRole('button', { name: '正在生成 AI 病情摘要', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: '重试 AI 摘要', exact: true })).toBeVisible()
+  if(test.info().config.metadata.provider==='bailian')await expect(page.getByRole('alert')).toContainText('百炼免费额度已用尽')
   await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: '导出情况单', exact: true }).click()
   const localEvent = page.waitForEvent('download')
@@ -37,6 +43,7 @@ test('当前成员本地整理、AI 成功/失败/重试、重新生成和离线
   await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-ai-success.png' })
 
   const current = await (await request.get('/api/members/child-a/visit-sheet', { headers: { Authorization: `Bearer ${token}` } })).json()
+  expect(current.report.aiSummary.provider).toBe(test.info().config.metadata.provider==='bailian'?'bailian':'openai')
   await request.get('http://127.0.0.1:4198/failure')
   await page.getByRole('button', { name: '重新生成 AI 病情摘要', exact: true }).click()
   await expect(page.getByRole('button', { name: '重试 AI 摘要', exact: true })).toBeVisible()
@@ -61,7 +68,7 @@ test('当前成员本地整理、AI 成功/失败/重试、重新生成和离线
   const regenerated = await (await request.get('/api/members/child-a/visit-sheet', { headers: { Authorization: `Bearer ${token}` } })).json()
   expect(regenerated.report.aiSummary.generatedAt).not.toBe(current.report.aiSummary.generatedAt)
   expect(regenerated.report.version).toBeGreaterThan(current.report.version)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls).toBe(4)
+  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(4)
   for (const width of [320, 375, 390, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 320 ? 568 : 800 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -86,5 +93,5 @@ test('当前成员本地整理、AI 成功/失败/重试、重新生成和离线
   await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
   await expect(page.getByText('当前孩子尚无已保存资料。', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '生成 AI 病情摘要', exact: true })).toHaveCount(0)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls).toBe(4)
+  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(4)
 })

@@ -126,7 +126,7 @@ export class OpenAIProvider {
           }
         }
       }),
-      signal: AbortSignal.timeout(20_000)
+      signal: AbortSignal.timeout(this.requestTimeoutMs ?? 20_000)
     })
 
     if (!response.ok) throw Object.assign(new Error('AI 整理暂时不可用'), { code: 'AI_PROVIDER_ERROR', status: response.status })
@@ -157,7 +157,7 @@ export class OpenAIProvider {
           }
         }
       }),
-      signal: AbortSignal.timeout(20_000)
+      signal: AbortSignal.timeout(this.requestTimeoutMs ?? 20_000)
     })
 
     if (!response.ok) throw Object.assign(new Error('AI 病情摘要暂时不可用'), {
@@ -208,7 +208,7 @@ export class OpenAIProvider {
           }
         }
       }),
-      signal: AbortSignal.timeout(30_000)
+      signal: AbortSignal.timeout(this.requestTimeoutMs ?? 30_000)
     })
 
     if (!response.ok) throw Object.assign(new Error('图片整理暂时不可用'), { code: 'VISION_PROVIDER_ERROR', status: response.status })

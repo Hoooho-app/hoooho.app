@@ -10,6 +10,7 @@ import { HealthRecordOrganizationService } from '../health-record-organization-s
 import { AIService } from '../ai-service.mjs'
 import { LocalFactProvider } from '../providers/local-fact-provider.mjs'
 import { BusinessModel } from './model.mjs'
+import { withAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, recognizePage } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
 import { memberInsights } from './insights.mjs'
@@ -19,7 +20,7 @@ const instructions = `将用户原文整理成当前人物的待确认记录，�
 const text = (v, limit = 10000) => typeof v === 'string' && v.length <= limit ? v.trim() : ''
 const field = (item, name) => item.fields.find(f => f.name === name)?.value
 const keyFor = (item,draft) => fingerprint({category:item.category,time:item.time?.resolvedStart ?? item.timeText ?? draft.referenceNow,fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value))})
-const publicDraft = d => ({id:d.id,version:d.version,state:d.state,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
+const publicDraft = d => ({id:d.id,version:d.version,state:d.state,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
 const contentFor=item=>item.fields.map(f=>`${fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
 const revisionKey=r=>fingerprint([r.type,r.content,r.occurredAt,r.journal,r.aiProvenance])
 const groupFor=item=>{
@@ -84,7 +85,7 @@ export class AIBusinessService {
     await this.scoped(accountId,memberId)
     const key=JSON.stringify([accountId,memberId]),hash=fingerprint(input),active=this.inFlight.get(key)
     if(active){if(active.hash===hash)return active.promise;throw fail('正在整理这位人物的资料，请等待完成或取消后再操作',409,'AI_DRAFT_IN_PROGRESS')}
-    const promise=this.prepareOnce(accountId,memberId,input,signal);this.inFlight.set(key,{hash,promise})
+    const promise=withAIAccount(accountId,()=>this.prepareOnce(accountId,memberId,input,signal));this.inFlight.set(key,{hash,promise})
     try{return await promise}finally{if(this.inFlight.get(key)?.promise===promise)this.inFlight.delete(key)}
   }
   async prepareOnce(accountId,memberId,input={},signal) {
@@ -122,6 +123,7 @@ export class AIBusinessService {
       draft.callCount++;await this.write(draft)
       const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,instructions:instructions+' existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。',signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:await this.context(accountId,memberId,raw),sources:draft.sources.map(({id,page,text})=>({id,page,text}))})})
       draft.items=mergeItems(validateExtraction(value,draft.sources)).map(item=>this.resolve(item,draft))
+      draft.generation={provider:diagnostics.provider??this.model.provider?.name??'unknown',model:diagnostics.model??this.model.provider?.model??null,requestId:diagnostics.requestId??null}
       draft.unmappedRows=draft.sources.flatMap(s=>s.text.split(/\r?\n/).filter(line=>{
         if(!/\d/.test(line)||!/(?:mg|ml|mmol|mmHg|℃|参考|阴性|阳性|结果|剂量|体温)/i.test(line))return false
         const mapped=draft.items.filter(i=>i.fields.some(f=>f.sources.some(ref=>ref.sourceId===s.id&&ref.page===s.page))).flatMap(i=>[i.timeText??'',...i.fields.map(f=>f.value)]).join('\n')
@@ -228,9 +230,9 @@ export class AIBusinessService {
           history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!relatedEvent})
         }
         const sources=[...(record.aiProvenance?.sources??[]),...item.fields.flatMap(f=>f.sources)],refs=[]
-        for(const document of d.documents.filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':'openai',confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
+        for(const document of d.documents.filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
-        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,category:item.category,timeText:item.timeText,time:item.time,fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
+        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,timeText:item.timeText,time:item.time,fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
         profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now()})
         history[history.length-1].afterKey=revisionKey(await this.records.repository.findById(record.id))
         if(!ownedEvents.some(e=>e.id===event.id))ownedEvents.push(event)

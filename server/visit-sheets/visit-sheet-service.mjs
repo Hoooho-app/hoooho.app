@@ -359,8 +359,8 @@ export class VisitSheetService {
       const aiFingerprint = visitAISummaryFingerprint(report)
       if (request.generateAI) {
         if (!visitAISources(report).length) throw failure('请先补充当前成员的健康资料')
-        const aiSummary = await this.medicalSummary.generate(visitAISummaryInput(report))
-        if (aiSummary.provider !== 'openai') throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
+        const aiSummary = await this.medicalSummary.generate(visitAISummaryInput(report), accountId)
+        if (!['openai', 'bailian'].includes(aiSummary.provider)) throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
         report.aiSummary = { ...aiSummary, generatedAt: now.toISOString() }
         report.aiSourceFingerprint = aiFingerprint
         report.aiSourceIds = visitAISources(report).map(source => source.id)
