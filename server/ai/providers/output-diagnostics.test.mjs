@@ -47,7 +47,7 @@ test('来源校验记录精确字段路径，不把来源原文写入诊断',()=
  const raw='fixture medical raw'
  const item={category:'symptom',title:'fixture',timeText:null,archiveCategory:null,subject:'current',relationKey:null,fields:[{name:'symptom',value:'not in source',sourceId:'s',page:1,quote:raw}]}
  assert.throws(()=>validateExtraction({items:[item]},[{id:'s',page:1,text:raw}]),error=>{
-  assert.deepEqual(error.validation,{stage:'source_validation',fieldPath:'/items/0/fields/0',reason:'source_mismatch'})
+  assert.deepEqual(error.validation,{stage:'source_validation',fieldPath:'/items/0/fields/0',reason:'source_mismatch',rule:'value_not_in_quote'})
   assert.doesNotMatch(JSON.stringify(error),/fixture medical raw|not in source/);return true
  })
 })

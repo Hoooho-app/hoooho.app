@@ -1,6 +1,7 @@
 import { LocalFactProvider, extractTimeMentions } from '../providers/local-fact-provider.mjs'
 import { resolveItemTime } from './contract.mjs'
 import { outputFailure } from '../providers/output-diagnostics.mjs'
+import { evidenceFailure } from './evidence-diagnostics.mjs'
 
 const symptomFields=new Set(['symptom','location','severityOriginal','handling'])
 // Reconcile metadata only after exact quote validation. Do not create fields,
@@ -40,14 +41,15 @@ export async function reconcileExtraction(items,sources,context){
   return result
  })
  const values=new Map()
- for(const source of sources){
-  for(const fact of parsed.get(`${source.id}:${source.page}`).facts.filter(f=>f.type==='symptom'&&f.subject==='event_subject'&&f.polarity==='negated')){
+ for(const [sourceIndex,source] of sources.entries()){
+  for(const [factIndex,fact] of parsed.get(`${source.id}:${source.page}`).facts.entries()){
+   if(!(fact.type==='symptom'&&fact.subject==='event_subject'&&fact.polarity==='negated'))continue
    let represented=false
    for(const field of reconciled.flatMap(i=>i.fields).filter(f=>f.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page))){
     if(!values.has(field.value))values.set(field.value,await local.organize(field.value))
     if(values.get(field.value).facts.some(f=>f.type==='symptom'&&f.name===fact.name&&f.polarity==='negated')){represented=true;break}
    }
-   if(!represented)throw Object.assign(outputFailure('生成结果遗漏了原话中的否定观察，请核对；原稿未修改','source_validation','/items','source_mismatch','AI_EVIDENCE_MISMATCH'),{status:422})
+   if(!represented)throw evidenceFailure('生成结果遗漏了原话中的否定观察，请核对；原稿未修改','/items','negated_fact_coverage',{sourceIndex,factIndex,page:source.page})
   }
  }
  return reconciled

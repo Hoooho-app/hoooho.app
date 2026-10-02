@@ -11,6 +11,7 @@ import { AIService } from '../ai-service.mjs'
 import { LocalFactProvider } from '../providers/local-fact-provider.mjs'
 import { BusinessModel } from './model.mjs'
 import { reconcileExtraction } from './extraction-quality.mjs'
+import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-replay.mjs'
 import { withAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, recognizePage } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
@@ -90,7 +91,7 @@ export class AIBusinessService {
     try{return await promise}finally{if(this.inFlight.get(key)?.promise===promise)this.inFlight.delete(key)}
   }
   async prepareOnce(accountId,memberId,input={},signal) {
-    await this.scoped(accountId,memberId);await this.prune()
+    await this.scoped(accountId,memberId);const syntheticRequested=assertSyntheticRequest(input);await this.prune()
     let previous=input.id?await this.get(accountId,memberId,input.id):null
     if(previous?.state==='saved')throw fail('这份草稿已保存，请新建记录',409)
     if(previous && input.version!==previous.version)throw fail('草稿已更新，请重新加载',409,'AI_DRAFT_VERSION_CONFLICT')
@@ -107,6 +108,7 @@ export class AIBusinessService {
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false
     await this.write(draft)
+    let syntheticCapture=null,extractionDiagnostics=null
     try {
       if(raw)draft.sources.push({id:'input',page:1,text:raw,status:'readable'})
       for(const page of draft.pages){
@@ -121,8 +123,12 @@ export class AIBusinessService {
       if(!draft.sources.some(s=>s.text.trim()))throw fail('没有可整理的文字，请换一份资料或手动输入')
       if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，请核对现有草稿，未截断资料',429,'AI_DRAFT_CALL_LIMIT')
       signal?.throwIfAborted()
+      const extractionContext=await this.context(accountId,memberId,raw)
+      if(syntheticRequested)assertSyntheticRequest(input,extractionContext)
       draft.callCount++;await this.write(draft)
-      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,instructions:instructions+' 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。',signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:await this.context(accountId,memberId,raw),sources:draft.sources.map(({id,page,text})=>({id,page,text}))})})
+      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,instructions:instructions+' 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。',signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,sources:draft.sources.map(({id,page,text})=>({id,page,text}))})})
+      extractionDiagnostics=diagnostics
+      if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
       const extracted=await reconcileExtraction(validateExtraction(value,draft.sources),draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       draft.items=mergeItems(extracted).map(item=>this.resolve(item,draft))
       draft.generation={provider:diagnostics.provider??this.model.provider?.name??'unknown',model:diagnostics.model??this.model.provider?.model??null,requestId:diagnostics.requestId??null}
@@ -147,8 +153,11 @@ export class AIBusinessService {
       // A cancelled or newer draft must not be resurrected by a late response.
       signal?.throwIfAborted()
       const latest=await this.get(accountId,memberId,draft.id);if(latest.version!==draft.version)throw fail('本次整理已被更新取消',409)
-      return this.write(draft)
+      const result=await this.write(draft)
+      return syntheticCapture?{...result,syntheticReplay:syntheticCapture}:result
     }catch(error){
+      if(error.validation&&typeof extractionDiagnostics?.requestId==='string'&&/^[A-Za-z0-9_.:-]{1,200}$/.test(extractionDiagnostics.requestId))error.upstream={...error.upstream,requestId:extractionDiagnostics.requestId}
+      if(syntheticCapture&&error.validation)error.details={...error.details,syntheticReplay:{...syntheticCapture,validation:error.validation}}
       const latest=await this.get(accountId,memberId,draft.id).catch(()=>null)
       if(latest?.version===draft.version){if(signal?.aborted)await this.cancel(accountId,memberId,draft.id);else{draft.state='failed';await this.write(draft)}}
       throw error

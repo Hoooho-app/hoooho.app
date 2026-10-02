@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { TimeResolverService } from '../time-resolver-service.mjs'
 import { validateJournal } from '../../events/journal-metadata.mjs'
 import { outputFailure } from '../providers/output-diagnostics.mjs'
+import { evidenceFailure } from './evidence-diagnostics.mjs'
 
 export const categories = ['diet','sleep','elimination','activity','emotion','social','symptom','measurement','growth','injury','medication','care','vaccination','environment','visit','examination','other']
 export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','ABC_A','ABC_B','ABC_C','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
@@ -32,11 +33,12 @@ function validateExtractionContent(output, sources) {
       if (!fieldNames.includes(field.name) || !Number.isInteger(field.page) || field.page < 1) throw fail('字段或来源位置无效')
       const source = sources.find(source => source.id === field.sourceId && source.page === field.page)
       const quote = safeText(field.quote, 4000), value = safeText(field.value, 4000)
-      if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw Object.assign(outputFailure('部分内容与原文不一致，请核对，未保存生成结果','source_validation',`/items/${index}/fields/${fieldIndex}`,'source_mismatch','AI_EVIDENCE_MISMATCH'),{status:422})
-      if(/没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查/.test(quote)&&!/(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查)/.test(value))throw fail('否定或不确定性被遗漏，请核对',422,'AI_EVIDENCE_MISMATCH')
+      const fieldPath=`/items/${index}/fields/${fieldIndex}`
+      if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
+      if(/没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查/.test(quote)&&!/(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查)/.test(value))throw evidenceFailure('否定或不确定性被遗漏，请核对',fieldPath,'negation_scope')
       if(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','ABC_A','doctorStatement','conclusion'].includes(field.name)){
         const position=source.text.indexOf(quote),prefix=source.text.slice(Math.max(0,position-8),position).split(/[，。；\n,;.!]/).at(-1)
-        if(/(?:没有|未见|否认|排除|疑似|可能|无|未确诊)[^，。；\n,;.!]{0,3}$/.test(prefix)&&!/没有|未见|否认|排除|疑似|可能|无|未确诊/.test(value))throw fail('引文截去了否定或疑似前缀，请对照完整原话',422,'AI_EVIDENCE_MISMATCH')
+        if(/(?:没有|未见|否认|排除|疑似|可能|无|未确诊)[^，。；\n,;.!]{0,3}$/.test(prefix)&&!/没有|未见|否认|排除|疑似|可能|无|未确诊/.test(value))throw evidenceFailure('引文截去了否定或疑似前缀，请对照完整原话',fieldPath,'negation_prefix')
       }
       return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, start: source.text.indexOf(quote), end: source.text.indexOf(quote) + quote.length }], confirmed: false, editedBy: 'model' }
     })
