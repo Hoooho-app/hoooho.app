@@ -9,6 +9,13 @@ export function readablePreview(content, metadata = {}) {
     if (/^[\s]*[\[{]|```|<\/?(?:script|html)|"(?:items|fields)"\s*:/i.test(content)) return null
     value = content
   }
+  // Observed Bailian OCR response: an array of text/status objects. It is still
+  // invalid against the OCR object schema; project text for review only.
+  if(Array.isArray(value)){
+    if(!value.length||value.length>12||value.some(part=>!part||Array.isArray(part)||typeof part!=='object'||typeof part.text!=='string'))return null
+    value={text:value.map(part=>part.text).join('\n\n')}
+  }
+  if(typeof value==='string'&&/^[\s]*[\[{]|^```/.test(value))return null
   const lines = [], add = v => { if (typeof v === 'string' && v.trim()) lines.push(v.trim()) }
   if (typeof value === 'string') add(value)
   else if (value && !Array.isArray(value)) {

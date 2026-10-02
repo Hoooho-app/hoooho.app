@@ -30,7 +30,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     let body=JSON.parse(init.body)
     if(bailian){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
     if(body.text.format.name==='hoooho_business'){
-      if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
+      if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]
       const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
       return fixtureResponse({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})

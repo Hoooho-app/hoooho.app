@@ -1,8 +1,18 @@
 import {test,expect} from '@playwright/test'
 import {readFile} from 'node:fs/promises'
 import {TokenService} from '../../server/auth/token-service.mjs'
+import observedOCR from '../../server/ai/providers/fixtures/bailian-synthetic-ocr-array-20261003.json' with {type:'json'}
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 async function login(page:any,memberId='child-a'){await page.addInitScript(({token,memberId}:{token:string;memberId:string})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})}
+test('真实合成OCR内容离线手机回放：数组仍失败但预览可见，不能直接保存',async({page,request})=>{
+ await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{ocrText:JSON.parse(observedOCR.content)}})
+ await login(page,'empty-child');await page.goto('/health-events');await page.getByRole('button',{name:'智能记录',exact:true}).click();const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
+ const image=Buffer.from((await readFile(new URL('../../server/ai/business/fixtures/synthetic-report.png.b64',import.meta.url),'utf8')).trim(),'base64');await sheet.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image})
+ const before=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
+ await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('region',{name:'AI初步整理，需核对',exact:true})).toBeVisible();await expect(sheet.getByLabel('编辑AI初步整理')).toHaveValue(JSON.parse(observedOCR.content)[0].text)
+ const d=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();expect(d.state).toBe('failed');expect(d.preview.status).toBe('unverified');expect((await request.post(`/api/members/empty-child/ai-drafts/${d.id}/save`,{headers,data:{version:d.version,confirmed:true}})).status()).toBe(409)
+ expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls-before).toBe(1);await request.delete(`/api/members/empty-child/ai-drafts/${d.id}`,{headers});await request.post('http://127.0.0.1:4198/draft-data',{data:{}})
+})
 test('来源失败手机预览可编辑，正式保存拒绝，原文可带入既有手动表单且零额外模型请求',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/success')
  const raw='合成体验验收：今天没有呕吐，只是恶心'

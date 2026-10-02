@@ -15,6 +15,14 @@ import { prepareDocuments, recognizePage } from '../business/documents.mjs'
 import { FamilyMemberRepository } from '../../members/repositories/family-member-repository.mjs'
 import { MedicalSummaryService } from '../medical-summary-service.mjs'
 import {syntheticEvidenceProof} from '../business/synthetic-evidence-proof.mjs'
+import observedOCR from './fixtures/bailian-synthetic-ocr-array-20261003.json' with {type:'json'}
+import {ocrSchema} from '../business/documents.mjs'
+
+test('真实合成OCR数组协议回放仍拒绝schema，但用户可读预览保留',async()=>{
+ let calls=0;const model=modelFor(async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:observedOCR.content}}],usage:{prompt_tokens:observedOCR.inputTokens,completion_tokens:observedOCR.outputTokens}},{headers:{'x-request-id':observedOCR.requestId}})})
+ await assert.rejects(()=>model.structured({task:'document-page',schema:ocrSchema,instructions:'synthetic',input:'synthetic'}),e=>{assert.equal(e.code,'AI_OUTPUT_INVALID');assert.deepEqual(e.validation,{stage:'schema_validation',fieldPath:'/',reason:'type'});assert.equal(e.preview.text,JSON.parse(observedOCR.content)[0].text);assert.equal(e.preview.requestId,observedOCR.requestId);return true})
+ assert.equal(calls,1)
+})
 
 const baseUrl='https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
 const env={AI_PROVIDER:'bailian',BAILIAN_API_KEY:'synthetic-credential',BAILIAN_BASE_URL:baseUrl}
