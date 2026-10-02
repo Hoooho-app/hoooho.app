@@ -1,8 +1,30 @@
 import { test, expect } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
 import sharp from 'sharp'
+import {syntheticCases,syntheticFixtureId,syntheticText} from '../../server/ai/business/fixtures/synthetic-evidence-cases.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
+
+test('合成取证经过真实HTTP权限/错误出口，普通原稿不返回模型回放',async({request})=>{
+ await request.get('http://127.0.0.1:4198/success')
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{items:syntheticCases()[1].output.items}})
+ const before=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
+ const denied=await request.post('/api/members/empty-child/ai-drafts',{headers,data:{text:'不是固定合成资料',syntheticReplay:syntheticFixtureId}})
+ expect(denied.status()).toBe(422);expect((await denied.json()).error.code).toBe('AI_SYNTHETIC_REPLAY_DENIED')
+ expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls).toBe(before)
+ const captured=await request.post('/api/members/empty-child/ai-drafts',{headers,data:{text:syntheticText,timezone:'Asia/Shanghai',syntheticReplay:syntheticFixtureId}})
+ expect(captured.status()).toBe(422)
+ const body=await captured.json();expect(body.error.code).toBe('AI_EVIDENCE_MISMATCH')
+ expect(body.error.syntheticReplay.validation.rule).toBe('negation_scope');expect(body.error.syntheticReplay.validation.fieldPath).toBe('/items/1/fields/0')
+ expect(body.error.syntheticReplay.output).toEqual(syntheticCases()[1].output)
+ const stored=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();expect(stored.inputText).toBe(syntheticText);expect(stored.syntheticReplay).toBeUndefined();expect(stored.state).toBe('failed')
+ await request.delete(`/api/members/empty-child/ai-drafts/${stored.id}`,{headers})
+ const ordinary=await request.post('/api/members/empty-child/ai-drafts',{headers,data:{text:syntheticText,timezone:'Asia/Shanghai'}})
+ expect(ordinary.status()).toBe(422);expect((await ordinary.json()).error.syntheticReplay).toBeUndefined()
+ expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls-before).toBe(2)
+ const failed=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();await request.delete(`/api/members/empty-child/ai-drafts/${failed.id}`,{headers})
+ await request.get('http://127.0.0.1:4198/success')
+})
 
 test('百炼图片草稿经确认保存，附件和记录标识真实供应商，成员与取消隔离',async({page,request})=>{
   await request.get('http://127.0.0.1:4198/success')

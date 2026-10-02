@@ -2,7 +2,7 @@
 
 本报告逐项核对 `ai-business-integration.md` 原 20 项编号（不是补造新 20 项）。最初百炼接入基线为 `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`；2026-10-03 质量修复基线为远端 `production/main` 的 `effbfb0bc62602aa7da607032df7501e1ad7e0b0`，包含已发布的百炼与账号隔离补丁。保留现有分支及提交，没有合入未知功能分支。当前用户明确授权 **Production 主环境，不使用 Staging**。
 
-真实调用累计 **2 次**（bailian / qwen3.7-plus）：文字已收到真实响应，但分类/日期质量未达标；图片上游 HTTP 200，应用 `AI_OUTPUT_INVALID`。真实摘要和 AI 导出**未执行**。本轮质量修复的真实模型请求 **0 次**，仅离线测试；发布修复不等于真实复验通过。Production 现有密钥、Base URL、文字/图片模型与消费限制原值保留，不再要求重新配置。
+真实调用累计 **3 次**（bailian / qwen3.7-plus）：初轮文字分类/日期质量未达标、图片HTTP200但应用 `AI_OUTPUT_INVALID`（共2次）；修复后文字复验1次，`422 / AI_EVIDENCE_MISMATCH`，首个失败即停。真实摘要和AI导出仍**未执行**。当前来源取证工作新增真实请求 **0 次**；原响应缺失，不能称本次真实失败已修复。Production密钥、Base URL、模型与消费限制原值保留。
 
 状态定义：**已完成**=相应代码/文档已落实；**代码验证通过**=本地替身/回归通过，不能代表真实调用；**真实调用验证通过**=收到百炼真实响应并核对供应商与诊断；**主环境验证通过**=已发布版本的实际隔离账号业务验收通过。未达到后两种状态不得称 AI 全部接通。
 
@@ -15,7 +15,7 @@
 | 01 | 健康随记→就诊情况单→病情摘要、重生成、版本与导出 | Production Bailian Chat；保留 OpenAI Responses 与本地事实 | 共用原摘要提示词、来源/不确定性校验和保存事务；百炼显示/文本/离线 HTML；失败保留旧版 | 配置已保存；真实摘要、AI 文本/HTML 导出未执行；本地导出已通过 |
 | 03 | 情况单可编辑复制给 AI 的问诊提示词 | 本地确定性模板，无专属接口 | 复用保存报告与复制机制，零新增模型调用 | 外部医生/其他 AI 的回答不属于本项目接入结果 |
 | 04 | 草稿时间解析、病程整理 | 字段抽取百炼；TimeResolver 本地规则 | 修复原文明确日期被遗漏；参考日期/用户时区、日级精度和来源保留，冲突拒绝保存 | 历史真实“今天”未提取；离线修复通过，真实复验待执行；不以保存时间代替发病时间 |
-| 05 | 健康随记“智能记录”文字草稿 | Production Bailian Chat，OpenAI 保留 | 严格 schema；确认后保存、编辑、失败原稿保留；分类元数据校正与否定保留检查 | 真实响应已有，但“恶心”误归检查，文字质量未达标；本轮离线修复通过，待真实复验 |
+| 05 | 健康随记“智能记录”文字草稿 | Production Bailian Chat，OpenAI 保留 | 严格 schema；确认保存、失败原稿保留；新增固定合成取证/回放和具体拒绝规则，未放宽校验 | 修复后真实文字422/source_validation未过，items/引文未保留；本轮只补取证，不能声称已修复真实失败 |
 | 06 | 智能记录录音→文字 | 独立 OpenAI `/audio/transcriptions` | 保留现有 ASR；百炼模式默认 none，不使用旧 OpenAI 密钥 | 百炼 ASR **未接通**；qwen3.7-plus 无此能力，需另确认 ASR 供应商/模型/接口/权限 |
 | 07 | 草稿补充问题和跳过 | 百炼抽取 + 本地最多 3 个必要问题规则 | 原有多轮编辑/历史及跳过保留，不新增问答聊天系统 | 配置已保存，真实多轮路径未验；问题不是诊断建议 |
 | 08 | 多事项分类、一次确认保存 | 百炼抽取 + 本地枚举/事务 | 严格结构、引用、幂等与重复提交、全量回滚 | 限 30 项，不静默漏存 |
@@ -103,6 +103,8 @@
 
 ## 7. 验证记录
 
+最新来源取证轮：相关综合回归 **200/200 PASS**（含新增合成回放13项）、TypeScript/build/guards/diff check PASS；HTTP与iPhone SE替身E2E **10/10 PASS**。客户端、parser统计及全量服务端未重复运行，沿用下述历史结果，不冒称本轮重跑。真实模型请求0，真实响应回放0；7个人工对照不代表原模型输出，判定结果与改前完全一致，只新增诊断路径/规则。当前诊断发布基线为856e73822d66dcfad5b9dade7fd4e1f379f8a485，生产配置不变；可正常revert本轮聚焦诊断提交，或从该基线干净worktree恢复代码，无数据迁移。
+
 2026-10-03 本轮离线验证：AI/业务/附件/摘要/百炼/OpenAI/时间/来源及 parser 相关综合 **187/187 PASS**；客户端 **549/549 PASS**；百炼 iPhone SE E2E **9/9 PASS**（后端 mock，包含分类/时间校正→确认→保存→撤销，保存不增加模型调用）；TypeScript 与生产 build/viewport/auth/install-assets guards PASS；diff check PASS。新增质量与诊断测试 **22/22** 包含在综合测试中。LocalFactProvider P0 **30/30、48/48 匹配**，修复前后无退化；65项症状追踪回归全部通过。本轮无独立 lint 命令（N/A），未升级依赖。
 
 新增病例基于合成输入及重建的供应商测试替身：修复前同组9例 **1通过/8失败**，修复后9例全通过，另加2例时间/否定边界；覆盖否定、今天/昨天/昨日、跨午夜、上海/洛杉矶时区、多症状、分事项日期、时间冲突、未说时间不补保存时刻、明确检查不改分类。协议诊断另覆盖响应解包、JSON解析、schema required/type/enum/额外字段、截断、精确来源字段路径和未知字段脱敏。**真实响应回放0例**：历史原始响应未保留，不将重建替身称为原响应复现。主环境不注入这些替身。
@@ -122,6 +124,28 @@
 经严格原文引用校验后，仅当全部字段属于症状字段且没有检查字段时校正误分类；日期只从同句、同页、唯一原话及已有本地解析取得，按草稿的referenceNow/timezone解析并保留原文、日精度和来源。保存的occurredAt是既有存储契约中的日范围锚点，来源time.precision=day/resolvedStart/resolvedEnd明确不是编造发病时刻。不跨句继承时间；冲突拒绝保存。否定已存在则保留，模型漏掉否定事实则拒绝，不自动补生成临床字段。确认后保存、成员隔离、事务/幂等、失败保留草稿及旧摘要沿用原流程；可追溯categoryResolution/timeResolution保存在既有aiProvenance中。
 
 收尾补齐旧事件分享摘要入口：再次校验当前事件的成员归属、将账号传入模型限流、保留已脱敏的错误类型供页面反馈。补丁相关事件/摘要/百炼回归 21/21（含新增成员失效零调用案例）；未重复运行与该后端补丁无关的客户端/build。
+
+### 7.2 cdcd3b13 来源校验取证（不是已修复声明）
+
+请求`cdcd3b13-0461-95f0-8dbb-141a58f6470a`：bailian/qwen3.7-plus，502输入/173输出Token。供应商结构化返回通过，应用422/AI_EVIDENCE_MISMATCH，旧诊断source_validation → /items → source_mismatch。合成输入“今天没有呕吐，只是恶心”可从验收脚本恢复；具体items、value、quote、来源映射、完整响应、错误message与精确referenceNow未保留。失败草稿items=0、原稿保留，随后通过已有API清理。因此不能指出原请求失败item或在模型错误、提示词、引用映射、误拒绝之间作唯一归因。
+
+人工对照（不是原响应回放）：
+
+| 对照 | 引文/字段 | 原判定 | 新诊断，判定不变 |
+| --- | --- | --- | --- |
+| 正确引用 | 否定字段value/quote=没有呕吐；阳性字段value/quote=恶心 | 通过，呕吐保持否定，恶心阳性 | 通过 |
+| 整段引用范围 | item1/field0：value=恶心，quote=今天没有呕吐，只是恶心；另有否定字段 | /items拒绝 | /items/1/fields/0，negation_scope；可复现的整句否定误拒绝候选，未认定是原请求原因，本轮未修判定 |
+| 错引文 | value=呕吐，quote=今天呕吐（原文不存在） | 拒绝 | /items/1/fields/0，quote_not_in_source |
+| 删除字段否定 | value=呕吐，quote=没有呕吐 | /items拒绝 | /items/0/fields/0，negation_scope |
+| 裁去引用否定 | value/quote=呕吐，前文为没有 | /items拒绝 | /items/0/fields/0，negation_prefix |
+| 遗漏否定事实 | 仅value/quote=恶心 | /items拒绝 | /items，negated_fact_coverage，sourceIndex/factIndex/page；不存在被遗漏的item，不编造item索引 |
+| 新增模型事实 | value=发热，quote为完整原话 | 拒绝 | /items/2/fields/0，value_not_in_quote |
+
+**取证安全契约**：只有已通过现有accountId/memberId权限验证的请求，显式设置`syntheticReplay=negation-nausea-v1`，且原文逐字等于上面的固定合成句、task=record、无附件/已有草稿ID、timezone=Asia/Shanghai、实际发送的existingContext为空，才允许捕获。其他原文/上下文在模型调用前拒绝；普通请求不附回放。只在成功响应的syntheticReplay或失败响应的error.syntheticReplay返回该固定任务的结构化模型输出、来源、参考日期/时区、requestId及hash；不记录到console或服务端草稿/正式用户数据，不返回headers、密钥、账户/成员ID或完整HTTP响应。模型仍真实调用原Provider，捕获不影响校验判定，没有生产测试替身。schema和24KB限制/疑似凭据过滤也应用于捕获；来源校验失败仍不能保存。
+
+`scripts/replay-ai-synthetic.mjs <capture.json>`只读取64KB以内合成包并离线重跑原来源/否定/时间链路，校验输入白名单和hash，不调用网络；原模型body没有保留时不得制造该requestId对应的“原响应fixture”。`scripts/ai-synthetic-demos.mjs`生成7个人工对照到忽略的outputs目录，与实际捕获明确标记区分。
+
+**下一轮最小取证预算1次**：`scripts/capture-production-ai-synthetic.mjs`有显式ONE_CALL_AUTHORIZED门槛，复用隔离验收会话，在新虚构成员用手机UI提交固定合成句并开启上述诊断。无论成功/失败，取得这一次响应即停止，不保存正式记录、不执行图片/摘要，重试0。合成结构化包保存在忽略的`outputs/bailian-ai/synthetic-capture/captured-response.json`，随后可离线找出具体item/quote/value再修校验；模型请求ID须与安全provider日志相互核对。脚本准备完成但本轮未执行；不沿用旧4次脚本继续探测，不改密钥/消费设置。
 
 ## 8. 既有 5 项 high 审计（单独后续任务，不运行 audit fix）
 
