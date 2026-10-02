@@ -3,7 +3,7 @@ import sharp from 'sharp'
 import { fingerprint, fail } from './contract.mjs'
 import { pdfPageImage } from './pdf-page-image.mjs'
 
-const ocrSchema={type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}}
+export const ocrSchema={type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}}
 // Printed pagination is evidence, not an inferred page count. Documents without
 // readable pagination remain explicitly unverified rather than 'complete'.
 export function documentPageWarnings(sources){
