@@ -1,4 +1,4 @@
-import { OpenAIProvider } from './providers/openai-provider.mjs'
+import { createAudioProvider } from './providers/provider-factory.mjs'
 import { MedicalSummaryError } from './medical-summary-service.mjs'
 
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
@@ -24,7 +24,7 @@ function validateAudio(input) {
 
 export class AudioTranscriptionService {
   constructor(options = {}) {
-    this.provider = Object.prototype.hasOwnProperty.call(options, 'provider') ? options.provider : (process.env.OPENAI_API_KEY ? new OpenAIProvider(options) : null)
+    this.provider = Object.prototype.hasOwnProperty.call(options, 'provider') ? options.provider : createAudioProvider('ASR', options)
     const configured=Number(options.maxCallsPerHour??process.env.AI_ASR_MAX_CALLS_PER_HOUR??60)
     this.maxCallsPerHour=Number.isInteger(configured)&&configured>0&&configured<=1000?configured:60
     this.calls=new Map()

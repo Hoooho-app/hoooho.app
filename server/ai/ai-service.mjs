@@ -1,13 +1,14 @@
 import { assertRawInput, normalizeHealthAIOutput, projectOrganizedHealthData } from './ai-types.mjs'
 import { LocalFactProvider } from './providers/local-fact-provider.mjs'
-import { OpenAIProvider } from './providers/openai-provider.mjs'
+import { createAIProvider } from './providers/provider-factory.mjs'
+import { withAIAccount } from './providers/call-control.mjs'
 import { TimeResolverService } from './time-resolver-service.mjs'
 import { TimeContextResolver } from './time-context-resolver.mjs'
 
 export class AIService {
   constructor(options = {}) {
     this.fallbackProvider = options.fallbackProvider ?? new LocalFactProvider()
-    this.primaryProvider = options.primaryProvider ?? (process.env.OPENAI_API_KEY ? new OpenAIProvider(options) : null)
+    this.primaryProvider = options.primaryProvider ?? createAIProvider(options)
     this.timeResolver = options.timeResolver ?? new TimeResolverService()
     this.timeContextResolver = options.timeContextResolver ?? new TimeContextResolver({ timeResolver: this.timeResolver })
   }
@@ -19,9 +20,9 @@ export class AIService {
     if (this.primaryProvider) {
       try {
         provider = this.primaryProvider
-        result = await provider.organize(input)
+        result = await withAIAccount(options.accountId, () => provider.organize(input))
       } catch (error) {
-        console.warn('[Hoooho AI] primary provider failed, using conservative fallback', error?.code ?? error?.message)
+        console.warn('[Hoooho AI] primary provider failed, using conservative fallback', error?.code ?? 'AI_PROVIDER_ERROR')
         provider = this.fallbackProvider
       }
     }

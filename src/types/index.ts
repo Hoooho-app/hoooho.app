@@ -143,7 +143,7 @@ export interface MedicalPreparationSummaryApiDto {
     overview: string
     keyPoints: string[]
     missingInformation: string[]
-    provider: 'openai'
+    provider: 'openai' | 'bailian'
     model: string
   }
 }

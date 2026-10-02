@@ -38,7 +38,7 @@ export class EventAttachmentService {
     await this.assertEventOwnership(accountId, eventId)
     let prepared
     try { prepared = await validateHealthImage(input) } catch (error) { throw new EventAttachmentError(error.message, error.status, error.code) }
-    const analysis = await this.imageAnalysis.analyze({ id: `draft:${prepared.contentHash}`, ...prepared, createdAt: now.toISOString() }, now)
+    const analysis = await this.imageAnalysis.analyze({ id: `draft:${prepared.contentHash}`, ...prepared, createdAt: now.toISOString() }, now, accountId)
     const draft = { status: analysis.status, analysis, contentHash: prepared.contentHash, width: prepared.width, height: prepared.height,
       canConfirm: analysis.status === 'completed' || analysis.status === 'needs_confirmation' }
     if (draft.canConfirm) this.drafts.set(this.draftKey(accountId, eventId, prepared.contentHash), { ...draft, expiresAt: now.getTime() + this.draftTtlMs })

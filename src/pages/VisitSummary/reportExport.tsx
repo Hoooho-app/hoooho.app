@@ -17,7 +17,7 @@ export function summaryText(report:VisitSheet) {
     `Hoooho 就诊情况单 · ${report.member.name} · v${report.version}`,
     `资料截至 ${report.dataAsOf}；生成 ${report.generatedAt}；报告编辑 ${report.editedAt||report.generatedAt}；时区 ${report.timezone}`,
     '重点摘要：不包含全部原文和照片，不是完整档案。',
-    ...(report.aiSummary?.provider === 'openai' ? [
+    ...(report.aiSummary && ['openai', 'bailian'].includes(report.aiSummary.provider) ? [
       '\nAI 病情摘要（固定生成快照）：', report.aiSummary.overview,
       ...report.aiSummary.keyPoints, ...report.aiSummary.missingInformation.map(line => `待核对：${line}`),
       ...(report.aiSummaryStale ? ['资料已变化，此 AI 摘要尚未重新生成。'] : [])
@@ -53,7 +53,7 @@ function copyReport(report:VisitSheet,resources:ExportResources):VisitSheet {
   const mapBlock=(b:VisitSheet['chapters'][number]['blocks'][number])=>({title:b.title,lines:b.lines,distribution:b.distribution,distributionNote:b.distributionNote,locations:b.locations,unit:b.unit,chartMode:b.chartMode,secondary:b.secondary,related:b.related,sourceIds:b.sourceIds.map(id),points:b.points?.map(p=>({...p,sourceId:id(p.sourceId)})),entries:b.entries?.map(e=>({...e,sourceIds:e.sourceIds.map(id)}))})
   return {
     id:'local-copy', memberId:'local-subject',version:report.version, member:report.member,
-    aiSummary:report.aiSummary?.provider==='openai'?report.aiSummary:undefined,aiSummaryStale:report.aiSummaryStale,
+    aiSummary:report.aiSummary&&['openai','bailian'].includes(report.aiSummary.provider)?report.aiSummary:undefined,aiSummaryStale:report.aiSummaryStale,
     timezone:report.timezone,dataAsOf:report.dataAsOf,generatedAt:report.generatedAt,editedAt:report.editedAt,fingerprint:'',scope:report.scope,
     focus:{...report.focus,...(report.focus.sourceId?{sourceId:id(report.focus.sourceId)}:{})},complaint:report.complaint,complaintSourceId:report.complaintSourceId?id(report.complaintSourceId):null,
     focusSourceIds:report.focusSourceIds.map(id),range:report.range,question:report.question,questionEdited:report.questionEdited,questionOrigin:report.questionOrigin,questionSourceIds:report.questionSourceIds?.map(id),notes:report.notes,
