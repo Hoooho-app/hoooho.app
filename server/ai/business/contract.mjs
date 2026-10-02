@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { TimeResolverService } from '../time-resolver-service.mjs'
 import { validateJournal } from '../../events/journal-metadata.mjs'
+import { outputFailure } from '../providers/output-diagnostics.mjs'
 
 export const categories = ['diet','sleep','elimination','activity','emotion','social','symptom','measurement','growth','injury','medication','care','vaccination','environment','visit','examination','other']
 export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','ABC_A','ABC_B','ABC_C','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
@@ -20,18 +21,18 @@ export function bodyLocations(raw) {
 
 // A schema is not a factual validator. Every extracted value must be supported
 // by an exact quote in a supplied source, not by the model's confidence score.
-export function validateExtraction(output, sources) {
+function validateExtractionContent(output, sources) {
   if (!output || !Array.isArray(output.items) || output.items.length > 30) throw fail('整理结果格式无效，未更新草稿')
   if(output.items.length===30)throw fail('结果已达到单批事项上限，请分批核对，未将可能遗漏的内容保存为完整结果',422,'AI_SOURCE_LIMIT')
   return output.items.flatMap((item, index) => {
     if (Object.keys(item).some(key => !['category','title','timeText','fields','archiveCategory','subject','relationKey'].includes(key))) throw fail('整理结果包含不允许的字段')
     if (!categories.includes(item.category) || !['current','other','unknown'].includes(item.subject) || !Array.isArray(item.fields) || item.fields.length > 50) throw fail('记录分类或主体无效')
     if (item.subject !== 'current') return []
-    const fields = item.fields.map(field => {
+    const fields = item.fields.map((field,fieldIndex) => {
       if (!fieldNames.includes(field.name) || !Number.isInteger(field.page) || field.page < 1) throw fail('字段或来源位置无效')
       const source = sources.find(source => source.id === field.sourceId && source.page === field.page)
       const quote = safeText(field.quote, 4000), value = safeText(field.value, 4000)
-      if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw fail('部分内容与原文不一致，请核对，未保存生成结果', 422, 'AI_EVIDENCE_MISMATCH')
+      if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw Object.assign(outputFailure('部分内容与原文不一致，请核对，未保存生成结果','source_validation',`/items/${index}/fields/${fieldIndex}`,'source_mismatch','AI_EVIDENCE_MISMATCH'),{status:422})
       if(/没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查/.test(quote)&&!/(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查)/.test(value))throw fail('否定或不确定性被遗漏，请核对',422,'AI_EVIDENCE_MISMATCH')
       if(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','ABC_A','doctorStatement','conclusion'].includes(field.name)){
         const position=source.text.indexOf(quote),prefix=source.text.slice(Math.max(0,position-8),position).split(/[，。；\n,;.!]/).at(-1)
@@ -46,6 +47,14 @@ export function validateExtraction(output, sources) {
     if (item.archiveCategory != null && !archiveCategories.includes(item.archiveCategory)) throw fail('归档栏目无效')
     return [{ id: `item-${index + 1}`, category: item.category, title: fields[0].value.slice(0,80), timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
   })
+}
+
+export function validateExtraction(output,sources){
+  try{return validateExtractionContent(output,sources)}catch(error){
+    if(error.validation)throw error
+    const safe=outputFailure(error.message,error.code==='AI_EVIDENCE_MISMATCH'?'source_validation':'semantic_validation','/items',error.code==='AI_EVIDENCE_MISMATCH'?'source_mismatch':'invalid_extraction',error.code??'AI_BUSINESS_INVALID')
+    safe.status=error.status??422;throw safe
+  }
 }
 
 export function resolveItemTime(item, options) {
@@ -112,7 +121,7 @@ export function mergeItems(items) {
 export const extractionSchema = {
   type:'object', additionalProperties:false, required:['items'], properties:{items:{type:'array',maxItems:30,items:{
     type:'object',additionalProperties:false,required:['category','title','timeText','fields','archiveCategory','subject','relationKey'],properties:{
-      category:{type:'string',enum:categories},title:{type:'string'},timeText:{type:['string','null']},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null']},
+      category:{type:'string',enum:categories,description:'按事实类型而非上传形式分类。身体症状、否定症状观察属于symptom；examination必须有真实检查项目/结果，visit必须是就诊事实。仅有症状原话不能分类为检查。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。只有来源未说时间或存在未解决时间冲突才为null。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null']},
       fields:{type:'array',maxItems:50,items:{type:'object',additionalProperties:false,required:['name','value','sourceId','quote','page'],properties:{name:{type:'string',enum:fieldNames},value:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},page:{type:'integer'}}}
     }
   }}}}

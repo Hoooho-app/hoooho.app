@@ -24,7 +24,7 @@
     "test:records": "node --test server/events/health-event-record-service.test.mjs",
     "test:health-changes": "node --test server/events/health-change-annotation-service.test.mjs",
     "test:ai": "node --test server/ai/health-record-organization-service.test.mjs server/ai/providers/openai-provider.test.mjs server/ai/medical-summary-service.test.mjs",
-    "test:ai:bailian": "node --test server/ai/providers/bailian-provider.test.mjs",
+    "test:ai:bailian": "node --test server/ai/providers/bailian-provider.test.mjs server/ai/providers/output-diagnostics.test.mjs",
     "test:e2e:bailian": "playwright test --config tests/bailian-ai/playwright.config.ts",
     "test:ai:business": "node --test server/ai/business/*.test.mjs",
     "test:e2e:ai-business": "playwright test --config tests/ai-business/playwright.config.ts",

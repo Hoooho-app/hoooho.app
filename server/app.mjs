@@ -922,8 +922,8 @@ const server = createServer(async (request, response) => {
     const code = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
     const safeAI = error instanceof MedicalSummaryError || error instanceof SafeAIProviderError || error instanceof AudioTranscriptionError
     const message = status >= 500 && !(error instanceof AuthError) && !safeAI ? '服务器暂时不可用' : error.message
-    if (status >= 500) {
-      if (safeAI) console.error('[Hoooho AI] request failed', { code, status, ...error.upstream, ...error.failureCodes })
+    if (status >= 500 || (safeAI&&error.validation)) {
+      if (safeAI) console.error('[Hoooho AI] request failed', JSON.stringify({ code, status, ...error.upstream, ...error.failureCodes,...(error.validation?{validation:error.validation}:{}) }))
       else console.error(error)
     }
     sendJson(response, status, { error: { code, message, ...(error?.details ?? {}) } })
