@@ -165,6 +165,9 @@ not label deployment N/A or use an HTTP200 as full functional acceptance.
 
 ## Actual release evidence (2026-10-02)
 
+The following initial attempt is historical; the follow-up below supersedes its
+network/configuration status, not its physical-device acceptance boundary.
+
 - Runtime candidate commit: `9f5ad71b16ac7e17f48c3fd52c025ffd4f17d8a3`.
 - Branch: `codex/continuity-v3-20261002`; remote SHA verified equal to local.
 - Draft PR: https://github.com/Hoooho-app/hoooho.app/pull/282.
@@ -200,3 +203,41 @@ synthetic source material and simulated ASR/OCR remain explicitly distinguished.
 Overall release status: BLOCKED, not DONE. Required next steps are restoring
 access to the existing Staging HTTPS endpoint, configuring an authorized Staging
 AI provider, running live acceptance, then main/Production integration and checks.
+
+## Authorized Staging configuration and live follow-up (2026-10-02)
+
+- An independent key created through the secure Platform picker was configured
+  only to Railway Staging via stdin, after explicit human authorization. The
+  exposed chat credential was not used. No Production secret was changed/copied.
+- Staging redeployment `e41cd325-e3fa-4fb0-9b95-45cd889723e6` reached SUCCESS.
+  Its CLI-source metadata has no commit SHA; this is not a deployed-SHA claim.
+- Background Chrome reached the actual HTTPS service, unlike Node/Playwright
+  request clients. The verifier now uses real same-origin browser fetch without
+  substitutes. Public entry/lazy-report assets contain the new case-scope code.
+- Live synthetic acceptance passed health, raw save, observation feedback,
+  equal six-card geometry, three-class manual source confirmation, and original
+  persistence before recognition. 320/375/390/430/1280 screenshots were captured.
+- One real OCR request reached the provider but failed with `insufficient_quota`
+  in sanitized Railway diagnostics. This is a billing/usage gate, not a missing
+  key or transient rate-limit assumption. Original draft pages survived; the
+  verifier removed only its own draft/member. It did not alter billing/limits.
+- The live report exposed an enabled-structured-mode defect: record creation
+  dropped initial case identity before recomputation, which cleared raw titles
+  when no structured facts existed. A failing regression reproduced this.
+  Optional case metadata now persists before recomputation; raw-case titles
+  remain source-backed, without changing legacy non-case summary behavior.
+- The added enabled-mode regression also proves pending external claims produce
+  no health facts and the same case can generate a correctly scoped report.
+  No parser/prompt/schema/diagnostic rule was changed.
+- Fresh checks: client 550/550; guest 21/21; server 198/199 (FAIL in unchanged
+  Operations snapshot-history test, also reproduced on detached baseline main);
+  relevant AI/visit/case tests 83/83; organization/summary/case/visit tests 36/36;
+  parser evaluation 30/30 (no change); build/typecheck/asset guards PASS;
+  enabled-mode case browser suite 8/8; whitespace check PASS. Lint N/A.
+- `HOOOHO_CONTINUITY_AI_BLOCKED_REASON=insufficient_quota` is an explicitly
+  qualified non-AI rerun mode after the recorded provider failure. It never marks
+  real OCR PASS and never retries the billing block. The verifier exits nonzero
+  while AI/physical-device acceptance remains blocked.
+- Live partial ASR, physical iOS camera, and notification delivery remain NOT
+  VERIFIED. Browser fixtures cannot satisfy them. Human acceptance or explicit
+  changed release scope is required; Production release remains gated.

@@ -8,15 +8,32 @@ import { FamilyMemberRepository } from '../members/repositories/family-member-re
 import { CaseContinuityService } from './case-continuity-service.mjs'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
+import { VisitSheetService } from '../visit-sheets/visit-sheet-service.mjs'
 
-async function fixture(t) {
+async function fixture(t, options = {}) {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(),'hoooho-continuity-synthetic-'))
   t.after(() => rm(dataDirectory,{recursive:true,force:true}))
   const members = new FamilyMemberRepository(dataDirectory), member = await members.create({accountId:'synthetic-account',name:'合成测试人物',relationship:'other'})
   let instant = new Date('2026-10-02T08:00:00Z')
-  const service = new CaseContinuityService({dataDirectory,now:()=>instant})
+  const service = new CaseContinuityService({dataDirectory,now:()=>instant,...options})
   return { service, members, member, now:value=>{instant=new Date(value)}, capture:(extra={})=>service.capture('synthetic-account',member.id,{text:'合成示例：皮肤变化',requestId:crypto.randomUUID(),occurredAt:instant.toISOString(),files:[],...extra}) }
 }
+
+test('结构化开关开启时，无事实原话和待核对资料不清空情况标题，情况单仍可生成', async t => {
+  const f = await fixture(t, { structuredMode:'enabled' })
+  const narrative='合成示例，非真实患者资料：记录皮肤变化，原因未明确。'
+  const saved=await f.capture({text:narrative})
+  const originalTitle=narrative.slice(0,30)
+  assert.equal((await f.service.events.get('synthetic-account',saved.eventId)).title,originalTitle)
+  const pending=await f.capture({eventId:saved.eventId,text:'合成示例：外部AI说咳嗽、发热，来源尚未核对',identity:'pending'})
+  assert.equal((await f.service.events.get('synthetic-account',saved.eventId)).title,originalTitle)
+  const organization=(await f.service.records.organizations.repository.findByEventId(saved.eventId)).find(item => item.recordId===pending.recordId)
+  assert.deepEqual(organization.healthAIOutput.facts,[])
+  const sheets=new VisitSheetService({dataDirectory:f.service.directory,now:()=>new Date('2026-10-02T08:00:00Z')})
+  const report=await sheets.save('synthetic-account',f.member.id,{expectedVersion:0,requestId:'raw-case-report',focus:{mode:'custom',text:originalTitle,caseEventId:saved.eventId},selection:{eventIds:[saved.eventId],includeBackground:false}})
+  assert.equal(report.report.complaint,originalTitle)
+  assert.deepEqual(report.report.selection.eventIds,[saved.eventId])
+})
 
 test('拍照原件先进入既有AI草稿；无模型也可保存、恢复并核对；跨成员草稿拒绝', async t => {
   const f = await fixture(t), png = await sharp({create:{width:60,height:60,channels:3,background:'#e8f5ee'}}).png().toBuffer()

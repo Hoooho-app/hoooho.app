@@ -357,11 +357,20 @@ export class HealthRecordOrganizationService {
     const rawOrganizations = knownOrganizations ?? await this.repository.findByEventId(eventId)
     const organizations = this.#publicOrganizations(rawOrganizations)
     const eventSummary = buildHealthEventSummary({ event, records, organizations, now })
+    // Raw-first case titles are source text, not a projection of parsed facts.
+    // During initial capture caseTracking is set after record creation, so the
+    // record metadata must also guard against a no-facts recompute clearing it.
+    const rawCase = event.caseTracking || records.some(record => record.caseContext)
+    const caseTitle = rawCase ? event.title?.trim() || [...records]
+      .sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      .find(record => record.caseContext)?.content?.trim().slice(0,30) || '待整理的情况' : null
     if (!eventSummary) {
-      if (!event.eventSummary && !event.title) return event
-      return this.events.update(eventId, { title: '', eventSummary: null }, now)
+      const title = caseTitle ?? ''
+      if (!event.eventSummary && event.title === title) return event
+      return this.events.update(eventId, { title, eventSummary: null }, now)
     }
-    if (event.title === eventSummary.displayedResult.title && JSON.stringify(event.eventSummary) === JSON.stringify(eventSummary)) return event
-    return this.events.update(eventId, { title: eventSummary.displayedResult.title, eventSummary }, now)
+    const title = caseTitle ?? eventSummary.displayedResult.title
+    if (event.title === title && JSON.stringify(event.eventSummary) === JSON.stringify(eventSummary)) return event
+    return this.events.update(eventId, { title, eventSummary }, now)
   }
 }

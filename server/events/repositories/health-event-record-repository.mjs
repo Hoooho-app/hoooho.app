@@ -21,6 +21,7 @@ export class HealthEventRecordRepository {
       accountId: input.accountId,
       eventId: input.eventId,
       type: input.type,
+      ...(input.caseContext === undefined ? {} : { caseContext: input.caseContext }),
       ...(input.journal === undefined ? {} : { journal: input.journal }),
       content: input.content,
       occurredAt: input.occurredAt,
