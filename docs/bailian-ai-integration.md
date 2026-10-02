@@ -149,6 +149,12 @@
 
 ## 8. 既有 5 项 high 审计（单独后续任务，不运行 audit fix）
 
+### 2026-10-03 持续业务验收授权（覆盖前文单次/首败即结束约束）
+
+新增供应商HTTP请求总预算12、自动重试0、最多3轮修复发布。先文字取证/确认保存，再固定哈希合成PNG的OCR/抽取/确认保存，再同一虚构成员摘要/文本与HTML导出；业务校验失败留证据、离线修复后继续，鉴权/额度/权限或持续网络故障停止外部调用。本任务不扩展ASR/TTS。
+
+第一请求（本任务1/12）：HTTP400/INVALID_JOURNAL_SYMPTOM，旧捕获只在error.validation存在时附输出，导致journal映射错误未捕获，不据此猜事实根因。补齐所有业务错误的固定合成包出口、离线journal映射回放，以及仅固定PNG SHA256可启用的OCR/抽取阶段证据：进程内Symbol能力、不进入请求body/日志、24KB/疑似凭据过滤、成员权限和空existingContext检查。普通请求无原文日志或回放，校验判断不放宽。详细本任务预算与实际结果持续保存在忽略的outputs/bailian-ai/continuous-acceptance。
+
 本轮 npm audit 仍为 5 high、0 critical。13 个新增包来自锁定的 PDF.js/Canvas 平台依赖及 Ajv 的直接声明；**既有包版本未升级**。
 
 | 依赖 | 影响 | 后续建议 |

@@ -14,6 +14,7 @@ import { AIBusinessService } from '../business/service.mjs'
 import { prepareDocuments, recognizePage } from '../business/documents.mjs'
 import { FamilyMemberRepository } from '../../members/repositories/family-member-repository.mjs'
 import { MedicalSummaryService } from '../medical-summary-service.mjs'
+import {syntheticEvidenceProof} from '../business/synthetic-evidence-proof.mjs'
 
 const baseUrl='https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
 const env={AI_PROVIDER:'bailian',BAILIAN_API_KEY:'synthetic-credential',BAILIAN_BASE_URL:baseUrl}
@@ -24,6 +25,16 @@ const success=value=>Response.json({id:`chatcmpl-${requestId}`,choices:[{finish_
 const provider=(fetchImpl,extras={})=>new BailianProvider({env,fetchImpl,logger:silent,...extras})
 const modelFor=(fetchImpl,extras={})=>new BusinessModel({provider:provider(fetchImpl,extras),logger:silent})
 const structured=model=>model.structured({task:'synthetic',schema,instructions:'只整理资料',input:'SYNTHETIC_MEDICAL_INPUT'})
+
+test('仅进程内白名单能力允许捕获schema失败的内容；不进入供应商请求或日志',async()=>{
+ const traces=[],logs=[];let body
+ const model=modelFor(async(_url,init)=>{body=JSON.parse(init.body);return success({text:12})},{logger:{info:(...a)=>logs.push(a),warn:(...a)=>logs.push(a)}})
+ const options={task:'synthetic',schema,instructions:'test',input:'test',onSyntheticOutput:e=>traces.push(e)}
+ await assert.rejects(()=>model.structured({...options,syntheticEvidence:true}),{code:'AI_OUTPUT_INVALID'});assert.equal(traces.length,0)
+ await assert.rejects(()=>model.structured({...options,syntheticEvidence:syntheticEvidenceProof}),{code:'AI_OUTPUT_INVALID'})
+ assert.equal(traces.length,1);assert.equal(traces[0].structuredText,'{"text":12}');assert.equal(traces[0].requestId,requestId)
+ assert.equal(body.syntheticEvidence,undefined);assert.equal(body.onSyntheticOutput,undefined);assert.doesNotMatch(JSON.stringify(logs),/structuredText/)
+})
 
 test('配置默认北京 qwen3.7-plus；兼容 Base URL 与 endpoint 不混用，拒绝不安全/外域/凭据/原生接口',()=>{
   assert.equal(bailianConfiguration({env}).model,'qwen3.7-plus')
