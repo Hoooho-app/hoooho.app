@@ -28,6 +28,11 @@ async function api(url,data,method='POST') {
   return response.body
 }
 async function screenshot(name) {
+  if(name.startsWith('home-')) {
+    await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
+    await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
+    await expect(page.locator('.nurse-home-entry--desensitization')).toContainText('0 个测试任务')
+  }
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   const file=path.join(output,name+'.png');await page.screenshot({path:file});result.screenshots.push(file)
 }

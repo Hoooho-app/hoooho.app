@@ -241,3 +241,35 @@ AI provider, running live acceptance, then main/Production integration and check
 - Live partial ASR, physical iOS camera, and notification delivery remain NOT
   VERIFIED. Browser fixtures cannot satisfy them. Human acceptance or explicit
   changed release scope is required; Production release remains gated.
+
+### Post-fix Staging evidence
+
+- Runtime fix commit `ad1d87d7e75734f050a11c281b078935dfe19156` was pushed to
+  the existing candidate branch/PR282, not merged into main.
+- Staging candidate upload `e913bb0d-5ddc-475c-8337-74f4df39fa2d` reached
+  SUCCESS. Again, CLI metadata provides no deployed commit hash. New public entry
+  `/assets/index-Dk8b2OAs.js` and report chunk `index-kd18vQl8.js` were inspected;
+  actual raw-title behavior was then verified over HTTPS.
+- Live non-AI rerun (12:13:55–12:14:39 UTC) passed health, raw save, observation
+  feedback, six-card geometry, three-class manual material confirmation, original
+  persistence, correctly scoped report/download, and archive/restore-to-paused.
+  Runtime errors 0, non-AI HTTP5xx 0; synthetic draft/member removed successfully.
+- The downloaded synthetic HTML was separately rendered offline at iPhone SE:
+  real complaint visible, no runtime errors, no horizontal overflow, no Bearer
+  token. This run selected zero photos and accurately exports their index only;
+  embedded-original export coverage remains the local selected-photo regression,
+  not this live download. Its fresh copy UUID is not a clinical/internal source ID.
+- Some home captures happened while profile/task requests were still loading.
+  Their geometry assertion is valid but they are not final loaded-profile/count
+  screenshots. Future captures now wait for the profile and both true zero-task
+  labels. That capture-only adjustment has not been rerun (normal registration
+  safety limiter was respected, not bypassed).
+- AI was NOT retried after confirmed `insufficient_quota`; real OCR remains
+  BLOCKED. The verifier intentionally exits nonzero despite its non-AI passes.
+- Production deployment remains `08ee5fc1-e63e-4384-80fa-4a330d6eea35`, SUCCESS,
+  commit `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`, equal to remote main.
+  Fresh browser checks: `/` HTTP200, `/api/health` ok. No candidate deployment,
+  Production secret change, dangerous data operation, or main integration occurred.
+- Overall status: BLOCKED by provider quota and required physical-device
+  acceptance. The follow-up evidence/documentation does not change the runtime
+  artifact and must not trigger a redundant upload of the same candidate.
