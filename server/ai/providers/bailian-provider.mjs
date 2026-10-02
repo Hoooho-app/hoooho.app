@@ -4,6 +4,7 @@ import { OpenAIProvider } from './openai-provider.mjs'
 import { bailianConfiguration, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
+import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
@@ -68,31 +69,33 @@ export class BailianProvider extends OpenAIProvider {
             const message = messages[upstream.failureKind] ?? '百炼整理服务暂不可用；原内容与旧摘要仍保留'
             throw Object.assign(configurationError(message, `AI_BAILIAN_${upstream.failureKind.toUpperCase()}`), { upstream, publicAIMessage: message })
           }
+          upstream = safeOpenAIErrorDetails({ httpStatus:response.status,requestId:response.headers?.get('x-request-id')??response.headers?.get('x-dashscope-request-id'),retryAfter:response.headers?.get('retry-after') })
           let result
-          try { result = await response.json() } catch { throw configurationError('百炼返回格式无效；原内容未更新', 'AI_OUTPUT_INVALID') }
+          try { result = await response.json() } catch { throw outputFailure('百炼返回格式无效；原内容未更新','response_unpack','/','invalid_json') }
+          if(!result||typeof result!=='object'||Array.isArray(result))throw outputFailure('百炼响应外层结构无效；原内容未更新','response_unpack','/','invalid_envelope')
           upstream = safeOpenAIErrorDetails({ httpStatus: response.status, requestId: response.headers?.get('x-request-id') ?? response.headers?.get('x-dashscope-request-id') ?? result.request_id, retryAfter: response.headers?.get('retry-after') })
           const choice = result.choices?.[0]
-          if (choice?.finish_reason === 'length') throw configurationError('百炼输出达到长度上限，请缩小资料范围；原内容未更新', 'AI_OUTPUT_INCOMPLETE')
+          if (choice?.finish_reason === 'length') throw outputFailure('百炼输出达到长度上限，请缩小资料范围；原内容未更新','output_truncation','/choices/0/finish_reason','length_limit','AI_OUTPUT_INCOMPLETE')
           if (choice?.message?.refusal || choice?.finish_reason === 'content_filter') throw configurationError('这份资料暂不能识别，仍可手动记录', 'AI_REFUSAL')
-          if (choice?.finish_reason !== 'stop' || choice?.message?.tool_calls || typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw configurationError('没有获得完整可用的百炼结果；原内容未更新', 'AI_OUTPUT_EMPTY')
+          if (choice?.finish_reason !== 'stop' || choice?.message?.tool_calls || typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw outputFailure('没有获得完整可用的百炼结果；原内容未更新','response_unpack','/choices/0/message/content','missing_content','AI_OUTPUT_EMPTY')
           let value
-          try { value = JSON.parse(choice.message.content) } catch { throw configurationError('百炼输出不是有效 JSON；原内容未更新', 'AI_OUTPUT_INVALID') }
+          try { value = JSON.parse(choice.message.content) } catch { throw outputFailure('百炼输出不是有效 JSON；原内容未更新','json_parse','/choices/0/message/content','invalid_json') }
           const schemaKey = createHash('sha256').update(JSON.stringify(format.schema)).digest('hex')
           let validate = validators.get(schemaKey)?.validate
           if (!validate) {
             if (validators.size >= 32) { const [key, cached] = validators.entries().next().value; validator.removeSchema(cached.schema); validators.delete(key) }
             validate = validator.compile(format.schema); validators.set(schemaKey, { validate, schema: format.schema })
           }
-          if (!validate(value)) throw configurationError('百炼输出未通过结构校验；原内容未更新', 'AI_OUTPUT_INVALID')
+          if (!validate(value)) {const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]);throw outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)}
           const diagnostics = { provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true }
-          this.logger.info('[Hoooho AI] provider usage', diagnostics)
+          this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })
         } catch (error) {
           const codes = safeOpenAIFailureCodes(error)
           const safe = error?.code?.startsWith('AI_') ? error : configurationError(codes.transportCode === 'TIMEOUT' || codes.transportCode === 'ABORTED' ? '百炼请求超时或已取消；原内容与旧摘要仍保留' : '百炼连接暂不可用；原内容与旧摘要仍保留', codes.transportCode === 'TIMEOUT' ? 'AI_TIMEOUT' : 'AI_NETWORK_ERROR')
           if (upstream) safe.upstream = upstream
-          this.logger.warn('[Hoooho AI] provider failed', { provider: this.name, model, task, elapsedMs: Date.now() - started, success: false, ...upstream, ...codes, code: safe.code })
+          this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({ provider: this.name, model, task, elapsedMs: Date.now() - started, success: false, ...upstream, ...codes, code: safe.code,...(safe.validation?{validation:safe.validation}:{}) }))
           throw safe
         }
       }, options.env)

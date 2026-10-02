@@ -11,6 +11,7 @@ export class MedicalSummaryError extends Error {
     super(cause instanceof SafeAIProviderError ? cause.message : message, safeCause ? { cause: safeCause } : undefined)
     this.status = 503
     this.code = code
+    if(cause instanceof SafeAIProviderError&&cause.validation)this.validation=cause.validation
     if (upstream) {
       this.upstream = upstream
       this.failureCodes = failureCodes
@@ -39,7 +40,7 @@ export class MedicalSummaryService {
       }
     } catch (error) {
       const failure = new MedicalSummaryError('AI 病情摘要暂时没有生成成功，请稍后重试。', 'AI_MEDICAL_SUMMARY_UNAVAILABLE', error)
-      this.logger.warn('[Hoooho AI] medical summary failed', { ...failure.upstream, ...failure.failureCodes })
+      this.logger.warn('[Hoooho AI] medical summary failed', { ...failure.upstream, ...failure.failureCodes,...(failure.validation?{validation:failure.validation}:{}) })
       throw failure
     }
   }

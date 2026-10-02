@@ -1,24 +1,26 @@
 # Hoooho 百炼接入追踪与主环境验收
 
-本报告逐项核对 `ai-business-integration.md` 原 20 项编号（不是补造新 20 项）。发布基线：远端 `production/main` 的 `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`，包含上一轮 AI 业务提交。工作分支从该基线创建，没有合入未知功能分支。当前用户明确授权 **Production 主环境，不使用 Staging**。
+本报告逐项核对 `ai-business-integration.md` 原 20 项编号（不是补造新 20 项）。最初百炼接入基线为 `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`；2026-10-03 质量修复基线为远端 `production/main` 的 `effbfb0bc62602aa7da607032df7501e1ad7e0b0`，包含已发布的百炼与账号隔离补丁。保留现有分支及提交，没有合入未知功能分支。当前用户明确授权 **Production 主环境，不使用 Staging**。
+
+真实调用累计 **2 次**（bailian / qwen3.7-plus）：文字已收到真实响应，但分类/日期质量未达标；图片上游 HTTP 200，应用 `AI_OUTPUT_INVALID`。真实摘要和 AI 导出**未执行**。本轮质量修复的真实模型请求 **0 次**，仅离线测试；发布修复不等于真实复验通过。Production 现有密钥、Base URL、文字/图片模型与消费限制原值保留，不再要求重新配置。
 
 状态定义：**已完成**=相应代码/文档已落实；**代码验证通过**=本地替身/回归通过，不能代表真实调用；**真实调用验证通过**=收到百炼真实响应并核对供应商与诊断；**主环境验证通过**=已发布版本的实际隔离账号业务验收通过。未达到后两种状态不得称 AI 全部接通。
 
 ## 1. 原 20 项追踪表
 
-所有百炼模型项：本地采用替身验证；真实调用和主环境模型验收均待新配置及当前免费额度确认。确定性项不新增模型调用。ASR/TTS 单列，不用文字模型伪装实现。
+所有百炼模型项：本地采用替身验证；真实验收状态逐项如下，不将收到 HTTP 200 等同业务通过。用户已确认有可用额度，工具未读取阿里云私有余额/限额。确定性项不新增模型调用。ASR/TTS 单列，不用文字模型伪装实现。
 
 | 原编号 | 功能与已有入口 | 实际 Provider / OpenAI 专属依赖 | 本次适配及验证范围 | 当前限制 / 尚需配置 |
 | --- | --- | --- | --- | --- |
-| 01 | 健康随记→就诊情况单→病情摘要、重生成、版本与导出 | OpenAI Responses → 可切 Bailian Chat；本地事实独立 | 共用原摘要提示词、来源/不确定性校验和保存事务；百炼显示/文本/离线 HTML；失败保留旧版 | 百炼新密钥、兼容 Base URL；真实/主环境摘要待验 |
+| 01 | 健康随记→就诊情况单→病情摘要、重生成、版本与导出 | Production Bailian Chat；保留 OpenAI Responses 与本地事实 | 共用原摘要提示词、来源/不确定性校验和保存事务；百炼显示/文本/离线 HTML；失败保留旧版 | 配置已保存；真实摘要、AI 文本/HTML 导出未执行；本地导出已通过 |
 | 03 | 情况单可编辑复制给 AI 的问诊提示词 | 本地确定性模板，无专属接口 | 复用保存报告与复制机制，零新增模型调用 | 外部医生/其他 AI 的回答不属于本项目接入结果 |
-| 04 | 草稿时间解析、病程整理 | 字段抽取可百炼；TimeResolver 本地规则 | 原始时间、未知精度、时区、来源与过去时间约束回归 | 不以创建/上传时间补成发病时间 |
-| 05 | 健康随记“智能记录”文字草稿 | OpenAI Responses → Bailian Chat | 严格 schema；确认后保存、编辑、失败原稿保留 | 百炼配置与真实文字验收待完成 |
+| 04 | 草稿时间解析、病程整理 | 字段抽取百炼；TimeResolver 本地规则 | 修复原文明确日期被遗漏；参考日期/用户时区、日级精度和来源保留，冲突拒绝保存 | 历史真实“今天”未提取；离线修复通过，真实复验待执行；不以保存时间代替发病时间 |
+| 05 | 健康随记“智能记录”文字草稿 | Production Bailian Chat，OpenAI 保留 | 严格 schema；确认后保存、编辑、失败原稿保留；分类元数据校正与否定保留检查 | 真实响应已有，但“恶心”误归检查，文字质量未达标；本轮离线修复通过，待真实复验 |
 | 06 | 智能记录录音→文字 | 独立 OpenAI `/audio/transcriptions` | 保留现有 ASR；百炼模式默认 none，不使用旧 OpenAI 密钥 | 百炼 ASR **未接通**；qwen3.7-plus 无此能力，需另确认 ASR 供应商/模型/接口/权限 |
-| 07 | 草稿补充问题和跳过 | 百炼抽取 + 本地最多 3 个必要问题规则 | 原有多轮编辑/历史及跳过保留，不新增问答聊天系统 | 百炼配置；问题不是诊断建议 |
+| 07 | 草稿补充问题和跳过 | 百炼抽取 + 本地最多 3 个必要问题规则 | 原有多轮编辑/历史及跳过保留，不新增问答聊天系统 | 配置已保存，真实多轮路径未验；问题不是诊断建议 |
 | 08 | 多事项分类、一次确认保存 | 百炼抽取 + 本地枚举/事务 | 严格结构、引用、幂等与重复提交、全量回滚 | 限 30 项，不静默漏存 |
 | 10 | 睡眠、排便、户外等表单预填 | 百炼提取；时长等后台确定性计算 | 原 journal 结构复用，不把统计改由模型生成 | 缺失字段保持未知 |
-| 11 | 图片、单页/多页 PDF 资料识别 | OpenAI input_file/input_image → 百炼图片输入 | PDF 在后端逐页转 PNG，保留原文件/页码/hash；逐页 OCR 再抽取；缺页/冲突待确认 | 12 文件/12 页/15 MB；真实图片待验；复杂 PDF 仍需人工核对，不公开原件 |
+| 11 | 图片、单页/多页 PDF 资料识别 | OpenAI input_file/input_image → 百炼图片输入 | PDF 后端逐页转 PNG，原件/页码/hash保留；补齐 OCR 输出契约与分阶段安全诊断；严格校验未放宽 | 真实一页 OCR 失败，未进入后续抽取；原响应未保留，具体 JSON/schema 子因待证据；12 文件/12 页/15 MB |
 | 12 | 报告、处方、病历→就诊记录 | 同一百炼 OCR/抽取链 | 原诊断、药名、原剂量/单位、医生陈述及用户确认，保留旧手动入口 | 识别不清须待确认；不自行开药或修改剂量 |
 | 13 | 健康档案/过敏资料历史归档 | 百炼抽取 + 本地归档 | 复用现有栏目、来源附件与归档冲突确认，成员隔离 | 无明确事实不新增确诊/住院栏目 |
 | 14 | 重复资料、合并、保存与撤销 | 本地规则，不调用模型 | 原哈希/引用合并/异日和冲突并列/撤销保护回归 | 用户保存后又修改的记录不由撤销删除 |
@@ -48,6 +50,8 @@
 
 项目 **creative-nurturing** → 环境 **production** → 后端服务 **hoooho.app** → **Variables**。所有变量均为该服务的后端环境变量，无 `VITE_` 前缀。任何变更需 Apply Changes 并触发该服务重新部署/启动后生效；运行进程不热读取新值。
 
+当前已配置并收到真实百炼响应。本轮仅检查存在性与安全边界，**不写入或重新配置任何变量**。下表保留作为配置契约，不是新的用户操作要求。
+
 | 精确变量名 | 必填/默认 | 用户填写值或说明 |
 | --- | --- | --- |
 | `AI_PROVIDER` | 开启百炼必填 | `bailian`。可选 `openai`/`local`；不设置时保留旧逻辑：存在 OpenAI 密钥则 OpenAI，否则 local |
@@ -69,19 +73,15 @@
 
 保留 OpenAI 服务端变量 `OPENAI_API_KEY/OPENAI_BASE_URL/AI_MODEL/AI_DRAFT_MODEL/AI_VISION_MODEL/ASR_MODEL/AI_SPEECH_MODEL`，本次不删除/输出/轮换旧密钥。百炼模式不读取旧文字/图片模型变量。ASR/TTS `none` 是明确未配置，不标称语音接通。
 
-## 4. 免费额度与一次性用户确认
+## 4. 免费额度与配置状态
 
-已连接工具没有读取阿里云当前私有免费额度与停止开关的能力；未声称已检查余额或额度。配置后真实调用前，请用户一次性确认：
-
-1. 在上述 Railway Production 后端 Variables 填入新 key、自己的兼容 Base URL 与表中供应商/两种模型值，Apply Changes；不要把 key 发回聊天。
-2. 访问[北京免费额度页](https://bailian.console.aliyun.com/cn-beijing/costing-balance/free-quota)，刷新，搜索 **qwen3.7-plus**：核对模型 Code、剩余 Token、到期时间、状态、**免费额度用完即停仍为已开启**。只需告知余量/有效期/已开启，截图必须遮住凭据。不以旧截图推断仍有 100 万。
-3. 在[北京模型广场](https://bailian.console.aliyun.com/cn-beijing/model/market)确认当前业务空间有该模型访问权限。专门的验收账号仅创建虚构家庭成员/记录，不上传真实儿童资料。
+已连接工具没有读取阿里云当前私有免费额度与停止开关的能力；未声称已检查余额或额度。用户已确认可用额度，Production 已有新密钥与兼容 Base URL 且收到真实响应，本轮不重复索要配置、网络或鉴权确认。额度未来变动可在[北京免费额度页](https://bailian.console.aliyun.com/cn-beijing/costing-balance/free-quota)查看模型 Code、剩余 Token、到期时间、状态及“免费额度用完即停”；权限入口为[北京模型广场](https://bailian.console.aliyun.com/cn-beijing/model/market)。本轮没有读取这些私有字段，也不根据旧截图编造余量。
 
 **50 元余额不是消费硬上限**。免费额度即停可防继续按量调用，但会让生产 AI 在额度耗尽/过期后中断；普通记录、本地整理、导出仍可用。预算预警只通知，不能等同停止。不会为绕过停止开关自动切模型、切供应商、充值或提高消费限额。阿里云说明开关同步存在延迟，须确认已生效后再验收。[官方规则](https://help.aliyun.com/zh/model-studio/new-free-quota)
 
 ## 5. 主环境验收（真实调用预算最多 4 次，首个失败即停）
 
-部署 adapter 本身不发送模型请求。待用户完成配置/免费额度确认后再执行，每次没有自动重试：
+本轮发布/验证不发送模型请求。修复后下一轮最小完整真实复验预算如下：最多 **4 次**（文字1 + 图片OCR/抽取2 + 摘要1），自动重试 **0 次**，首个失败即停；不是本轮执行记录：
 
 1. 专门验收账号下虚构孩子 A：合成文字“今天没有呕吐，只是恶心”→可核对草稿→确认保存，**1 次**；核对 supplier=bailian、model=qwen3.7-plus、供应商请求标识（若供应商不返回则如实说明）。
 2. 不含个人信息的合成资料 PNG→一页 OCR→结构化草稿→用户确认保存，**2 次**。合成图片只能含虚构资料/标明测试，不能借真实儿童报告。
@@ -97,16 +97,29 @@
 
 - Canonical：`https://github.com/Hoooho-app/hoooho.app.git`，Git remote **production**（origin 是外层文档库），正式发布源 **main**。
 - Railway 项目 `d8855fe3-c785-4b8c-825b-bdb10a941850`，Production 环境 `68b9b73f-1401-4658-a315-6d333ec31728`，服务 `aa308ba0-d7da-4771-9c94-ccdcd110f636`（hoooho.app），入口 `https://hoooho.com`，持久卷 `/data`。
-- 发布前生产：Deployment `08ee5fc1-e63e-4384-80fa-4a330d6eea35`，SUCCESS，提交 `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`。本次无数据库迁移，无生产数据覆盖/清库。
-- 本地检查→secret/front/history 检查→聚焦 commit→push `codex/bailian-ai-20261002`→正常 PR 合入远端 main→Railway main 触发 Production→核对 deployed commit/SUCCESS/health/页面和资源。不 force push，不混入未知分支。缺 key 时只部署 adapter，保持原供应商配置，不自动启用百炼或调用旧模型。
-- 配置/模型故障但手动流程健康：可把 `AI_PROVIDER=local` Apply Changes 重新部署，只停外部 AI，不改数据；保留新密钥变量，不复制回聊天。
-- 应用回归：立即停止调用，优先 Railway 在上述旧 SUCCESS Deployment 的菜单执行 **Rollback**。若 CLI 只有 redeploy-latest，不把它误称旧版回滚：创建独立 worktree `git worktree add --detach D:/projects/hoooho/.worktrees/bailian-rollback-ed0d7dcb ed0d7dcb63664eefc71536a19b2c32fa2225e07d`，从该路径执行 `railway up --project d8855fe3-c785-4b8c-825b-bdb10a941850 --service aa308ba0-d7da-4771-9c94-ccdcd110f636 --environment production --detach --message rollback-to-ed0d7dcb`，确认 SUCCESS/旧 commit/health。不删卷，不 reset main。随后通过正常 revert PR 保持 main 与回滚产物一致。
+- 本轮质量修复发布前生产：Deployment `bdfe1572-8d81-4f3f-a64e-49e49ff170c2`，SUCCESS，提交 `effbfb0bc62602aa7da607032df7501e1ad7e0b0`。无数据库迁移，无生产数据覆盖/清库；不修改现有密钥、Base URL、模型、额度/消费限制。
+- 本地检查→secret/front/history 检查→聚焦 commit→push `codex/bailian-ai-20261002`→正常 PR 合入远端 main→Railway main 触发 Production→核对 deployed commit/SUCCESS/health/页面和资源。不 force push，不混入未知分支。本轮只做零模型调用的手动记录/本地整理/导出/成员隔离主环境回归。
+- 应用回归：停止扩大修改，优先对本轮聚焦修复提交创建正常 revert PR 进入 main，重新发布；不改 Provider/变量、不删卷。若需立即恢复旧产物且旧 Deployment 已 REMOVED 或无 Rollback 菜单，使用独立干净 worktree：`git worktree add --detach D:/projects/hoooho/.worktrees/bailian-rollback-effbfb0b effbfb0bc62602aa7da607032df7501e1ad7e0b0`；在该路径执行 `railway up --project d8855fe3-c785-4b8c-825b-bdb10a941850 --service aa308ba0-d7da-4771-9c94-ccdcd110f636 --environment production --detach --message rollback-to-effbfb0b`，核对 SUCCESS、产物来自该旧提交及 health。随后正常 revert PR 保持 main/生产一致。不 reset main，不重置数据库；回滚不重写既有用户记录。
 
 ## 7. 验证记录
 
-已通过：百炼专项 10/10；AI/业务/附件/摘要相关领域综合 **119/119**（包含百炼专项）；客户端 **549/549**；百炼手机 E2E **8/8**（后端 mock，仅表示代码验证）；原 OpenAI 手机业务 **9/9**（含独立语音链路）、摘要 **1/1**；TypeScript PASS；生产 build 与已有 viewport/auth/install-assets guards PASS；LocalFactProvider 30/30、匹配 48/48，无 parser 变更。后续部署证据补入发布记录，不将本地截图当生产模型成功。
+2026-10-03 本轮离线验证：AI/业务/附件/摘要/百炼/OpenAI/时间/来源及 parser 相关综合 **187/187 PASS**；客户端 **549/549 PASS**；百炼 iPhone SE E2E **9/9 PASS**（后端 mock，包含分类/时间校正→确认→保存→撤销，保存不增加模型调用）；TypeScript 与生产 build/viewport/auth/install-assets guards PASS；diff check PASS。新增质量与诊断测试 **22/22** 包含在综合测试中。LocalFactProvider P0 **30/30、48/48 匹配**，修复前后无退化；65项症状追踪回归全部通过。本轮无独立 lint 命令（N/A），未升级依赖。
 
-全量服务端：198/199；既有 `ops-service.test.mjs` 固定 2026-09-02 样例在当前时间超过 30 天，`history()` 按真实现在保留期清除失败快照，测试还期待失败快照首位。main 中该服务/测试与本次零差异，原 AI 工作树亦独立复现 10/11。此项不是 AI 回归，未删除/跳过/弱化测试，未夹带 Operations 修复；完整服务器检查如实标 FAIL（已知基线问题）。无独立 lint 命令，N/A（项目未提供）；不是假称 lint PASS。
+新增病例基于合成输入及重建的供应商测试替身：修复前同组9例 **1通过/8失败**，修复后9例全通过，另加2例时间/否定边界；覆盖否定、今天/昨天/昨日、跨午夜、上海/洛杉矶时区、多症状、分事项日期、时间冲突、未说时间不补保存时刻、明确检查不改分类。协议诊断另覆盖响应解包、JSON解析、schema required/type/enum/额外字段、截断、精确来源字段路径和未知字段脱敏。**真实响应回放0例**：历史原始响应未保留，不将重建替身称为原响应复现。主环境不注入这些替身。
+
+历史真实请求记录：`d88b51db-959e-9abf-a687-c69daa04f37c`（文字响应，质量未过）、`bcc450ac-b8da-95ad-820f-29dc33eeb6ad`（图片HTTP200，应用失败）。累计真实2次，首个失败停止；图片后续抽取、真实摘要、AI导出均未执行。以前的本地生产手动记录/本地导出/孩子隔离通过，不代表AI真实验收通过。
+
+此前全量服务端：198/199（既有基线 FAIL）；本轮只运行与修复相关的综合回归，未重复全量服务端。既有 `ops-service.test.mjs` 固定 2026-09-02 样例在当前时间超过 30 天，`history()` 按真实现在保留期清除失败快照，测试还期待失败快照首位。main 中该服务/测试与本次零差异，原 AI 工作树亦独立复现 10/11。未删除/跳过/弱化测试，未夹带 Operations 修复；不把相关测试通过写成全量服务器通过。
+
+### 7.1 两项问题的证据与修复边界
+
+**图片**：读取本地 `outputs/bailian-ai/production-bailian-acceptance-20261003.md` 与脱敏 provider 证据，历史错误同时具备 HTTP200/AI_OUTPUT_INVALID。当时代码只在解包 JSON 成功之后设置 HTTP状态；错误可定位为 `choices[0].message.content` 的 **JSON解析或Ajv结构校验** 两个子阶段之一，不能进一步判定哪个字段。缺内容对应 AI_OUTPUT_EMPTY，截断对应 AI_OUTPUT_INCOMPLETE；资料页尚未进入来源/语义校验。没有保留本次合成资料完整上游响应，不能声称复现真实原响应。旧日志没有阶段/路径，Ajv原因被统一错误码丢弃，导致无法再精确追溯。官方确认qwen3.7-plus支持json_schema，故不假设兼容协议需换成另一接口或宽松格式。
+
+本次补齐固定OCR `text:string/status:readable|uncertain|blank` 明确指令，**不更改严格schema，不剥离代码围栏、不加默认值、不接受不合格输出**；新增安全诊断 `validation.stage/fieldPath/reason` 覆盖解包、JSON、schema、来源、语义及截断。日志单行JSON保留requestId/HTTP状态/Token等已有元数据，路径只取固定schema字段及索引，未知键脱敏，绝不输出Ajv原始message/data/JSON异常原文。无“模型再修一次”请求。此次可确认修复的是诊断与指令契约缺口，历史图片具体子因仍待下一轮真实证据。
+
+**文字**：真实截图展示“检查”和未知时间；现有前端按服务端category/time忠实展示。原schema只有分类枚举、缺身体症状分类规则；领域层接受“只有symptom字段的examination”以及显式日期被遗漏的null，未利用来源核对这些元数据。既有LocalFactProvider可识别“没有呕吐”为否定、“恶心”为阳性并提取“今天”，TimeResolver能按参考日期/时区解析日范围。因此修复服务层提示词及领域元数据一致性，而非重做页面或特判单句。
+
+经严格原文引用校验后，仅当全部字段属于症状字段且没有检查字段时校正误分类；日期只从同句、同页、唯一原话及已有本地解析取得，按草稿的referenceNow/timezone解析并保留原文、日精度和来源。保存的occurredAt是既有存储契约中的日范围锚点，来源time.precision=day/resolvedStart/resolvedEnd明确不是编造发病时刻。不跨句继承时间；冲突拒绝保存。否定已存在则保留，模型漏掉否定事实则拒绝，不自动补生成临床字段。确认后保存、成员隔离、事务/幂等、失败保留草稿及旧摘要沿用原流程；可追溯categoryResolution/timeResolution保存在既有aiProvenance中。
 
 收尾补齐旧事件分享摘要入口：再次校验当前事件的成员归属、将账号传入模型限流、保留已脱敏的错误类型供页面反馈。补丁相关事件/摘要/百炼回归 21/21（含新增成员失效零调用案例）；未重复运行与该后端补丁无关的客户端/build。
 
