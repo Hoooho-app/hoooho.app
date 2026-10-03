@@ -24,6 +24,8 @@ test('HP首页实机尺寸、顺序与全部真实入口，失败数量不伪装
   await expect(page.getByText(/暂未开放|更多健康档案|家族遗传史/)).toHaveCount(0)
   for(const [width,height] of [[375,667],[320,667],[390,844],[430,932],[1280,800]]){
     await page.setViewportSize({width,height});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+    await expect(smart.locator('small br')).toHaveCount(0)
+    if(width>=375)expect(await smart.locator('small').evaluate(el=>el.getBoundingClientRect().height/parseFloat(getComputedStyle(el).lineHeight))).toBeLessThan(1.1)
     const button=page.locator('.health-profile-smart-record');const box=await button.boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(height)
     expect(await page.locator('.health-profile-entry').evaluateAll(rows=>rows.every(r=>r.getBoundingClientRect().height>=44))).toBe(true)
     await page.screenshot({path:`outputs/health-profile/home-${width}.png`,fullPage:true})
