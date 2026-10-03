@@ -220,10 +220,10 @@ export function NurseStationPage() {
 }
 
 const fixedHomeEntries = [
-  { id: 'diary', title: '健康随记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
-  { id: 'profile', title: '健康档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
   { id: 'visit', title: '就诊情况单', subtitle: '就诊前，一页理清病情', image: visitSummaryImage, to: '/visit-summary' },
   { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: '/dietary-card' },
+  { id: 'diary', title: '健康随记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
+  { id: 'profile', title: '健康档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
 ] as const
 
 type HomeEntry = { id: string; title: string; subtitle: string; image: string; to: string }

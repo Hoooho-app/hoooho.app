@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-example-typewriter-20261004/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-followup-header-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -30,10 +30,16 @@ async function api(url, data, method = 'POST') {
   return response.body
 }
 async function home(name) {
+  await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
+  await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
   await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
-  await expect(page.locator('.continuity-home h2')).toHaveCount(0)
+  await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
+  await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒'])
+  const header = await page.locator('.continuity-record-entry__header').evaluate(el => { const title=el.querySelector('strong'),link=el.querySelector('a'),t=title.getBoundingClientRect(),l=link.getBoundingClientRect();return {weight:getComputedStyle(title).fontWeight,size:getComputedStyle(title).fontSize,linkSize:getComputedStyle(link).fontSize,right:t.right,left:l.left} })
+  assert.equal(header.weight, '700');assert.equal(header.size, '14px');assert.equal(header.linkSize, header.size);assert.ok(header.right < header.left)
   await expect(page.getByText('还没有正在跟进的情况', { exact: true })).toHaveCount(0)
   const example = page.locator('.continuity-record-entry__example')
   await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
@@ -80,7 +86,7 @@ try {
   memberId = (await api('/api/members', { name: '合成首页验收，非真实患者', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
   await api('/api/auth/current-member', { memberId })
   await page.goto(base + '/nurse-station')
-  await expect(page.getByRole('link', { name: '0件 · 查看列表 ›', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
   for (const width of [375, 320, 390, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
@@ -95,30 +101,39 @@ try {
   }
   result.checks.remainingEntryNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry
+  const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
-  await expect(entry.locator('button,a,input,textarea')).toHaveCount(0)
-  await expect(entry.locator('.continuity-record-entry__example')).toContainText('例如：')
+  await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
+  await expect(entry.locator('.continuity-record-entry__example')).not.toContainText('例如：')
   assert.equal((await entry.boundingBox()).height, 108)
-  await entry.locator('strong').click()
+  const title = (await entry.locator('strong').boundingBox())
+  await page.mouse.click(title.x + title.width / 2, title.y + title.height / 2)
   await expect(page).toHaveURL(base + '/smart-record')
   await page.goBack()
   await button.focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
-  await page.getByRole('textbox', { name: '发生了什么（主诉）？' }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
-  await page.getByRole('button', { name: '先保存', exact: true }).click()
-  await page.getByRole('button', { name: '确认保存', exact: true }).click()
+  await page.getByRole('textbox', { name: '哪里不舒服' }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
   result.checks.quickNoteTextAndKeyboardSave = 'PASS'
   await page.goto(base + '/nurse-station')
-  await expect(page.locator('.continuity-card')).toHaveCount(1)
+  await expect(page.locator('.continuity-card')).toHaveCount(0)
   await home('home-one-case-375')
-  await page.getByRole('link', { name: '1件 · 查看列表 ›', exact: true }).click()
+  await page.getByRole('link', { name: '跟进列表', exact: true }).click()
   await expect(page).toHaveURL(base + '/cases')
   await expect(page.locator('.continuity-card')).toHaveCount(1)
-  result.checks.followUpCardAndListRetained = 'PASS'
+  const listScreenshot = path.join(output, 'follow-up-list-375.png')
+  await page.screenshot({ path: listScreenshot, fullPage: true })
+  result.screenshots.push(listScreenshot)
+  await page.goBack()
+  await expect(page).toHaveURL(base + '/nurse-station')
+  await page.getByRole('link', { name: '跟进列表', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(base + '/cases')
+  await expect(page.locator('.continuity-card')).toHaveCount(1)
+  result.checks.homePreviewsRemovedAndListRetained = 'PASS'
   assert.equal(result.runtimeErrors, 0)
   assert.equal(result.http5xx, 0)
 } catch (error) {

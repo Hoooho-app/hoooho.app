@@ -15,7 +15,7 @@ test('首页输入框式速记入口是单一按钮，鼠标键盘进入原记�
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toBeVisible()
   await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
-  await page.goBack();await button.locator('strong').click();await expect(page).toHaveURL(/\/smart-record$/)
+  await page.goBack();const title=(await page.locator('.continuity-record-entry strong').boundingBox())!;await page.mouse.click(title.x+title.width/2,title.y+title.height/2);await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
 
@@ -34,14 +34,14 @@ test('资料原件加载前禁用来源编辑，迟到响应不能覆盖人工�
   const records=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json();expect(records.find((r:any)=>r.id===saved.recordId).caseContext.identity).toBe('external_ai')
  } finally {release();await request.delete(`/api/records/${saved.recordId}`,{headers});await request.delete(`/api/events/${saved.eventId}`,{headers})}
 })
-test('首页0/1/3/4件、最多三条、五卡等尺寸、归档及成员隔离',async({page,request})=>{
-  await initialize(page);await page.goto('/nurse-station');await expect(page.getByRole('link',{name:'0件 · 查看列表 ›',exact:true})).toBeVisible();await expect(page.locator('.continuity-home h2')).toHaveCount(0);await expect(page.getByText('还没有正在跟进的情况',{exact:true})).toHaveCount(0);await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
-  const ids=[];for(let n=1;n<=4;n++){ids.push((await capture(request,`合成示例，非真实患者资料：第${n}次皮肤变化`)).eventId);await page.reload();await expect(page.locator('.continuity-home .continuity-card')).toHaveCount(Math.min(n,3))}
-  await expect(page.getByRole('link',{name:'查看全部 4 件 ›'})).toBeVisible()
+test('首页不预览0/1/3/4件，原跟进列表保留全部记录、归档及成员隔离',async({page,request})=>{
+  await initialize(page);await page.goto('/nurse-station');await expect(page.getByRole('link',{name:'跟进列表',exact:true})).toBeVisible();await expect(page.locator('.continuity-home h2')).toHaveCount(0);await expect(page.getByText('还没有正在跟进的情况',{exact:true})).toHaveCount(0);await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
+  const ids=[];for(let n=1;n<=4;n++){ids.push((await capture(request,`合成示例，非真实患者资料：第${n}次皮肤变化`)).eventId);await page.reload();await expect(page.locator('.continuity-home .continuity-card')).toHaveCount(0);await page.getByRole('link',{name:'跟进列表',exact:true}).click();await expect(page.locator('.continuity-card')).toHaveCount(n);await page.goBack()}
+  await expect(page.getByRole('link',{name:'跟进列表',exact:true})).toBeVisible();await expect(page.locator('.continuity-home')).not.toContainText('4件');await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单','忌口出示卡','健康随记','健康档案','用药提醒'])
   for(const width of [320,375,390,430,1280]){await page.setViewportSize({width,height:width===320?568:667});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const sizes=await page.locator('.nurse-home-entry').evaluateAll(cards=>cards.map(c=>({w:c.getBoundingClientRect().width,h:c.getBoundingClientRect().height})));expect(sizes).toHaveLength(5);expect(new Set(sizes.map(s=>s.h)).size).toBe(1);expect(Math.max(...sizes.map(s=>s.w))-Math.min(...sizes.map(s=>s.w))).toBeLessThan(1)}
   await page.setViewportSize({width:375,height:667});await page.screenshot({path:'outputs/continuity-v3/home-375.png',fullPage:true});await page.locator('.nurse-home-entry').last().scrollIntoViewIfNeeded();await page.screenshot({path:'outputs/continuity-v3/home-five-entries-375.png'})
-  await request.post(`/api/members/empty-child/cases/${ids[0]}/archive`,{headers,data:{archived:true}});await page.reload();await expect(page.getByRole('link',{name:'查看已归档 1 件 ›'})).toBeVisible();await page.getByRole('link',{name:'查看已归档 1 件 ›'}).click();await expect(page.getByRole('button',{name:'已归档 1'})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.continuity-card')).toHaveCount(1)
-  expect((await request.get('/api/members/child-a/cases',{headers})).status()).toBe(200)
+  await request.post(`/api/members/empty-child/cases/${ids[0]}/archive`,{headers,data:{archived:true}});await page.reload();await expect(page.locator('.continuity-home .continuity-card')).toHaveCount(0);await page.getByRole('link',{name:'跟进列表',exact:true}).click();await expect(page.locator('.continuity-card')).toHaveCount(3);await page.getByRole('button',{name:'已归档 1'}).click();await expect(page.getByRole('button',{name:'已归档 1'})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.continuity-card')).toHaveCount(1)
+  const other=await request.get('/api/members/child-a/cases',{headers});expect(other.status()).toBe(200);expect((await other.json()).active.some((c:any)=>ids.includes(c.event.id))).toBe(false)
   await page.goto('/food-allergy-status-index');await expect(page.getByText('指数功能已停止。原有记录仍然保留。')).toBeVisible()
 })
 test('三类合成原件→待确认→人工来源核对；不强制观察；实际存储与原件可读',async({page,request})=>{
@@ -78,9 +78,9 @@ test('当前情况报告显式选择范围、保留时间、原件离线且无�
   await page.getByRole('button',{name:'导出情况单',exact:true}).click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'保存完整离线报告（HTML）',exact:true}).click();const path=info.outputPath('scoped-offline.html');await(await download).saveAs(path);const html=await readFile(path,'utf8');expect(html).toContain(png.toString('base64'));expect(html).not.toContain(a.eventId);expect(html).not.toContain(b.eventId);expect(html).not.toContain('Bearer');expect(html).toContain('合成范围A');expect(html).toContain('合成范围B')
 })
 
-test('首页加载失败不假显示零并支持重试',async({page,request})=>{
-  await initialize(page);let listFailure=true;await page.route('**/api/members/empty-child/cases?*',route=>listFailure?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成加载故障'}})}):route.continue())
-  await page.goto('/nurse-station');await expect(page.locator('.continuity-home [role="alert"]')).toContainText('情况暂未加载');await expect(page.getByText('还没有正在跟进的情况')).toHaveCount(0);listFailure=false;await page.locator('.continuity-home').getByRole('button',{name:'重试',exact:true}).click();await expect(page.locator('.continuity-card').first()).toBeVisible()
+test('首页不请求情况预览，列表加载失败仍提示并支持重试',async({page,request})=>{
+  await initialize(page);let listFailure=true,listRequests=0;await page.route('**/api/members/empty-child/cases?*',route=>{listRequests++;return listFailure?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成加载故障'}})}):route.continue()})
+  await page.goto('/nurse-station');await expect(page.getByRole('link',{name:'跟进列表',exact:true})).toBeVisible();expect(listRequests).toBe(0);await page.getByRole('link',{name:'跟进列表',exact:true}).click();await expect(page.getByText('列表未加载',{exact:true})).toBeVisible();await expect(page.getByText('还没有正在跟进的情况')).toHaveCount(0);listFailure=false;await page.getByRole('button',{name:'重试',exact:true}).click();await expect(page.locator('.continuity-card').first()).toBeVisible()
 
 })
 
