@@ -31,7 +31,7 @@ await writeFile(path.join(dataDirectory, 'health-event-records.json'), JSON.stri
   ...examples.map(([clock, content, category], index) => ({ ...base, id: `record-${index}`, eventId: 'event-one', type: 'note', content, occurredAt: `${day}T${clock}:00+08:00`, sourceType: 'user_record', journal: { categories: [category] } })),
   { ...base, id: 'other-child-record', eventId: 'event-two', type: 'note', content: '隔离对象专属记录', occurredAt: `${day}T09:30:00+08:00` }
 ] }))
-process.env.PORT = '4194'
+process.env.PORT = process.env.HOOOHO_TIME_VIEW_PORT ?? '4194'
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'development'
 process.env.DATA_DIRECTORY = dataDirectory

@@ -16,8 +16,7 @@ async function prepare(page:Page,member='child-one') {
   await expect(page.getByRole('button',{name:'记录日常',exact:true})).toBeEnabled()
 }
 async function diet(page:Page) {
-  await page.getByRole('button',{name:'记录日常',exact:true}).click()
-  await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:'喂养/饮食'}).click()
+  await page.locator('.journal-record-actions').getByRole('button',{name:'喂养/饮食',exact:true}).click()
   return page.getByRole('dialog',{name:'喂养/饮食',exact:true})
 }
 async function shot(page:Page,name:string) {await mkdir('outputs/record-entry',{recursive:true});await page.screenshot({path:`outputs/record-entry/${name}.png`})}
@@ -35,12 +34,12 @@ async function save(page:Page,form:ReturnType<Page['getByRole']>) {
 for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and direct flows at ${width}`,async({page})=>{
   await page.setViewportSize({width,height:width===1280?900:667});await prepare(page)
   const footer=page.locator('.journal-record-actions')
-  await expect(footer.locator('.record-entry-grid button')).toHaveText(['记录症状','记录日常','记录补剂','记录用药'])
+  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','记录补给','记录日常','记录用药'])
   for(const button of await footer.locator('button').all())await expect(button).toBeInViewport()
   expect(await footer.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
-  await expect(footer.locator('.record-entry-grid img,.record-entry-grid svg,.record-smart-action svg,.record-smart-action img')).toHaveCount(0)
+  await expect(footer.locator('.record-entry-grid img,.record-entry-grid svg,.record-symptom-action svg,.record-symptom-action img')).toHaveCount(0)
   expect(await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().height))).toEqual([44,44,44,44])
-  expect(await footer.locator('.record-smart-action .hoho-button__content').evaluate(el=>getComputedStyle(el).justifyContent)).toBe('center')
+  expect(await footer.locator('.record-symptom-action .hoho-button__content').evaluate(el=>getComputedStyle(el).justifyContent)).toBe('center')
   const geometry = await page.evaluate(() => {
     const year = document.querySelector('.journal-year-picker')!.getBoundingClientRect()
     const marker = document.querySelector('.journal-timeline-row--now .journal-timeline-marker')!.getBoundingClientRect()
@@ -58,25 +57,84 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await shot(page,`home-${width}`)
   const daily=page.getByRole('button',{name:'记录日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
-  await expect(options.getByRole('button')).toHaveText(['喂养/饮食','睡眠','排便','身体涂抹'])
+  await expect(options.getByRole('button')).toHaveText(['睡眠','排便','身体涂抹'])
+  await expect(options.locator('img')).toHaveCount(3)
+  expect(await options.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(3)
+  const labels=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth))
+  expect(labels).toBe(true)
+  await expect(footer.getByRole('button',{name:'记录症状',exact:true})).toBeInViewport()
   await expect(daily).toHaveAttribute('aria-pressed','true')
   expect((await options.boundingBox())!.y+(await options.boundingBox())!.height).toBeLessThan((await daily.boundingBox())!.y)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await shot(page,`daily-open-${width}`)
   await daily.click();await expect(options).toHaveCount(0)
   await daily.click();await page.getByRole('heading',{name:'健康随记',exact:true}).click();await expect(options).toHaveCount(0)
-  for(const [button,title] of [['记录症状','记录症状'],['记录补剂','记录补剂'],['记录用药','记录用药']]) {
+  for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['记录补给','记录补剂'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     if(title==='记录症状')await form.getByRole('button',{name:'关闭',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
-  for(const [option,title] of [['喂养/饮食','喂养/饮食'],['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]){
+  for(const [option,title] of [['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]){
     await daily.click();await options.getByRole('button',{name:option,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
-  await footer.getByRole('button',{name:'智能记录',exact:true}).click()
-  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(footer.getByRole('button',{name:'智能记录',exact:true})).toHaveCount(0)
+  await expect(daily).toHaveAttribute('aria-pressed','false')
+  await footer.getByRole('button',{name:'记录症状',exact:true}).click()
+  await expect(page.getByRole('dialog',{name:'记录症状',exact:true})).toBeVisible()
+})
+
+test('symptom primary preserves member, occurrence day, locator, return and cancellation without AI navigation',async({page})=>{
+  await prepare(page,'child-two')
+  await page.getByLabel('选择日期').fill('2026-09-24')
+  let posts=0,aiRequests=0
+  page.on('request',r=>{const path=new URL(r.url()).pathname;if(path==='/api/quick-records'&&r.method()==='POST')posts++;if(path.startsWith('/api/ai/'))aiRequests++})
+  const footer=page.locator('.journal-record-actions')
+  await footer.getByRole('button',{name:'记录症状',exact:true}).click()
+  const form=page.getByRole('dialog',{name:'记录症状',exact:true})
+  await expect(form.getByRole('textbox',{name:'发生时间'})).toHaveValue(/^2026-09-24T/)
+  await form.getByRole('button',{name:'选择部位',exact:true}).click()
+  const picker=page.getByRole('dialog',{name:'身体部位定位器'})
+  await expect(picker).toBeVisible()
+  await picker.getByRole('button',{name:'关闭身体部位定位器'}).click()
+  await form.getByLabel('哪里不舒服').fill('合成入口验收手臂发痒')
+  await form.getByRole('button',{name:'关闭',exact:true}).click()
+  await expect(form).toHaveCount(0)
+  expect(posts).toBe(0);expect(aiRequests).toBe(0)
+  await expect(page.getByLabel('选择日期')).toHaveValue('2026-09-24')
+  await footer.getByRole('button',{name:'记录症状',exact:true}).click()
+  await form.getByLabel('哪里不舒服').fill('合成入口验收手臂发痒')
+  await form.getByRole('textbox',{name:'发生时间'}).fill('2026-09-24T10:15')
+  const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/quick-records'&&r.request().method()==='POST')
+  await form.getByRole('button',{name:'保存',exact:true}).click()
+  const result=await response;expect(result.status()).toBe(201)
+  expect(result.request().postDataJSON()).toMatchObject({memberId:'child-two'})
+  expect(new Date(result.request().postDataJSON().occurredAt).toISOString()).toBe('2026-09-24T02:15:00.000Z')
+  const ids=await result.json()
+  await expect(form).toHaveCount(0)
+  await expect(page.locator(`[data-record-id="${ids.recordId}"]`)).toBeVisible()
+  await expect(page.getByLabel('选择日期')).toHaveValue('2026-09-24')
+  expect((await page.request.delete(`/api/records/${ids.recordId}`,{headers:{Authorization:`Bearer ${token}`}})).ok()).toBe(true)
+})
+
+test('legacy journal smart signal and history safely open existing symptom form without converting drafts',async({page})=>{
+  await prepare(page)
+  await page.evaluate(()=>{
+    localStorage.setItem('entry-legacy-smart-draft','untouched synthetic draft')
+    window.dispatchEvent(new CustomEvent('hoooho:manual-record',{detail:{target:'other'}}))
+  })
+  const form=page.getByRole('dialog',{name:'记录症状',exact:true})
+  await expect(form).toBeVisible()
+  await page.evaluate(()=>{
+    const state={...history.state,hooohoRecorder:{...history.state.hooohoRecorder,screen:'ai'}}
+    history.replaceState(state,'');window.dispatchEvent(new PopStateEvent('popstate',{state}))
+  })
+  await expect(form).toBeVisible()
+  expect(await page.evaluate(()=>localStorage.getItem('entry-legacy-smart-draft'))).toBe('untouched synthetic draft')
+  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toHaveCount(0)
+  await form.getByRole('button',{name:'关闭',exact:true}).click()
+  await expect(page.locator('.journal-record-actions')).toBeVisible()
 })
 test('drafts, common food fields, timer pause, reload and no automatic saves',async({page})=>{
   await prepare(page);const form=await diet(page)
@@ -168,7 +226,7 @@ test('short screen anchoring, resize and keyboard segmented navigation',async({p
 
 test('direct supplement preserves dose, saves supplement type and restores edit fields',async({page})=>{
   await prepare(page,'routine-child')
-  await page.getByRole('button',{name:'记录补剂',exact:true}).click()
+  await page.getByRole('button',{name:'记录补给',exact:true}).click()
   const form=page.getByRole('dialog',{name:'记录补剂',exact:true})
   await form.getByLabel('输入补剂名称').fill('合成补剂');await form.getByRole('button',{name:'添加补剂'}).click()
   await form.getByLabel('用量',{exact:true}).fill('2')
@@ -180,4 +238,29 @@ test('direct supplement preserves dose, saves supplement type and restores edit 
   await expect(form.getByLabel('用量',{exact:true})).toHaveValue('2')
   await expect(form.getByRole('button',{name:'粒',exact:true})).toHaveAttribute('aria-pressed','true')
   await expect(form.getByLabel('已添加补剂')).toContainText('合成补剂')
+})
+
+for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['身体涂抹','记录身体涂抹','care'],['记录用药','记录用药','medication']]) test(`reorganized ${entry} saves through its original form for the selected member`,async({page})=>{
+  await prepare(page,'child-two')
+  if(entry==='记录用药')await page.getByRole('button',{name:entry,exact:true}).click()
+  else {await page.getByRole('button',{name:'记录日常',exact:true}).click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:entry,exact:true}).click()}
+  const form=page.getByRole('dialog',{name:title,exact:true})
+  if(category==='care')await form.getByLabel('产品名称（或添加包装照片）').fill('合成保湿产品')
+  if(category==='medication'){await form.getByLabel('药品名称',{exact:true}).fill('合成记录测试药');await form.getByLabel('本次用量').fill('1')}
+  if(category==='elimination')await form.getByRole('button',{name:'糊状',exact:true}).click()
+  const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/quick-records'&&r.request().method()==='POST')
+  await form.getByRole('button',{name:'保存记录',exact:true}).click()
+  const result=await response;expect(result.status()).toBe(201)
+  expect(result.request().postDataJSON()).toMatchObject({memberId:'child-two',journal:{categories:[category]}})
+  const ids=await result.json()
+  await expect(form).toHaveCount(0)
+  await expect(page.locator(`[data-record-id="${ids.recordId}"]`).first()).toBeVisible()
+  expect((await page.request.delete(`/api/records/${ids.recordId}`,{headers:{Authorization:`Bearer ${token}`}})).ok()).toBe(true)
+})
+
+test('shared case capture route remains usable outside the retired journal entry',async({page})=>{
+  await prepare(page)
+  await page.goto('/smart-record')
+  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(page.locator('.journal-record-actions')).toHaveCount(0)
 })
