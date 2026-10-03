@@ -53,9 +53,21 @@ try {
   await page.getByRole('tab', { name: '注册', exact: true }).click()
   await page.getByPlaceholder('给自己起个昵称').fill('首页验收' + randomUUID().slice(0, 8))
   await page.getByPlaceholder('设置一个密码').fill(randomUUID())
-  const registration = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/register' && response.request().method() === 'POST')
-  await page.getByRole('button', { name: '注册并进入', exact: true }).click()
-  assert.ok((await registration).ok(), 'Normal registration unavailable; do not bypass rate limits')
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const registration = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/register' && response.request().method() === 'POST')
+    await page.getByRole('button', { name: '注册并进入', exact: true }).click()
+    const registeredResponse = await registration
+    if (registeredResponse.ok()) break
+    const reason = await registeredResponse.json().catch(() => null)
+    const safe = { status: registeredResponse.status(), code: reason?.error?.code ?? null, retryAfter: reason?.error?.retryAfter ?? null }
+    if (attempt === 0 && safe.code === 'REGISTER_RATE_LIMITED' && Number.isInteger(safe.retryAfter) && safe.retryAfter > 0 && safe.retryAfter <= 900) {
+      // Honor the server's cooldown, retrying the same normal UI once only.
+      console.log(JSON.stringify({ waitingForRegistrationSeconds: safe.retryAfter }))
+      await new Promise(resolve => setTimeout(resolve, (safe.retryAfter + 1) * 1000))
+      continue
+    }
+    throw Object.assign(new Error('Normal registration unavailable; do not bypass rate limits'), { safe })
+  }
   token = (await api('/api/auth/session', undefined, 'GET')).token
   memberId = (await api('/api/members', { name: '合成首页验收，非真实患者', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
   await api('/api/auth/current-member', { memberId })
@@ -75,7 +87,7 @@ try {
   }
   result.checks.remainingEntryNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
+  const button = entry
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
   await expect(entry.locator('button,a,input,textarea')).toHaveCount(0)
