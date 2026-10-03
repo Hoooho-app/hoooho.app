@@ -86,7 +86,7 @@ const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
 // Temporary bounded Production investigation; remove after evidence capture.
 if(process.env.RAILWAY_ENVIRONMENT_NAME==='production' && process.env.ASR_PROVIDER==='bailian') {
-  void Promise.resolve().then(()=>diagnoseBailianNetwork({fetchImpl:createBailianTransport(bailianConfiguration().baseUrl),fetchLabel:'bailian_transport'})).then(report=>console.info('[Hoooho AI] network diagnostic',JSON.stringify(report))).catch(error=>console.warn('[Hoooho AI] network diagnostic failure',JSON.stringify({error:safeNetworkCause(error),frames:[...(error.stack??'').matchAll(/(?:server\/|node:)[A-Za-z0-9_./:-]+:\d+:\d+/g)].slice(0,4).map(match=>match[0]),modelRequests:0})))
+  void Promise.resolve().then(()=>diagnoseBailianNetwork({fetchImpl:createBailianTransport(bailianConfiguration().baseUrl),fetchLabel:'bailian_transport',includeAddressProbes:false})).then(report=>console.info('[Hoooho AI] network diagnostic',JSON.stringify(report))).catch(error=>console.warn('[Hoooho AI] network diagnostic failure',JSON.stringify({error:safeNetworkCause(error),frames:[...(error.stack??'').matchAll(/(?:server\/|node:)[A-Za-z0-9_./:-]+:\d+:\d+/g)].slice(0,4).map(match=>match[0]),modelRequests:0})))
 }
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
