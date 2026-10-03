@@ -8,7 +8,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/nurse-home-quick-note-20261003/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-example-typewriter-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' })
 const context = await browser.newContext({ ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
@@ -27,11 +27,14 @@ async function api(url, data, method = 'POST') {
   return response.body
 }
 async function home(name) {
-  await expect(page.getByRole('button', { name: '速记', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   await expect(page.locator('.continuity-home h2')).toHaveCount(0)
   await expect(page.getByText('还没有正在跟进的情况', { exact: true })).toHaveCount(0)
+  const example = page.locator('.continuity-record-entry__example')
+  await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
+  assert.equal((await page.locator('.continuity-record-entry').boundingBox()).height, 108)
   const sizes = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   assert.equal(sizes.length, 5)
   assert.equal(new Set(sizes.map(card => card.height)).size, 1)
@@ -58,8 +61,8 @@ try {
   await api('/api/auth/current-member', { memberId })
   await page.goto(base + '/nurse-station')
   await expect(page.getByRole('link', { name: '0件 · 查看列表 ›', exact: true })).toBeVisible()
-  for (const width of [375, 390, 430, 1280]) {
-    await page.setViewportSize({ width, height: width === 1280 ? 900 : 667 })
+  for (const width of [375, 320, 390, 430, 1280]) {
+    await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
   }
   result.checks.homeCopyFiveEqualCardsAndResponsive = 'PASS'
@@ -72,10 +75,13 @@ try {
   }
   result.checks.remainingEntryNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry.getByRole('button', { name: '速记', exact: true })
+  const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
-  await entry.getByRole('link', { name: '健康事件随时记 突发情况先记下来', exact: true }).click()
+  await expect(entry.locator('button,a,input,textarea')).toHaveCount(0)
+  await expect(entry.locator('.continuity-record-entry__example')).toContainText('例如：')
+  assert.equal((await entry.boundingBox()).height, 108)
+  await entry.locator('strong').click()
   await expect(page).toHaveURL(base + '/smart-record')
   await page.goBack()
   await button.focus()

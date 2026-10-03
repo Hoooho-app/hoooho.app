@@ -53,7 +53,7 @@ try {
   memberId=(await api('/api/members',{name:'合成验收，非真实患者',relationship:'child',gender:'female',birthday:'2025-01-01'})).id
   await api('/api/auth/current-member',{memberId});await page.goto(base+'/nurse-station');await expect(page.getByRole('link',{name:'0件 · 查看列表 ›',exact:true})).toBeVisible()
   await screenshot('home-empty-320');await page.setViewportSize({width:375,height:667});await screenshot('home-empty-375')
-  await page.getByRole('button',{name:'速记',exact:true}).click();await page.getByRole('textbox',{name:'发生了什么（主诉）？'}).fill('合成示例，非真实患者资料：记录皮肤变化，原因未明确。')
+  await page.getByRole('button',{name:'健康事件随时记，情况速记',exact:true}).click();await page.getByRole('textbox',{name:'发生了什么（主诉）？'}).fill('合成示例，非真实患者资料：记录皮肤变化，原因未明确。')
   await screenshot('smart-record-375');await page.getByRole('button',{name:'先保存',exact:true}).click();await page.getByRole('button',{name:'确认保存',exact:true}).click();await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
   const eventId=page.url().split('/').at(-1);assert.equal((await api(`/api/members/${memberId}/cases`,undefined,'GET')).active.length,1);result.checks.rawSave='PASS'
   await page.getByRole('link',{name:'安排观察',exact:true}).click();await page.getByRole('textbox',{name:'观察什么',exact:true}).fill('合成皮肤变化与照片');await screenshot('observation-plan-375');await page.getByRole('button',{name:'确认安排',exact:true}).click();await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
