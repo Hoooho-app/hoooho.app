@@ -49,9 +49,9 @@ export async function diagnoseBailianNetwork({env=process.env,lookup=dns.lookup.
   report.results.push(await timed('dns',async()=>{addresses=await deadline(lookup(host,{all:true}),timeoutMs);addresses=addresses.filter(a=>net.isIP(a.address)&&[4,6].includes(a.family));return {success:addresses.length>0,addresses}}))
   // At most the first IPv4 and first IPv6, no broad scans or retries.
   for(const target of [addresses.find(a=>a.family===4),addresses.find(a=>a.family===6)].filter(Boolean)){
-    report.results.push(await tlsProbe(host,target,timeoutMs))
+    report.results.push(await timed('tls_probe',()=>tlsProbe(host,target,timeoutMs)))
     report.nonInferenceHTTPAttempts++
-    report.results.push(await httpProbe(url,target,timeoutMs))
+    report.results.push(await timed('http_probe',()=>httpProbe(url,target,timeoutMs)))
   }
   // Same native fetch as the application, twice to observe fresh/reused paths.
   for(let i=0;i<2&&addresses.length;i++){
