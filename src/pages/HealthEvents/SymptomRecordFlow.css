@@ -99,7 +99,7 @@
 .symptom-record-page--brand-white .symptom-heading { display: flex; align-items: center; justify-content: space-between; }
 .symptom-record-page--brand-white .symptom-narrative textarea { resize: none; }
 .symptom-record-page--brand-white .symptom-record-scroll { overflow-x: hidden; touch-action: pan-y; }
-.symptom-record-page--brand-white .symptom-photo-section,
+.symptom-record-page--brand-white .symptom-media-previews,
 .symptom-record-page--brand-white .symptom-supplement-card,
 .symptom-record-page.symptom-record-page--brand-white .occurrence-time-field { padding-block: var(--hoho-space-2); }
 .symptom-record-page.symptom-record-page--brand-white .occurrence-time-control { justify-self: end; max-width: 100%; }
@@ -112,8 +112,8 @@
 .symptom-record-page--brand-white .symptom-segmented-options { border-color: var(--symptom-neutral-border); border-radius: var(--hoho-radius-control); }
 .symptom-record-page--brand-white .symptom-segmented-options button { min-height: var(--hoho-touch-target); border-color: var(--symptom-neutral-border); font-size: 14px; }
 .symptom-record-page--brand-white .symptom-optional-fields textarea { min-height: 72px; }
-.symptom-record-page--brand-white .symptom-photo-section .quick-record-photos { margin-top: var(--hoho-space-2); }
-.symptom-record-page--brand-white .symptom-photo-section .quick-record-photo { border-radius: var(--hoho-radius-small); }
+.symptom-record-page--brand-white .symptom-media-previews .quick-record-photos { margin-top: var(--hoho-space-2); }
+.symptom-record-page--brand-white .symptom-media-previews .quick-record-photo { border-radius: var(--hoho-radius-small); }
 .symptom-record-page--brand-white .symptom-record-save {
   border-color: var(--symptom-neutral-border);
   padding-inline: var(--hoho-space-4);
@@ -129,3 +129,13 @@
   .symptom-record-page--brand-white .symptom-card-heading { flex-wrap: wrap; }
   .symptom-record-page--brand-white .symptom-manual-location { grid-template-columns: minmax(0, 1fr); }
 }
+
+.symptom-record-page--brand-white .symptom-heading h2 { display: flex; align-items: center; gap: var(--hoho-space-2); }
+.symptom-record-page--brand-white .symptom-heading h2 svg { color: rgb(var(--hoho-color-primary)); flex: none; }
+.symptom-record-page--brand-white .symptom-heading h2 span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.symptom-record-page--brand-white .symptom-media-actions { display: grid; grid-template-columns: 1fr 1fr 1.65fr; gap: var(--hoho-space-2); flex-shrink: 0; }
+.symptom-record-page--brand-white .symptom-media-actions button { display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-1); min-height: var(--hoho-touch-target); border: 1px solid var(--symptom-neutral-border); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); padding: var(--hoho-space-2) var(--hoho-space-1); }
+.symptom-record-page--brand-white .symptom-media-actions .symptom-voice-action { background: rgb(var(--hoho-color-primary-soft)); font-size: var(--hoho-font-size-body); margin: 0; }
+.symptom-media-actions button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: 2px; }
+.symptom-media-previews video { width: 100%; height: 100%; object-fit: contain; }
+.quick-record-photo-lightbox video { max-width: 90vw; max-height: 80vh; }

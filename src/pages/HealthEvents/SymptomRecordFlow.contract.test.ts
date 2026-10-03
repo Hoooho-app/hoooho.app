@@ -8,7 +8,7 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return createPortal('), source.indexOf('export function RelatedRecordsSheet'))
-  const labels = ['哪里不舒服？', '症状部位', '照片与附件', '补充信息', '发生时间']
+  const labels = ['症状描述', '传视频', '传照片', '语音输入', '症状部位', '补充信息', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)
@@ -23,7 +23,7 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
   assert.match(source, /useSymptomVoice/)
-  assert.match(source, /voice\.busy \? '结束' : '语音记录'/)
+  assert.match(source, /voice\.busy \? '结束' : '语音输入'/)
   assert.doesNotMatch(formSource, /aria-label="关闭"/)
   assert.match(source, /placeholder="例如：左肘窝"/)
   assert.match(source, /buttonLabel=\{draft\.locations\.length \? '修改' : '选择部位'\}/)
@@ -47,9 +47,9 @@ test('legacy related-record editor remains available outside the simplified crea
 })
 
 test('symptom photos use an isolated six-photo draft and structured real save', () => {
-  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, draftScope === memberId \? 'symptom' : `symptom:\$\{draftScope\}`\)/)
-  assert.match(source, /照片与附件/)
-  assert.match(source, /\$\{photos\.photos\.length\} 张照片/)
+  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, draftScope === memberId \? 'symptom' : `symptom:\$\{draftScope\}`, true\)/)
+  assert.doesNotMatch(source, /照片与附件/)
+  assert.match(source, /videoInputRef/)
   assert.match(source, /photos\.payload\(\)/)
   assert.match(source, /categories: \['symptom'\], symptom: details/)
   assert.match(source, /sessionStorage\.removeItem\(draftKey\(draftScope\)\)/)
