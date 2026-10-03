@@ -7,6 +7,7 @@ import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes 
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
 import {syntheticEvidenceProof,safeSyntheticStage} from '../business/synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from './readable-preview.mjs'
+import {createBailianTransport} from './bailian-transport.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
@@ -34,7 +35,7 @@ export class BailianProvider extends OpenAIProvider {
     this.config = config
     this.requestTimeoutMs = config.timeoutMs
     this.logger = options.logger ?? console
-    const transport = options.fetchImpl ?? fetch
+    const transport = options.fetchImpl ?? createBailianTransport(config.baseUrl)
     this.fetch = async (url, init = {}) => {
       if (url !== `${config.baseUrl}/responses`) throw configurationError('百炼文字模型不能代替语音识别或朗读服务', 'AI_MODALITY_NOT_CONFIGURED')
       const body = JSON.parse(init.body)

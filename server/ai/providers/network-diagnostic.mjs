@@ -33,7 +33,7 @@ const probeTLS=(host,target,timeout)=>new Promise(resolve=>{
 })
 const probeHTTP=(url,target,timeout)=>new Promise(resolve=>{
   const start=Date.now();let phase='tcp',settled=false,tcpMs,tlsMs
-  const request=https.request(url,{method:'HEAD',agent:false,rejectUnauthorized:true,lookup:(_host,_options,callback)=>callback(null,target.address,target.family)},response=>{
+  const request=https.request(url,{method:'HEAD',agent:false,rejectUnauthorized:true,lookup:(_host,options,callback)=>options.all?callback(null,[target]):callback(null,target.address,target.family)},response=>{
     phase='http_headers';response.resume();finish({success:true,httpStatus:response.statusCode})
   })
   const finish=value=>{if(settled)return;settled=true;clearTimeout(timer);request.destroy();resolve({stage:phase,address:target.address,family:target.family,elapsedMs:Date.now()-start,tcpMs,tlsMs,...value})}
@@ -41,7 +41,7 @@ const probeHTTP=(url,target,timeout)=>new Promise(resolve=>{
   request.on('socket',socket=>{socket.once('connect',()=>{tcpMs=Date.now()-start;phase='tls'});socket.once('secureConnect',()=>{tlsMs=Date.now()-start;phase='http_wait'})})
   request.once('error',error=>finish({success:false,error:safeNetworkCause(error)}));request.end()
 })
-export async function diagnoseBailianNetwork({env=process.env,lookup=dns.lookup.bind(dns),tlsProbe=probeTLS,httpProbe=probeHTTP,fetchImpl=fetch,timeoutMs=4000}={}) {
+export async function diagnoseBailianNetwork({env=process.env,lookup=dns.lookup.bind(dns),tlsProbe=probeTLS,httpProbe=probeHTTP,fetchImpl=fetch,fetchLabel='native_fetch',timeoutMs=4000}={}) {
   let config;try{config=bailianConfiguration({env})}catch{return {configurationValid:false,modelRequests:0}}
   const url=new URL(config.baseUrl+'/chat/completions'),host=url.hostname
   const report={time:new Date().toISOString(),host,node:process.version,commit:/^[a-f0-9]{40}$/.test(env.RAILWAY_GIT_COMMIT_SHA??'')?env.RAILWAY_GIT_COMMIT_SHA:null,configuration:{valid:true,keyPresent:!!env.BAILIAN_API_KEY,asrProvider:env.ASR_PROVIDER==='bailian'?'bailian':'other',asrModel:env.BAILIAN_ASR_MODEL==='qwen3-asr-flash'?'qwen3-asr-flash':'other'},autoSelectFamily:net.getDefaultAutoSelectFamily(),familyAttemptTimeoutMs:net.getDefaultAutoSelectFamilyAttemptTimeout(),proxyVariablesPresent:['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','NODE_USE_ENV_PROXY'].filter(k=>!!env[k]),extraCAConfigured:!!env.NODE_EXTRA_CA_CERTS,tlsVerificationDisabled:env.NODE_TLS_REJECT_UNAUTHORIZED==='0',modelRequests:0,nonInferenceHTTPAttempts:0,results:[]}
@@ -56,7 +56,7 @@ export async function diagnoseBailianNetwork({env=process.env,lookup=dns.lookup.
   // Same native fetch as the application, twice to observe fresh/reused paths.
   for(let i=0;i<2&&addresses.length;i++){
     report.nonInferenceHTTPAttempts++
-    report.results.push(await timed('native_fetch_head_'+(i+1),async()=>{
+    report.results.push(await timed(fetchLabel+'_head_'+(i+1),async()=>{
       const response=await fetchImpl(url,{method:'HEAD',redirect:'error',signal:AbortSignal.timeout(timeoutMs)})
       await response.body?.cancel();return {success:true,httpStatus:response.status}
     }))

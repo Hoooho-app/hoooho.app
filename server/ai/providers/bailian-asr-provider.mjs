@@ -1,6 +1,8 @@
 import { bailianConfiguration, boundedSetting, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
+import {createBailianTransport} from './bailian-transport.mjs'
+import {safeNetworkCause} from './network-diagnostic.mjs'
 
 const messages = {
   authentication: '百炼语音鉴权失败，请检查北京业务空间的模型权限；文字和图片仍可使用',
@@ -23,7 +25,7 @@ export class BailianASRProvider {
     this.model = this.env.BAILIAN_ASR_MODEL ?? 'qwen3-asr-flash'
     if (!/^qwen3-asr-flash(?:-2025-09-08|-2026-02-10)?$/.test(this.model)) throw configurationError('BAILIAN_ASR_MODEL 必须是北京同步 Qwen3-ASR-Flash 模型，不可使用文字或异步模型', 'ASR_CONFIGURATION_INVALID')
     this.apiKey = this.config.apiKey
-    this.transport = options.fetchImpl ?? fetch
+    this.transport = options.fetchImpl ?? createBailianTransport(this.config.baseUrl)
     this.timeoutMs = boundedSetting(this.env, 'BAILIAN_ASR_TIMEOUT_MS', 60000, 1000, 120000)
     this.logger = options.logger ?? console
   }
@@ -34,13 +36,14 @@ export class BailianASRProvider {
     const data = `data:${mimeType === 'audio/x-wav' ? 'audio/wav' : mimeType};base64,${buffer.toString('base64')}`
     if (data.length > 10 * 1024 * 1024) throw configurationError('录音编码后超过百炼10 MB限制，请缩短录音', 'ASR_AUDIO_TOO_LARGE')
     const started = Date.now()
-    let upstream, diagnostics
+    let upstream, diagnostics,phase='http_wait'
     if(signal?.aborted)throw configurationError('已取消语音转写','ASR_CANCELLED')
+    const requestSignal=signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs)
     try { return await controlledCall(async () => {
       try {
         const response = await this.transport(`${this.config.baseUrl}/chat/completions`, {
           method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-          signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs),
+          signal: requestSignal,
           body: JSON.stringify({ model: this.model, messages: [{ role: 'user', content: [{ type: 'input_audio', input_audio: { data } }] }], stream: false, asr_options: { enable_itn: false } }),
         })
         upstream = safeOpenAIErrorDetails({httpStatus:response.status,requestId:response.headers.get('x-request-id')??response.headers.get('x-dashscope-request-id')})
@@ -48,8 +51,9 @@ export class BailianASRProvider {
           upstream = await readOpenAIErrorDetails(response)
           throw configurationError(messages[upstream.failureKind] ?? '百炼语音转写暂不可用，原输入仍保留，请继续文字记录', `ASR_BAILIAN_${upstream.failureKind.toUpperCase()}`)
         }
-        let result
-        try { result = await response.json() } catch { throw configurationError('语音响应无法读取，请手动重试或输入文字', 'ASR_OUTPUT_INVALID') }
+        let result;phase='response_body'
+        try { result = await response.json() } catch (error) { if(!(error instanceof SyntaxError))throw error;throw configurationError('语音响应无法读取，请手动重试或输入文字', 'ASR_OUTPUT_INVALID') }
+        phase='output_validation'
         upstream = safeOpenAIErrorDetails({...upstream,requestId:upstream.requestId??result?.request_id??result?.id})
         const choice = result?.choices?.[0], transcript = choice?.message?.content
         if (choice?.finish_reason === 'length') throw configurationError('语音转写未完整返回，请缩短录音；原输入仍保留', 'ASR_OUTPUT_INCOMPLETE')
@@ -60,12 +64,13 @@ export class BailianASRProvider {
         return {transcript:transcript.trim(),model:this.model,diagnostics}
       } catch (error) {
         const codes = safeOpenAIFailureCodes(error)
-        const safe = typeof error?.code==='string' && /^(?:ASR_|AI_)/.test(error.code) ? error : signal?.aborted?configurationError('已取消语音转写','ASR_CANCELLED'):configurationError('百炼语音连接超时或暂不可用，请继续输入文字，原内容与结果仍保留',error?.name==='TimeoutError'?'ASR_TIMEOUT':'ASR_NETWORK_ERROR')
+        const safe = typeof error?.code==='string' && /^(?:ASR_|AI_)/.test(error.code) ? error : signal?.aborted?configurationError('已取消语音转写','ASR_CANCELLED'):configurationError('百炼语音连接超时或暂不可用，请继续输入文字，原内容与结果仍保留',error?.name==='TimeoutError'||requestSignal.reason?.name==='TimeoutError'?'ASR_TIMEOUT':'ASR_NETWORK_ERROR')
         // A transport attempt is not proof that HTTP reached the supplier.
         safe.supplierRequestAttempted=true
         safe.supplierResponseReceived=!!upstream
+        safe.transportDiagnostic=error.transportDiagnostic??{stage:phase,cause:safeNetworkCause(error)}
         if (upstream) safe.upstream = upstream
-        this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,success:false,...upstream,...codes,code:safe.code}))
+        this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,success:false,...upstream,...codes,code:safe.code,transport:safe.transportDiagnostic}))
         throw safe
       }
     }, this.env) } catch(error) {

@@ -50,3 +50,8 @@ test('普通音频连续进入同一真实ASR协议，不依赖测试文字、�
  for(let i=0;i<texts.length;i++){const result=await service.transcribe({mimeType:'audio/webm',dataUrl:`data:audio/webm;base64,${Buffer.from('different-ordinary-audio-'+i).toString('base64')}`},'normal-account');assert.equal(result.transcript,texts[i]);assert.equal(result.provider,'bailian')}
  assert.equal(calls,3)
 })
+
+test('body wait timeout is ASR_TIMEOUT not unreadable output; HTTP response and body phase preserved',async()=>{
+ const logs=[];const p=new BailianASRProvider({env,logger:{info(){},warn:(...v)=>logs.push(v)},fetchImpl:async()=>({ok:true,status:200,headers:new Headers({'x-request-id':requestId}),json:async()=>{throw new DOMException('private raw input','TimeoutError')}})})
+ await assert.rejects(()=>p.transcribeAudio(audio),error=>{assert.equal(error.code,'ASR_TIMEOUT');assert.equal(error.supplierResponseReceived,true);assert.equal(error.transportDiagnostic.stage,'response_body');return true});assert.doesNotMatch(JSON.stringify(logs),/private raw input|synthetic-asr-credential/)
+})

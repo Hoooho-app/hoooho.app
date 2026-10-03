@@ -64,7 +64,7 @@ export class AudioTranscriptionService {
       if(['ASR_BUSY','ASR_CALL_LIMIT','ASR_BAILIAN_RATE_LIMIT'].includes(failure.code))failure.status=429
       if(failure.code==='ASR_CANCELLED')failure.status=499
       failure.details={requestId}
-      this.logger.warn('[Hoooho AI] audio request',JSON.stringify(diagnostic(false,{code:failure.code,httpStatus:failure.status,supplierRequestAttempted:error?.supplierRequestAttempted??false,supplierResponseReceived:error?.supplierResponseReceived??false,supplierRequestId:failure.upstream?.requestId??null,transportCode:failure.failureCodes?.transportCode??null})))
+      this.logger.warn('[Hoooho AI] audio request',JSON.stringify(diagnostic(false,{code:failure.code,httpStatus:failure.status,supplierRequestAttempted:error?.supplierRequestAttempted??false,supplierResponseReceived:error?.supplierResponseReceived??false,supplierRequestId:failure.upstream?.requestId??null,transportCode:failure.failureCodes?.transportCode??null,...(error?.transportDiagnostic?{transport:error.transportDiagnostic}:{})})))
       throw failure
     }
   }

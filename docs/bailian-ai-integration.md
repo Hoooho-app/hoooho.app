@@ -4,6 +4,10 @@
 
 继承 main 886ac496、开发10/12预算，自动重试0；本阶段模型请求0。Railway CLI现有登录可读取部署/脱敏日志，但没有SSH身份，新增SSH凭据未获安全审批，因此不注册新凭据、不新增远程访问权限。采用已授权Production发布链路临时启动有限诊断：当前配置主机DNS、每个地址族最多一个TCP/TLS目标、无Authorization的HEAD兼容路径、同一原生fetch连续两次HEAD；HTTP最多4次、每项4秒，无音频/医疗原文/响应体/原始错误输出，不以401/403/404/405代替模型成功。取证后删除自动启动钩子。未调整密钥、Base URL、模型、代理、证书、地址族或部署地区；是否需修复网络等待实际生产证据。
 
+生产取证部署 e9adf5a1-80c8-41f0-b7be-89b94265712d / e2b12f0270cbdd97cf35681c297707336926bba2，Amsterdam单实例，Node v22.23.2。2026-10-03 08:01:19 UTC：当前北京主机DNS 300ms；IPv4 47.94.20.201 TCP 271ms、TLS 543ms完成（TLSv1.3、证书验证通过）；IPv6连接ENETUNREACH。原生fetch HEAD首次663ms收到401，第二次506ms失败；AggregateError明列两个IPv4 connect ETIMEDOUT与两个IPv6 ENETUNREACH。当前进程自动地址选择true、每地址窗口250ms、无代理变量、无TLS验证关闭。证明连接失败在TCP地址轮询阶段，而非60秒业务超时、音频内容、凭据、JSON或响应体；不能据此认定用户那次未配置提示的直接原因。分地址HTTP探针旧lookup未遵守Node all选项而报ERR_INVALID_IP_ADDRESS，这是探针缺陷，不当作平台故障，已修正。
+
+针对证据修复：仅百炼ASR/文字共用HTTPS Agent，保留地址自动选择与证书/SNI验证，每地址建连窗口1000ms、keepAlive连接复用、最多10连接；不改全局网络、DNS、地域、Base URL、模型、整体60000ms超时与0次重试。不是延长模型等待：原271ms可达IPv4不再被250ms窗口提前放弃，修复后仍须Production无推理HTTP和真实ASR确认。响应前/响应体阶段使用白名单嵌套错误投影，响应体超时不误报JSON不可读，日志不含输入/音频/转写/原错误文本。依据[Node地址选择契约](https://nodejs.org/download/release/latest-v20.x/docs/api/net.html)。回归36项PASS（实际合成OCR响应回放1项，其余协议/服务测试替身及诊断、传输边界测试），未声称离线测试证明外部连通。
+
 ## 普通描述 / 连续录音修复（2026-10-03，最新状态）
 
 发布前基线：main `6f0325472b52f936992ad5b0332f946e8a614c00`，Production deployment `7b967c15-38f9-41a8-adef-ded6daaeb046`。已有北京ASR配置合法、密钥存在；保留全部密钥、Base URL、qwen3-asr-flash、qwen3.7-plus与消费设置，不要求重新配置。
