@@ -30,7 +30,7 @@ test('顶部白卡收紧为人物、守护天数和真实视频并在底部保�
   assert.doesNotMatch(source, /今天想让我们帮你做什么|容易忘、需要持续观察/)
 })
 
-test('首页六入口使用等高双列卡片和独立图文层', () => {
+test('首页五入口使用等高双列卡片和独立图文层', () => {
   assert.match(styles, /\.nurse-home-entries\s*\{[^}]*grid-template-columns:\s*repeat\(2,[^}]*gap:\s*10px/)
   assert.match(styles, /\.nurse-home-entry\s*\{[^}]*height:\s*88px[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*58px/)
   assert.match(styles, /\.nurse-home-entry__copy strong\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/)
@@ -41,7 +41,7 @@ test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.match(source, /就诊情况单.*就诊前，一页理清病情.*visitSummaryImage.*\/visit-summary/)
   assert.match(source, /忌口出示卡.*哪些不能吃，出示就懂.*dietaryCardImage/)
   assert.match(source, /title: '用药提醒'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)
-  assert.match(source, /title: '排敏测试'[\s\S]*desensitizationTestsImage[\s\S]*\/desensitization-tests/)
+  assert.doesNotMatch(source, /desensitizationTestsImage|desensitizationTestService|title: '排敏测试'/)
   assert.match(source, /`\$\{count\} 个\$\{noun\}任务`/)
   assert.match(source, /<Link aria-label=\{`\$\{entry\.title\}，\$\{entry\.subtitle\}`\}/)
   assert.match(source, /<img alt=""[^>]*onError=/)
