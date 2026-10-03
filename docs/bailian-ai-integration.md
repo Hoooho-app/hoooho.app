@@ -1,5 +1,31 @@
 # Hoooho 百炼接入追踪与主环境验收
 
+## 录音失败路径修复（2026-10-03，覆盖下文历史 ASR 未接通状态）
+
+实际故障：Production `ASR_PROVIDER=none`，语音接口返回 `ASR_NOT_CONFIGURED`，而界面仍可勾选未接通的“AI合成语音”。本次独立接入北京同步 `qwen3-asr-flash`，不使用 qwen3.7-plus 冒充 ASR，不扩展 TTS。
+
+- 文字输入明确置于录音/图片操作之前，可直接编辑；语音错误与整理错误分开，原文字、图片、已有草稿/初步结果不清空。转写过程中允许编辑文字/选择图片，结束后才主动整理。
+- 停止录音 → 明确转写状态 → 转写文字追加并可编辑 → 用户主动点击整理 → 百炼 qwen3.7-plus 现有草稿/预览 → 用户点击确认保存。不将转写内容中的“保存/取消”当授权命令，不隐藏自动整理/保存/重试。
+- Safari MP4/AAC、Chrome WebM/Opus 从实际录音字节经 AudioContext 解码，转16kHz单声道PCM WAV；官方 Qwen3-ASR格式表未列MP4，因此不仅更名或假定直传支持。最长90秒，编码后10MB供应商限制；音频只在当前窗口/当前请求内存使用，失败录音仅供主动重试，取消或关闭清理。
+- 新增认证后只读 `/api/ai/audio/capabilities`，用于禁用未配置TTS，查询不调用供应商。转写请求包含当前memberId，服务端重新验证账号成员归属。ASR复用账号限流/并发，自动重试0；日志只有任务/模型/请求标识/用量/耗时/安全错误，不含音频、转写原文、密钥。
+
+| Railway production → hoooho.app 变量 | 值 | 说明 |
+| --- | --- | --- |
+| ASR_PROVIDER | bailian | 显式开启独立ASR，本次由已有Railway授权配置 |
+| BAILIAN_ASR_MODEL | qwen3-asr-flash | 独立同步语音模型，仅允许该模型或官方已核对快照 |
+| BAILIAN_ASR_TIMEOUT_MS | 可选，默认60000 | 1000–120000毫秒，重启/重新部署生效 |
+| BAILIAN_API_KEY / BAILIAN_BASE_URL | 保留原值 | 同一北京业务空间凭据与兼容地址，不展示/轮换 |
+| BAILIAN_MODEL / BAILIAN_VISION_MODEL | qwen3.7-plus，保留 | 本次不改文字/图片模型 |
+| TTS_PROVIDER | none，保留 | 语音回复尚未接通，checkbox禁用 |
+
+ASR最终接口为现有 `BAILIAN_BASE_URL + /chat/completions`，请求仅input_audio Data URL、stream=false、asr_options.enable_itn=false；不带文字模型的JSON schema、thinking或max_tokens。见[官方ASR API](https://help.aliyun.com/zh/model-studio/qwen-asr-api-reference)和[格式/限制表](https://help.aliyun.com/zh/model-studio/asr-model/)。
+
+核对官方[北京价格](https://help.aliyun.com/zh/model-studio/model-pricing)：qwen3-asr-flash输入音频0.00022元/秒，输出不计费；列示免费额度36000秒/90天，但这是模型公开政策，不是用户当前私有余额或ASR额度。文字模型100万Token额度不能推断为ASR额度。未读取用户ASR私有额度/到期/即停状态，不自行充值、开通付费套餐或修改停止开关。权限以本轮最小实际ASR请求结果核实；权限/额度/持续网络失败停止模型调用。
+
+沿用总预算12，开始本轮已耗7、余5。优先计划录音ASR1次+同一转写文字整理1次（共2），其余3仅保留必要复验；每次真实供应商出站含失败均记账，无自动重试。调用前完成相关离线检查和Production发布，最终实际次数/请求标识/截图另存忽略的 `outputs/bailian-ai/asr-acceptance/`。不把替身、入口存在、Chrome手机模拟或Windows WebKit当真实iPhone Safari硬件麦克风验收：当前工具没有连接实体iPhone，Windows WebKit不提供MediaRecorder/AudioContext/getUserMedia；硬件权限交互如无法取得设备，只能明确列为待实际手机验证。
+
+回滚基线：生产main `0c709c16b465a2b7aee1db54d242235395f39a50`，部署`95fe4d94-b7d6-42fa-8e75-17249705e05f`。正常revert本次ASR聚焦merge进入main；如需撤ASR开关恢复先前ASR_PROVIDER=none并撤本次新增BAILIAN_ASR_MODEL，仅动本次两项，原密钥/兼容地址/文字模型/TTS/消费设置不变。无数据库迁移或用户记录覆盖。
+
 ## 当前交付：独立开放的真实 AI 体验（2026-10-03）
 
 本节覆盖下文历史的“整体阻塞即关闭体验/下一轮单次”条件；不将入口开放或替身通过当作真实验收通过。当前手机入口独立开放：健康随记 `/health-events` → 智能记录（文字/上传图片）；健康档案 → 智能记录 → 上传与智能识别；病情数据 `/visit-summary` → 生成 AI 病情摘要。原手动入口继续保留，某功能失败不关闭其他功能。

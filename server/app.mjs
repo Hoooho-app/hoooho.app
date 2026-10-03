@@ -644,9 +644,15 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 }
 
 async function handleAudioTranscription(request, response, pathname) {
-  if (pathname !== '/api/ai/audio/transcriptions') return false
+  if (!['/api/ai/audio/transcriptions','/api/ai/audio/capabilities'].includes(pathname)) return false
   const accountId=await readAccountId(request)
-  if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000),accountId))
+  if (pathname.endsWith('/capabilities') && request.method === 'GET') sendJson(response,200,audioTranscription.capabilities())
+  else if (pathname.endsWith('/transcriptions') && request.method === 'POST') {
+    const input=await readJson(request,21_000_000)
+    if(input.memberId)await members.get(accountId,input.memberId)
+    const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()})
+    sendJson(response,200,await audioTranscription.transcribe(input,accountId,controller.signal))
+  }
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }

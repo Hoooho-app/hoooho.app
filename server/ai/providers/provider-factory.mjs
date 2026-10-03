@@ -1,5 +1,6 @@
 import { OpenAIProvider } from './openai-provider.mjs'
 import { BailianProvider } from './bailian-provider.mjs'
+import { BailianASRProvider } from './bailian-asr-provider.mjs'
 import { selectedProvider, configurationError } from './provider-config.mjs'
 
 export function createAIProvider(options = {}) {
@@ -21,6 +22,9 @@ export function createAudioProvider(kind, options = {}) {
   try { selected = env[`${kind}_PROVIDER`] ?? (selectedProvider(env) === 'openai' ? 'openai' : 'none') } catch { return null }
   if (selected === 'none') return null
   if (selected === 'openai') return env.OPENAI_API_KEY || options.apiKey ? new OpenAIProvider(options) : null
+  if (kind === 'ASR' && selected === 'bailian') {
+    try { return new BailianASRProvider(options) } catch(error) { return {name:'unconfigured',configurationError:error,transcribeAudio:async()=>{throw error}} }
+  }
   const reject = async () => { throw configurationError(`${kind}_PROVIDER 尚不支持该语音供应商；请继续文字记录`, `${kind}_NOT_CONFIGURED`) }
-  return { name: 'unconfigured', transcribeAudio: reject, fetch: reject, configurationError: configurationError(`${kind}_PROVIDER 只支持 none 或 openai`) }
+  return { name: 'unconfigured', transcribeAudio: reject, fetch: reject, configurationError: configurationError(`${kind}_PROVIDER 配置不受支持`) }
 }
