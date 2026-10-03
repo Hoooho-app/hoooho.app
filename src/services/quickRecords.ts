@@ -38,8 +38,8 @@ export interface QuickRecordPhotoDto {
   name: string
   mimeType: string
   binarySize: number
-  width: number
-  height: number
+  width: number | null
+  height: number | null
   sortOrder: number
   uploadStatus: 'uploaded'
   createdAt: string

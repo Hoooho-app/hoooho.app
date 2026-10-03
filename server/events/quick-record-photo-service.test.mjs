@@ -87,3 +87,35 @@ test('照片确认后以账号、人物、随记和记录元数据关联且仍�
     assert.equal((await state.service.list('account-1', state.member.id, 'draft_attach123')).length, 0)
   } finally { await rm(state.dataDirectory, { recursive: true, force: true }) }
 })
+
+
+test('视频原件草稿可恢复、关联、消费，格式伪装与跨人物被拒绝', async () => {
+  const state = await setup()
+  try {
+    const buffer = await readFile(new URL('../../public/tutorials/recordings/create-event.webm', import.meta.url))
+    const input = { memberId: state.member.id, name: '合成视频.webm', mimeType: 'video/webm', dataUrl: `data:video/webm;base64,${buffer.toString('base64')}` }
+    const video = await state.service.upload('account-1', 'video_12345678', input)
+    assert.equal(video.mimeType, 'video/webm'); assert.equal(video.width, null)
+    assert.deepEqual((await state.service.read('account-1', state.member.id, 'video_12345678', video.id)).buffer, buffer)
+    await assert.rejects(state.service.read('account-2', state.member.id, 'video_12345678', video.id))
+    const prepared = await state.service.prepareForSave('account-1', state.member.id, 'video_12345678', [video.id])
+    const attached = await state.service.attach('account-1', 'synthetic-event', 'synthetic-record', state.member.id, prepared)
+    assert.equal(attached[0].mimeType, 'video/webm')
+    await state.service.consume('account-1', 'video_12345678', prepared)
+    assert.equal((await state.service.list('account-1', state.member.id, 'video_12345678')).length, 0)
+    await assert.rejects(state.service.upload('account-1', 'video_12345678', { ...input, dataUrl: 'data:video/webm;base64,aGVsbG8=' }), e => e.code === 'INVALID_RECORD_VIDEO')
+    await assert.rejects(state.service.upload('account-1', 'video_12345678', { ...input, dataUrl: 'data:video/webm;base64,' + Buffer.alloc(5 * 1024 * 1024 + 1).toString('base64') }), e => e.status === 413)
+  } finally { await rm(state.dataDirectory, { recursive: true, force: true }) }
+})
+
+test('真实 MP4 原件通过容器检查，截断与错标 MOV 被拒绝', async () => {
+  const state = await setup()
+  try {
+    const buffer = await readFile(new URL('../../public/media/login-family-care.mp4', import.meta.url))
+    const input = { memberId: state.member.id, name: '合成MP4.mp4', mimeType: 'video/mp4', dataUrl: 'data:video/mp4;base64,' + buffer.toString('base64') }
+    const saved = await state.service.upload('account-1', 'mp4_12345678', input)
+    assert.deepEqual((await state.service.read('account-1', state.member.id, 'mp4_12345678', saved.id)).buffer, buffer)
+    await assert.rejects(state.service.upload('account-1', 'mp4_12345678', { ...input, dataUrl: 'data:video/mp4;base64,' + buffer.subarray(0, 64).toString('base64') }), e => e.code === 'INVALID_RECORD_VIDEO')
+    await assert.rejects(state.service.upload('account-1', 'mp4_12345678', { ...input, mimeType: 'video/quicktime', dataUrl: 'data:video/quicktime;base64,' + buffer.toString('base64') }), e => e.code === 'INVALID_RECORD_VIDEO')
+  } finally { await rm(state.dataDirectory, { recursive: true, force: true }) }
+})
