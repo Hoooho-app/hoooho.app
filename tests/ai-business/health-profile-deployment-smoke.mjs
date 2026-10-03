@@ -36,7 +36,7 @@ try {
   await expect(smart.locator('small')).toHaveText('上传报告、病历、体检报告、自动整理到各项档案')
   await expect(smart.locator('svg')).toHaveCount(1)
   await expect(smart.locator('svg')).toHaveClass(/lucide-upload/)
-  for(const width of [375,320,390,430]){await page.setViewportSize({width,height:667});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:`${output}/home-${width}.png`})}
+  for(const width of [375,320,390,430]){await page.setViewportSize({width,height:667});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await expect(smart.locator('small br')).toHaveCount(0);if(width>=375)assert.ok(await smart.locator('small').evaluate(el=>el.getBoundingClientRect().height/parseFloat(getComputedStyle(el).lineHeight)<1.1),'Caption fits one line');await page.screenshot({path:`${output}/home-${width}.png`})}
   await page.setViewportSize({width:375,height:667})
   for(const [index,id] of ['allergy','chronic','family-history','surgery','vaccination'].entries()){
     await page.goto(baseURL+'/health-profile');await page.getByRole('button',{name:new RegExp(labels[index])}).click();await expect(page).toHaveURL(new RegExp(`/health-profile/${id}$`));await expect(page.getByRole('heading',{name:labels[index],exact:true}).first()).toBeVisible()
