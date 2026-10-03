@@ -185,6 +185,7 @@ export function NurseStationPage() {
     <main className="app-shell nurse-station-page">
       <MainAppHeader title="前台" />
       <div className="nurse-station-scroll">
+        <div className="nurse-station-overview">
         {listState.status === 'loading' ? (
           <section aria-label="正在加载当前人物" className="nurse-station-hero nurse-station-hero--loading"><span /><span /></section>
         ) : listState.status === 'error' ? (
@@ -209,6 +210,7 @@ export function NurseStationPage() {
           </section>
         ) : null}
         <FollowUpHome key={currentMemberId} />
+        </div>
         <HomeEntries
           medicationCount={medicationCount}
           medicationStatus={medicationStatus}

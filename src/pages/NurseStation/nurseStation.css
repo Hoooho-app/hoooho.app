@@ -3,6 +3,10 @@
 .nurse-station-scroll { height: calc(100vh - 64px - env(safe-area-inset-top)); height: calc(100dvh - 64px - env(safe-area-inset-top)); overflow-y: auto; scrollbar-width: none; padding: 8px 16px max(24px, env(safe-area-inset-bottom)); }
 .nurse-station-scroll::-webkit-scrollbar { display: none; }
 
+.nurse-station-overview { min-width: 0; border: 1px solid #dcedea; border-radius: 19px; background: rgb(var(--hoho-color-primary-soft)); box-shadow: 0 2px 8px rgb(23 50 46 / .025); }
+.nurse-station-overview > .nurse-station-hero { border: 0; border-radius: 18px; box-shadow: none; }
+.nurse-station-overview > .nurse-station-load-error { border: 0; border-radius: 18px; background: #fff; }
+
 .nurse-station-hero { display: grid; min-height: 190px; overflow: hidden; grid-template-rows: 120px 70px; border: 1px solid #dcedea; border-radius: 19px; background: #fff; box-shadow: 0 2px 8px rgb(23 50 46 / .025); }
 .nurse-station-hero__main { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(128px, .92fr); align-items: center; padding: 9px 10px 7px 12px; color: inherit; text-align: left; }
 .nurse-station-hero__main:focus-visible { outline: 3px solid rgb(var(--hoho-color-primary) / .28); outline-offset: -3px; }

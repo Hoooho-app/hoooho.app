@@ -7,15 +7,15 @@ async function initialize(page:Page,member='empty-child') {
 }
 async function capture(request:any,text:string,eventId?:string,identity='parent',files:any[]=[]){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files,eventId,identity,requestId:crypto.randomUUID(),occurredAt:new Date().toISOString(),timeUnknown:false}});expect(response.status()).toBe(200);return response.json()}
 
-test('首页输入框式速记入口是单一按钮，鼠标键盘进入原记录流程',async({page})=>{
+test('首页假输入框和主按钮独立，鼠标键盘进入同一原记录流程',async({page})=>{
   await initialize(page);await page.goto('/nurse-station')
-  const button=page.getByRole('button',{name:'健康事件随时记，情况速记',exact:true})
+  const button=page.getByRole('button',{name:'症状数据',exact:true})
   await expect(button).toBeVisible();await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   expect(await button.evaluate(el=>el.closest('a')===null)).toBe(true)
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toBeVisible()
   await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
-  await page.goBack();const title=(await page.locator('.continuity-record-entry strong').boundingBox())!;await page.mouse.click(title.x+title.width/2,title.y+title.height/2);await expect(page).toHaveURL(/\/smart-record$/)
+  await page.goBack();await page.getByRole('button',{name:'症状数据示例，开始记录',exact:true}).click();await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
 
