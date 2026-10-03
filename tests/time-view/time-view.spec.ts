@@ -1395,7 +1395,7 @@ test('journal row opens record details over the list without visiting symptom tr
   await page.locator('.journal-record').first().click()
   const detail = page.getByRole('dialog', { name: '症状记录详情' })
   await expect(detail).toBeVisible()
-  await expect(page.getByRole('heading', { name: '健康随记', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '健康日记', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '症状跟踪', exact: true })).toHaveCount(0)
   await expect(page).toHaveURL(/\/health-events$/)
   await detail.getByRole('button', { name: '关闭症状记录详情' }).click()
@@ -1405,7 +1405,7 @@ test('journal row opens record details over the list without visiting symptom tr
   await page.goto('/health-events/event-one?recordId=record-0')
   await expect(page).toHaveURL(/\/health-events\?eventId=event-one&recordId=record-0$/)
   await expect(page.getByRole('dialog', { name: '症状记录详情' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '健康随记', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '健康日记', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '症状跟踪', exact: true })).toHaveCount(0)
 })
 
@@ -1848,7 +1848,7 @@ for (const width of [320, 390, 430, 1280, 1440]) test(`layout remains usable at 
 test('free symptom narratives save without tags and location remains optional', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await prepare(page)
-  await expect(page.getByRole('heading', { name: '健康随记', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '健康日记', exact: true })).toBeVisible()
 
   await openSymptom(page)
   let form = page.getByRole('dialog', { name: '记录症状' })

@@ -51,6 +51,6 @@ test('五类档案顺序固定，入口真实导航，智能记录合并报告�
   assert.match(home, /navigate\(`\/health-profile\/\$\{id\}`\)/)
   assert.match(home, /navigate\('\/health-profile\/smart-record'\)/)
   assert.match(home, /智能整理与记录[\s\S]*上传报告、病历、体检报告、[\s\S]*自动整理到各项档案/)
-  assert.match(home, /MainAppHeader compact title="健康档案"/)
+  assert.match(home, /MainAppHeader compact title="孩子档案"/)
   assert.doesNotMatch(home, /aria-disabled="true"|LockKeyhole|暂未开放|health-profile-allergy-card|检查 \/ 体检报告|住院 \/ 急诊史|家族遗传史/)
 })

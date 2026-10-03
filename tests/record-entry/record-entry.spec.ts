@@ -68,7 +68,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await shot(page,`daily-open-${width}`)
   await daily.click();await expect(options).toHaveCount(0)
-  await daily.click();await page.getByRole('heading',{name:'健康随记',exact:true}).click();await expect(options).toHaveCount(0)
+  await daily.click();await page.getByRole('heading',{name:'健康日记',exact:true}).click();await expect(options).toHaveCount(0)
   for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['记录补给','记录补剂'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)

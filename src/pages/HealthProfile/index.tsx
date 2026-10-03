@@ -35,7 +35,7 @@ export function HealthProfilePage() {
     return () => controller.abort()
   }, [token, currentMemberId, members, authUser?.id, retry])
 
-  return <main className="app-shell health-profile-overview"><MainAppHeader compact title="健康档案" /><div className="page-content health-profile-home">
+  return <main className="app-shell health-profile-overview"><MainAppHeader compact title="孩子档案" /><div className="page-content health-profile-home">
     <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} onSummary={() => navigate('/visit-summary')} />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>

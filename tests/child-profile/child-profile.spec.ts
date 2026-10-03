@@ -122,11 +122,11 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
     await expect(drawer.getByText('当前记录对象', { exact: true })).toBeVisible()
     await expect(drawer.getByText('切换人物', { exact: true })).toHaveCount(0)
     await expect(drawer.getByText('编辑资料', { exact: true })).toHaveCount(0)
-    await expect(drawer.getByRole('button', { name: '前台' })).toBeVisible()
-    await expect(drawer.getByRole('button', { name: '健康记录' })).toBeVisible()
-    await expect(drawer.getByRole('button', { name: '健康档案' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '服务前台' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '健康日记' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: '孩子档案' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: /爸爸.*已同步/ })).toBeVisible()
-    expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['前台', '健康记录', '健康档案'])
+    expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['服务前台', '健康日记', '孩子档案'])
     await expect(drawer.getByRole('button', { name: '说明', exact: true })).toBeVisible()
     expect(await drawer.locator('nav section').nth(1).getByRole('button').allTextContents()).toEqual(['设置', '说明', '帮助', '反馈', '关于'])
     const accountButton = drawer.getByRole('button', { name: /已同步/ })
@@ -198,6 +198,32 @@ test('侧边栏当前孩子条目打开可切换、编辑和添加的我的孩�
   }
 })
 
+test('健康管理入口和三个一级页面抬头使用同一组定稿文案', async ({ page, request }, testInfo) => {
+  test.skip(!['iphone-se', 'mobile-390', 'mobile-430'].includes(testInfo.project.name), '覆盖要求的三个移动视口')
+  const account = 'navigation-copy-' + testInfo.project.name
+  const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const response = await request.post('/api/members', {
+    headers: { Authorization: 'Bearer ' + authToken },
+    data: { name: '文案测试宝宝', relationship: 'child', gender: 'female', birthday: '2024-12-04', avatar: 'girl-age1-east-asian' }
+  })
+  expect(response.status()).toBe(201)
+  const member = await response.json()
+  await prepareAccount(page, authToken, account)
+
+  try {
+    for (const [path, heading] of [['/nurse-station', '服务前台'], ['/health-events', '健康日记'], ['/health-profile', '孩子档案']] as const) {
+      await page.goto(path)
+      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
+    }
+    await page.getByRole('button', { name: '打开菜单' }).click()
+    const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
+    expect(await drawer.locator('nav section').first().getByRole('button').allTextContents()).toEqual(['服务前台', '健康日记', '孩子档案'])
+  } finally {
+    await request.delete('/api/members/' + member.id, { headers: { Authorization: 'Bearer ' + authToken } })
+  }
+})
+
 test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在健康档案', async ({ page, request }, testInfo) => {
   test.skip(!['iphone-se', 'mobile-390', 'mobile-430', 'wechat-webview', 'safari-iphone', 'desktop-1280'].includes(testInfo.project.name), '覆盖固定 iPhone SE、390px、430px、微信、iOS WebKit 与桌面对照')
   const account = 'profile-navigation-' + testInfo.project.name
@@ -225,11 +251,11 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     await page.getByRole('button', { name: '打开菜单' }).click()
     const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
     if (testInfo.project.name === 'iphone-se' && routeAttempt === 0) await page.screenshot({ path: testInfo.outputPath('health-profile-navigation-drawer.png') })
-    await drawer.getByRole('button', { name: '健康档案' }).click()
+    await drawer.getByRole('button', { name: '孩子档案' }).click()
     routeAttempt += 1
     await expect(drawer).toBeHidden()
     await expect(page).toHaveURL(/\/health-profile$/)
-    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: '健康随身记' })).toHaveCount(0)
     await expect(page.locator('.health-profile-record-subject .journal-subject-row')).toBeVisible()
     await expect(page.locator('.health-profile-record-subject').getByLabel('记录对象')).toContainText('导航测试宝宝')
@@ -240,7 +266,7 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     await expect(page.locator('.health-profile-record-subject + .health-profile-allergy-card')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
     await page.getByRole('button', { name: '打开菜单' }).click()
-    await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案' })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '孩子档案' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('button', { name: '关闭菜单' }).click()
   }
 
@@ -249,21 +275,21 @@ test('已有孩子但尚无健康记录时侧边栏只导航一次并停留在�
     for (let iteration = 0; iteration < 3; iteration += 1) {
       await openHealthProfileFromDrawer()
       await page.getByRole('button', { name: '打开菜单' }).click()
-      await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康记录' }).click()
+      await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康日记' }).click()
       await expect(page).toHaveURL(/\/health-events$/)
     }
     expect(await page.evaluate(() => (window as typeof window & { __healthProfileNavigations?: number }).__healthProfileNavigations)).toBe(3)
 
     await page.goto('/health-profile')
-    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
     await page.reload()
     await expect(page).toHaveURL(/\/health-profile$/)
-    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
     await page.goBack()
     await expect(page).toHaveURL(/\/health-events$/)
     await page.goForward()
     await expect(page).toHaveURL(/\/health-profile$/)
-    await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
     await page.locator('.health-profile-record-subject').getByRole('button', { name: '就诊情况单，孩子情况快速整理' }).click()
     await expect(page).toHaveURL(/\/visit-summary$/)
     await page.goBack()
@@ -296,9 +322,9 @@ test('游客模式已有孩子但尚无健康记录时也能进入健康档案',
   const tutorialClose = page.getByRole('button', { name: '关闭教程' })
   if (await tutorialClose.isVisible()) await tutorialClose.click()
   await page.getByRole('button', { name: '打开菜单' }).click()
-  await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '健康档案' }).click()
+  await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '孩子档案' }).click()
   await expect(page).toHaveURL(/\/health-profile$/)
-  await expect(page.getByRole('heading', { name: '健康档案', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
 })
 
 test('孩子资料完整交互、持久化、响应式和删除失败恢复', async ({ page, request }, testInfo) => {
