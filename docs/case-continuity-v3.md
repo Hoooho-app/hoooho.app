@@ -30,9 +30,36 @@ rejected AI output remains unavailable and never becomes a clinical record.
   Full server 200/201: unchanged Operations date-retention test at
   `server/ops/ops-service.test.mjs:53` FAIL, already independently reproduced on
   Production main. No Operations files changed; no test was skipped or weakened.
-  Browser Bailian 14/14 and case-continuity 8/8 PASS, including the new positive
+  Browser Bailian 14/14 and case-continuity 9/9 PASS, including the new positive
   replay and retained invalid-preview rejection. Lint N/A (project supplies no
   command). Live post-fix deployments/results pending.
+
+### Material-source hydration regression
+
+- First repaired-source Staging run reached real save and observation PASS,
+  then stopped before AI: a late original-record load reset the selected source
+  to pending and disabled confirmation. No runtime errors or non-AI 5xx occurred.
+  This is a core UI race, not provider success/failure; it was not bypassed.
+- A delayed-record browser regression first failed. MaterialReturnPage now loads
+  either the bound original or device draft before enabling editing/confirmation,
+  aborts stale scope requests, and does not rehydrate edits on same-user token
+  renewal. Failed bound-original loading remains disabled with a retry action.
+  Device draft restoration no longer overwrites a bound record. Business/API/data
+  rules unchanged. The 9-case browser suite, client 554 and rebuilt/typechecked
+  artifact PASS. The test owns and deletes its synthetic case to preserve the
+  original zero-case home test; no existing assertion was removed or skipped.
+  After the frontend repair, ASR browser 10/10 and Bailian browser 14/14 were
+  rerun and PASS; these remain fixture/browser evidence, not physical-device proof.
+
+### Git transport fallback
+
+- Normal Git push/fetch repeatedly failed/reset. GitHub's existing authenticated
+  Git-data API uploaded the allowlisted tracked blobs, verified their SHAs and
+  the exact full tree, then performed a non-force fast-forward on the same PR.
+  Local `720b6e4` and remote `3c56b9645eb4d5744ebdae462889bd69bdb67b80` have
+  identical tree `e366740f27d3c47eb7f85fe3d6c335d5c3b66465`; API timestamp-zone
+  normalization changes commit identity, not content. No force-push, new access
+  credential, DNS/proxy/TLS bypass or unrelated file upload was used.
 
 ## 2026-10-03 authorized Staging credential reuse and real AI acceptance
 

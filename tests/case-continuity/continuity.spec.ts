@@ -6,6 +6,22 @@ async function initialize(page:Page,member='empty-child') {
   await page.addInitScript(({token,member})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:member,members:[],profile:null},version:5}))},{token,member})
 }
 async function capture(request:any,text:string,eventId?:string,identity='parent',files:any[]=[]){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files,eventId,identity,requestId:crypto.randomUUID(),occurredAt:new Date().toISOString(),timeUnknown:false}});expect(response.status()).toBe(200);return response.json()}
+
+test('资料原件加载前禁用来源编辑，迟到响应不能覆盖人工选择',async({page,request})=>{
+ const saved=await capture(request,'合成来源加载时序验收',undefined,'pending')
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve})
+ await page.route(url=>url.pathname===`/api/events/${saved.eventId}/records`,async route=>{await gate;await route.continue().catch(()=>{})})
+ try {
+  await initialize(page);await page.goto(`/cases/${saved.eventId}/materials?recordId=${saved.recordId}`)
+  const source=page.getByRole('combobox',{name:'资料来源'})
+  await expect(source).toBeVisible();await expect(source).toBeDisabled();release()
+  await expect(source).toBeEnabled();await source.selectOption('external_ai')
+  await page.getByRole('checkbox',{name:'已核对来源和原件，未知信息没有补猜'}).check()
+  await expect(source).toHaveValue('external_ai');await expect(page.getByRole('button',{name:'确认接回这次情况',exact:true})).toBeEnabled()
+  await page.getByRole('button',{name:'确认接回这次情况',exact:true}).click();await expect(page).toHaveURL(new RegExp(`/health-events/${saved.eventId}$`))
+  const records=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json();expect(records.find((r:any)=>r.id===saved.recordId).caseContext.identity).toBe('external_ai')
+ } finally {release();await request.delete(`/api/records/${saved.recordId}`,{headers});await request.delete(`/api/events/${saved.eventId}`,{headers})}
+})
 test('首页0/1/3/4件、最多三条、六卡冻结、归档及成员隔离',async({page,request})=>{
   await initialize(page);await page.goto('/nurse-station');await expect(page.getByText('还没有正在跟进的情况')).toBeVisible()
   const ids=[];for(let n=1;n<=4;n++){ids.push((await capture(request,`合成示例，非真实患者资料：第${n}次皮肤变化`)).eventId);await page.reload();await expect(page.locator('.continuity-home .continuity-card')).toHaveCount(Math.min(n,3))}
