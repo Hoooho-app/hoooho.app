@@ -8,6 +8,32 @@ AI/physical-device release gate, not data safety or truthful acceptance reportin
 Production will only proceed after core persistence/manual workflows pass;
 rejected AI output remains unavailable and never becomes a clinical record.
 
+### Successful repaired Staging acceptance
+
+- Staging upload `dcc8563d-5994-43a6-985c-59b0b64efa5f` SUCCESS, clean local
+  `a204f6dc1531756d48f3007a32d1a9690f653e6a` / remote PR head
+  `da1ed03d5b2cfe90bc25bc94cbd4d3c3903f9c28`, identical full tree
+  `c341f42b1e3b2c5206fef77f903c434f5323833c`. CLI metadata has no commitHash.
+  Actual entry `/assets/index-C71-snDx.js` and report `index-BtULjMzJ.js`
+  contain case scope/member guards. No final SHA inferred from CLI metadata.
+- 13:01:46–13:02:46 UTC real HTTPS acceptance PASS: original save, observation,
+  equal six cards, three-class manual source confirmation, original retention,
+  scoped report/HTML and archive/restore. Errors/non-AI 5xx zero; own synthetic
+  draft/member removed normally. The normal registration limiter initially gave
+  retryAfter 47 seconds; waited, not bypassed or weakened.
+- Real Bailian calls exactly two, no retry: `qwen3.7-plus` document-page PASS,
+  2819ms, request `6aa54e2b-2816-9e8d-853e-149cde7cb55a`, using the repaired
+  single-page-array envelope. Then draft-extraction PASS, 1816ms, request
+  `d13996a6-6691-9d71-b870-07aaf10dd270`. This generic synthetic image has no
+  clinical facts, so the valid extraction is empty; no AI clinical record was
+  confirmed. This does not prove three-class clinical image extraction or formal
+  AI-summary confirmation. Physical-device/notification outcomes stay unverified.
+- Fresh offline export rendering PASS at 375px: complaint visible, no overflow,
+  runtime errors or Bearer token. This export selected no embedded photos; local
+  selected-original regression remains the evidence for byte embedding.
+- Main integration and Production deployment/verification follow the explicitly
+  authorized limited release scope. Old blocker sections below are historical.
+
 - Observed single-page Bailian OCR array replay first failed the new positive
   regression. The provider transport now unwraps exactly one object only for
   one image, the existing business format and the exact text/status OCR schema.
