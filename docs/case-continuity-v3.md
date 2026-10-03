@@ -1,5 +1,39 @@
 # Hoooho v3: case continuity implementation and acceptance boundary
 
+## Latest release scope and OCR transport repair (2026-10-03)
+
+Release IN PROGRESS. The human explicitly requested repair first and release
+whether image AI succeeds or remains unavailable. This supersedes the earlier
+AI/physical-device release gate, not data safety or truthful acceptance reporting.
+Production will only proceed after core persistence/manual workflows pass;
+rejected AI output remains unavailable and never becomes a clinical record.
+
+- Observed single-page Bailian OCR array replay first failed the new positive
+  regression. The provider transport now unwraps exactly one object only for
+  one image, the existing business format and the exact text/status OCR schema.
+  That inner object must pass the unchanged strict validator before unwrapping.
+  No values/defaults/source identities/page numbers are changed. All multi-item,
+  empty, missing-field, invalid-value, extra-field and other-business arrays are
+  rejected. No parser, prompt, model, retry or medical-save rule was changed.
+- Old rejected-array UI coverage remains as a two-item rejection case. A new
+  single-item replay covers ready-for-review, original text unchanged, two calls
+  (OCR then extraction), and no automatic save; unconfirmed persistence fails.
+  Offline replay is not claimed as real provider acceptance.
+- Acceptance script now requires a separate explicit opt-in for Production,
+  uses isolated synthetic accounts/members and normal permission APIs, and
+  records AI/physical failures unchanged. Its optional human-authorized degraded
+  release disposition requires core PASS, zero runtime/non-AI HTTP5xx errors and
+  successful cleanup. Without that opt-in the original full-acceptance gate stays.
+- Fresh client 554/554, guest 21/21, affected provider/business/case/report units
+  150/150, parser evaluation 30/30 (expected fact matches 48/48; forbidden-fact
+  avoidance 15/15), typecheck/build/asset/viewport checks and secret boundary PASS.
+  Full server 200/201: unchanged Operations date-retention test at
+  `server/ops/ops-service.test.mjs:53` FAIL, already independently reproduced on
+  Production main. No Operations files changed; no test was skipped or weakened.
+  Browser Bailian 14/14 and case-continuity 8/8 PASS, including the new positive
+  replay and retained invalid-preview rejection. Lint N/A (project supplies no
+  command). Live post-fix deployments/results pending.
+
 ## 2026-10-03 authorized Staging credential reuse and real AI acceptance
 
 Current status: **BLOCKED by real AI validation, not missing authorization**.

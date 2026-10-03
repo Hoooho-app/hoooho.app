@@ -1,4 +1,4 @@
-// Opt-in HTTPS Staging acceptance. No model substitutes, production writes,
+// Opt-in HTTPS acceptance. Production needs a separate explicit opt-in.
 // variable/secret loading, physical-camera claims, or automatic model retries.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -6,10 +6,14 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { chromium, devices, expect } from '@playwright/test'
 
-if (process.env.RUN_HOOOHO_CONTINUITY_STAGING !== '1') throw new Error('Staging acceptance opt-in required')
+const productionTarget = process.env.HOOOHO_CONTINUITY_TARGET === 'production'
+if (productionTarget ? process.env.RUN_HOOOHO_CONTINUITY_PRODUCTION !== '1' : process.env.RUN_HOOOHO_CONTINUITY_STAGING !== '1') throw new Error('Target-specific acceptance opt-in required')
+// Set only after explicit human acceptance of a degraded release. This changes
+// release disposition, never the recorded AI/physical-device test outcomes.
+const allowDegradedRelease = process.env.HOOOHO_CONTINUITY_ALLOW_DEGRADED_RELEASE === '1'
 const knownQuotaBlock = process.env.HOOOHO_CONTINUITY_AI_BLOCKED_REASON === 'insufficient_quota'
 const awaitingBailianAuthorization = process.env.HOOOHO_CONTINUITY_AI_BLOCKED_REASON === 'awaiting_bailian_staging_authorization'
-const base = 'https://hooohoapp-staging.up.railway.app', output = path.resolve('outputs/continuity-v3/staging')
+const base = productionTarget ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app', output = path.resolve(`outputs/continuity-v3/${productionTarget ? 'production' : 'staging'}`)
 await mkdir(output, { recursive:true })
 const browser = await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
 const context = await browser.newContext({...devices['iPhone SE'],timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
@@ -71,6 +75,7 @@ try {
   else try {const recognized=await api(`/api/members/${memberId}/ai-drafts`,{id:stored.id,version:stored.version,text:stored.inputText,sourceIdentity:'pending',task:'record'});assert.equal(recognized.state,'ready');result.checks.realOCR='PASS_ON_THIS_SYNTHETIC_IMAGE_ONLY'} catch(error) {result.checks.realOCR={state:'BLOCKED',httpStatus:error.safe?.status,code:error.safe?.code};const retained=await api(`/api/members/${memberId}/ai-drafts/${stored.id}`,undefined,'GET');assert.equal(retained.pages.length,1);result.checks.ocrFailureRetainsOriginal='PASS'}
   await page.goto(`${base}/visit-summary/${eventId}`);await expect(page.locator('#chapter-overview h1')).toContainText('合成示例');await screenshot('report-375');const reportState=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET');assert.deepEqual(reportState.report.selection.eventIds,[eventId]);assert.equal(reportState.report.focus.caseEventId,eventId);await page.getByRole('button',{name:'导出情况单',exact:true}).click();const pendingDownload=page.waitForEvent('download');await page.getByRole('button',{name:'保存完整离线报告（HTML）',exact:true}).click();await(await pendingDownload).saveAs(path.join(output,'synthetic-offline.html'));result.checks.scopedReportAndHTML='PASS'
   await api(`/api/members/${memberId}/cases/${eventId}/archive`,{archived:true});await page.goto(base+'/nurse-station');await expect(page.getByRole('link',{name:'查看已归档 1 件 ›',exact:true})).toBeVisible();await api(`/api/members/${memberId}/cases/${eventId}/archive`,{archived:false});const restored=await api(`/api/members/${memberId}/cases`,undefined,'GET');assert.equal(restored.active[0].observations[0].state,'paused');result.checks.archiveRestore='PASS'
+  assert.equal(result.runtimeErrors,0);assert.equal(result.http5xx,0)
 } catch(error) {
   result.failure=error.safe??{name:error.name,message:String(error.message).slice(0,500)}
   if(memberId) {
@@ -88,7 +93,9 @@ finally {
   result.cleanup.isolatedAcceptanceAccount=registered?'RETAINED_NO_IDENTITY_DELETION_BYPASS':'NOT_CREATED';result.finishedAt=new Date().toISOString()
   // Browser substitutes and a single OCR sample do not satisfy the explicit
   // physical-device/three-class AI release gate. Never return false-green.
-  result.releaseGate='BLOCKED_AI_OR_PHYSICAL_DEVICE_ACCEPTANCE'
-  process.exitCode=1
+  const corePassed=!result.failure&&result.runtimeErrors===0&&result.http5xx===0&&result.cleanup.draft==='REMOVED'&&result.cleanup.syntheticMember==='REMOVED'&&result.checks.archiveRestore==='PASS'
+  result.releaseScope=allowDegradedRelease?'HUMAN_AUTHORIZED_AI_FAILURE_AND_PHYSICAL_ACCEPTANCE_DEFERRED':'ORIGINAL_FULL_ACCEPTANCE_REQUIRED'
+  result.releaseGate=allowDegradedRelease&&corePassed?'CORE_PASS_WITH_EXPLICIT_AI_AND_PHYSICAL_LIMITATIONS':result.failure?'FAIL_CORE_ACCEPTANCE':'BLOCKED_AI_OR_PHYSICAL_DEVICE_ACCEPTANCE'
+  process.exitCode=allowDegradedRelease&&corePassed?0:1
   await writeFile(path.join(output,'verification.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));await context.close();await browser.close()
 }
