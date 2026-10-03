@@ -41,6 +41,8 @@ import { DesensitizationTestService } from './desensitization-tests/desensitizat
 import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { diagnoseBailianNetwork } from './ai/providers/network-diagnostic.mjs'
+import { createBailianTransport } from './ai/providers/bailian-transport.mjs'
+import { bailianConfiguration } from './ai/providers/provider-config.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -84,7 +86,7 @@ const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
 // Temporary bounded Production investigation; remove after evidence capture.
 if(process.env.RAILWAY_ENVIRONMENT_NAME==='production' && process.env.ASR_PROVIDER==='bailian') {
-  void diagnoseBailianNetwork().then(report=>console.info('[Hoooho AI] network diagnostic',JSON.stringify(report))).catch(()=>console.warn('[Hoooho AI] network diagnostic unavailable'))
+  void Promise.resolve().then(()=>diagnoseBailianNetwork({fetchImpl:createBailianTransport(bailianConfiguration().baseUrl),fetchLabel:'bailian_transport'})).then(report=>console.info('[Hoooho AI] network diagnostic',JSON.stringify(report))).catch(()=>console.warn('[Hoooho AI] network diagnostic unavailable'))
 }
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
