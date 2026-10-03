@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { chromium, devices, expect } from '@playwright/test'
 
@@ -10,9 +11,10 @@ if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit ac
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
 const output = path.resolve(`outputs/home-example-typewriter-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
-// Isolated, ignored QA profiles retain only this runner's own session between
-// retries. Never use the user's browser profile or copy cookies across targets.
-const context = await chromium.launchPersistentContext(path.resolve(`.codex-tmp/home-typewriter-qa-${production ? 'production' : 'staging'}`), { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
+// Isolated QA profiles retain only this runner's own session between retries.
+// Keep locked browser files outside Vite's watched tree and deployment input.
+// Never use the user's browser profile or copy cookies across targets.
+const context = await chromium.launchPersistentContext(path.join(tmpdir(), 'hoooho-home-typewriter-qa-20261004', production ? 'production' : 'staging'), { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 const page = await context.newPage()
 page.setDefaultTimeout(45000)
 const result = { target: base, startedAt: new Date().toISOString(), checks: {}, screenshots: [], runtimeErrors: 0, http5xx: 0, cleanup: {}, ai: 'NOT_RETESTED_UNCHANGED', physicalPhone: 'NOT_VERIFIED' }
