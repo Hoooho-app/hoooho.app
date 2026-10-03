@@ -17,6 +17,8 @@ async function init(page: Page, member = 'empty-child') {
 test('复用症状表单、首屏、补充信息、部位定位、附件真实保存与失败重试', async ({ page, request }) => {
   await init(page)
   const form = page.getByRole('dialog', { name: '症状记录', exact: true })
+  await expect(form.getByRole('button', { name: '关闭', exact: true })).toHaveCount(0)
+  await expect(form.locator('.symptom-supplement-summary')).toHaveCount(0)
   await expect(form.getByRole('heading', { name: '症状记录', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '先保存', exact: true })).toHaveCount(0)
   await expect(form.getByLabel('哪里不舒服')).toBeInViewport()
@@ -83,7 +85,7 @@ test('事件关联、刷新草稿、无AI保存和观察反馈保持原链路', 
   const cases = await (await request.get('/api/members/empty-child/cases', { headers })).json()
   expect(cases.active.find((c: any) => c.event.id === eventId).observations[0].todayNotObserved).toBe(1)
 })
-test('语音点击开始结束，迟到转写不覆盖，关闭不自动保存', async ({ page, request }) => {
+test('语音点击开始结束，迟到转写不覆盖，返回不自动保存', async ({ page, request }) => {
   await page.addInitScript(() => {
     class Speech { onresult: any; onend: any; onerror: any; start() { (window as any).__speech = this } stop() { this.onend?.() } abort() {} }
     ;(window as any).SpeechRecognition = Speech
@@ -100,7 +102,7 @@ test('语音点击开始结束，迟到转写不覆盖，关闭不自动保存',
   await expect(text).toHaveValue('合成原话\n合成转写')
   await page.evaluate(() => (window as any).__late({ resultIndex: 0, results: [{ 0: { transcript: '迟到' }, isFinal: true }] }))
   await expect(text).toHaveValue('合成原话\n合成转写')
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
   expect((await (await request.get('/api/members/empty-child/cases', { headers })).json()).active.length).toBe(before.active.length)
 })
 test('不同孩子与事件的草稿隔离', async ({ page, request }) => {

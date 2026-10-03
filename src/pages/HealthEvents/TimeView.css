@@ -557,8 +557,6 @@
 .symptom-attachment-options button, .symptom-supplement-tabs button { display: grid; min-height: 74px; place-items: center; gap: 4px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; color: rgb(var(--hoho-color-primary)); }
 .symptom-supplement-tabs button.is-added { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
 .symptom-supplement-tabs small { color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; }
-.symptom-supplement-summary { margin: 0; overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.symptom-supplement-summary.has-value { color: rgb(var(--hoho-color-text-secondary)); }
 .symptom-optional-fields { display: grid; gap: 12px; padding-top: 3px; }
 .symptom-optional-fields label, .symptom-optional-fields fieldset { display: grid; min-width: 0; gap: 6px; border: 0; padding: 0; color: rgb(var(--hoho-color-text-primary)); font-size: 13px; }
 .symptom-optional-fields legend { margin-bottom: 6px; font-weight: 650; }
