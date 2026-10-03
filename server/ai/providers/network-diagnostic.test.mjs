@@ -13,3 +13,6 @@ test('nested aggregate causes expose only network fields, never input, messages,
  const original=Object.assign(new TypeError('credential and medical input'),{cause:{code:'ETIMEDOUT',errors:[{code:'ETIMEDOUT',address:'::1',port:443,syscall:'connect',message:'private',headers:{Authorization:'private'}}]}})
  assert.deepEqual(safeNetworkCause(original),{name:'TypeError',cause:{code:'ETIMEDOUT',errors:[{code:'ETIMEDOUT',syscall:'connect',address:'::1',port:443}]}})
 })
+test('a broken probe cannot discard the remaining stage evidence',async()=>{
+ const r=await diagnoseBailianNetwork({env,lookup:async()=>[{address:'127.0.0.1',family:4}],tlsProbe:async()=>{throw new TypeError('private')},httpProbe:async()=>{throw new TypeError('private')},fetchImpl:async()=>({status:401})});assert.equal(r.results.length,5);assert.equal(r.results[1].success,false);assert.equal(r.results[2].success,false);assert.equal(r.results.at(-1).success,true);assert.doesNotMatch(JSON.stringify(r),/private/)
+})
