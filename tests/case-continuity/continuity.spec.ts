@@ -7,14 +7,15 @@ async function initialize(page:Page,member='empty-child') {
 }
 async function capture(request:any,text:string,eventId?:string,identity='parent',files:any[]=[]){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files,eventId,identity,requestId:crypto.randomUUID(),occurredAt:new Date().toISOString(),timeUnknown:false}});expect(response.status()).toBe(200);return response.json()}
 
-test('首页速记按钮和文案入口独立可点击，鼠标键盘进入原记录流程',async({page})=>{
+test('首页输入框式速记入口是单一按钮，鼠标键盘进入原记录流程',async({page})=>{
   await initialize(page);await page.goto('/nurse-station')
-  const entry=page.locator('.continuity-record-entry'),button=entry.getByRole('button',{name:'速记',exact:true}),link=entry.getByRole('link',{name:'健康事件随时记 突发情况先记下来',exact:true})
-  await expect(button).toBeVisible();await expect(link).toHaveAttribute('href','/smart-record')
+  const button=page.getByRole('button',{name:'健康事件随时记，情况速记',exact:true})
+  await expect(button).toBeVisible();await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   expect(await button.evaluate(el=>el.closest('a')===null)).toBe(true)
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'发生了什么（主诉）？'})).toBeVisible()
-  await page.goBack();await link.click();await expect(page).toHaveURL(/\/smart-record$/)
+  await expect(page.getByRole('textbox',{name:'发生了什么（主诉）？'})).toHaveValue('')
+  await page.goBack();await button.locator('strong').click();await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
 
