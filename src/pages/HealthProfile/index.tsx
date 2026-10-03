@@ -42,6 +42,6 @@ export function HealthProfilePage() {
       <span className="health-profile-entry__text"><strong>{title}</strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
     {summary.text.startsWith('数量暂不可用') && <button className="health-profile-summary-retry" onClick={() => setRetry(value => value + 1)} type="button">重试加载数量</button>}
-    <button className="health-profile-smart-record" disabled={!member || !token} onClick={() => navigate('/health-profile/smart-record')} type="button"><span><strong>智能整理与记录</strong><small>上传报告、病历、体检报告、<br />自动整理到各项档案</small></span><Upload aria-hidden="true" size={24} strokeWidth={1.6} /></button>
+    <button className="health-profile-smart-record" disabled={!member || !token} onClick={() => navigate('/health-profile/smart-record')} type="button"><span><strong>智能整理与记录</strong><small>上传报告、病历、体检报告、自动整理到各项档案</small></span><Upload aria-hidden="true" size={24} strokeWidth={1.6} /></button>
   </div></main>
 }
