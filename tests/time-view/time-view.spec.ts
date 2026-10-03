@@ -1820,7 +1820,7 @@ test('short keyboard viewport keeps direct symptom form actionable and closeable
   const box = await save.boundingBox()
   expect(box!.y + box!.height).toBeLessThanOrEqual(430)
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
@@ -1855,7 +1855,7 @@ test('free symptom narratives save without tags and location remains optional', 
   await expect(form.getByText('请填写哪里不舒服', { exact: true })).toHaveCount(0)
   await form.getByRole('button', { name: '保存', exact: true }).click()
   await expect(form.getByText('请填写哪里不舒服', { exact: true })).toBeVisible()
-  await form.getByRole('button', { name: '关闭', exact: true }).click()
+  await form.getByRole('button', { name: '返回', exact: true }).click()
 
   for (const narrative of ['感冒', '手冰凉']) {
     await openSymptom(page)

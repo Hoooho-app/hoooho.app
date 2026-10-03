@@ -105,7 +105,6 @@
 .symptom-record-page.symptom-record-page--brand-white .occurrence-time-control { justify-self: end; max-width: 100%; }
 .symptom-record-page--brand-white .symptom-manual-location { margin-top: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); }
 .symptom-record-page--brand-white .symptom-card-empty { margin: 2px 0 6px; }
-.symptom-record-page--brand-white .symptom-supplement-summary { margin-top: var(--hoho-space-1); }
 .symptom-record-page--brand-white .symptom-location-tags > span { font-weight: 500; }
 .symptom-record-page--brand-white .symptom-location-tags svg { flex: none; }
 .symptom-record-page--brand-white .symptom-optional-fields { gap: var(--hoho-space-4); padding-top: var(--hoho-space-3); }

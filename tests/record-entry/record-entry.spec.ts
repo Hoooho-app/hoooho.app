@@ -72,7 +72,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['记录补给','记录补剂'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
-    if(title==='记录症状')await form.getByRole('button',{name:'关闭',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
+    if(title==='记录症状')await form.getByRole('button',{name:'返回',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
   for(const [option,title] of [['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]){
     await daily.click();await options.getByRole('button',{name:option,exact:true}).click()
@@ -83,6 +83,8 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await expect(daily).toHaveAttribute('aria-pressed','false')
   await footer.getByRole('button',{name:'记录症状',exact:true}).click()
   await expect(page.getByRole('dialog',{name:'记录症状',exact:true})).toBeVisible()
+  await expect(page.getByRole('dialog',{name:'记录症状',exact:true}).getByRole('button',{name:'关闭',exact:true})).toHaveCount(0)
+  await expect(page.locator('.symptom-supplement-summary')).toHaveCount(0)
 })
 
 test('symptom primary preserves member, occurrence day, locator, return and cancellation without AI navigation',async({page})=>{
@@ -99,7 +101,8 @@ test('symptom primary preserves member, occurrence day, locator, return and canc
   await expect(picker).toBeVisible()
   await picker.getByRole('button',{name:'关闭身体部位定位器'}).click()
   await form.getByLabel('哪里不舒服').fill('合成入口验收手臂发痒')
-  await form.getByRole('button',{name:'关闭',exact:true}).click()
+  page.once('dialog', dialog => dialog.accept())
+  await form.getByRole('button',{name:'返回',exact:true}).click()
   await expect(form).toHaveCount(0)
   expect(posts).toBe(0);expect(aiRequests).toBe(0)
   await expect(page.getByLabel('选择日期')).toHaveValue('2026-09-24')
@@ -133,7 +136,7 @@ test('legacy journal smart signal and history safely open existing symptom form 
   await expect(form).toBeVisible()
   expect(await page.evaluate(()=>localStorage.getItem('entry-legacy-smart-draft'))).toBe('untouched synthetic draft')
   await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toHaveCount(0)
-  await form.getByRole('button',{name:'关闭',exact:true}).click()
+  await form.getByRole('button',{name:'返回',exact:true}).click()
   await expect(page.locator('.journal-record-actions')).toBeVisible()
 })
 test('drafts, common food fields, timer pause, reload and no automatic saves',async({page})=>{
