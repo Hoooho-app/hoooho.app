@@ -1,6 +1,6 @@
 import { bodyLocationLabel } from '../../../shared/body-location-label.mjs'
 import { Check, ChevronDown, ChevronLeft, Clock3, MapPin, Mic, Paperclip, Plus, SlidersHorizontal, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
 import { ChildBodyLocationPicker } from '../../components/health/body-location/ChildBodyLocationPicker'
@@ -14,6 +14,7 @@ import { inferSymptomCategory, toSymptomLocations } from './symptomRecordLogic'
 import { useSymptomVoice } from './useSymptomVoice'
 import { journalCategoryLabels, journalListSummary, type JournalEntry } from './timeViewModel'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import './TimeView.css'
 import './SymptomRecordFlow.css'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
@@ -40,8 +41,8 @@ function restoreDraft(memberId: string) {
 const impactLabels: Record<SymptomImpactLevel, string> = { little: '轻度', some: '中度', clear: '重度' }
 const impactOptions: readonly [SymptomImpactLevel, string][] = [['little', '轻度'], ['some', '中度'], ['clear', '重度']]
 
-export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
-  const [draft, setDraft] = useState<Draft>(() => restoreDraft(memberId))
+export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved, title = '记录症状', draftScope = memberId, extraFields }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void; title?: string; draftScope?: string; extraFields?: ReactNode }) {
+  const [draft, setDraft] = useState<Draft>(() => restoreDraft(draftScope))
   const [saving, setSaving] = useState(false), [pageError, setPageError] = useState('')
   const [recognition, setRecognition] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle')
   const [fieldErrors, setFieldErrors] = useState<{ narrative?: string; location?: string; time?: string }>({})
@@ -49,7 +50,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const photoInputRef = useRef<HTMLInputElement>(null), narrativeRef = useRef<HTMLTextAreaElement>(null)
   const locationEditedRef = useRef(Boolean(draft.locationText || draft.locations.length))
   const previewVersionRef = useRef(0)
-  const photos = useQuickRecordPhotos(memberId, token, 6, 'symptom')
+  const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`)
   const occurrence = useOccurrenceTime(selectedDay, today, draft.occurredAt)
   const [viewport, setViewport] = useState(() => ({ top: window.visualViewport?.offsetTop ?? 0, height: window.visualViewport?.height ?? window.innerHeight }))
   useEffect(() => {
@@ -60,7 +61,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
     window.addEventListener('resize', resize); visual?.addEventListener('resize', resize); visual?.addEventListener('scroll', resize)
     return () => { Object.assign(body.style, previous); window.scrollTo(0, scrollY); window.removeEventListener('resize', resize); visual?.removeEventListener('resize', resize); visual?.removeEventListener('scroll', resize) }
   }, [])
-  useEffect(() => { sessionStorage.setItem(draftKey(memberId), JSON.stringify(draft)) }, [draft, memberId])
+  useEffect(() => { sessionStorage.setItem(draftKey(draftScope), JSON.stringify(draft)) }, [draft, draftScope])
   useEffect(() => {
     if (composing) return
     const narrative = draft.narrative.trim()
@@ -112,7 +113,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
       const details: JournalSymptomDetails = { symptomCategory: inferSymptomCategory(draft.keywords), narrative: draft.narrative, keywords: draft.keywords, locations: toSymptomLocations(draft.locations), descriptors: [], linkedRecordIds: {}, ...(draft.locationText.trim() ? { locationText: draft.locationText.trim() } : {}), ...(draft.impactLevel ? { impactLevel: draft.impactLevel } : {}), ...(draft.triggerText.trim() ? { triggerText: draft.triggerText.trim() } : {}), ...(draft.trend ? { trend: draft.trend } : {}), ...(draft.shortNote.trim() ? { shortNote: draft.shortNote.trim() } : {}) }
       if (draft.summary.trim()) details.generatedSummary = draft.summary.trim()
       const message = await onConfirm(draft.narrative.trim(), occurredAt, 'text', photos.payload(), { categories: ['symptom'], symptom: details, occurredAt, timePrecision: 'exact' })
-      photos.clearAfterSave(); sessionStorage.removeItem(draftKey(memberId)); onSaved(message); onClose()
+      photos.clearAfterSave(); sessionStorage.removeItem(draftKey(draftScope)); onSaved(message); onClose()
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '保存失败，请重试'
       if (message.includes('主要症状') || message.includes('其他症状')) setFieldErrors((current) => ({ ...current, narrative: '请填写哪里不舒服' }))
@@ -122,8 +123,8 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const optionalSummary = draft.impactLevel ? impactLabels[draft.impactLevel] : ''
   const manualLocation = draft.locationText.trim()
   const manualLocationIsStructured = draft.locations.some((location) => location.label.trim() === manualLocation)
-  return createPortal(<div className="symptom-record-page-layer" style={{ top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label="记录症状" aria-modal="true" className="symptom-record-page symptom-record-page--brand-white" role="dialog">
-    <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>记录症状</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X aria-hidden="true" size={23} strokeWidth={1.8} /></button></header>
+  return createPortal(<div className="symptom-record-page-layer" style={{ top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label={title} aria-modal="true" className="symptom-record-page symptom-record-page--brand-white" role="dialog">
+    <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1><button aria-label="关闭" disabled={saving} onClick={onClose} type="button"><X aria-hidden="true" size={23} strokeWidth={1.8} /></button></header>
     <div className="symptom-record-scroll">
       <section className="symptom-card symptom-narrative"><div className="symptom-heading"><h2>哪里不舒服？</h2><button className="symptom-voice-action" disabled={saving || voice.state === 'stopping'} onClick={() => voice.busy ? voice.stop() : void voice.start()} type="button"><Mic aria-hidden="true" size={18} />{voice.busy ? '结束' : '语音记录'}</button></div>{voice.busy && <p className="symptom-extraction-note" role="status">{voice.state === 'requesting' ? '正在请求麦克风…' : voice.state === 'stopping' ? '正在结束语音…' : '正在聆听，讲话会实时转成文字'}</p>}{voice.error && <p className="symptom-field-error" role="alert">{voice.error}</p>}<textarea ref={narrativeRef} aria-describedby={fieldErrors.narrative ? 'symptom-narrative-error' : undefined} aria-invalid={Boolean(fieldErrors.narrative)} aria-label="哪里不舒服" maxLength={1000} readOnly={voice.busy} onBlur={() => { if (narrativeRef.current) narrativeRef.current.scrollTop = 0 }} onChange={(event) => updateNarrative(event.target.value)} onCompositionEnd={(event) => { setComposing(false); updateNarrative(event.currentTarget.value) }} onCompositionStart={() => { previewVersionRef.current += 1; setComposing(true); setRecognition('idle') }} placeholder="描述症状和变化，例如：左肘窝发红、发痒" value={draft.narrative} />{fieldErrors.narrative && <p className="symptom-field-error" id="symptom-narrative-error" role="alert">{fieldErrors.narrative}</p>}{recognition === 'loading' && <p className="symptom-extraction-note" role="status">正在整理症状描述…</p>}{recognition === 'success' && <p className="symptom-extraction-note" role="status">已整理，可继续修改</p>}{recognition === 'empty' && <p className="symptom-extraction-note">暂未生成摘要，可直接保存原文。</p>}{recognition === 'error' && <p className="symptom-extraction-note">暂时无法整理，可直接保存原文。</p>}{draft.keywords.length > 0 && <div className="symptom-keywords">{draft.keywords.map((keyword) => <button aria-label={`移除${keyword}`} key={keyword} onClick={() => update('keywords', draft.keywords.filter((item) => item !== keyword))} type="button">{keyword}<X aria-hidden="true" size={12} /></button>)}</div>}</section>
       <section className="symptom-card symptom-location-card"><div className="symptom-card-heading"><h2><MapPin aria-hidden="true" size={21} strokeWidth={1.8} />症状部位 <span>选填</span></h2></div><div className="symptom-location-entry"><input aria-label="手动补充症状部位" maxLength={120} onChange={(event) => { locationEditedRef.current = true; update('locationText', event.target.value) }} placeholder="例如：左肘窝" value={draft.locationText} /><ChildBodyLocationPicker memberId={memberId} showCommitted={false} buttonLabel={draft.locations.length ? '修改' : '选择部位'} confirmLabel="完成并返回症状记录" value={draft.locations} onChange={(locations) => { locationEditedRef.current = true; setDraft((current) => ({ ...current, locations })); setPageError('') }} /></div>{Boolean(draft.locations.length || manualLocation) && <div aria-label="已选择的症状部位" className="symptom-location-tags">{draft.locations.map((location) => <span key={childSelectionKey(location)}><Check aria-hidden="true" size={15} />{bodyLocationLabel(location)}</span>)}{manualLocation && !manualLocationIsStructured && <span><Check aria-hidden="true" size={15} />{manualLocation}</span>}</div>}</section>
@@ -132,6 +133,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
         <fieldset><legend>严重程度</legend><div className="symptom-segmented-options">{impactOptions.map(([value, label]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button">{draft.impactLevel === value && <Check aria-hidden="true" size={15} />}{label}</button>)}</div></fieldset>
       </div>}</section>
       <OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => update('occurredAt', value || undefined)} showDateContext />
+      {extraFields}
       {pageError && <p className="symptom-save-error" role="alert">{pageError}</p>}{photos.blocked && <p className="symptom-save-error" role="alert">{photos.photos.some((photo) => photo.status === 'failed') ? '有照片上传失败，请重试或移除' : '照片上传中，请稍候'}</p>}
     </div>
     <div className="symptom-record-save"><HohoButton disabled={saving || voice.busy || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存</HohoButton></div>

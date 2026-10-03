@@ -62,7 +62,7 @@ test('框体四区域只跳转一次，首页示例不预填草稿、不唤起�
     else await entry.locator(area==='title'?'strong':area==='example'?'.continuity-record-entry__example':'.continuity-record-entry__action').click()
     await expect(page).toHaveURL(/\/smart-record$/)
     expect(await page.evaluate(()=>(window as any).entryPushes)).toBe(1)
-    await expect(page.getByRole('textbox',{name:'发生了什么（主诉）？'})).toHaveValue('')
+    await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
     await page.goBack();await expect(entry).toBeVisible()
   }
 })
@@ -73,7 +73,7 @@ test('实际节奏短录屏：输入、停留、删除及点击原流程',async(
   await expect(page.locator('.continuity-record-entry')).toBeVisible()
   await expect(page.locator('.continuity-record-entry__example span')).toHaveText('例如：'+quickNoteExamples[1],{timeout:12000})
   await page.locator('.continuity-record-entry__action').click();await expect(page).toHaveURL(/\/smart-record$/)
-  await expect(page.getByRole('textbox',{name:'发生了什么（主诉）？'})).toHaveValue('')
+  await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
   await context.close()
   await page.video()!.saveAs('outputs/home-example-typewriter-20261004/local/typewriter-and-entry.webm')
 })

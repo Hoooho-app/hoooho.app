@@ -1,0 +1,128 @@
+import { test, expect, type Page } from '@playwright/test'
+import { TokenService } from '../../server/auth/token-service.mjs'
+import { mkdir } from 'node:fs/promises'
+const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
+const headers = { Authorization: 'Bearer ' + token }
+async function init(page: Page, member = 'empty-child') {
+  await page.addInitScript(({ token, member }) => {
+    sessionStorage.setItem('hoooho-auth-token', token)
+    if (!sessionStorage.getItem('symptom-initialized')) {
+      localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 }))
+      sessionStorage.setItem('symptom-initialized', 'true')
+    }
+  }, { token, member })
+  await page.goto('/nurse-station')
+  await page.goto('/smart-record')
+}
+test('复用症状表单、首屏、补充信息、部位定位、附件真实保存与失败重试', async ({ page, request }) => {
+  await init(page)
+  const form = page.getByRole('dialog', { name: '症状记录', exact: true })
+  await expect(form.getByRole('heading', { name: '症状记录', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '先保存', exact: true })).toHaveCount(0)
+  await expect(form.getByLabel('哪里不舒服')).toBeInViewport()
+  await expect(form.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
+  await mkdir('outputs/smart-symptom', { recursive: true })
+  await page.screenshot({ path: 'outputs/smart-symptom/iphone-se-initial.png' })
+  await form.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('请填写哪里不舒服')
+  await form.getByLabel('哪里不舒服').fill('合成验收：左肘窝发红、发痒')
+  await form.getByLabel('手动补充症状部位').fill('左肘窝')
+  await form.getByRole('button', { name: /选择部位/ }).click()
+  const picker = page.getByRole('dialog', { name: '身体部位定位器' })
+  await expect(picker).toBeVisible()
+  await picker.getByRole('button', { name: /关闭/ }).click()
+  await form.getByRole('button', { name: /补充信息/ }).click()
+  await form.getByRole('button', { name: '中度', exact: true }).click()
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+  await form.locator('input[type="file"]').setInputFiles({ name: '合成症状照片.png', mimeType: 'image/png', buffer: pixel })
+  await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+  let fail = true
+  await page.route('**/api/members/empty-child/case-records', route => fail ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '合成保存故障' } }) }) : route.continue())
+  await form.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('合成保存故障')
+  await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成验收：左肘窝发红、发痒')
+  fail = false
+  await form.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+  const eventId = page.url().split('/').at(-1)
+  const records = await (await request.get('/api/events/' + eventId + '/records', { headers })).json()
+  const record = records.find((r: any) => r.content === '合成验收：左肘窝发红、发痒')
+  expect(record.journal.categories).toEqual(['symptom'])
+  expect(record.journal.symptom.impactLevel).toBe('some')
+  expect(record.journal.symptom.locationText).toBe('左肘窝')
+  expect(record.caseContext.attachmentIds).toHaveLength(1)
+})
+for (const width of [375, 390, 430]) test('复用表单响应式 ' + width, async ({ page }) => {
+  await page.setViewportSize({ width, height: 667 })
+  await init(page)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
+  await page.screenshot({ path: 'outputs/smart-symptom/initial-' + width + '.png' })
+})
+test('事件关联、刷新草稿、无AI保存和观察反馈保持原链路', async ({ page, request }) => {
+  await init(page)
+  await page.route('**/api/**/symptom-preview', route => route.fulfill({ status: 503, body: '{}' }))
+  const text = page.getByLabel('哪里不舒服')
+  await text.fill('合成观察：皮肤没有变化')
+  await page.reload()
+  await expect(text).toHaveValue('合成观察：皮肤没有变化')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+  const eventId = page.url().split('/').at(-1)!
+  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
+  const response = await request.post('/api/members/empty-child/cases/' + eventId + '/observations', { headers, data: { item: '合成观察', startsOn: day, endsOn: day, timesPerDay: 1, timezone: 'Asia/Shanghai', requestId: crypto.randomUUID() } })
+  expect(response.ok()).toBe(true)
+  const event = await response.json()
+  const taskId = event.observationTasks[0].id
+  await page.goto('/smart-record?eventId=' + eventId + '&taskId=' + taskId)
+  await expect(text).toHaveValue('')
+  await text.fill('合成观察：未观察')
+  await page.getByRole('button', { name: '未观察', exact: true }).click()
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp('/health-events/' + eventId + '$'))
+  const cases = await (await request.get('/api/members/empty-child/cases', { headers })).json()
+  expect(cases.active.find((c: any) => c.event.id === eventId).observations[0].todayNotObserved).toBe(1)
+})
+test('语音点击开始结束，迟到转写不覆盖，关闭不自动保存', async ({ page, request }) => {
+  await page.addInitScript(() => {
+    class Speech { onresult: any; onend: any; onerror: any; start() { (window as any).__speech = this } stop() { this.onend?.() } abort() {} }
+    ;(window as any).SpeechRecognition = Speech
+  })
+  await init(page)
+  const before = await (await request.get('/api/members/empty-child/cases', { headers })).json()
+  const text = page.getByLabel('哪里不舒服')
+  await text.fill('合成原话')
+  await page.getByRole('button', { name: '语音记录', exact: true }).click()
+  await expect(page.getByRole('button', { name: '结束', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => !!(window as any).__speech)).toBe(true)
+  await page.evaluate(() => { const r = (window as any).__speech; (window as any).__late = r.onresult; r.onresult({ resultIndex: 0, results: [{ 0: { transcript: '合成转写' }, isFinal: true }] }) })
+  await page.getByRole('button', { name: '结束', exact: true }).click()
+  await expect(text).toHaveValue('合成原话\n合成转写')
+  await page.evaluate(() => (window as any).__late({ resultIndex: 0, results: [{ 0: { transcript: '迟到' }, isFinal: true }] }))
+  await expect(text).toHaveValue('合成原话\n合成转写')
+  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  expect((await (await request.get('/api/members/empty-child/cases', { headers })).json()).active.length).toBe(before.active.length)
+})
+test('不同孩子与事件的草稿隔离', async ({ page, request }) => {
+  await init(page)
+  await page.getByLabel('哪里不舒服').fill('合成当前孩子草稿')
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+  await page.locator('.symptom-record-page input[type="file"]').setInputFiles({ name: 'context.png', mimeType: 'image/png', buffer: pixel })
+  await expect(page.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+  await page.goto('/smart-record?eventId=another-context')
+  await expect(page.getByLabel('哪里不舒服')).toHaveValue('')
+  await expect(page.locator('.quick-record-photo')).toHaveCount(0)
+  await page.goto('/smart-record')
+  await expect(page.getByLabel('哪里不舒服')).toHaveValue('合成当前孩子草稿')
+  await expect(page.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+  await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem('hoooho-app')!)
+    data.state.currentMemberId = 'child-a'
+    localStorage.setItem('hoooho-app', JSON.stringify(data))
+  })
+  await request.post('/api/auth/current-member', { headers, data: { memberId: 'child-a' } })
+  await page.reload()
+  await expect(page.getByLabel('哪里不舒服')).toHaveValue('')
+  await expect(page.locator('.quick-record-photo')).toHaveCount(0)
+})
+

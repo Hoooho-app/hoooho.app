@@ -1,0 +1,9 @@
+# 症状记录入口
+
+`/smart-record` 直接复用健康随记的 `SymptomRecordFlow`，标题为“症状记录”，底部保存；原健康随记入口仍叫“记录症状”。表单、部位定位、照片、严重程度、发生时间和点击式语音共用原组件。
+
+保存继续使用 `POST /api/members/:memberId/case-records`，兼容旧请求，新增可选 `journal`、`photoDraftId`、`photoIds`。后端使用既有 journal 校验与照片草稿服务，在同一账户事务内保存症状、关联照片、消费草稿。事件与观察任务参数保留；任务记录仍要求明确选择观察结果，不默认补为正常。
+
+此入口的文本草稿按账号、人物、事件、任务隔离；保存失败保留表单，保存请求 ID 在刷新后复用，成功后清理。已有智能收记 IndexedDB 草稿保留原样，不自动将旧原件或待核对资料转换成症状事实。其他智能整理入口及 AI/Parser 规则不变。
+
+验收：`tests/case-continuity/symptom-record.spec.ts` 和 `server/events/case-continuity-service.test.mjs`；覆盖 375/390/430、空表单、结构化保存、照片、草稿恢复、失败重试、事件关联、观察反馈与点击语音。

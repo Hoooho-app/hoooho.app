@@ -132,7 +132,7 @@ test('legacy journal smart signal and history safely open existing symptom form 
   })
   await expect(form).toBeVisible()
   expect(await page.evaluate(()=>localStorage.getItem('entry-legacy-smart-draft'))).toBe('untouched synthetic draft')
-  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toHaveCount(0)
+  await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toHaveCount(0)
   await form.getByRole('button',{name:'关闭',exact:true}).click()
   await expect(page.locator('.journal-record-actions')).toBeVisible()
 })
@@ -261,6 +261,6 @@ for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便'
 test('shared case capture route remains usable outside the retired journal entry',async({page})=>{
   await prepare(page)
   await page.goto('/smart-record')
-  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toBeVisible()
   await expect(page.locator('.journal-record-actions')).toHaveCount(0)
 })

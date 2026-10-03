@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
-import { AIBusinessComposer } from '../ai-business/AIBusinessComposer'
+import { SymptomCaseRecord } from './SymptomCaseRecord'
 import { CaseCard } from './CaseCards'
 import { useCases } from './useCases'
 import { caseService } from './api'
@@ -12,7 +12,8 @@ import { ObservationSource, type SourceChoice } from './ObservationSource'
 import { ComparisonRecords } from './ComparisonRecords'
 export function SmartCaseRecordPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', navigate = useNavigate(), [query] = useSearchParams()
-  return <main className="app-shell continuity-page"><AIBusinessComposer key={memberId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/></main>
+  const accountId = useAppStore(s => s.authUser?.id ?? '')
+  return <main className="app-shell continuity-page"><SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/></main>
 }
 export function CaseListPage() {
   const { data, error, reload } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')

@@ -47,11 +47,11 @@ test('legacy related-record editor remains available outside the simplified crea
 })
 
 test('symptom photos use an isolated six-photo draft and structured real save', () => {
-  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, 'symptom'\)/)
+  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, draftScope === memberId \? 'symptom' : `symptom:\$\{draftScope\}`\)/)
   assert.match(source, /照片与附件/)
   assert.match(source, /\$\{photos\.photos\.length\} 张照片/)
   assert.match(source, /photos\.payload\(\)/)
   assert.match(source, /categories: \['symptom'\], symptom: details/)
-  assert.match(source, /sessionStorage\.removeItem\(draftKey\(memberId\)\)/)
+  assert.match(source, /sessionStorage\.removeItem\(draftKey\(draftScope\)\)/)
   assert.doesNotMatch(source, /附件.*拍照.*从相册选择/s)
 })
