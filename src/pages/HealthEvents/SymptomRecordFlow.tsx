@@ -50,7 +50,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const photoInputRef = useRef<HTMLInputElement>(null), narrativeRef = useRef<HTMLTextAreaElement>(null)
   const locationEditedRef = useRef(Boolean(draft.locationText || draft.locations.length))
   const previewVersionRef = useRef(0)
-  const photos = useQuickRecordPhotos(memberId, token, 6, 'symptom')
+  const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`)
   const occurrence = useOccurrenceTime(selectedDay, today, draft.occurredAt)
   const [viewport, setViewport] = useState(() => ({ top: window.visualViewport?.offsetTop ?? 0, height: window.visualViewport?.height ?? window.innerHeight }))
   useEffect(() => {

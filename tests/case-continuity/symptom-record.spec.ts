@@ -106,10 +106,15 @@ test('语音点击开始结束，迟到转写不覆盖，关闭不自动保存',
 test('不同孩子与事件的草稿隔离', async ({ page, request }) => {
   await init(page)
   await page.getByLabel('哪里不舒服').fill('合成当前孩子草稿')
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+  await page.locator('.symptom-record-page input[type="file"]').setInputFiles({ name: 'context.png', mimeType: 'image/png', buffer: pixel })
+  await expect(page.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
   await page.goto('/smart-record?eventId=another-context')
   await expect(page.getByLabel('哪里不舒服')).toHaveValue('')
+  await expect(page.locator('.quick-record-photo')).toHaveCount(0)
   await page.goto('/smart-record')
   await expect(page.getByLabel('哪里不舒服')).toHaveValue('合成当前孩子草稿')
+  await expect(page.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
   await page.evaluate(() => {
     const data = JSON.parse(localStorage.getItem('hoooho-app')!)
     data.state.currentMemberId = 'child-a'
@@ -118,5 +123,6 @@ test('不同孩子与事件的草稿隔离', async ({ page, request }) => {
   await request.post('/api/auth/current-member', { headers, data: { memberId: 'child-a' } })
   await page.reload()
   await expect(page.getByLabel('哪里不舒服')).toHaveValue('')
+  await expect(page.locator('.quick-record-photo')).toHaveCount(0)
 })
 
