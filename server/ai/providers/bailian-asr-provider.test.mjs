@@ -15,7 +15,7 @@ test('百炼独立ASR协议复用北京兼容地址，保留原音频、ITN关�
   for(const key of ['enable_thinking','max_tokens','response_format','tools'])assert.equal(body[key],undefined)
   return response()
  }})
- const result=await provider.transcribeAudio(audio);assert.equal(result.transcript,'今天没有呕吐，只是恶心');assert.equal(result.model,'qwen3-asr-flash');assert.equal(result.diagnostics.requestId,requestId);assert.equal(result.diagnostics.audioSeconds,4);assert.equal(calls,1)
+ const result=await provider.transcribeAudio(audio);assert.equal(result.transcript,'今天没有呕吐，只是恶心');assert.equal(result.model,'qwen3-asr-flash');assert.equal(result.diagnostics.requestId,requestId);assert.equal(result.diagnostics.audioSeconds,4);assert.equal(result.diagnostics.supplierRequestAttempted,true);assert.equal(result.diagnostics.supplierResponseReceived,true);assert.equal(calls,1)
  assert.doesNotMatch(JSON.stringify(logs),/没有呕吐|SYNTHETIC_AUDIO|synthetic-asr-credential|Authorization/)
 })
 test('仅显式百炼ASR配置启用，不读取旧OpenAI密钥，不伪装文字模型或TTS',()=>{
@@ -34,7 +34,7 @@ for(const [status,code,expected] of [[401,'InvalidApiKey','AUTHENTICATION'],[403
 test('ASR 空转写、截断、非文本、无效信封、网络超时均不伪造文字',async()=>{
  for(const [fetchImpl,code] of [[async()=>response(''),'ASR_NO_SPEECH'],[async()=>response('partial','length'),'ASR_OUTPUT_INCOMPLETE'],[async()=>response([{text:'不可直接采用'}]),'ASR_OUTPUT_INVALID'],[async()=>new Response('invalid'),'ASR_OUTPUT_INVALID'],[async()=>{throw Object.assign(new Error('raw-sensitive'),{cause:{code:'ETIMEDOUT'}})},'ASR_NETWORK_ERROR']]){
   let calls=0;const p=new BailianASRProvider({env,logger:silent,fetchImpl:async(...args)=>{calls++;return fetchImpl(...args)}})
-  await assert.rejects(()=>p.transcribeAudio(audio),{code});assert.equal(calls,1)
+  await assert.rejects(()=>p.transcribeAudio(audio),e=>{assert.equal(e.code,code);assert.equal(e.supplierRequestAttempted,true);if(code==='ASR_NETWORK_ERROR')assert.equal(e.supplierResponseReceived,false);return true});assert.equal(calls,1)
  }
 })
 test('Safari MP4未转码和超大小在出站前拒绝；取消信号传递',async()=>{

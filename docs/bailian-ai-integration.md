@@ -33,7 +33,9 @@
 
 本轮相关验证：ASR服务/协议15项、客户端错误/PCM3项；手机自动化10项覆盖普通连续3次、失败后重录/手动重试、权限、取消、关闭/换孩子、后台令牌刷新、转码失败及旧内容保留；另沿用受影响旧语音/静音/打字回归。类型检查、生产构建与构建守卫、diff和密钥边界检查。离线供应商响应为测试替身，不等同真实供应商验收；MP4/AAC是Chrome原生实际录音字节解码验证，不是实体Safari硬件。
 
-真实开发验收预算延续9/12，最多余3次，自动重试0。仅三段不同合成普通语音在同一窗口顺序录音→停止→真实ASR→编辑，不重复文字整理已通过项，不依赖syntheticReplay或白名单，不上传真实儿童资料。新结果写入忽略目录 `outputs/bailian-ai/asr-acceptance/ordinary-live-result.json`；每次实际POST前计账，鉴权/额度/权限/网络阻塞停止外部请求，预算耗尽不追加。真实iPhone硬件未连接，不能用Chrome iPhone SE视口或Windows WebKit代替；完整用户手机问题的解决结论仍需实体体验证据。
+真实开发验收预算延续9/12，最多余3次，自动重试0。计划三段不同合成普通语音在同一窗口顺序录音→停止→真实ASR→编辑，不重复文字整理已通过项，不依赖syntheticReplay或白名单，不上传真实儿童资料。新结果写入忽略目录 `outputs/bailian-ai/asr-acceptance/ordinary-live-result.json`；每次实际POST前计账，鉴权/额度/权限/网络阻塞停止外部请求，预算耗尽不追加。真实iPhone硬件未连接，不能用Chrome iPhone SE视口或Windows WebKit代替；完整用户手机问题的解决结论仍需实体体验证据。
+
+本轮实际Production复验（核心修复main `f9e0efa1358fbe5046a12e4aed06de1b1b609cab`，deployment `1a1b1c99-25a3-4d96-9387-5920ee2c5b6c`）：第一段“昨晚睡得不好，今天早上精神还可以。”经原生MP4/AAC录音、实际解码、WAV上传，认证/成员与音频验证通过；158762字节audio/wav，失败阶段provider，供应商连接 `ETIMEDOUT`，714ms，应用503/ASR_NETWORK_ERROR。应用关联 `0ab75ab6-3400-4d78-b7db-05801bf3f132`，没有供应商响应/请求标识/Token用量。与前次日志同类连接失败，停止后续模型请求：**本轮1，累计10/12，余2；连续录音仅离线通过，普通语音真实成功仍未通过**。生产实际页面准确显示“连接失败”、录音可主动重试，文字/图片继续可用；隔离虚构成员/临时数据已正常删除，会话已退出。未伪造或保存转写。连接故障不要求重新填密钥，也不对用户宿主网络重复探测。最后更正诊断字段：supplierRequestAttempted只表示发起传输尝试，supplierResponseReceived表示收到HTTP响应；不能将失败连接标为已送达供应商。
 
 发布：仅聚焦PR→canonical main→原Railway Production服务，用户明确不使用Staging；无依赖升级、数据库迁移或生产数据覆盖。回滚：Railway本服务Deployments对上述7b967c15成功版本Rollback，或revert本次聚焦merge后从main发布；本次没有变量变更，不回退/轮换密钥，不清库。生产版本/健康/实际ASR结果另附发布证据，不把发布成功当真实手机全链路通过。
 
