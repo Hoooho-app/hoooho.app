@@ -48,3 +48,14 @@ test('转写预算由认证账号计数，超限不请求模型；账号之间�
   let calls=0;const service=new AudioTranscriptionService({maxCallsPerHour:1,provider:{name:'test',transcribeAudio:async()=>{calls++;return {transcript:'合成转写'}}}}),input={mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${realWavBuffer().toString('base64')}`}
   await service.transcribe(input,'synthetic-a');await assert.rejects(()=>service.transcribe(input,'synthetic-a'),{code:'ASR_CALL_LIMIT'});await service.transcribe(input,'synthetic-b');assert.equal(calls,2)
 })
+
+test('音频失败日志白名单可定位配置/格式/取消阶段，不记录输入或转写',async()=>{
+ const logs=[],logger={info:(...v)=>logs.push(v),warn:(...v)=>logs.push(v)},input={name:'私有医疗描述.wav',mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${realWavBuffer().toString('base64')}`}
+ const absent=new AudioTranscriptionService({provider:null,logger});await assert.rejects(()=>absent.transcribe(input),e=>{assert.match(e.details.requestId,/^[a-f0-9-]{36}$/);return e.code==='ASR_NOT_CONFIGURED'})
+ assert.equal(JSON.parse(logs[0][1]).stage,'configuration');assert.equal(JSON.parse(logs[0][1]).supplierRequestSent,false)
+ let calls=0;const configured=new AudioTranscriptionService({logger,provider:{name:'bailian',model:'qwen3-asr-flash',transcribeAudio:async()=>{calls++;return {transcript:'私有转写不要日志'}}}}),controller=new AbortController();controller.abort()
+ await assert.rejects(()=>configured.transcribe(input,'normal-account',controller.signal),{code:'ASR_CANCELLED'});assert.equal(calls,0)
+ await configured.transcribe(input,'normal-account');assert.equal(calls,1)
+ assert.doesNotMatch(JSON.stringify(logs),/私有医疗|私有转写|data:audio|Authorization|normal-account/)
+ assert.equal(configured.capabilities().asr.model,'qwen3-asr-flash')
+})
