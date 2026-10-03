@@ -7,11 +7,12 @@ import sharp from 'sharp'
 const baseURL=process.argv[2]
 assert.ok(['https://hooohoapp-staging.up.railway.app','https://hoooho.com'].includes(baseURL),'Verified deployment URL required')
 const environment=baseURL.includes('-staging.')?'staging':'production'
+const uiOnly=process.argv.includes('--ui-only')
 const context=await chromium.launchPersistentContext(`.codex-tmp/health-profile-qa-${environment}`,{headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...devices['iPhone SE'],baseURL,timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
 const page=await context.newPage(),errors=[]
 page.on('pageerror',()=>errors.push('pageerror'))
 page.on('response',response=>{if(response.status()>=500&&!response.url().includes('/ai-drafts'))errors.push(`5xx ${new URL(response.url()).pathname}`)})
-const output=`outputs/health-profile/${environment}`
+const output=uiOnly?`outputs/health-profile-button-20261004/${environment}`:`outputs/health-profile/${environment}`
 await mkdir(output,{recursive:true})
 let token,memberId,aiStatus='not-tested'
 async function request(path,method='GET',data){return page.evaluate(async({path,method,data,token})=>{const response=await fetch(path,{method,credentials:'same-origin',headers:{...(token?{Authorization:`Bearer ${token}`} : {}),'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)}),signal:AbortSignal.timeout(120000)});return {status:response.status,body:await response.text()}},{path,method,data,token})}
@@ -29,12 +30,27 @@ try {
   await expect(page.getByText('待排查 0 · 已明确 0')).toBeVisible({timeout:30000})
   const labels=['过敏史','慢性病史','家族史','手术史','疫苗接种记录']
   assert.deepEqual(await page.locator('.health-profile-entry strong').allTextContents(),labels)
-  assert.equal(await page.getByRole('heading',{name:'健康档案',exact:true}).count(),0)
+  await expect(page.locator('header').getByRole('heading',{name:'健康档案',exact:true})).toBeVisible()
+  const smart=page.locator('.health-profile-smart-record')
+  await expect(smart.locator('strong')).toHaveText('智能整理与记录')
+  await expect(smart.locator('small')).toHaveText('上传报告、病历、体检报告、自动整理到各项档案')
+  await expect(smart.locator('svg')).toHaveCount(1)
+  await expect(smart.locator('svg')).toHaveClass(/lucide-upload/)
   for(const width of [375,320,390,430]){await page.setViewportSize({width,height:667});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:`${output}/home-${width}.png`})}
   await page.setViewportSize({width:375,height:667})
   for(const [index,id] of ['allergy','chronic','family-history','surgery','vaccination'].entries()){
     await page.goto(baseURL+'/health-profile');await page.getByRole('button',{name:new RegExp(labels[index])}).click();await expect(page).toHaveURL(new RegExp(`/health-profile/${id}$`));await expect(page.getByRole('heading',{name:labels[index],exact:true}).first()).toBeVisible()
   }
+  if(uiOnly){
+    await page.goto(baseURL+'/health-profile');await smart.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/health-profile\/smart-record$/)
+    await page.getByRole('button',{name:'上传与智能识别'}).click();await expect(page.getByRole('dialog',{name:'智能整理记录'})).toBeVisible()
+    await page.getByRole('dialog',{name:'智能整理记录'}).getByRole('button',{name:'关闭智能整理记录',exact:true}).click()
+    await page.goto(baseURL+'/health-profile');await page.addStyleTag({content:'html{font-size:24px}'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+    await smart.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/large-text.png`})
+    assert.deepEqual(errors,[])
+    const result={environment,health:'PASS',homeHeaderAndCopy:'PASS',uploadIcon:'PASS',routes:'PASS',keyboardUploadEntry:'PASS',largeText:'PASS',widths:[375,320,390,430],errors,syntheticDataOnly:true}
+    await writeFile(`${output}/smoke.json`,JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+  }else{
   await page.getByRole('button',{name:'补充接种记录'}).click();await page.getByLabel('疫苗名称',{exact:true}).fill('合成验收疫苗');await page.getByRole('button',{name:'第1剂',exact:true}).click();await page.getByRole('button',{name:'保存记录',exact:true}).click();await expect(page.getByRole('button',{name:/合成验收疫苗/})).toBeVisible({timeout:30000})
   await page.goto(baseURL+'/health-profile/smart-record');await page.getByRole('button',{name:'上传与智能识别'}).click()
   const sheet=page.getByRole('dialog',{name:'智能整理记录'})
@@ -58,6 +74,7 @@ try {
   assert.deepEqual(errors,[])
   const result={environment,health:'PASS',routes:'PASS',manualVaccination:'PASS',aiStatus,confirmedSave:'PASS',idempotency:'PASS',originalRead:'PASS',memberSummary:'PASS',widths:[375,320,390,430],errors,syntheticDataOnly:true}
   await writeFile(`${output}/smoke.json`,JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+  }
 }catch(error){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});throw error}
 finally{
   // Remove only the exact synthetic member created by this run, never pre-existing data.

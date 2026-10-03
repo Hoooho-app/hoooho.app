@@ -1,4 +1,4 @@
-import { ChevronRight, FileScan, HeartPulse, Plus, Scissors, ShieldPlus, Syringe, UsersRound } from 'lucide-react'
+import { ChevronRight, HeartPulse, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HealthRecordSubjectHeader } from '../../components/health'
@@ -35,13 +35,13 @@ export function HealthProfilePage() {
     return () => controller.abort()
   }, [token, currentMemberId, members, authUser?.id, retry])
 
-  return <main className="app-shell health-profile-overview"><MainAppHeader compact title="" /><div className="page-content health-profile-home">
+  return <main className="app-shell health-profile-overview"><MainAppHeader compact title="健康档案" /><div className="page-content health-profile-home">
     <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} onSummary={() => navigate('/visit-summary')} />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
       <span className="health-profile-entry__text"><strong>{title}</strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
     {summary.text.startsWith('数量暂不可用') && <button className="health-profile-summary-retry" onClick={() => setRetry(value => value + 1)} type="button">重试加载数量</button>}
-    <button className="health-profile-smart-record" disabled={!member || !token} onClick={() => navigate('/health-profile/smart-record')} type="button"><FileScan aria-hidden="true" size={32} strokeWidth={1.7} /><span><strong>智能记录</strong><small>上传报告、回执或病历<br />自动整理到各项档案</small></span><Plus aria-hidden="true" size={27} strokeWidth={1.6} /></button>
+    <button className="health-profile-smart-record" disabled={!member || !token} onClick={() => navigate('/health-profile/smart-record')} type="button"><span><strong>智能整理与记录</strong><small>上传报告、病历、体检报告、<br />自动整理到各项档案</small></span><Upload aria-hidden="true" size={24} strokeWidth={1.6} /></button>
   </div></main>
 }
