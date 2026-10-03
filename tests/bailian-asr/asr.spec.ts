@@ -1,0 +1,35 @@
+import { expect,test } from '@playwright/test'
+import { TokenService } from '../../server/auth/token-service.mjs'
+const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
+const status=async(request:any)=>(await request.get('http://127.0.0.1:4198/status')).json()
+test.beforeEach(async({page,request})=>{await request.get('http://127.0.0.1:4198/success');await request.get('http://127.0.0.1:4198/voice?text='+encodeURIComponent('今天没有呕吐，只是恶心'));await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}});await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token);await page.goto('/health-events');await page.getByRole('button',{name:'智能记录',exact:true}).click()})
+test('录音停止→独立百炼转写→可编辑→主动整理→确认保存，不启用TTS或自动保存',async({page,request})=>{
+ const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true}),before=await status(request)
+ await expect(sheet.getByRole('checkbox',{name:/对话式记录/})).toBeDisabled();await expect(sheet.getByLabel('原始记录内容')).toBeVisible()
+ let audioMime='';page.on('request',r=>{if(r.url().endsWith('/api/ai/audio/transcriptions'))audioMime=r.postDataJSON().mimeType})
+ await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await expect(sheet.getByRole('button',{name:/停止录音/})).toBeVisible();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click()
+ await expect(sheet.getByRole('status').filter({hasText:'正在转写为文字'})).toBeVisible()
+ await sheet.getByLabel('原始记录内容').fill('合成家长补充。')
+ await expect(sheet.getByLabel('原始记录内容')).toHaveValue('合成家长补充。\n今天没有呕吐，只是恶心')
+ expect(audioMime).toBe('audio/wav');expect((await status(request)).asrCalls-before.asrCalls).toBe(1);expect((await status(request)).calls-before.calls).toBe(0)
+ await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心')
+ await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled()
+ await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).click();await expect(sheet.getByRole('status')).toContainText('已保存 1 条')
+ expect((await status(request)).calls-before.calls).toBe(1);expect((await status(request)).speechCalls-before.speechCalls).toBe(0)
+ await sheet.getByRole('button',{name:'撤销本次保存',exact:true}).click()
+})
+test('转写额度失败保留旧草稿/输入，文字可编辑、图片可上传、手动重试无自动调用',async({page,request})=>{
+ const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true});await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心');await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByLabel('记录类型')).toBeVisible()
+ const previous=await(await request.get('/api/members/child-a/ai-drafts',{headers})).json(),before=await status(request)
+ await request.get('http://127.0.0.1:4198/failure');await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click();await expect(sheet.getByRole('alert')).toContainText('语音免费额度已用尽')
+ await expect(sheet.getByRole('button',{name:'重试语音转写',exact:true})).toBeEnabled();await expect(sheet.getByLabel('原始记录内容')).toHaveValue(previous.inputText);await expect(sheet.getByLabel('记录类型')).toBeVisible();await expect(sheet.locator('input[type=file]')).toBeEnabled()
+ await sheet.getByLabel('原始记录内容').fill('继续打字记录');await expect(sheet.getByRole('button',{name:'继续整理这份草稿',exact:true})).toBeEnabled()
+ expect((await status(request)).asrCalls-before.asrCalls).toBe(1);expect((await status(request)).calls-before.calls).toBe(0)
+ const retained=await(await request.get(`/api/members/child-a/ai-drafts/${previous.id}`,{headers})).json();expect(retained.version).toBe(previous.version);expect(retained.items).toEqual(previous.items)
+ await request.get('http://127.0.0.1:4198/success');await sheet.getByRole('button',{name:'重试语音转写',exact:true}).click();await expect(sheet.getByLabel('原始记录内容')).toHaveValue('继续打字记录\n今天没有呕吐，只是恶心');expect((await status(request)).asrCalls-before.asrCalls).toBe(2)
+})
+test('能力查询无需供应商请求且受认证保护；越权成员在出站前拒绝',async({request})=>{
+ const before=await status(request),caps=await request.get('/api/ai/audio/capabilities',{headers});expect(caps.ok()).toBe(true);expect((await caps.json()).asr.configured).toBe(true);expect((await caps.json()).tts.configured).toBe(false)
+ expect((await request.get('/api/ai/audio/capabilities',{headers:{Authorization:'Bearer invalid'}})).status()).toBe(401)
+ const denied=await request.post('/api/ai/audio/transcriptions',{headers,data:{memberId:'outside-account',mimeType:'audio/webm',dataUrl:'data:audio/webm;base64,U1lOVEhFVElD'}});expect(denied.status()).toBe(404);expect((await status(request)).asrCalls).toBe(before.asrCalls)
+})

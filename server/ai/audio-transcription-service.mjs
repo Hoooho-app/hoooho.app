@@ -1,5 +1,6 @@
 import { createAudioProvider } from './providers/provider-factory.mjs'
 import { MedicalSummaryError } from './medical-summary-service.mjs'
+import { withAIAccount } from './providers/call-control.mjs'
 
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024
@@ -14,6 +15,7 @@ function validateAudio(input) {
   if (!allowedAudio.has(mimeType)) throw new AudioTranscriptionError('不支持该音频格式，请使用 WAV、WebM、MP3 或 M4A', 415, 'AUDIO_FORMAT_UNSUPPORTED')
   const prefix = `data:${mimeType};base64,`
   if (!dataUrl.startsWith(prefix)) throw new AudioTranscriptionError('音频内容格式错误', 400, 'INVALID_AUDIO_DATA')
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(dataUrl.slice(prefix.length))) throw new AudioTranscriptionError('音频编码格式错误',400,'INVALID_AUDIO_DATA')
   const buffer = Buffer.from(dataUrl.slice(prefix.length), 'base64')
   if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new AudioTranscriptionError('音频为空或超过 15MB', 413, 'AUDIO_TOO_LARGE')
   if (mimeType.includes('wav') && !(buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE')) {
@@ -28,21 +30,27 @@ export class AudioTranscriptionService {
     const configured=Number(options.maxCallsPerHour??process.env.AI_ASR_MAX_CALLS_PER_HOUR??60)
     this.maxCallsPerHour=Number.isInteger(configured)&&configured>0&&configured<=1000?configured:60
     this.calls=new Map()
+    this.ttsProvider=createAudioProvider('TTS',options)
+    this.logger=options.logger??console
   }
 
-  async transcribe(input,accountId=null) {
+  capabilities() {
+    return {asr:{configured:!!this.provider?.transcribeAudio&&!this.provider.configurationError,provider:this.provider?.name??'none'},tts:{configured:!!this.ttsProvider?.apiKey&&!this.ttsProvider.configurationError}}
+  }
+
+  async transcribe(input,accountId=null,signal) {
     const audio = validateAudio(input)
     if (!this.provider?.transcribeAudio) throw new AudioTranscriptionError('语音转写服务尚未配置，请改用文字记录', 503, 'ASR_NOT_CONFIGURED')
     if(accountId){const now=Date.now();for(const [id,c] of this.calls)if(now-c.started>=3600000)this.calls.delete(id);const count=this.calls.get(accountId)??{started:now,count:0};if(count.count>=this.maxCallsPerHour)throw new AudioTranscriptionError('本小时转写次数已达上限，请继续文字记录',429,'ASR_CALL_LIMIT');count.count++;this.calls.set(accountId,count)}
     try {
-      const result = await this.provider.transcribeAudio(audio)
+      const result = await withAIAccount(accountId,()=>this.provider.transcribeAudio(audio,signal))
       const transcript = typeof result?.transcript === 'string' ? result.transcript.trim() : ''
       if (!transcript) throw new AudioTranscriptionError('未识别到可用语音，请重试或改用文字', 422, 'ASR_NO_SPEECH')
-      return { transcript, provider: this.provider.name, model: result.model ?? null }
+      return { transcript, provider: this.provider.name, model: result.model ?? null,...(result.diagnostics?{diagnostics:result.diagnostics}:{}) }
     } catch (error) {
       if (error instanceof AudioTranscriptionError) throw error
-      const failure=new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字','ASR_UPSTREAM_UNAVAILABLE',error)
-      console.warn('[Hoooho AI] transcription failed',{...failure.upstream,...failure.failureCodes})
+      const failure=new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字',typeof error?.code==='string'&&error.code.startsWith('ASR_')?error.code:'ASR_UPSTREAM_UNAVAILABLE',error)
+      this.logger.warn('[Hoooho AI] transcription failed',{...failure.upstream,...failure.failureCodes})
       throw failure
     }
   }
