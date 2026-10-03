@@ -1,5 +1,42 @@
 # Hoooho 百炼接入追踪与主环境验收
 
+## 普通描述 / 连续录音修复（2026-10-03，最新状态）
+
+发布前基线：main `6f0325472b52f936992ad5b0332f946e8a614c00`，Production deployment `7b967c15-38f9-41a8-adef-ded6daaeb046`。已有北京ASR配置合法、密钥存在；保留全部密钥、Base URL、qwen3-asr-flash、qwen3.7-plus与消费设置，不要求重新配置。
+
+证据边界：03:20–04:05 UTC（北京时间11:20–12:05）没有可关联AI日志。最新保留日志43行中，03:18:03 UTC有真实ASR成功（请求 `889cf85f-f9fa-905c-9518-99e406625011`，输入193/输出22 Token、7秒）；03:18:11 UTC有 `ASR_NETWORK_ERROR`、`ETIMEDOUT`、应用503、耗时506ms，无供应商响应标识。未发现 `ASR_NOT_CONFIGURED`，未保留这些用户请求音频/转写，也没有具体失败手机的网络响应，因此**无法证明测试句/普通句差异的直接原因**。这些用户手动请求不混入开发9/12预算账本。
+
+离线先失败后修复的证据：
+
+- “打断转写”后录音仍暂存，但重试入口缺失（旧构建回归先FAIL）。改为明确取消提示、主动重试入口与原内容保留。
+- 后台返回触发 `SessionBootstrap` 的 `/api/auth/session` 刷新；组件的 `[memberId,token,profileMode]` 清理及能力查询清理把同账号令牌刷新当关闭窗口，清掉待重试录音，导致按钮仍在但点击无ASR请求（回归先FAIL）。现在以账号/成员/组件生命周期作为数据归属边界，同账号令牌刷新不删除录音/草稿，请求使用最新凭据；真正关闭、切换账号/孩子仍取消、清理。
+- 请求/录音代际保护：旧请求finally不能解锁新操作，旧onstop不能停止新录音轨道；每次独立MediaRecorder、chunks、起始时间；重复停止检查状态。新录音明确替换上次失败录音，避免短新录音错误地重试旧音频。
+- 编码/解码DOMException含数值code，不能当已分类业务码直接透传；现在只保留AUDIO_字符串码，其他解码异常统一为音频转换失败，而非配置错误。
+
+错误与诊断：语音UI按应用码区分未配置、配置异常、鉴权/权限、模型不可用、额度、限流/忙碌、网络/超时、空语音、转换/格式/超限、响应异常、用户取消；不展示原始上游文本、JSON或堆栈。音频服务安全日志包含固定路由、应用关联UUID、生产commit/进程随机instanceId、Provider/模型、验证后MIME/字节数、阶段、耗时、是否调用Provider/是否发起供应商请求、供应商标识及安全错误码；不含账号ID、音频、转写、医疗文本、凭据。取消前已终止的请求不再出站，无自动重试。
+
+实际入口核对（非“其他同理”）：
+
+| 入口 | 链路 | 本次状态 |
+| --- | --- | --- |
+| 健康随记→智能记录（本次主路径） | JournalRecorder→AIBusinessComposer→实际字节转WAV→认证/member权限验证→AudioTranscriptionService→BailianASRProvider→可编辑文字 | 修复共享生命周期/错误承接 |
+| NurseQuickRecord快速记录 | 带photoMemberId/photoToken的QuickVoiceRecordFlow→AIBusinessComposer | 共用修复 |
+| 健康档案智能记录、过敏资料识别、就诊资料智能入口 | AIBusinessComposer | 共用修复，不改档案自动保存规则 |
+| 健康随记详情快捷语音 | 当前调用QuickVoiceRecordFlow未传成员/token→浏览器SpeechRecognition | 非百炼ASR，不宣称本次接通，不修改原交互 |
+| 详情首次记录语音补充 | FirstRecordComposer→浏览器SpeechRecognition | 非百炼ASR，保持原入口 |
+| 情况收记/症状描述即时落字 | useSymptomVoice→浏览器SpeechRecognition | 保留已确认按住即时落字，不替换成停止后ASR |
+| 在线问诊语音输入 | 浏览器SpeechRecognition | 非百炼ASR，本次不改 |
+| 反馈表单语音补充、forceManual手动承接 | 浏览器SpeechRecognition/正常手动表单 | 保留，不伪称云端ASR |
+| AI合成语音回复 | 独立TTS | none、禁用，本次不扩展 |
+
+未发现ASR按文本/音频指纹/合成白名单/账号放行。合成业务证据捕获只控制测试证据保留，不控制普通转写。Production使用server/app.mjs，同源相对API；Vite插件仅开发使用。Service Worker不预缓存/导航回退API，保持autoUpdate/skipWaiting/clientsClaim，不清除用户登录或资料；发布后建议关闭旧智能窗口并刷新一次。
+
+本轮相关验证：ASR服务/协议15项、客户端错误/PCM3项；手机自动化10项覆盖普通连续3次、失败后重录/手动重试、权限、取消、关闭/换孩子、后台令牌刷新、转码失败及旧内容保留；另沿用受影响旧语音/静音/打字回归。类型检查、生产构建与构建守卫、diff和密钥边界检查。离线供应商响应为测试替身，不等同真实供应商验收；MP4/AAC是Chrome原生实际录音字节解码验证，不是实体Safari硬件。
+
+真实开发验收预算延续9/12，最多余3次，自动重试0。仅三段不同合成普通语音在同一窗口顺序录音→停止→真实ASR→编辑，不重复文字整理已通过项，不依赖syntheticReplay或白名单，不上传真实儿童资料。新结果写入忽略目录 `outputs/bailian-ai/asr-acceptance/ordinary-live-result.json`；每次实际POST前计账，鉴权/额度/权限/网络阻塞停止外部请求，预算耗尽不追加。真实iPhone硬件未连接，不能用Chrome iPhone SE视口或Windows WebKit代替；完整用户手机问题的解决结论仍需实体体验证据。
+
+发布：仅聚焦PR→canonical main→原Railway Production服务，用户明确不使用Staging；无依赖升级、数据库迁移或生产数据覆盖。回滚：Railway本服务Deployments对上述7b967c15成功版本Rollback，或revert本次聚焦merge后从main发布；本次没有变量变更，不回退/轮换密钥，不清库。生产版本/健康/实际ASR结果另附发布证据，不把发布成功当真实手机全链路通过。
+
 ## 录音失败路径修复（2026-10-03，覆盖下文历史 ASR 未接通状态）
 
 实际故障：Production `ASR_PROVIDER=none`，语音接口返回 `ASR_NOT_CONFIGURED`，而界面仍可勾选未接通的“AI合成语音”。本次独立接入北京同步 `qwen3-asr-flash`，不使用 qwen3.7-plus 冒充 ASR，不扩展 TTS。

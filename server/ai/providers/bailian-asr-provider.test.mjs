@@ -41,5 +41,12 @@ test('Safari MP4未转码和超大小在出站前拒绝；取消信号传递',as
  let calls=0;const p=new BailianASRProvider({env,logger:silent,fetchImpl:async(_url,init)=>{calls++;assert.equal(init.signal.aborted,true);throw new DOMException('Aborted','AbortError')}})
  await assert.rejects(()=>p.transcribeAudio({...audio,mimeType:'audio/mp4'}),{code:'ASR_AUDIO_FORMAT_UNSUPPORTED'})
  await assert.rejects(()=>p.transcribeAudio({...audio,buffer:Buffer.alloc(8*1024*1024)}),{code:'ASR_AUDIO_TOO_LARGE'});assert.equal(calls,0)
- const controller=new AbortController();controller.abort();await assert.rejects(()=>p.transcribeAudio(audio,controller.signal),{code:'ASR_NETWORK_ERROR'});assert.equal(calls,1)
+ const controller=new AbortController();controller.abort();await assert.rejects(()=>p.transcribeAudio(audio,controller.signal),{code:'ASR_CANCELLED'});assert.equal(calls,0)
+})
+
+test('普通音频连续进入同一真实ASR协议，不依赖测试文字、账户或捕获白名单',async()=>{
+ let calls=0;const texts=['昨晚睡得不好，今天早上精神还可以。','下午吃了半碗粥，喝了一百毫升奶。','右胳膊有一点红，暂时没有发烧。']
+ const service=new AudioTranscriptionService({env,logger:silent,fetchImpl:async(_url,init)=>{const body=JSON.parse(init.body);assert.equal(body.messages[0].content[0].type,'input_audio');assert.equal(body.model,'qwen3-asr-flash');assert.equal(body.messages.length,1);assert.equal(body.syntheticReplay,undefined);return response(texts[calls++])}})
+ for(let i=0;i<texts.length;i++){const result=await service.transcribe({mimeType:'audio/webm',dataUrl:`data:audio/webm;base64,${Buffer.from('different-ordinary-audio-'+i).toString('base64')}`},'normal-account');assert.equal(result.transcript,texts[i]);assert.equal(result.provider,'bailian')}
+ assert.equal(calls,3)
 })
