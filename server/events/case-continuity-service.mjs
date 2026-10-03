@@ -4,6 +4,8 @@ import { AIBusinessService } from '../ai/business/service.mjs'
 import { prepareDocuments } from '../ai/business/documents.mjs'
 import { fail } from '../ai/business/contract.mjs'
 import { validateOccurredAt } from './health-event-record-service.mjs'
+import { validateJournal } from './journal-metadata.mjs'
+import { QuickRecordPhotoService } from './quick-record-photo-service.mjs'
 
 const clean = (value, limit = 5000) => {
   if (typeof value !== 'string' || value.trim().length > limit) throw fail('填写内容格式或长度无效')
@@ -22,6 +24,7 @@ export class CaseContinuityService {
     this.records = this.business.records
     this.attachments = this.business.attachments
     this.directory = options.dataDirectory ?? this.business.directory
+    this.photos = options.photos ?? new QuickRecordPhotoService({ dataDirectory: this.directory, attachments: this.attachments.repository })
     this.now = options.now ?? (() => new Date())
   }
   async owned(accountId, memberId, eventId) {
@@ -70,6 +73,7 @@ export class CaseContinuityService {
     if (!key) throw fail('保存标识缺失，请重试')
     const identity = identities.has(input.identity) ? input.identity : 'parent'
     const occurredAt = input.timeUnknown ? this.now().toISOString() : validateOccurredAt(input.occurredAt, this.now())
+    const journal = validateJournal(input.journal ?? { categories: ['other'], timePrecision: input.timeUnknown ? 'unknown' : 'exact' })
     const linkedDraft = input.aiDraftId ? await this.business.get(accountId, memberId, input.aiDraftId) : null
     if (linkedDraft?.state === 'saved') throw fail('这份草稿已经保存，请查看原记录',409)
     return accountTransaction(this.directory, async () => {
@@ -83,9 +87,12 @@ export class CaseContinuityService {
       const task = input.taskId && event?.observationTasks?.find(t => t.id === input.taskId)
       if (input.taskId && (!task || task.status !== 'active' || dayAt(this.now(), task.timezone) > task.endsOn || dayAt(this.now(), task.timezone) < task.startsOn)) throw fail('本项观察尚未开始、已到期或已停止，请查看安排', 409)
       if (task && !['improved', 'unchanged', 'worse', 'not_observed'].includes(input.result)) throw fail('请选择这次实际观察结果')
+      if (input.photoIds !== undefined && !Array.isArray(input.photoIds)) throw fail('照片列表无效')
+      const photos = input.photoIds?.length ? await this.photos.prepareForSave(accountId, memberId, input.photoDraftId, input.photoIds) : []
       event ??= await this.events.create(accountId, { memberId, title: clean(input.title ?? '', 120) || content.slice(0, 30) || '待整理的情况', category: 'other', startTime: occurredAt }, this.now())
-      const record = await this.records.create(accountId, event.id, { type: 'note', caseIdentity: identity, content: content || '资料原件已保留，内容待整理', occurredAt, sourceType: identity === 'medical_consultation' || identity === 'examination_report' ? 'medical_file' : 'user_record', sourceText: content || null, journal: { categories: ['other'], timePrecision: input.timeUnknown ? 'unknown' : 'exact' } }, this.now())
-      const attachmentIds = []
+      const record = await this.records.create(accountId, event.id, { type: 'note', caseIdentity: identity, content: content || '资料原件已保留，内容待整理', occurredAt, sourceType: identity === 'medical_consultation' || identity === 'examination_report' ? 'medical_file' : 'user_record', sourceText: content || null, journal }, this.now())
+      const attachedPhotos = await this.photos.attach(accountId, event.id, record.id, memberId, photos, this.now())
+      const attachmentIds = attachedPhotos.map(photo => photo.id)
       for (const file of files.documents) {
         const { id, ...original } = file
         const { attachment } = await this.attachments.createUnique({ ...original, accountId, memberId, eventId: event.id, recordId: record.id, binarySize: Buffer.from(file.dataUrl.split(',')[1], 'base64').length, analysis: { status: 'needs_confirmation', confirmed: false, sourceIdentity: identity } }, this.now())
@@ -94,6 +101,7 @@ export class CaseContinuityService {
       const bodyLocations = Array.isArray(input.bodyLocations) ? input.bodyLocations.slice(0, 20).map(v => clean(v, 100)) : []
       await this.records.repository.update(record.id, { caseContext: { requestId: key, identity, timeUnknown: Boolean(input.timeUnknown), supplement: clean(input.supplement ?? '', 1000), bodyLocations, attachmentIds, ...(linkedDraft ? { aiDraftId: linkedDraft.id } : {}), ...(task ? { taskId: task.id, result: input.result } : {}) } }, this.now())
       await this.events.repository.update(event.id, { caseTracking: true }, this.now())
+      await this.photos.consume(accountId, input.photoDraftId, photos, this.now())
       return { eventId: event.id, recordId: record.id, attachmentIds, duplicate: false }
     })
   }

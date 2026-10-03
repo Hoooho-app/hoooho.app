@@ -52,6 +52,6 @@ test('symptom photos use an isolated six-photo draft and structured real save', 
   assert.match(source, /\$\{photos\.photos\.length\} 张照片/)
   assert.match(source, /photos\.payload\(\)/)
   assert.match(source, /categories: \['symptom'\], symptom: details/)
-  assert.match(source, /sessionStorage\.removeItem\(draftKey\(memberId\)\)/)
+  assert.match(source, /sessionStorage\.removeItem\(draftKey\(draftScope\)\)/)
   assert.doesNotMatch(source, /附件.*拍照.*从相册选择/s)
 })

@@ -19,6 +19,30 @@ async function fixture(t, options = {}) {
   return { service, members, member, now:value=>{instant=new Date(value)}, capture:(extra={})=>service.capture('synthetic-account',member.id,{text:'合成示例：皮肤变化',requestId:crypto.randomUUID(),occurredAt:instant.toISOString(),files:[],...extra}) }
 }
 
+test('复用症状表单保存结构化症状和照片，重试幂等、关联事件且拒绝跨人物照片', async t => {
+  const f = await fixture(t)
+  const png = await sharp({ create: { width: 30, height: 30, channels: 3, background: '#ffffff' } }).png().toBuffer()
+  const draftId = 'symptom-synthetic-draft'
+  const photo = await f.service.photos.upload('synthetic-account', draftId, { memberId: f.member.id, name: 'synthetic.png', mimeType: 'image/png', dataUrl: `data:image/png;base64,${png.toString('base64')}`, sortOrder: 0 })
+  const input = { requestId: 'symptom-save-retry', photoDraftId: draftId, photoIds: [photo.id], journal: { categories: ['symptom'], symptom: { symptomCategory: 'skin', narrative: '合成：左肘窝发红', keywords: [], locations: [], descriptors: [], linkedRecordIds: {}, locationText: '左肘窝', impactLevel: 'some' } } }
+  const saved = await f.capture(input), repeated = await f.capture(input)
+  assert.equal(repeated.recordId, saved.recordId)
+  const record = await f.service.records.getOwnedRecord('synthetic-account', saved.recordId)
+  assert.deepEqual(record.journal.categories, ['symptom'])
+  assert.equal(record.journal.symptom.impactLevel, 'some')
+  assert.equal(record.journal.symptom.locationText, '左肘窝')
+  assert.equal(record.caseContext.attachmentIds.length, 1)
+  assert.equal((await f.service.photos.list('synthetic-account', f.member.id, draftId)).length, 0)
+  const linked = await f.capture({ eventId: saved.eventId, journal: input.journal })
+  assert.equal(linked.eventId, saved.eventId)
+  const other = await f.members.create({ accountId: 'synthetic-account', name: '另一合成人物', relationship: 'other' })
+  const otherPhoto = await f.service.photos.upload('synthetic-account', 'other-synthetic-draft', { memberId: other.id, name: 'synthetic.png', mimeType: 'image/png', dataUrl: `data:image/png;base64,${png.toString('base64')}`, sortOrder: 0 })
+  const before = (await f.service.list('synthetic-account', f.member.id)).active.length
+  await assert.rejects(() => f.capture({ photoDraftId: 'other-synthetic-draft', photoIds: [otherPhoto.id] }))
+  await assert.rejects(() => f.capture({ journal: { categories: ['symptom'], symptom: { impactLevel: 'invalid' } } }))
+  assert.equal((await f.service.list('synthetic-account', f.member.id)).active.length, before)
+})
+
 test('结构化开关开启时，无事实原话和待核对资料不清空情况标题，情况单仍可生成', async t => {
   const f = await fixture(t, { structuredMode:'enabled' })
   const narrative='合成示例，非真实患者资料：记录皮肤变化，原因未明确。'
