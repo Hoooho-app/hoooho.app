@@ -30,7 +30,7 @@ try {
   await expect(page.getByText('待排查 0 · 已明确 0')).toBeVisible({timeout:30000})
   const labels=['过敏史','慢性病史','家族史','手术史','疫苗接种记录']
   assert.deepEqual(await page.locator('.health-profile-entry strong').allTextContents(),labels)
-  await expect(page.locator('header').getByRole('heading',{name:'健康档案',exact:true})).toBeVisible()
+  await expect(page.locator('header').getByRole('heading',{name:'孩子档案',exact:true})).toBeVisible()
   const smart=page.locator('.health-profile-smart-record')
   await expect(smart.locator('strong')).toHaveText('智能整理与记录')
   await expect(smart.locator('small')).toHaveText('上传报告、病历、体检报告、自动整理到各项档案')

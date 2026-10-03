@@ -30,6 +30,7 @@ const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 
 test('健康随记与前台护士站都保留就诊情况单真实入口', () => {
+  assert.match(page, /<MainAppHeader title="健康日记"/)
   assert.match(page, /<HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
@@ -42,7 +43,7 @@ test('前台护士站成为默认首页且健康随记保持独立', () => {
   assert.match(router, /path: '\/', element: <Navigate to="\/nurse-station" replace/)
   assert.match(router, /path: '\/nurse-station'/)
   assert.doesNotMatch(page, /health-events-view-switch|DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
-  assert.match(station, /<MainAppHeader title="前台"/)
+  assert.match(station, /<MainAppHeader title="服务前台"/)
 })
 
 test('零成员在护士站内分流且不会预先创建空健康事件', () => {
@@ -52,7 +53,7 @@ test('零成员在护士站内分流且不会预先创建空健康事件', () =>
   assert.match(station, /随手记录[\s\S]*自动整理[\s\S]*就医时带走/)
   assert.match(station, /添加第一个孩子/)
   assert.match(station, /添加后即可开始记录/)
-  assert.match(station, /<MainAppHeader title="前台" \/>[\s\S]*nurse-station-empty-member/)
+  assert.match(station, /<MainAppHeader title="服务前台" \/>[\s\S]*nurse-station-empty-member/)
   assert.doesNotMatch(station, /先添加孩子，护士站才能为TA提供服务/)
   assert.doesNotMatch(page, /familyMemberService\.createSelf|createSelfAndRecord/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
