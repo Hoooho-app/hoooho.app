@@ -55,13 +55,15 @@ export class BailianASRProvider {
         if (choice?.finish_reason === 'length') throw configurationError('语音转写未完整返回，请缩短录音；原输入仍保留', 'ASR_OUTPUT_INCOMPLETE')
         if (choice?.finish_reason !== 'stop' || choice?.message?.tool_calls || choice?.message?.refusal || typeof transcript !== 'string' || transcript.length > 15000) throw configurationError('语音结果格式不完整，未采用该结果，请手动重试', 'ASR_OUTPUT_INVALID')
         if (!transcript.trim()) throw configurationError('未识别到语音，请重新录音或继续输入文字', 'ASR_NO_SPEECH')
-        diagnostics = {provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,requestId:upstream.requestId,inputTokens:count(result.usage?.prompt_tokens),outputTokens:count(result.usage?.completion_tokens),audioSeconds:count(result.usage?.seconds),supplierRequestSent:true,success:true}
+        diagnostics = {provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,requestId:upstream.requestId,inputTokens:count(result.usage?.prompt_tokens),outputTokens:count(result.usage?.completion_tokens),audioSeconds:count(result.usage?.seconds),supplierRequestAttempted:true,supplierResponseReceived:true,success:true}
         this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
         return {transcript:transcript.trim(),model:this.model,diagnostics}
       } catch (error) {
         const codes = safeOpenAIFailureCodes(error)
         const safe = typeof error?.code==='string' && /^(?:ASR_|AI_)/.test(error.code) ? error : signal?.aborted?configurationError('已取消语音转写','ASR_CANCELLED'):configurationError('百炼语音连接超时或暂不可用，请继续输入文字，原内容与结果仍保留',error?.name==='TimeoutError'?'ASR_TIMEOUT':'ASR_NETWORK_ERROR')
-        safe.supplierRequestSent=true
+        // A transport attempt is not proof that HTTP reached the supplier.
+        safe.supplierRequestAttempted=true
+        safe.supplierResponseReceived=!!upstream
         if (upstream) safe.upstream = upstream
         this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,success:false,...upstream,...codes,code:safe.code}))
         throw safe

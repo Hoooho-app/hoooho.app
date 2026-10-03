@@ -57,14 +57,14 @@ export class AudioTranscriptionService {
       stage='transcript_validation'
       const transcript = typeof result?.transcript === 'string' ? result.transcript.trim() : ''
       if (!transcript) throw new AudioTranscriptionError('未识别到可用语音，请重试或改用文字', 422, 'ASR_NO_SPEECH')
-      stage='complete';this.logger.info('[Hoooho AI] audio request',JSON.stringify(diagnostic(true,{supplierRequestSent:result.diagnostics?.supplierRequestSent??null,supplierRequestId:result.diagnostics?.requestId??null,httpStatus:200})))
+      stage='complete';this.logger.info('[Hoooho AI] audio request',JSON.stringify(diagnostic(true,{supplierRequestAttempted:result.diagnostics?.supplierRequestAttempted??null,supplierResponseReceived:result.diagnostics?.supplierResponseReceived??null,supplierRequestId:result.diagnostics?.requestId??null,httpStatus:200})))
       return { transcript, provider: this.provider.name, model: result.model ?? null,requestId,runtime:this.runtime,...(result.diagnostics?{diagnostics:result.diagnostics}:{}) }
     } catch (error) {
       const failure=error instanceof AudioTranscriptionError?error:new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字',typeof error?.code==='string'&&error.code.startsWith('ASR_')?error.code:'ASR_UPSTREAM_UNAVAILABLE',error)
       if(['ASR_BUSY','ASR_CALL_LIMIT','ASR_BAILIAN_RATE_LIMIT'].includes(failure.code))failure.status=429
       if(failure.code==='ASR_CANCELLED')failure.status=499
       failure.details={requestId}
-      this.logger.warn('[Hoooho AI] audio request',JSON.stringify(diagnostic(false,{code:failure.code,httpStatus:failure.status,supplierRequestSent:error?.supplierRequestSent??false,supplierRequestId:failure.upstream?.requestId??null,transportCode:failure.failureCodes?.transportCode??null})))
+      this.logger.warn('[Hoooho AI] audio request',JSON.stringify(diagnostic(false,{code:failure.code,httpStatus:failure.status,supplierRequestAttempted:error?.supplierRequestAttempted??false,supplierResponseReceived:error?.supplierResponseReceived??false,supplierRequestId:failure.upstream?.requestId??null,transportCode:failure.failureCodes?.transportCode??null})))
       throw failure
     }
   }
