@@ -4,11 +4,11 @@ import { HohoButton } from '../../components/design-system'
 import feeding from '../../assets/health-events/daily-record/feeding.webp'
 import sleep from '../../assets/health-events/daily-record/sleep.webp'
 import bowel from '../../assets/health-events/daily-record/bowel.webp'
-import activity from '../../assets/health-events/daily-record/activity.webp'
+import activity from '../../assets/health-events/quick-record/medication.webp'
 import './RecordEntryActions.css'
 
 const direct = [{ category:'symptom',label:'记录症状' },{ category:'other',label:'记录日常' },{ category:'diet',label:'记录补剂' },{ category:'medication',label:'记录用药' }] as const
-const routines = [{ category:'diet',label:'喂养/饮食',image:feeding },{ category:'sleep',label:'睡眠',image:sleep },{ category:'elimination',label:'排便',image:bowel },{ category:'activity',label:'户外活动',image:activity }] as const
+const routines = [{ category:'diet',label:'喂养/饮食',image:feeding },{ category:'sleep',label:'睡眠',image:sleep },{ category:'elimination',label:'排便',image:bowel },{ category:'care',label:'身体涂抹',image:activity }] as const
 export function RecordEntryActions({ disabled, identity, onRecord, onSmart }: { disabled: boolean; identity: string; onRecord: (category: JournalCategory, kind?: DietRecordKind) => void; onSmart: () => void }) {
   const [open,setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)

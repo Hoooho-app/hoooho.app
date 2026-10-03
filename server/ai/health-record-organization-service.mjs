@@ -145,6 +145,11 @@ export class HealthRecordOrganizationService {
       const previousByRecord = new Map(previous.map((item) => [item.recordId, item]))
       const inputs = []
       for (const record of records) {
+        if (record.caseContext && (['external_ai','pending'].includes(record.caseContext.identity) || (record.caseContext.identity !== 'parent' && !record.caseContext.confirmed))) {
+          const neutral = await this.ai.organizeHealthRecord('资料保留，尚未核对为健康事实', { accountId, selectedOccurredAt: record.occurredAt, timezone: options.timezone })
+          inputs.push({ accountId, eventId, recordId: record.id, rawInput: record.content, healthAIOutput: { ...neutral.healthAIOutput, facts: [] }, provider: neutral.provider, bodyLocations: [], sourceRecordUpdatedAt: record.updatedAt })
+          continue
+        }
         const organized = await this.ai.organizeHealthRecord(record.content, { accountId, selectedOccurredAt: record.occurredAt, timezone: options.timezone })
         const bodyLocations = options.bodyLocationsByRecord?.[record.id] ?? previousByRecord.get(record.id)?.bodyLocations ?? []
         const merged = mergeStructuredHealthFacts(organized.healthAIOutput, { bodyLocations, rawInput: record.content, occurredAt: record.occurredAt })
@@ -353,11 +358,20 @@ export class HealthRecordOrganizationService {
     const rawOrganizations = knownOrganizations ?? await this.repository.findByEventId(eventId)
     const organizations = this.#publicOrganizations(rawOrganizations)
     const eventSummary = buildHealthEventSummary({ event, records, organizations, now })
+    // Raw-first case titles are source text, not a projection of parsed facts.
+    // During initial capture caseTracking is set after record creation, so the
+    // record metadata must also guard against a no-facts recompute clearing it.
+    const rawCase = event.caseTracking || records.some(record => record.caseContext)
+    const caseTitle = rawCase ? event.title?.trim() || [...records]
+      .sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      .find(record => record.caseContext)?.content?.trim().slice(0,30) || '待整理的情况' : null
     if (!eventSummary) {
-      if (!event.eventSummary && !event.title) return event
-      return this.events.update(eventId, { title: '', eventSummary: null }, now)
+      const title = caseTitle ?? ''
+      if (!event.eventSummary && event.title === title) return event
+      return this.events.update(eventId, { title, eventSummary: null }, now)
     }
-    if (event.title === eventSummary.displayedResult.title && JSON.stringify(event.eventSummary) === JSON.stringify(eventSummary)) return event
-    return this.events.update(eventId, { title: eventSummary.displayedResult.title, eventSummary }, now)
+    const title = caseTitle ?? eventSummary.displayedResult.title
+    if (event.title === title && JSON.stringify(event.eventSummary) === JSON.stringify(eventSummary)) return event
+    return this.events.update(eventId, { title, eventSummary }, now)
   }
 }

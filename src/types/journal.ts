@@ -228,6 +228,7 @@ export interface JournalVisitDetails {
 }
 
 export interface JournalMetadata {
+  topical?: { kind: 'care' | 'skincare' | 'external_medication' | 'other'; productName?: string; bodyLocations: string[]; amount?: string; reason?: string; change?: string }
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'
   timeLabel?: string

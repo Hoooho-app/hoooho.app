@@ -31,6 +31,7 @@ import { MedicalAISummary } from './MedicalAISummary'
 import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
 import { preliminarySummaryExport } from './preliminarySummaryExport'
 import { consultationPrompt, doctorQuestionTemplates } from '../../features/ai-business/consultationPrompt'
+import { ReportScopeSheet } from '../../features/case-continuity/ReportScopeSheet'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
@@ -75,6 +76,7 @@ function VisitSheetReader({
     [notice, setNotice] = useState('')
   const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
   const parentEvidence=useRef<string[]|null>(null)
+  const [scopeOpen,setScopeOpen] = useState(false)
   const pendingSave=useRef<{key:string;requestId:string}|null>(null)
   const [aiPreview,setAIPreview]=useState<AIUnverifiedPreview|null>(null),[previewText,setPreviewText]=useState('')
   const [aiCandidate,setAICandidate]=useState<VisitSheetState['aiCandidate']>(),[candidateOverview,setCandidateOverview]=useState('')
@@ -82,7 +84,7 @@ function VisitSheetReader({
   const scroll = useRef<HTMLDivElement>(null),
     version = useRef(0)
   const report = state?.report ?? null
-  const modalOpen = !!(menu || editing || exporting || evidence || sourceEdit || photoPicker || photoId)
+  const modalOpen = !!(menu || editing || exporting || evidence || sourceEdit || photoPicker || photoId || scopeOpen)
   useEffect(()=>{document.body.classList.add('visit-report-active');return()=>document.body.classList.remove('visit-report-active')},[])
   useEffect(()=>{if(modalOpen&&!modalTrigger.current)modalTrigger.current=document.activeElement as HTMLElement;if(scroll.current){scroll.current.inert=modalOpen;scroll.current.style.overflowY=modalOpen?'hidden':'auto'}if(!modalOpen&&modalTrigger.current)requestAnimationFrame(()=>modalTrigger.current?.focus({preventScroll:true}))},[modalOpen])
   const accept = (result: VisitSheetState) => {
@@ -102,22 +104,24 @@ function VisitSheetReader({
     setLoading(true)
     setError('')
     try {
+      let caseFocus: VisitSheetUpdate['focus'] | undefined
       if (eventId) {
         const event = await healthEventService.getById(eventId, token, c.signal)
         if (event.memberId !== memberId)
           throw new Error(
             '记录与当前孩子不一致，请从当前孩子的情况单入口重新打开',
           )
+        caseFocus = { mode: 'custom', text: event.title, caseEventId: event.id }
       }
       const result = await visitSheetService.get(memberId, token, c.signal)
       if (c.signal.aborted) return
       version.current = result.report?.version ?? result.expectedVersion ?? 0
-      if (result.report) accept(result)
+      if (result.report && (!caseFocus || result.report.focus.caseEventId === eventId)) accept(result)
       else {
         const generated = await visitSheetService.save(
           memberId,
           token,
-          { expectedVersion: version.current, requestId: crypto.randomUUID() },
+          { expectedVersion: version.current, requestId: crypto.randomUUID(), ...(caseFocus ? { focus: caseFocus, selection:{eventIds:[eventId!],includeBackground:false} } : {}) },
           c.signal,
         )
         if (!c.signal.aborted) accept(generated)
@@ -315,7 +319,7 @@ function VisitSheetReader({
               <StatusNotice title={w} tone="warning" key={w} />
             ))}
             {!sources.length && <section className="visit-report-state"><h2>病情数据</h2><p>当前孩子尚无已保存资料。</p><HohoButton onClick={()=>navigate('/health-events')}>补充健康记录</HohoButton></section>}
-            {!!sources.length && report.chapters.map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={report} onEvidence={openEvidence} action={chapter.id==='overview'?<button onClick={()=>{setError('');setEditing('focus')}}>更改主诉</button>:undefined} leading={chapter.id==='overview'? <>
+            {!!sources.length && report.chapters.map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={report} onEvidence={openEvidence} action={chapter.id==='overview'?<div><button onClick={()=>{setError('');setEditing('focus')}}>更改主诉</button><button onClick={()=>setScopeOpen(true)}>资料范围</button></div>:undefined} leading={chapter.id==='overview'? <>
               <section className="visit-report-focus">
                 <h1>{report.complaint}</h1>
                 <p className="visit-focus-meta">{report.focus.mode==='custom'?'家长本次陈述':`${report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.timeKind || '记录时间'} ${reportTime(report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.at??null)}`}</p>
@@ -408,6 +412,7 @@ function VisitSheetReader({
         )}
       </div>
       {menu&&report&&<ReportDirectory chapters={report.chapters} active={active} onClose={()=>setMenu(false)} onChoose={chooseChapter}/>}
+      {report && scopeOpen && <ReportScopeSheet initial={report.selection} busy={working} error={error} onClose={()=>{if(!working)setScopeOpen(false)}} onSave={async selection=>{if(await update({selection}))setScopeOpen(false)}}/>}
       {report && editing && (
         <ReportEditor
           report={report}
@@ -619,6 +624,7 @@ function ReportEditor({
                 本次想问
                 <div className="visit-section-actions">{doctorQuestionTemplates.map(template=><button type="button" key={template} onClick={()=>setQuestion(previous=>previous?`${previous}\n${template}`:template)}>{template}</button>)}</div>
                 <textarea
+                  aria-label="本次想问"
                   value={question}
                   maxLength={5000}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -736,7 +742,7 @@ function ExportSheet({
   const [notice, setNotice] = useState(''),
     [fallback, setFallback] = useState(false)
   const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
-  const [promptText,setPromptText]=useState(()=>consultationPrompt(report))
+  const [promptText,setPromptText]=useState(()=>`${consultationPrompt(report)}\n\n以下是已核对范围内的情况单全文，家长补充不是原始医疗结论：\n${reportText(report)}`)
   const controller=useRef(new AbortController()),lock=useRef(false)
   useEffect(()=>{const current=new AbortController();controller.current=current;return()=>current.abort()},[])
   const validate=async()=>{

@@ -4,6 +4,21 @@ import { buildVisitSheet } from './report-model.mjs'
 import { visitFixture } from './fixtures.mjs'
 const now = new Date('2026-09-26T00:00:00Z'),
   chapter = (r, id) => r.chapters.find((c) => c.id === id)
+
+test('明确资料范围仅纳入所选情况与时间，AI参考保留来源但不升级医生判断', () => {
+  const f=visitFixture(), id=f.events[0].id, originals=f.records.filter(r=>r.eventId===id)
+  const reference={...originals[0],id:'external-reference',content:'合成AI参考，不是医生建议',caseContext:{identity:'external_ai',confirmed:true,attachmentIds:[]}}
+  f.records.push(reference)
+  const selection={eventIds:[id],includeBackground:false}
+  const report=buildVisitSheet(f,{selection},now)
+  assert.deepEqual(report.selection,selection)
+  const recordSources=report.sources.filter(s=>s.recordId)
+  assert.ok(recordSources.every(s=>s.eventId===id))
+  assert.equal(report.sources.find(s=>s.recordId==='external-reference').category,'sources')
+  assert.ok(!report.sources.some(s=>s.type==='growth'))
+  const none=buildVisitSheet(f,{selection:{...selection,from:'2026-09-26T00:00:00Z'}},now)
+  assert.equal(none.sources.filter(s=>s.recordId).length,0)
+})
 test('visit sheet and sources display reliable anatomical names without mutating legacy snapshots',()=>{
   const fixture=visitFixture()
   const original={id:'head_crown',label:'头顶3号区域',locationNumber:1,locationLayer:'surface',markedArea:'legacy x=12,y=34'}

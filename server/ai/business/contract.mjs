@@ -6,7 +6,7 @@ import { outputFailure } from '../providers/output-diagnostics.mjs'
 import { evidenceFailure } from './evidence-diagnostics.mjs'
 
 export const categories = ['diet','sleep','elimination','activity','emotion','social','symptom','measurement','growth','injury','medication','care','vaccination','environment','visit','examination','other']
-export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','ABC_A','ABC_B','ABC_C','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
+export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
 export const archiveCategories = ['allergy','chronic','medication','surgery','family-history','vaccination','important','examination','medical-history']
 export const fail = (message, status = 422, code = 'AI_BUSINESS_INVALID') => Object.assign(new Error(message), { status, code })
 export const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -36,7 +36,7 @@ function validateExtractionContent(output, sources) {
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
       if(/没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查/.test(quote)&&!/(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查)/.test(value))throw evidenceFailure('否定或不确定性被遗漏，请核对',fieldPath,'negation_scope')
-      if(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','ABC_A','doctorStatement','conclusion'].includes(field.name)){
+      if(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','doctorStatement','conclusion'].includes(field.name)){
         const position=source.text.indexOf(quote),prefix=source.text.slice(Math.max(0,position-8),position).split(/[，。；\n,;.!]/).at(-1)
         if(/(?:没有|未见|否认|排除|疑似|可能|无|未确诊)[^，。；\n,;.!]{0,3}$/.test(prefix)&&!/没有|未见|否认|排除|疑似|可能|无|未确诊/.test(value))throw evidenceFailure('引文截去了否定或疑似前缀，请对照完整原话',fieldPath,'negation_prefix')
       }

@@ -134,6 +134,7 @@ export class HealthEventRecordService {
       accountId,
       eventId,
       type: validateType(input.type),
+      ...(input.caseIdentity ? { caseContext: { identity: ['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.caseIdentity) ? input.caseIdentity : 'pending', confirmed: false, attachmentIds: [] } } : {}),
       ...(journal === undefined ? {} : { journal }),
       content: validateContent(input.content),
       occurredAt,

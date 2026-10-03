@@ -4,20 +4,33 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 import observedOCR from '../../server/ai/providers/fixtures/bailian-synthetic-ocr-array-20261003.json' with {type:'json'}
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 async function login(page:any,memberId='child-a'){await page.addInitScript(({token,memberId}:{token:string;memberId:string})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})}
-test('真实合成OCR内容离线手机回放：数组仍失败但预览可见，不能直接保存',async({page,request})=>{
- await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{ocrText:JSON.parse(observedOCR.content)}})
- await login(page,'empty-child');await page.goto('/health-events');await page.getByRole('button',{name:'智能记录',exact:true}).click();const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
- const image=Buffer.from((await readFile(new URL('../../server/ai/business/fixtures/synthetic-report.png.b64',import.meta.url),'utf8')).trim(),'base64');await sheet.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image})
+test('多项OCR数组仍失败但预览可见，不能直接保存',async({page,request})=>{
+ const parts=[...JSON.parse(observedOCR.content),...JSON.parse(observedOCR.content)]
+ await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{ocrText:parts}})
+ await login(page,'empty-child');await page.goto('/health-profile/smart-record');await page.getByRole('button',{name:'上传与智能识别',exact:true}).click();await page.getByRole('combobox',{name:'资料类型'}).selectOption('record');const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
+ const image=Buffer.from((await readFile(new URL('../../server/ai/business/fixtures/synthetic-report.png.b64',import.meta.url),'utf8')).trim(),'base64');await sheet.locator('input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image})
  const before=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
- await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('region',{name:'AI初步整理，需核对',exact:true})).toBeVisible();await expect(sheet.getByLabel('编辑AI初步整理')).toHaveValue(JSON.parse(observedOCR.content)[0].text)
+ await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('region',{name:'AI初步整理，需核对',exact:true})).toBeVisible();await expect(sheet.getByLabel('编辑AI初步整理')).toHaveValue(parts.map(p=>p.text).join('\n\n'))
  const d=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();expect(d.state).toBe('failed');expect(d.preview.status).toBe('unverified');expect((await request.post(`/api/members/empty-child/ai-drafts/${d.id}/save`,{headers,data:{version:d.version,confirmed:true}})).status()).toBe(409)
  expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls-before).toBe(1);await request.delete(`/api/members/empty-child/ai-drafts/${d.id}`,{headers});await request.post('http://127.0.0.1:4198/draft-data',{data:{}})
+})
+
+test('真实单页OCR数组离线手机回放：解包后继续严格抽取，待确认且不自动保存',async({page,request})=>{
+ await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{ocrText:JSON.parse(observedOCR.content)}})
+ await login(page,'empty-child');await page.goto('/health-profile/smart-record');await page.getByRole('button',{name:'上传与智能识别',exact:true}).click();await page.getByRole('combobox',{name:'资料类型'}).selectOption('record');const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
+ const image=Buffer.from((await readFile(new URL('../../server/ai/business/fixtures/synthetic-report.png.b64',import.meta.url),'utf8')).trim(),'base64');await sheet.locator('input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image})
+ const before=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
+ await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled()
+ const d=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();expect(d.state).toBe('ready');expect(d.sources[0].text).toBe(JSON.parse(observedOCR.content)[0].text);expect(d.generation.provider).toBe('bailian');expect(d.result).toBeNull()
+ expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls-before).toBe(2)
+ expect((await request.post(`/api/members/empty-child/ai-drafts/${d.id}/save`,{headers,data:{version:d.version,confirmed:false}})).ok()).toBe(false)
+ await request.delete(`/api/members/empty-child/ai-drafts/${d.id}`,{headers});await request.post('http://127.0.0.1:4198/draft-data',{data:{}})
 })
 test('来源失败手机预览可编辑，正式保存拒绝，原文可带入既有手动表单且零额外模型请求',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/success')
  const raw='合成体验验收：今天没有呕吐，只是恶心'
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:[{category:'symptom',title:'合成观察',timeText:'今天',subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'呕吐',quote:'没有呕吐',sourceId:'@first',page:1}]}]}})
- await login(page,'empty-child');await page.goto('/health-events');await page.getByRole('button',{name:'智能记录',exact:true}).click();const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
+ await login(page,'empty-child');await page.goto('/health-profile/smart-record');await page.getByRole('button',{name:'上传与智能识别',exact:true}).click();await page.getByRole('combobox',{name:'资料类型'}).selectOption('record');const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true})
  await sheet.getByLabel('原始记录内容').fill(raw);await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click()
  const preview=sheet.getByRole('region',{name:'AI初步整理，需核对',exact:true});await expect(preview).toBeVisible();await expect(preview).toContainText('来源或否定关系未通过核对')
  await expect(sheet.getByLabel('原始记录内容')).toHaveValue(raw);await preview.getByLabel('编辑AI初步整理').fill('人工对照原话：今天没有呕吐，只是恶心')

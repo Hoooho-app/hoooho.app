@@ -71,7 +71,7 @@ test('护士站待机视频仍使用真实单一循环资源', async ({ page }) 
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({ height: element.videoHeight, paused: element.paused, width: element.videoWidth }))).toMatchObject({ height: 360, paused: false, width: 360 })
 })
 
-test('前台侧边栏使用首页图标，旧指数地址返回前台', async ({ page }) => {
+test('前台侧边栏使用首页图标，旧指数地址说明已停止', async ({ page }) => {
   await registerMember(page)
   await page.getByRole('button', { name: '打开菜单' }).click()
   const frontDesk = page.getByRole('button', { name: '前台', exact: true })
@@ -83,7 +83,7 @@ test('前台侧边栏使用首页图标，旧指数地址返回前台', async ({
   await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   expect(await page.evaluate(() => fetch('/api/food-allergy-index?memberId=unused').then((response) => response.status))).toBe(404)
   await page.goto('/food-allergy-status-index')
-  await expect(page).toHaveURL(/\/nurse-station$/)
+  await expect(page.getByText('指数功能已停止。原有记录仍然保留。')).toBeVisible()
 })
 
 test('护士视频资源失败时页面结构和核心任务仍可使用', async ({ page }) => {
@@ -208,7 +208,8 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
 
   await page.setViewportSize({ width: 375, height: 667 })
   await page.goto('/food-allergy-status-index')
-  await expect(page).toHaveURL(/\/nurse-station$/)
+  await expect(page.getByText('指数功能已停止。原有记录仍然保留。')).toBeVisible()
+  await page.goto('/nurse-station')
   await expect(page.locator('.nurse-station-allergy-index')).toHaveCount(0)
   await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   expect(errors).toEqual([])
@@ -282,7 +283,7 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
   await page.getByRole('link', { name: /健康档案/ }).click()
   await expect(page.locator('.health-profile-record-subject')).toBeVisible()
   await expect(page.locator('.growth-identity-card__metrics')).toHaveCount(0)
-  await expect(page.locator('.health-profile-record-subject + .health-profile-allergy-card')).toBeVisible()
+  await expect(page.locator('.health-profile-record-subject + nav[aria-label="档案分类"]')).toBeVisible()
   await page.screenshot({ path: 'test-results/health-profile-without-growth-card-375x667.png', fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
@@ -715,7 +716,7 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   await expect(fiveWeekRows.nth(1).locator('.medication-course-card__week')).toHaveCount(1)
   await fiveWeekCard.screenshot({ path: 'test-results/medication-card-five-weeks-375x667.png' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  const desktopContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4197', storageState: await page.context().storageState(), viewport: { width: 1440, height: 900 } })
+  const desktopContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4297', storageState: await page.context().storageState(), viewport: { width: 1440, height: 900 } })
   await desktopContext.addInitScript((token) => sessionStorage.setItem('hoooho-auth-token', token), pageTokens.get(page) ?? '')
   const desktopPage = await desktopContext.newPage()
   await desktopPage.goto('/medication-reminders')
@@ -747,8 +748,7 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
 test('就诊情况单从当前人物随记生成报告并支持目录和依据抽屉', async ({ page }) => {
   await registerMember(page)
   await page.goto('/health-events')
-  await page.getByRole('button', { name: '记一下', exact: true }).click()
-  await page.getByRole('dialog', { name: '记一下' }).getByRole('button', { name: '记录症状' }).click()
+  await page.getByRole('button', { name: '记录症状', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录症状' })
   await form.getByRole('textbox', { name: '哪里不舒服' }).fill('昨晚左肘窝有点发红，也很痒')
   await form.getByRole('textbox', { name: '手动补充症状部位' }).fill('左肘窝')

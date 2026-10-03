@@ -15,6 +15,7 @@ import { getStoredHealthProfileSectionSnapshots } from '../../features/health-pr
 import { useAppStore } from '../../store/useAppStore'
 import { findMultimodalConflicts } from '../../features/health-attachments/multimodalConflict'
 import { useHealthInformationCandidates } from '../../hooks/useHealthInformationCandidates'
+import { CaseActions } from '../../features/case-continuity/CaseActions'
 import {
   EventHeader,
   HealthInformationDiscoveryCard,
@@ -221,6 +222,7 @@ export function HealthEventDetailPage() {
       </div>
       <div className="page-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {state.refreshError && <p role="alert">{state.refreshError}</p>}
+        <CaseActions key={`${currentMemberId}:${event.id}`} eventId={event.id} records={state.data.records}/>
         {!hasRecords ? (
           <FirstRecordComposer onAvailabilityChange={updateFirstRecordAvailability} onRecorded={(message) => { setRecordedMessage(message || '已记录'); window.setTimeout(() => setRecordedMessage(''), 3000) }} onSave={addHealthRecord} ref={firstRecordRef} />
         ) : (
@@ -242,6 +244,10 @@ export function HealthEventDetailPage() {
       </div>
       {hasRecords && !voiceRecordOpen && !recordSheetOpen && <QuickRecordTrigger onClick={() => setVoiceRecordOpen(true)} />}
       {hasRecords && <QuickVoiceRecordFlow
+        eventId={event.id}
+        photoMemberId={currentMemberId}
+        photoToken={useAppStore.getState().authToken ?? ''}
+        onSaved={() => retry()}
         onClose={() => setVoiceRecordOpen(false)}
         onConfirm={saveQuickRecord}
         onIgnored={showRecordedMessage}

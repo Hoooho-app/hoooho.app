@@ -21,6 +21,7 @@ interface SymptomRecordSheetProps {
   initialEditing?: boolean
   onClose: () => void
   onEditDiet?: () => void
+  onEditTopical?: () => void
   onDelete: (recordId: string) => Promise<void>
   onUpdate: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
   relatedEntries?: JournalEntry[]
@@ -64,7 +65,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
   return entry.source.label
 }
 
-export function SymptomRecordSheet({ entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
+export function SymptomRecordSheet({ entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
@@ -178,7 +179,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
       </div>
     : <div className="symptom-record-detail-actions">
         <HohoButton disabled={!canEdit || busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
-        <HohoButton disabled={!canEdit || busy} onClick={onEditDiet ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditDiet?'编辑喂养/饮食':'编辑症状记录'}</HohoButton>
+        <HohoButton disabled={!canEdit || busy} onClick={onEditTopical ?? onEditDiet ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditTopical?'编辑身体涂抹':onEditDiet?'编辑喂养/饮食':'编辑症状记录'}</HohoButton>
       </div>
 
   const originalSymptom = record?.journal?.symptom

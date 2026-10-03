@@ -2,7 +2,8 @@ import { expect,test } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 const status=async(request:any)=>(await request.get('http://127.0.0.1:4198/status')).json()
-test.beforeEach(async({page,request})=>{await request.get('http://127.0.0.1:4198/success');await request.get('http://127.0.0.1:4198/voice?text='+encodeURIComponent('今天没有呕吐，只是恶心'));await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}});await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token);await page.goto('/health-events');await page.getByRole('button',{name:'智能记录',exact:true}).click()})
+async function openCase(page:any,request:any,memberId:string){const saved=await(await request.post(`/api/members/${memberId}/case-records`,{headers,data:{text:'合成语音验收，非真实患者资料',files:[],requestId:crypto.randomUUID(),timeUnknown:true,identity:'parent'}})).json();await page.goto(`/cases/${saved.eventId}/materials?recordId=${saved.recordId}`);await page.getByRole('button',{name:'智能整理原件',exact:true}).click();await page.getByRole('combobox',{name:'资料类型'}).selectOption('record');await page.getByLabel('原始记录内容').fill('')}
+test.beforeEach(async({page,request})=>{await request.get('http://127.0.0.1:4198/success');await request.get('http://127.0.0.1:4198/voice?text='+encodeURIComponent('今天没有呕吐，只是恶心'));await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}});await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token);await openCase(page,request,'child-a')})
 test('录音停止→独立百炼转写→可编辑→主动整理→确认保存，不启用TTS或自动保存',async({page,request})=>{
  const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true}),before=await status(request)
  await expect(sheet.getByRole('checkbox',{name:/对话式记录/})).toBeDisabled();await expect(sheet.getByLabel('原始记录内容')).toBeVisible()
@@ -14,7 +15,7 @@ test('录音停止→独立百炼转写→可编辑→主动整理→确认保�
  expect(audioMime).toBe('audio/wav');expect((await status(request)).asrCalls-before.asrCalls).toBe(1);expect((await status(request)).calls-before.calls).toBe(0)
  await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心')
  await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled()
- await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).click();await expect(sheet.getByRole('status')).toContainText('已保存 1 条')
+ await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).click();await expect(sheet.getByRole('status').filter({hasText:'已保存 1 条'})).toContainText('已保存 1 条')
  expect((await status(request)).calls-before.calls).toBe(1);expect((await status(request)).speechCalls-before.speechCalls).toBe(0)
  await sheet.getByRole('button',{name:'撤销本次保存',exact:true}).click()
 })
@@ -22,7 +23,7 @@ test('转写额度失败保留旧草稿/输入，文字可编辑、图片可上�
  const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true});await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心');await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByLabel('记录类型')).toBeVisible()
  const previous=await(await request.get('/api/members/child-a/ai-drafts',{headers})).json(),before=await status(request)
  await request.get('http://127.0.0.1:4198/failure');await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click();await expect(sheet.getByRole('alert')).toContainText('语音免费额度已用尽')
- await expect(sheet.getByRole('button',{name:'重试语音转写',exact:true})).toBeEnabled();await expect(sheet.getByLabel('原始记录内容')).toHaveValue(previous.inputText);await expect(sheet.getByLabel('记录类型')).toBeVisible();await expect(sheet.locator('input[type=file]')).toBeEnabled()
+ await expect(sheet.getByRole('button',{name:'重试语音转写',exact:true})).toBeEnabled();await expect(sheet.getByLabel('原始记录内容')).toHaveValue(previous.inputText);await expect(sheet.getByLabel('记录类型')).toBeVisible();await expect(sheet.locator('input[type=file]').first()).toBeEnabled()
  await sheet.getByLabel('原始记录内容').fill('继续打字记录');await expect(sheet.getByRole('button',{name:'继续整理这份草稿',exact:true})).toBeEnabled()
  expect((await status(request)).asrCalls-before.asrCalls).toBe(1);expect((await status(request)).calls-before.calls).toBe(0)
  const retained=await(await request.get(`/api/members/child-a/ai-drafts/${previous.id}`,{headers})).json();expect(retained.version).toBe(previous.version);expect(retained.items).toEqual(previous.items)
@@ -40,7 +41,7 @@ test('打断转写后可主动重试保留录音，且不会阻塞文字图片',
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);const requested=page.waitForRequest(r=>r.url().endsWith('/api/ai/audio/transcriptions'));await sheet.getByRole('button',{name:/停止录音/}).click();await requested
  await sheet.getByRole('button',{name:'打断',exact:true}).click()
  await expect(sheet.getByRole('button',{name:'重试语音转写',exact:true})).toBeEnabled()
- await expect(sheet.getByLabel('原始记录内容')).toHaveValue('先前文字仍保留');await expect(sheet.locator('input[type=file]')).toBeEnabled()
+ await expect(sheet.getByLabel('原始记录内容')).toHaveValue('先前文字仍保留');await expect(sheet.locator('input[type=file]').first()).toBeEnabled()
  await page.waitForTimeout(900);await expect(sheet.getByLabel('原始记录内容')).toHaveValue('先前文字仍保留')
 })
 
@@ -57,7 +58,7 @@ test('同一普通会话三次不同描述各用新录音字节，无隐藏整�
 
 test('错误码优先于失实文案，失败后重新录音仍走ASR且保留已选图片',async({page,request})=>{
  const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true}),before=await status(request)
- await sheet.getByLabel('原始记录内容').fill('保留原稿');await sheet.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('synthetic offline attachment')})
+ await sheet.getByLabel('原始记录内容').fill('保留原稿');await sheet.locator('input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('synthetic offline attachment')})
  await page.route('**/api/ai/audio/transcriptions',route=>route.fulfill({status:503,json:{error:{code:'ASR_NETWORK_ERROR',message:'语音转写服务尚未配置，请改用文字记录'}}}))
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click();await expect(sheet.getByRole('alert')).toContainText('连接失败');await expect(sheet.getByRole('alert')).not.toContainText('未配置');await expect(sheet.getByText('1 份待整理资料')).toBeVisible()
  await page.unroute('**/api/ai/audio/transcriptions');await request.get('http://127.0.0.1:4198/voice?text='+encodeURIComponent('普通描述新的转写'))
@@ -75,7 +76,7 @@ test('关闭弹窗后的迟到结果不覆盖新会话；重新打开可录音',
  const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true});let calls=0
  await page.route('**/api/ai/audio/transcriptions',async route=>{calls++;if(calls===1)await new Promise(r=>setTimeout(r,900));await route.fulfill({json:{transcript:calls===1?'旧会话不得进入':'新的普通转写'}}).catch(()=>{})})
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);const started=page.waitForRequest(r=>r.url().endsWith('/api/ai/audio/transcriptions'));await sheet.getByRole('button',{name:/停止录音/}).click();await started
- await sheet.getByRole('button',{name:'关闭智能整理记录',exact:true}).click();await page.getByRole('button',{name:'智能记录',exact:true}).click();await sheet.getByLabel('原始记录内容').fill('新会话输入');await page.waitForTimeout(1000);await expect(sheet.getByLabel('原始记录内容')).toHaveValue('新会话输入')
+ await sheet.getByRole('button',{name:'关闭智能整理记录',exact:true}).click();await page.getByRole('button',{name:'智能整理原件',exact:true}).click();await sheet.getByLabel('原始记录内容').fill('新会话输入');await page.waitForTimeout(1000);await expect(sheet.getByLabel('原始记录内容')).toHaveValue('新会话输入')
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click();await expect(sheet.getByLabel('原始记录内容')).toHaveValue('新会话输入\n新的普通转写')
 })
 
@@ -84,7 +85,7 @@ test('切换孩子取消旧转写，迟到结果不进入新孩子且可继续�
  await page.route('**/api/ai/audio/transcriptions',async route=>{posts++;if(posts===1)await new Promise(r=>setTimeout(r,1100));await route.fulfill({json:{transcript:posts===1?'旧孩子结果不能进入':'新孩子的转写'}}).catch(()=>{})})
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);const waiting=page.waitForRequest(r=>r.url().endsWith('/api/ai/audio/transcriptions'));await sheet.getByRole('button',{name:/停止录音/}).click();await waiting
  await request.post('/api/auth/current-member',{headers,data:{memberId:'empty-child'}})
- await page.addInitScript(()=>{const store=JSON.parse(localStorage.getItem('hoooho-app')!);store.state.currentMemberId='empty-child';localStorage.setItem('hoooho-app',JSON.stringify(store))});await page.reload();await page.getByRole('button',{name:'智能记录',exact:true}).click();await page.waitForTimeout(1200);await expect(sheet.getByLabel('原始记录内容')).toHaveValue('')
+ await page.addInitScript(()=>{const store=JSON.parse(localStorage.getItem('hoooho-app')!);store.state.currentMemberId='empty-child';localStorage.setItem('hoooho-app',JSON.stringify(store))});await page.reload();await expect(page.getByRole('button',{name:'智能整理原件',exact:true})).toHaveCount(0);await openCase(page,request,'empty-child');await page.waitForTimeout(1200);await expect(sheet.getByLabel('原始记录内容')).toHaveValue('')
  let member='';page.on('request',r=>{if(r.url().endsWith('/api/ai/audio/transcriptions'))member=r.postDataJSON().memberId})
  await sheet.getByRole('button',{name:'开始录音',exact:true}).click();await page.waitForTimeout(1100);await sheet.getByRole('button',{name:/停止录音/}).click();await expect(sheet.getByLabel('原始记录内容')).toHaveValue('新孩子的转写');expect(member).toBe('empty-child')
 })

@@ -10,7 +10,8 @@ export function readablePreview(content, metadata = {}) {
     value = content
   }
   // Observed Bailian OCR response: an array of text/status objects. It is still
-  // invalid against the OCR object schema; project text for review only.
+  // Outside the strict single-page transport adapter this is still invalid;
+  // this display-only projection never validates or promotes it to a record.
   if(Array.isArray(value)){
     if(!value.length||value.length>12||value.some(part=>!part||Array.isArray(part)||typeof part!=='object'||typeof part.text!=='string'))return null
     value={text:value.map(part=>part.text).join('\n\n')}

@@ -18,10 +18,30 @@ import {syntheticEvidenceProof} from '../business/synthetic-evidence-proof.mjs'
 import observedOCR from './fixtures/bailian-synthetic-ocr-array-20261003.json' with {type:'json'}
 import {ocrSchema} from '../business/documents.mjs'
 
-test('真实合成OCR数组协议回放仍拒绝schema，但用户可读预览保留',async()=>{
+test('非单页图片入口仍拒绝OCR数组协议，但用户可读预览保留',async()=>{
  let calls=0;const model=modelFor(async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:observedOCR.content}}],usage:{prompt_tokens:observedOCR.inputTokens,completion_tokens:observedOCR.outputTokens}},{headers:{'x-request-id':observedOCR.requestId}})})
  await assert.rejects(()=>model.structured({task:'document-page',schema:ocrSchema,instructions:'synthetic',input:'synthetic'}),e=>{assert.equal(e.code,'AI_OUTPUT_INVALID');assert.deepEqual(e.validation,{stage:'schema_validation',fieldPath:'/',reason:'type'});assert.equal(e.preview.text,JSON.parse(observedOCR.content)[0].text);assert.equal(e.preview.requestId,observedOCR.requestId);return true})
  assert.equal(calls,1)
+})
+
+test('单页图片OCR协议兼容仅解包一个完整且严格有效的对象，不改原文或补字段',async()=>{
+ let calls=0
+ const model=modelFor(async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:observedOCR.content}}],usage:{prompt_tokens:observedOCR.inputTokens,completion_tokens:observedOCR.outputTokens}},{headers:{'x-request-id':observedOCR.requestId}})})
+ const original=JSON.parse(observedOCR.content)[0]
+ const result=await model.structured({task:'document-page',schema:ocrSchema,instructions:'synthetic',vision:true,input:[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]})
+ assert.deepEqual(result.value,original);assert.equal(calls,1)
+ assert.equal(result.diagnostics.ocrEnvelope,'single-page-array')
+ assert.equal(result.diagnostics.requestId,observedOCR.requestId)
+})
+
+test('单页OCR兼容不接受多项、空数组、缺字段、非法值、额外字段或其他业务结构',async()=>{
+ const valid=JSON.parse(observedOCR.content)[0]
+ const input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ for(const [payload,outputSchema] of [[[],ocrSchema],[[valid,valid],ocrSchema],[[{text:valid.text}],ocrSchema],[[{...valid,status:'normal'}],ocrSchema],[[{...valid,text:12}],ocrSchema],[[{...valid,diagnosis:'不允许'}],ocrSchema],[[{items:[]}],{type:'object',additionalProperties:false,required:['items'],properties:{items:{type:'array'}}}],[[{text:'ok'}],schema]]){
+  let calls=0;const model=modelFor(async()=>{calls++;return success(payload)})
+  await assert.rejects(()=>model.structured({task:'document-page',schema:outputSchema,instructions:'synthetic',vision:true,input}),{code:'AI_OUTPUT_INVALID'})
+  assert.equal(calls,1)
+ }
 })
 
 const baseUrl='https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'

@@ -58,6 +58,19 @@ async function setup(t) {
   })
   return { svc, f, dir }
 }
+test('明确范围的报告按同一范围核验，不因未选来源假过期；照片编辑保留范围', async t => {
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id,eventId=f.events[0].id
+  const selection={eventIds:[eventId],includeBackground:false},saved=await svc.save(a,m,{expectedVersion:0,requestId:'scoped',selection,focus:{mode:'custom',text:'合成范围',caseEventId:eventId}})
+  assert.equal((await svc.get(a,m)).stale,false)
+  f.records.push({id:'unselected',eventId:'foreign-event',content:'未选择的资料',type:'note',occurredAt:'2026-09-30T00:00:00Z'})
+  assert.equal((await svc.get(a,m)).stale,false)
+  const edited=await svc.save(a,m,{expectedVersion:1,requestId:'scope-edit',selectedPhotoIds:[]})
+  assert.deepEqual(edited.report.selection,selection);assert.equal((await svc.get(a,m)).stale,false)
+  f.records.find(r=>r.eventId===eventId).content+=' 已修改'
+  assert.equal((await svc.get(a,m)).stale,true)
+  assert.equal(saved.report.id,edited.report.id)
+})
+
 test('成员权限、版本持久化、旧结果保护、幂等、乱序拒绝', async (t) => {
   const { svc, f } = await setup(t),
     a = f.member.accountId,

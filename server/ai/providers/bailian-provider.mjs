@@ -11,6 +11,10 @@ import {createBailianTransport} from './bailian-transport.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
+// Transport-only exception for the observed single-page OCR envelope. The
+// inner payload still passes the unchanged strict caller schema. No defaults,
+// field coercion, multi-page merging or clinical extraction normalization.
+const singlePageOCRSchema = JSON.stringify({type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}})
 const tokenCount = value => Number.isInteger(value) && value >= 0 && value < 10000000 ? value : null
 const messages = {
   authentication: '百炼鉴权失败，请检查后端新密钥与北京地域是否匹配；原内容仍保留',
@@ -98,8 +102,12 @@ export class BailianProvider extends OpenAIProvider {
             if (validators.size >= 32) { const [key, cached] = validators.entries().next().value; validator.removeSchema(cached.schema); validators.delete(key) }
             validate = validator.compile(format.schema); validators.set(schemaKey, { validate, schema: format.schema })
           }
+          let ocrEnvelope
+          if (imageCount === 1 && format.name === 'hoooho_business' && JSON.stringify(format.schema) === singlePageOCRSchema && Array.isArray(value) && value.length === 1 && validate(value[0])) {
+            value = value[0]; ocrEnvelope = 'single-page-array'
+          }
           if (!validate(value)) {const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]);throw outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)}
-          const diagnostics = { provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true }
+          const diagnostics = { provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })

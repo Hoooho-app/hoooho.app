@@ -3,6 +3,9 @@ import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
+import https from 'node:https'
+import { EventEmitter } from 'node:events'
+import { Readable } from 'node:stream'
 import { visitFixture } from '../../server/visit-sheets/fixtures.mjs'
 import { buildOccurrences } from '../../server/medication-reminders/medication-reminder-service.mjs'
 // Only this isolated fixture server can install the AI test double. Runtime code
@@ -39,6 +42,27 @@ if (process.env.VISIT_AI_TEST === '1') {
     if(summaryOutput)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(summaryOutput)}]}]})
     const input=JSON.parse(body.input.split('\n\n').at(-1)),line=input.sections.find(s=>s.id==='record')?.lines[0]??input.sections[0].lines[0],sectionId=input.sections.find(s=>s.lines.includes(line)).id
     return fixtureResponse({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ overview: `测试替身摘要：${line}`, keyPoints: [{text:'健康随记已有皮肤观察记录',sectionId,quote:line}], missingInformation: ['皮肤观察变化待核对'] }) }] }] })
+  }
+  // Bailian now uses the Node HTTPS transport rather than global fetch. Keep
+  // that boundary inside this isolated fixture process; never contact a real
+  // provider, modify production transports, or loosen output validation.
+  if (bailian) https.request = (url, options, callback) => {
+    if (String(url) !== process.env.BAILIAN_BASE_URL + '/chat/completions') throw new Error('Non-fixture HTTPS target prohibited')
+    const request = new EventEmitter()
+    let stopped = false
+    request.destroy = () => { stopped = true; return request }
+    request.end = body => {
+      void globalThis.fetch(String(url), { ...options, body }).then(async response => {
+        if (stopped) return
+        const incoming = Readable.from(Buffer.from(await response.arrayBuffer()))
+        incoming.statusCode = response.status
+        incoming.headers = Object.fromEntries(response.headers)
+        callback(incoming)
+      }).catch(error => { if (!stopped) request.emit('error', error) })
+      return request
+    }
+    options.signal?.addEventListener('abort', () => { if (!stopped) { stopped = true; request.emit('error', options.signal.reason) } }, { once: true })
+    return request
   }
   createServer(async(req, res) => {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
@@ -122,6 +146,10 @@ await seed('growth-measurements.json', {
     updatedAt: now,
   })),
 })
+// Keep this synthetic 28-day plan straddling the actual test date. Fixed
+// September dates would turn all future-plan assertions into past-plan checks.
+const planDay = offset => { const value = new Date(); value.setDate(value.getDate()+offset); return value.toLocaleDateString('en-CA',{timeZone:'Asia/Shanghai'}) }
+f.reminders = f.reminders.map(r => ({...r,plan:{...r.plan,startDate:planDay(-12),endDate:planDay(15)}}))
 await seed('medication-reminders.json', {
   reminders: f.reminders.map((r) => ({
     ...r,

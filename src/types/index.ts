@@ -247,6 +247,7 @@ export interface HealthChangeAnnotationApiDto {
 }
 
 export interface HealthEventRecordApiDto {
+  caseContext?: { identity: import('../features/case-continuity/types').MaterialIdentity; confirmed?: boolean; aiDraftId?: string; attachmentIds: string[]; timeUnknown?: boolean; supplement?: string; bodyLocations?: string[]; originalText?: string; taskId?: string; result?: import('../features/case-continuity/types').ObservationResult }
   aiProvenance?:{sources:Array<{sourceId:string;page:number;quote:string}>;fields:Array<{name:string;value:string;editedBy:string}>;attachmentIds:string[];originalVersions:string[];notice:string|null;time:{precision:string;resolvedStart:string|null;resolvedEnd:string|null}}
   journal?: import('./journal').JournalMetadata
   id: string
