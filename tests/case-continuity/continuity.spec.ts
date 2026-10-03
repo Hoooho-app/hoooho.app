@@ -13,8 +13,8 @@ test('首页假输入框和主按钮独立，鼠标键盘进入同一原记录�
   await expect(button).toBeVisible();await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   expect(await button.evaluate(el=>el.closest('a')===null)).toBe(true)
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toBeVisible()
-  await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
+  await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toBeVisible()
+  await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toHaveValue('')
   await page.goBack();await page.getByRole('button',{name:'症状数据示例，开始记录',exact:true}).click();await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
@@ -90,6 +90,6 @@ test('旧智能收记草稿保留，不静默转换为新症状事实',async({pa
     const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onupgradeneeded=()=>open.result.createObjectStore('drafts');open.onerror=()=>reject(open.error)
     open.onsuccess=()=>{const db=open.result,transaction=db.transaction('drafts','readwrite'),store=transaction.objectStore('drafts');for(const member of ['empty-child','child-a'])store.put({text:`合成游客草稿 ${member}`,files:[],occurredAt:'2026-10-01T08:00',timeUnknown:true,requestId:`guest-local-${member}`},`guest:synthetic:${member}:new:`);transaction.oncomplete=()=>{db.close();resolve()};transaction.onerror=()=>reject(transaction.error)}
   }))
-  await page.goto('/smart-record');await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
+  await page.goto('/smart-record');await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toHaveValue('')
   const keys=await page.evaluate(()=>new Promise<IDBValidKey[]>((resolve,reject)=>{const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onsuccess=()=>{const db=open.result,request=db.transaction('drafts','readonly').objectStore('drafts').getAllKeys();request.onsuccess=()=>{db.close();resolve(request.result)};request.onerror=()=>reject(request.error)}}));expect(keys).not.toContain('visit-test:empty-child:new:');expect(keys).toContain('guest:synthetic:child-a:new:');expect(keys).toContain('guest:synthetic:empty-child:new:')
 })

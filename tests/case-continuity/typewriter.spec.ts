@@ -1,11 +1,22 @@
-import { test, expect, devices, type Page } from '@playwright/test'
-import { TokenService } from '../../server/auth/token-service.mjs'
+import { test, expect, devices, type Page, type APIRequestContext } from '@playwright/test'
 import { quickNoteExamples } from '../../src/features/case-continuity/quickNoteExamples'
 
 const output = 'outputs/home-combined-header-b-20261004/local'
-const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
+let token: string, userId: string, memberId: string
+let fixtureSession: Awaited<ReturnType<APIRequestContext['storageState']>>
+// Own fixture account: other spec files deliberately mutate legacy shared records.
+// Keep real API loading in this suite, without mocking responses or hiding errors.
+test.beforeAll(async ({ request }) => {
+  const registered = await request.post('/api/auth/register', { data: { nickname: '头部布局验收' + crypto.randomUUID().slice(0,8), password: 'fixture-layout-only-20261004', idempotencyKey: crypto.randomUUID() }, headers: { 'x-forwarded-for': '198.51.100.230' } })
+  expect(registered.ok()).toBe(true)
+  const session = await registered.json(); token = session.token; userId = session.user.id
+  const member = await request.post('/api/members', { headers: { Authorization: `Bearer ${token}` }, data: { name: '布局验收（合成）', relationship: 'child', gender: 'female', birthday: '2025-01-01' } })
+  expect(member.ok()).toBe(true); memberId = (await member.json()).id
+  fixtureSession = await request.storageState()
+})
 async function initialize(page: Page) {
-  await page.addInitScript(token => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: 'empty-child', members: [], profile: null }, version: 5 })) }, token)
+  await page.context().addCookies(fixtureSession.cookies)
+  await page.addInitScript(({token,userId,memberId}) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: userId }, currentMemberId: memberId, members: [], profile: null }, version: 5 })) }, {token,userId,memberId})
 }
 async function ready(page: Page) {
   await page.goto('/nurse-station')
@@ -86,7 +97,7 @@ test('假输入框及主按钮文字图标留白整块可点，单次跳转且�
     else { const rect = (await control.boundingBox())!; await control.click({ position: { x: position === 'left' ? 5 : position === 'right' ? rect.width - 5 : rect.width / 2, y: rect.height / 2 } }) }
     await expect(page).toHaveURL(/\/smart-record$/)
     expect(await page.evaluate(() => (window as any).entryPushes)).toBe(1)
-    await expect(page.getByRole('textbox', { name: '哪里不舒服' })).toHaveValue('')
+    await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
     await page.goBack(); await expect(fake).toBeVisible()
   }
 })
@@ -107,7 +118,8 @@ test('底部跟进列表独立且整块可点击，鼠标键盘只跳转一次',
 test('窄屏放大案例字号可自然扩展，不裁切或覆盖底部按钮', async ({ page }) => {
   await initialize(page); await page.emulateMedia({ reducedMotion: 'reduce' }); await page.setViewportSize({ width: 320, height: 568 }); await ready(page)
   const before = await metrics(page)
-  await page.addStyleTag({ content: '.continuity-record-entry__example { font-size: 26px; }' })
+  await page.addStyleTag({ content: 'button.continuity-record-entry__record .continuity-record-entry__example { font-size: 26px; }' })
+  await expect(page.locator('.continuity-record-entry__example')).toHaveCSS('font-size','26px')
   const after = await metrics(page)
   expect(after.input.height).toBeGreaterThan(before.input.height)
   expect(after.actions.y).toBeGreaterThanOrEqual(after.input.bottom + 12)
@@ -120,6 +132,6 @@ test('实际节奏短录屏：打字停留删除及原记录入口', async ({ br
   const page = await context.newPage(); await initialize(page); await ready(page)
   await expect(page.locator('.continuity-record-entry__example span')).toHaveText(quickNoteExamples[1], { timeout: 12000 })
   await page.getByRole('button', { name: '症状数据', exact: true }).click(); await expect(page).toHaveURL(/\/smart-record$/)
-  await expect(page.getByRole('textbox', { name: '哪里不舒服' })).toHaveValue('')
+  await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
   await context.close(); await page.video()!.saveAs(output + '/typewriter-and-entry.webm')
 })
