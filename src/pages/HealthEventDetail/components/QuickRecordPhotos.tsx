@@ -5,12 +5,21 @@ import { useDialogFocus } from '../../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import { quickRecordService, type QuickRecordPhotoDto } from '../../../services/quickRecords'
 
+
+async function prepareRecordVideo(file: File) {
+  if (!['video/mp4', 'video/quicktime', 'video/webm'].includes(file.type)) throw new Error('视频仅支持 MP4、MOV 或 WebM')
+  if (!file.size || file.size > 5 * 1024 * 1024) throw new Error('单个视频不能超过 5MB')
+  const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('视频无法读取')); reader.readAsDataURL(file) })
+  return { name: file.name, mimeType: file.type, dataUrl }
+}
+
 export type QuickRecordPhotoStatus = 'uploading' | 'uploaded' | 'failed'
 export interface QuickRecordPhotoItem {
   localId: string
   serverId?: string
   file?: File
   name: string
+  mimeType?: string
   previewUrl: string
   status: QuickRecordPhotoStatus
   error?: string
@@ -24,7 +33,7 @@ export const hasUnreadyPhotos = (photos: readonly QuickRecordPhotoItem[]) => pho
 
 const draftStorageKey = (memberId: string, namespace = 'default') => `hoooho-quick-record-photo-draft:${namespace}:${memberId}`
 
-export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT, namespace = 'default') {
+export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT, namespace = 'default', allowVideos = false) {
   const [photos, setPhotos] = useState<QuickRecordPhotoItem[]>([])
   const [notice, setNotice] = useState('')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -50,11 +59,11 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     void quickRecordService.listPhotos(stored, memberId, token).then(async (saved) => {
       const hydrated = await Promise.all(saved.map(async (photo) => {
         const blob = await quickRecordService.readPhoto(stored, photo.id, memberId, token)
-        return { localId: photo.id, serverId: photo.id, name: photo.name, previewUrl: URL.createObjectURL(blob), status: 'uploaded' as const }
+        return { localId: photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, previewUrl: URL.createObjectURL(blob), status: 'uploaded' as const }
       }))
       if (active) setPhotos(hydrated)
       else hydrated.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
-    }).catch(() => { if (active) setNotice('照片草稿暂时无法恢复，请稍后重试') })
+    }).catch(() => { if (active) setNotice(allowVideos ? '资料草稿暂时无法恢复，请稍后重试' : '照片草稿暂时无法恢复，请稍后重试') })
     return () => { active = false }
   }, [memberId, namespace, token])
 
@@ -63,7 +72,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const uploadItem = async (item: QuickRecordPhotoItem, sortOrder: number, version: number) => {
     if (!item.file || !memberId || !token) return
     try {
-      const prepared = await prepareHealthImage(item.file)
+      const prepared = allowVideos && item.file.type.startsWith('video/') ? await prepareRecordVideo(item.file) : await prepareHealthImage(item.file)
       const saved = await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...prepared, sortOrder }, token)
       if (uploadVersionsRef.current.get(item.localId) !== version) return
       setPhotos((current) => {
@@ -95,10 +104,10 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     if (!files?.length) return []
     const available = remainingPhotoCapacity(photosRef.current.length, limit)
     const selected = Array.from(files).slice(0, available)
-    if (files.length > available) setNotice(limit === QUICK_RECORD_PHOTO_LIMIT ? '最多上传10张照片' : `最多上传${limit}张照片`)
+    if (files.length > available) setNotice(allowVideos ? `最多上传${limit}份资料` : limit === QUICK_RECORD_PHOTO_LIMIT ? '最多上传10张照片' : `最多上传${limit}张照片`)
     else setNotice('')
     const additions = selected.map((file): QuickRecordPhotoItem => ({
-      localId: crypto.randomUUID(), file, name: file.name, previewUrl: URL.createObjectURL(file), status: 'uploading'
+      localId: crypto.randomUUID(), file, name: file.name, mimeType: file.type, previewUrl: URL.createObjectURL(file), status: 'uploading'
     }))
     const previousCount = photosRef.current.length
     const next = [...photosRef.current, ...additions]
@@ -151,7 +160,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     photoIds: photosRef.current.filter((photo) => photo.status === 'uploaded' && photo.serverId).map((photo) => photo.serverId!)
   })
 
-  return { photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
+  return { allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
 export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean }) {
@@ -169,24 +178,24 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
   }, [model, selected])
   return <>
     <div className="quick-record-photos" data-empty={photos.length === 0}>
-      <div className="quick-record-photos__heading"><strong>上传照片</strong><span>{photos.length}/{limit}</span></div>
+      <div className="quick-record-photos__heading"><strong>{model.allowVideos ? '已添加资料' : '上传照片'}</strong><span>{photos.length}/{limit}</span></div>
       <div className="quick-record-photos__rail">
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
-          <button aria-label={`查看照片 ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button"><img alt="" src={photo.previewUrl} /></button>
+          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? <video muted playsInline preload="metadata" src={photo.previewUrl} /> : <img alt="" src={photo.previewUrl} />}</button>
           {photo.status === 'uploading' && <span aria-label="上传中" className="quick-record-photo__status"><LoaderCircle className="is-spinning" size={17} /></span>}
           {photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
-          {photo.status !== 'failed' && <button aria-label={`删除照片 ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}
+          {photo.status !== 'failed' && <button aria-label={`删除${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}
         </div>)}
         {showAddButton && photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
       </div>
       {showAddButton && <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />}
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}
-      {model.blocked && <p className="quick-record-photo-error" role="alert">{photos.some((photo) => photo.status === 'failed') ? '有照片上传失败，请重试或移除' : '照片上传中，请稍候'}</p>}
+      {model.blocked && <p className="quick-record-photo-error" role="alert">{photos.some((photo) => photo.status === 'failed') ? (model.allowVideos ? '有资料上传失败，请重试或移除' : '有照片上传失败，请重试或移除') : (model.allowVideos ? '资料上传中，请稍候' : '照片上传中，请稍候')}</p>}
     </div>
-    {selected && <div aria-label="照片预览" aria-modal="true" className="quick-record-photo-lightbox" ref={lightboxRef} role="dialog" tabIndex={-1}>
+    {selected && <div aria-label={selected.mimeType?.startsWith('video/') ? '视频预览' : '照片预览'} aria-modal="true" className="quick-record-photo-lightbox" ref={lightboxRef} role="dialog" tabIndex={-1}>
       <button aria-label="关闭大图预览" className="quick-record-photo-lightbox__close" onClick={() => model.setPreviewIndex(null)} type="button"><X size={25} /></button>
       {photos.length > 1 && <button aria-label="上一张照片" className="quick-record-photo-lightbox__previous" onClick={() => model.setPreviewIndex((previewIndex! - 1 + photos.length) % photos.length)} type="button"><ChevronLeft size={30} /></button>}
-      <img alt={`照片 ${previewIndex! + 1}`} src={selected.previewUrl} />
+      {selected.mimeType?.startsWith('video/') ? <video controls playsInline src={selected.previewUrl} /> : <img alt={`照片 ${previewIndex! + 1}`} src={selected.previewUrl} />}
       {photos.length > 1 && <button aria-label="下一张照片" className="quick-record-photo-lightbox__next" onClick={() => model.setPreviewIndex((previewIndex! + 1) % photos.length)} type="button"><ChevronRight size={30} /></button>}
       <span>{previewIndex! + 1}/{photos.length}</span>
     </div>}

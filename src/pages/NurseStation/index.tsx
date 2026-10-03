@@ -158,7 +158,7 @@ export function NurseStationPage() {
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="前台" />
+      <MainAppHeader title="服务前台" />
       <section className="nurse-station-empty-member">
         <div className="nurse-station-empty-member__copy">
           <p className="nurse-station-empty-member__eyebrow">欢迎来到 Hoooho</p>
@@ -183,7 +183,7 @@ export function NurseStationPage() {
 
   return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="前台" />
+      <MainAppHeader title="服务前台" />
       <div className="nurse-station-scroll">
         <div className="nurse-station-overview">
         {listState.status === 'loading' ? (
