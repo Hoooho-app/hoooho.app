@@ -45,7 +45,7 @@ try {
     await page.goto(baseURL+'/health-profile');await smart.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/health-profile\/smart-record$/)
     await page.getByRole('button',{name:'上传与智能识别'}).click();await expect(page.getByRole('dialog',{name:'智能整理记录'})).toBeVisible()
     await page.getByRole('dialog',{name:'智能整理记录'}).getByRole('button',{name:'关闭智能整理记录',exact:true}).click()
-    await page.goto(baseURL+'/health-profile');await page.addStyleTag({content:'html{font-size:24px}'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+    await page.goto(baseURL+'/health-profile');await expect(smart).toBeVisible();await page.addStyleTag({content:'html{font-size:24px}'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
     await smart.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/large-text.png`})
     assert.deepEqual(errors,[])
     const result={environment,health:'PASS',homeHeaderAndCopy:'PASS',uploadIcon:'PASS',routes:'PASS',keyboardUploadEntry:'PASS',largeText:'PASS',widths:[375,320,390,430],errors,syntheticDataOnly:true}
