@@ -10,8 +10,9 @@ if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit ac
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
 const output = path.resolve(`outputs/home-example-typewriter-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
-const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' })
-const context = await browser.newContext({ ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
+// Isolated, ignored QA profiles retain only this runner's own session between
+// retries. Never use the user's browser profile or copy cookies across targets.
+const context = await chromium.launchPersistentContext(path.resolve(`.codex-tmp/home-typewriter-qa-${production ? 'production' : 'staging'}`), { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 const page = await context.newPage()
 page.setDefaultTimeout(45000)
 const result = { target: base, startedAt: new Date().toISOString(), checks: {}, screenshots: [], runtimeErrors: 0, http5xx: 0, cleanup: {}, ai: 'NOT_RETESTED_UNCHANGED', physicalPhone: 'NOT_VERIFIED' }
@@ -49,6 +50,10 @@ try {
   assert.equal(response.status(), 200)
   assert.equal((await api('/api/health', undefined, 'GET')).status, 'ok')
   result.checks.health = 'PASS'
+  const existingSession = await api('/api/auth/session', undefined, 'GET')
+  if (existingSession.token) {
+    assert.ok(existingSession.user?.nickname?.startsWith('首页验收') && !existingSession.user?.guest, 'Only this isolated runner’s synthetic account may be reused')
+  } else {
   await page.goto(base + '/login')
   await page.getByRole('tab', { name: '注册', exact: true }).click()
   await page.getByPlaceholder('给自己起个昵称').fill('首页验收' + randomUUID().slice(0, 8))
@@ -67,6 +72,7 @@ try {
       continue
     }
     throw Object.assign(new Error('Normal registration unavailable; do not bypass rate limits'), { safe })
+  }
   }
   token = (await api('/api/auth/session', undefined, 'GET')).token
   memberId = (await api('/api/members', { name: '合成首页验收，非真实患者', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
@@ -123,6 +129,5 @@ try {
   await writeFile(path.join(output, 'verification.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result))
   await context.close()
-  await browser.close()
   process.exitCode = result.status === 'PASS' ? 0 : 1
 }
