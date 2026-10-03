@@ -1,7 +1,6 @@
 import { ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import desensitizationTestsImage from '../../assets/nurse-station/home-entries/desensitization-tests.png'
 import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.png'
 import healthDiaryImage from '../../assets/nurse-station/home-entries/health-diary.png'
 import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.png'
@@ -15,7 +14,6 @@ import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../..
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
 import { readNurseStationState, reconcileNurseStationItems, writeNurseStationState } from '../../features/nurse-station/state'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
-import { desensitizationTestService, type DesensitizationTaskDto } from '../../services/desensitizationTests'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { medicationReminderService, type MedicationReminderDto } from '../../services/medicationReminders'
 import { useAppStore } from '../../store/useAppStore'
@@ -49,9 +47,6 @@ export function NurseStationPage() {
   const [medicationReminders, setMedicationReminders] = useState<MedicationReminderDto[]>([])
   const [medicationStatus, setMedicationStatus] = useState<EntryStatus>('loading')
   const [medicationMemberId, setMedicationMemberId] = useState('')
-  const [desensitizationTasks, setDesensitizationTasks] = useState<DesensitizationTaskDto[]>([])
-  const [desensitizationStatus, setDesensitizationStatus] = useState<EntryStatus>('loading')
-  const [desensitizationMemberId, setDesensitizationMemberId] = useState('')
   const [growthMeasurements, setGrowthMeasurements] = useState<Awaited<ReturnType<typeof growthMeasurementService.list>>>([])
   const [growthStatus, setGrowthStatus] = useState<EntryStatus>('loading')
   const [growthMemberId, setGrowthMemberId] = useState('')
@@ -91,27 +86,6 @@ export function NurseStationPage() {
         if (!active) return
         setMedicationMemberId(currentMemberId)
         setMedicationStatus('error')
-      })
-    return () => { active = false }
-  }, [currentMemberId, member, token])
-
-  useEffect(() => {
-    let active = true
-    setDesensitizationStatus('loading')
-    setDesensitizationMemberId('')
-    setDesensitizationTasks([])
-    if (!token || !currentMemberId || !member) return () => { active = false }
-    void desensitizationTestService.list(currentMemberId, token)
-      .then((result) => {
-        if (!active) return
-        setDesensitizationTasks(result.tasks)
-        setDesensitizationMemberId(currentMemberId)
-        setDesensitizationStatus('success')
-      })
-      .catch(() => {
-        if (!active) return
-        setDesensitizationMemberId(currentMemberId)
-        setDesensitizationStatus('error')
       })
     return () => { active = false }
   }, [currentMemberId, member, token])
@@ -169,9 +143,6 @@ export function NurseStationPage() {
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
   const medicationCount = medicationMemberId === currentMemberId
     ? medicationReminders.filter((item) => item.status === 'active').length
-    : null
-  const desensitizationCount = desensitizationMemberId === currentMemberId
-    ? desensitizationTasks.filter((item) => item.status === 'active').length
     : null
   const growth = growthStatus === 'success' && growthMemberId === currentMemberId && member
     ? resolveCurrentGrowthMeasurements(member, growthMeasurements, currentMemberId)
@@ -239,8 +210,6 @@ export function NurseStationPage() {
         ) : null}
         <FollowUpHome key={currentMemberId} />
         <HomeEntries
-          desensitizationCount={desensitizationCount}
-          desensitizationStatus={desensitizationStatus}
           medicationCount={medicationCount}
           medicationStatus={medicationStatus}
         />
@@ -269,9 +238,7 @@ function taskCountLabel(status: EntryStatus, count: number | null, noun: '提醒
   return `${count} 个${noun}任务`
 }
 
-function HomeEntries({ desensitizationCount, desensitizationStatus, medicationCount, medicationStatus }: {
-  desensitizationCount: number | null
-  desensitizationStatus: EntryStatus
+function HomeEntries({ medicationCount, medicationStatus }: {
   medicationCount: number | null
   medicationStatus: EntryStatus
 }) {
@@ -283,13 +250,6 @@ function HomeEntries({ desensitizationCount, desensitizationStatus, medicationCo
       subtitle: taskCountLabel(medicationStatus, medicationCount, '提醒'),
       image: medicationRemindersImage,
       to: '/medication-reminders',
-    },
-    {
-      id: 'desensitization',
-      title: '排敏测试',
-      subtitle: taskCountLabel(desensitizationStatus, desensitizationCount, '测试'),
-      image: desensitizationTestsImage,
-      to: '/desensitization-tests',
     },
   ]
 

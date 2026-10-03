@@ -36,7 +36,7 @@ async function screenshot(name) {
   if(name.startsWith('home-')) {
     await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
     await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
-    await expect(page.locator('.nurse-home-entry--desensitization')).toContainText('0 个测试任务')
+    await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   }
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   const file=path.join(output,name+'.png');await page.screenshot({path:file});result.screenshots.push(file)
@@ -51,15 +51,15 @@ try {
   registered=true
   const session=await api('/api/auth/session',undefined,'GET');token=session.token;assert.ok(token)
   memberId=(await api('/api/members',{name:'合成验收，非真实患者',relationship:'child',gender:'female',birthday:'2025-01-01'})).id
-  await api('/api/auth/current-member',{memberId});await page.goto(base+'/nurse-station');await expect(page.getByText('还没有正在跟进的情况')).toBeVisible()
+  await api('/api/auth/current-member',{memberId});await page.goto(base+'/nurse-station');await expect(page.getByRole('link',{name:'0件 · 查看列表 ›',exact:true})).toBeVisible()
   await screenshot('home-empty-320');await page.setViewportSize({width:375,height:667});await screenshot('home-empty-375')
-  await page.getByRole('link',{name:'情况收记 有情况先记下来',exact:true}).click();await page.getByRole('textbox',{name:'发生了什么（主诉）？'}).fill('合成示例，非真实患者资料：记录皮肤变化，原因未明确。')
+  await page.getByRole('button',{name:'速记',exact:true}).click();await page.getByRole('textbox',{name:'发生了什么（主诉）？'}).fill('合成示例，非真实患者资料：记录皮肤变化，原因未明确。')
   await screenshot('smart-record-375');await page.getByRole('button',{name:'先保存',exact:true}).click();await page.getByRole('button',{name:'确认保存',exact:true}).click();await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
   const eventId=page.url().split('/').at(-1);assert.equal((await api(`/api/members/${memberId}/cases`,undefined,'GET')).active.length,1);result.checks.rawSave='PASS'
   await page.getByRole('link',{name:'安排观察',exact:true}).click();await page.getByRole('textbox',{name:'观察什么',exact:true}).fill('合成皮肤变化与照片');await screenshot('observation-plan-375');await page.getByRole('button',{name:'确认安排',exact:true}).click();await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
   await page.getByRole('link',{name:'记录今天的变化',exact:true}).click();await page.getByRole('textbox',{name:'发生了什么（主诉）？'}).fill('合成示例：今天未观察，不补为正常。');await page.getByRole('button',{name:'未观察',exact:true}).click();await page.getByRole('button',{name:'先保存',exact:true}).click();await page.getByRole('button',{name:'确认保存',exact:true}).click()
   await page.goto(base+'/nurse-station');await expect(page.getByText('今日已记录 1/1（1次未观察）')).toBeVisible();await screenshot('home-observation-375');result.checks.observationFeedback='PASS'
-  await page.locator('.nurse-home-entry').last().scrollIntoViewIfNeeded();const sizes=await page.locator('.nurse-home-entry').evaluateAll(cards=>cards.map(c=>({w:c.getBoundingClientRect().width,h:c.getBoundingClientRect().height})));assert.equal(sizes.length,6);assert.equal(new Set(sizes.map(s=>s.h)).size,1);assert.ok(Math.max(...sizes.map(s=>s.w))-Math.min(...sizes.map(s=>s.w))<1);await screenshot('home-six-entries-375');result.checks.sixCardsFrozen='PASS'
+  await page.locator('.nurse-home-entry').last().scrollIntoViewIfNeeded();const sizes=await page.locator('.nurse-home-entry').evaluateAll(cards=>cards.map(c=>({w:c.getBoundingClientRect().width,h:c.getBoundingClientRect().height})));assert.equal(sizes.length,5);assert.equal(new Set(sizes.map(s=>s.h)).size,1);assert.ok(Math.max(...sizes.map(s=>s.w))-Math.min(...sizes.map(s=>s.w))<1);await screenshot('home-five-entries-375');result.checks.fiveCardsEqualSize='PASS'
   for (const width of [390,430,1280]) {await page.setViewportSize({width,height:width===1280?900:800});await page.goto(base+'/nurse-station');await screenshot(`home-${width}`)}
   await page.setViewportSize({width:375,height:667});const source=await context.newPage();await source.setContent('<main style="font-family:sans-serif;padding:20px"><h1>合成示例，非真实患者资料</h1><p>问诊消息、检查报告及外部AI参考，仅供流程验收。诊断未明确。</p></main>');const png=await source.screenshot();await source.close()
   const files=[{name:'合成资料原件.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${png.toString('base64')}`}]

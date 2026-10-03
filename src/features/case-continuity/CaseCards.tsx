@@ -14,6 +14,15 @@ export function CaseCard({ item }: { item: FollowedCase }) {
   </article>
 }
 export function FollowUpHome() {
+  const navigate = useNavigate()
   const { data, error, reload } = useCases()
-  return <section className="continuity-home" aria-label="情况收记与正在跟进"><Link className="continuity-record-entry" to="/smart-record"><strong>情况收记</strong><span>有情况先记下来</span><span aria-hidden>＋</span></Link><div className="continuity-section-heading"><h2>正在跟进</h2><Link to="/cases">{data ? data.active.length > 3 ? `查看全部 ${data.active.length} 件` : `${data.active.length}件 · 查看列表` : '查看列表'} ›</Link></div>{error ? <div role="alert">情况暂未加载 <HohoButton variant="text" onClick={reload}>重试</HohoButton></div> : !data ? <p role="status">正在加载情况…</p> : data.active.length ? data.active.slice(0, 3).map(item => <CaseCard key={item.event.id} item={item}/>) : <p className="continuity-empty">还没有正在跟进的情况</p>}{!!data?.archived.length && <Link className="continuity-return-link" to="/cases?state=archived">查看已归档 {data.archived.length} 件 ›</Link>}</section>
+  return <section className="continuity-home" aria-label="健康事件随时记与情况列表">
+    <div className="continuity-record-entry">
+      <Link className="continuity-record-entry__copy" to="/smart-record"><strong>健康事件随时记</strong><span>突发情况先记下来</span></Link>
+      <HohoButton className="continuity-record-entry__action" size="small" onClick={() => navigate('/smart-record')}>速记</HohoButton>
+    </div>
+    <div className="continuity-section-heading continuity-home__list-link"><Link to="/cases">{data ? data.active.length > 3 ? `查看全部 ${data.active.length} 件` : `${data.active.length}件 · 查看列表` : '查看列表'} ›</Link></div>
+    {error ? <div role="alert">情况暂未加载 <HohoButton variant="text" onClick={reload}>重试</HohoButton></div> : !data ? <p role="status">正在加载情况…</p> : data.active.slice(0, 3).map(item => <CaseCard key={item.event.id} item={item}/>)}
+    {!!data?.archived.length && <Link className="continuity-return-link" to="/cases?state=archived">查看已归档 {data.archived.length} 件 ›</Link>}
+  </section>
 }
