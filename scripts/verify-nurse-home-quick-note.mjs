@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-followup-header-20261004/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-combined-header-b-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -18,7 +18,7 @@ const context = await chromium.launchPersistentContext(path.join(tmpdir(), 'hooo
 const page = await context.newPage()
 page.setDefaultTimeout(45000)
 const result = { target: base, startedAt: new Date().toISOString(), checks: {}, screenshots: [], runtimeErrors: 0, http5xx: 0, cleanup: {}, ai: 'NOT_RETESTED_UNCHANGED', physicalPhone: 'NOT_VERIFIED' }
-let token, memberId
+let token, memberId, secondMemberId
 page.on('pageerror', () => result.runtimeErrors++)
 page.on('response', response => { if (response.status() >= 500) result.http5xx++ })
 async function api(url, data, method = 'POST') {
@@ -32,18 +32,25 @@ async function api(url, data, method = 'POST') {
 async function home(name) {
   await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
   await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
-  await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '症状数据', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒'])
-  const header = await page.locator('.continuity-record-entry__header').evaluate(el => { const title=el.querySelector('strong'),link=el.querySelector('a'),t=title.getBoundingClientRect(),l=link.getBoundingClientRect();return {weight:getComputedStyle(title).fontWeight,size:getComputedStyle(title).fontSize,linkSize:getComputedStyle(link).fontSize,right:t.right,left:l.left} })
-  assert.equal(header.weight, '700');assert.equal(header.size, '14px');assert.equal(header.linkSize, header.size);assert.ok(header.right < header.left)
-  await expect(page.getByText('还没有正在跟进的情况', { exact: true })).toHaveCount(0)
+  const geometry = await page.locator('.nurse-station-overview').evaluate(el => {
+    const rect = selector => el.querySelector(selector).getBoundingClientRect()
+    const hero = rect('.nurse-station-hero'), mint = rect('.continuity-home'), input = rect('.continuity-record-entry__record'), actions = rect('.continuity-record-entry__actions'), left = rect('.continuity-record-entry__list-action'), right = rect('.continuity-record-entry__action')
+    const title = el.querySelector('.continuity-record-entry__header strong'), titleStyle = getComputedStyle(title), heroStyle = getComputedStyle(el.querySelector('.nurse-station-hero'))
+    return { size: titleStyle.fontSize, weight: titleStyle.fontWeight, color: titleStyle.color, primary: getComputedStyle(el.querySelector('.continuity-record-entry__action')).backgroundColor, gap: mint.y - hero.bottom, aligned: hero.x === mint.x && hero.width === mint.width, inputHeight: input.height, actionGap: right.x - left.right, ratio: left.width / (left.width + right.width), leftHeight: left.height, rightHeight: right.height, actionY: actions.y - input.bottom, heroBorder: heroStyle.borderTopWidth, heroShadow: heroStyle.boxShadow, outerBorder: getComputedStyle(el).borderTopWidth }
+  })
+  assert.equal(geometry.size, '14px'); assert.equal(geometry.weight, '700'); assert.equal(geometry.color, geometry.primary)
+  assert.equal(geometry.gap, 0); assert.ok(geometry.aligned); assert.equal(geometry.heroBorder, '0px'); assert.equal(geometry.heroShadow, 'none'); assert.equal(geometry.outerBorder, '1px')
+  assert.ok(geometry.inputHeight >= 56); assert.equal(geometry.leftHeight, 48); assert.equal(geometry.rightHeight, 48)
+  assert.equal(geometry.actionGap, 12); assert.equal(geometry.actionY, 12); assert.ok(Math.abs(geometry.ratio - .36) < .001)
+  await expect(page.locator('.continuity-home input,.continuity-home textarea,.continuity-home button button,.continuity-home button a')).toHaveCount(0)
   const example = page.locator('.continuity-record-entry__example')
   await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
-  assert.equal((await page.locator('.continuity-record-entry').boundingBox()).height, 108)
   const sizes = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   assert.equal(sizes.length, 5)
   assert.equal(new Set(sizes.map(card => card.height)).size, 1)
@@ -58,6 +65,11 @@ try {
   assert.equal(response.status(), 200)
   assert.equal((await api('/api/health', undefined, 'GET')).status, 'ok')
   result.checks.health = 'PASS'
+  const resources = await page.evaluate(async () => {
+    const paths = ['/', '/api/health', '/nurse-station', '/smart-record', '/cases', ...Array.from(document.querySelectorAll('script[src],link[rel=stylesheet]')).map(el => el.src || el.href)]
+    return Promise.all(paths.map(async url => ({ path: new URL(url, location.origin).pathname, status: (await fetch(url)).status })))
+  })
+  assert.ok(resources.every(item => item.status === 200)); result.checks.routesAndInitialAssets = resources
   const existingSession = await api('/api/auth/session', undefined, 'GET')
   if (existingSession.token) {
     assert.ok(existingSession.user?.nickname?.startsWith('首页验收') && !existingSession.user?.guest, 'Only this isolated runner’s synthetic account may be reused')
@@ -83,16 +95,39 @@ try {
   }
   }
   token = (await api('/api/auth/session', undefined, 'GET')).token
-  memberId = (await api('/api/members', { name: '合成首页验收，非真实患者', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
+  memberId = (await api('/api/members', { name: '布局验收（合成）', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
+  secondMemberId = (await api('/api/members', { name: '切换验收（合成）', relationship: 'child', gender: 'male', birthday: '2025-03-01' })).id
   await api('/api/auth/current-member', { memberId })
   await page.goto(base + '/nurse-station')
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
-  for (const width of [375, 320, 390, 430, 1280]) {
+  for (const width of [375, 320, 390, 393, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
   }
   result.checks.homeCopyFiveEqualCardsAndResponsive = 'PASS'
   await page.setViewportSize({ width: 375, height: 667 })
+  const geometry = () => page.locator('.nurse-station-overview').evaluate(el => ({ height: el.getBoundingClientRect().height, inputHeight: el.querySelector('.continuity-record-entry__record').getBoundingClientRect().height, buttonY: el.querySelector('.continuity-record-entry__actions').getBoundingClientRect().y }))
+  await page.locator('.nurse-station-overview').scrollIntoViewIfNeeded()
+  const stable = await geometry()
+  for (let sample = 0; sample < 12; sample++) { await page.waitForTimeout(500); assert.deepEqual(await geometry(), stable) }
+  result.checks.liveTypingLayoutStable = 'PASS'
+  for (const selector of ['.nurse-station-hero__main', '.nurse-station-growth-data > button:nth-child(1)', '.nurse-station-growth-data > button:nth-child(2)']) {
+    await page.locator(selector).click(); await expect(page).toHaveURL(base + '/health-profile/basic'); await page.goBack(); await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
+  }
+  await page.locator('.nurse-station-blood-type').click()
+  const editor = page.getByRole('dialog', { name: '编辑血型', exact: true })
+  await editor.getByRole('button', { name: 'B型', exact: true }).click(); await editor.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(editor).toHaveCount(0); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
+  await page.reload(); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
+  result.checks.originalGrowthRoutesAndRealBloodEdit = 'PASS'
+  for (const name of ['切换验收（合成）', '布局验收（合成）']) {
+    await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+    await page.getByRole('dialog', { name: '侧边栏菜单', exact: true }).getByRole('button', { name: '打开我的孩子', exact: true }).click()
+    await page.getByRole('dialog', { name: '我的孩子', exact: true }).locator('.current-child-sheet__select').filter({ hasText: name }).click()
+    await expect(page.locator('.nurse-station-identity')).toContainText(name)
+    await expect(page.getByRole('button', { name: '症状数据', exact: true })).toBeVisible()
+  }
+  await expect(page.locator('.nurse-station-blood-type')).toContainText('B型'); result.checks.originalMemberSwitch = 'PASS'
   for (const [name, route] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders']]) {
     await page.locator('.nurse-home-entry').filter({ hasText: name }).click()
     await expect(page).toHaveURL(base + route)
@@ -101,20 +136,30 @@ try {
   }
   result.checks.remainingEntryNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
+  const button = entry.getByRole('button', { name: '症状数据', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
   await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   await expect(entry.locator('.continuity-record-entry__example')).not.toContainText('例如：')
-  assert.equal((await entry.boundingBox()).height, 108)
-  const title = (await entry.locator('strong').boundingBox())
-  await page.mouse.click(title.x + title.width / 2, title.y + title.height / 2)
+  const fake = page.getByRole('button', { name: '症状数据示例，开始记录', exact: true })
+  for (const control of [fake, button]) {
+    for (const edge of ['left', 'right']) {
+      await control.scrollIntoViewIfNeeded()
+      const rect = await control.boundingBox()
+      await control.click({ position: { x: edge === 'left' ? 5 : rect.width - 5, y: rect.height / 2 } })
+      await expect(page).toHaveURL(base + '/smart-record')
+      await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
+      await page.goBack()
+    }
+  }
+  await fake.focus(); await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
+  await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
   await page.goBack()
   await button.focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
-  await page.getByRole('textbox', { name: '哪里不舒服' }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
+  await page.getByRole('textbox', { name: '哪里不舒服', exact: true }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
   await page.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
   result.checks.quickNoteTextAndKeyboardSave = 'PASS'
@@ -140,9 +185,10 @@ try {
   result.failure = error.safe ?? { name: error.name, message: String(error.message).slice(0, 500) }
 } finally {
   if (memberId) await api(`/api/members/${memberId}`, undefined, 'DELETE').then(() => { result.cleanup.syntheticMember = 'REMOVED' }).catch(() => { result.cleanup.syntheticMember = 'FAILED' })
+  if (secondMemberId) await api(`/api/members/${secondMemberId}`, undefined, 'DELETE').then(() => { result.cleanup.secondSyntheticMember = 'REMOVED' }).catch(() => { result.cleanup.secondSyntheticMember = 'FAILED' })
   result.cleanup.acceptanceAccount = 'RETAINED_NO_IDENTITY_DELETION_BYPASS'
   result.finishedAt = new Date().toISOString()
-  result.status = !result.failure && result.runtimeErrors === 0 && result.http5xx === 0 && result.cleanup.syntheticMember === 'REMOVED' ? 'PASS' : 'FAIL'
+  result.status = !result.failure && result.runtimeErrors === 0 && result.http5xx === 0 && result.cleanup.syntheticMember === 'REMOVED' && result.cleanup.secondSyntheticMember === 'REMOVED' ? 'PASS' : 'FAIL'
   await writeFile(path.join(output, 'verification.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result))
   await context.close()

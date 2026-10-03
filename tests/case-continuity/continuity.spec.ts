@@ -7,15 +7,15 @@ async function initialize(page:Page,member='empty-child') {
 }
 async function capture(request:any,text:string,eventId?:string,identity='parent',files:any[]=[]){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files,eventId,identity,requestId:crypto.randomUUID(),occurredAt:new Date().toISOString(),timeUnknown:false}});expect(response.status()).toBe(200);return response.json()}
 
-test('首页输入框式速记入口是单一按钮，鼠标键盘进入原记录流程',async({page})=>{
+test('首页假输入框和主按钮独立，鼠标键盘进入同一原记录流程',async({page})=>{
   await initialize(page);await page.goto('/nurse-station')
-  const button=page.getByRole('button',{name:'健康事件随时记，情况速记',exact:true})
+  const button=page.getByRole('button',{name:'症状数据',exact:true})
   await expect(button).toBeVisible();await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   expect(await button.evaluate(el=>el.closest('a')===null)).toBe(true)
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toBeVisible()
-  await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
-  await page.goBack();const title=(await page.locator('.continuity-record-entry strong').boundingBox())!;await page.mouse.click(title.x+title.width/2,title.y+title.height/2);await expect(page).toHaveURL(/\/smart-record$/)
+  await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toBeVisible()
+  await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toHaveValue('')
+  await page.goBack();await page.getByRole('button',{name:'症状数据示例，开始记录',exact:true}).click();await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
 
@@ -90,6 +90,6 @@ test('旧智能收记草稿保留，不静默转换为新症状事实',async({pa
     const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onupgradeneeded=()=>open.result.createObjectStore('drafts');open.onerror=()=>reject(open.error)
     open.onsuccess=()=>{const db=open.result,transaction=db.transaction('drafts','readwrite'),store=transaction.objectStore('drafts');for(const member of ['empty-child','child-a'])store.put({text:`合成游客草稿 ${member}`,files:[],occurredAt:'2026-10-01T08:00',timeUnknown:true,requestId:`guest-local-${member}`},`guest:synthetic:${member}:new:`);transaction.oncomplete=()=>{db.close();resolve()};transaction.onerror=()=>reject(transaction.error)}
   }))
-  await page.goto('/smart-record');await expect(page.getByRole('textbox',{name:'哪里不舒服'})).toHaveValue('')
+  await page.goto('/smart-record');await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toHaveValue('')
   const keys=await page.evaluate(()=>new Promise<IDBValidKey[]>((resolve,reject)=>{const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onsuccess=()=>{const db=open.result,request=db.transaction('drafts','readonly').objectStore('drafts').getAllKeys();request.onsuccess=()=>{db.close();resolve(request.result)};request.onerror=()=>reject(request.error)}}));expect(keys).not.toContain('visit-test:empty-child:new:');expect(keys).toContain('guest:synthetic:child-a:new:');expect(keys).toContain('guest:synthetic:empty-child:new:')
 })
