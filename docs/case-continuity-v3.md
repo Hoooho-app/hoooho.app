@@ -1,5 +1,40 @@
 # Hoooho v3: case continuity implementation and acceptance boundary
 
+## 2026-10-03 release resumption and AI-main integration
+
+- User requested Production deployment after the separate AI work. Fresh remote
+  main and both Railway environments are `0f3e3a77d321f00a66a6cd1b16cee0b815e21049`.
+  PR282 did not contain that subsequent work and was conflicting. The candidate
+  now merges that exact main, preserving Bailian providers, HTTPS transport,
+  ASR interruption/retry/session guards and quarantined editable previews.
+- Source-specific case binding and exclusion of external-AI/pending material from
+  health facts/archives remain intact. Unscoped manual-record shortcuts are not
+  offered from case-linked review; the existing source-confirmation flow remains.
+  A new regression covers original-first zero calls, rejected preview, same-case
+  confirmation, Bailian provenance and no clinical archive for external AI.
+- New main's Node HTTPS transport bypassed the old fetch-only browser fixture.
+  The isolated fixture process now intercepts only its exact synthetic HTTPS
+  target; production transport and strict validation are unchanged. ASR coverage
+  runs through case material review after the v3 capture-entry migration, preserving
+  all retry/late-response/member/background assertions. Profile previews remain
+  covered through the existing profile upload route.
+- Fresh checks: client 554/554; guest 21/21; relevant AI/case/visit 156/156;
+  case browser 8/8; Bailian AI browser 13/13; ASR browser 10/10; parser 30/30;
+  typecheck/build/viewport/assets/secret boundary PASS (zero violations), lint N/A.
+  Full server 200/201: the unchanged Operations snapshot-date test still fails;
+  current Production-main checkout independently reproduced it (10/11).
+- Safe live configuration inspection: Production has AI_PROVIDER=bailian and
+  ASR_PROVIDER=bailian with key/base configured. Staging has neither Bailian
+  provider nor key/base. No secrets were printed/copied/changed. Cross-environment
+  reuse authorization was requested before any copy. Staging non-AI verification
+  can explicitly withhold model calls for this reason and remains non-green.
+- The independent AI delivery documented actual synthetic ordinary ASR success,
+  but explicitly did not claim real image-to-confirmed-record or formal AI-summary
+  confirmation success. It is not evidence that all AI or physical-device flows
+  passed. Physical iOS live partial ASR/camera/notification remain unverified.
+- Production integration/deployment is not yet claimed; pending evidence must
+  record actual deployments, public artifacts, functional checks and remaining gates.
+
 This is an incremental candidate based on `ed0d7dcb63664eefc71536a19b2c32fa2225e07d`.
 It is not a claim that the prototype, OCR, live ASR, physical iOS camera, push
 delivery, or Production release has passed. The supplied v3 prompt is authoritative;

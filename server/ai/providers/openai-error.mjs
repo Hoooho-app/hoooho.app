@@ -5,7 +5,8 @@ const safeMessages = [
   'Your organization has no prepaid credits remaining.',
   'Your organization reached its enforced spend limit.',
   'Your project reached its enforced spend limit.',
-  'Your organization reached its OpenAI-assigned usage limit.'
+  'Your organization reached its OpenAI-assigned usage limit.',
+  'The free tier of the model has been exhausted.', 'Invalid API-key provided.', 'Incorrect API key provided.'
 ]
 
 function safeMessage(value) {
@@ -17,7 +18,9 @@ function safeMessage(value) {
 }
 
 function safeCode(value) {
-  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null
+  if (typeof value !== 'string') return null
+  if (['InvalidApiKey', 'InvalidAPIKey', 'AccessDenied', 'AccessDenied.Unpurchased', 'Model.AccessDenied', 'Workspace.AccessDenied', 'Endpoint.AccessDenied', 'AllocationQuota.FreeTierOnly', 'AllocationQuota', 'Throttling', 'Throttling.RateQuota', 'Throttling.AllocationQuota', 'ModelNotFound', 'WorkSpaceNotFound', 'InvalidParameter', 'InternalError.Algo.InvalidParameter', 'InvalidImageFormat', 'InvalidImageResolution', 'InvalidFile.ImageSize', 'InvalidFile.Resolution', 'Arrearage', 'InsufficientBalance', 'DataInspectionFailed'].includes(value)) return value
+  return /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null
 }
 
 function safeRetryAfter(value) {
@@ -28,16 +31,24 @@ function safeRetryAfter(value) {
   return null
 }
 
-function classify(code, type) {
+function classify(code, type, message) {
   const kinds = {
     credit_balance_exhausted: 'credit_balance',
     project_spend_limit_exceeded: 'project_spend_limit',
     organization_spend_limit_exceeded: 'organization_spend_limit',
     organization_usage_limit_exceeded: 'organization_usage_limit',
     rate_limit_exceeded: 'rate_limit',
-    slow_down: 'rate_limit'
+    slow_down: 'rate_limit',
+    InvalidApiKey: 'authentication', InvalidAPIKey: 'authentication', invalid_api_key: 'authentication',
+    AccessDenied: 'permission', access_denied: 'permission', 'AccessDenied.Unpurchased': 'permission', 'Model.AccessDenied': 'permission', 'Workspace.AccessDenied': 'permission', 'Endpoint.AccessDenied': 'permission', WorkSpaceNotFound: 'permission',
+    'AllocationQuota.FreeTierOnly': 'free_quota_exhausted', AllocationQuota: 'quota_unknown', 'Throttling.AllocationQuota': 'quota_unknown',
+    Throttling: 'rate_limit', 'Throttling.RateQuota': 'rate_limit', ModelNotFound: 'model_not_found', model_not_found: 'model_not_found',
+    Arrearage: 'credit_balance', InsufficientBalance: 'credit_balance', InvalidImageFormat: 'image_unavailable', InvalidImageResolution: 'image_unavailable', 'InvalidFile.ImageSize': 'image_unavailable', 'InvalidFile.Resolution': 'image_unavailable'
   }
   if (Object.hasOwn(kinds, code)) return kinds[code]
+  // Inspect only known provider error wording transiently; never keep URL,
+  // submitted content, or the unredacted message in diagnostics.
+  if (['InvalidParameter','InternalError.Algo.InvalidParameter'].includes(code) && typeof message === 'string' && /^(?:Failed to (?:download|fetch|decode).*image|Invalid image|Image.*(?:invalid|download|unavailable)|Wrong Content-Type of multimodal url)/i.test(message)) return 'image_unavailable'
   if (code === 'insufficient_quota' || type === 'insufficient_quota') return 'quota_unknown'
   if (type === 'rate_limit_error') return 'rate_limit'
   return 'provider_error'
@@ -51,9 +62,9 @@ export function safeOpenAIErrorDetails(value = {}) {
     errorType,
     errorCode,
     errorMessage: safeMessage(value.errorMessage),
-    requestId: typeof value.requestId === 'string' && /^req_[A-Za-z0-9_-]{1,100}$/.test(value.requestId) ? value.requestId : null,
+    requestId: typeof value.requestId === 'string' && /^(?:req_[A-Za-z0-9_-]{1,100}|[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|chatcmpl-[a-zA-Z0-9_-]{1,100})$/.test(value.requestId) ? value.requestId : null,
     retryAfter: safeRetryAfter(value.retryAfter),
-    failureKind: classify(errorCode, errorType)
+    failureKind: value.failureKind === 'image_unavailable' && ['InvalidParameter','InternalError.Algo.InvalidParameter'].includes(errorCode) ? 'image_unavailable' : classify(errorCode, errorType, value.errorMessage)
   }
 }
 
@@ -72,9 +83,10 @@ export function safeOpenAIFailureCodes(error) {
 }
 
 export async function readOpenAIErrorDetails(response) {
-  let error
+  let error, body
   try {
-    error = (await response.json())?.error
+    body = await response.json()
+    error = body?.error ?? body
   } catch {
     // Non-JSON responses and parse failures must not enter logs or Error.cause.
   }
@@ -83,7 +95,7 @@ export async function readOpenAIErrorDetails(response) {
     errorType: error?.type,
     errorCode: error?.code,
     errorMessage: error?.message,
-    requestId: response.headers?.get('x-request-id'),
+    requestId: response.headers?.get('x-request-id') ?? response.headers?.get('x-dashscope-request-id') ?? body?.request_id,
     retryAfter: response.headers?.get('retry-after')
   })
 }

@@ -6,7 +6,7 @@ const headers={Authorization:`Bearer ${token}`}
 test.beforeEach(async({page,request})=>{await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}});await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token);await page.goto('/health-events')})
 async function open(page:any){const saved=await page.evaluate(async token=>{const r=await fetch('/api/members/child-a/case-records',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({text:'合成测试资料，非真实患者资料',files:[],requestId:crypto.randomUUID(),timeUnknown:true,identity:'parent'})});return r.json()},token);await page.goto(`/cases/${saved.eventId}/materials?recordId=${saved.recordId}`);await page.getByRole('button',{name:'智能整理原件',exact:true}).click();const sheet=page.getByRole('dialog',{name:'智能整理记录',exact:true});await sheet.getByLabel('原始记录内容').fill('');return sheet}
 test('文字草稿真实保存、429保留、无自动重试、成员隔离与撤销',async({page,request})=>{const sheet=await open(page);await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心');await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled();await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).scrollIntoViewIfNeeded();await page.screenshot({path:'outputs/ai-business/iphone-se-draft.png'});const before=await(await request.get('http://127.0.0.1:4198/status')).json();await request.get('http://127.0.0.1:4198/failure');await sheet.getByLabel('原始记录内容').fill('今天没有呕吐，只是恶心，补充观察');await sheet.getByRole('button',{name:'继续整理这份草稿',exact:true}).click();await expect(sheet.getByRole('alert')).toContainText('仍保留');await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeDisabled();const failed=await(await request.get('/api/members/child-a/ai-drafts',{headers})).json();expect(failed.state).toBe('failed');expect(failed.items[0].fields[0].value).toBe('今天没有呕吐，只是恶心');expect((await(await request.get('http://127.0.0.1:4198/status')).json()).calls).toBe(before.calls+1);await page.screenshot({path:'outputs/ai-business/iphone-se-failure.png'});await request.get('http://127.0.0.1:4198/success');await sheet.getByRole('button',{name:'重试整理',exact:true}).click();await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled();await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).click();await expect(sheet.getByRole('status')).toContainText('已保存 1 条');const saved=await(await request.get(`/api/members/child-a/ai-drafts/${failed.id}`,{headers})).json();expect(saved.result.count).toBe(1);expect((await request.get(`/api/members/empty-child/ai-drafts/${failed.id}`,{headers})).status()).toBe(404);await page.screenshot({path:'outputs/ai-business/iphone-se-saved.png'});await sheet.getByRole('button',{name:'撤销本次保存',exact:true}).click();await expect(sheet.getByRole('status')).toContainText('已撤销');for(const width of [320,375,390]){await page.setViewportSize({width,height:568});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}})
-test('实际音频采集经过服务端转写；多轮纠正、语音保存与语音反馈',async({page,request})=>{
+test('实际音频采集经过服务端转写；多轮文字核对、点击确认保存与配置后语音反馈',async({page,request})=>{
   const sheet=await open(page),before=await(await request.get('http://127.0.0.1:4198/status')).json()
   await sheet.getByRole('checkbox',{name:/对话式记录/}).check()
   const speak=async(text:string)=>{
@@ -15,18 +15,19 @@ test('实际音频采集经过服务端转写；多轮纠正、语音保存与�
     await expect(sheet.getByRole('button',{name:/停止录音/})).toBeVisible()
     await page.waitForTimeout(900)
     await sheet.getByRole('button',{name:/停止录音/}).click()
-    if(text!=='保存')await expect(sheet.getByRole('button',{name:'开始录音',exact:true})).toBeEnabled()
-    else await expect(sheet.getByRole('button',{name:'撤销本次保存',exact:true})).toBeEnabled()
+    await expect(sheet.getByRole('button',{name:'开始录音',exact:true})).toBeEnabled()
   }
   await speak('昨天没有呕吐，只是恶心')
+  await sheet.getByRole('button',{name:'整理成待确认记录',exact:true}).click()
   await expect(sheet.getByRole('button',{name:'已核对，一次保存 1 条'})).toBeEnabled()
   await speak('不是昨天，是前天')
   await expect(sheet.getByLabel('原始记录内容')).toHaveValue('昨天没有呕吐，只是恶心\n不是昨天，是前天')
   await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).scrollIntoViewIfNeeded();await page.screenshot({path:'outputs/ai-business/iphone-se-voice.png'})
-  await speak('保存')
+  await sheet.getByRole('button',{name:'继续整理这份草稿',exact:true}).click()
+  await sheet.getByRole('button',{name:'已核对，一次保存 1 条'}).click()
   await expect(sheet.getByRole('status')).toContainText('已保存 1 条')
   const status=await(await request.get('http://127.0.0.1:4198/status')).json()
-  expect(status.asrCalls-before.asrCalls).toBe(3);expect(status.speechCalls-before.speechCalls).toBe(3)
+  expect(status.asrCalls-before.asrCalls).toBe(2);expect(status.speechCalls-before.speechCalls).toBe(3)
 })
 test('两页PDF逐页核对、局部重识别、实际检查记录与原件回看',async({page,request})=>{
   const fields=(page:number)=>[['institution','测试机构'],['testName','红细胞'],['result','4.2'],['unit','mmol/L'],['referenceRange','3.5-5.5']].map(([name,value])=>({name,value,quote:value,page,sourceId:'@first'}))

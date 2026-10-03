@@ -107,6 +107,7 @@ export class HealthRecordOrganizationService {
     if (!rawInput) throw new HealthRecordOrganizationError('请先描述主要症状', 400, 'EMPTY_RAW_INPUT')
     if (rawInput.length > 1000) throw new HealthRecordOrganizationError('主要症状不能超过 1000 个字符', 400, 'RAW_INPUT_TOO_LONG')
     const organized = await this.ai.organizeHealthRecord(rawInput, {
+      accountId,
       selectedOccurredAt: input?.selectedOccurredAt,
       timezone: input?.timezone,
       referenceNow: now
@@ -145,11 +146,11 @@ export class HealthRecordOrganizationService {
       const inputs = []
       for (const record of records) {
         if (record.caseContext && (['external_ai','pending'].includes(record.caseContext.identity) || (record.caseContext.identity !== 'parent' && !record.caseContext.confirmed))) {
-          const neutral = await this.ai.organizeHealthRecord('资料保留，尚未核对为健康事实', { selectedOccurredAt: record.occurredAt, timezone: options.timezone })
+          const neutral = await this.ai.organizeHealthRecord('资料保留，尚未核对为健康事实', { accountId, selectedOccurredAt: record.occurredAt, timezone: options.timezone })
           inputs.push({ accountId, eventId, recordId: record.id, rawInput: record.content, healthAIOutput: { ...neutral.healthAIOutput, facts: [] }, provider: neutral.provider, bodyLocations: [], sourceRecordUpdatedAt: record.updatedAt })
           continue
         }
-        const organized = await this.ai.organizeHealthRecord(record.content, { selectedOccurredAt: record.occurredAt, timezone: options.timezone })
+        const organized = await this.ai.organizeHealthRecord(record.content, { accountId, selectedOccurredAt: record.occurredAt, timezone: options.timezone })
         const bodyLocations = options.bodyLocationsByRecord?.[record.id] ?? previousByRecord.get(record.id)?.bodyLocations ?? []
         const merged = mergeStructuredHealthFacts(organized.healthAIOutput, { bodyLocations, rawInput: record.content, occurredAt: record.occurredAt })
         inputs.push({ accountId, eventId, recordId: record.id, rawInput: record.content,
@@ -211,7 +212,7 @@ export class HealthRecordOrganizationService {
         eventId, memberId: event.memberId, memberName: eventMember.name,
         organizedHealthData: projectOrganizedHealthData(healthAIOutput), provider: 'intent-gate' }
     }
-    const organized = await this.ai.organizeHealthRecord(input?.rawInput, { selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone, referenceNow: now })
+    const organized = await this.ai.organizeHealthRecord(input?.rawInput, { accountId, selectedOccurredAt: input?.selectedOccurredAt, timezone: input?.timezone, referenceNow: now })
     const merged = mergeStructuredHealthFacts(organized.healthAIOutput, {
       bodyLocations: readBodyLocations(input), rawInput: input?.rawInput, occurredAt: input?.selectedOccurredAt })
     const priorOrganizations = await this.repository.findByEventId(eventId)

@@ -5,6 +5,7 @@ import { accountTransaction } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
   ['ai-business-drafts.json', 'drafts'],
+  ['visit-ai-candidates.json', 'candidates'],
   ['visit-sheets.json', 'reports'],
   ['health-profile-sections.json', 'sections'],
   ['family-members.json', 'members'],

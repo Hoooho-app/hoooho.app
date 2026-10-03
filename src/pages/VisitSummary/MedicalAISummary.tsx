@@ -3,7 +3,7 @@ import { reportTime } from './ReportChapter'
 
 export function MedicalAISummary({ report, snapshot = false }: { report: VisitSheet; snapshot?: boolean }) {
   const summary = report.aiSummary
-  if (!summary || summary.provider !== 'openai') return null
+  if (!summary || !['openai', 'bailian'].includes(summary.provider)) return null
   return <section aria-label="AI 病情摘要" className="visit-question">
     <h2>AI 病情摘要</h2>
     <p className="visit-muted">AI 生成 · {reportTime(summary.generatedAt, report.timezone)}{snapshot ? ' · 固定快照，编辑不会自动重新生成 AI 摘要' : ''}</p>

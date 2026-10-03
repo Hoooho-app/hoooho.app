@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { OpenAIProvider } from './providers/openai-provider.mjs'
+import { createAIProvider } from './providers/provider-factory.mjs'
+import { withAIAccount } from './providers/call-control.mjs'
 
 export const IMAGE_ANALYSIS_CATEGORIES = [
   'temperature',
@@ -93,10 +94,10 @@ export class ImageAnalysisService {
   constructor(options = {}) {
     this.provider = Object.prototype.hasOwnProperty.call(options, 'provider')
       ? options.provider
-      : (process.env.OPENAI_API_KEY ? new OpenAIProvider(options) : null)
+      : createAIProvider(options)
   }
 
-  async analyze(attachment, now = new Date()) {
+  async analyze(attachment, now = new Date(), accountId = null) {
     if (!this.provider?.analyzeImage) {
       return {
         status: 'unavailable',
@@ -111,11 +112,11 @@ export class ImageAnalysisService {
     }
 
     try {
-      const result = await this.provider.analyzeImage({
+      const result = await withAIAccount(accountId, () => this.provider.analyzeImage({
         name: attachment.name,
         mimeType: attachment.mimeType,
         dataUrl: attachment.dataUrl
-      })
+      }))
       return normalizeImageAnalysis(result, attachment, this.provider.name, now)
     } catch (error) {
       console.warn('[Hoooho Vision] draft analysis failed', error?.code ?? 'VISION_ANALYSIS_FAILED')

@@ -89,7 +89,7 @@ export interface VisitChapter {
 }
 export interface VisitSheet {
   selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
-  aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai'; model: string; generatedAt: string }
+  aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai' | 'bailian'; model: string; generatedAt: string }
   aiSummaryStale?: boolean
   aiSourceFingerprint?: string
   aiSourceIds?: string[]
@@ -141,6 +141,7 @@ export interface VisitSheet {
   }>
 }
 export interface VisitSheetState {
+  aiCandidate?: {id:string;summary:NonNullable<VisitSheet['aiSummary']>}
   report: VisitSheet | null
   stale: boolean
   warnings: string[]

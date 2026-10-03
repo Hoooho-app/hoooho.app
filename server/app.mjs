@@ -21,7 +21,9 @@ import { EventAttachmentService } from './events/event-attachment-service.mjs'
 import { FamilyMemberService } from './members/family-member-service.mjs'
 import { cleanupTestDataOnce } from './data/cleanup-test-data.mjs'
 import { HealthRecordOrganizationService } from './ai/health-record-organization-service.mjs'
-import { AudioTranscriptionService } from './ai/audio-transcription-service.mjs'
+import { AudioTranscriptionService, AudioTranscriptionError } from './ai/audio-transcription-service.mjs'
+import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
+import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
@@ -645,9 +647,15 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 }
 
 async function handleAudioTranscription(request, response, pathname) {
-  if (pathname !== '/api/ai/audio/transcriptions') return false
+  if (!['/api/ai/audio/transcriptions','/api/ai/audio/capabilities'].includes(pathname)) return false
   const accountId=await readAccountId(request)
-  if (request.method === 'POST') sendJson(response, 200, await audioTranscription.transcribe(await readJson(request, 21_000_000),accountId))
+  if (pathname.endsWith('/capabilities') && request.method === 'GET') sendJson(response,200,audioTranscription.capabilities())
+  else if (pathname.endsWith('/transcriptions') && request.method === 'POST') {
+    const input=await readJson(request,21_000_000)
+    if(input.memberId)await members.get(accountId,input.memberId)
+    const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()})
+    sendJson(response,200,await audioTranscription.transcribe(input,accountId,controller.signal))
+  }
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -925,9 +933,13 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     const status = Number.isInteger(error?.status) ? error.status : 500
     const code = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
-    const message = status >= 500 && !(error instanceof AuthError) ? '服务器暂时不可用' : error.message
-    if (status >= 500) console.error(error)
-    sendJson(response, status, { error: { code, message, ...(error?.details ?? {}) } })
+    const safeAI = error instanceof MedicalSummaryError || error instanceof SafeAIProviderError || error instanceof AudioTranscriptionError
+    const message = status >= 500 && !(error instanceof AuthError) && !safeAI ? '服务器暂时不可用' : error.message
+    if (status >= 500 || (safeAI&&error.validation)) {
+      if (safeAI) console.error('[Hoooho AI] request failed', JSON.stringify({ code, status, ...error.upstream, ...error.failureCodes,...(error.validation?{validation:error.validation}:{}) }))
+      else console.error(error)
+    }
+    sendJson(response, status, { error: { code, message, ...(error?.details ?? {}), ...(safeAI&&error.preview?{preview:error.preview}:{}) } })
   }
 })
 

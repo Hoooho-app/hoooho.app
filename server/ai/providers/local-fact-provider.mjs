@@ -25,7 +25,7 @@ const periodText = '(?:凌晨|半夜|今早|早上|上午|中午|下午|晚上|�
 const specificTimePatterns = [
   new RegExp(`\\d{4}年\\s*\\d{1,2}月\\s*\\d{1,2}[日号]?(?:${periodText})?(?:\\s*${clockText})?`, 'g'),
   new RegExp(`\\d{1,2}月\\s*\\d{1,2}[日号]?(?:${periodText})?(?:\\s*${clockText})?`, 'g'),
-  new RegExp(`(?:今天|昨天|前天|今朝|昨晚)(?:${periodText})?(?:\\s*${clockText})?`, 'g'),
+  new RegExp(`(?:今天|昨天|昨日|前天|今朝|昨晚)(?:${periodText})?(?:\\s*${clockText})?`, 'g'),
   new RegExp(`${periodText}\\s*${clockText}`, 'g'),
   new RegExp(clockText, 'g'),
   /\d{4}年|\d{1,2}月初|上周[一二三四五六日天](?:凌晨|半夜|早上|上午|下午|晚上|夜里|夜间)?|第[二三四五六七]天|隔天|[一二两三四五六七八九十\d]+天前|最近一周|三年前|前几个月|前两天|目前|现在|刚才|刚刚|今早|早上|上午|中午|下午|晚上|夜里|夜间|凌晨|半夜|上周|去年|小时候|几年前|以前/g
@@ -44,13 +44,13 @@ function timePrecision(raw) {
   if (!raw) return 'unknown'
   if (/\d{1,2}(?:点|:)/.test(raw)) return 'exact'
   if (/凌晨|半夜|今早|早上|上午|中午|下午|晚上|夜里|夜间/.test(raw)) return 'period'
-  if (/今天|昨天|前天|\d{1,2}月\s*\d{1,2}[日号]?/.test(raw)) return 'day'
+  if (/今天|昨天|昨日|前天|\d{1,2}月\s*\d{1,2}[日号]?/.test(raw)) return 'day'
   if (/\d{4}年/.test(raw)) return 'year'
   if (/\d{1,2}月初/.test(raw)) return 'month'
   return /小时候|几年前|\d+年前|前几个月|前两天|以前/.test(raw) ? 'fuzzy' : 'unknown'
 }
 
-function extractRawTime(text) {
+function rawTimeCandidates(text) {
   const candidates = specificTimePatterns.flatMap((pattern) => [...text.matchAll(new RegExp(pattern.source, pattern.flags))]
     .map((match) => ({ index: match.index, value: match[0].trim() })))
     .filter((candidate) => {
@@ -59,6 +59,16 @@ function extractRawTime(text) {
       if (candidate.value === '一点' && /(?:退了|好了|轻了|有)$/.test(text.slice(Math.max(0, candidate.index - 2), candidate.index))) return false
       return true
     })
+  return candidates
+}
+
+export function extractTimeMentions(text) {
+  const ordered=rawTimeCandidates(text).sort((a,b)=>a.index-b.index||b.value.length-a.value.length)
+  return ordered.filter((candidate,index)=>!ordered.slice(0,index).some(previous=>previous.index<=candidate.index&&previous.index+previous.value.length>=candidate.index+candidate.value.length))
+}
+
+function extractRawTime(text) {
+  const candidates=rawTimeCandidates(text)
   if (!candidates.length) return null
   const correctionAt = Math.max(text.lastIndexOf('不对'), text.lastIndexOf('说错'), text.lastIndexOf('记错'), text.lastIndexOf('哦不是'))
   const relevant = correctionAt >= 0 ? candidates.filter((candidate) => candidate.index > correctionAt) : candidates

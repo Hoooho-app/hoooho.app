@@ -8,6 +8,7 @@ import { chromium, devices, expect } from '@playwright/test'
 
 if (process.env.RUN_HOOOHO_CONTINUITY_STAGING !== '1') throw new Error('Staging acceptance opt-in required')
 const knownQuotaBlock = process.env.HOOOHO_CONTINUITY_AI_BLOCKED_REASON === 'insufficient_quota'
+const awaitingBailianAuthorization = process.env.HOOOHO_CONTINUITY_AI_BLOCKED_REASON === 'awaiting_bailian_staging_authorization'
 const base = 'https://hooohoapp-staging.up.railway.app', output = path.resolve('outputs/continuity-v3/staging')
 await mkdir(output, { recursive:true })
 const browser = await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
@@ -65,7 +66,8 @@ try {
   result.checks.materialOriginalsAndManualConfirmation='PASS'
   const stored=await api(`/api/members/${memberId}/ai-drafts`,{text:'合成示例，非真实患者资料',files,deferRecognition:true,sourceIdentity:'pending',eventId,task:'record'});aiDraftId=stored.id;assert.equal(stored.pages.length,1);result.checks.originalsBeforeRecognition='PASS'
   // One attempt on the real configured provider, never a fixture key or response.
-  if(knownQuotaBlock) result.checks.realOCR={state:'BLOCKED',code:'insufficient_quota',attempt:'NOT_RETRIED_KNOWN_BILLING_BLOCK'}
+  if(awaitingBailianAuthorization) result.checks.realOCR={state:'BLOCKED',code:'STAGING_BAILIAN_NOT_CONFIGURED',attempt:'NOT_CALLED_WITHOUT_CROSS_ENVIRONMENT_SECRET_AUTHORIZATION'}
+  else if(knownQuotaBlock) result.checks.realOCR={state:'BLOCKED',code:'insufficient_quota',attempt:'NOT_RETRIED_KNOWN_BILLING_BLOCK'}
   else try {const recognized=await api(`/api/members/${memberId}/ai-drafts`,{id:stored.id,version:stored.version,text:stored.inputText,sourceIdentity:'pending',task:'record'});assert.equal(recognized.state,'ready');result.checks.realOCR='PASS_ON_THIS_SYNTHETIC_IMAGE_ONLY'} catch(error) {result.checks.realOCR={state:'BLOCKED',httpStatus:error.safe?.status,code:error.safe?.code};const retained=await api(`/api/members/${memberId}/ai-drafts/${stored.id}`,undefined,'GET');assert.equal(retained.pages.length,1);result.checks.ocrFailureRetainsOriginal='PASS'}
   await page.goto(`${base}/visit-summary/${eventId}`);await expect(page.locator('#chapter-overview h1')).toContainText('合成示例');await screenshot('report-375');const reportState=await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET');assert.deepEqual(reportState.report.selection.eventIds,[eventId]);assert.equal(reportState.report.focus.caseEventId,eventId);await page.getByRole('button',{name:'导出情况单',exact:true}).click();const pendingDownload=page.waitForEvent('download');await page.getByRole('button',{name:'保存完整离线报告（HTML）',exact:true}).click();await(await pendingDownload).saveAs(path.join(output,'synthetic-offline.html'));result.checks.scopedReportAndHTML='PASS'
   await api(`/api/members/${memberId}/cases/${eventId}/archive`,{archived:true});await page.goto(base+'/nurse-station');await expect(page.getByRole('link',{name:'查看已归档 1 件 ›',exact:true})).toBeVisible();await api(`/api/members/${memberId}/cases/${eventId}/archive`,{archived:false});const restored=await api(`/api/members/${memberId}/cases`,undefined,'GET');assert.equal(restored.active[0].observations[0].state,'paused');result.checks.archiveRestore='PASS'
