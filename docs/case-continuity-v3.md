@@ -2,6 +2,43 @@
 
 ## 2026-10-03 release resumption and AI-main integration
 
+### Current release status: BLOCKED, candidate Staging only
+
+- Runtime integration `d8ac85210290863c65f11e7d5e4ce1a96141a832` pushed normally
+  to `codex/continuity-v3-20261002`. PR282 remains draft, now MERGEABLE;
+  no main merge or Production deployment was performed.
+- Staging CLI upload `42b14c29-988b-4dc0-8998-450abc21db62` SUCCESS. Railway CLI
+  metadata has no commitHash for this upload: the exact source is the clean
+  candidate above, and fresh public artifacts independently confirm the runtime.
+  Entry `/assets/index-DsRvljlV.js`, report chunk `index-dH8GOuD2.js` contain the
+  case focus, explicit scope selector and member guard.
+- HTTPS acceptance 09:32:47–09:33:42 UTC: health, raw save, observation feedback,
+  equal six-card geometry, three-class manual material confirmation, originals
+  persisted before recognition, scoped HTML report and archive/restore PASS.
+  320/375/390/430/1280 captures; runtime errors 0, HTTP5xx 0. Screenshots/report
+  under ignored `outputs/continuity-v3/staging`. Draft and synthetic member removed;
+  isolated empty acceptance account retained (no account-verification bypass).
+- No model request was sent: safe live config checks found Staging missing
+  Bailian and cross-environment credential reuse had not been authorized. The
+  verifier reports `STAGING_BAILIAN_NOT_CONFIGURED` and deliberately exits nonzero.
+  This is not an AI or physical-device PASS. No secret values were printed,
+  committed or copied; no Production configuration changed.
+- Downloaded HTML rendered separately offline at iPhone SE 375: complaint visible,
+  no overflow/runtime errors/Bearer token. This live export selected zero embedded
+  images; selected-original embedding is covered by the local report regression.
+- Additional fresh browser checks: nurse station 14/14; full report suite 100/100
+  (StrictMode, iPhone SE, 320/390/420/430, desktop and WebKit emulator). Together with
+  case 8, Bailian AI 13 and ASR 10, local browser checks total 145/145. These use
+  isolated fixtures where applicable, not real provider or physical-phone proof.
+- Final Production read-only checks: deployment
+  `208443b2-4ad9-4005-851d-e3b06db8b94a` SUCCESS, deployed commit and remote main
+  `0f3e3a77d321f00a66a6cd1b16cee0b815e21049`; `/`, `/api/health` and existing
+  entry `/assets/index-e6EPGH0D.js` HTTP200. Production remains unchanged.
+- Next gate: authorize an independent or reused Bailian Staging credential,
+  verify real candidate AI and retain the explicitly unverified physical-device
+  boundary. Only then consider normal main integration and Production release.
+  This documentation-only follow-up does not require a second candidate upload.
+
 - User requested Production deployment after the separate AI work. Fresh remote
   main and both Railway environments are `0f3e3a77d321f00a66a6cd1b16cee0b815e21049`.
   PR282 did not contain that subsequent work and was conflicting. The candidate
