@@ -1,5 +1,57 @@
 # Hoooho v3: case continuity implementation and acceptance boundary
 
+## 2026-10-03 authorized Staging credential reuse and real AI acceptance
+
+Current status: **BLOCKED by real AI validation, not missing authorization**.
+
+- The human explicitly authorized Production Bailian configuration reuse in
+  Staging and release. Only the eight configured allowlisted AI/ASR/TTS/Bailian
+  variables were copied using CLI stdin, with deployment triggers suppressed.
+  In-memory comparisons verified Staging equality and all Production variables
+  unchanged. No credentials, raw variable values or original logs were printed,
+  written to files or committed. The existing unrelated Staging key was not used
+  or deleted. No provider, model, permission or consumption setting was changed.
+- Candidate source `ce7da50d6fa8de5fe9e11718ed31533ff3c647fe` was pushed normally.
+  Staging upload `cb36a7f5-5db2-464d-b4c3-1e44f2adb13a` reached SUCCESS. Its
+  `meta.commitHash` is null, so the source SHA is not claimed as Railway metadata.
+  Public entry `/assets/index-flyuW31O.js` and report chunk `index-BE2eyNX9.js`
+  independently contain case focus, scope selection and current-member guard.
+- Real HTTPS acceptance ran 10:56:05–10:57:01 UTC, without the previous AI-block
+  override or provider substitutes. Health, raw save, observation feedback, six
+  equal entry cards, three-class manual source confirmation, originals before
+  recognition, scoped report/HTML export and archive/restore all PASS. Runtime
+  errors 0; non-AI HTTP5xx 0. 320/375/390/430/1280 screenshots are in ignored
+  `outputs/continuity-v3/staging`; they use synthetic, non-patient information.
+- Exactly one real provider request was made, no automatic retry. Bailian
+  `qwen3.7-plus` document-page response had upstream HTTP200, but failed schema
+  validation at root `/`, reason `type`, application `AI_OUTPUT_INVALID`/HTTP503.
+  Safe request correlation: `89f52e95-0fd0-94b5-b29b-158826d73fb6`, 2736ms.
+  This proves provider reachability, NOT successful OCR-to-confirmed-record or
+  three-class AI acceptance. Extraction was not reached. Original draft pages
+  survived the failure; the verifier then removed only its own draft/member.
+  The isolated empty account remains because identity deletion requires normal
+  verification; no account/data safety control was bypassed.
+- Strict schema/source/clinical-save safeguards remain intact. No model-output
+  coercion, parser/prompt change, model substitution or false-ready state was
+  introduced merely to obtain a release PASS. The manual fallback is working,
+  but the earlier human requirement to complete Staging AI before release is
+  not met by that fallback.
+- Physical iPhone live partial speech/camera and notification delivery remain
+  unverified. Browser screenshots/fixtures are not physical-device acceptance.
+  The previous unchanged-code test/build evidence remains applicable; this
+  configuration-only resumption reran whitespace and tracked-secret-boundary
+  checks, with zero secret violations. Existing Operations baseline failure and
+  lack of a lint command remain documented below.
+- PR282 has not been merged and Production has not been deployed. The blocker
+  needs a separately authorized, regression-backed AI output-contract repair or
+  an explicit changed release scope accepting the failing image pathway. This
+  document is evidence only and does not justify redeploying unchanged runtime.
+- Fresh Production read-only verification: deployment
+  `208443b2-4ad9-4005-851d-e3b06db8b94a` SUCCESS, deployed commit and remote main
+  `0f3e3a77d321f00a66a6cd1b16cee0b815e21049`; health HTTP200/ok, root HTTP200
+  and entry `/assets/index-e6EPGH0D.js` HTTP200. This verifies the existing
+  Production version, not the blocked candidate.
+
 ## 2026-10-03 release resumption and AI-main integration
 
 ### Current release status: BLOCKED, candidate Staging only
