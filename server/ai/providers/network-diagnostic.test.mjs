@@ -16,3 +16,7 @@ test('nested aggregate causes expose only network fields, never input, messages,
 test('a broken probe cannot discard the remaining stage evidence',async()=>{
  const r=await diagnoseBailianNetwork({env,lookup:async()=>[{address:'127.0.0.1',family:4}],tlsProbe:async()=>{throw new TypeError('private')},httpProbe:async()=>{throw new TypeError('private')},fetchImpl:async()=>({status:401})});assert.equal(r.results.length,5);assert.equal(r.results[1].success,false);assert.equal(r.results[2].success,false);assert.equal(r.results.at(-1).success,true);assert.doesNotMatch(JSON.stringify(r),/private/)
 })
+test('actual refused IPv6 lookup completes asynchronously and is handled; production narrow mode makes only two HEADs',async()=>{
+ const local=await diagnoseBailianNetwork({env,lookup:async()=>[{address:'::1',family:6}],fetchImpl:async()=>({status:401}),timeoutMs:100});assert.equal(local.results.length,5);assert.equal(local.results[2].success,false)
+ let heads=0;const narrow=await diagnoseBailianNetwork({env,lookup:async()=>[{address:'::1',family:6}],includeAddressProbes:false,tlsProbe:async()=>{throw new Error('must not run')},httpProbe:async()=>{throw new Error('must not run')},fetchImpl:async()=>{heads++;return {status:401}}});assert.equal(heads,2);assert.equal(narrow.nonInferenceHTTPAttempts,2)
+})
