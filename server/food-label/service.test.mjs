@@ -38,3 +38,4 @@ test('including lactose declaration is positive source evidence, not an unknown 
   assert.equal(result.ingredients[0].status,'known');assert.equal(result.contains.length,0);assert.equal(result.pendingCount,0)
 })
 test('contradictory coverage markers are rejected without weakening completeness',async()=>{const s=service([page,translated],{text:'配料缺失',status:'readable'});const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.deepEqual(r.diagnostics.errorCodes,['FOOD_COVERAGE_INVALID'])})
+test('uncertain ingredient name forbids a complete result even with clear photo coverage',async()=>{const t={...translated,ingredients:translated.ingredients.map((r,i)=>({...r,reliable:i!==0}))};const s=service([page,t]);const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.match(r.scope,/中文对照未可靠确认/);assert.equal(r.ingredients[1].status,'known')})
