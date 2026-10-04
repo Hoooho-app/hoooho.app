@@ -17,7 +17,7 @@ export const translateSchema=object({ingredients:{type:'array',maxItems:250,item
 const ajv=new Ajv({strict:false})
 const validRead=ajv.compile(readSchema),validTranslation=ajv.compile(translateSchema)
 const failure=(message,code='FOOD_LABEL_INVALID',status=422)=>Object.assign(new Error(message),{code,status})
-const normalize=value=>value.normalize('NFKC').replace(/\s+/g,'').toLowerCase()
+const normalize=value=>value.normalize('NFKC').replace(/(\d)['’′]/g,'$1′').replace(/\s+/g,'').toLowerCase()
 const excerpt=(value,source)=>!value||normalize(source).includes(normalize(value))
 // Bare OCR targets must be backed by an affirmative declaration, not May contain
 // or milk-free text elsewhere on the package. Ambiguous context stays incomplete.

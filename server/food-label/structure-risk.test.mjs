@@ -113,3 +113,10 @@ test('boundary circle/info glyphs are not names; raw evidence and real notation 
  assert.equal(check('Gelatin°',[record('鱼类')]).displayIngredients[0].status,'possible')
  assert.equal(check('Unfamiliar°',[]).displayIngredients[0].status,'clear')
 })
+
+test('reviewed non-common substance synonyms and chemical prime typography still match personal diagnoses',()=>{
+ assert.equal(check('Additives (Gelatin)',[record('明胶')]).displayIngredients[0].status,'known')
+ assert.equal(check('明胶',[record('gelatine')]).displayIngredients[0].status,'known')
+ assert.equal(check('Gelatin',[]).displayIngredients[0].status,'clear')
+ assert.equal(check("食品添加剂（5'-呈味核苷酸二钠）",[record('5′-呈味核苷酸二钠')]).conflictCount,1)
+})

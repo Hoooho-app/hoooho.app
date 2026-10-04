@@ -10,6 +10,7 @@ export const evidenceSources={
   milkQualifier:'https://www.cuh.nhs.uk/patient-information/milk-allergy/',
   milkProteins:'https://www.nhs.uk/baby/breastfeeding-and-bottle-feeding/bottle-feeding/types-of-formula/',
   eggProteins:'https://pubmed.ncbi.nlm.nih.gov/4008088/',
+  gelatinIdentity:'https://www.cfs.gov.hk/sc_chi/multimedia/multimedia_pub/files/FSF35_2009-6-17.pdf',
 }
 // A family diagnosis and a diagnosis of one constituent are not equivalent.
 // Source material contains its constituents; isolated constituents do not
@@ -27,6 +28,9 @@ export const additionalAllergens={
   barley:['barley','barley malt','大麦','大麦麦芽'],
   oats:['oats','oat','oat flour','燕麦','燕麦粉'],
 }
+// Reviewed identity aliases are independent of the common-allergen catalogue.
+// This does not classify gelatin as a common allergen or infer its raw source.
+export const exactIngredientSynonyms=[{names:['明胶','gelatin','gelatine'],source:evidenceSources.gelatinIdentity}]
 // Regulatory sulphite thresholds are not inferred from a name/photo. Sulphite
 // hypersensitivity/intolerance is not treated as an allergy family; an actual
 // confirmed personal allergy to the exact named substance remains matchable.

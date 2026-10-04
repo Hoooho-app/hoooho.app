@@ -1,4 +1,4 @@
-import { additionalAllergens, possibleAssociations, evidenceSources, constituentMatching } from './knowledge.mjs'
+import { additionalAllergens, possibleAssociations, evidenceSources, constituentMatching, exactIngredientSynonyms } from './knowledge.mjs'
 // Exact names and documented derivatives, not substring keyword matching.
 const groups={
   milk:['牛奶','牛乳','生牛乳','乳','奶','乳及乳制品','乳制品','dairy products','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
@@ -14,13 +14,14 @@ const groups={
 }
 const quantityPattern='[<>≤≥=~约不少于不低于至多至少]*\\s*\\d+(?:\\.\\d+)?\\s*(?:%|mg|kg|g|ml|l|°C|°F|℃|℉|克|千克|毫克|毫升)'
 const quantityOnly=new RegExp('^'+quantityPattern+'$','i')
-export const ingredientIdentity=value=>String(value??'').normalize('NFKC').toLowerCase().replace(new RegExp('\\s*[（(]?'+quantityPattern+'[）)]?','gi'),'').replace(/\s+/g,' ').replace(/[.。]$/,'').trim()
+export const ingredientIdentity=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/(\d)['’′]/g,'$1′').replace(new RegExp('\\s*[（(]?'+quantityPattern+'[）)]?','gi'),'').replace(/\s+/g,' ').replace(/[.。]$/,'').trim()
 const clean=ingredientIdentity
 // Non-text circle/info glyphs at a word boundary are annotations, not part of
 // a material's identity. Preserve raw OCR separately. Never strip characters
 // inside words, numeric degree units, chemical primes or percentage notation.
 const ingredientTypography=value=>value.replace(/([\p{L}\p{M}])\s*[°○◦ⓘ]+(?=\s*[,，、;；)\]）]|$)/gu,'$1')
 const aliases=new Map(Object.entries(groups).flatMap(([group,names])=>names.map(name=>[clean(name),group])))
+const substanceAliases=new Map(exactIngredientSynonyms.flatMap(entry=>entry.names.map(name=>[clean(name),entry])))
 const specificAliases=[['almond','almonds','杏仁','扁桃仁'],['cashew','cashews','腰果'],['walnut','walnuts','核桃'],['hazelnut','hazelnuts','榛子'],['pistachio','pistachios','开心果'],['pecan','pecans','碧根果'],['macadamia','夏威夷果'],['cod','鳕鱼'],['salmon','三文鱼'],['tuna','金枪鱼'],['anchovy','鳀鱼'],['shrimp','prawn','虾'],['crab','蟹'],['lobster','龙虾'],['squid','鱿鱼'],['oyster','牡蛎'],['mussel','贻贝'],['scallop','扇贝'],['clam','蛤蜊']]
 const species=new Map(specificAliases.flatMap((names,index)=>names.map(name=>[clean(name),index])))
 for(const names of specificAliases){const group=names.map(n=>aliases.get(clean(n))).find(Boolean);if(group)for(const name of names)aliases.set(clean(name),group)}
@@ -45,6 +46,8 @@ function matching(row,records){
   return records.filter(record=>{
     const name=clean(record.name),code=aliases.get(name)
     if(names.includes(name))return true
+    const substance=substanceAliases.get(name)
+    if(substance&&names.some(n=>substanceAliases.get(n)===substance))return true
     if(!code||!codes.includes(code))return false
     const constituent=constituentMatching[code]
     if(constituent){
@@ -139,7 +142,7 @@ export function checkLabel(label,records=[]){
     const declared=record=>(label.contains??[]).some(c=>c.reliable&&matching(c,[record]).length)
     const direct=related.map(record=>{
       const processing=(uncertainOil||uncertainProtein)&&clean(record.name)!==clean(name)&&!declared(record)
-      return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?(uncertainProtein?'protein':'processing'):record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:'exact-personal-record')
+      return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?(uncertainProtein?'protein':'processing'):record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:substanceAliases.get(clean(name))?.source??'exact-personal-record')
     })
     const candidates=possibleAssociations.filter(k=>k.names.some(n=>clean(n)===clean(name))&&(k.kind!=='unexpanded'||!hasChildren)).flatMap(k=>food.filter(r=>k.allergens.includes(aliases.get(clean(r.name)))||(k.personalNames??[]).some(n=>clean(n)===clean(r.name))).map(r=>hit(base,r,'possible',k.kind,k.source)))
     const hits=[...direct,...candidates]
