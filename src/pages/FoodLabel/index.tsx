@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { LoaderCircle, Plus } from 'lucide-react'
 import { WebPageHeader } from '../../components/common/WebPageHeader'
 import { HealthTag, HohoButton } from '../../components/design-system'
@@ -11,15 +10,15 @@ import { foodLabelCopy, foodLabelLanguage, ingredientTranslation } from './prese
 import { prepareFoodLabelPhoto } from './preparePhoto'
 import './foodLabel.css'
 
-type Ingredient={original:string;chinese:string;english?:string;sourceLanguage?:string;status:'known'|'possible'|'pending'|'clear';reason:string;parent?:number|null}
-type Result={taskId:string;memberId:string;ingredients:Ingredient[];contains:Ingredient[];advisory:Ingredient[];title:string;counts:string;scope:string;tone:'error'|'success'|'warning';previews?:string[];failure?:'read'|'translation'|null}
+type Ingredient={original:string;chinese:string;english?:string;sourceLanguage?:string;status:'known'|'possible'|'common'|'pending'|'clear';reason:string;reasonTranslations?:{zh:string;en:string};parent?:number|null}
+type Result={taskId:string;memberId:string;ingredients:Ingredient[];displayIngredients?:Ingredient[];contains?:Ingredient[];advisory?:Ingredient[];assessmentComplete?:boolean;conflictCount?:number|null;previews?:string[];failure?:'read'|'translation'|'profile'|null}
 
 export function FoodLabelPage(){
   const memberId=useAppStore(s=>s.currentMemberId),accountId=useAppStore(s=>s.authUser?.id??'')
   return <FoodLabelSession key={`${accountId}:${memberId}`} memberId={memberId}/>
 }
 function FoodLabelSession({memberId}:{memberId:string}){
-  const navigate=useNavigate(),token=useAppStore(s=>s.authToken)
+  const token=useAppStore(s=>s.authToken)
   const accountId=useAppStore(s=>s.authUser?.id),accounts=useSettingsStore(s=>s.accounts)
   const language=foodLabelLanguage(getAccountPreferences(accounts,accountId).interfaceLanguage),copy=foodLabelCopy[language]
   const camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
@@ -28,13 +27,15 @@ function FoodLabelSession({memberId}:{memberId:string}){
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<Result|null>(null)
   const clear=()=>{generation.current++;controller.current?.abort();setPhotos([]);setResult(null);setError('');setBusy(false);setScreen('entry')}
   useEffect(()=>{mounted.current=true;const leave=()=>clear();window.addEventListener('pagehide',leave);return()=>{mounted.current=false;generation.current++;controller.current?.abort();window.removeEventListener('pagehide',leave)}},[])
-  const back=()=>{if(screen==='result')clear();else navigate('/nurse-station')}
+  // Leave this ephemeral flow with a fresh home document, not a lazy route from
+  // an old scan document that may have stayed open across a production release.
+  const back=()=>{if(screen==='result')clear();else window.location.replace('/nurse-station')}
   async function choose(files:File[]){
     if(!files.length)return
     controller.current?.abort();const version=++generation.current
     const taskId=crypto.randomUUID(),abort=new AbortController();controller.current=abort
     const active=()=>mounted.current&&generation.current===version&&!abort.signal.aborted&&useAppStore.getState().currentMemberId===memberId
-    setScreen('result');setBusy(true);setResult(null);setError('')
+    setScreen('result');setBusy(true);setError('')
     try{
       if(photos.length+files.length>6)throw new Error('一次可核对同一食品的1–6张照片，请重新拍摄')
       const added=[]
@@ -51,6 +52,9 @@ function FoodLabelSession({memberId}:{memberId:string}){
   }
   const onFiles=(event:React.ChangeEvent<HTMLInputElement>)=>{const files=Array.from(event.target.files??[]);event.target.value='';void choose(files)}
   const retake=()=>{clear();camera.current?.click()}
+  const ingredients=result?.displayIngredients??result?.ingredients??[]
+  const explanation=(row:Ingredient)=>row.reasonTranslations?.[language]??(language==='zh'?row.reason:'')
+  const tag=(row:Ingredient)=>row.status==='known'?<HealthTag tone="error">{copy.known}</HealthTag>:row.status==='common'||row.status==='possible'?<HealthTag tone="warning" className={`food-label-risk-${row.status}`}>{row.status==='common'?copy.common:copy.possible}</HealthTag>:null
   return <main className="app-shell food-label-page">
     <WebPageHeader title={screen==='entry'?copy.entry:copy.result} onBack={back}/>
     <div className="food-label-content">
@@ -64,15 +68,16 @@ function FoodLabelSession({memberId}:{memberId:string}){
           <button className="food-label-supplement" type="button" aria-label={copy.supplement} onClick={()=>camera.current?.click()}><Plus aria-hidden="true"/></button>
         </div>
         <section className="food-label-summary" role="status" aria-live="polite" aria-busy={busy}>
-          <p>{busy?<><LoaderCircle aria-hidden="true" className="food-label-spinner"/>{copy.loading}</>:error|| (result?copy.stats(result.ingredients.length,result.ingredients.filter(row=>row.status==='known').length):'')}</p>
-          {!busy&&result?.failure&&<p role="alert">{result.failure==='read'?copy.readFailure:copy.translationFailure}</p>}
+          <p>{busy?<><LoaderCircle aria-hidden="true" className="food-label-spinner"/>{copy.loading}</>:error||(result?.assessmentComplete===false?copy.profileFailure:result?copy.stats(ingredients.length,result.conflictCount??ingredients.filter(row=>row.status==='known').length):'')}</p>
+          {!busy&&result?.failure&&result.failure!=='profile'&&<p role="alert">{result.failure==='read'?copy.readFailure:copy.translationFailure}</p>}
         </section>
         {result&&<>
           <h2 className="hoho-text-card-title food-label-list-title">{copy.all}</h2>
-          <ol className="food-label-ingredients">{result.ingredients.map((row,index)=><li key={index}>
+          <ol className="food-label-ingredients">{ingredients.map((row,index)=><li key={index}>
             <span className="food-label-number">{String(index+1).padStart(2,'0')}</span>
-            <div><div className="food-label-row-heading"><strong lang={row.sourceLanguage??'und'}>{row.original}</strong>{row.status==='known'&&<HealthTag tone="error">{copy.known}</HealthTag>}</div>{ingredientTranslation(row,language)&&<p className="food-label-translation" lang={language}>{ingredientTranslation(row,language)}</p>}</div>
+            <div><div className="food-label-row-heading"><strong lang={row.sourceLanguage??'und'}>{row.original}</strong>{tag(row)}</div>{ingredientTranslation(row,language)&&<p className="food-label-translation" lang={language}>{ingredientTranslation(row,language)}</p>}{['known','possible'].includes(row.status)&&explanation(row)&&<p className="food-label-explanation">{explanation(row)}</p>}</div>
           </li>)}</ol>
+          {[...(result.contains??[]),...(result.advisory??[])].filter(row=>['known','possible'].includes(row.status)).map((row,index)=><p className="food-label-packaging" key={index}>{copy.packaging}: {row.original} {tag(row)}{explanation(row)&&<span>{explanation(row)}</span>}</p>)}
         </>}
         <HohoButton fullWidth variant="secondary" size="large" onClick={retake}>{copy.retake}</HohoButton>
       </>}

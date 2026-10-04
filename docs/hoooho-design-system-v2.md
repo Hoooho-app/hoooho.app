@@ -22,6 +22,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 - `HohoInput`: label, hint, invalid state, associated message and screen-reader alert.
 - `HealthCard`: quiet bordered surface; interaction adds a restrained state, not a stronger default shadow.
 - `HealthTag`: compact semantic label; visible wording accompanies color.
+- Food-label facts use `--hoho-color-food-common-surface` (pale orange) and personal uncertainty uses `--hoho-color-food-possible-surface` (pale yellow), with the existing warning foreground and `HealthTag`. These opt-in semantic surfaces apply to ingredient rows and packaging notices only; existing warning/error components and all other pages are unchanged.
 - `HohoSurfaceRow`: consistent minimum target, title, description, value and action placement.
 - `StatusNotice`: information, success, warning and error messaging with icon, text and optional action.
 - `EmptyState`: compact message and one clear recovery action.

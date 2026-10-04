@@ -30,7 +30,7 @@ test('translation returns packaging language and English without changing origin
 test('supplement deduplicates repeated ingredients without losing compound child paths',async()=>{
   const text={text:'Ingredients: Water, Blend (Milk, Salt), Sugar',status:'readable'}
   const tail={text:'Ingredients: Sugar, Water, Blend (Milk, Salt), Egg',status:'readable'}
-  const names=['Water','Blend','Milk','Salt','Sugar','Egg']
+  const names=['Water','Blend (Milk, Salt)','Milk','Salt','Sugar','Egg']
   const t={ingredients:names.map(original=>({original,chinese:original,reliable:true,sourceUnknown:false})),contains:[],advisory:[]}
   const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}
   const s=service([text,tail,t]);const r=await s.service.analyze('owner',{...input,photos:[...input.photos,other]})
@@ -58,7 +58,7 @@ test('member archive absence never makes an empty record a green result',async()
 test('abort before call performs no upstream request',async()=>{const s=service([]),controller=new AbortController();controller.abort();await assert.rejects(()=>s.service.analyze('owner',input,controller.signal));assert.equal(s.calls(),0)})
 test('selected member changes invalidate an older task',async()=>{const s=service([page,translated]);let reads=0;s.service.currentMember=async()=>++reads===1?'a':'other';await assert.rejects(()=>s.service.analyze('owner',input),{code:'FOOD_MEMBER_CHANGED'})})
 test('unselected legacy self context can read a label without green profile claims',async()=>{const s=service([page,translated]);const r=await s.service.analyze('owner',{...input,memberId:'self'});assert.equal(r.profileAvailable,false);assert.notEqual(r.tone,'success')})
-test('uncertain OCR does not become certain just because translation succeeds',async()=>{const s=service([{...page,status:'uncertain'},translated]);const r=await s.service.analyze('owner',input);assert.equal(r.conflictCount,0);assert.ok(r.ingredients.every(row=>row.status==='pending'))})
+test('uncertain OCR does not become certain just because translation succeeds',async()=>{const s=service([{...page,status:'uncertain'},translated]);const r=await s.service.analyze('owner',input);assert.equal(r.conflictCount,0);assert.ok(r.ingredients.every(row=>row.status==='clear'&&row.hits.length===0))})
 test('JPEG EXIF orientation is applied without cropping label text',async()=>{
   const photo=await sharp({create:{width:200,height:100,channels:3,background:'#fff'}}).jpeg().withMetadata({orientation:6}).toBuffer()
   const normalized=await normalizePhoto({dataUrl:'data:image/jpeg;base64,'+photo.toString('base64')})
@@ -78,4 +78,11 @@ test('including lactose declaration is positive source evidence, not an unknown 
   assert.equal(result.ingredients[0].status,'known');assert.equal(result.contains.length,0);assert.equal(result.pendingCount,0)
 })
 test('contradictory coverage markers are rejected without weakening completeness',async()=>{const s=service([page,translated],{text:'配料缺失',status:'readable'});const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.deepEqual(r.diagnostics.errorCodes,['FOOD_COVERAGE_INVALID'])})
-test('uncertain ingredient name forbids a complete result even with clear photo coverage',async()=>{const t={...translated,ingredients:translated.ingredients.map((r,i)=>({...r,reliable:i!==0}))};const s=service([page,t]);const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.match(r.scope,/中文对照未可靠确认/);assert.equal(r.ingredients[1].status,'known')})
+test('uncertain ingredient name forbids a complete result even with clear photo coverage',async()=>{const t={...translated,ingredients:translated.ingredients.map((r,i)=>({...r,reliable:i!==0}))};const s=service([page,t]);const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.equal(r.ingredients[0].hits.length,0);assert.equal(r.ingredients[1].status,'known')})
+
+test('archive load failure retains read ingredients but never reports zero completed conflicts',async()=>{
+  const s=service([page,translated]);s.service.readRecords=async()=>{throw new Error('synthetic storage failure')}
+  const r=await s.service.analyze('owner',input)
+  assert.equal(r.displayIngredients.length,3);assert.equal(r.assessmentComplete,false);assert.equal(r.conflictCount,null)
+  assert.equal(r.failure,'profile');assert.equal(r.checkErrorCode,'FOOD_PROFILE_UNAVAILABLE')
+})

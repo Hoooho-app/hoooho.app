@@ -8,6 +8,18 @@
 
 ## 识别与规则
 
+### 当前有效规则（2026-10-05，覆盖下文旧版风险展示说明）
+
+先逐字读取标签，再确定性解析深度：顶层分隔不等于括号内分隔，保留中文/英文/嵌套括号、跨行词、含量和说明。每个节点保留 `name`（规则用基本名）、`fullOriginal`（完整原文）、`parent`、标签照片来源和原文摘录。`ingredients` 继续提供内部展开节点，新增 `displayIngredients` 提供完整顶层树，前端只显示后者。翻译完整父条目，原文为主标题；同语言不重复，跨语言一行翻译。统计与可见顶层树一致，多子成分冲突只算一个父条目。按完整内容和父路径去重，不用模糊名称合并不同配方。
+
+正式标签只由领域规则生成，优先级 `known > possible > common`。可靠明确原文/已核实别名与个人确定过敏匹配才是已知冲突；疑似记录、相关的未展开配方或原料线索、相关交叉接触仅可能风险且必须有具体原因。词库内的明确过敏原但没有确定匹配是常见过敏原，不代表个人诊断。一般知识不增加实际配料，添加剂、陌生名、未吃过、空档案或局部标签不自动产生风险。耐受/排除及明确不耐受/其他限制不是确定过敏。普通行不显示状态或说明。
+
+原料知识与依据集中在 `server/food-label/knowledge.mjs`；别名采用完整名称匹配而非子串。常见范围参考 [FDA](https://www.fda.gov/food/nutrition-food-labeling-and-critical-foods/food-allergies) 与 [英国FSA](https://www.gov.uk/government/publications/allergen-guidance-for-food-businesses/allergen-guidance-for-food-businesses)，额外个人过敏可按确切原词核对，不限常见分类。常见表覆盖乳/蛋/大豆/小麦/花生/具体坚果/鱼/甲壳/芝麻/芹菜/芥末/羽扇豆/软体/黑麦/大麦/燕麦。亚硫酸盐法规阈值不是个人过敏结论，不从名称猜剂量。衍生成分参考 [FDA2025指南](https://www.fda.gov/media/117410/download?attachment=)；明胶、油脂和水解蛋白的原料不确定性参考 [FDA阈值研究](https://www.fda.gov/media/78205/download)；未展开面包与小麦只作为 [FARE所述相关食品线索](https://www.foodallergy.org/living-food-allergies/food-allergy-essentials/common-allergens/wheat)，不是该产品事实。明确列出的内部配方覆盖一般配方推测。词库是可扩展的受控规则，非完整世界原料知识库。
+
+`hits` 保留命中原料、个人记录ID/状态、关系种类和知识来源，均仅内存响应、不记录日志。未被配料解释的真实 Contains/May contain 作为紧凑包装提示，不伪造为配料、不增加顶层计数、不出现独立冲突对象摘要。当前成员记录读取失败返回 `assessmentComplete:false`、`conflictCount:null`、`FOOD_PROFILE_UNAVAILABLE`，保留已识别树；不能伪造0项完成核对。补拍请求失败也保留上一轮已识别配料。部分标签不触发补拍要求、黄色大框或安全结论。
+
+入口返回采用同源新文档导航，避免长期打开的页面遇到旧懒加载资源失效后无法回首页；结果返回仍只清空本次任务到入口。页面结构、三列缩略图/加号和不持久化边界不变。
+
 复用当前配置的百炼 qwen3.7-plus 服务端适配器与项目已有 text/status OCR 契约：每张图一次逐字读取，读到配料后另一次独立范围核验，合并后一次逐项翻译；单图正常3次调用，无自动重试。文字可靠性和拍摄完整性独立，不让可靠局部文字丢失已知冲突。最多6张、单张20MB、总量30MB、40MP；JPEG/PNG/WebP/AVIF/HEIC/HEIF，EXIF方向校正、2560px高质量压缩、不裁配料区。Sharp不能解码的HEIC通过heic-decode内存解码。
 
 读取配料区、括号子成分、明确含有和交叉接触提示，要求摘录在本次OCR原文中出现。确定性解析保留顺序/子成分，不将百分比、维生素括注、ARA/DHA等名称注释伪造成子配料。翻译长度、顺序和原词必须逐项完全一致；失败保留已读原词，可靠原词的明确冲突仍可红色，其余待确认。

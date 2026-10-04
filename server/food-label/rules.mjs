@@ -1,20 +1,25 @@
+import { additionalAllergens, possibleAssociations, evidenceSources } from './knowledge.mjs'
 // Exact names and documented derivatives, not substring keyword matching.
 const groups={
   milk:['牛奶','牛乳','生牛乳','乳','奶','乳及乳制品','乳制品','dairy products','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
   egg:['鸡蛋','蛋','egg','eggs','egg white','egg yolk','蛋清','蛋黄','全蛋粉','egg powder','ovalbumin','卵白蛋白'],
-  soy:['大豆','黄豆','soy','soya','soybean','soybeans','soy flour','soy protein','soy lecithin','大豆卵磷脂','大豆蛋白','豆腐','tofu'],
+  soy:['大豆','黄豆','soy','soya','soybean','soybeans','soy flour','soy protein','soy lecithin','soya lecithin','soy lecithins','soya lecithins','大豆卵磷脂','大豆蛋白','豆腐','tofu'],
   wheat:['小麦','wheat','wheat flour','小麦粉','小麦面粉','semolina','粗粒小麦粉','小麦蛋白','wheat protein','wheat gluten'],
   peanut:['花生','peanut','peanuts','groundnut','花生油','peanut oil'],
   nuts:['坚果','tree nuts','almond','almonds','杏仁','扁桃仁','cashew','腰果','walnut','核桃','hazelnut','榛子','pistachio','开心果','pecan','碧根果','macadamia','夏威夷果'],
   fish:['鱼类','fish','鱼','cod','鳕鱼','salmon','三文鱼','tuna','金枪鱼','anchovy','鳀鱼','鱼露','fish sauce'],
   shellfish:['甲壳类','crustaceans','shrimp','prawn','虾','crab','蟹','lobster','龙虾'],
   sesame:['芝麻','sesame','sesame seeds','tahini','芝麻酱'],
+  ...additionalAllergens,
 }
 const quantityPattern='[<>≤≥=~约不少于不低于至多至少]*\\s*\\d+(?:\\.\\d+)?\\s*(?:%|mg|kg|g|ml|l|克|千克|毫克|毫升)'
 const quantityOnly=new RegExp('^'+quantityPattern+'$','i')
 export const ingredientIdentity=value=>String(value??'').normalize('NFKC').toLowerCase().replace(new RegExp('\\s*[（(]?'+quantityPattern+'[）)]?','gi'),'').replace(/\s+/g,' ').replace(/[.。]$/,'').trim()
 const clean=ingredientIdentity
 const aliases=new Map(Object.entries(groups).flatMap(([group,names])=>names.map(name=>[clean(name),group])))
+const specificAliases=[['almond','almonds','杏仁','扁桃仁'],['cashew','cashews','腰果'],['walnut','walnuts','核桃'],['hazelnut','hazelnuts','榛子'],['pistachio','pistachios','开心果'],['pecan','pecans','碧根果'],['macadamia','夏威夷果'],['cod','鳕鱼'],['salmon','三文鱼'],['tuna','金枪鱼'],['anchovy','鳀鱼'],['shrimp','prawn','虾'],['crab','蟹'],['lobster','龙虾'],['squid','鱿鱼'],['oyster','牡蛎'],['mussel','贻贝'],['scallop','扇贝'],['clam','蛤蜊']]
+const species=new Map(specificAliases.flatMap((names,index)=>names.map(name=>[clean(name),index])))
+const genericSpecies=new Set(['坚果','tree nuts','鱼类','fish','鱼','甲壳类','crustaceans','软体动物','molluscs','mollusks'])
 // Some printed Contains declarations omit punctuation, e.g. "WHEAT SOY".
 // Split only if the entire declaration consists of exact dictionary names.
 export function splitDeclaredAllergens(value){
@@ -24,21 +29,19 @@ export function splitDeclaredAllergens(value){
   while(rest){const match=patterns.map(pattern=>pattern.exec(rest)).find(Boolean);if(!match)return [value];result.push(match[0]);rest=rest.slice(match[0].length).replace(/^[\s,、;]+/,'')}
   return result.length>1?result:[value]
 }
-const neutral=new Set(['water','水','饮用水','purified water','salt','食盐','盐','sugar','白砂糖','糖','citric acid','柠檬酸','xanthan gum','黄原胶','sodium bicarbonate','碳酸氢钠','baking soda','小苏打'])
-const uncertainNames=/^(?:spices?|flavou?rs?|natural flavou?rs?|vegetable oil|hydroly[sz]ed vegetable protein|lecithin|modified starch|香料|香精|天然香料|植物油|水解植物蛋白|卵磷脂|变性淀粉)$/i
 const negated=value=>/(?:\b(?:free[- ]from|without|no|may contain|traces of)\b|\b[a-z]+[- ]free\b|不含|无乳|无奶|无蛋|可能含|共线|同一.*生产)/i.test(value)
-function namesFor(row){return [clean(row.original),clean(row.chinese)].filter(Boolean)}
+function namesFor(row){return [clean(row.name??flattenIngredients(row.original)[0]?.name??row.original)].filter(Boolean)}
 function matching(row,records){
   if(negated(row.original)||negated(row.chinese))return []
   const names=namesFor(row),codes=names.map(name=>aliases.get(name)).filter(Boolean)
-  return records.filter(record=>{const name=clean(record.name),code=aliases.get(name);return names.includes(name)||(codes.includes(code)&&(!['nuts','fish','shellfish'].includes(code)||['坚果','tree nuts','鱼类','fish','甲壳类','crustaceans'].includes(name)))})
+  return records.filter(record=>{const name=clean(record.name),code=aliases.get(name);return names.includes(name)||(codes.includes(code)&&(!['nuts','fish','shellfish','molluscs'].includes(code)||genericSpecies.has(name)||species.has(name)&&names.some(n=>species.get(n)===species.get(name))))})
 }
 
 // Deterministic flattening prevents the model from dropping uncommon ingredients.
 // Parentheses with no separator remain source annotations, e.g. whey (milk).
 export function flattenIngredients(text){
   // Printed wrapping carries no list semantics. Explicit bullets/ordinals do.
-  text=text.replace(/\r?\n(?=\s*(?:\d+[.)、]|[①-⑳•]))/g,', ').replace(/\r?\n/g,' ')
+  text=text.replace(/\r?\n(?=\s*(?:\d+[.)、]|[①-⑳•]))/g,', ').replace(/\r?\n/g,' ').replace(/([\p{Script=Han}])\s+(?=[\p{Script=Han}])/gu,'$1').replace(/(\d)\s+(?=[′’'])/g,'$1')
   const result=[]
   function parse(value,parent=null){
     let start=0,depth=0
@@ -50,7 +53,7 @@ export function flattenIngredients(text){
     }
     parts.push(value.slice(start))
     for(let part of parts){part=part.trim().replace(/[。.]$/,'').trim();if(!part)continue
-      if(quantityOnly.test(part.normalize('NFKC'))){const previous=result.findLast(r=>r.parent===parent);if(previous)previous.original+=' '+part;continue}
+      if(quantityOnly.test(part.normalize('NFKC'))){const previous=result.findLast(r=>r.parent===parent);if(previous){previous.original+=' '+part;previous.fullOriginal+=' '+part}continue}
       if(/^[\p{Number}\p{Punctuation}\p{Symbol}\s]+$/u.test(part.normalize('NFKC'))||/^(?:mg|kg|g|ml|l|克|千克|毫克|毫升)$/i.test(part))continue
       part=part.replace(/^(?:[\u2190-\u21ff\u27a0-\u27bf•·]+\s*|[①-⑳]\s*|\d+[.)、]\s*|\d+\s+(?=[^\d\s]))/u,'')
       let name='',children=[],level=0,open=0
@@ -59,56 +62,71 @@ export function flattenIngredients(text){
         else if(')]）'.includes(part[i])&&level){level--;if(level===0){const inner=part.slice(open+1,i).trim();if(quantityOnly.test(inner.normalize('NFKC'))||/^(?:ARA|DHA|VITAMIN\s+[A-Z]\d*|PROCESSED WITH ALKALI)$/i.test(inner))name+=part.slice(open,i+1);else children.push(inner)}}
         else if(level===0)name+=part[i]
       }
-      if(children.length&&name.trim()&&level===0){const index=result.length;result.push({original:name.trim(),parent});for(const child of children)parse(child,index)}
-      else result.push({original:part,parent})
+      const original=children.length&&name.trim()&&level===0?name.trim():part
+      const index=result.length
+      result.push({original,fullOriginal:part,name:original.replace(parent===null?/^$/:/^(?:含(?:有)?|contains?\s+)/i,''),parent})
+      if(children.length&&name.trim()&&level===0)for(const child of children)parse(child,index)
     }
   }
   parse(text)
   return result
 }
 
+// Label facts, reviewed ingredient knowledge and personal records remain
+// separate evidence. Model translations never establish an allergen identity.
 export function checkLabel(label,records=[]){
-  const food=records.filter(r=>r.category==='food'&&r.name&&['confirmed','suspected','investigating','excluded','tolerated'].includes(r.currentStatus)).flatMap(r=>[r,...(['confirmed','suspected','investigating'].includes(r.currentStatus)?(r.ingredientRelations??[]).filter(v=>v.name).map(v=>({...r,name:v.name,currentStatus:v.relation==='confirmed'?r.currentStatus:'investigating',ingredientRelations:[]})):[])])
-  const profileAvailable=food.length>0
-  const unhandled=food.some(r=>['confirmed','suspected','investigating'].includes(r.currentStatus)&&!aliases.has(clean(r.name)))
-  function classify(row){
-    const related=matching(row,food),known=related.find(r=>r.currentStatus==='confirmed'),suspected=related.find(r=>['suspected','investigating'].includes(r.currentStatus))
-    // Reliable original evidence is sufficient even when the rest is incomplete.
-    const explicitSource=!row.sourceUnknown||aliases.has(clean(row.original))
-    if(row.reliable&&explicitSource&&known)return {...row,status:'known',reason:`与已记录${known.name}过敏匹配`}
-    if(row.reliable&&explicitSource&&suspected)return {...row,status:'possible',reason:`已有${suspected.name}待排查记录，尚未确认`}
-    const reliable=Boolean(row.reliable&&row.chinese)&&!negated(row.original)&&!negated(row.chinese)
-    if(!reliable)return {...row,status:'pending',reason:'识别或翻译未可靠确认，请补拍'}
-    if(row.sourceUnknown||uncertainNames.test(clean(row.original))||uncertainNames.test(clean(row.chinese)))return {...row,status:'pending',reason:'原料来源未明确'}
-    if(!profileAvailable)return {...row,status:'pending',reason:'缺少可对照的过敏记录'}
-    if(unhandled)return {...row,status:'pending',reason:'部分个人过敏对象尚无法可靠对照'}
-    if(!label.complete)return {...row,status:'pending',reason:'标签未完整，暂不能排除遗漏'}
-    if(!related.some(r=>['tolerated','excluded'].includes(r.currentStatus))&&!namesFor(row).some(n=>neutral.has(n)))return {...row,status:'pending',reason:'暂无明确摄入或耐受记录'}
-    return {...row,status:'clear',reason:''}
+  const food=records.filter(r=>r.category==='food'&&r.name&&['confirmed','suspected','investigating'].includes(r.currentStatus)&&!/(?:intolerance|restriction|celiac|不耐受|乳糜泻|忌口)/i.test([r.conditionType,r.reactionType,r.name].filter(Boolean).join(' '))).flatMap(r=>[r,...(r.ingredientRelations??[]).filter(v=>v.name).map(v=>({...r,name:v.name,currentStatus:v.relation==='confirmed'?r.currentStatus:'investigating',ingredientRelations:[]}))])
+  const hit=(row,record,status,kind,source)=>({status,ingredient:row.name??row.original,personalRecordId:record?.id??null,personalName:record?.name??null,personalStatus:record?.currentStatus??null,kind,source})
+  const reasonFor=hits=>{
+    const reasons=hits.map(h=>{
+      const name=h.personalName,ingredient=h.ingredient
+      if(h.kind==='suspected')return {zh:`${ingredient}与${name}疑似过敏记录相关，尚未确诊。`,en:`${ingredient} relates to a suspected ${name} allergy, not a confirmed diagnosis.`}
+      if(h.kind==='unexpanded')return {zh:`${ingredient}配料未展开，需核实是否含${name}。`,en:`${ingredient} has no listed sub-ingredients; whether it contains ${name} is unknown.`}
+      if(h.kind==='source')return {zh:`${ingredient}未注明具体原料，需核实是否来自${name}。`,en:`The source of ${ingredient} is not specified; whether it derives from ${name} is unknown.`}
+      if(h.kind==='cross-contact')return {zh:`包装提示可能接触${name}，并非确定加入的配料。`,en:`The label warns of possible contact with ${name}, not a declared ingredient.`}
+      if(h.kind==='processing')return {zh:`${ingredient}来自${name}，但精炼方式及过敏蛋白残留未注明。`,en:`${ingredient} derives from ${name}, but its refining process and residual allergenic protein are not specified.`}
+      return {zh:`${ingredient}匹配已记录的${name}过敏。`,en:`${ingredient} matches the recorded ${name} allergy.`}
+    })
+    return {zh:[...new Set(reasons.map(r=>r.zh))].join(' '),en:[...new Set(reasons.map(r=>r.en))].join(' ')}
   }
-  const ingredients=label.ingredients.map(classify)
-  const contains=[]
-  for(const statement of label.contains){
-    const normalized={...statement,sourceUnknown:false},related=matching(normalized,food)
-    // An explicit Contains declaration is separate evidence, not invented recipe.
-    if(!ingredients.some(i=>matching(i,related).length))contains.push({...classify(normalized),kind:'contains'})
+  const classify=(row,hasChildren=false)=>{
+    const name=row.name??flattenIngredients(row.original)[0]?.name??row.original,base={...row,name,status:'clear',reason:'',reasonTranslations:{zh:'',en:''},hits:[]}
+    if(!row.reliable||negated(name))return base
+    const related=matching({...row,name},food)
+    const uncertainOil=['peanut oil','花生油'].includes(clean(name))
+    const direct=related.map(record=>{
+      const processing=uncertainOil&&clean(record.name)!==clean(name)
+      return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?'processing':record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:'exact-personal-record')
+    })
+    const candidates=possibleAssociations.filter(k=>k.names.some(n=>clean(n)===clean(name))&&(k.kind!=='unexpanded'||!hasChildren)).flatMap(k=>food.filter(r=>k.allergens.includes(aliases.get(clean(r.name)))||(k.personalNames??[]).some(n=>clean(n)===clean(r.name))).map(r=>hit(base,r,'possible',k.kind,k.source)))
+    const hits=[...direct,...candidates]
+    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':aliases.has(clean(name))&&!uncertainOil?'common':'clear'
+    if(status==='common')hits.push(hit(base,null,'common','declared-allergen',additionalAllergens[aliases.get(clean(name))]?evidenceSources.fsa:evidenceSources.fda))
+    const reasonTranslations=status==='possible'?reasonFor(hits.filter(h=>h.status==='possible')):{zh:'',en:''}
+    return {...base,status,hits,reason:reasonTranslations.zh,reasonTranslations}
   }
-  const rows=[...ingredients,...contains]
-  const advisory=label.advisory.map(row=>{
-    // Multi-allergen warning sentences are evidence, never ingredient rows.
-    const mentioned=[...aliases.keys()].filter(name=>[row.original,row.chinese].some(value=>{
-      const text=clean(value),start=text.indexOf(name)
-      return start>=0&&(/[^a-z]/.test(name)||(!/[a-z]/.test(text[start-1]??'')&&!/[a-z]/.test(text[start+name.length]??'')))
-    }))
-    const related=[...new Set(mentioned.flatMap(name=>matching({original:name,chinese:name},food)))]
-    return {...row,status:row.reliable&&related.some(r=>['confirmed','suspected','investigating'].includes(r.currentStatus))?'possible':'pending',reason:related.length?'包装交叉接触提示与个人记录相关，不是明确加入的配料':'包装交叉接触提示，相关情况待确认'}
+  const sourceRows=label.ingredients??[]
+  const ingredients=sourceRows.map((row,index)=>classify(row,sourceRows.some(child=>child.parent===index)))
+  function tree(index){
+    const row=ingredients[index],children=ingredients.flatMap((child,i)=>child.parent===index?[tree(i)]:[])
+    const hits=[...row.hits,...children.flatMap(c=>c.hits)]
+    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':hits.some(h=>h.status==='common')?'common':'clear'
+    const principal=hits.filter(h=>h.status===status)
+    const reasonTranslations=status==='possible'||status==='known'&&principal.some(h=>h.ingredient!==row.name)?reasonFor(principal):{zh:'',en:''}
+    return {...row,original:row.fullOriginal??row.original,children,hits,status,reason:reasonTranslations.zh,reasonTranslations}
+  }
+  const displayIngredients=ingredients.flatMap((row,index)=>row.parent==null?[tree(index)]:[])
+  const contains=(label.contains??[]).filter(r=>!negated(r.original)&&!ingredients.some(i=>matching(i,matching(r,food)).length)).map(r=>({...classify(r),kind:'contains'}))
+  const advisory=(label.advisory??[]).map(row=>{
+    const mentioned=[...new Set([...aliases.keys(),...food.map(r=>clean(r.name))])].filter(name=>{
+      const value=clean(row.original),escaped=name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+      return new RegExp(/^[a-z ]+$/i.test(name)?`(?:^|[^a-z])${escaped}(?:$|[^a-z])`:escaped,'i').test(value)
+    })
+    const related=[...new Set(mentioned.flatMap(name=>matching({original:name},food)))]
+    const hits=row.reliable?related.map(record=>hit(row,record,'possible','cross-contact',evidenceSources.fda)):[]
+    const reasonTranslations=reasonFor(hits)
+    return {...row,status:hits.length?'possible':'clear',hits,reason:reasonTranslations.zh,reasonTranslations}
   })
-  const conflictCount=ingredients.filter(i=>i.status==='known').length
-  const pendingCount=ingredients.filter(i=>['pending','possible'].includes(i.status)).length
-  const green=profileAvailable&&label.complete&&!unhandled&&rows.length>0&&rows.every(i=>i.status==='clear')&&!advisory.length
-  const title=rows.some(i=>i.status==='known')?'发现需注意成分':!profileAvailable?'缺少可对照的过敏记录':!label.complete?'标签未读完整，请补拍':green?'未发现已知冲突':'部分成分仍待确认'
-  return {ingredients,contains,advisory,conflictCount,pendingCount,complete:label.complete,profileAvailable,
-    title,tone:rows.some(i=>i.status==='known')?'error':green?'success':'warning',
-    counts:`已识别${ingredients.length}项 · ${conflictCount}项已知冲突 · ${pendingCount}项待确认`,
-    scope:!label.complete?`本次未完整核对：${label.issues.join('；')||'需补拍完整配料表和包装过敏提示'}`:!profileAvailable?'已识别标签，缺少可对照的过敏记录':green?'本次识别完整，没有需确认的成分':'配料表与可见包装过敏提示已核对'}
+  const conflictCount=displayIngredients.filter(r=>r.status==='known').length
+  return {ingredients,displayIngredients,contains,advisory,conflictCount,assessmentComplete:true,complete:label.complete,profileAvailable:food.length>0,title:'',tone:'neutral',counts:`已识别${displayIngredients.length}项 · ${conflictCount}项已知冲突`,scope:'',pendingCount:0}
 }
