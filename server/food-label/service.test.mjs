@@ -23,3 +23,9 @@ test('JPEG EXIF orientation is applied without cropping label text',async()=>{
   const metadata=await sharp(Buffer.from(normalized.dataUrl.split(',')[1],'base64')).metadata()
   assert.equal(metadata.width,100);assert.equal(metadata.height,200)
 })
+test('May contain and milk-free cannot be promoted to an explicit Contains declaration',async()=>{
+  for(const text of ['Ingredients: Water. May contain milk.','Ingredients: Water. Milk-free.']){
+    const s=service([{...page,text,ingredients:'Water',contains:['milk'],advisory:[]},{ingredients:[translated.ingredients[0]],contains:[],advisory:[]}])
+    const r=await s.service.analyze('owner',input);assert.equal(r.conflictCount,0);assert.equal(r.contains.length,0);assert.equal(r.complete,false)
+  }
+})

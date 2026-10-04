@@ -9,7 +9,7 @@ const target=process.env.FOOD_LABEL_TARGET??'staging'
 assert.ok(['staging','production','local'].includes(target))
 const base=target==='production'?'https://hoooho.com':target==='staging'?'https://hooohoapp-staging.up.railway.app':'http://127.0.0.1:4219'
 const output=path.resolve(`.codex-tmp/food-label-release/${target}`);await mkdir(output,{recursive:true})
-const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...(process.env.FOOD_LABEL_PROXY?{proxy:{server:process.env.FOOD_LABEL_PROXY}}:{})})
 const context=await browser.newContext({...devices['iPhone SE'],serviceWorkers:'block'})
 const page=await context.newPage();let token,memberId,revision=0
 let upstreamCalls=0,successfulCalls=0;const errors=[],runtimeErrors=[]
@@ -21,7 +21,7 @@ async function api(url,data,method='POST'){
 async function scan(filename){
   const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/food-label/check'&&r.request().method()==='POST',{timeout:135000})
   await page.locator('input[type=file][multiple]').setInputFiles(path.resolve(`.codex-tmp/food-label-evidence/${filename}`))
-  const response=await pending,body=await response.json();assert.ok(response.ok(),`Food API ${response.status()} ${body.error?.code??''}`)
+  const response=await pending,body=await response.json();if(!response.ok())errors.push(body.error?.code??`HTTP_${response.status()}`);assert.ok(response.ok(),`Food API ${response.status()} ${body.error?.code??''}`)
   assert.match(response.headers()['cache-control'],/no-store/);upstreamCalls+=body.diagnostics.calls;successfulCalls+=body.diagnostics.successfulCalls;errors.push(...body.diagnostics.errorCodes)
   assert.ok(body.ingredients.length>=16);await expect(page.locator('.food-label-ingredients li')).toHaveCount(body.ingredients.length)
   return body
@@ -46,7 +46,7 @@ try{
   assert.equal(runtimeErrors.length,0)
   console.log(JSON.stringify({target,status:'PASS',upstreamCalls,successfulCalls,errors,english:{rows:english.ingredients.length,complete:english.complete},chinese:{rows:chinese.ingredients.length,knownRows:chinese.conflictCount,complete:chinese.complete},screenshots:output}))
 }finally{
-  if(memberId){await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision,records:[]}).catch(()=>{errors.push('SYNTHETIC_SECTION_CLEANUP_FAILED')});await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>{errors.push('SYNTHETIC_MEMBER_CLEANUP_FAILED')})}
-  console.log(JSON.stringify({target,cleanup:errors.filter(code=>code.includes('CLEANUP')),retainedAccount:'isolated synthetic registration; deletion requires normal verified identity flow'}))
+  if(memberId){try{const sections=await api('/api/auth/profile-sections',undefined,'GET');const current=sections.find(s=>s.memberId===memberId&&s.sectionId==='allergy');if(current)await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision:current.revision,records:[]})}catch{errors.push('SYNTHETIC_SECTION_CLEANUP_FAILED')}await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>{errors.push('SYNTHETIC_MEMBER_CLEANUP_FAILED')})}
+  console.log(JSON.stringify({target,upstreamCallsReported:upstreamCalls,successfulCallsReported:successfulCalls,errors,cleanup:errors.filter(code=>code.includes('CLEANUP')),retainedAccount:'isolated synthetic registration; deletion requires normal verified identity flow'}))
   await context.close();await browser.close()
 }

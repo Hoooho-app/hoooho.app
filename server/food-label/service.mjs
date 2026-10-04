@@ -15,6 +15,12 @@ const validRead=ajv.compile(readSchema),validTranslation=ajv.compile(translateSc
 const failure=(message,code='FOOD_LABEL_INVALID',status=422)=>Object.assign(new Error(message),{code,status})
 const normalize=value=>value.normalize('NFKC').replace(/\s+/g,'').toLowerCase()
 const excerpt=(value,source)=>!value||normalize(source).includes(normalize(value))
+// Bare OCR targets must be backed by an affirmative declaration, not May contain
+// or milk-free text elsewhere on the package. Ambiguous context stays incomplete.
+function containsEvidence(value,text){
+  const clauses=[...text.matchAll(/(?:^|[\n。.;；])\s*(?:(?:allergen(?: information| advice)?|allergy(?: information| advice)?|过敏原信息|致敏物质提示)\s*[:：]\s*)?(?:contains?\b|(?:本产品|本品|产品)?含有)\s*[:：]?\s*([^\n。.;；]+)/gim)].map(m=>m[1])
+  return clauses.some(clause=>!/(?:may contain|不含|无乳|\b[a-z]+[- ]free\b)/i.test(clause)&&excerpt(value.replace(/^(?:contains?|含有)\s*[:：]?\s*/i,''),clause))
+}
 // Even provider failures may contain an excerpt; log operational metadata only.
 const foodLogger={info:(_message,data)=>logMetadata(data),warn:(_message,data)=>logMetadata(data)}
 function logMetadata(data){try{const value=typeof data==='string'?JSON.parse(data):data;console.info('[Hoooho food-label] usage',Object.fromEntries(['provider','model','task','elapsedMs','inputTokens','outputTokens','success','code','httpStatus'].filter(k=>value?.[k]!==undefined).map(k=>[k,value[k]])))}catch{/* Do not log unstructured provider text. */}}
@@ -80,7 +86,9 @@ export class FoodLabelService{
         const out=await withAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions,vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}))
         if(!validRead(out.value))throw failure('识别未获得完整结构，请补拍','FOOD_READ_INVALID')
         const page=out.value
-        if(!excerpt(page.ingredients,page.text)||[...page.contains,...page.advisory].some(s=>!excerpt(s,page.text)))throw failure('识别内容与标签原文不一致，请补拍','FOOD_READ_EVIDENCE')
+        if(!excerpt(page.ingredients,page.text)||page.advisory.some(s=>!excerpt(s,page.text)))throw failure('识别内容与标签原文不一致，请补拍','FOOD_READ_EVIDENCE')
+        const verifiedContains=page.contains.filter(s=>containsEvidence(s,page.text))
+        if(verifiedContains.length!==page.contains.length){page.packagingComplete=false;page.issues.push('明确含有声明的原文范围未可靠确认，请补拍');page.contains=verifiedContains}
         pages.push(page);diagnostics.push(out.diagnostics)
       }catch(error){
         if(!pages.length)throw error
