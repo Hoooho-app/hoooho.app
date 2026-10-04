@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-restore-pr306-20261004/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-entry-order-copy-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -37,7 +37,10 @@ async function home(name) {
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
-  await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒'])
+  await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
+  await expect(page.locator('.nurse-home-entry').nth(2)).toHaveCSS('background-color', 'rgb(255, 243, 231)')
+  await expect(page.locator('.nurse-home-entry').nth(2)).toHaveAttribute('href', '/food-label')
+  await expect(page.locator('.nurse-home-entry').nth(3)).toHaveAttribute('href', '/medication-reminders')
   await expect(page.locator('.nurse-station-overview')).toHaveCount(0)
   const layout = await page.locator('.continuity-record-entry').evaluate(el => {
     const title=el.querySelector('strong'),link=el.querySelector('a'),record=el.querySelector('button'),t=title.getBoundingClientRect(),l=link.getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero');
@@ -54,7 +57,7 @@ async function home(name) {
   await expect(example).toHaveCSS('font-size','14px')
   await expect(example.locator('span')).toHaveCSS('white-space','normal')
   const sizes = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
-  assert.equal(sizes.length, 5)
+  assert.equal(sizes.length, 6)
   assert.equal(new Set(sizes.map(card => card.height)).size, 1)
   assert.ok(Math.max(...sizes.map(card => card.width)) - Math.min(...sizes.map(card => card.width)) < 1)
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -116,7 +119,7 @@ try {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
   }
-  result.checks.homeCopyFiveEqualCardsAndResponsive = 'PASS'
+  result.checks.homeCopySixEqualCardsAndResponsive = 'PASS'
   await page.setViewportSize({ width: 375, height: 667 })
   const geometry = () => page.locator('.continuity-record-entry').evaluate(el => ({ height: el.getBoundingClientRect().height, inputHeight: el.querySelector('.continuity-record-entry__record').getBoundingClientRect().height, buttonY: el.querySelector('.continuity-record-entry__action').getBoundingClientRect().y }))
   await page.locator('.continuity-record-entry').scrollIntoViewIfNeeded()
@@ -138,13 +141,17 @@ try {
     await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   }
   await expect(page.locator('.nurse-station-blood-type')).toContainText('B型'); result.checks.originalMemberSwitch = 'PASS'
-  for (const [name, route] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders']]) {
+  for (const [name, route] of [['健康日记', '/health-events'], ['孩子档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['配料表扫描', '/food-label']]) {
     await page.locator('.nurse-home-entry').filter({ hasText: name }).click()
     await expect(page).toHaveURL(base + route)
     await page.goBack()
     await expect(page).toHaveURL(base + '/nurse-station')
   }
   result.checks.remainingEntryNavigation = 'PASS'
+  await page.locator('.nurse-home-entry--food-label').focus(); await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(base + '/food-label')
+  await page.goBack(); await expect(page).toHaveURL(base + '/nurse-station')
+  result.checks.ingredientScanKeyboardNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
   const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
@@ -175,8 +182,15 @@ try {
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
   await page.getByRole('textbox', { name: '哪里不舒服', exact: true }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
+  const saveStartedAt = Date.now()
+  const savedResponse = page.waitForResponse(response => new URL(response.url()).pathname === `/api/members/${memberId}/case-records` && response.request().method() === 'POST', { timeout: 45000 })
   await page.getByRole('button', { name: '保存', exact: true }).click()
-  await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+  const saveResponse = await savedResponse
+  result.checks.quickNoteSaveResponse = { status: saveResponse.status(), elapsedMs: Date.now() - saveStartedAt }
+  assert.ok(saveResponse.ok(), 'Real quick-record save must succeed')
+  const savedCase = await saveResponse.json()
+  assert.ok(savedCase.eventId, 'Saved case must return its real event identifier')
+  await expect(page).toHaveURL(base + `/health-events/${savedCase.eventId}`, { timeout: 45000 })
   result.checks.quickNoteTextAndKeyboardSave = 'PASS'
   await page.goto(base + '/nurse-station')
   await expect(page.locator('.continuity-card')).toHaveCount(0)
@@ -198,6 +212,7 @@ try {
   assert.equal(result.http5xx, 0)
 } catch (error) {
   result.failure = error.safe ?? { name: error.name, message: String(error.message).slice(0, 500) }
+  await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }).catch(() => {})
 } finally {
   if (memberId) await api(`/api/members/${memberId}`, undefined, 'DELETE').then(() => { result.cleanup.syntheticMember = 'REMOVED' }).catch(() => { result.cleanup.syntheticMember = 'FAILED' })
   if (secondMemberId) await api(`/api/members/${secondMemberId}`, undefined, 'DELETE').then(() => { result.cleanup.secondSyntheticMember = 'REMOVED' }).catch(() => { result.cleanup.secondSyntheticMember = 'FAILED' })
