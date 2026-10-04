@@ -203,6 +203,8 @@ test('仅原件可以明确保存为待补充，时间未知且不虚构症状',
  await form.getByRole('button',{name:'保存',exact:true}).click();await expect(page).toHaveURL(/health-events\//)
  const eventId=page.url().split('/').at(-1),records=await(await request.get('/api/events/'+eventId+'/records',{headers})).json(),attachments=await(await request.get('/api/events/'+eventId+'/attachments',{headers})).json()
  expect(records[0].content).toBe('症状待补充（原始资料）');expect(records[0].journal.categories).toEqual(['other']);expect(records[0].journal.timePrecision).toBe('unknown');expect(records[0].caseContext.timeUnknown).toBe(true);expect(attachments).toHaveLength(1);expect(attachments[0].mediaReview.confirmedText).toBeUndefined()
+ await page.locator('#record-'+records[0].id).getByRole('button',{name:/^查看症状记录：/}).first().click()
+ await expect(page.getByRole('dialog',{name:'症状记录详情',exact:true}).getByText('发生时间待确认',{exact:true})).toBeVisible()
 })
 test('迟到草稿恢复不会把本次已上传资料覆盖为失败',async({page})=>{
  await page.route('**/api/quick-records/*/photos',async route=>{if(route.request().method()==='GET')await new Promise(r=>setTimeout(r,1000));await route.continue()})
