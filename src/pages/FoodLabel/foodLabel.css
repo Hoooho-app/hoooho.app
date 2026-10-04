@@ -3,16 +3,11 @@ body:has(.food-label-page) { min-width: 320px; }
 .food-label-content { max-width: 680px; margin: auto; padding: var(--hoho-space-4) var(--hoho-space-4) max(var(--hoho-space-6), env(safe-area-inset-bottom)); }
 .food-label-entry { display: grid; gap: var(--hoho-space-3); }
 .food-label-hero { display: block; width: 100%; height: auto; aspect-ratio: 1.2; object-fit: cover; border-radius: var(--hoho-radius-card); margin: var(--hoho-space-6) 0 var(--hoho-space-4); }
-.food-label-photo-strip { display: flex; align-items: flex-start; gap: var(--hoho-space-2); }
-.food-label-photo-strip > button { flex-shrink: 0; }
-.food-label-photos { display: grid; flex: 1; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); }
+.food-label-photos { display: grid; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hoho-space-2); }
 .food-label-photos img { display: block; width: 100%; height: 68px; object-fit: cover; border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-surface-subtle)); }
-.food-label-summary { display: grid; align-content: center; min-height: 96px; padding: var(--hoho-space-3); margin: var(--hoho-space-3) 0 var(--hoho-space-4); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface-subtle)); overflow-wrap: anywhere; }
-.food-label-summary h2 { margin: 0 0 var(--hoho-space-1); font-size: var(--hoho-font-size-card-title); font-weight: 600; }
-.food-label-summary p { margin: 2px 0; font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); }
-.food-label-summary[data-tone='error'] { color: rgb(var(--hoho-color-error)); border-color: rgb(var(--hoho-color-error) / .25); background: rgb(var(--hoho-color-error) / .05); }
-.food-label-summary[data-tone='success'] { color: rgb(var(--hoho-color-success)); border-color: rgb(var(--hoho-color-success) / .25); background: rgb(var(--hoho-color-success) / .05); }
-.food-label-summary[data-tone='warning'] { color: rgb(var(--hoho-color-warning)); background: rgb(var(--hoho-color-warning) / .05); }
+.food-label-supplement { display: grid; place-items: center; width: 100%; height: 68px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-surface-subtle)); color: rgb(var(--hoho-color-text-secondary)); }
+.food-label-summary { padding: var(--hoho-space-3); margin: var(--hoho-space-3) 0 var(--hoho-space-4); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface-subtle)); overflow-wrap: anywhere; }
+.food-label-summary p { margin: 0; font-size: var(--hoho-font-size-body-small); }
 .food-label-spinner { display: inline-block; width: 22px; height: 22px; margin-right: var(--hoho-space-2); vertical-align: middle; animation: food-label-spin 1s linear infinite; }
 @keyframes food-label-spin { to { transform: rotate(360deg); } }
 .food-label-list-title { margin: 0 0 var(--hoho-space-2); }
@@ -23,8 +18,6 @@ body:has(.food-label-page) { min-width: 320px; }
 .food-label-row-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--hoho-space-2); }
 .food-label-row-heading strong { min-width: 0; font-size: var(--hoho-font-size-body-small); font-weight: 600; overflow-wrap: anywhere; }
 .food-label-row-heading .hoho-health-tag { flex-shrink: 0; }
-.food-label-original, .food-label-reason, .food-label-footnote, .food-label-package-note p { margin: var(--hoho-space-1) 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); overflow-wrap: anywhere; }
-.food-label-package-note { padding: var(--hoho-space-2) 0; margin-top: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); font-size: var(--hoho-font-size-caption); overflow-wrap: anywhere; }
-.food-label-package-note .hoho-health-tag { margin-left: var(--hoho-space-2); }
-.food-label-footnote { margin: var(--hoho-space-4) 0; }
+.food-label-translation { margin: var(--hoho-space-1) 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); overflow-wrap: anywhere; }
+.food-label-ingredients { margin-bottom: var(--hoho-space-4); }
 @media (prefers-reduced-motion: reduce) { .food-label-spinner { animation: none; } }
