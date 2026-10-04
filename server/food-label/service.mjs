@@ -72,7 +72,7 @@ export async function normalizePhoto(photo){
 export function mergeRows(blocks){
   let rows=[],connected=true
   for(const [photoIndex,block] of blocks.entries()){
-    const next=flattenIngredients(block.ingredients).map(row=>({...row,readReliable:block.readable,evidence:{kind:'label',photoIndices:[photoIndex],excerpt:row.fullOriginal}}))
+    const next=flattenIngredients(block.ingredients).map(row=>({...row,readReliable:block.readable,evidence:{kind:'label',photoIndices:[photoIndex],excerpt:row.rawOriginal??row.fullOriginal}}))
     if(!next.length)continue
     const previousRoots=new Set(rows.filter(r=>r.parent===null).map(r=>normalize(r.fullOriginal)))
     if(rows.length&&!next.some(r=>r.parent===null&&previousRoots.has(normalize(r.fullOriginal))))connected=false

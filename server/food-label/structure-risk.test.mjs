@@ -100,3 +100,16 @@ test('different milk proteins and egg parts are not interchangeable personal dia
   assert.equal(check('Egg white',[record('蛋清')]).displayIngredients[0].status,'known')
   assert.equal(check('Whey',[record('牛奶')]).displayIngredients[0].status,'known')
 })
+
+test('boundary circle/info glyphs are not names; raw evidence and real notation survive',()=>{
+ const rows=flattenIngredients('Compound (Milk°, Eggⓘ), Water (80°C), Rice (≥60%)')
+ assert.equal(rows[0].fullOriginal,'Compound (Milk, Egg)')
+ assert.equal(rows[1].original,'Milk');assert.equal(rows[1].rawOriginal,'Milk°')
+ assert.equal(rows[2].original,'Egg');assert.equal(rows[2].rawOriginal,'Eggⓘ')
+ assert.equal(rows[3].fullOriginal,'Water (80°C)')
+ assert.equal(rows.at(-1).fullOriginal,'Rice (≥60%)')
+ const result=check('食品添加剂（明胶°、5′-呈味核苷酸二钠）',[record('明胶')])
+ assert.equal(result.conflictCount,1);assert.equal(result.displayIngredients[0].status,'known')
+ assert.equal(check('Gelatin°',[record('鱼类')]).displayIngredients[0].status,'possible')
+ assert.equal(check('Unfamiliar°',[]).displayIngredients[0].status,'clear')
+})

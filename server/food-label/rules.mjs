@@ -12,10 +12,14 @@ const groups={
   sesame:['芝麻','sesame','sesame seeds','tahini','芝麻酱'],
   ...additionalAllergens,
 }
-const quantityPattern='[<>≤≥=~约不少于不低于至多至少]*\\s*\\d+(?:\\.\\d+)?\\s*(?:%|mg|kg|g|ml|l|克|千克|毫克|毫升)'
+const quantityPattern='[<>≤≥=~约不少于不低于至多至少]*\\s*\\d+(?:\\.\\d+)?\\s*(?:%|mg|kg|g|ml|l|°C|°F|℃|℉|克|千克|毫克|毫升)'
 const quantityOnly=new RegExp('^'+quantityPattern+'$','i')
 export const ingredientIdentity=value=>String(value??'').normalize('NFKC').toLowerCase().replace(new RegExp('\\s*[（(]?'+quantityPattern+'[）)]?','gi'),'').replace(/\s+/g,' ').replace(/[.。]$/,'').trim()
 const clean=ingredientIdentity
+// Non-text circle/info glyphs at a word boundary are annotations, not part of
+// a material's identity. Preserve raw OCR separately. Never strip characters
+// inside words, numeric degree units, chemical primes or percentage notation.
+const ingredientTypography=value=>value.replace(/([\p{L}\p{M}])\s*[°○◦ⓘ]+(?=\s*[,，、;；)\]）]|$)/gu,'$1')
 const aliases=new Map(Object.entries(groups).flatMap(([group,names])=>names.map(name=>[clean(name),group])))
 const specificAliases=[['almond','almonds','杏仁','扁桃仁'],['cashew','cashews','腰果'],['walnut','walnuts','核桃'],['hazelnut','hazelnuts','榛子'],['pistachio','pistachios','开心果'],['pecan','pecans','碧根果'],['macadamia','夏威夷果'],['cod','鳕鱼'],['salmon','三文鱼'],['tuna','金枪鱼'],['anchovy','鳀鱼'],['shrimp','prawn','虾'],['crab','蟹'],['lobster','龙虾'],['squid','鱿鱼'],['oyster','牡蛎'],['mussel','贻贝'],['scallop','扇贝'],['clam','蛤蜊']]
 const species=new Map(specificAliases.flatMap((names,index)=>names.map(name=>[clean(name),index])))
@@ -68,7 +72,7 @@ export function flattenIngredients(text){
     }
     parts.push(value.slice(start))
     for(let part of parts){part=part.trim().replace(/[。.]$/,'').trim();if(!part)continue
-      if(quantityOnly.test(part.normalize('NFKC'))){const previous=result.findLast(r=>r.parent===parent);if(previous){previous.original+=' '+part;previous.fullOriginal+=' '+part}continue}
+      if(quantityOnly.test(part.normalize('NFKC'))){const previous=result.findLast(r=>r.parent===parent);if(previous){previous.original+=' '+part;previous.fullOriginal+=' '+part;previous.rawOriginal+=' '+part}continue}
       if(/^[\p{Number}\p{Punctuation}\p{Symbol}\s]+$/u.test(part.normalize('NFKC'))||/^(?:mg|kg|g|ml|l|克|千克|毫克|毫升)$/i.test(part))continue
       part=part.replace(/^(?:[\u2190-\u21ff\u27a0-\u27bf•·]+\s*|[①-⑳]\s*|\d+[.)、]\s*|\d+\s+(?=[^\d\s]))/u,'')
       let name='',children=[],level=0,open=0
@@ -77,9 +81,9 @@ export function flattenIngredients(text){
         else if(')]）'.includes(part[i])&&level){level--;if(level===0){const inner=part.slice(open+1,i).trim();if(quantityOnly.test(inner.normalize('NFKC'))||/^(?:ARA|DHA|VITAMIN\s+[A-Z]\d*|PROCESSED WITH ALKALI)$/i.test(inner))name+=part.slice(open,i+1);else children.push(inner)}}
         else if(level===0)name+=part[i]
       }
-      const original=children.length&&name.trim()&&level===0?name.trim():part
+      const original=ingredientTypography(children.length&&name.trim()&&level===0?name.trim():part).trim()
       const index=result.length
-      result.push({original,fullOriginal:part,name:original.replace(parent===null?/^$/:/^(?:含(?:有)?|contains?\s+)/i,''),parent})
+      result.push({original,fullOriginal:ingredientTypography(part),rawOriginal:part,name:original.replace(parent===null?/^$/:/^(?:含(?:有)?|contains?\s+)/i,''),parent})
       if(children.length&&name.trim()&&level===0)for(const child of children)parse(child,index)
     }
   }
