@@ -65,7 +65,7 @@ try{
   await page.getByPlaceholder('给自己起个昵称').fill('结构验收'+randomUUID().slice(0,8));await page.getByPlaceholder('设置一个密码').fill(randomUUID())
   const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST')
   await page.getByRole('button',{name:'注册并进入'}).click();const registration=await registered
-  if(!registration.ok()){const error=await registration.json();console.log(JSON.stringify({target,registrationStatus:registration.status(),registrationError:error.error?.code??error.code??'UNKNOWN',retryAfter:registration.headers()['retry-after']??null}))}
+  if(!registration.ok()){const error=await registration.json();console.log(JSON.stringify({target,registrationStatus:registration.status(),registrationError:error.error?.code??error.code??'UNKNOWN',retryAfter:registration.headers()['retry-after']??error.error?.retryAfter??error.error?.details?.retryAfter??error.retryAfter??error.details?.retryAfter??null}))}
   assert.ok(registration.ok(),'Acceptance registration available')
   const session=await api('/api/auth/session',undefined,'GET');token=session.token
   memberId=(await api('/api/members',{name:'合成结构验收非真实儿童',relationship:'child',birthday:'2025-01-01',gender:'female'})).id
