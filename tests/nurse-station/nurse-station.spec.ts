@@ -547,7 +547,7 @@ test('切换到另一人物时任务归属同步更新且不显示人物任务�
 
 test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', async ({ page }, testInfo) => {
   await registerMember(page)
-  await expect(page.locator('.nurse-home-entry')).toHaveCount(5)
+  await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   const entryMeasurements = await page.evaluate(() => {
     const entry = document.querySelector<HTMLElement>('.nurse-home-entry')!
     const entrySubtitle = entry.querySelector<HTMLElement>('small')!
