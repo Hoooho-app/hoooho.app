@@ -8,7 +8,7 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('return createPortal('), source.indexOf('export function RelatedRecordsSheet'))
-  const labels = ['症状描述', '传视频', '传照片', '语音输入', '症状部位', '补充信息', '发生时间']
+  const labels = ['症状描述', '拍摄', '照片', '语音输入', '症状部位', '补充信息', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)
