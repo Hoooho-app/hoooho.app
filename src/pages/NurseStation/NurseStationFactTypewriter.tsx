@@ -22,10 +22,11 @@ interface TypewriterProps {
   prefix?: string
   highlightNumbers?: boolean
   reduceMotion?: boolean
+  clearOnComplete?: boolean
   timing?: { type: number; hold: number; delete: number; empty: number }
 }
 
-export function NurseStationFactTypewriter({ facts = nurseStationFacts, className = 'nurse-station-fact', prefix = '', highlightNumbers = true, reduceMotion = false, timing }: TypewriterProps = {}) {
+export function NurseStationFactTypewriter({ facts = nurseStationFacts, className = 'nurse-station-fact', prefix = '', highlightNumbers = true, reduceMotion = false, clearOnComplete = false, timing }: TypewriterProps = {}) {
   const [factIndex, setFactIndex] = useState(0)
   const [visibleLength, setVisibleLength] = useState(0)
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -54,7 +55,7 @@ export function NurseStationFactTypewriter({ facts = nurseStationFacts, classNam
     if (!visible) return
     const advance = () => {
       if (visibleLength < fact.length && visibleLength >= 0) setVisibleLength((length) => length + 1)
-      else if (visibleLength === fact.length) setVisibleLength(-(fact.length + 1))
+      else if (visibleLength === fact.length) setVisibleLength(clearOnComplete ? -1 : -(fact.length + 1))
       else if (visibleLength < -1) setVisibleLength((length) => length + 1)
       else { setVisibleLength(0); setFactIndex((index) => (index + 1) % facts.length) }
     }
@@ -67,7 +68,7 @@ export function NurseStationFactTypewriter({ facts = nurseStationFacts, classNam
           : timing?.empty ?? EMPTY_DELAY
     timeoutRef.current = window.setTimeout(advance, delay)
     return () => { if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current) }
-  }, [factIndex, facts, reducedMotion, reduceMotion, visible, visibleLength, timing])
+  }, [factIndex, facts, reducedMotion, reduceMotion, visible, visibleLength, timing, clearOnComplete])
 
   const fact = facts[factIndex] ?? ''
   const staticText = reducedMotion || reduceMotion
