@@ -40,6 +40,8 @@ async function scan(filename,supplement=false){
   const roots=body.displayIngredients;assert.ok(Array.isArray(roots))
   assert.equal(body.conflictCount,roots.filter(r=>r.status==='known').length)
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(roots.length)
+  await page.screenshot({path:path.join(output,`request-${requests}-evidence.png`),fullPage:true})
+  await page.locator('.food-label-ingredients li').last().scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,`request-${requests}-bottom-evidence.png`)});await page.locator('.food-label-summary').scrollIntoViewIfNeeded()
   if(englishOnly)await page.screenshot({path:path.join(output,'english-diagnostic-full.png'),fullPage:true})
   await expect(page.getByText(/标签未读完整|本次未完整核对|项待确认|暂不能排除遗漏|放心食用/)).toHaveCount(0)
   console.log(JSON.stringify({target,request:requests,supplement,roots:roots.length,known:body.conflictCount,common:roots.filter(r=>r.status==='common').length,possible:roots.filter(r=>r.status==='possible').length,diagnostics:body.diagnostics}))
@@ -51,6 +53,8 @@ function originalEvidence(body){
   const expected=['大米(≥60%)','白砂糖','植物油(含特丁基对苯二酚)','米粉','淀粉','食用盐','食品添加剂(明胶、5′-呈味核苷酸二钠)','味精']
   const roots=body.displayIngredients
   assert.equal(roots.length,8,'Original image top-level count')
+  const mismatches=roots.flatMap((r,i)=>compact(r.original)===compact(expected[i])?[]:[{index:i+1,punctuationOnly:compact(r.original).replace(/[,，、]/g,',')===compact(expected[i]).replace(/[,，、]/g,',')}])
+  if(mismatches.length)console.log(JSON.stringify({target,evidenceMismatch:mismatches}))
   assert.ok(roots.every((r,i)=>compact(r.original)===compact(expected[i])),'Original image complete parent names match')
   assert.equal(roots[6].children.length,2,'Both additive children are retained')
 }
@@ -60,7 +64,9 @@ try{
   await page.goto(base+'/login');await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill('结构验收'+randomUUID().slice(0,8));await page.getByPlaceholder('设置一个密码').fill(randomUUID())
   const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST')
-  await page.getByRole('button',{name:'注册并进入'}).click();assert.ok((await registered).ok(),'Acceptance registration available')
+  await page.getByRole('button',{name:'注册并进入'}).click();const registration=await registered
+  if(!registration.ok()){const error=await registration.json();console.log(JSON.stringify({target,registrationStatus:registration.status(),registrationError:error.error?.code??error.code??'UNKNOWN',retryAfter:registration.headers()['retry-after']??null}))}
+  assert.ok(registration.ok(),'Acceptance registration available')
   const session=await api('/api/auth/session',undefined,'GET');token=session.token
   memberId=(await api('/api/members',{name:'合成结构验收非真实儿童',relationship:'child',birthday:'2025-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId});await profile([])

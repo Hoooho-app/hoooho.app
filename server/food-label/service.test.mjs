@@ -9,6 +9,14 @@ const input={memberId:'a',taskId:'food-label-task-1',photos:[{dataUrl:`data:imag
 const page={text:'Ingredients: Water, Whey, Egg. Contains: Milk. May contain soy.',status:'readable'}
 const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sourceUnknown:false},{original:'Whey',chinese:'乳清',reliable:true,sourceUnknown:false},{original:'Egg',chinese:'鸡蛋',reliable:true,sourceUnknown:false}],contains:[{original:'Milk',chinese:'牛奶',reliable:true,sourceUnknown:false}],advisory:[{original:'May contain soy',chinese:'可能含有大豆',reliable:true,sourceUnknown:false}]}
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
+
+test('screenshot OCR explicitly separates interface icons from printed ingredient text',async()=>{
+ const requests=[];const model={structured:async request=>{requests.push(request);throw Object.assign(new Error('fixture'),{code:'AI_OUTPUT_INVALID'})}}
+ const service=new FoodLabelService({model,members:{get:async()=>{}},readRecords:async()=>[]})
+ await assert.rejects(()=>service.analyze('owner',input),{code:'AI_OUTPUT_INVALID'})
+ assert.match(requests[0].instructions,/图标不是配料文字/)
+ assert.match(requests[0].instructions,/不能把.*符号.*拼到成分名/)
+})
 test('actual partial read failure is distinct from a successfully read partial label',async()=>{
   const s=service([page,Object.assign(new Error('Invalid output'),{code:'AI_OUTPUT_INVALID'}),translated])
   const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}

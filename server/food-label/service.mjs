@@ -113,7 +113,7 @@ export class FoodLabelService{
       seenPhotos.add(identity)
       try{
         calls++
-        const out=await withAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions,vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}))
+        const out=await withAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions+'截图中的搜索、放大镜、购买按钮、商品浮层、网页导航等界面图标不是配料文字。不能把图标误读的字母或圆圈、度数符号等拼到成分名；区分印刷文字与覆盖在其旁边的界面图形。不能删除真实化学名里的数字、撇号、括号或百分比。如果界面图形实际遮住文字而无法看清，status用uncertain，不能猜被遮住的字。',vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}))
         if(!validRead(out.value)||out.value.text.length>24000)throw failure('未获得可用识别结果','FOOD_READ_INVALID')
         const page=parseLabelText(out.value.text,out.value.status)
         pages.push(page);diagnostics.push(out.diagnostics)
