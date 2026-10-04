@@ -3,7 +3,7 @@ import { additionalAllergens, possibleAssociations, evidenceSources } from './kn
 const groups={
   milk:['牛奶','牛乳','生牛乳','乳','奶','乳及乳制品','乳制品','dairy products','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
   egg:['鸡蛋','蛋','egg','eggs','egg white','egg yolk','蛋清','蛋黄','全蛋粉','egg powder','ovalbumin','卵白蛋白'],
-  soy:['大豆','黄豆','soy','soya','soybean','soybeans','soy flour','soy protein','soy lecithin','soya lecithin','soy lecithins','soya lecithins','大豆卵磷脂','大豆蛋白','豆腐','tofu'],
+  soy:['大豆','黄豆','soy','soya','soybean','soybeans','soy flour','soy protein','soy lecithin','soya lecithin','soy lecithins','soya lecithins','大豆卵磷脂','大豆蛋白','豆腐','tofu','soybean oil','soy oil','soya oil','大豆油'],
   wheat:['小麦','wheat','wheat flour','小麦粉','小麦面粉','semolina','粗粒小麦粉','小麦蛋白','wheat protein','wheat gluten'],
   peanut:['花生','peanut','peanuts','groundnut','花生油','peanut oil'],
   nuts:['坚果','tree nuts','almond','almonds','杏仁','扁桃仁','cashew','腰果','walnut','核桃','hazelnut','榛子','pistachio','开心果','pecan','碧根果','macadamia','夏威夷果'],
@@ -98,7 +98,7 @@ export function checkLabel(label,records=[]){
     const name=row.name??flattenIngredients(row.original)[0]?.name??row.original,base={...row,name,status:'clear',reason:'',reasonTranslations:{zh:'',en:''},hits:[]}
     if(!row.reliable||negated(name))return base
     const related=matching({...row,name},food)
-    const uncertainOil=['peanut oil','花生油'].includes(clean(name))
+    const uncertainOil=['peanut oil','花生油','soybean oil','soy oil','soya oil','大豆油'].includes(clean(name))
     const direct=related.map(record=>{
       const processing=uncertainOil&&clean(record.name)!==clean(name)
       return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?'processing':record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:'exact-personal-record')

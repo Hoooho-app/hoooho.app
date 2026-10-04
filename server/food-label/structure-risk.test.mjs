@@ -48,6 +48,8 @@ test('only evidence-backed personal uncertainty produces explained possible risk
   assert.match(check('Peanut oil',[record('花生')]).displayIngredients[0].reason,/精炼/)
   assert.equal(check('Peanut oil',[record('Peanut oil')]).displayIngredients[0].status,'known')
   assert.equal(check('Highly refined peanut oil',[record('花生')]).displayIngredients[0].status,'clear')
+  assert.equal(check('大豆油',[record('大豆')]).displayIngredients[0].status,'possible')
+  assert.equal(check('Highly refined soybean oil',[record('大豆')]).displayIngredients[0].status,'clear')
 })
 test('label facts and personal evidence gate risk; translations cannot invent milk',()=>{
   const result=check('ImaginaryName',[record('牛奶')])
