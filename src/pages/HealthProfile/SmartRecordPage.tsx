@@ -62,7 +62,7 @@ function MaterialDetail({eventId,recordId,memberId,token,onChanged,onClose}:{eve
       const [records,files]=await Promise.all([healthEventRecordService.list(eventId,token,controller.signal),eventAttachmentService.list(eventId,token,controller.signal)])
       if(controller.signal.aborted)return
       const current=records.find(r=>r.id===recordId)??null;setRecord(current);setContent(current?.content??event.title);setVaccine(current?.journal?.vaccination)
-      setOriginalIds(files.filter(f=>!f.recordId||!current||f.recordId===current.id).map(f=>f.id))
+      setOriginalIds(files.filter(f=>!f.recordId||!current||f.recordId===current.id||current.aiProvenance?.attachmentIds?.includes(f.id)).map(f=>f.id))
     }catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:'资料加载失败')}finally{if(!controller.signal.aborted)setLoading(false)}
   })();return()=>controller.abort()},[eventId,recordId,memberId,token])
   return <BottomSheetSurface open label="资料与原件" title="资料与原件" onClose={onClose}><div className="ai-business-composer">
