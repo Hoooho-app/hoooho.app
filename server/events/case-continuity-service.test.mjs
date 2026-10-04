@@ -9,6 +9,72 @@ import { CaseContinuityService } from './case-continuity-service.mjs'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { VisitSheetService } from '../visit-sheets/visit-sheet-service.mjs'
+import { caseFollowupView } from './case-followup-view.mjs'
+
+test('列表描述不重复原文，不推断诊断；最近时间排除未知与补录录入时间', () => {
+  const event={title:'早上起来的时候就开始其实有点头晕但不是头疼发烧',startTime:'2026-10-04T09:00:00Z'}
+  const records=[{id:'b',content:event.title,occurredAt:'2026-10-03T01:00:00Z',createdAt:'2026-10-04T02:00:00Z'}, {id:'a',content:'补录',occurredAt:'2026-10-01T01:00:00Z',createdAt:'2026-10-04T03:00:00Z'}, {id:'c',content:'未提供',occurredAt:'2026-10-04T05:00:00Z',createdAt:'2026-10-04T05:00:00Z',caseContext:{timeUnknown:true}}]
+  const view=caseFollowupView(event,records)
+  assert.equal(view.firstOccurredAt,records[1].occurredAt);assert.equal(view.latestOccurredAt,records[0].occurredAt);assert.equal(view.recordCount,3);assert.equal(view.hasUnknownTime,true);assert.equal(view.supplement,null)
+  assert.equal(records[0].content,event.title);assert.ok(!view.title.includes('过敏'))
+  const structured=caseFollowupView(event,[{...records[0],journal:{symptom:{generatedSummary:'脸颊发红、瘙痒',shortNote:'夜间更明显'}}}])
+  assert.equal(structured.title,'脸颊发红、瘙痒');assert.equal(structured.supplement,'夜间更明显')
+})
+
+test('康复/撤销/恢复真实幂等、保留历史；未知旧归档不伪造康复，跨成员拒绝',async t=>{
+  const f=await fixture(t),saved=await f.capture(),id=saved.eventId
+  await f.service.archive('synthetic-account',f.member.id,id,true)
+  let legacy=(await f.service.list('synthetic-account',f.member.id)).archived[0]
+  assert.equal(legacy.event.caseArchiveReason,'general');assert.equal(legacy.event.caseRecoveryMarkedAt,null)
+  await f.service.archive('synthetic-account',f.member.id,id,false)
+  const input={action:'recover',requestId:'recover-1',expectedArchivedAt:null}
+  let event=await f.service.recovery('synthetic-account',f.member.id,id,input)
+  assert.equal(event.caseArchiveReason,'user_recovered');assert.equal(event.caseRecoveryMarkedAt,'2026-10-02T08:00:00.000Z')
+  const historyLength=event.caseStateHistory.length
+  event=await f.service.recovery('synthetic-account',f.member.id,id,input);assert.equal(event.caseStateHistory.length,historyLength)
+  assert.equal((await f.service.list('synthetic-account',f.member.id)).archived[0].followup.recordCount,1)
+  await assert.rejects(()=>f.capture({eventId:id}),/已归档/)
+  await f.service.recovery('synthetic-account',f.member.id,id,{action:'undo',requestId:'undo-1',undoRequestId:'recover-1',expectedArchivedAt:event.caseArchivedAt})
+  assert.equal((await f.service.list('synthetic-account',f.member.id)).active.length,1)
+  event=await f.service.recovery('synthetic-account',f.member.id,id,{action:'recover',requestId:'recover-2'})
+  await f.service.recovery('synthetic-account',f.member.id,id,{action:'restore',requestId:'restore-1',expectedArchivedAt:event.caseArchivedAt})
+  await assert.rejects(()=>f.service.recovery('synthetic-account',f.member.id,id,{action:'undo',requestId:'stale',undoRequestId:'recover-2'}),/新操作/)
+  const other=await f.members.create({accountId:'synthetic-account',name:'合成其他人物',relationship:'other'})
+  await assert.rejects(()=>f.service.recovery('synthetic-account',other.id,id,{action:'recover',requestId:'cross-member'}))
+  assert.equal((await f.service.records.list('synthetic-account',id)).length,1)
+})
+
+test('同一保存标识不能被用于另一次情况',async t=>{
+  const f=await fixture(t),first=await f.capture({requestId:'one-record'}),second=await f.capture()
+  await assert.rejects(()=>f.capture({eventId:second.eventId,requestId:'one-record'}),/另一次情况/)
+  assert.notEqual(first.eventId,second.eventId)
+})
+
+test('资料核对复用原记录与原件、保持就诊时间和原文；拒绝跨情况/版本覆盖',async t=>{
+  const f=await fixture(t,{model:{async structured(){throw Object.assign(new Error('合成识别故障'),{status:503,code:'AI_BUSINESS_UNAVAILABLE'})}}})
+  const file={name:'合成病历.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${(await sharp({create:{width:30,height:30,channels:3,background:'#ffffff'}}).png().toBuffer()).toString('base64')}`}
+  const a=await f.capture(),material=await f.capture({eventId:a.eventId,text:'合成原始资料',identity:'medical_consultation',occurredAt:'2026-10-01T01:00:00Z',files:[file]})
+  const input={text:'合成原始资料',files:[file],eventId:a.eventId,sourceRecordId:material.recordId,sourceIdentity:'medical_consultation',task:'report'}
+  await assert.rejects(()=>f.service.business.prepare('synthetic-account',f.member.id,input))
+  const failed=await f.service.business.latest('synthetic-account',f.member.id)
+  const ready=await f.service.business.edit('synthetic-account',f.member.id,failed.id,{version:failed.version,manualOriginal:true,note:'合成手动补充'})
+  const saved=await f.service.business.save('synthetic-account',f.member.id,failed.id,{version:ready.version,confirmed:true})
+  assert.equal(saved.result.records[0].recordId,material.recordId)
+  const records=await f.service.records.list('synthetic-account',a.eventId)
+  assert.equal(records.length,2);const updated=records.find(r=>r.id===material.recordId)
+  assert.equal(updated.sourceText,'合成原始资料');assert.equal(updated.occurredAt,'2026-10-01T01:00:00.000Z');assert.equal(updated.caseContext.timeUnknown,false)
+  assert.equal((await f.service.attachments.findByEventId(a.eventId)).length,1)
+  await f.service.business.undo('synthetic-account',f.member.id,failed.id)
+  assert.equal((await f.service.records.getOwnedRecord('synthetic-account',material.recordId)).content,'合成原始资料')
+  const b=await f.capture();await assert.rejects(()=>f.service.business.prepare('synthetic-account',f.member.id,{...input,eventId:b.eventId}),/不属于这次情况/)
+  await assert.rejects(()=>f.service.business.prepare('synthetic-account',f.member.id,{...input,text:'合成原始资料（第二次核对）'}))
+  const failedAgain=await f.service.business.latest('synthetic-account',f.member.id)
+  const draft=await f.service.business.edit('synthetic-account',f.member.id,failedAgain.id,{version:failedAgain.version,manualOriginal:true,note:'合成第二次核对'})
+  await f.service.records.update('synthetic-account',material.recordId,{content:'合成后来人工校对'},f.service.now())
+  await assert.rejects(()=>f.service.business.save('synthetic-account',f.member.id,draft.id,{version:draft.version,confirmed:true}),/已有修改/)
+  await f.service.business.cancel('synthetic-account',f.member.id,draft.id)
+  assert.equal((await f.service.records.getOwnedRecord('synthetic-account',material.recordId)).caseContext.aiDraftId,null)
+})
 
 async function fixture(t, options = {}) {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(),'hoooho-continuity-synthetic-'))

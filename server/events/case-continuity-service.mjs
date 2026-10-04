@@ -6,6 +6,7 @@ import { fail } from '../ai/business/contract.mjs'
 import { validateOccurredAt } from './health-event-record-service.mjs'
 import { validateJournal } from './journal-metadata.mjs'
 import { QuickRecordPhotoService } from './quick-record-photo-service.mjs'
+import { caseFollowupView } from './case-followup-view.mjs'
 
 const clean = (value, limit = 5000) => {
   if (typeof value !== 'string' || value.trim().length > limit) throw fail('填写内容格式或长度无效')
@@ -49,7 +50,7 @@ export class CaseContinuityService {
         const feedback = own.filter(r => r.caseContext?.taskId === task.id && dayAt(new Date(r.occurredAt), task.timezone) === taskToday)
         return { ...task, state, todayRecorded: feedback.length, todayNotObserved: feedback.filter(r => r.caseContext.result === 'not_observed').length, todayTarget: state === 'active' && !event.caseArchivedAt ? task.timesPerDay : 0 }
       })
-      return [{ event, latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, event.updatedAt) }]
+      return [{ event, followup: caseFollowupView(event, own), latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, event.updatedAt) }]
     }).sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id))
     return { active: cases.filter(c => !c.event.caseArchivedAt), archived: cases.filter(c => c.event.caseArchivedAt), timezone, today }
   }
@@ -80,6 +81,7 @@ export class CaseContinuityService {
       const previous = (await this.records.repository.findByAccountId(accountId)).find(r => r.caseContext?.requestId === key)
       if (previous) {
         const event = await this.owned(accountId, memberId, previous.eventId)
+        if (input.eventId && input.eventId !== event.id) throw fail('保存标识属于另一次情况，请重新打开记录', 409)
         return { eventId: event.id, recordId: previous.id, attachmentIds: previous.caseContext.attachmentIds ?? [], duplicate: true }
       }
       let event = input.eventId ? await this.owned(accountId, memberId, input.eventId) : null
@@ -108,7 +110,32 @@ export class CaseContinuityService {
   async archive(accountId, memberId, eventId, archived) {
     return accountTransaction(this.directory, async () => {
       const event = await this.owned(accountId, memberId, eventId)
-      return this.events.repository.update(eventId, { caseTracking: true, caseArchivedAt: archived ? this.now().toISOString() : null, ...(archived ? { observationTasks: (event.observationTasks ?? []).map(t => t.status === 'active' ? { ...t, status: 'paused', pausedByArchive: true } : t) } : {}) }, this.now())
+      const at = this.now().toISOString()
+      return this.events.repository.update(eventId, { caseTracking: true, caseArchivedAt: archived ? at : null, caseArchiveReason: archived ? 'general' : null, caseRecoveryMarkedAt: null, caseStateHistory: [...(event.caseStateHistory ?? []), { action: archived ? 'archive' : 'restore', at }], ...(archived ? { observationTasks: (event.observationTasks ?? []).map(t => t.status === 'active' ? { ...t, status: 'paused', pausedByArchive: true } : t) } : {}) }, this.now())
+    })
+  }
+  async recovery(accountId, memberId, eventId, input) {
+    if (!['recover', 'restore', 'undo'].includes(input.action) || !input.requestId) throw fail('康复操作参数无效')
+    const requestId = clean(input.requestId, 100)
+    return accountTransaction(this.directory, async () => {
+      const event = await this.owned(accountId, memberId, eventId), history = event.caseStateHistory ?? []
+      const previous = history.find(h => h.requestId === requestId)
+      if (previous) { if (previous.action !== input.action) throw fail('操作标识不匹配', 409); return event }
+      const last = history.at(-1)
+      if (input.expectedArchivedAt !== undefined && input.expectedArchivedAt !== (event.caseArchivedAt ?? null)) throw fail('情况状态已改变，请刷新后重试', 409)
+      let patch
+      if (input.action === 'undo') {
+        if (!last || last.requestId !== input.undoRequestId || !last.before) throw fail('状态已有新操作，不能撤销旧操作，请刷新', 409)
+        if (JSON.stringify(event.observationTasks??[]) !== JSON.stringify(last.afterTasks??[])) throw fail('观察安排已有修改，请用恢复跟进修正状态，不撤销新安排', 409)
+        patch = last.before
+      } else {
+        if (input.action === 'recover' && event.caseArchivedAt) throw fail('这次情况已归档，请刷新', 409)
+        if (input.action === 'restore' && !event.caseArchivedAt) throw fail('这次情况已在跟进中，请刷新', 409)
+        const at = this.now().toISOString()
+        patch = { status: input.action === 'recover' ? 'recovered' : 'observing', recoveredAt: input.action === 'recover' ? at : null, caseArchivedAt: input.action === 'recover' ? at : null, caseArchiveReason: input.action === 'recover' ? 'user_recovered' : null, caseRecoveryMarkedAt: input.action === 'recover' ? at : null, ...(input.action === 'recover' ? { observationTasks: (event.observationTasks ?? []).map(t => t.status === 'active' ? { ...t, status: 'paused', pausedByArchive: true } : t) } : {}) }
+      }
+      const before = { status: event.status, recoveredAt: event.recoveredAt??null, caseArchivedAt: event.caseArchivedAt ?? null, caseArchiveReason: event.caseArchiveReason ?? null, caseRecoveryMarkedAt: event.caseRecoveryMarkedAt ?? null, observationTasks: event.observationTasks ?? [] }
+      return this.events.repository.update(eventId, { ...patch, caseTracking: true, caseStateHistory: [...history, { action: input.action, requestId, at: this.now().toISOString(), before, afterTasks: patch.observationTasks??event.observationTasks??[] }] }, this.now())
     })
   }
   async observation(accountId, memberId, eventId, input) {
