@@ -25,6 +25,7 @@ export interface QuickRecordPhotoItem {
   origin?: 'capture' | 'library'
   review?: MediaReview
   previewError?: string
+  reviewFetchError?: string
   status: QuickRecordPhotoStatus
   error?: string
 }
@@ -93,7 +94,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     try {
       if(allowVideos && item.file.size > (item.mimeType?.startsWith('video/') ? 100 : 25)*1024*1024)throw new Error(item.mimeType?.startsWith('video/')?'视频超过100MB，请在相册裁剪后重选':'照片超过25MB，请缩小后重选')
       const saved = allowVideos ? await quickRecordService.uploadMedia(uploadDraft,item.file,memberId,token,sortOrder,item.origin??'library',item.localId) : await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...await prepareHealthImage(item.file), sortOrder }, token)
-      if (!live.current || uploadVersionsRef.current.get(item.localId) !== version) {void quickRecordService.deletePhoto(uploadDraft,saved.id,memberId,token).catch(()=>undefined);return}
+      if (!live.current || uploadVersionsRef.current.get(item.localId) !== version) {if(!allowVideos||saved.uploadId===item.localId)void quickRecordService.deletePhoto(uploadDraft,saved.id,memberId,token).catch(()=>undefined);return}
       let previewUrl=item.previewUrl,posterUrl:string|undefined
       if(allowVideos){try{previewUrl=URL.createObjectURL(await quickRecordService.mediaPreview(uploadDraft,saved.id,memberId,token));if(saved.mimeType.startsWith('video/'))posterUrl=URL.createObjectURL(await quickRecordService.mediaPreview(uploadDraft,saved.id,memberId,token,true))}catch{/* original/fallback remains visible */}}
       if (!live.current || uploadVersionsRef.current.get(item.localId) !== version) {URL.revokeObjectURL(previewUrl);if(posterUrl)URL.revokeObjectURL(posterUrl);return}
@@ -161,7 +162,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     photosRef.current = next
     setPhotos(next)
     setPreviewIndex(null)
-    if (item.serverId && memberId && token && draftIdRef.current) void quickRecordService.deletePhoto(draftIdRef.current, item.serverId, memberId, token).catch(() => undefined)
+    if (item.serverId && !next.some(p=>p.serverId===item.serverId) && memberId && token && draftIdRef.current) void quickRecordService.deletePhoto(draftIdRef.current, item.serverId, memberId, token).catch(() => undefined)
   }
 
   const clearLocal = () => {
@@ -183,13 +184,14 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
 
   const payload = (): QuickRecordPhotoPayload => ({
     draftId: draftIdRef.current,
-    photoIds: photosRef.current.filter((photo) => photo.status === 'uploaded' && photo.serverId).map((photo) => photo.serverId!)
+    photoIds: [...new Set(photosRef.current.filter((photo) => photo.status === 'uploaded' && photo.serverId).map((photo) => photo.serverId!))]
   })
 
-  useEffect(()=>{if(!allowVideos||!memberId||!token)return;let active=true;const tick=async()=>{for(const item of photosRef.current.filter(p=>p.status==='uploaded'&&p.serverId&&(!p.review||[p.review.audio?.status,p.review.vision?.status].includes('processing')))){try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId!,memberId,token);if(active&&live.current)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,review:review??p.review}:p))}catch{/* no fabricated completion */}}};const timer=window.setInterval(()=>void tick(),2000);void tick();return()=>{active=false;clearInterval(timer)}},[allowVideos,memberId,token])
+  useEffect(()=>{if(!allowVideos||!memberId||!token)return;let active=true;const tick=async()=>{for(const item of photosRef.current.filter(p=>p.status==='uploaded'&&p.serverId&&(!p.review||[p.review.audio?.status,p.review.vision?.status].includes('processing')))){try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId!,memberId,token);if(active&&live.current)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(active&&live.current)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}};const timer=window.setInterval(()=>void tick(),2000);void tick();return()=>{active=false;clearInterval(timer)}},[allowVideos,memberId,token])
+  const refreshReview=async(localId:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;const scope=localScope;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token);if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}
   const retryReview=async(localId:string,part:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token,part);if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??undefined}:p))}catch(e){setNotice(e instanceof Error?e.message:'整理重试失败')}}
-  const confirmReview=async(localId:string,text:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)throw new Error('资料尚未上传');const review=await quickRecordService.confirmMedia(ensureDraftId(),item.serverId,memberId,token,text);if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review}:p))}
-  return { retryReview,confirmReview,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
+  const confirmReview=async(localId:string,text:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)throw new Error('资料尚未上传');const scope=localScope;const review=await quickRecordService.confirmMedia(ensureDraftId(),item.serverId,memberId,token,text);if(!live.current||scopeRef.current!==scope||!photosRef.current.some(p=>p.localId===localId))throw new Error('资料已移除或人物已切换，未应用到正文');if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review}:p))}
+  return { refreshReview,retryReview,confirmReview,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
 export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, onApply }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; onApply?: (text:string,id:string)=>void }) {
@@ -241,5 +243,6 @@ function MediaItemDetails({item,index,model,onApply}:{item:QuickRecordPhotoItem;
  useEffect(()=>{if(!edited)setText(suggestion.slice(0,1000))},[suggestion,edited])
  const labels:Record<string,string>={processing:'正在整理',needs_confirmation:'待核对',failed:'整理失败',no_audio:'没有音轨',no_speech:'未转写到语言',empty:'没有足够可见信息',not_applicable:'不适用'}
  return <section className="media-item-detail"><strong>{index+1}. {item.name}</strong><p>{item.status==='uploading'?'正在上传并准备兼容预览':item.status==='uploaded'?'原件已上传':'上传失败'}{item.duration?` · ${Math.round(item.duration)}秒`:''} · {((item.size??0)/1024/1024).toFixed(1)}MB</p>{item.error&&<p role="alert">{item.error}</p>}{item.status==='failed'&&<button aria-label={`重试上传 ${item.name}`} type="button" onClick={()=>model.retry(item.localId)}>重试上传</button>}<button aria-label={`移除资料 ${item.name}`} type="button" onClick={()=>model.remove(item.localId)}>移除资料</button>
+ {item.reviewFetchError&&<><p role="alert">{item.reviewFetchError}</p><button type="button" onClick={()=>void model.refreshReview(item.localId)}>重试加载整理状态</button></>}
  {review&&<><p>原件参考日期：{review.referenceDate??'未知，相对时间待确认'}</p><p>口述：{labels[review.audio?.status??'']??'尚未整理'} {review.audio?.message}</p><p>画面：{labels[review.vision?.status??'']??'尚未整理'} {review.vision?.message}</p>{review.sound?.message&&<p>{review.sound.message}</p>}{review.audio?.status==='failed'&&<button type="button" onClick={()=>void model.retryReview(item.localId,'audio')}>重试口述转写</button>}{review.vision?.status==='failed'&&<button type="button" onClick={()=>void model.retryReview(item.localId,'vision')}>重试画面整理</button>}{review.vision?.questions?.map((q,i)=><p key={i}>待确认：{q}</p>)}{suggestion&&onApply&&<><label>资料草稿（核对后应用）<textarea aria-label={`资料草稿 ${index+1}`} maxLength={1000} value={text} onChange={e=>{setEdited(true);setText(e.target.value)}} /></label><p>相对时间、人物与来源差异需核对，不会自动改变发生时间或部位。</p><button type="button" disabled={applying||!text.trim()} onClick={async()=>{setApplying(true);try{await model.confirmReview(item.localId,text);onApply(text,item.serverId??item.localId);setError('')}catch(e){setError(e instanceof Error?e.message:'核对保存失败')}finally{setApplying(false)}}}>{review.confirmedText?'再次应用已核对内容':'核对并补充正文'}</button>{error&&<p role="alert">{error}</p>}</>}</>}{item.status==='uploaded'&&!review&&<button type="button" onClick={()=>void model.retryReview(item.localId,'all')}>开始整理资料</button>}</section>
 }
