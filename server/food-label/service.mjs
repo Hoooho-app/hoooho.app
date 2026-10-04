@@ -170,7 +170,7 @@ export class FoodLabelService{
     if(!translationComplete)issues.push('部分原词或中文对照未可靠确认，请补拍')
     const label={...translations,ingredients:translations.ingredients.map((r,i)=>({...r,name:rows[i].name,fullOriginal:rows[i].fullOriginal,evidence:rows[i].evidence,parent:rows[i].parent,reliable:r.reliable&&rows[i].readReliable})),contains:translations.contains.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.contains.some(s=>excerpt(r.original,s)))})),advisory:translations.advisory.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.advisory.includes(r.original))})),complete:complete&&translationComplete&&!diagnostics.some(d=>d.success===false),issues}
     const checked=checkLabel(label,records)
-    return {taskId:input.taskId,memberId,previews,...checked,assessmentComplete,conflictCount:assessmentComplete?checked.conflictCount:null,counts:assessmentComplete?checked.counts:'',failure:partialFailure,checkErrorCode:assessmentComplete?null:'FOOD_PROFILE_UNAVAILABLE',diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
+    return {taskId:input.taskId,memberId,previews,...checked,labelEvidence:pages.flatMap((p,photoIndex)=>p.ingredients?[{photoIndex,text:p.ingredients,reliable:p.readable}]:[]),assessmentComplete,conflictCount:assessmentComplete?checked.conflictCount:null,counts:assessmentComplete?checked.counts:'',failure:partialFailure,checkErrorCode:assessmentComplete?null:'FOOD_PROFILE_UNAVAILABLE',diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
   }
 }
 

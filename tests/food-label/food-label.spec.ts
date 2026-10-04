@@ -147,3 +147,20 @@ test('root display has one major tag, specific reasons and no fake zero after ar
   await expect(page.locator('.food-label-summary')).toHaveText('图片识别连接失败，请重新拍摄')
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(3)
 })
+
+test('late supplement response cannot replace the newest result of the same member',async({page})=>{
+  await prepare(page);await page.goto('/food-label');await page.locator('input[multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  let release:()=>void=()=>{},started:()=>void=()=>{},count=0
+  const hold=new Promise<void>(resolve=>release=resolve),waiting=new Promise<void>(resolve=>started=resolve)
+  await page.route('**/api/food-label/check',async route=>{
+    const input=route.request().postDataJSON(),old=++count===1
+    if(old){started();await hold}
+    try{await route.fulfill({json:{taskId:input.taskId,memberId,ingredients:old?rows:[{original:'最新成分',chinese:'最新成分',sourceLanguage:'zh',status:'clear',reason:''}],assessmentComplete:true,conflictCount:old?1:0}})}catch{/* Superseded requests are aborted. */}
+  })
+  await page.locator('input[capture]').setInputFiles(photo);await waiting
+  await page.locator('input[capture]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别1项 · 0项已知冲突')
+  release();await expect(page.locator('.food-label-ingredients li')).toHaveCount(1)
+  await expect(page.locator('.food-label-row-heading strong')).toHaveText('最新成分')
+})

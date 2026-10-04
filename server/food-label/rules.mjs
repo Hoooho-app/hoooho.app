@@ -19,6 +19,7 @@ const clean=ingredientIdentity
 const aliases=new Map(Object.entries(groups).flatMap(([group,names])=>names.map(name=>[clean(name),group])))
 const specificAliases=[['almond','almonds','杏仁','扁桃仁'],['cashew','cashews','腰果'],['walnut','walnuts','核桃'],['hazelnut','hazelnuts','榛子'],['pistachio','pistachios','开心果'],['pecan','pecans','碧根果'],['macadamia','夏威夷果'],['cod','鳕鱼'],['salmon','三文鱼'],['tuna','金枪鱼'],['anchovy','鳀鱼'],['shrimp','prawn','虾'],['crab','蟹'],['lobster','龙虾'],['squid','鱿鱼'],['oyster','牡蛎'],['mussel','贻贝'],['scallop','扇贝'],['clam','蛤蜊']]
 const species=new Map(specificAliases.flatMap((names,index)=>names.map(name=>[clean(name),index])))
+for(const names of specificAliases){const group=names.map(n=>aliases.get(clean(n))).find(Boolean);if(group)for(const name of names)aliases.set(clean(name),group)}
 const genericSpecies=new Set(['坚果','tree nuts','鱼类','fish','鱼','甲壳类','crustaceans','软体动物','molluscs','mollusks'])
 // Some printed Contains declarations omit punctuation, e.g. "WHEAT SOY".
 // Split only if the entire declaration consists of exact dictionary names.
@@ -78,6 +79,10 @@ export function checkLabel(label,records=[]){
   const food=records.filter(r=>r.category==='food'&&r.name&&['confirmed','suspected','investigating'].includes(r.currentStatus)&&!/(?:intolerance|restriction|celiac|不耐受|乳糜泻|忌口)/i.test([r.conditionType,r.reactionType,r.name].filter(Boolean).join(' '))).flatMap(r=>[r,...(r.ingredientRelations??[]).filter(v=>v.name).map(v=>({...r,name:v.name,currentStatus:v.relation==='confirmed'?r.currentStatus:'investigating',ingredientRelations:[]}))])
   const hit=(row,record,status,kind,source)=>({status,ingredient:row.name??row.original,personalRecordId:record?.id??null,personalName:record?.name??null,personalStatus:record?.currentStatus??null,kind,source})
   const reasonFor=hits=>{
+    if(hits.length&&hits.every(h=>h.status==='known')){
+      const ingredients=[...new Set(hits.map(h=>h.ingredient))],records=[...new Set(hits.map(h=>h.personalName))]
+      return {zh:`${ingredients.join('、')}匹配已记录的${records.join('、')}过敏。`,en:`${ingredients.join(', ')} match the recorded ${records.join(', ')} allergies.`}
+    }
     const reasons=hits.map(h=>{
       const name=h.personalName,ingredient=h.ingredient
       if(h.kind==='suspected')return {zh:`${ingredient}与${name}疑似过敏记录相关，尚未确诊。`,en:`${ingredient} relates to a suspected ${name} allergy, not a confirmed diagnosis.`}

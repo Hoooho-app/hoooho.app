@@ -85,6 +85,7 @@ test('archive load failure retains read ingredients but never reports zero compl
   const r=await s.service.analyze('owner',input)
   assert.equal(r.displayIngredients.length,3);assert.equal(r.assessmentComplete,false);assert.equal(r.conflictCount,null)
   assert.equal(r.failure,'profile');assert.equal(r.checkErrorCode,'FOOD_PROFILE_UNAVAILABLE')
+  assert.equal(r.labelEvidence[0].text,'Water, Whey, Egg')
 })
 
 test('photo dedup never confuses a substring, child, or differently composed parent with the same root',()=>{
