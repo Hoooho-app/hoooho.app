@@ -3,6 +3,7 @@ import type { FollowedCase } from './types'
 import './cases.css'
 import { NurseStationFactTypewriter } from '../../pages/NurseStation/NurseStationFactTypewriter'
 import { useSettingsStore } from '../../store/useSettingsStore'
+import { HohoButton } from '../../components/design-system/HohoButton'
 import { quickNoteExamples, quickNoteTiming } from './quickNoteExamples'
 const taskStates = { active: '观察中', scheduled: '尚未开始', expired: '观察已到期', paused: '已暂停', ended: '已结束' }
 export function CaseCard({ item }: { item: FollowedCase }) {
@@ -17,15 +18,15 @@ export function CaseCard({ item }: { item: FollowedCase }) {
 export function FollowUpHome() {
   const navigate = useNavigate()
   const care = useSettingsStore(state => state.care)
-  return <section className="continuity-home" aria-label="健康事件随时记与情况列表">
+  const startRecord = () => navigate('/smart-record')
+  return <section className="continuity-home" aria-label="情况速记与跟进列表">
     <div className="continuity-record-entry">
-      <button aria-label="健康事件随时记，情况速记" className="continuity-record-entry__record" onClick={() => navigate('/smart-record')} type="button">
-        <span className="continuity-record-entry__copy"><span aria-hidden="true" className="continuity-record-entry__header-space"/><NurseStationFactTypewriter className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} /></span>
-        <span aria-hidden="true" className="hoho-button continuity-record-entry__action" data-size="small" data-variant="primary">情况速记</span>
+      <button aria-label="症状描述示例，情况速记" className="continuity-record-entry__record" onClick={startRecord} type="button">
+        <span className="continuity-record-entry__copy"><NurseStationFactTypewriter clearOnComplete className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} /></span>
       </button>
-      <div className="continuity-record-entry__header">
-        <strong aria-hidden="true">健康事件随时记</strong>
-        <Link to="/cases">跟进列表</Link>
+      <div className="continuity-record-entry__buttons">
+        <HohoButton className="continuity-record-entry__action" size="small" onClick={startRecord}>情况速记</HohoButton>
+        <HohoButton className="continuity-record-entry__followup" size="small" variant="secondary" onClick={() => navigate('/cases')}>跟进列表</HohoButton>
       </div>
     </div>
   </section>
