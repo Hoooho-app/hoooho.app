@@ -7,11 +7,13 @@ import {chromium,devices,expect} from '@playwright/test'
 if(process.env.RUN_FOOD_LABEL_ACCEPTANCE!=='1')throw new Error('Explicit acceptance opt-in required')
 assert.ok(process.env.FOOD_LABEL_USER_IMAGE,'Original user image is required')
 const target=process.env.FOOD_LABEL_TARGET??'staging'
+// A focused language scenario can be run without re-reading completed cases.
+const languageOnly=process.env.FOOD_LABEL_LANGUAGE_ONLY==='1'
 assert.ok(['staging','production'].includes(target))
 const base=target==='production'?'https://hoooho.com':'https://hooohoapp-staging.up.railway.app'
 const output=path.resolve(`.codex-tmp/food-label-structure/${target}`);await mkdir(output,{recursive:true})
 const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...(process.env.FOOD_LABEL_PROXY?{proxy:{server:process.env.FOOD_LABEL_PROXY}}:{})})
-const context=await browser.newContext({...devices['iPhone SE'],serviceWorkers:'block'})
+const context=await browser.newContext({...devices['iPhone SE'],viewport:{width:375,height:667},serviceWorkers:'block'})
 const page=await context.newPage();let token,memberId,calls=0,successful=0,requests=0
 const errors=[],runtimeErrors=[]
 page.on('pageerror',e=>runtimeErrors.push(e.name))
@@ -63,6 +65,7 @@ try{
   await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'返回',exact:true}).tap();await expect(page.locator('.nurse-station-page')).toBeVisible()
   await page.locator('a[href="/food-label"]').click()
+  if(!languageOnly){
   const original=await scan(process.env.FOOD_LABEL_USER_IMAGE);originalEvidence(original)
   assert.ok(original.displayIngredients.every(r=>r.status==='clear'),'Ordinary additives do not invent risk')
   await shot('original-top');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await shot('original-bottom')
@@ -83,13 +86,16 @@ try{
   assert.ok(english.displayIngredients.some(r=>r.status==='common'),'Other explicitly listed allergens are not personal diagnoses')
   await shot('english-top');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await expect(page.locator('.food-label-ingredients li').last()).toBeVisible();await shot('english-bottom')
   for(const width of [375,393,430]){await page.setViewportSize({width,height:667});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await shot(`english-bottom-${width}`)}
+  }
   await page.evaluate(accountId=>{const settings=JSON.parse(localStorage.getItem('hoooho-settings')??'{"state":{"accounts":{}},"version":1}');settings.state.accounts??={};settings.state.accounts[accountId]={interfaceLanguage:'en-US'};localStorage.setItem('hoooho-settings',JSON.stringify(settings))},session.user.id)
   await page.setViewportSize({width:375,height:667});await page.reload()
+  if(!languageOnly){
   const sameLanguage=await scan(path.resolve('.codex-tmp/food-label-evidence/english-oreo.jpg'))
   assert.equal(sameLanguage.displayIngredients.length,11)
   await expect(page.locator('.food-label-translation')).toHaveCount(0)
   await shot('english-ui-english-label')
-  await page.getByRole('button',{name:'Back',exact:true}).click()
+  await page.locator('.hoho-page-header button').click()
+  }
   const translated=await scan(process.env.FOOD_LABEL_USER_IMAGE);originalEvidence(translated)
   await expect(page.locator('.food-label-translation')).toHaveCount(8)
   await shot('english-ui-chinese-label')
