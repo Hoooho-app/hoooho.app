@@ -102,6 +102,16 @@ try {
   await api('/api/auth/current-member', { memberId })
   await page.goto(base + '/nurse-station')
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
+  // A retained QA browser may restore its previous member preference during bootstrap.
+  // Select the newly owned fixture through the real UI before editing any data.
+  async function selectOwnedMember(name, expectedId) {
+    await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+    await page.getByRole('dialog', { name: '侧边栏菜单', exact: true }).getByRole('button', { name: '打开我的孩子', exact: true }).click()
+    await page.getByRole('dialog', { name: '我的孩子', exact: true }).locator('.current-child-sheet__select').filter({ hasText: name }).click()
+    await expect(page.locator('.nurse-station-identity')).toContainText(name)
+    assert.equal((await api('/api/auth/session', undefined, 'GET')).user.currentMemberId, expectedId)
+  }
+  await selectOwnedMember('布局验收（合成）', memberId)
   for (const width of [375, 320, 390, 393, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
@@ -122,11 +132,9 @@ try {
   await expect(editor).toHaveCount(0); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
   await page.reload(); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
   result.checks.originalGrowthRoutesAndRealBloodEdit = 'PASS'
-  for (const name of ['切换验收（合成）', '布局验收（合成）']) {
-    await page.getByRole('button', { name: '打开菜单', exact: true }).click()
-    await page.getByRole('dialog', { name: '侧边栏菜单', exact: true }).getByRole('button', { name: '打开我的孩子', exact: true }).click()
-    await page.getByRole('dialog', { name: '我的孩子', exact: true }).locator('.current-child-sheet__select').filter({ hasText: name }).click()
-    await expect(page.locator('.nurse-station-identity')).toContainText(name)
+  assert.equal((await api(`/api/members/${memberId}`, undefined, 'GET')).bloodType, 'B')
+  for (const [name, expectedId] of [['切换验收（合成）', secondMemberId], ['布局验收（合成）', memberId]]) {
+    await selectOwnedMember(name, expectedId)
     await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   }
   await expect(page.locator('.nurse-station-blood-type')).toContainText('B型'); result.checks.originalMemberSwitch = 'PASS'
