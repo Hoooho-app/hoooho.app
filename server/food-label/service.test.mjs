@@ -6,6 +6,13 @@ const input={memberId:'a',taskId:'food-label-task-1',photos:[{dataUrl:`data:imag
 const page={text:'Ingredients: Water, Whey, Egg. Contains: Milk. May contain soy.',status:'readable'}
 const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sourceUnknown:false},{original:'Whey',chinese:'乳清',reliable:true,sourceUnknown:false},{original:'Egg',chinese:'鸡蛋',reliable:true,sourceUnknown:false}],contains:[{original:'Milk',chinese:'牛奶',reliable:true,sourceUnknown:false}],advisory:[{original:'May contain soy',chinese:'可能含有大豆',reliable:true,sourceUnknown:false}]}
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
+test('actual partial read failure is distinct from a successfully read partial label',async()=>{
+  const s=service([page,Object.assign(new Error('Invalid output'),{code:'AI_OUTPUT_INVALID'}),translated])
+  const r=await s.service.analyze('owner',{...input,photos:[...input.photos,...input.photos]})
+  assert.equal(r.failure,'read');assert.equal(r.ingredients.length,3);assert.equal(r.conflictCount,1)
+  const partial=service([page,translated],{text:'声明范围缺失',status:'uncertain'})
+  assert.equal((await partial.service.analyze('owner',input)).failure,null)
+})
 test('a clear partial ingredient list without its heading remains readable, not nutrition or claims',()=>{
   assert.equal(parseLabelText('大米、白砂糖、牛奶','readable').ingredients,'大米、白砂糖、牛奶')
   assert.equal(parseLabelText('Water, Sugar, Milk','readable').ingredients,'Water, Sugar, Milk')

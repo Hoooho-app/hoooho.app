@@ -101,7 +101,7 @@ export class FoodLabelService{
     const assertCurrent=async()=>{const current=await this.currentMember?.(accountId);if(current&&current!==memberId)throw failure('当前成员已变化，请重新拍摄','FOOD_MEMBER_CHANGED',409)}
     await assertCurrent()
     if(!Array.isArray(input.photos)||input.photos.length<1||input.photos.length>6)throw failure('一次可核对同一食品的1–6张照片','FOOD_PHOTO_LIMIT')
-    let bytes=0,calls=0
+    let bytes=0,calls=0,partialFailure=null
     const pages=[],diagnostics=[],previews=[]
     for(const photo of input.photos){
       signal?.throwIfAborted()
@@ -127,6 +127,7 @@ export class FoodLabelService{
         }
       }catch(error){
         if(!pages.length)throw error
+        partialFailure='read'
         pages.push({ingredients:'',contains:[],advisory:[],ingredientComplete:false,packagingComplete:false,readable:false,issues:['部分照片识别未完成，请补拍'],productName:''})
         diagnostics.push({success:false,code:error.code??'FOOD_READ_FAILED'})
         break
@@ -149,6 +150,7 @@ export class FoodLabelService{
       for(const [key,originals] of Object.entries({ingredients:rows.map(r=>r.original),contains,advisory}))if(out.value[key].length!==originals.length||out.value[key].some((row,i)=>row.original!==originals[i]))throw failure('翻译未逐项保留原文，请补拍','FOOD_TRANSLATION_INCOMPLETE')
       translations=out.value;diagnostics.push(out.diagnostics)
     }catch(error){
+      partialFailure??='translation'
       translations={ingredients:rows.map(r=>({original:r.original,chinese:r.original,reliable:false,sourceUnknown:true})),contains:contains.map(original=>({original,chinese:original,reliable:false})),advisory:advisory.map(original=>({original,chinese:original,reliable:false}))}
       // Original names that exactly match the rule dictionary can still retain red.
       translations.ingredients.forEach(r=>{r.reliable=true})
@@ -160,7 +162,7 @@ export class FoodLabelService{
     const translationComplete=Object.values(translations).every(list=>list.every(r=>r.reliable))
     if(!translationComplete)issues.push('部分原词或中文对照未可靠确认，请补拍')
     const label={...translations,ingredients:translations.ingredients.map((r,i)=>({...r,parent:rows[i].parent,reliable:r.reliable&&rows[i].readReliable})),contains:translations.contains.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.contains.some(s=>excerpt(r.original,s)))})),advisory:translations.advisory.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.advisory.includes(r.original))})),complete:complete&&translationComplete&&!diagnostics.some(d=>d.success===false),issues}
-    return {taskId:input.taskId,memberId,previews,...checkLabel(label,records),diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
+    return {taskId:input.taskId,memberId,previews,...checkLabel(label,records),failure:partialFailure,diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
   }
 }
 

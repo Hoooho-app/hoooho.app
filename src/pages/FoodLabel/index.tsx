@@ -12,7 +12,7 @@ import { prepareFoodLabelPhoto } from './preparePhoto'
 import './foodLabel.css'
 
 type Ingredient={original:string;chinese:string;english?:string;sourceLanguage?:string;status:'known'|'possible'|'pending'|'clear';reason:string;parent?:number|null}
-type Result={taskId:string;memberId:string;ingredients:Ingredient[];contains:Ingredient[];advisory:Ingredient[];title:string;counts:string;scope:string;tone:'error'|'success'|'warning';previews?:string[]}
+type Result={taskId:string;memberId:string;ingredients:Ingredient[];contains:Ingredient[];advisory:Ingredient[];title:string;counts:string;scope:string;tone:'error'|'success'|'warning';previews?:string[];failure?:'read'|'translation'|null}
 
 export function FoodLabelPage(){
   const memberId=useAppStore(s=>s.currentMemberId),accountId=useAppStore(s=>s.authUser?.id??'')
@@ -65,6 +65,7 @@ function FoodLabelSession({memberId}:{memberId:string}){
         </div>
         <section className="food-label-summary" role="status" aria-live="polite" aria-busy={busy}>
           <p>{busy?<><LoaderCircle aria-hidden="true" className="food-label-spinner"/>{copy.loading}</>:error|| (result?copy.stats(result.ingredients.length,result.ingredients.filter(row=>row.status==='known').length):'')}</p>
+          {!busy&&result?.failure&&<p role="alert">{result.failure==='read'?copy.readFailure:copy.translationFailure}</p>}
         </section>
         {result&&<>
           <h2 className="hoho-text-card-title food-label-list-title">{copy.all}</h2>

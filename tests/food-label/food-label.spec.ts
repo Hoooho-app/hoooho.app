@@ -16,7 +16,7 @@ async function prepare(page:Page,language='zh-CN',ingredients=rows){
     await route.fulfill({json:body,headers:{'Cache-Control':'no-store'}})
   });return requests
 }
-for(const width of [375,393,430])test(`whole page scroll, 21 rows, no persisted data at ${width}px`,async({page},info)=>{
+for(const width of [375,390,393,430])test(`whole page scroll, 21 rows, no persisted data at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:667});const requests=await prepare(page)
   await page.goto('/food-label');await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
   await expect(page.getByText('不应在核对页展示')).toHaveCount(0)
@@ -94,4 +94,8 @@ test('no recognized ingredients and genuine failures remain truthful in the resu
   await page.locator('input[capture=environment]').setInputFiles(photo)
   await expect(page.locator('.food-label-summary')).toHaveText('图片识别连接失败，请重新拍摄')
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
+  await page.route('**/api/food-label/check',route=>{const input=route.request().postDataJSON();return route.fulfill({json:{taskId:input.taskId,memberId:input.memberId,ingredients:rows,failure:'read'}})})
+  await page.locator('input[capture=environment]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别21项 · 1项已知冲突部分照片识别失败')
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
 })
