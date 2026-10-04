@@ -97,6 +97,7 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
   const [installed, setInstalled] = useState(() => isStandalone() || readInstalledMarker())
   const [busy, setBusy] = useState(false)
   const [unsupportedNotice, setUnsupportedNotice] = useState(false)
+  const promptRequest = useRef(0)
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -136,6 +137,7 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
     })
     syncInstalledState()
     return () => {
+      promptRequest.current++
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
       window.removeEventListener('appinstalled', onAppInstalled)
       window.removeEventListener('focus', syncInstalledState)
@@ -158,14 +160,17 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
   const activate = useCallback(async () => {
     if (busy || installed || guideOpen) return
     if (promptEvent) {
+      const requestId = ++promptRequest.current
       setBusy(true)
       setPromptEvent(null)
       try {
         await promptEvent.prompt()
         const choice = await promptEvent.userChoice
-        if (choice.outcome === 'accepted') setInstalled(true)
+        if (requestId === promptRequest.current && choice.outcome === 'accepted') setInstalled(true)
+      } catch {
+        if (requestId === promptRequest.current) setUnsupportedNotice(true)
       } finally {
-        setBusy(false)
+        if (requestId === promptRequest.current) setBusy(false)
       }
       return
     }
@@ -187,6 +192,7 @@ export function InstallAppProvider({ children }: { children: ReactNode }) {
   return (
     <InstallAppContext.Provider value={value}>
       {children}
+      {busy && <div className="install-app-notice" role="status">请在浏览器安装弹窗中确认。未看到弹窗时，可取消后重试。<button className="install-app-prompt-cancel" onClick={() => { promptRequest.current++; setBusy(false) }} type="button">取消等待</button></div>}
       {guideOpen && <InstallGuide onClose={() => setGuideOpen(false)} onConfirmInstalled={confirmInstalled} />}
       {unsupportedNotice && <div aria-live="polite" className="install-app-notice" role="status">当前浏览器暂不支持直接添加</div>}
     </InstallAppContext.Provider>

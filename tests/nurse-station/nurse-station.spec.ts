@@ -232,7 +232,7 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
   await expect(page.getByRole('button', { name: /体重，未记录，查看成长数据/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /血型，未填写，编辑/ })).toBeVisible()
 
-  await page.getByRole('button', { name: /查看123的成长数据/ }).click()
+  await page.getByRole('button', { name: /身高，/ }).click()
   await expect(page).toHaveURL(/\/health-profile\/basic$/)
   await expect(page.getByRole('heading', { name: '成长数据', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /记录列表/ })).toBeVisible()
@@ -621,7 +621,7 @@ test('用药卡片到点记录、逐次撤回、左滑归档和删除确认均�
   await dailyCard.screenshot({ path: 'test-results/medication-card-daily-copy-375x667.png' })
   const overdueCard = page.locator('.medication-course-card').filter({ hasText: '逾期一次用药' })
   await expect(overdueCard).toContainText('今日：0/1')
-  await overdueCard.getByRole('button', { name: '已服用' }).click()
+  await overdueCard.getByRole('button', { name: '记录服用' }).click()
   await expect(overdueCard).toContainText('今日：1/1')
   const dueCard = page.locator('.medication-course-card').filter({ hasText: '四周到点用药' })
   await expect(dueCard).toContainText('疗程：共28天，每天4次')

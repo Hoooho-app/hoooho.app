@@ -1,4 +1,5 @@
 import { Check, Circle, Plus, SquarePen, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { postAuthRequest } from '../../services/auth'
 import { useAppStore } from '../../store/useAppStore'
@@ -82,7 +83,7 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
     else setDragOffset(0)
   }
 
-  return (
+  return createPortal(
     <div className="current-child-sheet-layer" role="presentation">
       <button aria-label="关闭我的孩子" className="current-child-sheet-backdrop" onClick={onClose} type="button" />
       <section
@@ -153,6 +154,6 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
           <button type="button" onClick={onAdd}><Plus aria-hidden="true" size={20} strokeWidth={1.9} />添加孩子</button>
         </footer>
       </section>
-    </div>
+    </div>, document.body
   )
 }

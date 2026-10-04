@@ -2,7 +2,7 @@ import { Archive, MoreHorizontal, Pill, RotateCcw, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MedicationReminderDto } from '../../services/medicationReminders'
 import { routeLabel } from './medicationReminderLogic'
-import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
+import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderCourseText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
 import type { VisitMedicationSnapshot } from '../../types/visitSheet'
 import './medicationReadOnly.css'
 
@@ -46,8 +46,9 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
   const [drag, setDrag] = useState(0)
   const [managementOpen, setManagementOpen] = useState(false)
   const activeCompletions = reminder.completions.filter((item) => !item.undoneAt)
-  const { allComplete, due, next, todayCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
+  const { allComplete, due, next, historical, future, todayCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
   const archived = reminder.status === 'archived'
+  const courseEnded = reminderCourseText(reminder, now).includes('疗程已结束')
   const actionOffset = archived ? 72 : 144
 
   useEffect(() => {
@@ -88,10 +89,12 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
       <div className="medication-course-card__top">
         <div className="medication-course-card__summary">
           <h3><span><Pill /></span>{reminder.plan.medicationName}</h3>
-          <p>疗程：{reminderCoursePlanText(reminder)}</p>
+          <p>疗程：{reminderCoursePlanText(reminder)}{courseEnded && ' · 疗程已结束'}</p>
           <p>用法：每次{reminder.plan.amount}{reminder.plan.unit}（{routeLabel(reminder.plan.route)}）</p>
-          <p className="medication-course-card__today">今日：<strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></p>
-          <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : next ? formatReminderOccurrence(next, reminder.plan.timezone, now) : '暂无'}</p>
+          <p className="medication-course-card__today">今日：{todayTotal === 0 ? '无计划' : <><strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></>}</p>
+          {historical && !archived && <p className="medication-course-card__pending">待确认计划：{next && formatReminderOccurrence(next, reminder.plan.timezone, now)} · 不代表未服用</p>}
+          <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : future ? formatReminderOccurrence(future, reminder.plan.timezone, now) : '无未来计划'}</p>
+          {historical && !archived && <p>点击“记录服用”仍按当前服用时间记录，不自动补为过去已服用。</p>}
         </div>
         <div className="medication-course-card__controls">
           <div className="task-management" ref={managementRef}><button aria-expanded={managementOpen} className="task-management__trigger" onClick={() => setManagementOpen((value) => !value)} type="button">管理<MoreHorizontal aria-hidden="true" /></button>{managementOpen && <div className="task-management__menu" role="menu">{!archived && <button disabled={busy} onClick={() => runManagementAction(onArchive)} role="menuitem" type="button"><Archive aria-hidden="true" />归档</button>}<button className="is-danger" disabled={busy} onClick={() => runManagementAction(onDelete)} role="menuitem" type="button"><Trash2 aria-hidden="true" />删除提醒</button></div>}</div>

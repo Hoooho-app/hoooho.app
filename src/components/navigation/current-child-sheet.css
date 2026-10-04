@@ -37,6 +37,8 @@
   width: 100%;
   max-height: min(72dvh, 540px);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+  max-width: var(--hoho-app-shell-max);
+  margin-inline: auto;
   overflow: hidden;
   border-radius: var(--hoho-radius-overlay) var(--hoho-radius-overlay) 0 0;
   background: rgb(var(--hoho-color-surface));
@@ -76,7 +78,4 @@
 @media (prefers-reduced-motion: reduce) {
   .current-child-sheet { transition: none; }
   .current-child-sheet__busy { animation: none; }
-}
-@media (min-width: 640px) {
-  .current-child-sheet-layer { right: calc((100vw - var(--hoho-app-shell-max)) / 2); left: calc((100vw - var(--hoho-app-shell-max)) / 2); }
 }

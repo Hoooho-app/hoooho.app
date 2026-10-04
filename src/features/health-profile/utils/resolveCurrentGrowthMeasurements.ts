@@ -12,15 +12,29 @@ export function resolveCurrentGrowthMeasurements(
   measurements: readonly GrowthMeasurementApiDto[],
   memberId: string
 ): CurrentGrowthMeasurements {
+  const { heightCm, weightKg } = resolveCurrentGrowthSnapshot(member, measurements, memberId)
+  return { heightCm, weightKg }
+}
+
+// Dates come from the same selected measurement as each value, never from refresh time.
+export function resolveCurrentGrowthSnapshot(
+  member: GrowthSource,
+  measurements: readonly GrowthMeasurementApiDto[],
+  memberId: string
+): CurrentGrowthMeasurements & { heightMeasuredAt: string | null; weightMeasuredAt: string | null } {
   const matching = measurements
     .filter((item) => item.memberId === memberId)
     .sort((left, right) => right.measuredAt.localeCompare(left.measuredAt) || right.createdAt.localeCompare(left.createdAt))
   const confirmed = matching.filter((item) => item.dataStatus === 'confirmed')
   const preferred = confirmed.length ? confirmed : matching
+  const height = preferred.find(item => item.heightCm != null)
+  const weight = preferred.find(item => item.weightKg != null)
 
   return {
-    heightCm: preferred.find((item) => item.heightCm != null)?.heightCm ?? member.heightCm ?? null,
-    weightKg: preferred.find((item) => item.weightKg != null)?.weightKg ?? member.weightKg ?? null,
+    heightCm: height?.heightCm ?? member.heightCm ?? null,
+    weightKg: weight?.weightKg ?? member.weightKg ?? null,
+    heightMeasuredAt: height?.measuredAt ?? null,
+    weightMeasuredAt: weight?.measuredAt ?? null,
   }
 }
 
