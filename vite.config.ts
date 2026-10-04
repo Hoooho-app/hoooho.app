@@ -20,6 +20,7 @@ import { routinesApiPlugin } from './server/routines/vite-routines-plugin.mjs'
 import { medicationRemindersApiPlugin } from './server/medication-reminders/vite-medication-reminders-plugin.mjs'
 import { desensitizationTestsApiPlugin } from './server/desensitization-tests/vite-desensitization-tests-plugin.mjs'
 import { visitSheetsApiPlugin } from './server/visit-sheets/vite-visit-sheets-plugin.mjs'
+import { foodLabelApiPlugin } from './server/food-label/vite-plugin.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
@@ -37,6 +38,7 @@ export default defineConfig({
   },
   plugins: [
     authApiPlugin(),
+    foodLabelApiPlugin(),
     accountApiPlugin(),
     accountEntryStateApiPlugin(),
     visitSheetsApiPlugin(),

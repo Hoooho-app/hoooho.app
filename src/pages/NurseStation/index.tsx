@@ -6,6 +6,7 @@ import healthDiaryImage from '../../assets/nurse-station/home-entries/health-dia
 import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.png'
 import medicationRemindersImage from '../../assets/nurse-station/home-entries/medication-reminders.png'
 import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-summary.png'
+import foodLabelImage from '../../assets/food-label/food-label-entry.png'
 import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
@@ -253,6 +254,7 @@ function HomeEntries({ medicationCount, medicationStatus }: {
       image: medicationRemindersImage,
       to: '/medication-reminders',
     },
+    { id: 'food-label', title: '食品标签核对', subtitle: '拍配料表，对照过敏史', image: foodLabelImage, to: '/food-label' },
   ]
 
   return <section aria-label="首页服务入口" className="nurse-home-entries">{entries.map((entry) => (

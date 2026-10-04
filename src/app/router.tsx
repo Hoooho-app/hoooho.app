@@ -33,6 +33,7 @@ export const router = createBrowserRouter([
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
+      { path: '/food-label', lazy: lazyPage(() => import('../pages/FoodLabel'), 'FoodLabelPage') },
       { path: '/food-allergy-status-index', lazy: lazyPage(() => import('../features/case-continuity/Pages'), 'RetiredIndexPage') },
       { path: '/smart-record', lazy: lazyPage(() => import('../features/case-continuity/Pages'), 'SmartCaseRecordPage') },
       { path: '/cases', lazy: lazyPage(() => import('../features/case-continuity/Pages'), 'CaseListPage') },
