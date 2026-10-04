@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
-import { FoodLabelService,normalizePhoto,parseLabelText,foodFailureMessage } from './service.mjs'
+import { FoodLabelService,normalizePhoto,parseLabelText,foodFailureMessage,mergeRows } from './service.mjs'
 test('actual model failures explain the failure without requesting label completion',()=>{
   for(const code of ['AI_TIMEOUT','AI_OUTPUT_INVALID','AI_OUTPUT_EMPTY','AI_OUTPUT_INCOMPLETE','UNKNOWN'])assert.doesNotMatch(foodFailureMessage({code}),/补拍|未完整|安全/)
 })
@@ -9,6 +9,14 @@ const input={memberId:'a',taskId:'food-label-task-1',photos:[{dataUrl:`data:imag
 const page={text:'Ingredients: Water, Whey, Egg. Contains: Milk. May contain soy.',status:'readable'}
 const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sourceUnknown:false},{original:'Whey',chinese:'乳清',reliable:true,sourceUnknown:false},{original:'Egg',chinese:'鸡蛋',reliable:true,sourceUnknown:false}],contains:[{original:'Milk',chinese:'牛奶',reliable:true,sourceUnknown:false}],advisory:[{original:'May contain soy',chinese:'可能含有大豆',reliable:true,sourceUnknown:false}]}
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
+
+test('screenshot OCR explicitly separates interface icons from printed ingredient text',async()=>{
+ const requests=[];const model={structured:async request=>{requests.push(request);throw Object.assign(new Error('fixture'),{code:'AI_OUTPUT_INVALID'})}}
+ const service=new FoodLabelService({model,members:{get:async()=>{}},readRecords:async()=>[]})
+ await assert.rejects(()=>service.analyze('owner',input),{code:'AI_OUTPUT_INVALID'})
+ assert.match(requests[0].instructions,/图标不是配料文字/)
+ assert.match(requests[0].instructions,/不能把.*符号.*拼到成分名/)
+})
 test('actual partial read failure is distinct from a successfully read partial label',async()=>{
   const s=service([page,Object.assign(new Error('Invalid output'),{code:'AI_OUTPUT_INVALID'}),translated])
   const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}
@@ -30,14 +38,14 @@ test('translation returns packaging language and English without changing origin
 test('supplement deduplicates repeated ingredients without losing compound child paths',async()=>{
   const text={text:'Ingredients: Water, Blend (Milk, Salt), Sugar',status:'readable'}
   const tail={text:'Ingredients: Sugar, Water, Blend (Milk, Salt), Egg',status:'readable'}
-  const names=['Water','Blend','Milk','Salt','Sugar','Egg']
+  const names=['Water','Blend (Milk, Salt)','Milk','Salt','Sugar','Egg']
   const t={ingredients:names.map(original=>({original,chinese:original,reliable:true,sourceUnknown:false})),contains:[],advisory:[]}
   const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}
   const s=service([text,tail,t]);const r=await s.service.analyze('owner',{...input,photos:[...input.photos,other]})
   assert.deepEqual(r.ingredients.map(row=>row.original),names)
   assert.equal(r.ingredients[2].parent,1);assert.equal(r.conflictCount,1)
 })
-function service(values,coverage={text:'完整范围',status:'readable'}){let calls=0;return {service:new FoodLabelService({members:{get:async(_a,m)=>{if(m!=='a')throw Object.assign(new Error('Not owned'),{status:404})}},readRecords:async()=>records,model:{structured:async({task})=>{if(task==='food-label-coverage'){if(coverage instanceof Error)throw coverage;return {value:coverage,diagnostics:{success:true}}}let value=values[calls++];if(value instanceof Error)throw value;if(task==='food-label-translate'&&value?.ingredients)value=Object.fromEntries(Object.entries(value).map(([key,rows])=>[key,rows.map(row=>({...row,english:row.english??'',sourceLanguage:row.sourceLanguage??(/\p{Script=Han}/u.test(row.original)?'zh':'en')}))]));return {value,diagnostics:{success:true}}}}}),calls:()=>calls}}
+function service(values,coverage={text:'完整范围',status:'readable'}){let calls=0;return {service:new FoodLabelService({members:{get:async(_a,m)=>{if(m!=='a')throw Object.assign(new Error('Not owned'),{status:404})}},readRecords:async()=>records,model:{structured:async({task,samplingTemperature})=>{assert.equal(samplingTemperature,0);if(task==='food-label-coverage'){if(coverage instanceof Error)throw coverage;return {value:coverage,diagnostics:{success:true}}}let value=values[calls++];if(value instanceof Error)throw value;if(task==='food-label-translate'&&value?.ingredients)value=Object.fromEntries(Object.entries(value).map(([key,rows])=>[key,rows.map(row=>({...row,english:row.english??'',sourceLanguage:row.sourceLanguage??(/\p{Script=Han}/u.test(row.original)?'zh':'en')}))]));return {value,diagnostics:{success:true}}}}}),calls:()=>calls}}
 test('identical normalized photos are read once within a request, never reuse a previous task',async()=>{
   const s=service([page,translated,page,translated]);const photos=[...input.photos,...input.photos]
   for(let i=0;i<2;i++){const r=await s.service.analyze('owner',{...input,photos});assert.equal(r.ingredients.length,3);assert.equal(r.previews.length,2);assert.equal(r.diagnostics.calls,3)}
@@ -58,7 +66,7 @@ test('member archive absence never makes an empty record a green result',async()
 test('abort before call performs no upstream request',async()=>{const s=service([]),controller=new AbortController();controller.abort();await assert.rejects(()=>s.service.analyze('owner',input,controller.signal));assert.equal(s.calls(),0)})
 test('selected member changes invalidate an older task',async()=>{const s=service([page,translated]);let reads=0;s.service.currentMember=async()=>++reads===1?'a':'other';await assert.rejects(()=>s.service.analyze('owner',input),{code:'FOOD_MEMBER_CHANGED'})})
 test('unselected legacy self context can read a label without green profile claims',async()=>{const s=service([page,translated]);const r=await s.service.analyze('owner',{...input,memberId:'self'});assert.equal(r.profileAvailable,false);assert.notEqual(r.tone,'success')})
-test('uncertain OCR does not become certain just because translation succeeds',async()=>{const s=service([{...page,status:'uncertain'},translated]);const r=await s.service.analyze('owner',input);assert.equal(r.conflictCount,0);assert.ok(r.ingredients.every(row=>row.status==='pending'))})
+test('uncertain OCR does not become certain just because translation succeeds',async()=>{const s=service([{...page,status:'uncertain'},translated]);const r=await s.service.analyze('owner',input);assert.equal(r.conflictCount,0);assert.ok(r.ingredients.every(row=>row.status==='clear'&&row.hits.length===0))})
 test('JPEG EXIF orientation is applied without cropping label text',async()=>{
   const photo=await sharp({create:{width:200,height:100,channels:3,background:'#fff'}}).jpeg().withMetadata({orientation:6}).toBuffer()
   const normalized=await normalizePhoto({dataUrl:'data:image/jpeg;base64,'+photo.toString('base64')})
@@ -78,4 +86,23 @@ test('including lactose declaration is positive source evidence, not an unknown 
   assert.equal(result.ingredients[0].status,'known');assert.equal(result.contains.length,0);assert.equal(result.pendingCount,0)
 })
 test('contradictory coverage markers are rejected without weakening completeness',async()=>{const s=service([page,translated],{text:'配料缺失',status:'readable'});const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.deepEqual(r.diagnostics.errorCodes,['FOOD_COVERAGE_INVALID'])})
-test('uncertain ingredient name forbids a complete result even with clear photo coverage',async()=>{const t={...translated,ingredients:translated.ingredients.map((r,i)=>({...r,reliable:i!==0}))};const s=service([page,t]);const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.match(r.scope,/中文对照未可靠确认/);assert.equal(r.ingredients[1].status,'known')})
+test('uncertain ingredient name forbids a complete result even with clear photo coverage',async()=>{const t={...translated,ingredients:translated.ingredients.map((r,i)=>({...r,reliable:i!==0}))};const s=service([page,t]);const r=await s.service.analyze('owner',input);assert.equal(r.complete,false);assert.equal(r.ingredients[0].hits.length,0);assert.equal(r.ingredients[1].status,'known')})
+
+test('archive load failure retains read ingredients but never reports zero completed conflicts',async()=>{
+  const s=service([page,translated]);s.service.readRecords=async()=>{throw new Error('synthetic storage failure')}
+  const r=await s.service.analyze('owner',input)
+  assert.equal(r.displayIngredients.length,3);assert.equal(r.assessmentComplete,false);assert.equal(r.conflictCount,null)
+  assert.equal(r.failure,'profile');assert.equal(r.checkErrorCode,'FOOD_PROFILE_UNAVAILABLE')
+  assert.equal(r.labelEvidence[0].text,'Water, Whey, Egg')
+})
+
+test('photo dedup never confuses a substring, child, or differently composed parent with the same root',()=>{
+  const merge=texts=>mergeRows(texts.map(ingredients=>({ingredients,readable:true}))).rows
+  const rows=merge(['Bread (Milk, Salt), Rice','Milk, Rice, Bread (Water, Yeast)'])
+  assert.equal(rows.filter(r=>r.parent===null).length,4)
+  assert.equal(rows.filter(r=>r.name==='Milk').length,2)
+  const repeated=merge(['Bread (Milk, Salt), Rice','Rice, Bread (Milk, Salt)'])
+  assert.equal(repeated.filter(r=>r.parent===null).length,2)
+  assert.deepEqual(repeated[0].evidence.photoIndices,[0,1])
+  assert.equal(merge(['Rice (20%)','Rice (60%)']).length,2)
+})

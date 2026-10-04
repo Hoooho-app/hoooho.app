@@ -11,7 +11,7 @@ export function createFoodLabelService(options){
   return new FoodLabelService({...options,currentMember:async accountId=>(await auth.users.findById(accountId))?.currentMemberId,members:new FamilyMemberService(options),readRecords:async(accountId,memberId)=>{
     const section=(await sections.read()).sections.find(s=>s.accountId===accountId&&s.memberId===memberId&&s.sectionId==='allergy')
     // Outer archive ownership is authoritative, including legacy token-valued IDs.
-    return (section?.records??[]).filter(r=>r.recordType!=='allergy-report'&&(!r.memberId||r.memberId===memberId)).map(r=>({name:r.name??r.subject,category:r.category==='food'||String(r.category??r.type??'').includes('食')?'food':r.category,currentStatus:legacyStatus(r.currentStatus??r.certainty??''),ingredientRelations:Array.isArray(r.ingredientRelations)?r.ingredientRelations:[]}))
+    return (section?.records??[]).filter(r=>r.recordType!=='allergy-report'&&(!r.memberId||r.memberId===memberId)).map(r=>({id:r.id,name:r.name??r.subject,conditionType:r.conditionType,reactionType:r.reactionType,category:r.category==='food'||String(r.category??r.type??'').includes('食')?'food':r.category,currentStatus:legacyStatus(r.currentStatus??r.certainty??''),ingredientRelations:Array.isArray(r.ingredientRelations)?r.ingredientRelations:[]}))
   }})
 }
 
@@ -28,7 +28,7 @@ export async function foodLabelApi(request,response,{service,accountId,readJson,
     const result=await service.analyze(accountId,input,controller.signal)
     if(!controller.signal.aborted)sendJson(response,200,result)
   }catch(error){
-    if(!controller.signal.aborted)sendJson(response,error.status??503,{taskId:input?.taskId,error:{code:error.code??'FOOD_ANALYSIS_FAILED',message:foodFailureMessage(error)}})
+    if(!controller.signal.aborted)sendJson(response,error.status??503,{taskId:input?.taskId,error:{code:error.code??'FOOD_ANALYSIS_FAILED',message:foodFailureMessage(error)},...(error.foodDiagnostics?{diagnostics:error.foodDiagnostics}:{})})
   }finally{
     // No persisted photos, OCR, results, draft files or content logs.
     if(input?.photos)input.photos.length=0
