@@ -54,6 +54,14 @@ const provider=(fetchImpl,extras={})=>new BailianProvider({env,fetchImpl,logger:
 const modelFor=(fetchImpl,extras={})=>new BusinessModel({provider:provider(fetchImpl,extras),logger:silent})
 const structured=model=>model.structured({task:'synthetic',schema,instructions:'只整理资料',input:'SYNTHETIC_MEDICAL_INPUT'})
 
+test('food transcription opts into low-randomness sampling without changing other tasks',async()=>{
+ const requests=[];const model=modelFor(async(_url,init)=>{requests.push(JSON.parse(init.body));return success({text:'synthetic'})})
+ await model.structured({task:'food-label-read',schema,instructions:'synthetic',input:'synthetic',samplingTemperature:0})
+ await structured(model)
+ assert.equal(requests[0].temperature,0)
+ assert.equal(Object.hasOwn(requests[1],'temperature'),false)
+})
+
 test('协议结构失败保留白名单可读预览，不进入日志、不重试、不变成成功',async()=>{
  let calls=0;const logs=[]
  const p=provider(async()=>{calls++;return success({text:'合成测试原文',status:'readable',unexpected:'ignored'})},{logger:{info:(...a)=>logs.push(a),warn:(...a)=>logs.push(a)}})

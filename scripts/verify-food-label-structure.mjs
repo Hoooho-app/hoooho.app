@@ -9,6 +9,7 @@ assert.ok(process.env.FOOD_LABEL_USER_IMAGE,'Original user image is required')
 const target=process.env.FOOD_LABEL_TARGET??'staging'
 // A focused language scenario can be run without re-reading completed cases.
 const languageOnly=process.env.FOOD_LABEL_LANGUAGE_ONLY==='1'
+const englishOnly=process.env.FOOD_LABEL_ENGLISH_ONLY==='1'
 assert.ok(['staging','production'].includes(target))
 const base=target==='production'?'https://hoooho.com':'https://hooohoapp-staging.up.railway.app'
 const output=path.resolve(`.codex-tmp/food-label-structure/${target}`);await mkdir(output,{recursive:true})
@@ -28,6 +29,7 @@ async function profile(records){
 }
 async function scan(filename,supplement=false){
   const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/food-label/check'&&r.request().method()==='POST',{timeout:360000})
+  pending.catch(()=>undefined) // Selector failures must not hide behind a closed-page rejection.
   await page.locator(supplement?'input[capture=environment]':'input[multiple]').setInputFiles(filename)
   requests++
   const response=await pending,body=await response.json()
@@ -38,6 +40,7 @@ async function scan(filename,supplement=false){
   const roots=body.displayIngredients;assert.ok(Array.isArray(roots))
   assert.equal(body.conflictCount,roots.filter(r=>r.status==='known').length)
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(roots.length)
+  if(englishOnly)await page.screenshot({path:path.join(output,'english-diagnostic-full.png'),fullPage:true})
   await expect(page.getByText(/标签未读完整|本次未完整核对|项待确认|暂不能排除遗漏|放心食用/)).toHaveCount(0)
   console.log(JSON.stringify({target,request:requests,supplement,roots:roots.length,known:body.conflictCount,common:roots.filter(r=>r.status==='common').length,possible:roots.filter(r=>r.status==='possible').length,diagnostics:body.diagnostics}))
   return body
@@ -65,7 +68,8 @@ try{
   await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'返回',exact:true}).tap();await expect(page.locator('.nurse-station-page')).toBeVisible()
   await page.locator('a[href="/food-label"]').click()
-  if(!languageOnly){
+  await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
+  if(!languageOnly&&!englishOnly){
   const original=await scan(process.env.FOOD_LABEL_USER_IMAGE);originalEvidence(original)
   assert.ok(original.displayIngredients.every(r=>r.status==='clear'),'Ordinary additives do not invent risk')
   await shot('original-top');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await shot('original-bottom')
@@ -88,17 +92,20 @@ try{
   for(const width of [375,393,430]){await page.setViewportSize({width,height:667});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await shot(`english-bottom-${width}`)}
   }
   await page.evaluate(accountId=>{const settings=JSON.parse(localStorage.getItem('hoooho-settings')??'{"state":{"accounts":{}},"version":1}');settings.state.accounts??={};settings.state.accounts[accountId]={interfaceLanguage:'en-US'};localStorage.setItem('hoooho-settings',JSON.stringify(settings))},session.user.id)
-  await page.setViewportSize({width:375,height:667});await page.reload()
-  if(!languageOnly){
+  await page.setViewportSize({width:375,height:667});await page.reload();await expect(page.getByRole('button',{name:'Photograph ingredients',exact:true})).toBeVisible()
+  if(!languageOnly||englishOnly){
   const sameLanguage=await scan(path.resolve('.codex-tmp/food-label-evidence/english-oreo.jpg'))
+  await shot('english-ui-english-label');await page.getByRole('button',{name:'Retake',exact:true}).scrollIntoViewIfNeeded();await shot('english-ui-english-bottom')
   assert.equal(sameLanguage.displayIngredients.length,11)
   await expect(page.locator('.food-label-translation')).toHaveCount(0)
   await shot('english-ui-english-label')
   await page.locator('.hoho-page-header button').click()
   }
+  if(!englishOnly){
   const translated=await scan(process.env.FOOD_LABEL_USER_IMAGE);originalEvidence(translated)
   await expect(page.locator('.food-label-translation')).toHaveCount(8)
   await shot('english-ui-chinese-label')
+  }
   const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));assert.ok(!stored.includes('data:image')&&!stored.includes('特丁基'))
   await page.reload();await expect(page.getByRole('button',{name:'Photograph ingredients',exact:true})).toBeVisible();await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
   assert.equal(runtimeErrors.length,0)
