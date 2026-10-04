@@ -30,10 +30,6 @@ test('用户可见运行时代码统一使用健康随记', () => {
     let checkedSource = file.pathname.endsWith('/pages/HealthEvents/timeViewModel.ts')
       ? source.replace("label: '健康事件'", '')
       : source
-    // Product-owner approved home quick-entry copy; no other module is renamed.
-    if (file.pathname.endsWith('/features/case-continuity/CaseCards.tsx')) {
-      checkedSource = checkedSource.replace('aria-label="健康事件随时记与情况列表"', '').replace('<strong>健康事件随时记</strong>', '')
-    }
     return checkedSource.includes('健康事件') ? [file.pathname] : []
   })
 

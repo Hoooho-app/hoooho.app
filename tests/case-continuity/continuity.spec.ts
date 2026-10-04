@@ -9,13 +9,13 @@ async function capture(request:any,text:string,eventId?:string,identity='parent'
 
 test('首页假输入框和主按钮独立，鼠标键盘进入同一原记录流程',async({page})=>{
   await initialize(page);await page.goto('/nurse-station')
-  const button=page.getByRole('button',{name:'症状数据',exact:true})
+  const button=page.getByRole('button',{name:'记录症状',exact:true})
   await expect(button).toBeVisible();await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   expect(await button.evaluate(el=>el.closest('a')===null)).toBe(true)
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await button.click();await expect(page).toHaveURL(/\/smart-record$/);await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toBeVisible()
   await expect(page.getByRole('textbox',{name:'哪里不舒服',exact:true})).toHaveValue('')
-  await page.goBack();await page.getByRole('button',{name:'症状数据示例，开始记录',exact:true}).click();await expect(page).toHaveURL(/\/smart-record$/)
+  await page.goBack();await page.getByRole('button',{name:'记录症状示例，开始记录',exact:true}).click();await expect(page).toHaveURL(/\/smart-record$/)
   await page.goBack();await button.focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/smart-record$/)
 })
 
