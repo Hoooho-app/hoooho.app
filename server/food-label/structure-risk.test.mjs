@@ -70,3 +70,18 @@ test('partial label is not a risk and only roots are counted',()=>{
   assert.equal(result.counts,'已识别3项 · 1项已知冲突')
   assert.doesNotMatch(result.scope??'',/补拍|未完整|待确认/)
 })
+
+test('negation applies to the named substance, not unrelated modifiers or translated prose',()=>{
+  assert.equal(check('Milk (lactose-free)',[record('牛奶')]).displayIngredients[0].status,'known')
+  assert.equal(check('Lactose-free milk',[record('牛奶')]).displayIngredients[0].status,'known')
+  const advisory=text=>check('Rice',[record('牛奶')],{advisory:[{original:text,reliable:true}]}).advisory[0].status
+  assert.equal(advisory('May contain coconut milk'),'clear')
+  assert.equal(advisory('May contain milk-free chocolate'),'clear')
+  assert.equal(advisory('May contain milk (from shared equipment)'),'possible')
+})
+test('possible-containing parent annotations stay cross-contact, never declared child allergens',()=>{
+  const result=check('Bread (may contain milk)',[record('牛奶')])
+  assert.equal(result.conflictCount,0)
+  assert.equal(result.displayIngredients[0].status,'possible')
+  assert.match(result.displayIngredients[0].reason,/并非确定加入/)
+})

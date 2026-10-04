@@ -7,6 +7,7 @@ export const evidenceSources={
   derivatives:'https://www.fda.gov/media/117410/download?attachment=',
   sources:'https://www.fda.gov/media/78205/download',
   wheat:'https://www.foodallergy.org/living-food-allergies/food-allergy-essentials/common-allergens/wheat',
+  milkQualifier:'https://www.cuh.nhs.uk/patient-information/milk-allergy/',
 }
 export const additionalAllergens={
   celery:['celery','celeriac','芹菜','根芹'],

@@ -21,6 +21,9 @@ const specificAliases=[['almond','almonds','杏仁','扁桃仁'],['cashew','cash
 const species=new Map(specificAliases.flatMap((names,index)=>names.map(name=>[clean(name),index])))
 for(const names of specificAliases){const group=names.map(n=>aliases.get(clean(n))).find(Boolean);if(group)for(const name of names)aliases.set(clean(name),group)}
 const genericSpecies=new Set(['坚果','tree nuts','鱼类','fish','鱼','甲壳类','crustaceans','软体动物','molluscs','mollusks'])
+// Lactose is a different substance; its absence does not negate declared milk.
+// Reviewed source: evidenceSources.milkQualifier (NHS milk-allergy guidance).
+for(const name of ['lactose-free milk','lactose free milk','无乳糖牛奶','无乳糖牛乳'])aliases.set(clean(name),'milk')
 // Some printed Contains declarations omit punctuation, e.g. "WHEAT SOY".
 // Split only if the entire declaration consists of exact dictionary names.
 export function splitDeclaredAllergens(value){
@@ -33,8 +36,8 @@ export function splitDeclaredAllergens(value){
 const negated=value=>/(?:\b(?:free[- ]from|without|no|may contain|traces of)\b|\b[a-z]+[- ]free\b|不含|无乳|无奶|无蛋|可能含|共线|同一.*生产)/i.test(value)
 function namesFor(row){return [clean(row.name??flattenIngredients(row.original)[0]?.name??row.original)].filter(Boolean)}
 function matching(row,records){
-  if(negated(row.original)||negated(row.chinese))return []
   const names=namesFor(row),codes=names.map(name=>aliases.get(name)).filter(Boolean)
+  if(names.some(name=>negated(name)&&!aliases.has(name)))return []
   return records.filter(record=>{const name=clean(record.name),code=aliases.get(name);return names.includes(name)||(codes.includes(code)&&(!['nuts','fish','shellfish','molluscs'].includes(code)||genericSpecies.has(name)||species.has(name)&&names.some(n=>species.get(n)===species.get(name))))})
 }
 
@@ -94,9 +97,26 @@ export function checkLabel(label,records=[]){
     })
     return {zh:[...new Set(reasons.map(r=>r.zh))].join(' '),en:[...new Set(reasons.map(r=>r.en))].join(' ')}
   }
+  const contactHits=row=>{
+    if(!row.reliable)return []
+    // Parse the stated materials, not substring-match milk inside coconut milk
+    // or milk-free chocolate. Printed cross-contact grammar is distinct from
+    // affirmative ingredient facts and model translations are not evidence.
+    const marker=/(?:\b(?:may|might) contain\b|可能含(?:有)?|\b(?:processes|handles)\b|加工)\s*[:：]?\s*([\s\S]+)/i.exec(row.original)
+    const shared=/与(.+?)(?:共线生产|同一生产线)/.exec(row.original)
+    if(!marker&&!shared)return []
+    const value=(marker?.[1]??shared?.[1]??'').replace(/\band\s*\/\s*or\b|\band\b|\bor\b|以及|和|及|或/gi,',').replace(/^(?:traces? of|微量的?)\s*/i,'')
+    const related=[...new Set(flattenIngredients(value).flatMap(r=>matching(r,food)))]
+    return related.map(record=>hit(row,record,'possible','cross-contact',evidenceSources.fda))
+  }
   const classify=(row,hasChildren=false)=>{
     const name=row.name??flattenIngredients(row.original)[0]?.name??row.original,base={...row,name,status:'clear',reason:'',reasonTranslations:{zh:'',en:''},hits:[]}
-    if(!row.reliable||negated(name))return base
+    if(!row.reliable)return base
+    if(/(?:\b(?:may|might) contain\b|可能含(?:有)?|共线生产|同一.*生产)/i.test(name)){
+      const hits=contactHits(row),reasonTranslations=reasonFor(hits)
+      return {...base,factKind:'cross-contact',status:hits.length?'possible':'clear',hits,reason:reasonTranslations.zh,reasonTranslations}
+    }
+    if(negated(name)&&!aliases.has(clean(name)))return base
     const related=matching({...row,name},food)
     const uncertainOil=['peanut oil','花生油','soybean oil','soy oil','soya oil','大豆油'].includes(clean(name))
     const direct=related.map(record=>{
@@ -111,7 +131,7 @@ export function checkLabel(label,records=[]){
     return {...base,status,hits,reason:reasonTranslations.zh,reasonTranslations}
   }
   const sourceRows=label.ingredients??[]
-  const ingredients=sourceRows.map((row,index)=>classify(row,sourceRows.some(child=>child.parent===index)))
+  const ingredients=sourceRows.map((row,index)=>classify(row,sourceRows.some(child=>child.parent===index&&!/(?:\b(?:may|might) contain\b|可能含(?:有)?|共线生产)/i.test(child.name??child.original))))
   function tree(index){
     const row=ingredients[index],children=ingredients.flatMap((child,i)=>child.parent===index?[tree(i)]:[])
     const hits=[...row.hits,...children.flatMap(c=>c.hits)]
@@ -123,12 +143,7 @@ export function checkLabel(label,records=[]){
   const displayIngredients=ingredients.flatMap((row,index)=>row.parent==null?[tree(index)]:[])
   const contains=(label.contains??[]).filter(r=>!negated(r.original)&&!ingredients.some(i=>matching(i,matching(r,food)).length)).map(r=>({...classify(r),kind:'contains'}))
   const advisory=(label.advisory??[]).map(row=>{
-    const mentioned=[...new Set([...aliases.keys(),...food.map(r=>clean(r.name))])].filter(name=>{
-      const value=clean(row.original),escaped=name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
-      return new RegExp(/^[a-z ]+$/i.test(name)?`(?:^|[^a-z])${escaped}(?:$|[^a-z])`:escaped,'i').test(value)
-    })
-    const related=[...new Set(mentioned.flatMap(name=>matching({original:name},food)))]
-    const hits=row.reliable?related.map(record=>hit(row,record,'possible','cross-contact',evidenceSources.fda)):[]
+    const hits=contactHits(row)
     const reasonTranslations=reasonFor(hits)
     return {...row,status:hits.length?'possible':'clear',hits,reason:reasonTranslations.zh,reasonTranslations}
   })
