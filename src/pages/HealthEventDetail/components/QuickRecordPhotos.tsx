@@ -76,14 +76,17 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     let active = true
     void quickRecordService.listPhotos(hydrationDraft, memberId, token).then(async (saved) => {
       const hydrated = await Promise.all(saved.map(async (photo) => {
-        let blob = await quickRecordService.readPhoto(hydrationDraft, photo.id, memberId, token)
-        if(allowVideos)try{blob=await quickRecordService.mediaPreview(hydrationDraft,photo.id,memberId,token)}catch{/* original retained */}
-        return { localId: photo.uploadId??photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, size:photo.binarySize,duration:photo.duration,review:photo.review,previewUrl: URL.createObjectURL(blob), status: 'uploaded' as const }
+        let blob: Blob
+        if(allowVideos)try{blob=await quickRecordService.mediaPreview(hydrationDraft,photo.id,memberId,token)}catch{blob=await quickRecordService.readPhoto(hydrationDraft,photo.id,memberId,token)}
+        else blob=await quickRecordService.readPhoto(hydrationDraft,photo.id,memberId,token)
+        let posterUrl: string | undefined
+        if(allowVideos&&photo.mimeType.startsWith('video/'))try{posterUrl=URL.createObjectURL(await quickRecordService.mediaPreview(hydrationDraft,photo.id,memberId,token,true))}catch{/* identifiable video fallback remains */}
+        return { localId: photo.uploadId??photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, size:photo.binarySize,duration:photo.duration,review:photo.review,previewUrl: URL.createObjectURL(blob), posterUrl, status: 'uploaded' as const }
       }))
       const pending=allowVideos?(await localMediaDraft.list(localScope).catch(()=>[])).filter(p=>!saved.some(s=>s.uploadId===p.localId)):[]
       const restored=pending.map(p=>({localId:p.localId,file:p.file,name:p.file.name,mimeType:p.file.type,size:p.file.size,origin:p.origin,previewUrl:URL.createObjectURL(p.file),status:'failed' as const,error:'上次上传未完成，原件已在本机恢复，请重试上传'}))
-      if (active&&hydrationGeneration.current===hydrationTurn) setPhotos(current=>{const candidates=[...hydrated,...restored];const added=candidates.filter(p=>!removedIds.current.has(p.localId)&&!('serverId' in p&&removedIds.current.has(p.serverId!))&&!current.some(c=>c.localId===p.localId||('serverId' in p&&p.serverId===c.serverId)));candidates.filter(p=>!added.includes(p)).forEach(p=>URL.revokeObjectURL(p.previewUrl));const next=[...current,...added];photosRef.current=next;return next})
-      else [...hydrated,...restored].forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+      if (active&&hydrationGeneration.current===hydrationTurn) setPhotos(current=>{const candidates=[...hydrated,...restored];const added=candidates.filter(p=>!removedIds.current.has(p.localId)&&!('serverId' in p&&removedIds.current.has(p.serverId!))&&!current.some(c=>c.localId===p.localId||('serverId' in p&&p.serverId===c.serverId)));candidates.filter(p=>!added.includes(p)).forEach(p=>{URL.revokeObjectURL(p.previewUrl);if('posterUrl' in p&&p.posterUrl)URL.revokeObjectURL(p.posterUrl)});const next=[...current,...added];photosRef.current=next;return next})
+      else [...hydrated,...restored].forEach((photo) => {URL.revokeObjectURL(photo.previewUrl);if('posterUrl' in photo&&photo.posterUrl)URL.revokeObjectURL(photo.posterUrl)})
     }).catch(() => { if (active) setNotice(allowVideos ? '资料草稿暂时无法恢复，请稍后重试' : '照片草稿暂时无法恢复，请稍后重试') })
     return () => { active = false }
   }, [memberId, namespace, token, localScope])
