@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { checkLabel, flattenIngredients } from './rules.mjs'
+import { checkLabel, flattenIngredients, splitDeclaredAllergens } from './rules.mjs'
 
 test('percentage annotations do not swallow following compound ingredients',()=>{
   const rows=flattenIngredients('Chocolate (19%) [Sugar, Whey Powder (Milk), Emulsifier (Soya Lecithins)], Water')
@@ -61,4 +61,11 @@ test('summary counts only ingredient items, not separate packaging statements',(
   assert.equal(result.conflictCount,0)
   assert.equal(result.pendingCount,1)
   assert.match(result.counts,/已识别2项 · 0项已知冲突 · 1项待确认/)
+})
+test('unpunctuated Contains list is parsed only as whole affirmative dictionary names',()=>{
+  assert.deepEqual(splitDeclaredAllergens('WHEAT SOY'),['WHEAT','SOY'])
+  assert.deepEqual(splitDeclaredAllergens('Milk tree nuts'),['Milk','tree nuts'])
+  assert.deepEqual(splitDeclaredAllergens('May contain milk'),['May contain milk'])
+  assert.deepEqual(splitDeclaredAllergens('milk-free'),['milk-free'])
+  assert.deepEqual(splitDeclaredAllergens('MILK unknown origin'),['MILK unknown origin'])
 })

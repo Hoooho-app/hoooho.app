@@ -12,6 +12,15 @@ const groups={
 }
 const clean=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').replace(/\s*\d+(?:\.\d+)?\s*%/g,'').replace(/[.。]$/,'').trim()
 const aliases=new Map(Object.entries(groups).flatMap(([group,names])=>names.map(name=>[clean(name),group])))
+// Some printed Contains declarations omit punctuation, e.g. "WHEAT SOY".
+// Split only if the entire declaration consists of exact dictionary names.
+export function splitDeclaredAllergens(value){
+  if(negated(value))return [value]
+  const patterns=[...aliases.keys()].sort((a,b)=>b.length-a.length).map(name=>new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/ /g,'\\s+')+'(?=$|[\\s,、;])','i'))
+  let rest=value.trim();const result=[]
+  while(rest){const match=patterns.map(pattern=>pattern.exec(rest)).find(Boolean);if(!match)return [value];result.push(match[0]);rest=rest.slice(match[0].length).replace(/^[\s,、;]+/,'')}
+  return result.length>1?result:[value]
+}
 const neutral=new Set(['water','水','饮用水','purified water','salt','食盐','盐','sugar','白砂糖','糖','citric acid','柠檬酸','xanthan gum','黄原胶','sodium bicarbonate','碳酸氢钠','baking soda','小苏打'])
 const uncertainNames=/^(?:spices?|flavou?rs?|natural flavou?rs?|vegetable oil|hydroly[sz]ed vegetable protein|lecithin|modified starch|香料|香精|天然香料|植物油|水解植物蛋白|卵磷脂|变性淀粉)$/i
 const negated=value=>/(?:\b(?:free[- ]from|without|no|may contain|traces of)\b|\b[a-z]+[- ]free\b|不含|无乳|无奶|无蛋|可能含|共线|同一.*生产)/i.test(value)

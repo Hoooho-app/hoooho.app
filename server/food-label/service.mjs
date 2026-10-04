@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import Ajv from 'ajv'
 import { BusinessModel } from '../ai/business/model.mjs'
 import { withAIAccount } from '../ai/providers/call-control.mjs'
-import { checkLabel, flattenIngredients } from './rules.mjs'
+import { checkLabel, flattenIngredients, splitDeclaredAllergens } from './rules.mjs'
 
 const bool={type:'boolean'}
 const object=properties=>({type:'object',additionalProperties:false,required:Object.keys(properties),properties})
@@ -124,7 +124,7 @@ export class FoodLabelService{
     if(!rows.length)throw failure('未读到配料表，请补拍完整背标签','FOOD_NO_INGREDIENTS')
     if(rows.length>250)throw failure('成分超过本次识别容量，请拍摄单一食品','FOOD_INGREDIENT_LIMIT')
     const unique=values=>[...new Set(values)]
-    const contains=unique(pages.flatMap(p=>p.contains)).flatMap(s=>flattenIngredients(s.replace(/^(?:contains?|含有)\s*[:：]?\s*/i,''))).map(r=>r.original.replace(/^(?:包括|including\s+)/i,'').trim())
+    const contains=unique(pages.flatMap(p=>p.contains)).flatMap(s=>flattenIngredients(s.replace(/^(?:contains?|含有)\s*[:：]?\s*/i,''))).flatMap(r=>splitDeclaredAllergens(r.original.replace(/^(?:包括|including\s+)/i,'').trim()))
     const advisory=unique(pages.flatMap(p=>p.advisory))
     const names=unique(pages.map(p=>normalize(p.productName)).filter(Boolean))
     const complete=connected&&names.length<=1&&pages.every(p=>p.readable)&&pages.some(p=>p.ingredientComplete)&&pages.some(p=>p.packagingComplete)
