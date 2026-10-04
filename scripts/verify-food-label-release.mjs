@@ -6,6 +6,7 @@ import path from 'node:path'
 import {chromium,devices,expect} from '@playwright/test'
 if(process.env.RUN_FOOD_LABEL_ACCEPTANCE!=='1')throw new Error('Explicit acceptance opt-in required')
 const target=process.env.FOOD_LABEL_TARGET??'staging'
+const remaining=process.env.FOOD_LABEL_REMAINING_ONLY==='1'
 assert.ok(['staging','production','local'].includes(target))
 const base=target==='production'?'https://hoooho.com':target==='staging'?'https://hooohoapp-staging.up.railway.app':process.env.FOOD_LABEL_LOCAL_URL??'http://127.0.0.1:4219'
 const output=path.resolve(`.codex-tmp/food-label-release/${target}`);await mkdir(output,{recursive:true})
@@ -43,9 +44,12 @@ try{
   await api('/api/auth/current-member',{memberId})
   const section=await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision,records:[{id:'synthetic-milk',memberId,name:'牛奶',category:'food',currentStatus:'confirmed'},{id:'synthetic-egg',memberId,name:'鸡蛋',category:'food',currentStatus:'suspected'}]});revision=section.revision
   await page.goto(base+'/nurse-station');const entry=page.locator('a[href="/food-label"]');await expect(entry).toBeVisible();await entry.scrollIntoViewIfNeeded();await screenshot('home');await entry.click();await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible();await page.locator('.food-label-hero').evaluate(img=>img.decode());await screenshot('entry')
-  const english=await scan('english-oreo.jpg');await screenshot('english-result');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await screenshot('english-bottom')
-  const supplemented=await scan('english-oreo.jpg',true);assert.deepEqual(supplemented.ingredients.map(r=>r.original),english.ingredients.map(r=>r.original));await expect(page.locator('.food-label-photos img')).toHaveCount(2)
-  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
+  let english
+  if(!remaining){
+    english=await scan('english-oreo.jpg');await screenshot('english-result');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await screenshot('english-bottom')
+    const supplemented=await scan('english-oreo.jpg',true);assert.deepEqual(supplemented.ingredients.map(r=>r.original),english.ingredients.map(r=>r.original));await expect(page.locator('.food-label-photos img')).toHaveCount(2)
+    await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
+  }
   const chinese=await scan('chinese-label-crop.png');assert.ok(chinese.conflictCount>0);await screenshot('chinese-result');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await expect(page.locator('.food-label-ingredients li').last()).toBeVisible();await screenshot('chinese-bottom')
   await expect(page.locator('.food-label-translation')).toHaveCount(0)
   await page.evaluate(accountId=>{const settings=JSON.parse(localStorage.getItem('hoooho-settings')??'{"state":{"accounts":{}},"version":1}');settings.state.accounts??={};settings.state.accounts[accountId]={interfaceLanguage:'en-US'};localStorage.setItem('hoooho-settings',JSON.stringify(settings))},session.user.id)
@@ -57,7 +61,7 @@ try{
   const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));assert.ok(!stored.includes('data:image')&&!stored.includes('UNBLEACHED'))
   await page.reload();await expect(page.getByRole('button',{name:'Photograph ingredients',exact:true})).toBeVisible()
   assert.equal(runtimeErrors.length,0)
-  console.log(JSON.stringify({target,status:'PASS',upstreamCalls,successfulCalls,errors,english:{rows:english.ingredients.length,complete:english.complete},chinese:{rows:chinese.ingredients.length,knownRows:chinese.conflictCount,complete:chinese.complete},languageChecks:{englishUI:englishUI.ingredients.length,chineseInEnglishUI:chineseUI.ingredients.length},screenshots:output}))
+  console.log(JSON.stringify({target,status:'PASS',remainingOnly:remaining,upstreamCalls,successfulCalls,errors,english:english?{rows:english.ingredients.length,complete:english.complete}:null,chinese:{rows:chinese.ingredients.length,knownRows:chinese.conflictCount,complete:chinese.complete},languageChecks:{englishUI:englishUI.ingredients.length,chineseInEnglishUI:chineseUI.ingredients.length},screenshots:output}))
 }finally{
   if(memberId){try{const sections=await api('/api/auth/profile-sections',undefined,'GET');const current=sections.find(s=>s.memberId===memberId&&s.sectionId==='allergy');if(current)await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision:current.revision,records:[]})}catch{errors.push('SYNTHETIC_SECTION_CLEANUP_FAILED')}await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>{errors.push('SYNTHETIC_MEMBER_CLEANUP_FAILED')})}
   console.log(JSON.stringify({target,upstreamCallsReported:upstreamCalls,successfulCallsReported:successfulCalls,errors,cleanup:errors.filter(code=>code.includes('CLEANUP')),retainedAccount:'isolated synthetic registration; deletion requires normal verified identity flow'}))
