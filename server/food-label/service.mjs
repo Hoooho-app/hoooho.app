@@ -74,14 +74,10 @@ export function mergeRows(blocks){
   for(const [photoIndex,block] of blocks.entries()){
     const next=flattenIngredients(block.ingredients).map(row=>({...row,readReliable:block.readable,evidence:{kind:'label',photoIndices:[photoIndex],excerpt:row.fullOriginal}}))
     if(!next.length)continue
-    const a=rows.map(r=>normalize(r.fullOriginal)),b=next.map(r=>normalize(r.fullOriginal))
-    if(a.length&&a.join('|').includes(b.join('|')))continue
-    if(b.join('|').includes(a.join('|'))){rows=next;continue}
-    let overlap=0
-    for(let i=Math.min(a.length,b.length);i>0;i--)if(a.slice(-i).join('|')===b.slice(0,i).join('|')){overlap=i;break}
-    if(rows.length&&!overlap)connected=false
-    const offset=rows.length-overlap
-    rows.push(...next.slice(overlap).map(row=>({...row,parent:row.parent===null?null:row.parent+offset})))
+    const previousRoots=new Set(rows.filter(r=>r.parent===null).map(r=>normalize(r.fullOriginal)))
+    if(rows.length&&!next.some(r=>r.parent===null&&previousRoots.has(normalize(r.fullOriginal))))connected=false
+    const offset=rows.length
+    rows.push(...next.map(row=>({...row,parent:row.parent===null?null:row.parent+offset})))
   }
   const unique=[],seen=new Map(),remap=new Map()
   for(const [index,row] of rows.entries()){

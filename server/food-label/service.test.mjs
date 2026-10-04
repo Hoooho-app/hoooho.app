@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
-import { FoodLabelService,normalizePhoto,parseLabelText,foodFailureMessage } from './service.mjs'
+import { FoodLabelService,normalizePhoto,parseLabelText,foodFailureMessage,mergeRows } from './service.mjs'
 test('actual model failures explain the failure without requesting label completion',()=>{
   for(const code of ['AI_TIMEOUT','AI_OUTPUT_INVALID','AI_OUTPUT_EMPTY','AI_OUTPUT_INCOMPLETE','UNKNOWN'])assert.doesNotMatch(foodFailureMessage({code}),/补拍|未完整|安全/)
 })
@@ -85,4 +85,15 @@ test('archive load failure retains read ingredients but never reports zero compl
   const r=await s.service.analyze('owner',input)
   assert.equal(r.displayIngredients.length,3);assert.equal(r.assessmentComplete,false);assert.equal(r.conflictCount,null)
   assert.equal(r.failure,'profile');assert.equal(r.checkErrorCode,'FOOD_PROFILE_UNAVAILABLE')
+})
+
+test('photo dedup never confuses a substring, child, or differently composed parent with the same root',()=>{
+  const merge=texts=>mergeRows(texts.map(ingredients=>({ingredients,readable:true}))).rows
+  const rows=merge(['Bread (Milk, Salt), Rice','Milk, Rice, Bread (Water, Yeast)'])
+  assert.equal(rows.filter(r=>r.parent===null).length,4)
+  assert.equal(rows.filter(r=>r.name==='Milk').length,2)
+  const repeated=merge(['Bread (Milk, Salt), Rice','Rice, Bread (Milk, Salt)'])
+  assert.equal(repeated.filter(r=>r.parent===null).length,2)
+  assert.deepEqual(repeated[0].evidence.photoIndices,[0,1])
+  assert.equal(merge(['Rice (20%)','Rice (60%)']).length,2)
 })
