@@ -6,6 +6,25 @@ const input={memberId:'a',taskId:'food-label-task-1',photos:[{dataUrl:`data:imag
 const page={text:'Ingredients: Water, Whey, Egg. Contains: Milk. May contain soy.',status:'readable'}
 const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sourceUnknown:false},{original:'Whey',chinese:'乳清',reliable:true,sourceUnknown:false},{original:'Egg',chinese:'鸡蛋',reliable:true,sourceUnknown:false}],contains:[{original:'Milk',chinese:'牛奶',reliable:true,sourceUnknown:false}],advisory:[{original:'May contain soy',chinese:'可能含有大豆',reliable:true,sourceUnknown:false}]}
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
+test('a clear partial ingredient list without its heading remains readable, not nutrition or claims',()=>{
+  assert.equal(parseLabelText('大米、白砂糖、牛奶','readable').ingredients,'大米、白砂糖、牛奶')
+  assert.equal(parseLabelText('Water, Sugar, Milk','readable').ingredients,'Water, Sugar, Milk')
+  for(const text of ['Nutrition facts: Fat, Protein, 12 g','May contain milk, eggs','Milk-free, Gluten-free','Storage: cool, dry place'])assert.equal(parseLabelText(text,'readable').ingredients,'')
+})
+test('translation returns packaging language and English without changing original or diagnosis',async()=>{
+  const t={...translated,ingredients:translated.ingredients.map(r=>({...r,english:r.original,sourceLanguage:'en'}))}
+  const s=service([page,t]);const r=await s.service.analyze('owner',input)
+  assert.equal(r.ingredients[0].english,'Water');assert.equal(r.ingredients[0].sourceLanguage,'en');assert.equal(r.conflictCount,1)
+})
+test('supplement deduplicates repeated ingredients without losing compound child paths',async()=>{
+  const text={text:'Ingredients: Water, Blend (Milk, Salt), Sugar',status:'readable'}
+  const tail={text:'Ingredients: Sugar, Water, Blend (Milk, Salt), Egg',status:'readable'}
+  const names=['Water','Blend','Milk','Salt','Sugar','Egg']
+  const t={ingredients:names.map(original=>({original,chinese:original,reliable:true,sourceUnknown:false})),contains:[],advisory:[]}
+  const s=service([text,tail,t]);const r=await s.service.analyze('owner',{...input,photos:[...input.photos,...input.photos]})
+  assert.deepEqual(r.ingredients.map(row=>row.original),names)
+  assert.equal(r.ingredients[2].parent,1);assert.equal(r.conflictCount,1)
+})
 function service(values,coverage={text:'完整范围',status:'readable'}){let calls=0;return {service:new FoodLabelService({members:{get:async(_a,m)=>{if(m!=='a')throw Object.assign(new Error('Not owned'),{status:404})}},readRecords:async()=>records,model:{structured:async({task})=>{if(task==='food-label-coverage'){if(coverage instanceof Error)throw coverage;return {value:coverage,diagnostics:{success:true}}}const value=values[calls++];if(value instanceof Error)throw value;return {value,diagnostics:{success:true}}}}}),calls:()=>calls}}
 test('complete source goes through image decode, independent coverage, translation and deterministic rules',async()=>{const s=service([page,translated]);const r=await s.service.analyze('owner',input);assert.equal(r.ingredients.length,3);assert.equal(r.conflictCount,1);assert.equal(r.ingredients[2].status,'possible');assert.equal(r.advisory.length,1);assert.equal(r.diagnostics.calls,3)})
 test('clear partial labels retain known red without a complete or green conclusion',async()=>{const s=service([page,translated],{text:'声明范围缺失',status:'uncertain'});const r=await s.service.analyze('owner',input);assert.equal(r.ingredients[1].status,'known');assert.equal(r.complete,false);assert.notEqual(r.tone,'success')})

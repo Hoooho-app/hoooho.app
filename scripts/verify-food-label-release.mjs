@@ -18,14 +18,16 @@ async function api(url,data,method='POST'){
   const response=await context.request.fetch(base+url,{method,headers:{...(token?{Authorization:`Bearer ${token}`}:{})},...(data===undefined?{}:{data}),timeout:130000,maxRetries:0})
   const body=await response.json();assert.ok(response.ok(),`API ${url}: ${response.status()} ${body.error?.code??''}`);return body
 }
-async function scan(filename){
+async function scan(filename,supplement=false){
   const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/food-label/check'&&r.request().method()==='POST',{timeout:135000})
-  await page.locator('input[type=file][multiple]').setInputFiles(path.resolve(`.codex-tmp/food-label-evidence/${filename}`))
+  await page.locator(supplement?'input[capture=environment]':'input[type=file][multiple]').setInputFiles(path.resolve(`.codex-tmp/food-label-evidence/${filename}`))
   const response=await pending,body=await response.json();if(!response.ok())errors.push(body.error?.code??`HTTP_${response.status()}`);assert.ok(response.ok(),`Food API ${response.status()} ${body.error?.code??''}`)
   assert.match(response.headers()['cache-control'],/no-store/);upstreamCalls+=body.diagnostics.calls;successfulCalls+=body.diagnostics.successfulCalls;errors.push(...body.diagnostics.errorCodes)
   assert.ok(body.ingredients.length>=16);await expect(page.locator('.food-label-ingredients li')).toHaveCount(body.ingredients.length)
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveCount(body.conflictCount)
+  await expect(page.getByText(/标签未读完整|本次未完整核对|项待确认|暂不能排除遗漏|放心食用/)).toHaveCount(0)
   // Evidence is limited to public packaging and this script's fictional profile.
-  console.log(JSON.stringify({target,sample:filename,publicLabelRows:body.ingredients.map(({original,chinese,status})=>({original,chinese,status})),diagnostics:body.diagnostics}))
+  console.log(JSON.stringify({target,sample:filename,supplement,publicLabelRows:body.ingredients.map(({original,chinese,english,sourceLanguage,status})=>({original,chinese,english,sourceLanguage,status})),diagnostics:body.diagnostics}))
   return body
 }
 async function screenshot(name){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,name+'.png')})}
@@ -40,15 +42,22 @@ try{
   memberId=(await api('/api/members',{name:'合成食品验收非真实儿童',relationship:'child',birthday:'2025-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId})
   const section=await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision,records:[{id:'synthetic-milk',memberId,name:'牛奶',category:'food',currentStatus:'confirmed'},{id:'synthetic-egg',memberId,name:'鸡蛋',category:'food',currentStatus:'suspected'}]});revision=section.revision
-  await page.goto(base+'/nurse-station');const entry=page.getByRole('link',{name:/食品标签核对/});await expect(entry).toBeVisible();await entry.scrollIntoViewIfNeeded();await screenshot('home');await entry.click();await screenshot('entry')
+  await page.goto(base+'/nurse-station');const entry=page.locator('a[href="/food-label"]');await expect(entry).toBeVisible();await entry.scrollIntoViewIfNeeded();await screenshot('home');await entry.click();await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible();await page.locator('.food-label-hero').evaluate(img=>img.decode());await screenshot('entry')
   const english=await scan('english-oreo.jpg');await screenshot('english-result');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await screenshot('english-bottom')
-  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('button',{name:'拍摄食品标签',exact:true})).toBeVisible()
+  const supplemented=await scan('english-oreo.jpg',true);assert.deepEqual(supplemented.ingredients.map(r=>r.original),english.ingredients.map(r=>r.original));await expect(page.locator('.food-label-photos img')).toHaveCount(2)
+  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
   const chinese=await scan('chinese-label-crop.png');assert.ok(chinese.conflictCount>0);await screenshot('chinese-result');await page.getByRole('button',{name:'重新拍摄',exact:true}).scrollIntoViewIfNeeded();await expect(page.locator('.food-label-ingredients li').last()).toBeVisible();await screenshot('chinese-bottom')
+  await expect(page.locator('.food-label-translation')).toHaveCount(0)
+  await page.evaluate(accountId=>{const settings=JSON.parse(localStorage.getItem('hoooho-settings')??'{"state":{"accounts":{}},"version":1}');settings.state.accounts??={};settings.state.accounts[accountId]={interfaceLanguage:'en-US'};localStorage.setItem('hoooho-settings',JSON.stringify(settings))},session.user.id)
+  await page.reload();await expect(page.getByRole('heading',{name:'Ingredient scan',exact:true})).toBeVisible()
+  const englishUI=await scan('english-oreo.jpg');await expect(page.locator('.food-label-translation')).toHaveCount(0)
+  await page.getByRole('button',{name:'返回',exact:true}).click()
+  const chineseUI=await scan('chinese-label-crop.png');assert.ok(chineseUI.ingredients.every(r=>r.english));await expect(page.locator('.food-label-translation')).toHaveCount(chineseUI.ingredients.length);await screenshot('english-ui-chinese-result')
   const after=await api('/api/auth/profile-sections',undefined,'GET');assert.deepEqual(after.find(s=>s.memberId===memberId&&s.sectionId==='allergy'),section,'recognition must not mutate allergy history')
   const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));assert.ok(!stored.includes('data:image')&&!stored.includes('UNBLEACHED'))
-  await page.reload();await expect(page.getByRole('button',{name:'拍摄食品标签',exact:true})).toBeVisible()
+  await page.reload();await expect(page.getByRole('button',{name:'Photograph ingredients',exact:true})).toBeVisible()
   assert.equal(runtimeErrors.length,0)
-  console.log(JSON.stringify({target,status:'PASS',upstreamCalls,successfulCalls,errors,english:{rows:english.ingredients.length,complete:english.complete},chinese:{rows:chinese.ingredients.length,knownRows:chinese.conflictCount,complete:chinese.complete},screenshots:output}))
+  console.log(JSON.stringify({target,status:'PASS',upstreamCalls,successfulCalls,errors,english:{rows:english.ingredients.length,complete:english.complete},chinese:{rows:chinese.ingredients.length,knownRows:chinese.conflictCount,complete:chinese.complete},languageChecks:{englishUI:englishUI.ingredients.length,chineseInEnglishUI:chineseUI.ingredients.length},screenshots:output}))
 }finally{
   if(memberId){try{const sections=await api('/api/auth/profile-sections',undefined,'GET');const current=sections.find(s=>s.memberId===memberId&&s.sectionId==='allergy');if(current)await api('/api/auth/profile-sections',{memberId,sectionId:'allergy',revision:current.revision,records:[]})}catch{errors.push('SYNTHETIC_SECTION_CLEANUP_FAILED')}await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>{errors.push('SYNTHETIC_MEMBER_CLEANUP_FAILED')})}
   console.log(JSON.stringify({target,upstreamCallsReported:upstreamCalls,successfulCallsReported:successfulCalls,errors,cleanup:errors.filter(code=>code.includes('CLEANUP')),retainedAccount:'isolated synthetic registration; deletion requires normal verified identity flow'}))
