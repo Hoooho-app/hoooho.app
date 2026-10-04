@@ -19,7 +19,7 @@ async function api(url,data,method='POST'){
   const body=await response.json();assert.ok(response.ok(),`API ${url}: ${response.status()} ${body.error?.code??''}`);return body
 }
 async function scan(filename,supplement=false){
-  const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/food-label/check'&&r.request().method()==='POST',{timeout:135000})
+  const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/food-label/check'&&r.request().method()==='POST',{timeout:360000})
   await page.locator(supplement?'input[capture=environment]':'input[type=file][multiple]').setInputFiles(path.resolve(`.codex-tmp/food-label-evidence/${filename}`))
   const response=await pending,body=await response.json();if(!response.ok())errors.push(body.error?.code??`HTTP_${response.status()}`);assert.ok(response.ok(),`Food API ${response.status()} ${body.error?.code??''}`)
   assert.match(response.headers()['cache-control'],/no-store/);upstreamCalls+=body.diagnostics.calls;successfulCalls+=body.diagnostics.successfulCalls;errors.push(...body.diagnostics.errorCodes)

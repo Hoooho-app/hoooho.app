@@ -37,6 +37,8 @@ function matching(row,records){
 // Deterministic flattening prevents the model from dropping uncommon ingredients.
 // Parentheses with no separator remain source annotations, e.g. whey (milk).
 export function flattenIngredients(text){
+  // Printed wrapping carries no list semantics. Explicit bullets/ordinals do.
+  text=text.replace(/\r?\n(?=\s*(?:\d+[.)、]|[①-⑳•]))/g,', ').replace(/\r?\n/g,' ')
   const result=[]
   function parse(value,parent=null){
     let start=0,depth=0
