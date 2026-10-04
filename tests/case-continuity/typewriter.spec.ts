@@ -99,8 +99,8 @@ test('同排跟进列表是独立入口，鼠标及键盘均只跳转一次',asy
   }
 })
 
-test('实际节奏短录屏：输入、停留、删除及点击原流程',async({browser})=>{
-  const context=await browser.newContext({...devices['iPhone SE'],viewport:{width:375,height:667},baseURL:'http://127.0.0.1:4196',recordVideo:{dir:'outputs/home-restore-pr306-20261004/local',size:{width:375,height:667}},serviceWorkers:'block'})
+test('实际节奏短录屏：输入、停留、删除及点击原流程',async({browser,baseURL})=>{
+  const context=await browser.newContext({...devices['iPhone SE'],viewport:{width:375,height:667},baseURL,recordVideo:{dir:'outputs/home-restore-pr306-20261004/local',size:{width:375,height:667}},serviceWorkers:'block'})
   const page=await context.newPage();await initialize(page);await page.goto('/nurse-station')
   await expect(page.locator('.continuity-record-entry')).toBeVisible()
   await expect(page.locator('.continuity-record-entry__example span')).toHaveText(quickNoteExamples[1],{timeout:12000})
