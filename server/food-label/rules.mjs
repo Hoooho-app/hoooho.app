@@ -1,4 +1,4 @@
-import { additionalAllergens, possibleAssociations, evidenceSources } from './knowledge.mjs'
+import { additionalAllergens, possibleAssociations, evidenceSources, constituentMatching } from './knowledge.mjs'
 // Exact names and documented derivatives, not substring keyword matching.
 const groups={
   milk:['牛奶','牛乳','生牛乳','乳','奶','乳及乳制品','乳制品','dairy products','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
@@ -38,7 +38,18 @@ function namesFor(row){return [clean(row.name??flattenIngredients(row.original)[
 function matching(row,records){
   const names=namesFor(row),codes=names.map(name=>aliases.get(name)).filter(Boolean)
   if(names.some(name=>negated(name)&&!aliases.has(name)))return []
-  return records.filter(record=>{const name=clean(record.name),code=aliases.get(name);return names.includes(name)||(codes.includes(code)&&(!['nuts','fish','shellfish','molluscs'].includes(code)||genericSpecies.has(name)||species.has(name)&&names.some(n=>species.get(n)===species.get(name))))})
+  return records.filter(record=>{
+    const name=clean(record.name),code=aliases.get(name)
+    if(names.includes(name))return true
+    if(!code||!codes.includes(code))return false
+    const constituent=constituentMatching[code]
+    if(constituent){
+      if(constituent.generic.some(n=>clean(n)===name))return true
+      const equivalent=constituent.components.find(group=>group.some(n=>clean(n)===name))
+      return Boolean(equivalent&&names.some(n=>equivalent.some(alias=>clean(alias)===n)||constituent.whole.some(alias=>clean(alias)===n)))
+    }
+    return !['nuts','fish','shellfish','molluscs'].includes(code)||genericSpecies.has(name)||species.has(name)&&names.some(n=>species.get(n)===species.get(name))
+  })
 }
 
 // Deterministic flattening prevents the model from dropping uncommon ingredients.

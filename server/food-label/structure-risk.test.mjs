@@ -91,3 +91,12 @@ test('processing uncertainty and explicit allergen declarations are distinct evi
   assert.equal(check('Lactose',[record('牛奶')],{contains:[{original:'Milk',reliable:true}]}).displayIngredients[0].status,'known')
   assert.equal(check('Peanut oil',[record('花生')],{contains:[{original:'Peanuts',reliable:true}]}).displayIngredients[0].status,'known')
 })
+
+test('different milk proteins and egg parts are not interchangeable personal diagnoses',()=>{
+  assert.equal(check('Whey',[record('酪蛋白')]).displayIngredients[0].status,'common')
+  assert.equal(check('Casein',[record('乳清')]).displayIngredients[0].status,'common')
+  assert.equal(check('Casein',[record('酪蛋白')]).displayIngredients[0].status,'known')
+  assert.equal(check('Egg yolk',[record('蛋清')]).displayIngredients[0].status,'common')
+  assert.equal(check('Egg white',[record('蛋清')]).displayIngredients[0].status,'known')
+  assert.equal(check('Whey',[record('牛奶')]).displayIngredients[0].status,'known')
+})
