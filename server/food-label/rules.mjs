@@ -50,8 +50,8 @@ export function flattenIngredients(text){
     }
     parts.push(value.slice(start))
     for(let part of parts){part=part.trim().replace(/[。.]$/,'').trim();if(!part)continue
-      if(/^[\d\s\u2190-\u21ff\u27a0-\u27bf.]+$/u.test(part.normalize('NFKC')))continue
       if(quantityOnly.test(part.normalize('NFKC'))){const previous=result.findLast(r=>r.parent===parent);if(previous)previous.original+=' '+part;continue}
+      if(/^[\p{Number}\p{Punctuation}\p{Symbol}\s]+$/u.test(part.normalize('NFKC'))||/^(?:mg|kg|g|ml|l|克|千克|毫克|毫升)$/i.test(part))continue
       part=part.replace(/^(?:[\u2190-\u21ff\u27a0-\u27bf•·]+\s*|[①-⑳]\s*|\d+[.)、]\s*|\d+\s+(?=[^\d\s]))/u,'')
       let name='',children=[],level=0,open=0
       for(let i=0;i<part.length;i++){

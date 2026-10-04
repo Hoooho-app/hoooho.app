@@ -12,6 +12,7 @@ test('isolated quantities attach to ingredients; arrows and ordinals never count
   assert.deepEqual(flattenIngredients('Rice (≥60%), Blend (Milk, 20%, Salt), Water').map(r=>r.original),['Rice (≥60%)','Blend','Milk 20%','Salt','Water'])
   assert.equal(checkLabel(label([row('Milk ≥20%')]),records).conflictCount,1)
   assert.deepEqual(flattenIngredients('①, ↓, ② Rice, Sugar').map(r=>r.original),['Rice','Sugar'])
+  assert.deepEqual(flattenIngredients('Rice, %, g, ◆, Sugar').map(r=>r.original),['Rice','Sugar'])
 })
 
 test('percentage annotations do not swallow following compound ingredients',()=>{
