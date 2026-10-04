@@ -12,4 +12,4 @@ export const quickNoteExamples = [
   '晚上睡觉又咳了几次，白天倒不太咳，也没发烧。这两天鼻子有点堵，刚换过被子，我想把发生的时间先记下来。',
 ] as const
 
-export const quickNoteTiming = { type: 50, hold: 5000, delete: 45, empty: 200 } as const
+export const quickNoteTiming = { type: 50, hold: 3500, delete: 45, empty: 200 } as const

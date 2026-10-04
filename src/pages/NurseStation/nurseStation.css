@@ -36,12 +36,12 @@
 
 .nurse-home-entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .nurse-home-entry { display: grid; width: 100%; min-width: 0; height: 88px; grid-template-columns: minmax(0, 1fr) 58px; align-items: center; gap: 4px; overflow: hidden; border: 1px solid; border-radius: 14px; padding: 10px 8px 10px 12px; color: #36564e; text-align: left; text-decoration: none; transition: border-color 140ms ease, transform 100ms ease; }
-.nurse-home-entry--diary { border-color: #dfece6; background: #f2f8f5; }
-.nurse-home-entry--profile { border-color: #f0e5e1; background: #fbf5f3; }
-.nurse-home-entry--visit { border-color: #e2eaf0; background: rgb(var(--hoho-color-visit-entry-surface)); }
-.nurse-home-entry--dietary { border-color: #efe9d8; background: #fbf8f0; }
-.nurse-home-entry--medication { border-color: #dcece5; background: #f3f8f5; }
-.nurse-home-entry--food-label { border-color: #f2d8bf; background: #fff3e7; }
+.nurse-home-entry--diary { border-color: #d2e9dc; background: #eef9f2; }
+.nurse-home-entry--profile { border-color: #efd9e2; background: #fff1f6; }
+.nurse-home-entry--visit { border-color: #d6e5f2; background: #eef5fc; }
+.nurse-home-entry--dietary { border-color: #eee4bd; background: #fffae8; }
+.nurse-home-entry--medication { border-color: #e3ddf0; background: #f5f1fc; }
+.nurse-home-entry--food-label { border-color: #f2dcc8; background: #fff4ea; }
 .nurse-home-entry--desensitization { border-color: #e7dff0; background: #f7f3fb; }
 .nurse-home-entry:hover { border-color: #c5dcd6; }
 .nurse-home-entry:active { transform: scale(.99); }
