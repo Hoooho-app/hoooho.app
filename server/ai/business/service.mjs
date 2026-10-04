@@ -24,7 +24,7 @@ const instructions = `将用户原文整理成当前人物的待确认记录，�
 const text = (v, limit = 10000) => typeof v === 'string' && v.length <= limit ? v.trim() : ''
 const field = (item, name) => item.fields.find(f => f.name === name)?.value
 const keyFor = (item,draft) => fingerprint({category:item.category,time:item.time?.resolvedStart ?? item.timeText ?? draft.referenceNow,fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value))})
-const publicDraft = d => ({id:d.id,version:d.version,state:d.state,preview:d.preview??null,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
+const publicDraft = d => ({id:d.id,version:d.version,state:d.state,targetEventId:d.targetEventId??null,sourceRecordId:d.sourceRecordId??null,preview:d.preview??null,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
 const contentFor=item=>item.fields.map(f=>`${fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
 const revisionKey=r=>fingerprint([r.type,r.content,r.occurredAt,r.journal,r.aiProvenance])
 const groupFor=item=>{
@@ -71,7 +71,7 @@ export class AIBusinessService {
   async write(draft) { await this.store.update(data=>({...data,drafts:[...data.drafts.filter(d=>d.id!==draft.id),structuredClone(draft)]}));return publicDraft(draft) }
   async latest(accountId,memberId){await this.scoped(accountId,memberId);await this.prune();const d=(await this.store.read()).drafts.filter(d=>d.accountId===accountId&&d.memberId===memberId&&['ready','failed'].includes(d.state)).at(-1);return d?publicDraft(d):null}
   async file(accountId,memberId,id,fileId){const d=await this.get(accountId,memberId,id),file=d.documents.find(f=>f.id===fileId);if(!file)throw fail('草稿原件不存在或已保存到正式记录',404);return {name:file.name,mimeType:file.mimeType,buffer:Buffer.from(file.dataUrl.split(',')[1],'base64')}}
-  async cancel(accountId,memberId,id) { await this.get(accountId,memberId,id);await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>d.id!==id)}));return {cancelled:true} }
+  async cancel(accountId,memberId,id) { const draft=await this.get(accountId,memberId,id);return accountTransaction(this.directory,async()=>{if(draft.sourceRecordId){const source=await this.records.getOwnedRecord(accountId,draft.sourceRecordId);if(source.caseContext?.aiDraftId===id)await this.records.repository.update(source.id,{caseContext:{...source.caseContext,aiDraftId:null}},this.now())}await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>d.id!==id)}));return {cancelled:true}}) }
   async context(accountId,memberId,raw){
     const member=await this.scoped(accountId,memberId),terms=[...new Set(raw.match(/[\u4e00-\u9fff]{2,8}/g)??[])].slice(0,12)
     const ids=new Set((await this.events.repository.findByAccountId(accountId)).filter(e=>e.memberId===memberId).map(e=>e.id))
@@ -102,9 +102,11 @@ export class AIBusinessService {
     const task=['record','report','visit','archive'].includes(input.task)?input.task:'record'
     const targetEventId = input.eventId ?? previous?.targetEventId ?? null
     const sourceIdentity = input.sourceIdentity ?? previous?.sourceIdentity ?? null
+    const sourceRecordId = input.sourceRecordId ?? previous?.sourceRecordId ?? null
     if (targetEventId) { const target = await this.events.get(accountId, targetEventId); if (target.memberId !== memberId || target.caseArchivedAt) throw fail('资料必须接回当前人物未归档的情况', 409) }
+    if (sourceRecordId) { const source = await this.records.getOwnedRecord(accountId, sourceRecordId); if (!targetEventId || source.eventId !== targetEventId || !source.caseContext) throw fail('原始资料不属于这次情况', 404) }
     if (sourceIdentity && !['parent','medical_consultation','examination_report','external_ai','pending'].includes(sourceIdentity)) throw fail('资料来源无效')
-    const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity])
+    const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
@@ -114,8 +116,11 @@ export class AIBusinessService {
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false
     draft.targetEventId = targetEventId; draft.sourceIdentity = sourceIdentity
+    draft.sourceRecordId = sourceRecordId
+    if (sourceRecordId) draft.sourceRecordRevision = revisionKey(await this.records.getOwnedRecord(accountId, sourceRecordId))
     draft.preview=null
     await this.write(draft)
+    if (sourceRecordId) { const source = await this.records.getOwnedRecord(accountId, sourceRecordId); await this.records.repository.update(sourceRecordId, { caseContext: { ...source.caseContext, aiDraftId: draft.id } }, now) }
     // Store the original in the existing draft repository before any model call.
     if (input.deferRecognition === true) { draft.state = 'changed'; return this.write(draft) }
     let syntheticCapture=null,extractionDiagnostics=null,readable=null
@@ -204,6 +209,7 @@ export class AIBusinessService {
   async edit(accountId,memberId,id,input){
     const d=await this.get(accountId,memberId,id);if(d.state==='saved'||d.version!==input.version)throw fail('草稿状态已变化，请重新加载',409)
     if (input.eventId) { const event = await this.events.get(accountId, input.eventId); if (event.memberId !== memberId || event.caseArchivedAt) throw fail('资料归属无效',409); d.targetEventId = event.id }
+    if (input.sourceRecordId) { const source = await this.records.getOwnedRecord(accountId,input.sourceRecordId); if (source.eventId !== d.targetEventId || !source.caseContext || d.sourceRecordId && d.sourceRecordId !== source.id) throw fail('原件关联无效',404); if (!d.sourceRecordId) { d.sourceRecordId=source.id;d.sourceRecordRevision=revisionKey(source) } }
     if (input.sourceIdentity) { if (!['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.sourceIdentity)) throw fail('资料来源无效'); d.sourceIdentity = input.sourceIdentity }
     if(input.deleteItem)d.items=d.items.filter(i=>i.id!==input.deleteItem)
     if(input.itemId){const item=d.items.find(i=>i.id===input.itemId);if(!item)throw fail('待确认记录不存在',404)
@@ -240,22 +246,27 @@ export class AIBusinessService {
       const existing=(await this.records.repository.findByAccountId(accountId)).filter(r=>eventIds.has(r.eventId) && (!d.targetEventId || r.eventId === d.targetEventId))
       const targetEvent = d.targetEventId ? await this.events.get(accountId, d.targetEventId) : null
       if (targetEvent && (targetEvent.memberId !== memberId || targetEvent.caseArchivedAt)) throw fail('这次情况已归档或归属已变更，本次未保存', 409)
+      const sourceRecord = d.sourceRecordId ? await this.records.getOwnedRecord(accountId, d.sourceRecordId) : null
+      if (sourceRecord && (!targetEvent || sourceRecord.eventId !== targetEvent.id || !sourceRecord.caseContext)) throw fail('原件关联已变化，请重新核对', 409)
+      if (sourceRecord && d.sourceRecordRevision && revisionKey(sourceRecord)!==d.sourceRecordRevision) throw fail('原件记录已有修改，请重新整理后核对，不覆盖新内容',409)
       const saved=[],history=[]
       let profileData=structuredClone(await this.profiles.read())
       const profileBefore=structuredClone(profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId))
       for(const original of mergeItems(d.items)){
         let item=this.resolve(original,d)
+        if (!saved.length && sourceRecord && !item.time?.resolvedStart && !sourceRecord.caseContext?.timeUnknown && sourceRecord.journal?.timePrecision !== 'unknown') item = { ...item, time: { ...item.time, resolvedStart: sourceRecord.occurredAt, precision: sourceRecord.journal?.timePrecision??'exact' }, journal: { ...item.journal, timePrecision: sourceRecord.journal?.timePrecision??'exact' } }
         if (d.sourceIdentity === 'external_ai' || d.sourceIdentity === 'pending') item = { ...item, category: 'other', archiveCategory: null, journal: { categories: ['other'], timePrecision: item.time?.precision === 'unknown' ? 'unknown' : 'exact' } }
         item.fields=item.fields.map(f=>({...f,confirmed:true}))
         if(item.journal.visit)item.journal.visit.recognitionStatus='user_edited'
         let key=keyFor(item,d),match=existing.find(r=>r.aiProvenance?.key===key&&contentFor(r.aiProvenance)===r.content)
+        if (!saved.length && sourceRecord) match = sourceRecord
         const normalized=v=>v.normalize('NFKC').replace(/[\s，。；、,.;]/g,'')
         if(!match&&item.time?.resolvedStart&&d.items.length===1)match=existing.find(r=>!r.aiProvenance&&r.occurredAt===item.time.resolvedStart&&(r.journal?.categories??[r.type]).includes(item.category)&&normalized(r.content)===normalized(d.raw)&&item.fields.every(f=>r.content.includes(f.value)))
         if(!match&&['visit','examination'].includes(item.category)&&item.time?.resolvedStart){for(const candidate of existing){const p=candidate.aiProvenance;if(!p||p.category!==item.category||contentFor(p)!==candidate.content)continue;const merged=mergeItems([{id:candidate.id,category:p.category,time:p.time,timeText:p.timeText,fields:p.fields},item]);if(merged.length===1){item=this.resolve({...item,...merged[0],title:item.title},d);key=keyFor(item,d);match=candidate;break}}}
         const content=contentFor(item);if(content.length>5000)throw fail('单条记录过长，请拆分后保存')
         const groupKey=groupFor(item),conflictRecords=groupKey?existing.filter(r=>r.aiProvenance&&groupFor(r.aiProvenance)===groupKey&&r.aiProvenance.key!==key&&item.fields.some(f=>r.aiProvenance.fields?.some(x=>x.name===f.name&&x.value!==f.value))):[]
         let record,event
-        if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.push({recordId:record.id,before:structuredClone(record)});if(record.aiProvenance&&content!==record.content)record=await this.records.update(accountId,record.id,{content,journal:item.journal},this.now())}
+        if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.push({recordId:record.id,before:structuredClone(record)});if(record.aiProvenance&&content!==record.content || sourceRecord?.id===record.id)record=await this.records.update(accountId,record.id,{content,journal:item.journal,...(sourceRecord?.id===record.id ? {occurredAt:item.time?.resolvedStart??record.occurredAt} : {})},this.now())}
         else{
           const occurredAt=item.time?.resolvedStart??d.referenceNow
           const relatedEvent=conflictRecords.length?ownedEvents.find(e=>e.id===conflictRecords[0].eventId):null
@@ -267,7 +278,7 @@ export class AIBusinessService {
         for(const document of d.documents.filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
         await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
-        if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { identity: d.sourceIdentity, confirmed: true, attachmentIds: refs, originalText: d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
+        if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { ...record.caseContext, identity: d.sourceIdentity, confirmed: true, attachmentIds: [...new Set([...(record.caseContext?.attachmentIds??[]),...refs])], originalText: record.caseContext?.originalText ?? record.sourceText ?? d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
         if (targetEvent) await this.events.repository.update(event.id, { caseTracking: true }, this.now())
         if (!['external_ai','pending'].includes(d.sourceIdentity)) profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now()})
         history[history.length-1].afterKey=revisionKey(await this.records.repository.findById(record.id))
