@@ -16,6 +16,11 @@ await mkdir(output, { recursive: true })
 // Never use the user's browser profile or copy cookies across targets.
 const context = await chromium.launchPersistentContext(path.join(tmpdir(), 'hoooho-home-typewriter-qa-20261004', production ? 'production' : 'staging'), { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 const page = await context.newPage()
+// Chromium can expose its real native install event even with an iPhone UA.
+// Do not invoke an OS installation during QA; test the iOS guide and explicit simulated events.
+await page.addInitScript(() => window.addEventListener('beforeinstallprompt', event => {
+  if (!event.syntheticAcceptance) { event.preventDefault(); event.stopImmediatePropagation() }
+}, true))
 page.setDefaultTimeout(45000)
 const result = { target: base, startedAt: new Date().toISOString(), checks: {}, screenshots: [], runtimeErrors: 0, http5xx: 0, cleanup: {}, ai: 'NOT_RETESTED_UNCHANGED', physicalPhone: 'NOT_VERIFIED' }
 let token, memberId, secondMemberId
@@ -274,6 +279,7 @@ try {
   await page.getByRole('button', { name: '关闭添加到主屏幕图示' }).click()
   await page.evaluate(() => {
     const event = new Event('beforeinstallprompt', { cancelable: true })
+    event.syntheticAcceptance = true
     event.prompt = async () => {}
     event.userChoice = new Promise(resolve => { window.resolveSyntheticInstall = () => resolve({ outcome: 'accepted', platform: 'web' }) })
     window.dispatchEvent(event)
