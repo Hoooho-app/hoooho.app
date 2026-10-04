@@ -85,3 +85,9 @@ test('possible-containing parent annotations stay cross-contact, never declared 
   assert.equal(result.displayIngredients[0].status,'possible')
   assert.match(result.displayIngredients[0].reason,/并非确定加入/)
 })
+
+test('processing uncertainty and explicit allergen declarations are distinct evidence',()=>{
+  assert.equal(check('Lactose',[record('牛奶')]).displayIngredients[0].status,'possible')
+  assert.equal(check('Lactose',[record('牛奶')],{contains:[{original:'Milk',reliable:true}]}).displayIngredients[0].status,'known')
+  assert.equal(check('Peanut oil',[record('花生')],{contains:[{original:'Peanuts',reliable:true}]}).displayIngredients[0].status,'known')
+})

@@ -137,7 +137,7 @@ export class FoodLabelService{
       }
     }
     const {rows,connected}=mergeRows(pages)
-    if(!rows.length)throw failure('未识别到成分','FOOD_NO_INGREDIENTS')
+    if(!rows.length){const error=failure('未识别到成分','FOOD_NO_INGREDIENTS');error.foodDiagnostics={calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:[...diagnostics.filter(d=>!d.success).map(d=>d.code),'FOOD_NO_INGREDIENTS']};throw error}
     if(rows.length>250)throw failure('成分超过本次识别容量，请拍摄单一食品','FOOD_INGREDIENT_LIMIT')
     const unique=values=>[...new Set(values)]
     const contains=unique(pages.flatMap(p=>p.contains)).flatMap(s=>flattenIngredients(s.replace(/^(?:contains?|含有)\s*[:：]?\s*/i,''))).flatMap(r=>splitDeclaredAllergens(r.original.replace(/^(?:包括|including\s+)/i,'').trim()))

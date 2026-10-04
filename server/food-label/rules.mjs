@@ -93,6 +93,7 @@ export function checkLabel(label,records=[]){
       if(h.kind==='source')return {zh:`${ingredient}未注明具体原料，需核实是否来自${name}。`,en:`The source of ${ingredient} is not specified; whether it derives from ${name} is unknown.`}
       if(h.kind==='cross-contact')return {zh:`包装提示可能接触${name}，并非确定加入的配料。`,en:`The label warns of possible contact with ${name}, not a declared ingredient.`}
       if(h.kind==='processing')return {zh:`${ingredient}来自${name}，但精炼方式及过敏蛋白残留未注明。`,en:`${ingredient} derives from ${name}, but its refining process and residual allergenic protein are not specified.`}
+      if(h.kind==='protein')return {zh:`${ingredient}属于${name}来源的原料，但包装未说明是否仍含${name}蛋白。`,en:`${ingredient} is derived from ${name}, but the label does not establish whether its protein remains.`}
       return {zh:`${ingredient}匹配已记录的${name}过敏。`,en:`${ingredient} matches the recorded ${name} allergy.`}
     })
     return {zh:[...new Set(reasons.map(r=>r.zh))].join(' '),en:[...new Set(reasons.map(r=>r.en))].join(' ')}
@@ -119,13 +120,16 @@ export function checkLabel(label,records=[]){
     if(negated(name)&&!aliases.has(clean(name)))return base
     const related=matching({...row,name},food)
     const uncertainOil=['peanut oil','花生油','soybean oil','soy oil','soya oil','大豆油'].includes(clean(name))
+    const uncertainProtein=['lactose','乳糖'].includes(clean(name))
+    const declared=record=>(label.contains??[]).some(c=>c.reliable&&matching(c,[record]).length)
     const direct=related.map(record=>{
-      const processing=uncertainOil&&clean(record.name)!==clean(name)
-      return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?'processing':record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:'exact-personal-record')
+      const processing=(uncertainOil||uncertainProtein)&&clean(record.name)!==clean(name)&&!declared(record)
+      return hit(base,record,record.currentStatus==='confirmed'&&!processing?'known':'possible',processing?(uncertainProtein?'protein':'processing'):record.currentStatus==='confirmed'?'explicit':'suspected',aliases.has(clean(name))?evidenceSources.derivatives:'exact-personal-record')
     })
     const candidates=possibleAssociations.filter(k=>k.names.some(n=>clean(n)===clean(name))&&(k.kind!=='unexpanded'||!hasChildren)).flatMap(k=>food.filter(r=>k.allergens.includes(aliases.get(clean(r.name)))||(k.personalNames??[]).some(n=>clean(n)===clean(r.name))).map(r=>hit(base,r,'possible',k.kind,k.source)))
     const hits=[...direct,...candidates]
-    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':aliases.has(clean(name))&&!uncertainOil?'common':'clear'
+    const definition=aliases.get(clean(name)),declaredSource=definition&&declared({name:groups[definition][0]})
+    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':definition&&(!(uncertainOil||uncertainProtein)||declaredSource)?'common':'clear'
     if(status==='common')hits.push(hit(base,null,'common','declared-allergen',additionalAllergens[aliases.get(clean(name))]?evidenceSources.fsa:evidenceSources.fda))
     const reasonTranslations=status==='possible'?reasonFor(hits.filter(h=>h.status==='possible')):{zh:'',en:''}
     return {...base,status,hits,reason:reasonTranslations.zh,reasonTranslations}
