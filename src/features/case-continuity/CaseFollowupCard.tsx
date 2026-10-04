@@ -61,7 +61,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
         {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setForm('materials')}}}>核对这份资料</HohoButton>}
       </li>)}</ol>}
     </div>}
-    {!archived&&<><div className="case-followup-primary-actions"><HohoButton disabled={busy} onClick={()=>open('record')}>继续记录</HohoButton><HohoButton variant="secondary" disabled={busy} onClick={()=>{if(form==='materials'&&dirty.current&&!window.confirm('这份资料尚未核对保存，设备草稿会保留，确定添加另一份资料吗？'))return;setMaterialRecordId(null);open('materials')}}>带回问诊资料</HohoButton></div>
+    {!archived&&<><div className="case-followup-primary-actions"><HohoButton disabled={busy} onClick={()=>open('record')}>继续记录</HohoButton></div>
       {form==='record'&&<SymptomCaseRecord embedded accountId={accountId} memberId={memberId} token={token} eventId={id} onDirtyChange={setRecordDirty} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
       {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
     <div className="case-followup-state-action"><HohoButton variant="secondary" size="small" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton></div>

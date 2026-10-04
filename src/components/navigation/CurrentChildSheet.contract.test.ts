@@ -38,6 +38,9 @@ test('edit and add reuse existing routes while edit stops propagation', () => {
 })
 
 test('sheet supports backdrop, close button and thresholded handle dragging', () => {
+  assert.match(source, /return createPortal\(/)
+  assert.match(source, /document\.body/)
+  assert.match(styles, /max-width:\s*var\(--hoho-app-shell-max\)/)
   assert.match(source, /current-child-sheet-backdrop/)
   assert.match(source, /aria-label="关闭我的孩子"/)
   assert.match(source, /const closeThreshold = 72/)

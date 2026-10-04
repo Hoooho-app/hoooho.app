@@ -11,6 +11,13 @@
 .nurse-station-identity > :first-child { width: 44px; height: 44px; flex: 0 0 auto; }
 .nurse-station-identity > span { display: grid; min-width: 0; gap: 3px; }
 .nurse-station-identity strong { overflow: hidden; font-size: 16px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
+.nurse-station-identity{border:0;background:transparent;color:inherit;cursor:pointer}
+.nurse-station-identity:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px;border-radius:var(--hoho-radius-control)}
+.nurse-station-identity strong{display:flex;min-width:0;align-items:center}
+.nurse-station-identity strong>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.nurse-station-child-chevron{flex:0 0 auto;margin-left:3px;color:rgb(var(--hoho-color-primary))}
+.nurse-station-measured-at{font-size:10px;line-height:12px;color:rgb(var(--hoho-color-text-secondary));white-space:nowrap}
+.nurse-station-sync-notice{font-size:11px;color:rgb(var(--hoho-color-text-secondary))}
 .nurse-station-identity em { overflow: hidden; color: #687b88; font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-guarded { margin-top: 7px; margin-left: 51px; color: #5f766f; font-size: 12.5px; line-height: 19px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .nurse-station-guarded strong { margin-inline: 2px; color: rgb(var(--hoho-color-primary)); font-size: inherit; font-weight: 760; }

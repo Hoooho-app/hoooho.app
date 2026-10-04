@@ -16,7 +16,10 @@ async function enterApp(page: Page) {
 async function addMember(page: Page) {
   await page.goto('/family/new')
   await page.getByRole('textbox', { name: '姓名' }).fill('安装测试宝宝')
-  await page.getByRole('textbox', { name: '出生日期' }).pressSequentially('20260901')
+  const birthday = page.getByRole('textbox', { name: '出生日期' })
+  await birthday.fill('2026-09-01')
+  if (await birthday.inputValue() !== '2026-09-01') await birthday.pressSequentially('20260901')
+  await expect(birthday).toHaveValue('2026-09-01')
   await page.getByRole('button', { name: '女', exact: true }).click()
   await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
   await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
@@ -134,6 +137,46 @@ test('Safari 图示加载失败时保留可关闭的最小失败状态', async (
   await expect(guide.getByRole('status')).toHaveText('图示暂时无法加载')
   await guide.getByRole('button', { name: '关闭添加到主屏幕图示' }).click()
   await expect(guide).toBeHidden()
+})
+
+test('原生弹窗一直等待时可取消，迟到结果不会误标已安装', async ({ page }) => {
+  await enterApp(page)
+  await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true }) as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string }> }
+    event.prompt = async () => {}
+    event.userChoice = new Promise(resolve => { (window as typeof window & { resolveInstall?: () => void }).resolveInstall = () => resolve({ outcome: 'accepted', platform: 'web' }) })
+    window.dispatchEvent(event)
+  })
+  const trigger = page.getByRole('button', { name: '添加 Hoooho 到主屏' })
+  await trigger.click()
+  await expect(trigger).toBeDisabled()
+  await expect(page.getByRole('status')).toContainText('请在浏览器安装弹窗中确认')
+  await expectNoHorizontalOverflow(page)
+  await page.getByRole('button', { name: '取消等待' }).click()
+  await expect(trigger).toBeEnabled()
+  await page.evaluate(() => (window as typeof window & { resolveInstall?: () => void }).resolveInstall?.())
+  await expect(trigger).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('hoooho-install-app-confirmed'))).toBeNull()
+  await trigger.click()
+  await expect(page.getByRole('dialog', { name: '添加到主屏幕' })).toBeVisible()
+})
+
+test('安装提示失败恢复入口；无支持浏览器给出可重复反馈', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 Chrome/154.0.0.0 Safari/537.36' }))
+  await enterApp(page)
+  await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true }) as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string }> }
+    event.prompt = async () => { throw new Error('synthetic native prompt failure') }
+    event.userChoice = Promise.resolve({ outcome: 'dismissed', platform: 'web' })
+    window.dispatchEvent(event)
+  })
+  const trigger = page.getByRole('button', { name: '添加 Hoooho 到主屏' })
+  await trigger.click()
+  await expect(trigger).toBeEnabled()
+  await expect(page.getByRole('status')).toHaveText('当前浏览器暂不支持直接添加')
+  await trigger.click()
+  await expect(trigger).toBeVisible()
+  await expect(page.getByRole('status')).toHaveText('当前浏览器暂不支持直接添加')
 })
 
 for (const width of [390, 430]) {
