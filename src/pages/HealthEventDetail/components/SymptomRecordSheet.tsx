@@ -243,7 +243,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
         </div>
       )}
     </BottomSheetSurface>
-    {record && <AllergyLinkSheet eventId={record.eventId} memberId={memberId} occurredAt={record.occurredAt} onClose={() => setAllergyLinkOpen(false)} onLinked={() => setAllergyLinked(true)} open={allergyLinkOpen} reaction={originalNarrative} recordId={record.id} attachmentIds={record.aiProvenance?.attachmentIds}/>}
+    {record && <AllergyLinkSheet eventId={record.eventId} memberId={memberId} occurredAt={record.occurredAt} onClose={() => setAllergyLinkOpen(false)} onLinked={() => setAllergyLinked(true)} open={allergyLinkOpen} reaction={originalNarrative} recordId={record.id}/>}
   </>
 }
 
