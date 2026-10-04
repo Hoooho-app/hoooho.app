@@ -182,8 +182,15 @@ try {
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
   await page.getByRole('textbox', { name: '哪里不舒服', exact: true }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
+  const saveStartedAt = Date.now()
+  const savedResponse = page.waitForResponse(response => new URL(response.url()).pathname === `/api/members/${memberId}/case-records` && response.request().method() === 'POST', { timeout: 45000 })
   await page.getByRole('button', { name: '保存', exact: true }).click()
-  await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+  const saveResponse = await savedResponse
+  result.checks.quickNoteSaveResponse = { status: saveResponse.status(), elapsedMs: Date.now() - saveStartedAt }
+  assert.ok(saveResponse.ok(), 'Real quick-record save must succeed')
+  const savedCase = await saveResponse.json()
+  assert.ok(savedCase.eventId, 'Saved case must return its real event identifier')
+  await expect(page).toHaveURL(base + `/health-events/${savedCase.eventId}`, { timeout: 45000 })
   result.checks.quickNoteTextAndKeyboardSave = 'PASS'
   await page.goto(base + '/nurse-station')
   await expect(page.locator('.continuity-card')).toHaveCount(0)
@@ -205,6 +212,7 @@ try {
   assert.equal(result.http5xx, 0)
 } catch (error) {
   result.failure = error.safe ?? { name: error.name, message: String(error.message).slice(0, 500) }
+  await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }).catch(() => {})
 } finally {
   if (memberId) await api(`/api/members/${memberId}`, undefined, 'DELETE').then(() => { result.cleanup.syntheticMember = 'REMOVED' }).catch(() => { result.cleanup.syntheticMember = 'FAILED' })
   if (secondMemberId) await api(`/api/members/${secondMemberId}`, undefined, 'DELETE').then(() => { result.cleanup.secondSyntheticMember = 'REMOVED' }).catch(() => { result.cleanup.secondSyntheticMember = 'FAILED' })
