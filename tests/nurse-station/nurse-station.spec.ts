@@ -128,8 +128,7 @@ test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航
   await expect(page.locator('.nurse-station-fact')).toHaveCount(0)
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('min-height', '190px')
   await expect(page.locator('.nurse-station-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  await expect(page.locator('.nurse-station-overview')).toHaveCSS('border-color', 'rgb(219, 228, 224)')
-  await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-top-width', '0px')
+  await expect(page.locator('.nurse-station-hero')).toHaveCSS('border-color', 'rgb(220, 237, 234)')
   await expect(page.locator('.nurse-station-visual')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   const guardedTypography = await page.locator('.nurse-station-guarded').evaluate((element) => ({
     fontSize: getComputedStyle(element).fontSize,

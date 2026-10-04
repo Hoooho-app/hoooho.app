@@ -1,5 +1,4 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { HohoButton } from '../../components/design-system'
 import type { FollowedCase } from './types'
 import './cases.css'
 import { NurseStationFactTypewriter } from '../../pages/NurseStation/NurseStationFactTypewriter'
@@ -18,15 +17,15 @@ export function CaseCard({ item }: { item: FollowedCase }) {
 export function FollowUpHome() {
   const navigate = useNavigate()
   const care = useSettingsStore(state => state.care)
-  const openRecord = () => navigate('/smart-record')
-  return <section className="continuity-home" aria-label="症状记录与跟进列表">
+  return <section className="continuity-home" aria-label="健康事件随时记与情况列表">
     <div className="continuity-record-entry">
-      <button aria-label="记录症状示例，开始记录" className="continuity-record-entry__record" onClick={openRecord} type="button">
-        <NurseStationFactTypewriter className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} />
+      <button aria-label="健康事件随时记，情况速记" className="continuity-record-entry__record" onClick={() => navigate('/smart-record')} type="button">
+        <span className="continuity-record-entry__copy"><span aria-hidden="true" className="continuity-record-entry__header-space"/><NurseStationFactTypewriter className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} /></span>
+        <span aria-hidden="true" className="hoho-button continuity-record-entry__action" data-size="small" data-variant="primary">情况速记</span>
       </button>
-      <div className="continuity-record-entry__actions">
-        <Link className="hoho-button continuity-record-entry__list-action" to="/cases">跟进列表</Link>
-        <HohoButton className="continuity-record-entry__action" onClick={openRecord}>记录症状</HohoButton>
+      <div className="continuity-record-entry__header">
+        <strong aria-hidden="true">健康事件随时记</strong>
+        <Link to="/cases">跟进列表</Link>
       </div>
     </div>
   </section>
