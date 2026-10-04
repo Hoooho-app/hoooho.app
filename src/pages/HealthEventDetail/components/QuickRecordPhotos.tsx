@@ -102,7 +102,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
       if(allowVideos)void localMediaDraft.remove(localScope,item.localId).catch(()=>undefined)
       setPhotos((current) => {
         const next = current.map((photo): QuickRecordPhotoItem => photo.localId === item.localId
-          ? { ...photo, serverId: saved.id, mimeType:saved.mimeType, previewUrl, posterUrl, duration:saved.duration,size:saved.binarySize, status: 'uploaded', error: undefined, review:allowVideos?saved.review:undefined }
+          ? { ...photo, serverId: saved.id, mimeType:saved.mimeType, previewUrl, posterUrl:posterUrl??photo.posterUrl, duration:saved.duration,size:saved.binarySize, status: 'uploaded', error: undefined, review:allowVideos?saved.review:undefined }
           : photo)
         photosRef.current = next
         return next
@@ -213,7 +213,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
       <div className="quick-record-photos__heading"><strong>{model.allowVideos ? '已添加资料' : '上传照片'}</strong><span>{photos.length}/{limit}</span></div>
       <div className="quick-record-photos__rail">
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
-          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <img alt="视频封面" src={photo.posterUrl} /> : <span className="media-fallback">▶ 视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</span> : <MediaImage url={photo.previewUrl} name={photo.name} />}</button>
+          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <span className="media-video-thumb"><MediaImage url={photo.posterUrl} name="视频封面"/><span>▶ {photo.duration?`${Math.round(photo.duration)}秒`:"视频"}</span></span> : <span className="media-fallback">▶ 视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</span> : <MediaImage url={photo.previewUrl} name={photo.name} />}</button>
           {photo.status === 'uploading' && <span aria-label="上传中" className="quick-record-photo__status"><LoaderCircle className="is-spinning" size={17} /></span>}
           {!model.allowVideos && photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
           {photo.status !== 'failed' && <button aria-label={`删除${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}
@@ -235,7 +235,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
   </>
 }
 
-function MediaImage({url,name}:{url:string;name:string}){const [failed,setFailed]=useState(false);return failed?<span className="media-fallback" role="status">{name} · 图片预览不可用，原件与上传状态请见资料列表</span>:<img alt={name} src={url} onError={()=>setFailed(true)} />}
+function MediaImage({url,name}:{url:string;name:string}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return failed?<span className="media-fallback" role="status">{name} · 图片预览不可用，原件与上传状态请见资料列表</span>:<img alt={name} src={url} onError={()=>setFailed(true)} />}
 function MediaPlayer({url}:{url:string}){const ref=useRef<HTMLVideoElement>(null),[state,setState]=useState('loading');useEffect(()=>{const video=ref.current;return()=>{video?.pause();video?.removeAttribute('src');video?.load()}},[]);return <div className="media-player">{state==='loading'&&<p role="status">正在加载视频…</p>}{state==='error'&&<p role="alert">视频无法播放或格式不兼容，请重新选择H.264 MP4。原件仍保留。</p>}<video ref={ref} controls playsInline preload="metadata" onLoadedData={()=>setState('ready')} onError={()=>setState('error')} src={url}/></div>}
 function MediaItemDetails({item,index,model,onApply}:{item:QuickRecordPhotoItem;index:number;model:ReturnType<typeof useQuickRecordPhotos>;onApply?: (text:string,id:string)=>void}){
  const review=item.review,[text,setText]=useState(''),[edited,setEdited]=useState(false),[error,setError]=useState(''),[applying,setApplying]=useState(false)
