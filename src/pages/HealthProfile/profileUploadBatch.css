@@ -1,0 +1,9 @@
+.profile-upload-sheet h3{font-size:var(--hoho-font-size-card-title);font-weight:600;margin:20px 0 8px}
+.profile-upload-sheet p{margin:8px 0}.profile-upload-sheet label{display:grid;gap:6px;font-size:var(--hoho-font-size-label);margin:10px 0}
+.profile-upload-sheet input:not([type=checkbox]),.profile-upload-sheet select{width:100%;min-height:44px;padding:8px 12px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
+.profile-upload-sheet summary{min-height:44px;display:flex;align-items:center;color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);cursor:pointer}
+.profile-upload-item{padding:8px 0;border-bottom:1px solid rgb(var(--hoho-color-border))}
+.profile-upload-files{padding:0;list-style:none}.profile-upload-files li{display:flex;align-items:center;gap:12px;min-height:64px;border-bottom:1px solid rgb(var(--hoho-color-border));padding:8px 0}
+.profile-upload-files img{width:48px;height:48px;object-fit:cover;border-radius:var(--hoho-radius-small)}
+.profile-upload-files a{flex:1;min-width:0;overflow-wrap:anywhere}.profile-upload-files button{min-width:44px;min-height:44px;color:rgb(var(--hoho-color-text-secondary))}
+.profile-upload-add{display:flex;flex-wrap:wrap;gap:12px}.profile-upload-source{white-space:pre-wrap;overflow-wrap:anywhere}.profile-upload-sheet .hoho-bottom-sheet__footer>button{width:100%}
