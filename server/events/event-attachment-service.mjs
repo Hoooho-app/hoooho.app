@@ -6,7 +6,7 @@ import { validateHealthImage } from './image-attachment-policy.mjs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const publicAttachment = ({ storageKey: _storageKey, ...attachment }) => attachment
+const publicAttachment = ({ storageKey: _storageKey, previewKey: _previewKey,posterKey:_posterKey, ...attachment }) => attachment
 
 export class EventAttachmentError extends Error {
   constructor(message, status = 400, code = 'EVENT_ATTACHMENT_ERROR') {
@@ -80,7 +80,7 @@ export class EventAttachmentService {
     return (await this.repository.findByEventId(eventId)).map(publicAttachment)
   }
 
-  async read(accountId, eventId, attachmentId) {
+  async read(accountId, eventId, attachmentId, variant = 'content') {
     await this.assertEventOwnership(accountId, eventId)
     const attachment = await this.repository.findById(attachmentId)
     if (!attachment || attachment.accountId !== accountId || attachment.eventId !== eventId) {
@@ -92,7 +92,8 @@ export class EventAttachmentService {
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     try {
-      return { mimeType: attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(attachment.storageKey))) }
+      const key=variant==='preview'?attachment.previewKey??attachment.storageKey:attachment.storageKey
+      return { mimeType:variant==='preview'&&attachment.previewKey?(attachment.previewMimeType??'video/mp4'):attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(key))) }
     } catch (error) {
       if (error.code === 'ENOENT') throw new EventAttachmentError('附件原件已失效或不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
       throw error

@@ -15,7 +15,7 @@ export function SymptomCaseRecord({ accountId, memberId, token, eventId, taskId,
     if (!isCurrent()) throw new Error('当前人物已切换，请返回后重新记录')
     if (taskId && !result) throw new Error('请选择这次实际观察结果')
     sessionStorage.setItem(requestKey, requestId.current)
-    const saved = await caseService.capture(memberId, token, { requestId: requestId.current, text, occurredAt, timeUnknown: false, eventId, taskId, result, journal, photoDraftId: photos.draftId, photoIds: photos.photoIds, files: [] })
+    const saved = await caseService.capture(memberId, token, { requestId: requestId.current, text, occurredAt, timeUnknown: journal.timePrecision === 'unknown', eventId, taskId, result, journal, photoDraftId: photos.draftId, photoIds: photos.photoIds, files: [] })
     captured.current = saved.eventId
     return '已记录'
   }} />
