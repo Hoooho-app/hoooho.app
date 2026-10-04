@@ -223,8 +223,8 @@ export function NurseStationPage() {
 const fixedHomeEntries = [
   { id: 'visit', title: '就诊情况单', subtitle: '就诊前，一页理清病情', image: visitSummaryImage, to: '/visit-summary' },
   { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: '/dietary-card' },
-  { id: 'diary', title: '健康随记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
-  { id: 'profile', title: '健康档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
+  { id: 'diary', title: '健康日记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
+  { id: 'profile', title: '孩子档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
 ] as const
 
 type HomeEntry = { id: string; title: string; subtitle: string; image: string; to: string }
@@ -244,7 +244,8 @@ function HomeEntries({ medicationCount, medicationStatus }: {
   medicationStatus: EntryStatus
 }) {
   const entries: HomeEntry[] = [
-    ...fixedHomeEntries,
+    ...fixedHomeEntries.slice(0, 2),
+    { id: 'food-label', title: '配料表扫描', subtitle: '拍配料表，对照过敏史', image: foodLabelImage, to: '/food-label' },
     {
       id: 'medication',
       title: '用药提醒',
@@ -252,7 +253,7 @@ function HomeEntries({ medicationCount, medicationStatus }: {
       image: medicationRemindersImage,
       to: '/medication-reminders',
     },
-    { id: 'food-label', title: '食品标签核对', subtitle: '拍配料表，对照过敏史', image: foodLabelImage, to: '/food-label' },
+    ...fixedHomeEntries.slice(2),
   ]
 
   return <section aria-label="首页服务入口" className="nurse-home-entries">{entries.map((entry) => (
