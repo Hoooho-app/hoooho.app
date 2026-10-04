@@ -109,7 +109,7 @@ try{
   const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));assert.ok(!stored.includes('data:image')&&!stored.includes('特丁基'))
   await page.reload();await expect(page.getByRole('button',{name:'Photograph ingredients',exact:true})).toBeVisible();await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
   assert.equal(runtimeErrors.length,0)
-  console.log(JSON.stringify({target,status:'PASS',requests,calls,successful,errors,originalImageEightRoots:true,originalAdditiveChildren:true,screenshots:output,physicalCamera:'manual verification pending'}))
+  console.log(JSON.stringify({target,status:'PASS',requests,calls,successful,errors,originalImageEightRoots:!englishOnly,originalAdditiveChildren:!englishOnly,screenshots:output,physicalCamera:'manual verification pending'}))
 }finally{
   if(memberId){await profile([]).catch(()=>errors.push('SYNTHETIC_SECTION_CLEANUP_FAILED'));await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>errors.push('SYNTHETIC_MEMBER_CLEANUP_FAILED'))}
   console.log(JSON.stringify({target,requests,calls,successful,errors,cleanup:errors.filter(e=>e.includes('CLEANUP')),retainedAccount:'isolated synthetic account; normal identity verification required for deletion'}))
