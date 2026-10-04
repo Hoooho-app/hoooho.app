@@ -8,6 +8,30 @@
 
 ## 识别与规则
 
+### 当前有效规则（2026-10-05，覆盖下文旧版风险展示说明）
+
+先逐字读取标签，再确定性解析深度：顶层分隔不等于括号内分隔，保留中文/英文/嵌套括号、跨行词、含量和说明。每个节点保留 `name`（规则用基本名）、`fullOriginal`（完整原文）、`parent`、标签照片来源和原文摘录。`ingredients` 继续提供内部展开节点，新增 `displayIngredients` 提供完整顶层树，前端只显示后者。翻译完整父条目，原文为主标题；同语言不重复，跨语言一行翻译。统计与可见顶层树一致，多子成分冲突只算一个父条目。按完整内容和父路径去重，不用模糊名称合并不同配方。
+
+正式标签只由领域规则生成，优先级 `known > possible > common`。可靠明确原文/已核实别名与个人确定过敏匹配才是已知冲突；疑似记录、相关的未展开配方或原料线索、相关交叉接触仅可能风险且必须有具体原因。词库内的明确过敏原但没有确定匹配是常见过敏原，不代表个人诊断。一般知识不增加实际配料，添加剂、陌生名、未吃过、空档案或局部标签不自动产生风险。耐受/排除及明确不耐受/其他限制不是确定过敏。普通行不显示状态或说明。
+
+原料知识与依据集中在 `server/food-label/knowledge.mjs`；别名采用完整名称匹配而非子串。常见范围参考 [FDA](https://www.fda.gov/food/nutrition-food-labeling-and-critical-foods/food-allergies) 与 [英国FSA](https://www.gov.uk/government/publications/allergen-guidance-for-food-businesses/allergen-guidance-for-food-businesses)，额外个人过敏可按确切原词核对，不限常见分类。常见表覆盖乳/蛋/大豆/小麦/花生/具体坚果/鱼/甲壳/芝麻/芹菜/芥末/羽扇豆/软体/黑麦/大麦/燕麦。亚硫酸盐法规阈值不是个人过敏结论，不从名称猜剂量。衍生成分参考 [FDA2025指南](https://www.fda.gov/media/117410/download?attachment=)；明胶、油脂和水解蛋白的原料不确定性参考 [FDA阈值研究](https://www.fda.gov/media/78205/download)；未展开面包与小麦只作为 [FARE所述相关食品线索](https://www.foodallergy.org/living-food-allergies/food-allergy-essentials/common-allergens/wheat)，不是该产品事实。明确列出的内部配方覆盖一般配方推测。词库是可扩展的受控规则，非完整世界原料知识库。
+
+`hits` 保留命中原料、个人记录ID/状态、关系种类和知识来源，均仅内存响应、不记录日志。未被配料解释的真实 Contains/May contain 作为紧凑包装提示，不伪造为配料、不增加顶层计数、不出现独立冲突对象摘要。当前成员记录读取失败返回 `assessmentComplete:false`、`conflictCount:null`、`FOOD_PROFILE_UNAVAILABLE`，保留已识别树；不能伪造0项完成核对。补拍请求失败也保留上一轮已识别配料。部分标签不触发补拍要求、黄色大框或安全结论。
+
+否定按具体原料与声明语法判断，不扫描子串：椰奶和无奶巧克力不因含“奶”字匹配牛奶；[NHS明确区分乳糖不耐受与牛奶蛋白过敏](https://www.cuh.nhs.uk/patient-information/milk-allergy/)，无乳糖牛奶仍按明确牛奶核对。括号内的“可能含有”保留交叉接触证据而非确定子配料。原始配料区域逐字摘录另外保留在内存 `labelEvidence`，不进入持久化或日志。
+
+入口返回采用同源新文档导航，避免长期打开的页面遇到旧懒加载资源失效后无法回首页；结果返回仍只清空本次任务到入口。页面结构、三列缩略图/加号和不持久化边界不变。
+
+个人诊断粒度不以过敏原家族替代：乳清与酪蛋白、蛋清与蛋黄不是同一诊断。维护独立等价别名与完整原料包含关系，只有完整牛奶/鸡蛋或明确等价子成分才能匹配具体子成分记录；不把一个分离蛋白当作另一个。依据见 [NHS牛奶蛋白分类](https://www.nhs.uk/baby/breastfeeding-and-bottle-feeding/bottle-feeding/types-of-formula/) 与 [蛋清/蛋黄蛋白研究](https://pubmed.ncbi.nlm.nih.gov/4008088/)。
+
+真实英文复验曾出现顶层计数11→13的模型波动。食品三种模型任务显式使用 `samplingTemperature:0`，并要求逐字保留括号、and/or、连字符和换行，禁止模型整理成平级清单。业务适配器仅增加可选参数，未指定时沿用原值；百炼转接透传该参数，其他模块请求不变。不承诺温度0让视觉识别绝对无误；供应商参数依据为 [阿里云生成参数文档](https://www.alibabacloud.com/help/en/model-studio/text-generation)。
+
+电商截图实测发现配料旁的放大镜被OCR拼作圆圈后缀。读取约束明确区分界面图标、浮层、导航与实际印刷文字；真实化学名称中的数字、撇号、含量不删除，遮挡文字保持不可靠，规则不按特定成分名猜测修补。
+
+解析层把词末、分隔边界上的圆圈/信息图形标记视为非名称排版标记，不拼入标准成分名称；`rawOriginal`及`evidence.excerpt`保留清理前摘录，`labelEvidence`保留整段OCR。内部字符、数字度数单位、化学撇号、百分比均不删除，不依赖某一种成分的名称。此通用规则同时用于完整父名与递归子成分，避免标记干扰过敏关系或翻译。
+
+非“常见过敏原”的物质同义词单独维护，不因加入身份别名就变成常见过敏原：例如明胶/gelatin/gelatine依据[食安中心双语资料](https://www.cfs.gov.hk/sc_chi/multimedia/multimedia_pub/files/FSF35_2009-6-17.pdf)匹配已有个人记录，没有相关个人依据时仍无标签。数字后的单撇号排版变体统一用于身份对照与补拍去重，双撇号、数字、化学文字和含量不删除，显示仍保留原文写法。
+
 复用当前配置的百炼 qwen3.7-plus 服务端适配器与项目已有 text/status OCR 契约：每张图一次逐字读取，读到配料后另一次独立范围核验，合并后一次逐项翻译；单图正常3次调用，无自动重试。文字可靠性和拍摄完整性独立，不让可靠局部文字丢失已知冲突。最多6张、单张20MB、总量30MB、40MP；JPEG/PNG/WebP/AVIF/HEIC/HEIF，EXIF方向校正、2560px高质量压缩、不裁配料区。Sharp不能解码的HEIC通过heic-decode内存解码。
 
 读取配料区、括号子成分、明确含有和交叉接触提示，要求摘录在本次OCR原文中出现。确定性解析保留顺序/子成分，不将百分比、维生素括注、ARA/DHA等名称注释伪造成子配料。翻译长度、顺序和原词必须逐项完全一致；失败保留已读原词，可靠原词的明确冲突仍可红色，其余待确认。

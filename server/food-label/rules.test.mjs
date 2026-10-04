@@ -41,18 +41,19 @@ test('negation and cross contact are not positive ingredients', () => {
   assert.notEqual(result.ingredients[0].status,'known')
   assert.equal(result.conflictCount,0)
   assert.equal(result.advisory[0].status,'possible')
-  assert.equal(result.tone,'warning')
+  assert.equal(result.tone,'neutral')
 })
 test('incomplete label retains a known conflict and cannot pass green', () => {
   const result=checkLabel(label([row('cream (milk)','奶油')],{complete:false,issues:['配料末尾未拍全']}),records)
   assert.equal(result.ingredients[0].status,'known')
-  assert.equal(result.tone,'error')
-  assert.match(result.scope,/未完整/)
+  assert.equal(result.tone,'neutral')
+  assert.doesNotMatch(result.scope,/未完整|补拍/)
 })
 test('missing archive, unknown source and absent intake do not imply allergy or tolerance', () => {
   for(const rows of [[],records]) {
     const result=checkLabel(label([row('Peas','豌豆'),{...row('Hydrolysed vegetable protein','水解植物蛋白'),sourceUnknown:true}]),rows)
-    assert.ok(result.ingredients.every(i=>i.status==='pending'))
+    assert.equal(result.ingredients[0].status,'clear')
+    assert.equal(result.ingredients[1].status,'clear')
     assert.notEqual(result.tone,'success')
   }
 })
@@ -72,8 +73,8 @@ test('summary counts only ingredient items, not separate packaging statements',(
   const result=checkLabel(label([row('water','水'),row('Peas','豌豆')],{contains:[row('乳及乳制品')]}),records)
   assert.equal(result.contains[0].status,'known')
   assert.equal(result.conflictCount,0)
-  assert.equal(result.pendingCount,1)
-  assert.match(result.counts,/已识别2项 · 0项已知冲突 · 1项待确认/)
+  assert.equal(result.pendingCount,0)
+  assert.equal(result.counts,'已识别2项 · 0项已知冲突')
 })
 test('unpunctuated Contains list is parsed only as whole affirmative dictionary names',()=>{
   assert.deepEqual(splitDeclaredAllergens('WHEAT SOY'),['WHEAT','SOY'])

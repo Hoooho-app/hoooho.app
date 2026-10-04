@@ -19,6 +19,9 @@
   --hoho-color-text-weak: 87 108 104;
   --hoho-color-success: 42 120 82;
   --hoho-color-warning: 166 105 34;
+  /* Food facts are distinct from personal uncertainty; no global warning change. */
+  --hoho-color-food-common-surface: 255 239 222;
+  --hoho-color-food-possible-surface: 255 248 203;
   --hoho-color-error: 174 62 67;
   --hoho-color-danger: var(--hoho-color-error);
   --hoho-color-info: 48 103 152;

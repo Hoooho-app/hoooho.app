@@ -69,7 +69,7 @@ export class BailianProvider extends OpenAIProvider {
             headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
             signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(config.timeoutMs)]) : AbortSignal.timeout(config.timeoutMs),
             body: JSON.stringify({ model, messages: [{ role: 'system', content: body.instructions ?? '' }, ...conversation],
-              stream: false, enable_thinking: false, max_tokens: Math.min(config.maxOutputTokens, body.max_output_tokens ?? config.maxOutputTokens),
+              stream: false, enable_thinking: false, ...(Number.isFinite(body.temperature)&&body.temperature>=0&&body.temperature<2?{temperature:body.temperature}:{}), max_tokens: Math.min(config.maxOutputTokens, body.max_output_tokens ?? config.maxOutputTokens),
               response_format: { type: 'json_schema', json_schema: { name: format.name, strict: true, schema: format.schema } } }),
           })
           if (!response.ok) {

@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test'
 const memberId='synthetic-food-child',accountId='synthetic-food-owner'
 const photo={name:'label.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2XcAAAAASUVORK5CYII=','base64')}
-const rows=Array.from({length:21},(_,i)=>({chinese:i===20?'最后一项很长的中文复合成分名称':'合成布局验收成分'+(i+1),original:i===20?'LongOriginalIngredientNameWithoutAnyBreaksForOverflowTesting':'Original ingredient '+(i+1),status:i===1?'known':i===2?'possible':'pending',reason:'仅用于布局测试，不是实际食品分析'}))
+const rows=Array.from({length:21},(_,i)=>({chinese:i===20?'最后一项很长的中文复合成分名称':'合成布局验收成分'+(i+1),original:i===20?'LongOriginalIngredientNameWithoutAnyBreaksForOverflowTesting':'Original ingredient '+(i+1),status:i===1?'known':'clear',reason:''}))
 async function prepare(page:Page,language='zh-CN',ingredients=rows){
   await page.addInitScript(({memberId,accountId,language})=>{sessionStorage.setItem('hoooho-auth-token','synthetic-token');localStorage.setItem('hoooho-settings',JSON.stringify({state:{accounts:{[accountId]:{interfaceLanguage:language}}},version:1}));localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:accountId},currentMemberId:memberId,members:[],profile:null},version:5}))},{memberId,accountId,language})
   const requests:Record<string,unknown>[]=[]
@@ -11,11 +11,40 @@ async function prepare(page:Page,language='zh-CN',ingredients=rows){
     if(path==='/api/auth/session')body={token:'synthetic-token',user:{id:accountId,currentMemberId:memberId,nickname:'合成验收'}}
     if(path==='/api/members')body=[{id:memberId,name:'不应在核对页展示',birthday:'2025-01-01',gender:'female',relationship:'child'}]
     if(path==='/api/account/entry-state')body={familyMemberCount:1,hasValidHealthRecord:false}
-    if(path==='/api/events'||path==='/api/auth/profile-sections')body=[]
+    if(path==='/api/events'||path==='/api/auth/profile-sections'||path.endsWith('/medication-reminders')||path.endsWith('/growth-measurements')||path.endsWith('/case-records'))body=[]
     if(path==='/api/food-label/check'){const input=route.request().postDataJSON();requests.push(input);body={taskId:input.taskId,memberId:input.memberId,ingredients,contains:[],advisory:[],title:'标签未读完整，请补拍',counts:'21项待确认',scope:'标签未完整，暂不能排除遗漏',tone:'warning'}}
     await route.fulfill({json:body,headers:{'Cache-Control':'no-store'}})
   });return requests
 }
+for(const width of [375,390,430])test(`entry back returns home by touch even after old route assets expire at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:667});await prepare(page)
+  await page.goto('/food-label');await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
+  // Model an already-open scan document whose old lazy home module is no longer
+  // available after a release. A new home document resolves fresh module URLs.
+  let homeDocuments=0
+  await page.route('**/nurse-station',async route=>{if(route.request().isNavigationRequest())homeDocuments++;await route.continue()})
+  await page.route('**/src/pages/NurseStation/index.tsx',route=>homeDocuments?route.continue():route.abort('failed'))
+  await page.getByRole('button',{name:'返回',exact:true}).tap()
+  await expect(page).toHaveURL(/\/nurse-station$/)
+  await expect(page.locator('.nurse-station-page')).toBeVisible({timeout:5000})
+  expect(homeDocuments).toBe(1)
+  await expect(page.locator('.food-label-page')).toHaveCount(0)
+})
+
+test('result back clears this scan; entry back works with keyboard and direct entry',async({page})=>{
+  await prepare(page);await page.goto('/food-label')
+  await page.locator('input[type=file][multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  await page.getByRole('button',{name:'返回',exact:true}).tap()
+  await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
+  await expect(page.locator('.food-label-photos img')).toHaveCount(0)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
+  await page.getByRole('button',{name:'返回',exact:true}).press('Enter')
+  await expect(page.locator('.nurse-station-page')).toBeVisible()
+  await page.getByRole('link',{name:/配料表扫描/}).click()
+  await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
+})
 for(const width of [375,390,393,430])test(`whole page scroll, 21 rows, no persisted data at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:667});const requests=await prepare(page)
   await page.goto('/food-label');await expect(page.getByRole('heading',{name:'配料表扫描',exact:true})).toBeVisible()
@@ -98,4 +127,40 @@ test('no recognized ingredients and genuine failures remain truthful in the resu
   await page.locator('input[capture=environment]').setInputFiles(photo)
   await expect(page.locator('.food-label-summary')).toHaveText('已识别21项 · 1项已知冲突部分照片识别失败')
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+})
+
+test('root display has one major tag, specific reasons and no fake zero after archive failure',async({page})=>{
+  await prepare(page);await page.goto('/food-label')
+  const roots=[{original:'面包（小麦粉、牛奶、鸡蛋）',chinese:'面包（小麦粉、牛奶、鸡蛋）',sourceLanguage:'zh',status:'known',reasonTranslations:{zh:'牛奶匹配已记录的牛奶过敏。',en:'Milk matches the recorded allergy.'}}, {original:'Mustard',chinese:'芥末',sourceLanguage:'en',status:'common'}, {original:'明胶',chinese:'明胶',sourceLanguage:'zh',status:'possible',reasonTranslations:{zh:'明胶未注明具体原料，需核实是否来自鱼类。',en:'The source of gelatin is unknown.'}}]
+  await page.route('**/api/food-label/check',route=>{const input=route.request().postDataJSON();return route.fulfill({json:{taskId:input.taskId,memberId,ingredients:rows,displayIngredients:roots,conflictCount:1,assessmentComplete:true}})})
+  await page.locator('input[multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别3项 · 1项已知冲突')
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(3)
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveText(['已知冲突','常见过敏原','可能风险'])
+  await expect(page.locator('.food-label-explanation')).toHaveCount(2)
+  await page.route('**/api/food-label/check',route=>{const input=route.request().postDataJSON();return route.fulfill({json:{taskId:input.taskId,memberId,ingredients:rows,displayIngredients:roots,conflictCount:null,assessmentComplete:false,failure:'profile'}})})
+  await page.locator('input[capture]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('过敏记录读取失败，已保留识别成分，核对未完成')
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(3)
+  await page.route('**/api/food-label/check',route=>route.fulfill({status:503,json:{error:{code:'AI_NETWORK_ERROR',message:'图片识别连接失败，请重新拍摄'}}}))
+  await page.locator('input[capture]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('图片识别连接失败，请重新拍摄')
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(3)
+})
+
+test('late supplement response cannot replace the newest result of the same member',async({page})=>{
+  await prepare(page);await page.goto('/food-label');await page.locator('input[multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  let release:()=>void=()=>{},started:()=>void=()=>{},count=0
+  const hold=new Promise<void>(resolve=>release=resolve),waiting=new Promise<void>(resolve=>started=resolve)
+  await page.route('**/api/food-label/check',async route=>{
+    const input=route.request().postDataJSON(),old=++count===1
+    if(old){started();await hold}
+    try{await route.fulfill({json:{taskId:input.taskId,memberId,ingredients:old?rows:[{original:'最新成分',chinese:'最新成分',sourceLanguage:'zh',status:'clear',reason:''}],assessmentComplete:true,conflictCount:old?1:0}})}catch{/* Superseded requests are aborted. */}
+  })
+  await page.locator('input[capture]').setInputFiles(photo);await waiting
+  await page.locator('input[capture]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别1项 · 0项已知冲突')
+  release();await expect(page.locator('.food-label-ingredients li')).toHaveCount(1)
+  await expect(page.locator('.food-label-row-heading strong')).toHaveText('最新成分')
 })
