@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-gray-two-line-20261004/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-restore-pr306-20261004/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -32,31 +32,27 @@ async function api(url, data, method = 'POST') {
 async function home(name) {
   await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
   await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
-  await expect(page.getByRole('button', { name: '记录症状', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
-  await expect(page.locator('.continuity-home h2,.continuity-record-entry__header,.continuity-home .continuity-card')).toHaveCount(0)
+  await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒'])
-  const geometry = await page.locator('.nurse-station-overview').evaluate(el => {
-    const rect = selector => el.querySelector(selector).getBoundingClientRect()
-    const hero = rect('.nurse-station-hero'), mint = rect('.continuity-home'), input = rect('.continuity-record-entry__record'), actions = rect('.continuity-record-entry__actions'), left = rect('.continuity-record-entry__list-action'), right = rect('.continuity-record-entry__action')
-    const exampleStyle = getComputedStyle(el.querySelector('.continuity-record-entry__example')), heroStyle = getComputedStyle(el.querySelector('.nurse-station-hero'))
-    return { size: exampleStyle.fontSize, weight: exampleStyle.fontWeight, background: getComputedStyle(el).backgroundColor, borderColor: getComputedStyle(el).borderColor, gap: mint.y - hero.bottom, aligned: hero.x === mint.x && hero.width === mint.width, inputHeight: input.height, actionGap: right.x - left.right, ratio: left.width / (left.width + right.width), leftHeight: left.height, rightHeight: right.height, actionY: actions.y - input.bottom, heroBorder: heroStyle.borderTopWidth, heroShadow: heroStyle.boxShadow, outerBorder: getComputedStyle(el).borderTopWidth }
+  await expect(page.locator('.nurse-station-overview')).toHaveCount(0)
+  const layout = await page.locator('.continuity-record-entry').evaluate(el => {
+    const title=el.querySelector('strong'),link=el.querySelector('a'),record=el.querySelector('button'),t=title.getBoundingClientRect(),l=link.getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero');
+    return { height:el.getBoundingClientRect().height,weight:getComputedStyle(title).fontWeight,size:getComputedStyle(title).fontSize,linkSize:getComputedStyle(link).fontSize,titleRight:t.right,linkLeft:l.left,background:getComputedStyle(record).backgroundColor,gap:el.parentElement.getBoundingClientRect().y-hero.getBoundingClientRect().bottom,heroBorder:getComputedStyle(hero).borderTopWidth }
   })
-  assert.equal(geometry.size, '13px'); assert.equal(geometry.weight, '400'); assert.equal(geometry.background, 'rgb(245, 245, 245)'); assert.equal(geometry.borderColor, 'rgb(219, 228, 224)')
-  await expect(page.locator('.continuity-record-entry__action svg')).toHaveCount(0)
-  assert.equal(geometry.gap, 0); assert.ok(geometry.aligned); assert.equal(geometry.heroBorder, '0px'); assert.equal(geometry.heroShadow, 'none'); assert.equal(geometry.outerBorder, '1px')
-  assert.ok(geometry.inputHeight >= 56); assert.equal(geometry.leftHeight, 48); assert.equal(geometry.rightHeight, 48)
-  assert.equal(geometry.actionGap, 12); assert.equal(geometry.actionY, 12); assert.ok(Math.abs(geometry.ratio - .36) < .001)
+  assert.equal(layout.height,108);assert.equal(layout.weight,'700');assert.equal(layout.size,'14px');assert.equal(layout.linkSize,layout.size);assert.ok(layout.titleRight<layout.linkLeft)
+  assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.gap,12);assert.equal(layout.heroBorder,'1px')
+  await expect(page.locator('.continuity-record-entry__action')).toHaveText('情况速记')
+  await expect(page.locator('.continuity-record-entry__actions')).toHaveCount(0)
   await expect(page.locator('.continuity-home input,.continuity-home textarea,.continuity-home button button,.continuity-home button a')).toHaveCount(0)
   const example = page.locator('.continuity-record-entry__example')
   await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
-  const authored = await example.getAttribute('aria-label')
-  assert.equal(authored.split('\n').length, 2)
-  assert.equal(await example.locator('span').evaluate(el => getComputedStyle(el).whiteSpace), 'pre-wrap')
-  const lines = await example.locator('span').evaluate(el => { const range = document.createRange(); range.selectNodeContents(el.firstChild); return new Set(Array.from(range.getClientRects()).filter(r => r.width > 0).map(r => Math.round(r.top))).size })
-  assert.equal(lines, 2)
+  assert.ok(!(await example.getAttribute('aria-label')).includes('\n'))
+  await expect(example).toHaveCSS('font-size','14px')
+  await expect(example.locator('span')).toHaveCSS('white-space','normal')
   const sizes = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   assert.equal(sizes.length, 5)
   assert.equal(new Set(sizes.map(card => card.height)).size, 1)
@@ -106,14 +102,24 @@ try {
   await api('/api/auth/current-member', { memberId })
   await page.goto(base + '/nurse-station')
   await expect(page.getByRole('link', { name: '跟进列表', exact: true })).toBeVisible()
+  // A retained QA browser may restore its previous member preference during bootstrap.
+  // Select the newly owned fixture through the real UI before editing any data.
+  async function selectOwnedMember(name, expectedId) {
+    await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+    await page.getByRole('dialog', { name: '侧边栏菜单', exact: true }).getByRole('button', { name: '打开我的孩子', exact: true }).click()
+    await page.getByRole('dialog', { name: '我的孩子', exact: true }).locator('.current-child-sheet__select').filter({ hasText: name }).click()
+    await expect(page.locator('.nurse-station-identity')).toContainText(name)
+    assert.equal((await api('/api/auth/session', undefined, 'GET')).user.currentMemberId, expectedId)
+  }
+  await selectOwnedMember('布局验收（合成）', memberId)
   for (const width of [375, 320, 390, 393, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
     await home(`home-${width}`)
   }
   result.checks.homeCopyFiveEqualCardsAndResponsive = 'PASS'
   await page.setViewportSize({ width: 375, height: 667 })
-  const geometry = () => page.locator('.nurse-station-overview').evaluate(el => ({ height: el.getBoundingClientRect().height, inputHeight: el.querySelector('.continuity-record-entry__record').getBoundingClientRect().height, buttonY: el.querySelector('.continuity-record-entry__actions').getBoundingClientRect().y }))
-  await page.locator('.nurse-station-overview').scrollIntoViewIfNeeded()
+  const geometry = () => page.locator('.continuity-record-entry').evaluate(el => ({ height: el.getBoundingClientRect().height, inputHeight: el.querySelector('.continuity-record-entry__record').getBoundingClientRect().height, buttonY: el.querySelector('.continuity-record-entry__action').getBoundingClientRect().y }))
+  await page.locator('.continuity-record-entry').scrollIntoViewIfNeeded()
   const stable = await geometry()
   for (let sample = 0; sample < 12; sample++) { await page.waitForTimeout(500); assert.deepEqual(await geometry(), stable) }
   result.checks.liveTypingLayoutStable = 'PASS'
@@ -126,12 +132,10 @@ try {
   await expect(editor).toHaveCount(0); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
   await page.reload(); await expect(page.locator('.nurse-station-blood-type')).toContainText('B型')
   result.checks.originalGrowthRoutesAndRealBloodEdit = 'PASS'
-  for (const name of ['切换验收（合成）', '布局验收（合成）']) {
-    await page.getByRole('button', { name: '打开菜单', exact: true }).click()
-    await page.getByRole('dialog', { name: '侧边栏菜单', exact: true }).getByRole('button', { name: '打开我的孩子', exact: true }).click()
-    await page.getByRole('dialog', { name: '我的孩子', exact: true }).locator('.current-child-sheet__select').filter({ hasText: name }).click()
-    await expect(page.locator('.nurse-station-identity')).toContainText(name)
-    await expect(page.getByRole('button', { name: '记录症状', exact: true })).toBeVisible()
+  assert.equal((await api(`/api/members/${memberId}`, undefined, 'GET')).bloodType, 'B')
+  for (const [name, expectedId] of [['切换验收（合成）', secondMemberId], ['布局验收（合成）', memberId]]) {
+    await selectOwnedMember(name, expectedId)
+    await expect(page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })).toBeVisible()
   }
   await expect(page.locator('.nurse-station-blood-type')).toContainText('B型'); result.checks.originalMemberSwitch = 'PASS'
   for (const [name, route] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders']]) {
@@ -142,13 +146,13 @@ try {
   }
   result.checks.remainingEntryNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry.getByRole('button', { name: '记录症状', exact: true })
+  const button = entry.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
   await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   await expect(entry.locator('.continuity-record-entry__example')).not.toContainText('例如：')
-  const fake = page.getByRole('button', { name: '记录症状示例，开始记录', exact: true })
-  for (const control of [fake, button]) {
+  const fake = page.getByRole('button', { name: '健康事件随时记，情况速记', exact: true })
+  for (const control of [button]) {
     for (const edge of ['left', 'right']) {
       await control.scrollIntoViewIfNeeded()
       const rect = await control.boundingBox()
@@ -158,6 +162,11 @@ try {
       await page.goBack()
     }
   }
+  const title = await entry.locator('strong').boundingBox()
+  await page.mouse.click(title.x+title.width/2,title.y+title.height/2)
+  await expect(page).toHaveURL(base + '/smart-record')
+  await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
+  await page.goBack()
   await fake.focus(); await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
   await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
