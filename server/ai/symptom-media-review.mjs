@@ -19,12 +19,12 @@ export async function mediaInputs(file,video){
   if(!video)return {image:await sharp(file,{limitInputPixels:40000000}).rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).jpeg({quality:85}).toBuffer(),times:[null],audio:null}
   const info=await inspectVideo(file),times=sampleTimes(info.duration)
   let audio=null,audioError=null,image=null,visionError=null
-  if(info.hasAudio){try{const wav=path.join(temp,'audio.wav');await runMedia(ffmpeg,['-y','-v','error','-i',file,'-vn','-ac','1','-ar','16000','-c:a','pcm_s16le',wav]);audio=await readFile(wav)}catch(e){audioError=e}}
+  if(info.hasAudio){try{const mp3=path.join(temp,'audio.mp3');await runMedia(ffmpeg,['-y','-v','error','-i',file,'-vn','-ac','1','-ar','16000','-c:a','libmp3lame','-b:a','48k',mp3]);audio=await readFile(mp3)}catch(e){audioError=e}}
   try{const frames=[]
    for(let i=0;i<times.length;i++){const frame=path.join(temp,i+'.jpg');await runMedia(ffmpeg,['-y','-v','error','-ss',String(times[i]),'-i',file,'-frames:v','1','-vf','scale=480:-2',frame]);const input=await sharp(frame).resize(480,360,{fit:'contain',background:'#fff'}).extend({top:28,bottom:0,left:0,right:0}).composite([{input:Buffer.from(`<svg width="480" height="28"><text x="8" y="20" font-size="18">Frame ${i} @ ${times[i]}s</text></svg>`),top:0,left:0}]).jpeg().toBuffer();frames.push({input,left:(i%2)*480,top:Math.floor(i/2)*388})}
    image=await sharp({create:{width:960,height:Math.ceil(times.length/2)*388,channels:3,background:'#fff'}}).composite(frames).jpeg({quality:85}).toBuffer()
   }catch(e){visionError=e}
-  return {image,times,audio,audioError,visionError,duration:info.duration}
+  return {image,times,audio,audioMimeType:'audio/mpeg',audioError,visionError,duration:info.duration}
  }finally{await rm(temp,{recursive:true,force:true})}
 }
 export function validateObservations(value,count){if(!value||!Array.isArray(value.observations)||!Array.isArray(value.questions)||value.observations.length>24||value.questions.length>12||value.questions.some(q=>typeof q!=='string'||q.length>1000))throw new Error('整理结果格式异常');for(const o of value.observations)if(!Number.isInteger(o.frame)||o.frame<0||o.frame>=count||typeof o.text!=='string'||!o.text.trim()||o.text.length>1000)throw new Error('整理结果来源无法验证');return value}

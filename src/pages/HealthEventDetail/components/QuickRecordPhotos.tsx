@@ -54,6 +54,8 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const uploadQueue = useRef(Promise.resolve())
   const live = useRef(true)
   const uploadVersionsRef = useRef(new Map<string, number>())
+  const removedIds=useRef(new Set<string>())
+  const hydrationGeneration=useRef(0)
   photosRef.current = photos
 
   useEffect(()=>{if(scopeRef.current!==localScope){photosRef.current.forEach(p=>{URL.revokeObjectURL(p.previewUrl);if(p.posterUrl)URL.revokeObjectURL(p.posterUrl)});photosRef.current=[];setPhotos([]);uploadVersionsRef.current.clear();draftIdRef.current='';scopeRef.current=localScope;setPreviewIndex(null)}},[localScope])
@@ -70,7 +72,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     const stored = sessionStorage.getItem(draftStorageKey(memberId, namespace))
     if ((!stored&&!allowVideos) || photosRef.current.length) return
     draftIdRef.current = stored||ensureDraftId()
-    const hydrationDraft=draftIdRef.current
+    const hydrationDraft=draftIdRef.current,hydrationTurn=hydrationGeneration.current
     let active = true
     void quickRecordService.listPhotos(hydrationDraft, memberId, token).then(async (saved) => {
       const hydrated = await Promise.all(saved.map(async (photo) => {
@@ -80,7 +82,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
       }))
       const pending=allowVideos?(await localMediaDraft.list(localScope).catch(()=>[])).filter(p=>!saved.some(s=>s.uploadId===p.localId)):[]
       const restored=pending.map(p=>({localId:p.localId,file:p.file,name:p.file.name,mimeType:p.file.type,size:p.file.size,origin:p.origin,previewUrl:URL.createObjectURL(p.file),status:'failed' as const,error:'上次上传未完成，原件已在本机恢复，请重试上传'}))
-      if (active) setPhotos([...hydrated,...restored])
+      if (active&&hydrationGeneration.current===hydrationTurn) setPhotos(current=>{const candidates=[...hydrated,...restored];const added=candidates.filter(p=>!removedIds.current.has(p.localId)&&!('serverId' in p&&removedIds.current.has(p.serverId!))&&!current.some(c=>c.localId===p.localId||('serverId' in p&&p.serverId===c.serverId)));candidates.filter(p=>!added.includes(p)).forEach(p=>URL.revokeObjectURL(p.previewUrl));const next=[...current,...added];photosRef.current=next;return next})
       else [...hydrated,...restored].forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
     }).catch(() => { if (active) setNotice(allowVideos ? '资料草稿暂时无法恢复，请稍后重试' : '照片草稿暂时无法恢复，请稍后重试') })
     return () => { active = false }
@@ -155,6 +157,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const remove = (localId: string) => {
     const item = photosRef.current.find((photo) => photo.localId === localId)
     if (!item) return
+    removedIds.current.add(item.localId);if(item.serverId)removedIds.current.add(item.serverId)
     if(allowVideos)void localMediaDraft.remove(localScope,item.localId).catch(()=>undefined)
     uploadVersionsRef.current.set(localId, (uploadVersionsRef.current.get(localId) ?? 0) + 1)
     URL.revokeObjectURL(item.previewUrl);if(item.posterUrl)URL.revokeObjectURL(item.posterUrl)
@@ -166,6 +169,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   }
 
   const clearLocal = () => {
+    hydrationGeneration.current++
     photosRef.current.forEach((photo) => {URL.revokeObjectURL(photo.previewUrl);if(photo.posterUrl)URL.revokeObjectURL(photo.posterUrl);if(allowVideos)void localMediaDraft.remove(localScope,photo.localId).catch(()=>undefined)})
     uploadVersionsRef.current.clear()
     photosRef.current = []
