@@ -30,14 +30,16 @@ test('顶部白卡收紧为人物、守护天数和真实视频并在底部保�
   assert.doesNotMatch(source, /今天想让我们帮你做什么|容易忘、需要持续观察/)
 })
 
-test('首页五入口使用等高双列卡片和独立图文层', () => {
+test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.match(styles, /\.nurse-home-entries\s*\{[^}]*grid-template-columns:\s*repeat\(2,[^}]*gap:\s*10px/)
   assert.match(styles, /\.nurse-home-entry\s*\{[^}]*height:\s*88px[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*58px/)
   assert.match(styles, /\.nurse-home-entry__copy strong\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/)
   assert.match(styles, /\.nurse-home-entry__copy small\s*\{[^}]*font-size:\s*11px[^}]*line-height:\s*16px/)
   assert.match(styles, /\.nurse-home-entry__visual img\s*\{[^}]*object-fit:\s*contain/)
-  assert.match(source, /健康随记.*记录日常与身体变化.*healthDiaryImage.*\/health-events/)
-  assert.match(source, /健康档案.*整理家人的健康信息.*healthProfileImage.*\/health-profile/)
+  assert.match(source, /健康日记.*记录日常与身体变化.*healthDiaryImage.*\/health-events/)
+  assert.match(source, /孩子档案.*整理家人的健康信息.*healthProfileImage.*\/health-profile/)
+  assert.match(source, /配料表扫描.*拍配料表，对照过敏史.*foodLabelImage.*\/food-label/)
+  assert.match(styles, /\.nurse-home-entry--food-label\s*\{[^}]*border-color:\s*#f2d8bf[^}]*background:\s*#fff3e7/)
   assert.match(source, /就诊情况单.*就诊前，一页理清病情.*visitSummaryImage.*\/visit-summary/)
   assert.match(source, /忌口出示卡.*哪些不能吃，出示就懂.*dietaryCardImage/)
   assert.match(source, /title: '用药提醒'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)

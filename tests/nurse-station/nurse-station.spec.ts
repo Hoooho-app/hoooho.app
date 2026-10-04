@@ -154,10 +154,11 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await expect(page.locator('.nurse-station-allergy-index')).toHaveCount(0)
   const entries = page.locator('.nurse-home-entry')
   await expect(entries).toHaveCount(6)
-  await expect(entries.locator('strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒', '食品标签核对'])
-  await expect(entries.locator('small')).toHaveText(['就诊前，一页理清病情', '哪些不能吃，出示就懂', '记录日常与身体变化', '整理家人的健康信息', '0 个提醒任务', '拍配料表，对照过敏史'])
-  await expect(page.getByRole('link', { name: /健康随记/ })).toHaveAttribute('href', '/health-events')
-  await expect(page.getByRole('link', { name: /健康档案/ })).toHaveAttribute('href', '/health-profile')
+  await expect(entries.locator('strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
+  await expect(entries.locator('small')).toHaveText(['就诊前，一页理清病情', '哪些不能吃，出示就懂', '拍配料表，对照过敏史', '0 个提醒任务', '记录日常与身体变化', '整理家人的健康信息'])
+  await expect(entries.nth(2)).toHaveCSS('background-color', 'rgb(255, 243, 231)')
+  await expect(page.getByRole('link', { name: /健康日记/ })).toHaveAttribute('href', '/health-events')
+  await expect(page.getByRole('link', { name: /孩子档案/ })).toHaveAttribute('href', '/health-profile')
   await expect(page.getByRole('link', { name: /就诊情况单/ })).toHaveAttribute('href', '/visit-summary')
   await expect(page.getByText(/正在准备中。/, { exact: true })).toHaveCount(0)
   await expect(page.getByText('说明与帮助', { exact: true })).toHaveCount(0)
@@ -185,7 +186,7 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   expect(fiveDigitLayout.overflow).toBe(false)
   expect(fiveDigitLayout.guardedRight).toBeLessThanOrEqual(fiveDigitLayout.visualLeft)
   await page.screenshot({ path: 'test-results/nurse-station-five-digit-guarded-days-375x667.png', fullPage: true })
-  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['食品标签核对','/food-label']] as const) {
+  for (const [name, path] of [['健康日记', '/health-events'], ['孩子档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['配料表扫描','/food-label']] as const) {
     await page.getByRole('link', { name: new RegExp(name) }).click()
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`))
     await page.goBack()
@@ -280,7 +281,7 @@ test('成长数据入口迁移并保持血型独立编辑与部分测量值', as
   await expect.poll(() => page.locator('.idle-nurse-visual video').evaluate((element: HTMLVideoElement) => element.videoWidth)).toBe(360)
   await page.screenshot({ path: 'test-results/nurse-station-growth-data-375x667.png', fullPage: true })
 
-  await page.getByRole('link', { name: /健康档案/ }).click()
+  await page.getByRole('link', { name: /孩子档案/ }).click()
   await expect(page.locator('.health-profile-record-subject')).toBeVisible()
   await expect(page.locator('.growth-identity-card__metrics')).toHaveCount(0)
   await expect(page.locator('.health-profile-record-subject + nav[aria-label="档案分类"]')).toBeVisible()
