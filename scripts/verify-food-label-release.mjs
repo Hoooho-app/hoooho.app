@@ -33,7 +33,9 @@ try{
   assert.equal((await context.request.get(base+'/api/health')).status(),200)
   await page.goto(base+'/login');await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill('标签验收'+randomUUID().slice(0,8));await page.getByPlaceholder('设置一个密码').fill(randomUUID())
-  const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST');await page.getByRole('button',{name:'注册并进入'}).click();assert.ok((await registered).ok())
+  const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST');await page.getByRole('button',{name:'注册并进入'}).click();const registration=await registered
+  if(!registration.ok()){const body=await registration.json();console.log(JSON.stringify({target,registrationStatus:registration.status(),code:body.error?.code,retryAfter:registration.headers()['retry-after']??body.error?.retryAfter??body.error?.details?.retryAfter??body.retryAfter}));errors.push(body.error?.code??'REGISTRATION_FAILED')}
+  assert.ok(registration.ok(),'Acceptance registration unavailable')
   const session=await api('/api/auth/session',undefined,'GET');token=session.token;assert.ok(token)
   memberId=(await api('/api/members',{name:'合成食品验收非真实儿童',relationship:'child',birthday:'2025-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId})
