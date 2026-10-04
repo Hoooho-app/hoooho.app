@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { SymptomCaseRecord } from './SymptomCaseRecord'
-import { CaseCard } from './CaseCards'
+import { CaseFollowupCard } from './CaseFollowupCard'
 import { useCases } from './useCases'
 import { caseService } from './api'
 import './cases.css'
@@ -16,9 +16,21 @@ export function SmartCaseRecordPage() {
   return <main className="app-shell continuity-page"><SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/></main>
 }
 export function CaseListPage() {
-  const { data, error, reload } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')
+  const { data, error, reload, memberId, token } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')
+  const navigate=useNavigate(),dirty=useRef(new Map<string,boolean>()),pending=useRef(false)
+  const [feedback,setFeedback]=useState<{id:string;requestId:string;undoId:string;archivedAt:string|null;recovered:boolean}|null>(null),[failure,setFailure]=useState(''),[busy,setBusy]=useState(false)
+  const accountId=useAppStore(s=>s.authUser?.id??'')
+  const onDirty=useCallback((id:string,value:boolean)=>{dirty.current.set(id,value)},[])
+  const guard=()=>![...dirty.current.values()].some(Boolean)||window.confirm('有内容尚未保存，离开后保留设备草稿，确定继续吗？')
+  useEffect(()=>{setFeedback(null);setFailure('');dirty.current.clear()},[accountId,memberId])
+  useEffect(()=>{const before=(e:BeforeUnloadEvent)=>{if([...dirty.current.values()].some(Boolean)){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',before);return()=>window.removeEventListener('beforeunload',before)},[])
+  async function undo(){if(!feedback||pending.current)return;pending.current=true;setBusy(true);setFailure('');try{await caseService.recovery(memberId,token,feedback.id,{action:'undo',requestId:feedback.undoId,undoRequestId:feedback.requestId,expectedArchivedAt:feedback.archivedAt});setFeedback(null);reload()}catch(e){setFailure(e instanceof Error?e.message:'撤销未保存，请重试')}finally{pending.current=false;setBusy(false)}}
   const items = archived ? data?.archived : data?.active
-  return <main className="app-shell continuity-page"><WebPageHeader title="正在跟进" action={<Link to="/smart-record">情况收记</Link>}/><div className="continuity-scroll"><div className="continuity-tabs"><button aria-pressed={!archived} onClick={() => setArchived(false)}>跟进中{data ? ` ${data.active.length}` : ''}</button><button aria-pressed={archived} onClick={() => setArchived(true)}>已归档{data ? ` ${data.archived.length}` : ''}</button></div><Link to="/cases/compare">对比两次情况 ›</Link>{error ? <StatusNotice tone="error" title="列表未加载">{error}<HohoButton onClick={reload}>重试</HohoButton></StatusNotice> : !items ? <p role="status">正在加载…</p> : !items.length ? <p>暂无{archived ? '已归档' : '跟进中'}的情况</p> : items.map(item => <CaseCard key={item.event.id} item={item}/>)}</div></main>
+  return <main className="app-shell continuity-page case-followup-page"><WebPageHeader title="情况跟进" onBack={()=>{if(guard())navigate(-1)}}/><div className="continuity-scroll"><div className="continuity-tabs" role="tablist" aria-label="情况状态"><button role="tab" aria-selected={!archived} aria-pressed={!archived} onClick={() => {if(guard())setArchived(false)}}>跟进中{data ? ` ${data.active.length}` : ''}</button><button role="tab" aria-selected={archived} aria-pressed={archived} onClick={() => {if(guard())setArchived(true)}}>已康复{data ? ` ${data.archived.length}` : ''}</button></div>
+    {feedback&&<div role="status" className="case-followup-feedback">{feedback.recovered?'已标记康复':'已恢复跟进'}<HohoButton variant="text" disabled={busy} onClick={()=>void undo()}>撤销</HohoButton></div>}{failure&&<p role="alert">{failure}<HohoButton variant="text" disabled={busy} onClick={()=>void undo()}>重试撤销</HohoButton></p>}
+    {error&&<StatusNotice tone="error" title="列表未加载">{error}<HohoButton onClick={reload}>重试</HohoButton></StatusNotice>}
+    {!items ? !error&&<p role="status">正在加载…</p> : !items.length ? <p className="continuity-empty">暂无{archived ? '已康复或历史归档' : '跟进中'}的情况</p> : items.map(item => <CaseFollowupCard key={`${accountId}:${memberId}:${item.event.id}`} item={item} memberId={memberId} token={token} timezone={data!.timezone} reload={reload} onDirty={onDirty} onStatus={(id,requestId,archivedAt,recovered)=>setFeedback({id,requestId,undoId:crypto.randomUUID(),archivedAt,recovered})}/>)}
+  </div></main>
 }
 export function CaseComparePage() {
   const { data, error, reload } = useCases(), [first, setFirst] = useState(''), [second, setSecond] = useState('')

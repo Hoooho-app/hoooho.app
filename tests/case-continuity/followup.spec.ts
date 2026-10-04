@@ -1,0 +1,66 @@
+import {test,expect,type Page} from '@playwright/test'
+import {TokenService} from '../../server/auth/token-service.mjs'
+const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
+const pixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')
+async function init(page:Page){await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'empty-child',members:[],profile:null},version:5}))},token)}
+async function seed(request:any,text:string,extra:any={}){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files:[],requestId:crypto.randomUUID(),occurredAt:'2026-10-01T01:00:00Z',...extra}});expect(response.ok()).toBe(true);return response.json()}
+const card=(page:Page,id:string)=>page.locator(`[data-case-id="${id}"]`)
+test('独立时间线、内嵌完整记录、失败与幂等重试、刷新/补录、康复撤销恢复及历史归档',async({page,request})=>{
+  const a=await seed(request,'合成跟进A：鼻塞，晚上睡觉时张口呼吸'),b=await seed(request,'合成跟进B：左肘窝发红、发痒'),legacy=await seed(request,'合成历史：曾经咳嗽')
+  await request.post(`/api/members/empty-child/cases/${legacy.eventId}/archive`,{headers,data:{archived:true}})
+  await init(page);await page.goto('/cases')
+  await expect(page.getByRole('heading',{name:'情况跟进',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:/情况收记|对比两次情况/})).toHaveCount(0)
+  const ca=card(page,a.eventId),cb=card(page,b.eventId)
+  await expect(ca.getByRole('button',{name:'展开',exact:true})).toHaveAttribute('aria-expanded','false')
+  await ca.getByRole('button',{name:'展开',exact:true}).click();await cb.getByRole('button',{name:'展开',exact:true}).click()
+  await expect(ca.locator('li')).toHaveCount(1);await expect(cb.locator('li')).toHaveCount(1)
+  await ca.getByRole('button',{name:'继续记录',exact:true}).click();const form=ca.getByRole('region',{name:'继续记录这次情况'})
+  await expect(form).toBeVisible();await expect(page.getByRole('dialog',{name:'症状记录'})).toHaveCount(0);await expect(page).toHaveURL(/\/cases$/)
+  await form.getByLabel('哪里不舒服').fill('合成补录：昨晚鼻塞，没有发烧')
+  await form.getByRole('textbox',{name:'发生时间',exact:true}).fill('2026-09-30T18:30')
+  await form.getByLabel('选择照片').setInputFiles({name:'合成附图.png',mimeType:'image/png',buffer:pixel});await expect(form.locator('[data-status="uploaded"]')).toHaveCount(1)
+  await ca.getByRole('button',{name:'收起',exact:true}).click();await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成补录：昨晚鼻塞，没有发烧')
+  let fail=true
+  await page.route('**/api/members/empty-child/case-records',async route=>{if(fail){await route.fetch();await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成响应丢失，请重试'}})})}else await route.continue()})
+  await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form.getByRole('alert')).toContainText('合成响应丢失');await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成补录：昨晚鼻塞，没有发烧');await expect(form.locator('[data-status="uploaded"]')).toHaveCount(1)
+  fail=false;await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form).toHaveCount(0);await expect(ca.locator('li')).toHaveCount(2);await expect(ca.locator('li').first()).toContainText('合成补录');await expect(cb.locator('li')).toHaveCount(1)
+  const records=await(await request.get(`/api/events/${a.eventId}/records`,{headers})).json();expect(records).toHaveLength(2);expect(records.find((r:any)=>r.content.startsWith('合成补录')).caseContext.attachmentIds).toHaveLength(1)
+  await page.reload();await ca.getByRole('button',{name:'展开',exact:true}).click();await expect(ca.locator('li')).toHaveCount(2)
+  await ca.getByRole('button',{name:'继续记录',exact:true}).click();await form.getByLabel('哪里不舒服').fill('合成未保存草稿');page.once('dialog',d=>d.accept());await form.getByRole('button',{name:'取消',exact:true}).click();await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成未保存草稿')
+  page.once('dialog',d=>d.accept());await page.getByRole('tab',{name:/已康复/}).click();await expect(card(page,legacy.eventId)).toContainText('历史归档');await expect(card(page,legacy.eventId)).not.toContainText('用户标记康复');await page.getByRole('tab',{name:/跟进中/}).click();await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成未保存草稿');page.once('dialog',d=>d.accept());await form.getByRole('button',{name:'取消',exact:true}).click()
+  await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await expect(page.getByRole('tab',{name:/跟进中/})).toHaveAttribute('aria-selected','true')
+  let failUndo=true;const undoIds:string[]=[]
+  await page.route(`**/api/members/empty-child/cases/${a.eventId}/recovery`,async route=>{const input=route.request().postDataJSON();if(input.action==='undo'){undoIds.push(input.requestId);if(failUndo){await route.fetch();await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成撤销响应丢失，请重试'}})});return}}await route.continue()})
+  await page.getByRole('button',{name:'撤销',exact:true}).click();await expect(page.getByRole('alert')).toContainText('合成撤销响应丢失');failUndo=false;await page.getByRole('button',{name:'重试撤销',exact:true}).click();await expect(ca).toBeVisible();expect(undoIds[0]).toBe(undoIds[1])
+  await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await page.getByRole('tab',{name:/已康复/}).click();await expect(ca).toContainText('用户标记康复');await expect(ca.getByRole('button',{name:'继续记录',exact:true})).toHaveCount(0);await ca.getByRole('button',{name:'展开',exact:true}).click();await expect(ca.locator('li')).toHaveCount(2)
+  await ca.getByRole('button',{name:'恢复跟进',exact:true}).click();await expect(ca).toHaveCount(0);await page.getByRole('tab',{name:/跟进中/}).click();await expect(ca).toBeVisible()
+  const other=await request.get('/api/members/child-a/cases',{headers});expect((await other.json()).active.some((c:any)=>c.event.id===a.eventId)).toBe(false)
+})
+test('资料内嵌保存、人工核对和附件引用；识别失败不假成功',async({page,request})=>{
+  const a=await seed(request,'合成资料跟进：皮肤发痒');await init(page);await page.goto('/cases');const ca=card(page,a.eventId)
+  await ca.getByRole('button',{name:'带回问诊资料',exact:true}).click();const form=ca.locator('.continuity-form');await expect(form).toBeVisible();await expect(page).toHaveURL(/\/cases$/)
+  await form.getByLabel('资料来源',{exact:true}).selectOption('medical_consultation');await form.getByLabel('资料原话或补充（选填）').fill('合成资料：医生建议观察');await form.getByLabel('就诊时间',{exact:true}).fill('2026-10-01T15:30')
+  await form.getByLabel('上传就诊资料').setInputFiles({name:'很长的合成附件名称用于验证不溢出病历检查报告.png',mimeType:'image/png',buffer:pixel});await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form.getByText('原件已保存到这次情况；内容尚未识别或核对')).toBeVisible();await expect(ca.locator('li')).toHaveCount(2)
+  await request.get('http://127.0.0.1:4618/failure');await form.getByRole('button',{name:'智能整理原件',exact:true}).click();const review=ca.getByRole('region',{name:'智能整理记录'});await expect(review).toBeVisible();await expect(page.getByRole('dialog',{name:'智能整理记录'})).toHaveCount(0)
+  await review.getByRole('button',{name:'整理成待确认记录',exact:true}).click();await expect(review.getByRole('alert')).toBeVisible();await expect(review.getByRole('button',{name:'保留原件，手动补充',exact:true})).toBeVisible()
+  await review.getByRole('button',{name:'保留原件，手动补充',exact:true}).click();await expect(review).toContainText('智能识别未成功');await request.get('http://127.0.0.1:4618/success')
+  await review.getByRole('button',{name:'已核对，一次保存 1 条',exact:true}).click();await expect(review).toContainText('已保存 1 条记录')
+  const recordList=await(await request.get(`/api/events/${a.eventId}/records`,{headers})).json();expect(recordList).toHaveLength(2);const material=recordList.find((r:any)=>r.caseContext.identity==='medical_consultation');expect(material.occurredAt).toBe('2026-10-01T07:30:00.000Z');expect(material.caseContext.confirmed).toBe(true);expect(material.sourceText).toBe('合成资料：医生建议观察');expect(material.caseContext.timeUnknown).toBe(false)
+  const attachmentList=await(await request.get(`/api/events/${a.eventId}/attachments`,{headers})).json();expect(attachmentList).toHaveLength(1)
+  const source=await request.get(`/api/events/${a.eventId}/attachments/${attachmentList[0].id}/content`,{headers});expect(source.ok()).toBe(true)
+})
+test('无响应超时保留表单，重试只写入一条',async({page,request})=>{
+  const a=await seed(request,'合成超时跟进：鼻塞');await init(page);await page.goto('/cases');const ca=card(page,a.eventId)
+  await ca.getByRole('button',{name:'继续记录',exact:true}).click();const form=ca.getByRole('region',{name:'继续记录这次情况'})
+  await form.getByLabel('哪里不舒服').fill('合成超时补充：鼻塞仍存在');await page.clock.install()
+  let release:()=>void=()=>{},blocked=true
+  await page.route('**/api/members/empty-child/case-records',async route=>{if(blocked){await new Promise<void>(resolve=>{release=resolve});await route.abort().catch(()=>{})}else await route.continue()})
+  await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form.getByRole('button',{name:'保存到这次情况',exact:true})).toBeDisabled()
+  await page.clock.fastForward(45001);await expect(form.getByRole('alert')).toContainText('请求超时');await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成超时补充：鼻塞仍存在')
+  blocked=false;release();await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form).toHaveCount(0);await expect(ca.locator('li')).toHaveCount(2)
+  expect((await(await request.get(`/api/events/${a.eventId}/records`,{headers})).json())).toHaveLength(2)
+})
+for(const width of [320,375,390,430])test(`长记录与内嵌表单无溢出 ${width}`,async({page,request})=>{
+  const a=await seed(request,'合成长文本：夜间鼻塞，'+ '这是完整原始记录。'.repeat(55));await init(page);await page.setViewportSize({width,height:667});await page.goto('/cases');const ca=card(page,a.eventId);await ca.getByRole('button',{name:'展开',exact:true}).click();await ca.getByRole('button',{name:'展开全文',exact:true}).click();await expect(ca).toContainText('这是完整原始记录。'.repeat(55));await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(ca.getByLabel('哪里不舒服')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  expect(await ca.locator('.symptom-record-scroll').evaluate(el=>getComputedStyle(el).overflowY)).toBe('visible');await page.screenshot({path:`outputs/case-followup/inline-${width}.png`,fullPage:true});await ca.getByRole('button',{name:'取消',exact:true}).click();await ca.getByRole('button',{name:'带回问诊资料',exact:true}).click();await expect(ca.getByLabel('就诊时间',{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})
