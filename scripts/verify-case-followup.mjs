@@ -6,14 +6,14 @@ import path from 'node:path'
 import {chromium,devices,expect} from '@playwright/test'
 
 const target=process.env.HOOOHO_FOLLOWUP_TARGET
-if(!['staging','production'].includes(target)||process.env.RUN_HOOOHO_FOLLOWUP_LIVE!=='1')throw new Error('Explicit live acceptance target required')
-const base=target==='production'?'https://hoooho.com':'https://hooohoapp-staging.up.railway.app'
+if(!['local','staging','production'].includes(target)||process.env.RUN_HOOOHO_FOLLOWUP_LIVE!=='1')throw new Error('Explicit acceptance target required')
+const base=target==='local'?'http://127.0.0.1:4616':target==='production'?'https://hoooho.com':'https://hooohoapp-staging.up.railway.app'
 const output=path.resolve(`outputs/case-followup/${target}`)
 await mkdir(output,{recursive:true})
 const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
 const context=await browser.newContext({...devices['iPhone SE'],timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
 const page=await context.newPage();page.setDefaultTimeout(45000)
-const result={target:base,startedAt:new Date().toISOString(),checks:{},cleanup:{},runtimeErrors:0,physicalIPhoneSafari:'NOT_VERIFIED',realMicrophoneCamera:'NOT_VERIFIED'}
+const result={target:base,providerMode:target==='local'?'ISOLATED_TEST_DOUBLE':'LIVE_CONFIGURED_PROVIDER',startedAt:new Date().toISOString(),checks:{},cleanup:{},runtimeErrors:0,physicalIPhoneSafari:'NOT_VERIFIED',realMicrophoneCamera:'NOT_VERIFIED'}
 page.on('pageerror',()=>result.runtimeErrors++)
 let token,registered=false,memberId,otherId,draftId
 const instant=new Date(Date.now()-2*86400000).toISOString()
@@ -79,17 +79,34 @@ try{
   const attachments=await api(`/api/events/${a.eventId}/attachments`,undefined,'GET');assert.equal(attachments.length,1)
   const readable=await page.evaluate(async({url,token})=>{const r=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});return {status:r.status,size:(await r.arrayBuffer()).byteLength}},{url:`${base}/api/events/${a.eventId}/attachments/${attachments[0].id}/content`,token});assert.equal(readable.status,200);assert.equal(readable.size,png.length)
   result.checks.inlineMaterialsOriginals='PASS'
-  await material.getByRole('button',{name:'智能整理原件',exact:true}).click();const review=ca.getByRole('region',{name:'智能整理记录'})
-  const recognized=page.waitForResponse(r=>new URL(r.url()).pathname===`/api/members/${memberId}/ai-drafts`&&r.request().method()==='POST',{timeout:180000})
-  await review.getByRole('button',{name:'整理成待确认记录',exact:true}).click();const response=await recognized,body=await response.json()
-  if(!response.ok())throw Object.assign(new Error('Real configured OCR unavailable'),{safe:{status:response.status(),code:body.error?.code??null,gate:'realOCR'}})
-  draftId=body.id;assert.equal(body.state,'ready');assert.equal(body.sourceRecordId,original.id);assert.equal(body.targetEventId,a.eventId)
-  assert.ok(body.sources.some(s=>['readable','uncertain'].includes(s.status)&&s.text));result.checks.realOCR='PASS_ON_THIS_SYNTHETIC_IMAGE_ONLY'
-  const confirm=review.getByRole('button',{name:/已核对，一次保存/})
-  await expect(confirm).toBeEnabled({timeout:45000});await confirm.click();await expect(review.getByText(/已保存 \d+ 条记录/, {exact:true})).toBeVisible()
+  let reviewed=false
+  // A separately evidenced known rejection must not trigger automatic model
+  // retries. This skip remains NOT VERIFIED, never an OCR PASS.
+  if(target==='staging'&&process.env.HOOOHO_FOLLOWUP_KNOWN_AI_REJECTION==='422')result.checks.realOCR={state:'FAIL_PREVIOUS_ATTEMPT_NOT_RETRIED',status:422,code:'AI_BUSINESS_INVALID',evidence:'ocr-attempt-20261004.json'}
+  else{
+    await material.getByRole('button',{name:'智能整理原件',exact:true}).click();const review=ca.getByRole('region',{name:'智能整理记录'})
+    const recognized=page.waitForResponse(r=>new URL(r.url()).pathname===`/api/members/${memberId}/ai-drafts`&&r.request().method()==='POST',{timeout:180000})
+    await review.getByRole('button',{name:'整理成待确认记录',exact:true}).click();const response=await recognized,body=await response.json()
+    if(response.ok()){
+      draftId=body.id;assert.equal(body.state,'ready');assert.equal(body.sourceRecordId,original.id);assert.equal(body.targetEventId,a.eventId)
+      assert.ok(body.sources.some(s=>['readable','uncertain'].includes(s.status)&&s.text));result.checks.realOCR='PASS_ON_THIS_SYNTHETIC_IMAGE_ONLY'
+      if(body.items.length){const confirm=review.getByRole('button',{name:/已核对，一次保存/});await expect(confirm).toBeEnabled({timeout:45000});await confirm.click();await expect(review.getByText(/已保存 \d+ 条记录/, {exact:true})).toBeVisible();reviewed=true}
+      else result.checks.structuredExtraction='NO_APPLICABLE_FACTS_MANUAL_CONFIRMATION_REQUIRED'
+    }else{
+      result.checks.realOCR={state:'FAIL',status:response.status(),code:body.error?.code??null,validation:body.error?.validation??null}
+      // Explicit requirement: invalid/unavailable recognition retains originals
+      // and allows manual confirmation, without inventing diagnoses.
+      await expect(review.getByRole('alert')).toBeVisible();await review.getByRole('button',{name:'保留原件，手动补充',exact:true}).click()
+      await expect(review).toContainText('智能识别未成功');await review.getByRole('button',{name:/已核对，一次保存/}).click();await expect(review.getByText(/已保存 \d+ 条记录/,{exact:true})).toBeVisible();reviewed=true
+      draftId=(await api(`/api/events/${a.eventId}/records`,undefined,'GET')).find(r=>r.id===original.id).caseContext.aiDraftId
+      result.checks.recognitionFailureManualFallback='PASS_ORIGINALS_ONLY_NO_DIAGNOSIS'
+    }
+    await review.getByRole('button',{name:reviewed?'完成':'返回资料区域',exact:true}).click()
+  }
+  if(!reviewed){await material.getByRole('checkbox',{name:'已核对来源和原件，未知信息没有补猜'}).check();await material.getByRole('button',{name:'确认接回这次情况',exact:true}).click();await expect(material).toHaveCount(0)}
+  else await material.getByRole('button',{name:'关闭资料区域',exact:true}).click()
   records=await api(`/api/events/${a.eventId}/records`,undefined,'GET');assert.ok(records.some(r=>r.id===original.id&&r.caseContext?.confirmed))
-  assert.equal((await api(`/api/events/${a.eventId}/attachments`,undefined,'GET')).length,1);result.checks.realReviewSameOriginal='PASS'
-  await review.getByRole('button',{name:'完成',exact:true}).click();await material.getByRole('button',{name:'关闭资料区域',exact:true}).click()
+  assert.equal((await api(`/api/events/${a.eventId}/attachments`,undefined,'GET')).length,1);result.checks.realReviewSameOriginal=reviewed?'PASS_CONFIRMED_REVIEW':'PASS_MANUAL_CONFIRMATION'
   const before=records.map(r=>r.id).sort()
   await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await expect(page.getByRole('tab',{name:/跟进中/})).toHaveAttribute('aria-selected','true')
   await page.getByRole('button',{name:'撤销',exact:true}).click();await expect(ca).toBeVisible()
@@ -108,7 +125,8 @@ finally{
   if(draftId)await api(`/api/members/${memberId}/ai-drafts/${draftId}`,undefined,'DELETE').then(()=>result.cleanup.draft='REMOVED').catch(()=>result.cleanup.draft='FAILED')
   for(const id of [memberId,otherId].filter(Boolean))await api(`/api/members/${id}`,undefined,'DELETE').then(()=>result.cleanup[id===memberId?'syntheticMember':'isolationMember']='REMOVED').catch(()=>result.cleanup[id===memberId?'syntheticMember':'isolationMember']='FAILED')
   result.cleanup.syntheticAccount=registered?'RETAINED_NO_IDENTITY_DELETION_BYPASS':'NOT_CREATED';result.finishedAt=new Date().toISOString()
-  result.automatedGate=!result.failure&&result.runtimeErrors===0&&result.cleanup.syntheticMember==='REMOVED'&&result.cleanup.isolationMember==='REMOVED'?'PASS':'FAIL'
-  if(result.automatedGate!=='PASS')process.exitCode=1
+  result.automatedGate=!result.failure&&result.runtimeErrors===0&&result.cleanup.syntheticMember==='REMOVED'&&result.cleanup.isolationMember==='REMOVED'?'PASS_CORE_WORKFLOW':'FAIL'
+  result.aiRecognitionGate=typeof result.checks.realOCR==='string'&&result.checks.realOCR.startsWith('PASS')?'PASS_ONE_SAMPLE_ONLY':'NOT_PASSED'
+  if(result.automatedGate!=='PASS_CORE_WORKFLOW')process.exitCode=1
   await writeFile(path.join(output,'verification.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));await context.close();await browser.close()
 }

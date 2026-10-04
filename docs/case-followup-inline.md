@@ -29,3 +29,5 @@
 `followup-webkit.config.ts` 在独立后台 WebKit 执行同一新增流程，不继承 Chrome 启动路径，不改变可视预览。后台 WebKit 通过仍不等于物理 iPhone 相机、麦克风、文件选择器或软键盘通过。保存/康复/核对请求 45 秒超时后保留草稿并允许稳定标识重试；撤销响应丢失也复用同一 requestId。
 
 完整服务器回归的已知基线失败：`ops-service.test.mjs:62` 固定使用 2026-09-02 的失败样本，`history()` 按当前日期清理超过 30 天的非重要历史；到 2026-10-04 失败样本被清理，仅最近成功快照被保留，断言失败。Operations 实现与测试未改，Git blob 与 main 相同（实现 `8816eefb96d0846cc25b39ab092f200fb2ce3659`，测试 `92d791e73992f674147684ba10dcc8a4699ca329`）。完整测试 202/203 PASS、该项 FAIL；独立重跑同样失败。风险限定为既有 Operations 日期依赖测试，不影响本次情况记录、资料或状态服务；不删除/弱化该测试，不将完整服务器测试记作 PASS。
+
+线上验收脚本将 `automatedGate`（记录、原件、人工/结构化核对、康复、隔离）与 `aiRecognitionGate` 分开。识别拒绝或无可适用事实时，按需求验证保留原件和人工核对；AI 拒绝仍记录 FAIL/NOT_PASSED，不能因为人工保存成功改为识别 PASS。Staging 已知 422 语义校验拒绝可以保留独立失败证据后不自动重试模型；Production 使用其自身真实配置，不能继承 Staging 的成功/失败结论。local 模式固定独立测试端口并明确标记 ISOLATED_TEST_DOUBLE，不作为线上证据。
