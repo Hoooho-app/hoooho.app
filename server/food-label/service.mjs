@@ -117,7 +117,7 @@ export class FoodLabelService{
       try{
         calls++
         const out=await withAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions,vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}))
-        if(!validRead(out.value)||out.value.text.length>24000)throw failure('识别未获得完整结构，请补拍','FOOD_READ_INVALID')
+        if(!validRead(out.value)||out.value.text.length>24000)throw failure('未获得可用识别结果','FOOD_READ_INVALID')
         const page=parseLabelText(out.value.text,out.value.status)
         pages.push(page);diagnostics.push(out.diagnostics)
         // A clear excerpt can retain a known conflict, but cannot prove coverage.
@@ -172,4 +172,4 @@ export class FoodLabelService{
   }
 }
 
-export const foodFailureMessage=error=>({AI_NOT_CONFIGURED:'图片识别服务尚未接通',AI_TIMEOUT:'本次识别超时，请补拍或重新拍摄',AI_OUTPUT_INVALID:'识别结果结构未完整返回，请补拍',AI_OUTPUT_EMPTY:'识别结果为空，请补拍标签',AI_OUTPUT_INCOMPLETE:'本次识别未完整返回，请补拍',AI_NETWORK_ERROR:'图片识别连接失败，请重新拍摄',AI_CONCURRENCY_LIMIT:'识别服务繁忙，请稍后重新拍摄',AI_BAILIAN_RATE_LIMIT:'识别服务繁忙，请稍后重新拍摄',AI_ACCOUNT_CALL_LIMIT:'本小时核对次数已达上限',AI_BAILIAN_FREE_QUOTA_EXHAUSTED:'识别服务额度不足',AI_BAILIAN_CREDIT_BALANCE:'识别服务额度不足',AI_BAILIAN_AUTHENTICATION:'图片识别服务鉴权失败'}[error.code]??(error.code?.startsWith('FOOD_')?error.message:'本次识别未完成，请补拍或重新拍摄'))
+export const foodFailureMessage=error=>({AI_NOT_CONFIGURED:'图片识别服务尚未接通',AI_TIMEOUT:'本次识别超时',AI_OUTPUT_INVALID:'识别结果格式无效',AI_OUTPUT_EMPTY:'识别服务未返回结果',AI_OUTPUT_INCOMPLETE:'识别服务返回中断',AI_NETWORK_ERROR:'图片识别连接失败，请重新拍摄',AI_CONCURRENCY_LIMIT:'识别服务繁忙，请稍后重新拍摄',AI_BAILIAN_RATE_LIMIT:'识别服务繁忙，请稍后重新拍摄',AI_ACCOUNT_CALL_LIMIT:'本小时核对次数已达上限',AI_BAILIAN_FREE_QUOTA_EXHAUSTED:'识别服务额度不足',AI_BAILIAN_CREDIT_BALANCE:'识别服务额度不足',AI_BAILIAN_AUTHENTICATION:'图片识别服务鉴权失败'}[error.code]??(error.code?.startsWith('FOOD_')?error.message:'本次识别失败'))
