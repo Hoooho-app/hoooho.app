@@ -1,5 +1,4 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
 import { HohoButton } from '../../components/design-system'
 import type { FollowedCase } from './types'
 import './cases.css'
@@ -20,15 +19,14 @@ export function FollowUpHome() {
   const navigate = useNavigate()
   const care = useSettingsStore(state => state.care)
   const openRecord = () => navigate('/smart-record')
-  return <section className="continuity-home" aria-label="健康事件随时记与情况列表">
+  return <section className="continuity-home" aria-label="症状记录与跟进列表">
     <div className="continuity-record-entry">
-      <div className="continuity-record-entry__header"><strong>健康事件随时记</strong></div>
-      <button aria-label="症状数据示例，开始记录" className="continuity-record-entry__record" onClick={openRecord} type="button">
+      <button aria-label="记录症状示例，开始记录" className="continuity-record-entry__record" onClick={openRecord} type="button">
         <NurseStationFactTypewriter className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} />
       </button>
       <div className="continuity-record-entry__actions">
         <Link className="hoho-button continuity-record-entry__list-action" to="/cases">跟进列表</Link>
-        <HohoButton className="continuity-record-entry__action" onClick={openRecord}><Pencil aria-hidden="true" size={18}/><span>症状数据</span></HohoButton>
+        <HohoButton className="continuity-record-entry__action" onClick={openRecord}>记录症状</HohoButton>
       </div>
     </div>
   </section>

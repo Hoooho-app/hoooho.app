@@ -1,7 +1,7 @@
 import { test, expect, devices, type Page, type APIRequestContext } from '@playwright/test'
 import { quickNoteExamples } from '../../src/features/case-continuity/quickNoteExamples'
 
-const output = 'outputs/home-combined-header-b-20261004/local'
+const output = 'outputs/home-gray-two-line-20261004/local'
 let token: string, userId: string, memberId: string
 let fixtureSession: Awaited<ReturnType<APIRequestContext['storageState']>>
 // Own fixture account: other spec files deliberately mutate legacy shared records.
@@ -30,7 +30,7 @@ async function metrics(page: Page) {
 }
 
 test('合并外框、36/64底部按钮；十条例句逐字循环，各手机宽度布局稳定', async ({ page }) => {
-  test.setTimeout(120000)
+  test.setTimeout(240000)
   await initialize(page)
   await page.emulateMedia({ reducedMotion: 'reduce' }); await ready(page)
   const time = new Date(); await page.clock.install({ time }); await page.clock.pauseAt(time)
@@ -49,20 +49,24 @@ test('合并外框、36/64底部按钮；十条例句逐字循环，各手机宽
     expect(baseline.right.x - baseline.left.x - baseline.left.width).toBe(12)
     expect(baseline.left.width / (baseline.left.width + baseline.right.width)).toBeCloseTo(.36, 2)
     expect(baseline.left.height).toBe(48); expect(baseline.right.height).toBe(48)
-    const style = await entry.evaluate(el => { const title = el.querySelector('strong')!, hero = document.querySelector('.nurse-station-hero')!, outer = document.querySelector('.nurse-station-overview')!, mint = el.parentElement!, right = el.querySelector('.continuity-record-entry__action')!; return { size: getComputedStyle(title).fontSize, weight: getComputedStyle(title).fontWeight, color: getComputedStyle(title).color, primary: getComputedStyle(right).backgroundColor, heroBorder: getComputedStyle(hero).borderTopWidth, heroShadow: getComputedStyle(hero).boxShadow, outerBorder: getComputedStyle(outer).borderTopWidth, whiteBottomRadius: getComputedStyle(hero).borderBottomLeftRadius, mintTopRadius: getComputedStyle(mint).borderTopLeftRadius } })
-    expect(style).toMatchObject({ size: '14px', weight: '700', heroBorder: '0px', heroShadow: 'none', outerBorder: '1px', mintTopRadius: '0px' })
-    expect(style.whiteBottomRadius).toBe('18px'); expect(style.color).toBe(style.primary)
+    const style = await entry.evaluate(el => { const example = el.querySelector('.continuity-record-entry__example')!, hero = document.querySelector('.nurse-station-hero')!, outer = document.querySelector('.nurse-station-overview')!, mint = el.parentElement!, right = el.querySelector('.continuity-record-entry__action')!; return { size: getComputedStyle(example).fontSize, weight: getComputedStyle(example).fontWeight, background: getComputedStyle(outer).backgroundColor, heroBorder: getComputedStyle(hero).borderTopWidth, heroShadow: getComputedStyle(hero).boxShadow, outerBorder: getComputedStyle(outer).borderTopWidth, whiteBottomRadius: getComputedStyle(hero).borderBottomLeftRadius, mintTopRadius: getComputedStyle(mint).borderTopLeftRadius } })
+    expect(style).toMatchObject({ size: '13px', weight: '400', background: 'rgb(245, 245, 245)', heroBorder: '0px', heroShadow: 'none', outerBorder: '1px', mintTopRadius: '0px' })
+    expect(style.whiteBottomRadius).toBe('18px'); await expect(entry.locator('strong,svg')).toHaveCount(0)
+    await expect(visible).toHaveCSS('white-space', 'pre-wrap')
     await expect(entry.locator('input,textarea,[contenteditable=true],button button,button a')).toHaveCount(0)
     for (let index = 0; index < quickNoteExamples.length; index++) {
       const text = quickNoteExamples[index]; await expect(example).toHaveAttribute('data-typewriter-index', String(index))
-      for (let length = 1; length <= text.length; length++) { await page.clock.runFor(90); await expect(visible).toHaveText(text.slice(0, length)) }
+      for (let length = 1; length <= text.length; length++) { await page.clock.runFor(90); expect(await visible.textContent()).toBe(text.slice(0, length)) }
       expect(await metrics(page)).toEqual(baseline)
+      // The authored newline is literal; each logical line occupies one rendered line.
+      const lines = await visible.evaluate(el => { const range = document.createRange(); range.selectNodeContents(el.firstChild!); const tops = Array.from(range.getClientRects()).filter(r => r.width > 0).map(r => Math.round(r.top)); return new Set(tops).size })
+      expect(lines).toBe(2)
       expect(await example.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       if (index === 3) await page.screenshot({ path: output + '/home-' + width + '.png', fullPage: true })
       await page.clock.runFor(2199); await expect(visible).toHaveText(text)
       await page.clock.runFor(1); await expect(visible).toHaveText(text)
-      for (let length = text.length - 1; length >= 0; length--) { await page.clock.runFor(45); await expect(visible).toHaveText(text.slice(0, length)) }
+      for (let length = text.length - 1; length >= 0; length--) { await page.clock.runFor(45); expect(await visible.textContent()).toBe(text.slice(0, length)) }
       expect(await metrics(page)).toEqual(baseline)
       await page.clock.runFor(299); await expect(example).toHaveAttribute('data-typewriter-index', String(index)); await expect(visible).toHaveText('')
       await page.clock.runFor(1); await expect(example).toHaveAttribute('data-typewriter-index', String((index + 1) % 10))
@@ -74,26 +78,26 @@ test('后台暂停恢复、减少动态效果、离开重挂载不叠加计时�
   await initialize(page); await page.emulateMedia({ reducedMotion: 'reduce' }); await ready(page)
   const time = new Date(); await page.clock.install({ time }); await page.clock.pauseAt(time); await page.emulateMedia({ reducedMotion: 'no-preference' })
   const example = page.locator('.continuity-record-entry__example'), text = example.locator('span')
-  await expect(text).toHaveText(''); await page.clock.runFor(90); await expect(text).toHaveText('换')
+  await expect(text).toHaveText(''); await page.clock.runFor(90); await expect(text).toHaveText('这')
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')) })
-  await page.clock.runFor(5000); await expect(text).toHaveText('换')
+  await page.clock.runFor(5000); await expect(text).toHaveText('这')
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')) })
-  await page.clock.runFor(90); await expect(text).toHaveText('换了')
+  await page.clock.runFor(90); await expect(text).toHaveText('这两')
   await page.emulateMedia({ reducedMotion: 'reduce' }); await expect(text).toHaveText(quickNoteExamples[0]); await page.clock.runFor(10000); await expect(text).toHaveText(quickNoteExamples[0])
   await page.emulateMedia({ reducedMotion: 'no-preference' })
-  await page.getByRole('button', { name: '症状数据示例，开始记录', exact: true }).click(); await expect(page).toHaveURL(/\/smart-record$/); await page.clock.runFor(10000)
-  await page.goBack(); await expect(text).toHaveText(''); await page.clock.runFor(89); await expect(text).toHaveText(''); await page.clock.runFor(1); await expect(text).toHaveText('换')
+  await page.getByRole('button', { name: '记录症状示例，开始记录', exact: true }).click(); await expect(page).toHaveURL(/\/smart-record$/); await page.clock.runFor(10000)
+  await page.goBack(); await expect(text).toHaveText(''); await page.clock.runFor(89); await expect(text).toHaveText(''); await page.clock.runFor(1); await expect(text).toHaveText('这')
 })
 
-test('假输入框及主按钮文字图标留白整块可点，单次跳转且不预填草稿', async ({ page }) => {
+test('假输入框及主按钮无图标且文字留白整块可点，单次跳转且不预填草稿', async ({ page }) => {
   await initialize(page); await ready(page)
   await page.evaluate(() => { const push = history.pushState.bind(history); (window as any).entryPushes = 0; history.pushState = (...args) => { (window as any).entryPushes++; return push(...args) } })
-  const fake = page.getByRole('button', { name: '症状数据示例，开始记录', exact: true }), primary = page.getByRole('button', { name: '症状数据', exact: true })
-  for (const [control, position] of [[fake, 'left'], [fake, 'right'], [fake, 'center'], [primary, 'left'], [primary, 'right'], [primary, 'center'], [primary, 'icon'], [fake, 'keyboard'], [primary, 'keyboard']] as const) {
+  const fake = page.getByRole('button', { name: '记录症状示例，开始记录', exact: true }), primary = page.getByRole('button', { name: '记录症状', exact: true })
+  for (const [control, position] of [[fake, 'left'], [fake, 'right'], [fake, 'center'], [primary, 'left'], [primary, 'right'], [primary, 'center'], [primary, 'text'], [fake, 'keyboard'], [primary, 'keyboard']] as const) {
     await page.evaluate(() => { (window as any).entryPushes = 0 })
     await expect(page.locator('.continuity-home input,.continuity-home textarea')).toHaveCount(0)
     if (position === 'keyboard') { await control.focus(); await page.keyboard.press('Enter') }
-    else if (position === 'icon') await control.locator('svg').click()
+    else if (position === 'text') { await expect(control.locator('svg')).toHaveCount(0); await control.locator('.hoho-button__content').click() }
     else { const rect = (await control.boundingBox())!; await control.click({ position: { x: position === 'left' ? 5 : position === 'right' ? rect.width - 5 : rect.width / 2, y: rect.height / 2 } }) }
     await expect(page).toHaveURL(/\/smart-record$/)
     expect(await page.evaluate(() => (window as any).entryPushes)).toBe(1)
@@ -130,8 +134,8 @@ test('窄屏放大案例字号可自然扩展，不裁切或覆盖底部按钮',
 test('实际节奏短录屏：打字停留删除及原记录入口', async ({ browser }) => {
   const context = await browser.newContext({ ...devices['iPhone SE'], baseURL: 'http://127.0.0.1:4196', recordVideo: { dir: output, size: { width: 375, height: 667 } }, serviceWorkers: 'block' })
   const page = await context.newPage(); await initialize(page); await ready(page)
-  await expect(page.locator('.continuity-record-entry__example span')).toHaveText(quickNoteExamples[1], { timeout: 12000 })
-  await page.getByRole('button', { name: '症状数据', exact: true }).click(); await expect(page).toHaveURL(/\/smart-record$/)
+  await expect(page.locator('.continuity-record-entry__example span')).toHaveText(quickNoteExamples[1], { timeout: 25000 })
+  await page.getByRole('button', { name: '记录症状', exact: true }).click(); await expect(page).toHaveURL(/\/smart-record$/)
   await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
   await context.close(); await page.video()!.saveAs(output + '/typewriter-and-entry.webm')
 })

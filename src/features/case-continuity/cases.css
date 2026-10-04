@@ -1,13 +1,13 @@
 .continuity-home{min-width:0;margin:0;padding:16px}
 .continuity-record-entry{display:grid;min-width:0;gap:0}
-.continuity-record-entry__header{margin-bottom:10px;color:rgb(var(--hoho-color-primary));font-size:14px;line-height:1.43}
-.continuity-record-entry__header strong{font-weight:700}
-.continuity-record-entry__record{display:block;min-width:0;width:100%;min-height:56px;border:1px solid #d9e9e1;border-radius:var(--hoho-radius-control);padding:8px 12px;background:#f6fcf9;color:rgb(var(--hoho-color-text-primary));text-align:left;cursor:pointer;transition:background var(--hoho-motion-fast),border-color var(--hoho-motion-fast)}
+.continuity-record-entry__record{display:block;min-width:0;width:100%;min-height:56px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);padding:8px 12px;background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-primary));text-align:left;cursor:pointer;transition:background var(--hoho-motion-fast),border-color var(--hoho-motion-fast)}
 .continuity-record-entry__record:hover{border-color:rgb(var(--hoho-color-primary-border))}
 .continuity-record-entry__record:active{background:rgb(var(--hoho-color-primary-border)/.45)}
 .continuity-record-entry__record:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
 .continuity-record-entry__example{display:block;min-width:0;min-height:3em;font-size:13px;font-weight:400;line-height:1.5;overflow-wrap:anywhere}
-.continuity-record-entry__example>span{white-space:normal}
+.continuity-record-entry__example>span{white-space:pre-wrap}
+/* Preserve both authored lines, including the caret, at the minimum phone width. */
+@media(max-width:359px){.continuity-home{padding-inline:8px}.continuity-record-entry__record{padding-inline:2px}}
 .continuity-record-entry__example i{display:inline-block;width:1.5px;height:.9em;margin:0 0 -.1em 1px;background:currentColor;animation:nurse-fact-caret 760ms steps(1) infinite}
 .continuity-record-entry__example[data-typewriter-static=true] i{visibility:hidden;animation:none}
 .continuity-record-entry__actions{display:grid;grid-template-columns:minmax(0,36fr) minmax(0,64fr);gap:12px;margin-top:12px}
