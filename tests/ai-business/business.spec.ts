@@ -66,7 +66,8 @@ test('麦克风拒绝与静音不发转写请求；取消不创建记录',async(
   await expect(sheet.getByRole('alert')).toContainText('没有声音')
   expect((await(await request.get('http://127.0.0.1:4198/status')).json()).asrCalls).toBe(before.asrCalls)
   await sheet.getByRole('button',{name:'取消草稿',exact:true}).click()
-  await expect(sheet.getByRole('status')).toContainText('未保存资料')
+  await expect(sheet.getByRole('status')).toContainText('已取消整理草稿，已保存原件仍保留')
+  await expect(sheet.getByRole('button',{name:/已核对，一次保存/})).toHaveCount(0)
   await page.screenshot({path:'outputs/ai-business/iphone-se-cancelled.png'})
 })
 test('问诊问题模板及可编辑复制提示词无需模型调用',async({page,request})=>{

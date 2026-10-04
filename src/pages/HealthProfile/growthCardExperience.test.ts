@@ -49,8 +49,11 @@ test('成长数据合并曲线、录入和记录列表入口', () => {
 test('五类档案顺序固定，入口真实导航，智能记录合并报告入口', () => {
   assert.match(home, /title: '过敏史'[\s\S]*title: '慢性病史'[\s\S]*title: '家族史'[\s\S]*title: '手术史'[\s\S]*title: '疫苗接种记录'/)
   assert.match(home, /navigate\(`\/health-profile\/\$\{id\}`\)/)
-  assert.match(home, /navigate\('\/health-profile\/smart-record'\)/)
-  assert.match(home, /智能整理与记录[\s\S]*上传报告、病历、体检报告、[\s\S]*自动整理到各项档案/)
+  assert.match(home, /ProfileUploadBatch/)
+  const upload=readFileSync(new URL('./ProfileUploadBatch.tsx',import.meta.url),'utf8')
+  assert.doesNotMatch(upload,/navigate\('\/health-profile\/smart-record'\)/)
+  assert.match(upload,/上传资料[\s\S]*报告、病历、接种回执，自动整理到各项档案/)
+  assert.match(upload,/\.current\?\.click\(\)/)
   assert.match(home, /MainAppHeader compact title="孩子档案"/)
   assert.doesNotMatch(home, /aria-disabled="true"|LockKeyhole|暂未开放|health-profile-allergy-card|检查 \/ 体检报告|住院 \/ 急诊史|家族遗传史/)
 })

@@ -3,7 +3,7 @@ import fieldLabels from '../../../shared/ai-business-field-labels.json' with {ty
 const value=(item,name)=>item.fields.find(f=>f.name===name)?.value??''
 // These are adapters to the established profile sections, not a parallel
 // model-owned medical chart. Original statements and confirmed records remain.
-export function archiveItem(sections,item,{accountId,memberId,eventId,recordId,attachmentIds,now}){
+export function archiveItem(sections,item,{accountId,memberId,eventId,recordId,attachmentIds,now,profileBatch=false}){
   let category=item.archiveCategory
   if(!category&&value(item,'allergen'))category='allergy'
   if(!category)return sections
@@ -18,6 +18,20 @@ export function archiveItem(sections,item,{accountId,memberId,eventId,recordId,a
   const existing=sections.find(s=>s.accountId===accountId&&s.memberId===memberId&&s.sectionId===sectionId)
   if(existing?.records.some(r=>r.sourceRecordId===recordId||r.sourceReferences?.some(ref=>ref.id===`ai:${recordId}`)))return sections
   const records=structuredClone(existing?.records??[]),timestamp=now.toISOString()
+  if(profileBatch){
+    const name=value(item,'allergen')||value(item,'historyName')||item.title
+    const related=records.filter(r=>r.name===name&&(sectionId!=='family-history'||r.relationship===value(item,'relationship')))
+    if(related.length){
+      const day=item.time?.resolvedStart?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(item.time.resolvedStart)):''
+      const hospital=value(item,'institution'),reaction=value(item,'reaction')||value(item,'symptom')
+      const reliable=related.filter(r=>day&&(r.date===day||r.firstFoundAt===day||r.reactions?.some(x=>x.occurredAt===item.time.resolvedStart&&reaction&&x.symptoms===reaction))&&(hospital&&(r.hospital===hospital||r.organization===hospital)||reaction&&r.reactions?.some(x=>x.symptoms===reaction)))
+      if(reliable.length!==1)return sections // Retain the source record, never guess an association by name.
+      const current=reliable[0]
+      current.attachmentIds=[...new Set([...(current.attachmentIds??[]),...attachmentIds])]
+      current.sourceReferences=[...(current.sourceReferences??[]),{id:`ai:${recordId}`,sourceId:eventId,recordIds:[recordId],occurredAt:item.time?.resolvedStart??'',attachmentIds}]
+      return [...sections.filter(s=>s!==existing),{...existing,records,revision:(existing.revision??0)+1}]
+    }
+  }
   if(sectionId==='allergy'){
     const allergen=value(item,'allergen')||'尚未明确',current=records.find(r=>r.name===allergen&&r.memberId===memberId),id=current?.id??randomUUID()
     const statement=value(item,'allergyStatus'),doctor=value(item,'doctorStatement')
