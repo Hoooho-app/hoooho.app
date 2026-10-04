@@ -1,0 +1,15 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import path from 'node:path'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {prepareVideo,mediaInputs,inspectVideo} from './symptom-media-review.mjs'
+import {execFile} from 'node:child_process'
+import {promisify} from 'node:util'
+import ffmpeg from '@ffmpeg-installer/ffmpeg'
+test('real MP4 decodes, transcodes, extracts cover and six chronological frames',async()=>{const dir=await mkdtemp(path.join(tmpdir(),'hoooho-media-test-'));try{const info=await prepareVideo('src/assets/nurse-triage/nurses-idle-loop-1-mobile.mp4',path.join(dir,'preview.mp4'),path.join(dir,'poster.jpg'));assert.ok(info.duration>0);const result=await mediaInputs(path.join(dir,'preview.mp4'),true);assert.ok(result.image.length>1000);assert.equal(result.times[0],0);assert.ok(result.times.at(-1)>info.duration*.9)}finally{await rm(dir,{recursive:true,force:true})}})
+test('corrupt data is rejected before any supplier invocation',async()=>{const dir=await mkdtemp(path.join(tmpdir(),'hoooho-media-corrupt-'));try{const file=path.join(dir,'fake.mp4');await writeFile(file,'not a video');await assert.rejects(()=>inspectVideo(file),{code:'MEDIA_DECODE_FAILED'})}finally{await rm(dir,{recursive:true,force:true})}})
+test('HEVC MOV and odd-width VP9 WebM produce even-width H264 compatible previews',async()=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'hoooho-codec-test-'));try{for(const [codec,extension] of [['libx265','mov'],['libvpx-vp9','webm']]){const original=path.join(dir,'original.'+extension);await promisify(execFile)(ffmpeg.path,['-y','-v','error','-f','lavfi','-i','color=c=red:s=374x200:r=2:d=1','-vf','pad=375:201','-threads','1','-c:v',codec,original],{windowsHide:true,maxBuffer:2000000});const result=await prepareVideo(original,path.join(dir,'preview.mp4'),path.join(dir,'poster.jpg'));assert.ok(['hevc','vp9'].includes(result.codec));const preview=await inspectVideo(path.join(dir,'preview.mp4'));assert.equal(preview.codec,'h264');assert.equal(preview.width%2,0);assert.equal(preview.height%2,0)}}finally{await rm(dir,{recursive:true,force:true})}
+})
+test('duration boundary accepts 120 seconds and rejects longer clips before paid processing',async()=>{const dir=await mkdtemp(path.join(tmpdir(),'hoooho-duration-test-'));try{for(const seconds of [120,121]){const file=path.join(dir,seconds+'.mp4');await promisify(execFile)(ffmpeg.path,['-y','-v','error','-f','lavfi','-i',`color=c=gray:s=64x64:r=1:d=${seconds}`,'-threads','1','-c:v','libx264',file],{windowsHide:true});if(seconds===120)assert.equal((await inspectVideo(file)).duration,120);else await assert.rejects(()=>inspectVideo(file),{code:'MEDIA_DURATION_LIMIT'})}}finally{await rm(dir,{recursive:true,force:true})}})

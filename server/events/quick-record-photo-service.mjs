@@ -18,7 +18,7 @@ export class QuickRecordPhotoError extends Error {
   }
 }
 
-const publicPhoto = ({ storageKey: _storageKey, contentHash: _contentHash, accountId: _accountId, ...photo }) => photo
+const publicPhoto = ({ storageKey: _storageKey, previewKey: _previewKey, posterKey: _posterKey, contentHash: _contentHash, accountId: _accountId, ...photo }) => photo
 
 export class QuickRecordPhotoService {
   constructor(options = {}) {
@@ -38,6 +38,11 @@ export class QuickRecordPhotoService {
     if (!member || member.accountId !== accountId) throw new QuickRecordPhotoError('未找到当前人物', 404, 'FAMILY_MEMBER_NOT_FOUND')
   }
 
+  async removeFiles(photo) {
+    if(await this.attachments.hasStorageKey(photo.storageKey))return
+    await Promise.all([photo.storageKey,photo.previewKey,photo.posterKey].filter(Boolean).map(key=>unlink(path.join(this.filesDirectory,path.basename(key))).catch(()=>undefined)))
+  }
+
   async cleanupExpired(now = new Date()) {
     const threshold = now.getTime() - draftTtlMs
     const expired = []
@@ -50,8 +55,7 @@ export class QuickRecordPhotoService {
       })
     }))
     await Promise.all(expired.map(async (photo) => {
-      if (await this.attachments.hasStorageKey(photo.storageKey)) return
-      await unlink(path.join(this.filesDirectory, path.basename(photo.storageKey))).catch(() => undefined)
+      await this.removeFiles(photo)
     }))
   }
 
@@ -63,10 +67,15 @@ export class QuickRecordPhotoService {
     try { prepared = await validateRecordMedia(input) } catch (error) {
       throw new QuickRecordPhotoError(error.message, error.status, error.code)
     }
+    return this.savePrepared(accountId, draftId, memberId, input, prepared, now)
+  }
+
+  async savePrepared(accountId, draftId, memberId, input, prepared, now = new Date()) {
+    this.assertDraftId(draftId); await this.assertMemberOwnership(accountId, memberId)
     const id = randomUUID()
-    const extension = { 'image/png': 'png', 'image/webp': 'webp', 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' }[prepared.mimeType]
+    const extension = { 'image/png': 'png', 'image/webp': 'webp', 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'image/heic':'heic','image/avif':'avif' }[prepared.mimeType]
     const storageKey = `${id}.${extension}`
-    const buffer = Buffer.from(prepared.dataUrl.slice(prepared.dataUrl.indexOf(',') + 1), 'base64')
+    const buffer = prepared.buffer ?? Buffer.from(prepared.dataUrl.slice(prepared.dataUrl.indexOf(',') + 1), 'base64')
     await mkdir(this.filesDirectory, { recursive: true })
     await writeFile(path.join(this.filesDirectory, storageKey), buffer, { flag: 'wx' })
     let saved
@@ -81,7 +90,7 @@ export class QuickRecordPhotoService {
           id, accountId, draftId, memberId, name: prepared.name, mimeType: prepared.mimeType,
           binarySize: prepared.binarySize, width: prepared.width, height: prepared.height,
           sortOrder: Math.max(0, requestedOrder), uploadStatus: 'uploaded', storageKey,
-          contentHash: prepared.contentHash, createdAt: now.toISOString(), consumedAt: null
+          contentHash: prepared.contentHash, ...(prepared.mediaInfo ?? {}), createdAt: now.toISOString(), consumedAt: null
         }
         return { ...data, photos: [...data.photos, saved] }
       })
@@ -119,7 +128,7 @@ export class QuickRecordPhotoService {
   async delete(accountId, memberId, draftId, photoId) {
     const photo = await this.getOwnedPhoto(accountId, memberId, draftId, photoId)
     await this.store.update((data) => ({ ...data, photos: data.photos.filter((item) => item.id !== photo.id) }))
-    if (!(await this.attachments.hasStorageKey(photo.storageKey))) await unlink(path.join(this.filesDirectory, path.basename(photo.storageKey))).catch(() => undefined)
+    await this.removeFiles(photo)
     return { deleted: true }
   }
 
@@ -136,7 +145,7 @@ export class QuickRecordPhotoService {
       })
     }))
     await Promise.all(removed.map(async (photo) => {
-      if (!(await this.attachments.hasStorageKey(photo.storageKey))) await unlink(path.join(this.filesDirectory, path.basename(photo.storageKey))).catch(() => undefined)
+      await this.removeFiles(photo)
     }))
     return { deleted: removed.length }
   }

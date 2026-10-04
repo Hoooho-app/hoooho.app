@@ -22,6 +22,8 @@ type SupplementKey = 'diet' | 'elimination' | 'medication' | 'visit'
 export type SymptomLinkedRecordIds = Partial<Record<SupplementKey, string[]>>
 interface Draft {
   narrative: string; summary: string; keywords: string[]; locationText: string; locations: BodyLocationSelection[]; occurredAt?: string
+  appliedMediaIds?: string[]
+  mediaTimeUnknown?: boolean
   impactLevel?: SymptomImpactLevel; triggerText: string; trend?: JournalSymptomDetails['trend']; shortNote: string
 }
 const newDraft = (): Draft => ({ narrative: '', summary: '', keywords: [], locationText: '', locations: [], triggerText: '', shortNote: '' })
@@ -50,6 +52,8 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const locationEditedRef = useRef(Boolean(draft.locationText || draft.locations.length))
   const previewVersionRef = useRef(0)
   const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`, true)
+  const draftRef=useRef(draft);draftRef.current=draft
+  const appliedMedia=useRef(new Set<string>())
   const occurrence = useOccurrenceTime(selectedDay, today, draft.occurredAt)
   const [viewport, setViewport] = useState(() => ({ top: window.visualViewport?.offsetTop ?? 0, height: window.visualViewport?.height ?? window.innerHeight }))
   useEffect(() => {
@@ -98,20 +102,22 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
     setPageError('')
   }
   const voice = useSymptomVoice(draft.narrative, updateNarrative)
-  const canSave = Boolean(draft.narrative.trim() && !photos.blocked)
+  const canSave = Boolean(draft.narrative.trim() || photos.photos.some(p=>p.status==='uploaded'))
   const isDirty = Boolean(draft.narrative.trim() || draft.summary.trim() || draft.locationText.trim() || draft.locations.length || draft.triggerText.trim() || draft.impactLevel || draft.trend || draft.shortNote.trim() || draft.occurredAt || photos.photos.length)
   const leave = (action: () => void) => { if (!isDirty || window.confirm('这条症状还没有保存，确定退出吗？')) action() }
   const save = async () => {
     if (saving || voice.busy) return
-    if (!draft.narrative.trim()) { setFieldErrors((current) => ({ ...current, narrative: '请填写哪里不舒服' })); narrativeRef.current?.focus(); narrativeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return }
+    if (!draft.narrative.trim() && !photos.photos.some(p=>p.status==='uploaded')) { setFieldErrors((current) => ({ ...current, narrative: '请填写哪里不舒服' })); narrativeRef.current?.focus(); narrativeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return }
     if (!canSave) return
+    if(photos.blocked && !window.confirm('部分资料尚未上传成功，本次只保存正文和已上传原件。未完成资料不会标记为已保存，是否继续？'))return
+    if(!draft.narrative.trim() && !window.confirm('仅保存原始资料，症状待补充，发生时间标为不确定。是否继续？'))return
     const occurredAt = occurrence.capture()
     if (!occurredAt) return
     setSaving(true); setPageError(''); setFieldErrors({})
     try {
       const details: JournalSymptomDetails = { symptomCategory: inferSymptomCategory(draft.keywords), narrative: draft.narrative, keywords: draft.keywords, locations: toSymptomLocations(draft.locations), descriptors: [], linkedRecordIds: {}, ...(draft.locationText.trim() ? { locationText: draft.locationText.trim() } : {}), ...(draft.impactLevel ? { impactLevel: draft.impactLevel } : {}), ...(draft.triggerText.trim() ? { triggerText: draft.triggerText.trim() } : {}), ...(draft.trend ? { trend: draft.trend } : {}), ...(draft.shortNote.trim() ? { shortNote: draft.shortNote.trim() } : {}) }
       if (draft.summary.trim()) details.generatedSummary = draft.summary.trim()
-      const message = await onConfirm(draft.narrative.trim(), occurredAt, 'text', photos.payload(), { categories: ['symptom'], symptom: details, occurredAt, timePrecision: 'exact' })
+      const message = await onConfirm(draft.narrative.trim() || '症状待补充（原始资料）', occurredAt, 'text', photos.payload(), draft.narrative.trim() ? { categories: ['symptom'], symptom: details, occurredAt, timePrecision: draft.mediaTimeUnknown?'unknown':'exact' } : { categories:['other'],timePrecision:'unknown' })
       photos.clearAfterSave(); sessionStorage.removeItem(draftKey(draftScope)); onSaved(message); onClose()
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '保存失败，请重试'
@@ -125,18 +131,19 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
     <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1></header>
     <div className="symptom-record-scroll">
       <section className="symptom-card symptom-narrative"><div className="symptom-heading"><h2 aria-label="症状描述（主诉）"><Cross aria-hidden="true" size={21} strokeWidth={1.8} />症状描述<span>（主诉）</span></h2></div>{voice.busy && <p className="symptom-extraction-note" role="status">{voice.state === 'requesting' ? '正在请求麦克风…' : voice.state === 'stopping' ? '正在结束语音…' : '正在聆听，讲话会实时转成文字'}</p>}{voice.error && <p className="symptom-field-error" role="alert">{voice.error}</p>}<textarea ref={narrativeRef} aria-describedby={fieldErrors.narrative ? 'symptom-narrative-error' : undefined} aria-invalid={Boolean(fieldErrors.narrative)} aria-label="哪里不舒服" maxLength={1000} readOnly={voice.busy} onBlur={() => { if (narrativeRef.current) narrativeRef.current.scrollTop = 0 }} onChange={(event) => updateNarrative(event.target.value)} onCompositionEnd={(event) => { setComposing(false); updateNarrative(event.currentTarget.value) }} onCompositionStart={() => { previewVersionRef.current += 1; setComposing(true); setRecognition('idle') }} placeholder="描述症状和变化，例如：左肘窝发红、发痒" value={draft.narrative} />{fieldErrors.narrative && <p className="symptom-field-error" id="symptom-narrative-error" role="alert">{fieldErrors.narrative}</p>}{recognition === 'loading' && <p className="symptom-extraction-note" role="status">正在整理症状描述…</p>}{recognition === 'success' && <p className="symptom-extraction-note" role="status">已整理，可继续修改</p>}{recognition === 'empty' && <p className="symptom-extraction-note">暂未生成摘要，可直接保存原文。</p>}{recognition === 'error' && <p className="symptom-extraction-note">暂时无法整理，可直接保存原文。</p>}{draft.keywords.length > 0 && <div className="symptom-keywords">{draft.keywords.map((keyword) => <button aria-label={`移除${keyword}`} key={keyword} onClick={() => update('keywords', draft.keywords.filter((item) => item !== keyword))} type="button">{keyword}<X aria-hidden="true" size={12} /></button>)}</div>}
-      <section aria-label="记录输入方式" className="symptom-media-actions"><button disabled={saving} onClick={() => videoInputRef.current?.click()} type="button"><Video aria-hidden="true" size={21} strokeWidth={1.8} />拍摄</button><button disabled={saving} onClick={() => photoInputRef.current?.click()} type="button"><Camera aria-hidden="true" size={21} strokeWidth={1.8} />照片</button><button className="symptom-voice-action" disabled={saving || voice.state === 'stopping'} onClick={() => voice.busy ? voice.stop() : void voice.start()} type="button"><Mic aria-hidden="true" size={21} />{voice.busy ? '结束' : '语音输入'}</button></section></section>
-      {(photos.photos.length > 0 || photos.notice) && <div className="symptom-media-previews"><QuickRecordPhotos limit={6} model={photos} showAddButton={false} /></div>}
+      <section aria-label="记录输入方式" className="symptom-media-actions"><button disabled={saving} onClick={() => videoInputRef.current?.click()} type="button"><Video aria-hidden="true" size={21} strokeWidth={1.8} />拍摄</button><button disabled={saving} onClick={() => photoInputRef.current?.click()} type="button"><Camera aria-hidden="true" size={21} strokeWidth={1.8} />照片</button><button className="symptom-voice-action" disabled={saving || voice.state === 'stopping'} onClick={() => voice.busy ? voice.stop() : void voice.start()} type="button"><Mic aria-hidden="true" size={21} />{voice.busy ? '结束' : '语音输入'}</button></section><p className="symptom-extraction-note">视频≤2分钟、100MB；照片≤25MB。超限请在相册裁剪或导出后重选。</p></section>
+      {(photos.photos.length > 0 || photos.notice) && <div className="symptom-media-previews"><QuickRecordPhotos limit={6} model={photos} showAddButton={false} onApply={(text,id)=>{if(appliedMedia.current.has(id)||draftRef.current.appliedMediaIds?.includes(id))return;const next=[draftRef.current.narrative.trim(),text].filter(Boolean).join('\n');if(next.length>1000)throw new Error('补充后超过1000字，请先精简资料草稿；原正文未改变');appliedMedia.current.add(id);setDraft(current=>({...current,narrative:next,mediaTimeUnknown:true,appliedMediaIds:[...(current.appliedMediaIds??[]),id]}));setFieldErrors({})}} /></div>}
       <section className="symptom-card symptom-location-card"><div className="symptom-card-heading"><h2><MapPin aria-hidden="true" size={21} strokeWidth={1.8} />症状部位</h2></div><div className="symptom-location-entry"><input aria-label="手动补充症状部位" maxLength={120} onChange={(event) => { locationEditedRef.current = true; update('locationText', event.target.value) }} placeholder="例如：左肘窝" value={draft.locationText} /><ChildBodyLocationPicker memberId={memberId} showCommitted={false} buttonLabel={draft.locations.length ? '修改' : '选择部位'} confirmLabel="完成并返回症状记录" value={draft.locations} onChange={(locations) => { locationEditedRef.current = true; setDraft((current) => ({ ...current, locations })); setPageError('') }} /></div>{Boolean(draft.locations.length || manualLocation) && <div aria-label="已选择的症状部位" className="symptom-location-tags">{draft.locations.map((location) => <span key={childSelectionKey(location)}><Check aria-hidden="true" size={15} />{bodyLocationLabel(location)}</span>)}{manualLocation && !manualLocationIsStructured && <span><Check aria-hidden="true" size={15} />{manualLocation}</span>}</div>}</section>
       <section className={`symptom-card symptom-supplement-card${optionalOpen ? ' is-expanded' : ''}`}><button aria-expanded={optionalOpen} className="symptom-card-action" onClick={() => setOptionalOpen((value) => !value)} type="button"><strong><ClipboardPlus aria-hidden="true" size={21} strokeWidth={1.8} />补充信息</strong><span>{optionalOpen ? '收起' : '展开'}<ChevronDown aria-hidden="true" className={optionalOpen ? 'is-open' : ''} size={18} /></span></button>{optionalOpen && <div className="symptom-optional-fields">
         <fieldset><legend>严重程度</legend><div className="symptom-segmented-options">{impactOptions.map(([value, label]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button">{draft.impactLevel === value && <Check aria-hidden="true" size={15} />}{label}</button>)}</div></fieldset>
       </div>}</section>
       <OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => update('occurredAt', value || undefined)} showDateContext />
+      {photos.photos.length>0&&<label><input type="checkbox" checked={!!draft.mediaTimeUnknown} onChange={e=>setDraft(current=>({...current,mediaTimeUnknown:e.target.checked}))}/>发生时间待确认（不会用原件上传时间代替）</label>}
       {extraFields}
-      {pageError && <p className="symptom-save-error" role="alert">{pageError}</p>}{photos.blocked && <p className="symptom-save-error" role="alert">{photos.photos.some((photo) => photo.status === 'failed') ? '有照片上传失败，请重试或移除' : '照片上传中，请稍候'}</p>}
+      {pageError && <p className="symptom-save-error" role="alert">{pageError}</p>}
     </div>
-    <div className="symptom-record-save"><HohoButton disabled={saving || voice.busy || photos.blocked} fullWidth loading={saving} onClick={() => void save()} size="large">保存</HohoButton></div>
-    <input ref={videoInputRef} aria-label="选择视频" accept="video/*" capture="environment" hidden onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
+    <div className="symptom-record-save"><HohoButton disabled={saving || voice.busy} fullWidth loading={saving} onClick={() => void save()} size="large">{photos.blocked ? '先保存已有内容' : '保存'}</HohoButton></div>
+    <input ref={videoInputRef} aria-label="选择视频" accept="video/*" capture="environment" hidden onChange={(event) => { photos.chooseFiles(event.target.files,'capture'); event.currentTarget.value = '' }} type="file" />
     <input aria-label="选择照片" ref={photoInputRef} accept="image/*,video/*" hidden multiple onChange={(event) => { photos.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
   </section></div>, document.body)
 }

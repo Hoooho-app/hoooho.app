@@ -43,6 +43,7 @@
     "evaluate:parser": "node server/ai/evaluation/run-parser-evaluation.mjs",
     "test:parser-evaluation": "node --test server/ai/evaluation/parser-evaluation.test.mjs",
     "test:attachments": "node --test server/events/event-attachment-service.test.mjs",
+    "test:symptom-media": "node --test server/ai/symptom-media-*.test.mjs server/events/symptom-media-upload.test.mjs",
     "test:quick-record-photos": "node --test server/events/quick-record-photo-service.test.mjs server/events/quick-record-service.test.mjs",
     "test:e2e:quick-record": "npm run build && playwright test --config tests/quick-record-mobile/playwright.config.ts",
     "test:e2e:time-view": "npm run build && playwright test --config tests/time-view/playwright.config.ts",
@@ -86,12 +87,14 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@playwright/test": "^1.55.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
+    "ffprobe-static": "^3.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.7.2",
