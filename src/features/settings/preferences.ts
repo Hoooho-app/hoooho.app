@@ -1,5 +1,5 @@
 export type CareTextSize = 'standard' | 'large' | 'extra-large'
-export type InterfaceLanguage = 'zh-CN'
+export type InterfaceLanguage = 'zh-CN' | 'en-US' | 'en'
 
 export interface AccountPreferences {
   interfaceLanguage: InterfaceLanguage
@@ -43,7 +43,7 @@ export function getAccountPreferences(
   const stored = accounts[accountId]
   if (!stored) return defaultAccountPreferences
   return {
-    interfaceLanguage: stored.interfaceLanguage === 'zh-CN' ? stored.interfaceLanguage : defaultAccountPreferences.interfaceLanguage
+    interfaceLanguage: ['zh-CN','en-US','en'].includes(stored.interfaceLanguage) ? stored.interfaceLanguage : defaultAccountPreferences.interfaceLanguage
   }
 }
 

@@ -2,6 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { checkLabel, flattenIngredients, splitDeclaredAllergens } from './rules.mjs'
 
+test('printed line wrapping is not an ingredient separator',()=>{
+  const rows=flattenIngredients('PALM AND/OR\nCANOLA OIL, HIGH FRUCTOSE\nCORN SYRUP, LEAVENING (BAKING SODA AND/OR CALCIUM\nPHOSPHATE), VANILLIN - AN\nARTIFICIAL FLAVOR')
+  assert.deepEqual(rows.map(r=>r.original),['PALM AND/OR CANOLA OIL','HIGH FRUCTOSE CORN SYRUP','LEAVENING','BAKING SODA AND/OR CALCIUM PHOSPHATE','VANILLIN - AN ARTIFICIAL FLAVOR'])
+})
+
+test('isolated quantities attach to ingredients; arrows and ordinals never count',()=>{
+  assert.deepEqual(flattenIngredients('01 大米, ≥60%, →, 02 牛奶, 12 g, 白砂糖, 3.').map(r=>r.original),['大米 ≥60%','牛奶 12 g','白砂糖'])
+  assert.deepEqual(flattenIngredients('Rice (≥60%), Blend (Milk, 20%, Salt), Water').map(r=>r.original),['Rice (≥60%)','Blend','Milk 20%','Salt','Water'])
+  assert.equal(checkLabel(label([row('Milk ≥20%')]),records).conflictCount,1)
+  assert.deepEqual(flattenIngredients('①, ↓, ② Rice, Sugar').map(r=>r.original),['Rice','Sugar'])
+  assert.deepEqual(flattenIngredients('Rice, %, g, ◆, Sugar').map(r=>r.original),['Rice','Sugar'])
+})
+
 test('percentage annotations do not swallow following compound ingredients',()=>{
   const rows=flattenIngredients('Chocolate (19%) [Sugar, Whey Powder (Milk), Emulsifier (Soya Lecithins)], Water')
   assert.deepEqual(rows.map(r=>r.original),['Chocolate (19%)','Sugar','Whey Powder','Milk','Emulsifier','Soya Lecithins','Water'])
