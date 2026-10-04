@@ -39,7 +39,7 @@ test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.match(source, /健康日记.*记录日常与身体变化.*healthDiaryImage.*\/health-events/)
   assert.match(source, /孩子档案.*整理家人的健康信息.*healthProfileImage.*\/health-profile/)
   assert.match(source, /配料表扫描.*拍配料表，对照过敏史.*foodLabelImage.*\/food-label/)
-  assert.match(styles, /\.nurse-home-entry--food-label\s*\{[^}]*border-color:\s*#f2d8bf[^}]*background:\s*#fff3e7/)
+  assert.match(styles, /\.nurse-home-entry--food-label\s*\{[^}]*border-color:\s*#f2dcc8[^}]*background:\s*#fff4ea/)
   assert.match(source, /就诊情况单.*就诊前，一页理清病情.*visitSummaryImage.*\/visit-summary/)
   assert.match(source, /忌口出示卡.*哪些不能吃，出示就懂.*dietaryCardImage/)
   assert.match(source, /title: '用药提醒'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)

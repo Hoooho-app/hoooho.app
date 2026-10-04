@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-spoken-entry-20261005/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-compact-colors-20261005/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -38,13 +38,21 @@ async function home(name) {
   await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '跟进列表', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
-  await expect(page.locator('.nurse-home-entry').nth(2)).toHaveCSS('background-color', 'rgb(255, 243, 231)')
+  await expect(page.locator('.nurse-home-entry').nth(2)).toHaveCSS('background-color', 'rgb(255, 244, 234)')
+  const palette = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => getComputedStyle(card).backgroundColor))
+  assert.deepEqual(palette, ['rgb(238, 245, 252)', 'rgb(255, 250, 232)', 'rgb(255, 244, 234)', 'rgb(245, 241, 252)', 'rgb(238, 249, 242)', 'rgb(255, 241, 246)'])
+  assert.equal(new Set(palette).size, 6)
   await expect(page.locator('.nurse-home-entry').nth(2)).toHaveAttribute('href', '/food-label')
   await expect(page.locator('.nurse-home-entry').nth(3)).toHaveAttribute('href', '/medication-reminders')
   await expect(page.locator('.nurse-station-overview')).toHaveCount(0)
   await expect(page.locator('.continuity-record-entry strong,.continuity-record-entry__header,.continuity-record-entry a')).toHaveCount(0)
   const layout=await page.locator('.continuity-record-entry').evaluate(el=>{const action=el.querySelector('.continuity-record-entry__action').getBoundingClientRect(),follow=el.querySelector('.continuity-record-entry__followup').getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero'),rect=el.getBoundingClientRect();return {height:rect.height,width:rect.width,actionX:action.x,followX:follow.x,actionWidth:action.width,followWidth:follow.width,actionHeight:action.height,followHeight:follow.height,gap:follow.y-action.bottom,background:getComputedStyle(el).backgroundColor,heroGap:el.parentElement.getBoundingClientRect().y-hero.getBoundingClientRect().bottom}})
-  assert.equal(layout.height, await page.evaluate(()=>innerWidth<=360?136:122));assert.equal(layout.actionX,layout.followX);assert.equal(layout.actionWidth,layout.followWidth);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.gap,8);assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.heroGap,12)
+  assert.equal(layout.height, await page.evaluate(()=>innerWidth<=360?136:114));assert.equal(layout.actionX,layout.followX);assert.equal(layout.actionWidth,layout.followWidth);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.gap,0);assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.heroGap,12)
+  const paintedHeights = await page.locator('.continuity-record-entry__buttons .hoho-button').evaluateAll(buttons => buttons.map(button => {
+    const surface = getComputedStyle(button, '::before')
+    return button.getBoundingClientRect().height - parseFloat(surface.top) - parseFloat(surface.bottom)
+  }))
+  assert.deepEqual(paintedHeights, [36, 36])
   await expect(page.locator('.continuity-record-entry__action')).toHaveText('情况速记')
   await expect(page.locator('.continuity-record-entry__followup')).toHaveText('跟进列表')
   await expect(page.locator('.continuity-home input,.continuity-home textarea,.continuity-home button button,.continuity-home button a')).toHaveCount(0)

@@ -156,7 +156,17 @@ test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航
   await expect(entries).toHaveCount(6)
   await expect(entries.locator('strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
   await expect(entries.locator('small')).toHaveText(['就诊前，一页理清病情', '哪些不能吃，出示就懂', '拍配料表，对照过敏史', '0 个提醒任务', '记录日常与身体变化', '整理家人的健康信息'])
-  await expect(entries.nth(2)).toHaveCSS('background-color', 'rgb(255, 243, 231)')
+  const palette = await entries.evaluateAll(cards => cards.map(card => ({
+    background: getComputedStyle(card).backgroundColor,
+    title: getComputedStyle(card.querySelector('strong')!).color,
+    subtitle: getComputedStyle(card.querySelector('small')!).color,
+  })))
+  expect(palette.map(card => card.background)).toEqual(['rgb(238, 245, 252)', 'rgb(255, 250, 232)', 'rgb(255, 244, 234)', 'rgb(245, 241, 252)', 'rgb(238, 249, 242)', 'rgb(255, 241, 246)'])
+  expect(new Set(palette.map(card => card.background)).size).toBe(6)
+  for (const card of palette) {
+    expect(contrastRatio(card.title, card.background)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(card.subtitle, card.background)).toBeGreaterThanOrEqual(4.5)
+  }
   await expect(page.getByRole('link', { name: /健康日记/ })).toHaveAttribute('href', '/health-events')
   await expect(page.getByRole('link', { name: /孩子档案/ })).toHaveAttribute('href', '/health-profile')
   await expect(page.getByRole('link', { name: /就诊情况单/ })).toHaveAttribute('href', '/visit-summary')

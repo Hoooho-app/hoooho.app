@@ -16,5 +16,5 @@ test('首页静态示例严格按产品顺序，不加入诊断结论', () => {
   '晚上睡觉又咳了几次，白天倒不太咳，也没发烧。这两天鼻子有点堵，刚换过被子，我想把发生的时间先记下来。',
 ])
   assert.ok(quickNoteExamples.every(text => !/[\r\n]/.test(text)))
-  assert.deepEqual(quickNoteTiming, { type: 50, hold: 5000, delete: 45, empty: 200 })
+  assert.deepEqual(quickNoteTiming, { type: 50, hold: 3500, delete: 45, empty: 200 })
 })
