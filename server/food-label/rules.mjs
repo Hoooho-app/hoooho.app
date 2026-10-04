@@ -1,6 +1,6 @@
 // Exact names and documented derivatives, not substring keyword matching.
 const groups={
-  milk:['牛奶','牛乳','生牛乳','乳','奶','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
+  milk:['牛奶','牛乳','生牛乳','乳','奶','乳及乳制品','乳制品','dairy products','milk','cream','奶油','乳清','乳清粉','脱盐乳清粉','乳清蛋白粉','whey','whey powder','casein','酪蛋白','酪蛋白酸钠','sodium caseinate','butter','黄油','cheese','奶酪','奶粉','milk powder','skimmed milk powder','dried whole milk','全脂奶粉','脱脂奶粉','脱脂乳粉','乳糖','lactose','乳蛋白','milk protein'],
   egg:['鸡蛋','蛋','egg','eggs','egg white','egg yolk','蛋清','蛋黄','全蛋粉','egg powder','ovalbumin','卵白蛋白'],
   soy:['大豆','黄豆','soy','soya','soybean','soybeans','soy flour','soy protein','soy lecithin','大豆卵磷脂','大豆蛋白','豆腐','tofu'],
   wheat:['小麦','wheat','wheat flour','小麦粉','小麦面粉','semolina','粗粒小麦粉','小麦蛋白','wheat protein','wheat gluten'],
@@ -87,7 +87,7 @@ export function checkLabel(label,records=[]){
     return {...row,status:row.reliable&&related.some(r=>['confirmed','suspected','investigating'].includes(r.currentStatus))?'possible':'pending',reason:related.length?'包装交叉接触提示与个人记录相关，不是明确加入的配料':'包装交叉接触提示，相关情况待确认'}
   })
   const conflictCount=ingredients.filter(i=>i.status==='known').length
-  const pendingCount=rows.filter(i=>['pending','possible'].includes(i.status)).length
+  const pendingCount=ingredients.filter(i=>['pending','possible'].includes(i.status)).length
   const green=profileAvailable&&label.complete&&!unhandled&&rows.length>0&&rows.every(i=>i.status==='clear')&&!advisory.length
   const title=rows.some(i=>i.status==='known')?'发现需注意成分':!profileAvailable?'缺少可对照的过敏记录':!label.complete?'标签未读完整，请补拍':green?'未发现已知冲突':'部分成分仍待确认'
   return {ingredients,contains,advisory,conflictCount,pendingCount,complete:label.complete,profileAvailable,

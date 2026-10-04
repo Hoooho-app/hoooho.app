@@ -56,8 +56,10 @@ function FoodLabelSession({memberId}:{memberId:string}){
         <HohoButton fullWidth size="large" onClick={()=>camera.current?.click()}>拍摄食品标签</HohoButton>
         <HohoButton fullWidth size="large" variant="secondary" onClick={()=>album.current?.click()}>从相册选择</HohoButton>
       </div>:<>
-        <div className="food-label-photo-actions"><HohoButton size="small" variant="secondary" onClick={()=>camera.current?.click()}>补拍</HohoButton></div>
+        <div className="food-label-photo-strip">
         <div className="food-label-photos">{photos.map((photo,index)=><img alt={`本次标签照片 ${index+1}`} key={index} src={result?.previews?.[index]??photo.dataUrl}/>)}</div>
+        <HohoButton size="small" variant="secondary" onClick={()=>camera.current?.click()}>补拍</HohoButton>
+        </div>
         <section className="food-label-summary" data-tone={busy||error?'neutral':result?.tone} role="status" aria-live="polite" aria-busy={busy}>
           <h2>{busy?<><LoaderCircle aria-hidden="true" className="food-label-spinner"/>正在核对成分</>:error||result?.title}</h2>
           {busy?<p>识别配料并对照当前过敏记录</p>:result?<><p>{result.counts}</p><p>{result.scope}</p></>:null}

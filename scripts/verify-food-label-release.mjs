@@ -7,7 +7,7 @@ import {chromium,devices,expect} from '@playwright/test'
 if(process.env.RUN_FOOD_LABEL_ACCEPTANCE!=='1')throw new Error('Explicit acceptance opt-in required')
 const target=process.env.FOOD_LABEL_TARGET??'staging'
 assert.ok(['staging','production','local'].includes(target))
-const base=target==='production'?'https://hoooho.com':target==='staging'?'https://hooohoapp-staging.up.railway.app':'http://127.0.0.1:4219'
+const base=target==='production'?'https://hoooho.com':target==='staging'?'https://hooohoapp-staging.up.railway.app':process.env.FOOD_LABEL_LOCAL_URL??'http://127.0.0.1:4219'
 const output=path.resolve(`.codex-tmp/food-label-release/${target}`);await mkdir(output,{recursive:true})
 const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...(process.env.FOOD_LABEL_PROXY?{proxy:{server:process.env.FOOD_LABEL_PROXY}}:{})})
 const context=await browser.newContext({...devices['iPhone SE'],serviceWorkers:'block'})
@@ -24,6 +24,8 @@ async function scan(filename){
   const response=await pending,body=await response.json();if(!response.ok())errors.push(body.error?.code??`HTTP_${response.status()}`);assert.ok(response.ok(),`Food API ${response.status()} ${body.error?.code??''}`)
   assert.match(response.headers()['cache-control'],/no-store/);upstreamCalls+=body.diagnostics.calls;successfulCalls+=body.diagnostics.successfulCalls;errors.push(...body.diagnostics.errorCodes)
   assert.ok(body.ingredients.length>=16);await expect(page.locator('.food-label-ingredients li')).toHaveCount(body.ingredients.length)
+  // Evidence is limited to public packaging and this script's fictional profile.
+  console.log(JSON.stringify({target,sample:filename,publicLabelRows:body.ingredients.map(({original,chinese,status})=>({original,chinese,status})),diagnostics:body.diagnostics}))
   return body
 }
 async function screenshot(name){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,name+'.png')})}

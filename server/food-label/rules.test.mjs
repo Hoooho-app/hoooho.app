@@ -55,3 +55,10 @@ test('contains conflicts count ingredient rows, not allergen species; no false d
   assert.equal(result.conflictCount,2)
   assert.equal(result.ingredients.length,2)
 })
+test('summary counts only ingredient items, not separate packaging statements',()=>{
+  const result=checkLabel(label([row('water','水'),row('Peas','豌豆')],{contains:[row('乳及乳制品')]}),records)
+  assert.equal(result.contains[0].status,'known')
+  assert.equal(result.conflictCount,0)
+  assert.equal(result.pendingCount,1)
+  assert.match(result.counts,/已识别2项 · 0项已知冲突 · 1项待确认/)
+})
