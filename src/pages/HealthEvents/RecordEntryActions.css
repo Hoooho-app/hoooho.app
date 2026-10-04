@@ -3,8 +3,13 @@
 .record-entry-grid,.daily-record-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--hoho-space-1); }
 .record-entry-grid > button,.daily-record-options > button { display:flex; min-width:0; min-height:var(--hoho-touch-target); flex-direction:column; align-items:center; justify-content:center; gap:var(--hoho-space-1); padding:var(--hoho-space-1); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-control); background:rgb(var(--hoho-color-surface)); color:rgb(var(--hoho-color-text-primary)); font-size:var(--hoho-font-size-caption); font-weight:500; white-space:nowrap; }
 .record-entry-grid > button { height:var(--hoho-touch-target); flex-direction:row; padding:0 var(--hoho-space-1); line-height:1.2; }
+.record-entry-grid > button[data-record-entry='feeding'] { --record-entry-surface:#FFF2E2; }
+.record-entry-grid > button[data-record-entry='supplement'] { --record-entry-surface:#F3EDFA; }
+.record-entry-grid > button[data-record-entry='daily'] { --record-entry-surface:#EDF5FC; }
+.record-entry-grid > button[data-record-entry='medication'] { --record-entry-surface:rgb(var(--hoho-color-primary-soft)); }
+.record-entry-grid > button[data-record-entry] { background:var(--record-entry-surface); }
 .daily-record-options img { width:40px; height:40px; object-fit:contain; }
-.record-entry-grid > button[aria-pressed='true'] { border-color:rgb(var(--hoho-color-primary)); background:rgb(var(--hoho-color-primary-soft)); color:rgb(var(--hoho-color-primary)); }
+.record-entry-grid > button[aria-pressed='true'] { border-color:rgb(var(--hoho-color-primary)); background:var(--record-entry-surface,rgb(var(--hoho-color-primary-soft))); color:rgb(var(--hoho-color-primary)); }
 .record-entry-grid > button:disabled { opacity:.5; }
 .daily-record-options { grid-template-columns:repeat(3,minmax(0,1fr)); position:absolute; inset-inline:0; bottom:calc(100% + var(--hoho-space-2)); padding:var(--hoho-space-2); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-card); background:rgb(var(--hoho-color-surface)); box-shadow:var(--hoho-shadow-floating); }
 .daily-record-options > button { border:0; padding-inline:0; }
