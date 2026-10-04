@@ -34,6 +34,7 @@ try{
   await gather.getByRole('button',{name:'开始整理',exact:true}).click();const review=page.getByRole('dialog',{name:'整理结果'})
   await expect(review.or(gather.getByRole('alert'))).toBeVisible({timeout:180000})
   const draft=await api(`/api/members/${member.id}/ai-drafts`);assert.equal((await response(`/api/members/${other.id}/ai-drafts/${draft.id}`)).status,404)
+  await writeFile(`${output}/synthetic-result.json`,JSON.stringify({state:draft.state,items:draft.items,sources:draft.sources},null,2)) // This script only creates synthetic children/materials.
   if(draft.state==='ready'){
     assert.equal(draft.items.filter(i=>i.category==='vaccination').length,1,'Multi-page receipt must be one vaccination')
     await expect(review.getByRole('heading',{name:'疫苗接种记录',exact:true})).toBeVisible();await page.screenshot({path:`${output}/review.png`})

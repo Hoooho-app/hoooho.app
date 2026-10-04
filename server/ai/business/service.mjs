@@ -17,7 +17,7 @@ import { readablePreview, quarantinePreview } from '../providers/readable-previe
 import { withAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, recognizePage } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
-import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation } from './profile-batch-match.mjs'
+import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
 import { memberInsights } from './insights.mjs'
 import { archiveCategories, buildJournal, categories, extractionSchema, fail, fingerprint, mergeItems, resolveItemTime, validateExtraction } from './contract.mjs'
 
@@ -164,6 +164,7 @@ export class AIBusinessService {
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
       const extracted=await reconcileExtraction(validateExtraction(value,draft.sources),draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       draft.items=mergeItems(extracted).map(item=>this.resolve(item,draft))
+      if(draft.profileBatch)draft.items=mergeProfileItems(draft.items,draft.timezone).map(item=>this.resolve(item,draft))
       if(draft.profileBatch&&!draft.items.length)draft.items=[this.resolve({id:'unclassified-original',category:'other',archiveCategory:null,title:'资料待确认',timeText:null,fields:[{name:'conclusion',value:'未确定归档位置，原件与识别原文保留待确认',sources:[]}]},draft)]
       draft.generation={provider:diagnostics.provider??this.model.provider?.name??'unknown',model:diagnostics.model??this.model.provider?.model??null,requestId:diagnostics.requestId??null}
       draft.unmappedRows=draft.sources.flatMap(s=>s.text.split(/\r?\n/).filter(line=>{
@@ -271,7 +272,7 @@ export class AIBusinessService {
       const saved=[],history=[]
       let profileData=structuredClone(await this.profiles.read())
       const profileBefore=structuredClone(profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId))
-      for(const original of mergeItems(d.items)){
+      for(const original of d.profileBatch?mergeProfileItems(mergeItems(d.items),d.timezone):mergeItems(d.items)){
         let item=this.resolve(original,d)
         if (!saved.length && sourceRecord && !item.time?.resolvedStart && !sourceRecord.caseContext?.timeUnknown && sourceRecord.journal?.timePrecision !== 'unknown') item = { ...item, time: { ...item.time, resolvedStart: sourceRecord.occurredAt, precision: sourceRecord.journal?.timePrecision??'exact' }, journal: { ...item.journal, timePrecision: sourceRecord.journal?.timePrecision??'exact' } }
         if (d.sourceIdentity === 'external_ai' || d.sourceIdentity === 'pending') item = { ...item, category: 'other', archiveCategory: null, journal: { categories: ['other'], timePrecision: item.time?.precision === 'unknown' ? 'unknown' : 'exact' } }
