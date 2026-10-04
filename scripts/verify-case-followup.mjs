@@ -38,7 +38,7 @@ try{
   const registration=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/register'&&r.request().method()==='POST')
   await page.getByRole('button',{name:'注册并进入',exact:true}).click()
   const registeredResponse=await registration
-  if(!registeredResponse.ok())throw Object.assign(new Error('Registration unavailable'),{safe:{status:registeredResponse.status()}})
+  if(!registeredResponse.ok()){const reason=await registeredResponse.json().catch(()=>null);throw Object.assign(new Error('Registration unavailable'),{safe:{status:registeredResponse.status(),code:reason?.error?.code??null,retryAfter:reason?.error?.retryAfter??null}})}
   registered=true;token=(await api('/api/auth/session',undefined,'GET')).token;assert.ok(token)
   memberId=(await api('/api/members',{name:'合成流程验收，非真实患者',relationship:'child',gender:'female',birthday:'2025-01-01'})).id
   otherId=(await api('/api/members',{name:'合成隔离验收，非真实患者',relationship:'child',gender:'male',birthday:'2025-01-01'})).id

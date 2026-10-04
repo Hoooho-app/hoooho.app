@@ -28,7 +28,10 @@ test('独立时间线、内嵌完整记录、失败与幂等重试、刷新/补�
   await page.reload();await ca.getByRole('button',{name:'展开',exact:true}).click();await expect(ca.locator('li')).toHaveCount(2)
   await ca.getByRole('button',{name:'继续记录',exact:true}).click();await form.getByLabel('哪里不舒服').fill('合成未保存草稿');page.once('dialog',d=>d.accept());await form.getByRole('button',{name:'取消',exact:true}).click();await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成未保存草稿')
   page.once('dialog',d=>d.accept());await page.getByRole('tab',{name:/已康复/}).click();await expect(card(page,legacy.eventId)).toContainText('历史归档');await expect(card(page,legacy.eventId)).not.toContainText('用户标记康复');await page.getByRole('tab',{name:/跟进中/}).click();await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成未保存草稿');page.once('dialog',d=>d.accept());await form.getByRole('button',{name:'取消',exact:true}).click()
-  await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await expect(page.getByRole('tab',{name:/跟进中/})).toHaveAttribute('aria-selected','true');await page.getByRole('button',{name:'撤销',exact:true}).click();await expect(ca).toBeVisible()
+  await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await expect(page.getByRole('tab',{name:/跟进中/})).toHaveAttribute('aria-selected','true')
+  let failUndo=true;const undoIds:string[]=[]
+  await page.route(`**/api/members/empty-child/cases/${a.eventId}/recovery`,async route=>{const input=route.request().postDataJSON();if(input.action==='undo'){undoIds.push(input.requestId);if(failUndo){await route.fetch();await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'合成撤销响应丢失，请重试'}})});return}}await route.continue()})
+  await page.getByRole('button',{name:'撤销',exact:true}).click();await expect(page.getByRole('alert')).toContainText('合成撤销响应丢失');failUndo=false;await page.getByRole('button',{name:'重试撤销',exact:true}).click();await expect(ca).toBeVisible();expect(undoIds[0]).toBe(undoIds[1])
   await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0);await page.getByRole('tab',{name:/已康复/}).click();await expect(ca).toContainText('用户标记康复');await expect(ca.getByRole('button',{name:'继续记录',exact:true})).toHaveCount(0);await ca.getByRole('button',{name:'展开',exact:true}).click();await expect(ca.locator('li')).toHaveCount(2)
   await ca.getByRole('button',{name:'恢复跟进',exact:true}).click();await expect(ca).toHaveCount(0);await page.getByRole('tab',{name:/跟进中/}).click();await expect(ca).toBeVisible()
   const other=await request.get('/api/members/child-a/cases',{headers});expect((await other.json()).active.some((c:any)=>c.event.id===a.eventId)).toBe(false)
@@ -45,6 +48,17 @@ test('资料内嵌保存、人工核对和附件引用；识别失败不假成�
   const recordList=await(await request.get(`/api/events/${a.eventId}/records`,{headers})).json();expect(recordList).toHaveLength(2);const material=recordList.find((r:any)=>r.caseContext.identity==='medical_consultation');expect(material.occurredAt).toBe('2026-10-01T07:30:00.000Z');expect(material.caseContext.confirmed).toBe(true);expect(material.sourceText).toBe('合成资料：医生建议观察');expect(material.caseContext.timeUnknown).toBe(false)
   const attachmentList=await(await request.get(`/api/events/${a.eventId}/attachments`,{headers})).json();expect(attachmentList).toHaveLength(1)
   const source=await request.get(`/api/events/${a.eventId}/attachments/${attachmentList[0].id}/content`,{headers});expect(source.ok()).toBe(true)
+})
+test('无响应超时保留表单，重试只写入一条',async({page,request})=>{
+  const a=await seed(request,'合成超时跟进：鼻塞');await init(page);await page.goto('/cases');const ca=card(page,a.eventId)
+  await ca.getByRole('button',{name:'继续记录',exact:true}).click();const form=ca.getByRole('region',{name:'继续记录这次情况'})
+  await form.getByLabel('哪里不舒服').fill('合成超时补充：鼻塞仍存在');await page.clock.install()
+  let release:()=>void=()=>{},blocked=true
+  await page.route('**/api/members/empty-child/case-records',async route=>{if(blocked){await new Promise<void>(resolve=>{release=resolve});await route.abort().catch(()=>{})}else await route.continue()})
+  await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form.getByRole('button',{name:'保存到这次情况',exact:true})).toBeDisabled()
+  await page.clock.fastForward(45001);await expect(form.getByRole('alert')).toContainText('请求超时');await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成超时补充：鼻塞仍存在')
+  blocked=false;release();await form.getByRole('button',{name:'保存到这次情况',exact:true}).click();await expect(form).toHaveCount(0);await expect(ca.locator('li')).toHaveCount(2)
+  expect((await(await request.get(`/api/events/${a.eventId}/records`,{headers})).json())).toHaveLength(2)
 })
 for(const width of [320,375,390,430])test(`长记录与内嵌表单无溢出 ${width}`,async({page,request})=>{
   const a=await seed(request,'合成长文本：夜间鼻塞，'+ '这是完整原始记录。'.repeat(55));await init(page);await page.setViewportSize({width,height:667});await page.goto('/cases');const ca=card(page,a.eventId);await ca.getByRole('button',{name:'展开',exact:true}).click();await ca.getByRole('button',{name:'展开全文',exact:true}).click();await expect(ca).toContainText('这是完整原始记录。'.repeat(55));await ca.getByRole('button',{name:'继续记录',exact:true}).click();await expect(ca.getByLabel('哪里不舒服')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)

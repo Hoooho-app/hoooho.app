@@ -101,6 +101,6 @@ export function MaterialReturnForm({ eventId, initialRecordId = null, embedded =
       {notice && <p role="status">{notice}</p>}
       {embedded && <HohoButton variant="secondary" disabled={busy || review} onClick={() => { if (record || (!text.trim() && !files.length && !occurredAt) || window.confirm('资料尚未保存，取消后保留设备草稿，确定退出吗？')) onClose?.() }}>{record ? '关闭资料区域' : '取消'}</HohoButton>}
     </div>}
-    {review && <AIBusinessComposer key={`${memberId}:${record?.id}`} embedded={embedded} sourceRecordId={record?.id} structuredReview initialDraftId={record?.caseContext?.aiDraftId} initialTask="report" memberId={memberId} token={token} eventId={eventId} sourceIdentity={identity} initialText={text} initialFiles={files} onClose={() => setReview(false)} onSaved={() => { setNotice('整理结果已保存到这次情况，原件与来源保持可查'); onSaved?.(); reload() }}/>}</>
+    {review && <AIBusinessComposer key={`${memberId}:${record?.id}`} embedded={embedded} sourceRecordId={record?.id} structuredReview initialDraftId={record?.caseContext?.aiDraftId} initialTask="report" memberId={memberId} token={token} eventId={eventId} sourceIdentity={identity} initialText={text} initialFiles={files} onClose={() => setReview(false)} onSaved={message => { setNotice(message.includes('撤销')?'本次整理保存已撤销，原件仍保留':'整理结果已保存到这次情况，原件与来源保持可查'); onSaved?.(); reload() }}/>}</>
   return embedded ? <section className="case-inline-materials">{content}</section> : <main className="app-shell continuity-page"><WebPageHeader title="带回问诊资料"/><div className="continuity-scroll">{content}</div></main>
 }
