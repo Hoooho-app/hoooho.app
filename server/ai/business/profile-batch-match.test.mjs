@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation } from './profile-batch-match.mjs'
+import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -20,12 +20,26 @@ test('同日同剂次回执匹配手动接种，不同日期/剂次及多候选�
   assert.equal(uncertainVaccineAssociation([record],{...item,journal:{vaccination:{items:[{vaccineName:'乙肝疫苗',doseSequence:'dose_3'}]}}}),false)
 })
 test('仅补缺失字段，不改手动内容、已有字段及另一剂次',()=>{
-  const supplemented=supplementJournal(record.journal,item.journal)
+  const incoming=structuredClone(item.journal);incoming.vaccination.institutionName='识别冲突机构';incoming.vaccination.items[0].manufacturerName='识别冲突企业'
+  const supplemented=supplementJournal(record.journal,incoming)
   assert.equal(supplemented.vaccination.institutionName,'手动机构')
   assert.equal(supplemented.vaccination.items[0].manufacturerName,'手动企业')
   assert.equal(supplemented.vaccination.items[0].batchNumber,'新增批号')
   assert.equal(supplemented.vaccination.items[0].id,'v')
   assert.equal(record.journal.vaccination.items[0].batchNumber,undefined)
+})
+test('真实识别可按页拆候选：同日同剂次互补字段汇总一条，来源都保留',()=>{
+  const make=(id,extra=[])=>({...structuredClone(item),id,fields:[{name:'vaccineName',value:'乙肝疫苗',sources:[{sourceId:id,page:1,quote:'乙肝疫苗'}]},{name:'doseOriginal',value:'第2剂',sources:[{sourceId:id,page:1,quote:'第2剂'}]},...extra]})
+  const first=make('page1'),second=make('page2',[{name:'batchNumber',value:'SYNTHETIC',sources:[{sourceId:'page2',page:1,quote:'SYNTHETIC'}]}])
+  const merged=mergeProfileItems([first,second])
+  assert.equal(merged.length,1);assert.equal(merged[0].fields.find(f=>f.name==='vaccineName').sources.length,2)
+  assert.equal(merged[0].fields.find(f=>f.name==='batchNumber').value,'SYNTHETIC')
+  assert.equal(mergeProfileItems([first,{...second,time:{...second.time,resolvedStart:'2026-09-29T16:00:00Z'}}]).length,2)
+  const differentDose=structuredClone(second);differentDose.journal.vaccination.items[0].doseSequence='dose_3'
+  assert.equal(mergeProfileItems([first,differentDose]).length,2)
+  const conflicting=make('page3',[{name:'batchNumber',value:'CONFLICT',sources:[]}])
+  assert.equal(mergeProfileItems([second,conflicting]).length,2)
+  assert.equal(first.fields[0].sources.length,1)
 })
 test('其他病史不能只因名称相同匹配；日期和机构等事实需一致',()=>{
   const facts=[{name:'historyName',value:'阑尾切除术'},{name:'institution',value:'合成医院'}]
@@ -43,12 +57,14 @@ test('真实事务：手动疫苗回执仅关联原件，幂等、跨成员、�
     const text=`2026-09-29 乙肝疫苗 ${dose} 新增批号`
     if(task==='document-page')return {value:{status:'readable',text},diagnostics:{provider:'test'}}
     const source=JSON.parse(input).sources[0]
-    return {value:{items:[{category:'vaccination',subject:'current',title:'接种',archiveCategory:'vaccination',timeText:'2026-09-29',relationKey:null,fields:Object.entries({vaccineName:'乙肝疫苗',doseOriginal:dose,batchNumber:'新增批号'}).map(([name,value])=>({name,value,quote:value,sourceId:source.id,page:source.page}))}]},diagnostics:{provider:'test'}}
+    const make=fields=>({category:'vaccination',subject:'current',title:'接种',archiveCategory:'vaccination',timeText:'2026-09-29',relationKey:null,fields:Object.entries(fields).map(([name,value])=>({name,value,quote:value,sourceId:source.id,page:source.page}))})
+    return {value:{items:[make({vaccineName:'乙肝疫苗',doseOriginal:dose}),make({vaccineName:'乙肝疫苗',doseOriginal:dose,batchNumber:'新增批号'})]},diagnostics:{provider:'test'}}
   }}})
   const event=await service.events.create('a',{memberId:child.id,title:'手动接种',category:'other',startTime:record.occurredAt})
   const manual=await service.records.create('a',event.id,{type:'note',occurredAt:record.occurredAt,content:record.content,journal:record.journal,sourceType:'text_record'})
   const bytes=await sharp({create:{width:20,height:20,channels:3,background:'#fff'}}).png().toBuffer(),files=[{name:'合成回执.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${bytes.toString('base64')}`}]
   let draft=await service.prepare('a',child.id,{profileBatch:true,task:'archive',files})
+  assert.equal(draft.items.length,1)
   await assert.rejects(()=>service.save('a',other.id,draft.id,{version:draft.version,confirmed:true}))
   const saved=await service.save('a',child.id,draft.id,{version:draft.version,confirmed:true})
   assert.equal(saved.result.records[0].recordId,manual.id)

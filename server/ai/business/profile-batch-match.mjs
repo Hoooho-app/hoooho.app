@@ -34,3 +34,28 @@ export function uncertainVaccineAssociation(records,item,timezone='Asia/Shanghai
   const incoming=item.journal?.vaccination?.items??[],day=item.time?.resolvedStart?date(item.time.resolvedStart,timezone):null
   return records.some(record=>(!day||record.journal?.timePrecision==='unknown'||date(record.occurredAt,timezone)===day)&&record.journal?.vaccination?.items?.some(existing=>incoming.some(v=>normalized(v.vaccineName)===normalized(existing.vaccineName)&&(v.doseSequence==='unknown'||existing.doseSequence==='unknown'||v.doseSequence===existing.doseSequence))))
 }
+// OCR/extraction can return one candidate per page. Fold complementary facts
+// using clinical event identity, not a model-selected relationKey. Different
+// doses, dates and conflicting original fields stay separate.
+export function mergeProfileItems(items,timezone='Asia/Shanghai'){
+  const result=[]
+  for(const original of items){
+    const item=structuredClone(original),vaccine=item.journal?.vaccination?.items?.[0]
+    const day=item.time?.resolvedStart&&item.time.precision!=='unknown'?date(item.time.resolvedStart,timezone):null
+    const matches=result.filter(prior=>{
+      if(item.category!=='vaccination'||prior.category!=='vaccination'||!day||!vaccine||item.journal.vaccination.items.length!==1)return false
+      if(!prior.time?.resolvedStart||date(prior.time.resolvedStart,timezone)!==day||prior.archiveCategory!==item.archiveCategory||prior.journal?.vaccination?.items?.length!==1||!vaccineEqual(vaccine,prior.journal.vaccination.items[0]))return false
+      return !item.fields.some(field=>field.name!=='doseOriginal'&&prior.fields.some(p=>p.name===field.name&&p.value!==field.value))
+    })
+    const match=matches.length===1?matches[0]:null
+    if(!match){result.push(item);continue}
+    for(const field of item.fields){
+      const existing=match.fields.find(f=>f.name===field.name)
+      if(!existing)match.fields.push(field)
+      else if(existing.value===field.value)existing.sources=[...new Map([...(existing.sources??[]),...(field.sources??[])].map(s=>[JSON.stringify(s),s])).values()]
+      // Equivalent raw dose wording is not rewritten. Full page text and its
+      // original dose remain available in the batch's attached originals.
+    }
+  }
+  return result
+}
