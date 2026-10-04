@@ -44,6 +44,7 @@ import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { caseApiResult } from './events/case-api.mjs'
+import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -86,6 +87,7 @@ const medicationReminders = new MedicationReminderService({ ...sharedOptions, ev
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
+const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
@@ -763,6 +765,12 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  if (pathname === '/api/food-label/check') {
+    browserSessions.assertSameOrigin(request)
+    const accountId = await readAccountId(request)
+    await foodLabelApi(request, response, { service: foodLabels, accountId, readJson, sendJson })
+    return true
+  }
   if (request.method === 'OPTIONS') {
     sendEmpty(response)
     return true

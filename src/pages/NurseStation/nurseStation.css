@@ -41,6 +41,7 @@
 .nurse-home-entry--visit { border-color: #e2eaf0; background: rgb(var(--hoho-color-visit-entry-surface)); }
 .nurse-home-entry--dietary { border-color: #efe9d8; background: #fbf8f0; }
 .nurse-home-entry--medication { border-color: #dcece5; background: #f3f8f5; }
+.nurse-home-entry--food-label { border-color: #dcece5; background: #f3f8f5; }
 .nurse-home-entry--desensitization { border-color: #e7dff0; background: #f7f3fb; }
 .nurse-home-entry:hover { border-color: #c5dcd6; }
 .nurse-home-entry:active { transform: scale(.99); }

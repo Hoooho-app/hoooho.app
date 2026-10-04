@@ -80,7 +80,7 @@ test('前台侧边栏使用首页图标，旧指数地址说明已停止', async
   await page.screenshot({ path: 'test-results/nurse-station-home-icon-375x667.png' })
   await page.getByRole('button', { name: '关闭菜单' }).click()
   await expect(page.locator('.nurse-station-allergy-index')).toHaveCount(0)
-  await expect(page.locator('.nurse-home-entry')).toHaveCount(5)
+  await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   expect(await page.evaluate(() => fetch('/api/food-allergy-index?memberId=unused').then((response) => response.status))).toBe(404)
   await page.goto('/food-allergy-status-index')
   await expect(page.getByText('指数功能已停止。原有记录仍然保留。')).toBeVisible()
@@ -116,7 +116,7 @@ test('用药与排敏二级页常驻状态与顶部新建入口', async ({ page 
   await expect(page).toHaveURL(/\/nurse-station\/desensitization\/new$/)
 })
 
-test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航', async ({ page }) => {
+test('首页在 iPhone SE 和桌面端保持六个等高入口并只承担导航', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -153,9 +153,9 @@ test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航
   expect(heroAlignment.dividerWidths).toEqual(['1px', '1px'])
   await expect(page.locator('.nurse-station-allergy-index')).toHaveCount(0)
   const entries = page.locator('.nurse-home-entry')
-  await expect(entries).toHaveCount(5)
-  await expect(entries.locator('strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒'])
-  await expect(entries.locator('small')).toHaveText(['就诊前，一页理清病情', '哪些不能吃，出示就懂', '记录日常与身体变化', '整理家人的健康信息', '0 个提醒任务'])
+  await expect(entries).toHaveCount(6)
+  await expect(entries.locator('strong')).toHaveText(['就诊情况单', '忌口出示卡', '健康随记', '健康档案', '用药提醒', '食品标签核对'])
+  await expect(entries.locator('small')).toHaveText(['就诊前，一页理清病情', '哪些不能吃，出示就懂', '记录日常与身体变化', '整理家人的健康信息', '0 个提醒任务', '拍配料表，对照过敏史'])
   await expect(page.getByRole('link', { name: /健康随记/ })).toHaveAttribute('href', '/health-events')
   await expect(page.getByRole('link', { name: /健康档案/ })).toHaveAttribute('href', '/health-profile')
   await expect(page.getByRole('link', { name: /就诊情况单/ })).toHaveAttribute('href', '/visit-summary')
@@ -185,12 +185,12 @@ test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航
   expect(fiveDigitLayout.overflow).toBe(false)
   expect(fiveDigitLayout.guardedRight).toBeLessThanOrEqual(fiveDigitLayout.visualLeft)
   await page.screenshot({ path: 'test-results/nurse-station-five-digit-guarded-days-375x667.png', fullPage: true })
-  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders']] as const) {
+  for (const [name, path] of [['健康随记', '/health-events'], ['健康档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['食品标签核对','/food-label']] as const) {
     await page.getByRole('link', { name: new RegExp(name) }).click()
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`))
     await page.goBack()
     await expect(page).toHaveURL(/\/nurse-station$/)
-    await expect(page.locator('.nurse-home-entry')).toHaveCount(5)
+    await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
   for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 }]) {
@@ -201,7 +201,7 @@ test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航
       const subtitle = card.querySelector('small')!
       return { height: card.getBoundingClientRect().height, subtitleFits: subtitle.scrollHeight <= subtitle.clientHeight, titleFits: title.scrollWidth <= title.clientWidth }
     }))
-    expect(cardMetrics).toHaveLength(5)
+    expect(cardMetrics).toHaveLength(6)
     expect(cardMetrics.every((metric) => metric.height === 88 && metric.titleFits && metric.subtitleFits)).toBe(true)
     if (viewport.width === 1440) await page.screenshot({ path: 'test-results/nurse-station-home-desktop-1440x900.png', fullPage: true })
   }
@@ -211,7 +211,7 @@ test('首页在 iPhone SE 和桌面端保持五个等高入口并只承担导航
   await expect(page.getByText('指数功能已停止。原有记录仍然保留。')).toBeVisible()
   await page.goto('/nurse-station')
   await expect(page.locator('.nurse-station-allergy-index')).toHaveCount(0)
-  await expect(page.locator('.nurse-home-entry')).toHaveCount(5)
+  await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   expect(errors).toEqual([])
 })
 
@@ -547,7 +547,7 @@ test('切换到另一人物时任务归属同步更新且不显示人物任务�
 
 test('关键控件满足触控、键盘、文字间距与 200% 缩放验收', async ({ page }, testInfo) => {
   await registerMember(page)
-  await expect(page.locator('.nurse-home-entry')).toHaveCount(5)
+  await expect(page.locator('.nurse-home-entry')).toHaveCount(6)
   const entryMeasurements = await page.evaluate(() => {
     const entry = document.querySelector<HTMLElement>('.nurse-home-entry')!
     const entrySubtitle = entry.querySelector<HTMLElement>('small')!
