@@ -8,7 +8,8 @@ const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sou
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
 test('actual partial read failure is distinct from a successfully read partial label',async()=>{
   const s=service([page,Object.assign(new Error('Invalid output'),{code:'AI_OUTPUT_INVALID'}),translated])
-  const r=await s.service.analyze('owner',{...input,photos:[...input.photos,...input.photos]})
+  const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}
+  const r=await s.service.analyze('owner',{...input,photos:[...input.photos,other]})
   assert.equal(r.failure,'read');assert.equal(r.ingredients.length,3);assert.equal(r.conflictCount,1)
   const partial=service([page,translated],{text:'声明范围缺失',status:'uncertain'})
   assert.equal((await partial.service.analyze('owner',input)).failure,null)
@@ -28,11 +29,21 @@ test('supplement deduplicates repeated ingredients without losing compound child
   const tail={text:'Ingredients: Sugar, Water, Blend (Milk, Salt), Egg',status:'readable'}
   const names=['Water','Blend','Milk','Salt','Sugar','Egg']
   const t={ingredients:names.map(original=>({original,chinese:original,reliable:true,sourceUnknown:false})),contains:[],advisory:[]}
-  const s=service([text,tail,t]);const r=await s.service.analyze('owner',{...input,photos:[...input.photos,...input.photos]})
+  const other={dataUrl:`data:image/png;base64,${(await sharp({create:{width:101,height:100,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')}`}
+  const s=service([text,tail,t]);const r=await s.service.analyze('owner',{...input,photos:[...input.photos,other]})
   assert.deepEqual(r.ingredients.map(row=>row.original),names)
   assert.equal(r.ingredients[2].parent,1);assert.equal(r.conflictCount,1)
 })
-function service(values,coverage={text:'完整范围',status:'readable'}){let calls=0;return {service:new FoodLabelService({members:{get:async(_a,m)=>{if(m!=='a')throw Object.assign(new Error('Not owned'),{status:404})}},readRecords:async()=>records,model:{structured:async({task})=>{if(task==='food-label-coverage'){if(coverage instanceof Error)throw coverage;return {value:coverage,diagnostics:{success:true}}}const value=values[calls++];if(value instanceof Error)throw value;return {value,diagnostics:{success:true}}}}}),calls:()=>calls}}
+function service(values,coverage={text:'完整范围',status:'readable'}){let calls=0;return {service:new FoodLabelService({members:{get:async(_a,m)=>{if(m!=='a')throw Object.assign(new Error('Not owned'),{status:404})}},readRecords:async()=>records,model:{structured:async({task})=>{if(task==='food-label-coverage'){if(coverage instanceof Error)throw coverage;return {value:coverage,diagnostics:{success:true}}}let value=values[calls++];if(value instanceof Error)throw value;if(task==='food-label-translate'&&value?.ingredients)value=Object.fromEntries(Object.entries(value).map(([key,rows])=>[key,rows.map(row=>({...row,english:row.english??'',sourceLanguage:row.sourceLanguage??(/\p{Script=Han}/u.test(row.original)?'zh':'en')}))]));return {value,diagnostics:{success:true}}}}}),calls:()=>calls}}
+test('identical normalized photos are read once within a request, never reuse a previous task',async()=>{
+  const s=service([page,translated,page,translated]);const photos=[...input.photos,...input.photos]
+  for(let i=0;i<2;i++){const r=await s.service.analyze('owner',{...input,photos});assert.equal(r.ingredients.length,3);assert.equal(r.previews.length,2);assert.equal(r.diagnostics.calls,3)}
+  assert.equal(s.calls(),4)
+})
+test('omitted display translation fields are an honest translation failure, not fabricated English',async()=>{
+  const s=service([]);s.service.model.structured=async({task})=>({value:task==='food-label-read'?page:task==='food-label-coverage'?{text:'完整范围',status:'readable'}:translated,diagnostics:{success:true}})
+  const r=await s.service.analyze('owner',input);assert.equal(r.failure,'translation');assert.ok(r.ingredients.every(row=>!row.english));assert.equal(r.ingredients.length,3)
+})
 test('complete source goes through image decode, independent coverage, translation and deterministic rules',async()=>{const s=service([page,translated]);const r=await s.service.analyze('owner',input);assert.equal(r.ingredients.length,3);assert.equal(r.conflictCount,1);assert.equal(r.ingredients[2].status,'possible');assert.equal(r.advisory.length,1);assert.equal(r.diagnostics.calls,3)})
 test('clear partial labels retain known red without a complete or green conclusion',async()=>{const s=service([page,translated],{text:'声明范围缺失',status:'uncertain'});const r=await s.service.analyze('owner',input);assert.equal(r.ingredients[1].status,'known');assert.equal(r.complete,false);assert.notEqual(r.tone,'success')})
 test('coverage failure retains all clear ingredients and forbids a complete result',async()=>{const s=service([page,translated],Object.assign(new Error('Timeout'),{code:'AI_TIMEOUT'}));const r=await s.service.analyze('owner',input);assert.equal(r.ingredients.length,3);assert.equal(r.ingredients[1].status,'known');assert.equal(r.complete,false);assert.deepEqual(r.diagnostics.errorCodes,['AI_TIMEOUT'])})

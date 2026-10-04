@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import Ajv from 'ajv'
+import { createHash } from 'node:crypto'
 import { BusinessModel } from '../ai/business/model.mjs'
 import { withAIAccount } from '../ai/providers/call-control.mjs'
 import { checkLabel, flattenIngredients, splitDeclaredAllergens, ingredientIdentity } from './rules.mjs'
@@ -9,8 +10,9 @@ const object=properties=>({type:'object',additionalProperties:false,required:Obj
 // Identical to the application's existing single-page OCR transport contract.
 export const readSchema=object({text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}})
 const translatedRow=object({original:{type:'string',maxLength:2000},chinese:{type:'string',maxLength:2000},reliable:bool,sourceUnknown:bool})
-// Optional additive fields keep existing clients and deterministic-rule inputs compatible.
+// Display fields are mandatory for the model; public response fields are additive.
 Object.assign(translatedRow.properties,{english:{type:'string',maxLength:2000},sourceLanguage:{type:'string',maxLength:32}})
+translatedRow.required.push('english','sourceLanguage')
 export const translateSchema=object({ingredients:{type:'array',maxItems:250,items:translatedRow},contains:{type:'array',maxItems:30,items:translatedRow},advisory:{type:'array',maxItems:30,items:translatedRow}})
 const ajv=new Ajv({strict:false})
 const validRead=ajv.compile(readSchema),validTranslation=ajv.compile(translateSchema)
@@ -102,12 +104,16 @@ export class FoodLabelService{
     await assertCurrent()
     if(!Array.isArray(input.photos)||input.photos.length<1||input.photos.length>6)throw failure('一次可核对同一食品的1–6张照片','FOOD_PHOTO_LIMIT')
     let bytes=0,calls=0,partialFailure=null
-    const pages=[],diagnostics=[],previews=[]
+    const pages=[],diagnostics=[],previews=[],seenPhotos=new Set()
     for(const photo of input.photos){
       signal?.throwIfAborted()
       const normalized=await normalizePhoto(photo);bytes+=normalized.bytes
       previews.push(normalized.preview)
       if(bytes>30*1024*1024)throw failure('本次照片总量超过30MB，请重新拍摄','FOOD_PHOTO_SIZE',413)
+      // Request-local identity only: no retained result, cross-task cache or file.
+      const identity=createHash('sha256').update(normalized.dataUrl).digest('hex')
+      if(seenPhotos.has(identity))continue
+      seenPhotos.add(identity)
       try{
         calls++
         const out=await withAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions,vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}))
