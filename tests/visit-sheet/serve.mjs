@@ -33,6 +33,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (mode === 'failure') return new Response(JSON.stringify({ error: { type: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', code: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: bailian?403:429, headers: { 'x-request-id': 'req_fixture' } })
     let body=JSON.parse(init.body)
     if(bailian){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
+    if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]
@@ -72,10 +73,10 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({ mode, calls,asrCalls,speechCalls }))
-  }).listen(4198, '127.0.0.1')
+  }).listen(Number(process.env.VISIT_CONTROL_PORT ?? 4198), '127.0.0.1')
 }
 const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-visit-e2e-'))
-const shutdownFile = new URL('./.shutdown', import.meta.url)
+const shutdownFile = new URL(process.env.VISIT_SHUTDOWN_FILE ?? './.shutdown', import.meta.url)
 await unlink(shutdownFile).catch(() => {})
 setInterval(
   () =>
@@ -200,7 +201,7 @@ await seed('event-attachments.json', {
 })
 process.env.DATA_DIRECTORY = dataDirectory
 process.env.AUTH_TOKEN_SECRET = 'visit-sheet-e2e-secret'
-process.env.PORT = '4196'
+process.env.PORT = process.env.VISIT_E2E_PORT ?? '4196'
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'development'
 process.chdir(fileURLToPath(new URL('../../',import.meta.url)))

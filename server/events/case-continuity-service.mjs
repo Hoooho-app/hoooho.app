@@ -68,7 +68,7 @@ export class CaseContinuityService {
     const files = await prepareDocuments(allFiles.filter(f => !/^audio\//.test(f.mimeType ?? '')))
     files.documents.push(...voices)
     if (files.documents.reduce((n, file) => n + Buffer.from(file.dataUrl.split(',')[1], 'base64').length, 0) > 15 * 1024 * 1024) throw fail('原件总大小不能超过15 MB')
-    if (!content && !files.documents.length) throw fail('先留一句话或一份原件，不保存空情况')
+    if (!content && !files.documents.length && !input.photoIds?.length) throw fail('先留一句话或一份原件，不保存空情况')
     const key = clean(input.requestId ?? '', 100)
     if (!key) throw fail('保存标识缺失，请重试')
     const identity = identities.has(input.identity) ? input.identity : 'parent'

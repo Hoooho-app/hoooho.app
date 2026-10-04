@@ -48,7 +48,7 @@ export class EventAttachmentRepository {
           draftPhotoId: draft.id, name: draft.name, mimeType: draft.mimeType,
           binarySize: draft.binarySize, width: draft.width, height: draft.height,
           sortOrder: draft.sortOrder, uploadStatus: 'uploaded', storageKey: draft.storageKey,
-          contentHash: draft.contentHash, createdAt: now.toISOString()
+          contentHash: draft.contentHash, ...(draft.review?{mediaReview:{...draft.review,...Object.fromEntries(['audio','vision'].filter(s=>draft.review[s]?.status==='processing').map(s=>[s,{status:'not_completed',message:'保存时尚未完成整理，原件仍保留'}]))}}:{}), ...(draft.previewKey?{previewKey:draft.previewKey,posterKey:draft.posterKey,previewMimeType:draft.previewMimeType,duration:draft.duration}:{}), createdAt: now.toISOString()
         }
         created.push(attachment)
         return attachment

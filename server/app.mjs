@@ -1,3 +1,5 @@
+import {uploadSymptomMedia} from './events/symptom-media-upload.mjs'
+import {SymptomMediaJobs} from './ai/symptom-media-jobs.mjs'
 import { createReadStream } from 'node:fs'
 import { mediaRange } from './media-range.mjs'
 import { access, readFile, stat } from 'node:fs/promises'
@@ -68,6 +70,7 @@ const events = new HealthEventService({ ...sharedOptions, summaryRefresher: orga
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
 const quickRecordPhotos = new QuickRecordPhotoService({ ...sharedOptions, attachments: attachments.repository })
+const symptomMediaJobs = new SymptomMediaJobs(quickRecordPhotos, {...sharedOptions,audio:audioTranscription})
 const quickRecords = new QuickRecordService({ ...sharedOptions, events, records, photos: quickRecordPhotos })
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
@@ -516,6 +519,13 @@ async function handleDesensitizationTests(request, response, pathname, searchPar
 }
 
 async function handleQuickRecords(request, response, pathname) {
+  const mediaRoute=/^\/api\/quick-records\/([^/]+)\/media(?:\/([^/]+)\/(review|preview|poster))?$/.exec(pathname)
+  if(mediaRoute){const accountId=await readAccountId(request),memberId=String(request.headers['x-hoooho-member-id']??''),draftId=decodeRouteValue(mediaRoute[1]),id=mediaRoute[2]&&decodeRouteValue(mediaRoute[2]),action=mediaRoute[3]
+    if(!id&&request.method==='POST'){const saved=await uploadSymptomMedia(quickRecordPhotos,request,accountId,draftId,memberId);if(!saved.review){try{saved.review=await symptomMediaJobs.start(accountId,memberId,draftId,saved.id)}catch(error){saved.review={audio:{status:'failed',message:'未开始整理，请主动重试'},vision:{status:'failed',message:'未开始整理，请主动重试'},code:error.code??'MEDIA_BUSY'};await quickRecordPhotos.store.update(data=>({...data,photos:data.photos.map(p=>p.id===saved.id?{...p,review:saved.review}:p)}))}}sendJson(response,201,saved)}
+    else if(id&&action==='review'){if(request.method==='PATCH'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id),input=await readJson(request);if(typeof input.text!=='string'||input.text.length>1000)throw Object.assign(new Error('核对内容过长'),{status:400});const review={...photo.review,confirmedText:input.text,confirmedAt:new Date().toISOString()};await quickRecordPhotos.store.update(data=>({...data,photos:data.photos.map(p=>p.id===id?{...p,review}:p)}));sendJson(response,200,review)}else if(request.method==='POST')sendJson(response,202,await symptomMediaJobs.start(accountId,memberId,draftId,id,(await readJson(request)).part));else if(request.method==='GET'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id);let review=photo.review??null;if(review&&!symptomMediaJobs.active.has(id)){review={...review};for(const stage of ['audio','vision'])if(review[stage]?.status==='processing')review[stage]={status:'failed',code:'MEDIA_INTERRUPTED',message:'整理已中断，请单独重试'};}sendJson(response,200,review)}else sendJson(response,405,{error:{message:'方法不支持'}})}
+    else if(id&&request.method==='GET'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id);const key=action==='poster'?photo.posterKey:photo.previewKey;if(!key)sendJson(response,404,{error:{message:'预览尚不可用，原件仍保留'}});else{const buffer=await readFile(path.join(quickRecordPhotos.filesDirectory,path.basename(key)));setCommonHeaders(response);response.setHeader('Content-Type',action==='poster'?'image/jpeg':photo.previewMimeType??'video/mp4');response.setHeader('Cache-Control','private, no-store');response.end(buffer)}}
+    else sendJson(response,405,{error:{message:'请求方法不支持'}});return true
+  }
   const photoContentMatch = /^\/api\/quick-records\/([^/]+)\/photos\/([^/]+)\/content$/.exec(pathname)
   const photoMatch = /^\/api\/quick-records\/([^/]+)\/photos(?:\/([^/]+))?$/.exec(pathname)
   if (pathname !== '/api/quick-records' && pathname !== '/api/quick-records/duplicate-check' && !photoMatch && !photoContentMatch) return false
@@ -537,8 +547,8 @@ async function handleQuickRecords(request, response, pathname) {
     const photoId = photoMatch[2] ? decodeRouteValue(photoMatch[2]) : null
     if (!photoId && request.method === 'GET') sendJson(response, 200, await quickRecordPhotos.list(accountId, photoMemberId, draftId))
     else if (!photoId && request.method === 'POST') sendJson(response, 201, await quickRecordPhotos.upload(accountId, draftId, await readJson(request, 7_100_000)))
-    else if (!photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.cancel(accountId, photoMemberId, draftId))
-    else if (photoId && request.method === 'DELETE') sendJson(response, 200, await quickRecordPhotos.delete(accountId, photoMemberId, draftId, photoId))
+    else if (!photoId && request.method === 'DELETE') {const owned=await quickRecordPhotos.list(accountId,photoMemberId,draftId);owned.forEach(p=>symptomMediaJobs.cancel(p.id));sendJson(response,200,await quickRecordPhotos.cancel(accountId,photoMemberId,draftId))}
+    else if (photoId && request.method === 'DELETE') {await quickRecordPhotos.getOwnedPhoto(accountId,photoMemberId,draftId,photoId);symptomMediaJobs.cancel(photoId);sendJson(response,200,await quickRecordPhotos.delete(accountId,photoMemberId,draftId,photoId))}
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   } else if (pathname === '/api/quick-records/duplicate-check' && request.method === 'POST') sendJson(response, 200, await quickRecords.checkDuplicate(accountId, await readJson(request)))
   else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
@@ -678,14 +688,14 @@ async function handleHealthInformationCandidates(request, response, pathname) {
 }
 
 async function handleAttachments(request, response, pathname) {
-  const contentMatch = /^\/api\/events\/([^/]+)\/attachments\/([^/]+)\/content$/.exec(pathname)
+  const contentMatch = /^\/api\/events\/([^/]+)\/attachments\/([^/]+)\/(content|preview)$/.exec(pathname)
   const match = /^\/api\/events\/([^/]+)\/attachments(?:\/(preview))?$/.exec(pathname)
   if (!match && !contentMatch) return false
   const accountId = await readAccountId(request)
   const eventId = decodeRouteValue((match ?? contentMatch)[1])
   if (contentMatch) {
     if (request.method === 'GET') {
-      const file = await attachments.read(accountId, eventId, decodeRouteValue(contentMatch[2]))
+      const file = await attachments.read(accountId, eventId, decodeRouteValue(contentMatch[2]),contentMatch[3])
       setCommonHeaders(response)
       response.statusCode = 200
       response.setHeader('Content-Type', file.mimeType)
