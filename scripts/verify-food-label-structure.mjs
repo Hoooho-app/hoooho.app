@@ -41,7 +41,7 @@ async function scan(filename,supplement=false){
   assert.equal(body.conflictCount,roots.filter(r=>r.status==='known').length)
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(roots.length)
   await page.screenshot({path:path.join(output,`request-${requests}-evidence.png`),fullPage:true})
-  await page.locator('.food-label-ingredients li').last().scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,`request-${requests}-bottom-evidence.png`)});await page.locator('.food-label-summary').scrollIntoViewIfNeeded()
+  await page.locator('.food-label-ingredients li').last().scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,`request-${requests}-bottom-evidence.png`)});await page.locator('.food-label-page').evaluate(element=>element.scrollTo(0,0))
   if(englishOnly)await page.screenshot({path:path.join(output,'english-diagnostic-full.png'),fullPage:true})
   await expect(page.getByText(/标签未读完整|本次未完整核对|项待确认|暂不能排除遗漏|放心食用/)).toHaveCount(0)
   console.log(JSON.stringify({target,request:requests,supplement,roots:roots.length,known:body.conflictCount,common:roots.filter(r=>r.status==='common').length,possible:roots.filter(r=>r.status==='possible').length,diagnostics:body.diagnostics}))
