@@ -213,3 +213,19 @@ test('迟到草稿恢复不会把本次已上传资料覆盖为失败',async({pa
  await page.waitForTimeout(1400)
  await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1);await expect(form.locator('.quick-record-photo[data-status="failed"]')).toHaveCount(0);await expect(form.locator('.quick-record-photo')).toHaveCount(1)
 })
+
+
+test('视频刷新后恢复服务端封面且不重复下载原件',async({page})=>{
+ await init(page)
+ const form=page.getByRole('dialog',{name:'症状记录',exact:true})
+ await form.getByLabel('选择照片').setInputFiles('public/tutorials/recordings/create-event.webm')
+ await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+ const originals:string[]=[]
+ page.on('request',r=>{if(r.method()==='GET'&&/\/photos\/[^/]+\/content$/.test(new URL(r.url()).pathname))originals.push(r.url())})
+ await page.reload()
+ await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+ const cover=form.locator('.media-video-thumb img')
+ await expect(cover).toBeVisible()
+ await expect.poll(()=>cover.evaluate((i:HTMLImageElement)=>i.naturalWidth)).toBeGreaterThan(0)
+ expect(originals).toEqual([])
+})
