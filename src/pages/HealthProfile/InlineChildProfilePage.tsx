@@ -49,7 +49,7 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
   async function command(input:Record<string,unknown>,after:(next:Snapshot)=>void){
     if(locked.current)return
     const state=useAppStore.getState();if(state.currentMemberId!==member.id||state.authUser?.id!==accountId){setError('孩子或账号已切换，本页未提交');return}
-    locked.current=true;setBusy(true);setError('')
+    locked.current=true;setBusy(true);setError('');setStatus('');setUndo(undefined)
     try{
       const next=await apiRequest<Snapshot>(endpoint,{token:state.authToken??token,method:'POST',body:input})
       if(mounted.current){setData(next);setStatus(next.notice??'已保存');setUndo(next.undoId);after(next)}
@@ -93,11 +93,12 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
       </>}
     </li>
   }
-  return <main className="app-shell inline-profile-shell"><WebPageHeader title={titles[kind]} onBack={()=>navigate('/health-profile')}/><div className="page-content inline-profile-content">
+  return <main className="app-shell inline-profile-shell" aria-busy={busy}><WebPageHeader title={titles[kind]} onBack={()=>navigate('/health-profile')}/><div className="page-content inline-profile-content">
     <MemberIdentityCard member={member}/>
     {kind!=='surgery'&&<nav className="inline-profile-tabs" aria-label={`${titles[kind]}分类`}>{data?.groups.map(g=><button type="button" disabled={busy} key={g.id} aria-pressed={group===g.id} onClick={()=>{setSession(old=>({...old,group:g.id}));setConfirmDelete(undefined)}}>{g.name}</button>)}{kind==='family-history'&&<button disabled={busy} type="button" aria-label="添加亲属关系" onClick={()=>setSession(old=>({...old,relation:old.relation??fresh()}))}><Plus size={18} aria-hidden/></button>}</nav>}
     {kind==='family-history'&&session.relation&&<form className="inline-profile-editor" onSubmit={e=>{e.preventDefault();void command({action:'relation',name:session.relation?.name,key:session.relation?.key},next=>{setSession(old=>({...old,relation:undefined,group:next.groups.at(-1)?.id??old.group}))})}}><label className="hoho-field"><span>亲属关系</span><input className="hoho-input" autoFocus maxLength={20} disabled={busy} value={session.relation.name} onChange={e=>setSession(old=>({...old,relation:{...old.relation!,name:e.target.value,key:crypto.randomUUID()}}))}/></label><div className="inline-profile-actions"><HohoButton variant="text" disabled={busy} onClick={()=>setSession(old=>({...old,relation:undefined}))}>取消</HohoButton><HohoButton type="submit" loading={busy} disabled={!session.relation.name.trim()}>添加关系</HohoButton></div></form>}
     {loading&&<p role="status">正在读取档案…</p>}
+    {busy&&<p role="status">正在保存…</p>}
     {error&&<StatusNotice tone="error" title={error} action={<HohoButton variant="text" disabled={busy} onClick={()=>setReload(v=>v+1)}>重新加载</HohoButton>}/>}
     {status&&<p role="status">{status}{undo&&<HohoButton variant="text" disabled={busy} onClick={()=>void command({action:'restore',undoId:undo,key:crypto.randomUUID()},()=>setUndo(undefined))}>撤销</HohoButton>}</p>}
     {data&&<><ul className="inline-profile-list">{rows.map((r,i)=>record(r,i))}</ul>{!rows.length&&!active&&<p className="inline-profile-empty">暂无已录入记录</p>}{active==='new'?editor('new',group):<HohoButton className="inline-profile-add" variant="secondary" fullWidth disabled={busy} onClick={()=>begin('new')}><Plus aria-hidden size={18}/>新增</HohoButton>}

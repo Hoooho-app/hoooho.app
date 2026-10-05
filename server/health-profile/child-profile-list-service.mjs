@@ -42,7 +42,7 @@ export class ChildProfileListService{
     if(!Object.hasOwn(profileGroups,kind))fail('档案类别不存在',404)
     const member=await this.events.assertMemberOwnership(accountId,memberId)
     const section=(await this.sections.read()).sections.find(s=>s.accountId===accountId&&s.memberId===memberId&&s.sectionId===kind)
-    const data=await this.state.read(),state=structuredClone(data.members.find(s=>s.accountId===accountId&&s.memberId===memberId)??{accountId,memberId,relations:[],undo:[]})
+    const stored=await this.state.read(),data={...stored,members:stored.members??[],requests:stored.requests??[]},state=structuredClone(data.members.find(s=>s.accountId===accountId&&s.memberId===memberId)??{accountId,memberId,relations:[],undo:[]})
     return {member,section,state,data}
   }
   async project(accountId,memberId,kind,context){
@@ -171,7 +171,7 @@ export class ChildProfileListService{
       }
     }else fail('操作不支持')
     if(sectionChanged)await this.sections.update(data=>({...data,sections:[...data.sections.filter(s=>!(s.accountId===accountId&&s.memberId===memberId&&s.sectionId===kind)),{...c.section,accountId,memberId,sectionId:kind,records,revision:(c.section?.revision??0)+1}]}))
-    await this.state.update(data=>({...data,members:[...data.members.filter(s=>!(s.accountId===accountId&&s.memberId===memberId)),c.state],requests:[...data.requests,{accountId,memberId,kind,key,notice,undoId}]}))
+    await this.state.update(data=>({...data,members:[...(data.members??[]).filter(s=>!(s.accountId===accountId&&s.memberId===memberId)),c.state],requests:[...(data.requests??[]),{accountId,memberId,kind,key,notice,undoId}]}))
     return {...await this.list(accountId,memberId,kind),notice,undoId}
   })}
 }
