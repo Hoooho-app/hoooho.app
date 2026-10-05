@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../components/design-system'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
-import { loadProfileSections, readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
+import { loadProfileSections, readProfileSection, readProfileSectionRevision, saveProfileSection, subscribeProfileSections, subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
+import { ApiRequestError } from '../../services/apiClient'
 import { DietaryCardPanel, DietaryEmptyState, FoodGlyph } from './DietaryCardPanel'
 import { downloadDietaryCard } from './dietaryCardExport'
 import {
@@ -39,7 +40,7 @@ interface DietaryDataState {
 function readDietaryData(memberId: string, accountId = '') {
   const sources = deriveDietarySources(readProfileSection(allergyKey(memberId)), memberId, accountId)
   const saved = readDietarySnapshot(readProfileSection(sectionKey(memberId)), memberId)
-  return { snapshot: saved ?? snapshotFromSources(memberId, sources), saved, sources }
+  return { snapshot: saved ? mergeDietarySources(saved, sources) : snapshotFromSources(memberId, sources), saved, sources }
 }
 
 function useDietaryCardData() {
@@ -80,6 +81,18 @@ function useDietaryCardData() {
   }, [accountId, currentMemberId, members, token])
 
   useEffect(() => { void load(false) }, [load])
+  useEffect(() => subscribeProfileSections(() => {
+    const latest = readDietaryData(currentMemberId, accountId)
+    setState(previous => previous.status === 'ready' && previous.snapshot?.memberId === currentMemberId
+      ? { ...previous, snapshot: latest.snapshot, sourceCount: latest.sources.length } : previous)
+  }), [accountId, currentMemberId])
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void load(true) }
+    const unsubscribe = subscribeProfileSectionInvalidation(refresh)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { unsubscribe(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
+  }, [load])
   return { accountId, currentMemberId, members, setState, state, token, reload: load }
 }
 
@@ -163,6 +176,7 @@ export function DietaryCardEditPage() {
   const member = useCurrentMember()
   const { currentMemberId, state } = useDietaryCardData()
   const [draft, setDraft] = useState<DietaryCardSnapshot | null>(null)
+  const draftVersions = useRef({ revision: 0, allergyRevision: 0 })
   const [editor, setEditor] = useState<FoodEditorState | null>(null)
   const [editorError, setEditorError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -170,6 +184,7 @@ export function DietaryCardEditPage() {
 
   useEffect(() => {
     if (state.status === 'ready' && state.snapshot && state.snapshot.memberId === currentMemberId && (!draft || draft.memberId !== currentMemberId)) {
+      draftVersions.current = { revision: readProfileSectionRevision(sectionKey(currentMemberId)), allergyRevision: readProfileSectionRevision(allergyKey(currentMemberId)) }
       setDraft(structuredClone(state.snapshot))
     }
   }, [currentMemberId, draft, state])
@@ -203,10 +218,10 @@ export function DietaryCardEditPage() {
     setSaving(true)
     setSaveError('')
     try {
-      await saveProfileSection(sectionKey(requestMemberId), [next])
+      await saveProfileSection(sectionKey(requestMemberId), [next], draftVersions.current)
       if (useAppStore.getState().currentMemberId !== requestMemberId) throw new Error('当前家人已切换，请重新确认')
       navigate('/dietary-card', { replace: true, state: { notice: '已保存并更新' } })
-    } catch { setSaveError('保存失败，请重试') }
+    } catch (error) { setSaveError(error instanceof ApiRequestError && error.status === 409 ? `${error.message}；当前草稿尚未提交。` : '保存失败，请重试') }
     finally { setSaving(false) }
   }
 
@@ -217,11 +232,11 @@ export function DietaryCardEditPage() {
   return <main className="app-shell dietary-card-page dietary-edit-page">
     <DietaryHeader editing memberName={member.name} onBack={() => navigate('/dietary-card', { replace: true })} />
     <div className="dietary-edit-scroll">
-      {groups.map(([group, label]) => <section className="dietary-edit-group" data-group={group} key={group}><header><span aria-hidden="true" /><h2>{label}</h2>{group === 'temporary' && <small>尚待确认，本次也请避开</small>}</header><div>{draft.items.filter((item) => item.group === group).map((item) => <article className="dietary-edit-item" data-visible={item.visible} key={item.id}><button aria-label={`${item.visible ? '取消选择' : '选择'}${item.name}`} aria-pressed={item.visible} className="dietary-item-check" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: !entry.visible } : entry) })} type="button">{item.visible && <Check />}</button><FoodGlyph group={group} name={item.name} /><div><strong>{item.name}</strong>{item.needsReview && <small>来源有变化，请核对</small>}</div><button aria-label={`修改${item.name}`} className="dietary-item-edit" onClick={() => openEditor(item)} type="button"><Pencil /></button><button aria-label={`从出示清单移除${item.name}`} className="dietary-item-remove" onClick={() => setDraft({ ...draft, items: item.manuallyAdded ? draft.items.filter((entry) => entry.id !== item.id) : draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: false } : entry) })} type="button"><Trash2 /></button></article>)}</div></section>)}
+      {groups.map(([group, label]) => <section className="dietary-edit-group" data-group={group} key={group}><header><span aria-hidden="true" /><h2>{label}</h2>{group === 'temporary' && <small>尚待确认，本次也请避开</small>}</header><div>{draft.items.filter((item) => item.group === group).map((item) => <article className="dietary-edit-item" data-visible={item.visible} key={item.id}><button aria-label={`${item.visible ? '取消选择' : '选择'}${item.name}`} aria-pressed={item.visible} className="dietary-item-check" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: !entry.visible } : entry) })} type="button">{item.visible && <Check />}</button><FoodGlyph group={group} name={item.name} /><div><strong>{item.name}</strong>{item.needsReview && <small>来源有变化，请核对</small>}</div><button aria-label={`修改${item.name}`} className="dietary-item-edit" onClick={() => openEditor(item)} type="button"><Pencil /></button><button aria-label={`从出示清单移除${item.name}`} className="dietary-item-remove" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: false } : entry) })} type="button"><Trash2 /></button></article>)}</div></section>)}
       {!draft.items.length && <p className="dietary-edit-empty">还没有食物，添加后可选择本次出示分组。</p>}
       <button className="dietary-add-food" onClick={() => openEditor()} type="button"><Plus />添加食物</button>
       <label className="dietary-cross-contact-toggle"><input checked={draft.avoidCrossContact} onChange={(event) => setDraft({ ...draft, avoidCrossContact: event.target.checked })} type="checkbox" /><span aria-hidden="true" /><strong>提醒避免共用锅具、餐具接触</strong></label>
-      <p className="dietary-edit-note">仅调整出示清单，不修改健康档案中的原始记录。</p>
+      <p className="dietary-edit-note">食物名称与分组会同步更新过敏资料；取消选择或移除仅影响本次出示。</p>
       {saveError && <p className="dietary-save-error" role="alert">{saveError}</p>}
     </div>
     <footer className="dietary-edit-footer"><HohoButton disabled={saving} fullWidth loading={saving} onClick={() => void save()} size="large">保存并更新</HohoButton></footer>
