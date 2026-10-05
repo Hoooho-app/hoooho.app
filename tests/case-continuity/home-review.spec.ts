@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 
 let token: string, userId: string, firstId: string, secondId: string
 let cookies: Awaited<ReturnType<import('@playwright/test').APIRequestContext['storageState']>>['cookies']
-const output = 'outputs/home-review-20261005/local'
+const output = 'outputs/home-prefix-growth-dates-20261005/local'
 
 test('F01 结束疗程和长期计划区分历史待确认与真正未来；不自动改状态', async ({ page, request }) => {
   await initialize(page)
@@ -107,15 +107,21 @@ test('H02 首页身高体重指标优先于上一轮曲线；前进后退保留�
 test('H03 H06 姓名入口切换真实成员，指标点击独立且日期对应各自记录', async ({ page }) => {
   await initialize(page)
   const height = page.getByRole('button', { name: /身高，/ }), weight = page.getByRole('button', { name: /体重，/ })
-  await expect(height).toContainText('84.1'); await expect(height.locator('time')).toHaveAttribute('datetime', '2026-09-28')
-  await expect(weight).toContainText('10.7'); await expect(weight.locator('time')).toHaveAttribute('datetime', '2026-09-27')
+  await expect(height).toContainText('84.1'); await expect(height.locator('time')).toHaveCount(0)
+  await expect(weight).toContainText('10.7'); await expect(weight.locator('time')).toHaveCount(0)
+  await height.click()
+  await expect(page.locator('.growth-step-card').nth(0).locator('time')).toHaveAttribute('datetime', '2026-09-28')
+  await expect(page.locator('.growth-step-card').nth(1).locator('time')).toHaveAttribute('datetime', '2026-09-27')
+  await page.goBack()
   await page.getByRole('button', { name: /选择孩子，当前/ }).click()
   const dialog = page.getByRole('dialog', { name: '我的孩子' })
   await dialog.getByRole('button', { name: '切换到评审二（合成）', exact: true }).click()
   await expect(dialog).toHaveCount(0); await expect(page.locator('.nurse-station-identity')).toContainText('评审二')
   await expect(height).toContainText('80.2'); await expect(weight).toContainText('9.3')
-  await expect(height.locator('time')).toHaveAttribute('datetime', '2026-09-26')
+  await expect(height.locator('time')).toHaveCount(0)
   await height.click(); await expect(page.getByRole('tab', { name: '身高曲线' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.growth-step-card').nth(0).locator('time')).toHaveAttribute('datetime', '2026-09-26')
+  await expect(page.locator('.growth-step-card').nth(1).locator('time')).toHaveAttribute('datetime', '2026-09-26')
   await expect(dialog).toHaveCount(0); await page.goBack()
   await page.getByRole('button', { name: /选择孩子，当前/ }).focus(); await page.keyboard.press('Enter')
   await dialog.getByRole('button', { name: '切换到评审一（合成）', exact: true }).click()
@@ -123,7 +129,8 @@ test('H03 H06 姓名入口切换真实成员，指标点击独立且日期对应
   await expect(page.locator('.nurse-station-child-chevron')).toBeVisible()
   for (const width of [375,390,430]) {
     await page.setViewportSize({ width, height: 667 })
-    await expect(page.getByText('记录示例 · 点击记录', { exact: true })).toBeVisible()
+    await expect(page.locator('.continuity-record-entry__example')).toContainText('示例：')
+    await expect(page.getByText('记录示例 · 点击记录', { exact: true })).toHaveCount(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `${output}/home-${width}.png` })
   }
@@ -131,12 +138,12 @@ test('H03 H06 姓名入口切换真实成员，指标点击独立且日期对应
 
 test('H04 示例身份始终可见；文字与按钮进入空记录页', async ({ page }) => {
   await initialize(page)
-  const label = page.getByText('记录示例 · 点击记录', { exact: true })
-  await expect(label).toBeVisible()
+  const label = page.locator('.continuity-record-entry__example')
+  await expect(label).toContainText('示例：')
   for (const selector of ['.continuity-record-entry__record', '.continuity-record-entry__action']) {
     await page.locator(selector).click(); await expect(page).toHaveURL(/\/smart-record$/)
     await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
-    await page.goBack(); await expect(label).toBeVisible()
+    await page.goBack(); await expect(label).toContainText('示例：')
   }
 })
 
@@ -151,15 +158,15 @@ test('H05 真实跟进计数、康复、失败保留与成员隔离；F02 移除
   const first = await capture(firstId, '合成验收：昨天手臂红，今天稍淡')
   await capture(firstId, '合成验收：今天鼻塞，没有发烧')
   await capture(secondId, '另一合成孩子：上午鼻子痒')
-  await page.getByRole('button', { name: /^跟进列表/ }).click()
+  await page.getByRole('button', { name: /^跟进/ }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 2')
   await expect(page.getByRole('button', { name: '带回问诊资料', exact: true })).toHaveCount(0)
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('2')
-  await page.getByRole('button', { name: /^跟进列表/ }).click()
+  await page.getByRole('button', { name: /^跟进/ }).click()
   await page.locator('.continuity-card').filter({ hasText: '昨天手臂红' }).getByRole('button', { name: '标记已康复' }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 1')
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('1')
-  await page.getByRole('button', { name: /^跟进列表/ }).click()
+  await page.getByRole('button', { name: /^跟进/ }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 1')
   await page.route('**/api/members/*/cases?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '合成同步失败' } }) }))
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('1!')

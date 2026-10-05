@@ -708,6 +708,8 @@
   .growth-step-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .growth-step-card { position: relative; display: grid; min-width: 0; min-height: 124px; align-content: start; gap: 7px; border: 1px solid rgb(var(--hoho-color-primary-border) / 0.72); border-radius: var(--hoho-radius-card); padding: 9px; background: rgb(var(--hoho-color-surface)); }
   .growth-step-card h2 { margin: 0; font-size: 15px; }
+  .growth-step-card__heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
+  .growth-step-card__heading time { flex: none; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .growth-step-card > div { display: grid; min-width: 0; grid-template-columns: 30px minmax(0, 1fr) 30px; align-items: center; gap: 2px; }
   .growth-step-card > div > button:not(.growth-step-value) { display: grid; width: 30px; height: 44px; place-items: center; border: 0; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
   .growth-step-card > div > button:disabled { color: rgb(var(--hoho-color-text-weak)); opacity: 0.5; }

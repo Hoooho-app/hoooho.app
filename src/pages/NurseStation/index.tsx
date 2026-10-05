@@ -210,8 +210,8 @@ export function NurseStationPage() {
               <span className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></span>
             </div>
             <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">
-              <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={() => openGrowthData('height')} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}<GrowthDate date={growth?.heightMeasuredAt} /></button>
-              <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={() => openGrowthData('weight')} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}<GrowthDate date={growth?.weightMeasuredAt} /></button>
+              <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={() => openGrowthData('height')} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}</button>
+              <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={() => openGrowthData('weight')} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}</button>
               <button aria-label={`血型，${formatAboBloodType(member.bloodType)}，编辑`} className="nurse-station-blood-type" onClick={() => setBloodEditorMemberId(member.id)} type="button"><small>血型</small><span><strong>{formatAboBloodType(member.bloodType)}</strong><Pencil aria-hidden="true" /></span></button>
             </div>
           </section>
@@ -267,8 +267,4 @@ function HomeEntries({ medicationCount, medicationStatus }: {
   return <section aria-label="首页服务入口" className="nurse-home-entries">{entries.map((entry) => (
     <Link aria-label={`${entry.title}，${entry.subtitle}`} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>
   ))}</section>
-}
-
-function GrowthDate({ date }: { date?: string | null }) {
-  return date ? <time className="nurse-station-measured-at" dateTime={date} title={`测量日期 ${date}`}>测于 {date.slice(5).replace('-', '/')}</time> : null
 }

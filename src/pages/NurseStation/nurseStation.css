@@ -16,7 +16,6 @@
 .nurse-station-identity strong{display:flex;min-width:0;align-items:center}
 .nurse-station-identity strong>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .nurse-station-child-chevron{flex:0 0 auto;margin-left:3px;color:rgb(var(--hoho-color-primary))}
-.nurse-station-measured-at{font-size:10px;line-height:12px;color:rgb(var(--hoho-color-text-secondary));white-space:nowrap}
 .nurse-station-sync-notice{font-size:11px;color:rgb(var(--hoho-color-text-secondary))}
 .nurse-station-identity em { overflow: hidden; color: #687b88; font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .nurse-station-guarded { margin-top: 7px; margin-left: 51px; color: #5f766f; font-size: 12.5px; line-height: 19px; white-space: nowrap; font-variant-numeric: tabular-nums; }
