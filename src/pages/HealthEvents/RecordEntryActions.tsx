@@ -8,7 +8,7 @@ import './RecordEntryActions.css'
 
 const direct: readonly { id: string; category: JournalCategory; label: string; kind?: DietRecordKind }[] = [
   { id:'feeding',category:'diet',kind:'feeding',label:'喂养/饮食' },
-  { id:'supplement',category:'diet',kind:'supplement',label:'记录补给' },
+  { id:'supplement',category:'diet',kind:'supplement',label:'补剂' },
   { id:'daily',category:'other',label:'记录日常' },
   { id:'medication',category:'medication',label:'记录用药' }
 ]

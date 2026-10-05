@@ -34,7 +34,7 @@ async function save(page:Page,form:ReturnType<Page['getByRole']>) {
 for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and direct flows at ${width}`,async({page})=>{
   await page.setViewportSize({width,height:width===1280?900:667});await prepare(page)
   const footer=page.locator('.journal-record-actions')
-  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','记录补给','记录日常','记录用药'])
+  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','补剂','记录日常','记录用药'])
   for(const button of await footer.locator('button').all())await expect(button).toBeInViewport()
   expect(await footer.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
   await expect(footer.locator('.record-entry-grid img,.record-entry-grid svg,.record-symptom-action svg,.record-symptom-action img')).toHaveCount(0)
@@ -54,6 +54,8 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   expect(geometry.above).toBe(6)
   expect(geometry.below).toBe(6)
   expect(geometry.border).toBe('1px'); expect(geometry.style).toBe('solid'); expect(geometry.overflow).toBe(false)
+  const entryColors=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))
+  expect(entryColors).toEqual(['rgb(255, 242, 226)','rgb(243, 237, 250)','rgb(237, 245, 252)','rgb(233, 246, 242)'])
   await shot(page,`home-${width}`)
   const daily=page.getByRole('button',{name:'记录日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
@@ -64,12 +66,13 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   expect(labels).toBe(true)
   await expect(footer.getByRole('button',{name:'记录症状',exact:true})).toBeInViewport()
   await expect(daily).toHaveAttribute('aria-pressed','true')
+  expect(await daily.evaluate(button=>getComputedStyle(button).backgroundColor)).toBe('rgb(237, 245, 252)')
   expect((await options.boundingBox())!.y+(await options.boundingBox())!.height).toBeLessThan((await daily.boundingBox())!.y)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await shot(page,`daily-open-${width}`)
   await daily.click();await expect(options).toHaveCount(0)
   await daily.click();await page.getByRole('heading',{name:'健康日记',exact:true}).click();await expect(options).toHaveCount(0)
-  for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['记录补给','记录补剂'],['记录用药','记录用药']]) {
+  for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['补剂','记录补剂'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     if(title==='记录症状')await form.getByRole('button',{name:'返回',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
@@ -229,7 +232,7 @@ test('short screen anchoring, resize and keyboard segmented navigation',async({p
 
 test('direct supplement preserves dose, saves supplement type and restores edit fields',async({page})=>{
   await prepare(page,'routine-child')
-  await page.getByRole('button',{name:'记录补给',exact:true}).click()
+  await page.getByRole('button',{name:'补剂',exact:true}).click()
   const form=page.getByRole('dialog',{name:'记录补剂',exact:true})
   await form.getByLabel('输入补剂名称').fill('合成补剂');await form.getByRole('button',{name:'添加补剂'}).click()
   await form.getByLabel('用量',{exact:true}).fill('2')

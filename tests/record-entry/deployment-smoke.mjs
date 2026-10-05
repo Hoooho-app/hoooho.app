@@ -43,14 +43,16 @@ try{
   let posts=0;page.on('request',r=>{if(new URL(r.url()).pathname==='/api/quick-records'&&r.method()==='POST')posts++})
   for(const width of [375,390,430]){
     await page.setViewportSize({width,height:667})
-    assert.deepEqual(await footer.locator('.record-entry-grid button').allTextContents(),['喂养/饮食','记录补给','记录日常','记录用药'])
+    assert.deepEqual(await footer.locator('.record-entry-grid button').allTextContents(),['喂养/饮食','补剂','记录日常','记录用药'])
     assert.equal(await footer.getByRole('button',{name:'智能记录',exact:true}).count(),0)
     const metrics=await footer.evaluate(el=>({overflow:document.documentElement.scrollWidth>innerWidth,buttons:[...el.querySelectorAll('button')].map(b=>{const box=b.getBoundingClientRect();return {height:box.height,within:box.left>=0&&box.right<=innerWidth&&box.bottom<=innerHeight,fits:b.scrollWidth<=b.clientWidth}}),icons:el.querySelectorAll('.record-entry-grid img,.record-entry-grid svg,.record-symptom-action img,.record-symptom-action svg').length}))
+    assert.deepEqual(await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(b=>getComputedStyle(b).backgroundColor)),['rgb(255, 242, 226)','rgb(243, 237, 250)','rgb(237, 245, 252)','rgb(233, 246, 242)'])
     assert.equal(metrics.overflow,false);assert.equal(metrics.icons,0);assert(metrics.buttons.every(b=>b.height>=44&&b.within&&b.fits))
     await page.screenshot({path:`${output}/default-${width}.png`})
     await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
     assert.deepEqual(await options.getByRole('button').allTextContents(),['睡眠','排便','身体涂抹'])
     assert.equal(await options.locator('img').count(),3)
+    assert.equal(await daily.evaluate(b=>getComputedStyle(b).backgroundColor),'rgb(237, 245, 252)')
     await page.waitForFunction(()=>[...document.querySelectorAll('.daily-record-options img')].every(i=>i.complete&&i.naturalWidth))
     const optionBox=await options.boundingBox(),greenBox=await footer.getByRole('button',{name:'记录症状',exact:true}).boundingBox()
     assert(optionBox.y+optionBox.height<greenBox.y)
@@ -59,7 +61,7 @@ try{
     console.log(JSON.stringify({environment,width,layout:'PASS'}))
   }
   await page.setViewportSize({width:375,height:667})
-  const entries=[['喂养/饮食','喂养/饮食','diet'],['记录补给','记录补剂','diet'],['记录用药','记录用药','medication'],['记录症状','记录症状','symptom'],['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['身体涂抹','记录身体涂抹','care']]
+  const entries=[['喂养/饮食','喂养/饮食','diet'],['补剂','记录补剂','diet'],['记录用药','记录用药','medication'],['记录症状','记录症状','symptom'],['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['身体涂抹','记录身体涂抹','care']]
   async function open(entry,title){if(['睡眠','排便','身体涂抹'].includes(entry)){await daily.click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:entry,exact:true}).click()}else await footer.getByRole('button',{name:entry,exact:true}).click();const form=page.getByRole('dialog',{name:title,exact:true});await form.waitFor();return form}
   for(const [entry,title]of entries){const form=await open(entry,title);assert.equal(await page.getByRole('group',{name:'记录日常选项'}).count(),0);await form.getByRole('button',{name:entry==='记录症状'?'关闭':/^返回/,exact:entry==='记录症状'}).click();await form.waitFor({state:'detached'})}
   assert.equal(posts,0,'navigation/cancel must not save')
@@ -67,7 +69,7 @@ try{
   for(const [entry,title,category]of entries){
     const form=await open(entry,title)
     if(entry==='喂养/饮食'){await form.getByRole('radio',{name:'配方奶',exact:true}).click();await form.getByLabel('喂奶量').fill('101')}
-    if(entry==='记录补给'){await form.getByLabel('输入补剂名称').fill('合成补给验收');await form.getByRole('button',{name:'添加补剂'}).click();await form.getByLabel('用量',{exact:true}).fill('1')}
+    if(entry==='补剂'){await form.getByLabel('输入补剂名称').fill('合成补给验收');await form.getByRole('button',{name:'添加补剂'}).click();await form.getByLabel('用量',{exact:true}).fill('1')}
     if(entry==='记录用药'){await form.getByLabel('药品名称',{exact:true}).fill('合成用药验收');await form.getByLabel('本次用量').fill('1')}
     if(entry==='身体涂抹')await form.getByLabel('产品名称（或添加包装照片）').fill('合成保湿产品')
     if(entry==='排便')await form.getByRole('button',{name:'糊状',exact:true}).click()
@@ -82,7 +84,7 @@ try{
     await Promise.race([duplicate.waitFor({timeout:4000}).then(()=>duplicate.click()),response]).catch(()=>{})
     const result=await response;assert.equal(result.status(),201)
     const body=result.request().postDataJSON();assert.equal(body.memberId,memberId);assert.deepEqual(body.journal.categories,[category])
-    if(entry==='记录补给')assert.equal(body.journal.diet.kind,'supplement')
+    if(entry==='补剂')assert.equal(body.journal.diet.kind,'supplement')
     if(entry==='喂养/饮食')assert.equal(body.journal.diet.kind,'feeding')
     const ids=await result.json();await form.waitFor({state:'detached'})
     await page.locator(`[data-record-id="${ids.recordId}"]`).first().waitFor()
