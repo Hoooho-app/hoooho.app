@@ -11,7 +11,7 @@ function FoodGroup({ group, items, language }: { group: DietaryCardGroup; items:
   return <section className="dietary-card-group" data-group={group}>
     <header><span aria-hidden="true" /><strong>{group === 'avoid' ? copy.avoid : copy.temporary}</strong>{group === 'temporary' && <small>{copy.pending}</small>}</header>
     <div className={`dietary-food-grid ${items.length === 1 ? 'dietary-food-grid--single' : ''}`}>
-      {items.map((item) => <div className="dietary-food-item" key={item.id}><FoodGlyph group={group} name={item.name} /><strong>{translateFood(item, language)}</strong></div>)}
+      {items.map((item) => <div className="dietary-food-item" key={item.id}><FoodGlyph group={group} name={translateFood(item, language === 'en' ? 'en' : language.includes('Hant') ? 'zh-Hant' : 'zh')} /><strong>{translateFood(item, language)}</strong></div>)}
     </div>
   </section>
 }
@@ -19,7 +19,7 @@ function FoodGroup({ group, items, language }: { group: DietaryCardGroup; items:
 export function DietaryCardPanel({ language, snapshot }: { language: DietaryCardLanguage; snapshot: DietaryCardSnapshot }) {
   const presentation = presentDietaryCard(snapshot, language)
   const copy = dietaryCopy[language]
-  return <article aria-label="忌口出示卡正文" className="dietary-display-card">
+  return <article aria-label="忌口出示卡正文" className="dietary-display-card" lang={language === 'en' ? 'en' : language.includes('Hant') ? 'zh-Hant' : 'zh-Hans'}>
     <header className="dietary-display-card__brand"><span>Hoooho</span><h2>{copy.title}</h2><p>{copy.intro}</p></header>
     <FoodGroup group="avoid" items={presentation.avoid} language={language} />
     <FoodGroup group="temporary" items={presentation.temporary} language={language} />
