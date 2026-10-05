@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.png'
@@ -11,7 +11,7 @@ import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { getCurrentPath } from '../../components/navigation/navigationState'
-import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
+import { formatGrowthMeasurement, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import type { NurseStationItem, NurseStationState } from '../../features/nurse-station/state'
 import { readNurseStationState, reconcileNurseStationItems, writeNurseStationState } from '../../features/nurse-station/state'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
@@ -25,6 +25,7 @@ import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
 import './nurseStation.css'
 import { FollowUpHome } from '../../features/case-continuity/CaseCards'
+import { readHomeReading, writeHomeReading } from './homeReadings'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
 const formatAboBloodType = (bloodType?: string) => bloodType ? `${bloodType}型` : '未填写'
@@ -45,12 +46,13 @@ export function NurseStationPage() {
   const [systemReducedMotion, setSystemReducedMotion] = useState(false)
   const [station, setStation] = useState<NurseStationState>(() => readNurseStationState(identityId, currentMemberId))
   const [stationMemberId, setStationMemberId] = useState(currentMemberId)
-  const [medicationReminders, setMedicationReminders] = useState<MedicationReminderDto[]>([])
+  const [medicationReminders, setMedicationReminders] = useState<MedicationReminderDto[]>(() => readHomeReading(token, currentMemberId, 'medication') ?? [])
   const [medicationStatus, setMedicationStatus] = useState<EntryStatus>('loading')
-  const [medicationMemberId, setMedicationMemberId] = useState('')
-  const [growthMeasurements, setGrowthMeasurements] = useState<Awaited<ReturnType<typeof growthMeasurementService.list>>>([])
+  const [medicationMemberId, setMedicationMemberId] = useState(() => readHomeReading(token, currentMemberId, 'medication') ? currentMemberId : '')
+  const [growthMeasurements, setGrowthMeasurements] = useState<Awaited<ReturnType<typeof growthMeasurementService.list>>>(() => readHomeReading(token, currentMemberId, 'growth') ?? [])
   const [growthStatus, setGrowthStatus] = useState<EntryStatus>('loading')
-  const [growthMemberId, setGrowthMemberId] = useState('')
+  const [growthMemberId, setGrowthMemberId] = useState(() => readHomeReading(token, currentMemberId, 'growth') ? currentMemberId : '')
+  const [childSelectionRequest, setChildSelectionRequest] = useState(0)
   const [bloodEditorMemberId, setBloodEditorMemberId] = useState('')
   const migratingIds = useRef(new Set<string>())
   const member = cachedMembers.find((item) => item.id === currentMemberId)
@@ -72,8 +74,9 @@ export function NurseStationPage() {
   useEffect(() => {
     let active = true
     setMedicationStatus('loading')
-    setMedicationMemberId('')
-    setMedicationReminders([])
+    const previous = readHomeReading(token, currentMemberId, 'medication')
+    setMedicationMemberId(previous ? currentMemberId : '')
+    setMedicationReminders(previous ?? [])
     migratingIds.current.clear()
     if (!token || !currentMemberId || !member) return () => { active = false }
     void medicationReminderService.list(currentMemberId, token)
@@ -82,10 +85,10 @@ export function NurseStationPage() {
         setMedicationReminders(items)
         setMedicationMemberId(currentMemberId)
         setMedicationStatus('success')
+        writeHomeReading(token, currentMemberId, 'medication', items)
       })
       .catch(() => {
         if (!active) return
-        setMedicationMemberId(currentMemberId)
         setMedicationStatus('error')
       })
     return () => { active = false }
@@ -94,8 +97,9 @@ export function NurseStationPage() {
   useEffect(() => {
     const controller = new AbortController()
     setGrowthStatus('loading')
-    setGrowthMemberId('')
-    setGrowthMeasurements([])
+    const previous = readHomeReading(token, currentMemberId, 'growth')
+    setGrowthMemberId(previous ? currentMemberId : '')
+    setGrowthMeasurements(previous ?? [])
     if (!token || !currentMemberId || !member) return () => controller.abort()
     void growthMeasurementService.list(currentMemberId, token, controller.signal)
       .then((items) => {
@@ -103,10 +107,10 @@ export function NurseStationPage() {
         setGrowthMeasurements(items)
         setGrowthMemberId(currentMemberId)
         setGrowthStatus('success')
+        writeHomeReading(token, currentMemberId, 'growth', items)
       })
       .catch((error) => {
         if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return
-        setGrowthMemberId(currentMemberId)
         setGrowthStatus('error')
       })
     return () => controller.abort()
@@ -140,21 +144,24 @@ export function NurseStationPage() {
   }, [currentMemberId, medicationReminders, medicationStatus, station.items, stationMemberId, token])
 
   const memberDto = listState.status === 'success' ? listState.data.memberDtos.find((item) => item.id === member?.id) : null
-  const guardedDays = getGuardedDays(memberDto?.createdAt)
+  useEffect(() => {
+    if (memberDto && memberDto.id === currentMemberId) writeHomeReading(token, currentMemberId, 'member', memberDto)
+  }, [memberDto, currentMemberId, token])
+  const knownMemberDto = memberDto ?? readHomeReading(token, currentMemberId, 'member')
+  const guardedDays = knownMemberDto ? getGuardedDays(knownMemberDto.createdAt) : '—'
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
   const medicationCount = medicationMemberId === currentMemberId
     ? medicationReminders.filter((item) => item.status === 'active').length
     : null
-  const growth = growthStatus === 'success' && growthMemberId === currentMemberId && member
-    ? resolveCurrentGrowthMeasurements(member, growthMeasurements, currentMemberId)
+  const growth = growthMemberId === currentMemberId && member
+    ? resolveCurrentGrowthSnapshot(member, growthMeasurements, currentMemberId)
     : null
   const growthValue = (value: number | null | undefined) => {
-    if (growthStatus === 'loading' || growthMemberId !== currentMemberId) return '读取中'
-    if (growthStatus === 'error') return '加载失败'
+    if (growthMemberId !== currentMemberId) return growthStatus === 'error' ? '加载失败' : '读取中'
     return formatGrowthMeasurement(value ?? null) || '未记录'
   }
-  const openGrowthData = () => navigate('/health-profile/basic', {
-    state: { returnTo: getCurrentPath(location.pathname, location.search, location.hash) },
+  const openGrowthData = (selectedMeasure: 'height' | 'weight') => navigate('/health-profile/basic', {
+    state: { selectedMeasure, returnTo: getCurrentPath(location.pathname, location.search, location.hash) },
   })
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
@@ -184,31 +191,32 @@ export function NurseStationPage() {
 
   return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="服务前台" />
+      <MainAppHeader title="服务前台" childSelectionRequest={childSelectionRequest} />
       <div className="nurse-station-scroll">
-        {listState.status === 'loading' ? (
+        {listState.status === 'loading' && !member ? (
           <section aria-label="正在加载当前人物" className="nurse-station-hero nurse-station-hero--loading"><span /><span /></section>
-        ) : listState.status === 'error' ? (
+        ) : listState.status === 'error' && !member ? (
           <section className="nurse-station-load-error"><p>当前人物资料加载失败，已保存内容没有改变。</p><button onClick={retryEvents} type="button">重新加载</button></section>
         ) : member ? (
           <section className="nurse-station-hero">
-            <button aria-label={`查看${member.name}的成长数据`} className="nurse-station-hero__main" onClick={openGrowthData} type="button">
+            <div className="nurse-station-hero__main">
               <span className="nurse-station-copy" role="presentation">
-              <span className="nurse-station-identity">
+              <button aria-label={`选择孩子，当前${member.name}`} className="nurse-station-identity" onClick={() => setChildSelectionRequest(v => v + 1)} type="button">
                 <Avatar name={member.name} src={member.avatar} size="lg" />
-                <span><strong>{member.name}</strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
-              </span>
+                <span><strong><span>{member.name}</span><ChevronDown aria-hidden="true" className="nurse-station-child-chevron" size={13} /></strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
+              </button>
               <span className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</span>
               </span>
               <span className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></span>
-            </button>
+            </div>
             <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">
-              <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={openGrowthData} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}</button>
-              <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={openGrowthData} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}</button>
+              <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={() => openGrowthData('height')} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}<GrowthDate date={growth?.heightMeasuredAt} /></button>
+              <button aria-label={`体重，${growthValue(growth?.weightKg)}，查看成长数据`} onClick={() => openGrowthData('weight')} type="button"><small>体重</small><strong>{growthValue(growth?.weightKg)}</strong>{growth?.weightKg != null && <em>kg</em>}<GrowthDate date={growth?.weightMeasuredAt} /></button>
               <button aria-label={`血型，${formatAboBloodType(member.bloodType)}，编辑`} className="nurse-station-blood-type" onClick={() => setBloodEditorMemberId(member.id)} type="button"><small>血型</small><span><strong>{formatAboBloodType(member.bloodType)}</strong><Pencil aria-hidden="true" /></span></button>
             </div>
           </section>
         ) : null}
+        {member && (listState.status === 'error' || growthStatus === 'error') && <p className="nurse-station-sync-notice" role="status">资料同步失败，已读取的数据仍保留。</p>}
         <FollowUpHome key={currentMemberId} />
         <HomeEntries
           medicationCount={medicationCount}
@@ -234,7 +242,7 @@ function HomeEntryContent({ entry }: { entry: HomeEntry }) {
 }
 
 function taskCountLabel(status: EntryStatus, count: number | null, noun: '提醒' | '测试') {
-  if (status === 'error') return '加载失败，点此重试'
+  if (status === 'error') return count == null ? '加载失败，点此重试' : `${count} 个${noun}任务 · 同步失败`
   if (count === null) return '正在同步任务…'
   return `${count} 个${noun}任务`
 }
@@ -259,4 +267,8 @@ function HomeEntries({ medicationCount, medicationStatus }: {
   return <section aria-label="首页服务入口" className="nurse-home-entries">{entries.map((entry) => (
     <Link aria-label={`${entry.title}，${entry.subtitle}`} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>
   ))}</section>
+}
+
+function GrowthDate({ date }: { date?: string | null }) {
+  return date ? <time className="nurse-station-measured-at" dateTime={date} title={`测量日期 ${date}`}>测于 {date.slice(5).replace('-', '/')}</time> : null
 }

@@ -57,16 +57,20 @@ export function reminderActionState(reminder: MedicationReminderDto, now: Date) 
   const todayScheduledCompleted = todayOccurrences.filter((item) => item.completed).length
   const todayCompleted = reminder.completions.filter((item) => !item.undoneAt && reminderDateKey(new Date(item.actualTakenAt), reminder.plan.timezone) === today).length
   const next = reminder.nextOccurrence
+  const historical = Boolean(next && next.day < today)
+  const future = reminder.occurrences.filter(item => !item.completed && Date.parse(item.scheduledAt) > now.getTime()).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0] ?? null
   const allComplete = reminder.occurrences.length > 0 && !next
   const todayDone = Boolean(next && next.day > today && todayOccurrences.length && todayScheduledCompleted === todayOccurrences.length)
   return {
     allComplete,
     due: Boolean(next && Date.parse(next.scheduledAt) <= now.getTime()),
     next,
+    historical,
+    future,
     todayCompleted,
     todayDone,
     todayTotal: Math.max(todayOccurrences.length, todayCompleted),
-    takeLabel: allComplete ? '疗程已完成' : todayDone ? '今日已完成' : '已服用'
+    takeLabel: allComplete ? '疗程已完成' : todayDone ? '今日已完成' : historical ? '记录服用' : '已服用'
   }
 }
 

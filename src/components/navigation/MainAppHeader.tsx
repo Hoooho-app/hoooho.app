@@ -8,7 +8,7 @@ import { consumeMemberProfileRestore, getCurrentPath, readMemberProfileRestore, 
 import { useAppStore } from '../../store/useAppStore'
 import { useInstallApp } from '../../features/install-app'
 
-export function MainAppHeader({ title, compact = false, action }: { title: string; compact?: boolean; action?: ReactNode }) {
+export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0 }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number }) {
   const location = useLocation()
   const navigate = useNavigate()
   const accountNotice = (location.state as { accountNotice?: string } | null)?.accountNotice ?? ''
@@ -19,6 +19,10 @@ export function MainAppHeader({ title, compact = false, action }: { title: strin
   const [childSheetOpen, setChildSheetOpen] = useState(() => Boolean(restore))
   const [notice, setNotice] = useState(accountNotice)
   const installApp = useInstallApp()
+
+  useEffect(() => {
+    if (childSelectionRequest > 0) { setOpen(false); setChildSheetOpen(true) }
+  }, [childSelectionRequest])
 
   useEffect(() => {
     if (!restore) return

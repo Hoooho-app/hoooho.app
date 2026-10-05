@@ -9,13 +9,18 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-compact-colors-20261005/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-review-20261005/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
 // Never use the user's browser profile or copy cookies across targets.
 const context = await chromium.launchPersistentContext(path.join(tmpdir(), 'hoooho-home-typewriter-qa-20261004', production ? 'production' : 'staging'), { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 const page = await context.newPage()
+// Chromium can expose its real native install event even with an iPhone UA.
+// Do not invoke an OS installation during QA; test the iOS guide and explicit simulated events.
+await page.addInitScript(() => window.addEventListener('beforeinstallprompt', event => {
+  if (!event.syntheticAcceptance) { event.preventDefault(); event.stopImmediatePropagation() }
+}, true))
 page.setDefaultTimeout(45000)
 const result = { target: base, startedAt: new Date().toISOString(), checks: {}, screenshots: [], runtimeErrors: 0, http5xx: 0, cleanup: {}, ai: 'NOT_RETESTED_UNCHANGED', physicalPhone: 'NOT_VERIFIED' }
 let token, memberId, secondMemberId
@@ -36,7 +41,8 @@ async function home(name) {
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '跟进列表', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^跟进列表/ })).toBeVisible()
+  await expect(page.getByText('记录示例 · 点击记录', { exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
   await expect(page.locator('.nurse-home-entry').nth(2)).toHaveCSS('background-color', 'rgb(255, 244, 234)')
   const palette = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => getComputedStyle(card).backgroundColor))
@@ -47,14 +53,15 @@ async function home(name) {
   await expect(page.locator('.nurse-station-overview')).toHaveCount(0)
   await expect(page.locator('.continuity-record-entry strong,.continuity-record-entry__header,.continuity-record-entry a')).toHaveCount(0)
   const layout=await page.locator('.continuity-record-entry').evaluate(el=>{const action=el.querySelector('.continuity-record-entry__action').getBoundingClientRect(),follow=el.querySelector('.continuity-record-entry__followup').getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero'),rect=el.getBoundingClientRect();return {height:rect.height,width:rect.width,actionX:action.x,followX:follow.x,actionWidth:action.width,followWidth:follow.width,actionHeight:action.height,followHeight:follow.height,gap:follow.y-action.bottom,background:getComputedStyle(el).backgroundColor,heroGap:el.parentElement.getBoundingClientRect().y-hero.getBoundingClientRect().bottom}})
-  assert.equal(layout.height, await page.evaluate(()=>innerWidth<=360?136:114));assert.equal(layout.actionX,layout.followX);assert.equal(layout.actionWidth,layout.followWidth);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.gap,0);assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.heroGap,12)
+  // 320px retains the existing five-line fallback plus the new 18px example label.
+  assert.equal(layout.height, await page.evaluate(()=>innerWidth<=360?154:114));assert.equal(layout.actionX,layout.followX);assert.equal(layout.actionWidth,layout.followWidth);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.gap,0);assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.heroGap,12)
   const paintedHeights = await page.locator('.continuity-record-entry__buttons .hoho-button').evaluateAll(buttons => buttons.map(button => {
     const surface = getComputedStyle(button, '::before')
     return button.getBoundingClientRect().height - parseFloat(surface.top) - parseFloat(surface.bottom)
   }))
   assert.deepEqual(paintedHeights, [36, 36])
   await expect(page.locator('.continuity-record-entry__action')).toHaveText('情况速记')
-  await expect(page.locator('.continuity-record-entry__followup')).toHaveText('跟进列表')
+  await expect(page.locator('.continuity-record-entry__followup')).toContainText('跟进列表')
   await expect(page.locator('.continuity-home input,.continuity-home textarea,.continuity-home button button,.continuity-home button a')).toHaveCount(0)
   const example = page.locator('.continuity-record-entry__example')
   await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
@@ -108,8 +115,12 @@ try {
   memberId = (await api('/api/members', { name: '布局验收（合成）', relationship: 'child', gender: 'female', birthday: '2025-01-01' })).id
   secondMemberId = (await api('/api/members', { name: '切换验收（合成）', relationship: 'child', gender: 'male', birthday: '2025-03-01' })).id
   await api('/api/auth/current-member', { memberId })
+  for (const measurement of [
+    { measuredAt: '2026-09-28', heightCm: 84.1, weightKg: null },
+    { measuredAt: '2026-09-27', heightCm: null, weightKg: 10.7 },
+  ]) await api('/api/growth-measurements', { ...measurement, memberId, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006' })
   await page.goto(base + '/nurse-station')
-  await expect(page.getByRole('button', { name: '跟进列表', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^跟进列表/ })).toBeVisible()
   // A retained QA browser may restore its previous member preference during bootstrap.
   // Select the newly owned fixture through the real UI before editing any data.
   async function selectOwnedMember(name, expectedId) {
@@ -120,8 +131,18 @@ try {
     assert.equal((await api('/api/auth/session', undefined, 'GET')).user.currentMemberId, expectedId)
   }
   await selectOwnedMember('布局验收（合成）', memberId)
+  await expect(page.locator('.continuity-record-entry__count')).toHaveText('0')
+  await expect(page.locator('.nurse-station-growth-data > button').nth(0).locator('time')).toHaveAttribute('datetime', '2026-09-28')
+  await expect(page.locator('.nurse-station-growth-data > button').nth(1).locator('time')).toHaveAttribute('datetime', '2026-09-27')
+  result.checks.growthDatesMatchIndependentRecords = 'PASS'
   for (const width of [375, 320, 390, 393, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : width === 320 ? 568 : 667 })
+    await page.getByRole('button', { name: /选择孩子，当前/ }).click()
+    const sheet = page.getByRole('dialog', { name: '我的孩子' })
+    await expect(sheet).toBeVisible()
+    const bounds = await sheet.evaluate(el => { const r = el.getBoundingClientRect(), c = el.querySelector('header button').getBoundingClientRect(); return { left: r.left, right: r.right, closeRight: c.right, width: innerWidth } })
+    assert.ok(bounds.left >= 0 && bounds.right <= bounds.width && bounds.closeRight <= bounds.width)
+    await sheet.getByRole('button', { name: '关闭我的孩子' }).click()
     await home(`home-${width}`)
   }
   result.checks.homeCopySixEqualCardsAndResponsive = 'PASS'
@@ -142,8 +163,10 @@ try {
   assert.equal(new Set(samples.map(sample=>sample.index)).size,10)
   result.checks.liveTenExamplesThreeLinesAndInstantClear=samples
   result.checks.liveTypingLayoutStable = 'PASS'
-  for (const selector of ['.nurse-station-hero__main', '.nurse-station-growth-data > button:nth-child(1)', '.nurse-station-growth-data > button:nth-child(2)']) {
-    await page.locator(selector).click(); await expect(page).toHaveURL(base + '/health-profile/basic'); await page.goBack(); await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
+  for (const [index, measure] of [[0, '身高'], [1, '体重'], [0, '身高']]) {
+    await page.locator('.nurse-station-growth-data > button').nth(index).click(); await expect(page).toHaveURL(base + '/health-profile/basic')
+    await expect(page.getByRole('tab', { name: measure + '曲线' })).toHaveAttribute('aria-selected', 'true')
+    await page.goBack(); await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
   }
   await page.locator('.nurse-station-blood-type').click()
   const editor = page.getByRole('dialog', { name: '编辑血型', exact: true })
@@ -210,20 +233,62 @@ try {
   await page.goto(base + '/nurse-station')
   await expect(page.locator('.continuity-card')).toHaveCount(0)
   await home('home-one-case-375')
-  await page.getByRole('button', { name: '跟进列表', exact: true }).click()
+  await expect(page.locator('.continuity-record-entry__count')).toHaveText('1')
+  await selectOwnedMember('切换验收（合成）', secondMemberId)
+  await expect(page.locator('.continuity-record-entry__count')).toHaveText('0')
+  await selectOwnedMember('布局验收（合成）', memberId)
+  await expect(page.locator('.continuity-record-entry__count')).toHaveText('1')
+  result.checks.realFollowUpCountAndMemberIsolation = 'PASS'
+  await page.getByRole('button', { name: /^跟进列表/ }).click()
   await expect(page).toHaveURL(base + '/cases')
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.continuity-card')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: '带回问诊资料', exact: true })).toHaveCount(0)
   const listScreenshot = path.join(output, 'follow-up-list-375.png')
   await page.screenshot({ path: listScreenshot, fullPage: true })
   result.screenshots.push(listScreenshot)
   await page.goBack()
   await expect(page).toHaveURL(base + '/nurse-station')
-  await page.getByRole('button', { name: '跟进列表', exact: true }).focus()
+  await page.getByRole('button', { name: /^跟进列表/ }).focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/cases')
   await expect(page.locator('.continuity-card')).toHaveCount(1)
   result.checks.homePreviewsRemovedAndListRetained = 'PASS'
+  for (const [medicationName, longTerm] of [['合成已结束疗程', false], ['合成长期计划', true]]) {
+    await api('/api/medication-reminders', { memberId, plan: { medicationName, medicationType: 'tablet', amount: 1, unit: '粒', route: 'oral', mode: 'daily', times: ['08:00'], startDate: '2026-09-01', ...(longTerm ? { longTerm: true } : { durationDays: 3 }), timezone: 'Asia/Shanghai' } })
+  }
+  await page.goto(base + '/medication-reminders')
+  const ended = page.locator('.medication-course-card').filter({ hasText: '合成已结束疗程' })
+  const ongoing = page.locator('.medication-course-card').filter({ hasText: '合成长期计划' })
+  await expect(ended).toContainText('疗程已结束'); await expect(ended).toContainText('今日：无计划'); await expect(ended).toContainText('下次：无未来计划')
+  for (const card of [ended, ongoing]) {
+    await expect(card.locator('.medication-course-card__pending')).toContainText('9月1日')
+    await expect(card).toContainText('不代表未服用')
+    await expect(card.getByRole('button', { name: '记录服用', exact: true })).toBeEnabled()
+  }
+  await expect(ongoing.locator('.medication-course-card__next')).not.toContainText('9月1日')
+  await expect(ongoing.locator('.medication-course-card__next')).not.toContainText('无未来计划')
+  const reminders = await api(`/api/medication-reminders?memberId=${memberId}`, undefined, 'GET')
+  assert.ok(reminders.every(reminder => reminder.status === 'active' && reminder.completions.length === 0))
+  result.checks.historicalUnconfirmedAndTrueFuturePlans = 'PASS'
+  await page.screenshot({ path: path.join(output, 'reminder-semantics-375.png'), fullPage: true })
+  for (const reminder of reminders) await api(`/api/medication-reminders/${reminder.id}`, undefined, 'DELETE')
+  await page.goto(base + '/nurse-station')
+  const install = page.getByRole('button', { name: '添加 Hoooho 到主屏' })
+  await install.click(); await expect(page.getByRole('dialog', { name: '添加到主屏幕' })).toBeVisible()
+  await page.getByRole('button', { name: '关闭添加到主屏幕图示' }).click()
+  await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true })
+    event.syntheticAcceptance = true
+    event.prompt = async () => {}
+    event.userChoice = new Promise(resolve => { window.resolveSyntheticInstall = () => resolve({ outcome: 'accepted', platform: 'web' }) })
+    window.dispatchEvent(event)
+  })
+  await install.click(); await expect(install).toBeDisabled()
+  await page.getByRole('button', { name: '取消等待' }).click()
+  await expect(install).toBeEnabled(); await page.evaluate(() => window.resolveSyntheticInstall())
+  await expect(install).toBeVisible()
+  result.checks.installGuideAndSimulatedPendingCancel = 'PASS_SIMULATED_NATIVE_EVENT_NOT_PHYSICAL_INSTALL'
   assert.equal(result.runtimeErrors, 0)
   assert.equal(result.http5xx, 0)
 } catch (error) {

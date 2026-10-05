@@ -71,7 +71,7 @@ test('今日与整个疗程完成使用准确的按钮状态且撤回后可恢�
   value.occurrences[0] = { ...value.occurrences[0], completed: false }
   value.nextOccurrence = value.occurrences[0]
   state = reminderActionState(value, new Date('2026-09-02T20:01:00.000Z'))
-  assert.deepEqual({ label: state.takeLabel, due: state.due }, { label: '已服用', due: true })
+  assert.deepEqual({ label: state.takeLabel, due: state.due }, { label: '记录服用', due: true })
 })
 
 test('补记逾期服用后按实际服用日更新今日计数', () => {
@@ -95,4 +95,16 @@ test('补记逾期服用后按实际服用日更新今日计数', () => {
   assert.deepEqual({ count: state.todayCompleted, total: state.todayTotal }, { count: 1, total: 1 })
   value.completions[0] = { ...value.completions[0], undoneAt: '2026-09-02T00:02:00.000Z' }
   assert.equal(reminderActionState(value, new Date('2026-09-02T00:02:00.000Z')).todayCompleted, 0)
+})
+
+test('历史未确认计划不冒充未来下次，也不自动归档或补为已服用', () => {
+  const value = reminder(3), now = new Date('2026-09-02T01:00:00Z')
+  const state = reminderActionState(value, now)
+  assert.equal(state.historical, true)
+  assert.equal(state.next?.scheduledAt, '2026-09-01T00:00:00.000Z')
+  assert.equal(state.future?.scheduledAt, '2026-09-02T12:00:00.000Z')
+  assert.equal(state.takeLabel, '记录服用')
+  const ended = reminderActionState(value, new Date('2026-09-10T01:00:00Z'))
+  assert.equal(ended.future, null); assert.equal(ended.todayTotal, 0)
+  assert.equal(value.status, 'active'); assert.equal(value.completions.length, 0)
 })
