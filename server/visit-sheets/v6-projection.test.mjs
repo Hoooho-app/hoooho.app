@@ -3,6 +3,30 @@ import assert from 'node:assert/strict'
 import {buildVisitSheet} from './report-model.mjs'
 import {visitFixture} from './fixtures.mjs'
 const now=new Date('2026-09-26T00:00:00Z')
+test('筛选只隐藏照片，不丢失选择；恢复全部带回原选照片',()=>{
+ const f=visitFixture(),first=buildVisitSheet(f,{focus:{mode:'source',sourceId:'record:s0'}},now)
+ first.photoSelections[first.photoKey]=['attachment:photo']
+ first.photoDetails={'attachment:photo':{label:'已保存的说明',location:'前臂',capturedAt:'2026-09-12',capturePrecision:'day'}}
+ const scoped=buildVisitSheet(f,{...first,selection:{eventIds:[f.events[0].id],from:'2026-09-25T00:00:00Z',includeBackground:false}},now)
+ assert.deepEqual(scoped.selectedPhotoIds,[])
+ const restored=buildVisitSheet(f,{...scoped,selection:undefined},now)
+ assert.deepEqual(restored.selectedPhotoIds,['attachment:photo'])
+ assert.equal(restored.photos.find(p=>p.sourceId==='attachment:photo').title,'已保存的说明')
+ assert.equal(restored.photos.find(p=>p.sourceId==='attachment:photo').capturedAt,'2026-09-12')
+ f.attachments=[]
+ assert.deepEqual(buildVisitSheet(f,{...restored},now).photoDetails,{})
+})
+test('确认过敏、待排查与空观察计划分离，技术字段不外露，日常不是成长测量',()=>{
+ const f=visitFixture();f.profiles=[{sectionId:'allergy',records:[{name:'确认项',currentStatus:'confirmed'},{name:'疑似项',currentStatus:'suspected',visible:true,group:'food',manuallyAdded:true,needsReview:true}]},{sectionId:'basic',records:[{aboBloodType:'A',rhBloodType:'positive',measurementDate:'2026-09-01'}]}]
+ f.tasks[0].records=[]
+ f.records.push({id:'daily',eventId:f.events[0].id,type:'note',content:'睡眠记录',occurredAt:'2026-09-25T00:00:00Z',journal:{categories:['sleep']}})
+ const r=buildVisitSheet(f,{},now),allergy=r.chapters.find(c=>c.id==='allergy')
+ assert.ok(allergy.overview.items.some(i=>i.title==='确认项'))
+ assert.ok(!allergy.overview.items.some(i=>i.title==='疑似项'||i.title===f.tasks[0].displayName))
+ assert.doesNotMatch(r.sources.map(s=>s.text).join(''),/visible|group|manuallyAdded|needsReview|aboBloodType|档案修订/)
+ assert.match(r.sources.map(s=>s.text).join(''),/ABO血型/)
+ assert.equal(r.sources.find(s=>s.id==='record:daily').category,'daily')
+})
 test('v6 概览与完整明细共存，两条病程保留两端，问题只来自当前焦点',()=>{
   const f=visitFixture();f.records[0].content+=' 想问鸡蛋是否有关？'
   const r=buildVisitSheet(f,{focus:{mode:'source',sourceId:'record:s7'}},now)

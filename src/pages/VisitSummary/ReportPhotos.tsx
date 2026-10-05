@@ -23,13 +23,14 @@ export function PhotoImage({source,token,onOpen}:{source:VisitSource;token:strin
   },[source.id,source.updatedAt,token,attempt])
   return error ? <div role="alert"><p>{error}</p><HohoButton variant="text" onClick={()=>setAttempt(n=>n+1)}>重试照片</HohoButton></div> : url ? <button className="visit-photo-image" onClick={onOpen} disabled={!onOpen} aria-label={`查看原图：${source.title}`}><img src={url} alt={source.title} onError={()=>setError('图片解码失败，请重试原件')}/></button> : <p role="status">正在读取照片…</p>
 }
-export function PhotoCaption({photo}:{photo:VisitPhoto}) {
-  return <figcaption><strong>{photo.location}</strong><br/>{photo.timeKind} {reportTime(photo.capturedAt || photo.uploadedAt)}<br/>{photo.title}</figcaption>
+export function PhotoCaption({photo,compact=false}:{photo:VisitPhoto;compact?:boolean}) {
+  const complete=<><strong>{photo.location}</strong><br/>{photo.timeKind} {reportTime(photo.capturedAt || photo.uploadedAt)}<br/>{photo.title}</>
+  return <figcaption>{compact?<><strong>{/未提供|未知|未关联/.test(photo.location)?'相关记录照片':photo.location}</strong><br/>{photo.capturedAt?`${photo.timeKind} ${reportTime(photo.capturedAt)}`:'拍摄时间未知'}<details><summary>照片资料</summary>{complete}</details></>:complete}</figcaption>
 }
 export function ReportPhotos({report,token,onChoose,onOpen}:{report:VisitSheet;token:string;onChoose:()=>void;onOpen:(id:string)=>void}) {
   const photos=(report.photos??[]).filter(p=>report.selectedPhotoIds?.includes(p.sourceId))
   return <section className="visit-photos" aria-label="近期相关照片"><div className="visit-section-actions"><h3>近期相关照片 · {photos.length} 张</h3><button onClick={onChoose}>添加 / 调整照片</button></div>
-    {photos.length ? <><div className="visit-photo-grid">{photos.map(p=><figure key={p.sourceId}><PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token} onOpen={()=>onOpen(p.sourceId)}/><PhotoCaption photo={p}/></figure>)}</div><p className="visit-muted">照片按关联记录呈现；不据此判断病情轻重或治疗前后。</p></> : <p className="visit-muted">{report.photoCandidates?.length ? '本次未展示照片。原附件仍保留。' : '没有与这项主诉明确关联的照片。'}</p>}
+    {photos.length ? <><div className="visit-photo-grid">{photos.map(p=><figure key={p.sourceId}><PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token} onOpen={()=>onOpen(p.sourceId)}/><PhotoCaption photo={p} compact/></figure>)}</div><p className="visit-muted">照片按关联记录呈现；不据此判断病情轻重或治疗前后。</p></> : <p className="visit-muted">{report.photoCandidates?.length ? '本次未展示照片。原附件仍保留。' : '没有与这项主诉明确关联的照片。'}</p>}
   </section>
 }
 export function PhotoPicker({report,memberId,token,onClose,onSave,working,error}:{report:VisitSheet;memberId:string;token:string;onClose:()=>void;onSave:(changes:Partial<VisitSheetUpdate>)=>Promise<boolean>;working:boolean;error:string}) {

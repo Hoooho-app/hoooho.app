@@ -1,6 +1,7 @@
 import { MapPin } from 'lucide-react'
 import { ReadOnlyMedicationReminderCard } from '../NurseStation/MedicationReminderCard'
 import type { ReactNode } from 'react'
+import { healthProfileSections } from '../../features/health-profile/config/healthProfileSections'
 import {
   FactDistribution,
   FactLineChart,
@@ -21,7 +22,8 @@ export const reportTime = (value: string | null, timeZone = 'Asia/Shanghai') =>
         day: 'numeric',
         ...(value.length > 10 ? { hour: '2-digit', minute: '2-digit' } : {}),
       }).format(new Date(value))
-export const sourceCategoryLabel=(category:string)=>({record:'健康记录',course:'症状记录',temperature:'体温',allergy:'过敏',history:'既往',visits:'就诊检查',attachment:'附件原件',profile:'健康档案',fact:'健康事实',growth:'成长测量',medication:'用药执行','medication-plan':'用药计划','observation-plan':'观察计划',observation:'饮食观察',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养',examination:'检查',hospitalization:'住院',vaccination:'接种',legacy:'历史情况单'}[category]||'其他资料')
+const profileCategoryLabels=Object.fromEntries(healthProfileSections.map(s=>[s.id,s.title]))
+export const sourceCategoryLabel=(category:string)=>({record:'健康记录',course:'症状记录',temperature:'体温',allergy:'过敏资料',history:'既往',visits:'就诊检查',attachment:'附件原件',profile:'健康档案',fact:'健康事实',growth:'成长测量',daily:'日常记录',basic:'基本资料',diet:'饮食档案',sleep:'睡眠档案',exercise:'运动档案',sources:'待核对资料',medication:'用药执行','medication-plan':'用药计划','observation-plan':'观察计划',observation:'饮食观察',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养',examination:'检查',hospitalization:'住院',vaccination:'接种',legacy:'历史情况单'}[category]||profileCategoryLabels[category]||'补充健康资料')
 export function Emphasized({ text }: { text: string }) {
   return (
     <>
@@ -81,7 +83,7 @@ export function ReportChapter({
       {leading}
       {chapter.id!=='overview'&&<div className={`visit-chapter-overview${chapter.id==='course'?' visit-course-nodes':''}`} data-chapter-overview={chapter.id}>{chapter.overview?.items.map((item,i)=><article key={i}><h3>{item.title}</h3><p>{item.detail}</p>{item.sourceIds.length>0&&(readOnly?item.sourceIds.map(id=><a key={id} href={`#${id}`}>[{report.sources.find(s=>s.id===id)?.code}]</a>):<button className="visit-text-action" onClick={()=>onEvidence?.(item.sourceIds)}>查看依据</button>)}</article>)}</div>}
       {chapter.overview?.lines.map((line,i)=><p className="visit-muted" key={i}>{line}</p>)}
-      {chapter.id==='medication'&&report.medicationReminders?.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly}/>)}
+      {chapter.id==='medication'&&!!report.medicationReminders?.length&&<details className="visit-chapter-details" open={readOnly}><summary>展开用药计划与完整周历 · {report.medicationReminders.length} 项</summary><p className="visit-muted">计划与实际使用分开。未来、未确认和已归档计划只在这里核对。</p>{report.medicationReminders.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly}/>)}</details>}
       {!!chapter.blocks.length&&<details className="visit-chapter-details" open={readOnly}><summary>{{overview:'展开病情数据与依据',course:'展开经过与依据',medication:'查看完整用药经过',allergy:'展开过敏资料与观察过程',history:'展开既往与其他背景',temperature:'展开体温曲线与测量记录',growth:'展开成长曲线与日常记录',visits:'展开就诊与检查依据',sources:'展开资料说明'}[chapter.id]}</summary>
       {chapter.summary && <p className="visit-intro">{chapter.summary}</p>}
       {chapter.blocks.map((block, index) => {

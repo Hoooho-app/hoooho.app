@@ -208,6 +208,7 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date()) {
+    if(request.previewScope!==undefined&&(request.previewScope!==true||Object.keys(request).some(k=>!['selection','previewScope','requestId','expectedVersion'].includes(k))))throw failure('范围预览设置无效')
     if (request.generateAI !== undefined && typeof request.generateAI !== 'boolean') throw failure('AI 生成设置无效')
     if(request.previewAI!==undefined&&typeof request.previewAI!=='boolean')throw failure('AI 预览设置无效')
     if(request.confirmAI!==undefined&&(typeof request.confirmAI!=='string'||request.generateAI))throw failure('摘要确认设置无效')
@@ -242,7 +243,8 @@ export class VisitSheetService {
           409,
         )
       const focus = request.focus ?? previous?.focus ?? { mode: 'auto' }
-      const selection = request.selection ?? previous?.selection
+      // null explicitly restores all owned sources; omission preserves the saved scope.
+      const selection = Object.hasOwn(request,'selection') ? request.selection ?? undefined : previous?.selection
       if (selection) {
         if (!Array.isArray(selection.eventIds) || selection.eventIds.length > 100 || selection.eventIds.some(id => !input.events.some(event => event.id === id && event.memberId === memberId)) || typeof selection.includeBackground !== 'boolean') throw failure('资料范围不属于当前人物或格式无效')
         for (const date of [selection.from, selection.to]) if (date && (!Number.isFinite(Date.parse(date)) || Date.parse(date) > now.getTime())) throw failure('资料时间范围无效')
@@ -279,6 +281,11 @@ export class VisitSheetService {
           '部分资料未能读取，这次更新没有完成，原报告仍保留。请重试。',
           503,
         )
+      if(request.previewScope){
+        const all=buildVisitSheet(input,{...previous,selection:undefined},now)
+        const scoped=buildVisitSheet(input,{...previous,selection},now)
+        return {report:null,stale:false,warnings:[],hasLegacy:false,scopePreview:{sourceCount:scoped.sources.length,totalSources:all.sources.length,focusAvailable:focus.mode!=='source'||scoped.candidates.some(c=>c.sourceId===focus.sourceId),excludedPhotos:(previous?.selectedPhotoIds??[]).filter(id=>!scoped.photos.some(p=>p.sourceId===id)).length}}
+      }
       const photoSelections = { ...(previous?.photoSelections ?? {}) }
       let attachmentEventId=saved?.attachmentEventId
       const aliases=new Map()
@@ -330,7 +337,9 @@ export class VisitSheetService {
       ) {
         if (request.focus) throw failure('所选症状已不可用，请重新选择')
         report.warnings.push(
-          '先前手动选择的症状已不可用，主诉模式仍保留；请重新选择。相关统计不再纳入已删除来源。',
+          selection && buildVisitSheet(input,{focus},now).candidates.some(c=>c.sourceId===focus.sourceId)
+            ? '先前选择的症状不在本次资料范围内；选择仍保留，可恢复全部资料或调整范围。原始记录未删除。'
+            : '先前选择的症状已不可用；选择模式仍保留，请重新核对来源。',
         )
       }
       const old = new Map(previous?.sources.map((s) => [s.id, s]) ?? [])

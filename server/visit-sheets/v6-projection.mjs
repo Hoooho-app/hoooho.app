@@ -4,7 +4,7 @@ const uniq=xs=>[...new Set(xs.filter(Boolean))]
 const take=(xs,n=4)=>xs.length<=n?xs:[xs[0],...xs.slice(1,-1).filter((_,i)=>i%Math.ceil((xs.length-2)/(n-2))===0).slice(0,n-2),xs.at(-1)]
 const short=s=>String(s||'').replace(/\s+/g,' ').trim().slice(0,100)
 const status=s=>s==='active'?'进行中':s==='archived'?'已归档':'状态未提供'
-export function refineV6(report,input,preferences,now){
+export function refineV6(report,input,preferences,now,ownedPhotoIds){
   report.schemaVersion=6
   const source=new Map(report.sources.map(s=>[s.id,s])),refs=new Set(report.focusSourceIds)
   const section=id=>report.chapters.find(c=>c.id===id)
@@ -26,10 +26,10 @@ export function refineV6(report,input,preferences,now){
   const available=new Set(report.photos.map(p=>p.sourceId))
   const selected=preferences.photoSelections?.[report.photoKey]
   report.selectedPhotoIds=selected===undefined?(report.focus.mode==='custom'?[]:report.selectedPhotoIds):selected.filter(id=>available.has(id))
-  report.photoSelections[report.photoKey]=report.selectedPhotoIds
+  report.photoSelections[report.photoKey]=selected??report.selectedPhotoIds
   report.photoCandidates=uniq([...report.photoCandidates,...report.selectedPhotoIds])
   if(selected?.every(id=>available.has(id)))report.warnings=report.warnings.filter(w=>w!=='部分原选照片已失效或不再关联本次主诉；未自动换成其他照片。')
-  report.photoDetails=Object.fromEntries(Object.entries(preferences.photoDetails??{}).filter(([id])=>available.has(id)))
+  report.photoDetails=Object.fromEntries(Object.entries(preferences.photoDetails??{}).filter(([id])=>(ownedPhotoIds??available).has(id)))
   report.photos=report.photos.map(p=>{
     const d=report.photoDetails[p.sourceId];if(!d)return p
     const capturedAt=d.capturedAt===undefined?p.capturedAt:d.capturedAt
@@ -50,17 +50,20 @@ export function refineV6(report,input,preferences,now){
     const occurrences=r.occurrences.map(o=>{const d=o.day||day(o.scheduledAt),index=o.dayIndex??Math.max(0,Math.round((Date.parse(d)-Date.parse(plan.startDate))/86400000));return {id:o.id,scheduledAt:o.scheduledAt,day:d,dayIndex:index,weekIndex:o.weekIndex??Math.floor(index/7),slotIndex:o.slotIndex??0,completed:o.completed,completion:completion(o.completion),sourceId:source.has(`dose:${o.id}`)?`dose:${o.id}`:`medication-plan:${r.id}`}})
     return {id:r.id,status:r.status||'unknown',plan:{medicationName:plan.medicationName,amount:plan.amount,unit:plan.unit,route:plan.route,mode:plan.mode,times:plan.times||[],intervalHours:plan.intervalHours,startDate:plan.startDate,endDate:plan.endDate,timezone:zone},totalDays:r.totalDays??(plan.endDate?Math.round((Date.parse(plan.endDate)-Date.parse(plan.startDate))/86400000)+1:null),occurrences,completions:(r.completions||r.occurrences.map(o=>o.completion).filter(Boolean)).map(completion),nextOccurrence:null,sourceIds:[`medication-plan:${r.id}`]}
   })
-  section('medication').overview.items=section('medication').blocks.filter(b=>!b.reminderId).slice(0,3).map(b=>({title:b.title,detail:short(b.lines[0]),sourceIds:b.sourceIds}))
+  section('medication').overview.items=section('medication').blocks.filter(b=>!b.reminderId).slice(0,3).map(b=>({title:short(b.lines[0])||b.title,detail:`${when(source.get(b.sourceIds[0]))} · 已保存用药记录；展开核对用量与途径`,sourceIds:b.sourceIds}))
+  for(const r of report.medicationReminders){const confirmed=r.occurrences.filter(o=>o.completed);if(confirmed.length)section('medication').overview.items.push({title:r.plan.medicationName,detail:`${confirmed.length} 次确认使用；计划 ${r.plan.startDate} — ${r.plan.endDate||'未设结束日期'}；未确认不等于未用`,sourceIds:confirmed.map(o=>o.sourceId)})}
   section('medication').overview.lines=report.medicationReminders.length?['按提醒计划和已记录的确认展示；未确认不等于未用，计划到期不等于停药。']:section('medication').blocks.length?[]:['暂无用药或处理资料。']
   const allergy=section('allergy')
   for(const archive of input.profiles.filter(a=>a.sectionId==='allergy'))for(const row of archive.records??[])for(const value of row._allergyArchive?.items??row.items??[row]){
-    if(value.memberId&&value.memberId!==input.member.id)continue
+    if(value.profileListDeletedAt||(value.memberId&&value.memberId!==input.member.id))continue
     const s=source.get(profileSourceId(archive.sectionId,value));if(!s)continue
-    const label={confirmed:'家长记录医生已确认',suspected:'家长怀疑，待确认',investigating:'正在核对',excluded:'家长记录已排除',tolerated:'家长记录可耐受'}[value.currentStatus]||'依据状态未明确'
-    allergy.overview.items.push({title:value.name||s.title,detail:label,sourceIds:[s.id]})
+    const state=value.currentStatus??value.certainty,isConfirmed=['confirmed','已明确','医生明确'].includes(state)&&value.category!=='unknown'&&value.name!=='尚未明确'
+    const label=isConfirmed?(value.sourceType==='clinician'?'家长记录医生已明确':'按家长档案记录已明确（非医护审核）'):{suspected:'家长怀疑，待确认',investigating:'正在核对',excluded:'家长记录已排除',tolerated:'家长记录可耐受'}[state]||'依据状态未明确'
+    if(isConfirmed)allergy.overview.items.push({title:value.name||s.title,detail:label,sourceIds:[s.id]})
+    else {const block=allergy.blocks.find(b=>b.sourceIds.includes(s.id));if(block){block.secondary=true;block.title=`${value.name||s.title} · ${label}`}}
   }
-  if(!allergy.overview.items.length)allergy.overview.lines.push('尚无可明确分类的过敏档案概览；已有资料见明细。观察或出现食物名称不代表确诊。')
-  for(const task of input.tasks){const effective=task.records.filter(r=>r.status==='effective'&&!r.withdrawnAt).sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0));const latest=effective[0];const result=latest?latest.symptomAnswer==='present'?'已记录有变化':latest.symptomAnswer==='absent'?'明确记录未见变化':'结果未填':'暂无有效观察记录';allergy.overview.items.push({title:task.displayName,detail:`${status(task.status)}${task.progressionPaused?' · 进阶已暂停':''} · ${effective.length} 条有效记录；${latest?`${display(latest.occurredAt)} · `:''}${result}`,sourceIds:[`observation-plan:${task.id}`,...(latest?[`observation:${latest.id}`]:[])]})}
+  if(!allergy.overview.items.length)allergy.overview.lines.push('尚无按记录已确认的过敏项。待确认、已排除、可耐受或状态未知资料在明细核对，不能视为确诊。')
+  for(const task of input.tasks){const effective=task.records.filter(r=>r.status==='effective'&&!r.withdrawnAt).sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0));const latest=effective[0];const result=latest?latest.symptomAnswer==='present'?'已记录有变化':latest.symptomAnswer==='absent'?'明确记录未见变化':'结果未填':'暂无有效观察记录';if(effective.length)allergy.overview.items.push({title:task.displayName,detail:`${status(task.status)}${task.progressionPaused?' · 进阶已暂停':''} · ${effective.length} 条有效记录；${latest?`${display(latest.occurredAt)} · `:''}${result}`,sourceIds:[`observation-plan:${task.id}`,...(latest?[`observation:${latest.id}`]:[])]});else{const b=allergy.blocks.find(b=>b.taskId===task.id);if(b){b.secondary=true;b.title=`${task.displayName} · 观察计划（暂无有效观察记录）`}}}
   const history=section('history');history.overview.items=history.blocks.filter(b=>b.related).slice(0,3).map(b=>({title:b.title,detail:short(b.lines[0]),sourceIds:b.sourceIds}));history.overview.lines=history.overview.items.length?[]:[history.blocks.length?'已有既往资料，与本次的明确关系尚未建立。':'暂无既往与相关背景资料。']
   const temperature=section('temperature');temperature.overview.items=temperature.blocks.map(b=>{const last=b.points?.at(-1);return {title:last?`最近 ${last.value} ${b.unit}`:b.title,detail:last?`${b.title.replace('体温测量 · ','')} · ${b.points.length} 次 · ${Math.min(...b.points.map(p=>p.value))}–${Math.max(...b.points.map(p=>p.value))} ${b.unit} · ${display(last.at)}`:short(b.lines[0]),sourceIds:b.sourceIds}});if(!temperature.overview.items.length)temperature.overview.lines=['暂无体温实测记录。']
   const growth=section('growth');growth.overview.items=growth.blocks.filter(b=>b.points?.length).map(b=>{const p=b.points.at(-1);return {title:`最近${b.title} ${p.value} ${b.unit}`,detail:`${display(p.at)} · 共 ${b.points.length} 次测量`,sourceIds:[p.sourceId]}})

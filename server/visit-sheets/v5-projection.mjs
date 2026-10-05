@@ -53,7 +53,7 @@ export function refineVisitSheet(report, input, preferences) {
   report.photoCandidates = report.photos.filter(p => p.relatedSourceIds.some(id => refs.has(id))).map(p => p.sourceId)
   const selected = report.photoSelections[report.photoKey]
   report.selectedPhotoIds = selected === undefined ? report.photoCandidates.slice(0, 3) : selected.filter(id => report.photoCandidates.includes(id))
-  report.photoSelections[report.photoKey]=report.selectedPhotoIds
+  report.photoSelections[report.photoKey]=selected??report.selectedPhotoIds
   if (selected?.some(id => !report.photoCandidates.includes(id))) report.warnings.push('部分原选照片已失效或不再关联本次主诉；未自动换成其他照片。')
   const overview = chapter('overview')
   overview.summary = ''

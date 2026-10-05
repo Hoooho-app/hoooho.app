@@ -8,6 +8,7 @@ import css from './report.css?inline'
 import chartCss from '../../components/design-system/FactCharts.css?inline'
 import tokens from '../../styles/tokens.css?inline'
 import medicationCss from '../NurseStation/medicationReadOnly.css?inline'
+export { doctorBriefText } from './reportCopy'
 
 export interface ExportResources { images: Record<string,string>; omitted: string[] }
 const emptyResources = ():ExportResources => ({images:{},omitted:[]})
@@ -37,12 +38,12 @@ export function summaryText(report:VisitSheet) {
     '缺失不等于没有；时间先后不是因果；资料整理不代替诊断。',
   ].filter(Boolean).join('\n')
 }
-export function reportText(report:VisitSheet) {
+export function reportText(report:VisitSheet,includeHistory=false) {
   return [summaryText(report),'\n完整报告范围：'+report.scope,
-    ...report.chapters.flatMap(c=>[`\n## ${c.title}`,c.summary,...c.blocks.flatMap(b=>[b.title,...b.lines,...(b.entries??[]).flatMap(e=>[e.title,...e.lines,refs(report,e.sourceIds)]),...(b.distribution??[]).map(v=>`${v.label}：${v.count}`),b.distributionNote||'',...(b.points??[]).map(p=>`${p.at}：${p.value} ${b.unit}；${p.detail??''} [${refs(report,[p.sourceId])}]`),`依据：${refs(report,b.sourceIds)}`])]),
-    '\n## 完整原始依据',...report.sources.map(s=>`[${s.code}] ${s.title}\n${s.identity}；发生：${s.occurredAt??'未提供'}；录入：${s.createdAt??'未提供'}\n${s.text}`),
+    ...report.chapters.flatMap(c=>[`\n## ${c.title}`,c.summary,...c.blocks.filter(b=>includeHistory||!b.sourceIds.some(id=>report.sources.find(s=>s.id===id)?.category==='legacy')).flatMap(b=>[b.title,...b.lines,...(b.entries??[]).flatMap(e=>[e.title,...e.lines,refs(report,e.sourceIds)]),...(b.distribution??[]).map(v=>`${v.label}：${v.count}`),b.distributionNote||'',...(b.points??[]).map(p=>`${p.at}：${p.value} ${b.unit}；${p.detail??''} [${refs(report,[p.sourceId])}]`),`依据：${refs(report,b.sourceIds)}`])]),
+    '\n## 完整原始依据',...report.sources.filter(s=>includeHistory||s.category!=='legacy').map(s=>`[${s.code}] ${s.title}\n${s.identity}；发生：${s.occurredAt??'未提供'}；录入：${s.createdAt??'未提供'}\n${s.text}`),
     '\n文本只含附件索引，不包含病情原图。',
-    ...report.changes.filter(c=>report.sources.some(s=>s.id===c.sourceId)).map(c=>`${c.at} [${refs(report,[c.sourceId])}]\n修改前：${c.before}\n修改后：${c.after}`),
+    ...(includeHistory?report.changes.filter(c=>report.sources.some(s=>s.id===c.sourceId)).map(c=>`${c.at} [${refs(report,[c.sourceId])}]\n修改前：${c.before}\n修改后：${c.after}`):['旧版情况单和编辑日志未纳入此文本。']),
   ].join('\n')
 }
 // Whitelist the copy DTO, remap internal references and omit unselected image bytes.
