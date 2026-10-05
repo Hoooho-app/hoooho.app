@@ -6,7 +6,8 @@ import type {
   VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
-  selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
+  selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean } | null
+  previewScope?: boolean
   generateAI?: boolean
   previewAI?: boolean
   confirmAI?: string

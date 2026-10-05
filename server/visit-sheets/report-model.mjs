@@ -23,6 +23,7 @@ const unique = (values) => [...new Set(values.filter(Boolean))]
 function memberScoped(value,memberId){
   if(Array.isArray(value))return value.map(v=>memberScoped(v,memberId)).filter(v=>v!==undefined)
   if(value&&typeof value==='object'){
+    if(value.profileListDeletedAt)return undefined
     if(value.memberId&&value.memberId!==memberId)return undefined
     return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,memberScoped(v,memberId)]).filter(([,v])=>v!==undefined))
   }
@@ -66,6 +67,7 @@ const byTime = (a, b) =>
   (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) ||
   b.id.localeCompare(a.id)
 const labels = {
+  aboBloodType:'ABO血型',rhBloodType:'Rh血型',combinedBloodType:'血型',measurementDate:'测量日期',gender:'性别',birthday:'出生日期',bloodType:'血型',genericName:'通用名',brandName:'商品名',observationAfterUse:'使用后观察',suggestedBy:'建议来源',reasons:'使用原因',customReason:'原因补充',sourceType:'资料来源',sourceLabel:'来源说明',history:'状态经过',ingredientRelations:'相关成分（按记录）',sourceReferences:'关联来源',dietaryAction:'家长饮食安排',category:'档案分类',customName:'补充名称',statusUpdatedAt:'状态记录日期',lastReactionAt:'最近反应日期',excludedAt:'记录排除日期',toleranceSince:'记录耐受日期',
   birthDate:'出生日期',gestationalWeeks:'孕周（周）',gestationalDays:'额外孕日（天）',birthWeight:'出生体重（kg）',birthLength:'出生身长（cm）',delivery:'分娩方式',neonatal:'新生儿期记录',
   manifestations:'表现',duration:'每次通常持续',customDuration:'每次持续时间补充',triggers:'家长记录诱因（未确认因果）',lifeImpacts:'生活影响',legacy:'历史记录',postoperativeStatusTags:'术后情况',implantTags:'植入物记录',locations:'部位',legacyNote:'原有补充',customRelationship:'亲属补充',healthIssues:'家族健康事项',certainty:'家长记录的诊断了解程度',onset:'大概发现时间 / 年龄',knowledge:'家长对问题名称的了解',symptomSystems:'表现涉及系统',legacyLocationNotes:'原有部位描述',legacyImplantNote:'原有植入物说明',aggravatingFactors:'家长记录加重因素（未确认因果）',relievingFactors:'家长记录缓解因素（未确认因果）',
   method:'喂养方式',milkAmount:'奶量（ml）',solidStatus:'辅食情况',solidStartedAt:'辅食开始日期',mainFoods:'主要食物',treatment:'已有处理',organization:'机构',summary:'原记录摘要',type:'记录类型',doseNumber:'剂次',imageName:'附件名称',fileName:'文件名',mimeType:'文件类型',filename:'文件名',size:'文件大小（字节）',evidenceStatus:'依据状态',confirmedByUser:'家长已确认关联',preparation:'处理方式',exposureAnswer:'摄入记录',symptomAnswer:'观察结果',actualFood:'实际食物',amount:'用量',
@@ -113,6 +115,7 @@ const labels = {
   tests: '检查资料',
   photos: '图片',
   reportFiles: '报告文件',
+  bmi:'BMI',waistCircumference:'腰围 cm',bodyFatPercentage:'体脂率 %',headCircumference:'头围 cm',image:'药物图片',impact:'主要影响 / 表现',completed:'是否完成',age:'大概发病年龄',similar:'其他亲属类似情况',bedtime:'通常入睡时间',wakeTime:'通常起床时间',wakeEasy:'是否容易醒',longTermProblem:'长期睡眠问题',snore:'打鼾情况',preference:'饮食偏好',specialDiet:'特殊饮食',avoid:'忌口',appetite:'长期食欲',regularity:'饮食规律',limitation:'活动限制',dailyAmount:'每天大概数量',startedAge:'开始年龄',quitDate:'戒烟时间',scene:'工作 / 生活场景',longTermImpact:'长期情绪影响',consultation:'心理咨询经历',diagnosis:'记录中的诊断',visionProblem:'长期视力问题',glasses:'佩戴眼镜',visionExam:'视力检查',hearingLoss:'听力下降',hearingAid:'助听器',hearingExam:'听力检查',problem:'长期问题',orthodontics:'牙齿矫正',denture:'义齿',premature:'是否早产',mainFood:'当前主要食物',foodReaction:'食物反应',menarche:'初潮时间',regular:'周期是否规律',cycle:'平均周期',flow:'经量情况',pain:'痛经情况',abnormal:'长期异常情况',weeks:'孕周',situation:'重要情况',walk:'独立行走',assistiveDevice:'辅助工具',dressing:'穿衣协助',bathing:'洗澡协助',eating:'进食协助',caregiver:'主要照护人',event:'当时发生什么',injury:'是否受伤',medicalCare:'是否就医',
 }
 const statuses = {
   oral:'口服',topical:'外用',inhaled:'吸入',nebulized:'雾化',nasal:'鼻用',ophthalmic:'眼用',daily:'每天',weekly:'每周',custom:'自定义',not_used:'未使用识别', true:'是', false:'否',
@@ -135,14 +138,14 @@ function readable(value) {
     .filter(
       ([key]) =>
         !key.startsWith('_') &&
-        !/^(id|.*Ids?|accountId|memberId|createdAt|updatedAt|evidenceLinks|version|revision)$/.test(
+        !/^(id|.*Ids?|accountId|memberId|createdAt|updatedAt|evidenceLinks|version|revision|group|visible|manuallyAdded|nameAdjusted|needsReview)$/.test(
           key,
         ),
     )
     .map(([key, val]) => {
       const v = readable(val)
       return v
-        ? `${labels[key] || key}：${v.startsWith('data:') || v.startsWith('blob:') ? '附件原件见档案' : v}`
+        ? `${labels[key] || '其他记录内容'}：${v.startsWith('data:') || v.startsWith('blob:') ? '附件原件见档案' : v}`
         : ''
     })
     .filter(Boolean)
@@ -198,6 +201,7 @@ export function reportFingerprint(input, now = new Date()) {
     .digest('hex')
 }
 export function buildVisitSheet(input, preferences = {}, now = new Date()) {
+  const ownedPhotoIds=new Set([...(input.attachments??[]).map(a=>`attachment:${a.id}`),...(input.profileResources??[]).map(r=>`profile-image:${r.resourceId}`)])
   const selection = preferences.selection
   if (selection) {
     const ids = new Set(selection.eventIds), records = input.records.filter(r => ids.has(r.eventId) && (!selection.from || Date.parse(r.occurredAt) >= Date.parse(selection.from)) && (!selection.to || Date.parse(r.occurredAt) <= Date.parse(selection.to)))
@@ -271,7 +275,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       id: `record:${r.id}`,
       recordId: r.id,
       eventId: r.eventId,
-      category: records.includes(r) ? recordDestination(r) : 'sources',
+      category: records.includes(r) ? recordDestination(r)==='growth'?'daily':recordDestination(r) : 'sources',
       title:
         text(r.journal?.symptom?.narrative) || text(r.content).slice(0, 100),
       text: recordText(r),
@@ -509,7 +513,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     for (const [index, row] of (archive.records ?? []).entries()) {
       const items = row._allergyArchive?.items ?? row.items ?? [row]
       for (const item of items) {
-        if (item.memberId && item.memberId !== input.member.id) continue
+        if (item.profileListDeletedAt || (item.memberId && item.memberId !== input.member.id)) continue
         const id = add({
           id: profileSourceId(archive.sectionId,item),
           profileSection: archive.sectionId,
@@ -522,7 +526,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
               medication: '长期用药',
             }[archive.sectionId] ??
               '健康档案'),
-          text: readable(memberScoped(item,input.member.id)) + `；档案修订 ${archive.revision ?? '未提供'}`,
+          text: readable(memberScoped(item,input.member.id)),
           occurredAt: date(item.occurredAt || item.date || item.firstFoundAt || item.birthDate || item.testedAt || item.startedAt),
           createdAt: date(item.createdAt || item._savedAt),
           updatedAt: date(item.updatedAt || item._savedAt),
@@ -804,7 +808,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     generatedAt: now.toISOString(),
     fingerprint: reportFingerprint(input, now),
     changes: [],
-  }, input, preferences), input, preferences, now)
+  }, input, preferences), input, preferences, now, ownedPhotoIds)
   if (selection) report.scope = `仅纳入明确选择的${new Set(selection.eventIds).size}次情况${selection.from || selection.to ? '及指定时间范围' : ''}；${selection.includeBackground ? '含当前人物所选既往背景、成长及独立计划' : '未纳入既往背景、成长或独立计划'}。未提供不等于没有。`
   return report
 }

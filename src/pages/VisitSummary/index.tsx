@@ -22,7 +22,7 @@ import type {
 import { SourceRecordEditor } from './SourceRecordEditor'
 import { ApiRequestError } from '../../services/apiClient'
 import { ReportChapter, reportTime, SourceText, sourceCategoryLabel } from './ReportChapter'
-import { downloadReport, printReport, reportText, summaryText, downloadContent, type ExportResources } from './reportExport'
+import { downloadReport, printReport, reportText, doctorBriefText, downloadContent, type ExportResources } from './reportExport'
 import { ReportPhotos, PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
 import { ReportDirectory } from './ReportDirectory'
@@ -32,6 +32,8 @@ import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-bus
 import { preliminarySummaryExport } from './preliminarySummaryExport'
 import { consultationPrompt, doctorQuestionTemplates } from '../../features/ai-business/consultationPrompt'
 import { ReportScopeSheet } from '../../features/case-continuity/ReportScopeSheet'
+import { matchingSources } from './reportCopy'
+import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
@@ -77,6 +79,7 @@ function VisitSheetReader({
   const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
   const parentEvidence=useRef<string[]|null>(null)
   const [scopeOpen,setScopeOpen] = useState(false)
+  const [scopeUndo,setScopeUndo] = useState<{selection:VisitSheetUpdate['selection']}|null>(null)
   const pendingSave=useRef<{key:string;requestId:string}|null>(null)
   const [aiPreview,setAIPreview]=useState<AIUnverifiedPreview|null>(null),[previewText,setPreviewText]=useState('')
   const [aiCandidate,setAICandidate]=useState<VisitSheetState['aiCandidate']>(),[candidateOverview,setCandidateOverview]=useState('')
@@ -89,6 +92,7 @@ function VisitSheetReader({
   useEffect(()=>{if(modalOpen&&!modalTrigger.current)modalTrigger.current=document.activeElement as HTMLElement;if(scroll.current){scroll.current.inert=modalOpen;scroll.current.style.overflowY=modalOpen?'hidden':'auto'}if(!modalOpen&&modalTrigger.current)requestAnimationFrame(()=>modalTrigger.current?.focus({preventScroll:true}))},[modalOpen])
   const accept = (result: VisitSheetState) => {
     if (!alive.current) return
+    setAICandidate(undefined);setCandidateOverview('');setAIPreview(null);setPreviewText('')
     version.current = result.report?.version ?? version.current
     setState(result)
   }
@@ -291,7 +295,7 @@ function VisitSheetReader({
                       ? '男'
                       : '性别未填写'}
                   {report.member.birthday
-                    ? ` · 出生 ${report.member.birthday}`
+                    ? ` · ${formatAgeFromBirthday(report.member.birthday,new Date(report.dataAsOf),report.timezone)}`
                     : ''}
                 </p>
               </div>
@@ -318,21 +322,21 @@ function VisitSheetReader({
             ).map((w) => (
               <StatusNotice title={w} tone="warning" key={w} />
             ))}
-            {!sources.length && <section className="visit-report-state"><h2>病情数据</h2><p>当前孩子尚无已保存资料。</p><HohoButton onClick={()=>navigate('/health-events')}>补充健康记录</HohoButton></section>}
-            {!!sources.length && report.chapters.map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={report} onEvidence={openEvidence} action={chapter.id==='overview'?<div><button onClick={()=>{setError('');setEditing('focus')}}>更改主诉</button><button onClick={()=>setScopeOpen(true)}>资料范围</button></div>:undefined} leading={chapter.id==='overview'? <>
+            {!sources.length && <section className="visit-report-state"><h2>病情数据</h2><p>{report.selection?'所选范围没有可用资料；不代表孩子没有其他记录。':'当前孩子尚无已保存资料。'}</p><HohoButton onClick={()=>setScopeOpen(true)}>调整 / 恢复资料范围</HohoButton><HohoButton variant="text" onClick={()=>navigate('/health-events')}>补充健康记录</HohoButton></section>}
+            {!!sources.length && report.chapters.map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={report} onEvidence={openEvidence} action={chapter.id==='overview'?<div className="visit-focus-actions"><button onClick={()=>{setError('');setEditing('focus')}}>更改主诉</button><button onClick={()=>{setError('');setScopeOpen(true)}}>资料范围</button></div>:undefined} leading={chapter.id==='overview'? <>
               <section className="visit-report-focus">
                 <h1>{report.complaint}</h1>
                 <p className="visit-focus-meta">{report.focus.mode==='custom'?'家长本次陈述':`${report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.timeKind || '记录时间'} ${reportTime(report.candidates.find(c=>c.sourceId===report.complaintSourceId)?.at??null)}`}</p>
               </section>
+              <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
+              <section className="visit-question"><div className="visit-section-actions"><h2>本次想问</h2><button onClick={()=>{setError('');setEditing('question')}}>编辑本次想问</button></div><p>{report.question||'尚未填写'}</p><small>{report.questionOrigin||'家长填写'}</small>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>openEvidence(report.questionSourceIds!)}>查看问题原话</button>}</section>
               <section className="visit-question">
                 <HohoButton loading={aiWorking} disabled={working || !sources.length} onClick={() => void update({ generateAI: true })}>{aiWorking ? '正在生成 AI 病情摘要' : report.aiSummary ? '重新生成 AI 病情摘要' : '生成 AI 病情摘要'}</HohoButton>
                 {!report.aiSummary && <p className="visit-muted">AI 摘要尚未生成，下方本地事实仍可查看和导出。</p>}
               </section>
               <MedicalAISummary report={report}/>
-              {aiCandidate&&<section aria-label="AI病情摘要待确认"><h3>AI病情摘要草稿 · 待确认</h3><p>真实 {aiCandidate.summary.provider==='bailian'?'百炼':'OpenAI'} · {aiCandidate.summary.model} 返回，已通过程序核对，尚未保存或覆盖旧版。</p><label>修改摘要概述<textarea aria-label="修改摘要概述" maxLength={1000} value={candidateOverview} onChange={e=>setCandidateOverview(e.target.value)}/></label><ul>{aiCandidate.summary.keyPoints.map((point,i)=><li key={i}>{point}<details><summary>核对引用原话</summary><p>{aiCandidate.summary.keyPointEvidence?.[i]?.quote}</p></details></li>)}</ul><HohoButton disabled={working||!candidateOverview.trim()} onClick={()=>void update({confirmAI:aiCandidate.id,aiOverview:candidateOverview})}>已核对，保存AI摘要</HohoButton><HohoButton variant="secondary" onClick={()=>setAICandidate(undefined)}>不保存这份摘要</HohoButton></section>}
-              {aiPreview&&<AIResultPreview preview={aiPreview} value={previewText} onChange={setPreviewText}><p>这是独立预览，未保存为正式摘要；下方旧摘要与本地整理保持不变。</p><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'text'),'Hoooho-AI初步摘要-待核对.txt','text/plain;charset=utf-8')}>导出待核对摘要（文本）</HohoButton><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'html'),'Hoooho-AI初步摘要-待核对.html','text/html;charset=utf-8')}>导出待核对摘要（离线HTML）</HohoButton></AIResultPreview>}
-              <ReportPhotos report={report} token={token} onChoose={()=>setPhotoPicker(true)} onOpen={setPhotoId}/>
-              <section className="visit-question"><div className="visit-section-actions"><h2>本次想问</h2><button onClick={()=>{setError('');setEditing('question')}}>编辑本次想问</button></div><p>{report.question||'尚未填写'}</p><small>{report.questionOrigin||'家长填写'}</small>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>openEvidence(report.questionSourceIds!)}>查看问题原话</button>}</section>
+              {aiCandidate&&<section aria-label="AI病情摘要待确认"><h3>AI病情摘要草稿 · 待确认</h3><p>程序核对通过，尚未保存；请对照每条引用核对事实。</p><details><summary>技术详情</summary><small>{aiCandidate.summary.provider} · {aiCandidate.summary.model}</small></details><label>修改摘要概述<textarea aria-label="修改摘要概述" maxLength={1000} value={candidateOverview} onChange={e=>setCandidateOverview(e.target.value)}/></label><ul>{aiCandidate.summary.keyPoints.map((point,i)=><li key={i}>{point}<details><summary>核对引用原话</summary><p>{aiCandidate.summary.keyPointEvidence?.[i]?.quote}</p></details></li>)}</ul><HohoButton disabled={working||!candidateOverview.trim()} onClick={()=>void update({confirmAI:aiCandidate.id,aiOverview:candidateOverview})}>已核对，保存AI摘要</HohoButton><HohoButton variant="secondary" onClick={()=>setAICandidate(undefined)}>不保存这份摘要</HohoButton></section>}
+              {aiPreview&&<AIResultPreview preview={aiPreview} value={previewText} onChange={setPreviewText} compactDiagnostics><p>这是独立预览，未保存为正式摘要；下方旧摘要与本地整理保持不变。</p><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'text'),'Hoooho-AI初步摘要-待核对.txt','text/plain;charset=utf-8')}>导出待核对摘要（文本）</HohoButton><HohoButton variant="secondary" disabled={!previewText.trim()} onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'html'),'Hoooho-AI初步摘要-待核对.html','text/html;charset=utf-8')}>导出待核对摘要（离线HTML）</HohoButton></AIResultPreview>}
               </>:undefined} trailing={<>
             {chapter.id === 'sources' && (
               <>
@@ -349,15 +353,11 @@ function VisitSheetReader({
                 <p className="visit-muted">
                   {report.scope} 搜索只影响阅读；导出照片范围另行核对。
                 </p>
-                {[...new Set(sources.map(s=>s.category))].map(category=><section className="visit-source-group" data-source-category={category} key={category}>
-                <h3>{{record:'健康记录',course:'症状与病程记录',temperature:'体温记录',allergy:'过敏与观察记录',history:'既往记录',visits:'就诊检查记录',attachment:'附件原件索引',profile:'健康档案',fact:'结构化健康事实',growth:'成长测量',medication:'用药与执行记录','medication-plan':'用药计划','observation-plan':'观察计划',observation:'观察结果',birth:'出生史',chronic:'长期问题',surgery:'手术史','family-history':'家族史',feeding:'喂养记录',examination:'检查档案',hospitalization:'住院史',vaccination:'接种史',legacy:'旧版情况单'}[category]||'其他档案资料'} · {sources.filter(s=>s.category===category).length} 项资料</h3>
+                <p role="status">{search.trim()?`匹配 ${matchingSources(sources,search).length} / ${sources.length} 项资料`:`共 ${sources.length} 项资料`}</p>
+                {[...new Set(matchingSources(sources,search).map(s=>s.category))].map(category=><section className="visit-source-group" data-source-category={category} key={category}>
+                <h3>{sourceCategoryLabel(category)} · {matchingSources(sources,search).filter(s=>s.category===category).length} 项资料</h3>
                 <p className="visit-muted">资料项数不等于症状次数、服药次数或病情程度。</p>
-                {sources.filter(s=>s.category===category)
-                  .filter((s) =>
-                    [s.title, s.text, s.occurredAt, s.id]
-                      .join(' ')
-                      .includes(search),
-                  )
+                {matchingSources(sources,search).filter(s=>s.category===category)
                   .map((s) => (
                     <button
                       className="visit-source-row"
@@ -412,7 +412,7 @@ function VisitSheetReader({
         )}
       </div>
       {menu&&report&&<ReportDirectory chapters={report.chapters} active={active} onClose={()=>setMenu(false)} onChoose={chooseChapter}/>}
-      {report && scopeOpen && <ReportScopeSheet initial={report.selection} busy={working} error={error} onClose={()=>{if(!working)setScopeOpen(false)}} onSave={async selection=>{if(await update({selection}))setScopeOpen(false)}}/>}
+      {report && scopeOpen && <ReportScopeSheet initial={report.selection} memberId={memberId} token={token} version={report.version} busy={working} error={error} onClose={()=>{if(!working)setScopeOpen(false)}} onSave={async selection=>{const previous=report.selection??null;if(await update({selection})){setScopeUndo({selection:previous});setScopeOpen(false)}}} onUndo={scopeUndo?async()=>{if(await update({selection:scopeUndo.selection})){setScopeUndo(null);setScopeOpen(false)}}:undefined}/>}
       {report && editing && (
         <ReportEditor
           report={report}
@@ -507,7 +507,7 @@ function VisitSheetReader({
         />
       )}
       {report && exporting && (
-        <ExportSheet report={report} token={token} memberId={memberId} onClose={() => setExporting(false)} />
+        <ExportSheet report={report} token={token} memberId={memberId} onRefresh={()=>update()} onClose={() => setExporting(false)} />
       )}
       {report&&photoPicker&&<PhotoPicker key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
       {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
@@ -622,7 +622,6 @@ function ReportEditor({
           <>
               <label>
                 本次想问
-                <div className="visit-section-actions">{doctorQuestionTemplates.map(template=><button type="button" key={template} onClick={()=>setQuestion(previous=>previous?`${previous}\n${template}`:template)}>{template}</button>)}</div>
                 <textarea
                   aria-label="本次想问"
                   value={question}
@@ -630,6 +629,7 @@ function ReportEditor({
                   onChange={(e) => setQuestion(e.target.value)}
                 />
               </label>
+              <div className="visit-section-actions">{doctorQuestionTemplates.map(template=><button type="button" aria-label={`添加问题：${template}`} key={template} onClick={()=>setQuestion(previous=>previous?`${previous}\n${template}`:template)}>{template}</button>)}</div>
             <p className="visit-muted">
               标为家长陈述，仅保存到报告，不覆盖原始记录。
             </p>
@@ -733,21 +733,26 @@ function ExportSheet({
   onClose,
   token,
   memberId,
+  onRefresh,
 }: {
   report: VisitSheet
   onClose: () => void
   token: string
   memberId: string
+  onRefresh:()=>Promise<boolean>
 }) {
   const [notice, setNotice] = useState(''),
     [fallback, setFallback] = useState(false)
   const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
-  const [promptText,setPromptText]=useState(()=>`${consultationPrompt(report)}\n\n以下是已核对范围内的情况单全文，家长补充不是原始医疗结论：\n${reportText(report)}`)
+  const [copyMode,setCopyMode]=useState<'brief'|'full'>('brief'),[includeHistory,setIncludeHistory]=useState(false),[needsUpdate,setNeedsUpdate]=useState(false)
+  const makePrompt=(mode:'brief'|'full',history:boolean)=>`${consultationPrompt(report,{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${mode==='brief'?doctorBriefText(report):reportText(report,history)}`
+  const [promptText,setPromptText]=useState(()=>makePrompt('brief',false))
+  useEffect(()=>{setPromptText(makePrompt(copyMode,includeHistory));setSelected(report.selectedPhotoIds??[]);setNeedsUpdate(false)},[report.version])
   const controller=useRef(new AbortController()),lock=useRef(false)
   useEffect(()=>{const current=new AbortController();controller.current=current;return()=>current.abort()},[])
   const validate=async()=>{
     const current=await visitSheetService.get(memberId,token,controller.current.signal)
-    if(!current.report||current.stale||current.report.version!==report.version)throw new Error('资料或版本已变化，请先关闭并更新情况单，再核对导出范围')
+    if(!current.report||current.stale||current.report.version!==report.version){setNeedsUpdate(true);throw new Error('资料或版本已变化。请在此更新后核对范围，再导出；本次未生成文件。')}
   }
   const resources=async()=>{
     await validate()
@@ -765,7 +770,7 @@ function ExportSheet({
     await validate()
     try {
       await navigator.clipboard.writeText(promptText)
-      setNotice('已复制已核对的问诊提示词')
+      setNotice(`已复制${copyMode==='brief'?'本次重点':'完整资料'}（约 ${promptText.length} 字符）；内容仍需核对`)
     } catch {
       setFallback(true)
       setNotice('浏览器未允许复制，请全选下方全文手动复制')
@@ -782,15 +787,17 @@ function ExportSheet({
         <p>
           {report.member.name} · v{report.version} · 全部九章与完整依据
         </p>
-        <p className="visit-muted">{report.scope} HTML 与打印包含下方选中且成功内嵌的影像；其他附件只含索引。重点摘要不含全部原文，AI 文本包含摘要和全部原文，但都不含照片。</p>
+        <p className="visit-muted">{report.scope} HTML 与打印为九章完整报告，含选中且成功内嵌的影像；非图片附件只含索引。重点摘要与复制文本不含照片字节；默认只复制本次重点，完整资料需单独选择。</p>
+        {needsUpdate&&<HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{if(await onRefresh())setNotice('已更新到当前资料，请核对新的照片和文字范围后导出');else setNotice('更新未成功，旧报告保留；尚未导出新文件')})}>在此更新情况单</HohoButton>}
         <details><summary>核对导出照片 · 已选 {selected.length} 张</summary><p>与页面展示选择独立。未选图片字节不会写入文件。</p>{report.photos?.map(p=><label key={p.sourceId}><input type="checkbox" disabled={running} checked={selected.includes(p.sourceId)} onChange={e=>setSelected(e.target.checked?[...selected,p.sourceId]:selected.filter(id=>id!==p.sourceId))}/>{p.title} · {p.location} · {p.timeKind} {reportTime(p.capturedAt||p.uploadedAt)}</label>)}{!report.photos?.length&&<p>暂无可嵌入的关联附件照片。</p>}</details>
         <HohoButton
           loading={running}
-          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;downloadReport(report,result);setNotice(`文件已准备好，内嵌 ${Object.keys(result.images).length} 张影像。${result.omitted.length?'原图未附：'+result.omitted.join('；'):''}`)})}
+          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;downloadReport(report,result);setNotice(`已发起下载，请在浏览器下载列表查看。内嵌 ${Object.keys(result.images).length} 张影像。${result.omitted.length?'原图未附：'+result.omitted.join('；'):''}`)})}
         >
           保存完整离线报告（HTML）
         </HohoButton>
-        <HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{await validate();downloadContent(summaryText(report),'Hoooho-就诊重点摘要.txt','text/plain;charset=utf-8');setNotice('重点摘要已准备好，不含完整原文或照片')})}>保存重点摘要（文本）</HohoButton>
+        <HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{await validate();downloadContent(doctorBriefText(report),'Hoooho-就诊重点摘要.txt','text/plain;charset=utf-8');setNotice('已发起重点摘要下载，不含完整原文或照片；请在浏览器下载列表查看')})}>保存重点摘要（文本）</HohoButton>
+        <fieldset disabled={running}><legend>复制给 AI 的文字范围</legend><label><input type="radio" name="copy-scope" checked={copyMode==='brief'} onChange={()=>{setCopyMode('brief');setPromptText(makePrompt('brief',false))}}/>本次重点（默认）</label><label><input type="radio" name="copy-scope" checked={copyMode==='full'} onChange={()=>{setCopyMode('full');setPromptText(makePrompt('full',includeHistory))}}/>当前范围的完整资料</label>{copyMode==='full'&&<label><input type="checkbox" checked={includeHistory} onChange={e=>{setIncludeHistory(e.target.checked);setPromptText(makePrompt('full',e.target.checked))}}/>额外包含旧版情况单与编辑日志</label>}<p>约 {promptText.length} 字符 · 不含照片字节{copyMode==='brief'?'、无关旧问题、旧报告和修订日志':includeHistory?'；包含历史文本':'；不包含旧报告和修订日志'}。复制前可在下方编辑核对。</p></fieldset>
         <HohoButton variant="secondary" disabled={running} onClick={() => void run(copy)}>
           复制给 AI
         </HohoButton>
@@ -805,7 +812,7 @@ function ExportSheet({
         {notice && <p role="status">{notice}</p>}
         {fallback && (
           <label>
-            可复制的完整情况单
+            可复制的当前范围文本
             <textarea
               readOnly
               value={promptText}

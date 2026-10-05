@@ -90,6 +90,48 @@ async function width(page: Page) {
   expect(value.body).toBeLessThanOrEqual(value.width)
   expect(value.content).toBeLessThanOrEqual(value.client!)
 }
+
+test('反馈回归：范围倒置不保存，预览后确认、撤销、恢复全部与编号搜索',async({page},info)=>{
+ const headers={Authorization:`Bearer ${token}`}
+ await enter(page)
+ const read=async()=>(await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()).report
+ const before=await read()
+ const scope=page.getByRole('dialog',{name:'本次资料范围',exact:true})
+ await page.getByRole('button',{name:'资料范围',exact:true}).click()
+ await scope.getByRole('radio',{name:'选择情况与时间',exact:true}).check()
+ await scope.locator('input[type=checkbox]').first().check()
+ await scope.getByLabel('开始时间（选填）').fill('2026-09-20T00:00')
+ await scope.getByLabel('结束时间（选填）').fill('2026-09-01T00:00')
+ await expect(scope.getByRole('alert')).toContainText('开始时间不能晚于结束时间')
+ await expect(scope.getByRole('button',{name:'预览范围变化',exact:true})).toBeDisabled()
+ expect((await read()).version).toBe(before.version)
+ await scope.getByLabel('开始时间（选填）').fill('2026-09-01T00:00')
+ await scope.getByLabel('结束时间（选填）').fill('2026-09-02T00:00')
+ await scope.getByRole('button',{name:'预览范围变化',exact:true}).click()
+ await expect(scope.getByRole('status')).toContainText('将纳入')
+ expect((await read()).version).toBe(before.version)
+ await page.screenshot({path:info.outputPath('feedback-scope-preview.png')})
+ await scope.getByRole('button',{name:'确认范围并更新情况单',exact:true}).click()
+ await expect(scope).toHaveCount(0)
+ const narrowed=await read();expect(narrowed.sources.length).toBeLessThan(before.sources.length)
+ await page.getByRole('button',{name:/^(资料范围|调整 \/ 恢复资料范围)$/}).click()
+ await scope.getByRole('button',{name:'撤销上一次范围调整',exact:true}).click()
+ await expect(scope).toHaveCount(0)
+ expect((await read()).sources.length).toBe(before.sources.length)
+ await page.getByRole('button',{name:'资料范围',exact:true}).click()
+ await scope.getByRole('radio',{name:'全部可访问资料（恢复完整范围）',exact:true}).check()
+ await scope.getByRole('button',{name:'预览范围变化',exact:true}).click()
+ await scope.getByRole('button',{name:'确认范围并更新情况单',exact:true}).click()
+ await expect(scope).toHaveCount(0);expect((await read()).selection).toBeUndefined()
+ await chapter(page,'附件与完整依据');await page.locator('[data-all-sources] > summary').click()
+ const source=(await read()).sources[0]
+ await page.getByPlaceholder('搜索原文、日期或来源').fill(source.code.toLowerCase())
+ await expect(page.locator('.visit-source-row')).toHaveCount(1)
+ await page.getByPlaceholder('搜索原文、日期或来源').fill('不匹配任何资料的合成字符串')
+ await expect(page.getByRole('status').filter({hasText:/匹配 0/})).toBeVisible()
+ await expect(page.locator('.visit-source-group')).toHaveCount(0)
+ await width(page)
+})
 test('自动结果、九章目录、手机无溢出、主诉修改持久化及完整离线导出', async ({
   page,
 }, info) => {
@@ -199,7 +241,7 @@ test('取消、失败保留输入和旧版本；复制拒绝全文回退；无�
   )
   await page.getByRole('button', { name: '导出情况单', exact: true }).click()
   await page.getByRole('button', { name: '复制给 AI' }).click()
-  await expect(page.getByLabel('可复制的完整情况单')).toContainText(
+  await expect(page.getByLabel('可复制的当前范围文本')).toContainText(
     '相关时间线与原始依据：',
   )
   await page.screenshot({ path: info.outputPath('copy-fallback.png') })
@@ -331,10 +373,12 @@ test('v5 连续阅读、原图缩放、主题选图真实保存、独立导出�
   expect(html).not.toContain('Bearer');expect(html).not.toContain('record:s7');expect(html).not.toContain('event-a');expect(html).toContain('鸡蛋观察');expect(html).toContain('完整依据附录')
   const textDownload=page.waitForEvent('download');await exports.getByRole('button',{name:'保存重点摘要（文本）',exact:true}).click()
   const summaryFile=info.outputPath('v5-summary.txt');await(await textDownload).saveAs(summaryFile)
-  expect(await readFile(summaryFile,'utf8')).toContain('第九章导出核对标记')
+  const brief=await readFile(summaryFile,'utf8')
+  expect(brief).toContain('本次主诉');expect(brief).not.toContain('第九章导出核对标记')
+  await exports.getByRole('radio',{name:'当前范围的完整资料',exact:true}).check()
   await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw new Error('test denied')}}}))
   await exports.getByRole('button',{name:'复制给 AI',exact:true}).click()
-  const ai=await exports.getByRole('textbox',{name:'可复制的完整情况单'}).inputValue()
+  const ai=await exports.getByRole('textbox',{name:'可复制的当前范围文本'}).inputValue()
   expect(ai).toContain('第九章导出核对标记');expect(ai.indexOf('重点摘要')).toBeLessThan(ai.indexOf('完整原始依据'))
   if(browserName==='chromium'&&info.project.name==='desktop'){
     await exports.getByRole('button',{name:'打印 / 另存 PDF',exact:true}).click()
@@ -423,6 +467,9 @@ test('v5 导出期间来源变化或主动取消，不生成过期文件',async(
   await page.getByRole('button',{name:'保存完整离线报告（HTML）',exact:true}).click();await started
   const created=await(await page.request.post('/api/events/event-a/records',{headers,data:{type:'note',content:'导出竞态合成记录',occurredAt:'2026-09-01T10:00:00Z'}})).json()
   try{release();await expect(page.getByRole('dialog',{name:'导出情况单'}).getByRole('status')).toContainText('资料或版本已变化');expect(downloads).toEqual([])}finally{await page.request.delete(`/api/records/${created.id}`,{headers});await page.unroute(url)}
+  await page.getByRole('button',{name:'在此更新情况单',exact:true}).click()
+  await expect(page.getByRole('dialog',{name:'导出情况单'}).getByRole('status')).toContainText('已更新到当前资料')
+  expect((await(await page.request.get('/api/members/child-a/visit-sheet',{headers})).json()).stale).toBe(false)
   await page.getByRole('dialog',{name:'导出情况单'}).getByRole('button',{name:'关闭导出情况单',exact:true}).click()
   await page.getByRole('button',{name:'重新整理已有记录'}).click();await expect(page.getByRole('status').filter({hasText:'情况单已更新'})).toBeVisible()
   await page.getByRole('button',{name:'导出情况单',exact:true}).click()
@@ -468,6 +515,7 @@ test('v6 概览默认收起、两端病程、侧栏焦点、症状搜索不丢�
   expect(await page.locator('.visit-photos').evaluate(e=>e.nextElementSibling?.classList.contains('visit-question'))).toBeTruthy()
   const writes:string[]=[];page.on('request',r=>{if(r.url().includes('/api/medication-reminders')&&r.method()!=='GET')writes.push(r.url())})
   await chapter(page,'用药与处理')
+  await page.getByText(/展开用药计划与完整周历/).click()
   const med=page.locator('[data-readonly-reminder]')
   await expect(med).toHaveCount(1)
   await expect(med.getByRole('button',{name:/管理|归档|删除|撤回|已服用/})).toHaveCount(0)
@@ -478,9 +526,9 @@ test('v6 概览默认收起、两端病程、侧栏焦点、症状搜索不丢�
   await page.getByRole('dialog',{name:'原始依据'}).getByRole('button',{name:'关闭原始依据',exact:true}).click()
   expect(writes).toEqual([])
   await page.screenshot({path:info.outputPath('v6-medication-readonly.png')})
+  await page.getByText(/展开用药计划与完整周历/).click()
   for(const id of ['course','medication','allergy','history','temperature','growth','visits']){
-    const detail=page.locator(`#chapter-${id} > .visit-chapter-details`)
-    if(await detail.count()){await detail.locator(':scope > summary').click();await expect(detail).toHaveAttribute('open','');await width(page);await detail.locator(':scope > summary').click();await expect(detail).not.toHaveAttribute('open','')}
+    for(const detail of await page.locator(`#chapter-${id} > .visit-chapter-details`).all()){await detail.locator(':scope > summary').click();await expect(detail).toHaveAttribute('open','');await width(page);await detail.locator(':scope > summary').click();await expect(detail).not.toHaveAttribute('open','')}
   }
   await page.getByRole('button',{name:'章节目录',exact:true}).click()
   const directory=page.getByRole('dialog',{name:'章节目录'})
@@ -577,6 +625,7 @@ test('v6 单周全未来提醒也默认折叠，展开只查看来源',async({pa
     await route.fulfill({response,json:state})
   })
   await enter(page);await chapter(page,'用药与处理')
+  await page.getByText(/展开用药计划与完整周历/).click()
   const card=page.locator('[data-readonly-reminder]').first()
   await expect(card.locator('.visit-med-weeks')).toHaveCount(1)
   await expect(card.getByRole('button',{name:/未来计划/})).toHaveCount(0)

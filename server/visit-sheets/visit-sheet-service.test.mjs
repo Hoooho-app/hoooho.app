@@ -58,6 +58,25 @@ async function setup(t) {
   })
   return { svc, f, dir }
 }
+
+test('范围预览不保存，倒置范围拒绝且旧版不变，明确恢复全部可撤销筛选', async t => {
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const first=await svc.save(a,m,{expectedVersion:0,requestId:'scope-first'})
+  const invalid={eventIds:[f.events[0].id],includeBackground:false,from:'2026-09-20T00:00:00Z',to:'2026-09-01T00:00:00Z'}
+  await assert.rejects(svc.save(a,m,{expectedVersion:1,requestId:'scope-invalid',selection:invalid}),/倒置/)
+  assert.equal((await svc.get(a,m)).report.version,1)
+  const selection={eventIds:[f.events[0].id],includeBackground:false}
+  const preview=await svc.save(a,m,{expectedVersion:1,requestId:'scope-preview',selection,previewScope:true})
+  assert.equal(preview.report,null)
+  assert.equal(preview.scopePreview.totalSources,first.report.sources.length)
+  assert.ok(preview.scopePreview.sourceCount<preview.scopePreview.totalSources)
+  assert.equal((await svc.get(a,m)).report.version,1)
+  const narrowed=await svc.save(a,m,{expectedVersion:1,requestId:'scope-narrow',selection})
+  const restored=await svc.save(a,m,{expectedVersion:2,requestId:'scope-restore',selection:null})
+  assert.equal(restored.report.selection,undefined)
+  assert.equal(restored.report.sources.length,first.report.sources.length)
+  assert.deepEqual(restored.report.focus,narrowed.report.focus)
+})
 test('明确范围的报告按同一范围核验，不因未选来源假过期；照片编辑保留范围', async t => {
   const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id,eventId=f.events[0].id
   const selection={eventIds:[eventId],includeBackground:false},saved=await svc.save(a,m,{expectedVersion:0,requestId:'scoped',selection,focus:{mode:'custom',text:'合成范围',caseEventId:eventId}})

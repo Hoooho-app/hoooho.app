@@ -141,6 +141,7 @@ export interface VisitSheet {
   }>
 }
 export interface VisitSheetState {
+  scopePreview?: {sourceCount:number;totalSources:number;focusAvailable:boolean;excludedPhotos:number}
   aiCandidate?: {id:string;summary:NonNullable<VisitSheet['aiSummary']>}
   report: VisitSheet | null
   stale: boolean
