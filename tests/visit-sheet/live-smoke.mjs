@@ -122,7 +122,7 @@ try{
   const picker=page.getByRole('dialog',{name:'添加 / 调整照片'})
   await expect(picker.getByText(/上传完成，待保存/)).toBeVisible()
   await picker.getByRole('button',{name:'保存照片选择'}).click();await expect(picker).toHaveCount(0)
-  await page.reload();await expect(page.locator('.visit-photos img')).toHaveCount(1)
+  await page.reload();await waitForReport();await expect(page.locator('.visit-photos img')).toHaveCount(1,{timeout:15000})
   const withPhoto=(await api(`/api/members/${memberId}/visit-sheet`,undefined,'GET')).report
   const photo=withPhoto.photos.find(p=>withPhoto.selectedPhotoIds.includes(p.sourceId)),photoSource=withPhoto.sources.find(s=>s.id===photo.sourceId)
   assert.equal(photo.capturedAt,null);assert.ok(!photoSource.recordId);attachmentEvents.push(photoSource.eventId)
@@ -148,6 +148,10 @@ try{
 finally{
   // Only identifiers created above in this isolated synthetic account are removed.
   const cleanup=[]
+  // A timeout before reading the saved photo metadata must not orphan the run's
+  // upload event. This member was created above, so only its exact owned events
+  // are eligible for cleanup; no other member/account is affected.
+  if(memberId){const owned=await api('/api/events',undefined,'GET').catch(()=>[]);for(const e of owned.filter(e=>e.memberId===memberId))if(e.id!==eventId&&!attachmentEvents.includes(e.id))attachmentEvents.push(e.id)}
   for(const id of recordIds)await api(`/api/records/${id}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic record'))
   if(eventId)await api(`/api/events/${eventId}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic event'))
   for(const id of attachmentEvents)await api(`/api/events/${id}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic photo event'))
