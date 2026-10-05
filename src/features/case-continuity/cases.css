@@ -29,7 +29,8 @@
 .case-followup-page .continuity-tabs button { min-width: 0; min-height: var(--hoho-touch-target); border: 0; background: transparent; color: rgb(var(--hoho-color-text-primary)); font-size: var(--hoho-font-size-body-small); }
 .case-followup-page .continuity-tabs [aria-selected=true] { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
 .case-followup-card { padding: var(--hoho-space-4); border-color: rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); color: rgb(var(--hoho-color-text-primary)); overflow-wrap: anywhere; }
-.case-followup-card > h2 { font-size: var(--hoho-font-size-card-title); font-weight: 600; line-height: var(--hoho-line-height-body); }
+.case-followup-card-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: var(--hoho-space-2); }
+.case-followup-card-header > h2 { min-width: 0; font-size: var(--hoho-font-size-card-title); font-weight: 600; line-height: var(--hoho-line-height-body); }
 .case-followup-supplement { margin-top: var(--hoho-space-2); font-size: var(--hoho-font-size-body-small); }
 .case-followup-time { margin-top: var(--hoho-space-3); color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.7; font-variant-numeric: tabular-nums; }
 .case-followup-time > span { display: block; }
@@ -45,7 +46,7 @@
 .case-followup-timeline button,.case-followup-timeline a { min-height: var(--hoho-touch-target); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); }
 .case-followup-primary-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .case-followup-primary-actions .hoho-button { min-width: 0; min-height: var(--hoho-touch-target); padding-inline: var(--hoho-space-1); font-size: var(--hoho-font-size-body-small); white-space: normal; }
-.case-followup-state-action { display: flex; justify-content: flex-end; margin-top: var(--hoho-space-3); }
+.case-followup-state-action { display: flex; justify-content: flex-end; }
 .case-followup-state-action .hoho-button { min-height: var(--hoho-touch-target); background: rgb(var(--hoho-color-surface-subtle)); font-size: var(--hoho-font-size-caption); }
 .case-followup-feedback { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); font-size: var(--hoho-font-size-body-small); color: rgb(var(--hoho-color-primary)); }
 .case-inline-materials,.symptom-record-inline { border-top: 1px solid rgb(var(--hoho-color-border)); padding-top: var(--hoho-space-3); margin-top: var(--hoho-space-3); }
