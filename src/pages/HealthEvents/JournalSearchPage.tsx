@@ -95,6 +95,6 @@ export function JournalSearchPage() {
       {normalizedQuery && !loading && !error && results.length === 0 && <div className="journal-search-empty"><strong>没有找到相关随记</strong><span>换个名称试试</span></div>}
       {normalizedQuery && error && <div className="journal-search-empty" role="alert"><strong>{error}</strong><button onClick={retry} type="button">重新加载</button></div>}
     </section>
-    {selected && <JournalRecordDetail eventId={selected.eventId} recordId={selected.recordId} onChanged={() => undefined} onClose={() => setSelected(null)} />}
+    {selected && <JournalRecordDetail eventId={selected.eventId} recordId={selected.recordId} onChanged={retry} onClose={() => setSelected(null)} />}
   </main>
 }

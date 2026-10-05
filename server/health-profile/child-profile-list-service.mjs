@@ -1,3 +1,4 @@
+import { ProfileSectionStore } from './profile-section-store.mjs'
 import path from 'node:path'
 import {createHash,randomUUID} from 'node:crypto'
 import {JsonStore} from '../auth/storage/json-store.mjs'
@@ -35,7 +36,7 @@ export class ChildProfileListService{
   constructor({dataDirectory,now=()=>new Date()}){
     this.directory=dataDirectory;this.now=now;this.events=new HealthEventService({dataDirectory})
     this.records=new HealthEventRecordRepository(dataDirectory)
-    this.sections=new JsonStore(path.join(dataDirectory,'health-profile-sections.json'),{sections:[]})
+    this.sections=new ProfileSectionStore(dataDirectory)
     this.state=new JsonStore(path.join(dataDirectory,'child-profile-list-state.json'),{members:[],requests:[]})
   }
   async context(accountId,memberId,kind){

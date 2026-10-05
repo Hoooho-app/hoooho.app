@@ -16,10 +16,10 @@ const quickQuestions = ['是否需要就医', '应该挂什么科', '还缺哪�
 export function AskAIWorkspace({ context }: { context: HealthEventPromptContext }) {
   const groups = useMemo(() => getPromptInformationGroups(context), [context])
   const allItemIds = useMemo(() => getAllPromptItemIds(context), [context])
-  const summary = useMemo(() => getPromptInformationSummary(context), [context])
   const contextKey = `${context.currentMemberId}:${context.event.id}`
   const [question, setQuestion] = useState('')
   const [selected, setSelected] = useState<string[]>(allItemIds)
+  const summary = useMemo(() => getPromptInformationSummary(context, selected), [context, selected])
   const [adjusting, setAdjusting] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [generated, setGenerated] = useState(false)
@@ -54,6 +54,8 @@ export function AskAIWorkspace({ context }: { context: HealthEventPromptContext 
   const updateSelection = (next: string[]) => {
     selectionTouchedRef.current = true
     setSelected(next)
+    setGenerated(false)
+    setPrompt('')
     setFeedback('')
   }
   const toggleItem = (id: string) => updateSelection(selectedSet.has(id) ? selected.filter((item) => item !== id) : [...selected, id])
@@ -125,10 +127,10 @@ export function AskAIWorkspace({ context }: { context: HealthEventPromptContext 
       <HealthCard className="ask-ai-summary-card shadow-none">
         <div className="ask-ai-summary-card__heading">
           <span className="ask-ai-summary-card__icon"><Check size={17} /></span>
-          <span><strong>已准备完整健康信息</strong><small>共 {summary.totalCount} 项 · 仅包含「{context.member.name}」的信息</small></span>
+          <span><strong>{summary.totalCount === allItemIds.length ? '已准备完整健康信息' : '已准备所选健康信息'}</strong><small>共 {summary.totalCount} 项 · 仅包含「{context.member.name}」的信息</small></span>
         </div>
         <dl className="ask-ai-summary-counts">
-          {groups.filter((group) => group.items.length > 0).map((group) => <div key={group.id}><dt>{group.label}</dt><dd>{group.items.length} {group.id === 'history' || group.id === 'attachments' ? '个' : group.id === 'profile' ? '项' : '条'}</dd></div>)}
+          {groups.filter((group) => summary.groupCounts[group.id] > 0).map((group) => <div key={group.id}><dt>{group.label}</dt><dd>{summary.groupCounts[group.id]} {group.id === 'history' || group.id === 'attachments' ? '个' : group.id === 'profile' ? '项' : '条'}</dd></div>)}
         </dl>
         <button className="ask-ai-adjust-trigger" onClick={() => setAdjusting((current) => !current)} type="button">
           <Settings2 size={17} />查看和调整{adjusting ? <ChevronUp size={17} /> : <ChevronDown size={17} />}

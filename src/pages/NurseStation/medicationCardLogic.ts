@@ -68,8 +68,9 @@ export function reminderActionState(reminder: MedicationReminderDto, now: Date) 
     historical,
     future,
     todayCompleted,
+    todayScheduledCompleted,
     todayDone,
-    todayTotal: Math.max(todayOccurrences.length, todayCompleted),
+    todayTotal: todayOccurrences.length,
     takeLabel: allComplete ? '疗程已完成' : todayDone ? '今日已完成' : historical ? '记录服用' : '已服用'
   }
 }

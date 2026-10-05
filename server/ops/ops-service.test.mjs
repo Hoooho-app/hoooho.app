@@ -7,6 +7,15 @@ import { OpsService, getNextOpsRunAt, initialBillingSources } from './ops-servic
 
 const pixel = { name: 'billing.png', type: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', privacyConfirmed: true }
 
+test('overview counts only enabled sources and uses the Shanghai calendar day', async () => {
+  const now = new Date('2026-10-06T00:30:00+08:00')
+  const sources = initialBillingSources.map((source, index) => ({ ...source, enabled: index < 2, lastSuccessAt: index === 0 ? '2026-10-05T23:30:00+08:00' : now.toISOString(), status: index === 1 ? 'failed' : index === 2 ? 'relogin' : 'success' }))
+  const service = new OpsService({ store: { read: async () => ({ sources, snapshots: [], inactiveSources: [] }) } })
+  assert.deepEqual((await service.list(now)).summary, { total: 2, updatedToday: 1, relogin: 0, failed: 1 })
+  sources[1].lastSuccessAt = 'invalid'
+  assert.equal((await service.list(now)).summary.updatedToday, 0)
+})
+
 test('initializes the focused billing source catalog without credentials', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'hoho-billing-'))
   const result = await new OpsService({ dataDirectory: directory }).list(new Date('2026-09-02T08:00:00+08:00'))
@@ -53,8 +62,9 @@ test('does not store duplicate successful images', async () => {
 test('failed collection preserves the last successful snapshot and records a safe failure', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'hoho-billing-'))
   const service = new OpsService({ dataDirectory: directory, collectors: { railway: async () => { throw Object.assign(new Error('sensitive provider error'), { code: 'AUTH_REQUIRED' }) } } })
-  const success = await service.addManualSnapshot('railway', pixel, new Date('2026-09-01T08:05:00+08:00'))
-  const failed = await service.refresh('railway', new Date('2026-09-02T08:05:00+08:00'))
+  const attemptTime = new Date(), successTime = new Date(attemptTime.getTime() - 86_400_000)
+  const success = await service.addManualSnapshot('railway', pixel, successTime)
+  const failed = await service.refresh('railway', attemptTime)
   assert.equal(failed.status, 'relogin')
   assert.equal(failed.latestSnapshot.id, success.latestSnapshot.id)
   assert.equal(failed.lastFailureReason, '登录会话已失效，需要重新授权。')

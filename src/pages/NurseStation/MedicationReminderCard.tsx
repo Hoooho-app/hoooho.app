@@ -46,7 +46,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
   const [drag, setDrag] = useState(0)
   const [managementOpen, setManagementOpen] = useState(false)
   const activeCompletions = reminder.completions.filter((item) => !item.undoneAt)
-  const { allComplete, due, next, historical, future, todayCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
+  const { allComplete, due, next, historical, future, todayCompleted, todayScheduledCompleted, todayDone, todayTotal, takeLabel } = reminderActionState(reminder, now)
   const archived = reminder.status === 'archived'
   const courseEnded = reminderCourseText(reminder, now).includes('疗程已结束')
   const actionOffset = archived ? 72 : 144
@@ -91,7 +91,8 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           <h3><span><Pill /></span>{reminder.plan.medicationName}</h3>
           <p>疗程：{reminderCoursePlanText(reminder)}{courseEnded && ' · 疗程已结束'}</p>
           <p>用法：每次{reminder.plan.amount}{reminder.plan.unit}（{routeLabel(reminder.plan.route)}）</p>
-          <p className="medication-course-card__today">今日：{todayTotal === 0 ? '无计划' : <><strong className={todayCompleted > 0 ? 'has-completed' : ''}>{todayCompleted}</strong><span>/{todayTotal}</span></>}</p>
+          <p className="medication-course-card__today">今日计划：{todayTotal === 0 ? '无计划' : <><strong className={todayScheduledCompleted > 0 ? 'has-completed' : ''}>{todayScheduledCompleted}</strong><span>/{todayTotal}</span></>}</p>
+          {todayCompleted !== todayScheduledCompleted && <p className="medication-course-card__today">按实际服用时间：今日 {todayCompleted} 次</p>}
           {historical && !archived && <p className="medication-course-card__pending">待确认计划：{next && formatReminderOccurrence(next, reminder.plan.timezone, now)} · 不代表未服用</p>}
           <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : future ? formatReminderOccurrence(future, reminder.plan.timezone, now) : '无未来计划'}</p>
           {historical && !archived && <p>点击“记录服用”仍按当前服用时间记录，不自动补为过去已服用。</p>}

@@ -219,7 +219,9 @@ export class FeedbackService {
       const current = normalizeData(raw), index = current.feedback.findIndex((item) => item.id === feedbackId)
       if (index < 0) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
       const feedback = [...current.feedback]
-      feedback[index] = { ...feedback[index], lastOpsViewedAt: viewedAt }
+      const item = feedback[index]
+      const firstTimes = [item.firstOpsViewedAt, item.lastOpsViewedAt, viewedAt].map(value => Date.parse(value)).filter(value => Number.isFinite(value) && value >= Date.parse(item.createdAt))
+      feedback[index] = { ...item, firstOpsViewedAt: firstTimes.length ? new Date(Math.min(...firstTimes)).toISOString() : null, lastOpsViewedAt: viewedAt }
       return { ...current, feedback }
     })
     return this.#toOpsView(data.feedback.find((entry) => entry.id === feedbackId), data, true)
@@ -246,7 +248,7 @@ export class FeedbackService {
       const messages = officialReply ? [...data.messages, { id: randomUUID(), feedbackId, authorAccountId: actorAccountId, kind: 'user-reply', text: officialReply, createdAt, readByUserAt: null }] : data.messages
       return { ...data, feedback, statusHistory: history, messages }
     })
-    return this.getForOps(feedbackId)
+    return this.getForOps(feedbackId, now)
   }
 
   async addOpsMessage(actorAccountId, feedbackId, input, now = new Date()) {
@@ -259,7 +261,7 @@ export class FeedbackService {
       if (!data.feedback.some((item) => item.id === feedbackId)) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
       return { ...data, messages: [...data.messages, { id: randomUUID(), feedbackId, authorAccountId: actorAccountId, kind, text, createdAt, readByUserAt: kind === 'user-reply' ? null : createdAt }], feedback: data.feedback.map((item) => item.id === feedbackId ? { ...item, updatedAt: createdAt } : item) }
     })
-    return this.getForOps(feedbackId)
+    return this.getForOps(feedbackId, now)
   }
 
   async readAttachmentWithAccess(attachmentId, expires, signature, now = Date.now()) {
@@ -323,10 +325,13 @@ export class FeedbackService {
 
   #overview(data) {
     const count = (status) => data.feedback.filter((item) => normalizeStatus(item.status) === status).length
-    const viewed = data.statusHistory.filter((entry) => ['viewed', 'reviewing', 'evaluating'].includes(entry.status)).map((entry) => {
-      const item = data.feedback.find((feedback) => feedback.id === entry.feedbackId)
-      return item ? new Date(entry.createdAt).getTime() - new Date(item.createdAt).getTime() : null
-    }).filter(Number.isFinite)
+    const viewed = data.feedback.flatMap((item) => {
+      const createdAt = Date.parse(item.createdAt)
+      if (!Number.isFinite(createdAt)) return []
+      const candidates = [item.firstOpsViewedAt, item.lastOpsViewedAt, ...data.statusHistory.filter(entry => entry.feedbackId === item.id && ['viewed', 'reviewing', 'evaluating'].includes(entry.status)).map(entry => entry.createdAt)]
+        .map(value => Date.parse(value)).filter(value => Number.isFinite(value) && value >= createdAt)
+      return candidates.length ? [Math.min(...candidates) - createdAt] : []
+    })
     return { new: count('received'), pendingView: count('received'), viewed: count('reviewing'), evaluating: count('planned'), improving: count('in_progress'), resolved: count('improved'), duplicates: count('merged'), withSupplements: new Set(data.messages.filter((item) => item.kind === 'user-supplement').map((item) => item.feedbackId)).size, unreadSupplements: data.feedback.filter((item) => hasUnreadSupplement(item, data)).length, averageFirstViewMs: viewed.length ? Math.round(viewed.reduce((sum, value) => sum + value, 0) / viewed.length) : null }
   }
 

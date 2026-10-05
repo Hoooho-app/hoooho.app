@@ -1,3 +1,4 @@
+import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import fieldLabels from '../../../shared/ai-business-field-labels.json' with {type:'json'}
@@ -39,7 +40,7 @@ export class AIBusinessService {
   constructor(options) {
     this.directory = options.dataDirectory
     this.store = new JsonStore(path.join(this.directory,'ai-business-drafts.json'),{drafts:[]})
-    this.profiles = new JsonStore(path.join(this.directory,'health-profile-sections.json'),{sections:[]})
+    this.profiles = new ProfileSectionStore(this.directory)
     this.model = options.model ?? new BusinessModel(options)
     this.events = options.events ?? new HealthEventService(options)
     // Saving is not another generation request. Existing organization services

@@ -75,7 +75,7 @@ test('任务卡展示真实下次时间、可换行标题和可读详情', () =>
   assert.match(medicationCard, /下次：\{archived[\s\S]*formatReminderOccurrence/)
   assert.match(medicationCard, /疗程：/)
   assert.match(medicationCard, /用法：/)
-  assert.match(medicationCard, /今日：/)
+  assert.match(medicationCard, /今日计划：/)
   assert.match(medicationCard, /medication-course-card__week/)
   assert.match(medicationCard, /task-management__trigger/)
 })

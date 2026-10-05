@@ -33,6 +33,17 @@ const isTemperature = (r) =>
   r.type === 'temperature' ||
   r.sourceType === 'measurement' ||
   finite(r.journal?.symptom?.symptomSpecificData?.currentTemperature)
+function singleTextTemperature(value) {
+  const raw = text(value)
+  const matches = [...raw.matchAll(/(-?\d+(?:\.\d+)?)\s*(?:℃|°C|摄氏度)/gi)]
+  if (matches.length !== 1) return null
+  // Ranges, approximations and hypothetical/negated statements are not exact measurements.
+  if (/-?\d+(?:\.\d+)?\s*(?:℃|°C|摄氏度)?\s*(?:[~～–—-]|至|到)\s*-?\d+(?:\.\d+)?\s*(?:℃|°C|摄氏度)/i.test(raw)) return null
+  const prefix = raw.slice(0, matches[0].index)
+  const suffix = raw.slice(matches[0].index + matches[0][0].length)
+  if (/(?:约|大概|可能|超过|高于|低于|没有|未|不是|并非|如果|假如)[^，。；\n]{0,16}$/.test(prefix) || /^\s*(?:左右|上下|以上|以下)/.test(suffix)) return null
+  return Number(matches[0][1])
+}
 const recordText = (r) =>
   [
     r.content,
@@ -191,6 +202,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
+        projectionRevision: 'temperature-statistics-v2',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -256,18 +268,22 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     })
   }
   const allRecords = input.records
-    .map((r) => ({
-      ...r,
-      occurredAt: r.journal?.timePrecision === 'unknown' ? null : r.occurredAt,
-      organizedFacts: (input.organizations ?? [])
+    .map((r) => {
+      const facts = (input.organizations ?? [])
         .filter(
           (o) =>
             o.recordId === r.id &&
             (!o.sourceRecordUpdatedAt ||
               o.sourceRecordUpdatedAt === r.updatedAt),
         )
-        .flatMap((o) => o.healthAIOutput?.facts ?? []).filter(eligibleFact),
-    }))
+        .flatMap((o) => o.healthAIOutput?.facts ?? [])
+      return {
+        ...r,
+        occurredAt: r.journal?.timePrecision === 'unknown' ? null : r.occurredAt,
+        organizedFacts: facts.filter(eligibleFact),
+        hasTemperatureFacts: facts.some(f => f.type === 'temperature'),
+      }
+    })
     .sort(byTime)
   const records = allRecords.filter(r => !r.caseContext || (r.caseContext.identity !== 'external_ai' && r.caseContext.identity !== 'pending' && (r.caseContext.identity === 'parent' || r.caseContext.confirmed)))
   for (const r of allRecords)
@@ -422,16 +438,6 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const temperature = []
   for (const r of records) {
     const specific = r.journal?.symptom?.symptomSpecificData?.currentTemperature
-    const match = isTemperature(r)
-      ? text(r.content).match(
-          /(?:体温\s*[：:]?\s*)?(-?\d+(?:\.\d+)?)\s*(?:℃|°C|摄氏度)/i,
-        )
-      : null
-    const measured = finite(specific)
-      ? specific
-      : match
-        ? Number(match[1])
-        : null
     const detail =
       [
         {
@@ -446,21 +452,23 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       ]
         .filter(Boolean)
         .join(' · ') || '测量部位、方法及设备未提供'
-    if (measured !== null && date(r.occurredAt))
+    if (finite(specific) && date(r.occurredAt))
       temperature.push({
-        value: measured,
+        value: specific,
         at: r.occurredAt,
         sourceId: `record:${r.id}`,
         detail,
+        measurementMethod: r.measurementMethod,
+        measurementDevice: r.measurementDevice,
       })
-    else
+    else if (r.hasTemperatureFacts) {
       for (const f of r.organizedFacts.filter(
         (f) =>
           f.type === 'temperature' &&
           finite(f.temperature?.min) &&
           f.temperature.min === f.temperature.max,
       )) {
-        const at = date(f.time?.resolvedStart) || date(r.occurredAt)
+        const at = r.journal?.timePrecision === 'unknown' ? null : date(f.time?.resolvedStart) || date(r.occurredAt)
         if (at)
           temperature.push({
             value: f.temperature.min,
@@ -471,6 +479,10 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
             measurementDevice: f.measurementDevice ?? r.measurementDevice,
           })
       }
+    } else {
+      const measured = isTemperature(r) ? singleTextTemperature(r.content) : null
+      if (measured !== null && date(r.occurredAt)) temperature.push({ value: measured, at: r.occurredAt, sourceId: `record:${r.id}`, detail, measurementMethod: r.measurementMethod, measurementDevice: r.measurementDevice })
+    }
   }
   temperature.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   if (temperature.length)

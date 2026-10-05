@@ -93,8 +93,19 @@ test('补记逾期服用后按实际服用日更新今日计数', () => {
 
   const state = reminderActionState(value, new Date('2026-09-02T00:01:00.000Z'))
   assert.deepEqual({ count: state.todayCompleted, total: state.todayTotal }, { count: 1, total: 1 })
+  assert.equal(state.todayScheduledCompleted, 0)
   value.completions[0] = { ...value.completions[0], undoneAt: '2026-09-02T00:02:00.000Z' }
   assert.equal(reminderActionState(value, new Date('2026-09-02T00:02:00.000Z')).todayCompleted, 0)
+})
+
+test('多次补记历史服药不扩大今日计划分母，也不冒充今日计划完成', () => {
+  const value = reminder(3)
+  value.completions = value.occurrences.slice(0, 3).map((occurrence, index) => ({ id: `backfill-${index}`, occurrenceId: occurrence.id, scheduledAt: occurrence.scheduledAt, actualTakenAt: '2026-09-03T00:01:00Z', completedAt: '2026-09-03T00:01:00Z', undoneAt: null, eventId: 'event', recordId: `record-${index}` }))
+  value.occurrences = value.occurrences.map((occurrence, index) => index < 3 ? { ...occurrence, completed: true, completion: value.completions[index] } : occurrence)
+  const state = reminderActionState(value, new Date('2026-09-03T00:02:00Z'))
+  assert.deepEqual({ actual: state.todayCompleted, planned: state.todayTotal, completedPlan: state.todayScheduledCompleted }, { actual: 3, planned: 2, completedPlan: 0 })
+  const afterCourse = reminderActionState(value, new Date('2026-09-04T00:02:00Z'))
+  assert.equal(afterCourse.todayTotal, 0)
 })
 
 test('历史未确认计划不冒充未来下次，也不自动归档或补为已服用', () => {

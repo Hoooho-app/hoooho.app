@@ -81,12 +81,14 @@ function publicSource(item, snapshots) {
 }
 
 function summary(sources, now = new Date()) {
-  const day = now.toLocaleDateString('en-CA')
+  const calendar = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' })
+  const day = calendar.format(now)
+  const enabled = sources.filter((item) => item.enabled)
   return {
-    total: sources.filter((item) => item.enabled).length,
-    updatedToday: sources.filter((item) => item.lastSuccessAt && new Date(item.lastSuccessAt).toLocaleDateString('en-CA') === day).length,
-    relogin: sources.filter((item) => item.status === 'relogin').length,
-    failed: sources.filter((item) => item.status === 'failed').length
+    total: enabled.length,
+    updatedToday: enabled.filter((item) => item.lastSuccessAt && Number.isFinite(Date.parse(item.lastSuccessAt)) && calendar.format(new Date(item.lastSuccessAt)) === day).length,
+    relogin: enabled.filter((item) => item.status === 'relogin').length,
+    failed: enabled.filter((item) => item.status === 'failed').length
   }
 }
 

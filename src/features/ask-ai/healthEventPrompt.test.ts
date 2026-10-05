@@ -36,6 +36,25 @@ test('defaults expose every available item instead of a small preselection', () 
   assert.ok(all.includes('attachment:a1'))
 })
 
+test('selection counts match generated records and do not include excluded attachments', () => {
+  const selected = ['basic:member', 'raw:r2']
+  const summary = getPromptInformationSummary(baseContext, selected)
+  assert.equal(summary.totalCount, 2)
+  assert.equal(summary.recordCount, 1)
+  assert.equal(summary.attachmentCount, 0)
+  assert.equal(summary.groupCounts.attachments, 0)
+  const prompt = buildHealthEventPrompt(baseContext, selected, '测试问题')
+  assert.match(prompt, /共汇集 2 项.*原始记录 1 条/)
+  assert.doesNotMatch(prompt, /血常规.jpg/)
+  assert.equal(getPromptInformationSummary(baseContext, []).totalCount, 0)
+})
+
+test('manual uploads embedded in excluded profile entries are not counted', () => {
+  const context = { ...baseContext, healthProfile: [{ id: 'profile', title: '健康资料', entries: [{ id: 'report', lines: ['原件需要在外部 AI 中手动上传'] }] }] }
+  assert.equal(getPromptInformationSummary(context, ['basic:member']).attachmentCount, 0)
+  assert.equal(getPromptInformationSummary(context, ['profile:profile:report']).attachmentCount, 1)
+})
+
 test('strictly stops when current member is missing or does not own the event', () => {
   assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'self' }, getAllPromptItemIds(baseContext), '是否需要就医'), /先选择人物/)
   assert.throws(() => buildHealthEventPrompt({ ...baseContext, currentMemberId: 'm2' }, getAllPromptItemIds(baseContext), '是否需要就医'), /所选人物不一致/)
