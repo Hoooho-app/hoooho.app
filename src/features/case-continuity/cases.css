@@ -1,5 +1,5 @@
 .continuity-home{display:grid;gap:10px;margin:12px 0}
-.continuity-record-entry{display:grid;grid-template-columns:minmax(0,1fr) 76px;align-items:center;gap:10px;min-height:114px;padding:12px 10px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-primary-soft))}
+.continuity-record-entry{display:grid;grid-template-columns:minmax(0,1fr) 68px;align-items:center;gap:8px;min-height:114px;padding:12px 8px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-primary-soft))}
 .continuity-record-entry__record{display:flex;align-items:center;width:100%;min-width:0;min-height:88px;border:0;padding:0;background:transparent;color:rgb(var(--hoho-color-text-primary));text-align:left;cursor:pointer;border-radius:var(--hoho-radius-control);transition:background var(--hoho-motion-fast)}
 .continuity-record-entry__record:hover,.continuity-record-entry__record:active{background:rgb(var(--hoho-color-primary-border)/.45)}.continuity-record-entry__record:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
 .continuity-record-entry__copy{display:block;width:100%;min-width:0}.continuity-record-entry__example{display:block;min-height:66px;font-size:13px;font-weight:400;line-height:22px;overflow-wrap:anywhere}.continuity-record-entry__example>span{white-space:normal}.continuity-record-entry__example i{display:inline-block;width:1.5px;height:12px;margin:0 0 -2px 1px;background:currentColor;animation:nurse-fact-caret 760ms steps(1) infinite}.continuity-record-entry__example[data-typewriter-static=true] i{visibility:hidden;animation:none}
@@ -12,7 +12,6 @@
 .continuity-record-entry__action:active:not(:disabled)::before{background:rgb(var(--hoho-color-primary-active))}
 .continuity-record-entry__buttons>.continuity-record-entry__followup::before{border:1px solid rgb(var(--hoho-color-primary-border));background:rgb(var(--hoho-color-surface))}
 .continuity-record-entry__buttons>.continuity-record-entry__followup:hover:not(:disabled)::before{background:rgb(var(--hoho-color-primary-soft))}
-.continuity-record-entry__label{display:block;margin-bottom:4px;color:rgb(var(--hoho-color-text-secondary));font-size:10px;line-height:14px}
 .continuity-record-entry__buttons>.continuity-record-entry__followup{padding-inline:2px}
 .continuity-record-entry__followup .hoho-button__content{gap:2px}
 .continuity-record-entry__count{font-size:10px;line-height:12px;font-variant-numeric:tabular-nums;padding-inline:2px}

@@ -5,7 +5,7 @@ import { WebPageHeader } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { calculateGrowthPosition, exactAgeInMonths, heightMeasureLabel } from '../../features/health-profile/utils/childGrowthReference'
 import { requiresMeasurementConfirmation } from '../../features/health-profile/utils/growthTrend'
-import { resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
+import { resolveCurrentGrowthMeasurements, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import { familyMemberService } from '../../services/familyMembers'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
@@ -87,6 +87,7 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.id, token])
 
+  const savedGrowth = useMemo(() => resolveCurrentGrowthSnapshot(member, records, member.id), [member, records])
   const measureItems = useMemo(() => metricRecords(records, measure), [measure, records]), latest = measureItems.at(-1)
   const latestValue = latest ? (measure === 'height' ? latest.heightCm : latest.weightKg) : null
   const latestPosition = latest && latestValue != null ? calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: latest.measuredAt, measure, value: latestValue }) : null
@@ -157,9 +158,9 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
         <GrowthCurveChart measure={measure} member={member} records={records} />
       </section>
       <section className="growth-update-form growth-data-measurement" aria-busy={saveState === 'saving'}><header><h1>记录本次测量</h1><input aria-label="测量日期" max={localToday()} onChange={(event) => setDate(event.target.value)} type="date" value={measuredAt} /></header>
-        <div className="growth-step-grid"><GrowthStepCard delta={heightDelta == null ? heightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(heightDelta)} cm`} error={!heightValid ? '请输入 20–260 cm' : ''} label={heightMeasureLabel(member.birthday, measuredAt)}>
+        <div className="growth-step-grid"><GrowthStepCard savedDate={savedGrowth.heightMeasuredAt} delta={heightDelta == null ? heightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(heightDelta)} cm`} error={!heightValid ? '请输入 20–260 cm' : ''} label={heightMeasureLabel(member.birthday, measuredAt)}>
           <button aria-label="身高减少0.1厘米" disabled={!validHeight(height) || heightAtFloor} onClick={() => updateHeight(stepHeightValue(height, -1, initialHeightRef.current))} type="button"><Minus /></button>{editing === 'height' ? <input aria-label="手动编辑身高 cm" autoFocus inputMode="decimal" max="260" min="20" onBlur={() => setEditing(null)} onChange={(event) => updateHeight(event.target.value)} step="0.1" type="number" value={height} /> : <button className="growth-step-value" onClick={() => setEditing('height')} type="button"><strong>{height || '—'}</strong><small>cm</small><Pencil aria-hidden="true" /></button>}<button aria-label="身高增加0.1厘米" disabled={!validHeight(height)} onClick={() => updateHeight(stepHeightValue(height, 1, initialHeightRef.current))} type="button"><Plus /></button>
-        </GrowthStepCard><GrowthStepCard delta={weightDelta == null ? weightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(weightDelta)} kg`} error={!weightValid ? '请输入 1–500 kg，保留 1 位小数' : ''} label="体重">
+        </GrowthStepCard><GrowthStepCard savedDate={savedGrowth.weightMeasuredAt} delta={weightDelta == null ? weightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(weightDelta)} kg`} error={!weightValid ? '请输入 1–500 kg，保留 1 位小数' : ''} label="体重">
           <button aria-label="体重减少0.1千克" disabled={!validWeightKg(weightKg) || Number(weightKg) <= 1} onClick={() => updateWeight(stepWeightKgValue(weightKg, -1))} type="button"><Minus /></button>{editing === 'weight' ? <input aria-label="手动编辑体重 kg" autoFocus inputMode="decimal" max="500" min="1" onBlur={() => setEditing(null)} onChange={(event) => updateWeight(event.target.value)} step="0.1" type="number" value={weightKg} /> : <button className="growth-step-value" onClick={() => setEditing('weight')} type="button"><strong>{weightKg || '—'}</strong><small>kg</small><Pencil aria-hidden="true" /></button>}<button aria-label="体重增加0.1千克" disabled={!validWeightKg(weightKg)} onClick={() => updateWeight(stepWeightKgValue(weightKg, 1))} type="button"><Plus /></button>
         </GrowthStepCard></div>
         <HohoButton className="growth-update-save" disabled={!formValid} fullWidth loading={saveState === 'saving'} onClick={() => void save()} size="large">保存本次更新</HohoButton>
@@ -171,6 +172,6 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
   </div></main>
 }
 
-function GrowthStepCard({ children, delta, error, label }: { children: ReactNode; delta: string; error: string; label: string }) {
-  return <article className="growth-step-card"><h2>{label}</h2><div>{children}</div><p>{delta}</p>{error && <em role="alert">{error}</em>}</article>
+function GrowthStepCard({ children, delta, error, label, savedDate }: { children: ReactNode; delta: string; error: string; label: string; savedDate: string | null }) {
+  return <article className="growth-step-card"><header className="growth-step-card__heading"><h2>{label}</h2>{savedDate && <time dateTime={savedDate} title={`最近保存的${label}测量日期 ${savedDate}`} aria-label={`最近保存的${label}记录，${savedDate}`}>{savedDate.slice(5).replace('-', '/')}</time>}</header><div>{children}</div><p>{delta}</p>{error && <em role="alert">{error}</em>}</article>
 }

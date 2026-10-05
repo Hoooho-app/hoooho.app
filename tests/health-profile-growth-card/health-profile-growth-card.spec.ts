@@ -24,6 +24,7 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await expect(page.getByText(/保存第一次身长或身高测量/)).toBeVisible()
   await expect(page.getByText('成长解读')).toBeVisible()
   await expect(page.getByText(/当前没有数据，不能判断位置或趋势/)).toBeVisible()
+  await expect(page.locator('.growth-step-card__heading time')).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(testInfo.project.use.viewport?.width ?? 1280)
 
   const historyLength = await page.evaluate(() => history.length)
@@ -42,6 +43,11 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await expect(page.getByText('已保存，并加入成长记录')).toBeVisible()
   await expect(page.locator('.growth-data-latest')).toContainText('82.0 cm')
   await expect(page.locator('.growth-chart-record')).toHaveCount(1)
+  for (const card of await page.locator('.growth-step-card').all()) {
+    await expect(card.locator('time')).toHaveAttribute('datetime', today())
+    await expect(card.locator('time')).toHaveText(today().slice(5).replace('-', '/'))
+    expect(await card.evaluate(el => { const box=el.getBoundingClientRect(),date=el.querySelector('time')!.getBoundingClientRect(),label=el.querySelector('h2')!.getBoundingClientRect();return date.left>=label.right && date.right<=box.right })).toBe(true)
+  }
 
   await page.getByRole('button', { name: '身高增加0.1厘米' }).click()
   await page.route('**/api/growth-measurements', async (route) => route.request().method() === 'POST' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: '测试保存失败' }) }) : route.continue())
@@ -55,6 +61,8 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
 
   const backfill = '2026-08-10'
   await page.getByLabel('测量日期').fill(backfill)
+  // The editable new-measurement date must not relabel the last saved measurement.
+  for (const date of await page.locator('.growth-step-card__heading time').all()) await expect(date).toHaveAttribute('datetime', today())
   await page.getByRole('button', { name: /— cm/ }).click()
   await page.getByLabel('手动编辑身高 cm').fill('80.0')
   await page.getByLabel('手动编辑身高 cm').blur()
