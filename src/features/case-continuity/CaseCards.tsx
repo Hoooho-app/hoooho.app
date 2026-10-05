@@ -21,14 +21,19 @@ export function FollowUpHome() {
   const care = useSettingsStore(state => state.care)
   const startRecord = () => navigate('/smart-record')
   const { count, status } = useHomeFollowUpCount()
-  return <section className="continuity-home" aria-label="情况速记与跟进列表">
+  return <section className="continuity-home" aria-label="症状速记与跟进列表">
     <div className="continuity-record-entry">
-      <button aria-label="症状描述示例，情况速记" className="continuity-record-entry__record" onClick={startRecord} type="button">
-        <span className="continuity-record-entry__copy"><NurseStationFactTypewriter clearOnComplete className="continuity-record-entry__example" facts={quickNoteExamples} prefix="示例：" highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} /></span>
-      </button>
+      <p className="continuity-record-entry__hint">可以这样记录</p>
+      <div className="continuity-record-entry__body">
+        {/* Shared grid cells reserve the longest example's natural height at this width/font size. */}
+        <div className="continuity-record-entry__reserve" aria-hidden="true">{quickNoteExamples.map(example => <span key={example}>{example}</span>)}</div>
+        <button aria-label="症状描述示例，症状速记" className="continuity-record-entry__record" onClick={startRecord} type="button">
+          <span className="continuity-record-entry__copy"><NurseStationFactTypewriter clearOnComplete className="continuity-record-entry__example" facts={quickNoteExamples} highlightNumbers={false} reduceMotion={care.enabled && care.reduceMotion} timing={quickNoteTiming} /></span>
+        </button>
+      </div>
       <div className="continuity-record-entry__buttons">
-        <HohoButton className="continuity-record-entry__action" size="small" onClick={startRecord}>情况速记</HohoButton>
-        <HohoButton aria-describedby="home-follow-up-sync" aria-label={count == null ? '跟进' : `跟进 · ${count}`} className="continuity-record-entry__followup" data-many={count != null && count > 99} title={status === 'error' ? '跟进数量同步失败，可进入列表重试；保留上次有效数量' : undefined} size="small" variant="secondary" onClick={() => navigate('/cases')}>跟进<span className="continuity-record-entry__count" data-stale={status === 'error'}>{count ?? '—'}{status === 'error' ? '!' : ''}</span></HohoButton>
+        <HohoButton aria-describedby="home-follow-up-sync" aria-label={count == null ? '正在跟进' : `正在跟进 · ${count}`} className="continuity-record-entry__followup" title={status === 'error' ? '跟进数量同步失败，可进入列表重试；保留上次有效数量' : undefined} size="small" variant="text" onClick={() => navigate('/cases')}>正在跟进<span className="continuity-record-entry__count" data-stale={status === 'error'}>{count ?? '—'}{status === 'error' ? '!' : ''}</span></HohoButton>
+        <HohoButton className="continuity-record-entry__action" size="small" onClick={startRecord}>症状速记</HohoButton>
       </div>
     </div>
     <span className="sr-only" id="home-follow-up-sync" role="status">{status === 'error' ? '跟进数量同步失败，可进入列表重试；保留上次有效数量' : status === 'loading' ? '正在同步跟进数量' : ''}</span>
