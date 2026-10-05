@@ -16,9 +16,9 @@ test('首页唯一入口进入受当前人物保护的忌口出示卡', () => {
 })
 
 test('主页面保留修改、中文、更新、保存图片四项工具且没有全屏入口', () => {
-  for (const copy of ['修改', '中文', '更新', '保存图片']) assert.match(page, new RegExp(copy))
+  for (const copy of ['修改', '更新', '保存图片']) assert.match(page, new RegExp(copy))
   assert.doesNotMatch(page + panel, /全屏|生成卡片|重新生成/)
-  assert.match(page, /disabled=\{!presentation\?\.visibleCount \|\| exporting\}/)
+  assert.match(page, /disabled=\{!presentation\?\.visibleCount \|\| englishIncomplete \|\| exporting\}/)
 })
 
 test('页面以单一纵向滚动承载完整清单并覆盖 320px 窄屏', () => {

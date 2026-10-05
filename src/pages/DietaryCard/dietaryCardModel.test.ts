@@ -4,12 +4,16 @@ import { createAllergyItem, type AllergyHistoryItem } from '../../features/healt
 import { buildDietaryCardExportLayout } from './dietaryCardExport.ts'
 import {
   createManualDietaryItem,
+  defaultDietaryLanguage,
   deriveDietarySources,
   dietaryItemExists,
+  dietaryLanguageOptions,
+  dietaryCopy,
   emptyDietarySnapshot,
   mergeDietarySources,
   presentDietaryCard,
   readDietarySnapshot,
+  resolveDietaryNativeLanguage,
   snapshotFromSources,
   translateFood
 } from './dietaryCardModel.ts'
@@ -17,6 +21,55 @@ import {
 const accountId = 'account-1'
 const memberId = 'member-current'
 const at = '2026-09-26T00:00:00.000Z'
+
+test('母语使用显式账号选择或设备语言地区，繁体与简体脚本优先于地区', () => {
+  for (const locale of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh_Hant_TW']) assert.equal(resolveDietaryNativeLanguage(undefined, locale), 'zh-Hant')
+  for (const locale of ['zh-CN', 'zh-SG', 'zh-Hans-TW']) assert.equal(resolveDietaryNativeLanguage(undefined, locale), 'zh')
+  assert.equal(resolveDietaryNativeLanguage('zh-CN', 'zh-TW'), 'zh')
+  assert.equal(resolveDietaryNativeLanguage('en-US', 'zh-TW'), 'en')
+  assert.equal(resolveDietaryNativeLanguage(undefined, 'en-GB'), 'en')
+  assert.equal(resolveDietaryNativeLanguage(undefined, 'ja-JP'), 'zh')
+  assert.deepEqual(dietaryLanguageOptions('zh-Hant').map((option) => option.label), ['繁體中文', 'English', '繁體中文 + English'])
+  assert.deepEqual(dietaryLanguageOptions('zh').map((option) => option.value), ['zh', 'en', 'en-zh'])
+  assert.deepEqual(dietaryLanguageOptions('en'), [{ value: 'en', label: 'English' }])
+  assert.equal(defaultDietaryLanguage('zh-Hant'), 'en-zh-Hant')
+})
+
+test('纯英文正文及导出无中文，手工英文优先，缺失译名禁止不完整导出', () => {
+  const item = createManualDietaryItem('鸡蛋', 'avoid')
+  const snapshot = { ...emptyDietarySnapshot(memberId, at), items: [item], avoidCrossContact: true }
+  assert.equal(translateFood(item, 'en'), 'Egg')
+  assert.doesNotMatch(buildDietaryCardExportLayout(snapshot, 'en').texts.join(' '), /\p{Script=Han}/u)
+  item.englishName = 'Chicken egg'
+  assert.equal(translateFood(item, 'en'), 'Chicken egg')
+  item.englishName = '   '
+  assert.equal(translateFood(item, 'en'), 'Egg')
+  const unknown = createManualDietaryItem('自制香料')
+  snapshot.items.push(unknown)
+  assert.deepEqual(presentDietaryCard(snapshot, 'en').missingTranslations, ['自制香料'])
+  assert.throws(() => buildDietaryCardExportLayout(snapshot, 'en'), /补充/)
+  unknown.visible = false
+  assert.deepEqual(presentDietaryCard(snapshot, 'en').missingTranslations, [])
+  unknown.visible = true
+  unknown.englishName = '自制香料'
+  assert.deepEqual(presentDietaryCard(snapshot, 'en').missingTranslations, ['自制香料'])
+  unknown.englishName = 'Homemade spices'
+  assert.doesNotMatch(buildDietaryCardExportLayout(snapshot, 'en').texts.join(' '), /\p{Script=Han}/u)
+})
+
+test('繁体正文、食物和双语导出使用相同词汇，不改原始记录', () => {
+  const item = createManualDietaryItem('鸡蛋', 'avoid')
+  const snapshot = { ...emptyDietarySnapshot(memberId, at), items: [item] }
+  assert.equal(translateFood(item, 'zh-Hant'), '雞蛋')
+  assert.equal(translateFood(item, 'en-zh-Hant'), 'Egg / 雞蛋')
+  assert.equal(dietaryCopy['zh-Hant'].avoid, '明確不能吃')
+  assert.ok(buildDietaryCardExportLayout(snapshot, 'en-zh-Hant').texts.includes('Egg / 雞蛋'))
+  assert.equal(item.name, '鸡蛋')
+  const traditionalItem = createManualDietaryItem('雞蛋')
+  assert.equal(traditionalItem.foodId, 'egg')
+  assert.equal(translateFood(traditionalItem, 'en'), 'Egg')
+  assert.equal(translateFood(traditionalItem, 'zh'), '鸡蛋')
+})
 
 test('人工译名优先，资料重新同步不覆盖人工译名，不扩展食物范围',()=>{
   const sources=deriveDietarySources(storage([allergy('牛奶','confirmed')]),memberId,accountId)

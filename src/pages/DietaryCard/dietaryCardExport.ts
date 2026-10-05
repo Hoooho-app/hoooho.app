@@ -34,7 +34,7 @@ export function buildDietaryCardExportLayout(snapshot: DietaryCardSnapshot, lang
       const labels = items.map((item) => translateFood(item, language))
       return { group, labels, rowHeights: exportRowHeights(labels) }
     })
-  const groupsHeight = rows.reduce((sum, row) => sum + groupBaseHeight + row.rowHeights.reduce((height, value) => height + value, 0), 0)
+  const groupsHeight = rows.reduce((sum, row) => sum + groupBaseHeight + (row.group === 'temporary' ? 32 : 0) + row.rowHeights.reduce((height, value) => height + value, 0), 0)
   const reminderHeight = snapshot.avoidCrossContact ? 108 : 0
   const height = Math.max(900, 380 + groupsHeight + reminderHeight)
   return {
@@ -139,7 +139,8 @@ export async function createDietaryCardPng(snapshot: DietaryCardSnapshot, langua
     if (row.group === 'temporary') {
       context.fillStyle = '#7A7061'
       context.font = '400 24px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
-      context.fillText(copy.pending, contentX + 300, y)
+      context.fillText(copy.pending, contentX + 48, y + 32)
+      y += 32
     }
     y += 38
     for (let line = 0; line < row.rowHeights.length; line += 1) {
