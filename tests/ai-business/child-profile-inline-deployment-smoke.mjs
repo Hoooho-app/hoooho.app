@@ -9,8 +9,7 @@ assert.ok(['https://hooohoapp-staging.up.railway.app','https://hoooho.com'].incl
 const environment=baseURL.includes('-staging.')?'staging':'production'
 const output=`outputs/child-profile-inline/${environment}`
 await mkdir(output,{recursive:true})
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
-const context=await browser.newContext({...devices['iPhone SE'],baseURL,timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
+const context=await chromium.launchPersistentContext(`.codex-tmp/health-profile-qa-${environment}`,{headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',...devices['iPhone SE'],baseURL,timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
 const page=await context.newPage(),created=[],errors=[]
 let token,member,session
 page.on('pageerror',()=>errors.push('pageerror'))
@@ -21,7 +20,10 @@ async function list(kind,id=member.id){return api(`/api/members/${id}/profile-li
 async function command(kind,input){return api(`/api/members/${member.id}/profile-list/${kind}`,'POST',{key:randomUUID(),...input})}
 try{
   await page.goto(baseURL+'/api/health');assert.equal((await response('/')).status,200);assert.equal((await response('/api/health')).status,200)
-  session=await api('/api/auth/register','POST',{nickname:`inlineqa${randomUUID().slice(0,8)}`,password:randomUUID(),idempotencyKey:randomUUID()});token=session.token
+  session=await api('/api/auth/session')
+  if(!session.token)session=await api('/api/auth/register','POST',{nickname:`inlineqa${randomUUID().slice(0,8)}`,password:randomUUID(),idempotencyKey:randomUUID()})
+  assert.ok(/^(hpqa|inlineqa)/.test(session.user.nickname??''),'Only a dedicated synthetic QA account may be reused')
+  token=session.token
   member=await api('/api/members','POST',{name:'五页验收（合成）',birthday:'2024-12-20',gender:'female',relationship:'child'});created.push(member.id)
   const other=await api('/api/members','POST',{name:'隔离验收（合成）',birthday:'2024-12-20',gender:'male',relationship:'child'});created.push(other.id)
   await api('/api/auth/current-member','POST',{memberId:member.id})
@@ -55,5 +57,5 @@ finally{
     const sections=await api('/api/auth/profile-sections');for(const s of sections.filter(s=>s.memberId===id))await api('/api/auth/profile-sections','POST',{memberId:id,sectionId:s.sectionId,revision:s.revision,records:[]})
     await api(`/api/members/${id}`,'DELETE')
   }catch{console.log('Exact synthetic child cleanup requires follow-up')}}
-  await browser.close()
+  await context.close()
 }
