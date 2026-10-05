@@ -58,7 +58,7 @@ test('多页资料核对后归档多个栏目、真实统计刷新、原件保�
   expect(profiles.find((p:any)=>p.memberId==='empty-child'&&p.sectionId==='family-history').records[0].healthIssues[0].name).toBe('疑似哮喘')
   expect(profiles.filter((p:any)=>p.memberId==='empty-child'&&p.sectionId==='vaccination').length).toBe(0)
   await sheet.getByRole('button',{name:'完成',exact:true}).click();await page.goto('/health-profile');await expect(page.getByText('待排查 1 · 已明确 0')).toBeVisible()
-  await page.goto('/health-profile/vaccination');await page.getByRole('button',{name:/乙肝疫苗/}).click();await expect(page.getByLabel('疫苗名称',{exact:true})).toHaveValue('乙肝疫苗');await page.getByLabel('疫苗名称',{exact:true}).fill('乙肝疫苗（已核对）');await page.getByRole('button',{name:'保存补充'}).click();await expect(page.getByRole('button',{name:/乙肝疫苗（已核对）/})).toBeVisible()
+  await page.goto('/health-profile/vaccination');await page.getByRole('button',{name:'1岁',exact:true}).click();await page.getByRole('button',{name:'编辑乙肝疫苗',exact:true}).click();await expect(page.getByLabel('疫苗名称',{exact:true})).toHaveValue('乙肝疫苗');await page.getByLabel('疫苗名称',{exact:true}).fill('乙肝疫苗（已核对）');await page.getByRole('button',{name:'保存',exact:true}).click();await expect(page.getByText('乙肝疫苗（已核对）（第2剂）',{exact:true})).toBeVisible()
   await page.goto('/health-profile/smart-record');await page.getByRole('button',{name:/牛奶/}).click();await page.getByRole('button',{name:'读取原件 1'}).click();await expect(page.getByRole('link',{name:'查看原件 1'})).toHaveAttribute('href',/^blob:/)
 })
 test('服务不可用保留可重试原件、取消不保存、手动保存不冒充AI',async({page,request})=>{

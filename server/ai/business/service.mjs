@@ -287,7 +287,7 @@ export class AIBusinessService {
         const content=contentFor(item);if(content.length>5000)throw fail('单条记录过长，请拆分后保存')
         const groupKey=groupFor(item),conflictRecords=groupKey?existing.filter(r=>r.aiProvenance&&groupFor(r.aiProvenance)===groupKey&&r.aiProvenance.key!==key&&item.fields.some(f=>r.aiProvenance.fields?.some(x=>x.name===f.name&&x.value!==f.value))):[]
         let record,event
-        if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.push({recordId:record.id,before:structuredClone(record)});if(d.profileBatch)record=await this.records.repository.update(record.id,{journal:supplementJournal(record.journal,item.journal)},this.now());else if(record.aiProvenance&&content!==record.content || sourceRecord?.id===record.id)record=await this.records.update(accountId,record.id,{content,journal:item.journal,...(sourceRecord?.id===record.id ? {occurredAt:item.time?.resolvedStart??record.occurredAt} : {})},this.now())}
+if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.push({recordId:record.id,before:structuredClone(record)});if(d.profileBatch)record=await this.records.repository.update(record.id,{journal:supplementJournal(record.journal,item.journal,{record,item,timezone:d.timezone})},this.now());else if(record.aiProvenance&&content!==record.content || sourceRecord?.id===record.id)record=await this.records.update(accountId,record.id,{content,journal:item.journal,...(sourceRecord?.id===record.id ? {occurredAt:item.time?.resolvedStart??record.occurredAt} : {})},this.now())}
         else{
           const occurredAt=item.time?.resolvedStart??d.referenceNow
           const relatedEvent=conflictRecords.length?ownedEvents.find(e=>e.id===conflictRecords[0].eventId):null

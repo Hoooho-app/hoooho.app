@@ -1,5 +1,6 @@
 import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
+import {localDateKey} from '../time/local-calendar.mjs'
 
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
 const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack', 'supplement'])
@@ -334,6 +335,13 @@ function validateVaccination(value) {
     if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.vaccineName !== 'string' || !item.vaccineName.trim() || item.vaccineName.trim().length > 120 || !vaccinationDoses.has(item.doseSequence)) throw new HealthEventRecordError('疫苗项目无效', 400, 'INVALID_JOURNAL_VACCINATION')
     ids.add(item.id)
     const result = { id: item.id.trim(), vaccineName: item.vaccineName.trim(), doseSequence: item.doseSequence }
+    if(item.administeredOn!==undefined){
+      const day=item.administeredOn,d=typeof day==='string'&&day?new Date(`${day}T00:00:00Z`):null
+      if(typeof day!=='string'||day&&(!/^\d{4}-\d{2}-\d{2}$/.test(day)||Number.isNaN(d.valueOf())||d.toISOString().slice(0,10)!==day||day>localDateKey(new Date(),'Asia/Shanghai')))throw new HealthEventRecordError('接种日期无效',400,'INVALID_JOURNAL_VACCINATION')
+      result.administeredOn=day
+    }
+    if(item.profileAgeGroup!==undefined){if(!['1岁内','1岁','2岁','3岁','4岁','5岁','6岁'].includes(item.profileAgeGroup))throw new HealthEventRecordError('接种年龄组无效',400,'INVALID_JOURNAL_VACCINATION');result.profileAgeGroup=item.profileAgeGroup}
+    if(item.profileListDeletedAt!==undefined){if(typeof item.profileListDeletedAt!=='string'||Number.isNaN(Date.parse(item.profileListDeletedAt)))throw new HealthEventRecordError('记录恢复信息无效',400,'INVALID_JOURNAL_VACCINATION');result.profileListDeletedAt=item.profileListDeletedAt}
     for (const key of ['vaccineCode', 'commonAbbreviation', 'manufacturerName', 'batchNumber']) if (item[key] !== undefined && item[key] !== '') {
       if (typeof item[key] !== 'string' || item[key].trim().length > 120) throw new HealthEventRecordError('疫苗项目内容无效', 400, 'INVALID_JOURNAL_VACCINATION')
       result[key] = item[key].trim()
@@ -428,6 +436,12 @@ export function validateJournal(value) {
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
+  if(record.journal?.vaccination?.items.some(v=>v.profileListDeletedAt)){
+    const items=record.journal.vaccination.items.filter(v=>!v.profileListDeletedAt),journal={...record.journal}
+    if(items.length)journal.vaccination={...journal.vaccination,items}
+    else {delete journal.vaccination;journal.categories=journal.categories.filter(c=>c!=='vaccination');if(!journal.categories.length)journal.categories=['other']}
+    record={...record,journal}
+  }
   if (record.journal?.timePrecision === 'unknown') return { ...record, journal: { ...record.journal, timePrecision: 'unknown', occurredAt: record.occurredAt } }
   const selected = record.journal?.timePrecision === 'exact' || ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
   let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }

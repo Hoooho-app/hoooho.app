@@ -92,7 +92,9 @@ test('问诊问题模板及可编辑复制提示词无需模型调用',async({pa
 })
 test('过敏事实保留、ABC输出删除、自然搜索、排敏摘要和双语卡复用原页面且不调用模型',async({page,request})=>{
   const before=await(await request.get('http://127.0.0.1:4198/status')).json()
-  await page.goto('/health-profile/allergy')
+  // The new short list intentionally has no diagnostic panels. Existing local
+  // insights remain available through the compatibility page used by old links.
+  await page.goto('/health-profile/legacy/allergy')
   await page.getByRole('button',{name:'查看食物与症状记录',exact:true}).click()
   await expect(page.getByText('本地事实投影，不是 AI 诊断；时间关联不代表因果。不建议自行复食或调整剂量。',{exact:true})).toBeVisible()
   await expect(page.getByRole('heading',{name:'ABC 待核对输入',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'食物与症状时间线',exact:true})).toBeVisible()

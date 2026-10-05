@@ -28,6 +28,16 @@ test('仅补缺失字段，不改手动内容、已有字段及另一剂次',()=
   assert.equal(supplemented.vaccination.items[0].id,'v')
   assert.equal(record.journal.vaccination.items[0].batchNumber,undefined)
 })
+test('接种项日期修改后匹配新日期，仅补当前日期的项目，不补同剂次其他日或隐藏项',()=>{
+  const r=structuredClone(record)
+  r.journal.vaccination.items=[{id:'earlier',vaccineName:'乙肝疫苗',doseSequence:'dose_2',administeredOn:'2026-09-28'},{id:'actual',vaccineName:'乙肝疫苗',doseSequence:'dose_2',administeredOn:'2026-09-29'},{id:'deleted',vaccineName:'乙肝疫苗',doseSequence:'dose_2',administeredOn:'2026-09-29',profileListDeletedAt:'2026-10-01T00:00:00Z'}]
+  assert.equal(matchProfileRecord([r],item)?.id,r.id)
+  const next=supplementJournal(r.journal,item.journal,{record:r,item,timezone:'Asia/Shanghai'})
+  assert.equal(next.vaccination.items[0].batchNumber,undefined)
+  assert.equal(next.vaccination.items[1].batchNumber,'新增批号')
+  assert.equal(next.vaccination.items[2].batchNumber,undefined)
+  assert.equal(matchProfileRecord([r],{...item,time:{resolvedStart:'2026-09-29T16:00:00Z',precision:'day'}}),null)
+})
 test('真实识别可按页拆候选：同日同剂次互补字段汇总一条，来源都保留',()=>{
   const make=(id,extra=[])=>({...structuredClone(item),id,fields:[{name:'vaccineName',value:'乙肝疫苗',sources:[{sourceId:id,page:1,quote:'乙肝疫苗'}]},{name:'doseOriginal',value:'第2剂',sources:[{sourceId:id,page:1,quote:'第2剂'}]},...extra]})
   const first=make('page1'),second=make('page2',[{name:'batchNumber',value:'SYNTHETIC',sources:[{sourceId:'page2',page:1,quote:'SYNTHETIC'}]}])

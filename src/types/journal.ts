@@ -168,6 +168,10 @@ export type VaccinationSite = 'left_upper_arm' | 'right_upper_arm' | 'left_thigh
 export type VaccinationObservation = 'not_observed_yet' | 'nothing_notable' | 'injection_site_redness_or_pain' | 'fever' | 'energy_or_appetite_change' | 'other'
 export interface JournalVaccinationItem {
   id: string
+  /** Calendar date per vaccine; empty means explicitly unknown, never upload date. */
+  administeredOn?: string
+  profileAgeGroup?: string
+  profileListDeletedAt?: string
   vaccineName: string
   vaccineCode?: string
   commonAbbreviation?: string
