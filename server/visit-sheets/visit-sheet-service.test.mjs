@@ -9,6 +9,18 @@ import { visitFixture } from './fixtures.mjs'
 import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 
+test('旧统计规则的情况单标记待更新，重新整理后恢复当前指纹', async t => {
+  const { svc, f } = await setup(t), accountId = f.member.accountId, memberId = f.member.id
+  const saved = await svc.save(accountId, memberId, { requestId: 'statistics-first', expectedVersion: 0 })
+  await svc.store.update(data => ({ ...data, reports: data.reports.map(item => ({ ...item, current: { ...item.current, fingerprint: 'legacy-temperature-projection' } })) }))
+  const stale = await svc.get(accountId, memberId)
+  assert.equal(stale.stale, true)
+  assert.equal(stale.report.version, saved.report.version)
+  const updated = await svc.save(accountId, memberId, { requestId: 'statistics-update', expectedVersion: saved.report.version })
+  assert.notEqual(updated.report.fingerprint, 'legacy-temperature-projection')
+  assert.equal((await svc.get(accountId, memberId)).stale, false)
+})
+
 test('摘要预览不覆盖旧版，确认无需模型调用，修改及成员来源重新核验',async t=>{
  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
  const local=await svc.save(a,m,{requestId:'local-preview',expectedVersion:0});let calls=0

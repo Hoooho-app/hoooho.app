@@ -6,7 +6,7 @@ import {MemberIdentityCard} from '../../components/health'
 import {HohoButton,StatusNotice} from '../../components/design-system'
 import {useAppStore} from '../../store/useAppStore'
 import {apiRequest} from '../../services/apiClient'
-import {loadProfileSections} from '../../services/profileSectionStorage'
+import {loadProfileSections,subscribeProfileSectionInvalidation,announceProfileSectionsChange} from '../../services/profileSectionStorage'
 import type {Member} from '../../types'
 import './inlineChildProfile.css'
 
@@ -40,6 +40,12 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     if(token)void apiRequest<Snapshot>(endpoint,{token,signal:controller.signal}).then(next=>{if(controller.signal.aborted)return;setData(next);setSession(old=>({...old,group:next.groups.some(g=>g.id===old.group)?old.group:next.groups[0]?.id??''}));setError('')}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'读取失败，请重试')}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})
     return ()=>controller.abort()
   },[endpoint,token,reload])
+  useEffect(()=>{
+    const refresh=()=>{if(document.visibilityState==='visible'&&!locked.current)setReload(value=>value+1)}
+    const unsubscribe=subscribeProfileSectionInvalidation(refresh)
+    window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh)
+    return()=>{unsubscribe();window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh)}
+  },[])
   const group=session.group,active=session.active[group],rows=data?.rows.filter(r=>kind==='surgery'||r.group===group)??[]
   function put(groupId:string,id:string,changes:Partial<Draft>,row?:Row){
     setSession(old=>{const key=draftId(groupId,id),draft=old.drafts[key]??fresh(row);return {...old,drafts:{...old.drafts,[key]:{...draft,...changes,key:crypto.randomUUID()}}}})
@@ -55,6 +61,7 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
       if(mounted.current){setData(next);setStatus(next.notice??'已保存');setUndo(next.undoId);after(next)}
       // Update shared allergy/dietary projections without making success depend
       // on an unrelated reload. Home also re-fetches on returning to it.
+      announceProfileSectionsChange()
       void loadProfileSections(state.authToken??token,state.members).catch(()=>{})
     }catch(e){if(mounted.current)setError(e instanceof Error?e.message:'保存失败，内容仍保留，请重试')}
     finally{locked.current=false;if(mounted.current)setBusy(false)}

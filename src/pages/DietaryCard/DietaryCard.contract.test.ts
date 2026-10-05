@@ -31,5 +31,5 @@ test('编辑页保存独立草稿、支持空快照与交叉接触提醒', () =>
   assert.match(page, /structuredClone\(state\.snapshot\)/)
   assert.match(page, /提醒避免共用锅具、餐具接触/)
   assert.match(page, /保存并更新/)
-  assert.match(page, /仅调整出示清单，不修改健康档案中的原始记录/)
+  assert.match(page, /食物名称与分组会同步更新过敏资料/)
 })

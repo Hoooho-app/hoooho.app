@@ -69,7 +69,7 @@ export function GrowthRecordsPage() {
   if (navigationState?.tab === 'height' || navigationState?.tab === 'weight') return <Navigate replace state={{ selectedMeasure: navigationState.tab, returnTo }} to="/health-profile/basic" />
 
   return <main className="app-shell health-profile-detail-shell growth-records-page"><WebPageHeader fallback="/health-profile/basic" onBack={back} title="记录列表" action={<button className="growth-header-add" onClick={() => setEditing('new')} type="button"><Plus size={15} />添加</button>} /><div className="page-content growth-records-content">
-    <p className="growth-record-list-summary">共 {records.length} 条成长记录，可直接编辑或删除。</p>
+    {!loading && (!error || records.length > 0) && <p className="growth-record-list-summary">共 {records.length} 条成长记录，可直接编辑或删除。</p>}
     {loading ? <p className="growth-loading">正在加载成长记录…</p> : error && !records.length ? <button className="growth-retry" onClick={load} type="button">{error}，点击重试</button> : <section className="growth-record-list">
       {error && <p className="growth-record-error" role="alert">{error}</p>}
       {!records.length ? <div className="growth-empty-state"><h2>还没有成长记录</h2><p>添加第一次测量，建立孩子自己的成长轨迹。</p><button onClick={() => setEditing('new')} type="button">添加记录</button></div> : records.map((record, index) => {

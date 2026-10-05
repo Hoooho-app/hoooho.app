@@ -13,6 +13,23 @@ function setup() {
 }
 const input = (overrides = {}) => ({ category: '功能异常', problemPage: '健康随记', problemType: '功能异常', description: '帮助中心搜索后页面没有响应', sourcePath: '/help?q=test', sourceName: '帮助中心', appVersion: '1.0.0', device: { type: 'mobile', os: 'iOS', browser: 'Safari', screen: '390×844' }, idempotencyKey: 'request-123456', attachments: [], ...overrides })
 
+test('average first view uses one earliest valid sample per feedback and remains stable after reopening', async () => {
+  const state = setup()
+  const created = await state.service.create('account-1', input(), new Date('2026-10-05T00:00:00Z'))
+  await state.service.getForOps(created.id, new Date('2026-10-05T01:00:00Z'))
+  await state.service.getForOps(created.id, new Date('2026-10-05T03:00:00Z'))
+  assert.equal((await state.service.listForOps()).overview.averageFirstViewMs, 3_600_000)
+  state.data.statusHistory.push({ feedbackId: created.id, status: 'viewed', createdAt: '2026-10-05T01:00:00Z' }, { feedbackId: created.id, status: 'reviewing', createdAt: '2026-10-05T03:00:00Z' })
+  assert.equal((await state.service.listForOps()).overview.averageFirstViewMs, 3_600_000)
+  delete state.data.feedback[0].firstOpsViewedAt
+  assert.equal((await state.service.listForOps()).overview.averageFirstViewMs, 3_600_000)
+  await state.service.create('account-2', input(), new Date('2026-10-05T00:00:00Z'))
+  assert.equal((await state.service.listForOps()).overview.averageFirstViewMs, 3_600_000)
+  state.data.feedback[0].lastOpsViewedAt = 'invalid'
+  state.data.statusHistory = [{ feedbackId: created.id, status: 'viewed', createdAt: '2026-10-04T23:00:00Z' }]
+  assert.equal((await state.service.listForOps()).overview.averageFirstViewMs, null)
+})
+
 test('text feedback persists privacy-limited environment and idempotent retries do not duplicate', async () => {
   const state = setup(), first = await state.service.create('account-1', input(), new Date('2026-08-27T00:00:00Z')), second = await state.service.create('account-1', input(), new Date('2026-08-27T00:01:00Z'))
   assert.equal(first.id, second.id); assert.equal(second.duplicate, true); assert.equal(state.data.feedback.length, 1)

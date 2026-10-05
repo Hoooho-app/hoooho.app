@@ -172,7 +172,7 @@ test('P-004 保存快照可为空且只改变出示清单，不删除健康档�
   assert.deepEqual(deriveDietarySources(sourceStorage, memberId, accountId).map((item) => item.name), ['牛奶'])
 })
 
-test('更新保留手工项、重命名、改组和隐藏状态，来源删除后仅需复核', () => {
+test('更新跟随统一名称与状态、保留手工项和隐藏设置，删除来源不残留警告', () => {
   const temporary = allergy('鸡蛋', 'suspected')
   temporary.dietaryAction = 'temporary'
   const originalSources = deriveDietarySources(storage([allergy('牛奶', 'confirmed'), temporary]), memberId, accountId)
@@ -182,10 +182,9 @@ test('更新保留手工项、重命名、改组和隐藏状态，来源删除�
   snapshot.items.push(createManualDietaryItem('自定义酱料'))
   const nextSources = deriveDietarySources(storage([allergy('牛奶', 'confirmed')]), memberId, accountId)
   const merged = mergeDietarySources(snapshot, nextSources, '2026-09-27T00:00:00.000Z')
-  assert.equal(merged.items.find((item) => item.sourceId === `${memberId}-牛奶`)?.name, '乳制品')
+  assert.equal(merged.items.find((item) => item.sourceId === `${memberId}-牛奶`)?.name, '牛奶')
   assert.equal(merged.items.find((item) => item.sourceId === `${memberId}-牛奶`)?.visible, false)
-  assert.equal(merged.items.find((item) => item.sourceId === `${memberId}-鸡蛋`)?.group, 'avoid')
-  assert.equal(merged.items.find((item) => item.sourceId === `${memberId}-鸡蛋`)?.needsReview, true)
+  assert.equal(merged.items.some((item) => item.sourceId === `${memberId}-鸡蛋`), false)
   assert.equal(merged.items.some((item) => item.name === '自定义酱料'), true)
 })
 

@@ -165,13 +165,14 @@ export function getAllPromptItemIds(context: HealthEventPromptContext) {
   return getPromptInformationGroups(context).flatMap((group) => group.items.map(({ id }) => id))
 }
 
-export function getPromptInformationSummary(context: HealthEventPromptContext): PromptInformationSummary {
-  const groups = getPromptInformationGroups(context)
+export function getPromptInformationSummary(context: HealthEventPromptContext, selectedItemIds?: Iterable<string>): PromptInformationSummary {
+  const selected = selectedItemIds === undefined ? null : new Set(selectedItemIds)
+  const groups = getPromptInformationGroups(context).map(group => ({ ...group, items: group.items.filter(item => !selected || selected.has(item.id)) }))
   const groupCounts = Object.fromEntries(groups.map((group) => [group.id, group.items.length])) as Record<HealthEventPromptGroupId, number>
-  const profileAttachmentCount = context.healthProfile.flatMap((section) => section.entries).reduce((count, entry) => (
+  const profileAttachmentCount = context.healthProfile.flatMap((section) => section.entries.filter(entry => !selected || selected.has(`profile:${section.id}:${entry.id}`))).reduce((count, entry) => (
     count + entry.lines.filter((line) => line.includes('需要在外部 AI 中手动上传')).length
   ), 0)
-  return { attachmentCount: groupCounts.attachments + profileAttachmentCount, groupCounts, recordCount: context.records.length, totalCount: groups.reduce((total, group) => total + group.items.length, 0) }
+  return { attachmentCount: groupCounts.attachments + profileAttachmentCount, groupCounts, recordCount: groupCounts.raw, totalCount: groups.reduce((total, group) => total + group.items.length, 0) }
 }
 
 function basicInformation(context: HealthEventPromptContext) {
@@ -209,7 +210,7 @@ export function buildHealthEventPrompt(context: HealthEventPromptContext, select
       ? entry.lines.filter((line) => line.includes('需要在外部 AI 中手动上传')).map(() => `- ${section.title}中的已保存附件`)
       : []
   )))
-  const summary = getPromptInformationSummary(context)
+  const summary = getPromptInformationSummary(context, selected)
 
   const instructions = `我是一名普通用户，希望你帮助我理解和整理下面的健康情况，为下一步就医或继续观察做准备。
 
@@ -305,6 +306,6 @@ ${questionText}
     heading('健康档案', profileItems.join('\n\n') || '未提供或已由用户排除；未填写不代表没有异常。'),
     heading('相关历史健康随记', historyText),
     heading('检查结果与附件说明', `${attachmentTextContent}\n\n以下附件无法随文字复制，需要我另外上传：\n\n${manualUploads}`),
-    `---\n\n资料范围说明：以上内容仅包含「${context.member.name}」的信息；共汇集 ${summary.totalCount} 项，其中当前随记原始记录 ${summary.recordCount} 条。结构化整理结果与用户原话均已保留。`,
+    `---\n\n资料范围说明：以上内容仅包含「${context.member.name}」的信息；共汇集 ${summary.totalCount} 项，其中当前随记原始记录 ${summary.recordCount} 条。仅包含本次选中的资料。`,
   ].join('\n\n')
 }

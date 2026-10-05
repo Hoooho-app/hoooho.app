@@ -3,6 +3,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { AuthService } from '../auth/auth-service.mjs'
 import { FamilyMemberService } from '../members/family-member-service.mjs'
 import { FoodLabelService, foodFailureMessage } from './service.mjs'
+import { activeAllergyRecords } from '../health-profile/profile-section-store.mjs'
 const legacyStatus=value=>({'已明确':'confirmed','已确诊':'confirmed','医生确认':'confirmed','待排查':'investigating','疑似':'suspected','已排除':'excluded','曾经有，目前已耐受':'tolerated'}[value]??value)
 
 export function createFoodLabelService(options){
@@ -11,7 +12,7 @@ export function createFoodLabelService(options){
   return new FoodLabelService({...options,currentMember:async accountId=>(await auth.users.findById(accountId))?.currentMemberId,members:new FamilyMemberService(options),readRecords:async(accountId,memberId)=>{
     const section=(await sections.read()).sections.find(s=>s.accountId===accountId&&s.memberId===memberId&&s.sectionId==='allergy')
     // Outer archive ownership is authoritative, including legacy token-valued IDs.
-    return (section?.records??[]).filter(r=>r.recordType!=='allergy-report'&&(!r.memberId||r.memberId===memberId)).map(r=>({id:r.id,name:r.name??r.subject,conditionType:r.conditionType,reactionType:r.reactionType,category:r.category==='food'||String(r.category??r.type??'').includes('食')?'food':r.category,currentStatus:legacyStatus(r.currentStatus??r.certainty??''),ingredientRelations:Array.isArray(r.ingredientRelations)?r.ingredientRelations:[]}))
+    return activeAllergyRecords(section?.records??[],memberId).map(r=>({id:r.id,name:r.name??r.subject,conditionType:r.conditionType,reactionType:r.reactionType,category:r.category==='food'||String(r.category??r.type??'').includes('食')?'food':r.category,currentStatus:legacyStatus(r.currentStatus??r.certainty??''),ingredientRelations:Array.isArray(r.ingredientRelations)?r.ingredientRelations:[]}))
   }})
 }
 

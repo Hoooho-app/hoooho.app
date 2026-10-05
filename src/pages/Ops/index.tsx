@@ -21,7 +21,6 @@ const statusMap: Record<BillingStatus, { label: string; detail: string; tone: st
 }
 const methodMap: Record<BillingMethod, string> = { api: '官方 API', 'automatic-screenshot': '自动截图', 'manual-screenshot': '手动截图' }
 const frequencyMap: Record<BillingFrequency, string> = { daily: '每天', weekly: '每周', manual: '仅手动' }
-const emptyOverview: BillingOverview = { total: 0, updatedToday: 0, relogin: 0, failed: 0 }
 const formatTime = (value: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '尚无成功记录'
 const stale = (source: BillingSource) => Boolean(source.latestSnapshot && source.lastAttemptAt && source.lastSuccessAt && source.lastAttemptAt > source.lastSuccessAt && source.status !== 'success')
 
@@ -29,7 +28,7 @@ export function OpsPage() {
   const token = useAppStore((state) => state.opsAuthToken)!
   const [sources, setSources] = useState<BillingSource[]>([])
   const [inactiveSources, setInactiveSources] = useState<string[]>([])
-  const [overview, setOverview] = useState(emptyOverview)
+  const [overview, setOverview] = useState<BillingOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshingAll, setRefreshingAll] = useState(false)
@@ -40,28 +39,31 @@ export function OpsPage() {
   const [large, setLarge] = useState<BillingSource | null>(null)
 
   const load = async (signal?: AbortSignal) => {
+    setOverview(null)
     const data = await getBillingSources(token, signal)
+    if (signal?.aborted) return
     setSources(data.sources); setInactiveSources(data.inactiveSources); setOverview(data.summary)
   }
   useEffect(() => {
     const controller = new AbortController()
-    load(controller.signal).catch((cause) => { if (cause.name !== 'AbortError') setError(cause.message) }).finally(() => setLoading(false))
+    setLoading(true); setSources([]); setError('')
+    load(controller.signal).catch((cause) => { if (!controller.signal.aborted) setError(cause.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [token])
 
   const refreshAll = async () => {
-    setRefreshingAll(true); setError('')
+    setRefreshingAll(true); setError(''); setOverview(null)
     try { const data = await refreshAllBillingSources(token); setSources(data.sources); setInactiveSources(data.inactiveSources); setOverview(data.summary) }
     catch (cause) { setError(cause instanceof Error ? cause.message : '更新失败') }
     finally { setRefreshingAll(false) }
   }
   const refreshOne = async (source: BillingSource) => {
-    setRefreshingId(source.id); setError('')
+    setRefreshingId(source.id); setError(''); setOverview(null)
     try { const updated = await refreshBillingSource(token, source.id); setSources((all) => all.map((item) => item.id === updated.id ? updated : item)); await load() }
     catch (cause) { setError(cause instanceof Error ? cause.message : '更新失败') }
     finally { setRefreshingId(null) }
   }
-  const replace = (updated: BillingSource) => { setSources((all) => all.map((item) => item.id === updated.id ? updated : item)); load().catch(() => undefined) }
+  const replace = (updated: BillingSource) => { setSources((all) => all.map((item) => item.id === updated.id ? updated : item)); load().catch(cause => setError(cause instanceof Error ? cause.message : '概览同步失败')) }
 
   return <main className="ops-page">
     <header className="ops-topbar">
@@ -78,10 +80,10 @@ export function OpsPage() {
     {error && <div className="ops-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="关闭错误"><X size={16} /></button></div>}
 
     <section className="ops-summary" aria-label="更新概览">
-      <Summary label="费用来源总数" value={loading ? '—' : String(overview.total)} detail="已启用的快照来源" />
-      <Summary label="今日已更新" value={loading ? '—' : String(overview.updatedToday)} detail="今天有成功快照" tone="success" />
-      <Summary label="需要重新登录" value={loading ? '—' : String(overview.relogin)} detail="自动任务已暂停" tone={overview.relogin ? 'warning' : undefined} />
-      <Summary label="更新失败" value={loading ? '—' : String(overview.failed)} detail="仍保留最近成功快照" tone={overview.failed ? 'error' : undefined} />
+      <Summary label="费用来源总数" value={loading || !overview ? '—' : String(overview.total)} detail="已启用的快照来源" />
+      <Summary label="今日已更新" value={loading || !overview ? '—' : String(overview.updatedToday)} detail="已启用来源 · 今天有成功快照（北京时间）" tone="success" />
+      <Summary label="需要重新登录" value={loading || !overview ? '—' : String(overview.relogin)} detail="已启用来源 · 自动任务已暂停" tone={overview?.relogin ? 'warning' : undefined} />
+      <Summary label="更新失败" value={loading || !overview ? '—' : String(overview.failed)} detail="已启用来源 · 仍保留最近成功快照" tone={overview?.failed ? 'error' : undefined} />
     </section>
 
     <section className="ops-sources-section">
