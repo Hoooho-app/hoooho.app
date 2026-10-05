@@ -5,6 +5,29 @@ const pixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 async function init(page:Page){await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'empty-child',members:[],profile:null},version:5}))},token)}
 async function seed(request:any,text:string,extra:any={}){const response=await request.post('/api/members/empty-child/case-records',{headers,data:{text,files:[],requestId:crypto.randomUUID(),occurredAt:'2026-10-01T01:00:00Z',...extra}});expect(response.ok()).toBe(true);return response.json()}
 const card=(page:Page,id:string)=>page.locator(`[data-case-id="${id}"]`)
+
+for(const width of [320,375,390,430])test(`状态按钮位于卡片右上角且长标题不重叠 ${width}`,async({page,request})=>{
+  const a=await seed(request,'合成布局验收：没有标点的长症状描述用于确认完整换行且不与康复按钮重叠')
+  await init(page);await page.setViewportSize({width,height:667});await page.goto('/cases');const ca=card(page,a.eventId)
+  async function assertPosition(name:string){
+    const button=ca.getByRole('button',{name,exact:true});await expect(button).toHaveCount(1)
+    const title=await ca.getByRole('heading',{level:2}).boundingBox(),action=await button.boundingBox(),box=await ca.boundingBox()
+    expect(title).not.toBeNull();expect(action).not.toBeNull();expect(box).not.toBeNull()
+    expect(Math.abs(action!.y-title!.y)).toBeLessThanOrEqual(1)
+    expect(action!.x).toBeGreaterThanOrEqual(title!.x+title!.width)
+    expect(Math.abs(box!.x+box!.width-17-action!.x-action!.width)).toBeLessThanOrEqual(1)
+    expect(action!.height).toBeGreaterThanOrEqual(44)
+    expect(await ca.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  }
+  await assertPosition('标记已康复');await page.screenshot({path:`outputs/case-state-actions/active-${width}.png`,fullPage:true})
+  await ca.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(ca).toHaveCount(0)
+  await page.getByRole('tab',{name:/已康复/}).click();await assertPosition('恢复跟进')
+  await page.screenshot({path:`outputs/case-state-actions/recovered-${width}.png`,fullPage:true})
+  await page.reload();await page.getByRole('tab',{name:/已康复/}).click();await assertPosition('恢复跟进')
+  await ca.getByRole('button',{name:'恢复跟进',exact:true}).click();await expect(ca).toHaveCount(0)
+  await page.getByRole('tab',{name:/跟进中/}).click();await assertPosition('标记已康复')
+})
 test('独立时间线、内嵌完整记录、失败与幂等重试、刷新/补录、康复撤销恢复及历史归档',async({page,request})=>{
   const a=await seed(request,'合成跟进A：鼻塞，晚上睡觉时张口呼吸'),b=await seed(request,'合成跟进B：左肘窝发红、发痒'),legacy=await seed(request,'合成历史：曾经咳嗽')
   await request.post(`/api/members/empty-child/cases/${legacy.eventId}/archive`,{headers,data:{archived:true}})

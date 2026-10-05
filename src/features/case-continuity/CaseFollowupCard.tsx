@@ -46,7 +46,10 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   }
   const view=item.followup
   return <article className="continuity-card case-followup-card" data-case-id={id} aria-label={view.title}>
-    <h2>{view.title}</h2>
+    <div className="case-followup-card-header">
+      <h2>{view.title}</h2>
+      <div className="case-followup-state-action"><HohoButton variant="secondary" size="small" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton></div>
+    </div>
     {view.supplement&&<p className="case-followup-supplement">{view.supplement}</p>}
     <p className="case-followup-time">开始：{dateText(view.firstOccurredAt,timezone)}<br/>最近记录：{dateText(view.latestOccurredAt,timezone)}{view.hasUnknownTime&&<span>含发生时间未提供的记录</span>}</p>
     {archived&&<p className="case-followup-time">{knownRecovery ? `${item.event.caseArchiveReason==='user_recovered'?'用户标记康复':'已记录康复'}：${dateText(item.event.caseRecoveryMarkedAt||item.event.recoveredAt,timezone)}` : <><span className="case-legacy-archive">历史归档</span>归档时间：{dateText(item.event.caseArchivedAt,timezone)}<span>未记录康复原因，不代表已确认康复</span></>}</p>}
@@ -64,7 +67,6 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
     {!archived&&<><div className="case-followup-primary-actions"><HohoButton disabled={busy} onClick={()=>open('record')}>继续记录</HohoButton></div>
       {form==='record'&&<SymptomCaseRecord embedded accountId={accountId} memberId={memberId} token={token} eventId={id} onDirtyChange={setRecordDirty} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
       {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
-    <div className="case-followup-state-action"><HohoButton variant="secondary" size="small" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton></div>
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>
 }
