@@ -1,7 +1,27 @@
 import { readAllergyItems, type AllergyHistoryItem } from '../../features/health-profile/utils/allergyProfile'
 
 export type DietaryCardGroup = 'avoid' | 'temporary'
-export type DietaryCardLanguage = 'zh' | 'en-zh'
+export type DietaryCardNativeLanguage = 'zh' | 'zh-Hant' | 'en'
+export type DietaryCardLanguage = DietaryCardNativeLanguage | 'en-zh' | 'en-zh-Hant'
+
+// An explicit account choice takes precedence over the device language/region.
+export function resolveDietaryNativeLanguage(accountLanguage?: string, deviceLanguage = 'zh-CN'): DietaryCardNativeLanguage {
+  const locale = (accountLanguage || deviceLanguage).replace(/_/g, '-').toLowerCase()
+  if (/^en(?:-|$)/.test(locale)) return 'en'
+  if (/^zh(?:-|$)/.test(locale) && !locale.includes('-hans') && /-(?:hant|tw|hk|mo)(?:-|$)/.test(locale)) return 'zh-Hant'
+  return 'zh'
+}
+
+export function dietaryLanguageOptions(native: DietaryCardNativeLanguage) {
+  if (native === 'en') return [{ value: 'en', label: 'English' }] as const
+  return native === 'zh-Hant'
+    ? [{ value: 'zh-Hant', label: '繁體中文' }, { value: 'en', label: 'English' }, { value: 'en-zh-Hant', label: '繁體中文 + English' }] as const
+    : [{ value: 'zh', label: '简体中文' }, { value: 'en', label: 'English' }, { value: 'en-zh', label: '简体中文 + English' }] as const
+}
+
+export function defaultDietaryLanguage(native: DietaryCardNativeLanguage): DietaryCardLanguage {
+  return native === 'en' ? 'en' : native === 'zh-Hant' ? 'en-zh-Hant' : 'en-zh'
+}
 
 export interface DietaryCardItem {
   id: string
@@ -48,7 +68,31 @@ export const foodTranslations: Record<string, string> = {
   mango: 'Mango', kiwi: 'Kiwifruit', strawberry: 'Strawberry', peach: 'Peach', tomato: 'Tomato', oat: 'Oats'
 }
 
+const traditionalFoodNames: Record<string, string> = {
+  鸡蛋: '雞蛋', 坚果: '堅果', 核桃: '核桃', 豆类: '豆類', 鱼: '魚', 鱼类: '魚類', 甲壳类: '甲殼類', 虾: '蝦',
+  猕猴桃: '奇異果', 番茄: '番茄', 燕麦: '燕麥'
+}
+const simplifiedFoodNames = Object.fromEntries(Object.entries(traditionalFoodNames).map(([simplified, traditional]) => [traditional, simplified]))
+
+const englishCopy = {
+  title: 'Food Restrictions', intro: 'Please avoid the foods below and ingredients containing them.',
+  avoid: 'Must avoid', temporary: 'Please avoid for now', pending: 'Pending confirmation',
+  crossContact: 'Please avoid shared cookware and utensil contact.',
+  thanks: 'If ingredients are uncertain, please tell me first. Thank you!'
+}
+const traditionalCopy = {
+  title: '用餐忌口提示', intro: '請勿使用以下食物及含其成分的配料。', avoid: '明確不能吃', temporary: '暫時請避開', pending: '尚待確認',
+  crossContact: '請避免共用鍋具、餐具接觸。', thanks: '如果無法確認配料，請先告訴我。謝謝！'
+}
+
+function bilingualCopy(native: typeof traditionalCopy) {
+  return Object.fromEntries(Object.entries(englishCopy).map(([key, value]) => [key, `${value} / ${native[key as keyof typeof native]}`])) as typeof traditionalCopy
+}
+
 export const dietaryCopy = {
+  en: englishCopy,
+  'zh-Hant': traditionalCopy,
+  'en-zh-Hant': bilingualCopy(traditionalCopy),
   zh: {
     title: '用餐忌口提示', intro: '请勿使用以下食物及含其成分的配料。', avoid: '明确不能吃', temporary: '暂时请避开', pending: '尚待确认',
     crossContact: '请避免共用锅具、餐具接触。', thanks: '如果无法确认配料，请先告诉我。谢谢！'
@@ -66,13 +110,26 @@ export function normalizeFoodName(value: string) {
 }
 
 export function foodIdFor(name: string) {
-  return foodIds[normalizeFoodName(name)]
+  const normalized = normalizeFoodName(name)
+  return foodIds[simplifiedFoodNames[normalized] ?? normalized]
+}
+
+function englishFoodName(item: Pick<DietaryCardItem, 'foodId' | 'name' | 'englishName'>) {
+  const id = item.foodId ?? foodIdFor(item.name)
+  const manual = item.englishName?.trim()
+  return manual && !/\p{Script=Han}/u.test(manual) ? manual : (id ? foodTranslations[id] : undefined)
 }
 
 export function translateFood(item: Pick<DietaryCardItem, 'foodId' | 'name' | 'englishName'>, language: DietaryCardLanguage) {
-  if (language === 'zh') return item.name
-  const translation = item.englishName?.trim() || (item.foodId ? foodTranslations[item.foodId] : undefined)
-  return translation ? `${translation} / ${item.name}` : `${item.name}（英文待补充）`
+  const simplifiedName = simplifiedFoodNames[item.name] ?? item.name
+  const nativeName = language.includes('Hant') ? traditionalFoodNames[simplifiedName] ?? item.name : simplifiedName
+  if (language === 'zh' || language === 'zh-Hant') return nativeName
+  const translation = englishFoodName(item)
+  if (language === 'en') {
+    if (!translation) throw new Error('请先补充所有食物的英文名称')
+    return translation
+  }
+  return translation ? `${translation} / ${nativeName}` : `${nativeName}${language.includes('Hant') ? '（英文待補充）' : '（英文待补充）'}`
 }
 
 function sourceGroup(item: AllergyHistoryItem): DietaryCardGroup | null {
@@ -186,7 +243,7 @@ export function presentDietaryCard(snapshot: DietaryCardSnapshot, language: Diet
     avoid: visible.filter((item) => item.group === 'avoid'),
     temporary: visible.filter((item) => item.group === 'temporary'),
     visibleCount: visible.length,
-    missingTranslations: language === 'en-zh' ? visible.filter((item) => !item.englishName && (!item.foodId || !foodTranslations[item.foodId])).map((item) => item.name) : []
+    missingTranslations: language === 'zh' || language === 'zh-Hant' ? [] : visible.filter((item) => !englishFoodName(item)).map((item) => item.name)
   }
 }
 
