@@ -4,6 +4,7 @@ import { HealthRecordOrganizationService } from '../ai/health-record-organizatio
 import { HealthChangeAnnotationService } from './health-change-annotation-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
+import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
 
 export { HealthEventRecordError } from './health-event-record-error.mjs'
 
@@ -127,8 +128,10 @@ export class HealthEventRecordService {
   async create(accountId, eventId, input, now = new Date()) {
     const event = await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
-    const occurredAt = validateOccurredAt(input.occurredAt, now)
     const journal = input.journal === undefined ? undefined : validateJournal(input.journal)
+    const occurredAt = validateOccurredAt(journalOccurrenceAt(journal, input.occurredAt), now)
+    if (journal?.sleep?.sleepAt) validateOccurredAt(journal.sleep.sleepAt, now)
+    if (journal?.diet?.startedAt) validateOccurredAt(journal.diet.startedAt, now)
     await this.validateSymptomLinks(accountId, event, journal)
     const created = await this.repository.create({
       accountId,
@@ -180,8 +183,12 @@ export class HealthEventRecordService {
       if (key === 'journal') {
         changes.journal = validateJournal(input.journal)
         await this.validateSymptomLinks(accountId, event, changes.journal)
-        if (changes.journal?.sleep) changes.occurredAt = validateOccurredAt(changes.journal.sleep.sleepAt, now)
       }
+    }
+    if (changes.journal) {
+      changes.occurredAt = validateOccurredAt(journalOccurrenceAt(changes.journal, changes.occurredAt ?? record.occurredAt), now)
+      if (changes.journal.sleep?.sleepAt) validateOccurredAt(changes.journal.sleep.sleepAt, now)
+      if (changes.journal.diet?.startedAt) validateOccurredAt(changes.journal.diet.startedAt, now)
     }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')
@@ -209,7 +216,7 @@ export class HealthEventRecordService {
       ...record.journal,
       sleep: { ...current, sleepAt, wakeAt, durationMinutes, status: 'completed' }
     })
-    const result = await this.repository.updateIfSleepOngoing(id, { journal, occurredAt: sleepAt }, now)
+    const result = await this.repository.updateIfSleepOngoing(id, { journal, occurredAt: wakeAt }, now)
     if (result.updated) await this.recomputeAfterMutation(accountId, record.eventId, now)
     return result.record ?? this.repository.findById(id)
   }

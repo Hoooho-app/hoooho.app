@@ -75,14 +75,14 @@ test('list summaries keep medication names while hiding doses', () => {
   assert.equal(journalListSummary(medication), '阿司匹林、地奈德')
 })
 
-test('feeding list summaries omit eating statuses but retain method and duration', () => {
+test('feeding list summaries omit eating statuses and retain only compact duration', () => {
   const feeding = {
     ...entry('feeding', '2026-09-10T08:49:00'),
     categories: ['diet'] as const,
     content: '母乳 · 1分钟 · 顺利、吐奶',
     diet: { kind: 'feeding' as const, feedingMethod: 'breast' as const, breastSeconds: { left: 30, right: 30, total: 60 }, feedingStatuses: ['顺利', '吐奶'] },
   }
-  assert.equal(journalListSummary(feeding), '母乳 · 1分钟')
+  assert.equal(journalListSummary(feeding), '喂养 · 共1分钟')
 })
 
 test('symptom list summaries prefer the saved optional summary and otherwise keep the raw narrative', () => {

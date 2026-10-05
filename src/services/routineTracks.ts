@@ -2,7 +2,7 @@ import { apiRequest } from './apiClient'
 import type { JournalSleepDetails } from '../types/journal'
 
 export type RoutineConsent = 'unset' | 'declined' | 'enabled' | 'disabled'
-export type RoutineFixedItemKey = 'nightSleep' | 'breakfast' | 'lunch' | 'dinner'
+export type RoutineFixedItemKey = 'nightSleep' | 'napSleep' | 'breakfast' | 'lunch' | 'dinner'
 export type RoutineItemKey = RoutineFixedItemKey | `custom:${string}`
 export type RoutineCategory = 'diet' | 'sleep' | 'activity'
 export type RoutineTrackStatus = 'routine' | 'confirmed' | 'skipped'

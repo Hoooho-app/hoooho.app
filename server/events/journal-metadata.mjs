@@ -1,6 +1,7 @@
 import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import {localDateKey} from '../time/local-calendar.mjs'
+import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
 
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
 const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack', 'supplement'])
@@ -55,6 +56,16 @@ function validateDiet(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !dietKinds.has(value.kind)) throw new HealthEventRecordError('饮食记录类型无效', 400, 'INVALID_JOURNAL_DIET')
   const result = { kind: value.kind }
+  for (const [key, limit] of [['name', 20], ['note', 1000]]) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== 'string' || value[key].trim().length > limit) throw new HealthEventRecordError('饮食补充信息无效', 400, 'INVALID_JOURNAL_DIET')
+      if (value[key].trim()) result[key] = value[key].trim()
+    }
+  }
+  if (value.status !== undefined) {
+    if (!['ongoing', 'completed'].includes(value.status)) throw new HealthEventRecordError('用餐状态无效', 400, 'INVALID_JOURNAL_DIET')
+    result.status = value.status
+  }
   if (value.feedingMethod !== undefined) {
     if (!feedingMethods.has(value.feedingMethod)) throw new HealthEventRecordError('喂养方式无效', 400, 'INVALID_JOURNAL_DIET')
     result.feedingMethod = value.feedingMethod
@@ -90,13 +101,15 @@ function validateDiet(value) {
     result.meal = value.meal
   }
   if (value.startedAt !== undefined || value.endedAt !== undefined) {
-    if (value.kind !== 'meal' || !value.startedAt || !value.endedAt) throw new HealthEventRecordError('用餐起止时间必须同时填写', 400, 'INVALID_JOURNAL_DIET')
+    if (!['meal', 'feeding'].includes(value.kind) || !value.startedAt || (!value.endedAt && value.status !== 'ongoing') || (value.endedAt && value.status === 'ongoing')) throw new HealthEventRecordError('请核对实际用餐状态和起止时间', 400, 'INVALID_JOURNAL_DIET')
     const startedAt = new Date(value.startedAt)
-    const endedAt = new Date(value.endedAt)
-    const elapsed = endedAt.getTime() - startedAt.getTime()
-    if (!Number.isFinite(startedAt.getTime()) || !Number.isFinite(endedAt.getTime()) || elapsed <= 0 || elapsed > 24 * 60 * 60_000) throw new HealthEventRecordError('用餐时长必须大于0且不超过24小时', 400, 'INVALID_JOURNAL_DIET')
+    const endedAt = value.endedAt ? new Date(value.endedAt) : null
+    const elapsed = endedAt ? endedAt.getTime() - startedAt.getTime() : null
+    if (!Number.isFinite(startedAt.getTime()) || (endedAt && (!Number.isFinite(endedAt.getTime()) || elapsed <= 0))) throw new HealthEventRecordError('用餐结束时间必须晚于开始时间', 400, 'INVALID_JOURNAL_DIET')
     result.startedAt = startedAt.toISOString()
-    result.endedAt = endedAt.toISOString()
+    if (endedAt) result.endedAt = endedAt.toISOString()
+  } else if (value.status === 'ongoing') {
+    throw new HealthEventRecordError('进行中的用餐必须填写开始时间', 400, 'INVALID_JOURNAL_DIET')
   }
   if (value.appetite !== undefined) {
     if (!appetites.has(value.appetite)) throw new HealthEventRecordError('食欲记录无效', 400, 'INVALID_JOURNAL_DIET')
@@ -436,6 +449,7 @@ export function validateJournal(value) {
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
+  record = { ...record, occurredAt: journalOccurrenceAt(record.journal, record.occurredAt) }
   if(record.journal?.vaccination?.items.some(v=>v.profileListDeletedAt)){
     const items=record.journal.vaccination.items.filter(v=>!v.profileListDeletedAt),journal={...record.journal}
     if(items.length)journal.vaccination={...journal.vaccination,items}

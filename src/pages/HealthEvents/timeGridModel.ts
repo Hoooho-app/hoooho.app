@@ -1,6 +1,7 @@
 import type { RoutineTrack } from '../../services/routineTracks'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import type { JournalEntry } from './timeViewModel'
+import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 
 export const DAY_HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 export const MAX_ACTIVE_SLEEP_MINUTES = 24 * 60
@@ -26,9 +27,8 @@ export function formatHourElapsed(value: Date) {
 }
 
 export function hourForEntry(entry: JournalEntry, day?: string) {
-  const started = new Date(entry.sleep?.sleepAt ?? entry.occurredAt)
-  const startedDay = getLocalDateKey(started)
-  return day && entry.sleep && startedDay && startedDay < day ? 0 : started.getHours()
+  void day
+  return new Date(journalOccurrenceAt(entry, entry.occurredAt)).getHours()
 }
 
 export function hourForTrack(track: RoutineTrack) {
@@ -77,25 +77,8 @@ export function projectActivityInterval(startValue: string | Date, endValue: str
 export const projectSleepInterval = projectActivityInterval
 
 export function entriesForDay(entries: readonly JournalEntry[], day: string, now = new Date()) {
-  return entries.filter((entry) => {
-    if (!entry.sleep) {
-      if (entry.diet?.startedAt && entry.diet.endedAt) {
-        const startDay = getLocalDateKey(new Date(entry.diet.startedAt))
-        const endDay = getLocalDateKey(new Date(entry.diet.endedAt))
-        return Boolean(startDay && endDay && day >= startDay && day <= endDay)
-      }
-      return getLocalDateKey(new Date(entry.occurredAt)) === day
-    }
-    const startDay = getLocalDateKey(new Date(entry.sleep.sleepAt))
-    if (!startDay) return false
-    if (entry.sleep.status === 'ongoing') {
-      if (day === startDay) return true
-      const today = getLocalDateKey(now)
-      return isCurrentOngoingSleep(entry, now) && Boolean(today && day === today && day >= startDay)
-    }
-    const endDay = getLocalDateKey(new Date(entry.sleep.wakeAt))
-    return Boolean(endDay && day >= startDay && day <= endDay)
-  })
+  void now
+  return entries.filter(entry => getLocalDateKey(journalOccurrenceAt(entry, entry.occurredAt)) === day)
     .sort((left, right) => Date.parse(left.occurredAt) - Date.parse(right.occurredAt) || right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id))
 }
 

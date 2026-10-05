@@ -11,18 +11,18 @@ test('current cell derives elapsed seconds and progress from real wall-clock tim
   assert.equal(hourProgress(new Date('2026-09-24T14:00:00+08:00')), 0)
 })
 
-test('cross-day sleep appears on both dates without duplicating stored data', () => {
+test('completed cross-day sleep appears only on its end date', () => {
   const entry = { id: 'sleep-one', eventId: 'event-one', content: '夜间睡眠', occurredAt: '2026-09-21T14:30:00.000Z', createdAt: '2026-09-21T14:30:00.000Z', attachmentCount: 0, status: 'ongoing', categories: ['sleep'], timePrecision: 'exact', sleep: { sleepAt: '2026-09-21T14:30:00.000Z', wakeAt: '2026-09-22T00:30:00.000Z', durationMinutes: 600, kind: 'night', status: 'completed' } } as JournalEntry
-  assert.deepEqual(entriesForDay([entry], '2026-09-21'), [entry])
+  assert.deepEqual(entriesForDay([entry], '2026-09-21'), [])
   assert.deepEqual(entriesForDay([entry], '2026-09-22'), [entry])
-  assert.equal(hourForEntry(entry, '2026-09-22'), 0)
+  assert.equal(hourForEntry(entry, '2026-09-22'), new Date(entry.sleep!.wakeAt).getHours())
 })
 
-test('one real meal interval appears on both dates while a point meal stays independent', () => {
+test('one real meal interval appears only on its end date while a point meal stays independent', () => {
   const interval = { id: 'meal-one', eventId: 'event-one', content: '晚餐', occurredAt: '2026-09-21T23:20:00+08:00', createdAt: '2026-09-21T23:20:00+08:00', attachmentCount: 0, status: 'observing', categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-21T23:20:00+08:00', endedAt: '2026-09-22T00:40:00+08:00' } } as JournalEntry
   const point = { ...interval, id: 'meal-two', diet: { kind: 'meal' as const, meal: '晚餐' as const }, occurredAt: '2026-09-21T21:00:00+08:00' }
   assert.deepEqual(entriesForDay([interval, point], '2026-09-22').map((entry) => entry.id), ['meal-one'])
-  assert.deepEqual(entriesForDay([interval, point], '2026-09-21').map((entry) => entry.id).sort(), ['meal-one', 'meal-two'])
+  assert.deepEqual(entriesForDay([interval, point], '2026-09-21').map((entry) => entry.id).sort(), ['meal-two'])
 })
 
 test('reverse order reverses the complete hour scale', () => {

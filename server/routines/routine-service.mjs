@@ -9,6 +9,7 @@ const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
 const customKeyPattern = /^custom:[A-Za-z0-9_-]{8,64}$/
 const itemDefinitions = {
   nightSleep: { title: '夜间睡眠', category: 'sleep' },
+  napSleep: { title: '午睡', category: 'sleep' },
   breakfast: { title: '早餐', category: 'diet', meal: '早餐' },
   lunch: { title: '午餐', category: 'diet', meal: '午餐' },
   dinner: { title: '晚餐', category: 'diet', meal: '晚餐' }
@@ -124,7 +125,7 @@ export class RoutineService {
     const event = await this.events.repository.findById(record.eventId)
     if (!event || event.memberId !== memberId) return null
     if (item.category === 'diet' && record.journal?.diet?.meal === item.meal && dateKey(record.occurredAt, timeZone) === day) return event
-    if (item.category === 'sleep' && record.journal?.sleep?.kind === 'night' && record.journal.sleep.sleepAt && dateKey(record.journal.sleep.sleepAt, timeZone) === day) return event
+    if (item.category === 'sleep' && record.journal?.sleep?.kind === (item.key === 'napSleep' ? 'nap' : 'night') && record.journal.sleep.sleepAt && dateKey(record.journal.sleep.sleepAt, timeZone) === day) return event
     if (item.category === 'activity' && record.journal?.categories?.includes('activity') && dateKey(record.occurredAt, timeZone) === day) return event
     return null
   }
@@ -189,7 +190,7 @@ export class RoutineService {
       const status = input.sleepStatus ?? track.sleep?.status ?? 'completed'
       if (!['ongoing', 'completed'].includes(status) || [sleepAt, wakeAt].some((value) => Number.isNaN(value.getTime())) || wakeAt <= sleepAt || (status === 'completed' && wakeAt > now)) throw new RoutineError('请核对入睡、醒来时间与实际完成状态', 400, 'INVALID_ROUTINE_SLEEP')
       occurredAt = status === 'ongoing' ? sleepAt.toISOString() : wakeAt.toISOString()
-      journal = validateJournal({ categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), kind: 'night', status, timeZone: input.timeZone ?? track.sleep?.timeZone ?? timeZone, quality: input.quality, observations: input.observations, otherNote: input.otherNote } })
+      journal = validateJournal({ categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), kind: track.itemKey === 'napSleep' ? 'nap' : 'night', status, timeZone: input.timeZone ?? track.sleep?.timeZone ?? timeZone, quality: input.quality, observations: input.observations, otherNote: input.otherNote } })
       content = '夜间睡眠'
     } else {
       const startedAt = new Date(input.startedAt ?? input.occurredAt)
