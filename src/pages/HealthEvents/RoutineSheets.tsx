@@ -5,10 +5,7 @@ import { routineTrackService, type RoutineDay, type RoutineFixedItemKey, type Ro
 import { AutomaticSleepSheet } from './AutomaticSleepSheet'
 
 const definitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: boolean }> = [
-  { key: 'nightSleep', label: '夜间睡眠', sleep: true },
-  { key: 'breakfast', label: '早餐' },
-  { key: 'lunch', label: '午餐' },
-  { key: 'dinner', label: '晚餐' }
+  { key: 'nightSleep', label: '夜间睡眠', sleep: true }
 ]
 
 type RoutineDraftItem = { enabled: boolean; title: string; time: string; endTime: string }
