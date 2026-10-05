@@ -1,8 +1,7 @@
+import { ProfileSectionStore } from '../health-profile/profile-section-store.mjs'
 import { SessionRepository, sessionTtlMs } from './session-repository.mjs'
 import { accountTransaction } from './storage/transaction.mjs'
 import { AuthError } from './auth-service.mjs'
-import path from 'node:path'
-import { JsonStore } from './storage/json-store.mjs'
 import { withAccountLock } from './account-lock.mjs'
 import { hashRegistrationKey } from './repositories/user-repository.mjs'
 
@@ -13,7 +12,7 @@ export class BrowserSessionService {
   constructor(auth) {
     this.auth = auth
     this.sessions = new SessionRepository(auth.config.dataDirectory)
-    this.sections = new JsonStore(path.join(auth.config.dataDirectory, 'health-profile-sections.json'), { sections: [] })
+    this.sections = new ProfileSectionStore(auth.config.dataDirectory)
   }
   assertSameOrigin(request) {
     const origin = request.headers.origin
@@ -167,14 +166,17 @@ export class BrowserSessionService {
     if (!member || member.accountId !== current.user.id) throw new AuthError('记录对象不存在', 404, 'MEMBER_NOT_FOUND')
     if (!/^[a-z-]{1,60}$/.test(input.sectionId ?? '') || !Array.isArray(input.records) || input.records.length > 500) throw new AuthError('档案格式无效', 400, 'INVALID_PROFILE_SECTION')
     let saved
-    await this.sections.update((data) => {
+    const result = await this.sections.update((data) => {
       const existing = data.sections.find((item) => item.accountId === current.user.id && item.memberId === member.id && item.sectionId === input.sectionId)
       if (input.importOnly && existing) { saved = existing; return data }
       if ((existing?.revision ?? 0) !== input.revision) throw new AuthError('档案已在其他页面更新，请刷新后重试', 409, 'PROFILE_CONFLICT')
+      if (input.sectionId === 'dietary-card' && input.allergyRevision !== undefined && (data.sections.find(item => item.accountId === current.user.id && item.memberId === member.id && item.sectionId === 'allergy')?.revision ?? 0) !== input.allergyRevision) throw new AuthError('过敏资料已更新，请重新加载后核对；草稿仍保留', 409, 'PROFILE_CONFLICT')
       saved = { accountId: current.user.id, memberId: member.id, sectionId: input.sectionId, records: input.records, revision: (existing?.revision ?? 0) + 1 }
       return { ...data, sections: [...data.sections.filter((item) => item !== existing), saved] }
     })
-    return saved
+    const relatedSections = result.sections.filter(item => item.accountId === current.user.id && item.memberId === member.id)
+    saved = relatedSections.find(item => item.sectionId === input.sectionId)
+    return { ...saved, relatedSections }
   }
   async selectMember(request, input) {
     this.assertSameOrigin(request)
