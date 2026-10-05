@@ -176,3 +176,9 @@ test('序列化继续使用 records 数组并同时保留报告，读取时按�
   assert.deepEqual(restored.items.map((item) => item.name), ['牛乳'])
   assert.deepEqual(restored.reports.map((item) => item.id), ['report-1'])
 })
+
+test('旧内嵌过敏档案与普通记录使用原位置稳定ID，已删和其他孩子不流入全局读取', () => {
+  const records = [{ memberId: 'm', _allergyArchive: { items: [{ name: '牛奶', category: 'food', currentStatus: 'confirmed' }, { name: '花生', category: 'food', currentStatus: 'confirmed', profileListDeletedAt: '2026-10-05' }] } }, { name: '鸡蛋', category: 'food', currentStatus: 'confirmed' }, { memberId: 'other', _allergyArchive: { items: [{ name: '虾', category: 'food', currentStatus: 'confirmed' }] } }]
+  const archive = readAllergyArchive(JSON.stringify(records), 'm', 'a')
+  assert.deepEqual(archive.items.map(item => [item.id, item.name]), [['legacy-allergy-1:item-1', '牛奶'], ['legacy-allergy-2', '鸡蛋']])
+})
