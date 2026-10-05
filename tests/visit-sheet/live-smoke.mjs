@@ -8,7 +8,7 @@ import sharp from 'sharp'
 
 const baseURL = process.argv[2]
 if (!['http://127.0.0.1:4196', 'https://hoooho.com', 'https://staging.hoooho.com', 'https://hooohoapp-staging.up.railway.app'].includes(baseURL)) throw new Error('Explicit verified target required')
-const browser=await chromium.launch()
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'})
 const context=await browser.newContext({...devices['iPhone SE (3rd gen)'],timezoneId:'Asia/Shanghai'})
 const page=await context.newPage(), failures=[]
 const started=new WeakMap()
@@ -40,7 +40,7 @@ async function api(url,body,method='POST'){
   },{url,body,method})
 }
 try{
-  const health=await context.request.get(`${baseURL}/api/health`);assert.equal(health.status(),200)
+  const health=await page.goto(`${baseURL}/api/health`);assert.equal(health.status(),200)
   await page.goto(`${baseURL}/login`)
   await page.getByRole('tab',{name:'注册',exact:true}).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`情况单验收${randomUUID().slice(0,6)}`)
@@ -62,8 +62,9 @@ try{
   memberId=(await api('/api/members',{name:'情况单验收（合成）',relationship:'child',birthday:'2024-01-01',gender:'female'})).id
   await api('/api/auth/current-member',{memberId})
   const occurredAt=new Date(Date.now()-86400000).toISOString()
-  eventId=(await api('/api/events',{memberId,title:'发布验收合成事件',category:'other',startTime:occurredAt})).id
-  const record=await api(`/api/events/${eventId}/records`,{type:'note',sourceType:'user_record',content:'发布验收：肘窝皮肤发红',occurredAt,journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'发布验收：肘窝皮肤发红',locations:[],descriptors:[],impactLevel:'little'}}})
+  const captured=await api(`/api/members/${memberId}/case-records`,{requestId:randomUUID(),text:'发布验收：肘窝皮肤发红',occurredAt,timeUnknown:false,identity:'parent',files:[],journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'发布验收：肘窝皮肤发红',locations:[],descriptors:[],impactLevel:'little'}}})
+  eventId=captured.eventId
+  const record={id:captured.recordId}
   recordIds.push(record.id)
   await page.goto(`${baseURL}/nurse-station`)
   await page.getByRole('link',{name:'就诊情况单，就诊前，一页理清病情',exact:true}).click()
@@ -78,7 +79,7 @@ try{
   const scope=page.getByRole('dialog',{name:'本次资料范围',exact:true})
   await page.getByRole('button',{name:'资料范围',exact:true}).click()
   await scope.getByRole('radio',{name:'选择情况与时间',exact:true}).check()
-  await scope.locator('input[type=checkbox]').first().check()
+  await scope.getByRole('checkbox',{name:'发布验收：肘窝皮肤发红',exact:true}).check()
   await scope.getByLabel('开始时间（选填）').fill('2026-09-20T00:00')
   await scope.getByLabel('结束时间（选填）').fill('2026-09-01T00:00')
   await expect(scope.getByRole('alert')).toContainText('开始时间不能晚于结束时间')
