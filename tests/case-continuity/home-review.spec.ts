@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 
 let token: string, userId: string, firstId: string, secondId: string
 let cookies: Awaited<ReturnType<import('@playwright/test').APIRequestContext['storageState']>>['cookies']
-const output = 'outputs/home-prefix-growth-dates-20261005/local'
+const output = 'outputs/home-record-card-20261006/local'
 
 test('F01 结束疗程和长期计划区分历史待确认与真正未来；不自动改状态', async ({ page, request }) => {
   await initialize(page)
@@ -129,7 +129,7 @@ test('H03 H06 姓名入口切换真实成员，指标点击独立且日期对应
   await expect(page.locator('.nurse-station-child-chevron')).toBeVisible()
   for (const width of [375,390,430]) {
     await page.setViewportSize({ width, height: 667 })
-    await expect(page.locator('.continuity-record-entry__example')).toContainText('示例：')
+    await expect(page.locator('.continuity-record-entry__hint')).toHaveText('可以这样记录')
     await expect(page.getByText('记录示例 · 点击记录', { exact: true })).toHaveCount(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `${output}/home-${width}.png` })
@@ -139,11 +139,11 @@ test('H03 H06 姓名入口切换真实成员，指标点击独立且日期对应
 test('H04 示例身份始终可见；文字与按钮进入空记录页', async ({ page }) => {
   await initialize(page)
   const label = page.locator('.continuity-record-entry__example')
-  await expect(label).toContainText('示例：')
+  await expect(page.locator('.continuity-record-entry__hint')).toHaveText('可以这样记录')
   for (const selector of ['.continuity-record-entry__record', '.continuity-record-entry__action']) {
     await page.locator(selector).click(); await expect(page).toHaveURL(/\/smart-record$/)
     await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
-    await page.goBack(); await expect(label).toContainText('示例：')
+    await page.goBack(); await expect(page.locator('.continuity-record-entry__hint')).toHaveText('可以这样记录')
   }
 })
 
@@ -158,15 +158,15 @@ test('H05 真实跟进计数、康复、失败保留与成员隔离；F02 移除
   const first = await capture(firstId, '合成验收：昨天手臂红，今天稍淡')
   await capture(firstId, '合成验收：今天鼻塞，没有发烧')
   await capture(secondId, '另一合成孩子：上午鼻子痒')
-  await page.getByRole('button', { name: /^跟进/ }).click()
+  await page.getByRole('button', { name: /^正在跟进/ }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 2')
   await expect(page.getByRole('button', { name: '带回问诊资料', exact: true })).toHaveCount(0)
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('2')
-  await page.getByRole('button', { name: /^跟进/ }).click()
+  await page.getByRole('button', { name: /^正在跟进/ }).click()
   await page.locator('.continuity-card').filter({ hasText: '昨天手臂红' }).getByRole('button', { name: '标记已康复' }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 1')
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('1')
-  await page.getByRole('button', { name: /^跟进/ }).click()
+  await page.getByRole('button', { name: /^正在跟进/ }).click()
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveText('跟进中 1')
   await page.route('**/api/members/*/cases?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '合成同步失败' } }) }))
   await page.goBack(); await expect(page.locator('.continuity-record-entry__count')).toHaveText('1!')

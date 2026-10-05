@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test'
 const production = process.env.HOOOHO_HOME_TARGET === 'production'
 if (process.env.RUN_HOOOHO_HOME_ACCEPTANCE !== '1') throw new Error('Explicit acceptance opt-in required')
 const base = production ? 'https://hoooho.com' : 'https://hooohoapp-staging.up.railway.app'
-const output = path.resolve(`outputs/home-prefix-growth-dates-20261005/${production ? 'production' : 'staging'}`)
+const output = path.resolve(`outputs/home-record-card-20261006/${production ? 'production' : 'staging'}`)
 await mkdir(output, { recursive: true })
 // Isolated QA profiles retain only this runner's own session between retries.
 // Keep locked browser files outside Vite's watched tree and deployment input.
@@ -37,13 +37,13 @@ async function api(url, data, method = 'POST') {
 async function home(name) {
   await expect(page.locator('.nurse-station-hero__main')).toBeVisible()
   await expect(page.locator('.nurse-station-growth-data')).toBeVisible()
-  await expect(page.getByRole('button', { name: '症状描述示例，情况速记', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '症状描述示例，症状速记', exact: true })).toBeVisible()
   await expect(page.locator('.nurse-home-entry--medication')).toContainText('0 个提醒任务')
   await expect(page.locator('.nurse-home-entry--desensitization')).toHaveCount(0)
   await expect(page.locator('.continuity-home h2,.continuity-home .continuity-card')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /^跟进/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^正在跟进/ })).toBeVisible()
   await expect(page.getByText('记录示例 · 点击记录', { exact: true })).toHaveCount(0)
-  await expect(page.locator('.continuity-record-entry__example')).toContainText('示例：')
+  await expect(page.locator('.continuity-record-entry__hint')).toHaveText('可以这样记录')
   await expect(page.locator('.nurse-home-entry strong')).toHaveText(['就诊情况单', '忌口出示卡', '配料表扫描', '用药提醒', '健康日记', '孩子档案'])
   await expect(page.locator('.nurse-home-entry').nth(2)).toHaveCSS('background-color', 'rgb(255, 244, 234)')
   const palette = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => getComputedStyle(card).backgroundColor))
@@ -54,20 +54,17 @@ async function home(name) {
   await expect(page.locator('.nurse-station-overview')).toHaveCount(0)
   await expect(page.locator('.continuity-record-entry strong,.continuity-record-entry__header,.continuity-record-entry a')).toHaveCount(0)
   const layout=await page.locator('.continuity-record-entry').evaluate(el=>{const action=el.querySelector('.continuity-record-entry__action').getBoundingClientRect(),follow=el.querySelector('.continuity-record-entry__followup').getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero'),rect=el.getBoundingClientRect();return {height:rect.height,width:rect.width,actionX:action.x,followX:follow.x,actionWidth:action.width,followWidth:follow.width,actionHeight:action.height,followHeight:follow.height,gap:follow.y-action.bottom,background:getComputedStyle(el).backgroundColor,heroGap:el.parentElement.getBoundingClientRect().y-hero.getBoundingClientRect().bottom}})
-  // 320px retains the existing five-line fallback; no separate example label.
-  assert.equal(layout.height, await page.evaluate(()=>innerWidth<=360?136:114));assert.equal(layout.actionX,layout.followX);assert.equal(layout.actionWidth,layout.followWidth);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.gap,0);assert.equal(layout.background,'rgb(233, 246, 242)');assert.equal(layout.heroGap,12)
-  const paintedHeights = await page.locator('.continuity-record-entry__buttons .hoho-button').evaluateAll(buttons => buttons.map(button => {
-    const surface = getComputedStyle(button, '::before')
-    return button.getBoundingClientRect().height - parseFloat(surface.top) - parseFloat(surface.bottom)
-  }))
-  assert.deepEqual(paintedHeights, [36, 36])
-  await expect(page.locator('.continuity-record-entry__action')).toHaveText('情况速记')
+  assert.ok(layout.height >= 222);assert.ok(layout.actionX > layout.followX + layout.followWidth);assert.equal(layout.actionWidth,104);assert.equal(layout.actionHeight,44);assert.equal(layout.followHeight,44);assert.equal(layout.background,'rgb(255, 255, 255)');assert.equal(layout.heroGap,12)
+  const footer=await page.locator('.continuity-record-entry__buttons').evaluate(el=>[...el.children].map(button=>button.getBoundingClientRect().y))
+  assert.equal(footer[0],footer[1])
+  await expect(page.locator('.continuity-record-entry svg,.continuity-record-entry img')).toHaveCount(0)
+  await expect(page.locator('.continuity-record-entry__action')).toHaveText('症状速记')
   await expect(page.locator('.continuity-record-entry__followup')).toContainText('跟进')
   await expect(page.locator('.continuity-home input,.continuity-home textarea,.continuity-home button button,.continuity-home button a')).toHaveCount(0)
   const example = page.locator('.continuity-record-entry__example')
   await expect.poll(() => example.evaluate(element => element.textContent === element.getAttribute('aria-label'))).toBe(true)
   assert.ok(!(await example.getAttribute('aria-label')).includes('\n'))
-  await expect(example).toHaveCSS('font-size','13px')
+  await expect(example).toHaveCSS('font-size','14px')
   await expect(example.locator('span')).toHaveCSS('white-space','normal')
   const sizes = await page.locator('.nurse-home-entry').evaluateAll(cards => cards.map(card => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   assert.equal(sizes.length, 6)
@@ -121,7 +118,7 @@ try {
     { measuredAt: '2026-09-27', heightCm: null, weightKg: 10.7 },
   ]) await api('/api/growth-measurements', { ...measurement, memberId, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006' })
   await page.goto(base + '/nurse-station')
-  await expect(page.getByRole('button', { name: /^跟进/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^正在跟进/ })).toBeVisible()
   // A retained QA browser may restore its previous member preference during bootstrap.
   // Select the newly owned fixture through the real UI before editing any data.
   async function selectOwnedMember(name, expectedId) {
@@ -171,8 +168,8 @@ try {
   for(let index=0;index<10;index++) {
     await expect.poll(()=>example.evaluate(el=>el.textContent===el.getAttribute('aria-label')), {timeout:15000}).toBe(true)
     const measured=await example.evaluate(el=>{const span=el.querySelector('span'),range=document.createRange();range.selectNodeContents(span);range.setEndBefore(span.querySelector("i"));const rects=[...range.getClientRects()],box=el.getBoundingClientRect();return {index:Number(el.dataset.typewriterIndex),lines:new Set(rects.filter(r=>r.width>0).map(r=>Math.round(r.top))).size,maxRight:Math.max(...rects.map(r=>r.right)),right:box.right,bottom:range.getBoundingClientRect().bottom,boxBottom:box.bottom,text:el.textContent}})
-    samples.push(measured);assert.equal(measured.lines,3);assert.ok(measured.maxRight<=measured.right);assert.ok(measured.bottom<=measured.boxBottom);assert.deepEqual(await geometry(),stable)
-    await expect.poll(()=>example.textContent(), {timeout:6000,intervals:[50]}).toBe('示例：')
+    samples.push(measured);assert.ok(measured.lines<=3);assert.ok(measured.maxRight<=measured.right);assert.ok(measured.bottom<=measured.boxBottom);assert.deepEqual(await geometry(),stable)
+    await expect.poll(()=>example.textContent(), {timeout:6000,intervals:[50]}).toBe('')
     assert.deepEqual(await geometry(),stable)
   }
   assert.equal(new Set(samples.map(sample=>sample.index)).size,10)
@@ -192,7 +189,7 @@ try {
   assert.equal((await api(`/api/members/${memberId}`, undefined, 'GET')).bloodType, 'B')
   for (const [name, expectedId] of [['切换验收（合成）', secondMemberId], ['布局验收（合成）', memberId]]) {
     await selectOwnedMember(name, expectedId)
-    await expect(page.getByRole('button', { name: '症状描述示例，情况速记', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '症状描述示例，症状速记', exact: true })).toBeVisible()
   }
   await expect(page.locator('.nurse-station-blood-type')).toContainText('B型'); result.checks.originalMemberSwitch = 'PASS'
   for (const [name, route] of [['健康日记', '/health-events'], ['孩子档案', '/health-profile'], ['就诊情况单', '/visit-summary'], ['忌口出示卡', '/dietary-card'], ['用药提醒', '/medication-reminders'], ['配料表扫描', '/food-label']]) {
@@ -207,13 +204,13 @@ try {
   await page.goBack(); await expect(page).toHaveURL(base + '/nurse-station')
   result.checks.ingredientScanKeyboardNavigation = 'PASS'
   const entry = page.locator('.continuity-record-entry')
-  const button = entry.getByRole('button', { name: '症状描述示例，情况速记', exact: true })
+  const button = entry.getByRole('button', { name: '症状描述示例，症状速记', exact: true })
   assert.ok(await button.evaluate(element => element.closest('a') === null))
   assert.ok((await button.boundingBox()).height >= 44)
   await expect(button.locator('button,a,input,textarea')).toHaveCount(0)
   await expect(entry.locator('.continuity-record-entry__example')).not.toContainText('例如：')
-  const fake = page.getByRole('button', { name: '症状描述示例，情况速记', exact: true })
-  for (const control of [button, entry.getByRole('button', { name: '情况速记', exact: true })]) {
+  const fake = page.getByRole('button', { name: '症状描述示例，症状速记', exact: true })
+  for (const control of [button, entry.getByRole('button', { name: '症状速记', exact: true })]) {
     for (const edge of ['left', 'right']) {
       await control.scrollIntoViewIfNeeded()
       const rect = await control.boundingBox()
@@ -231,7 +228,7 @@ try {
   await expect(page).toHaveURL(base + '/smart-record')
   await expect(page.getByRole('textbox', { name: '哪里不舒服', exact: true })).toHaveValue('')
   await page.goBack()
-  await entry.getByRole('button', { name: '情况速记', exact: true }).focus()
+  await entry.getByRole('button', { name: '症状速记', exact: true }).focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/smart-record')
   await page.getByRole('textbox', { name: '哪里不舒服', exact: true }).fill('合成示例，非真实患者资料：首页速记导航与保存验收，原因未明确。')
@@ -254,7 +251,7 @@ try {
   await selectOwnedMember('布局验收（合成）', memberId)
   await expect(page.locator('.continuity-record-entry__count')).toHaveText('1')
   result.checks.realFollowUpCountAndMemberIsolation = 'PASS'
-  await page.getByRole('button', { name: /^跟进/ }).click()
+  await page.getByRole('button', { name: /^正在跟进/ }).click()
   await expect(page).toHaveURL(base + '/cases')
   await expect(page.getByRole('tab', { name: /跟进中/ })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.continuity-card')).toHaveCount(1)
@@ -264,7 +261,7 @@ try {
   result.screenshots.push(listScreenshot)
   await page.goBack()
   await expect(page).toHaveURL(base + '/nurse-station')
-  await page.getByRole('button', { name: /^跟进/ }).focus()
+  await page.getByRole('button', { name: /^正在跟进/ }).focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(base + '/cases')
   await expect(page.locator('.continuity-card')).toHaveCount(1)
