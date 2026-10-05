@@ -5,18 +5,22 @@ import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../c
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { loadProfileSections, readProfileSection, saveProfileSection } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 import { DietaryCardPanel, DietaryEmptyState, FoodGlyph } from './DietaryCardPanel'
 import { downloadDietaryCard } from './dietaryCardExport'
 import {
   createManualDietaryItem,
+  defaultDietaryLanguage,
   deriveDietarySources,
   dietaryItemExists,
+  dietaryLanguageOptions,
   emptyDietarySnapshot,
   foodIdFor,
   mergeDietarySources,
   normalizeFoodName,
   presentDietaryCard,
   readDietarySnapshot,
+  resolveDietaryNativeLanguage,
   snapshotFromSources,
   snapshotsEqual,
   type DietaryCardGroup,
@@ -92,7 +96,11 @@ export function DietaryCardPage() {
   const location = useLocation()
   const member = useCurrentMember()
   const { accountId, currentMemberId, members, reload, setState, state, token } = useDietaryCardData()
-  const [language, setLanguage] = useState<DietaryCardLanguage>('en-zh')
+  const accountLanguage = useSettingsStore((store) => store.accounts[accountId]?.interfaceLanguage)
+  const nativeLanguage = resolveDietaryNativeLanguage(accountLanguage, navigator.language)
+  const languageOptions = dietaryLanguageOptions(nativeLanguage)
+  const [language, setLanguage] = useState<DietaryCardLanguage>(() => defaultDietaryLanguage(nativeLanguage))
+  useEffect(() => { setLanguage(defaultDietaryLanguage(nativeLanguage)) }, [nativeLanguage])
   const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState(() => (location.state as { notice?: string } | null)?.notice ?? '')
@@ -106,6 +114,7 @@ export function DietaryCardPage() {
   const snapshot = state.snapshot
   const presentation = snapshot ? presentDietaryCard(snapshot, language) : null
   const selectionEmpty = Boolean(snapshot?.items.length && !presentation?.visibleCount)
+  const englishIncomplete = language === 'en' && Boolean(presentation?.missingTranslations.length)
 
   const update = async () => {
     if (!snapshot || !token || refreshing) return
@@ -126,7 +135,7 @@ export function DietaryCardPage() {
   }
 
   const saveImage = async () => {
-    if (!snapshot || !presentation?.visibleCount || exporting) return
+    if (!snapshot || !presentation?.visibleCount || englishIncomplete || exporting) return
     const captured = snapshot
     setExporting(true)
     try { await downloadDietaryCard(captured, language); setNotice('图片已生成') }
@@ -139,17 +148,19 @@ export function DietaryCardPage() {
     <div className="dietary-card-scroll">
       <nav aria-label="忌口出示卡操作" className="dietary-toolbar">
         <button disabled={state.status !== 'ready'} onClick={() => navigate('/dietary-card/edit')} type="button"><Pencil />修改</button>
-        <label aria-label="选择出示语言"><select onChange={(event) => setLanguage(event.target.value as DietaryCardLanguage)} value={language}><option value="zh">中文</option><option value="en-zh">English + 中文</option></select><ChevronDown aria-hidden="true" /></label>
+        <label aria-label="选择出示语言"><select onChange={(event) => setLanguage(event.target.value as DietaryCardLanguage)} value={language}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown aria-hidden="true" /></label>
         <button disabled={state.status !== 'ready' || refreshing} onClick={() => void update()} type="button"><RefreshCw className={refreshing ? 'is-spinning' : ''} />{refreshing ? '更新中' : '更新'}</button>
-        <button disabled={!presentation?.visibleCount || exporting} onClick={() => void saveImage()} type="button"><Download />{exporting ? '生成中' : '保存图片'}</button>
+        <button disabled={!presentation?.visibleCount || englishIncomplete || exporting} onClick={() => void saveImage()} type="button"><Download />{exporting ? '生成中' : '保存图片'}</button>
       </nav>
       {state.status === 'loading' ? <section aria-label="正在读取忌口清单" className="dietary-loading"><span /><span /><span /></section>
         : state.status === 'error' ? <StatusNotice action={<HohoButton onClick={() => void reload(false)} variant="secondary">重试</HohoButton>} tone="error" title={state.error || '读取失败，请重试'} />
           : snapshot && presentation ? <>
             {state.error && <p className="dietary-inline-error" role="status">最新来源读取失败，当前已保存卡片仍可使用。</p>}
             {presentation.visibleCount > 12 && <p className="dietary-overflow-hint">共{presentation.visibleCount}项，请下滑查看全部</p>}
-            {presentation.missingTranslations.length > 0 && <p className="dietary-translation-notice">{presentation.missingTranslations.join('、')}缺少英文名称，已保留中文。</p>}
-            {presentation.visibleCount ? <DietaryCardPanel language={language} snapshot={snapshot} /> : <DietaryEmptyState selectionEmpty={selectionEmpty} />}
+            {englishIncomplete ? <StatusNotice tone="warning" title="请先补充英文名称" action={<HohoButton onClick={() => navigate('/dietary-card/edit')} variant="secondary">补充英文名称</HohoButton>}>{presentation.missingTranslations.join('、')}缺少英文名称。补充后即可出示和保存纯英文卡片。</StatusNotice> : <>
+              {presentation.missingTranslations.length > 0 && <p className="dietary-translation-notice">{presentation.missingTranslations.join('、')}缺少英文名称，已保留中文。</p>}
+              {presentation.visibleCount ? <DietaryCardPanel language={language} snapshot={snapshot} /> : <DietaryEmptyState selectionEmpty={selectionEmpty} />}
+            </>}
           </> : null}
     </div>
     {notice && <p aria-live="polite" className="dietary-toast" role="status">{notice}</p>}
