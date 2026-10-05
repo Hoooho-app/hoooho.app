@@ -45,6 +45,8 @@ import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
+import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
+import {profileListRoute,profileListResult} from './health-profile/child-profile-list-api.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -87,6 +89,7 @@ const medicationReminders = new MedicationReminderService({ ...sharedOptions, ev
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
+const childProfileLists = new ChildProfileListService(sharedOptions)
 const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
@@ -633,6 +636,8 @@ async function handleOrganizations(request, response, pathname) {
 }
 
 async function handleHealthProfileFacts(request, response, pathname, searchParams) {
+  const compactMatch=profileListRoute(pathname)
+  if(compactMatch){sendJson(response,200,await profileListResult(childProfileLists,await readAccountId(request),compactMatch,request.method,request.method==='POST'?await readJson(request):undefined));return true}
   const candidatesMatch = /^\/api\/health-profile-facts\/candidates$/.exec(pathname)
   const sourcesMatch = /^\/api\/health-profile-facts\/([^/]+)\/sources$/.exec(pathname)
   const factMatch = /^\/api\/health-profile-facts\/([^/]+)$/.exec(pathname)

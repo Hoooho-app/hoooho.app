@@ -8,6 +8,8 @@ export const accountCollections = [
   ['visit-ai-candidates.json', 'candidates'],
   ['visit-sheets.json', 'reports'],
   ['health-profile-sections.json', 'sections'],
+  ['child-profile-list-state.json', 'members'],
+  ['child-profile-list-state.json', 'requests'],
   ['family-members.json', 'members'],
   ['health-events.json', 'events'],
   ['health-event-records.json', 'records'],

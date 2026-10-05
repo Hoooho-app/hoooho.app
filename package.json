@@ -16,6 +16,7 @@
     "test:e2e:auth": "npm run build && playwright test --config tests/auth-account/playwright.config.ts && node tests/auth-account/persistent-lifecycle.mjs",
     "test:account": "node --test server/account/account-service.test.mjs",
     "test:members": "node --test server/members/family-member-service.test.mjs",
+    "test:profile-list": "node --test server/health-profile/child-profile-list-service.test.mjs",
     "test:growth": "node --test server/growth/growth-measurement-service.test.mjs",
     "test:medication-reminders": "node --test server/medication-reminders/medication-reminder-service.test.mjs",
     "test:desensitization-tests": "node --test server/desensitization-tests/desensitization-test-service.test.mjs",
