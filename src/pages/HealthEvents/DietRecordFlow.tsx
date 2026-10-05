@@ -97,7 +97,7 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, draftKey, in
   </section>
 }
 
-function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, saving }: CommonFormProps & { method: NonNullable<JournalDietDetails['feedingMethod']>; active: boolean; scope: string; initialDiet?: JournalDietDetails }) {
+function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, saving, name, canStart }: CommonFormProps & { method: NonNullable<JournalDietDetails['feedingMethod']>; active: boolean; scope: string; initialDiet?: JournalDietDetails; name: string }) {
   const original = initialDiet?.feedingMethod === method ? initialDiet : undefined
   const [draft,setDraft] = useDietDraftState(`${scope}:feeding:${method}`, { seconds:{left:original?.breastSeconds?.left??0,right:original?.breastSeconds?.right??0},manualMinutes:{left:original?.breastSeconds?.left?String(original.breastSeconds.left/60):'',right:original?.breastSeconds?.right?String(original.breastSeconds.right/60):''},bottleMl:original?.bottleMl?String(original.bottleMl):'',statuses:original?.feedingStatuses??[] as string[] })
   const {seconds,manualMinutes,bottleMl,statuses} = draft
@@ -116,14 +116,14 @@ function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, s
   useEffect(() => { if (!active) setActiveSide(null) },[active])
   useEffect(() => { if (!hasBreast) setActiveSide(null) }, [hasBreast])
   const total = seconds.left + seconds.right
-  const valid = (hasBreast && total > 0) || (hasBottle && Number(bottleMl) > 0)
-  const save = () => {
+  const valid = Boolean(name.trim()) || (hasBreast && total > 0) || (hasBottle && Number(bottleMl) > 0)
+  const save = (ongoing = false) => {
     const label = feedingMethods.find(([value]) => value === method)?.[1] ?? '喂养'
     const parts = [label]
-    if (hasBreast) parts.push(total ? `${Math.max(1, Math.round(total / 60))}分钟` : '母乳时长未记录')
-    if (hasBottle) parts.push(`${Number(bottleMl)}毫升`)
+    if (hasBreast && total) parts.push(`${Math.max(1, Math.round(total / 60))}分钟`)
+    if (hasBottle && Number(bottleMl) > 0) parts.push(`${Number(bottleMl)}毫升`)
     if (statuses.length) parts.push(statuses.join('、'))
-    onSave(parts.join(' · '), { kind: 'feeding', feedingMethod: method, ...(hasBreast ? { breastSeconds: { ...seconds, total } } : {}), ...(hasBottle ? { bottleMl: Number(bottleMl) } : {}), feedingStatuses: statuses })
+    onSave(parts.join(' · '), { kind: 'feeding', feedingMethod: method, ...(hasBreast && total > 0 ? { breastSeconds: { ...seconds, total } } : {}), ...(hasBottle && Number(bottleMl) > 0 ? { bottleMl: Number(bottleMl) } : {}), feedingStatuses: statuses, ...(ongoing ? { status: 'ongoing' } : {}) })
   }
   const setSideMinutes = (side: 'left' | 'right', value: string) => {
     const minutes = Math.min(1440, Math.max(0, Number(value) || 0))
@@ -136,11 +136,12 @@ function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, s
     {hasBottle && <section className="record-form-group"><HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" /></section>}
     <section className="record-form-group"><MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} /></section>
     <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
-    <SaveBar disabled={!valid} onClick={save} saving={saving} />
+    <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
+    {canStart && <HohoButton fullWidth loading={saving} variant="secondary" onClick={() => save(true)}>开始喂养</HohoButton>}
   </>
 }
 
-interface CommonFormProps { occurredAt: string; occurrence: ReturnType<typeof useOccurrenceTime>; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean }
+interface CommonFormProps { occurredAt: string; occurrence: ReturnType<typeof useOccurrenceTime>; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean; canStart?: boolean }
 
 function SupplementForm({ occurrence, onSave, saving, initialDiet }: CommonFormProps & { initialDiet?: JournalDietDetails }) {
   const [names, setNames] = useState<string[]>(initialDiet?.supplementNames??[])
@@ -161,7 +162,7 @@ function SupplementForm({ occurrence, onSave, saving, initialDiet }: CommonFormP
   </>
 }
 
-function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, common, onCommonChange }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; scope: string; initialDiet?: JournalDietDetails; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
+function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, common, onCommonChange, canStart }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; scope: string; initialDiet?: JournalDietDetails; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const [draft,setDraft] = useDietDraftState(`${scope}:food`,{foods:initialDiet?.foods??[] as string[],reactions:initialDiet?.reactions??[] as string[]})
   const {foods,reactions} = draft
   const setFoods = (foods:string[]) => setDraft(current=>({...current,foods}))
@@ -170,21 +171,22 @@ function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, 
   const hasFood = foods.length > 0
   const isSnack = kind === 'snack'
   const valid = hasFood
-  const save = () => {
+  const save = (ongoing = false) => {
     const title = isComplementary ? '辅食' : isSnack ? '零食' : '正餐'
     const listedFoods = foods.join('、')
     const lines = [title, listedFoods]
     if (reactions.length) lines.push(reactions.includes('暂未发现') ? '暂未发现异常' : `进食后观察：${reactions.join('、')}`)
     onSave(lines.join('\n'), {
       kind, foods, ...(isSnack ? { meal: '零食' as const } : {}),
-      reactions
+      reactions, ...(ongoing ? { status: 'ongoing' } : {})
     })
   }
   return <>
     <div className="record-form-group"><FoodEditor common={common} draftKey={`${scope}:food-input`} inlineActions foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
     <div className="record-form-group"><section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等待观察时间" values={reactions} onChange={setReactions} /></section></div>
     <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
-    <SaveBar disabled={!valid} onClick={save} saving={saving} />
+    <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
+    {canStart && kind === 'meal' && <HohoButton fullWidth loading={saving} variant="secondary" onClick={() => save(true)}>开始用餐</HohoButton>}
   </>
 }
 
@@ -214,6 +216,8 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
   const [saving, setSaving] = useState(false)
   const submittingRef = useRef(false)
   const [error, setError] = useState('')
+  const [recordName, setRecordName] = useDietDraftState(`${scope}:record-name`, initialDiet?.name ?? '')
+  const [recordNote, setRecordNote] = useDietDraftState(`${scope}:record-note`, initialDiet?.note ?? '')
   const layerRef = useRef<HTMLElement>(null)
   const photoModel = useQuickRecordPhotos(memberId, token)
   const [frequentFoods, setFrequentFoods] = useState(defaultFrequentFoods)
@@ -238,12 +242,13 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
     const isoTime = occurrence.capture()
     if (!isoTime) return
     const preserved = initialDiet?.kind===details.kind && (details.kind!=='feeding'||initialDiet.feedingMethod===details.feedingMethod) ? initialDiet : undefined
-    const normalizedDetails = { ...preserved, ...details, ...(details.startedAt?{startedAt:isoTime}:{}) }
+    const normalizedDetails = { ...preserved, ...details, ...(recordName.trim() ? { name: recordName.trim() } : { name: undefined }), ...(recordNote.trim() ? { note: recordNote.trim() } : { note: undefined }), ...(details.status === 'ongoing' ? { startedAt: isoTime } : {}) }
     submittingRef.current = true; setSaving(true); setError('')
     try {
       const message = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: normalizedDetails })
       photoModel.clearAfterSave()
       try {
+        sessionStorage.removeItem(`${scope}:record-name`); sessionStorage.removeItem(`${scope}:record-note`)
         if (details.kind === 'feeding') { sessionStorage.removeItem(`${scope}:feeding:${details.feedingMethod}`); sessionStorage.removeItem(`${scope}:milk-time`) }
         else if (details.kind !== 'supplement') { for (const suffix of ['food','food-input','food-time']) sessionStorage.removeItem(`${scope}:${suffix}`) }
       } catch { /* Saving does not depend on draft storage availability. */ }
@@ -253,7 +258,7 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
       setError(reason instanceof Error ? reason.message : '保存失败，请重试')
     } finally { submittingRef.current = false; setSaving(false) }
   }
-  const common = { occurredAt, occurrence, setOccurredAt, onSave: save, saving }
+  const common = { occurredAt, occurrence, setOccurredAt, onSave: save, saving, canStart: !recordId }
   const saveFrequentFoods = async (foodKind: 'complementary' | 'meal' | 'snack', foods: string[]) => {
     const next = { ...frequentFoods, [foodKind]: foods }
     const member = await familyMemberService.update(memberId, { dietFrequentFoods: next }, token)
@@ -269,7 +274,8 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
       {initialKind !== 'supplement' && <div className="diet-category-switches"><HohoSegmentedControl disabled={saving} label="喂养/饮食分类" value={kind==='feeding'?'milk':'food'} options={[{value:'milk',label:'奶类喂养',icon:<Milk aria-hidden="true" size={20}/>},{value:'food',label:'食物饮食',icon:<Soup aria-hidden="true" size={20}/>}]} onChange={value=>selectKind(value==='milk'?'feeding':foodKind)} />
         {kind==='feeding' ? <HohoSegmentedControl disabled={saving} label="喂养方式" value={method} options={feedingMethods.map(([value,label])=>({value,label}))} onChange={value=>{setMethod(value);setError('')}} /> : <HohoSegmentedControl disabled={saving} label="食物分类" value={foodKind} options={[{value:'complementary',label:'辅食'},{value:'meal',label:'正餐'},{value:'snack',label:'零食'}]} onChange={selectKind} />}</div>}
       {initialKind === 'supplement' ? <SupplementForm {...common} initialDiet={initialDiet}/> : <>
-        {kind==='feeding' ? <div className="diet-family-panel"><FeedingForm {...common} active initialDiet={initialDiet} key={method} method={method} occurrence={milkOccurrence} scope={scope}/></div> : <div className="diet-family-panel"><FoodRecordForm {...common} common={frequentFoods[foodKind]} initialDiet={initialDiet} kind={foodKind} occurrence={foodOccurrence} scope={scope} onCommonChange={frequentFoodsReady ? (foods)=>saveFrequentFoods(foodKind,foods) : undefined}/></div>}
+        {(kind === 'feeding' || kind === 'meal') && <section className="record-form-group"><HohoInput label="本次名称（选填）" maxLength={20} placeholder={kind === 'feeding' ? '例如：晚奶' : '例如：晚餐'} value={recordName} onChange={event => setRecordName(event.target.value)} /><HohoInput label="备注（选填）" maxLength={1000} value={recordNote} onChange={event => setRecordNote(event.target.value)} /></section>}
+        {kind==='feeding' ? <div className="diet-family-panel"><FeedingForm {...common} name={recordName} active initialDiet={initialDiet} key={method} method={method} occurrence={milkOccurrence} scope={scope}/></div> : <div className="diet-family-panel"><FoodRecordForm {...common} common={frequentFoods[foodKind]} initialDiet={initialDiet} kind={foodKind} occurrence={foodOccurrence} scope={scope} onCommonChange={frequentFoodsReady ? (foods)=>saveFrequentFoods(foodKind,foods) : undefined}/></div>}
       </>}
       {error && <p aria-live="polite" className="diet-save-error" role="alert">{error}</p>}
     </div>

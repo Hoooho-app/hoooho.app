@@ -19,6 +19,24 @@ const jsonRequest = (url, method, token, body) => fetch(url, {
   ...(body ? { body: JSON.stringify(body) } : {})
 })
 
+test('feeding completes the same record on its end date and rejects future/invalid times before update', async () => {
+  const start = '2026-09-30T23:40:00+08:00', end = '2026-10-01T00:10:00+08:00'
+  let row = { id: 'milk-one', accountId: 'account-one', eventId: 'event-one', occurredAt: start, journal: { categories: ['diet'], diet: { kind: 'feeding', status: 'ongoing', name: '晚奶', startedAt: start } } }
+  let mutations = 0
+  const service = new HealthEventRecordService({ repository: { findById: async () => row, update: async (_id, changes) => { mutations++; row = { ...row, ...changes }; return row } }, events: { findById: async () => ({ id: 'event-one', accountId: 'account-one', memberId: 'child' }) }, organizations: { invalidateAndRecompute: async () => undefined }, changeAnnotations: { recompute: async () => undefined } })
+  const now = new Date('2026-10-02T00:00:00Z')
+  const completed = { ...row.journal, diet: { ...row.journal.diet, status: 'completed', endedAt: end, bottleMl: 180, note: '真实备注' } }
+  const updated = await service.update('account-one', row.id, { journal: completed }, now)
+  assert.equal(updated.id, 'milk-one'); assert.equal(updated.occurredAt, new Date(end).toISOString())
+  assert.equal(updated.journal.diet.note, '真实备注'); assert.equal(updated.journal.diet.bottleMl, 180)
+  await service.update('account-one', row.id, { journal: completed }, now)
+  assert.equal(row.id, 'milk-one'); assert.equal(mutations, 2)
+  await assert.rejects(() => service.update('other-account', row.id, { journal: completed }, now))
+  await assert.rejects(() => service.update('account-one', row.id, { journal: { ...completed, diet: { ...completed.diet, endedAt: '2030-01-01T00:00:00Z' } } }, now), error => error.code === 'FUTURE_OCCURRED_AT')
+  await assert.rejects(() => service.update('account-one', row.id, { journal: { ...completed, diet: { ...completed.diet, endedAt: start } } }, now), error => error.code === 'INVALID_JOURNAL_DIET')
+  assert.equal(mutations, 2)
+})
+
 async function login(baseUrl, phone) {
   await jsonRequest(`${baseUrl}/api/auth/send-code`, 'POST', null, { phone })
   const response = await jsonRequest(`${baseUrl}/api/auth/login`, 'POST', null, { phone, code: '123456' })
@@ -58,7 +76,7 @@ test('occurredAt 允许当前及历史时间并拒绝所有未来时间', () => 
   }
 })
 
-test('ending sleep is atomic, idempotent, and keeps the start time as occurredAt', async () => {
+test('ending sleep is atomic, idempotent, and moves occurredAt to the real end', async () => {
   let current = { id: 'sleep-one', accountId: 'account-one', eventId: 'event-one', occurredAt: '2026-09-21T12:00:00.000Z', journal: { categories: ['sleep'], sleep: { sleepAt: '2026-09-21T12:00:00.000Z', kind: 'night', status: 'ongoing' } } }
   let mutations = 0
   const repository = {
@@ -79,7 +97,7 @@ test('ending sleep is atomic, idempotent, and keeps the start time as occurredAt
   const ended = await service.endSleep('account-one', 'sleep-one', { wakeAt: now.toISOString() }, now)
   const repeated = await service.endSleep('account-one', 'sleep-one', { wakeAt: '2026-09-21T20:30:00.000Z' }, new Date('2026-09-21T20:30:00.000Z'))
   assert.equal(mutations, 1)
-  assert.equal(ended.occurredAt, '2026-09-21T12:00:00.000Z')
+  assert.equal(ended.occurredAt, now.toISOString())
   assert.equal(ended.journal.sleep.durationMinutes, 480)
   assert.equal(repeated.journal.sleep.wakeAt, now.toISOString())
 })

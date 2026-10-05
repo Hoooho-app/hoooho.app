@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronDown, Moon, Sun } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
-import { HohoButton } from '../../components/design-system'
+import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
+import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalMetadata, JournalSleepDetails } from '../../types/journal'
@@ -24,7 +25,7 @@ export function createSleepDraft(now = new Date()): SleepDraft {
 function point(angle: number, radius = 96) { const r = (angle - 90) * Math.PI / 180; return { x: 130 + Math.cos(r) * radius, y: 130 + Math.sin(r) * radius } }
 const clock = (value: string, timeZone?: string) => recordLocal(value, timeZone).slice(11)
 
-export function SleepEditor({ initial, automatic = false, saving, error, onSave, onSkip }: { initial: SleepDraft; automatic?: boolean; saving: boolean; error: string; onSave: (draft: SleepDraft) => void; onSkip?: () => void }) {
+export function SleepEditor({ initial, automatic = false, allowStatusChange = false, saving, error, onSave, onSkip }: { initial: SleepDraft; automatic?: boolean; allowStatusChange?: boolean; saving: boolean; error: string; onSave: (draft: SleepDraft) => void; onSkip?: () => void }) {
   const zone = initial.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const sleepLocal = (value: string) => recordLocal(value, zone)
   const sleepInstant = (value: string) => recordInstant(value, zone)
@@ -66,6 +67,7 @@ export function SleepEditor({ initial, automatic = false, saving, error, onSave,
   }
   const overlapping = Math.abs(angleDelta(sleepAngle(draft.sleepAt), sleepAngle(draft.wakeAt))) < 25
   return <div className={`sleep-editor${automatic ? ' sleep-editor--automatic' : ''}`}>
+    {allowStatusChange && <HohoSegmentedControl label="本次睡眠状态" disabled={saving} value={draft.status ?? 'completed'} options={[{ value: 'ongoing', label: '正在睡眠' }, { value: 'completed', label: '已经醒来' }]} onChange={status => setDraft(previous => { const now = Math.floor(Date.now() / 60000) * 60000; return { ...previous, status: status as 'ongoing' | 'completed', ...(status === 'ongoing' ? { sleepAt: new Date(now).toISOString(), wakeAt: new Date(now + 480 * 60000).toISOString(), durationMinutes: 480 } : {}) } })} />}
     <svg aria-label="十二小时睡眠时间圆环，每圈12小时" className="sleep-editor-ring" onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => finish()} ref={ring} role="group" viewBox="0 0 260 260">
       <circle className="sleep-editor-track" cx="130" cy="130" r="96" />
       {Array.from({ length: Math.min(full, 3) }, (_, index) => <circle className="sleep-editor-arc" cx="130" cy="130" key={index} r={96 - index * 10} />)}
@@ -100,9 +102,9 @@ export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSav
   const save = async (value: SleepDraft) => {
     if (saving) return
     setSaving(true); setError('')
-    try { const message = await onConfirm(`睡眠\n${clock(value.sleepAt, value.timeZone)}–${clock(value.wakeAt, value.timeZone)} · ${formatSleepDuration(value.durationMinutes)}`, value.sleepAt, 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: value }); onSaved(message); onClose() }
+    try { const message = await onConfirm(`睡眠\n${clock(value.sleepAt, value.timeZone)}–${clock(value.wakeAt, value.timeZone)} · ${formatSleepDuration(value.durationMinutes)}`, journalOccurrenceAt({ sleep: value }, value.sleepAt), 'text', { draftId: '', photoIds: [] }, { categories: ['sleep'], sleep: value }); onSaved(message); onClose() }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
-  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span /></header><div className="sleep-record-scroll"><SleepEditor error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></section></div>
+  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span /></header><div className="sleep-record-scroll"><SleepEditor allowStatusChange error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></section></div>
 }

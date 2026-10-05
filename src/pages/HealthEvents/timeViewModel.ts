@@ -1,6 +1,7 @@
 import type { HealthEventApiDto, HealthEventRecordApiDto, EventAttachmentApiDto, HealthEventStage } from '../../types'
 import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import type { JournalCategory, JournalMetadata } from '../../types/journal'
+import { compactDuration, journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 export type { JournalCategory, JournalMetadata } from '../../types/journal'
 
 export const journalCategoryGroups: readonly { label: string; items: readonly (readonly [JournalCategory, string])[] }[] = [
@@ -44,7 +45,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       const ordered = [first, ...updates.filter((record) => record.note === `${updatePrefix}${first.id}`)].sort((left, right) => Date.parse(left.journal?.occurredAt ?? left.occurredAt) - Date.parse(right.journal?.occurredAt ?? right.occurredAt) || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
       const latest = ordered[ordered.length - 1]
       const firstOccurredAt = first.journal?.occurredAt ?? first.occurredAt
-      const latestOccurredAt = latest.journal?.occurredAt ?? latest.occurredAt
+      const latestOccurredAt = journalOccurrenceAt(first.journal, latest.journal?.occurredAt ?? latest.occurredAt)
       return {
       id: first.id, eventId: event.id, content: first.content, occurredAt: latestOccurredAt, createdAt: latest.createdAt,
       categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
@@ -70,19 +71,26 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
 const feedingMethodLabels = { breast: '母乳', formula: '配方奶', expressed: '瓶喂母乳', mixed: '混合喂养' } as const
 
 export function journalListSummary(entry: JournalEntry) {
-  if (entry.sleep?.status === 'ongoing') return '已开始'
+  if (entry.sleep) {
+    if (entry.sleep.status === 'ongoing') return '睡眠 · 持续中'
+    const duration = compactDuration((Date.parse(entry.sleep.wakeAt) - Date.parse(entry.sleep.sleepAt)) / 60_000)
+    return ['睡眠', '已醒', duration].filter(Boolean).join(' · ')
+  }
+  if (entry.diet?.startedAt || entry.diet?.kind === 'feeding') {
+    const diet = entry.diet
+    const title = diet.name || diet.meal || (diet.kind === 'feeding' ? '喂养' : '用餐')
+    if (diet.status === 'ongoing') return `${title} · 持续中`
+    const minutes = diet.startedAt && diet.endedAt ? (Date.parse(diet.endedAt) - Date.parse(diet.startedAt)) / 60_000 : diet.breastSeconds?.total ? diet.breastSeconds.total / 60 : NaN
+    const duration = compactDuration(minutes)
+    return duration ? `${title} · ${minutes < 60 ? '共' : ''}${duration}` : diet.bottleMl ? `${title} · ${diet.bottleMl}mL` : title
+  }
   if (entry.categories?.includes('symptom') && entry.symptom) return entry.symptom.generatedSummary?.trim() || entry.symptom.narrative?.trim() || entry.content
   if (entry.categories?.includes('medication') && entry.medication) {
     const names = entry.medication.medications?.map((item) => item.medicationName.trim()).filter(Boolean)
       ?? [entry.medication.medicationName.trim()].filter(Boolean)
     if (names.length) return [...new Set(names)].join('、')
   }
-  if (entry.categories?.includes('diet') && entry.diet?.kind === 'feeding') {
-    const parts: string[] = [feedingMethodLabels[entry.diet.feedingMethod ?? 'breast']]
-    if (entry.diet.breastSeconds) parts.push(`${Math.max(1, Math.round(entry.diet.breastSeconds.total / 60))}分钟`)
-    if (entry.diet.bottleMl) parts.push(`${entry.diet.bottleMl}毫升`)
-    return parts.join(' · ')
-  }
+
   return entry.content
 }
 

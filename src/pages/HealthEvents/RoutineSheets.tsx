@@ -4,9 +4,10 @@ import { BottomSheetSurface, ConfirmDialog, HohoButton, HohoInput, HohoToggle } 
 import { routineTrackService, type RoutineDay, type RoutineFixedItemKey, type RoutineItemKey, type RoutineTrack } from '../../services/routineTracks'
 import { AutomaticSleepSheet } from './AutomaticSleepSheet'
 
-const definitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: boolean }> = [
+const legacyDefinitions: Array<{ key: RoutineFixedItemKey; label: string; sleep?: boolean }> = [
   { key: 'nightSleep', label: '夜间睡眠', sleep: true },
   { key: 'breakfast', label: '早餐' },
+  { key: 'napSleep', label: '午睡', sleep: true },
   { key: 'lunch', label: '午餐' },
   { key: 'dinner', label: '晚餐' }
 ]
@@ -29,6 +30,9 @@ function localInput(iso: string) {
 }
 
 export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, token, onClose, onSaved }: { effectiveFrom: string; memberId: string; open: boolean; routineDay: RoutineDay; token: string; onClose: () => void; onSaved: (message: string) => void }) {
+  // Only night sleep is built in. Keep previously saved fixed windows editable
+  // rather than dropping their data when the parent saves a newer template.
+  const definitions = useMemo(() => legacyDefinitions.filter(item => item.key === 'nightSleep' || routineDay.template?.items.some(saved => saved.key === item.key)), [routineDay.template])
   const initial = useMemo(() => {
     const fixed = Object.fromEntries(definitions.map(({ key, label }) => {
       const item = routineDay.template?.items.find((candidate) => candidate.key === key)
@@ -36,7 +40,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     })) as Record<RoutineItemKey, RoutineDraftItem>
     for (const item of routineDay.template?.items ?? []) if (item.key.startsWith('custom:')) fixed[item.key] = { enabled: true, title: item.title, time: item.time, endTime: item.endTime ?? '' }
     return fixed
-  }, [routineDay.template])
+  }, [definitions, routineDay.template])
   const [items, setItems] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -94,7 +98,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     try {
       const enabled = itemEntries.some(([, item]) => item.enabled)
       await routineTrackService.saveTemplate(memberId, { effectiveFrom, enabled, items: enabled ? items : {} }, token)
-      onSaved(enabled ? '已保存并执行' : '已停用日常作息，此前记录已保留'); onClose()
+      onSaved(enabled ? '已保存日常作息' : '已停用日常作息，此前记录已保留'); onClose()
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
@@ -123,8 +127,8 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
       </form>
     </BottomSheetSurface>
   }
-  return <><BottomSheetSurface className="routine-setup-sheet" label="设置日常作息" onClose={close} open={open} title="设置日常作息" footer={<HohoButton fullWidth loading={saving} onClick={() => void save()} size="large">保存并执行</HohoButton>}>
-    <p className="routine-sheet-intro">按孩子通常的作息生成每天的轻量轨迹。之后可以补充或修改，也不会发送催填提醒。</p>
+  return <><BottomSheetSurface className="routine-setup-sheet" label="设置日常作息" onClose={close} open={open} title="设置日常作息" footer={<HohoButton fullWidth loading={saving} onClick={() => void save()} size="large">保存作息</HohoButton>}>
+    <p className="routine-sheet-intro">保存当前孩子通常的时间段，不会自动生成记录，也不会按计划结束睡眠或喂养。</p>
     {notice && <div aria-live="polite" className="routine-local-toast" role="status"><CheckCircle2 aria-hidden="true" size={18} />{notice}</div>}
     <div className="routine-setup-list">
       {definitions.map(({ key, label, sleep }) => <div className="routine-setup-row" key={key}>

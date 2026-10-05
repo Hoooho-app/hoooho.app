@@ -19,6 +19,17 @@ async function fixture() {
   return { service: new RoutineService({ dataDirectory, members, quickRecords, records, events }), member, members, calls, recordMap, eventMap }
 }
 
+test('saving usual night/nap/breakfast/custom windows never creates actual records or auto-completes them', async () => {
+  const { service, member, members, calls } = await fixture()
+  const sibling = await members.create({ accountId: 'account-1', name: '另一孩子', relationship: 'child' })
+  const saved = await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-30', items: { nightSleep: { enabled: true, time: '21:00', endTime: '07:00' }, breakfast: { enabled: true, time: '07:30', endTime: '08:00' }, napSleep: { enabled: true, time: '13:00', endTime: '15:00' }, 'custom:eveningmilk': { enabled: true, title: '晚奶', time: '20:30', endTime: '21:00' } } })
+  assert.equal(saved.items.length, 4)
+  assert.equal(saved.items.find(item => item.key === 'napSleep').title, '午睡')
+  await service.getDay('account-1', member.id, '2026-10-01')
+  assert.equal(calls.length, 0)
+  assert.equal((await service.getDay('account-1', sibling.id, '2026-10-01')).template, null)
+})
+
 test('routine versions are day-scoped, idempotent and not backfilled before consent', async () => {
   const { service, member } = await fixture()
   await service.saveTemplateVersion('account-1', member.id, { effectiveFrom: '2026-09-22', items: { breakfast: { enabled: true, time: '08:10', endTime: '08:40' } } }, new Date('2026-09-22T00:00:00Z'))

@@ -25,8 +25,8 @@ test('meal intervals preserve one activity identity and validate real start and 
   const journal = validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00', endedAt: '2026-09-24T18:40:00+08:00' } })
   assert.equal(journal.diet.startedAt, '2026-09-24T09:20:00.000Z')
   assert.equal(journal.diet.endedAt, '2026-09-24T10:40:00.000Z')
-  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T18:40:00+08:00', endedAt: '2026-09-24T17:20:00+08:00' } }), /用餐时长/)
-  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00' } }), /必须同时填写/)
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T18:40:00+08:00', endedAt: '2026-09-24T17:20:00+08:00' } }), /结束时间必须晚于开始/)
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', meal: '晚餐', startedAt: '2026-09-24T17:20:00+08:00' } }), /请核对实际用餐/)
 })
 
 test('medication journal keeps dose and route as recorded without calculation', () => {

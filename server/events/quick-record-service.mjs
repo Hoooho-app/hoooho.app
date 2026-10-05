@@ -3,6 +3,7 @@ import { HealthEventRecordService } from './health-event-record-service.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import path from 'node:path'
 import { validateJournal } from './journal-metadata.mjs'
+import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
 import { findQuickRecordDuplicate } from './quick-record-duplicate.mjs'
 
 const keyPattern = /^[A-Za-z0-9_-]{8,128}$/
@@ -50,7 +51,7 @@ function validateInput(input) {
   const journal = validateJournal(input.journal)
   const duplicateAction = ['update', 'create'].includes(input.duplicateAction) ? input.duplicateAction : null
   const duplicateEventId = typeof input.duplicateEventId === 'string' ? input.duplicateEventId.trim() : ''
-  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journal?.sleep?.status === 'ongoing' ? journal.sleep.sleepAt : journal?.sleep?.wakeAt ?? journal?.sleep?.sleepAt ?? input.occurredAt, inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
+  return { idempotencyKey, content, rawText, memberId, title, occurredAt: journalOccurrenceAt(journal, input.occurredAt), inputChannel: input.inputChannel, photoDraftId, photoIds, journal, duplicateAction, duplicateEventId }
 }
 
 export class QuickRecordService {
