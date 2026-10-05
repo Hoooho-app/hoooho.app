@@ -38,7 +38,7 @@ export interface DietaryCardPresentation {
 const ignoredFoodNames = new Set(['尚未明确', '过敏原未明', '不明确', '未知'])
 const foodIds: Record<string, string> = {
   牛奶: 'milk', 鸡蛋: 'egg', 花生: 'peanut', 坚果: 'tree-nuts', 核桃: 'walnut', 杏仁: 'almond', 腰果: 'cashew',
-  小麦: 'wheat', 大豆: 'soy', 豆类: 'soy', 芝麻: 'sesame', 鱼: 'fish', 鱼类: 'fish', 甲壳类: 'shellfish', 虾: 'shrimp', 蟹: 'crab',
+  小麦: 'wheat', 大豆: 'soy', 芝麻: 'sesame', 鱼: 'fish', 鱼类: 'fish', 甲壳类: 'shellfish', 虾: 'shrimp', 蟹: 'crab',
   芒果: 'mango', 猕猴桃: 'kiwi', 草莓: 'strawberry', 桃: 'peach', 番茄: 'tomato', 燕麦: 'oat'
 }
 
@@ -142,16 +142,15 @@ export function mergeDietarySources(snapshot: DietaryCardSnapshot, sources: Diet
   const merged: DietaryCardItem[] = snapshot.items.flatMap((item): DietaryCardItem[] => {
     if (!item.sourceId) return [{ ...item, needsReview: false }]
     const source = sourcesById.get(item.sourceId)
-    if (!source) {
-      if (item.manuallyAdded || item.nameAdjusted || item.groupAdjusted || item.englishName || !item.visible) return [{ ...item, needsReview: true }]
-      return []
-    }
+    if (!source) return []
     sourcesById.delete(item.sourceId)
     return [{
       ...item,
-      name: item.nameAdjusted ? item.name : source.name,
-      group: item.groupAdjusted ? item.group : source.group,
-      foodId: item.nameAdjusted ? foodIdFor(item.name) : source.foodId,
+      name: source.name,
+      group: source.group,
+      foodId: source.foodId,
+      nameAdjusted: false,
+      groupAdjusted: false,
       sourceName: source.name,
       sourceGroup: source.group,
       needsReview: false
