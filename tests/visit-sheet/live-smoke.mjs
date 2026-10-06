@@ -176,7 +176,7 @@ finally{
   if(memberId){const owned=await api('/api/events',undefined,'GET').catch(()=>[]);for(const e of owned.filter(e=>e.memberId===memberId))if(e.id!==eventId&&!attachmentEvents.includes(e.id))attachmentEvents.push(e.id)}
   for(const id of recordIds)await api(`/api/records/${id}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic record'))
   if(eventId)await api(`/api/events/${eventId}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic event'))
-  for(const id of attachmentEvents)await api(`/api/events/${id}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic photo event'))
+  for(const id of new Set(attachmentEvents.filter(Boolean)))await api(`/api/events/${id}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic photo event'))
   if(memberId)await api(`/api/members/${memberId}`,undefined,'DELETE').catch(()=>cleanup.push('synthetic member'))
   if(memberId)console.log(cleanup.length?`Cleanup incomplete: ${cleanup.join(', ')}`:'Removed only this smoke run\'s synthetic records, event and member; isolated account/report audit remains.')
   await context.close();await browser.close()
