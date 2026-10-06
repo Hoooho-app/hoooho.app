@@ -4,37 +4,41 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 import observedOCR from '../../server/ai/providers/fixtures/bailian-synthetic-ocr-array-20261003.json' with {type:'json'}
 import {visitAISummaryInput} from '../../server/visit-sheets/visit-ai-summary.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
-async function login(page:any,memberId='child-a'){await page.addInitScript(({token,memberId}:{token:string;memberId:string})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})}
+async function login(page:any,memberId='child-a'){await page.addInitScript(({token,memberId}:{token:string;memberId:string})=>{sessionStorage.setItem('hoooho-auth-token',token);if(!localStorage.getItem('hoooho-app'))localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})}
+async function generate(page:any){await page.getByRole('button',{name:'更新情况单',exact:true}).click();const d=page.getByRole('dialog',{name:'更新情况单',exact:true});await d.getByRole('checkbox',{name:/使用现有 AI/}).check();await d.getByRole('button',{name:'整理并查看草稿',exact:true}).click();return d}
+async function openScope(page:any){await page.getByRole('button',{name:'编辑完整资料',exact:true}).click();await page.getByRole('dialog',{name:'编辑完整资料'}).getByRole('button',{name:'调整 / 恢复资料范围',exact:true}).click()}
 
 test('反馈回归：已知基本信息核对失败可读，范围和问题更新立即清除旧AI预览',async({page,request},info)=>{
  await request.get('http://127.0.0.1:4198/success')
  await login(page);await page.goto('/visit-summary')
- await expect(page.getByRole('heading',{name:'病情数据',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'本次情况',exact:true})).toBeVisible()
  const read=async()=>(await(await request.get('/api/members/child-a/visit-sheet',{headers})).json()).report
  let report=await read()
  expect((await request.put('/api/members/child-a/visit-sheet',{headers,data:{expectedVersion:report.version,requestId:'feedback-preview-focus',selection:null,focus:{mode:'source',sourceId:'record:s0'}}})).ok()).toBeTruthy()
  await page.reload();report=await read()
  const input=visitAISummaryInput(report),quote=input.sections.find(s=>s.id==='record').lines.find(s=>s.startsWith('[record:s0]'))
  await request.post('http://127.0.0.1:4198/draft-data',{data:{summaryOutput:{overview:'皮肤观察记录',keyPoints:[{text:'皮肤观察记录',quote,sectionId:'record'}],missingInformation:['性别尚未提供']}}})
- await page.getByRole('button',{name:/^(生成|重新生成) AI 病情摘要$/}).click()
+ const update=await generate(page)
  const preview=page.getByRole('region',{name:'AI初步整理，需核对',exact:true})
  await expect(preview).toContainText('当前档案已有年龄或性别')
  await expect(preview.getByText('/summary',{exact:false})).not.toBeVisible()
  expect((await read()).version).toBe(report.version)
- await page.getByRole('button',{name:'资料范围',exact:true}).click()
+ await update.getByRole('button',{name:'返回更新情况单',exact:true}).click();await openScope(page)
  const scope=page.getByRole('dialog',{name:'本次资料范围',exact:true})
  await scope.getByRole('radio',{name:'选择情况与时间',exact:true}).check();await scope.locator('input[type=checkbox]').first().check()
  await scope.getByLabel('开始时间（选填）').fill('2026-09-01T00:00');await scope.getByLabel('结束时间（选填）').fill('2026-09-02T00:00')
  await scope.getByRole('button',{name:'预览范围变化',exact:true}).click();await scope.getByRole('button',{name:'确认范围并更新情况单',exact:true}).click()
  await expect(scope).toHaveCount(0);await expect(preview).toHaveCount(0)
  await expect(page.getByRole('button',{name:'导出待核对摘要（文本）',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:/^(资料范围|调整 \/ 恢复资料范围)$/}).click()
+ await openScope(page)
  await scope.getByRole('radio',{name:'全部可访问资料（恢复完整范围）',exact:true}).check();await scope.getByRole('button',{name:'预览范围变化',exact:true}).click();await scope.getByRole('button',{name:'确认范围并更新情况单',exact:true}).click();await expect(scope).toHaveCount(0)
  await request.post('http://127.0.0.1:4198/draft-data',{data:{}})
- await page.getByRole('button',{name:/^(生成|重新生成) AI 病情摘要$/}).click()
- const candidate=page.getByRole('region',{name:'AI病情摘要待确认',exact:true});await expect(candidate).toBeVisible()
- await page.getByRole('button',{name:'编辑本次想问',exact:true}).click();await page.getByLabel('本次想问',{exact:true}).fill('反馈合成问题更新');await page.getByRole('button',{name:'保存并更新情况单',exact:true}).click()
+ await generate(page)
+ const candidate=page.getByRole('region',{name:'更新草稿',exact:true});await expect(candidate).toBeVisible()
+ await update.getByRole('button',{name:'返回更新情况单',exact:true}).click()
+ await page.getByRole('button',{name:'编辑本次想问',exact:true}).click();await page.getByLabel('本次想问',{exact:true}).fill('反馈合成问题更新');await page.getByRole('button',{name:'保存',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'编辑本次想问',exact:true})).toHaveCount(0);await expect(candidate).toHaveCount(0)
+ await page.getByRole('button',{name:'更新情况单',exact:true}).click();await expect(candidate).toHaveCount(0);await expect(preview).toHaveCount(0);await update.getByRole('button',{name:'返回更新情况单',exact:true}).click()
  await page.screenshot({path:info.outputPath('feedback-old-ai-cleared.png')})
 })
 test('多项OCR数组仍失败但预览可见，不能直接保存',async({page,request})=>{
@@ -81,7 +85,7 @@ test('来源失败手机预览可编辑，正式保存拒绝，原文可带入�
 test('无效摘要可编辑及带标识导出，旧摘要不被覆盖；切换成员不泄露预览',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/success');await request.post('http://127.0.0.1:4198/draft-data',{data:{summaryOutput:{overview:'合成初步摘要，需核对',keyPoints:[{text:'没有呕吐',sectionId:'record',quote:'模型新增的错误引用'}],missingInformation:[]}}})
  const before=await(await request.get('/api/members/child-a/visit-sheet',{headers})).json()
- await login(page);await page.goto('/visit-summary');await page.getByRole('button',{name:/^(生成|重新生成) AI 病情摘要$/}).click()
+ await login(page);await page.goto('/visit-summary');await generate(page)
  const preview=page.getByRole('region',{name:'AI初步整理，需核对',exact:true});await expect(preview).toBeVisible();await preview.getByLabel('编辑AI初步整理').fill('人工修改：没有呕吐，只是恶心。仍待核对。')
  for(const [label,format] of [['导出待核对摘要（文本）','txt'],['导出待核对摘要（离线HTML）','html']]){const waiting=page.waitForEvent('download');await preview.getByRole('button',{name:label,exact:true}).click();const download=await waiting,content=await readFile((await download.path())!,'utf8');expect(content).toContain('非已确认报告');expect(content).toContain('人工修改');if(format==='html'){const offline=await page.context().newPage();await offline.route('**/*',r=>r.abort());await offline.setContent(content);await expect(offline.getByRole('heading',{name:'待核对 · 非已确认报告'})).toBeVisible();await offline.close()}}
  const after=await(await request.get('/api/members/child-a/visit-sheet',{headers})).json();expect(after.report).toEqual(before.report)

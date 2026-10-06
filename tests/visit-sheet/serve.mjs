@@ -1,4 +1,7 @@
-import { mkdtemp, writeFile, access, unlink } from 'node:fs/promises'
+import { mkdtemp, writeFile, readFile, mkdir, access, unlink } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -90,6 +93,14 @@ const f = visitFixture(),
   accountId = f.member.accountId
 // Synthetic aspect-ratio fixtures: colored geometry, never clinical imagery.
 const imageFixtures=[]
+await mkdir(path.join(dataDirectory,'quick-record-photo-files'))
+const videoPath=path.join(dataDirectory,'quick-record-photo-files','synthetic-playable.mp4')
+await promisify(execFile)(ffmpeg.path,['-f','lavfi','-i','color=c=teal:s=160x120:d=2','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',videoPath])
+const videoFixture=await readFile(videoPath)
+imageFixtures.push({id:'test-video',eventId:'event-a',recordId:'s7',name:'合成可播放视频.mp4',mimeType:'video/mp4',createdAt:'2026-09-22T10:00:00Z',storageKey:'synthetic-playable.mp4',duration:2,binarySize:videoFixture.length,width:160,height:120})
+const webmPath=path.join(dataDirectory,'quick-record-photo-files','synthetic-playable.webm')
+await promisify(execFile)(ffmpeg.path,['-f','lavfi','-i','color=c=teal:s=160x120:d=2','-c:v','libvpx','-b:v','100k',webmPath])
+imageFixtures.push({id:'test-webm',eventId:'event-a',recordId:'s7',name:'合成可播放视频.webm',mimeType:'video/webm',createdAt:'2026-09-22T10:00:00Z',storageKey:'synthetic-playable.webm',duration:2,binarySize:(await readFile(webmPath)).length,width:160,height:120})
 for(const [i,[width,height,color]] of [[360,960,'#1b7a6e'],[1000,260,'#a66922'],[480,480,'#526966']].entries()){
   const buffer=await sharp({create:{width,height,channels:3,background:color}}).png().toBuffer()
   imageFixtures.push({id:`v5-image-${i}`,eventId:'event-a',recordId:i===2?'s0':'s7',name:`测试原图-${i}.png`,mimeType:'image/png',createdAt:`2026-09-${20+i}T10:00:00Z`,dataUrl:`data:image/png;base64,${buffer.toString('base64')}`,width,height})

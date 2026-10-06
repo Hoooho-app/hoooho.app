@@ -38,7 +38,7 @@ test('v5 九章顺序、首章无装饰构成，资料完整无演示常量',()=
 })
 test('默认照片保存、不静默替换，主题切回恢复、空选保留、无关联不套旧照片',()=>{
   const f=visitFixture();f.attachments=Array.from({length:4},(_,i)=>({id:`p${i}`,recordId:'s7',eventId:'event-a',mimeType:'image/png',name:`图${i}`,createdAt:`2026-09-2${i}T00:00:00Z`}))
-  const first=buildVisitSheet(f,{},now);assert.equal(first.selectedPhotoIds.length,3)
+  const first=buildVisitSheet(f,{},now);assert.equal(first.selectedPhotoIds.length,4)
   f.attachments.push({...f.attachments[0],id:'new',createdAt:'2026-09-25T00:00:00Z'})
   const next=buildVisitSheet(f,first,now);assert.deepEqual(next.selectedPhotoIds,first.selectedPhotoIds)
   const custom=buildVisitSheet(f,{...next,focus:{mode:'custom',text:'完全不同的问题'}},now);assert.equal(custom.selectedPhotoIds.length,0)

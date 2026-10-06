@@ -71,6 +71,50 @@ async function setup(t) {
   return { svc, f, dir }
 }
 
+test('整单更新草稿不写正式版本，显式确认幂等且保留人工修订',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const first=await svc.save(a,m,{requestId:'four-card-first',expectedVersion:0,caseDetails:{description:'家长原话：没有测温',onset:'不确定'},question:'需要检查吗？',notes:{course:'护理后变化未知'},selectedPhotoIds:[]})
+  const preview=await svc.save(a,m,{requestId:'four-card-preview',expectedVersion:1,previewUpdate:true})
+  assert.equal((await svc.get(a,m)).report.version,1)
+  assert.equal(preview.updateCandidate.report.version,2)
+  assert.deepEqual(preview.updateCandidate.report.caseDetails,first.report.caseDetails)
+  assert.equal(preview.updateCandidate.report.reading.description,'家长原话：没有测温')
+  assert.deepEqual(preview.updateCandidate.report.selectedPhotoIds,[])
+  assert.equal((await svc.save(a,m,{requestId:'four-card-preview',expectedVersion:1,previewUpdate:true})).updateCandidate.id,preview.updateCandidate.id)
+  const confirmed=await svc.save(a,m,{requestId:'four-card-confirm',expectedVersion:1,confirmUpdate:preview.updateCandidate.id})
+  assert.equal(confirmed.report.version,2);assert.equal(confirmed.report.question,first.report.question)
+  assert.equal((await svc.save(a,m,{requestId:'four-card-confirm',expectedVersion:1,confirmUpdate:preview.updateCandidate.id})).report.version,2)
+  await assert.rejects(()=>svc.save(a,m,{requestId:'four-card-duplicate',expectedVersion:2,confirmUpdate:preview.updateCandidate.id}),{status:409})
+})
+
+test('更新草稿拒绝跨账户、源变化及并发编辑，失败不覆盖旧版',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  await svc.save(a,m,{requestId:'guard-first',expectedVersion:0})
+  const preview=await svc.save(a,m,{requestId:'guard-preview',expectedVersion:1,previewUpdate:true})
+  await assert.rejects(()=>svc.save('foreign',m,{requestId:'guard-foreign',expectedVersion:1,confirmUpdate:preview.updateCandidate.id}),{status:404})
+  f.records[0].content+=' 源资料改变'
+  await assert.rejects(()=>svc.save(a,m,{requestId:'guard-stale',expectedVersion:1,confirmUpdate:preview.updateCandidate.id}),{status:409})
+  assert.equal((await svc.get(a,m)).report.version,1)
+  const next=await svc.save(a,m,{requestId:'guard-next',expectedVersion:1,previewUpdate:true})
+  await svc.save(a,m,{requestId:'guard-edit',expectedVersion:1,caseDetails:{other:'家长补充待确认'}})
+  await assert.rejects(()=>svc.save(a,m,{requestId:'guard-conflict',expectedVersion:1,confirmUpdate:next.updateCandidate.id}),{status:409})
+  assert.equal((await svc.get(a,m)).report.caseDetails.other,'家长补充待确认')
+  assert.ok((await svc.get(a,m)).report.changes.some(change=>change.after.includes('家长补充待确认')))
+  await assert.rejects(()=>svc.save(a,m,{requestId:'guard-source',expectedVersion:2,focus:{mode:'custom',text:'合成主诉',relatedSourceIds:['record:private']}}),/不属于/)
+})
+
+test('整单 AI 草稿确认只使用已核验候选，不重复收费；模型失败保留旧版',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  await svc.save(a,m,{requestId:'draft-model-first',expectedVersion:0});let calls=0
+  svc.medicalSummary={generate:async input=>{calls++;const section=input.sections.find(s=>s.id==='record'&&s.lines.length),quote=section.lines[0];return {...normalizeMedicalSummary({overview:'合成观察',keyPoints:[{text:'合成观察',sectionId:section.id,quote}],missingInformation:[]},input),provider:'bailian',model:'test-model'}}}
+  const request={requestId:'draft-model-preview',expectedVersion:1,previewUpdate:true,generateAI:true}
+  const preview=await svc.save(a,m,request);await svc.save(a,m,request);assert.equal(calls,1)
+  await svc.save(a,m,{requestId:'draft-model-confirm',expectedVersion:1,confirmUpdate:preview.updateCandidate.id});assert.equal(calls,1)
+  svc.medicalSummary={generate:async()=>{throw new Error('合成模型失败')}}
+  await assert.rejects(()=>svc.save(a,m,{requestId:'draft-model-failed',expectedVersion:2,previewUpdate:true,generateAI:true}),/合成模型失败/)
+  assert.equal((await svc.get(a,m)).report.version,2)
+})
+
 test('范围预览不保存，倒置范围拒绝且旧版不变，明确恢复全部可撤销筛选', async t => {
   const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
   const first=await svc.save(a,m,{expectedVersion:0,requestId:'scope-first'})

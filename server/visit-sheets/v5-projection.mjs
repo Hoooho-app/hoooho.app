@@ -37,7 +37,7 @@ export function refineVisitSheet(report, input, preferences) {
       ]).map(id => `record:${id}`).filter(id => byId.has(id))
     }
   }
-  report.photos = input.attachments.filter(a => /^image\/(png|jpeg|webp|gif)$/i.test(a.mimeType)).map(a => {
+  report.photos = input.attachments.filter(a => /^(?:image\/(png|jpeg|webp|gif)|video\/(mp4|webm|quicktime))$/i.test(a.mimeType)).map(a => {
     const r = records.get(a.recordId)
     // Explicit record link only: same event / upload date is not evidence of relevance.
     const linkedRecords = input.records.filter(r => r.id === a.recordId || (r.attachmentIds ?? []).includes(a.id) || Object.values(r.journal ?? {}).some(j => j && typeof j === 'object' && (j.photoIds ?? []).includes?.(a.id)))
@@ -47,12 +47,14 @@ export function refineVisitSheet(report, input, preferences) {
       capturedAt: validDate(a.capturedAt), uploadedAt: validDate(a.createdAt),
       timeKind: validDate(a.capturedAt) ? '拍摄于' : '上传于（拍摄时间未提供）',
       mimeType: a.mimeType,
+      duration: Number.isFinite(a.duration)?a.duration:null,
+      binarySize: Number.isFinite(a.binarySize)?a.binarySize:null,
     }
   }).sort((a,b) => (Date.parse(b.capturedAt || b.uploadedAt) || 0) - (Date.parse(a.capturedAt || a.uploadedAt) || 0))
   report.photos.push(...(input.profileResources??[]).filter(r=>r.mimeType.startsWith('image/')).map(r=>({sourceId:`profile-image:${r.resourceId}`,relatedSourceIds:[],title:r.title,location:'档案原件（未关联本次主诉）',capturedAt:null,uploadedAt:validDate(r.uploadedAt),timeKind:'保存于（拍摄时间未提供）',mimeType:r.mimeType})))
   report.photoCandidates = report.photos.filter(p => p.relatedSourceIds.some(id => refs.has(id))).map(p => p.sourceId)
   const selected = report.photoSelections[report.photoKey]
-  report.selectedPhotoIds = selected === undefined ? report.photoCandidates.slice(0, 3) : selected.filter(id => report.photoCandidates.includes(id))
+  report.selectedPhotoIds = selected === undefined ? report.photoCandidates : selected.filter(id => report.photoCandidates.includes(id))
   report.photoSelections[report.photoKey]=selected??report.selectedPhotoIds
   if (selected?.some(id => !report.photoCandidates.includes(id))) report.warnings.push('部分原选照片已失效或不再关联本次主诉；未自动换成其他照片。')
   const overview = chapter('overview')

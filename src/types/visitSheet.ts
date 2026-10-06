@@ -9,6 +9,7 @@ export type VisitChapterId =
   | 'visits'
   | 'sources'
 export interface VisitFocus {
+  relatedSourceIds?: string[]
   caseEventId?: string
   mode: 'auto' | 'source' | 'custom'
   sourceId?: string
@@ -60,6 +61,8 @@ export interface VisitBlock {
   entries?: Array<{ title: string; lines: string[]; sourceIds: string[] }>
 }
 export interface VisitPhoto {
+  duration?: number|null
+  binarySize?: number|null
   sourceId: string
   relatedSourceIds: string[]
   title: string
@@ -88,6 +91,8 @@ export interface VisitChapter {
   overview?: { lines: string[]; items: Array<{title: string; detail: string; sourceIds: string[]; at?: string; timeKind?: string}> }
 }
 export interface VisitSheet {
+  reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null}
+  caseDetails?: {description?:string;onset?:string;change?:string;other?:string}
   selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
   aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai' | 'bailian'; model: string; generatedAt: string }
   aiSummaryStale?: boolean
@@ -115,7 +120,7 @@ export interface VisitSheet {
   dataAsOf: string
   timezone: string
   fingerprint: string
-  member: { name: string; gender: string | null; birthday: string | null }
+  member: { name: string; gender: string | null; birthday: string | null; avatar?:string|null }
   focus: VisitFocus
   complaint: string
   complaintSourceId: string | null
@@ -141,6 +146,7 @@ export interface VisitSheet {
   }>
 }
 export interface VisitSheetState {
+  updateCandidate?: {id:string;report:VisitSheet}
   scopePreview?: {sourceCount:number;totalSources:number;focusAvailable:boolean;excludedPhotos:number}
   aiCandidate?: {id:string;summary:NonNullable<VisitSheet['aiSummary']>}
   report: VisitSheet | null

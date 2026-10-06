@@ -4,6 +4,7 @@ import { ReportChapter, reportTime, SourceText } from './ReportChapter'
 import { PhotoCaption } from './ReportPhotos'
 import { offlineRuntime } from './offlineRuntime'
 import { MedicalAISummary } from './MedicalAISummary'
+import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 import css from './report.css?inline'
 import chartCss from '../../components/design-system/FactCharts.css?inline'
 import tokens from '../../styles/tokens.css?inline'
@@ -32,7 +33,8 @@ export function summaryText(report:VisitSheet) {
       ...(report.notes[c.id]?[`家长补充（不改变原记录）：${report.notes[c.id]}`]:[]),
     ]),
     ...(report.notes.sources?[`附件与完整依据 · 家长补充（不改变原记录）：${report.notes.sources}`]:[]),
-    `\n本次想问（${report.questionOrigin||'家长填写'}）：${report.question||'未填写'}`,
+    ...(report.reading?[`当前情况：${report.reading.description}`,`开始时间：${report.reading.onset}`,`最近变化：${report.reading.change}`,`其他表现：${report.reading.other}`]:[]),
+    `\n本次想问（家长确认）：${report.questionEdited?report.question||'未填写':'尚未确认问题'}`,
     ...(report.questionSourceIds?.length?[`问题来源 ${refs(report,report.questionSourceIds)}`]:[]),
     '\n待核对：',...(report.gaps??[]),...report.warnings,
     '缺失不等于没有；时间先后不是因果；资料整理不代替诊断。',
@@ -51,18 +53,21 @@ function copyReport(report:VisitSheet,resources:ExportResources):VisitSheet {
   const id=(value:string)=>report.sources.find(s=>s.id===value)?.code||'资料引用'
   const eventKeys=new Map(report.sources.filter(s=>s.eventId).map((s,i)=>[s.eventId!,`事件-${i+1}`]))
   const included=new Set(Object.keys(resources.images))
+  const photoOrder=[...new Set([...(report.selectedPhotoIds??[]),...included])]
   const mapBlock=(b:VisitSheet['chapters'][number]['blocks'][number])=>({title:b.title,lines:b.lines,distribution:b.distribution,distributionNote:b.distributionNote,locations:b.locations,unit:b.unit,chartMode:b.chartMode,secondary:b.secondary,related:b.related,sourceIds:b.sourceIds.map(id),points:b.points?.map(p=>({...p,sourceId:id(p.sourceId)})),entries:b.entries?.map(e=>({...e,sourceIds:e.sourceIds.map(id)}))})
   return {
-    id:'local-copy', memberId:'local-subject',version:report.version, member:report.member,
-    aiSummary:report.aiSummary&&['openai','bailian'].includes(report.aiSummary.provider)?report.aiSummary:undefined,aiSummaryStale:report.aiSummaryStale,
+    id:'local-copy', memberId:'local-subject',version:report.version, member:{name:report.member.name,gender:report.member.gender,birthday:report.member.birthday},
+    aiSummary:report.aiSummary&&['openai','bailian'].includes(report.aiSummary.provider)?{...report.aiSummary,keyPointEvidence:report.aiSummary.keyPointEvidence?.map(e=>({...e,sourceId:e.sourceId?id(e.sourceId):null}))}:undefined,aiSummaryStale:report.aiSummaryStale,
     timezone:report.timezone,dataAsOf:report.dataAsOf,generatedAt:report.generatedAt,editedAt:report.editedAt,fingerprint:'',scope:report.scope,
     focus:{mode:report.focus.mode,...(report.focus.text?{text:report.focus.text}:{}),...(report.focus.sourceId?{sourceId:id(report.focus.sourceId)}:{})},complaint:report.complaint,complaintSourceId:report.complaintSourceId?id(report.complaintSourceId):null,
     focusSourceIds:report.focusSourceIds.map(id),range:report.range,question:report.question,questionEdited:report.questionEdited,questionOrigin:report.questionOrigin,questionSourceIds:report.questionSourceIds?.map(id),notes:report.notes,
+    caseDetails:report.caseDetails,
+    reading:report.reading?{...report.reading,sourceIds:report.reading.sourceIds.map(id),courseSourceIds:report.reading.courseSourceIds.map(id),height:report.reading.height?{...report.reading.height,sourceId:id(report.reading.height.sourceId)}:null,weight:report.reading.weight?{...report.reading.weight,sourceId:id(report.reading.weight.sourceId)}:null}:undefined,
     chapters:report.chapters.map(c=>({...c,blocks:c.blocks.map(mapBlock),overview:c.overview?{lines:c.overview.lines,items:c.overview.items.map(i=>({...i,sourceIds:i.sourceIds.map(id)}))}:undefined})),
     medicationReminders:report.medicationReminders?.map((r,i)=>({id:`reminder-${i+1}`,status:r.status,plan:{...r.plan},totalDays:r.totalDays,sourceIds:r.sourceIds.map(id),occurrences:r.occurrences.map((o,j)=>({id:`occurrence-${i+1}-${j+1}`,scheduledAt:o.scheduledAt,day:o.day,dayIndex:o.dayIndex,weekIndex:o.weekIndex,slotIndex:o.slotIndex,completed:o.completed,sourceId:o.sourceId?id(o.sourceId):undefined}))})),
     sources:report.sources.map(s=>({id:id(s.id),code:id(s.id),category:s.category,title:s.title,text:s.text,identity:s.identity,occurredAt:s.occurredAt,createdAt:s.createdAt,updatedAt:s.updatedAt,timePrecision:s.timePrecision,destinations:s.destinations,locations:s.locations,symptomCategory:s.symptomCategory,narrative:s.narrative,impactLevel:s.impactLevel,relatedSourceIds:s.relatedSourceIds?.map(id),eventId:s.eventId?eventKeys.get(s.eventId):undefined})),
     candidates:report.candidates.map(c=>({...c,sourceId:id(c.sourceId)})),warnings:report.warnings,gaps:report.gaps,
-    photos:report.photos?.filter(p=>included.has(p.sourceId)).map(p=>({...p,sourceId:id(p.sourceId),relatedSourceIds:p.relatedSourceIds.map(id)})),
+    photos:photoOrder.flatMap(sourceId=>{const photo=report.photos?.find(p=>p.sourceId===sourceId);return photo&&included.has(sourceId)?[{...photo,sourceId:id(photo.sourceId),relatedSourceIds:photo.relatedSourceIds.map(id)}]:[]}),
     selectedPhotoIds:(report.selectedPhotoIds??[]).filter(sourceId=>included.has(sourceId)).map(id),photoKey:report.focus.mode==='custom'?`custom:${report.focus.text}`:report.complaintSourceId?id(report.complaintSourceId):'auto',photoSelections:{},changes:[],
   }
 }
@@ -93,6 +98,34 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
 }
 export function downloadContent(content:string,filename:string,type:string) {
   const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000)
+}
+// Immutable consultation snapshot. It never includes account IDs, tokens,
+// signed URLs or byte-less claims of offline media availability.
+export function consultationHtml(report:VisitSheet,resources:ExportResources=emptyResources(),full=false){
+  const copy=copyReport(report,resources),byCode=(code:string)=>report.sources.find(s=>s.code===code)
+  const printCopyCss='@media print{.visit-consultation-copy .visit-copy-media img{max-height:220px;object-fit:contain}.visit-consultation-copy .visit-copy-media figure{break-inside:avoid}.visit-consultation-copy .visit-fact-block:has(.visit-observation-entry){break-inside:auto}.visit-consultation-copy a{color:rgb(var(--hoho-color-primary))}}'
+  const courseIds=new Set(copy.reading?.courseSourceIds??copy.chapters.find(c=>c.id==='course')?.blocks.filter(b=>!b.secondary).flatMap(b=>b.sourceIds).filter(id=>{const source=copy.sources.find(s=>s.id===id);return source&&source.category!=='attachment'&&!source.category.endsWith('-plan')})??[])
+  const referenced=new Set([...copy.focusSourceIds,...courseIds,...(copy.questionSourceIds??[]),...(!copy.aiSummaryStale?report.aiSourceIds?.map(id=>report.sources.find(s=>s.id===id)?.code)??[]:[]),...(!copy.aiSummaryStale?copy.aiSummary?.keyPointEvidence?.map(e=>e.sourceId)??[]:[]),...Object.keys(resources.images).map(id=>report.sources.find(s=>s.id===id)?.code),...(report.selectedPhotoIds??[]).map(id=>report.sources.find(s=>s.id===id)?.code),copy.reading?.height?.sourceId,copy.reading?.weight?.sourceId].filter(Boolean))
+  const includedSources=copy.sources.filter(source=>full||referenced.has(source.id))
+  const link=(ids:string[])=>ids.map(id=><a key={id} href={`#${id}`}>{id} 查看依据 </a>)
+  const reading=copy.reading
+  const media=copy.photos??[],focusedMedia=media.filter(photo=>copy.selectedPhotoIds?.includes(photo.sourceId)),otherMedia=media.filter(photo=>!copy.selectedPhotoIds?.includes(photo.sourceId))
+  const mediaFigure=(photo:NonNullable<VisitSheet['photos']>[number])=>{const data=resources.images[byCode(photo.sourceId)!.id],i=media.indexOf(photo);return <figure key={photo.sourceId}>{photo.mimeType.startsWith('video/')?<><video controls playsInline preload="metadata" src={data}/><p>若浏览器不支持此格式，请下载原件后用系统播放器查看；文件内原件字节已附。</p><a href={data} download={photo.title}>下载视频原件</a></>:<a href={data}><img src={data} alt={photo.title}/></a>}<figcaption>{String(i+1).padStart(2,'0')} · {photo.mimeType.startsWith('video/')?'视频':'照片'} · {photo.title}</figcaption><PhotoCaption photo={photo}/>{link([photo.sourceId])}</figure>}
+  const body=renderToStaticMarkup(<main className="visit-consultation-copy">
+    <style>{printCopyCss}</style><header><h1>就诊情况单</h1><p>{copy.member.name} · {copy.member.gender==='female'?'女':copy.member.gender==='male'?'男':'性别未填写'} · {copy.member.birthday?formatAgeFromBirthday(copy.member.birthday,new Date(copy.dataAsOf),copy.timezone):'生日未填写'}</p><p>资料截至 {reportTime(copy.dataAsOf,copy.timezone)} · 整理 {reportTime(copy.editedAt??copy.generatedAt,copy.timezone)}</p><p>固定确认快照 · {full?'情况单与完整资料':'本次就诊重点'} · {copy.scope}</p></header>
+    <section><h2>本次情况</h2><h3>{copy.complaint}</h3>{reading&&<><p>{reading.description}</p><dl><dt>开始时间</dt><dd>{reading.onset}</dd><dt>最近变化</dt><dd>{reading.change}</dd><dt>其他表现</dt><dd>{reading.other}</dd></dl>{link(reading.sourceIds)}<p>身高：{reading.height?`${reading.height.value} cm；测量 ${reportTime(reading.height.at)}`:'未填写'} {reading.height&&link([reading.height.sourceId])}<br/>体重：{reading.weight?`${reading.weight.value} kg；测量 ${reportTime(reading.weight.at)}`:'未填写'} {reading.weight&&link([reading.weight.sourceId])}</p></>}{!reading&&Object.entries(copy.caseDetails??{}).map(([key,value])=><p key={key}>家长补充：{value}</p>)}
+      {!!focusedMedia.length&&<><h3>本次影像</h3><div className="visit-copy-media">{focusedMedia.map(mediaFigure)}</div></>}
+      <p>已内嵌 {Object.keys(resources.images).length} 份影像原件。未嵌入的附件仅为索引，不可离线查看。</p>{resources.omitted.map((message,i)=><p key={i}>原件未附：{message}</p>)}
+    </section>
+    {!!otherMedia.length&&<section><h2>另选影像原件</h2><p>这些原件由导出时另选；不代表与本次主诉有关。</p><div className="visit-copy-media">{otherMedia.map(mediaFigure)}</div></section>}
+    <section><h2>本次想问</h2>{copy.questionEdited?<p>{copy.question||'尚未填写'}</p>:<p>尚未确认问题</p>}{copy.questionEdited&&link(copy.questionSourceIds??[])}</section>
+    <section><h2>经过与处理</h2>{includedSources.filter(s=>courseIds.has(s.id)).map(source=><article key={source.id}><p>{reportTime(source.occurredAt,copy.timezone)} · {source.identity}</p><p>{source.narrative||source.text}</p>{link([source.id])}</article>)}{copy.notes.course&&<p>家长补充：{copy.notes.course}</p>}</section>
+    {copy.aiSummary&&!copy.aiSummaryStale&&<section><h2>病情摘要（仍需核对）</h2><MedicalAISummary report={copy} snapshot/></section>}
+    {full&&<section><h2>完整资料</h2>{copy.chapters.filter(chapter=>!['overview','course','sources'].includes(chapter.id)&&chapter.blocks.length).map(chapter=><ReportChapter key={chapter.id} chapter={chapter} report={copy} readOnly/>)}{Object.entries(copy.notes).filter(([key,value])=>key!=='course'&&value).map(([key,value])=><p key={key}>家长补充：{value}</p>)}</section>}
+    <section><h2>{full?'完整原始依据':'本次相关依据'}</h2>{includedSources.map(source=><details open id={source.id} key={source.id}><summary>{source.code} · {source.title}</summary><SourceText source={source}/></details>)}</section>
+    <footer>Hoooho 虚拟护士整理 · 家长记录与未知信息保留，不代替医生诊断。本文件不回写在线档案。</footer>
+  </main>)
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}${css}${chartCss}body{margin:0;background:white}.visit-consultation-copy{max-width:680px;margin:auto;padding:24px;font:15px/1.7 var(--hoho-font-family);color:rgb(var(--hoho-color-text-primary));overflow-wrap:anywhere}.visit-consultation-copy p{white-space:pre-wrap}.visit-consultation-copy section{padding:16px 0;border-top:1px solid rgb(var(--hoho-color-border))}.visit-consultation-copy .visit-copy-media{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.visit-consultation-copy figure{margin:0}.visit-consultation-copy img,.visit-consultation-copy video{max-width:100%;width:100%}.visit-consultation-copy dd{margin:0}.visit-consultation-copy details>summary{padding:12px 0}.visit-consultation-copy button{display:none}@media print{details>*,details:not([open])>*{display:block!important}video{min-height:60px}.visit-consultation-copy{max-width:none;padding:0}}</style></head><body>${body}</body></html>`
 }
 export function downloadReport(report:VisitSheet,resources:ExportResources=emptyResources()) {downloadContent(reportHtml(report,resources),`Hoooho-就诊情况单-v${report.version}.html`,'text/html;charset=utf-8')}
 export function printReport(report:VisitSheet,resources:ExportResources=emptyResources()) {
