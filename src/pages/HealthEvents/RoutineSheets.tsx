@@ -41,7 +41,13 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     for (const item of routineDay.template?.items ?? []) if (item.key.startsWith('custom:')) fixed[item.key] = { enabled: true, title: item.title, time: item.time, endTime: item.endTime ?? '' }
     return fixed
   }, [definitions, routineDay.template])
-  const [items, setItems] = useState(initial)
+  const [draft, setDraft] = useState({ source: initial, items: initial })
+  // A fetched template can add legacy fixed keys before effects run. Render and
+  // edit the matching draft immediately, never new definitions with old items.
+  const items = draft.source === initial ? draft.items : initial
+  const setItems = (update: typeof initial | ((value: typeof initial) => typeof initial)) => {
+    setDraft((value) => ({ source: initial, items: typeof update === 'function' ? update(value.source === initial ? value.items : initial) : update }))
+  }
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [attempted, setAttempted] = useState(false)

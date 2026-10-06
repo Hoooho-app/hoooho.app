@@ -38,6 +38,44 @@ async function records(page: Page, eventId: string) {
   return response.json()
 }
 for (const width of [375, 390, 430]) {
+  test(`saved legacy routine windows load without crashing before or during setup at ${width}`, async ({ page }) => {
+    const memberId = await prepare(page, '旧作息兼容验收', width)
+    const items = {
+      nightSleep: { enabled: true, time: '21:00', endTime: '07:00' },
+      breakfast: { enabled: true, time: '07:30', endTime: '08:00' },
+      napSleep: { enabled: true, time: '13:00', endTime: '15:00' },
+      lunch: { enabled: true, time: '12:00', endTime: '12:30' },
+      dinner: { enabled: true, time: '18:00', endTime: '18:30' },
+      'custom:legacyEveningMilk': { enabled: true, title: '晚奶', time: '20:30', endTime: '21:00' }
+    }
+    const saved = await page.request.patch(`/api/routines/${memberId}`, { headers, data: { effectiveFrom: '2026-09-01', enabled: true, items } })
+    expect(saved.ok()).toBe(true)
+    let release!: () => void
+    const responseGate = new Promise<void>(resolve => { release = resolve })
+    await page.route(`**/api/routines/${memberId}?**`, async route => { await responseGate; await route.continue() })
+    await page.reload()
+    await page.getByRole('button', { name: '调整作息', exact: true }).click()
+    release()
+    await page.locator('.journal-grid-loading').waitFor({ state: 'hidden' })
+    const setup = page.getByRole('dialog', { name: '设置日常作息', exact: true })
+    await expect(setup.getByRole('switch')).toHaveCount(6)
+    await expect(setup.getByLabel('早餐开始时间')).toHaveValue('07:30')
+    await expect(setup.getByLabel('午睡通常醒来')).toHaveValue('15:00')
+    await expect(setup.getByLabel('晚奶结束时间')).toHaveValue('21:00')
+    await setup.getByLabel('早餐结束时间').fill('08:10')
+    await setup.getByRole('button', { name: '保存作息', exact: true }).click()
+    await expect(setup).toHaveCount(0)
+    await page.unroute(`**/api/routines/${memberId}?**`)
+    await page.reload()
+    await page.locator('.journal-grid-loading').waitFor({ state: 'hidden' })
+    await expect(page.getByText('Unexpected Application Error!', { exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: '调整作息', exact: true }).click()
+    await expect(setup.getByLabel('早餐结束时间')).toHaveValue('08:10')
+    await expect(setup.getByRole('switch')).toHaveCount(6)
+    await expect(page.locator('.journal-record')).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await shot(page, `legacy-routine-fixed-${width}`)
+  })
   test(`usual windows never create facts, refill and isolate by child at ${width}`, async ({ page }) => {
     const memberId = await prepare(page, '安排验收', width)
     let writes = 0
