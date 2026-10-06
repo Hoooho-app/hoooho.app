@@ -17,8 +17,9 @@ export default defineConfig({
     {name:'strictmode-se',testMatch:'strictmode.spec.ts',use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium',baseURL:'http://127.0.0.1:4197'}},
     {
       name: 'iphone-se',
-      use: { ...devices['iPhone SE (3rd gen)'], browserName: 'chromium' },
+      use: { ...devices['iPhone SE (3rd gen)'], browserName: 'chromium', launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'} },
     },
+    {name:'mobile-393',use:{browserName:'chromium',viewport:{width:393,height:852},launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}}},
     ...[320, 390, 420, 430].map((width) => ({
       name: `mobile-${width}`,
       use: {

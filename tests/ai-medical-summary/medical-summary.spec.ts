@@ -1,102 +1,79 @@
-import { expect, test } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
-import { TokenService } from '../../server/auth/token-service.mjs'
-
-const token = new TokenService('visit-sheet-e2e-secret', 60 * 60_000).create({ id: 'visit-test' })
-test('当前成员本地整理、AI 成功/失败/重试、重新生成和离线导出', async ({ page, request }) => {
-  const callsBefore=(await(await request.get('http://127.0.0.1:4198/status')).json()).calls
-  await page.addInitScript(token => {
-    sessionStorage.setItem('hoooho-auth-token', token)
-    if (!localStorage.getItem('hoooho-app')) localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: 'child-a', members: [], profile: null }, version: 5 }))
-  }, token)
-  await page.goto('/visit-summary')
-  await expect(page.getByRole('heading', { name: '病情数据', exact: true })).toBeVisible()
-  // A combined provider suite can already have added records in earlier cases.
-  // Synchronize local facts rather than bypass the export's stale-source guard.
-  const refreshLocal=page.getByRole('button',{name:'更新情况单',exact:true})
-  if(await refreshLocal.isVisible()){await refreshLocal.click();await expect(refreshLocal).toHaveCount(0)}
-  await expect(page.getByText(/本地事实整理 · 资料截至/)).toBeVisible()
-  await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(0)
-  await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-local.png' })
-  await request.get('http://127.0.0.1:4198/failure')
-  await page.getByRole('button', { name: '生成 AI 病情摘要', exact: true }).click()
-  await expect(page.getByRole('button', { name: '正在生成 AI 病情摘要', exact: true })).toBeDisabled()
-  await expect(page.getByRole('button', { name: '重试 AI 摘要', exact: true })).toBeVisible()
-  if(test.info().config.metadata.provider==='bailian')await expect(page.getByRole('alert')).toContainText('百炼免费额度已用尽')
-  await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: '导出情况单', exact: true }).click()
-  const localEvent = page.waitForEvent('download')
-  await page.getByRole('button', { name: '保存重点摘要（文本）', exact: true }).click()
-  const localText = await readFile((await (await localEvent).path())!, 'utf8')
-  expect(localText).toContain('本地事实整理')
-  expect(localText).not.toContain('AI 病情摘要（固定生成快照）')
-  await page.getByRole('dialog', { name: '导出情况单', exact: true }).getByRole('button', { name: '关闭导出情况单', exact: true }).click()
-  await request.get('http://127.0.0.1:4198/success')
-  await page.getByRole('button', { name: '重试 AI 摘要', exact: true }).click()
-  const ai = page.getByRole('region', { name: 'AI 病情摘要', exact: true })
-  await expect(page.getByRole('region',{name:'AI病情摘要待确认',exact:true})).toBeVisible()
-  await expect(ai).toHaveCount(0)
-  await page.getByRole('button',{name:'已核对，保存AI摘要',exact:true}).click()
-  await expect(ai).toContainText('测试替身摘要：')
-  await expect(ai).toContainText('待核对信息')
-  await page.reload()
-  await expect(ai).toContainText('测试替身摘要：')
-  await ai.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-ai-success.png' })
-
-  const current = await (await request.get('/api/members/child-a/visit-sheet', { headers: { Authorization: `Bearer ${token}` } })).json()
-  expect(current.report.aiSummary.provider).toBe(test.info().config.metadata.provider==='bailian'?'bailian':'openai')
-  await request.get('http://127.0.0.1:4198/failure')
-  await page.getByRole('button', { name: '重新生成 AI 病情摘要', exact: true }).click()
-  await expect(page.getByRole('button', { name: '重试 AI 摘要', exact: true })).toBeVisible()
-  await expect(ai).toContainText('测试替身摘要：')
-  await expect(page.getByText(/原报告仍可阅读/)).toBeVisible()
-  const after = await (await request.get('/api/members/child-a/visit-sheet', { headers: { Authorization: `Bearer ${token}` } })).json()
-  expect(after.report).toEqual(current.report)
-  await page.getByRole('button', { name: '重试 AI 摘要', exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-ai-failure.png' })
-
-  await page.getByRole('button', { name: '导出情况单', exact: true }).click()
-  const downloadEvent = page.waitForEvent('download')
-  await page.getByRole('button', { name: '保存重点摘要（文本）', exact: true }).click()
-  const download = await downloadEvent
-  const text = await readFile((await download.path())!, 'utf8')
-  expect(text).toContain('测试替身摘要：')
-  expect(text).toContain('本地事实整理')
-  await page.getByRole('dialog', { name: '导出情况单', exact: true }).getByRole('button', { name: '关闭导出情况单', exact: true }).click()
-  await request.get('http://127.0.0.1:4198/success')
-  await page.getByRole('button', { name: '重试 AI 摘要', exact: true }).click()
-  await expect(page.getByRole('region',{name:'AI病情摘要待确认',exact:true})).toBeVisible()
-  await page.getByRole('button',{name:'已核对，保存AI摘要',exact:true}).click()
-  await expect(ai).toContainText('测试替身摘要：')
-  const regenerated = await (await request.get('/api/members/child-a/visit-sheet', { headers: { Authorization: `Bearer ${token}` } })).json()
-  expect(regenerated.report.aiSummary.generatedAt).not.toBe(current.report.aiSummary.generatedAt)
-  expect(regenerated.report.version).toBeGreaterThan(current.report.version)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(4)
-  for (const width of [320, 375, 390, 430, 1280]) {
-    await page.setViewportSize({ width, height: width === 320 ? 568 : 800 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  }
-  await page.setViewportSize({ width: 320, height: 568 })
-  await page.getByRole('button', { name: '导出情况单', exact: true }).click()
-  const htmlEvent = page.waitForEvent('download')
-  await page.getByRole('button', { name: '保存完整离线报告（HTML）', exact: true }).click()
-  const htmlDownload = await htmlEvent
-  const html = await readFile((await htmlDownload.path())!, 'utf8')
-  expect(html).toContain('测试替身摘要：')
-  expect(html).toContain('固定快照')
-  expect(html).not.toContain('fixture-only-not-a-real-key')
-  await page.screenshot({ path: 'outputs/ai-medical-summary/iphone-se-export.png' })
-  await page.getByRole('dialog', { name: '导出情况单', exact: true }).getByRole('button', { name: '关闭导出情况单', exact: true }).click()
-  await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('hoooho-app')!)
-    stored.state.currentMemberId = 'empty-child'
-    localStorage.setItem('hoooho-app', JSON.stringify(stored))
-  })
-  await page.reload()
-  await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0)
-  await expect(page.getByText('当前孩子尚无已保存资料。', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '生成 AI 病情摘要', exact: true })).toHaveCount(0)
-  expect((await (await request.get('http://127.0.0.1:4198/status')).json()).calls-callsBefore).toBe(4)
-})
+import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { TokenService } from '../../server/auth/token-service.mjs';
+const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' }), headers = { Authorization: 'Bearer ' + token };
+test('当前成员整理、模型成功失败重试、确认不重复调用和当前版导出', async ({ page, request }, info) => {
+    const status = async () => (await (await request.get('http://127.0.0.1:4198/status')).json()).calls, before = await status(), read = async () => (await (await request.get('/api/members/child-a/visit-sheet', { headers })).json()).report;
+    await page.addInitScript(token => { sessionStorage.setItem('hoooho-auth-token', token); if (!localStorage.getItem('hoooho-app')) localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: 'child-a', members: [], profile: null }, version: 5 })); }, token);
+    await page.goto('/visit-summary');
+    await expect(page.locator('#chapter-overview h1')).toBeVisible();
+    const open = async () => { await page.getByRole('button', { name: '更新情况单', exact: true }).click(); return page.getByRole('dialog', { name: '更新情况单', exact: true }); };
+    const local = await open();
+    await local.getByRole('button', { name: '整理并查看草稿' }).click();
+    await local.getByRole('button', { name: '确认替换情况单' }).click();
+    await expect(local).toHaveCount(0);
+    expect(await status() - before).toBe(0);
+    const initial = await read();
+    await request.get('http://127.0.0.1:4198/failure');
+    const d = await open();
+    await d.getByRole('checkbox', { name: /使用现有 AI/ }).check();
+    await d.getByRole('button', { name: '整理并查看草稿' }).click();
+    await expect(d.getByRole('alert')).toBeVisible();
+    if (info.config.metadata.provider === 'bailian')
+        await expect(d.getByRole('alert')).toContainText('百炼免费额度已用尽');
+    expect((await read()).version).toBe(initial.version);
+    await request.get('http://127.0.0.1:4198/success');
+    await d.getByRole('button', { name: '整理并查看草稿' }).click();
+    await expect(d.getByRole('button', { name: '确认替换情况单' })).toBeVisible();
+    expect((await read()).aiSummary).toBe(initial.aiSummary);
+    await d.getByRole('button', { name: '确认替换情况单' }).click();
+    await expect(d).toHaveCount(0);
+    const current = await read();
+    expect(current.aiSummary.provider).toBe(info.config.metadata.provider === 'bailian' ? 'bailian' : 'openai');
+    expect(current.aiSummary.overview).toContain('测试替身摘要：');
+    expect(await status() - before).toBe(2);
+    await page.reload();
+    await expect(page.locator('#chapter-overview h1')).toBeVisible();
+    expect((await read()).aiSummary).toEqual(current.aiSummary);
+    await request.get('http://127.0.0.1:4198/failure');
+    await open();
+    await d.getByRole('checkbox', { name: /使用现有 AI/ }).check();
+    await d.getByRole('button', { name: '整理并查看草稿' }).click();
+    await expect(d.getByRole('alert')).toBeVisible();
+    expect(await read()).toEqual(current);
+    await page.screenshot({ path: info.outputPath('ai-failed-old-confirmed-kept.png') });
+    await d.getByRole('button', { name: '返回更新情况单' }).click();
+    await page.getByRole('button', { name: '导出情况单', exact: true }).click();
+    const exports = page.getByRole('dialog', { name: '导出情况单' }), download = page.waitForEvent('download');
+    await exports.getByRole('button', { name: '保存重点摘要（文本）' }).click();
+    const text = await readFile((await (await download).path())!, 'utf8');
+    expect(text).toContain('测试替身摘要：');
+    expect(text).toContain('本地事实整理');
+    await exports.getByRole('button', { name: '返回导出情况单' }).click();
+    await request.get('http://127.0.0.1:4198/success');
+    await open();
+    await d.getByRole('button', { name: '整理并查看草稿' }).click();
+    await d.getByRole('button', { name: '确认替换情况单' }).click();
+    await expect(d).toHaveCount(0);
+    const after = await read();
+    expect(after.aiSummary.generatedAt).not.toBe(current.aiSummary.generatedAt);
+    expect(after.version).toBeGreaterThan(current.version);
+    expect(await status() - before).toBe(4);
+    for (const width of [320, 375, 393, 430, 1280]) {
+        await page.setViewportSize({ width, height: 852 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.getByRole('button', { name: '导出情况单', exact: true }).click();
+    const htmlDownload = page.waitForEvent('download');
+    await exports.getByRole('button', { name: '保存离线情况单（HTML）' }).click();
+    const html = await readFile((await (await htmlDownload).path())!, 'utf8');
+    expect(html).toContain('测试替身摘要：');
+    expect(html).toContain('固定快照');
+    expect(html).not.toContain('fixture-only-not-a-real-key');
+    await exports.getByRole('button', { name: '返回导出情况单' }).click();
+    await page.evaluate(() => { const data = JSON.parse(localStorage.getItem('hoooho-app')!); data.state.currentMemberId = 'empty-child'; localStorage.setItem('hoooho-app', JSON.stringify(data)); });
+    await page.reload();
+    await expect(page.locator('.visit-reading-person')).toContainText('空资料（虚构）');
+    await expect(page.getByRole('region', { name: 'AI 病情摘要', exact: true })).toHaveCount(0);
+    expect(await status() - before).toBe(4);
+});

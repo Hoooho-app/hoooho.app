@@ -5,6 +5,14 @@ import { visitFixture } from './fixtures.mjs'
 const now = new Date('2026-09-26T00:00:00Z'),
   chapter = (r, id) => r.chapters.find((c) => c.id === id)
 
+test('自定义主诉使用家长确认的关联来源，不依赖短语匹配或纳入其他旧症状', () => {
+  const input=visitFixture()
+  const report=buildVisitSheet(input,{focus:{mode:'custom',text:'脖子红点',relatedSourceIds:['record:s0','record:s1']}},now)
+  assert.deepEqual(report.focusSourceIds,['record:s1','record:s0'])
+  assert.ok(chapter(report,'course').blocks.some(b=>b.sourceIds.includes('record:s0')))
+  assert.ok(!report.focusSourceIds.includes('record:s7'))
+})
+
 function temperatureFixture(content, facts) {
   const input = visitFixture()
   input.records = [{ id: 'temp', accountId: 'visit-test', eventId: 'event-a', type: 'note', sourceType: 'measurement', content, occurredAt: '2026-09-20T08:00:00Z', updatedAt: '2026-09-20T12:00:00Z' }]

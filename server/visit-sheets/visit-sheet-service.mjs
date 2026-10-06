@@ -33,6 +33,7 @@ export class VisitSheetService {
     this.medicalSummary = options.medicalSummary ?? new MedicalSummaryService(options)
     this.dataDirectory=options.dataDirectory
     this.aiCandidates=new JsonStore(path.join(options.dataDirectory,'visit-ai-candidates.json'),{candidates:[]})
+    this.updateCandidates=new JsonStore(path.join(options.dataDirectory,'visit-update-candidates.json'),{candidates:[]})
     this.photos=options.photos??new QuickRecordPhotoService(options)
     this.members =
       options.members ?? new FamilyMemberRepository(options.dataDirectory)
@@ -208,6 +209,8 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date()) {
+    if(request.previewUpdate!==undefined&&typeof request.previewUpdate!=='boolean')throw failure('更新预览设置无效')
+    if(request.confirmUpdate!==undefined&&(typeof request.confirmUpdate!=='string'||Object.keys(request).some(k=>!['confirmUpdate','expectedVersion','requestId'].includes(k))))throw failure('更新确认设置无效')
     if(request.previewScope!==undefined&&(request.previewScope!==true||Object.keys(request).some(k=>!['selection','previewScope','requestId','expectedVersion'].includes(k))))throw failure('范围预览设置无效')
     if (request.generateAI !== undefined && typeof request.generateAI !== 'boolean') throw failure('AI 生成设置无效')
     if(request.previewAI!==undefined&&typeof request.previewAI!=='boolean')throw failure('AI 预览设置无效')
@@ -242,7 +245,15 @@ export class VisitSheetService {
           '情况单已在其他位置更新，请重新加载后再保存；填写内容仍保留。',
           409,
         )
+      if(request.confirmUpdate){
+        const candidate=(await this.updateCandidates.read()).candidates.find(c=>c.id===request.confirmUpdate&&c.accountId===accountId&&c.memberId===memberId&&c.version===(previous?.version??0)&&Date.parse(c.expiresAt)>now.getTime())
+        if(!candidate||input.warnings.length||candidate.report.fingerprint!==buildVisitSheet(input,candidate.report,now).fingerprint)throw failure('草稿已过期或来源变化，请重新整理；原情况单保留',409)
+        const report={...candidate.report,editedAt:now.toISOString()}
+        await this.store.update(data=>({...data,reports:[...data.reports.filter(r=>!(r.accountId===accountId&&r.memberId===memberId)),{...saved,accountId,memberId,current:report,requestId:request.requestId,history:[...(saved?.history??[]),...(previous?[previous]:[])]}]}))
+        return {report,stale:false,warnings:report.warnings,hasLegacy:false}
+      }
       const focus = request.focus ?? previous?.focus ?? { mode: 'auto' }
+      if(focus.relatedSourceIds!==undefined&&(!Array.isArray(focus.relatedSourceIds)||focus.relatedSourceIds.length>500||focus.relatedSourceIds.some(id=>typeof id!=='string'||!input.records.some(r=>`record:${r.id}`===id))))throw failure('关联记录不属于当前孩子或已失效')
       // null explicitly restores all owned sources; omission preserves the saved scope.
       const selection = Object.hasOwn(request,'selection') ? request.selection ?? undefined : previous?.selection
       if (selection) {
@@ -261,6 +272,8 @@ export class VisitSheetService {
       )
         throw failure('请填写 1–1000 字的主诉')
       const notes = request.notes ?? previous?.notes ?? {}
+      const caseDetails=request.caseDetails??previous?.caseDetails??{}
+      if(!caseDetails||typeof caseDetails!=='object'||Array.isArray(caseDetails)||Object.entries(caseDetails).some(([key,value])=>!['description','onset','change','other'].includes(key)||typeof value!=='string'||value.length>5000))throw failure('本次情况补充格式无效')
       if (
         !notes ||
         typeof notes !== 'object' ||
@@ -312,7 +325,7 @@ export class VisitSheetService {
       const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }
@@ -367,18 +380,32 @@ export class VisitSheetService {
         [previous.complaintSourceId,report.complaintSourceId,...(previous.questionSourceIds??[]),...(report.questionSourceIds??[])].filter(Boolean).every(id=>available.has(id)) &&
         (JSON.stringify(previous.focus) !== JSON.stringify(focus) ||
           previous.question !== question ||
-          JSON.stringify(previous.notes) !== JSON.stringify(notes))
+          JSON.stringify(previous.notes) !== JSON.stringify(notes) ||
+          JSON.stringify(previous.caseDetails??{}) !== JSON.stringify(caseDetails))
       )
         report.changes.push({
           sourceId: '家长报告编辑',
           sourceIds: [...new Set([previous.complaintSourceId,report.complaintSourceId,...(previous.questionSourceIds??[]),...(report.questionSourceIds??[])].filter(Boolean))],
-          before: `主诉：${previous.complaint}；本次想问：${previous.question||'未填写'}；${chapters.filter(([id])=>previous.notes[id]).map(([id,title])=>`${title}补充：${previous.notes[id]}`).join('；')}`,
-          after: `主诉：${report.complaint}；本次想问：${report.question||'未填写'}；${chapters.filter(([id])=>notes[id]).map(([id,title])=>`${title}补充：${notes[id]}`).join('；')}`,
+          before: `主诉：${previous.complaint}；本次想问：${previous.questionEdited?previous.question||'未填写':'尚未确认'}；${chapters.filter(([id])=>previous.notes[id]).map(([id,title])=>`${title}补充：${previous.notes[id]}`).join('；')}；本次情况补充：${Object.values(previous.caseDetails??{}).filter(Boolean).join('；')}`,
+          after: `主诉：${report.complaint}；本次想问：${report.questionEdited?report.question||'未填写':'尚未确认'}；${chapters.filter(([id])=>notes[id]).map(([id,title])=>`${title}补充：${notes[id]}`).join('；')}；本次情况补充：${Object.values(caseDetails).filter(Boolean).join('；')}`,
           at: now.toISOString(),
         })
       // Local report generation remains independent of AI availability. Never
       // send client-supplied report text; collect() is account/member scoped.
       const aiFingerprint = visitAISummaryFingerprint(report)
+      if(request.previewUpdate){
+        if(request.photoDraft)throw failure('请先保存影像选择，再整理草稿')
+        const cached=(await this.updateCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.version===(previous?.version??0)&&c.report.fingerprint===report.fingerprint&&Date.parse(c.expiresAt)>now.getTime())
+        if(cached)return {report:previous??null,stale:false,warnings:[],hasLegacy:false,updateCandidate:{id:cached.id,report:cached.report}}
+        if(request.generateAI){
+          const summary=await this.medicalSummary.generate(visitAISummaryInput(report),accountId)
+          if(!['openai','bailian'].includes(summary.provider))throw failure('摘要暂不可用，原情况单保留',503)
+          report.aiSummary={...summary,generatedAt:now.toISOString()};report.aiSourceFingerprint=aiFingerprint;report.aiSourceIds=visitAISources(report).map(s=>s.id);report.aiSummaryStale=false
+        }else if(previous?.aiSummary&&previous.aiSourceIds?.every(id=>available.has(id))){report.aiSummary=previous.aiSummary;report.aiSourceFingerprint=previous.aiSourceFingerprint;report.aiSourceIds=previous.aiSourceIds;report.aiSummaryStale=previous.aiSourceFingerprint!==aiFingerprint}
+        const candidate={id:randomUUID(),accountId,memberId,requestId:request.requestId,version:previous?.version??0,report,expiresAt:new Date(now.getTime()+86400000).toISOString()}
+        await this.updateCandidates.update(data=>({candidates:[...data.candidates.filter(c=>Date.parse(c.expiresAt)>now.getTime()&&!(c.accountId===accountId&&c.memberId===memberId)),candidate]}))
+        return {report:previous??null,stale:false,warnings:[],hasLegacy:false,updateCandidate:{id:candidate.id,report}}
+      }
       if(request.generateAI&&request.previewAI){
         if(!visitAISources(report).length)throw failure('请先补充当前成员的健康资料')
         const cached=(await this.aiCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.fingerprint===aiFingerprint&&Date.parse(c.expiresAt)>now.getTime())

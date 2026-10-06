@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { prepareHealthImage } from '../../features/health-attachments/prepareHealthImage'
 import { quickRecordService } from '../../services/quickRecords'
+import { visitSheetService } from '../../services/visitSheets'
 
 type Photo = {localId:string;file:File;url:string;serverId?:string;status:'uploading'|'uploaded'|'failed';error?:string}
 export function useReportPhotoDraft(memberId:string,token:string) {
@@ -16,9 +17,10 @@ export function useReportPhotoDraft(memberId:string,token:string) {
     // Capture member, draft and panel identity BEFORE asynchronous compression.
     photo.status='uploading';photo.error=undefined;publish(session)
     try{
-      const prepared=await prepareHealthImage(photo.file)
+      const video=photo.file.type.startsWith('video/')||/\.(mp4|mov|webm)$/i.test(photo.file.name)
+      const prepared=video?null:await prepareHealthImage(photo.file)
       if(!session.active||!session.photos.includes(photo))return
-      const saved=await quickRecordService.uploadPhoto(session.draftId,{memberId,...prepared,sortOrder:session.photos.indexOf(photo)},token)
+      const saved=video?await visitSheetService.uploadMedia(memberId,session.draftId,photo.file,token,session.photos.indexOf(photo),photo.localId):await quickRecordService.uploadPhoto(session.draftId,{memberId,...prepared!,sortOrder:session.photos.indexOf(photo)},token)
       if(!session.active||!session.photos.includes(photo)){
         await quickRecordService.deletePhoto(session.draftId,saved.id,memberId,token).catch(()=>undefined)
         return
@@ -28,9 +30,9 @@ export function useReportPhotoDraft(memberId:string,token:string) {
   }
   return {
     photos,notice,
-    choose(files:FileList|null){if(!files)return;const session=ref.current,remaining=10-session.photos.length;setNotice(files.length>remaining?'每次最多添加 10 张照片':'');const added=Array.from(files).slice(0,remaining).map(file=>({localId:crypto.randomUUID(),file,url:URL.createObjectURL(file),status:'uploading' as const}));session.photos.push(...added);publish(session);for(const p of added)void upload(p,session)},
+    choose(files:FileList|null){if(!files)return;const session=ref.current,remaining=10-session.photos.length;setNotice(files.length>remaining?'每次最多添加 10 个影像':'');const added=Array.from(files).slice(0,remaining).map(file=>({localId:crypto.randomUUID(),file,url:URL.createObjectURL(file),status:'uploading' as const}));session.photos.push(...added);publish(session);void(async()=>{for(const p of added){if(!session.active)return;await upload(p,session)}})()},
     retry(id:string){const p=ref.current.photos.find(p=>p.localId===id);if(p&&p.status==='failed')void upload(p,ref.current)},
     remove(id:string){const session=ref.current,p=session.photos.find(p=>p.localId===id);if(!p)return;session.photos=session.photos.filter(p=>p.localId!==id);URL.revokeObjectURL(p.url);publish(session);if(p.serverId)void quickRecordService.deletePhoto(session.draftId,p.serverId,memberId,token).catch(()=>setNotice('草稿清理未确认；未保存照片不会进入报告，并会自动过期'))},
-    async save<T>(operation:(draft:{draftId:string;photoIds:string[]})=>Promise<T>){const session=ref.current;session.saving=true;try{return await operation({draftId:session.draftId,photoIds:session.photos.map(p=>p.serverId!)})}finally{session.saving=false;if(!session.active)cleanup(session)}}
+    async save<T>(operation:(draft:{draftId:string;photoIds:string[]})=>Promise<T>){const session=ref.current;session.saving=true;try{return await operation({draftId:session.draftId,photoIds:[...new Set(session.photos.map(p=>p.serverId!))]})}finally{session.saving=false;if(!session.active)cleanup(session)}}
   }
 }

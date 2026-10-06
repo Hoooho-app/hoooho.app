@@ -1,4 +1,5 @@
 import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
+import { readingProjection } from './reading-projection.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
@@ -202,7 +203,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'temperature-statistics-v2',
+        projectionRevision: 'four-card-reading-v1',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -332,6 +333,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const selectedLocations =
     selected?.journal?.symptom?.locations?.map(bodyLocationLabel) ?? []
   const related = symptoms.filter((r) => {
+    if (focus.mode === 'custom' && Array.isArray(focus.relatedSourceIds))
+      return focus.relatedSourceIds.includes(`record:${r.id}`)
     if (focus.caseEventId) return r.eventId === focus.caseEventId
     if (focus.mode === 'custom')
       return (
@@ -802,6 +805,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       name: input.member.name,
       gender: input.member.gender ?? null,
       birthday: input.member.birthday ?? null,
+      avatar: input.member.avatar ?? input.member.avatarUrl ?? null,
     },
     timezone: input.timezone,
     focus,
@@ -812,6 +816,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     range,
     question: preferences.question ?? '',
     notes: preferences.notes ?? {},
+    caseDetails: preferences.caseDetails ?? {},
     sources,
     chapters: sections,
     candidates,
@@ -822,5 +827,6 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     changes: [],
   }, input, preferences), input, preferences, now, ownedPhotoIds)
   if (selection) report.scope = `仅纳入明确选择的${new Set(selection.eventIds).size}次情况${selection.from || selection.to ? '及指定时间范围' : ''}；${selection.includeBackground ? '含当前人物所选既往背景、成长及独立计划' : '未纳入既往背景、成长或独立计划'}。未提供不等于没有。`
+  report.reading=readingProjection(report,input)
   return report
 }

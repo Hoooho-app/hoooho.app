@@ -1,6 +1,7 @@
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { VisitSheetService } from './visit-sheet-service.mjs'
+import { uploadSymptomMedia } from '../events/symptom-media-upload.mjs'
 export function visitSheetsApiPlugin(options = {}) {
   const config = { ...authConfig, ...options },
     service = new VisitSheetService(config),
@@ -9,7 +10,7 @@ export function visitSheetsApiPlugin(options = {}) {
     name: 'hoooho-local-visit-sheets',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const match = /^\/api\/members\/([^/]+)\/visit-sheet(?:\/resources\/([a-f0-9]{24}))?$/.exec(
+        const match = /^\/api\/members\/([^/]+)\/visit-sheet(?:\/resources\/([a-f0-9]{24})|\/media\/([A-Za-z0-9_-]{8,128}))?$/.exec(
           (req.url ?? '').split('?')[0],
         )
         if (!match) return next()
@@ -25,6 +26,10 @@ export function visitSheetsApiPlugin(options = {}) {
           )
           if (!payload) return send(401, { error: { message: '请重新登录' } })
           const memberId = decodeURIComponent(match[1])
+          if(match[3]){
+            if(req.method!=='POST')return send(405,{error:{message:'请求方法不支持'}})
+            return send(201,await uploadSymptomMedia(service.photos,req,payload.sub,match[3],memberId))
+          }
           if(match[2]){
             if(req.method!=='GET')return send(405,{error:{message:'请求方法不支持'}})
             const result=await service.readProfileResource(payload.sub,memberId,match[2])

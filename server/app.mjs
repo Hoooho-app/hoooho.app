@@ -816,6 +816,12 @@ async function handleApi(request, response, pathname, searchParams) {
     else {sendJson(response,405,{message:'请求方法不支持'});return true}
     sendJson(response,200,result);return true
   }
+  const visitMediaMatch=/^\/api\/members\/([^/]+)\/visit-sheet\/media\/([A-Za-z0-9_-]{8,128})$/.exec(pathname)
+  if(visitMediaMatch){
+    if(request.method!=='POST'){sendEmpty(response,405);return true}
+    const saved=await uploadSymptomMedia(visitSheets.photos,request,await readAccountId(request),visitMediaMatch[2],decodeRouteValue(visitMediaMatch[1]))
+    sendJson(response,201,saved);return true
+  }
   const visitResourceMatch=/^\/api\/members\/([^/]+)\/visit-sheet\/resources\/([a-f0-9]{24})$/.exec(pathname)
   if(visitResourceMatch){
     if(request.method!=='GET'){sendEmpty(response,405);return true}
