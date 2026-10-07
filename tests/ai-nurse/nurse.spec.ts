@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 const token = new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers = {Authorization:'Bearer '+token}
 async function init(page:Page){
@@ -67,7 +67,13 @@ test('文字对话、备注修改删除、草稿恢复、原子保存及同记�
  const updated=await request.patch('/api/records/'+records[0].id,{headers,data:{content:'编辑同一条症状',journal:{...records[0].journal,aiNurse:{...records[0].journal.aiNurse,professionalNotes:records[0].journal.aiNurse.professionalNotes.map((n:any)=>({...n,text:'更新备注',editedByUser:true}))}}}})
  expect(updated.ok()).toBe(true)
  const after=await(await request.get('/api/events/'+eventId+'/records',{headers})).json()
- expect(after).toHaveLength(1);expect(after[0].journal.aiNurse.turns).toEqual(before)
+  expect(after).toHaveLength(1);expect(after[0].journal.aiNurse.turns).toEqual(before)
+  const state=await(await request.get('/api/members/empty-child/visit-sheet',{headers})).json()
+  expect((await request.put('/api/members/empty-child/visit-sheet',{headers,data:{expectedVersion:state.report?.version??state.expectedVersion??0,requestId:crypto.randomUUID(),focus:{mode:'source',sourceId:'record:'+records[0].id},caseDetails:{},question:'',notes:{},selection:null,selectedPhotoIds:[]}})).ok()).toBe(true)
+  await page.goto('/visit-summary');await page.getByRole('button',{name:'导出情况单',exact:true}).click()
+  const exporter=page.getByRole('dialog',{name:'导出情况单'}),download=page.waitForEvent('download')
+  await exporter.getByRole('button',{name:'保存离线情况单（HTML）',exact:true}).click();const path=testInfo.outputPath('nurse-source.html');await(await download).saveAs(path)
+  const html=await readFile(path,'utf8');expect(html).toContain('智能记录对话原文（只读）');expect(html).toContain('脸颊发红发痒，没有发热。我担心鸡蛋过敏，涂过保湿霜好像没变化。');expect(html).toContain('更新备注');expect(html).not.toContain(token)
 })
 test('权限拒绝、供应商失败、未同步原话重试及空会话禁止整理',async({page})=>{
  await init(page)

@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {doctorBriefText,matchingSources} from './reportCopy'
+import {doctorBriefText,matchingSources,copyNurseConversation} from './reportCopy'
 import type {VisitSheet,VisitSource} from '../../types/visitSheet'
+test('离线副本保留最终对话及更正、打断状态，原文不变且内部标识不外泄',()=>{
+ const source={code:'SRC-001',nurseConversation:[{id:'internal-user',role:'user',text:'家长原话：没有发热',at:'2026-10-07T01:00:00Z',order:0,final:true,status:'completed',private:'must-not-copy'},{id:'internal-correction',role:'user',text:'更正：昨晚开始',at:'2026-10-07T01:01:00Z',order:1,final:true,status:'completed',correctsTurnId:'internal-user'},{id:'internal-assistant',role:'assistant',text:'已展示但打断的回复',at:'2026-10-07T01:02:00Z',order:2,final:true,status:'interrupted'}]} as unknown as VisitSource
+ const before=JSON.stringify(source),copy=copyNurseConversation(source)!
+ assert.equal(copy[0].text,source.nurseConversation![0].text);assert.equal(copy[1].correctsTurnId,copy[0].id);assert.equal(copy[2].status,'interrupted');assert.equal(JSON.stringify(source),before);assert.doesNotMatch(JSON.stringify(copy),/internal-|must-not-copy/);assert.equal(copyNurseConversation({} as VisitSource),undefined)
+})
 test('来源编号大小写检索与真实匹配数',()=>{
  const sources=[{id:'record:a',code:'SRC-213',text:'观察',title:'皮肤',occurredAt:'2026-09-27'}] as VisitSource[]
  assert.equal(matchingSources(sources,'src-213').length,1)

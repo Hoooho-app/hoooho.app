@@ -1,6 +1,12 @@
 import type { VisitSheet, VisitSource } from '../../types/visitSheet'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 
+export function copyNurseConversation(source: VisitSource) {
+  if (!source.nurseConversation?.length) return undefined
+  const ids = new Map(source.nurseConversation.map((turn,index) => [turn.id,`${source.code ?? '来源'}-对话-${index+1}`]))
+  return source.nurseConversation.map(turn => ({ id:ids.get(turn.id)!,role:turn.role,text:turn.text,at:turn.at,order:turn.order,final:turn.final,status:turn.status,...(turn.correctsTurnId && ids.has(turn.correctsTurnId) ? {correctsTurnId:ids.get(turn.correctsTurnId)!} : {}) }))
+}
+
 export function matchingSources(sources:VisitSource[],query:string){
   const search=query.trim().toLocaleLowerCase()
   return sources.filter(s=>[s.title,s.text,s.occurredAt,s.createdAt,s.id,s.code].join(' ').toLocaleLowerCase().includes(search))
