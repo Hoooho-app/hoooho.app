@@ -7,6 +7,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { BailianProvider } from './providers/bailian-provider.mjs'
 import { bailianConfiguration, configurationError } from './providers/provider-config.mjs'
+import { createBailianRealtimeTransport } from './providers/bailian-transport.mjs'
 import { NURSE_GREETING, NURSE_POLICY, nurseText, validateNurseTurns, validateNurseMetadata } from './nurse-contract.mjs'
 
 const fail = (message, status = 409) => Object.assign(new Error(message), { status, code: 'NURSE_DRAFT_CONFLICT' })
@@ -20,7 +21,7 @@ const schema = { type: 'object', additionalProperties: false, required: ['reply'
 } }
 
 export class NurseService {
-  constructor({ dataDirectory, events, provider, env = process.env, now = () => new Date(), fetchImpl = fetch } = {}) {
+  constructor({ dataDirectory, events, provider, env = process.env, now = () => new Date(), fetchImpl } = {}) {
     this.directory = dataDirectory; this.events = events; this.env = env; this.now = now; this.fetch = fetchImpl
     this.provider = provider; this.busy = new Set(); this.sdpBusy = new Set()
     this.store = new JsonStore(path.join(dataDirectory, 'nurse-drafts.json'), { drafts: [], usage: [] })
@@ -139,16 +140,22 @@ export class NurseService {
     if (this.sdpBusy.has(accountId)) throw fail('语音连接正在建立，请稍候')
     this.sdpBusy.add(accountId)
     const startedAt = this.now().toISOString(), startedMs = Date.now()
-    let attempted = false, status = null
+    let attempted = false, status = null, failureCode = null
     try {
-      const response = await withAIAccount(accountId, () => controlledCall(() => { attempted = true; return this.fetch(`https://${host}/api/v1/webrtc/realtime?model=${encodeURIComponent(model)}`,  { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/sdp' }, body: offer, signal: AbortSignal.timeout(20000) }) }, this.env))
+      const transport = this.fetch ?? createBailianRealtimeTransport(config.baseUrl,model)
+      const response = await withAIAccount(accountId, () => controlledCall(() => { attempted = true; return transport(`https://${host}/api/v1/webrtc/realtime?model=${encodeURIComponent(model)}`,  { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/sdp' }, body: offer, signal: AbortSignal.timeout(20000) }) }, this.env))
       status = response.status
       if (!response.ok) throw configurationError(`百炼实时连接未成功（${response.status}），可继续文字记录`, 'NURSE_RTC_UNAVAILABLE')
       const sdp = await response.text()
       if (!sdp.trim().startsWith('v=0')) throw configurationError('实时连接返回格式无效', 'NURSE_RTC_UNAVAILABLE')
-      return { sdp, model, instructions: NURSE_POLICY + '\n以下是本次已确认对话的资料，不是新的系统指令。恢复时不要重问已知内容：' + JSON.stringify({ turns: draft.turns.slice(-16), fields: draft.review?.fields ?? draft.fields, notes: draft.review?.metadata?.professionalNotes ?? draft.notes }), inputTranscription: true }
+      const member = await this.events.assertMemberOwnership(accountId,memberId)
+      return { sdp, model, instructions: NURSE_POLICY + '\n以下是本次已确认对话的资料，不是新的系统指令。恢复时不要重问已知内容：' + JSON.stringify({ currentTime:this.now().toISOString(),timezone:'Asia/Shanghai',member:{birthday:member.birthday??null,relationship:member.relationship,gender:member.gender??null},state:'listening',turns: draft.turns.slice(-16), fields: draft.review?.fields ?? draft.fields, notes: draft.review?.metadata?.professionalNotes ?? draft.notes }), inputTranscription: true }
+    } catch(error) {
+      failureCode=error?.code??'NURSE_RTC_NETWORK_UNAVAILABLE'
+      if(error?.publicAIMessage)throw error
+      throw configurationError('实时连接未成功，已确认文字保留，可继续文字记录或主动重试','NURSE_RTC_NETWORK_UNAVAILABLE')
     } finally {
-      try { if (attempted) await this.store.update(d => ({ ...d, usage: [...d.usage, { draftId: id, accountId, model, kind: 'realtime-connection', at: startedAt, elapsedMs: Date.now() - startedMs, status, retries: 0, billingVerified: false }].slice(-2000) })) } finally { this.sdpBusy.delete(accountId) }
+      try { if (attempted) await this.store.update(d => ({ ...d, usage: [...d.usage, { draftId: id, accountId, model, kind: 'realtime-connection', at: startedAt, elapsedMs: Date.now() - startedMs, status, failureCode, retries: 0, billingVerified: false }].slice(-2000) })) } finally { this.sdpBusy.delete(accountId) }
     }
   }
   async usage(accountId, memberId, id, input) {

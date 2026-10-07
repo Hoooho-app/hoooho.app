@@ -13,6 +13,15 @@ import { QuickRecordService } from '../events/quick-record-service.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 
 const at = '2026-10-06T01:00:00.000Z'
+test('SDP includes only necessary current context; network failure is safe and counted once',async t=>{
+ const f=await fixture(t);f.nurse.env={BAILIAN_API_KEY:'synthetic-placeholder',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'}
+ let calls=0;f.nurse.fetch=async(url,init)=>{calls++;assert.equal(init.headers['Content-Type'],'application/sdp');assert.match(url,/api\/v1\/webrtc\/realtime/);return new Response('v=0\r\nsynthetic answer')}
+ const input={sdp:'v=0\r\nm=audio 9 RTP/AVP 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel'}
+ const result=await f.nurse.sdp('qa-nurse',f.member.id,f.draft.id,input);assert.match(result.instructions,/currentTime/);assert.match(result.instructions,/Asia\/Shanghai/);assert.ok(!result.instructions.includes('synthetic-placeholder'));assert.equal(calls,1)
+ f.nurse.fetch=async()=>{calls++;throw Object.assign(new TypeError('private transport details'),{code:'ETIMEDOUT'})}
+ await assert.rejects(()=>f.nurse.sdp('qa-nurse',f.member.id,f.draft.id,input),e=>e.code==='NURSE_RTC_NETWORK_UNAVAILABLE'&&!e.message.includes('private'))
+ assert.equal(calls,2);const usage=(await f.nurse.store.read()).usage;assert.equal(usage.length,2);assert.equal(usage[1].failureCode,'ETIMEDOUT');assert.equal(usage[1].retries,0)
+})
 const output = (change = {}) => ({ reply: '痒有没有影响睡眠？', intent: 'continue', emergency: { currentChild: false, quote: '' }, fields: { narrative: '脸颊发红发痒。', locationText: '脸颊', impactLevel: '', triggerText: '', trend: '' }, fieldEvidence: [{ field: 'narrative', sourceTurnId: 'user-1', quote: '脸颊发红发痒' }, { field: 'locationText', sourceTurnId: 'user-1', quote: '脸颊' }], notes: [], ...change })
 async function fixture(t, make = () => output()) {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-nurse-test-'))

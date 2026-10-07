@@ -3,8 +3,15 @@ import assert from 'node:assert/strict'
 import {EventEmitter} from 'node:events'
 import {PassThrough} from 'node:stream'
 import net from 'node:net'
-import {createBailianTransport} from './bailian-transport.mjs'
+import {createBailianTransport,createBailianRealtimeTransport} from './bailian-transport.mjs'
 const base='https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+test('realtime SDP uses the established connection window and only its exact model endpoint',async()=>{
+ let calls=0;const endpoint='https://fixture.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime?model=qwen3.8-omni-flash-realtime'
+ const transport=createBailianRealtimeTransport(base,'qwen3.8-omni-flash-realtime',{requestImpl:mockRequest(({url,options,body,onResponse})=>{calls++;assert.equal(url.href,endpoint);assert.equal(options.agent.options.autoSelectFamilyAttemptTimeout,1000);assert.equal(options.rejectUnauthorized,true);assert.equal(body,'v=0 synthetic SDP');const incoming=new PassThrough();incoming.statusCode=200;incoming.headers={};onResponse(incoming);incoming.end('v=0 synthetic answer')})})
+ await assert.rejects(()=>transport(base+'/chat/completions'),{code:'AI_TRANSPORT_TARGET_INVALID'});assert.equal(calls,0)
+ assert.equal(await(await transport(endpoint,{method:'POST',body:'v=0 synthetic SDP'})).text(),'v=0 synthetic answer');assert.equal(calls,1)
+ assert.throws(()=>createBailianRealtimeTransport(base,'unknown'),{code:'AI_TRANSPORT_TARGET_INVALID'})
+})
 function mockRequest(callback){return (url,options,onResponse)=>{
  const request=new EventEmitter();request.destroy=()=>{};request.end=body=>queueMicrotask(()=>callback({url,options,body,request,onResponse}));return request
 }}

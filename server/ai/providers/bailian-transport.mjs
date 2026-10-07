@@ -8,6 +8,17 @@ import {safeNetworkCause} from './network-diagnostic.mjs'
 const agent=new https.Agent({keepAlive:true,maxSockets:10,maxFreeSockets:2,autoSelectFamily:true,autoSelectFamilyAttemptTimeout:1000,rejectUnauthorized:true})
 export function createBailianTransport(baseUrl,{requestImpl=https.request,connectionAgent=agent}={}) {
   const expected=new URL(baseUrl+'/chat/completions')
+  return createTransport(expected,{requestImpl,connectionAgent})
+}
+// SDP uses the same observed Beijing connection window and verified TLS, with
+// its own exact destination. Text transport remains locked to chat/completions.
+export function createBailianRealtimeTransport(baseUrl,model,options={}) {
+  if(model!=='qwen3.8-omni-flash-realtime')throw Object.assign(new Error('Unsupported realtime transport model'),{code:'AI_TRANSPORT_TARGET_INVALID'})
+  const expected=new URL('/api/v1/webrtc/realtime',baseUrl)
+  expected.searchParams.set('model',model)
+  return createTransport(expected,options)
+}
+function createTransport(expected,{requestImpl=https.request,connectionAgent=agent}={}) {
   return (input,init={})=>new Promise((resolve,reject)=>{
     const url=new URL(input)
     if(url.href!==expected.href||url.protocol!=='https:'||url.username||url.password) return reject(Object.assign(new Error('Unexpected Bailian transport target'),{code:'AI_TRANSPORT_TARGET_INVALID'}))
