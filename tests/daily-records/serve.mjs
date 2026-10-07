@@ -18,7 +18,7 @@ await writeFile(path.join(directory, 'users.json'), JSON.stringify({ users: [{ i
 const members = new FamilyMemberRepository(directory), routines = new RoutineService({ dataDirectory: directory, members })
 // Fixture history only: genuine server scheduler materializes due rules from a
 // prior local day. No clock-changing or backdating API exists in the application.
-for (const width of [375, 390, 430]) {
+for (const width of [375, 390, 430, '关联']) {
   const member = await members.create({ accountId, name: `自动记录验收${width}`, relationship: 'child', gender: 'female', birthday: '2025-01-01' })
   const yesterday = shiftDay(localDateKey(now, 'Asia/Shanghai'), -1)
   await routines.daily.saveSettings(accountId, member.id, { kind: 'feeding', revision: 0, enabled: true, timeZone: 'Asia/Shanghai', slots: [ { id: 'early_milk_slot', name: '早奶', time: '07:30', enabled: true, fields: { feedingMethod: 'formula', bottleMl: 150 } }, { id: 'mid_milk_slot', name: '午奶', time: '13:00', enabled: true, fields: { feedingMethod: 'formula', bottleMl: 180 } }, { id: 'late_milk_slot', name: '晚奶', time: '21:00', enabled: true, fields: { feedingMethod: 'formula', bottleMl: 200 } } ] }, new Date(`${shiftDay(yesterday, -1)}T01:00:00Z`))

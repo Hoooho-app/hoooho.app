@@ -102,7 +102,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   }
 
   const completedSleep = record?.journal?.sleep ?? null
-  if (record?.journal?.diet?.status === 'ongoing') return <OngoingDietDetail diet={record.journal.diet} onClose={onClose} onSave={async diet => {
+  if (record?.journal?.diet?.status === 'ongoing') return <OngoingDietDetail diet={record.journal.diet} origin={origin} onClose={onClose} onSave={async diet => {
     await updateRecord(record.id, { journal: { ...record.journal, diet }, occurredAt: diet.endedAt })
     onChanged(getLocalDateKey(diet.endedAt!) ?? undefined); onClose()
   }} />
@@ -211,7 +211,7 @@ function DietInformation({ diet }: { diet: JournalDietDetails }) {
   return <dl>{Object.entries(diet).filter(([key, value]) => labels[key] && value !== undefined && value !== '').map(([key, value]) => <div key={key}><dt>{labels[key]}</dt><dd>{Array.isArray(value) ? value.join('、') : typeof value === 'object' ? Object.entries(value).map(([side, seconds]) => `${side === 'left' ? '左侧' : side === 'right' ? '右侧' : '合计'} ${seconds}秒`).join(' · ') : key === 'feedingMethod' ? ({ breast: '母乳', formula: '配方奶', expressed: '瓶喂母乳', mixed: '混合喂养' }[String(value)] ?? String(value)) : String(value)}</dd></div>)}</dl>
 }
 
-function OngoingDietDetail({ diet, onClose, onSave }: { diet: JournalDietDetails; onClose: () => void; onSave: (diet: JournalDietDetails) => Promise<void> }) {
+function OngoingDietDetail({ diet, origin, onClose, onSave }: { diet: JournalDietDetails; origin?: ReactNode; onClose: () => void; onSave: (diet: JournalDietDetails) => Promise<void> }) {
   const [endInput, setEndInput] = useState(() => preciseLocalValue())
   const [milk, setMilk] = useState(diet.bottleMl ? String(diet.bottleMl) : '')
   const [note, setNote] = useState(diet.note ?? '')
@@ -226,5 +226,5 @@ function OngoingDietDetail({ diet, onClose, onSave }: { diet: JournalDietDetails
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setBusy(false) }
   }
-  return <BottomSheetSurface label={`${title}记录详情`} title={`${title}记录详情`} onClose={onClose} open><div className="activity-interval-detail"><p>{title} · 持续中…</p><dl><div><dt>开始时间</dt><dd>{new Date(diet.startedAt!).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>尚未结束</dd></div></dl><DietInformation diet={diet} /><label className="routine-field"><span>实际结束时间</span><input aria-label="实际结束时间" type="datetime-local" step="1" max={preciseLocalValue()} value={endInput} onChange={event => setEndInput(event.target.value)} /></label>{diet.kind === 'feeding' && <HohoInput label="奶量（mL，选填）" type="number" min={1} max={5000} value={milk} onChange={event => setMilk(event.target.value)} />}<HohoInput label="备注（选填）" maxLength={1000} value={note} onChange={event => setNote(event.target.value)} />{(validation || error) && <p role="alert">{validation || error}</p>}<HohoButton disabled={Boolean(validation)} loading={busy} fullWidth onClick={() => void finish()}>{diet.kind === 'feeding' ? '结束喂养' : '结束用餐'}</HohoButton></div></BottomSheetSurface>
+  return <BottomSheetSurface label={`${title}记录详情`} title={`${title}记录详情`} onClose={onClose} open><div className="activity-interval-detail"><p>{title} · 持续中…</p>{origin}<dl><div><dt>开始时间</dt><dd>{new Date(diet.startedAt!).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>尚未结束</dd></div></dl><DietInformation diet={diet} /><label className="routine-field"><span>实际结束时间</span><input aria-label="实际结束时间" type="datetime-local" step="1" max={preciseLocalValue()} value={endInput} onChange={event => setEndInput(event.target.value)} /></label>{diet.kind === 'feeding' && <HohoInput label="奶量（mL，选填）" type="number" min={1} max={5000} value={milk} onChange={event => setMilk(event.target.value)} />}<HohoInput label="备注（选填）" maxLength={1000} value={note} onChange={event => setNote(event.target.value)} />{(validation || error) && <p role="alert">{validation || error}</p>}<HohoButton disabled={Boolean(validation)} loading={busy} fullWidth onClick={() => void finish()}>{diet.kind === 'feeding' ? '结束喂养' : '结束用餐'}</HohoButton></div></BottomSheetSurface>
 }
