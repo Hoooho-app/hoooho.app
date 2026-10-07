@@ -235,6 +235,7 @@ export interface JournalVisitDetails {
 }
 
 export interface JournalMetadata {
+  aiNurse?: import('../features/ai-nurse/types').NurseMetadata
   topical?: { kind: 'care' | 'skincare' | 'external_medication' | 'other'; productName?: string; bodyLocations: string[]; amount?: string; reason?: string; change?: string }
   categories?: JournalCategory[]
   timePrecision?: 'exact' | 'period' | 'day' | 'unknown'

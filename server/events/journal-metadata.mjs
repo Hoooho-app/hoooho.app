@@ -1,3 +1,4 @@
+import { validateNurseMetadata } from '../ai/nurse-contract.mjs'
 import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import {localDateKey} from '../time/local-calendar.mjs'
@@ -425,6 +426,7 @@ export function validateJournal(value) {
   const sleep = validateSleep(value.sleep)
   const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
   const symptom = validateSymptom(value.symptom)
+  const aiNurse = validateNurseMetadata(value.aiNurse)
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
   const visit = validateVisit(value.visit)
@@ -444,7 +446,7 @@ export function validateJournal(value) {
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
   if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
   if (value.timePrecision !== undefined && !['exact', 'period', 'unknown'].includes(value.timePrecision)) throw new HealthEventRecordError('发生时间精度无效', 400, 'INVALID_JOURNAL_TIME')
-  return { categories: [...new Set(value.categories)], ...(topical ? { topical } : {}), ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
+  return { ...(aiNurse ? { aiNurse } : {}), categories: [...new Set(value.categories)], ...(topical ? { topical } : {}), ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

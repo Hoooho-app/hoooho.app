@@ -1,3 +1,5 @@
+import { NurseNotes } from '../../../features/ai-nurse/NurseNotes'
+import type { NurseMetadata } from '../../../features/ai-nurse/types'
 import { Link2, Pencil, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
@@ -66,6 +68,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
 }
 
 export function SymptomRecordSheet({ entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
+  const [nurseMetadata, setNurseMetadata] = useState<NurseMetadata>()
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
@@ -114,6 +117,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
     setShortNote(record?.journal?.symptom?.shortNote ?? '')
     setTemperature(String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? ''))
     setBusy(false)
+    setNurseMetadata(record?.journal?.aiNurse)
     setError('')
   }
   // Same-record session refreshes preserve active edits; entering edit always reads the latest record.
@@ -145,7 +149,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
         measurementMethod: isMeasurement ? measurementMethod : null,
         measurementDevice: isMeasurement ? measurementDevice.trim() || null : null,
         note: note.trim() || null,
-        ...(symptom ? { journal: { ...record.journal, symptom: { ...symptom, locations: toSymptomLocations(locations), ...(hasStructuredTemperature ? { symptomSpecificData: { ...symptom.symptomSpecificData, currentTemperature: Number(temperature) } } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: 'exact' } } : {})
+        ...(symptom ? { journal: { ...record.journal, ...(nurseMetadata ? { aiNurse: nurseMetadata } : {}), symptom: { ...symptom, locations: toSymptomLocations(locations), ...(hasStructuredTemperature ? { symptomSpecificData: { ...symptom.symptomSpecificData, currentTemperature: Number(temperature) } } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, occurredAt: new Date(occurredAt).toISOString(), timePrecision: occurredAt === localDateTimeValue(new Date(record.occurredAt)) ? record.journal?.timePrecision ?? 'exact' : 'exact' } } : {})
       })
       onClose()
     } catch (reason) {
@@ -186,6 +190,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
   const dirty = editing && Boolean(record) && (
     content !== (originalSymptom?.narrative ?? record?.content ?? title)
     || occurredAt !== localDateTimeValue(new Date(record?.occurredAt ?? entry.time))
+    || JSON.stringify(nurseMetadata) !== JSON.stringify(record?.journal?.aiNurse)
     || generatedSummary !== (originalSymptom?.generatedSummary ?? '')
     || locationText !== (originalSymptom?.locationText ?? '')
     || JSON.stringify(locations) !== JSON.stringify(fromSymptomLocations(originalSymptom?.locations ?? []))
@@ -224,6 +229,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
             <label><span>测量方式</span><select className="hoho-input" onChange={(event) => setMeasurementMethod(event.target.value as HealthMeasurementMethod)} value={measurementMethod}>{measurementMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label>
           </>}
           <label><span>备注（可选）</span><textarea className="hoho-textarea symptom-record-note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="补充这条记录的说明" value={note} /></label>
+          {nurseMetadata && <NurseNotes value={nurseMetadata} onChange={setNurseMetadata}/>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
           <RelatedRecordsSheet entries={relatedEntries} error={relatedError} linked={linkedRecordIds} loading={relatedLoading} onChange={setLinkedRecordIds} onClose={() => setRelatedOpen(false)} onRetry={onRelatedRetry} open={relatedOpen} />
         </div>
@@ -237,6 +243,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
           {record && <button className="symptom-allergy-link" disabled={allergyLinked} onClick={() => setAllergyLinkOpen(true)} type="button"><Link2 size={18}/><span><strong>{allergyLinked ? '已关联到过敏史' : '标记为过敏相关'}</strong><small>{allergyLinked ? '已保存为可追溯的待排查线索' : '由你确认后加入待排查，不会自动确诊'}</small></span></button>}
           <section><h3>来源信息</h3><dl><div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>{isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}{isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}{entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}</dl></section>
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
+          {record?.journal?.aiNurse && <NurseNotes value={record.journal.aiNurse}/>}
           {record&&<RecordOriginals key={record.id} eventId={record.eventId} recordId={record.id} attachmentIds={record.aiProvenance?.attachmentIds}/> }
           {record?.aiProvenance&&<section><h3>整理来源与核对记录</h3>{record.aiProvenance.notice&&<p>{record.aiProvenance.notice}</p>}{record.aiProvenance.time.precision==='unknown'&&<p>原文发生时间未明确；创建时间不代表发生时间。</p>}{record.aiProvenance.sources.map((s,i)=><details key={i}><summary>原始依据 · 第{s.page}页</summary><p>{s.quote}</p></details>)}{record.aiProvenance.originalVersions.map((v,i)=><details key={i}><summary>更正前原文 {i+1}</summary><p>{v}</p></details>)}</section>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}

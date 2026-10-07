@@ -84,13 +84,14 @@ function currentLines(context: HealthEventPromptContext) {
     `当前状态：${statusLabel(context.event.status)}`,
     compact(context.event.summary) ? `当前情况：${compact(context.event.summary)}` : '',
     symptoms.length ? `已记录症状：${symptoms.join('、')}` : '',
+    ...context.records.filter(r => r.eventId === context.event.id).flatMap(r => (r.journal?.aiNurse?.professionalNotes ?? []).map(n => `专业备注（${n.certainty === 'uncertain' ? '不确定/担心' : n.certainty === 'denied' ? '否定' : '家长叙述'}）：${n.heading}：${n.text}`)),
   ].filter(Boolean)
 }
 
 function rawLines(context: HealthEventPromptContext) {
   return [...context.records]
     .sort((left, right) => new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime())
-    .map((record) => `${formatTime(record.occurredAt)}：${compact(record.sourceText) || compact(record.content)}`)
+    .flatMap((record) => [`${formatTime(record.occurredAt)}：${compact(record.sourceText) || compact(record.content)}`, ...(record.journal?.aiNurse?.professionalNotes ?? []).map(n => `专业备注（${n.certainty === 'uncertain' ? '不确定/担心' : n.certainty === 'denied' ? '否定' : '家长叙述'}；原话轮次 ${n.sourceTurnIds.join('、')}）：${n.heading}：${n.text}`)])
     .filter((line) => !line.endsWith('：'))
 }
 

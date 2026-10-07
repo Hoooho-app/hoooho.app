@@ -16,6 +16,7 @@ export interface VisitFocus {
   text?: string
 }
 export interface VisitSource {
+  nurseConversation?: import('../features/ai-nurse/types').NurseTurn[]
   id: string
   code?: string
   locations?: string[]

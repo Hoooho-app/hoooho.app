@@ -5,6 +5,7 @@ import path from 'node:path'
 import { validateJournal } from './journal-metadata.mjs'
 import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
 import { findQuickRecordDuplicate } from './quick-record-duplicate.mjs'
+import { accountTransaction } from '../auth/storage/transaction.mjs'
 
 const keyPattern = /^[A-Za-z0-9_-]{8,128}$/
 
@@ -56,6 +57,7 @@ function validateInput(input) {
 
 export class QuickRecordService {
   constructor(options = {}) {
+    this.dataDirectory = options.dataDirectory
     this.events = options.events ?? new HealthEventService(options)
     this.records = options.records ?? new HealthEventRecordService(options)
     this.requests = options.requests ?? new QuickRecordRequestRepository(options.dataDirectory)
@@ -91,7 +93,9 @@ export class QuickRecordService {
     const lockKey = `${accountId}:${input.idempotencyKey}`
     const existingWork = this.inFlight.get(lockKey)
     if (existingWork) return existingWork
-    const work = this.createLocked(accountId, input, marker, now)
+    const work = input.journal?.aiNurse
+      ? accountTransaction(this.dataDirectory, () => this.createLocked(accountId, input, marker, now))
+      : this.createLocked(accountId, input, marker, now)
     this.inFlight.set(lockKey, work)
     try {
       return await work
