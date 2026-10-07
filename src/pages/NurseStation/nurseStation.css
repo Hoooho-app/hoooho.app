@@ -287,3 +287,15 @@
 @media (max-width: 359px) { .nurse-station-scroll { padding-inline: 12px; } .nurse-station-hero { height: 200px; } .nurse-station-hero__main { padding-inline: 10px 8px; } .nurse-station-visual { height: 112px; } .nurse-station-visual .nurse-triage-desk { width: min(100%, 150px); } .nurse-station-growth-data { margin-inline: 8px; } .nurse-station-growth-data strong { font-size: 14px; } .nurse-home-entry { grid-template-columns: minmax(0, 1fr) 48px; gap: 3px; padding-inline: 9px 7px; } .nurse-home-entry__visual { width: 48px; height: 48px; } .guardian-task-tabs button { font-size: 12px; } }
 @media (min-width: 768px) { .medication-course-card__surface { transform: none !important; } .medication-course-card__swipe-actions { display: none; } }
 @media (prefers-reduced-motion: reduce) { .nurse-home-entry, .nurse-service-entry, .nurse-station-visual, .guardian-task-card, .nurse-station-sheet { animation: none !important; transition: none !important; } }
+
+/* Approved compact child summary: keep the avatar and all growth controls. */
+.nurse-station-hero--compact { min-height: 0; height: auto; grid-template-rows: minmax(68px, auto) minmax(54px, auto); box-shadow: none; }
+.nurse-station-hero--compact .nurse-station-hero__main { display: block; padding: var(--hoho-space-3); }
+.nurse-station-hero--compact .nurse-station-copy { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); }
+.nurse-station-hero--compact .nurse-station-identity { flex: 1; }
+.nurse-station-hero--compact .nurse-station-guarded { margin: 0; text-align: right; }
+.nurse-station-hero--compact .nurse-station-growth-data > button { display: grid; min-height: 53px; grid-template-columns: auto auto; justify-content: center; justify-items: start; column-gap: 3px; align-items: baseline; }
+.nurse-station-hero--compact .nurse-station-growth-data small { grid-column: 1 / -1; justify-self: center; }
+.nurse-station-hero--compact .nurse-station-growth-data em { grid-column: 2; }
+.nurse-station-hero--compact .nurse-station-growth-data strong { justify-self: center; }
+.nurse-station-hero--compact .nurse-station-growth-data .nurse-station-blood-type > span { grid-column: 1 / -1; flex-direction: row; gap: var(--hoho-space-1); }
