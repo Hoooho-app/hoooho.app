@@ -8,9 +8,10 @@ const recorder = readFileSync(new URL('./JournalRecorder.tsx', import.meta.url),
 test('symptom entry is narrative-first, optional, compact and directly saveable', () => {
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('const form ='), source.indexOf('export function RelatedRecordsSheet'))
-  const labels = ['症状描述', '拍摄', '照片', '语音输入', '症状部位', '补充信息', '发生时间']
+  const cardSource=formSource.slice(formSource.indexOf('symptom-narrative'))
+  const labels = ['症状描述', '症状部位', '补充信息', '发生时间', '拍照', '选照片', '语音输入', 'AI 护士']
   let cursor = -1
-  for (const label of labels) { const next = formSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
+  for (const label of labels) { const next = cardSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)
   assert.match(source, /正在整理症状描述/)
   assert.match(source, /symptomPreviewService\.preview/)
@@ -22,8 +23,9 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂未生成摘要，可直接保存原文/)
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
-  assert.match(source, /useSymptomVoice/)
-  assert.match(source, /voice\.busy \? '结束' : '语音输入'/)
+  assert.match(source, /SymptomVoiceSheet/)
+  assert.match(source, /symptom-record-toolbar/)
+  assert.doesNotMatch(formSource.split('symptom-record-save')[0], /记录输入方式/)
   assert.doesNotMatch(formSource, /aria-label="关闭"/)
   assert.match(source, /placeholder="例如：左肘窝"/)
   assert.match(source, /buttonLabel=\{draft\.locations\.length \? '修改' : '选择部位'\}/)

@@ -2,6 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 
+test('empty symptom context is draft-only; fuzzy time stays bounded verbatim', () => {
+  const journal = { categories: ['symptom'], symptom: { symptomCategory: 'other', narrative: '', locations: [], descriptors: [] }, timePrecision: 'unknown', timeLabel: '本周，具体日期不详' }
+  assert.throws(() => validateJournal(journal), /症状主述/)
+  const draft = validateJournal(journal, { allowEmptySymptomDraft: true })
+  assert.equal(draft.timeLabel, journal.timeLabel)
+  assert.throws(() => validateJournal({ ...journal, timeLabel: '本'.repeat(161) }, { allowEmptySymptomDraft: true }), /发生时间原文/)
+  assert.throws(() => validateJournal({ ...journal, symptom: { ...journal.symptom, locations: [{ id: 'invalid' }] } }, { allowEmptySymptomDraft: true }), /症状位置/)
+})
+
 test('v2 semantics include neutral model, coarse precision and original labels without numbered marked areas',()=>{
   const item={id:'hand_left_whole',label:'左手（具体位置待补充）',displayLabel:'左手（具体位置待补充）',medicalLabel:'左手（具体位置待补充）',locationNumber:1,locationLayer:'surface',localRegion:'左手（具体位置待补充）',bodySide:'left',bodyView:'palm',bodyRegion:'hand_left',regionId:'hand_left',categoryId:'hand',precision:'category',schemaVersion:'1.0.0',dictionaryVersion:'2.0.0',surface:'unspecified',coverage:'whole',modelAtSelection:'neutral'}
   const journal={categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'掌心发红',locations:[item],descriptors:[]}}

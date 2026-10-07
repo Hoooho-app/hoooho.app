@@ -204,3 +204,15 @@ test('nurse notes stay qualified, one record counts once and original dialogue i
  assert.ok(chapter(report,'course').blocks.some(b=>b.lines.some(l=>l.includes('担心鸡蛋相关'))))
  assert.equal(report.focusSourceIds.length,1)
 })
+
+test('unknown onset keeps parent time words in linked reading and export without a guessed date', () => {
+ const input=visitFixture();input.records=input.records.slice(0,1)
+ const record=input.records[0]
+ record.journal={...record.journal,timePrecision:'unknown',timeLabel:'本周，具体日期不详'}
+ const report=buildVisitSheet(input,{focus:{mode:'source',sourceId:'record:'+record.id}},now)
+ assert.match(report.sources.find(s=>s.id==='record:'+record.id).text,/发生时间（家长原文，日期待确认）：本周，具体日期不详/)
+ assert.equal(report.reading.onset,'本周，具体日期不详')
+ record.journal.timePrecision='period';record.journal.timeLabel='晚上'
+ const period=buildVisitSheet(input,{focus:{mode:'source',sourceId:'record:'+record.id}},now)
+ assert.match(period.sources.find(s=>s.id==='record:'+record.id).text,/发生时间（家长原文）：晚上/)
+})

@@ -1,3 +1,4 @@
+import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import { X } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
@@ -8,6 +9,8 @@ export interface BottomSheetSurfaceProps {
   className?: string
   layerClassName?: string
   footer?: ReactNode
+  headerAction?: ReactNode
+  viewportAware?: boolean
   label: string
   leading?: ReactNode
   navigation?: ReactNode
@@ -18,7 +21,8 @@ export interface BottomSheetSurfaceProps {
   dismissText?: string
 }
 
-export function BottomSheetSurface({ children, className = '', dismissText, footer, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ children, className = '', dismissText, footer, headerAction, viewportAware = false, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
+  const viewport = useVisibleViewport()
   const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
   useDialogFocus(open, sheetRef)
@@ -35,12 +39,13 @@ export function BottomSheetSurface({ children, className = '', dismissText, foot
   if (!open) return null
 
   return (
-    <div className={`hoho-bottom-sheet-layer ${layerClassName}`} role="presentation">
+    <div className={`hoho-bottom-sheet-layer ${layerClassName}`} role="presentation" style={viewportAware ? {top:viewport.top,height:viewport.height,bottom:'auto'} : undefined}>
       <button aria-label={`关闭${label}`} className="hoho-bottom-sheet-backdrop" onClick={onClose} type="button" />
       <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} data-size={size} ref={sheetRef} role="dialog" tabIndex={-1}>
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
         <header className="hoho-bottom-sheet__header">
           <div className="hoho-bottom-sheet__title-group">{leading}<h2 className="hoho-text-section-title">{title}</h2></div>
+          {headerAction}
           <button aria-label={dismissText ?? `关闭${label}`} className="hoho-bottom-sheet__close" data-text={Boolean(dismissText)} onClick={onClose} type="button">
             {dismissText ?? <X size={21} strokeWidth={1.8} />}
           </button>

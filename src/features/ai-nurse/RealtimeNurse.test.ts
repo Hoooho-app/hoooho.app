@@ -10,7 +10,7 @@ function fixture(t: any) {
  class Stream { list:any[]=[];constructor(list:any[]=[]){this.list=list};getTracks(){return this.list};getAudioTracks(){return this.list};addTrack(t:any){this.list.push(t)} }
  let blocked=false, paused=false
  class Player {srcObject:any;autoplay=false;muted=false;play(){return blocked?Promise.reject(new Error('autoplay')):Promise.resolve()};pause(){paused=true};remove(){} }
- const sent:any[]=[], replaced:any[]=[], states:string[]=[], turns:NurseTurn[]=[], previews:string[]=[], errors:string[]=[], playStates:boolean[]=[]
+ const sent:any[]=[], replaced:any[]=[], states:string[]=[], turns:NurseTurn[]=[], queued:NurseTurn[]=[], previews:string[]=[], errors:string[]=[], playStates:boolean[]=[]
  const channel:any={readyState:'open',send(v:string){sent.push(JSON.parse(v))},close(){this.readyState='closed'}}
  let pc:any
  class Peer {
@@ -21,11 +21,11 @@ function fixture(t: any) {
  patch('Audio',Player);patch('MediaStream',Stream);patch('RTCPeerConnection',Peer);patch('navigator',{mediaDevices:{getUserMedia:async()=>new Stream([track()])}})
  const old=nurseApi.sdp;nurseApi.sdp=async()=>({sdp:'v=0\nm=audio',model:'fixture',instructions:'fixture policy'})
  t.after(()=>{nurseApi.sdp=old;restored.reverse().forEach(r=>r())})
- const nurse=new RealtimeNurse({memberId:'fixture',token:'fixture',draftId:'fixture',state:s=>states.push(s),turn:async t=>{turns.push(t)},preview:s=>previews.push(s),error:s=>errors.push(s),usage:()=>{},playbackBlocked:b=>playStates.push(b)})
+ const nurse=new RealtimeNurse({memberId:'fixture',token:'fixture',draftId:'fixture',queued:t=>queued.push(t),state:s=>states.push(s),turn:async t=>{turns.push(t)},preview:s=>previews.push(s),error:s=>errors.push(s),usage:()=>{},playbackBlocked:b=>playStates.push(b)})
  t.after(()=>nurse.stop())
  const emit=(value:object)=>channel.onmessage({data:JSON.stringify(value)})
  const ready=async()=>{await nurse.start();emit({type:'session.created'});emit({type:'session.updated'});await Promise.resolve()}
- return {nurse,ready,emit,sent,replaced,states,turns,previews,errors,tracks,playStates,get pc(){return pc},get paused(){return paused},block(){blocked=true},unblock(){blocked=false},channel}
+ return {nurse,ready,emit,sent,replaced,states,turns,queued,previews,errors,tracks,playStates,get pc(){return pc},get paused(){return paused},block(){blocked=true},unblock(){blocked=false},channel}
 }
 test('audio stays off sender until transport + session.updated; final only; pause releases all resources',async t=>{
  const f=fixture(t);await f.nurse.start();assert.equal(f.replaced.length,0)
@@ -62,4 +62,13 @@ test('cancelled old response completion cannot clear a newer reply or its speaki
  assert.equal(f.states.at(-1),'speaking');assert.equal(f.previews.at(-1),'新回复')
  f.emit({type:'response.done',response:{id:'new',status:'completed',output:[{role:'assistant',content:[{transcript:'新回复'}]}]}})
  await f.nurse.drain();assert.equal(f.turns[0].text,'新回复')
+})
+
+
+test('final transcripts are stashed synchronously before async delivery so close need not wait for network',async t=>{
+ const f=fixture(t);await f.ready()
+ f.emit({type:'conversation.item.input_audio_transcription.completed',item_id:'final-before-close',transcript:'合成最终原话'})
+ assert.equal(f.queued[0].text,'合成最终原话');assert.equal(f.turns.length,0)
+ f.nurse.stop();assert.ok(f.tracks.every(track=>track.stopped));await f.nurse.drain()
+ assert.equal(f.turns[0].id,'final-before-close')
 })

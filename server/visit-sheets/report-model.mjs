@@ -48,6 +48,7 @@ function singleTextTemperature(value) {
 const recordText = (r) =>
   [
     r.content,
+    r.journal?.timeLabel?`发生时间（家长原文${r.journal.timePrecision==='unknown'?'，日期待确认':''}）：${r.journal.timeLabel}`:'',
     r.sourceText && r.sourceText !== r.content
       ? `最初原文：${r.sourceText}`
       : '',
