@@ -24,13 +24,18 @@ test('SDP includes only necessary current context; network failure is safe and c
  assert.equal(calls,2);const usage=(await f.nurse.store.read()).usage;assert.equal(usage.length,2);assert.equal(usage[1].failureCode,'ETIMEDOUT');assert.equal(usage[1].retries,0)
 })
 const output = (change = {}) => ({ reply: '痒有没有影响睡眠？', intent: 'continue', emergency: { currentChild: false, quote: '' }, fields: { narrative: '脸颊发红发痒。', locationText: '脸颊', impactLevel: '', triggerText: '', trend: '' }, fieldEvidence: [{ field: 'narrative', sourceTurnId: 'user-1', quote: '脸颊发红发痒' }, { field: 'locationText', sourceTurnId: 'user-1', quote: '脸颊' }], notes: [], ...change })
+const modelResponse=(value,options)=>{
+ const rules=JSON.parse(options.body).text.format.schema.properties.concernCoverage?.properties
+ const concernCoverage=rules?Object.fromEntries(Object.entries(rules).map(([id,rule])=>[id,rule.enum.includes('')?'':value.notes.find(note=>note.category==='parent_concern'&&rule.enum.includes(note.quote))?.quote??rule.enum.find(text=>text.startsWith('我担心'))??rule.enum[0]])):undefined
+ return Response.json({output:[{content:[{text:JSON.stringify({...value,...(concernCoverage?{concernCoverage}: {})})}]}],usage:{input_tokens:15,output_tokens:20}})
+}
 async function fixture(t, make = () => output()) {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-nurse-test-'))
   t.after(() => rm(dataDirectory, { recursive: true, force: true }))
   const members = new FamilyMemberRepository(dataDirectory)
   const member = await members.create({ accountId: 'qa-nurse', name: '合成验证人物', relationship: 'other' })
   const events = new HealthEventService({ dataDirectory })
-  const provider = { baseUrl: 'https://fixture.invalid', model: 'fixture', fetch: async () => Response.json({ output: [{ content: [{ text: JSON.stringify(await make()) }] }], usage: { input_tokens: 15, output_tokens: 20 } }) }
+  const provider = { baseUrl: 'https://fixture.invalid', model: 'fixture', fetch: async (url,options) => modelResponse(await make(),options) }
   const nurse = new NurseService({ dataDirectory, events, provider, now: () => new Date(at) })
   let draft = await nurse.open('qa-nurse', member.id, { scope: `${member.id}:event-a:task-a` })
   const user = { id: 'user-1', role: 'user', text: '脸颊发红发痒。我担心是鸡蛋过敏，但没有喘。', at, final: true, status: 'completed' }
@@ -153,7 +158,7 @@ test('manual form context is owned, bounded and does not forge dialogue; fuzzy t
  assert.equal(current.formContext.timeLabel,'本周，日期待确认');assert.equal(current.turns.length,2)
  await assert.rejects(()=>f.nurse.change('qa-nurse',f.member.id,current.id,{version:current.version,formContext:{categories:['medication']}}),/表单背景/)
  const next=await f.nurse.change('qa-nurse',f.member.id,current.id,{version:current.version,turn:{...f.user,id:'time',text:'应该就是本周，具体日期不详'}})
- let instructions='';f.nurse.provider.fetch=async(url,options)=>{instructions=JSON.parse(options.body).instructions;return Response.json({output:[{content:[{text:JSON.stringify(output({fields:{...output().fields,timeText:'本周'},fieldEvidence:[...output().fieldEvidence,{field:'timeText',sourceTurnId:'time',quote:'本周，具体日期不详'}]}))}]}]})}
+ let instructions='';f.nurse.provider.fetch=async(url,options)=>{instructions=JSON.parse(options.body).instructions;return modelResponse(output({fields:{...output().fields,timeText:'本周'},fieldEvidence:[...output().fieldEvidence,{field:'timeText',sourceTurnId:'time',quote:'本周，具体日期不详'}]}),options)}
  const organized=await f.nurse.generate('qa-nurse',f.member.id,next.id,{version:next.version,organize:true})
  assert.equal(organized.fields.timeText,'本周，具体日期不详');assert.deepEqual(organized.fieldSources.timeText,['time']);assert.ok(instructions.includes('手动填写的左臂红点'));assert.equal(organized.turns.length,3)
 })
@@ -181,7 +186,7 @@ test('short model references resolve to immutable user IDs; alias of assistant c
  let modelTurns
  f.nurse.provider.fetch=async(url,options)=>{
   modelTurns=JSON.parse(JSON.parse(options.body).input)
-  return Response.json({output:[{content:[{text:JSON.stringify(output({fieldEvidence:output().fieldEvidence.map(e=>({...e,sourceTurnId:'t1'})),notes:[{category:'parent_concern',heading:'担心',text:'不采纳改写',sourceTurnId:'t1',quote:'我担心是鸡蛋过敏',certainty:'reported',attribution:'parent'}]}))}]}]})
+  return modelResponse(output({fieldEvidence:output().fieldEvidence.map(e=>({...e,sourceTurnId:'t1'})),notes:[{category:'parent_concern',heading:'担心',text:'不采纳改写',sourceTurnId:'t1',quote:'我担心是鸡蛋过敏',certainty:'reported',attribution:'parent'}]}),options)
  }
  const result=await f.nurse.generate('qa-nurse',f.member.id,f.draft.id,{version:1,organize:true})
  assert.equal(modelTurns[1].id,'t1');assert.equal(result.turns[1].id,'user-1')
@@ -193,10 +198,10 @@ test('short model references resolve to immutable user IDs; alias of assistant c
 
 test('model schema requires source evidence and allows only existing quote fragments and explicit severity', async t => {
  const f=await fixture(t);await f.append();let schema
- f.nurse.provider.fetch=async(url,options)=>{schema=JSON.parse(options.body).text.format.schema;return Response.json({output:[{content:[{text:JSON.stringify(output())}]}]})}
+ f.nurse.provider.fetch=async(url,options)=>{schema=JSON.parse(options.body).text.format.schema;return modelResponse(output(),options)}
  const first=await f.nurse.generate('qa-nurse',f.member.id,f.draft.id,{version:1,organize:true})
  const validate=new Ajv({strict:false}).compile(schema)
- const value=output({fields:{...output().fields,timeText:''},fieldEvidence:[{field:'narrative',sourceTurnId:'t1',quote:'脸颊发红发痒'},{field:'locationText',sourceTurnId:'t1',quote:'脸颊发红发痒'}]})
+ const value=output({concernCoverage:{t1:'我担心是鸡蛋过敏，但没有喘'},fields:{...output().fields,timeText:''},fieldEvidence:[{field:'narrative',sourceTurnId:'t1',quote:'脸颊发红发痒'},{field:'locationText',sourceTurnId:'t1',quote:'脸颊发红发痒'}]})
  assert.equal(validate(value),true)
  f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify({...value,fieldEvidence:[]})}]}]})
  await assert.rejects(()=>f.nurse.generate('qa-nurse',f.member.id,f.draft.id,{version:first.version,organize:true}),/缺少家长原话依据/)
@@ -209,10 +214,30 @@ test('form commands and unrelated quotes cannot become complaint, onset or body 
  const f=await fixture(t)
  let d=await f.nurse.change('qa-nurse',f.member.id,f.draft.id,{version:0,formContext:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'人工左手发红',locationText:'左手',locations:[],descriptors:[]},timePrecision:'unknown',timeLabel:'上周，日期待确认'}})
  d=await f.nurse.change('qa-nurse',f.member.id,d.id,{version:d.version,turn:{...f.user,text:'还不知道变化，先整理我填过的资料。'}})
- f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify(output({fields:{...output().fields,narrative:'整理指令',timeText:'今天',locationText:'左手'},fieldEvidence:['narrative','timeText','locationText'].map(field=>({field,sourceTurnId:'t1',quote:'先整理我填过的资料'}))}))}]}]})
+ f.nurse.provider.fetch=async(url,options)=>modelResponse(output({fields:{...output().fields,narrative:'整理指令',timeText:'今天',locationText:'左手'},fieldEvidence:['narrative','timeText','locationText'].map(field=>({field,sourceTurnId:'t1',quote:'先整理我填过的资料'}))}),options)
  const organized=await f.nurse.generate('qa-nurse',f.member.id,d.id,{version:d.version,organize:true})
  assert.equal(organized.fields.narrative,'');assert.equal(organized.fields.timeText,'');assert.equal(organized.fields.locationText,'')
  assert.equal(organized.warnings.length,3);assert.deepEqual(organized.fieldSources,{})
  assert.equal(organized.formContext.symptom.narrative,'人工左手发红');assert.equal(organized.formContext.timeLabel,'上周，日期待确认')
  assert.equal(organized.turns[1].text,'还不知道变化，先整理我填过的资料。')
+})
+
+test('organization cannot omit an explicitly requested parent concern; quotes stay uncertain and deleted notes stay deleted',async t=>{
+ const f=await fixture(t);await f.append()
+ const question='我不知道是因为过敏，还是热了或者冷了，最近天气变化比较大。形成就诊情况单时请把我的疑问加进去。'
+ let draft=await f.nurse.change('qa-nurse',f.member.id,f.draft.id,{version:1,turn:{...f.user,id:'question',text:question}})
+ const quote='我不知道是因为过敏，还是热了或者冷了，最近天气变化比较大'
+ const valid=output({concernCoverage:{t1:'我担心是鸡蛋过敏',t2:quote},notes:[]})
+ f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify(valid)}]}]})
+ const first=await f.nurse.generate('qa-nurse',f.member.id,draft.id,{version:draft.version,organize:true})
+ assert.equal(first.notes.length,2);assert.ok(first.notes.some(n=>n.text===quote&&n.certainty==='uncertain'&&n.sourceTurnIds[0]==='question'))
+ assert.ok(!first.fields.narrative.includes('过敏'));assert.deepEqual(first.turns,draft.turns)
+ f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify({...valid,concernCoverage:{t1:'我担心是鸡蛋过敏',t2:''}})}]}]})
+ await assert.rejects(()=>f.nurse.generate('qa-nurse',f.member.id,draft.id,{version:first.version,organize:true}),/疑问来源/)
+ assert.equal((await f.nurse.owned('qa-nurse',f.member.id,draft.id)).version,first.version)
+ f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify({...valid,concernCoverage:{t1:'我担心是鸡蛋过敏',t2:'形成就诊情况单时请把我的疑问加进去'}})}]}]})
+ await assert.rejects(()=>f.nurse.generate('qa-nurse',f.member.id,draft.id,{version:first.version,organize:true}),/疑问来源/)
+ draft=await f.nurse.change('qa-nurse',f.member.id,draft.id,{version:first.version,review:{fields:first.fields,metadata:{version:'nurse-v1',draftId:first.id,turns:first.turns,professionalNotes:[],snapshots:first.snapshots},deletedNoteIds:first.notes.map(n=>n.id)}})
+ f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify(valid)}]}]})
+ const next=await f.nurse.generate('qa-nurse',f.member.id,draft.id,{version:draft.version,organize:true});assert.equal(next.notes.length,0)
 })
