@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -13,7 +13,20 @@ import { ComparisonRecords } from './ComparisonRecords'
 export function SmartCaseRecordPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', navigate = useNavigate(), [query] = useSearchParams()
   const accountId = useAppStore(s => s.authUser?.id ?? '')
-  return <main className="app-shell continuity-page"><SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/></main>
+  const location = useLocation()
+  const [homeEntry] = useState(() => (location.state as { homeNurseEntry?: { mode?: string; memberId?: string; accountId?: string } } | null)?.homeNurseEntry)
+  const entryIdentityChanged = useRef(false)
+  if (homeEntry && (homeEntry.memberId !== memberId || homeEntry.accountId !== accountId)) entryIdentityChanged.current = true
+  const initialNurseMode = !entryIdentityChanged.current && homeEntry?.memberId === memberId && homeEntry.accountId === accountId
+    && !query.get('eventId') && !query.get('taskId') && (homeEntry.mode === 'voice' || homeEntry.mode === 'text')
+    ? homeEntry.mode : undefined
+  // Consume the explicit entry intent. Refresh/back must never restart a microphone.
+  useEffect(() => {
+    if ((location.state as { homeNurseEntry?: unknown } | null)?.homeNurseEntry) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+    }
+  }, [location.pathname, location.search, location.state, navigate])
+  return <main className="app-shell continuity-page"><SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} initialNurseMode={initialNurseMode} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/></main>
 }
 export function CaseListPage() {
   const { data, error, reload, memberId, token } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')

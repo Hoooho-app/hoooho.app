@@ -1,0 +1,31 @@
+.nurse-home-dialogue {
+  display: grid;
+  min-width: 0;
+  gap: var(--hoho-space-3);
+  margin-top: var(--hoho-space-3);
+  padding: var(--hoho-space-5);
+  box-shadow: none;
+}
+.nurse-home-dialogue .nurse-home-dialogue__eyebrow {
+  color: rgb(var(--hoho-color-primary));
+}
+.nurse-home-dialogue .nurse-home-dialogue__description {
+  color: rgb(var(--hoho-color-text-secondary));
+}
+.nurse-home-dialogue > .hoho-button {
+  margin-top: var(--hoho-space-2);
+  background: rgb(var(--hoho-color-primary));
+}
+.nurse-home-dialogue__footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hoho-space-2);
+}
+.nurse-home-dialogue__footer > .hoho-text-caption {
+  color: rgb(var(--hoho-color-text-secondary));
+}
+.nurse-home-dialogue__footer > .hoho-button {
+  flex-shrink: 0;
+}

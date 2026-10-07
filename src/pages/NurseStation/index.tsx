@@ -23,6 +23,7 @@ import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
+import { HomeNurseDialogue } from './HomeNurseDialogue'
 import './nurseStation.css'
 import { FollowUpHome } from '../../features/case-continuity/CaseCards'
 import { readHomeReading, writeHomeReading } from './homeReadings'
@@ -217,6 +218,7 @@ export function NurseStationPage() {
           </section>
         ) : null}
         {member && (listState.status === 'error' || growthStatus === 'error') && <p className="nurse-station-sync-notice" role="status">资料同步失败，已读取的数据仍保留。</p>}
+        {member && <HomeNurseDialogue key={`${identityId}:${currentMemberId}`} />}
         <FollowUpHome key={currentMemberId} />
         <HomeEntries
           medicationCount={medicationCount}
