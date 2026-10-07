@@ -10,6 +10,44 @@ import { QuickRecordService } from '../events/quick-record-service.mjs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { AccountDataService } from '../account/account-data-service.mjs'
+import { createServer } from 'node:http'
+import { routinesApiPlugin } from './vite-routines-plugin.mjs'
+import { quickRecordsApiPlugin } from '../events/vite-quick-records-plugin.mjs'
+import { TokenService } from '../auth/token-service.mjs'
+
+test('Vite development API mirrors settings, atomic record save, ownership and proposal routes', async () => {
+  const { member, input, dataDirectory } = await fixture()
+  const quickRecords = new QuickRecordService({ dataDirectory })
+  const routines = new RoutineService({ dataDirectory, quickRecords })
+  const tokens = new TokenService('daily-local-adapter-test', 3600_000)
+  const handlers = []
+  const server = createServer((request, response) => {
+    let index = 0; const next = () => { const handler = handlers[index++]; if (handler) void handler(request, response, next); else { response.statusCode = 404; response.end() } }; next()
+  })
+  const mock = { httpServer: server, config: { logger: { warn() {}, error() {} } }, middlewares: { use(handler) { handlers.push(handler) } } }
+  routinesApiPlugin({ dataDirectory, service: routines, tokens }).configureServer(mock)
+  quickRecordsApiPlugin({ dataDirectory, service: quickRecords, routines, tokens }).configureServer(mock)
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  const request = (url, method = 'GET', body, owner = 'owner') => fetch(base + url, { method, headers: { Authorization: `Bearer ${tokens.create({ id: owner })}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) })
+  try {
+    const route = `/api/routines/${member.id}/daily`
+    assert.deepEqual(await (await request(route)).json(), [])
+    const result = await request('/api/quick-records', 'POST', { memberId: member.id, title: '早奶', content: '150毫升', occurredAt: new Date().toISOString(), inputChannel: 'text', idempotencyKey: 'development_atomic_request', journal: dailySnapshot('feeding', input.slots[0].fields), dailySettings: input })
+    assert.equal(result.status, 201); const saved = await result.json()
+    assert.equal((await (await request(route)).json()).length, 1)
+    assert.equal((await request(route, 'GET', undefined, 'intruder')).status, 404)
+    assert.equal(await (await request(`${route}/source/${saved.recordId}`)).json(), null)
+    await routines.daily.materialize(new Date(Date.now() + 2 * 86400000))
+    const day = new Date(Date.now() + 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })
+    const instances = await (await request(`${route}/instances?day=${day}`)).json()
+    assert.equal(instances.length, 3)
+    const skipped = await request(`${route}/instances/${instances[0].id}`, 'POST', { action: 'skip' })
+    // It is still tomorrow in the actual dev server; generated fixture entries
+    // cannot be treated as already happened by the HTTP confirmation adapter.
+    assert.equal(skipped.status, 400)
+  } finally { await new Promise(resolve => server.close(resolve)) }
+})
 
 async function fixture() {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-daily-'))

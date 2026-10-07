@@ -71,6 +71,9 @@ through the existing end-sleep action; a usual clock never ends actual sleep.
 - Existing `POST /api/quick-records` accepts optional `dailySettings` and
   `automaticInstanceId`. No AI provider, model, authentication or original upload
   service is replaced.
+- The Vite development API exposes the same routes, atomic saves and server-side
+  scheduler as the deployed server. Development confirmation also rejects future
+  proposal times; fixture generation does not bypass that check.
 
 Node >=22.13 is required for built-in `node:sqlite`; declared in package/lockfile.
 The SQLite DB and WAL live in the existing persistent DATA_DIRECTORY. Backups must
