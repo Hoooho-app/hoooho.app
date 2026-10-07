@@ -1,6 +1,12 @@
 import type { VisitSheet, VisitSource } from '../../types/visitSheet'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 
+export function copyNurseConversation(source: VisitSource) {
+  if (!source.nurseConversation?.length) return undefined
+  const ids = new Map(source.nurseConversation.map((turn,index) => [turn.id,`${source.code ?? '来源'}-对话-${index+1}`]))
+  return source.nurseConversation.map(turn => ({ id:ids.get(turn.id)!,role:turn.role,text:turn.text,at:turn.at,order:turn.order,final:turn.final,status:turn.status,...(turn.correctsTurnId && ids.has(turn.correctsTurnId) ? {correctsTurnId:ids.get(turn.correctsTurnId)!} : {}) }))
+}
+
 export function matchingSources(sources:VisitSource[],query:string){
   const search=query.trim().toLocaleLowerCase()
   return sources.filter(s=>[s.title,s.text,s.occurredAt,s.createdAt,s.id,s.code].join(' ').toLocaleLowerCase().includes(search))
@@ -29,6 +35,7 @@ export function doctorBriefText(report:VisitSheet){
       const items=(c.overview?.items??[]).filter(i=>i.sourceIds.some(id=>ids.has(id))||(c.id==='allergy'&&i.detail.includes('已明确')))
       return items.length?[`\n${c.title}`,...items.map(i=>`${i.title}；${i.detail} [${sourceRefs(i.sourceIds)}]`)]:[]
     }),
+    ...report.chapters.filter(c=>c.id==='course').flatMap(c=>(c.blocks??[]).filter(b=>b.title==='家长关注与已做处理'&&b.sourceIds.some(id=>ids.has(id))).flatMap(b=>['\n家长关注与已做处理：',...b.lines.map(line=>`${line} [${sourceRefs(b.sourceIds)}]`)])),
     `\n本次想问（家长确认）：\n${report.questionEdited?report.question||'尚未填写':'尚未确认问题'}`,
     ...(report.notes?.course?[`家长经过与处理补充：${report.notes.course}`]:[]),
     ...(report.selectedPhotoIds?.length?[`影像索引：${report.photos?.filter(p=>report.selectedPhotoIds?.includes(p.sourceId)).map(p=>`${p.mimeType.startsWith('video/')?'视频':'照片'}：${p.title} [${sourceRefs([p.sourceId])}]`).join('；')}。文字不包含原件字节。`]:[]),

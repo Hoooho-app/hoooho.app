@@ -5,6 +5,7 @@ import { PhotoCaption } from './ReportPhotos'
 import { offlineRuntime } from './offlineRuntime'
 import { MedicalAISummary } from './MedicalAISummary'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
+import { copyNurseConversation } from './reportCopy'
 import css from './report.css?inline'
 import chartCss from '../../components/design-system/FactCharts.css?inline'
 import tokens from '../../styles/tokens.css?inline'
@@ -65,7 +66,7 @@ function copyReport(report:VisitSheet,resources:ExportResources):VisitSheet {
     reading:report.reading?{...report.reading,sourceIds:report.reading.sourceIds.map(id),courseSourceIds:report.reading.courseSourceIds.map(id),height:report.reading.height?{...report.reading.height,sourceId:id(report.reading.height.sourceId)}:null,weight:report.reading.weight?{...report.reading.weight,sourceId:id(report.reading.weight.sourceId)}:null}:undefined,
     chapters:report.chapters.map(c=>({...c,blocks:c.blocks.map(mapBlock),overview:c.overview?{lines:c.overview.lines,items:c.overview.items.map(i=>({...i,sourceIds:i.sourceIds.map(id)}))}:undefined})),
     medicationReminders:report.medicationReminders?.map((r,i)=>({id:`reminder-${i+1}`,status:r.status,plan:{...r.plan},totalDays:r.totalDays,sourceIds:r.sourceIds.map(id),occurrences:r.occurrences.map((o,j)=>({id:`occurrence-${i+1}-${j+1}`,scheduledAt:o.scheduledAt,day:o.day,dayIndex:o.dayIndex,weekIndex:o.weekIndex,slotIndex:o.slotIndex,completed:o.completed,sourceId:o.sourceId?id(o.sourceId):undefined}))})),
-    sources:report.sources.map(s=>({id:id(s.id),code:id(s.id),category:s.category,title:s.title,text:s.text,identity:s.identity,occurredAt:s.occurredAt,createdAt:s.createdAt,updatedAt:s.updatedAt,timePrecision:s.timePrecision,destinations:s.destinations,locations:s.locations,symptomCategory:s.symptomCategory,narrative:s.narrative,impactLevel:s.impactLevel,relatedSourceIds:s.relatedSourceIds?.map(id),eventId:s.eventId?eventKeys.get(s.eventId):undefined})),
+    sources:report.sources.map(s=>({id:id(s.id),code:id(s.id),category:s.category,title:s.title,text:s.text,identity:s.identity,occurredAt:s.occurredAt,createdAt:s.createdAt,updatedAt:s.updatedAt,timePrecision:s.timePrecision,destinations:s.destinations,locations:s.locations,symptomCategory:s.symptomCategory,narrative:s.narrative,impactLevel:s.impactLevel,nurseConversation:copyNurseConversation(s),relatedSourceIds:s.relatedSourceIds?.map(id),eventId:s.eventId?eventKeys.get(s.eventId):undefined})),
     candidates:report.candidates.map(c=>({...c,sourceId:id(c.sourceId)})),warnings:report.warnings,gaps:report.gaps,
     photos:photoOrder.flatMap(sourceId=>{const photo=report.photos?.find(p=>p.sourceId===sourceId);return photo&&included.has(sourceId)?[{...photo,sourceId:id(photo.sourceId),relatedSourceIds:photo.relatedSourceIds.map(id)}]:[]}),
     selectedPhotoIds:(report.selectedPhotoIds??[]).filter(sourceId=>included.has(sourceId)).map(id),photoKey:report.focus.mode==='custom'?`custom:${report.focus.text}`:report.complaintSourceId?id(report.complaintSourceId):'auto',photoSelections:{},changes:[],
