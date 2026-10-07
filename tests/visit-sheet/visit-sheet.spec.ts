@@ -3,9 +3,11 @@ import { TokenService } from '../../server/auth/token-service.mjs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' }), headers = { Authorization: 'Bearer ' + token }, endpoint = '/api/members/child-a/visit-sheet';
-const videoId = () => test.info().project.name === 'webkit-se' ? 'test-webm' : 'test-video';
-const videoMime = () => test.info().project.name === 'webkit-se' ? 'video/webm' : 'video/mp4';
-const videoName = () => test.info().project.name === 'webkit-se' ? '合成视频上传.webm' : '合成视频上传.mp4';
+// Linux Chromium's bundled decoder supports VP8; Windows keeps MP4 coverage.
+const webmFixture = () => process.platform === 'linux' || test.info().project.name === 'webkit-se';
+const videoId = () => webmFixture() ? 'test-webm' : 'test-video';
+const videoMime = () => webmFixture() ? 'video/webm' : 'video/mp4';
+const videoName = () => webmFixture() ? '合成视频上传.webm' : '合成视频上传.mp4';
 const read = async (p: Page) => (await (await p.request.get(endpoint, { headers })).json()).report;
 async function enter(p: Page, member = 'child-a') { await p.addInitScript(({ token, member }) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 })); }, { token, member }); await p.goto('/visit-summary'); await expect(p.locator('#chapter-overview h1')).toBeVisible(); }
 async function verifyVideo(v: ReturnType<Page['locator']>, p: Page, offline = false) {
@@ -33,7 +35,133 @@ async function photos(p: Page) { await edit(p, '完整资料'); await p.getByRol
 async function scope(p: Page) { await edit(p, '完整资料'); await p.getByRole('button', { name: '调整 / 恢复资料范围', exact: true }).click(); return p.getByRole('dialog', { name: '本次资料范围', exact: true }); }
 async function update(p: Page) { await p.getByRole('button', { name: '更新情况单', exact: true }).click(); const d = p.getByRole('dialog', { name: '更新情况单', exact: true }); await d.getByRole('button', { name: '整理并查看草稿', exact: true }).click(); await d.getByRole('button', { name: '确认替换情况单', exact: true }).click(); await expect(d).toHaveCount(0); }
 async function sources(p: Page) { await chapter(p, '完整资料'); await p.getByText(/^原始记录 ·/).click(); }
+async function fromHome(p: Page) {
+    await p.goto('/nurse-station');
+    await p.getByRole('link', { name: /^就诊情况单，/ }).click();
+    await expect(p.locator('#chapter-overview h1')).toBeVisible();
+}
 test.beforeEach(async ({ page: p }) => { const s = await (await p.request.get(endpoint, { headers })).json(); expect((await p.request.put(endpoint, { headers, data: { expectedVersion: s.report?.version ?? s.expectedVersion ?? 0, requestId: crypto.randomUUID(), focus: { mode: 'source', sourceId: 'record:s7' }, caseDetails: {}, question: '', notes: {}, selection: null, selectedPhotoIds: ['attachment:v5-image-0', 'attachment:v5-image-1', 'attachment:' + videoId()] } })).ok()).toBeTruthy(); });
+test('浏览器返回保护四项草稿，继续编辑和放弃均有明确结果', async ({page:p})=>{
+    await enter(p);
+    for (const [card,label] of [['本次情况','最近变化'],['本次想问','本次想问'],['经过与处理','经过与处理补充（已发生的情况）'],['完整资料','资料说明']]) {
+        await fromHome(p);
+        const before=await read(p), d=await edit(p,card);
+        await d.getByRole('textbox',{name:label,exact:true}).fill('浏览器返回保护的未保存草稿');
+        await p.evaluate(()=>history.back());
+        await expect(d.getByText('还有未保存的内容')).toBeVisible();
+        await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
+        await expect(p).toHaveURL(/\/visit-summary$/);
+        await d.getByRole('button',{name:'继续编辑',exact:true}).click();
+        await expect(d.getByRole('textbox',{name:label,exact:true})).toHaveValue('浏览器返回保护的未保存草稿');
+        expect((await read(p)).version).toBe(before.version);
+        await p.evaluate(()=>history.back());
+        await d.getByRole('button',{name:'放弃修改',exact:true}).click();
+        await expect(p).toHaveURL(/\/nurse-station$/);
+        expect((await read(p)).version).toBe(before.version);
+    }
+});
+test('浏览器返回后保存失败保留草稿，保存成功才完成返回',async({page:p})=>{
+    await enter(p);await fromHome(p);
+    const d=await edit(p,'本次情况'),before=await read(p);
+    await d.getByLabel('最近变化').fill('返回前明确保存的变化');
+    await p.evaluate(()=>history.back());
+    await expect(d.getByText('还有未保存的内容')).toBeVisible();
+        await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
+    await p.route('**/api/members/child-a/visit-sheet',r=>r.request().method()==='PUT'?r.fulfill({status:503,json:{error:{message:'返回前保存失败'}}}):r.continue());
+    await d.getByRole('alert').getByRole('button',{name:'保存',exact:true}).click();
+    await expect(d.getByText(/^返回前保存失败/)).toBeVisible();
+    await expect(p).toHaveURL(/\/visit-summary$/);
+    await expect(d.getByLabel('最近变化')).toHaveValue('返回前明确保存的变化');
+    expect((await read(p)).version).toBe(before.version);
+    await p.unroute('**/api/members/child-a/visit-sheet');
+    await d.getByRole('alert').filter({hasText:'还有未保存的内容'}).getByRole('button',{name:'保存',exact:true}).click();
+    await expect(p).toHaveURL(/\/nurse-station$/);
+    expect((await read(p)).caseDetails.change).toBe('返回前明确保存的变化');
+});
+test('保存请求途中浏览器返回，保存完成后再离开且不丢迟到状态',async({page:p})=>{
+    await enter(p);await fromHome(p);
+    const d=await edit(p,'本次想问');
+    await d.getByRole('textbox',{name:'本次想问',exact:true}).fill('保存途中返回的问题');
+    let release!:()=>void, started!:()=>void;
+    const gate=new Promise<void>(resolve=>release=resolve), ready=new Promise<void>(resolve=>started=resolve);
+    await p.route('**/api/members/child-a/visit-sheet',async route=>{
+        if(route.request().method()!=='PUT')return route.continue();
+        started();await gate;await route.continue();
+    });
+    await d.getByRole('button',{name:'保存',exact:true}).click();await ready;
+    await expect(d.getByRole('textbox',{name:'本次想问',exact:true})).toBeDisabled();
+    await p.evaluate(()=>history.back());
+    await expect(d.getByText('还有未保存的内容')).toBeVisible();
+        await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
+    await expect(d.getByRole('button',{name:'放弃修改'})).toBeDisabled();
+    release();await expect(p).toHaveURL(/\/nurse-station$/);
+    expect((await read(p)).question).toBe('保存途中返回的问题');
+});
+test('刷新页面会保护未保存草稿，取消刷新后仍可继续编辑',async({page:p})=>{
+    await enter(p);const d=await edit(p,'本次情况');
+    await d.getByRole('textbox',{name:'最近变化',exact:true}).fill('刷新保护的草稿');
+    const nativeDialog=p.waitForEvent('dialog');
+    const reload=p.evaluate(()=>location.reload());
+    const dialog=await nativeDialog;expect(dialog.type()).toBe('beforeunload');await dialog.dismiss();await reload;
+    await expect(d.getByRole('textbox',{name:'最近变化',exact:true})).toHaveValue('刷新保护的草稿');
+    await d.getByRole('button',{name:'返回编辑本次情况'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
+});
+test('未关联主诉直接选择相关记录，保持主诉与原始内容',async({page:p})=>{
+    await enter(p);await p.getByRole('button',{name:'更改主诉',exact:true}).click();
+    const focus=p.getByRole('dialog',{name:'更改主诉',exact:true});
+    await focus.getByLabel('本次主诉（家长陈述）').fill('脖子红点');
+    await focus.getByRole('button',{name:'保存',exact:true}).click();
+    await expect(focus).toHaveCount(0);
+    await expect(p.locator('#chapter-overview')).toContainText('尚未关联记录');
+    await expect(p.locator('#chapter-overview .visit-reading-facts')).toHaveCount(0);
+    await p.getByRole('button',{name:'选择相关记录',exact:true}).click();
+    const d=p.getByRole('dialog',{name:'选择相关记录',exact:true});
+    await d.getByRole('checkbox',{name:/肘窝皮肤发红，第1条观察/}).check();
+    await d.getByRole('button',{name:'保存',exact:true}).click();
+    await expect(d).toHaveCount(0);
+    expect((await read(p)).focus.relatedSourceIds).toContain('record:s0');
+    await expect(p.locator('#chapter-overview h1')).toHaveText('脖子红点');
+    await expect(p.getByRole('button',{name:'查看原话',exact:true})).toBeEnabled();
+    await p.reload();await expect(p.locator('#chapter-overview')).not.toContainText('尚未关联记录');
+});
+test('本次情况一键添加影像，用药详情一次展开并能核对依据返回',async({page:p},info)=>{
+    await enter(p);await p.getByRole('button',{name:'添加影像',exact:true}).click();
+    const picker=p.getByRole('dialog',{name:'添加 / 调整影像'});
+    await expect(picker.getByRole('button',{name:'从相册添加'})).toBeVisible();
+    await picker.getByRole('button',{name:'关闭添加 / 调整影像'}).click();
+    await chapter(p,'经过与处理');await p.getByRole('button',{name:/^用药资料/}).click();
+    const d=p.getByRole('dialog',{name:'用药资料',exact:true});
+    await expect(d.locator('[data-readonly-reminder]').first()).toBeVisible();
+    await expect(d.locator('.visit-med-weeks')).toHaveCount(0);
+    await expect(d.locator('details.visit-chapter-details')).toHaveCount(0);
+    await width(p);await p.screenshot({path:info.outputPath('medication-direct.png')});
+    await d.getByRole('button',{name:'查看提醒计划依据'}).first().click();
+    const evidence=p.getByRole('dialog',{name:'原始依据',exact:true});
+    await expect(evidence).toBeVisible();await expect(d).not.toBeVisible();
+    await p.keyboard.press('Escape');await expect(evidence).toHaveCount(0);await expect(d).toBeVisible();
+    await d.getByRole('button',{name:'返回用药资料'}).click();
+    await expect(p.getByRole('button',{name:/^用药资料/})).toBeFocused();
+});
+test('更新预览按卡片显示新增资料，原文按需展开且确认前旧版不变',async({page:p},info)=>{
+    await enter(p);const before=await read(p);
+    const response=await p.request.post('/api/events/event-a/records',{headers,data:{type:'note',content:'新增皮肤观察用于核对',occurredAt:'2026-09-21T10:00:00Z',journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'新增皮肤观察用于核对',locations:[],descriptors:[]}}}});
+    expect(response.ok()).toBeTruthy();const record=await response.json();
+    try {
+        await p.getByRole('button',{name:'更新情况单',exact:true}).click();
+        const d=p.getByRole('dialog',{name:'更新情况单',exact:true});
+        await d.getByRole('button',{name:'整理并查看草稿',exact:true}).click();
+        await expect(d.locator('.visit-update-preview')).toBeVisible();
+        await expect(d.locator('pre')).toHaveCount(0);
+        await expect(d.getByRole('status')).toContainText(/资料新增 [1-9]/);
+        await expect(d.locator('.visit-update-card').filter({hasText:'本次更新'})).toContainText('新增皮肤观察用于核对');
+        const card=d.locator('.visit-update-card').filter({hasText:'本次更新'});
+        await expect(card.locator('.visit-original').first()).not.toBeVisible();
+        await card.locator('summary').first().click();await expect(card.locator('.visit-original').first()).toBeVisible();
+        await width(p);await p.screenshot({path:info.outputPath('update-cards.png')});
+        expect((await read(p)).version).toBe(before.version);
+        await d.getByRole('button',{name:'返回更新情况单'}).click();
+    } finally {expect((await p.request.delete('/api/records/'+record.id,{headers})).ok()).toBeTruthy()}
+});
 test('四卡片默认展开、独立编辑、目录键盘定位、实际全页截图无溢出', async ({ page: p }, info) => {
     const errors: string[] = [];
     p.on('pageerror', e => errors.push(e.message));
@@ -92,6 +220,7 @@ test('四项编辑真实保存刷新、失败保留草稿和取消不改原始�
     expect((await read(p)).version).toBe(saved.version);
     await d.getByRole('button', { name: '返回编辑本次情况' }).click();
     await expect(d.getByText('还有未保存的内容')).toBeVisible();
+        await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
     await p.screenshot({ path: info.outputPath('edit-draft-protected.png') });
     await d.getByRole('button', { name: '放弃修改' }).click();
 });
@@ -442,18 +571,16 @@ test('取消面板后迟到上传清理且压缩取消重开不串照片', async
     await p.evaluate(() => (window as any).__releaseVisitCompression());
     await expect(picker.getByText(/旧压缩/)).toHaveCount(0);
 });
-test('只读周历内部展开，未确认未来不冒充实际执行，单周未来同样折叠', async ({ page: p }) => {
+test('只读用药详情一次展开，未确认未来不冒充实际执行，单周未来可核对', async ({ page: p }) => {
     await enter(p);
     const writes: string[] = [];
     p.on('request', r => { if (r.url().includes('/api/medication-reminders') && r.method() !== 'GET')
         writes.push(r.url()); });
     await chapter(p, '经过与处理');
-    await p.getByText('核对完整用药资料（计划与执行分开）', { exact: true }).click();
-    await p.getByText(/展开用药计划与完整周历/).click();
+    await p.getByRole('button',{name:/^用药资料/}).click();
     const med = p.locator('[data-readonly-reminder]');
     await expect(med).toHaveCount(1);
     await expect(med.getByRole('button', { name: /管理|归档|删除|撤回|已服用/ })).toHaveCount(0);
-    await med.getByText(/展开其他周与未来计划/).click();
     await med.getByRole('button', { name: /未来计划/ }).first().click();
     await expect(p.getByRole('dialog', { name: '原始依据' })).toContainText('用药计划');
     await p.getByRole('dialog', { name: '原始依据' }).getByRole('button', { name: '关闭原始依据', exact: true }).click();
@@ -465,10 +592,7 @@ test('只读周历内部展开，未确认未来不冒充实际执行，单周�
     } await route.fulfill({ response, json: state }); });
     await p.reload();
     await chapter(p, '经过与处理');
-    await p.getByText('核对完整用药资料（计划与执行分开）', { exact: true }).click();
-    await p.getByText(/展开用药计划与完整周历/).click();
-    await expect(med.getByRole('button', { name: /未来计划/ })).toHaveCount(0);
-    await med.getByText(/展开其他周与未来计划/).click();
+    await p.getByRole('button',{name:/^用药资料/}).click();
     await expect(med.getByRole('button', { name: /未来计划/ })).toHaveCount(3);
 });
 test('25候选长主诉可核对放弃不保存、大字空资料可读', async ({ page: p }) => {

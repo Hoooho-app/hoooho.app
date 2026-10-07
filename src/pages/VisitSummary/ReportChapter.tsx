@@ -54,11 +54,17 @@ export function SourceText({ source }: { source: VisitSource }) {
     </>
   )
 }
+function ChapterDetails({expanded,readOnly,title,children}:{expanded:boolean;readOnly:boolean;title:string;children:ReactNode}) {
+  return expanded
+    ? <section className="visit-chapter-details"><h3>{title}</h3>{children}</section>
+    : <details className="visit-chapter-details" open={readOnly}><summary>{title}</summary>{children}</details>
+}
 export function ReportChapter({
   chapter,
   report,
   onEvidence,
   readOnly = false,
+  expanded = false,
   leading,
   trailing,
   action,
@@ -67,6 +73,7 @@ export function ReportChapter({
   report: VisitSheet
   onEvidence?: (ids: string[]) => void
   readOnly?: boolean
+  expanded?: boolean
   leading?: ReactNode
   trailing?: ReactNode
   action?: ReactNode
@@ -84,8 +91,8 @@ export function ReportChapter({
       {leading}
       {chapter.id!=='overview'&&<div className={`visit-chapter-overview${chapter.id==='course'?' visit-course-nodes':''}`} data-chapter-overview={chapter.id}>{chapter.overview?.items.map((item,i)=><article key={i}><h3>{item.title}</h3><p>{item.detail}</p>{item.sourceIds.length>0&&(readOnly?item.sourceIds.map(id=><a key={id} href={`#${id}`}>[{report.sources.find(s=>s.id===id)?.code}]</a>):<button className="visit-text-action" onClick={()=>onEvidence?.(item.sourceIds)}>查看依据</button>)}</article>)}</div>}
       {chapter.overview?.lines.map((line,i)=><p className="visit-muted" key={i}>{line}</p>)}
-      {chapter.id==='medication'&&!!report.medicationReminders?.length&&<details className="visit-chapter-details" open={readOnly}><summary>展开用药计划与完整周历 · {report.medicationReminders.length} 项</summary><p className="visit-muted">计划与实际使用分开。未来、未确认和已归档计划只在这里核对。</p>{report.medicationReminders.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly}/>)}</details>}
-      {!!chapter.blocks.length&&<details className="visit-chapter-details" open={readOnly}><summary>{{overview:'展开病情数据与依据',course:'展开经过与依据',medication:'查看完整用药经过',allergy:'展开过敏资料与观察过程',history:'展开既往与其他背景',temperature:'展开体温曲线与测量记录',growth:'展开成长曲线与日常记录',visits:'展开就诊与检查依据',sources:'展开资料说明'}[chapter.id]}</summary>
+      {chapter.id==='medication'&&!!report.medicationReminders?.length&&<ChapterDetails expanded={expanded} readOnly={readOnly} title={`${expanded?'用药计划与完整周历':'展开用药计划与完整周历'} · ${report.medicationReminders.length} 项`}><p className="visit-muted">计划与实际使用分开。未来、未确认和已归档计划只在这里核对。</p>{report.medicationReminders.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly || expanded}/>)}</ChapterDetails>}
+      {!!chapter.blocks.length&&<ChapterDetails expanded={expanded} readOnly={readOnly} title={expanded&&chapter.id==='medication'?'用药记录与依据':{overview:'展开病情数据与依据',course:'展开经过与依据',medication:'查看完整用药经过',allergy:'展开过敏资料与观察过程',history:'展开既往与其他背景',temperature:'展开体温曲线与测量记录',growth:'展开成长曲线与日常记录',visits:'展开就诊与检查依据',sources:'展开资料说明'}[chapter.id]}>
       {chapter.summary && <p className="visit-intro">{chapter.summary}</p>}
       {chapter.blocks.map((block, index) => {
         const content = <>
@@ -97,7 +104,7 @@ export function ReportChapter({
             </p>
           ))}
           {block.entries?.map((entry,i)=><article className="visit-observation-entry" key={i}><h3>{entry.title}</h3>{entry.lines.map((line,j)=><p key={j}>{line}</p>)}{readOnly ? entry.sourceIds.map(id=><a key={id} href={`#${id}`}>{report.sources.find(s=>s.id===id)?.code} 查看依据</a>) : <button className="visit-text-action" onClick={()=>onEvidence?.(entry.sourceIds)}>查看当次依据</button>}</article>)}
-          {block.distribution && <details open={readOnly} className="visit-statistics"><summary>展开记录构成明细</summary><FactDistribution values={block.distribution}/>{block.distributionNote&&<p>{block.distributionNote}</p>}</details>}
+          {block.distribution && <details open={readOnly || expanded} className="visit-statistics"><summary>展开记录构成明细</summary><FactDistribution values={block.distribution}/>{block.distributionNote&&<p>{block.distributionNote}</p>}</details>}
           {block.locations?.length ? (
             <ul className="visit-locations">
               {block.locations.map((l) => (
@@ -161,11 +168,11 @@ export function ReportChapter({
               </button>
             ))}
         </>
-        return block.secondary && !readOnly ? <details className="visit-fact-block" key={index}><summary>{block.title} · 展开明细</summary>{content}</details> : <section className="visit-fact-block" data-report-source-ids={readOnly?JSON.stringify(block.sourceIds):undefined} key={index}>{content}</section>
+        return block.secondary && !readOnly && !expanded ? <details className="visit-fact-block" key={index}><summary>{block.title} · 展开明细</summary>{content}</details> : <section className="visit-fact-block" data-report-source-ids={readOnly?JSON.stringify(block.sourceIds):undefined} key={index}>{content}</section>
       })}
-      </details>}
+      </ChapterDetails>}
       {trailing}
-      {chapter.id==='sources'&&Object.values(report.notes).some(Boolean)&&<details className="visit-parent-note" open={readOnly}><summary>历史家长补充 · 报告说明</summary>{Object.entries(report.notes).filter(([,v])=>v).map(([id,note])=><section key={id}><h3>{report.chapters.find(c=>c.id===id)?.title}</h3><p>{note}</p></section>)}<small>保留已有说明，不替代原始记录。</small></details>}
+      {chapter.id==='sources'&&Object.values(report.notes).some(Boolean)&&<details className="visit-parent-note" open={readOnly || expanded}><summary>历史家长补充 · 报告说明</summary>{Object.entries(report.notes).filter(([,v])=>v).map(([id,note])=><section key={id}><h3>{report.chapters.find(c=>c.id===id)?.title}</h3><p>{note}</p></section>)}<small>保留已有说明，不替代原始记录。</small></details>}
     </section>
   )
 }

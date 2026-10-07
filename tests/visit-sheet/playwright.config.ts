@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+const executablePath = process.env.VISIT_E2E_CHROMIUM_PATH || (process.platform==='win32'?'C:/Program Files/Google/Chrome/Application/chrome.exe':undefined)
 export default defineConfig({
   testDir: '.',
   testMatch: 'visit-sheet.spec.ts',
@@ -17,17 +18,16 @@ export default defineConfig({
     {name:'strictmode-se',testMatch:'strictmode.spec.ts',use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium',baseURL:'http://127.0.0.1:4197'}},
     {
       name: 'iphone-se',
-      use: { ...devices['iPhone SE (3rd gen)'], browserName: 'chromium', launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'} },
+      use: { ...devices['iPhone SE (3rd gen)'], browserName: 'chromium', launchOptions:{executablePath} },
     },
-    {name:'mobile-393',use:{browserName:'chromium',viewport:{width:393,height:852},launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}}},
+    {name:'mobile-393',use:{browserName:'chromium',viewport:{width:393,height:852},launchOptions:{executablePath}}},
     ...[320, 390, 420, 430].map((width) => ({
       name: `mobile-${width}`,
       use: {
         browserName: 'chromium' as const,
         viewport: { width, height: 844 },
         launchOptions: {
-          executablePath:
-            'C:/Program Files/Google/Chrome/Application/chrome.exe',
+          executablePath,
         },
       },
     })),
@@ -37,8 +37,7 @@ export default defineConfig({
         browserName: 'chromium',
         viewport: { width: 1280, height: 900 },
         launchOptions: {
-          executablePath:
-            'C:/Program Files/Google/Chrome/Application/chrome.exe',
+          executablePath,
         },
       },
     },

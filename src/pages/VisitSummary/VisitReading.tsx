@@ -9,15 +9,16 @@ import { ReportPhotos } from './ReportPhotos'
 import { matchingSources } from './reportCopy'
 
 export const readingCards=[{id:'overview',title:'本次情况'},{id:'medication',title:'本次想问'},{id:'course',title:'经过与处理'},{id:'sources',title:'完整资料'}] as const
-export type ReadingEditor='focus'|'question'|'current'|'course'|'data'
-export function VisitReading({report,token,onEvidence,onEdit,onMedia,onChoose,opened}: {report:VisitSheet;token:string;onEvidence:(ids:string[])=>void;onEdit:(kind:ReadingEditor)=>void;onMedia:(id:string)=>void;onChoose:()=>void;opened:{id:VisitChapterId;serial:number}}){
+export type ReadingEditor='focus'|'association'|'question'|'current'|'course'|'data'
+export function VisitReading({report,token,onEvidence,onEdit,onMedia,onChoose,onMedications,opened}: {report:VisitSheet;token:string;onEvidence:(ids:string[])=>void;onEdit:(kind:ReadingEditor)=>void;onMedia:(id:string)=>void;onChoose:()=>void;onMedications:()=>void;opened:{id:VisitChapterId;serial:number}}){
   const [folds,setFolds]=useState<Record<string,boolean>>({overview:true}),[search,setSearch]=useState('')
   const [lastOpened,setLastOpened]=useState(opened.serial)
   if(lastOpened!==opened.serial){setLastOpened(opened.serial);setFolds(previous=>({...previous,[opened.id]:true}))}
   const currentMember=useAppStore(s=>s.members.find(m=>m.id===report.memberId))
   const section=(id:VisitChapterId)=>report.chapters.find(c=>c.id===id)!
   const latest=report.sources.find(s=>s.id===(report.reading?.sourceIds[0]??report.focusSourceIds[0]))
-  const description=report.caseDetails?.description||report.reading?.description||latest?.narrative||'本次情况待补充'
+  const associated=report.focusSourceIds.some(id=>report.sources.some(source=>source.id===id))
+  const description=report.caseDetails?.description||(associated?(report.reading?.description||latest?.narrative||'本次情况待补充'):'尚未关联记录')
   const questions=report.questionEdited?report.question.split('\n').filter(line=>line.trim()):[]
   const courseIds=report.reading?.courseSourceIds??[...new Set(section('course').blocks.filter(b=>!b.secondary).flatMap(b=>b.sourceIds))].filter(id=>{const source=report.sources.find(s=>s.id===id);return source&&source.category!=='attachment'&&!source.category.endsWith('-plan')})
   const courseSources=report.sources.filter(s=>courseIds.includes(s.id)).sort((a,b)=>(Date.parse(b.occurredAt??'')||0)-(Date.parse(a.occurredAt??'')||0))
@@ -28,8 +29,8 @@ export function VisitReading({report,token,onEvidence,onEdit,onMedia,onChoose,op
   return <div className="visit-reading">
     <div className="visit-reading-person"><Avatar name={report.member.name} src={currentMember?.avatar??report.member.avatar??undefined} size="sm"/><div><strong>{report.member.name}</strong><small>{report.member.gender==='female'?'女':report.member.gender==='male'?'男':'性别未填写'} · {report.member.birthday?formatAgeFromBirthday(report.member.birthday,new Date(),report.timezone):'生日未填写'}</small></div><div className="visit-reading-growth">{(['cm','kg'] as const).map(unit=>{const point=measurement(unit);return <button key={unit} disabled={!point} onClick={()=>point&&onEvidence([point.sourceId])} aria-label={`${unit==='cm'?'身高':'体重'}测量来源`}><strong>{point?point.value:'未填写'}{point&&<span>{unit}</span>}</strong><small>{unit==='cm'?'身高':'体重'}</small></button>})}</div></div>
     {card('overview','本次情况',<Plus size={19}/>,'current','',<>
-      <div className="visit-reading-case"><div><h1>{report.complaint}</h1><small>{report.range.from?`${reportTime(report.range.from,report.timezone)}首次相关记录`:'首次相关记录时间未提供'}</small><p>{description}</p>{report.caseDetails?.description&&<small>家长报告补充，不改写原始记录</small>}</div><aside><button onClick={()=>onEdit('focus')}>更改主诉<ChevronRight size={14}/></button><button disabled={!report.focusSourceIds.length} onClick={()=>onEvidence(report.focusSourceIds)}>查看原话<ChevronRight size={14}/></button></aside></div>
-      <dl className="visit-reading-facts"><dt>开始时间</dt><dd>{report.caseDetails?.onset||report.reading?.onset||'具体起病时间待补充'}</dd><dt>最近变化</dt><dd>{report.caseDetails?.change||report.reading?.change||'最近变化待补充'}</dd><dt>其他表现</dt><dd>{report.caseDetails?.other||report.reading?.other||'其他表现未填写'}</dd></dl>
+      <div className="visit-reading-case"><div><h1>{report.complaint}</h1><small>{associated?(report.range.from?`${reportTime(report.range.from,report.timezone)}首次相关记录`:'首次相关记录时间未提供'):'选择相关记录后可核对经过与原话'}</small><p>{description}</p>{report.caseDetails?.description&&<small>家长报告补充，不改写原始记录</small>}</div><aside><button onClick={()=>onEdit('focus')}>更改主诉<ChevronRight size={14}/></button>{associated?<button onClick={()=>onEvidence(report.focusSourceIds)}>查看原话<ChevronRight size={14}/></button>:<button onClick={()=>onEdit('association')}>选择相关记录<ChevronRight size={14}/></button>}<button onClick={onChoose}>添加影像<ChevronRight size={14}/></button></aside></div>
+      {(associated||Object.values(report.caseDetails??{}).some(Boolean))&&<dl className="visit-reading-facts"><dt>开始时间</dt><dd>{report.caseDetails?.onset||report.reading?.onset||'具体起病时间待补充'}</dd><dt>最近变化</dt><dd>{report.caseDetails?.change||report.reading?.change||'最近变化待补充'}</dd><dt>其他表现</dt><dd>{report.caseDetails?.other||report.reading?.other||'其他表现未填写'}</dd></dl>}
       <ReportPhotos report={report} token={token} onChoose={onChoose} onOpen={onMedia}/>
     </>)}
     {card('medication','本次想问',<CircleHelp size={19}/>,'question',questions.length?`${questions.length}个问题 · ${questions[0]}`:'尚未确认问题',questions.length?<><ol className="visit-reading-questions">{questions.map((question,i)=><li key={i}>{question}</li>)}</ol>{!!report.questionSourceIds?.length&&<button className="visit-text-action" onClick={()=>onEvidence(report.questionSourceIds!)}>查看问题原话</button>}</>:<p>尚未填写本次想问的问题。</p>)}
@@ -37,7 +38,7 @@ export function VisitReading({report,token,onEvidence,onEdit,onMedia,onChoose,op
       {courseSources.map(source=><article className="visit-reading-course-row" key={source.id}><small>{source.timePrecision==='unknown'?'发生时间未知':reportTime(source.occurredAt,report.timezone)} · {source.identity}</small><p>{source.narrative||source.text}</p><button className="visit-text-action" onClick={()=>onEvidence([source.id])}>查看依据</button></article>)}
       {!courseSources.length&&<p>本次主诉尚无明确关联经过。可在更改主诉时选择相关记录。</p>}
       {report.notes.course&&<div><h3>家长补充</h3><p>{report.notes.course}</p></div>}
-      {!!section('medication').blocks.length&&<details><summary>核对完整用药资料（计划与执行分开）</summary><ReportChapter report={report} chapter={{...section('medication'),title:''}} onEvidence={onEvidence}/></details>}
+      {(!!section('medication').blocks.length||!!report.medicationReminders?.length)&&<button className="visit-reading-detail-link" onClick={onMedications}>用药资料<span>计划、完整周历与实际使用</span><ChevronRight size={16}/></button>}
     </>)}
     {card('sources','完整资料',<Folder size={19}/>,'data','既往史、过敏史、原始记录',<>
       {(['history','allergy','temperature','growth','visits'] as const).filter(id=>section(id).blocks.length||report.notes[id]).map(id=><details key={id} className="visit-reading-data-group"><summary>{{history:'既往史与相关背景',allergy:'过敏资料与饮食观察',temperature:'体温记录',growth:'成长与日常',visits:'就诊与检查'}[id]}</summary><ReportChapter report={report} chapter={{...section(id),title:''}} onEvidence={onEvidence}/></details>)}
