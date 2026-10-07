@@ -27,6 +27,11 @@ export async function foodLabelApi(request,response,{service,accountId,readJson,
   try{
     input=await readJson(request,43_000_000)
     const result=await service.analyze(accountId,input,controller.signal)
+    const stages=['normalizeMs','readMs','translationMs','assessmentMs','totalMs'].flatMap(name=>{
+      const duration=result.diagnostics?.timings?.[name]
+      return Number.isFinite(duration)&&duration>=0?[`${name};dur=${duration}`]:[]
+    })
+    if(stages.length)response.setHeader('Server-Timing',stages.join(', '))
     if(!controller.signal.aborted)sendJson(response,200,result)
   }catch(error){
     if(!controller.signal.aborted)sendJson(response,error.status??503,{taskId:input?.taskId,error:{code:error.code??'FOOD_ANALYSIS_FAILED',message:foodFailureMessage(error)},...(error.foodDiagnostics?{diagnostics:error.foodDiagnostics}:{})})

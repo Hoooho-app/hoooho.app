@@ -17,12 +17,14 @@ body:has(.food-label-page) { min-width: 320px; }
 .food-label-number { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 .food-label-row-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--hoho-space-2); }
 .food-label-row-heading strong { min-width: 0; font-size: var(--hoho-font-size-body-small); font-weight: 600; overflow-wrap: anywhere; }
-.food-label-row-heading .hoho-health-tag { flex-shrink: 0; }
+.food-label-row-heading .hoho-health-tag { flex-shrink: 0; max-width: 45%; white-space: normal; overflow-wrap: anywhere; }
 .food-label-translation { margin: var(--hoho-space-1) 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); overflow-wrap: anywhere; }
 .food-label-ingredients { margin-bottom: var(--hoho-space-4); }
 .food-label-risk-common { background: rgb(var(--hoho-color-food-common-surface)) !important; }
 .food-label-risk-possible { background: rgb(var(--hoho-color-food-possible-surface)) !important; }
-.food-label-explanation, .food-label-packaging { margin: var(--hoho-space-1) 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); overflow-wrap: anywhere; }
+.food-label-explanation, .food-label-packaging, .food-label-scope { margin: var(--hoho-space-1) 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-caption); overflow-wrap: anywhere; }
 .food-label-packaging { margin-bottom: var(--hoho-space-3); }
 .food-label-packaging span { margin-left: var(--hoho-space-1); }
 @media (prefers-reduced-motion: reduce) { .food-label-spinner { animation: none; } }
+
+.food-label-supplement:disabled { opacity: .5; cursor: default; }

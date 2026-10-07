@@ -12,7 +12,7 @@ async function prepare(page:Page,language='zh-CN',ingredients=rows){
     if(path==='/api/members')body=[{id:memberId,name:'不应在核对页展示',birthday:'2025-01-01',gender:'female',relationship:'child'}]
     if(path==='/api/account/entry-state')body={familyMemberCount:1,hasValidHealthRecord:false}
     if(path==='/api/events'||path==='/api/auth/profile-sections'||path.endsWith('/medication-reminders')||path.endsWith('/growth-measurements')||path.endsWith('/case-records'))body=[]
-    if(path==='/api/food-label/check'){const input=route.request().postDataJSON();requests.push(input);body={taskId:input.taskId,memberId:input.memberId,ingredients,contains:[],advisory:[],title:'标签未读完整，请补拍',counts:'21项待确认',scope:'标签未完整，暂不能排除遗漏',tone:'warning'}}
+    if(path==='/api/food-label/check'){const input=route.request().postDataJSON();requests.push(input);body={taskId:input.taskId,memberId:input.memberId,ingredients,continuation:'opaque-synthetic-continuation',contains:[],advisory:[],title:'标签未读完整，请补拍',counts:'21项待确认',scope:'标签未完整，暂不能排除遗漏',tone:'warning'}}
     await route.fulfill({json:body,headers:{'Cache-Control':'no-store'}})
   });return requests
 }
@@ -55,7 +55,7 @@ for(const width of [375,390,393,430])test(`whole page scroll, 21 rows, no persis
   await expect(page.locator('.food-label-photos img')).toHaveCount(4)
   await expect(page.locator('.food-label-summary')).toHaveText('已识别21项 · 1项已知冲突')
   await expect(page.getByText(/待确认|可能风险|未发现冲突|标签未完整|请补拍/)).toHaveCount(0)
-  await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveCount(1)
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveCount(21)
   await expect(page.locator('.food-label-photos button')).toHaveAttribute('aria-label','补拍食品标签')
   await expect(page.locator('.food-label-photos button')).toHaveText('')
   expect(await page.locator('.food-label-photos img').evaluateAll(images=>images.every(img=>!img.closest('button,a')&&!img.hasAttribute('tabindex')&&!img.hasAttribute('onclick')))).toBe(true)
@@ -72,7 +72,7 @@ test('supplement appends, retake resets, cancel and late responses do not recove
   const requests=await prepare(page);await page.goto('/food-label');const album=page.locator('input[type=file][multiple]'),camera=page.locator('input[capture=environment]')
   await album.setInputFiles([]);expect(requests.length).toBe(0)
   await album.setInputFiles(photo);await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
-  await camera.setInputFiles(photo);await expect.poll(()=>requests.length).toBe(2);expect((requests[1].photos as unknown[]).length).toBe(2)
+  await camera.setInputFiles(photo);await expect.poll(()=>requests.length).toBe(2);expect((requests[1].photos as unknown[]).length).toBe(1);expect(requests[1].continuation).toBe('opaque-synthetic-continuation');expect(requests[1].scanId).toBe(requests[0].scanId)
   await page.getByRole('button',{name:'重新拍摄',exact:true}).click();await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible();await expect(page.locator('.food-label-photos img')).toHaveCount(0)
   await camera.setInputFiles(photo);await expect.poll(()=>requests.length).toBe(3);expect((requests[2].photos as unknown[]).length).toBe(1)
   await page.goto('/nurse-station');await page.goto('/food-label');await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
@@ -96,7 +96,7 @@ for(const language of ['zh-CN','en-US'])for(const sourceLanguage of ['zh','en'])
   const same=language.startsWith(sourceLanguage)
   await expect(page.locator('.food-label-translation')).toHaveCount(same?0:1)
   if(!same)await expect(page.locator('.food-label-translation')).toHaveText(language.startsWith('zh')?chinese:english)
-  await expect(page.locator('.hoho-health-tag')).toHaveCount(0)
+  await expect(page.locator('.hoho-health-tag')).toHaveText(language.startsWith('zh')?'核对未完成':'Check incomplete')
   await expect(page.locator('.food-label-summary')).toHaveText(language.startsWith('zh')?'已识别1项 · 0项已知冲突':'1 ingredients identified · 0 known conflicts')
 })
 
@@ -163,4 +163,37 @@ test('late supplement response cannot replace the newest result of the same memb
   await expect(page.locator('.food-label-summary')).toHaveText('已识别1项 · 0项已知冲突')
   release();await expect(page.locator('.food-label-ingredients li')).toHaveCount(1)
   await expect(page.locator('.food-label-row-heading strong')).toHaveText('最新成分')
+})
+
+test('expired continuation recovers once with existing photos, without losing the result or creating model retries',async({page})=>{
+  const requests=await prepare(page);await page.goto('/food-label')
+  await page.locator('input[multiple]').setInputFiles(photo);await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  let count=0;const recovery:Record<string,unknown>[]=[]
+  await page.route('**/api/food-label/check',route=>{
+    const input=route.request().postDataJSON();recovery.push(input)
+    return ++count===1?route.fulfill({status:409,json:{error:{code:'FOOD_CONTINUATION_EXPIRED'}}}):route.fulfill({json:{taskId:input.taskId,memberId,ingredients:rows,continuation:'new-receipt'}})
+  })
+  await page.locator('input[capture]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别21项 · 1项已知冲突')
+  expect(count).toBe(2);expect((recovery[0].photos as unknown[]).length).toBe(1);expect((recovery[1].photos as unknown[]).length).toBe(2)
+  expect(recovery[1].continuation).toBeUndefined();expect(recovery[1].scanId).toBe(requests[0].scanId)
+  await expect(page.locator('.food-label-photos img')).toHaveCount(2)
+})
+
+test('each ingredient has exactly one bounded assessment label, including incomplete OCR at 393px',async({page},info)=>{
+  await page.setViewportSize({width:393,height:852})
+  const ingredients=[
+    {original:'大米（≥60%）',chinese:'大米（≥60%）',sourceLanguage:'zh',status:'clear',reason:''},
+    {original:'面包（小麦粉、牛奶、鸡蛋）',chinese:'面包（小麦粉、牛奶、鸡蛋）',sourceLanguage:'zh',status:'known',reason:'牛奶匹配已记录的牛奶过敏。'},
+    {original:'芥末',chinese:'芥末',sourceLanguage:'zh',status:'common',reason:''},
+    {original:'食品添加剂（明胶、5′-呈味核苷酸二钠）',chinese:'食品添加剂（明胶、5′-呈味核苷酸二钠）',sourceLanguage:'zh',status:'possible',reason:'明胶未注明具体原料，需核实是否来自鱼类。'},
+    {original:'模糊的配料文字',chinese:'模糊的配料文字',sourceLanguage:'zh',status:'pending',reason:''}
+  ]
+  await prepare(page,'zh-CN',ingredients)
+  await page.goto('/food-label');await page.locator('input[multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveText(['未见已知冲突','已知冲突','常见过敏原','可能风险','核对未完成'])
+  await expect(page.locator('.food-label-explanation')).toHaveCount(2)
+  await expect(page.locator('.food-label-summary')).toHaveText('已识别5项 · 1项已知冲突')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await page.screenshot({path:info.outputPath('all-assessment-states-393.png'),fullPage:true})
 })

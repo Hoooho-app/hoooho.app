@@ -130,7 +130,7 @@ export function checkLabel(label,records=[]){
   }
   const classify=(row,hasChildren=false)=>{
     const name=row.name??flattenIngredients(row.original)[0]?.name??row.original,base={...row,name,status:'clear',reason:'',reasonTranslations:{zh:'',en:''},hits:[]}
-    if(!row.reliable)return base
+    if(!row.reliable)return {...base,status:'pending'}
     if(/(?:\b(?:may|might) contain\b|可能含(?:有)?|共线生产|同一.*生产)/i.test(name)){
       const hits=contactHits(row),reasonTranslations=reasonFor(hits)
       return {...base,factKind:'cross-contact',status:hits.length?'possible':'clear',hits,reason:reasonTranslations.zh,reasonTranslations}
@@ -157,7 +157,7 @@ export function checkLabel(label,records=[]){
   function tree(index){
     const row=ingredients[index],children=ingredients.flatMap((child,i)=>child.parent===index?[tree(i)]:[])
     const hits=[...row.hits,...children.flatMap(c=>c.hits)]
-    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':hits.some(h=>h.status==='common')?'common':'clear'
+    const status=hits.some(h=>h.status==='known')?'known':hits.some(h=>h.status==='possible')?'possible':hits.some(h=>h.status==='common')?'common':row.status==='pending'||children.some(c=>c.status==='pending')?'pending':'clear'
     const principal=hits.filter(h=>h.status===status)
     const reasonTranslations=status==='possible'||status==='known'&&principal.some(h=>h.ingredient!==row.name)?reasonFor(principal):{zh:'',en:''}
     return {...row,original:row.fullOriginal??row.original,children,hits,status,reason:reasonTranslations.zh,reasonTranslations}
