@@ -1,5 +1,6 @@
 import path from 'node:path'
-import { unlink } from 'node:fs/promises'
+import { access, unlink } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 
@@ -28,6 +29,8 @@ export const accountCollections = [
   ['quick-record-photo-drafts.json', 'photos'],
   ['routine-preferences.json', 'preferences'],
   ['routine-templates.json', 'templates'],
+  ['routine-templates.json', 'dailyRules'],
+  ['routine-templates.json', 'dailyOperations'],
   ['routine-overrides.json', 'overrides'],
   ['medication-reminders.json', 'reminders'],
   ['desensitization-tests.json', 'tasks'],
@@ -81,6 +84,22 @@ export class AccountDataService {
   }
 
   async deleteAccount(accountId) {
+    const dailyRules = (await this.store('routine-templates.json', 'dailyRules').read()).dailyRules ?? []
+    const ownedRuleIds = new Set(dailyRules.filter(rule => rule.accountId === accountId).map(rule => rule.id))
+    const databasePath = path.join(this.dataDirectory, 'routine-instances.sqlite')
+    try {
+      await access(databasePath)
+      const db = new DatabaseSync(databasePath)
+      try {
+        db.exec('PRAGMA busy_timeout=5000')
+        for (const id of ownedRuleIds) {
+          db.prepare('DELETE FROM generation_cursors WHERE rule_id=?').run(id)
+          db.prepare('DELETE FROM instances WHERE rule_id=?').run(id)
+        }
+        db.prepare('DELETE FROM generation_cursors WHERE rule_id IN (SELECT rule_id FROM instances WHERE account_id=?)').run(accountId)
+        db.prepare('DELETE FROM instances WHERE account_id=?').run(accountId)
+      } finally { db.close() }
+    } catch (error) { if (error.code !== 'ENOENT') throw error }
     const storageKeys = new Set()
     for (const [file, collection] of [['event-attachments.json', 'attachments'], ['quick-record-photo-drafts.json', 'photos']]) {
       const data = await this.store(file, collection).read()

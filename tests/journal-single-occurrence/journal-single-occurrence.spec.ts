@@ -78,6 +78,7 @@ for (const width of [375, 390, 430]) {
   })
   test(`usual windows never create facts, refill and isolate by child at ${width}`, async ({ page }) => {
     const memberId = await prepare(page, '安排验收', width)
+    const effectiveDay = await page.getByLabel('选择日期', { exact: true }).inputValue()
     let writes = 0
     page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith('/api/quick-records')) writes++ })
     await page.getByRole('button', { name: '调整作息', exact: true }).click()
@@ -108,9 +109,9 @@ for (const width of [375, 390, 430]) {
     await expect(setup.getByLabel('午睡开始时间')).toHaveValue('13:00')
     await expect(setup.getByLabel('晚奶开始时间')).toHaveValue('20:30')
     expect(writes).toBe(0)
-    const own = await (await page.request.get(`/api/routines/${memberId}?day=2026-10-06`, { headers })).json()
+    const own = await (await page.request.get(`/api/routines/${memberId}?day=${effectiveDay}`, { headers })).json()
     expect(own.template.items).toHaveLength(4)
-    const sibling = await (await page.request.get('/api/routines/child-two?day=2026-10-06', { headers })).json()
+    const sibling = await (await page.request.get(`/api/routines/child-two?day=${effectiveDay}`, { headers })).json()
     expect(sibling.template).toBeNull()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })

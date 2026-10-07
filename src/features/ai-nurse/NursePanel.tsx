@@ -8,7 +8,8 @@ import { RealtimeNurse } from './RealtimeNurse'
 import type { NurseDraft, NurseFields, NurseMetadata, NurseState, NurseTurn } from './types'
 
 const states: Record<NurseState, string> = { idle: '可用文字表达，或点击开启语音', connecting: '正在建立语音连接…', listening: '正在聆听', processing: '护士正在理解…', speaking: '护士正在回复', paused: '语音已暂停，麦克风已关闭', disconnected: '语音已断开', organizing: '正在整理，可保留草稿', reviewing: '请核对整理结果', saving: '正在保存', saved: '已保存', error: '可继续文字记录' }
-export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onDiscard, onPaused, formContext }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onDiscard: () => void; onPaused:()=>void; formContext:JournalMetadata }) {
+export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onDiscard, onPaused, formContext, initialMode }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onDiscard: () => void; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text' }) {
+  const entryHandled = useRef(false)
   const [playbackBlocked, setPlaybackBlocked] = useState(false), [correction, setCorrection] = useState(false)
   const [openingNeedsPlay, setOpeningNeedsPlay] = useState(false)
   const [draft, setDraft] = useState<NurseDraft>()
@@ -105,6 +106,12 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     })
     rtc.current = transport; void transport.start()
   }
+  useEffect(() => {
+    if (!draft || entryHandled.current) return
+    entryHandled.current = true
+    if (initialMode === 'voice' && !pending.current.length) start()
+    else if (initialMode === 'text') document.querySelector<HTMLTextAreaElement>('.nurse-compose textarea')?.focus()
+  }, [draft?.id, initialMode])
   const close = () => { pause(); controller.current?.abort(); onPaused(); onClose() }
   const composer=<>
     {pendingCount > 0 && <div role="alert"><p>{pendingCount} 段原话尚未同步，保留在当前账号的本次页面草稿中。</p><HohoButton variant="secondary" onClick={() => void retrySync()} disabled={busy.current}>重试同步原话</HohoButton></div>}

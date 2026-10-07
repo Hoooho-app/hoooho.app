@@ -10,6 +10,7 @@ import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../
 import { familyMemberService } from '../../services/familyMembers'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
 
 type InputChannel = 'voice' | 'text'
 type SaveRecord = (content: string, occurredAt: string, channel: InputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
@@ -136,6 +137,7 @@ function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, s
     {hasBottle && <section className="record-form-group"><HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" /></section>}
     <section className="record-form-group"><MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} /></section>
     <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <DailyRecordSettings kind="feeding" name={name} seed={{ feedingMethod: method, bottleMl }} />
     <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
     {canStart && <HohoButton fullWidth loading={saving} variant="secondary" onClick={() => save(true)}>开始喂养</HohoButton>}
   </>
@@ -158,6 +160,7 @@ function SupplementForm({ occurrence, onSave, saving, initialDiet }: CommonFormP
     <div className="record-form-group"><FoodEditor addLabel="添加补剂" common={commonSupplements} commonLabel="常用" inlineActions foods={names} heading="补充了什么" inputLabel="输入补剂名称" itemsLabel="已添加补剂" onFoodsChange={setNames} placeholder="输入补剂名称" /></div>
     <section className="record-form-group record-dose-group supplement-record-dose-group"><HohoInput inputMode="decimal" label="用量" min="0.1" onChange={(event) => setAmount(event.target.value)} placeholder="例如 1" step="0.1" type="number" value={amount} /><ChoiceGroup label="单位" options={supplementUnits} value={unit ?? '滴'} onChange={(value) => setUnit(value as JournalDietDetails['supplementUnit'])} /></section>
     <section className="record-time-group supplement-record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <DailyRecordSettings kind="supplement" seed={{ names: names.join('、'), amount, unit: unit ?? '' }} />
     <SaveBar disabled={!valid} onClick={save} saving={saving} />
   </>
 }
@@ -185,6 +188,7 @@ function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, 
     <div className="record-form-group"><FoodEditor common={common} draftKey={`${scope}:food-input`} inlineActions foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
     <div className="record-form-group"><section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等待观察时间" values={reactions} onChange={setReactions} /></section></div>
     <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <DailyRecordSettings kind={kind} seed={{ foods: foods.join('、') }} />
     <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
     {canStart && kind === 'meal' && <HohoButton fullWidth loading={saving} variant="secondary" onClick={() => save(true)}>开始用餐</HohoButton>}
   </>
@@ -195,7 +199,7 @@ function RecordTime({ occurrence }: { occurrence: ReturnType<typeof useOccurrenc
 }
 
 function SaveBar({ disabled, onClick, saving }: { disabled: boolean; onClick: () => void; saving: boolean }) {
-  return <div className="diet-record-save"><HohoButton disabled={disabled} fullWidth loading={saving} onClick={onClick} size="large">保存记录</HohoButton></div>
+  return <div className="diet-record-save"><HohoButton disabled={disabled} fullWidth loading={saving} onClick={onClick} size="large"><DailySaveText /></HohoButton></div>
 }
 
 export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurredAt, recordId, memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved }: { kind: DietRecordKind; initialDiet?: JournalDietDetails; initialOccurredAt?: string; recordId?: string; memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {

@@ -29,7 +29,7 @@ function localInput(iso: string) {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16)
 }
 
-export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, token, onClose, onSaved }: { effectiveFrom: string; memberId: string; open: boolean; routineDay: RoutineDay; token: string; onClose: () => void; onSaved: (message: string) => void }) {
+export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, token, onClose, onSaved, onDaily }: { effectiveFrom: string; memberId: string; open: boolean; routineDay: RoutineDay; token: string; onClose: () => void; onSaved: (message: string) => void; onDaily?: () => void }) {
   // Only night sleep is built in. Keep previously saved fixed windows editable
   // rather than dropping their data when the parent saves a newer template.
   const definitions = useMemo(() => legacyDefinitions.filter(item => item.key === 'nightSleep' || routineDay.template?.items.some(saved => saved.key === item.key)), [routineDay.template])
@@ -137,6 +137,7 @@ export function RoutineSetupSheet({ effectiveFrom, memberId, open, routineDay, t
     <p className="routine-sheet-intro">保存当前孩子通常的时间段，不会自动生成记录，也不会按计划结束睡眠或喂养。</p>
     {notice && <div aria-live="polite" className="routine-local-toast" role="status"><CheckCircle2 aria-hidden="true" size={18} />{notice}</div>}
     <div className="routine-setup-list">
+      {onDaily && <HohoButton variant="secondary" onClick={onDaily}>管理每天自动记录</HohoButton>}
       {definitions.map(({ key, label, sleep }) => <div className="routine-setup-row" key={key}>
         <div className="routine-row-heading"><strong>{label}</strong>{!items[key].enabled && <span className="routine-disabled-copy">未启用</span>}<HohoToggle checked={items[key].enabled} label={`${label}作息`} onChange={(enabled) => setEnabled(key, enabled)} /></div>
         {items[key].enabled && renderTimes(key, label, sleep)}
