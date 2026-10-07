@@ -148,3 +148,37 @@
 .nurse-notes > div { padding-block: var(--hoho-space-3, 12px); }
 
 .symptom-heading { flex-wrap: wrap; gap: var(--hoho-space-2, 8px); }
+
+/* The shared form has one fixed recording area; its content cards only edit facts. */
+.symptom-record-save[hidden] { display: none !important; }
+.symptom-record-toolbar { display:grid; grid-template-columns:.85fr .94fr 1.06fr 1.3fr; gap:var(--hoho-space-1); margin-bottom:var(--hoho-space-2); }
+.symptom-record-toolbar button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:56px; padding:0 2px; border:0; border-radius:var(--hoho-radius-control); background:transparent; color:rgb(var(--hoho-color-primary)); font-size:12px; white-space:nowrap; }
+.symptom-record-toolbar .symptom-nurse-entry { background:rgb(var(--hoho-color-primary-soft)); border:1px solid rgb(var(--hoho-color-primary-border)); }
+.symptom-record-page[data-keyboard=true] .symptom-record-toolbar button { flex-direction:row; min-height:44px; font-size:11px; }
+.symptom-record-page[data-keyboard=true] .symptom-record-toolbar svg { width:16px; }
+.symptom-save-buttons {display:flex;gap:var(--hoho-space-2)}
+.symptom-record-inline .symptom-record-page .symptom-record-save {display:block;position:sticky;bottom:0}
+.symptom-draft-notice { padding:var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-caption); }
+.symptom-draft-notice button {float:right;min-height:44px;color:rgb(var(--hoho-color-primary))}
+.symptom-input-layer {z-index:90}
+.symptom-input-layer .nurse-conversation-sheet { width:min(100%,480px);height:calc(100% - 56px);max-height:calc(100% - 56px);margin:0; border-bottom-left-radius:0;border-bottom-right-radius:0; }
+.symptom-input-layer .symptom-voice-sheet { width:min(100%,480px);margin:0;max-height:calc(100% - 56px);border-bottom-left-radius:0;border-bottom-right-radius:0; }
+.nurse-conversation-sheet .hoho-bottom-sheet__header,.symptom-voice-sheet .hoho-bottom-sheet__header {padding-inline:var(--hoho-space-4);gap:var(--hoho-space-1)}
+.nurse-conversation-sheet .hoho-bottom-sheet__title-group {flex:1}
+.nurse-conversation-sheet .hoho-bottom-sheet__header h2 {font-size:var(--hoho-font-size-card-title)}
+.nurse-conversation-sheet .hoho-bottom-sheet__body {padding-inline:var(--hoho-space-4)}
+.nurse-conversation-sheet .hoho-bottom-sheet__footer {padding:var(--hoho-space-2) var(--hoho-space-4) max(var(--hoho-space-3),env(safe-area-inset-bottom));}
+.nurse-purpose {font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.nurse-turn {padding:0;border:0;margin-block:var(--hoho-space-3)}
+.nurse-turn strong {display:block;font-size:var(--hoho-font-size-caption);font-weight:400;margin-bottom:var(--hoho-space-1);color:rgb(var(--hoho-color-text-secondary))}
+.nurse-turn p {border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle));margin:0}
+.nurse-turn--user {margin-left:var(--hoho-space-5)}
+.nurse-turn--user strong {text-align:right}
+.nurse-turn--user p {background:rgb(var(--hoho-color-primary-soft))}
+.nurse-compose {display:block;font-size:var(--hoho-font-size-caption)}
+.nurse-compose textarea {display:block;width:100%;min-height:44px;height:52px;resize:none;font-size:16px}
+.nurse-correction {font-size:var(--hoho-font-size-caption)}
+.nurse-controls {margin-top:var(--hoho-space-1)}
+.nurse-connection-error {border:1px solid rgb(var(--hoho-color-error) / .2);border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-error) / .04)}
+.symptom-input-target {display:inline-block;background:rgb(var(--hoho-color-primary-soft));padding:var(--hoho-space-1) var(--hoho-space-2);border-radius:var(--hoho-radius-small);font-size:var(--hoho-font-size-caption)}
+.symptom-voice-sheet textarea {width:100%;min-height:96px;font-size:16px}
