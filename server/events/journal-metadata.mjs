@@ -204,7 +204,7 @@ function validateOutdoorActivity(value) {
   return { activities, places, contacts, observations, ...(activityOtherText ? { activityOtherText } : {}), ...(placeOtherText ? { placeOtherText } : {}), ...(value.durationRange ? { durationRange: value.durationRange } : {}), ...(value.durationMinutes ? { durationMinutes: value.durationMinutes } : {}), ...(value.activityState ? { activityState: value.activityState } : {}) }
 }
 
-function validateSymptom(value) {
+function validateSymptom(value, allowEmptyNarrative = false) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !symptomCategories.has(value.symptomCategory)) throw new HealthEventRecordError('症状分类无效', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (value.locations !== undefined && (!Array.isArray(value.locations) || value.locations.length > 20)) throw new HealthEventRecordError('症状部位无效', 400, 'INVALID_JOURNAL_SYMPTOM')
@@ -243,9 +243,9 @@ function validateSymptom(value) {
   const shortNote = optionalText(value.shortNote, '症状补充', 160)
   const triggerText = optionalText(value.triggerText, '触发或诱因', 160)
   const generatedSummary = optionalText(value.generatedSummary, '症状摘要', 1000)
-  const narrative = optionalText(value.narrative, '症状主述', 1000)
+  const narrative = allowEmptyNarrative && value.narrative === '' ? '' : optionalText(value.narrative, '症状主述', 1000)
   const locationText = optionalText(value.locationText, '症状部位', 120)
-  if (value.symptomCategory === 'other' && !otherCategoryText && !narrative) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (!allowEmptyNarrative && value.symptomCategory === 'other' && !otherCategoryText && !narrative) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
   if (locationText && !locations.length && !/[\p{L}]/u.test(locationText.replace(/[\d\s#\-_.，。号区域位置部位]/gu, ''))) throw new HealthEventRecordError('请填写具体部位，或使用定位', 400, 'INVALID_JOURNAL_SYMPTOM')
   const keywords = cleanStrings(value.keywords, '症状关键词', 20)
   let linkedRecordIds
@@ -278,7 +278,7 @@ function validateSymptom(value) {
       symptomSpecificData[key] = item
     }
   }
-  if (!narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
+  if (!allowEmptyNarrative && !narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
   return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.recurrent === true ? { recurrent: true } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
 
@@ -416,7 +416,7 @@ function recordedClock(occurredAt, timezone) {
   return `${parts.hour}:${parts.minute}`
 }
 
-export function validateJournal(value) {
+export function validateJournal(value, { allowEmptySymptomDraft = false } = {}) {
   if (value === undefined || value === null) return undefined
   if (typeof value !== 'object' || !Array.isArray(value.categories) || value.categories.some((category) => !categories.has(category))) {
     throw new HealthEventRecordError('记录分类无效', 400, 'INVALID_JOURNAL_CATEGORY')
@@ -425,7 +425,8 @@ export function validateJournal(value) {
   const bowel = validateBowel(value.bowel)
   const sleep = validateSleep(value.sleep)
   const outdoorActivity = validateOutdoorActivity(value.outdoorActivity)
-  const symptom = validateSymptom(value.symptom)
+  // Only nurse draft context opts in. Formal record creation keeps the strict default.
+  const symptom = validateSymptom(value.symptom, allowEmptySymptomDraft)
   const aiNurse = validateNurseMetadata(value.aiNurse)
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
@@ -446,7 +447,8 @@ export function validateJournal(value) {
   if (vaccination && !value.categories.includes('vaccination')) throw new HealthEventRecordError('疫苗详情必须归入疫苗分类', 400, 'INVALID_JOURNAL_VACCINATION')
   if (visit && !value.categories.includes('visit')) throw new HealthEventRecordError('就医详情必须归入就医分类', 400, 'INVALID_JOURNAL_VISIT')
   if (value.timePrecision !== undefined && !['exact', 'period', 'unknown'].includes(value.timePrecision)) throw new HealthEventRecordError('发生时间精度无效', 400, 'INVALID_JOURNAL_TIME')
-  return { ...(aiNurse ? { aiNurse } : {}), categories: [...new Set(value.categories)], ...(topical ? { topical } : {}), ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
+  if(value.timeLabel!==undefined&&(typeof value.timeLabel!=='string'||value.timeLabel.length>160))throw new HealthEventRecordError('发生时间原文无效',400,'INVALID_JOURNAL_TIME')
+  return { ...(value.timeLabel?.trim()?{timeLabel:value.timeLabel.trim()}:{}), ...(aiNurse ? { aiNurse } : {}), categories: [...new Set(value.categories)], ...(topical ? { topical } : {}), ...(value.timePrecision ? { timePrecision: value.timePrecision } : {}), ...(diet ? { diet } : {}), ...(bowel ? { bowel } : {}), ...(sleep ? { sleep } : {}), ...(outdoorActivity ? { outdoorActivity } : {}), ...(symptom ? { symptom } : {}), ...(medication ? { medication } : {}), ...(vaccination ? { vaccination } : {}), ...(visit ? { visit } : {}) }
 }
 
 // Read-only presentation: never backfill guessed timestamps into historical records.

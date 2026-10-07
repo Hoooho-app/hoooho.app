@@ -169,7 +169,7 @@ export function journalDayPeriod(hour: number): JournalDayPeriod {
 }
 
 export function journalTime(entry: JournalEntry) {
-  if(entry.timePrecision==='unknown')return {group:'时间未明确',label:'时间未明确'}
+  if(entry.timePrecision==='unknown')return {group:'时间未明确',label:entry.timeLabel||'时间未明确'}
   if (!Number.isFinite(Date.parse(entry.occurredAt))) return { group: '', label: '' }
   const date = new Date(entry.occurredAt)
   const group = journalDayPeriod(date.getHours())

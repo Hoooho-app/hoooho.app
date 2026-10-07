@@ -21,8 +21,8 @@ export class RealtimeNurse {
   private text = new Map<string, string>()
   private seen = new Set<string>()
   private sequence = Promise.resolve()
-  private options: { memberId: string; token: string; draftId: string; state: (state: NurseState) => void; turn: (turn: NurseTurn) => Promise<void>; preview: (text: string) => void; error: (text: string) => void; usage: (responseId: string, usage: unknown) => void; playbackBlocked: (blocked: boolean) => void }
-  constructor(options: { memberId: string; token: string; draftId: string; state: (state: NurseState) => void; turn: (turn: NurseTurn) => Promise<void>; preview: (text: string) => void; error: (text: string) => void; usage: (responseId: string, usage: unknown) => void; playbackBlocked: (blocked: boolean) => void }) { this.options = options }
+  private options: { memberId: string; token: string; draftId: string; state: (state: NurseState) => void; turn: (turn: NurseTurn) => Promise<void>; queued?: (turn: NurseTurn) => void; preview: (text: string) => void; error: (text: string) => void; usage: (responseId: string, usage: unknown) => void; playbackBlocked: (blocked: boolean) => void }
+  constructor(options: { memberId: string; token: string; draftId: string; state: (state: NurseState) => void; turn: (turn: NurseTurn) => Promise<void>; queued?: (turn: NurseTurn) => void; preview: (text: string) => void; error: (text: string) => void; usage: (responseId: string, usage: unknown) => void; playbackBlocked: (blocked: boolean) => void }) { this.options = options }
   async start() {
     this.options.state('connecting')
     try {
@@ -102,7 +102,7 @@ export class RealtimeNurse {
       } else if (data.type === 'error' || data.type === 'conversation.item.input_audio_transcription.failed') this.failure('本轮语音未成功，已确认文字保留，可手动补充')
     }
   }
-  private queue(turn: NurseTurn) { this.sequence = this.sequence.then(() => this.stopped && turn.role === 'assistant' && turn.status === 'completed' ? undefined : this.options.turn(turn)).catch(() => this.failure('对话文字未同步，请检查网络后重试，原内容保留')) }
+  private queue(turn: NurseTurn) { this.options.queued?.(turn); this.sequence = this.sequence.then(() => this.stopped && turn.role === 'assistant' && turn.status === 'completed' ? undefined : this.options.turn(turn)).catch(() => this.failure('对话文字未同步，请检查网络后重试，原内容保留')) }
   private failure(text: string) { if (this.stopped) return; this.stop(); this.options.state('error'); this.options.error(text) }
   async resumePlayback() {
     if (this.stopped) return

@@ -43,12 +43,12 @@ export function useOccurrenceTime(selectedDay: string, today: string, initialOcc
   return { mode, specifiedValue, now, error, today, setMode, setSpecifiedValue, capture }
 }
 
-export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, onValueChange, showDateContext = false }: { model: ReturnType<typeof useOccurrenceTime>; label?: string; labelIcon?: ReactNode; onValueChange?: (value: string) => void; showDateContext?: boolean }) {
+export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, displayLabel, onValueChange, showDateContext = false }: { model: ReturnType<typeof useOccurrenceTime>; label?: string; labelIcon?: ReactNode; displayLabel?: string; onValueChange?: (value: string) => void; showDateContext?: boolean }) {
   const id=useId(),labelId=`occurrence-label-${id}`,errorId=`occurrence-error-${id}`
   const value = model.mode === 'now' ? localDateTimeValue(model.now) : model.specifiedValue
   return <section className="occurrence-time-field" aria-labelledby={labelId}>
     <strong id={labelId}>{labelIcon ?? <Clock3 aria-hidden="true" size={20} strokeWidth={1.8} />}{label}</strong>
-    <label className="occurrence-time-control"><span aria-hidden="true">{formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input aria-describedby={model.error ? errorId : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
+    <label className="occurrence-time-control"><span aria-hidden="true">{displayLabel??formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input aria-describedby={model.error ? errorId : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
     {model.error && <p className="occurrence-time-error" id={errorId} role="alert">{model.error}</p>}
   </section>
 }

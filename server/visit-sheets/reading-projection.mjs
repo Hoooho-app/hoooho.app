@@ -16,7 +16,7 @@ export function readingProjection(report, input) {
     const measurement = unit => growth.blocks.filter(b => b.unit === unit).flatMap(b => b.points ?? []).filter(p => p.value > 0 && p.detail !== '待核对').sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] ?? null;
     return {
         description: notes.description || latest?.narrative || latest?.title || '本次情况待补充',
-        onset: notes.onset || (onset ? `家长在相关记录中填写：${onset}开始（相对于该记录时间）` : '具体起病时间待补充'),
+        onset: notes.onset || records.get(latest?.id)?.journal?.timeLabel || (onset ? `家长在相关记录中填写：${onset}开始（相对于该记录时间）` : '具体起病时间待补充'),
         change: notes.change || change || '最近变化待补充',
         other: notes.other || symptom?.associatedSymptoms?.join('、') || '其他表现未填写',
         sourceIds: latest ? [latest.id] : [], courseSourceIds: courseIds,

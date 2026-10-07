@@ -67,7 +67,7 @@ export function useSymptomVoice(text: string, onText: (value: string) => void, m
         for (let index = 0; index < event.results.length; index += 1) transcript += event.results[index][0].transcript
         onTextRef.current(`${base}${base.trim() && transcript ? '\n' : ''}${transcript}`.slice(0, maxLength))
       }
-      instance.onerror = event => { if (version !== generation.current) return; setError(event.error === 'network' ? '语音识别暂不可用，已收音的原件可先保存或手动输入' : speechErrorMessage(event.error)); cancel() }
+      instance.onerror = event => { if (version !== generation.current) return; setError(event.error === 'network' ? audioRef.current?'语音识别暂不可用，已收音的原件可先保存或手动输入':'语音识别暂不可用，已有文字保留，可核对或手动输入' : speechErrorMessage(event.error)); cancel() }
       instance.onend = () => { if (version === generation.current) cancel() }
       instance.start(); change('listening')
     } catch { if (version === generation.current) { setError('无法使用麦克风，请检查浏览器权限'); cancel() } }
