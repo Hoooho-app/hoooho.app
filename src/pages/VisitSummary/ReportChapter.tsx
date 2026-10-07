@@ -49,6 +49,7 @@ export function SourceText({ source }: { source: VisitSource }) {
         录入：{reportTime(source.createdAt)}
       </p>
       <p className="visit-original">{source.text}</p>
+      {source.nurseConversation?.length ? <details><summary>智能记录对话原文（只读）</summary>{source.nurseConversation.map(turn => <p key={turn.id}><strong>{turn.role === 'user' ? '家长' : 'AI 护士'}{turn.status === 'interrupted' ? '（已打断）' : ''}：</strong>{turn.text}</p>)}</details> : null}
       <small>来源编号：{source.code ?? '原始记录'}</small>
     </>
   )

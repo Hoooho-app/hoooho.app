@@ -5,6 +5,9 @@ import { HealthChangeAnnotationService } from './health-change-annotation-servic
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
+import { accountTransaction } from '../auth/storage/transaction.mjs'
+import { JsonStore } from '../auth/storage/json-store.mjs'
+import path from 'node:path'
 
 export { HealthEventRecordError } from './health-event-record-error.mjs'
 
@@ -74,6 +77,7 @@ function rejectImmutableFields(input) {
 
 export class HealthEventRecordService {
   constructor(options = {}) {
+    this.directory = options.dataDirectory
     this.repository = options.repository ?? new HealthEventRecordRepository(options.dataDirectory)
     this.events = options.events ?? new HealthEventRepository(options.dataDirectory)
     this.organizations = options.organizations ?? new HealthRecordOrganizationService(options)
@@ -126,6 +130,24 @@ export class HealthEventRecordService {
   }
 
   async create(accountId, eventId, input, now = new Date()) {
+    if (!input.journal?.aiNurse) return this.createRecord(accountId, eventId, input, now)
+    return accountTransaction(this.directory, async () => {
+      const event = await this.assertEventOwnership(accountId, eventId)
+      const metadata = validateJournal(input.journal).aiNurse
+      const store = new JsonStore(path.join(this.directory, 'nurse-drafts.json'), { drafts: [], usage: [] })
+      const draft = (await store.read()).drafts.find(d => d.id === metadata.draftId && d.accountId === accountId && d.memberId === event.memberId && !d.discarded)
+      if (!draft || JSON.stringify(draft.turns) !== JSON.stringify(metadata.turns)) throw new HealthEventRecordError('智能记录原话未同步或来源不属于当前人物', 409, 'NURSE_SOURCE_CONFLICT')
+      if (draft.saved) {
+        if (draft.saved.eventId !== eventId) throw new HealthEventRecordError('这份智能记录已保存，请查看原记录', 409, 'NURSE_ALREADY_SAVED')
+        return this.getOwnedRecord(accountId, draft.saved.recordId)
+      }
+      const record = await this.createRecord(accountId, eventId, input, now)
+      await store.update(data => ({ ...data, drafts: data.drafts.map(d => d.id === draft.id ? { ...d, saved: { eventId, recordId: record.id }, step: 'saved', updatedAt: now.toISOString() } : d) }))
+      return record
+    })
+  }
+
+  async createRecord(accountId, eventId, input, now = new Date()) {
     const event = await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
     const journal = input.journal === undefined ? undefined : validateJournal(input.journal)
@@ -182,6 +204,12 @@ export class HealthEventRecordService {
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
       if (key === 'journal') {
         changes.journal = validateJournal(input.journal)
+        if (record.journal?.aiNurse) {
+          const original = record.journal.aiNurse
+          const requested = changes.journal?.aiNurse
+          if (requested && (requested.draftId !== original.draftId || JSON.stringify(requested.turns) !== JSON.stringify(original.turns))) throw new HealthEventRecordError('对话原文只读，请在确认内容中更正', 400, 'NURSE_TRANSCRIPT_IMMUTABLE')
+          changes.journal = { ...changes.journal, aiNurse: requested ?? original }
+        }
         await this.validateSymptomLinks(accountId, event, changes.journal)
       }
     }

@@ -4,6 +4,7 @@ import { HealthEventError, HealthEventService } from './health-event-service.mjs
 import { HealthRecordOrganizationService } from '../ai/health-record-organization-service.mjs'
 import { CaseContinuityService } from './case-continuity-service.mjs'
 import { caseApiResult } from './case-api.mjs'
+import { NurseService, nurseApiResult } from '../ai/nurse-service.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = ''
@@ -51,12 +52,17 @@ export function eventsApiPlugin(options = {}) {
   const events = options.service ?? new HealthEventService({ dataDirectory: config.dataDirectory, summaryRefresher })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
   const cases = new CaseContinuityService(config)
+  const nurse = new NurseService({ ...config, events })
 
   return {
     name: 'hoooho-local-events-api',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {
+          try { const result = await nurseApiResult(nurse, readAccountId(request, tokens), request.method, pathname, limit => readJson(request, limit)); return sendJson(response, result.status ?? 200, result.data) }
+          catch (error) { return sendJson(response, error.status ?? 500, { error: { message: error.status ? error.message : '智能记录暂不可用，原内容保留', code: error.code ?? 'NURSE_ERROR' } }) }
+        }
         if (/^\/api\/members\/[^/]+\/(cases|case-records)(?:\/|$)/.test(pathname)) {
           try {
             const result = await caseApiResult(cases, readAccountId(request, tokens), request.method, pathname, limit => readJson(request, limit), new URL(request.url, 'http://localhost').searchParams)

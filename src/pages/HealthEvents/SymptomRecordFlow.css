@@ -139,3 +139,12 @@
 .symptom-media-actions button:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: 2px; }
 .symptom-media-previews video { width: 100%; height: 100%; object-fit: contain; }
 .quick-record-photo-lightbox video { max-width: 90vw; max-height: 80vh; }
+
+.nurse-controls { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2, 8px); }
+.nurse-turn { padding-block: var(--hoho-space-3, 12px); border-bottom: 1px solid rgb(var(--hoho-color-border)); overflow-wrap: anywhere; }
+.nurse-turn p, .nurse-notes p { white-space: pre-wrap; }
+.nurse-turn--user strong { color: rgb(var(--hoho-color-primary)); }
+.nurse-notes input, .nurse-notes textarea { width: 100%; min-height: 44px; }
+.nurse-notes > div { padding-block: var(--hoho-space-3, 12px); }
+
+.symptom-heading { flex-wrap: wrap; gap: var(--hoho-space-2, 8px); }

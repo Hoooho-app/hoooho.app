@@ -43,6 +43,7 @@ import { DesensitizationTestService } from './desensitization-tests/desensitizat
 import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
+import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
@@ -92,6 +93,7 @@ const aiBusiness = new AIBusinessService(sharedOptions)
 const childProfileLists = new ChildProfileListService(sharedOptions)
 const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
+const nurse = new NurseService({ ...sharedOptions, events })
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
 
@@ -793,6 +795,11 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {
+    const result = await nurseApiResult(nurse, await readAccountId(request), request.method, pathname, limit => readJson(request, limit))
+    sendJson(response, result.status ?? 200, result.data)
+    return true
+  }
   if (/^\/api\/members\/[^/]+\/(cases|case-records)(?:\/|$)/.test(pathname)) {
     const result = await caseApiResult(caseContinuity, await readAccountId(request), request.method, pathname, limit => readJson(request, limit), searchParams)
     if (result) { sendJson(response, result.status ?? 200, result.data); return true }

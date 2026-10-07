@@ -192,3 +192,15 @@ test('兼容已保存结构化体温，原始文本与更正内容均可追溯',
   assert.equal(chapter(r, 'temperature').blocks[0].points.length, 4)
   assert.match(r.sources.find((s) => s.id === 'record:s0').text, /最早原文/)
 })
+
+
+test('nurse notes stay qualified, one record counts once and original dialogue is appendix only', () => {
+ const input=visitFixture();input.records=input.records.slice(0,1)
+ input.records[0].journal.aiNurse={professionalNotes:[{heading:'家长担心',text:'担心鸡蛋相关',certainty:'uncertain',sourceTurnIds:['u1']}],turns:[{id:'u1',role:'user',text:'担心鸡蛋相关'},{id:'a1',role:'assistant',text:'助手问题不得进入病情正文'}]}
+ const report=buildVisitSheet(input,{},now)
+ const source=report.sources.find(s=>s.id==='record:'+input.records[0].id)
+ assert.match(source.text,/不确定\/担心/);assert.equal(source.nurseConversation.length,2)
+ assert.ok(!report.chapters.flatMap(c=>c.blocks.flatMap(b=>b.lines??[])).join(' ').includes('助手问题不得进入病情正文'))
+ assert.ok(chapter(report,'course').blocks.some(b=>b.lines.some(l=>l.includes('担心鸡蛋相关'))))
+ assert.equal(report.focusSourceIds.length,1)
+})

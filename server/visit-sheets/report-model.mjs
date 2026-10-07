@@ -56,6 +56,7 @@ const recordText = (r) =>
       ? `影响程度：${{ little: '轻微影响', some: '有些影响', clear: '明显影响' }[r.journal.symptom.impactLevel]}`
       : '',
     r.journal?.symptom?.shortNote,
+    ...(r.journal?.aiNurse?.professionalNotes ?? []).map(n => `家长专业备注（${n.certainty === 'uncertain' ? '不确定/担心' : n.certainty === 'denied' ? '否定记录' : '家长叙述'}，来源轮次 ${n.sourceTurnIds.join('、')}）：${n.heading}：${n.text}`),
     finite(r.journal?.symptom?.symptomSpecificData?.currentTemperature)
       ? `当前结构化测量值：${r.journal.symptom.symptomSpecificData.currentTemperature} ℃（更正时保留原叙述）`
       : '',
@@ -296,6 +297,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       title:
         text(r.journal?.symptom?.narrative) || text(r.content).slice(0, 100),
       text: recordText(r),
+      ...(r.journal?.aiNurse ? { nurseConversation: r.journal.aiNurse.turns } : {}),
       occurredAt: date(r.occurredAt),
       createdAt: date(r.createdAt),
       updatedAt: date(r.updatedAt),
@@ -375,6 +377,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       : ['关于此主诉暂无足够症状资料。其他已有资料仍保留在对应章节。'],
     refs,
   )
+  const nurseRecords = related.filter(r => r.journal?.aiNurse?.professionalNotes?.length)
   const counts = new Map()
   const impact = {
     little: '影响较小（家长填写）',
@@ -827,6 +830,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     changes: [],
   }, input, preferences), input, preferences, now, ownedPhotoIds)
   if (selection) report.scope = `仅纳入明确选择的${new Set(selection.eventIds).size}次情况${selection.from || selection.to ? '及指定时间范围' : ''}；${selection.includeBackground ? '含当前人物所选既往背景、成长及独立计划' : '未纳入既往背景、成长或独立计划'}。未提供不等于没有。`
+  const nurseChapter = report.chapters.find(c => c.id === 'course')
+  if (nurseRecords.length && nurseChapter && !nurseChapter.blocks.some(b => b.title === '家长关注与已做处理')) nurseChapter.blocks.push({ title: '家长关注与已做处理', lines: nurseRecords.flatMap(r => r.journal.aiNurse.professionalNotes.map(n => `${n.heading}（${n.certainty === 'uncertain' ? '不确定/担心' : n.certainty === 'denied' ? '明确否定' : '家长叙述'}）：${n.text}`)), sourceIds: nurseRecords.map(r => `record:${r.id}`) })
   report.reading=readingProjection(report,input)
   return report
 }

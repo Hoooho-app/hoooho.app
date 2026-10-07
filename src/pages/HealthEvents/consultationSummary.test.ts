@@ -44,3 +44,10 @@ test('空资料不可选且跨人物资料会停止生成', () => {
   assert.throws(() => buildConsultationSummary(context({ currentMemberId: 'other-member' }), ['basic', 'current']), /不一致/)
   assert.throws(() => buildConsultationSummary(context({ relatedEvents: [{ ...context().relatedEvents[0], memberId: 'other-member' }] }), ['basic', 'current']), /不属于当前人物/)
 })
+
+test('default clinical preparation includes qualified nurse notes and excludes assistant conversation', () => {
+ const c=context();const record=c.records[0]
+ record.journal={categories:['symptom'],aiNurse:{version:'nurse-v1',draftId:'draft',snapshots:[],turns:[{id:'u',role:'user',text:'担心鸡蛋',at:record.occurredAt,order:0,final:true,status:'completed'},{id:'a',role:'assistant',text:'助手问题不能作为事实',at:record.occurredAt,order:1,final:true,status:'completed'}],professionalNotes:[{id:'n',category:'parent_concern',heading:'家长担心',text:'担心鸡蛋相关',sourceTurnIds:['u'],certainty:'uncertain',attribution:'parent',editedByUser:false,createdAt:record.occurredAt,updatedAt:record.occurredAt}]}}
+ const summary=buildConsultationSummary(c,['basic','current'])
+ assert.match(summary.text,/不确定\/担心/);assert.match(summary.text,/担心鸡蛋相关/);assert.ok(!summary.text.includes('助手问题不能作为事实'))
+})

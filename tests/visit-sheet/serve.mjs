@@ -36,6 +36,12 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (mode === 'failure') return new Response(JSON.stringify({ error: { type: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', code: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: bailian?403:429, headers: { 'x-request-id': 'req_fixture' } })
     let body=JSON.parse(init.body)
     if(bailian){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
+    if (body.text.format.name === 'hoooho_nurse_v1') {
+      const turns = JSON.parse(body.input), user = turns.filter(t => t.role === 'user').at(-1)
+      const first = turns.find(t => t.role === 'user' && t.text.includes('脸颊')) ?? user
+      const organized = { reply: '有没有影响睡眠？', intent: user.text.includes('整理') ? 'organize' : 'continue', emergency: { currentChild: false, quote: '' }, fields: { narrative: '脸颊发红发痒，没有发热。', locationText: '脸颊', impactLevel: '', triggerText: '', trend: '' }, fieldEvidence: [{ field: 'narrative', sourceTurnId: first.id, quote: first.text.split('。')[0] }, { field: 'locationText', sourceTurnId: first.id, quote: '脸颊' }], notes: [{ category: 'parent_concern', heading: '家长担心', text: '担心鸡蛋相关，尚未确认。', sourceTurnId: first.id, quote: first.text, certainty: 'uncertain', attribution: 'parent' }, { category: 'prior_action', heading: '已做处理', text: '涂过保湿霜，效果不确定。', sourceTurnId: first.id, quote: first.text, certainty: 'uncertain', attribution: 'parent' }] }
+      return fixtureResponse({ usage: { input_tokens: 30, output_tokens: 30 }, output: [{ content: [{ type: 'output_text', text: JSON.stringify(organized) }] }] })
+    }
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
