@@ -3,6 +3,7 @@ import { TokenService } from '../auth/token-service.mjs'
 import { QuickRecordService } from './quick-record-service.mjs'
 import { QuickRecordPhotoService } from './quick-record-photo-service.mjs'
 import { withAccountLock } from '../auth/account-lock.mjs'
+import { RoutineService } from '../routines/routine-service.mjs'
 
 const sendJson = (response, status, data) => {
   response.statusCode = status
@@ -45,6 +46,7 @@ const readJson = (request, limit = 16_384) => new Promise((resolve, reject) => {
 export function quickRecordsApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
   const service = options.service ?? new QuickRecordService({ dataDirectory: config.dataDirectory })
+  const routines = options.routines ?? new RoutineService({ ...config, quickRecords: service })
   const photos = options.photos ?? new QuickRecordPhotoService(config)
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
   return {
@@ -75,11 +77,12 @@ export function quickRecordsApiPlugin(options = {}) {
             return sendJson(response,405,{error:{message:'请求方法不支持'}})
           }
           if (request.method !== 'POST') return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
-          return sendJson(response, 201, await service.create(payload.sub, await readJson(request)))
+          const input = await readJson(request)
+          return sendJson(response, 201, input.dailySettings || input.automaticInstanceId ? await routines.daily.saveWithRecord(payload.sub, input) : await service.create(payload.sub, input))
         } catch (error) {
           const status = Number.isInteger(error?.status) ? error.status : 500
           if (status >= 500) server.config.logger.error(error)
-          return sendJson(response, status, { error: { code: error?.code ?? 'INTERNAL_ERROR', message: status >= 500 ? '服务器暂时不可用' : error.message } })
+          return sendJson(response, status, { error: { code: error?.code ?? 'INTERNAL_ERROR', message: status >= 500 && error?.code !== 'DAILY_LINK_PENDING' ? '服务器暂时不可用' : error.message } })
         }
       })
     }
