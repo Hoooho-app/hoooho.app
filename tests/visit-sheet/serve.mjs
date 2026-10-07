@@ -42,6 +42,8 @@ if (process.env.VISIT_AI_TEST === '1') {
       const organized = { reply: '有没有影响睡眠？', intent: user.text.includes('整理') ? 'organize' : 'continue', emergency: { currentChild: false, quote: '' }, fields: { narrative: '脸颊发红发痒，没有发热。', timeText:'', locationText: '脸颊', impactLevel: '', triggerText: '', trend: '' }, fieldEvidence: [{ field: 'narrative', sourceTurnId: first.id, quote: first.text.split('。')[0] }, { field: 'locationText', sourceTurnId: first.id, quote: first.text.split('。')[0] }], notes: [{ category: 'parent_concern', heading: '家长担心', text: '担心鸡蛋相关，尚未确认。', sourceTurnId: first.id, quote: first.text, certainty: 'uncertain', attribution: 'parent' }, { category: 'prior_action', heading: '已做处理', text: '涂过保湿霜，效果不确定。', sourceTurnId: first.id, quote: first.text, certainty: 'uncertain', attribution: 'parent' }] }
       const coverage=body.text.format.schema.properties.concernCoverage?.properties
       if(coverage)organized.concernCoverage=Object.fromEntries(Object.entries(coverage).map(([id,rule])=>[id,rule.enum.includes('')?'':rule.enum[0]]))
+      const observations=body.text.format.schema.properties.symptomObservations?.properties
+      if(observations)organized.symptomObservations=Object.fromEntries(Object.entries(observations).map(([id])=>[id,id===first.id?first.text.split('。')[0]:'']))
       return fixtureResponse({ usage: { input_tokens: 30, output_tokens: 30 }, output: [{ content: [{ type: 'output_text', text: JSON.stringify(organized) }] }] })
     }
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
