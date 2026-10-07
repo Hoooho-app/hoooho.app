@@ -1,7 +1,7 @@
 import { NurseNotes } from '../../../features/ai-nurse/NurseNotes'
 import type { NurseMetadata } from '../../../features/ai-nurse/types'
 import { Link2, Pencil, Save, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import { ChildBodyLocationPicker } from '../../../components/health/body-location/ChildBodyLocationPicker'
 import type { BodyLocationSelection } from '../../../features/body-location'
@@ -15,6 +15,7 @@ import { AllergyLinkSheet } from './AllergyLinkSheet'
 import { RecordOriginals } from '../../../features/ai-business/RecordOriginals'
 
 interface SymptomRecordSheetProps {
+  origin?: ReactNode
   memberId: string
   refreshError?: string
   entry: TimelineEntry | null
@@ -67,7 +68,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
   return entry.source.label
 }
 
-export function SymptomRecordSheet({ entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
+export function SymptomRecordSheet({ origin, entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
   const [nurseMetadata, setNurseMetadata] = useState<NurseMetadata>()
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -235,6 +236,7 @@ export function SymptomRecordSheet({ entry, memberId, memberName, record, refres
         </div>
       ) : (
         <div className="symptom-record-detail">
+          {origin}
           <section><h3>主要症状</h3><p className="symptom-record-original">{originalNarrative}</p>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}</section>
           {detailLocation && <section><h3>症状部位</h3><p className="symptom-record-original">{detailLocation}</p></section>}
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}

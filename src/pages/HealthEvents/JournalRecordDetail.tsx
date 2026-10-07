@@ -12,6 +12,7 @@ import { localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurr
 import { DietRecordFlow } from './DietRecordFlow'
 import { TopicalRecordFlow } from './TopicalRecordFlow'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
+import { DailyRecordOrigin } from './DailyRecordSheets'
 
 export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose }: {
   eventId: string
@@ -53,6 +54,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   if(state.data.member.id!==memberId)return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="这条记录不属于当前家庭成员" /></StatusSheet>
   const entry = state.data.viewModel.event.timeline.find((item) => item.sourceRecordId === recordId) ?? null
   const record = state.data.records.find((item) => item.id === recordId) ?? null
+  const origin = <DailyRecordOrigin memberId={memberId} recordId={recordId} token={token}/>
   if (!entry) return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="未找到这条记录" /></StatusSheet>
   if (record?.journal?.sleep?.status === 'ongoing') {
     const sleep = record.journal.sleep
@@ -96,7 +98,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
       finally { setEnding(false) }
     }
     const correctionSpanCopy = correctionSpan === null || correctionSpan <= 0 ? '' : `当前区间跨度：${Math.floor(correctionSpan / 1440)}天${Math.floor((correctionSpan % 1440) / 60)}小时${correctionSpan % 60}分钟`
-    return <BottomSheetSurface label={abnormal ? '睡眠时间未补全' : '正在记录睡眠'} onClose={close} open title={abnormal ? '睡眠时间未补全' : '正在记录睡眠'}><div className="sleep-active-detail"><span><Moon aria-hidden="true" size={30} /></span>{abnormal ? <><h2>这次睡眠尚未补全时间</h2><p>{`原始开始时间：${new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}`}</p></> : <><strong>{`${Math.floor(elapsed / 60)}小时${elapsed % 60}分钟`}</strong><h2>{`${state.data.member.name}开始睡觉了`}</h2></>}<dl><div><dt>开始时间</dt><dd>{new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>尚未结束</dd></div></dl>{correctionOpen && <div className="sleep-correction-fields"><label><span>实际开始时间</span><input aria-label="实际开始时间" max={localDateTimeValue()} onChange={(event) => setSleepAtInput(event.target.value)} type="datetime-local" value={sleepAtInput} /></label><label><span>实际结束时间</span><input aria-label="实际结束时间" max={localDateTimeValue()} onChange={(event) => setWakeAtInput(event.target.value)} type="datetime-local" value={wakeAtInput} /></label>{correctionSpanCopy && <p>{correctionSpanCopy}</p>}{correctionError && <p role="alert">{correctionError}</p>}</div>}<HohoButton disabled={Boolean(correctionError)} fullWidth loading={ending} onClick={() => void endSleep()} size="large">{correctionOpen ? '确认并结束睡眠' : abnormal ? '核对时间' : '结束睡眠'}</HohoButton>{!abnormal && <p>离开页面也会继续记录</p>}{endError && <p role="alert">{endError}</p>}<button className="sleep-delete-action" onClick={async () => { if (!window.confirm('确定删除这条睡眠记录吗？')) return; await deleteRecord(record.id); onChanged(); onClose() }} type="button">删除这条记录</button></div></BottomSheetSurface>
+    return <BottomSheetSurface label={abnormal ? '睡眠时间未补全' : '正在记录睡眠'} onClose={close} open title={abnormal ? '睡眠时间未补全' : '正在记录睡眠'}><div className="sleep-active-detail">{origin}<span><Moon aria-hidden="true" size={30} /></span>{abnormal ? <><h2>这次睡眠尚未补全时间</h2><p>{`原始开始时间：${new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}`}</p></> : <><strong>{`${Math.floor(elapsed / 60)}小时${elapsed % 60}分钟`}</strong><h2>{`${state.data.member.name}开始睡觉了`}</h2></>}<dl><div><dt>开始时间</dt><dd>{new Date(sleep.sleepAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>尚未结束</dd></div></dl>{correctionOpen && <div className="sleep-correction-fields"><label><span>实际开始时间</span><input aria-label="实际开始时间" max={localDateTimeValue()} onChange={(event) => setSleepAtInput(event.target.value)} type="datetime-local" value={sleepAtInput} /></label><label><span>实际结束时间</span><input aria-label="实际结束时间" max={localDateTimeValue()} onChange={(event) => setWakeAtInput(event.target.value)} type="datetime-local" value={wakeAtInput} /></label>{correctionSpanCopy && <p>{correctionSpanCopy}</p>}{correctionError && <p role="alert">{correctionError}</p>}</div>}<HohoButton disabled={Boolean(correctionError)} fullWidth loading={ending} onClick={() => void endSleep()} size="large">{correctionOpen ? '确认并结束睡眠' : abnormal ? '核对时间' : '结束睡眠'}</HohoButton>{!abnormal && <p>离开页面也会继续记录</p>}{endError && <p role="alert">{endError}</p>}<button className="sleep-delete-action" onClick={async () => { if (!window.confirm('确定删除这条睡眠记录吗？')) return; await deleteRecord(record.id); onChanged(); onClose() }} type="button">删除这条记录</button></div></BottomSheetSurface>
   }
 
   const completedSleep = record?.journal?.sleep ?? null
@@ -123,13 +125,14 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
       }}
       startAt={completedSleep?.sleepAt ?? mealInterval?.startedAt ?? record.occurredAt}
       title={completedSleep ? '睡眠' : mealInterval?.name ?? mealInterval?.meal ?? '喂养/用餐'}
-      information={<><p>{record.content}</p>{record.note && <p>{record.note}</p>}{mealInterval && <DietInformation diet={mealInterval} />}{completedSleep && <p>{[completedSleep.quality, ...(completedSleep.observations ?? []), completedSleep.otherNote].filter(Boolean).join('、')}</p>}</>}
+      information={<>{origin}<p>{record.content}</p>{record.note && <p>{record.note}</p>}{mealInterval && <DietInformation diet={mealInterval} />}{completedSleep && <p>{[completedSleep.quality, ...(completedSleep.observations ?? []), completedSleep.otherNote].filter(Boolean).join('、')}</p>}</>}
     />
   }
 
   if (editingDiet && record?.journal?.diet) return <DietRecordFlow key={record.id} kind={record.journal.diet.kind} initialDiet={record.journal.diet} initialOccurredAt={record.occurredAt} recordId={record.id} memberId={state.data.member.id} token={token} selectedDay={getLocalDateKey(new Date(record.occurredAt))!} today={getLocalDateKey(new Date())!} onBack={()=>setEditingDiet(false)} onClose={onClose} onSaved={()=>onChanged()} onConfirm={async(content,occurredAt,_channel,_photos,journal)=>{await updateRecord(record.id,{content,occurredAt,journal:{...record.journal,...journal}});return '记录已更新'}}/>
   if (editingTopical && record?.journal?.topical) return <TopicalRecordFlow key={record.id} initialJournal={record.journal.topical} initialOccurredAt={record.occurredAt} memberId={state.data.member.id} token={token} selectedDay={getLocalDateKey(new Date(record.occurredAt))!} today={getLocalDateKey(new Date())!} onBack={()=>setEditingTopical(false)} onClose={onClose} onSaved={()=>onChanged()} onConfirm={async(content,occurredAt,_channel,_photos,journal)=>{await updateRecord(record.id,{content,occurredAt,journal:{...record.journal,...journal}});return '记录已更新'}}/>
   return <SymptomRecordSheet
+    origin={origin}
     onEditTopical={record?.journal?.topical ? ()=>setEditingTopical(true) : undefined}
     memberId={state.data.member.id}
     refreshError={state.refreshError}

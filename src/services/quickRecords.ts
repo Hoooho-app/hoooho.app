@@ -1,6 +1,8 @@
 import { apiRequest } from './apiClient'
 
 export interface QuickRecordCreateInput {
+  dailySettings?: import('./dailyRecords').DailySettingsInput
+  automaticInstanceId?: string
   journal?: import('../types/journal').JournalMetadata
   memberId: string
   content: string

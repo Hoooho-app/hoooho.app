@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronDown, Moon, Sun } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
+import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
@@ -90,7 +91,8 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
     {draft.status === 'ongoing' && <p className="sleep-editor-hint">预计醒来；保存后继续运行，实际醒来后请确认结束。</p>}
     <section className="sleep-editor-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen(!supplementOpen)} type="button"><span>睡得怎么样<small>（选填）</small></span><ChevronDown size={18} /></button>{!supplementOpen && (draft.quality || draft.observations?.length) && <p>{[draft.quality, ...(draft.observations ?? []), draft.otherNote].filter(Boolean).join('、')}</p>}{supplementOpen && <><div className="sleep-choice-row">{qualities.map(option => <button aria-pressed={draft.quality === option} key={option} onClick={() => setDraft({ ...draft, quality: draft.quality === option ? undefined : option })} type="button">{option}</button>)}{observations.map(option => <button aria-pressed={draft.observations?.includes(option)} key={option} onClick={() => setDraft({ ...draft, observations: draft.observations?.includes(option) ? draft.observations.filter(item => item !== option) : [...(draft.observations ?? []), option] })} type="button">{option}</button>)}</div>{draft.observations?.includes('其他') && <input aria-label="其他影响睡眠的情况" maxLength={120} onChange={event => setDraft({ ...draft, otherNote: event.target.value })} value={draft.otherNote ?? ''} />}</>}</section>
     {minutes > 1440 && <p className="sleep-editor-hint">这是一段较长的睡眠，请核对实际日期与时间。</p>}{validation && <p className="sleep-validation" role="alert">{validation}</p>}{error && <p className="sleep-save-error" role="alert">{error}</p>}
-    <div className="sleep-editor-save"><HohoButton disabled={Boolean(validation)} fullWidth loading={saving} onClick={() => onSave({ ...draft, timeZone: zone, durationMinutes: minutes, ...(!draft.observations?.includes('其他') ? { otherNote: undefined } : {}) })} size="large">保存记录</HohoButton>{onSkip && <HohoButton disabled={saving} fullWidth onClick={onSkip} variant="secondary">本次未发生</HohoButton>}</div>
+    {allowStatusChange && <DailyRecordSettings kind="sleep" seed={{ kind: draft.kind, endTime: clock(draft.wakeAt) }} />}
+    <div className="sleep-editor-save"><HohoButton disabled={Boolean(validation)} fullWidth loading={saving} onClick={() => onSave({ ...draft, timeZone: zone, durationMinutes: minutes, ...(!draft.observations?.includes('其他') ? { otherNote: undefined } : {}) })} size="large"><DailySaveText /></HohoButton>{onSkip && <HohoButton disabled={saving} fullWidth onClick={onSkip} variant="secondary">本次未发生</HohoButton>}</div>
   </div>
 }
 

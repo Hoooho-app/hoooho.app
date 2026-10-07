@@ -115,11 +115,11 @@ export function HealthEventsPage() {
     return () => window.removeEventListener('hoooho:manual-record', openManualRecord)
   }, [])
   const finishSave = () => { submissionKeyRef.current = ''; setRevision((value) => value + 1); void retry() }
-  const saveJournalRecord = async (content: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
+  const saveJournalRecord = async (content: string, occurredAt: string, inputChannel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata, daily?: import('../../services/dailyRecords').DailyExtras) => {
     occurredAt = journalOccurrenceAt(journal, occurredAt)
     if (!token || !currentMember || currentMember.id !== currentMemberId) throw new Error('记录对象尚未准备好')
     if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID().replaceAll('-', '')
-    const input: QuickRecordCreateInput = { memberId: currentMemberId, content, occurredAt, inputChannel, title: normalizeHealthEventTitle('', content), idempotencyKey: submissionKeyRef.current, journal, ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {}) }
+    const input: QuickRecordCreateInput = { memberId: currentMemberId, content, occurredAt, inputChannel, title: normalizeHealthEventTitle('', content), idempotencyKey: submissionKeyRef.current, journal, ...daily, ...(photos.photoIds.length ? { photoDraftId: photos.draftId, photoIds: photos.photoIds } : {}) }
     const { duplicate } = journal.sleep?.status === 'ongoing' || journal.diet?.status === 'ongoing' ? { duplicate: null } : await quickRecordService.checkDuplicate(input, token)
     if (duplicate) return new Promise<string>((resolve, reject) => setPendingDuplicate({ duplicate, input, resolve, reject }))
     const saved = await quickRecordService.create(input, token)
