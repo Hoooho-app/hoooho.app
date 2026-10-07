@@ -62,7 +62,7 @@ function FoodLabelSession({memberId}:{memberId:string}){
   const retake=()=>{clear();camera.current?.click()}
   const ingredients=result?.displayIngredients??result?.ingredients??[]
   const explanation=(row:Ingredient)=>row.reasonTranslations?.[language]??(language==='zh'?row.reason:'')
-  const tag=(row:Ingredient)=>row.status==='known'?<HealthTag tone="error">{copy.known}</HealthTag>:row.status==='common'||row.status==='possible'?<HealthTag tone="warning" className={`food-label-risk-${row.status}`}>{row.status==='common'?copy.common:copy.possible}</HealthTag>:<HealthTag tone="neutral">{row.status==='clear'&&result?.assessmentComplete!==false?copy.clear:copy.incomplete}</HealthTag>
+  const tag=(row:Ingredient)=>row.status==='known'?<HealthTag tone="error">{copy.known}</HealthTag>:row.status==='common'||row.status==='possible'?<HealthTag tone="warning" className={`food-label-risk-${row.status}`}>{row.status==='common'?copy.common:copy.possible}</HealthTag>:<HealthTag tone={row.status==='clear'&&result?.assessmentComplete!==false?'success':'neutral'}>{row.status==='clear'&&result?.assessmentComplete!==false?copy.clear:copy.incomplete}</HealthTag>
   return <main className="app-shell food-label-page">
     <WebPageHeader title={screen==='entry'?copy.entry:copy.result} onBack={back}/>
     <div className="food-label-content">

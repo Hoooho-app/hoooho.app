@@ -192,6 +192,8 @@ test('each ingredient has exactly one bounded assessment label, including incomp
   await prepare(page,'zh-CN',ingredients)
   await page.goto('/food-label');await page.locator('input[multiple]').setInputFiles(photo)
   await expect(page.locator('.food-label-ingredients .hoho-health-tag')).toHaveText(['未见已知冲突','已知冲突','常见过敏原','可能风险','核对未完成'])
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag').first()).toHaveAttribute('data-tone','success')
+  await expect(page.locator('.food-label-ingredients .hoho-health-tag').last()).toHaveAttribute('data-tone','neutral')
   await expect(page.locator('.food-label-explanation')).toHaveCount(2)
   await expect(page.locator('.food-label-summary')).toHaveText('已识别5项 · 1项已知冲突')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
