@@ -25,7 +25,6 @@ import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
 import { HomeNurseDialogue } from './HomeNurseDialogue'
 import './nurseStation.css'
-import { FollowUpHome } from '../../features/case-continuity/CaseCards'
 import { readHomeReading, writeHomeReading } from './homeReadings'
 
 const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '': '未填写' } as const
@@ -199,7 +198,7 @@ export function NurseStationPage() {
         ) : listState.status === 'error' && !member ? (
           <section className="nurse-station-load-error"><p>当前人物资料加载失败，已保存内容没有改变。</p><button onClick={retryEvents} type="button">重新加载</button></section>
         ) : member ? (
-          <section className="nurse-station-hero">
+          <section className="nurse-station-hero nurse-station-hero--compact">
             <div className="nurse-station-hero__main">
               <span className="nurse-station-copy" role="presentation">
               <button aria-label={`选择孩子，当前${member.name}`} className="nurse-station-identity" onClick={() => setChildSelectionRequest(v => v + 1)} type="button">
@@ -208,7 +207,6 @@ export function NurseStationPage() {
               </button>
               <span className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</span>
               </span>
-              <span className="nurse-station-visual"><NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly /></span>
             </div>
             <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">
               <button aria-label={`身高，${growthValue(growth?.heightCm)}，查看成长数据`} onClick={() => openGrowthData('height')} type="button"><small>身高</small><strong>{growthValue(growth?.heightCm)}</strong>{growth?.heightCm != null && <em>cm</em>}</button>
@@ -218,8 +216,7 @@ export function NurseStationPage() {
           </section>
         ) : null}
         {member && (listState.status === 'error' || growthStatus === 'error') && <p className="nurse-station-sync-notice" role="status">资料同步失败，已读取的数据仍保留。</p>}
-        {member && <HomeNurseDialogue key={`${identityId}:${currentMemberId}`} />}
-        <FollowUpHome key={currentMemberId} />
+        {member && <HomeNurseDialogue key={`${identityId}:${currentMemberId}`} nurseVisual={<NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly />} />}
         <HomeEntries
           medicationCount={medicationCount}
           medicationStatus={medicationStatus}
