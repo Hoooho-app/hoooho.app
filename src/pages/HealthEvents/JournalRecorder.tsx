@@ -27,6 +27,9 @@ import { SymptomRecordFlow } from './SymptomRecordFlow'
 import { MedicationRecordFlow } from './MedicationRecordFlow'
 import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 import { VisitRecordFlow } from './VisitRecordFlow'
+import { DailyRecordScope } from './DailyRecordSettings'
+import type { DailyExtras } from '../../services/dailyRecords'
+import type { ReactNode } from 'react'
 
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'topical-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen | 'ai'; depth: number; dietKind: DietRecordKind | null }
@@ -35,7 +38,7 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   initialDietKind?: DietRecordKind
-  onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
+  onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata, daily?: DailyExtras) => Promise<string>
   onSaved?: (message: string) => void
 }) {
   const location = useLocation()
@@ -46,6 +49,13 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => initialDietKind ?? 'feeding')
   const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
   const [saving, setSaving] = useState(false)
+  const [dailyInput, setDailyInput] = useState<DailyExtras>({})
+  const [dailyReady, setDailyReady] = useState(false)
+  const confirmWithDaily = async (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata) => {
+    if (!dailyReady) throw new Error('每天设置尚未加载，请先重试加载。输入内容会保留。')
+    return onConfirm(text, occurredAt, channel, photos, journal, dailyInput)
+  }
+  const withDaily = (form: ReactNode) => <DailyRecordScope.Provider value={{ memberId, token, day: selectedDay, input: dailyInput, onChange: setDailyInput, onReady: setDailyReady }}>{form}</DailyRecordScope.Provider>
   const flowIdRef = useRef(globalThis.crypto?.randomUUID?.() ?? `recorder-${Date.now()}`)
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, inset: 0 })
   const historyEntry = () => (window.history.state?.hooohoRecorder ?? null) as RecorderHistoryEntry | null
@@ -92,13 +102,13 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   const sourceBack = initialCategory ? closeRecorder : () => backOneLevel('categories')
   const dailyBack = initialCategory ? closeRecorder : () => backOneLevel('daily-types')
   const occurrenceDay = selectedDay
-  if (screen === 'topical-form') return <TopicalRecordFlow memberId={memberId} token={token} selectedDay={occurrenceDay} today={today} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)}/>
-  if (screen === 'diet-form' && dietKind) return <DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'bowel-form') return <BowelRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'sleep-form') return <SleepRecordFlow draft={sleepDraft} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'topical-form') return withDaily(<TopicalRecordFlow memberId={memberId} token={token} selectedDay={occurrenceDay} today={today} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)}/>)
+  if (screen === 'diet-form' && dietKind) return withDaily(<DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
+  if (screen === 'bowel-form') return withDaily(<BowelRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
+  if (screen === 'sleep-form') return withDaily(<SleepRecordFlow draft={sleepDraft} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
   if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'medication-form') return <MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'medication-form') return withDaily(<MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
   if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; image: string }[] = [

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { validateJournal } from '../events/journal-metadata.mjs'
+import { DailyRecordService } from './daily-record-service.mjs'
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -54,6 +55,7 @@ export class RoutineService {
     this.preferences = new JsonStore(path.join(options.dataDirectory, 'routine-preferences.json'), { preferences: [] })
     this.templates = new JsonStore(path.join(options.dataDirectory, 'routine-templates.json'), { templates: [] })
     this.overrides = new JsonStore(path.join(options.dataDirectory, 'routine-overrides.json'), { overrides: [] })
+    this.daily = new DailyRecordService(this, options)
   }
 
   async assertMember(accountId, memberId) {

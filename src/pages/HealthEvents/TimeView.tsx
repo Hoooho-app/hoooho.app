@@ -10,9 +10,11 @@ import { journalCategoryLabels, journalListSummary, shiftJournalDate, type Journ
 import { useJournal } from './useJournal'
 import { useRoutineTracks } from './useRoutineTracks'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
+import { DailyBatchSheet, DailyInstanceSheet, DailyManagementSheet, useDailyInstances } from './DailyRecordSheets'
+import type { DailyInstance, DailyKind } from '../../services/dailyRecords'
 
 type TimelineItemBase = { createdTime: number; hour: number; key: string; minute: number; sortTime: number }
-type TimelineItem = TimelineItemBase & ({ kind: 'record'; entry: JournalEntry } | { kind: 'hour-divider' })
+type TimelineItem = TimelineItemBase & ({ kind: 'record'; entry: JournalEntry } | { kind: 'automatic'; instance: DailyInstance } | { kind: 'hour-divider' })
 
 function clockLabel(hour: number, minute: number) { return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` }
 
@@ -48,8 +50,12 @@ function timelineRowClass(item: TimelineItem) {
 }
 
 export function TimeView({ memberId, token, day, today, focusRecord, onFocusHandled, onDayChange, onRecordOpen, onRoutineRecorded, revision, onContext, sortOrder }: { memberId: string; token: string; day: string; today: string; focusRecord?: { recordId: string; day: string; revision: number; entry?: JournalEntry } | null; onFocusHandled?: () => void; onDayChange: (day: string) => void; onRecordOpen: (eventId: string, recordId: string, options?: { correctSleep?: boolean }) => void; onRoutineRecorded?: () => void; revision: number; onContext: (context: { memberId: string; eventId: string | null }) => void; sortOrder: 'desc' | 'asc' }) {
+  const [automatic, setAutomatic] = useState<DailyInstance | null>(null), [batchOpen, setBatchOpen] = useState(false), [management, setManagement] = useState<{ kind?: DailyKind } | null>(null)
   const navigate = useNavigate(); const [localSortOrder, setLocalSortOrder] = useState<'desc' | 'asc'>(() => sessionStorage.getItem('hoooho:journal-sort') === 'asc' ? 'asc' : sortOrder); const [routineRevision, setRoutineRevision] = useState(0); const [setupOpen, setSetupOpen] = useState(false); const [highlightedRecordId, setHighlightedRecordId] = useState(''); const [savedNotice, setSavedNotice] = useState(''); const [now, setNow] = useState(() => new Date()); const timeViewRef = useRef<HTMLElement>(null); const didInitialScrollRef = useRef('')
   const { entries, loading, error, retry } = useJournal(memberId, token, revision); const routines = useRoutineTracks(memberId, today, token, routineRevision + revision)
+  const daily = useDailyInstances(memberId, day, token, routineRevision + revision)
+  const refreshDaily = () => { setRoutineRevision(value => value + 1); onRoutineRecorded?.() }
+  useEffect(() => { setAutomatic(null); setBatchOpen(false); setManagement(null) }, [memberId])
   const timelineEntries = useMemo(() => focusRecord?.entry && !entries.some((entry) => entry.id === focusRecord.recordId) ? [...entries, focusRecord.entry] : entries, [entries, focusRecord]); const dayEntries = useMemo(() => entriesForDay(timelineEntries, day, now), [day, now, timelineEntries])
 
   useEffect(() => { let interval = 0; let timeout = 0; const update = () => setNow(new Date()); const schedule = () => { window.clearTimeout(timeout); window.clearInterval(interval); timeout = window.setTimeout(() => { update(); interval = window.setInterval(update, 60_000) }, 60_000 - Date.now() % 60_000 + 25) }; const onVisibilityChange = () => { if (document.visibilityState === 'visible') { update(); schedule() } }; schedule(); document.addEventListener('visibilitychange', onVisibilityChange); return () => { window.clearTimeout(timeout); window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) } }, [])
@@ -60,6 +66,10 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
       const at = new Date(journalOccurrenceAt(entry, entry.occurredAt))
       return { kind: 'record', entry, createdTime: Date.parse(entry.createdAt), hour: at.getHours(), minute: at.getMinutes(), key: `record:${entry.id}`, sortTime: at.getTime() }
     })
+    for (const instance of daily.items.filter(item => item.status === 'unconfirmed' || item.status === 'confirming')) {
+      const at = new Date(instance.plannedAt)
+      items.push({ kind: 'automatic', instance, createdTime: Date.parse(instance.generatedAt), hour: at.getHours(), minute: at.getMinutes(), key: `automatic:${instance.id}`, sortTime: at.getTime() })
+    }
     const lastHour = day === today ? now.getHours() : 23
     for (const hour of orderedHours(localSortOrder).filter(hour => hour <= lastHour)) {
       const at = new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`)
@@ -67,7 +77,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
     }
     const direction = localSortOrder === 'asc' ? 1 : -1
     return items.sort((left, right) => direction * (left.sortTime - right.sortTime) || (left.kind === 'hour-divider' ? -1 : right.kind === 'hour-divider' ? 1 : 0) || right.createdTime - left.createdTime || right.key.localeCompare(left.key))
-  }, [day, dayEntries, localSortOrder, now, today])
+  }, [day, dayEntries, localSortOrder, now, today, daily.items])
 
   const storageKey = `hoooho:journal-grid-scroll:${memberId}:${day}:${localSortOrder}`
   useLayoutEffect(() => { if (loading || routines.loading || didInitialScrollRef.current === storageKey) return; const scroller = timeViewRef.current?.querySelector<HTMLElement>('.journal-scroll-region'); if (!scroller) return; didInitialScrollRef.current = storageKey; const saved = sessionStorage.getItem(storageKey); scroller.scrollTop = saved === null ? 0 : Number(saved) }, [loading, routines.loading, storageKey])
@@ -81,7 +91,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
     return <div className={timelineRowClass(item)} data-hour={item.hour} data-hour-divider={item.kind === 'hour-divider' ? label : undefined} data-time={item.kind === 'hour-divider' ? undefined : label} key={item.key}>
       <time>{label}</time>
       <span aria-hidden="true" className="journal-timeline-marker"><span /></span>
-      <div className="journal-hour-cell">{item.kind === 'hour-divider' ? <span aria-hidden="true" className="journal-hour-divider-line" /> : <RecordRow confirmed={false} entry={item.entry} highlighted={highlightedRecordId === item.entry.id} onOpen={() => onRecordOpen(item.entry.eventId, item.entry.id)} />}</div>
+      <div className="journal-hour-cell">{item.kind === 'hour-divider' ? <span aria-hidden="true" className="journal-hour-divider-line" /> : item.kind === 'automatic' ? <article className="journal-record journal-grid-record" data-automatic-id={item.instance.id}><button className="journal-record-main" onClick={() => setAutomatic(item.instance)} type="button"><JournalCategoryIcon category={item.instance.journal.categories?.[0] ?? 'other'} dietKind={item.instance.journal.diet?.kind}/><span className="journal-record-summary">{item.instance.name} · <span className="journal-automatic-source">自动记录 · {item.instance.status === 'confirming' ? '确认中' : '未确认'}</span></span><ChevronRight size={16}/></button></article> : <RecordRow confirmed={daily.items.some(instance => instance.status === 'confirmed' && instance.recordId === item.entry.id)} entry={item.entry} highlighted={highlightedRecordId === item.entry.id} onOpen={() => onRecordOpen(item.entry.eventId, item.entry.id)} />}</div>
     </div>
   })
   if (day === today) {
@@ -94,6 +104,11 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
     <label className="journal-year-picker"><span>{day.slice(0, 4)}</span><input aria-label="选择年月" max={today.slice(0, 7)} onChange={(event) => selectMonth(event.target.value)} type="month" value={day.slice(0, 7)} /></label><span className="journal-yesterday-entry"><HohoButton aria-label="前一天" onClick={() => onDayChange(shiftJournalDate(day, -1))} size="icon" title="前一天" variant="ghost"><ChevronLeft size={21} /></HohoButton></span><label aria-live="polite" className="journal-day-picker"><span><b>{formatPlainMonthDay(day)}</b></span><input aria-label="选择日期" max={today} onChange={(event) => onDayChange(event.target.value)} type="date" value={day} /></label><HohoButton aria-label="后一天" disabled={day >= today} onClick={() => onDayChange(shiftJournalDate(day, 1))} size="icon" title="后一天" variant="ghost"><ChevronRight size={21} /></HohoButton><HohoButton aria-label="搜索健康随记" onClick={() => navigate('/health-events/search', { state: { journalReturn: { day, scrollTop: currentScrollTop() } } })} size="icon" title="搜索" variant="ghost"><Search size={19} /></HohoButton><HohoButton aria-label={`记录顺序：${localSortOrder === 'desc' ? '最新在上' : '最新在下'}，点击切换`} aria-pressed={localSortOrder === 'asc'} onClick={() => setLocalSortOrder((value) => { const next = value === 'desc' ? 'asc' : 'desc'; sessionStorage.setItem('hoooho:journal-sort', next); return next })} size="icon" title="排序" variant="ghost"><ArrowUpDown size={19} /></HohoButton><HohoButton aria-label="调整作息" onClick={() => setSetupOpen(true)} size="icon" title="调整作息" variant="ghost"><Settings size={20} /></HohoButton>
   </div><div className="journal-scroll-region">
     {(loading || routines.loading) && <div className="journal-grid-loading" role="status">正在加载时间轴…</div>}{error && <StatusNotice action={<HohoButton onClick={retry} variant="secondary">重新加载</HohoButton>} title={entries.length ? '记录刷新失败，正在显示上次内容' : error} tone="error" />}{routines.error && <StatusNotice action={<HohoButton onClick={routines.retry} variant="secondary">重新加载</HohoButton>} title="日常作息加载失败" tone="error" />}
+    {daily.error && <StatusNotice tone="error" title={daily.error} action={<HohoButton variant="secondary" onClick={daily.retry}>重试自动记录</HohoButton>}/>}
+    {day === today && daily.items.some(item => item.status === 'unconfirmed') && <HohoButton variant="ghost" onClick={() => setBatchOpen(true)}>核对今天的自动记录</HohoButton>}
     <div aria-label={`${day} 全天时间轴`} className="journal-day-grid">{timelineRows}</div>
-  </div><RoutineSetupSheet effectiveFrom={today} memberId={memberId} onClose={() => setSetupOpen(false)} onSaved={(message) => { refreshRoutines(); showSaved(message) }} open={setupOpen} routineDay={routines.data} token={token} />{savedNotice && <div aria-live="polite" className="journal-saved-toast" role="status">{savedNotice}</div>}</section>
+  </div>{automatic && <DailyInstanceSheet key={automatic.id} item={automatic} memberId={memberId} token={token} onClose={() => setAutomatic(null)} onChanged={refreshDaily} onManage={kind => { setAutomatic(null); setManagement({ kind }) }}/>}
+  {batchOpen && <DailyBatchSheet items={daily.items} memberId={memberId} token={token} onClose={() => setBatchOpen(false)} onChanged={refreshDaily}/>}
+  {management && <DailyManagementSheet memberId={memberId} token={token} initialKind={management.kind} onClose={() => setManagement(null)} onChanged={refreshDaily} onLegacy={() => { setManagement(null); setSetupOpen(true) }}/>}
+  <RoutineSetupSheet effectiveFrom={today} memberId={memberId} onDaily={() => { setSetupOpen(false); setManagement({}) }} onClose={() => setSetupOpen(false)} onSaved={(message) => { refreshRoutines(); showSaved(message) }} open={setupOpen} routineDay={routines.data} token={token} />{savedNotice && <div aria-live="polite" className="journal-saved-toast" role="status">{savedNotice}</div>}</section>
 }

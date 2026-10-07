@@ -86,6 +86,17 @@ const healthProfileFacts = new HealthProfileFactService(sharedOptions)
 const healthInformationCandidates = new HealthInformationCandidateService({ ...sharedOptions, profileFacts: healthProfileFacts })
 const growthMeasurements = new GrowthMeasurementService(sharedOptions)
 const routines = new RoutineService({ ...sharedOptions, events, records, quickRecords })
+// Durable due instances are unique in storage; this runs without a browser.
+let dailyTickRunning = false
+const dailyTick = async () => {
+  if (dailyTickRunning) return
+  dailyTickRunning = true
+  try { await routines.daily.materialize() } catch { console.warn('[Hoooho routines] daily generation unavailable; will retry') }
+  finally { dailyTickRunning = false }
+}
+void dailyTick()
+const dailyTimer = setInterval(() => void dailyTick(), 30_000)
+dailyTimer.unref()
 const medicationReminders = new MedicationReminderService({ ...sharedOptions, events, records })
 const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
@@ -462,6 +473,22 @@ async function handleGrowthMeasurements(request, response, pathname, searchParam
 }
 
 async function handleRoutines(request, response, pathname, searchParams) {
+  const sourceMatch = /^\/api\/routines\/([^/]+)\/daily\/source\/([^/]+)$/.exec(pathname)
+  if (sourceMatch) {
+    if (request.method !== 'GET') sendJson(response, 405, { error: { message: '请求方法不支持' } })
+    else sendJson(response, 200, await routines.daily.source(await readAccountId(request), decodeRouteValue(sourceMatch[1]), decodeRouteValue(sourceMatch[2])))
+    return true
+  }
+  const dailyMatch = /^\/api\/routines\/([^/]+)\/daily(?:\/instances(?:\/([a-f0-9]{64}))?)?$/.exec(pathname)
+  if (dailyMatch) {
+    const accountId = await readAccountId(request), memberId = decodeRouteValue(dailyMatch[1]), id = dailyMatch[2]
+    if (pathname.endsWith('/daily') && request.method === 'GET') sendJson(response, 200, await routines.daily.settings(accountId, memberId))
+    else if (pathname.endsWith('/daily') && request.method === 'PATCH') sendJson(response, 200, await routines.daily.saveSettings(accountId, memberId, await readJson(request)))
+    else if (!id && request.method === 'GET') sendJson(response, 200, await routines.daily.instances(accountId, memberId, String(searchParams.get('day') ?? '')))
+    else if (id && request.method === 'POST') sendJson(response, 200, await routines.daily.act(accountId, memberId, id, await readJson(request)))
+    else sendJson(response, 405, { error: { message: '请求方法不支持' } })
+    return true
+  }
   const match = /^\/api\/routines\/([^/]+)(?:\/tracks\/([^/]+))?$/.exec(pathname)
   if (!match) return false
   const accountId = await readAccountId(request)
@@ -558,7 +585,10 @@ async function handleQuickRecords(request, response, pathname) {
     else if (photoId && request.method === 'DELETE') {await quickRecordPhotos.getOwnedPhoto(accountId,photoMemberId,draftId,photoId);symptomMediaJobs.cancel(photoId);sendJson(response,200,await quickRecordPhotos.delete(accountId,photoMemberId,draftId,photoId))}
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   } else if (pathname === '/api/quick-records/duplicate-check' && request.method === 'POST') sendJson(response, 200, await quickRecords.checkDuplicate(accountId, await readJson(request)))
-  else if (request.method === 'POST') sendJson(response, 201, await quickRecords.create(accountId, await readJson(request)))
+  else if (request.method === 'POST') {
+    const input = await readJson(request)
+    sendJson(response, 201, input.dailySettings || input.automaticInstanceId ? await routines.daily.saveWithRecord(accountId, input) : await quickRecords.create(accountId, input))
+  }
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true
 }
@@ -970,7 +1000,7 @@ const server = createServer(async (request, response) => {
     const status = Number.isInteger(error?.status) ? error.status : 500
     const code = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
     const safeAI = error instanceof MedicalSummaryError || error instanceof SafeAIProviderError || error instanceof AudioTranscriptionError
-    const message = status >= 500 && !(error instanceof AuthError) && !safeAI ? '服务器暂时不可用' : error.message
+    const message = status >= 500 && !(error instanceof AuthError) && !safeAI && error?.code !== 'DAILY_LINK_PENDING' ? '服务器暂时不可用' : error.message
     if (status >= 500 || (safeAI&&error.validation)) {
       if (safeAI) console.error('[Hoooho AI] request failed', JSON.stringify({ code, status, ...error.upstream, ...error.failureCodes,...(error.validation?{validation:error.validation}:{}) }))
       else console.error(error)

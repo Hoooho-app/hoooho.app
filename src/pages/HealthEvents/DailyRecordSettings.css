@@ -1,0 +1,15 @@
+.daily-record-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--hoho-space-3); }
+.daily-record-heading > .hoho-field { flex:1; min-width:0; }
+.daily-record-settings { display:grid; gap:var(--hoho-space-3); }
+.daily-record-settings small { color:rgb(var(--hoho-color-text-secondary)); font-size:var(--hoho-font-size-caption); }
+.daily-record-slot { display:grid; gap:var(--hoho-space-2); padding-block:var(--hoho-space-3); border-top:1px solid rgb(var(--hoho-color-border)); }
+.daily-record-fields { display:grid; gap:var(--hoho-space-2); }
+.daily-record-settings label,.daily-record-fields label { display:grid; gap:var(--hoho-space-2); font-size:var(--hoho-font-size-label); min-width:0; }
+.daily-record-settings select,.daily-record-fields select { width:100%; min-height:44px; border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-control); padding:var(--hoho-space-2); color:rgb(var(--hoho-color-text-primary)); background:rgb(var(--hoho-color-surface)); }
+.daily-toggle-fieldset { border:0; padding:0; margin:0; }
+.daily-record-fields .daily-record-check { display:flex; align-items:center; min-height:44px; }
+.daily-record-footer { display:flex; gap:var(--hoho-space-2); flex-wrap:wrap; }
+.daily-record-footer > button { flex:1; }
+.daily-batch-item { display:flex !important; align-items:center; min-height:44px; }
+.daily-batch-item small { display:block; }
+.journal-automatic-source { color:rgb(var(--hoho-color-text-secondary)); font-size:var(--hoho-font-size-caption); }

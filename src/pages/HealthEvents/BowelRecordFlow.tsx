@@ -6,6 +6,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalBowelDetails, JournalMetadata } from '../../types/journal'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type Draft = JournalBowelDetails & { occurredAt: string }
@@ -100,8 +101,9 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
       {draft.bloodObservation && draft.bloodObservation !== 'none-seen' && <p className="bowel-gentle-hint">建议拍照留存，方便之后继续观察</p>}
       <fieldset className="bowel-fieldset"><legend>还观察到什么？<span>（可多选）</span></legend><div className="bowel-choice-grid">{bowelObservations.map((option) => <button aria-pressed={draft.observations.includes(option)} key={option} onClick={() => updateObservation(option)} type="button">{option}</button>)}</div></fieldset>
       <section className="record-time-group"><OccurrenceTimeField model={occurrence} label="记录时间" /></section>
+      <DailyRecordSettings kind="bowel" />
       {error && <p className="diet-save-error" role="alert">{error}</p>}
-      <div className="diet-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={save} size="large">保存记录</HohoButton></div>
+      <div className="diet-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={save} size="large"><DailySaveText /></HohoButton></div>
     </div>
   </section></div>
 }
