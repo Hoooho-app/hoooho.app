@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Mic, Pause } from 'lucide-react'
-import { NurseHatIcon } from '../../components/common/NurseHatIcon'
+import { Mic, Pause, Stethoscope } from 'lucide-react'
+import { nurseGreetingText } from '../../../shared/nurse-greeting.mjs'
 import nursePortrait from '../../assets/nurse-triage/nurses-idle-loop-1-poster.webp'
 import { userInitial } from './userInitial'
 import type { JournalMetadata } from '../../types/journal'
@@ -12,7 +12,7 @@ import { RealtimeNurse } from './RealtimeNurse'
 import type { NurseDraft, NurseFields, NurseMetadata, NurseState, NurseTurn } from './types'
 
 const states: Record<NurseState, string> = { idle: '点击开始语音，跟护士说说本次情况', connecting: '正在连接，接通后即可说话', listening: '正在听，请继续说', processing: '护士正在理解，请稍等', speaking: '护士正在回复，你也可以直接说话', paused: '语音已暂停，点击继续语音', disconnected: '连接中断，点击重新连接', organizing: '正在整理，可保留草稿', reviewing: '请核对整理结果', saving: '正在保存', saved: '已保存', error: '语音未连接，可重试或改用文字' }
-export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onDiscard, onPaused, formContext, initialMode, resuming }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onDiscard: () => void; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text'; resuming?: boolean }) {
+export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onPaused, formContext, initialMode, resuming }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text'; resuming?: boolean }) {
   const entryHandled = useRef(false)
   const [playbackBlocked, setPlaybackBlocked] = useState(false)
   const [mode, setMode] = useState<'voice' | 'text'>(initialMode === 'text' ? 'text' : 'voice')
@@ -31,7 +31,7 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
   const playOpening=(value:NurseDraft)=>{
     if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)||value.turns.some(t=>t.role==='user')||sessionStorage.getItem(greetingKey)===value.id)return
     stopOpening();setOpeningNeedsPlay(true)
-    const speech=new SpeechSynthesisUtterance(value.turns[0].text);speech.lang='zh-CN'
+    const speech=new SpeechSynthesisUtterance(nurseGreetingText(value.turns[0].text, 0));speech.lang='zh-CN'
     speech.onstart=()=>{sessionStorage.setItem(greetingKey,value.id);if(active())setOpeningNeedsPlay(false)}
     speech.onend=()=>{opening.current=undefined}
     speech.onerror=()=>{opening.current=undefined;if(active())setOpeningNeedsPlay(sessionStorage.getItem(greetingKey)!==value.id)}
@@ -65,14 +65,6 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     catch (e) { setError(e instanceof Error ? e.message : '同步失败，原话保留'); setState('error') }
     finally { busy.current = false }
   }
-  const discard = async () => {
-    if (!draftRef.current || busy.current || !window.confirm('明确放弃这份未保存草稿？已保存的记录不会删除。')) return
-    const current = rtc.current; pause(); controller.current?.abort(); await current?.drain(); await sequence.current
-    busy.current = true
-    try { const latest = await nurseApi.get(memberId, token, draftRef.current.id); await nurseApi.change(memberId, token, latest, { discard: true }); sessionStorage.removeItem(pendingKey); pending.current = []; onDiscard(); onClose() }
-    catch (e) { setError(e instanceof Error ? e.message : '放弃未成功，草稿保留') }
-    finally { busy.current = false }
-  }
   const organize = async () => {
     if (busy.current || !draftRef.current) return
     busy.current = true; setError(''); stopOpening();rtc.current?.stop(); await rtc.current?.drain(); rtc.current = undefined
@@ -80,6 +72,10 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     if (pending.current.length) { setError('还有原话尚未同步，请先重试同步'); busy.current = false; return }
     const current = draftRef.current!
     if (!current.turns.some(t => t.role === 'user')) { setError('请先说出或填写本次情况'); busy.current = false; return }
+    const review = current.review
+    if (review && review.metadata.turns.length === current.turns.length && review.metadata.turns.every((turn, index) => turn.id === current.turns[index].id)) {
+      pause(); onApply(review.fields, review.metadata, review.form, true, current.warnings); onClose(); busy.current = false; return
+    }
     setState('organizing'); const abort = new AbortController(); controller.current = abort
     try {
       if (initialReview) accept(await nurseApi.change(memberId, token, current, { review: { ...initialReview, metadata: { ...initialReview.metadata, turns: current.turns } } }, abort.signal))
@@ -140,28 +136,24 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     {pendingCount > 0 && <div role="alert"><p>{pendingCount} 段原话尚未同步，保留在当前账号的本次页面草稿中。</p><HohoButton variant="secondary" onClick={() => void retrySync()} disabled={busy.current}>重试同步原话</HohoButton></div>}
     <p className="nurse-input-status" role="status">{mode === 'text' && ['idle','paused','error','disconnected'].includes(state) ? '文字模式，填写后发送给护士' : states[state]}</p>
     {mode === 'voice' ? <div className="nurse-voice-compose">
+      <div className="nurse-footer-actions"><HohoButton variant="secondary" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton><HohoButton variant="ghost" onClick={() => void switchMode('text')}>改用文字</HohoButton></div>
       <HohoButton className="nurse-voice-action" fullWidth size="large" onClick={playbackBlocked ? () => void rtc.current?.resumePlayback() : rtc.current ? pause : start} disabled={busy.current || !draft || pendingCount > 0}>
         {rtc.current && !playbackBlocked ? <Pause size={24} aria-hidden="true"/> : <Mic size={24} aria-hidden="true"/>}{voiceLabel}
       </HohoButton>
-      <HohoButton variant="ghost" onClick={() => void switchMode('text')}>改用文字</HohoButton>
     </div> : <div className="nurse-text-compose">
       <label className="nurse-compose">跟护士说<textarea ref={inputRef} className="hoho-textarea" maxLength={4000} value={input} onChange={e => setInput(e.target.value)}/></label>
-      <div className="nurse-text-actions"><HohoButton variant="ghost" onClick={() => void switchMode('voice')}>改用语音</HohoButton><HohoButton onClick={() => void send()} disabled={busy.current || pendingCount > 0 || !draft || !input.trim() || Boolean(rtc.current)}>发送</HohoButton></div>
+      <div className="nurse-footer-actions nurse-text-actions"><HohoButton variant="secondary" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton><HohoButton variant="ghost" onClick={() => void switchMode('voice')}>改用语音</HohoButton><HohoButton onClick={() => void send()} disabled={busy.current || pendingCount > 0 || !draft || !input.trim() || Boolean(rtc.current)}>发送</HohoButton></div>
     </div>}
   </>
-  return <BottomSheetSurface label="智能记录" title="智能记录" leading={<NurseHatIcon/>} dismissText="收起" open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} headerAction={<HohoButton variant="ghost" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton>} footer={composer}>
-    <p className="nurse-purpose">帮助整理本次记录，不代替医生问诊。</p>
-    <p className="nurse-purpose">收起会暂停语音并保留对话，再次打开可继续。</p>
+  return <BottomSheetSurface label="智能记录" title="智能记录" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} footer={composer}>
     {!draft && !error && <p role="status">正在恢复草稿…</p>}
     {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p></div>}
-    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map(turn => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}>
+    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}>
       {turn.role === 'user' ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span> : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label="值班护士"><CompleteImage src={nursePortrait} alt=""/></span>}
-      <div className="nurse-turn-content"><p>{turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>
+      <div className="nurse-turn-content"><p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>
+
     </div>)}</div>
     {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
     {preview && <p className="nurse-live-preview" aria-live="polite">{preview}（尚未完成）</p>}
-    {draft?.organizeSuggested && <p>可以先整理已有内容，由你确认是否保存。</p>}
-    {draft?.review && <HohoButton variant="secondary" onClick={() => { pause(); onApply(draft.review!.fields, draft.review!.metadata, draft.review!.form, true, draft.warnings); onClose() }}>继续核对上次草稿</HohoButton>}
-    <div className="nurse-controls"><HohoButton variant="ghost" onClick={() => void close()}>保留草稿，返回填写</HohoButton><HohoButton variant="ghost" disabled={busy.current} onClick={() => void discard()}>放弃未保存草稿</HohoButton></div>
   </BottomSheetSurface>
 }
