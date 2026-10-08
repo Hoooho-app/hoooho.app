@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { NURSE_GREETING } from '../../shared/nurse-greeting.mjs'
 import { TokenService } from '../../server/auth/token-service.mjs'
 import { mkdir, readFile } from 'node:fs/promises'
 const token = new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
@@ -14,7 +15,7 @@ test('文字对话、备注修改删除、草稿恢复、原子保存及同记�
  const form=page.getByRole('dialog',{name:'症状记录',exact:true})
  await form.getByRole('button',{name:/^智能记录/,exact:true}).click()
  const panel=page.getByRole('dialog',{name:'智能记录',exact:true})
- await expect(panel.getByText('你好，我是 Hoooho 的值班 AI 护士，可以帮你理清这次的症状并整理成记录。孩子哪里不舒服？你可以直接跟我说。',{exact:true})).toBeVisible()
+ await expect(panel.getByText(NURSE_GREETING,{exact:true})).toBeVisible()
  await panel.getByRole('button',{name:'改用文字',exact:true}).click()
  await panel.getByLabel('跟护士说').fill('脸颊发红发痒，没有发热。我担心鸡蛋过敏，涂过保湿霜好像没变化。')
  await panel.getByRole('button',{name:'发送',exact:true}).click()
@@ -30,7 +31,7 @@ test('文字对话、备注修改删除、草稿恢复、原子保存及同记�
  await page.reload()
  const resumed=page.getByRole('dialog',{name:'症状记录',exact:true})
  await resumed.getByRole('button',{name:/^智能记录/,exact:true}).click()
- await panel.getByRole('button',{name:'继续核对上次草稿'}).click()
+ await panel.getByRole('button',{name:'整理到表单',exact:true}).click()
  await expect(resumed.getByLabel('哪里不舒服')).toHaveValue('人工确认：脸颊发红，未发热。')
  await expect(resumed.getByRole('textbox',{name:'内容',exact:true})).toHaveCount(1)
  await expect(resumed.getByRole('textbox',{name:'内容',exact:true})).toHaveValue('人工确认：担心鸡蛋相关，尚未确认。')
@@ -75,9 +76,10 @@ test('文字对话、备注修改删除、草稿恢复、原子保存及同记�
   expect((await request.put('/api/members/empty-child/visit-sheet',{headers,data:{expectedVersion:state.report?.version??state.expectedVersion??0,requestId:crypto.randomUUID(),focus:{mode:'source',sourceId:'record:'+records[0].id},caseDetails:{},question:'',notes:{},selection:null,selectedPhotoIds:[]}})).ok()).toBe(true)
   await page.goto('/visit-summary');await page.getByRole('button',{name:'导出情况单',exact:true}).click()
   const exporter=page.getByRole('dialog',{name:'导出情况单'})
-  const briefDownload=page.waitForEvent('download');await exporter.getByRole('button',{name:'保存重点摘要（文本）',exact:true}).click();const briefPath=testInfo.outputPath('nurse-brief.txt');await(await briefDownload).saveAs(briefPath);const brief=await readFile(briefPath,'utf8');expect(brief).toContain('更新备注');expect(brief).not.toContain('有没有影响睡眠？');expect(brief).not.toContain(token)
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{(window as any).__nurseCopiedText=text}}}))
+  await exporter.getByRole('button',{name:'复制纯文本',exact:true}).click();await expect(exporter.getByRole('status')).toContainText('已复制纯文本');const brief=await page.evaluate(()=>(window as any).__nurseCopiedText as string);expect(brief).toContain('更新备注');expect(brief).not.toContain('有没有影响睡眠？');expect(brief).not.toContain(token)
   const download=page.waitForEvent('download')
-  await exporter.getByRole('button',{name:'保存离线情况单（HTML）',exact:true}).click();const path=testInfo.outputPath('nurse-source.html');await(await download).saveAs(path)
+  await exporter.getByRole('button',{name:'保存 HTML 情况单',exact:true}).click();const path=testInfo.outputPath('nurse-source.html');await(await download).saveAs(path)
   const html=await readFile(path,'utf8');expect(html).toContain('智能记录对话原文（只读）');expect(html).toContain('脸颊发红发痒，没有发热。我担心鸡蛋过敏，涂过保湿霜好像没变化。');expect(html).toContain('更新备注');expect(html).not.toContain(token)
 })
 test('权限拒绝、供应商失败、未同步原话重试及空会话禁止整理',async({page})=>{
@@ -102,9 +104,10 @@ test('权限拒绝、供应商失败、未同步原话重试及空会话禁止�
  fail=false
  await panel.getByRole('button',{name:'重试同步原话'}).click()
  await expect(panel.getByRole('button',{name:'重试同步原话'})).toHaveCount(0)
- page.once('dialog',d=>d.accept())
- await panel.getByRole('button',{name:'放弃未保存草稿'}).click()
+ await panel.getByRole('button',{name:'收起',exact:true}).click()
  await expect(panel).toHaveCount(0)
+ await form.getByRole('button',{name:'智能记录 · 继续',exact:true}).click()
+ await expect(panel.locator('.nurse-turn--user')).toContainText('脸颊发红发痒，我担心鸡蛋相关。')
 })
 
 
@@ -198,6 +201,11 @@ test('voice-first composer uses one main action, preserves unsent text across mo
  await expect(panel.getByRole('textbox')).toHaveCount(0)
  await expect(panel.getByRole('button',{name:'发送',exact:true})).toHaveCount(0)
  await expect(panel.locator('input[type=checkbox]')).toHaveCount(0)
+ await expect(panel.locator('.hoho-bottom-sheet__header .lucide-stethoscope')).toBeVisible()
+ await expect(panel.locator('.hoho-bottom-sheet__footer').getByRole('button',{name:'整理到表单',exact:true})).toBeVisible()
+ await expect(panel.locator('.hoho-bottom-sheet__header').getByRole('button',{name:'整理到表单',exact:true})).toHaveCount(0)
+ await expect(panel.getByText('可以先整理已有内容，由你确认是否保存。',{exact:true})).toHaveCount(0)
+ await expect(panel.getByRole('button',{name:/保留草稿，返回填写|放弃未保存草稿/})).toHaveCount(0)
  await panel.locator('.nurse-avatar--assistant img').evaluate((img:HTMLImageElement)=>img.decode())
  await mkdir('outputs/ai-nurse',{recursive:true})
  await page.screenshot({path:`outputs/ai-nurse/${testInfo.project.name}-smart-record-voice.png`})
@@ -211,7 +219,7 @@ test('voice-first composer uses one main action, preserves unsent text across mo
  await expect(panel.getByLabel('跟护士说')).toHaveValue(text)
  await panel.getByRole('button',{name:'发送',exact:true}).click()
  await expect(panel.getByText('有没有影响睡眠？',{exact:true})).toBeVisible()
- await expect(panel.locator('.nurse-avatar--user')).toHaveText('L')
+ await expect(panel.locator('.nurse-avatar--user')).toHaveText('刘')
  await expect(panel.locator('.nurse-turn strong')).toHaveCount(0)
  await panel.getByRole('button',{name:'改用语音',exact:true}).click()
  await expect(panel.getByRole('button',{name:'继续语音',exact:true})).toBeVisible()
