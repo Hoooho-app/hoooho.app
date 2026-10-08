@@ -181,7 +181,7 @@ export async function prepareAvatarPhoto(file: File, selection: AvatarPhotoCropS
       const blob = await encodePreferred(canvas, step.quality)
       canvas.width = 1
       canvas.height = 1
-      if (!blob || blob.size > AVATAR_PHOTO_MAX_BINARY_BYTES) continue
+      if (!blob || blob.size > Math.min(16 * 1024, AVATAR_PHOTO_MAX_BINARY_BYTES)) continue
 
       const dataUrl = await blobToDataUrl(blob)
       if (dataUrl.length <= AVATAR_PHOTO_MAX_DATA_URL_LENGTH) return dataUrl

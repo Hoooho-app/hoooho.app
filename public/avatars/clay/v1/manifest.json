@@ -3,8 +3,8 @@
   "style": "hoooho-clay-3d",
   "assetType": "complete-avatar",
   "dimensions": {
-    "width": 512,
-    "height": 512,
+    "width": 256,
+    "height": 256,
     "format": "webp",
     "colorMode": "rgba",
     "transparentCorners": true

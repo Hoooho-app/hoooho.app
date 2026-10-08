@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import type { VisitPhoto, VisitPhotoDetail, VisitSheet, VisitSource } from '../../types/visitSheet'
@@ -6,24 +7,40 @@ import { useReportPhotoDraft } from './useReportPhotoDraft'
 import { reportTime } from './ReportChapter'
 import { Play } from 'lucide-react'
 
-export async function readPhoto(source: VisitSource, token: string, signal?: AbortSignal) {
-  const resourcePath=source.contentPath && /^\/api\/members\/[^/]+\/visit-sheet\/resources\/[a-f0-9]{24}$/.test(source.contentPath) ? source.contentPath : `/api/events/${encodeURIComponent(source.eventId!)}/attachments/${encodeURIComponent(source.attachmentId!)}/content`
+// Short-lived memory cache only: no personal images are written to a browser disk cache.
+const photoCache = new Map<string, { blob: Blob; expires: number }>()
+let photoCacheToken = ''
+export async function readPhoto(source: VisitSource, token: string, signal?: AbortSignal, variant: 'content' | 'preview' = 'content') {
+  if (photoCacheToken !== token) { photoCache.clear(); photoCacheToken = token }
+  const cacheKey = `${source.contentPath ?? `${source.eventId}:${source.attachmentId}`}:${source.updatedAt}:${variant}`
+  const cached = photoCache.get(cacheKey)
+  if (cached && cached.expires > Date.now()) return cached.blob
+  photoCache.delete(cacheKey)
+  const resourcePath=source.contentPath && /^\/api\/members\/[^/]+\/visit-sheet\/resources\/[a-f0-9]{24}$/.test(source.contentPath) ? source.contentPath + (variant === 'preview' ? '?preview=1' : '') : `/api/events/${encodeURIComponent(source.eventId!)}/attachments/${encodeURIComponent(source.attachmentId!)}/${variant}`
   const timeout=AbortSignal.timeout(source.mimeType?.startsWith('video/')?120000:30000)
   const response = await fetch(resourcePath, {headers:{Authorization:`Bearer ${token}`},signal:signal ? AbortSignal.any([signal,timeout]) : timeout,cache:'no-store'})
   if (!response.ok) throw new Error(response.status === 404 ? '照片已失效或原件不可用' : [401,403].includes(response.status) ? '照片权限已失效，请重新登录核验' : '照片读取失败，请重试')
   const blob = await response.blob()
   if (!/^(?:image\/(png|jpeg|webp|gif)|video\/(mp4|webm|quicktime))$/i.test(blob.type)) throw new Error('此附件不是可安全内嵌的影像；原件未附')
+  if (!signal?.aborted && photoCacheToken === token && blob.size <= 8 * 1024 * 1024 && !blob.type.startsWith('video/')) {
+    photoCache.set(cacheKey, { blob, expires: Date.now() + 30_000 })
+    let bytes = [...photoCache.values()].reduce((total, item) => total + item.blob.size, 0)
+    for (const [key, item] of photoCache) {
+      if (bytes <= 8 * 1024 * 1024 && photoCache.size <= 32) break
+      photoCache.delete(key); bytes -= item.blob.size
+    }
+  }
   return blob
 }
-export function PhotoImage({source,token,onOpen}:{source:VisitSource;token:string;onOpen?:()=>void}) {
+export function PhotoImage({source,token,onOpen,original=false}:{source:VisitSource;token:string;onOpen?:()=>void;original?:boolean}) {
   const [url,setUrl]=useState(''),[error,setError]=useState(''),[attempt,setAttempt]=useState(0)
   useEffect(()=>{
     const controller=new AbortController();let objectUrl=''
     setUrl('');setError('')
-    void readPhoto(source,token,controller.signal).then(blob=>{if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}}).catch(e=>{if(!controller.signal.aborted)setError(/abort|fetch|timeout|timed out/i.test(e.message)?'照片读取超时或连接中断，请重试':e.message)})
+    void readPhoto(source,token,controller.signal,original?'content':'preview').then(blob=>{if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}}).catch(e=>{if(!controller.signal.aborted)setError(/abort|fetch|timeout|timed out/i.test(e.message)?'照片读取超时或连接中断，请重试':e.message)})
     return()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl)}
-  },[source.id,source.updatedAt,token,attempt])
-  return error ? <div role="alert"><p>{error}</p><HohoButton variant="text" onClick={()=>setAttempt(n=>n+1)}>重试照片</HohoButton></div> : url ? <button className="visit-photo-image" onClick={onOpen} disabled={!onOpen} aria-label={`查看原图：${source.title}`}><img src={url} alt={source.title} onError={()=>setError('图片解码失败，请重试原件')}/></button> : <p role="status">正在读取照片…</p>
+  },[source.id,source.updatedAt,token,attempt,original])
+  return error ? <div role="alert"><p>{error}</p><HohoButton variant="text" onClick={()=>setAttempt(n=>n+1)}>重试照片</HohoButton></div> : url ? <button className="visit-photo-image" onClick={onOpen} disabled={!onOpen} aria-label={`查看原图：${source.title}`}><CompleteImage loading="lazy" src={url} alt={source.title} onError={()=>setError('图片解码失败，请重试原件')}/></button> : <p role="status">正在读取照片…</p>
 }
 export function PhotoCaption({photo,compact=false}:{photo:VisitPhoto;compact?:boolean}) {
   const complete=<><strong>{photo.location}</strong><br/>{photo.timeKind} {reportTime(photo.capturedAt || photo.uploadedAt)}<br/>{photo.title}</>
@@ -47,7 +64,7 @@ export function PhotoPicker({report,memberId,token,onClose,onSave,working,error}
     <p>保存后同步到健康随记。</p>
     <fieldset disabled={working} className="visit-photo-edit-fields"><div className="visit-image-toolbar"><HohoButton variant="secondary" disabled={working} onClick={()=>input.current?.click()}>从相册添加</HohoButton><HohoButton variant="secondary" onClick={()=>setExisting(v=>!v)}>选择已有记录</HohoButton></div><input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" multiple aria-label="选择要上传的影像" className="visit-file-input" onChange={e=>{draft.choose(e.target.files);e.target.value=''}}/>
     {draft.notice&&<p role="status">{draft.notice}</p>}
-    {draft.photos.map(p=><div className="visit-photo-choice" key={p.localId}>{p.file.type.startsWith('video/')||/\.(mp4|mov|webm)$/i.test(p.file.name)?<video src={p.url} controls playsInline preload="metadata" aria-label="待保存视频"/>:<img src={p.url} alt={p.file.name}/>}<p>{p.file.name} · {p.status==='uploaded'?'上传完成，待保存':p.status==='uploading'?'处理中 / 上传中':'上传失败'}</p>{p.error&&<p role="alert">{p.error}</p>}{p.status==='failed'&&<HohoButton onClick={()=>draft.retry(p.localId)}>重试上传</HohoButton>}<HohoButton variant="text" disabled={working} onClick={()=>draft.remove(p.localId)}>取消这张照片</HohoButton>{p.serverId&&<PhotoMetadata value={details[`draft:${p.serverId}`]??{}} onChange={value=>change(`draft:${p.serverId}`,value)}/>}</div>)}
+    {draft.photos.map(p=><div className="visit-photo-choice" key={p.localId}>{p.file.type.startsWith('video/')||/\.(mp4|mov|webm)$/i.test(p.file.name)?<video src={p.url} controls playsInline preload="metadata" aria-label="待保存视频"/>:<CompleteImage src={p.url} alt={p.file.name}/>}<p>{p.file.name} · {p.status==='uploaded'?'上传完成，待保存':p.status==='uploading'?'处理中 / 上传中':'上传失败'}</p>{p.error&&<p role="alert">{p.error}</p>}{p.status==='failed'&&<HohoButton onClick={()=>draft.retry(p.localId)}>重试上传</HohoButton>}<HohoButton variant="text" disabled={working} onClick={()=>draft.remove(p.localId)}>取消这张照片</HohoButton>{p.serverId&&<PhotoMetadata value={details[`draft:${p.serverId}`]??{}} onChange={value=>change(`draft:${p.serverId}`,value)}/>}</div>)}
     {(report.photos??[]).filter(p=>existing||report.selectedPhotoIds?.includes(p.sourceId)||ids.includes(p.sourceId)).map(p=><div className="visit-photo-choice" key={p.sourceId}><label><input type="checkbox" checked={ids.includes(p.sourceId)} onChange={e=>setIds(e.target.checked?[...ids,p.sourceId]:ids.filter(id=>id!==p.sourceId))}/>{p.title}</label><PhotoCaption photo={p}/>{p.mimeType.startsWith('video/')?<small>视频原件 · 在本次影像中点击播放</small>:<PhotoImage source={report.sources.find(s=>s.id===p.sourceId)!} token={token}/>}<PhotoMetadata value={{label:p.title,location:p.location,capturedAt:p.capturedAt,capturePrecision:p.capturePrecision??(p.capturedAt?.length===10?'day':p.capturedAt?'exact':'unknown'),...details[p.sourceId]}} onChange={value=>change(p.sourceId,value)}/></div>)}
     {existing&&!report.photos?.length&&<p>暂无已有照片，可从相册添加。</p>}</fieldset>{error&&<p role="alert">尚未确认保存：{error}</p>}
     {discard&&<div role="alert"><p>照片或说明尚未保存</p><HohoButton onClick={()=>setDiscard(false)}>继续选择</HohoButton><HohoButton variant="text" onClick={onClose}>放弃修改</HohoButton></div>}
@@ -64,7 +81,7 @@ export function PhotoViewer({report,token,id,onClose}:{report:VisitSheet;token:s
     <p>完整比例起始显示。放大后可拖动或滚动查看边缘；照片本身不作病情判断。</p>
     <div className="visit-image-toolbar"><HohoButton variant="secondary" onClick={()=>setZoom(z=>Math.min(4,z+0.5))}>放大</HohoButton><HohoButton variant="secondary" onClick={()=>{setZoom(1);viewport.current?.scrollTo(0,0)}}>还原完整比例</HohoButton></div>
     <div className="visit-image-viewport" data-zoomed={zoom>1} ref={viewport} style={{touchAction:zoom>1?'none':'pan-y'}} onPointerDown={e=>{if(zoom<=1)return;const el=e.currentTarget;drag.current={x:e.clientX,y:e.clientY,left:el.scrollLeft,top:el.scrollTop};el.setPointerCapture(e.pointerId)}} onPointerMove={e=>{if(!drag.current)return;e.currentTarget.scrollLeft=drag.current.left+drag.current.x-e.clientX;e.currentTarget.scrollTop=drag.current.top+drag.current.y-e.clientY}} onPointerUp={()=>{drag.current=null}} onPointerCancel={()=>{drag.current=null}}>
-      <div style={{width:`${zoom*100}%`}}><PhotoImage key={p.sourceId} source={report.sources.find(s=>s.id===p.sourceId)!} token={token}/></div>
+      <div style={{width:`${zoom*100}%`}}><PhotoImage original key={p.sourceId} source={report.sources.find(s=>s.id===p.sourceId)!} token={token}/></div>
     </div><PhotoCaption photo={p}/><div className="visit-image-toolbar"><HohoButton variant="text" disabled={index===0} onClick={()=>{setIndex(index-1);setZoom(1)}}>上一张照片</HohoButton><span>{index+1} / {photos.length}</span><HohoButton variant="text" disabled={index===photos.length-1} onClick={()=>{setIndex(index+1);setZoom(1)}}>下一张照片</HohoButton></div>
   </BottomSheetSurface>
 }

@@ -164,3 +164,50 @@ test('late supplement response cannot replace the newest result of the same memb
   release();await expect(page.locator('.food-label-ingredients li')).toHaveCount(1)
   await expect(page.locator('.food-label-row-heading strong')).toHaveText('最新成分')
 })
+
+for (const width of [375, 430]) test(`slow banner reveals one complete frame without moving controls at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 }); await prepare(page)
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/food-label-camera*.webp*', async route => {
+    if (route.request().resourceType() === 'image') await gate
+    await route.continue()
+  })
+  await page.goto('/food-label', { waitUntil: 'domcontentloaded' })
+  const hero = page.locator('.food-label-hero'), camera = page.getByRole('button', { name: '拍摄配料表', exact: true })
+  await expect(camera).toBeVisible(); await expect(hero).toHaveCount(1)
+  await expect(hero).toHaveCSS('visibility', 'hidden')
+  const before = await camera.boundingBox()
+  release()
+  await expect(hero).toBeVisible()
+  expect(await hero.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBeTruthy()
+  expect(await camera.boundingBox()).toEqual(before)
+  expect(await hero.getAttribute('src')).toMatch(/\.webp/)
+})
+
+test('Safari native decoder compresses uploads when createImageBitmap is unavailable', async ({ page }) => {
+  const requests = await prepare(page)
+  await page.addInitScript(() => { Object.defineProperty(window, 'createImageBitmap', { value: undefined, configurable: true }) })
+  await page.goto('/food-label'); await page.locator('input[type=file][multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  const sent = requests[0] as { photos: { dataUrl: string }[] }
+  expect(sent.photos[0].dataUrl).toMatch(/^data:image\/jpeg;base64,/)
+  expect(sent.photos[0].dataUrl.length).toBeLessThan(1_400_000)
+})
+
+test('failed canvas compression never sends the original and allows a successful retry', async ({ page }) => {
+  const requests = await prepare(page)
+  await page.goto('/food-label')
+  await page.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.toBlob
+    ;(window as any).restoreImageEncoder = () => { HTMLCanvasElement.prototype.toBlob = original }
+    HTMLCanvasElement.prototype.toBlob = function (callback) { callback(null) }
+  })
+  await page.locator('input[type=file][multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-summary')).toContainText('压缩后仍过大')
+  expect(requests).toHaveLength(0)
+  await page.evaluate(() => (window as any).restoreImageEncoder())
+  await page.locator('input[type=file][multiple]').setInputFiles(photo)
+  await expect(page.locator('.food-label-ingredients li')).toHaveCount(21)
+  expect(requests).toHaveLength(1)
+})

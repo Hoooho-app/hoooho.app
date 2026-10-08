@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../../components/common/CompleteImage'
 import { createPortal } from 'react-dom'
 import {useAppStore} from '../../../store/useAppStore'
 import './QuickRecordPhotos.css'
@@ -242,7 +243,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
   </>
 }
 
-function MediaImage({url,name}:{url:string;name:string}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return failed?<span className="media-fallback" role="status">{name} · 图片预览不可用，原件与上传状态请见资料列表</span>:<img alt={name} src={url} onError={()=>setFailed(true)} />}
+function MediaImage({url,name}:{url:string;name:string}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return failed?<span className="media-fallback" role="status">{name} · 图片预览不可用，原件与上传状态请见资料列表</span>:<CompleteImage alt={name} src={url} onError={()=>setFailed(true)} />}
 function MediaPlayer({url}:{url:string}){const ref=useRef<HTMLVideoElement>(null),[state,setState]=useState('loading');useEffect(()=>{const video=ref.current;return()=>{video?.pause();video?.removeAttribute('src');video?.load()}},[]);return <div className="media-player">{state==='loading'&&<p role="status">正在加载视频…</p>}{state==='error'&&<p role="alert">视频无法播放或格式不兼容，请重新选择H.264 MP4。原件仍保留。</p>}<video ref={ref} controls playsInline preload="metadata" onLoadedData={()=>setState('ready')} onError={()=>setState('error')} src={url}/></div>}
 function MediaItemDetails({item,index,model,onApply}:{item:QuickRecordPhotoItem;index:number;model:ReturnType<typeof useQuickRecordPhotos>;onApply?: (text:string,id:string)=>void}){
  const review=item.review,[text,setText]=useState(''),[edited,setEdited]=useState(false),[error,setError]=useState(''),[applying,setApplying]=useState(false)

@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
@@ -78,7 +79,7 @@ export function ProfileUploadBatch({member,token,onSaved}:{member:Owner|null;tok
     <BottomSheetSurface open={!!owner} label={ready?'整理结果':'上传资料'} title={ready?'整理结果':'上传资料'} onClose={()=>void close()} size="workspace" className="profile-upload-sheet" footer={<HohoButton disabled={busy||(!ready&&!files.length)} loading={busy} onClick={()=>void(ready?save():organize())}>{busy?'正在整理资料…':ready?'保存到档案':'开始整理'}</HohoButton>}>
       <p>资料归属：{owner?.name}</p>
       {busy&&<p role="status">正在整理资料…</p>}{error&&<p role="alert">{error}。资料仍保留，可重试。</p>}
-      {!ready?<><ul className="profile-upload-files">{files.map(added=><li key={added.id}>{added.file.type.startsWith('image/')?<img src={added.url} alt="已添加资料"/>:<span>PDF</span>}<a href={added.url} target="_blank" rel="noreferrer">{added.file.name}</a><button disabled={busy} aria-label={`移除${added.file.name}`} type="button" onClick={()=>{setFiles(old=>old.filter(f=>f.id!==added.id));currentReset()}}>移除</button></li>)}</ul><div className="profile-upload-add"><HohoButton variant="secondary" disabled={busy} onClick={()=>openPicker()}>继续添加</HohoButton><HohoButton variant="text" disabled={busy} onClick={()=>openPicker(true)}>继续拍照</HohoButton></div></>:<>
+      {!ready?<><ul className="profile-upload-files">{files.map(added=><li key={added.id}>{added.file.type.startsWith('image/')?<CompleteImage src={added.url} alt="已添加资料"/>:<span>PDF</span>}<a href={added.url} target="_blank" rel="noreferrer">{added.file.name}</a><button disabled={busy} aria-label={`移除${added.file.name}`} type="button" onClick={()=>{setFiles(old=>old.filter(f=>f.id!==added.id));currentReset()}}>移除</button></li>)}</ul><div className="profile-upload-add"><HohoButton variant="secondary" disabled={busy} onClick={()=>openPicker()}>继续添加</HohoButton><HohoButton variant="text" disabled={busy} onClick={()=>openPicker(true)}>继续拍照</HohoButton></div></>:<>
         {groups.map(([id,name])=>{const items=draft.items.filter(i=>i.archiveCategory===id);return items.length?<section key={id}><h3>{name}</h3>{items.map(renderItem)}</section>:null})}
         {draft.items.some(i=>!groups.some(([id])=>id===i.archiveCategory))&&<section><h3>资料与识别内容（待确认）</h3>{draft.items.filter(i=>!groups.some(([id])=>id===i.archiveCategory)).map(renderItem)}</section>}
         {draft.documentWarnings?.length>0&&<label><input type="checkbox" onChange={e=>queue('pageWarnings',{confirmPageWarnings:e.target.checked})}/>{draft.documentWarnings.join(' ')} 已对照原件核对，按现有资料保存</label>}

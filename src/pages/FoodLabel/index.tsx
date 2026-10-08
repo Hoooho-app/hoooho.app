@@ -1,8 +1,9 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, Plus } from 'lucide-react'
 import { WebPageHeader } from '../../components/common/WebPageHeader'
 import { HealthTag, HohoButton } from '../../components/design-system'
-import hero from '../../assets/food-label/food-label-camera.png'
+import hero from '../../assets/food-label/food-label-camera.2a7acd9819.webp'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import { getAccountPreferences } from '../../features/settings/preferences'
@@ -59,12 +60,12 @@ function FoodLabelSession({memberId}:{memberId:string}){
     <WebPageHeader title={screen==='entry'?copy.entry:copy.result} onBack={back}/>
     <div className="food-label-content">
       {screen==='entry'?<div className="food-label-entry">
-        <img className="food-label-hero" src={hero} alt="手机正对食品罐背面的英文 INGREDIENTS 标签拍摄"/>
+        <CompleteImage fetchPriority="high" width={960} height={640} className="food-label-hero" src={hero} alt="手机正对食品罐背面的英文 INGREDIENTS 标签拍摄"/>
         <HohoButton fullWidth size="large" onClick={()=>camera.current?.click()}>{copy.camera}</HohoButton>
         <HohoButton fullWidth size="large" variant="secondary" onClick={()=>album.current?.click()}>{copy.album}</HohoButton>
       </div>:<>
         <div className="food-label-photos">
-          {photos.map((photo,index)=><img alt={`${copy.photo} ${index+1}`} key={index} src={result?.previews?.[index]??photo.dataUrl}/>)}
+          {photos.map((photo,index)=><CompleteImage alt={`${copy.photo} ${index+1}`} key={index} src={result?.previews?.[index]??photo.dataUrl}/>)}
           <button className="food-label-supplement" type="button" aria-label={copy.supplement} onClick={()=>camera.current?.click()}><Plus aria-hidden="true"/></button>
         </div>
         <section className="food-label-summary" role="status" aria-live="polite" aria-busy={busy}>

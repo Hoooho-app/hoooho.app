@@ -22,7 +22,7 @@ export async function prepare(page:Page,child='body-girl') {
     sessionStorage.setItem('hoooho-auth-token',authToken)
     if(!sessionStorage.getItem('body-locator-initialized')){localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:accountId},currentMemberId:memberId,members:[],profile:null},version:5}));sessionStorage.setItem('body-locator-initialized','true')}
   },{authToken,memberId,accountId})
-  await page.goto('/health-events');await page.getByRole('button',{name:'记一下',exact:true}).click();await page.getByRole('dialog',{name:'记一下',exact:true}).getByRole('button',{name:'记录症状',exact:true}).click()
+  await page.goto('/health-events');await page.getByRole('button',{name:'记录症状',exact:true}).click()
   const form=page.getByRole('dialog',{name:'记录症状',exact:true});await expect(form).toBeVisible();return form
 }
 export async function global(page:Page) {

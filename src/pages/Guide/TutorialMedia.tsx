@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { Pause, Play, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GuideMedia } from '../../features/guide/tutorials'
@@ -64,7 +65,7 @@ export function TutorialMedia({ id, media, title }: TutorialMediaProps) {
 
   return <div className="guide-media" data-failed={failed} data-reduced-motion={reducedMotion} ref={containerRef}>
     {failed || reducedMotion
-      ? <img alt={`${title}操作演示封面`} decoding="async" loading="lazy" src={media.poster} />
+      ? <CompleteImage loading="lazy" alt={`${title}操作演示封面`} decoding="async" src={media.poster} />
       : <video aria-label={`${title}操作演示`} loop muted onError={() => { setFailed(true); setPlaying(false) }} onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} playsInline poster={media.poster} preload="metadata" ref={videoRef}>
           <source src={media.video} type="video/webm" />
         </video>}

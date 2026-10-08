@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { ArrowLeft, Copy, Download, FileText, List } from 'lucide-react'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
@@ -621,7 +622,7 @@ function AttachmentPreview({
       <strong>{source.title}</strong>
       {url ? (
         <>
-          {image && <img
+          {image && <CompleteImage
             src={url}
             alt={source.title}
             onError={() => setError('预览失败，请打开原件查看')}

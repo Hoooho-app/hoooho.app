@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { Apple, Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -104,7 +105,7 @@ export function AccountAvatarPage() {
     } catch (e) { setError(message(e)) } finally { setSaving(false) }
   }
   return <AccountLayout title="修改头像" action={preview ? <button className="account-header-action" disabled={saving} onClick={() => void save()} type="button">完成</button> : undefined}>
-    <div className="account-avatar-preview"><img alt="头像裁剪预览" src={preview?.src ?? profile?.avatar ?? undefined} className={preview || profile?.avatar ? 'account-avatar-image' : 'hidden'} />{!preview && !profile?.avatar && <Avatar name={profile?.nickname ?? '用户'} size="xl" />}</div>
+    <div className="account-avatar-preview"><CompleteImage alt="头像裁剪预览" src={preview?.src ?? profile?.avatar ?? undefined} className={preview || profile?.avatar ? 'account-avatar-image' : 'hidden'} />{!preview && !profile?.avatar && <Avatar name={profile?.nickname ?? '用户'} size="xl" />}</div>
     {preview && <div className="account-crop-controls">
       <label>缩放<input aria-label="头像缩放" max="3" min="1" step=".05" type="range" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} /></label>
       <label>左右<input aria-label="头像左右位置" max="1" min="-1" step=".05" type="range" value={offsetX} onChange={(e) => setOffsetX(Number(e.target.value))} /></label>

@@ -1,3 +1,4 @@
+import { optimizedPublicImages } from '../../generated/optimizedPublicImages'
 import anchors from './child-data/region-anchors.json' with { type: 'json' }
 import atlases from './child-data/atlas-layouts.json' with { type: 'json' }
 import manifest from './child-data/source-manifest.json' with { type: 'json' }
@@ -9,7 +10,7 @@ export type LocalAngle = 'palm' | 'dorsal' | 'plantar' | 'medial' | 'lateral'
 export interface ChildVisual { asset: string; width: number; height: number; bounds: Bounds; kind: 'body' | 'face' | 'hand' | 'foot'; angle?: LocalAngle }
 export const CHILD_GEOMETRY_VERSION = '1.0.0'
 export const geometryCompatible = () => CHILD_GEOMETRY_VERSION === CHILD_CATALOG_VERSION && anchors.schemaVersion === CHILD_CATALOG_VERSION && atlases.schemaVersion === CHILD_CATALOG_VERSION && manifest.version === CHILD_CATALOG_VERSION
-export const assetUrl = (asset: string) => `/body-locator/v1/${asset.replace('assets/', '')}`
+export const assetUrl = (asset: string) => { const original = `/body-locator/v1/${asset.replace('assets/', '')}`; return optimizedPublicImages[original] ?? original }
 export const regionAnchor = (model: ChildModel, view: ChildView, id: string) => anchors.entries.find(item => item.model === model && item.view === view && item.regionId === id)
 export function childVisual(model: ChildModel, view: ChildView, region?: ChildRegion, angle?: LocalAngle): ChildVisual | null {
   if (region && (region.id === 'external_genital' || region.id === 'perineum' || region.id.startsWith('groin'))) return null

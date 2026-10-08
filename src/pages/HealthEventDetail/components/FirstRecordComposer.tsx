@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../../components/common/CompleteImage'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Paperclip, X } from 'lucide-react'
 import { BodyLocationPicker, QuickRecordTrigger } from '../../../components/health'
@@ -116,7 +117,7 @@ export const FirstRecordComposer = forwardRef<FirstRecordComposerHandle, FirstRe
             <button className="inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-control border border-dashed border-primary/35 bg-surface px-3 text-sm font-medium text-primary" onClick={() => fileInputRef.current?.click()} type="button"><Paperclip size={17} />上传图片</button>
             {attachments.length > 0 && <div className="first-record-attachments">{attachments.map((attachment, index) => (
               <figure className="relative h-12 w-12 shrink-0 overflow-hidden rounded-control bg-primary-soft" key={`${attachment.originalName}-${index}`}>
-                <img alt={attachment.originalName} className="h-full w-full object-cover" src={attachment.dataUrl} />
+                <CompleteImage alt={attachment.originalName} className="h-full w-full object-cover" src={attachment.dataUrl} />
                 <button aria-label={`删除附件 ${attachment.originalName}`} className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-text-primary/75 text-surface" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
               </figure>
             ))}</div>}
