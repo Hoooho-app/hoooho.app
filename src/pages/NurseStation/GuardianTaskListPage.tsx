@@ -22,7 +22,7 @@ type LoadStatus = 'loading' | 'success' | 'error'
 type DesensitizationView = 'record' | 'trend' | 'history' | 'scope' | 'plan' | 'manage'
 
 const pageMeta = {
-  medication: { title: '用药提醒', add: '新增提醒', item: '提醒任务', empty: '还没有用药提醒', emptyArchive: '暂无已归档任务' },
+  medication: { title: '用药安排', add: '新增提醒', item: '提醒任务', empty: '还没有用药安排', emptyArchive: '暂无已归档任务' },
   desensitization: { title: '排敏测试', add: '新增测试', item: '测试任务', empty: '还没有排敏测试', emptyArchive: '暂无已归档测试' }
 } as const
 
@@ -230,7 +230,7 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
     setMedicationReminders((current) => [...current, created])
     setReminderFlow(false)
     chooseView('active')
-    setNotice({ message: '用药提醒已保存' })
+    setNotice({ message: '用药安排已保存' })
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-reminder-id="${created.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
 

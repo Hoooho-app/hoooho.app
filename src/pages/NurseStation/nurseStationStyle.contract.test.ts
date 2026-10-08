@@ -52,7 +52,7 @@ test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.match(styles, /\.nurse-home-entry--food-label\s*\{[^}]*border-color:\s*#f2dcc8[^}]*background:\s*#fff4ea/)
   assert.match(source, /就诊情况单.*就诊前，一页理清病情.*visitSummaryImage.*\/visit-summary/)
   assert.match(source, /忌口出示卡.*哪些不能吃，出示就懂.*dietaryCardImage/)
-  assert.match(source, /title: '用药提醒'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)
+  assert.match(source, /title: '用药安排'[\s\S]*medicationRemindersImage[\s\S]*\/medication-reminders/)
   assert.doesNotMatch(source, /desensitizationTestsImage|desensitizationTestService|title: '排敏测试'/)
   assert.match(source, /`\$\{count\} 个\$\{noun\}任务`/)
   assert.match(source, /<Link aria-label=\{`\$\{entry\.title\}，\$\{entry\.subtitle\}`\}/)

@@ -255,7 +255,7 @@ function HomeEntries({ medicationCount, medicationStatus }: {
     { id: 'food-label', title: '配料表扫描', subtitle: '拍配料表，对照过敏史', image: foodLabelImage, to: '/food-label' },
     {
       id: 'medication',
-      title: '用药提醒',
+      title: '用药安排',
       subtitle: taskCountLabel(medicationStatus, medicationCount, '提醒'),
       image: medicationRemindersImage,
       to: '/medication-reminders',
