@@ -1,3 +1,4 @@
+import { CompleteImage } from '../common/CompleteImage'
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, RefreshCw, ZoomIn } from 'lucide-react'
 import { AvatarPhotoError, createAvatarPhotoPreview, prepareAvatarPhoto, type AvatarPhotoCropSelection } from '../../utils/prepareAvatarPhoto'
@@ -208,7 +209,7 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
         >
           <span className={`inline-flex overflow-hidden rounded-full border-2 border-primary bg-surface ${childProfile ? 'h-24 w-24' : compact ? 'h-20 w-20 shadow-card' : 'h-28 w-28 shadow-card'}`}>
             {displayedPhoto ? (
-              <img alt={text.photoAlt} className="h-full w-full object-cover" decoding="async" src={displayedPhoto} />
+              <CompleteImage alt={text.photoAlt} className="h-full w-full object-cover" decoding="async" src={displayedPhoto} />
             ) : (
               <span className={`inline-flex items-center justify-center rounded-full bg-primary-soft text-primary ${childProfile ? 'h-24 w-24' : compact ? 'h-20 w-20' : 'h-28 w-28'}`}>
                 <Camera aria-hidden="true" size={compact ? 28 : 34} strokeWidth={1.6} />
@@ -254,7 +255,7 @@ export function FamilyAvatarEditor<Config extends FamilyAvatarConfig>({ childPro
             onPointerMove={moveCrop}
             onPointerUp={(event) => { dragRef.current = null; event.currentTarget.releasePointerCapture(event.pointerId) }}
           >
-            <img alt="" className="h-full w-full select-none object-cover" draggable={false} src={crop.preview} style={{ transform: `scale(${selection.zoom}) translate(${-selection.offsetX * 16}%, ${-selection.offsetY * 16}%)` }} />
+            <CompleteImage alt="" className="h-full w-full select-none object-cover" draggable={false} src={crop.preview} style={{ transform: `scale(${selection.zoom}) translate(${-selection.offsetX * 16}%, ${-selection.offsetY * 16}%)` }} />
             <span className="pointer-events-none absolute inset-0 rounded-full border-2 border-white/90 shadow-[0_0_0_999px_rgba(15,49,45,0.28)]" />
           </div>
           <label className="flex items-center gap-3 text-sm font-medium"><ZoomIn aria-hidden="true" className="text-primary" size={20} /><span className="sr-only">{text.zoom}</span><input aria-label={text.zoom} className="w-full accent-primary" max="3" min="1" step="0.05" type="range" value={selection.zoom} onChange={(event) => setSelection((current) => ({ ...current, zoom: Number(event.target.value) }))} /></label>

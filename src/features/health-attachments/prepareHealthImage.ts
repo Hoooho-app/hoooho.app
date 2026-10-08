@@ -1,7 +1,7 @@
 import type { CreateEventAttachmentInput } from '../../types'
 
 export const HEALTH_IMAGE_MAX_SOURCE_BYTES = 25 * 1024 * 1024
-export const HEALTH_IMAGE_TARGET_BYTES = 3 * 1024 * 1024
+export const HEALTH_IMAGE_TARGET_BYTES = 1024 * 1024
 export const HEALTH_IMAGE_MAX_EDGE = 2560
 
 const supportedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
@@ -53,7 +53,7 @@ export async function prepareHealthImage(file: File): Promise<CreateEventAttachm
   context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high'
   context.drawImage(image, 0, 0, canvas.width, canvas.height)
   if ('close' in image && typeof image.close === 'function') image.close()
-  let quality = 0.9
+  let quality = 0.86
   let blob = await canvasBlob(canvas, 'image/webp', quality) ?? await canvasBlob(canvas, 'image/jpeg', quality)
   while (blob && blob.size > HEALTH_IMAGE_TARGET_BYTES && quality > 0.5) {
     quality -= 0.08

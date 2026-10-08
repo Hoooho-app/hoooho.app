@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { Mic, Pause, Stethoscope } from 'lucide-react'
 import { nurseGreetingText } from '../../../shared/nurse-greeting.mjs'
 import nursePortrait from '../../assets/nurse-triage/nurses-idle-loop-1-poster.webp'
@@ -148,8 +149,9 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     {!draft && !error && <p role="status">正在恢复草稿…</p>}
     {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p></div>}
     <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}>
-      {turn.role === 'user' ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span> : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label="值班护士"><img src={nursePortrait} alt=""/></span>}
+      {turn.role === 'user' ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span> : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label="值班护士"><CompleteImage src={nursePortrait} alt=""/></span>}
       <div className="nurse-turn-content"><p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>
+
     </div>)}</div>
     {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
     {preview && <p className="nurse-live-preview" aria-live="polite">{preview}（尚未完成）</p>}

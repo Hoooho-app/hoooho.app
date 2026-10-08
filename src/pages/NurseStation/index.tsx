@@ -1,12 +1,13 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.png'
-import healthDiaryImage from '../../assets/nurse-station/home-entries/health-diary.png'
-import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.png'
-import medicationRemindersImage from '../../assets/nurse-station/home-entries/medication-reminders.png'
-import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-summary.png'
-import foodLabelImage from '../../assets/food-label/food-label-entry.png'
+import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.677cd570cc.webp'
+import healthDiaryImage from '../../assets/nurse-station/home-entries/health-diary.cf525c8bbb.webp'
+import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.cec39ae6b8.webp'
+import medicationRemindersImage from '../../assets/nurse-station/home-entries/medication-reminders.07ae4e7c04.webp'
+import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-summary.c28024de2b.webp'
+import foodLabelImage from '../../assets/food-label/food-label-entry.bceb60adfc.webp'
 import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
@@ -237,7 +238,7 @@ const fixedHomeEntries = [
 type HomeEntry = { id: string; title: string; subtitle: string; image: string; to: string }
 
 function HomeEntryContent({ entry }: { entry: HomeEntry }) {
-  return <><span className="nurse-home-entry__copy"><strong>{entry.title}</strong><small>{entry.subtitle}</small></span><span aria-hidden="true" className="nurse-home-entry__visual"><img alt="" decoding="async" height="384" onError={(event) => { event.currentTarget.hidden = true }} src={entry.image} width="384" /></span></>
+  return <><span className="nurse-home-entry__copy"><strong>{entry.title}</strong><small>{entry.subtitle}</small></span><span aria-hidden="true" className="nurse-home-entry__visual"><CompleteImage alt="" decoding="async" height="384" onError={(event) => { event.currentTarget.hidden = true }} src={entry.image} width="384" /></span></>
 }
 
 function taskCountLabel(status: EntryStatus, count: number | null, noun: '提醒' | '测试') {

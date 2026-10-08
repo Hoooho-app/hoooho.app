@@ -107,7 +107,7 @@ test('喂养饮食使用五类确认页、独立记录页和结构化真实保�
   assert.match(journalRecorder, /diet-types\/meal\.webp/)
   assert.match(journalRecorder, /diet-types\/snack\.webp/)
   assert.match(journalRecorder, /diet-types\/supplement\.webp/)
-  assert.match(journalRecorder, /<img alt="" aria-hidden="true" src=\{image\}/)
+  assert.match(journalRecorder, /<(?:img|CompleteImage) alt="" aria-hidden="true" src=\{image\}/)
   assert.doesNotMatch(journalRecorder, /<Utensils|<Pill /)
   assert.match(journalRecorder, /早餐 \/ 午餐 \/ 晚餐/)
   assert.match(journalRecorder, /点心 \/ 水果 \/ 饮品/)

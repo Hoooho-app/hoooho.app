@@ -7,7 +7,7 @@ test('locator v2 fixed workspace and explicit sides retain palm and dorsum selec
   await isolateLiveApi(page)
   const memberId=`body-girl-${info.project.name}`
   await page.addInitScript(({authToken,memberId})=>{sessionStorage.setItem('hoooho-auth-token',authToken);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'body-locator-test-account'},currentMemberId:memberId,members:[],profile:null},version:5}))},{authToken,memberId})
-  await page.goto('/health-events');await page.getByRole('button',{name:'记一下',exact:true}).click();await page.getByRole('dialog',{name:'记一下',exact:true}).getByRole('button',{name:'记录症状',exact:true}).click()
+  await page.goto('/health-events');await page.getByRole('button',{name:'记录症状',exact:true}).click()
   const form=page.getByRole('dialog',{name:'记录症状',exact:true});await form.locator('.child-body-open').click()
   const p=page.getByRole('dialog',{name:'身体部位定位器',exact:true})
   await expect(p.locator('[data-asset="assets/girl-front.png"]')).toBeVisible()

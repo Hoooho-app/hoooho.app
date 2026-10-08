@@ -16,7 +16,7 @@ export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onTog
   useEffect(()=>{
     if(!visual)return
     let active=true;setStatus('loading');const img=new Image()
-    img.onload=()=>{if(active)setStatus(img.naturalWidth===visual.width&&img.naturalHeight===visual.height?'ready':'error')}
+    img.onload=async()=>{await img.decode().catch(()=>undefined);if(active)setStatus(img.naturalWidth===visual.width&&img.naturalHeight===visual.height?'ready':'error')}
     img.onerror=()=>{if(active)setStatus('error')};img.src=locatorAssetUrl(visual)
     return()=>{active=false}
   },[visual,attempt])

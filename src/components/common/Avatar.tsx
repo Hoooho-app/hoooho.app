@@ -1,3 +1,4 @@
+import { CompleteImage } from './CompleteImage'
 import { parseVirtualAvatarId } from '../../utils/virtualAvatar'
 import { parseClayAvatar } from '../../utils/clayAvatar'
 import { parseStoredChildAvatar } from '../../utils/childAvatar'
@@ -31,7 +32,7 @@ export function Avatar({ name, src, size = 'md' }: AvatarProps) {
   }
 
   return src ? (
-    <img className={`${sizes[size]} rounded-full object-cover`} src={src} alt={`${name}的头像`} />
+    <CompleteImage className={`${sizes[size]} rounded-full object-cover`} src={src} alt={`${name}的头像`} />
   ) : (
     <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary ${sizes[size]}`} aria-label={`${name}的头像`}>
       {name.slice(0, 1)}

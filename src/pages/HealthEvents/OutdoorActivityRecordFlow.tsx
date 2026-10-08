@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { ArrowLeft, Bike, Camera, CircleEllipsis, ImagePlus, PersonStanding, Smile, Trees, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
@@ -33,7 +34,7 @@ function OutdoorPhotos({ model }: { model: ReturnType<typeof useQuickRecordPhoto
   const cameraRef = useRef<HTMLInputElement>(null); const galleryRef = useRef<HTMLInputElement>(null)
   return <section className="outdoor-photo-section"><div className="outdoor-heading"><h2>添加图片 <span>（可选）</span></h2><em>{model.photos.length}/6</em></div><div className="outdoor-photo-actions"><button onClick={() => cameraRef.current?.click()} type="button"><Camera size={22} />拍照</button><button onClick={() => galleryRef.current?.click()} type="button"><ImagePlus size={22} />从相册选择</button></div>
     <input ref={cameraRef} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" /><input ref={galleryRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
-    {model.photos.length > 0 && <div className="outdoor-photo-grid">{model.photos.map((photo, index) => <div key={photo.localId}><button aria-label={`查看照片 ${index + 1}`} onClick={() => model.setPreviewIndex(index)} type="button"><img alt="" src={photo.previewUrl} /></button><button aria-label={`删除照片 ${index + 1}`} onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button><span>{photo.status === 'uploading' ? '上传中' : photo.status === 'failed' ? '上传失败' : `${index + 1}/6`}</span></div>)}</div>}
+    {model.photos.length > 0 && <div className="outdoor-photo-grid">{model.photos.map((photo, index) => <div key={photo.localId}><button aria-label={`查看照片 ${index + 1}`} onClick={() => model.setPreviewIndex(index)} type="button"><CompleteImage alt="" src={photo.previewUrl} /></button><button aria-label={`删除照片 ${index + 1}`} onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button><span>{photo.status === 'uploading' ? '上传中' : photo.status === 'failed' ? '上传失败' : `${index + 1}/6`}</span></div>)}</div>}
     <p>可以记录活动环境或当时的身体表现</p>{model.notice && <p role="status">{model.notice}</p>}{model.blocked && <p className="diet-save-error" role="alert">请重试或删除上传失败的照片后再保存</p>}</section>
 }
 

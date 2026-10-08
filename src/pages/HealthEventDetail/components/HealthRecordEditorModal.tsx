@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../../components/common/CompleteImage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'lucide-react'
 import { Button, Card } from '../../../components/common'
@@ -283,7 +284,7 @@ export function HealthRecordEditorModal({ open, templateType, defaultRecordType 
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {attachments.map((attachment, index) => (
                     <figure className="relative aspect-square overflow-hidden rounded-lg bg-primary-soft" key={`${attachment.name}-${index}`}>
-                      <img alt={attachment.name} className="h-full w-full object-cover" src={attachment.dataUrl} />
+                      <CompleteImage alt={attachment.name} className="h-full w-full object-cover" src={attachment.dataUrl} />
                       <figcaption className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-pill bg-surface/90 px-1.5 py-0.5 text-[10px] font-medium text-primary">{attachment.name.match(/^\[([^\]]+)\]/)?.[1] ?? '图片'}</figcaption>
                       <button aria-label={`删除图片 ${attachment.name}`} className="absolute -right-2 -top-2 grid h-11 w-11 place-items-center rounded-full text-surface [background:radial-gradient(circle,rgb(var(--hoho-color-text-primary)/.78)_0_26%,transparent_28%)]" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><X size={12} /></button>
                     </figure>

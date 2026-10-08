@@ -1,15 +1,16 @@
-import father0 from '../../assets/avatars/father-0.webp'
-import father1 from '../../assets/avatars/father-1.webp'
-import father2 from '../../assets/avatars/father-2.webp'
-import grandfather0 from '../../assets/avatars/grandfather-0.webp'
-import grandfather1 from '../../assets/avatars/grandfather-1.webp'
-import grandfather2 from '../../assets/avatars/grandfather-2.webp'
-import grandmother0 from '../../assets/avatars/grandmother-0.webp'
-import grandmother1 from '../../assets/avatars/grandmother-1.webp'
-import grandmother2 from '../../assets/avatars/grandmother-2.webp'
-import mother0 from '../../assets/avatars/mother-0.webp'
-import mother1 from '../../assets/avatars/mother-1.webp'
-import mother2 from '../../assets/avatars/mother-2.webp'
+import { CompleteImage } from './CompleteImage'
+import father0 from '../../assets/avatars/father-0.1dcd3ecb48.webp'
+import father1 from '../../assets/avatars/father-1.4428a405d4.webp'
+import father2 from '../../assets/avatars/father-2.ff82f70971.webp'
+import grandfather0 from '../../assets/avatars/grandfather-0.afbf5230c1.webp'
+import grandfather1 from '../../assets/avatars/grandfather-1.5e80957407.webp'
+import grandfather2 from '../../assets/avatars/grandfather-2.7a997984c3.webp'
+import grandmother0 from '../../assets/avatars/grandmother-0.3171771ac8.webp'
+import grandmother1 from '../../assets/avatars/grandmother-1.873c6e7bc8.webp'
+import grandmother2 from '../../assets/avatars/grandmother-2.8a9dd0e3c2.webp'
+import mother0 from '../../assets/avatars/mother-0.c5ac6dc853.webp'
+import mother1 from '../../assets/avatars/mother-1.563be689d2.webp'
+import mother2 from '../../assets/avatars/mother-2.1d60566087.webp'
 import type { VirtualAvatarKind } from '../../utils/virtualAvatar'
 import { childAvatarVariants } from '../../utils/childAvatar'
 import { ChildAvatar } from './ChildAvatar'
@@ -52,7 +53,7 @@ export function VirtualAvatar({ kind, className = '', name, variant = 0 }: Virtu
 
   return (
     <span className={`inline-flex shrink-0 overflow-hidden rounded-full bg-primary-soft ${className}`} role="img" aria-label={`${name}的虚拟卡通头像`}>
-      <img aria-hidden="true" alt="" className="h-full w-full object-cover" draggable={false} src={asset} />
+      <CompleteImage aria-hidden="true" alt="" className="h-full w-full object-cover" draggable={false} src={asset} />
     </span>
   )
 }

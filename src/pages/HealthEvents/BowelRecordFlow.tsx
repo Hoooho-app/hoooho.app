@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { ArrowLeft, ImagePlus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
@@ -51,7 +52,7 @@ function BowelPhotos({ model }: { model: ReturnType<typeof useQuickRecordPhotos>
   const fileRef = useRef<HTMLInputElement>(null)
   return <section className="bowel-photo-section"><div className="bowel-section-heading"><h2>添加图片 <span>（可选）</span></h2><em>{model.photos.length}/6</em></div>
     <div className="bowel-photo-actions"><button onClick={() => fileRef.current?.click()} type="button"><ImagePlus size={22} />上传照片</button></div>
-    {model.photos.length > 0 && <div className="bowel-photo-grid">{model.photos.map((photo, index) => <div key={photo.localId}><img alt={`照片 ${index + 1}`} src={photo.previewUrl} /><button aria-label={`删除照片 ${index + 1}`} onClick={() => model.remove(photo.localId)} type="button">×</button>{photo.status === 'failed' ? <button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button">重试</button> : <span>{photo.status === 'uploading' ? '上传中' : ''}</span>}</div>)}</div>}
+    {model.photos.length > 0 && <div className="bowel-photo-grid">{model.photos.map((photo, index) => <div key={photo.localId}><CompleteImage alt={`照片 ${index + 1}`} src={photo.previewUrl} /><button aria-label={`删除照片 ${index + 1}`} onClick={() => model.remove(photo.localId)} type="button">×</button>{photo.status === 'failed' ? <button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button">重试</button> : <span>{photo.status === 'uploading' ? '上传中' : ''}</span>}</div>)}</div>}
     <input ref={fileRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
     {model.notice && <p role="status">{model.notice}</p>}{model.blocked && <p role="alert">请重试或删除上传失败的照片后再保存</p>}
   </section>

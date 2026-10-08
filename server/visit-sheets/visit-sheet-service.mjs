@@ -1,3 +1,4 @@
+import { imagePreview } from '../image-preview.mjs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { JsonStore } from '../auth/storage/json-store.mjs'
@@ -161,13 +162,13 @@ export class VisitSheetService {
       timezone: 'Asia/Shanghai',
     }
   }
-  async readProfileResource(accountId,memberId,resourceId){
+  async readProfileResource(accountId,memberId,resourceId,variant='content'){
     const member=await this.members.findById(memberId)
     if(!member||member.accountId!==accountId)throw failure('未找到当前孩子的资料',404)
     const profiles=(await this.profiles.read()).sections.filter(s=>s.accountId===accountId&&s.memberId===memberId)
     const resource=profileResources(profiles,memberId,true).find(r=>r.resourceId===resourceId)
     if(!resource)throw failure('档案原件已失效或不可用',404)
-    return {mimeType:resource.mimeType,buffer:Buffer.from(resource.data,'base64')}
+    const file = {mimeType:resource.mimeType,buffer:Buffer.from(resource.data,'base64')}; return variant === 'preview' ? imagePreview(file) : file
   }
   async get(accountId, memberId) {
     const input = await this.collect(accountId, memberId)

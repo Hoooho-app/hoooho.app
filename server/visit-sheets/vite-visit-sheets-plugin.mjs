@@ -32,7 +32,7 @@ export function visitSheetsApiPlugin(options = {}) {
           }
           if(match[2]){
             if(req.method!=='GET')return send(405,{error:{message:'请求方法不支持'}})
-            const result=await service.readProfileResource(payload.sub,memberId,match[2])
+            const result=await service.readProfileResource(payload.sub,memberId,match[2],new URL(req.url,'http://localhost').searchParams.get('preview')==='1'?'preview':'content')
             res.statusCode=200;res.setHeader('Content-Type',result.mimeType);res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.end(result.buffer);return
           }
           if (req.method === 'GET')
