@@ -27,7 +27,7 @@ for (const file of files) {
   assert.equal(metadata.format, 'webp', `${file} must be WebP.`)
   assert.equal(metadata.width, 256, `${file} must be 256px wide.`)
   assert.equal(metadata.height, 256, `${file} must be 256px tall.`)
-  assert.ok(bytes >= 20 * 1024 && bytes <= 60 * 1024, `${file} must be between 20 and 60 KiB.`)
+  assert.ok(bytes > 0 && bytes <= 16 * 1024, `${file} must be within the 16 KiB mobile budget.`)
   const { data, info } = await sharp(filePath).removeAlpha().raw().toBuffer({ resolveWithObject: true })
   const cornerOffsets = [
     0,

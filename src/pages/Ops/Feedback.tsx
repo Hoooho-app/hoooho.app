@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -242,7 +243,7 @@ function ConversationPane({ item, token, onChange, onOpenProcessing }: { item: O
 
 function AttachmentGrid({ attachments }: { attachments: NonNullable<OpsFeedbackRecord['attachments']> }) {
   if (!attachments.length) return null
-  return <div className="ops-feedback-images">{attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt={attachment.name} /><span>{attachment.name}</span></a>)}</div>
+  return <div className="ops-feedback-images">{attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer"><CompleteImage loading="lazy" src={attachment.url} alt={attachment.name} /><span>{attachment.name}</span></a>)}</div>
 }
 
 function ProcessingPanel({ item, token, open, onClose, onChange }: { item: OpsFeedbackRecord; token: string; open: boolean; onClose: () => void; onChange: (item: OpsFeedbackRecord) => void }) {

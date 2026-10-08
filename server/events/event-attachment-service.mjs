@@ -1,3 +1,4 @@
+import { imagePreview } from '../image-preview.mjs'
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { EventAttachmentRepository } from './repositories/event-attachment-repository.mjs'
 import { HealthEventRecordRepository } from './repositories/health-event-record-repository.mjs'
@@ -88,12 +89,12 @@ export class EventAttachmentService {
     }
     if (!attachment.storageKey) {
       const embedded = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
-      if (embedded) return { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }
+      if (embedded) { const file = { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }; return variant === 'preview' ? imagePreview(file) : file }
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     try {
       const key=variant==='preview'?attachment.previewKey??attachment.storageKey:attachment.storageKey
-      return { mimeType:variant==='preview'&&attachment.previewKey?(attachment.previewMimeType??'video/mp4'):attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(key))) }
+      const file = { mimeType:variant==='preview'&&attachment.previewKey?(attachment.previewMimeType??'video/mp4'):attachment.mimeType, buffer: await readFile(path.join(this.dataDirectory, 'quick-record-photo-files', path.basename(key))) }; return variant === 'preview' ? imagePreview(file) : file
     } catch (error) {
       if (error.code === 'ENOENT') throw new EventAttachmentError('附件原件已失效或不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
       throw error

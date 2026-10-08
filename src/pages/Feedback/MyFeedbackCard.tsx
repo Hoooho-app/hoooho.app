@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/common'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
@@ -49,5 +50,5 @@ export function MyFeedbackCard({ token, item, detail, expanded, loading, onToggl
 }
 
 function AttachmentList({ attachments }: { attachments: FeedbackAttachment[] }) {
-  return attachments.length ? <div className="my-feedback-attachments">{attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer"><img alt={attachment.name} src={attachment.url}/></a>)}</div> : null
+  return attachments.length ? <div className="my-feedback-attachments">{attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer"><CompleteImage loading="lazy" alt={attachment.name} src={attachment.url}/></a>)}</div> : null
 }

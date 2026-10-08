@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -70,14 +71,14 @@ function InstallGuide({ onClose, onConfirmInstalled }: { onClose: () => void; on
             <figure className="install-guide__step">
               <span aria-hidden="true" className="install-guide__number">1</span>
               <div className="install-guide__image-window install-guide__image-window--share">
-                <img alt="Safari 菜单中的分享入口" decoding="async" onError={() => setImageFailed(true)} src="/tutorials/add-to-home-screen/safari-share.jpg" />
+                <CompleteImage alt="Safari 菜单中的分享入口" decoding="async" onError={() => setImageFailed(true)} src="/tutorials/add-to-home-screen/safari-share.a037440cc4.webp" />
                 <span aria-hidden="true" className="install-guide__highlight install-guide__highlight--share" />
               </div>
             </figure>
             <figure className="install-guide__step">
               <span aria-hidden="true" className="install-guide__number">2</span>
               <div className="install-guide__image-window install-guide__image-window--add">
-                <img alt="Safari 分享菜单中的添加到主屏幕入口" decoding="async" onError={() => setImageFailed(true)} src="/tutorials/add-to-home-screen/safari-add.jpg" />
+                <CompleteImage alt="Safari 分享菜单中的添加到主屏幕入口" decoding="async" onError={() => setImageFailed(true)} src="/tutorials/add-to-home-screen/safari-add.ca890af926.webp" />
                 <span aria-hidden="true" className="install-guide__highlight install-guide__highlight--add" />
               </div>
             </figure>

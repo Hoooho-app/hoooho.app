@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { cycleClayAvatar, getClayAvatarAssetPath, getClayAvatarViewport, type ClayAvatarConfig } from '../../utils/clayAvatar'
+import { getClayAvatarAssetPath, getClayAvatarViewport, type ClayAvatarConfig } from '../../utils/clayAvatar'
 import { decodeImageAsset } from '../../utils/decodeImageAsset'
 
 interface ClayAvatarProps {
@@ -24,33 +24,17 @@ export function ClayAvatar({ config, className = '', language, name }: ClayAvata
 
   useEffect(() => {
     const request = ++requestRef.current
-    let idleHandle: number | undefined
-    let timeoutHandle: number | undefined
 
     void decodeImageAsset(source, 'high').then(() => {
       if (request !== requestRef.current) return
       setDisplayed({ source, viewport })
 
-      const nextSource = getClayAvatarAssetPath(cycleClayAvatar(config))
-      const preloadNext = () => void decodeImageAsset(nextSource, 'low').catch(() => undefined)
-      const idleWindow = window as unknown as {
-        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number
-        cancelIdleCallback?: (handle: number) => void
-      }
-      if (idleWindow.requestIdleCallback) {
-        idleHandle = idleWindow.requestIdleCallback(preloadNext, { timeout: 1500 })
-      } else {
-        timeoutHandle = window.setTimeout(preloadNext, 250)
-      }
     }).catch(() => {
       // Keep the last completely decoded avatar (or the stable placeholder).
     })
 
     return () => {
       requestRef.current += 1
-      const idleWindow = window as unknown as { cancelIdleCallback?: (handle: number) => void }
-      if (idleHandle !== undefined) idleWindow.cancelIdleCallback?.(idleHandle)
-      if (timeoutHandle !== undefined) window.clearTimeout(timeoutHandle)
     }
   }, [config.appearance, config.role, source, viewport.height, viewport.left, viewport.top, viewport.width])
 

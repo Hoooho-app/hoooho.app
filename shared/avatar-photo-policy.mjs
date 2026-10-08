@@ -7,10 +7,10 @@ export const AVATAR_PHOTO_MAX_BINARY_BYTES = Math.floor(
 ) * 3 - 2
 
 export const AVATAR_PHOTO_OUTPUT_STEPS = Object.freeze([
-  Object.freeze({ size: 512, quality: 0.82 }),
-  Object.freeze({ size: 512, quality: 0.70 }),
-  Object.freeze({ size: 384, quality: 0.65 }),
-  Object.freeze({ size: 256, quality: 0.60 })
+  Object.freeze({ size: 256, quality: 0.82 }),
+  Object.freeze({ size: 256, quality: 0.70 }),
+  Object.freeze({ size: 192, quality: 0.65 }),
+  Object.freeze({ size: 160, quality: 0.60 })
 ])
 
 export const AVATAR_PHOTO_MIME_TYPES = Object.freeze([
