@@ -40,7 +40,7 @@ export function doctorBriefText(report:VisitSheet){
     `\n本次想问：\n${report.question||'尚未填写'}`,
     ...(report.notes?.course?[`家长经过与处理补充：${report.notes.course}`]:[]),
     ...(report.selectedPhotoIds?.length?[`影像索引：${report.photos?.filter(p=>report.selectedPhotoIds?.includes(p.sourceId)).map(p=>`${p.mimeType.startsWith('video/')?'视频':'照片'}：${p.title} [${sourceRefs([p.sourceId])}]`).join('；')}。文字不包含原件字节。`]:[]),
-    `\n相关时间线与原始依据：${related.filter(s=>!['legacy','attachment'].includes(s.category)).map(s=>s.code).join('、')||'暂无明确关联来源'}。完整原文请在情况单按编号查看，或选择完整资料复制。`,
+    `\n相关时间线与原始依据：${related.filter(s=>!['legacy','attachment'].includes(s.category)).map(s=>s.code).join('、')||'暂无明确关联来源'}。完整原文请在情况单按编号查看，或保存 HTML 情况单。`,
     ...(report.gaps??[]).map(g=>`待核对：${g}`),
     visitSignature(report),
     '未记录不等于没有；时间先后不是因果；不替代医生诊断。',

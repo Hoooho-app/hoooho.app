@@ -387,7 +387,7 @@
 .visit-export-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--hoho-space-3);
 }
 .visit-export-options textarea {
   min-height: 200px;
@@ -503,6 +503,3 @@ body.visit-report-active { min-width: 0; }
 .visit-report-scroll > #chapter-sources{min-height:calc(100dvh - 80px - env(safe-area-inset-top))}
 .visit-focus-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .visit-focus-actions button{min-height:44px;padding:8px 12px;border:1px solid rgb(var(--hoho-color-border));border-radius:8px;font-size:14px}
-.visit-export-options fieldset{min-width:0;border:1px solid rgb(var(--hoho-color-border));border-radius:12px;padding:12px}
-.visit-export-options fieldset label{display:flex;gap:8px;align-items:center;min-height:44px}
-.visit-export-options input[type=radio],.visit-export-options input[type=checkbox]{width:auto;flex-shrink:0}
