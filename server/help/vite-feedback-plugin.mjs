@@ -2,6 +2,7 @@ import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { assertOpsAccess } from '../ops/ops-service.mjs'
 import { FeedbackService } from './feedback-service.mjs'
+import { FeedbackInterview } from './feedback-interview.mjs'
 
 const readJson = (request, max = 29_000_000) => new Promise((resolve, reject) => {
   let body = '', settled = false
@@ -20,6 +21,7 @@ const payload = (request, tokens) => {
 
 export function feedbackApiPlugin(options = {}) {
   const service = new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, tokenSecret: options.tokenSecret ?? authConfig.tokenSecret })
+  const interview = new FeedbackInterview(options)
   const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   return { name: 'hoooho-local-feedback-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://localhost'), pathname = url.pathname
@@ -39,6 +41,7 @@ export function feedbackApiPlugin(options = {}) {
         if (itemMatch && request.method === 'GET') return send(response, 200, await service.getForOps(decodeURIComponent(itemMatch[1])))
         if (itemMatch && request.method === 'PATCH') return send(response, 200, await service.updateFromOps(auth.sub, decodeURIComponent(itemMatch[1]), await readJson(request)))
       } else {
+        if (pathname === '/api/feedback/interview' && request.method === 'POST') return send(response, 200, await interview.respond(auth.sub, await readJson(request, 32_000)))
         if (pathname === '/api/feedback' && request.method === 'GET') return send(response, 200, await service.listForAccount(auth.sub))
         if (pathname === '/api/feedback' && request.method === 'POST') return send(response, 201, await service.create(auth.sub, await readJson(request)))
         const messageMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname), readMatch = /^\/api\/feedback\/([^/]+)\/read$/.exec(pathname), itemMatch = /^\/api\/feedback\/([^/]+)$/.exec(pathname)

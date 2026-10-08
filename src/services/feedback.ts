@@ -54,3 +54,7 @@ export const listOpsFeedback = (token: string, params: URLSearchParams, signal?:
 export const getOpsFeedback = (token: string, id: string, signal?: AbortSignal) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, signal })
 export const updateOpsFeedback = (token: string, id: string, input: Partial<Pick<OpsFeedbackRecord, 'status' | 'priority' | 'handledVersion' | 'noActionReason' | 'mergedIntoId'>> & { officialReply?: string }) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}`, { token, method: 'PATCH', body: input })
 export const addOpsFeedbackMessage = (token: string, id: string, input: { kind: 'internal-note' | 'user-reply'; text: string }) => opsApiRequest<OpsFeedbackRecord>(`/api/ops/feedback/${encodeURIComponent(id)}/messages`, { token, method: 'POST', body: input })
+
+export interface FeedbackTurn { role: 'user' | 'assistant'; text: string }
+export interface FeedbackInterviewResult { reply: string; problemType: FeedbackProblemType; description: string; fields: Record<'page' | 'actual' | 'expected' | 'impact' | 'reproduction', string> }
+export const interviewFeedback = (token: string, turns: FeedbackTurn[], mode: 'chat' | 'organize', signal?: AbortSignal) => apiRequest<FeedbackInterviewResult>('/api/feedback/interview', { token, method: 'POST', body: { turns, mode }, signal })
