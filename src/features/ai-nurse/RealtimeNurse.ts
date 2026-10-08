@@ -14,6 +14,7 @@ export class RealtimeNurse {
   private ready = false
   private created = false
   private configured = false
+  private playbackPaused = false
   private instructions = ''
   private timeout?: ReturnType<typeof setTimeout>
   private responseId = ''
@@ -34,7 +35,7 @@ export class RealtimeNurse {
       pc.addTransceiver('audio', { direction: 'sendrecv' }) // Empty sender until session.updated.
       const remote = new MediaStream(); this.remote = remote
       this.audio.autoplay = true
-      pc.ontrack = event => { if (this.stopped) return; remote.addTrack(event.track); this.audio.srcObject = remote; void this.audio.play().catch(() => { if (this.stopped) return; this.stream?.getTracks().forEach(t => t.stop()); void pc.getSenders().find(s => s.track?.kind === 'audio')?.replaceTrack(null); this.options.state('paused'); this.options.playbackBlocked(true) }) }
+      pc.ontrack = event => { if (this.stopped) return; remote.addTrack(event.track); this.audio.srcObject = remote; void this.audio.play().catch(() => this.blockPlayback()) }
       pc.ondatachannel = event => this.bind(event.channel)
       pc.onconnectionstatechange = () => { if (pc.connectionState === 'connected') this.initialize(); else if (['failed', 'disconnected'].includes(pc.connectionState)) this.failure('语音连接已断开，已确认文字仍保留；点击后才能重新连接') }
       this.bind(pc.createDataChannel('oai-events'))
@@ -55,6 +56,14 @@ export class RealtimeNurse {
     } catch (error) { if (!this.stopped) this.failure(error instanceof Error ? error.message : '语音未连接，可继续文字') }
   }
   private send(event: object) { if (!this.stopped && this.pc?.connectionState === 'connected' && this.channel?.readyState === 'open') this.channel.send(JSON.stringify({ event_id: crypto.randomUUID(), ...event })) }
+  private blockPlayback() {
+    if (this.stopped) return
+    this.playbackPaused = true
+    this.stream?.getTracks().forEach(track => track.stop())
+    void this.pc?.getSenders().find(sender => sender.track?.kind === 'audio')?.replaceTrack(null).catch(() => undefined)
+    this.options.state('paused'); this.options.playbackBlocked(true)
+  }
+  private voiceState(state: NurseState) { this.options.state(this.playbackPaused ? 'paused' : state) }
   private initialize() {
     if (!this.stopped && !this.configured && this.created && this.instructions && this.pc?.connectionState === 'connected' && this.channel?.readyState === 'open') {
       this.configured = true
@@ -77,15 +86,15 @@ export class RealtimeNurse {
         this.ready = true; clearTimeout(this.timeout)
         this.timeout = setTimeout(() => this.failure('本段语音已结束，已确认文字保留；如需继续，请再次点击开启语音'), 300000)
         const sender = this.pc?.getSenders().find(s => !s.track || s.track.kind === 'audio')
-        void sender?.replaceTrack(this.stream!.getAudioTracks()[0]).then(() => { if (!this.stopped) this.options.state('listening') }).catch(() => this.failure('麦克风未连接，可继续文字'))
+        if (!this.playbackPaused) void sender?.replaceTrack(this.stream!.getAudioTracks()[0]).then(() => { if (!this.stopped) this.voiceState('listening') }).catch(() => this.failure('麦克风未连接，可继续文字'))
       } else if (data.type === 'conversation.item.input_audio_transcription.delta') this.options.preview((data.text ?? '') + (data.stash ?? ''))
       else if (data.type === 'conversation.item.input_audio_transcription.completed' && data.transcript?.trim()) {
-        this.options.preview(''); this.options.state('processing')
+        this.options.preview(''); this.voiceState('processing')
         this.queue({ id: data.item_id, role: 'user', text: data.transcript, at: new Date().toISOString(), order: 0, final: true, status: 'completed' })
       } else if (data.type === 'input_audio_buffer.speech_started') {
         if (this.responseId) { this.cancelled.add(this.responseId); this.send({ type: 'response.cancel' }); const visible = this.text.get(this.responseId); if (visible) this.queue({ id: this.responseId, role: 'assistant', text: visible, at: new Date().toISOString(), order: 0, final: true, status: 'interrupted' }); this.text.delete(this.responseId) }
-        this.audio.muted = true; this.audio.pause(); this.audio.srcObject = null; this.options.preview(''); this.options.state('listening')
-      } else if (data.type === 'response.created') { this.responseId = data.response?.id ?? ''; this.audio.srcObject = this.remote ?? null; this.audio.muted = false; void this.audio.play().catch(() => { if (!this.stopped) { this.stream?.getTracks().forEach(t => t.stop()); this.options.state('paused'); this.options.playbackBlocked(true) } }); this.options.state('speaking') }
+        this.audio.muted = true; this.audio.pause(); this.audio.srcObject = null; this.options.preview(''); this.voiceState('listening')
+      } else if (data.type === 'response.created') { this.responseId = data.response?.id ?? ''; this.audio.srcObject = this.remote ?? null; this.audio.muted = false; void this.audio.play().catch(() => this.blockPlayback()); this.voiceState('speaking') }
       else if (['response.audio_transcript.delta', 'response.text.delta'].includes(data.type) && !this.cancelled.has(data.response_id)) {
         this.text.set(data.response_id, (this.text.get(data.response_id) ?? '') + (data.delta ?? '')); this.options.preview(this.text.get(data.response_id) ?? '')
       } else if (data.type === 'response.done') {
@@ -98,7 +107,7 @@ export class RealtimeNurse {
         } else if (!this.cancelled.has(id) && this.text.get(id)?.trim()) {
           this.queue({ id, role: 'assistant', text: this.text.get(id)!, at: new Date().toISOString(), order: 0, final: true, status: 'interrupted' })
         }
-        this.text.delete(id); if (id === this.responseId) { this.responseId = ''; this.options.preview(''); this.options.state('listening') }
+        this.text.delete(id); if (id === this.responseId) { this.responseId = ''; this.options.preview(''); this.voiceState('listening') }
       } else if (data.type === 'error' || data.type === 'conversation.item.input_audio_transcription.failed') this.failure('本轮语音未成功，已确认文字保留，可手动补充')
     }
   }
@@ -106,7 +115,7 @@ export class RealtimeNurse {
   private failure(text: string) { if (this.stopped) return; this.stop(); this.options.state('error'); this.options.error(text) }
   async resumePlayback() {
     if (this.stopped) return
-    try { await this.audio.play(); const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false}); if (this.stopped) { stream.getTracks().forEach(t => t.stop()); return }; this.stream = stream; await this.pc?.getSenders().find(s => !s.track || s.track.kind === 'audio')?.replaceTrack(stream.getAudioTracks()[0]); this.options.playbackBlocked(false); this.options.state('listening') } catch { this.failure('语音播放或麦克风仍不可用，可以继续文字输入') }
+    try { await this.audio.play(); const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false}); if (this.stopped) { stream.getTracks().forEach(t => t.stop()); return }; this.stream = stream; await this.pc?.getSenders().find(s => !s.track || s.track.kind === 'audio')?.replaceTrack(stream.getAudioTracks()[0]); if(this.stopped)return;this.playbackPaused = false;this.options.playbackBlocked(false); this.options.state('listening') } catch { this.failure('语音播放或麦克风仍不可用，可以继续文字输入') }
   }
   async drain() { await this.sequence }
   stop() {

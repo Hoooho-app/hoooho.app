@@ -31,7 +31,7 @@ async function home(page: Page, memberId = 'empty-child') {
 
 async function talkByText(page: Page) {
   await page.getByRole('region', { name: '和护士聊孩子的情况' }).getByRole('button', { name: '和护士说', exact: true }).click()
-  const panel = page.getByRole('dialog', { name: '智能症状记录', exact: true })
+  const panel = page.getByRole('dialog', { name: '智能记录', exact: true })
   await expect(panel.getByRole('alert')).toContainText('合成权限拒绝')
   await panel.getByRole('button', { name: '改用文字', exact: true }).click()
   return panel
@@ -69,7 +69,7 @@ test('紧凑资料、护士动画和整合跟进入口；文字补充接回原�
   await panel.getByRole('button', { name: '发送', exact: true }).click()
   await expect(panel.getByText('有没有影响睡眠？', { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('conversation.png'), fullPage: true })
-  await panel.getByRole('button', { name: '先整理', exact: true }).click()
+  await panel.getByRole('button', { name: '整理到表单', exact: true }).click()
   await expect(panel).toHaveCount(0)
   const form = page.getByRole('dialog', { name: '症状记录', exact: true })
   await expect(form.getByLabel('哪里不舒服')).toHaveValue('脸颊发红发痒，没有发热')
@@ -85,16 +85,17 @@ test('紧凑资料、护士动画和整合跟进入口；文字补充接回原�
 test('语音入口仅启动一次；拒绝后可打字，关闭、重开和刷新均不自动开麦', async ({ page }) => {
   await home(page)
   await page.getByRole('region', { name: '和护士聊孩子的情况' }).getByRole('button', { name: '和护士说', exact: true }).click()
-  const panel = page.getByRole('dialog', { name: '智能症状记录', exact: true })
+  const panel = page.getByRole('dialog', { name: '智能记录', exact: true })
   await expect(panel.getByRole('alert')).toContainText('合成权限拒绝')
   expect(await page.evaluate(() => (window as any).__homeMicrophoneRequests)).toBe(1)
   await panel.getByRole('button', { name: '改用文字', exact: true }).click()
   await expect(panel.getByLabel('跟护士说')).toBeFocused()
-  await panel.getByRole('button', { name: '关闭智能症状记录', exact: true }).click()
+  await panel.getByRole('button', { name: '收起', exact: true }).click()
   await expect(panel).toHaveCount(0)
   const form = page.getByRole('dialog', { name: '症状记录', exact: true })
-  await form.getByRole('button', { name: 'AI 护士 · 继续', exact: true }).click()
-  await expect(panel.getByLabel('跟护士说')).toBeVisible()
+  await form.getByRole('button', { name: '智能记录 · 继续', exact: true }).click()
+  await expect(panel.getByLabel('跟护士说')).toHaveCount(0)
+  await expect(panel.getByRole('button', { name: '继续语音', exact: true })).toBeVisible()
   expect(await page.evaluate(() => (window as any).__homeMicrophoneRequests)).toBe(1)
   await page.reload()
   await expect(panel).toHaveCount(0)
@@ -108,12 +109,12 @@ test('返回首页后原对话保留，直接症状记录仍打开原表单', as
   await panel.getByLabel('跟护士说').fill(utterance)
   await panel.getByRole('button', { name: '发送', exact: true }).click()
   await expect(panel.getByText('有没有影响睡眠？', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: '关闭智能症状记录', exact: true }).click()
+  await panel.getByRole('button', { name: '收起', exact: true }).click()
   await page.getByRole('dialog', { name: '症状记录', exact: true }).getByRole('button', { name: '返回', exact: true }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
   await page.getByRole('region', { name: '和护士聊孩子的情况' }).getByRole('button', { name: '和护士说', exact: true }).click()
   await expect(panel.locator('.nurse-turn--user').getByText(utterance, { exact: true })).toHaveCount(1)
-  await panel.getByRole('button', { name: '关闭智能症状记录', exact: true }).click()
+  await panel.getByRole('button', { name: '收起', exact: true }).click()
   await page.getByRole('dialog', { name: '症状记录', exact: true }).getByRole('button', { name: '返回', exact: true }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
   await page.goto('/smart-record')
@@ -158,11 +159,21 @@ test('不接收其他孩子或账号遗留的语音入口意图', async ({ page 
   })
   await page.goto('/smart-record')
   await expect(page.getByRole('dialog', { name: '症状记录', exact: true })).toBeVisible()
-  await expect(page.getByRole('dialog', { name: '智能症状记录', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: '智能记录', exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => (window as any).__homeMicrophoneRequests)).toBe(0)
 })
 
-test('跟进同步失败保留有效数量且可打开列表；切换孩子不沿用旧数量', async ({ page }) => {
+test('跟进同步失败保留有效数量且可打开列表；切换孩子不沿用旧数量', async ({ page }, testInfo) => {
+  // Earlier cases save records for empty-child; create an independent member
+  // so this zero-count assertion cannot depend on suite order or viewport.
+  const freshName = `无跟进资料（虚构）${testInfo.project.name}`
+  const created = await page.request.post('/api/members', {
+    headers, data: { name: freshName, relationship: 'child', gender: 'male', birthday: '2025-01-01' },
+  })
+  expect(created.ok()).toBe(true)
+  const freshMember = await created.json()
+  const freshCases = await (await page.request.get(`/api/members/${freshMember.id}/cases`, { headers })).json()
+  expect(freshCases.active).toHaveLength(0)
   await home(page, 'child-a')
   const followup = page.getByRole('button', { name: /^正在跟进/ })
   await expect(followup).toHaveAttribute('aria-label', '正在跟进 · 1')
@@ -177,8 +188,8 @@ test('跟进同步失败保留有效数量且可打开列表；切换孩子不�
   await expect(page).toHaveURL(/\/cases$/)
   await page.goBack()
   await page.getByRole('button', { name: /^选择孩子，当前/ }).click()
-  await page.getByRole('button', { name: '切换到空资料（虚构）', exact: true }).click()
-  await expect(page.getByRole('button', { name: '选择孩子，当前空资料（虚构）', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: `切换到${freshName}`, exact: true }).click()
+  await expect(page.getByRole('button', { name: `选择孩子，当前${freshName}`, exact: true })).toBeVisible()
   await expect(followup).toHaveAttribute('aria-label', '正在跟进 · 0')
   await expect(page.locator('.nurse-home-dialogue__count')).toHaveText('0')
   expect(await page.evaluate(() => (window as any).__homeMicrophoneRequests)).toBe(0)

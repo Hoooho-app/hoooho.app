@@ -9,7 +9,7 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('const form ='), source.indexOf('export function RelatedRecordsSheet'))
   const cardSource=formSource.slice(formSource.indexOf('symptom-narrative'))
-  const labels = ['症状描述', '症状部位', '补充信息', '发生时间', '拍照', '选照片', '语音输入', 'AI 护士']
+  const labels = ['症状描述', '症状部位', '补充信息', '发生时间', '拍照', '选照片', '语音输入', '智能记录']
   let cursor = -1
   for (const label of labels) { const next = cardSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)

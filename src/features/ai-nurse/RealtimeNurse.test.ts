@@ -50,7 +50,9 @@ test('barge-in cancels old response, detaches player and preserves visible parti
 })
 test('autoplay block stops microphone and requires explicit playback; no new SDP or reconnect',async t=>{
  const f=fixture(t);await f.ready();f.block()
- f.emit({type:'response.created',response:{id:'one'}});await Promise.resolve();assert.ok(f.tracks.every(t=>t.stopped));assert.ok(f.playStates.includes(true))
+ f.emit({type:'response.created',response:{id:'one'}});await Promise.resolve();assert.ok(f.tracks.every(t=>t.stopped));assert.ok(f.playStates.includes(true));assert.equal(f.replaced.at(-1),null)
+ f.emit({type:'response.done',response:{id:'one',status:'completed',output:[{role:'assistant',content:[{text:'位置在哪里？'}]}]}})
+ assert.equal(f.states.at(-1),'paused','reply completion cannot show listening while microphone is closed')
  f.unblock();await f.nurse.resumePlayback();assert.equal(f.tracks.length,2);assert.equal(f.playStates.at(-1),false)
  f.nurse.stop();assert.ok(f.tracks.every(t=>t.stopped))
 })
