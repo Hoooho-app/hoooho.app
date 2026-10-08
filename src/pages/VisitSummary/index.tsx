@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, FileText, List } from 'lucide-react'
+import { ArrowLeft, Copy, Download, FileText, List } from 'lucide-react'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'
@@ -25,7 +25,7 @@ import type {
 import { SourceRecordEditor } from './SourceRecordEditor'
 import { ApiRequestError } from '../../services/apiClient'
 import { ReportChapter, reportTime, SourceText } from './ReportChapter'
-import { consultationHtml, reportText, doctorBriefText, downloadContent, type ExportResources } from './reportExport'
+import { consultationHtml, doctorBriefText, downloadContent, type ExportResources } from './reportExport'
 import { PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
 import './reading.css'
@@ -412,7 +412,7 @@ function VisitSheetReader({
         />
       )}
       {report && exporting && (
-        <ExportSheet report={report} token={token} memberId={memberId} onRefresh={async()=>{setExporting(false);await load();return true}} onClose={() => setExporting(false)} />
+        <ExportSheet report={report} token={token} memberId={memberId} onRefresh={async()=>{setExporting(false);await load();setNotice("资料或版本已变化，已重新读取。请核对当前情况单后重新导出。")}} onClose={() => setExporting(false)} />
       )}
       {report&&photoPicker&&<PhotoPicker key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
       {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
@@ -643,106 +643,105 @@ function AttachmentPreview({
     </div>
   )
 }
-function ExportSheet({
-  report,
-  onClose,
-  token,
-  memberId,
-  onRefresh,
-}: {
+function ExportSheet({ report, onClose, token, memberId, onRefresh }: {
   report: VisitSheet
   onClose: () => void
   token: string
   memberId: string
-  onRefresh:()=>Promise<boolean>
+  onRefresh: () => Promise<void>
 }) {
-  const [notice, setNotice] = useState(''),
-    [fallback, setFallback] = useState(false)
-  const [selected,setSelected]=useState(report.selectedPhotoIds??[]),[running,setRunning]=useState(false)
-  const [copyMode,setCopyMode]=useState<'brief'|'full'>('brief'),[needsUpdate,setNeedsUpdate]=useState(false)
-  const includeHistory=false
-  const [includeVideos,setIncludeVideos]=useState(false)
-  const makePrompt=(mode:'brief'|'full',history:boolean)=>`${consultationPrompt(report,{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${mode==='brief'?doctorBriefText(report):reportText(report,history)}`
-  const [promptText,setPromptText]=useState(()=>makePrompt('brief',false))
-  useEffect(()=>{setPromptText(makePrompt(copyMode,includeHistory));setSelected(report.selectedPhotoIds??[]);setNeedsUpdate(false)},[report.version])
-  const controller=useRef(new AbortController()),lock=useRef(false)
-  useEffect(()=>{const current=new AbortController();controller.current=current;return()=>current.abort()},[])
-  const validate=async()=>{
-    const current=await visitSheetService.get(memberId,token,controller.current.signal)
-    if(!current.report||current.stale||current.report.version!==report.version){setNeedsUpdate(true);throw new Error('资料或版本已变化。请在此更新后核对范围，再导出；本次未生成文件。')}
+  const [notice, setNotice] = useState('')
+  const [fallback, setFallback] = useState<{label:string;text:string}|null>(null)
+  const [running, setRunning] = useState<'prompt'|'html'|'text'|null>(null)
+  const controller = useRef(new AbortController()), lock = useRef(false)
+  useEffect(() => {
+    const current = new AbortController()
+    controller.current = current
+    return () => current.abort()
+  }, [])
+  const validate = async () => {
+    const current = await visitSheetService.get(memberId, token, controller.current.signal)
+    if (controller.current.signal.aborted) throw new DOMException('已取消', 'AbortError')
+    if (!current.report || current.stale || current.report.version !== report.version) {
+      // Refresh in the reading view; never finish exporting the old snapshot.
+      await onRefresh()
+      throw new Error('资料或版本已变化，请核对更新后的情况单再导出。')
+    }
   }
-  const resources=async()=>{
+  const resources = async () => {
     await validate()
-    const result:ExportResources={images:{},omitted:[]}
-    let total=0
-    const failed:string[]=[]
-    for(const id of selected){
-      const source=report.sources.find(s=>s.id===id)!
-      if(source.mimeType?.startsWith('video/')&&!includeVideos){result.omitted.push(`${source.title}：未选择附带原视频，仅保留索引`);continue}
-      try{const blob=await readPhoto(source,token,controller.current.signal);if(total+blob.size>80*1024*1024)throw new Error('原件超过单文件合计 80 MB 安全容量；请使用下方独立下载原件');total+=blob.size;result.images[id]=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(blob)})}
-      catch(e){if(controller.current.signal.aborted)throw e;failed.push(`${source.title}：${e instanceof Error?e.message:'原件读取失败'}`)}
+    const result: ExportResources = {images:{}, omitted:[]}
+    let total = 0
+    const failed: string[] = []
+    for (const id of report.selectedPhotoIds ?? []) {
+      const source = report.sources.find(s => s.id === id)
+      if (!source) throw new Error('所选影像资料已变化，请关闭面板并更新情况单后重试。')
+      try {
+        const blob = await readPhoto(source, token, controller.current.signal)
+        if (total + blob.size > 80 * 1024 * 1024) throw new Error('原件合计超过 80 MB，请在情况单中调整影像选择后重试')
+        total += blob.size
+        result.images[id] = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error('原件读取失败'))
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) {
+        if (controller.current.signal.aborted) throw e
+        failed.push(`${source.title}：${e instanceof Error ? e.message : '原件读取失败'}`)
+      }
     }
     await validate()
-    if(failed.length)throw new Error(`未生成文件，所选原件未能完整附带：${failed.join('；')}。请重试、明确取消该原件选择，或独立下载原件。`)
+    if (failed.length) throw new Error(`未生成文件，所选原件未能完整附带：${failed.join('；')}。请重试，或在情况单中调整影像选择。`)
     return result
   }
-  const run=async(task:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setRunning(true);try{await task()}catch(e){if(!controller.current.signal.aborted)setNotice(e instanceof Error&&!/abort|fetch|timeout|timed out/i.test(e.message)?e.message:'输出读取超时或连接中断，未生成新文件，请重试')}finally{lock.current=false;if(!controller.current.signal.aborted)setRunning(false)}}
-  const copy = async () => {
-    await validate()
-    try {
-      await navigator.clipboard.writeText(promptText)
-      setNotice(`已复制${copyMode==='brief'?'本次重点':'完整资料'}（约 ${promptText.length} 字符）；内容仍需核对`)
-    } catch {
-      setFallback(true)
-      setNotice('浏览器未允许复制，请全选下方全文手动复制')
+  const run = async (action: 'prompt'|'html'|'text', task: () => Promise<void>) => {
+    if (lock.current) return
+    lock.current = true
+    setRunning(action)
+    setNotice('')
+    setFallback(null)
+    try { await task() }
+    catch (e) {
+      if (!controller.current.signal.aborted) setNotice(e instanceof Error && !/abort|fetch|timeout|timed out/i.test(e.message) ? e.message : '读取超时或连接中断，请重试')
+    } finally {
+      lock.current = false
+      if (!controller.current.signal.aborted) setRunning(null)
     }
   }
+  const copy = async (text: string, label: string) => {
+    await validate()
+    try {
+      await navigator.clipboard.writeText(text)
+      if (!controller.current.signal.aborted) setNotice(`已复制${label}`)
+    } catch {
+      if (controller.current.signal.aborted) return
+      setFallback({label, text})
+      setNotice('浏览器未允许复制，请全选下方文本手动复制')
+    }
+  }
+  const plainText = doctorBriefText(report)
+  const promptText = `${consultationPrompt(report,{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${plainText}`
   return (
-    <VisitSubpage
-      label="导出情况单"
-      title="导出情况单"
-      onClose={()=>{controller.current.abort();onClose()}}
-    >
+    <BottomSheetSurface open label="导出情况单" title="导出情况单" onClose={() => {controller.current.abort();onClose()}}>
       <div className="visit-export-options">
-        <p>
-          {report.member.name} · 当前确认情况单
-        </p>
-        <p className="visit-muted">{report.scope} 默认导出本次就诊重点，可另选完整资料。影像只有成功内嵌字节后才可离线查看；文字不含原件字节。</p>
-        <fieldset disabled={running}><legend>导出范围（HTML、打印和复制共用）</legend><label><input type="radio" name="export-range" checked={copyMode==='brief'} onChange={()=>{setCopyMode('brief');setPromptText(makePrompt('brief',false))}}/>本次就诊重点（默认）</label><label><input type="radio" name="export-range" checked={copyMode==='full'} onChange={()=>{setCopyMode('full');setPromptText(makePrompt('full',includeHistory))}}/>情况单与完整资料</label><label><input type="checkbox" checked={includeVideos} onChange={e=>setIncludeVideos(e.target.checked)}/>附带原视频</label><small>合计最多内嵌80MB原件。文件较大或浏览器播放格式不支持时，可单独下载原件；不会自动播放。</small></fieldset>
-        {needsUpdate&&<HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{if(await onRefresh())setNotice('已更新到当前资料，请核对新的照片和文字范围后导出');else setNotice('更新未成功，旧报告保留；尚未导出新文件')})}>在此更新情况单</HohoButton>}
-        <details><summary>核对导出影像 · 已选 {selected.length} 项</summary><p>与页面展示选择独立。未选图片字节不会写入文件。</p>{report.photos?.map(p=><label key={p.sourceId}><input type="checkbox" disabled={running} checked={selected.includes(p.sourceId)} onChange={e=>setSelected(e.target.checked?[...selected,p.sourceId]:selected.filter(id=>id!==p.sourceId))}/>{p.title} · {p.location} · {p.timeKind} {reportTime(p.capturedAt||p.uploadedAt)}</label>)}{!report.photos?.length&&<p>暂无关联影像原件。</p>}</details>
-        <HohoButton
-          loading={running}
-          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;downloadContent(consultationHtml(report,result,copyMode==='full'),'Hoooho-就诊情况单.html','text/html;charset=utf-8');setNotice(`已发起下载，请在浏览器下载列表查看。内嵌 ${Object.keys(result.images).length} 份影像原件。${result.omitted.length?'原件未附：'+result.omitted.join('；'):''}`)})}
-        >
-          保存离线情况单（HTML）
+        <HohoButton fullWidth loading={running==='prompt'} disabled={!!running} onClick={() => void run('prompt', () => copy(promptText, '问诊提示词'))}>
+          <Copy size={18} aria-hidden="true" />复制问诊提示词
         </HohoButton>
-        <HohoButton variant="secondary" disabled={running} onClick={()=>void run(async()=>{await validate();downloadContent(doctorBriefText(report),'Hoooho-就诊重点摘要.txt','text/plain;charset=utf-8');setNotice('已发起重点摘要下载，不含完整原文或照片；请在浏览器下载列表查看')})}>保存重点摘要（文本）</HohoButton>
-        <p>复制约 {promptText.length} 字符 · 采用上方导出范围，不含影像字节。复制前可在下方编辑核对。</p>
-        <HohoButton variant="secondary" disabled={running} onClick={() => void run(copy)}>
-          复制问诊提示词
+        <HohoButton fullWidth variant="secondary" loading={running==='html'} disabled={!!running} onClick={() => void run('html', async () => {
+          const result = await resources()
+          if (controller.current.signal.aborted) return
+          downloadContent(consultationHtml(report,result,true), 'Hoooho-就诊情况单.html', 'text/html;charset=utf-8')
+          setNotice(`已发起下载，请在浏览器下载列表查看。内嵌 ${Object.keys(result.images).length} 份影像原件。`)
+        })}>
+          <Download size={18} aria-hidden="true" />保存 HTML 情况单
         </HohoButton>
-        <details><summary>核对 / 编辑问诊提示词</summary><textarea aria-label="问诊提示词" value={promptText} maxLength={60000} onChange={e=>setPromptText(e.target.value)}/><small>只编辑对外复制内容，不覆盖原始健康资料。</small></details>
-        <HohoButton
-          variant="secondary"
-          disabled={running}
-          onClick={() => void run(async()=>{const result=await resources();if(controller.current.signal.aborted)return;const frame=document.createElement('iframe');frame.title='打印情况单';frame.style.cssText='position:fixed;width:0;height:0;border:0';frame.srcdoc=consultationHtml(report,result,copyMode==='full');frame.onload=async()=>{await Promise.all([...frame.contentDocument!.images].map(image=>image.decode().catch(()=>{})));frame.contentWindow?.print();setTimeout(()=>frame.remove(),60000)};document.body.append(frame);setNotice(`已准备${copyMode==='full'?'完整资料':'本次重点'}打印快照。${result.omitted.length?'原件未附：'+result.omitted.join('；'):''}`)})}
-        >
-          打印 / 另存 PDF
+        <HohoButton fullWidth variant="text" loading={running==='text'} disabled={!!running} onClick={() => void run('text', () => copy(plainText, '纯文本'))}>
+          <FileText size={18} aria-hidden="true" />复制纯文本
         </HohoButton>
         {notice && <p role="status">{notice}</p>}
-        {!!report.selectedPhotoIds?.length&&<details><summary>独立下载影像原件（大文件或播放失败时）</summary>{report.photos?.filter(photo=>report.selectedPhotoIds?.includes(photo.sourceId)).map(photo=><HohoButton key={photo.sourceId} variant="text" disabled={running} onClick={()=>void run(async()=>{await validate();const blob=await readPhoto(report.sources.find(source=>source.id===photo.sourceId)!,token,controller.current.signal);const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=photo.title;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),60000);setNotice(`已发起 ${photo.title} 原件下载（${(blob.size/1024/1024).toFixed(2)}MB），请检查浏览器下载列表`)})}>{photo.title}{photo.binarySize?` · ${(photo.binarySize/1024/1024).toFixed(2)}MB`:''}</HohoButton>)}</details>}
-        {fallback && (
-          <label>
-            可复制的当前范围文本
-            <textarea
-              readOnly
-              value={promptText}
-              onFocus={(e) => e.target.select()}
-            />
-          </label>
-        )}
+        {fallback && <label>可复制的{fallback.label}<textarea readOnly value={fallback.text} onFocus={e => e.target.select()} /></label>}
       </div>
-    </VisitSubpage>
+    </BottomSheetSurface>
   )
 }

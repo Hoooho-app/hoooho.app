@@ -238,16 +238,18 @@ test('视频上传保存不启动 AI 分析，原件可播放', async ({ page: p
     await p.reload();
     await expect(p.locator('.visit-video-thumb')).toHaveCount(2);
 });
-test('当前确认版导出默认重点可选完整资料档案，实际离线照片视频、复制失败回退与打印', async ({ page: p, browser, browserName }, info) => {
+test('精简导出三按钮顺序、完整离线照片视频与两种复制回退', async ({ page: p, browser, browserName }, info) => {
     await enter(p);
     await p.getByRole('button', { name: '导出情况单', exact: true }).click();
     const d = p.getByRole('dialog', { name: '导出情况单', exact: true });
-    await expect(d.getByRole('radio', { name: '本次就诊重点（默认）' })).toBeChecked();
-    await d.getByRole('radio', { name: '情况单与完整资料', exact: true }).check();
-    await d.getByRole('checkbox', { name: '附带原视频', exact: true }).check();
+    await expect(d.getByRole('button')).toHaveText(['', '复制问诊提示词', '保存 HTML 情况单', '复制纯文本']);
+    await expect(d.locator('input, details, textarea')).toHaveCount(0);
+    const bounds = await d.boundingBox();
+    expect(bounds!.height).toBeLessThan(400);
+    expect(bounds!.width).toBeLessThanOrEqual(p.viewportSize()!.width);
     await p.screenshot({ path: info.outputPath('export-options.png') });
     const download = p.waitForEvent('download');
-    await d.getByRole('button', { name: '保存离线情况单（HTML）', exact: true }).click();
+    await d.getByRole('button', { name: '保存 HTML 情况单', exact: true }).click();
     const filename = info.outputPath('offline-confirmed.html');
     await (await download).saveAs(filename);
     const html = await readFile(filename, 'utf8');
@@ -277,18 +279,18 @@ test('当前确认版导出默认重点可选完整资料档案，实际离线�
     await context.close();
     await p.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('denied'); } } }));
     await d.getByRole('button', { name: '复制问诊提示词' }).click();
-    await expect(d.getByLabel('可复制的当前范围文本')).toContainText('完整原始依据');
-    if (info.project.name === 'desktop') {
-        await d.getByRole('button', { name: '打印 / 另存 PDF' }).click();
-        const frame = p.locator('iframe[title="打印情况单"]');
-        await expect(frame).toHaveCount(1);
-        const printable = await browser.newPage();
-        await printable.setContent((await frame.getAttribute('srcdoc'))!);
-        await printable.emulateMedia({ media: 'print' });
-        await expect(printable.getByRole('heading', { name: '完整原始依据', exact: true })).toBeVisible();
-        await printable.pdf({ path: info.outputPath('complete-print.pdf'), format: 'A4', printBackground: true });
-        await printable.close();
-    }
+    const prompt = await d.getByLabel('可复制的问诊提示词').inputValue();
+    expect(prompt).toContain('以下是已保存资料的整理内容');
+    await d.getByRole('button', { name: '复制纯文本', exact: true }).click();
+    const plain = await d.getByLabel('可复制的纯文本').inputValue();
+    expect(prompt.endsWith(plain)).toBe(true);
+    expect(plain).not.toContain('以下是已保存资料的整理内容');
+    await p.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{writeText:async (text:string) => { (window as any).copied = text; }} }));
+    await d.getByRole('button', { name: '复制纯文本', exact:true }).click();
+    await expect.poll(() => p.evaluate(() => (window as any).copied)).toBe(plain);
+    await expect(d.locator('textarea')).toHaveCount(0);
+    await d.getByRole('button', { name: '复制问诊提示词', exact:true }).click();
+    await expect.poll(() => p.evaluate(() => (window as any).copied)).toBe(prompt);
 });
 test('导出途中来源变化和主动取消均不生成过期文件', async ({ page: p }) => {
     await enter(p);
@@ -298,27 +300,27 @@ test('导出途中来源变化和主动取消均不生成过期文件', async ({
     const gate = new Promise<void>(r => release = r), ready = new Promise<void>(r => started = r);
     p.on('download', d => downloads.push(d.suggestedFilename()));
     await p.route(url, async (r) => { started(); await gate; await r.continue().catch(() => { }); });
-    await d.getByRole('button', { name: '保存离线情况单（HTML）' }).click();
+    await d.getByRole('button', { name: '保存 HTML 情况单' }).click();
     await ready;
     const created = await (await p.request.post('/api/events/event-a/records', { headers, data: { type: 'note', content: '导出竞态合成记录', occurredAt: '2026-09-01T10:00:00Z' } })).json();
     try {
         release();
-        await expect(d.getByRole('status')).toContainText('资料或版本已变化');
+        await expect(d).toHaveCount(0);
+        await expect(p.getByRole('status')).toContainText('资料或版本已变化');
         expect(downloads).toEqual([]);
     }
     finally {
         await p.request.delete('/api/records/' + created.id, { headers });
         await p.unroute(url);
     }
-    await d.getByRole('button', { name: '返回导出情况单' }).click();
     await update(p);
     await p.getByRole('button', { name: '导出情况单', exact: true }).click();
     let finish!: () => void, waiting!: () => void;
     const wait = new Promise<void>(r => finish = r), pending = new Promise<void>(r => waiting = r);
     await p.route(url, async (r) => { waiting(); await wait; await r.abort().catch(() => { }); });
-    await d.getByRole('button', { name: '保存离线情况单（HTML）' }).click();
+    await d.getByRole('button', { name: '保存 HTML 情况单' }).click();
     await pending;
-    await d.getByRole('button', { name: '返回导出情况单' }).click();
+    await d.getByRole('button', { name: '关闭导出情况单' }).click();
     finish();
     await expect(d).toHaveCount(0);
     expect(downloads).toEqual([]);

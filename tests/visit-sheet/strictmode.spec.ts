@@ -13,8 +13,8 @@ test('开发 StrictMode 重开导出不复用取消信号，Vite 照片真实上
   await picker.getByRole('button',{name:'保存影像选择'}).click();await expect(picker).toHaveCount(0)
   for(let i=0;i<2;i++){
     await page.getByRole('button',{name:'导出情况单',exact:true}).click()
-    const download=page.waitForEvent('download');await page.getByRole('button',{name:'保存离线情况单（HTML）',exact:true}).click();await download
-    await page.getByRole('dialog',{name:'导出情况单'}).getByRole('button',{name:'返回导出情况单',exact:true}).click()
+    const download=page.waitForEvent('download');await page.getByRole('button',{name:'保存 HTML 情况单',exact:true}).click();await download
+    await page.getByRole('dialog',{name:'导出情况单'}).getByRole('button',{name:'关闭导出情况单',exact:true}).click()
   }
   expect(errors).toEqual([])
 })
