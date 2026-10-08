@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {doctorBriefText,matchingSources,copyNurseConversation} from './reportCopy'
+import {doctorBriefText,matchingSources,copyNurseConversation,growthReading,visitSignature} from './reportCopy'
 import type {VisitSheet,VisitSource} from '../../types/visitSheet'
 test('离线副本保留最终对话及更正、打断状态，原文不变且内部标识不外泄',()=>{
  const source={code:'SRC-001',nurseConversation:[{id:'internal-user',role:'user',text:'家长原话：没有发热',at:'2026-10-07T01:00:00Z',order:0,final:true,status:'completed',private:'must-not-copy'},{id:'internal-correction',role:'user',text:'更正：昨晚开始',at:'2026-10-07T01:01:00Z',order:1,final:true,status:'completed',correctsTurnId:'internal-user'},{id:'internal-assistant',role:'assistant',text:'已展示但打断的回复',at:'2026-10-07T01:02:00Z',order:2,final:true,status:'interrupted'}]} as unknown as VisitSource
@@ -20,4 +20,10 @@ test('默认医生重点不包含旧问题、历史报告、修订或无关计�
   report.chapters[0].blocks=[{title:'家长关注与已做处理',lines:['家长担心（不确定/担心）：怀疑鸡蛋相关'],sourceIds:['current']},{title:'家长关注与已做处理',lines:['无关的旧处理'],sourceIds:['old']}]
   report.sources[0].nurseConversation=[{id:'a',role:'assistant',text:'助手问题不得进重点'}] as VisitSource['nurseConversation']
   const withNotes=doctorBriefText(report);assert.match(withNotes,/家长担心（不确定\/担心）：怀疑鸡蛋相关/);assert.doesNotMatch(withNotes,/无关的旧处理|助手问题不得进重点/)
+})
+
+test('成长摘要复用WHO，待核对数据和不同测量条件不混成趋势，署名只用称谓',()=>{
+ const r={member:{name:'测试孩子',gender:'female',birthday:'2024-01-01',primaryRecorderRelationship:'mother'},chapters:[{id:'growth',blocks:[{title:'身长（卧位）',unit:'cm',points:[{value:70,at:'2025-01-01',sourceId:'length'}]},{title:'身高（站立）',unit:'cm',points:[{value:82,at:'2026-01-01',sourceId:'height'},{value:120,at:'2026-02-01',sourceId:'pending',detail:'待核对'}]}]}]} as unknown as VisitSheet
+ const summary=growthReading(r);assert.match(summary[0].lines[0],/WHO.*P/);assert.match(summary[0].lines[1],/仅有一次/);assert.deepEqual(summary[0].sourceIds,['height']);assert.equal(visitSignature(r),'由 Hoooho 护士配合家长（妈妈）整理')
+ r.member.gender=null;assert.match(growthReading(r)[0].lines[0],/暂不计算百分位/)
 })

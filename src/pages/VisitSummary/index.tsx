@@ -1,5 +1,5 @@
-import { ArrowLeft, Download, FileText, List, RefreshCw } from 'lucide-react'
-import { VisitReading, readingCards, type ReadingEditor } from './VisitReading'
+import { ArrowLeft, Download, FileText, List } from 'lucide-react'
+import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'
 import { useEffect, useRef, useState } from 'react'
@@ -32,7 +32,7 @@ import './reading.css'
 import { ReportDirectory } from './ReportDirectory'
 import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
 import { preliminarySummaryExport } from './preliminarySummaryExport'
-import { consultationPrompt, doctorQuestionTemplates } from '../../features/ai-business/consultationPrompt'
+import { consultationPrompt } from '../../features/ai-business/consultationPrompt'
 import { ReportScopeSheet } from '../../features/case-continuity/ReportScopeSheet'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
@@ -124,12 +124,13 @@ function VisitSheetReader({
       const result = await visitSheetService.get(memberId, token, c.signal)
       if (c.signal.aborted) return
       version.current = result.report?.version ?? result.expectedVersion ?? 0
-      if (result.report && (!caseFocus || result.report.focus.caseEventId === eventId)) accept(result)
+      if (result.report) accept(result)
+      if (result.report && !result.stale && (!caseFocus || result.report.focus.caseEventId === eventId)) accept(result)
       else {
         const generated = await visitSheetService.save(
           memberId,
           token,
-          { expectedVersion: version.current, requestId: crypto.randomUUID(), ...(caseFocus ? { focus: caseFocus, selection:{eventIds:[eventId!],includeBackground:false} } : {}) },
+          { expectedVersion: version.current, requestId: crypto.randomUUID(), ...(caseFocus ? { focus: caseFocus, selection:null } : {}) },
           c.signal,
         )
         if (!c.signal.aborted) accept(generated)
@@ -242,16 +243,15 @@ function VisitSheetReader({
       <div className="visit-reading-toolbar">
         <button
           aria-label="章节目录"
-          disabled={!report?.sources.length}
+          disabled={!report}
           onClick={() => setMenu(true)}
         >
           <List size={21} />
           目录
         </button>
-        <button disabled={!report||working} onClick={()=>{setError('');setUpdateDraft(undefined);setUpdateOpen(true)}}><RefreshCw size={16}/>更新情况单</button>
         <button
           aria-label="导出情况单"
-          disabled={!report?.sources.length}
+          disabled={!report||loading||working}
           onClick={() => setExporting(true)}
         >
           <Download size={20} />
@@ -281,9 +281,7 @@ function VisitSheetReader({
             title={report ? '更新未完成' : '情况单暂时无法打开'}
             tone="error"
             action={
-              !report ? (
-                <HohoButton onClick={() => void load()}>重试</HohoButton>
-              ) : aiFailed ? <HohoButton disabled={working} onClick={() => void update({ generateAI: true, previewUpdate:true })}>重试整理草稿</HohoButton> : undefined
+              <HohoButton disabled={loading||working} onClick={() => void load()}>重试</HohoButton>
             }
           >
             {error}
@@ -291,10 +289,8 @@ function VisitSheetReader({
         )}
         {report && (
           <>
-            {state?.stale&&<StatusNotice title="有新资料待同步">当前保留上一次确认的情况单；可从上方更新。</StatusNotice>}
             {[...new Set([...(state?.warnings??[]),...report.warnings])].map(w=><StatusNotice title={w} tone="warning" key={w}/>)}
-            <VisitReading report={report} token={token} onEvidence={openEvidence} onEdit={kind=>{setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>setPhotoPicker(true)} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
-            {!sources.length&&<HohoButton onClick={()=>setScopeOpen(true)}>调整 / 恢复资料范围</HohoButton>}
+            <VisitReading report={report} token={token} busy={loading||working} onEvidence={openEvidence} onEdit={kind=>{setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>setPhotoPicker(true)} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
           </>
         )}
         {notice && (
@@ -303,7 +299,7 @@ function VisitSheetReader({
           </p>
         )}
       </div>
-      {menu&&report&&<ReportDirectory chapters={readingCards.map(card=>({...card,summary:'',blocks:[]}))} active={active} onClose={()=>setMenu(false)} onChoose={chooseChapter}/>}
+      {menu&&report&&<ReportDirectory chapters={visibleReadingCards(report).map(card=>({...card,summary:'',blocks:[]}))} active={active} onClose={()=>setMenu(false)} onChoose={chooseChapter}/>}
       {report && scopeOpen && <ReportScopeSheet initial={report.selection} memberId={memberId} token={token} version={report.version} busy={working} error={error} onClose={()=>{if(!working)setScopeOpen(false)}} onSave={async selection=>{const previous=report.selection??null;if(await update({selection})){setScopeUndo({selection:previous});setScopeOpen(false)}}} onUndo={scopeUndo?async()=>{if(await update({selection:scopeUndo.selection})){setScopeUndo(null);setScopeOpen(false)}}:undefined}/>}
       {report && editing && (
         <ReportEditor
@@ -411,13 +407,12 @@ function VisitSheetReader({
           onClose={() => {setSourceEdit(null);setEvidence(parentEvidence.current);parentEvidence.current=null}}
           onChanged={() => {
             parentEvidence.current=null
-            setNotice('原始记录已保存；请核对更新草稿后同步情况单')
-            setUpdateDraft(undefined);setUpdateOpen(true);setSourceEdit(null);setEvidence(null)
+            setSourceEdit(null);setEvidence(null);void load()
           }}
         />
       )}
       {report && exporting && (
-        <ExportSheet report={report} token={token} memberId={memberId} onRefresh={()=>{setExporting(false);setUpdateDraft(undefined);setUpdateOpen(true);return Promise.resolve(false)}} onClose={() => setExporting(false)} />
+        <ExportSheet report={report} token={token} memberId={memberId} onRefresh={async()=>{setExporting(false);await load();return true}} onClose={() => setExporting(false)} />
       )}
       {report&&photoPicker&&<PhotoPicker key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
       {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
@@ -452,7 +447,7 @@ function ReportEditor({
 }) {
   const [focus, setFocus] = useState<VisitFocus>(report.focus),
     [custom, setCustom] = useState(report.focus.text ?? ''),
-    [question, setQuestion] = useState(report.questionEdited?report.question:''),
+    [question, setQuestion] = useState(report.question),
     [query, setQuery] = useState(''),
     [confirmExit, setConfirmExit] = useState(false)
   const [caseDetails,setCaseDetails]=useState(report.caseDetails??{}),[notes,setNotes]=useState(report.notes)
@@ -461,7 +456,7 @@ function ReportEditor({
   const dirty =
     JSON.stringify(focus) !== JSON.stringify(report.focus) ||
     custom !== (report.focus.text ?? '') ||
-    question !== (report.questionEdited?report.question:'') || JSON.stringify(caseDetails)!==JSON.stringify(report.caseDetails??{}) || JSON.stringify(notes)!==JSON.stringify(report.notes)
+    question !== report.question || JSON.stringify(caseDetails)!==JSON.stringify(report.caseDetails??{}) || JSON.stringify(notes)!==JSON.stringify(report.notes)
   useEffect(()=>onDirty(dirty),[dirty,onDirty])
   useEffect(()=>{
     const guard=(event:BeforeUnloadEvent)=>{if(dirty||working){event.preventDefault();event.returnValue=''}}
@@ -487,26 +482,18 @@ function ReportEditor({
   const groups=[...new Set(report.candidates.map(c=>c.text.trim()))].map(text=>report.candidates.filter(c=>c.text.trim()===text))
   return (
     <VisitSubpage
-      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑本次情况',course:'编辑经过与处理',data:'编辑完整资料'}[kind]}
-      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑本次情况',course:'编辑经过与处理',data:'编辑完整资料'}[kind]}
+      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑目前情况',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
+      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑目前情况',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
       onClose={close}
-      action={
-        <HohoButton
-          disabled={!valid}
-          loading={working}
-          onClick={() => void onSave(changes)}
-        >
-          保存
-        </HohoButton>
-      }
+
     >
       <div className="visit-report-editor">
         <fieldset className="visit-editor-fields" disabled={working}>
         {(kind === 'focus'||kind==='association') ? (
           <>
             {kind==='association'?<><h3>{report.complaint}</h3><p>选择你确认与本次主诉相关的已有症状记录。</p></>:<><label className="visit-focus-option"><input type="radio" name="focus" checked={focus.mode==='custom'} onChange={()=>setFocus(previous=>({...previous,mode:'custom',text:custom}))}/><strong>自己描述</strong></label>
-            <label>本次主诉（家长陈述）<textarea value={custom} maxLength={1000} placeholder="用自己的话描述这次想了解的问题" onChange={e=>{setCustom(e.target.value);setFocus(previous=>({...previous,mode:'custom',text:e.target.value}))}}/></label></>}
-            {(focus.mode==='custom'||kind==='association')&&<fieldset><legend>确认与本次主诉相关的已有记录</legend><p>名称不必相同；仅纳入你明确选择的症状及其已有处理关联。</p>{!report.candidates.length&&<p>暂无可选择的症状记录。可先补充本次情况，记录症状后再关联。</p>}{report.candidates.map(candidate=><label className="visit-focus-option" key={candidate.sourceId}><input type="checkbox" checked={focus.relatedSourceIds?.includes(candidate.sourceId)??false} onChange={e=>setFocus(previous=>({...previous,relatedSourceIds:e.target.checked?[...(previous.relatedSourceIds??[]),candidate.sourceId]:(previous.relatedSourceIds??[]).filter(id=>id!==candidate.sourceId)}))}/><span>{candidate.text}<small>{reportTime(candidate.at,report.timezone)}</small></span></label>)}</fieldset>}
+            <label>本次主诉<textarea value={custom} maxLength={1000} placeholder="用自己的话描述这次想了解的问题" onChange={e=>{setCustom(e.target.value);setFocus(previous=>({...previous,mode:'custom',text:e.target.value}))}}/></label></>}
+            {kind==='association'&&<fieldset><legend>确认与本次主诉相关的已有记录</legend><p>名称不必相同；仅纳入你明确选择的症状及其已有处理关联。</p>{!report.candidates.length&&<p>暂无可选择的症状记录。可先补充本次情况，记录症状后再关联。</p>}{report.candidates.map(candidate=><label className="visit-focus-option" key={candidate.sourceId}><input type="checkbox" checked={focus.relatedSourceIds?.includes(candidate.sourceId)??false} onChange={e=>setFocus(previous=>({...previous,relatedSourceIds:e.target.checked?[...(previous.relatedSourceIds??[]),candidate.sourceId]:(previous.relatedSourceIds??[]).filter(id=>id!==candidate.sourceId)}))}/><span>{candidate.text}<small>{reportTime(candidate.at,report.timezone)}</small></span></label>)}</fieldset>}
             {kind==='focus'&&<><label className="visit-focus-option">
               <input
                 type="radio"
@@ -552,19 +539,18 @@ function ReportEditor({
                 本次想问
                 <textarea
                   aria-label="本次想问"
+                  rows={7}
                   value={question}
                   maxLength={5000}
                   onChange={(e) => setQuestion(e.target.value)}
                 />
               </label>
-              <div className="visit-section-actions">{doctorQuestionTemplates.map(template=><button type="button" aria-label={`添加问题：${template}`} key={template} onClick={()=>setQuestion(previous=>previous?`${previous}\n${template}`:template)}>{template}</button>)}</div>
-            <p className="visit-muted">
-              标为家长陈述，仅保存到报告，不覆盖原始记录。
-            </p>
+              <div className="visit-question-suggestions" aria-label="可选问题">{(report.reading?.questionCandidates??[]).slice(3,10).map(template=><button type="button" aria-label={`添加问题：${template}`} key={template} disabled={question.split('\n').some(line=>line.trim()===template)} onClick={()=>setQuestion(previous=>previous.trim()?`${previous.trimEnd()}\n${template}`:template)}>{template}</button>)}</div>
           </>
-        ) : kind==='current'?<>{(['description','onset','change','other'] as const).map(key=><label key={key}>{{description:'当前情况（家长补充）',onset:'实际开始时间',change:'最近变化',other:'其他表现'}[key]}<textarea maxLength={5000} value={caseDetails[key]??''} placeholder={report.reading?.[key]??'未填写'} onChange={e=>setCaseDetails(previous=>({...previous,[key]:e.target.value}))}/></label>)}<p>补充只保存到情况单；不覆盖原始记录。不确定的内容请保持未知。</p></>:kind==='course'?<label>经过与处理补充（已发生的情况）<textarea aria-label="经过与处理补充（已发生的情况）" maxLength={5000} value={notes.course??''} onChange={e=>setNotes(previous=>({...previous,course:e.target.value}))}/><small>原始经过保持来源可追溯；此处仅保存家长补充，不改写原记录。</small></label>:<>{(['history','allergy','sources'] as const).map(key=><label key={key}>{{history:'既往背景补充',allergy:'过敏资料补充（不是确诊）',sources:'资料说明'}[key]}<textarea maxLength={5000} value={notes[key]??''} onChange={e=>setNotes(previous=>({...previous,[key]:e.target.value}))}/></label>)}<HohoButton variant="secondary" disabled={dirty||working} onClick={onScope}>调整 / 恢复资料范围</HohoButton><HohoButton variant="secondary" disabled={dirty||working} onClick={onPhotos}>添加 / 调整影像</HohoButton><p>原始记录与全局健康档案不在这里覆盖。</p></>}
+        ) : kind==='current'?<>{(['description','onset','change','other'] as const).map(key=><label key={key}>{{description:'目前情况',onset:'实际开始时间',change:'最近变化',other:'其他表现'}[key]}<textarea maxLength={5000} value={caseDetails[key]??''} placeholder={report.reading?.[key]??'未填写'} onChange={e=>setCaseDetails(previous=>({...previous,[key]:e.target.value}))}/></label>)}<p>补充只保存到情况单；不覆盖原始记录。不确定的内容请保持未知。</p></>:kind==='course'?<label>相关经过与处理补充（已发生的情况）<textarea aria-label="相关经过与处理补充（已发生的情况）" maxLength={5000} value={notes.course??''} onChange={e=>setNotes(previous=>({...previous,course:e.target.value}))}/><small>原始经过保持来源可追溯；此处仅保存家长补充，不改写原记录。</small></label>:<>{(['history','allergy','sources'] as const).map(key=><label key={key}>{{history:'既往背景补充',allergy:'过敏资料补充（不是确诊）',sources:'资料说明'}[key]}<textarea maxLength={5000} value={notes[key]??''} onChange={e=>setNotes(previous=>({...previous,[key]:e.target.value}))}/></label>)}<HohoButton variant="secondary" disabled={dirty||working} onClick={onScope}>调整 / 恢复资料范围</HohoButton><HohoButton variant="secondary" disabled={dirty||working} onClick={onPhotos}>添加 / 调整影像</HohoButton><p>原始记录与全局健康档案不在这里覆盖。</p></>}
         </fieldset>
         {error && <p role="alert">{error}</p>}
+        <div className="visit-editor-bottom"><HohoButton variant="secondary" disabled={working} onClick={close}>取消</HohoButton><HohoButton disabled={!valid} loading={working} onClick={()=>void onSave(changes)}>保存</HohoButton></div>
         {(confirmExit || navigationBlocked) && (
           <div ref={exitPrompt} tabIndex={-1} role="alert">
             <p>还有未保存的内容</p>
@@ -676,7 +662,7 @@ function ExportSheet({
   const [copyMode,setCopyMode]=useState<'brief'|'full'>('brief'),[needsUpdate,setNeedsUpdate]=useState(false)
   const includeHistory=false
   const [includeVideos,setIncludeVideos]=useState(false)
-  const makePrompt=(mode:'brief'|'full',history:boolean)=>`${consultationPrompt({...report,question:report.questionEdited?report.question:''},{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${mode==='brief'?doctorBriefText(report):reportText(report,history)}`
+  const makePrompt=(mode:'brief'|'full',history:boolean)=>`${consultationPrompt(report,{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${mode==='brief'?doctorBriefText(report):reportText(report,history)}`
   const [promptText,setPromptText]=useState(()=>makePrompt('brief',false))
   useEffect(()=>{setPromptText(makePrompt(copyMode,includeHistory));setSelected(report.selectedPhotoIds??[]);setNeedsUpdate(false)},[report.version])
   const controller=useRef(new AbortController()),lock=useRef(false)

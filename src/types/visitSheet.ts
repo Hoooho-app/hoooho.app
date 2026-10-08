@@ -91,8 +91,17 @@ export interface VisitChapter {
   blocks: VisitBlock[]
   overview?: { lines: string[]; items: Array<{title: string; detail: string; sourceIds: string[]; at?: string; timeKind?: string}> }
 }
+export interface VisitReadingGroup {
+  id: string
+  title: string
+  lines: string[]
+  sourceIds: string[]
+  blocks?: VisitBlock[]
+  events?: Array<{title:string;at:string|null;sourceIds:string[]}>
+}
+export interface VisitArchiveGroup { id:string;title:string;items:Array<{title:string;detail:string;sourceIds:string[]}> }
 export interface VisitSheet {
-  reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null}
+  reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null;keywords?:string[];courseGroups?:VisitReadingGroup[];archive?:VisitArchiveGroup[];questionCandidates?:string[];contextRange?:{from:string|null;to:string|null}}
   caseDetails?: {description?:string;onset?:string;change?:string;other?:string}
   selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
   aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai' | 'bailian'; model: string; generatedAt: string }
@@ -121,7 +130,7 @@ export interface VisitSheet {
   dataAsOf: string
   timezone: string
   fingerprint: string
-  member: { name: string; gender: string | null; birthday: string | null; avatar?:string|null }
+  member: { name: string; gender: string | null; birthday: string | null; avatar?:string|null;bloodType?:string|null;rhBloodType?:string|null;primaryRecorderRelationship?:string|null }
   focus: VisitFocus
   complaint: string
   complaintSourceId: string | null

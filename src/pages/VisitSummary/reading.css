@@ -88,3 +88,26 @@
 .visit-subpage[hidden] { display:none; }
 
 .visit-editor-fields { display:flex;flex-direction:column;gap:12px;border:0;margin:0;padding:0;min-width:0; }
+
+/* Approved reading layout: expand first, edit within the expanded section. */
+.visit-reading-toolbar { grid-template-columns:1fr 1fr; }
+.visit-reading-case { display:block; }
+.visit-reading-case p { margin-top:var(--hoho-space-2); }
+.visit-reading-actions { display:flex;align-items:center;gap:var(--hoho-space-3);flex-wrap:wrap; }
+.visit-reading-actions .visit-reading-edit { margin-left:auto; }
+.visit-reading-facts { display:flex;flex-direction:column;gap:var(--hoho-space-2); }
+.visit-reading-facts>div { display:grid;grid-template-columns:58px minmax(0,1fr);gap:var(--hoho-space-2); }
+.visit-reading-keywords { display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);margin-block:var(--hoho-space-3); }
+.visit-reading-keywords>span { font-size:12px;background:var(--visit-neutral-surface);padding:var(--hoho-space-1) var(--hoho-space-2);border-radius:var(--hoho-radius-pill); }
+.visit-reading-blood { align-self:center;font-size:12px;white-space:nowrap; }
+.visit-reading-course-group { padding-block:var(--hoho-space-3);border-top:1px solid var(--visit-neutral-border); }
+.visit-reading-course-group h3,.visit-reading-data-group h3 { font-size:15px;margin:0 0 var(--hoho-space-2); }
+.visit-reading-course-group p,.visit-reading-data-group p { font-size:13px;line-height:1.8;white-space:pre-wrap;margin-block:var(--hoho-space-2); }
+.visit-reading-timeline { padding-left:var(--hoho-space-4); }
+.visit-reading-timeline li { padding-block:var(--hoho-space-2); }
+.visit-reading-data-group { padding-block:var(--hoho-space-3); }
+.visit-reading-data-group h4 { font-size:13px; }
+.visit-question-suggestions { display:flex;flex-direction:column;gap:var(--hoho-space-2); }
+.visit-question-suggestions button { width:100%;min-height:44px;text-align:left;padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);color:rgb(var(--hoho-color-text-primary));font-size:14px;line-height:1.6; }
+.visit-question-suggestions button:disabled { opacity:.45; }
+.visit-editor-bottom { display:flex;justify-content:flex-end;gap:var(--hoho-space-3);padding-block:var(--hoho-space-4); }
