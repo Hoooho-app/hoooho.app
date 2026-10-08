@@ -1,4 +1,7 @@
-import { Headphones } from 'lucide-react'
+import { Mic, Pause } from 'lucide-react'
+import { NurseHatIcon } from '../../components/common/NurseHatIcon'
+import nursePortrait from '../../assets/nurse-triage/nurses-idle-loop-1-poster.webp'
+import { userInitial } from './userInitial'
 import type { JournalMetadata } from '../../types/journal'
 import { useEffect, useRef, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
@@ -7,13 +10,17 @@ import { nurseApi } from './api'
 import { RealtimeNurse } from './RealtimeNurse'
 import type { NurseDraft, NurseFields, NurseMetadata, NurseState, NurseTurn } from './types'
 
-const states: Record<NurseState, string> = { idle: '可用文字表达，或点击开启语音', connecting: '正在建立语音连接…', listening: '正在聆听', processing: '护士正在理解…', speaking: '护士正在回复', paused: '语音已暂停，麦克风已关闭', disconnected: '语音已断开', organizing: '正在整理，可保留草稿', reviewing: '请核对整理结果', saving: '正在保存', saved: '已保存', error: '可继续文字记录' }
-export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onDiscard, onPaused, formContext, initialMode }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onDiscard: () => void; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text' }) {
+const states: Record<NurseState, string> = { idle: '点击开始语音，跟护士说说本次情况', connecting: '正在连接，接通后即可说话', listening: '正在听，请继续说', processing: '护士正在理解，请稍等', speaking: '护士正在回复，你也可以直接说话', paused: '语音已暂停，点击继续语音', disconnected: '连接中断，点击重新连接', organizing: '正在整理，可保留草稿', reviewing: '请核对整理结果', saving: '正在保存', saved: '已保存', error: '语音未连接，可重试或改用文字' }
+export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onDiscard, onPaused, formContext, initialMode, resuming }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onDiscard: () => void; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text'; resuming?: boolean }) {
   const entryHandled = useRef(false)
-  const [playbackBlocked, setPlaybackBlocked] = useState(false), [correction, setCorrection] = useState(false)
+  const [playbackBlocked, setPlaybackBlocked] = useState(false)
+  const [mode, setMode] = useState<'voice' | 'text'>(initialMode === 'text' ? 'text' : 'voice')
+  const recorderName = useAppStore(store => store.accountProfile?.nickname || store.authUser?.nickname || store.profile?.nickname)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const conversationRef = useRef<HTMLDivElement>(null)
   const [openingNeedsPlay, setOpeningNeedsPlay] = useState(false)
   const [draft, setDraft] = useState<NurseDraft>()
-  const [state, setState] = useState<NurseState>('idle'), [error, setError] = useState(''), [input, setInput] = useState(''), [preview, setPreview] = useState('')
+  const [state, setState] = useState<NurseState>(resuming ? 'paused' : 'idle'), [error, setError] = useState(''), [input, setInput] = useState(''), [preview, setPreview] = useState('')
   const draftRef = useRef<NurseDraft>(), rtc = useRef<RealtimeNurse>(), controller = useRef<AbortController>(), mounted = useRef(true), sequence = useRef(Promise.resolve()), busy = useRef(false)
   const identity = useRef(useAppStore.getState().authUser?.id)
   const pending = useRef<NurseTurn[]>([]), [pendingCount, setPendingCount] = useState(0)
@@ -87,8 +94,12 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     if (!input.trim() || busy.current || pending.current.length || !draftRef.current || rtc.current) return
     busy.current = true; setError('');stopOpening(); setState('processing')
     const text = input.trim(); setInput(''); const abort = new AbortController(); controller.current = abort
+    const turn: NurseTurn = { id: crypto.randomUUID(), role: 'user', text, at: new Date().toISOString(), order: 0, final: true, status: 'completed' }
+    queueFinal(turn)
     try {
-      await append({ id: crypto.randomUUID(), role: 'user', text, at: new Date().toISOString(), order: 0, final: true, status: 'completed', ...(correction && draftRef.current?.turns.some(t => t.role === 'user') ? { correctsTurnId: draftRef.current.turns.filter(t => t.role === 'user').at(-1)!.id } : {}) }); setCorrection(false)
+      await sequence.current
+      if (!active() || abort.signal.aborted) return
+      await append(turn)
       const next = await nurseApi.generate(memberId, token, draftRef.current!, false, abort.signal)
       if (!active()) return
       accept(next); setState(next.emergency ? 'paused' : 'idle')
@@ -106,27 +117,47 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     })
     rtc.current = transport; void transport.start()
   }
+  const switchMode = async (next: 'voice' | 'text') => {
+    const current = rtc.current
+    pause(); setMode(next)
+    await current?.drain(); await sequence.current
+  }
+  useEffect(() => { if (mode === 'text') inputRef.current?.focus() }, [mode])
+  useEffect(() => {
+    const body = conversationRef.current?.closest('.hoho-bottom-sheet__body')
+    if (body) body.scrollTop = body.scrollHeight
+  }, [draft?.turns.length, pendingCount, preview])
   useEffect(() => {
     if (!draft || entryHandled.current) return
     entryHandled.current = true
     if (initialMode === 'voice' && !pending.current.length) start()
-    else if (initialMode === 'text') document.querySelector<HTMLTextAreaElement>('.nurse-compose textarea')?.focus()
+    else if (initialMode === 'text') inputRef.current?.focus()
   }, [draft?.id, initialMode])
   const close = () => { pause(); controller.current?.abort(); onPaused(); onClose() }
+  const voiceLabel = playbackBlocked ? '播放回复并继续语音' : rtc.current ? state === 'connecting' ? '取消连接' : '暂停语音' : state === 'error' || state === 'disconnected' ? '重新连接' : ['paused', 'listening', 'speaking'].includes(state) || draft?.turns.some(turn => turn.role === 'user') ? '继续语音' : '开始语音'
   const composer=<>
     {pendingCount > 0 && <div role="alert"><p>{pendingCount} 段原话尚未同步，保留在当前账号的本次页面草稿中。</p><HohoButton variant="secondary" onClick={() => void retrySync()} disabled={busy.current}>重试同步原话</HohoButton></div>}
-    {playbackBlocked && <HohoButton variant="secondary" onClick={() => void rtc.current?.resumePlayback()}>播放回复并继续语音</HohoButton>}
-    {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
-    <p role="status">{states[state]}</p>
-    {draft?.turns.some(t => t.role === 'user') && <label className="nurse-correction"><input type="checkbox" checked={correction} onChange={e => setCorrection(e.target.checked)}/>这次是更正上一条说明</label>}
-    <label className="nurse-compose">跟护士说<textarea className="hoho-textarea" maxLength={4000} value={input} onChange={e => setInput(e.target.value)}/></label>
-    <div className="nurse-controls"><HohoButton onClick={() => void send()} disabled={busy.current || pendingCount > 0 || !draft || !input.trim() || Boolean(rtc.current)}>发送</HohoButton><HohoButton variant="secondary" onClick={rtc.current ? pause : start} disabled={busy.current || !draft || pendingCount>0}>{rtc.current ? '暂停语音' : '开启实时语音'}</HohoButton>{rtc.current&&<HohoButton variant="ghost" onClick={pause}>停止回复</HohoButton>}</div>
+    <p className="nurse-input-status" role="status">{mode === 'text' && ['idle','paused','error','disconnected'].includes(state) ? '文字模式，填写后发送给护士' : states[state]}</p>
+    {mode === 'voice' ? <div className="nurse-voice-compose">
+      <HohoButton className="nurse-voice-action" fullWidth size="large" onClick={playbackBlocked ? () => void rtc.current?.resumePlayback() : rtc.current ? pause : start} disabled={busy.current || !draft || pendingCount > 0}>
+        {rtc.current && !playbackBlocked ? <Pause size={24} aria-hidden="true"/> : <Mic size={24} aria-hidden="true"/>}{voiceLabel}
+      </HohoButton>
+      <HohoButton variant="ghost" onClick={() => void switchMode('text')}>改用文字</HohoButton>
+    </div> : <div className="nurse-text-compose">
+      <label className="nurse-compose">跟护士说<textarea ref={inputRef} className="hoho-textarea" maxLength={4000} value={input} onChange={e => setInput(e.target.value)}/></label>
+      <div className="nurse-text-actions"><HohoButton variant="ghost" onClick={() => void switchMode('voice')}>改用语音</HohoButton><HohoButton onClick={() => void send()} disabled={busy.current || pendingCount > 0 || !draft || !input.trim() || Boolean(rtc.current)}>发送</HohoButton></div>
+    </div>}
   </>
-  return <BottomSheetSurface label="智能症状记录" title="值班 AI 护士" leading={<Headphones size={21}/>} open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} headerAction={<HohoButton variant="ghost" onClick={() => void organize()} disabled={busy.current || !draft}>先整理</HohoButton>} footer={composer}>
+  return <BottomSheetSurface label="智能记录" title="智能记录" leading={<NurseHatIcon/>} dismissText="收起" open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} headerAction={<HohoButton variant="ghost" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton>} footer={composer}>
     <p className="nurse-purpose">帮助整理本次记录，不代替医生问诊。</p>
+    <p className="nurse-purpose">收起会暂停语音并保留对话，再次打开可继续。</p>
     {!draft && !error && <p role="status">正在恢复草稿…</p>}
-    {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p><div className="nurse-controls"><HohoButton variant="ghost" onClick={start} disabled={!draft||busy.current||pendingCount>0}>重试连接</HohoButton><HohoButton variant="ghost" onClick={()=>{pause();document.querySelector<HTMLTextAreaElement>('.nurse-compose textarea')?.focus()}}>改用文字</HohoButton></div></div>}
-    <div className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map(turn => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}><strong>{turn.role === 'user' ? '家长' : '值班 AI 护士'}</strong><p>{turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>)}</div>
+    {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p></div>}
+    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map(turn => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}>
+      {turn.role === 'user' ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span> : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label="值班护士"><img src={nursePortrait} alt=""/></span>}
+      <div className="nurse-turn-content"><p>{turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>
+    </div>)}</div>
+    {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
     {preview && <p className="nurse-live-preview" aria-live="polite">{preview}（尚未完成）</p>}
     {draft?.organizeSuggested && <p>可以先整理已有内容，由你确认是否保存。</p>}
     {draft?.review && <HohoButton variant="secondary" onClick={() => { pause(); onApply(draft.review!.fields, draft.review!.metadata, draft.review!.form, true, draft.warnings); onClose() }}>继续核对上次草稿</HohoButton>}

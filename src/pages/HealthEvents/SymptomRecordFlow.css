@@ -170,14 +170,20 @@
 .nurse-conversation-sheet .hoho-bottom-sheet__footer {padding:var(--hoho-space-2) var(--hoho-space-4) max(var(--hoho-space-3),env(safe-area-inset-bottom));}
 .nurse-purpose {font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .nurse-turn {padding:0;border:0;margin-block:var(--hoho-space-3)}
-.nurse-turn strong {display:block;font-size:var(--hoho-font-size-caption);font-weight:400;margin-bottom:var(--hoho-space-1);color:rgb(var(--hoho-color-text-secondary))}
+.nurse-turn {display:flex;align-items:flex-start;gap:var(--hoho-space-2);margin-right:var(--hoho-space-5)}
+.nurse-turn-content {min-width:0;flex:1}
 .nurse-turn p {border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle));margin:0}
-.nurse-turn--user {margin-left:var(--hoho-space-5)}
-.nurse-turn--user strong {text-align:right}
+.nurse-turn--user {flex-direction:row-reverse;margin-left:var(--hoho-space-5);margin-right:0}
 .nurse-turn--user p {background:rgb(var(--hoho-color-primary-soft))}
+.nurse-avatar {display:flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border-radius:var(--hoho-radius-pill);overflow:hidden;position:relative;background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border))}
+.nurse-avatar--assistant img {position:absolute;width:173px;max-width:none;height:173px;left:-42px;top:-30px}
+.nurse-avatar--user {color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-body);font-weight:600}
 .nurse-compose {display:block;font-size:var(--hoho-font-size-caption)}
 .nurse-compose textarea {display:block;width:100%;min-height:44px;height:52px;resize:none;font-size:16px}
-.nurse-correction {font-size:var(--hoho-font-size-caption)}
+.nurse-input-status {text-align:center;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));margin:0 0 var(--hoho-space-2)}
+.nurse-voice-compose {display:flex;flex-direction:column;align-items:center}
+.nurse-voice-action .hoho-button__content {display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-2)}
+.nurse-text-actions {display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);margin-top:var(--hoho-space-1)}
 .nurse-controls {margin-top:var(--hoho-space-1)}
 .nurse-connection-error {border:1px solid rgb(var(--hoho-color-error) / .2);border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-error) / .04)}
 .symptom-input-target {display:inline-block;background:rgb(var(--hoho-color-primary-soft));padding:var(--hoho-space-1) var(--hoho-space-2);border-radius:var(--hoho-radius-small);font-size:var(--hoho-font-size-caption)}

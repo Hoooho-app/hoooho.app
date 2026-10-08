@@ -1,3 +1,5 @@
+// Matrix uses one fictional account and the isolated provider double only.
+process.env.AI_MAX_CALLS_PER_ACCOUNT_HOUR='1000'
 process.env.VISIT_AI_TEST='1'
 process.env.VISIT_BAILIAN_TEST='1'
 process.env.VISIT_E2E_PORT='4673'
