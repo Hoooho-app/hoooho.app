@@ -77,7 +77,8 @@ function decodeAttachment(input) {
 }
 
 function summarize(description, category) {
-  const first = cleanText(description, 120).split(/[。！？\n]/)[0]
+  const formatted = /(?:^|\n)问题或改进建议：\n([^\n]+)/.exec(description)
+  const first = cleanText(formatted?.[1] ?? description, 120).split(/[。！？\n]/)[0]
   return first || `${CATEGORY_LABELS.get(category) ?? category ?? '反馈'} · 图片反馈`
 }
 

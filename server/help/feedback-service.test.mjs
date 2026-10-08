@@ -183,3 +183,11 @@ test('deleting an owned feedback removes messages, history, metadata and private
   await state.service.deleteForAccount('account-1', created.id)
   assert.deepEqual({ feedback: state.data.feedback.length, attachments: state.data.attachments.length, messages: state.data.messages.length, history: state.data.statusHistory.length, files: state.files.size }, { feedback: 0, attachments: 0, messages: 0, history: 0, files: 0 })
 })
+
+test('structured interview feedback shows the actual problem in list summaries', async () => {
+  const state = setup()
+  const description = '涉及页面或功能：\n配料表\n\n问题或改进建议：\n图片加载慢\n\n希望如何改进：\n整张显示'
+  const saved = await state.service.create('account-1', input({ description }))
+  const record = await state.service.getForAccount('account-1', saved.id)
+  assert.equal(record.summary, '图片加载慢'); assert.equal(record.description, description)
+})

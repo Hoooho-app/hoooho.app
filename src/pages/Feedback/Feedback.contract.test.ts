@@ -3,15 +3,20 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const page = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+const interview = readFileSync(new URL('./FeedbackInterview.tsx', import.meta.url), 'utf8')
 const composer = readFileSync(new URL('./FeedbackComposer.tsx', import.meta.url), 'utf8')
 const myCard = readFileSync(new URL('./MyFeedbackCard.tsx', import.meta.url), 'utf8')
 const service = readFileSync(new URL('../../services/feedback.ts', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8')
 
-test('feedback removes manual page classification and offers exactly ten optional problem types', () => {
+test('feedback delegates to an interview and retains explicit reviewed classification', () => {
   assert.doesNotMatch(page, />问题页面</)
-  assert.match(page, /problemPage: null/)
-  assert.match(page, /feedbackCategoryOptions/)
+  assert.match(interview, /problemPage: null/)
+  assert.match(interview, /feedbackCategoryOptions/)
+  assert.match(page, /<FeedbackInterview/)
+  assert.match(interview, /确认并提交/)
+  assert.match(interview, /返回继续补充/)
+  assert.doesNotMatch(page, /feedback-categories/)
   assert.match(page, /MainAppHeader action=\{<button className="feedback-header-action"/)
   assert.match(page, /compact title="反馈意见"/)
 })
