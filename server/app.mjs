@@ -30,6 +30,7 @@ import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsS
 import { FeedbackService } from './help/feedback-service.mjs'
 import { HelpService } from './help/help-service.mjs'
 import { helpApi } from './help/help-api.mjs'
+import { FeedbackInterview } from './help/feedback-interview.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
@@ -83,6 +84,7 @@ const ops = new OpsService(sharedOptions)
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
 const productHelp = new HelpService(sharedOptions)
+const feedbackInterview = new FeedbackInterview(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
 const healthProfileFacts = new HealthProfileFactService(sharedOptions)
@@ -266,7 +268,8 @@ async function handleFeedback(request, response, pathname, searchParams) {
   }
   if (!pathname.startsWith('/api/feedback')) return false
   const accountId = await readAccountId(request)
-  if (pathname === '/api/feedback' && request.method === 'POST') sendJson(response, 201, await feedback.create(accountId, await readJson(request, 29_000_000)))
+  if (pathname === '/api/feedback/interview' && request.method === 'POST') sendJson(response, 200, await feedbackInterview.respond(accountId, await readJson(request, 32_000)))
+  else if (pathname === '/api/feedback' && request.method === 'POST') sendJson(response, 201, await feedback.create(accountId, await readJson(request, 29_000_000)))
   else if (pathname === '/api/feedback' && request.method === 'GET') sendJson(response, 200, await feedback.listForAccount(accountId))
   else {
     const match = /^\/api\/feedback\/([^/]+)$/.exec(pathname)
