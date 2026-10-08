@@ -1,50 +1,60 @@
-import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, CalendarCheck, CircleHelp, FileText, Leaf, MessageSquare, NotebookPen, Users } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
-import { HohoButton, HohoSection } from '../../components/design-system'
+import { HohoButton, HohoInput, HohoSection, HohoSegmentedControl, HohoSurfaceRow } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
-import { helpAssistant, type HelpAssistantResult } from '../../features/help/assistant'
-import { PUBLISHED_HELP_ARTICLES } from '../../features/help/articles'
+import { useAppStore } from '../../store/useAppStore'
 import { getArticle, searchHelpArticles } from '../../features/help/search'
-import { HELP_CATEGORIES, type HelpArticle, type HelpCategory } from '../../features/help/types'
-import { makeFeedbackState } from '../../features/feedback/navigation'
+import type { HelpArticle } from '../../features/help/types'
+import { HELP_MODULES, USER_MANUAL } from '../../../shared/help-center.mjs'
+import { HelpChat } from './HelpChat'
+import './helpCenter.css'
 
-const QUICK_QUERIES = ['收不到验证码', '记录写错人', '附件上传失败']
-const FREQUENT_IDS = ['continue-health-event','record-for-family','email-code-missing','change-record-time','change-record-member','add-attachment','data-not-showing','delete-record','no-diagnosis','export-data']
+const moduleIcons={family:Users,record:NotebookPen,allergy:Leaf,follow:CalendarCheck,visit:FileText,trouble:CircleHelp}
+const tabs=[{value:'help',label:'帮助'},{value:'manual',label:'用户手册'}] as const
+type Tab='help'|'manual'
+function ArticleRow({article,onOpen}:{article:HelpArticle;onOpen:(id:string)=>void}){return <HohoSurfaceRow className="help-center-row" title={article.title} description={article.summary} onActivate={()=>onOpen(article.id)}/>}
 
-function ArticleRow({ article, onOpen }: { article: HelpArticle; onOpen: (article: HelpArticle) => void }) { return <button className="help-article-row" type="button" onClick={() => onOpen(article)}><strong>{article.title}</strong><span>{article.summary}</span><small>{article.category}</small></button> }
-function FeedbackLink({ to, children }: { to: string; children: ReactNode }) { const current = `${window.location.pathname}${window.location.search}${window.location.hash}`; return <Link to={to} state={makeFeedbackState(current, '帮助中心', window.scrollY)}>{children}</Link> }
-
-export function HelpCenterPage() {
-  const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(params.get('q') ?? ''); const [debouncedQuery, setDebouncedQuery] = useState(query)
-  const [category, setCategory] = useState<HelpCategory | null>(params.get('category') as HelpCategory | null)
-  const [articleId, setArticleId] = useState(params.get('article') ?? ''); const [result, setResult] = useState<HelpAssistantResult | null>(null)
-  const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [active, setActive] = useState(-1)
-  const [resolved, setResolved] = useState<'yes'|'no'|null>(null); const [composing, setComposing] = useState(false); const requestId = useRef(0)
-  useEffect(() => { if (composing) return; const timer = window.setTimeout(() => setDebouncedQuery(query), 180); return () => window.clearTimeout(timer) }, [composing, query])
-  const suggestions = useMemo(() => searchHelpArticles(debouncedQuery, {category:category ?? undefined,limit:5}), [category,debouncedQuery])
-  const article = getArticle(articleId); const categoryArticles = category ? PUBLISHED_HELP_ARTICLES.filter((item) => item.category === category) : []
-  const frequent = FREQUENT_IDS.map(getArticle).filter((item): item is HelpArticle => Boolean(item))
-  const sync = (next:{q?:string;category?:HelpCategory|null;article?:string}) => { const value=new URLSearchParams(); if(next.q)value.set('q',next.q); if(next.category)value.set('category',next.category); if(next.article)value.set('article',next.article); setParams(value) }
-  const openArticle=(item:HelpArticle)=>{setArticleId(item.id);setResolved(null);setResult(null);sync({article:item.id})}
-  const search=async(value=query,chosenCategory=category)=>{const clean=value.trim();if(!clean)return;const current=++requestId.current;setQuery(clean);setDebouncedQuery(clean);setLoading(true);setError('');setArticleId('');sync({q:clean,category:chosenCategory});try{const next=await helpAssistant.resolve({query:clean,category:chosenCategory??undefined});if(current===requestId.current)setResult(next)}catch{if(current===requestId.current)setError('暂时无法完成搜索，请稍后重试。')}finally{if(current===requestId.current)setLoading(false)}}
-  const home=()=>{requestId.current+=1;setQuery('');setDebouncedQuery('');setCategory(null);setArticleId('');setResult(null);setError('');setParams({})}
-  const keyDown=(event:KeyboardEvent<HTMLInputElement>)=>{if(!suggestions.length||composing)return;if(event.key==='ArrowDown'){event.preventDefault();setActive((v)=>Math.min(v+1,suggestions.length))}else if(event.key==='ArrowUp'){event.preventDefault();setActive((v)=>Math.max(v-1,-1))}else if(event.key==='Enter'&&active>=0&&active<suggestions.length){event.preventDefault();openArticle(suggestions[active].article)}}
-  const nested = Boolean(article || result || category)
-  return <main className="app-shell help-center pb-0">{nested ? <WebPageHeader title="帮助中心" onBack={home} /> : <MainAppHeader compact title="帮助中心" />}<div className="help-content">
-    {!article&&<section className="help-search" aria-labelledby="help-search-title"><h2 id="help-search-title">遇到什么问题？</h2><form role="search" onSubmit={(e:FormEvent)=>{e.preventDefault();void search()}}><label className="sr-only" htmlFor="help-query">描述你遇到的问题</label><div className="help-search-controls"><input id="help-query" value={query} placeholder="描述你遇到的问题，例如：一直收不到邮箱验证码" autoComplete="off" aria-controls="help-suggestions" aria-expanded={Boolean(debouncedQuery&&!result)} aria-activedescendant={active>=0?`help-suggestion-${active}`:undefined} onCompositionStart={()=>setComposing(true)} onCompositionEnd={(e)=>{setComposing(false);setDebouncedQuery(e.currentTarget.value)}} onKeyDown={keyDown} onChange={(e)=>{setQuery(e.target.value);setResult(null);setActive(-1)}}/><HohoButton type="submit" disabled={!query.trim()||loading}>{loading?'搜索中':'搜索'}</HohoButton></div></form>
-      {!result&&debouncedQuery&&<div id="help-suggestions" className="help-suggestions" role="listbox">{suggestions.map(({article:item},index)=><button id={`help-suggestion-${index}`} role="option" aria-selected={active===index} key={item.id} type="button" onClick={()=>openArticle(item)}><strong>{item.title}</strong><span>{item.summary}</span></button>)}<button id={`help-suggestion-${suggestions.length}`} role="option" aria-selected={active===suggestions.length} type="button" onClick={()=>void search()}>都不是，继续描述</button></div>}
-      {!result&&!debouncedQuery&&<div className="help-quick-links">{QUICK_QUERIES.map((item)=><button type="button" key={item} onClick={()=>void search(item)}>{item}</button>)}</div>}<div className="help-search-status" aria-live="polite">{loading?'正在查找相关帮助…':error}</div></section>}
-    {article?<ArticleDetail article={article} resolved={resolved} onResolved={setResolved} onOpen={openArticle}/>:result?<ResultView result={result} onSearch={(v)=>void search(v)} onOpen={openArticle} onCategory={(v)=>{setCategory(v);setResult(null);sync({category:v})}} onHome={home}/>:category?<HohoSection title={category} description="选择一个问题查看具体步骤。"><div className="help-list">{categoryArticles.map((item)=><ArticleRow key={item.id} article={item} onOpen={openArticle}/>)}</div></HohoSection>:<><HohoSection title="快速找到帮助"><div className="help-category-grid">{HELP_CATEGORIES.map((item)=><button type="button" key={item} onClick={()=>{setCategory(item);sync({category:item})}}>{item}</button>)}</div></HohoSection><HohoSection title="常见问题"><div className="help-list">{frequent.map((item)=><ArticleRow key={item.id} article={item} onOpen={openArticle}/>)}</div></HohoSection><HohoSection title="还没有解决？" description="继续描述你遇到的情况，我们会帮你进一步定位。"><div className="help-footer-actions"><button type="button" onClick={()=>document.getElementById('help-query')?.focus()}>继续描述问题</button><FeedbackLink to="/feedback?category=故障排查&page=帮助中心">反馈产品问题</FeedbackLink></div></HohoSection></>}
-  </div></main>
+export function HelpCenterPage(){
+  const [params,setParams]=useSearchParams(),accountId=useAppStore(s=>s.authUser?.id??'anonymous')
+  const tab:Tab=params.get('tab')==='manual'?'manual':'help',article=getArticle(params.get('article')??''),manual=USER_MANUAL.find(m=>m.id===params.get('manual'))
+  const module=HELP_MODULES.find(m=>m.id===params.get('module')),chat=params.get('view')==='chat',query=params.get('q')??''
+  const savedPaths=useRef<Record<Tab,string>>({help:'',manual:'tab=manual'})
+  const content=useRef<HTMLDivElement>(null)
+  const update=(values:Record<string,string>,replace=false)=>setParams(values,{replace})
+  const articleOrigin=useRef('')
+  const openArticle=(id:string)=>{if(tab==='help'&&!article)articleOrigin.current=params.toString();update({article:id})}
+  const switchTab=(next:Tab)=>{if(next===tab)return;savedPaths.current[tab]=params.toString();setParams(new URLSearchParams(savedPaths.current[next]))}
+  const openManual=(id:string)=>{savedPaths.current.help=params.toString();update({tab:'manual',manual:id})}
+  const results=query.trim()?searchHelpArticles(query,{limit:12}):[]
+  const nested=tab==='manual'?Boolean(manual):Boolean(article||module||chat)
+  const home=()=>update(tab==='manual'?{tab:'manual'}:{})
+  const back=()=>{if(tab==='help'&&article&&articleOrigin.current){setParams(new URLSearchParams(articleOrigin.current));articleOrigin.current=''}else home()}
+  useEffect(()=>{savedPaths.current[tab]=params.toString()},[params,tab])
+  useLayoutEffect(()=>{if(content.current)content.current.scrollTop=0},[tab,article?.id,manual?.id,module?.id,chat])
+  return <main className="app-shell help-center help-center-v2 pb-0">{nested?<WebPageHeader title="帮助中心" onBack={back}/>:<MainAppHeader compact title="帮助中心"/>}
+    <div className="help-center-tabs"><HohoSegmentedControl label="帮助中心栏目" options={tabs} value={tab} onChange={switchTab}/></div>
+    <div className="help-content" ref={content}>
+      {tab==='manual'?manual?<article className="help-detail"><p className="help-query-label">用户手册 · {HELP_MODULES.find(m=>m.id===manual.module)?.label}</p><h2>{manual.title}</h2><p className="help-conclusion">{manual.brief}</p>{[['为什么设计这个功能',manual.purpose],['什么时候用',manual.scene],['一个例子',manual.example],['你能得到什么',manual.output]].map(([title,text])=><HohoSection title={title} key={title}><p className="hoho-text-body">{text}</p></HohoSection>)}<HohoButton fullWidth onClick={()=>{savedPaths.current.manual=params.toString();openArticle(manual.helpArticleId)}}>查看操作帮助</HohoButton></article>:<>
+        <HohoSection title="认识 Hoooho 的功能" description="了解每个功能的用途，找到适合你的使用场景。"><p className="hoho-text-body">先留住实际情况，再跟进变化，最后把资料整理好。Hoooho 帮你完成就诊前的准备。</p></HohoSection>
+        {HELP_MODULES.filter(m=>m.id!=='trouble').map(m=><HohoSection key={m.id} title={m.label}><div className="help-list">{USER_MANUAL.filter(item=>item.module===m.id).map(item=><HohoSurfaceRow className="help-center-row" key={item.id} title={item.title} description={item.brief} onActivate={()=>openManual(item.id)}/>)}</div></HohoSection>)}
+      </>:!chat&&<>
+        {article?<article className="help-detail"><p className="help-query-label">帮助 · {article.category}</p><h2>{article.title}</h2><p className="help-conclusion">{article.conclusion}</p><h3>怎么做</h3><ol>{article.steps.map(step=><li key={step}>{step}</li>)}</ol>{article.result&&<HohoSection title="完成后在哪里看"><p className="hoho-text-body">{article.result}</p></HohoSection>}<div className="help-footer-actions">{article.actions?.map(action=><Link key={action.label} to={action.to}>{action.label}</Link>)}</div>
+          <HohoSection title="你可能还需要"><div className="help-list">{article.relatedArticleIds?.map(id=>{const a=getArticle(id);return a?<ArticleRow article={a} key={id} onOpen={openArticle}/>:null})}{USER_MANUAL.find(m=>m.helpArticleId===article.id)&&<HohoSurfaceRow title="了解这个功能的用途" leading={<BookOpen size={18}/>} onActivate={()=>openManual(USER_MANUAL.find(m=>m.helpArticleId===article.id)!.id)}/>}<HohoSurfaceRow title="还是不清楚？问产品经理" onActivate={()=>update({view:'chat'})}/></div></HohoSection>
+        </article>:module?<HohoSection title={module.label} description={module.description}><div className="help-list">{module.articleIds.map(id=>{const a=getArticle(id);return a?<ArticleRow article={a} key={id} onOpen={openArticle}/>:null})}{module.id==='trouble'&&<>{['email-code-missing','privacy-data','page-load-failed'].map(id=><ArticleRow article={getArticle(id)!} key={id} onOpen={openArticle}/>)}</>}</div></HohoSection>:<>
+          <HohoSection title="有什么可以帮你？" description="找操作方法，或解决遇到的问题。"><HohoInput label="搜索教程和问题" type="search" id="help-query" placeholder="你想做什么，或遇到了什么问题？" value={query} onChange={e=>update({q:e.target.value},true)}/></HohoSection>
+          <section className="help-smart-entry"><div className="help-chat-heading"><span className="help-role-avatar"><MessageSquare aria-hidden size={20}/></span><div><h2 className="hoho-text-card-title">Hoooho 产品经理</h2><p className="hoho-text-caption">AI 助手 · 智能帮助</p></div></div><p className="hoho-text-body">不知道该找哪篇？告诉我卡在哪一步，我陪你一起找到解决方法。</p><HohoButton fullWidth onClick={()=>update({view:'chat'})}>和产品经理聊聊</HohoButton></section>
+          {query.trim()?<HohoSection title={`搜索结果 · ${results.length} 篇`}><div className="help-list">{results.map(({article:a})=><ArticleRow key={a.id} article={a} onOpen={openArticle}/>)}</div>{!results.length&&<p className="hoho-text-body">暂时没有找到相关内容。试试“录音”“配料表”或“情况单”，也可以问产品经理。</p>}<HohoButton variant="text" onClick={()=>update({},true)}>清空搜索</HohoButton></HohoSection>:<>
+            <HohoSection title="第一次使用" description="从这三步开始"><div className="help-list">{[['add','添加孩子'],['smart','完成第一条记录'],['summary','整理就医资料']].map(([id,title],i)=><HohoSurfaceRow key={id} title={title} leading={<span className="help-step-number">{i+1}</span>} onActivate={()=>openArticle(id)}/>)}</div></HohoSection>
+            <HohoSection title="按你要做的事查找"><div className="help-category-grid">{HELP_MODULES.map(m=>{const Icon=moduleIcons[m.id as keyof typeof moduleIcons];return <button type="button" key={m.id} onClick={()=>update({module:m.id})}><Icon aria-hidden size={20}/><span><strong>{m.label}</strong><small>{m.description}</small></span></button>})}</div></HohoSection>
+            <HohoSection title="常见问题"><div className="help-list">{['mic','upload','find'].map(id=><ArticleRow key={id} article={getArticle(id)!} onOpen={openArticle}/>)}</div></HohoSection>
+          </>}
+        </>}
+      </>}
+      <HelpChat key={accountId} active={tab==='help'&&chat} onOpenArticle={openArticle}/>
+      {nested&&<HohoButton variant="text" onClick={home}>返回{tab==='manual'?'用户手册':'帮助'}首页</HohoButton>}
+      <p className="hoho-text-caption help-center-boundary">Hoooho 用于记录和整理信息，不提供医疗诊断。</p>
+    </div>
+  </main>
 }
-
-function ResultView({result,onSearch,onOpen,onCategory,onHome}:{result:HelpAssistantResult;onSearch:(v:string)=>void;onOpen:(a:HelpArticle)=>void;onCategory:(c:HelpCategory)=>void;onHome:()=>void}){
-  if(result.kind==='medical-boundary')return <section className="help-result"><h2>这类问题需要专业医疗支持</h2><p>帮助中心主要解决 Hoooho 的使用问题，不能提供诊断或用药建议。你可以先记录当前情况并整理相关信息；如果情况紧急，请及时联系当地急救服务或专业医疗人员。</p><div className="help-footer-actions"><Link to="/health-events/new">记录新情况</Link><Link to="/health-events">查看健康随记</Link></div></section>
-  if(result.kind==='clarify')return <section className="help-result"><p className="help-query-label">你描述的是：{result.query}</p><h2>{result.clarification.question}</h2><div className="help-choice-list">{result.clarification.options.map((item)=><button type="button" key={item.label} onClick={()=>onSearch(item.query)}>{item.label}</button>)}</div><button className="help-text-action" type="button" onClick={()=>onCategory('故障排查')}>都不是，选择问题分类</button></section>
-  if(result.kind==='fallback')return <section className="help-result"><h2>暂时没有找到足够确定的答案</h2><p>可以选择问题分类，或补充发生问题的页面和具体现象。请不要填写验证码或完整健康信息。</p><div className="help-category-grid">{HELP_CATEGORIES.map((item)=><button type="button" key={item} onClick={()=>onCategory(item)}>{item}</button>)}</div><div className="help-footer-actions"><FeedbackLink to="/feedback?category=故障排查&page=帮助中心">反馈产品问题</FeedbackLink><button type="button" onClick={onHome}>返回帮助首页</button></div></section>
-  const [best,...others]=result.results;return <section className="help-result"><p className="help-query-label">搜索内容：{result.query}</p><h2>最相关结果</h2>{best&&<ArticleRow article={best.article} onOpen={onOpen}/>} {others.length>0&&<><h3>其他可能相关的问题</h3><div className="help-list">{others.slice(0,4).map(({article:item})=><ArticleRow key={item.id} article={item} onOpen={onOpen}/>)}</div></>}<button className="help-text-action" type="button" onClick={()=>onSearch(`${result.query} 继续排查`)}>继续描述</button></section>
-}
-
-function ArticleDetail({article,resolved,onResolved,onOpen}:{article:HelpArticle;resolved:'yes'|'no'|null;onResolved:(v:'yes'|'no')=>void;onOpen:(a:HelpArticle)=>void}){const related=(article.relatedArticleIds??[]).map(getArticle).filter((item):item is HelpArticle=>Boolean(item));return <article className="help-detail"><p className="help-query-label">{article.category}</p><h2>{article.title}</h2><p className="help-conclusion">{article.conclusion}</p><h3>操作步骤</h3><ol>{article.steps.map((step)=><li key={step}>{step}</li>)}</ol>{article.actions?.length?<div className="help-footer-actions">{article.actions.map((action)=>action.to.startsWith('/feedback')?<FeedbackLink key={action.label} to={action.to}>{action.label}</FeedbackLink>:<Link key={action.label} to={action.to}>{action.label}</Link>)}</div>:null}{article.commonCauses?.length?<><h3>常见失败原因</h3><ul>{article.commonCauses.map((cause)=><li key={cause}>{cause}</li>)}</ul></>:null}{related.length?<><h3>相关问题</h3><div className="help-list">{related.map((item)=><ArticleRow key={item.id} article={item} onOpen={onOpen}/>)}</div></>:null}<section className="help-resolution"><h3>这个回答解决了你的问题吗？</h3>{resolved?<p aria-live="polite">{resolved==='yes'?'感谢你的反馈。':'我们已记录为未解决，你可以继续排查或反馈产品问题。'}</p>:<div><button type="button" onClick={()=>onResolved('yes')}>解决了</button><button type="button" onClick={()=>onResolved('no')}>没有</button></div>}<div className="help-footer-actions"><Link to={`/help?q=${encodeURIComponent(article.title+' 继续排查')}`}>继续排查</Link>{resolved==='no'&&<FeedbackLink to={`/feedback?category=${encodeURIComponent(article.category)}&page=帮助中心`}>反馈产品问题</FeedbackLink>}</div></section></article>}

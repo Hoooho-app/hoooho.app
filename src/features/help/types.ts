@@ -1,6 +1,6 @@
 export const HELP_CATEGORIES = [
   '账号与登录', '家庭成员', '健康随记', '记录与时间线',
-  '健康档案', '图片与附件', '数据与隐私', '故障排查'
+  '健康档案', '图片与附件', '数据与隐私', '故障排查', '过敏与饮食', '安排与跟进', '就医准备'
 ] as const
 
 export type HelpCategory = typeof HELP_CATEGORIES[number]
@@ -16,6 +16,8 @@ export type HelpArticle = {
   aliases: string[]
   conclusion: string
   steps: string[]
+  result?: string
+  module?: string
   commonCauses?: string[]
   relatedArticleIds?: string[]
   actions?: HelpAction[]

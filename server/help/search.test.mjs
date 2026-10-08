@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'; import test from 'node:test'
-import { HelpAssistant } from '../../.codex-tmp/help-tests/assistant.js'; import { normalizeHelpText,searchHelpArticles } from '../../.codex-tmp/help-tests/search.js'
+import { HelpAssistant } from '../../.codex-tmp/help-tests/src/features/help/assistant.js'; import { normalizeHelpText,searchHelpArticles } from '../../.codex-tmp/help-tests/src/features/help/search.js'
 const first=(query)=>searchHelpArticles(query)[0]?.article.id
 test('exact title and oral aliases rank expected articles first',()=>{assert.equal(first('为什么收不到邮箱验证码？'),'email-code-missing');assert.equal(first('邮箱那个码一直没来'),'email-code-missing');assert.equal(first('我写错人了'),'change-record-member');assert.equal(first('图片点了没反应'),'attachment-upload-failed')})
 test('multiple keywords, punctuation, spaces, case and nearby wording are normalized',()=>{assert.equal(first(' 怎么，把 数据 拿出来？！ '),'export-data');assert.equal(first('EMAIL 验证码 没收到'),'email-code-missing');assert.equal(first('时间写错'),'change-record-time');assert.equal(normalizeHelpText(' A， B！ '),'ab')})
