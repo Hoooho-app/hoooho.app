@@ -309,13 +309,18 @@ export class VisitSheetService {
         prepared=await this.photos.prepareForSave(accountId,memberId,draft.draftId,draft.photoIds)
         for(const photo of prepared)await this.photos.read(accountId,memberId,draft.draftId,photo.id)
         if(prepared.length){
-          // Photo-only container: no symptom/clinical record, diagnosis or AI analysis.
-          let event=attachmentEventId?await this.events.findById(attachmentEventId):null
+          // Reuse the actual focus record in 健康随记. When there is no such
+          // record, save one media-only entry; never fabricate a symptom.
+          const focusReport=buildVisitSheet(input,{focus,selection},now)
+          const focusRecordId=focusReport.focusSourceIds[0]?.replace(/^record:/,'')
+          const focusRecord=input.records.find(r=>r.id===focusRecordId)
+          let event=focusRecord?input.events.find(e=>e.id===focusRecord.eventId):selection?.eventIds?.length?input.events.find(e=>e.id===selection.eventIds[0]):attachmentEventId?await this.events.findById(attachmentEventId):null
           if(!event||event.accountId!==accountId||event.memberId!==memberId){
-            event=await this.events.create({accountId,memberId,title:'就诊资料照片',category:'other',status:'observing',startTime:now.toISOString()},now)
+            event=await this.events.create({accountId,memberId,title:'就诊资料影像',category:'other',status:'observing',startTime:now.toISOString()},now)
             attachmentEventId=event.id
           }
-          const attached=await this.photos.attach(accountId,event.id,null,memberId,prepared,now)
+          const record=focusRecord??await this.records.create({accountId,eventId:event.id,type:'other',content:`家长保存就诊资料影像（${prepared.length} 份）`,occurredAt:now.toISOString(),sourceType:'user_record',journal:{categories:['other'],timePrecision:'unknown'}},now)
+          const attached=await this.photos.attach(accountId,event.id,record.id,memberId,prepared,now)
           if(attached.length!==prepared.length)throw failure('照片已在其他位置保存，请重新读取并核对',409)
           for(const a of attached)aliases.set(`draft:${a.draftPhotoId}`,`attachment:${a.id}`)
           input=await this.collect(accountId,memberId,now)

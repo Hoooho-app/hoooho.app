@@ -1,4 +1,5 @@
 import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
+import { sameReadingTopic } from './reading-context.mjs'
 import { readingProjection } from './reading-projection.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
@@ -197,6 +198,7 @@ export function reportFingerprint(input, now = new Date()) {
           name: member.name,
           gender: member.gender,
           birthday: member.birthday,
+          bloodType: member.bloodType, rhBloodType: member.rhBloodType, primaryRecorderRelationship: member.primaryRecorderRelationship,
         },
         events: events.map((e) => ({
           id: e.id,
@@ -205,7 +207,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'four-card-reading-v1',
+        projectionRevision: 'readable-summary-v2',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -336,14 +338,11 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const selectedLocations =
     selected?.journal?.symptom?.locations?.map(bodyLocationLabel) ?? []
   const related = symptoms.filter((r) => {
-    if (focus.mode === 'custom' && Array.isArray(focus.relatedSourceIds))
-      return focus.relatedSourceIds.includes(`record:${r.id}`)
+    if (focus.mode === 'custom' && focus.relatedSourceIds?.includes(`record:${r.id}`)) return true
     if (focus.caseEventId) return r.eventId === focus.caseEventId
     if (focus.mode === 'custom')
       return (
-        text(focus.text).length >= 2 &&
-        (text(r.content).includes(text(focus.text)) ||
-          text(r.journal?.symptom?.narrative).includes(text(focus.text)))
+        sameReadingTopic(focus.text, text(r.journal?.symptom?.narrative) || text(r.content))
       )
     if (!selected) return false
     if (r.id === selected.id) return true
@@ -355,8 +354,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         ) ?? false)
       )
     return selected.journal?.symptom?.symptomCategory
-      ? r.journal?.symptom?.symptomCategory ===
-          selected.journal.symptom.symptomCategory
+      ? r.journal?.symptom?.symptomCategory === selected.journal.symptom.symptomCategory && sameReadingTopic(selected.journal?.symptom?.narrative || selected.content, r.journal?.symptom?.narrative || r.content)
       : r.eventId === selected.eventId
   })
   const refs = related.map((r) => `record:${r.id}`),
@@ -810,6 +808,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       gender: input.member.gender ?? null,
       birthday: input.member.birthday ?? null,
       avatar: input.member.avatar ?? input.member.avatarUrl ?? null,
+      bloodType: input.member.bloodType ?? null, rhBloodType: input.member.rhBloodType ?? null,
+      primaryRecorderRelationship: input.member.primaryRecorderRelationship ?? null,
     },
     timezone: input.timezone,
     focus,
@@ -833,6 +833,14 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   if (selection) report.scope = `仅纳入明确选择的${new Set(selection.eventIds).size}次情况${selection.from || selection.to ? '及指定时间范围' : ''}；${selection.includeBackground ? '含当前人物所选既往背景、成长及独立计划' : '未纳入既往背景、成长或独立计划'}。未提供不等于没有。`
   const nurseChapter = report.chapters.find(c => c.id === 'course')
   if (nurseRecords.length && nurseChapter && !nurseChapter.blocks.some(b => b.title === '家长关注与已做处理')) nurseChapter.blocks.push({ title: '家长关注与已做处理', lines: nurseRecords.flatMap(r => r.journal.aiNurse.professionalNotes.map(n => `${n.heading}（${n.certainty === 'uncertain' ? '不确定/担心' : n.certainty === 'denied' ? '明确否定' : '家长叙述'}）：${n.text}`)), sourceIds: nurseRecords.map(r => `record:${r.id}`) })
+  const basic=input.profiles.filter(a=>a.sectionId==='basic').flatMap(a=>a.records??[]).find(r=>!r.memberId||r.memberId===input.member.id)
+  report.member.bloodType ||= basic?.aboBloodType || basic?.bloodType || null
+  report.member.rhBloodType ||= basic?.rhBloodType || null
   report.reading=readingProjection(report,input)
+  if (!preferences.questionEdited) {
+    const recorded = (report.questionSourceIds?.length ? report.question.split('\n').filter(Boolean) : [])
+    report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,3).join('\n')
+    report.questionOrigin = recorded.length ? '据家长记录整理' : '可参考的问题'
+  }
   return report
 }

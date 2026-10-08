@@ -18,8 +18,8 @@ test('报告照片事务：真实上传，未知拍摄时间，主题隔离，�
   const {svc,member,upload}=await setup(t),m=member.id,p=await upload(),id=`draft:${p.id}`
   const body={expectedVersion:0,requestId:'save-photo',focus:{mode:'custom',text:'问题甲'},photoDraft:{draftId:p.draftId,photoIds:[p.id]},selectedPhotoIds:[id],photoDetails:{[id]:{label:'家长部位图',location:'左前臂'}}}
   const {report}=await svc.save('account-a',m,body),photo=report.photos[0]
-  assert.equal(report.schemaVersion,6);assert.equal(photo.capturedAt,null);assert.equal(photo.title,'家长部位图');assert.equal(report.candidates.length,0);assert.equal((await svc.records.findByAccountId('account-a')).length,0)
-  assert.equal((await svc.save('account-a',m,body)).report.version,1)
+  assert.equal(report.schemaVersion,6);assert.equal(photo.capturedAt,null);assert.equal(photo.title,'家长部位图');assert.equal(report.candidates.length,0);assert.equal((await svc.records.findByAccountId('account-a')).length,1);assert.ok((await svc.attachments.findById(photo.sourceId.slice(11))).recordId)
+  assert.equal((await svc.save('account-a',m,body)).report.version,1);assert.equal((await svc.records.findByAccountId('account-a')).length,1)
   const loaded=await svc.get('account-a',m)
   assert.equal(loaded.report.photos[0].location,'左前臂');assert.equal(loaded.stale,false);assert.deepEqual(loaded.warnings,[])
   const b=await svc.save('account-a',m,{expectedVersion:1,requestId:'theme-b',focus:{mode:'custom',text:'问题乙'}});assert.equal(b.report.selectedPhotoIds.length,0)
@@ -48,4 +48,13 @@ test('照片说明白名单和日期精度不会隐式截断',()=>{
   assert.throws(()=>photoDetails({}, {a:{capturedAt:'2026-09-01',capturePrecision:'exact'}}),/精度不一致/)
   assert.throws(()=>photoDetails({}, {a:{capturedAt:'2099-01-01'}}),/未来/)
   assert.throws(()=>photoDetails({}, {a:{capturedAt:'2026-02-30'}}),/日期无效/)
+})
+
+test('已有症状的影像保存复用随记记录，选已有照片不复制附件',async t=>{
+  const {svc,member,upload}=await setup(t),m=member.id,event=await svc.events.create({accountId:'account-a',memberId:m,title:'颈部观察',category:'other',status:'observing',startTime:new Date().toISOString()}),record=await svc.records.create({accountId:'account-a',eventId:event.id,type:'symptom',content:'脖子红点',occurredAt:new Date().toISOString(),journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'脖子红点',locations:[],descriptors:[]}}})
+  const p=await upload(),saved=await svc.save('account-a',m,{expectedVersion:0,requestId:'linked-photo',focus:{mode:'source',sourceId:`record:${record.id}`},photoDraft:{draftId:p.draftId,photoIds:[p.id]},selectedPhotoIds:[`draft:${p.id}`]})
+  const photo=saved.report.photos[0],attachment=await svc.attachments.findById(photo.sourceId.slice(11))
+  assert.equal(attachment.eventId,event.id);assert.equal(attachment.recordId,record.id);assert.deepEqual(photo.relatedSourceIds,[`record:${record.id}`]);assert.equal((await svc.records.findByAccountId('account-a')).length,1)
+  await svc.save('account-a',m,{expectedVersion:1,requestId:'select-existing',selectedPhotoIds:[photo.sourceId]})
+  assert.equal((await svc.attachments.findByEventId(event.id)).length,1);assert.equal((await svc.records.findByAccountId('account-a')).length,1)
 })
