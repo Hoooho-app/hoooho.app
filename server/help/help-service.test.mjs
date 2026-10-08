@@ -63,6 +63,20 @@ test('invalid provider links and failures use explicit local fallback with no au
   const session=await service.start('a'),answer=await service.turn('a',session.id,question(session,'保存失败'))
   assert.equal(calls,1);assert.equal(answer.turns.at(-1).mode,'local');assert.match(answer.notice,/暂时不可用/);assert.doesNotMatch(answer.turns.at(-1).text,/https/)
 })
+test('linked model instructions retain evaluation when the model omits the flag, without evaluating clarification',async t=>{
+  let output={reply:'点击保存 HTML 文件，再到浏览器下载记录打开。',articleIds:['html'],choices:[],askResolved:false}
+  const {service}=await fixture(t,{baseUrl:'https://example.test',fetch:async()=>response(output)})
+  const session=await service.start('a'),answered=await service.turn('a',session.id,question(session,'保存情况单'))
+  assert.equal(answered.turns.at(-1).askResolved,true)
+  const rated=await service.rate('a',session.id,{version:answered.version,turnId:answered.turns.at(-1).id,solved:false})
+  assert.equal(rated.ratings[0].solved,false)
+  output={...output,reply:'请告诉我你用的是哪种手机浏览器。'}
+  const clarification=await service.turn('a',session.id,question(rated,'还是没找到','q2'))
+  assert.equal(clarification.turns.at(-1).askResolved,false)
+  output={...output,reply:'你使用哪种手机？',choices:['iPhone','安卓']}
+  const questionAnswer=await service.turn('a',session.id,question(clarification,'怎么找','q3'))
+  assert.equal(questionAnswer.turns.at(-1).askResolved,false)
+})
 test('secrets rejected before persistence or provider; medical request cannot invoke provider',async t=>{
   let calls=0
   const {service}=await fixture(t,{baseUrl:'https://example.test',fetch:async()=>{calls++;throw new Error('unexpected')}})

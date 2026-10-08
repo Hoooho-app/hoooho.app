@@ -86,7 +86,13 @@ export class HelpService {
       const payload=await result.json(), outputText=payload.output?.flatMap(item=>item.content??[]).filter(item=>item.type==='output_text'||typeof item.text==='string').map(item=>item.text).join('')
       const output=JSON.parse(outputText ?? '')
       if(typeof output.reply!=='string'||!output.reply.trim()||output.reply.length>1600||!Array.isArray(output.articleIds)||output.articleIds.length>3||output.articleIds.some(id=>!ids.includes(id))||!Array.isArray(output.choices)||output.choices.length>4||output.choices.some(x=>typeof x!=='string'||!x.trim()||x.length>100)||typeof output.askResolved!=='boolean'||/https?:\/\/|\]\(/i.test(output.reply)) throw fail('回复格式未通过核对')
-      return {...output,articleIds:[...new Set(output.articleIds)],mode:'ai',notice:''}
+      // Some valid model solutions omit the evaluation flag. Keep the product's
+      // feedback step available for linked instructions, while leaving questions
+      // and medical boundary replies in the clarification state.
+      const clarifying = /[？?]|请.*(?:告诉|提供|说明)|你.*(?:哪种|哪个|什么).*浏览器/.test(output.reply)
+      const linkedSolution = output.articleIds.some(id=>id!=='no-diagnosis') && output.choices.length===0 && !clarifying
+      const askResolved = output.articleIds.includes('no-diagnosis') ? false : output.askResolved || linkedSolution
+      return {...output,askResolved,articleIds:[...new Set(output.articleIds)],mode:'ai',notice:''}
     } catch(error) {
       console.warn('[Hoooho help] AI unavailable',JSON.stringify({code:typeof error.code==='string'?error.code:'HELP_AI_UNAVAILABLE'}))
       return {...localHelpReply(turns),mode:'local',notice:'智能回复暂时不可用，先根据帮助内容继续排查。'}
