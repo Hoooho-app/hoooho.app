@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Camera, Check, Clock3, ExternalLink, Eye, History, ImageOff, LogIn, Plus, RefreshCw, Settings2, ShieldCheck, Upload, WalletCards, X } from 'lucide-react'
@@ -115,7 +116,7 @@ function SourceCard({ source, token, refreshing, onRefresh, onManage, onUpload, 
     <div className="ops-source-meta"><span>最近成功更新</span><strong>{formatTime(source.lastSuccessAt)}</strong></div>
     {stale(source) && <div className="ops-stale"><AlertTriangle size={15} />最新更新失败，当前显示的是 {formatTime(source.lastSuccessAt)} 快照</div>}
     <button className="ops-snapshot" onClick={source.latestSnapshot ? onLarge : onUpload} aria-label={source.latestSnapshot ? `查看 ${source.name} 快照大图` : `为 ${source.name} 上传截图`}>
-      {snapshot.loading ? <div className="ops-snapshot-state"><RefreshCw className="ops-spin" /><span>正在安全读取快照</span></div> : snapshot.url ? <img src={snapshot.url} alt={`${source.name} 最新费用页面快照`} /> : <div className="ops-snapshot-state"><ImageOff /><strong>尚无页面快照</strong><span>{source.method === 'manual-screenshot' ? '上传一张已裁除隐私信息的截图' : '配置连接器，或先手动上传截图'}</span></div>}
+      {snapshot.loading ? <div className="ops-snapshot-state"><RefreshCw className="ops-spin" /><span>正在安全读取快照</span></div> : snapshot.url ? <CompleteImage loading="lazy" src={snapshot.url} alt={`${source.name} 最新费用页面快照`} /> : <div className="ops-snapshot-state"><ImageOff /><strong>尚无页面快照</strong><span>{source.method === 'manual-screenshot' ? '上传一张已裁除隐私信息的截图' : '配置连接器，或先手动上传截图'}</span></div>}
     </button>
     {snapshot.error && <p className="ops-image-error">{snapshot.error}</p>}
     <footer>
@@ -195,7 +196,7 @@ function UploadDrawer({ source, token, onClose, onUploaded }: { source: BillingS
 
 function SnapshotModal({ source, token, onClose }: { source: BillingSource; token: string; onClose: () => void }) {
   const snapshot = useSnapshotUrl(token, source.id, source.latestSnapshot!.id)
-  return <div className="ops-modal-layer" role="dialog" aria-modal="true" aria-label={`${source.name} 快照大图`}><button className="ops-modal-backdrop" onClick={onClose} aria-label="关闭大图" /><section className="ops-modal"><header><div><h2>{source.name}</h2><p>{formatTime(source.lastSuccessAt)} · {methodMap[source.latestSnapshot!.method]}</p></div><button onClick={onClose} aria-label="关闭"><X /></button></header><div>{snapshot.url ? <img src={snapshot.url} alt={`${source.name} 费用页面大图`} /> : <div className="ops-snapshot-state"><ImageOff /><span>{snapshot.error || '正在读取快照'}</span></div>}</div></section></div>
+  return <div className="ops-modal-layer" role="dialog" aria-modal="true" aria-label={`${source.name} 快照大图`}><button className="ops-modal-backdrop" onClick={onClose} aria-label="关闭大图" /><section className="ops-modal"><header><div><h2>{source.name}</h2><p>{formatTime(source.lastSuccessAt)} · {methodMap[source.latestSnapshot!.method]}</p></div><button onClick={onClose} aria-label="关闭"><X /></button></header><div>{snapshot.url ? <CompleteImage loading="lazy" src={snapshot.url} alt={`${source.name} 费用页面大图`} /> : <div className="ops-snapshot-state"><ImageOff /><span>{snapshot.error || '正在读取快照'}</span></div>}</div></section></div>
 }
 
 function Drawer({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) { return <div className="ops-drawer-layer"><button className="ops-backdrop" onClick={onClose} aria-label="关闭" /><aside className="ops-drawer" role="dialog" aria-modal="true" aria-labelledby="ops-drawer-title"><header><div><h2 id="ops-drawer-title">{title}</h2><p>{subtitle}</p></div><button onClick={onClose} aria-label="关闭"><X /></button></header>{children}</aside></div> }

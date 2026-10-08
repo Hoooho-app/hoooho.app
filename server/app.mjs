@@ -865,7 +865,7 @@ async function handleApi(request, response, pathname, searchParams) {
   const visitResourceMatch=/^\/api\/members\/([^/]+)\/visit-sheet\/resources\/([a-f0-9]{24})$/.exec(pathname)
   if(visitResourceMatch){
     if(request.method!=='GET'){sendEmpty(response,405);return true}
-    const result=await visitSheets.readProfileResource(await readAccountId(request),decodeRouteValue(visitResourceMatch[1]),visitResourceMatch[2])
+    const result=await visitSheets.readProfileResource(await readAccountId(request),decodeRouteValue(visitResourceMatch[1]),visitResourceMatch[2],searchParams.get('preview')==='1'?'preview':'content')
     response.writeHead(200,{'Content-Type':result.mimeType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Length':result.buffer.length})
     response.end(result.buffer);return true
   }

@@ -1,3 +1,4 @@
+import { optimizedPublicImages } from '../../generated/optimizedPublicImages'
 import { CHILD_LOCATIONS, type ChildRegion, type ChildView } from './childBodyCatalog'
 import { childVisual, locationPoint, projectedPoint, regionAnchor, type Bounds, type ChildVisual, type LocalAngle, type Point } from './childBodyGeometry'
 import { categoryId, type LocatorModel } from './locatorDictionary'
@@ -34,7 +35,7 @@ export function locatorVisual(model:LocatorModel,view:ChildView,region?:ChildReg
   const bounds=region ? neutralAnchor(view,region)?.bounds : undefined
   return {asset:`neutral-${view}.png`,width:1024,height:1536,bounds:bounds??[.12,.01,.76,.965],kind:'body'}
 }
-export const locatorAssetUrl=(visual:ChildVisual)=>`/body-locator/${visual.asset.startsWith('neutral-')?'v2':'v1'}/${visual.asset.replace('assets/','')}`
+export const locatorAssetUrl=(visual:ChildVisual)=> { const original = `/body-locator/${visual.asset.startsWith('neutral-')?'v2':'v1'}/${visual.asset.replace('assets/','')}`; return optimizedPublicImages[original] ?? original }
 export function bodyZone(model:LocatorModel,view:ChildView,region:ChildRegion):LocatorZone|null {
   const measured=model==='neutral'?'boy':model
   const a=model==='neutral'?neutralAnchor(view,region):regionAnchor(measured,view,region.id)

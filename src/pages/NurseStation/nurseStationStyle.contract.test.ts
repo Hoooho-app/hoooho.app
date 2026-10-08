@@ -56,7 +56,7 @@ test('首页六入口使用等高双列卡片和独立图文层', () => {
   assert.doesNotMatch(source, /desensitizationTestsImage|desensitizationTestService|title: '排敏测试'/)
   assert.match(source, /`\$\{count\} 个\$\{noun\}任务`/)
   assert.match(source, /<Link aria-label=\{`\$\{entry\.title\}，\$\{entry\.subtitle\}`\}/)
-  assert.match(source, /<img alt=""[^>]*onError=/)
+  assert.match(source, /<(?:img|CompleteImage) alt=""[^>]*onError=/)
   assert.doesNotMatch(source, /健康事件记录|更多服务|过敏出示|能不能吃|附近就医/)
   assert.doesNotMatch(source, /nurse-primary-entries|nurse-more-services/)
 })

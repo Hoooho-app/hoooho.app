@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import type { JournalCategory, DietRecordKind } from '../../types/journal'
 import { HohoButton } from '../../components/design-system'
@@ -26,7 +27,7 @@ export function RecordEntryActions({ disabled, identity, onRecord }: { disabled:
   },[open])
   const choose = (category: JournalCategory, kind?: DietRecordKind) => { setOpen(false); onRecord(category,kind) }
   return <div className={`record-entry-actions${open?' is-daily-open':''}`} ref={root}>
-    {open && <div aria-label="记录日常选项" className="daily-record-options" id="daily-record-options" role="group">{routines.map(item => <button disabled={disabled} key={item.category} onClick={() => choose(item.category)} type="button"><img alt="" src={item.image}/><span>{item.label}</span></button>)}</div>}
+    {open && <div aria-label="记录日常选项" className="daily-record-options" id="daily-record-options" role="group">{routines.map(item => <button disabled={disabled} key={item.category} onClick={() => choose(item.category)} type="button"><CompleteImage alt="" src={item.image}/><span>{item.label}</span></button>)}</div>}
     <div aria-label="记录入口" className="record-entry-grid" role="group">{direct.map(item => <button aria-controls={item.id==='daily'?'daily-record-options':undefined} aria-expanded={item.id==='daily'?open:undefined} aria-pressed={item.id==='daily'?open:undefined} data-record-entry={item.id} disabled={disabled} key={item.id} onClick={() => item.id==='daily'?setOpen(value=>!value):choose(item.category,item.kind)} type="button"><span>{item.label}</span></button>)}</div>
     <HohoButton className="record-symptom-action" disabled={disabled} fullWidth onClick={() => choose('symptom')} size="large">记录症状</HohoButton>
   </div>

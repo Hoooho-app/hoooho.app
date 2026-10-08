@@ -20,17 +20,17 @@ for (const file of webpFiles) {
   const bytes = (await stat(filePath)).size
   const metadata = await sharp(filePath).metadata()
   assert.equal(metadata.format, 'webp', `${file} must be WebP.`)
-  assert.equal(metadata.width, 512, `${file} must be 512px wide.`)
-  assert.equal(metadata.height, 512, `${file} must be 512px tall.`)
+  assert.equal(metadata.width, 256, `${file} must be 256px wide.`)
+  assert.equal(metadata.height, 256, `${file} must be 256px tall.`)
   assert.equal(metadata.hasAlpha, true, `${file} must retain transparent corners.`)
-  assert.ok(bytes <= 80 * 1024, `${file} exceeds the 80 KiB complete-avatar budget.`)
+  assert.ok(bytes <= 16 * 1024, `${file} exceeds the 16 KiB complete-avatar budget.`)
   totalBytes += bytes
   if (bytes > largest.bytes) largest = { file, bytes }
 }
 
 const generatedSource = await readFile(path.join(root, 'src', 'generated', 'clayAvatarAssets.ts'), 'utf8')
 for (const file of webpFiles) assert.ok(generatedSource.includes(file), `${file} is absent from the generated asset map.`)
-assert.ok(totalBytes <= 24 * 80 * 1024, 'The adult avatar pack exceeds its aggregate budget.')
+assert.ok(totalBytes <= 24 * 16 * 1024, 'The adult avatar pack exceeds its aggregate budget.')
 
 console.log(JSON.stringify({
   count: webpFiles.length,

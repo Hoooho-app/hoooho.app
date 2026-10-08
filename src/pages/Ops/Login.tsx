@@ -1,3 +1,4 @@
+import { CompleteImage } from '../../components/common/CompleteImage'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Mail, ShieldCheck } from 'lucide-react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
@@ -66,7 +67,7 @@ export function OpsLoginPage() {
   }
 
   return <main className="ops-login-page"><section className="ops-login-panel" aria-labelledby="ops-login-title">
-    <header><img src={logoUrl} alt="Hoooho"/><div className="ops-login-trace" aria-hidden="true"><i/><i/><i/></div><h1 id="ops-login-title">Hoooho · 费用总控台</h1><p>唯一管理员验证</p></header>
+    <header><CompleteImage src={logoUrl} alt="Hoooho"/><div className="ops-login-trace" aria-hidden="true"><i/><i/><i/></div><h1 id="ops-login-title">Hoooho · 费用总控台</h1><p>唯一管理员验证</p></header>
     <form noValidate onSubmit={login}>
       <label><span>邮箱</span><div className="ops-login-input"><Mail aria-hidden="true" size={18}/><input type="email" inputMode="email" autoComplete="email" maxLength={254} placeholder="请输入邮箱地址" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); setNotice('') }}/></div></label>
       <label><span>邮箱验证码</span><div className="ops-login-input"><ShieldCheck aria-hidden="true" size={18}/><input ref={codeRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 位验证码" value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, '')); setError('') }}/><button type="button" disabled={!emailValid || countdown > 0 || sending} onClick={requestCode}>{sending ? '发送中…' : countdown > 0 ? `${countdown}s` : '获取验证码'}</button></div></label>

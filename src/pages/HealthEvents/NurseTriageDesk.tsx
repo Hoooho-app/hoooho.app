@@ -5,16 +5,16 @@ import { NurseStationIdleVideo } from './NurseStationIdleVideo'
 import type { NurseTriageState } from './nurseTriageMachine'
 
 const nurseTriageAssets = {
-  attention: '/nurse-triage/attention.png',
-  preparing: '/nurse-triage/preparing.png',
-  listening: '/nurse-triage/listening.png',
-  speechPaused: '/nurse-triage/speech-paused.png',
-  reviewing: '/nurse-triage/reviewing.png',
-  awaitingConfirmation: '/nurse-triage/awaiting-confirmation.png',
-  saving: '/nurse-triage/saving.png',
-  saved: '/nurse-triage/saved.png',
-  handoff: '/nurse-triage/handoff.png',
-  shifted: '/nurse-triage/shifted.png'
+  attention: '/nurse-triage/attention.0e839af8d0.webp',
+  preparing: '/nurse-triage/preparing.75a958747e.webp',
+  listening: '/nurse-triage/listening.ac2a73c2f7.webp',
+  speechPaused: '/nurse-triage/speech-paused.2d25ea8b7c.webp',
+  reviewing: '/nurse-triage/reviewing.46297d4a67.webp',
+  awaitingConfirmation: '/nurse-triage/awaiting-confirmation.7d6e9afe32.webp',
+  saving: '/nurse-triage/saving.ca64982bfe.webp',
+  saved: '/nurse-triage/saved.e10c9b3405.webp',
+  handoff: '/nurse-triage/handoff.f19c1f491d.webp',
+  shifted: '/nurse-triage/shifted.d6d40cee88.webp'
 } as const
 
 type NurseTriageAsset = (typeof nurseTriageAssets)[keyof typeof nurseTriageAssets]

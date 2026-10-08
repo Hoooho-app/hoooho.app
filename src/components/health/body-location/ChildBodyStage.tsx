@@ -13,7 +13,7 @@ function Illustration({ visual, children }: { visual: ChildVisual; children: Rea
     let active = true
     setStatus('loading')
     const image = new Image()
-    image.onload = () => { if (active) setStatus(image.naturalWidth === visual.width && image.naturalHeight === visual.height && geometryCompatible() ? 'ready' : 'mismatch') }
+    image.onload = async () => { await image.decode().catch(() => undefined); if (active) setStatus(image.naturalWidth === visual.width && image.naturalHeight === visual.height && geometryCompatible() ? 'ready' : 'mismatch') }
     image.onerror = () => { if (active) setStatus('error') }
     image.src = assetUrl(visual.asset)
     return () => { active = false }
