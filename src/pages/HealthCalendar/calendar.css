@@ -10,14 +10,14 @@
 .health-calendar__grid { display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: var(--hoho-space-6) repeat(var(--calendar-weeks), minmax(0, 1fr)); column-gap: 1px; font-size: clamp(10px, 2.9vw, var(--hoho-font-size-caption)); line-height: 1.4; }
 .health-calendar__weekday { text-align: center; color: rgb(var(--hoho-color-text-secondary)); }
 .health-calendar__day, .health-calendar__blank { min-width: 0; min-height: 0; border-top: 1px solid rgb(var(--hoho-color-border) / .55); }
-.health-calendar__day { display: flex; flex-direction: column; align-items: stretch; padding: 2px 0; overflow: hidden; background: transparent; color: rgb(var(--hoho-color-text-primary)); font: inherit; }
-.health-calendar__date-number { display: grid; place-items: center; align-self: center; flex: 0 0 var(--hoho-space-6); width: var(--hoho-space-6); border-radius: var(--hoho-radius-pill); font-size: var(--hoho-font-size-body-small); }
+.health-calendar__day { display: flex; flex-direction: column; align-items: stretch; padding: 1px 0; overflow: hidden; background: transparent; color: rgb(var(--hoho-color-text-primary)); font: inherit; }
+.health-calendar__date-number { display: grid; place-items: center; align-self: center; flex: 0 0 var(--hoho-space-5); width: var(--hoho-space-5); border-radius: var(--hoho-radius-pill); font-size: var(--hoho-font-size-body-small); }
 .health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-primary)); font-weight: 600; }
 .health-calendar__day[aria-current=date] .health-calendar__date-number { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
 .health-calendar__day:disabled { color: rgb(var(--hoho-color-disabled)); }
-.health-calendar__previews { width: 100%; max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 2px; min-height: 0; margin-top: 2px; }
+.health-calendar__previews { width: 100%; max-width: 100%; min-width: 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; min-height: 0; margin-top: 1px; }
 .health-calendar__preview { width: 100%; max-width: 100%; box-sizing: border-box; display: block; flex-shrink: 0; min-width: 0; overflow: hidden; padding: 0 1px; border-radius: 2px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-text-primary)); white-space: nowrap; text-overflow: clip; text-align: left; }
-.health-calendar__more { flex-shrink: 0; padding-left: 1px; font-size: 10px; line-height: 12px; color: rgb(var(--hoho-color-text-secondary)); text-align: left; }
+.health-calendar__more { flex-shrink: 0; padding-left: 1px; font-size: 10px; line-height: 10px; color: rgb(var(--hoho-color-text-secondary)); text-align: left; }
 .health-calendar__actions { display: flex; justify-content: flex-end; align-items: center; flex: 0 0 calc(var(--hoho-touch-target) + var(--hoho-space-2)); padding-inline: var(--hoho-space-2); }
 .health-calendar__add.hoho-button { border-radius: var(--hoho-radius-pill); }
 .health-calendar__status { position: absolute; z-index: 1; top: calc(var(--hoho-touch-target) + var(--hoho-space-6)); left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
