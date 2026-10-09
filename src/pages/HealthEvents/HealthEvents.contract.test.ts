@@ -151,7 +151,8 @@ test('进食入口保留通用勺子且时间线按具体饮食类型显示语�
   assert.match(journalCategoryIcon, /return <SpoonIcon/)
   assert.match(journalCategoryIcon, /journal-category-icon--spoon/)
   assert.match(timeView, /dietKind=\{entry\.diet\?\.kind\}/)
-  assert.match(journalSearch, /dietKind=\{entry\.diet\?\.kind\}/)
+  assert.match(journalSearch, /<JournalSearchResults entries=\{results\}/)
+  assert.match(readFileSync(new URL('./JournalSearchResults.tsx', import.meta.url), 'utf8'), /dietKind=\{entry\.diet\?\.kind\}/)
   assert.match(journalRecorder, /记录喂养\/饮食/)
 })
 

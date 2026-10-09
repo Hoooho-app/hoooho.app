@@ -1,12 +1,11 @@
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { HealthTag } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { formatPlainMonthDay, getLocalDateKey } from '../../utils/localCalendarDate'
-import { JournalCategoryIcon } from './JournalCategoryIcon'
+import { JournalSearchResults } from './JournalSearchResults'
 import { JournalRecordDetail } from './JournalRecordDetail'
-import { journalCategoryLabels, journalSearchResultSummary, journalTime, searchJournalEntries, type JournalEntry } from './timeViewModel'
+import { searchJournalEntries } from './timeViewModel'
 import { useJournal } from './useJournal'
 import './JournalSearchPage.css'
 
@@ -16,30 +15,6 @@ function useDebouncedValue(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => { const timer = window.setTimeout(() => setDebounced(value), delay); return () => window.clearTimeout(timer) }, [delay, value])
   return debounced
-}
-
-function HighlightedText({ text, query }: { text: string; query: string }) {
-  const characters = [...query.trim().replace(/\s+/g, '')]
-  if (!characters.length) return text
-  const pattern = characters.map((character) => character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*')
-  const parts = text.split(new RegExp(`(${pattern})`, 'giu'))
-  return <>{parts.map((part, index) => part && (new RegExp(`^${pattern}$`, 'iu').test(part) ? <mark key={index}>{part}</mark> : <Fragment key={index}>{part}</Fragment>))}</>
-}
-
-function resultDateLabel(day: string, today: string) {
-  const yesterdayDate = new Date(`${today}T12:00:00`)
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const yesterday = getLocalDateKey(yesterdayDate)
-  return day === today ? `今天 · ${formatPlainMonthDay(day)}` : day === yesterday ? `昨天 · ${formatPlainMonthDay(day)}` : formatPlainMonthDay(day)
-}
-
-function groupResults(entries: readonly JournalEntry[]) {
-  const groups = new Map<string, JournalEntry[]>()
-  for (const entry of entries) {
-    const day = entry.timePrecision==='unknown'?'unknown':getLocalDateKey(entry.occurredAt)
-    if (day) groups.set(day, [...(groups.get(day) ?? []), entry])
-  }
-  return [...groups].map(([day, items]) => ({ day, items }))
 }
 
 export function JournalSearchPage() {
@@ -54,7 +29,6 @@ export function JournalSearchPage() {
   const debouncedQuery = useDebouncedValue(query, 300)
   const { entries, loading, error, retry } = useJournal(memberId, token ?? '', 0)
   const results = useMemo(() => searchJournalEntries(entries, debouncedQuery), [debouncedQuery, entries])
-  const groups = useMemo(() => groupResults(results), [results])
   const today = getLocalDateKey(new Date())!
   const returnState = (location.state as { journalReturn?: JournalReturnState } | null)?.journalReturn
   const leaveSearch = () => navigate('/health-events', { replace: true, state: { journalReturn: returnState } })
@@ -81,16 +55,7 @@ export function JournalSearchPage() {
     <section aria-live="polite" className="journal-search-body">
       {normalizedQuery && !loading && !error && results.length > 0 && <>
         <div className="journal-search-summary"><strong>找到 {results.length} 条相关随记</strong><span>{earliest?`已知时间：最早 ${formatPlainMonthDay(getLocalDateKey(earliest.occurredAt)!)} · 最近 ${recentLabel}`:'发生时间未明确'}{datedResults.length<results.length?' · 含时间未知记录':''}</span></div>
-        <div className="journal-search-results">{groups.map((group) => <section className="journal-search-date-group" key={group.day}>
-          <h2>{group.day==='unknown'?'时间未明确':resultDateLabel(group.day, today)}</h2>
-          <div>{group.items.map((entry) => <button className="journal-search-result" key={entry.id} onClick={() => setSelected({ eventId: entry.eventId, recordId: entry.id })} type="button">
-            <time>{journalTime(entry).label}</time>
-            <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
-            <HealthTag>{journalCategoryLabels[entry.categories?.[0] ?? 'other']}</HealthTag>
-            <span><HighlightedText query={debouncedQuery} text={journalSearchResultSummary(entry, debouncedQuery)} /></span>
-            <ChevronRight aria-hidden="true" size={17} />
-          </button>)}</div>
-        </section>)}</div>
+        <JournalSearchResults entries={results} query={debouncedQuery} today={today} onOpen={entry => setSelected({ eventId: entry.eventId, recordId: entry.id })} />
       </>}
       {normalizedQuery && !loading && !error && results.length === 0 && <div className="journal-search-empty"><strong>没有找到相关随记</strong><span>换个名称试试</span></div>}
       {normalizedQuery && error && <div className="journal-search-empty" role="alert"><strong>{error}</strong><button onClick={retry} type="button">重新加载</button></div>}
