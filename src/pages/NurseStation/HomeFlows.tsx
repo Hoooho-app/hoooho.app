@@ -39,8 +39,8 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <HohoButton fullWidth variant="secondary" size="large" onClick={() => navigate('/visit-summary')}>就诊情况单</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="快速回看查找">
-      <Typography variant="sectionTitle" className="flex items-center gap-2"><Search size={24} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />快速回看查找</Typography>
-      <Typography variant="caption">找回记录，看看那次发生了什么。<br />输入或说一句，快速定位原文。</Typography>
+      <Typography variant="sectionTitle" className="home-followup-heading"><Search size={20} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />快速回看查找</Typography>
+      <Typography variant="caption">找回记录，迅速定位健康事件。</Typography>
       <HohoButton fullWidth variant="secondary" size="large" disabled={!token || !memberId} onClick={() => setOpen('search')}>查找记录</HohoButton>
     </HealthCard>
     {notice && <p role="status">{notice}</p>}

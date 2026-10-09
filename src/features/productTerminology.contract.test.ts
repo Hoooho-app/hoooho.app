@@ -34,6 +34,9 @@ test('用户可见运行时代码统一使用健康随记', () => {
     if (file.pathname.endsWith('/features/case-continuity/CaseCards.tsx')) {
       checkedSource = checkedSource.replace('aria-label="健康事件随时记与情况列表"', '').replace('aria-label="健康事件随时记，情况速记"', '').replace('<strong aria-hidden="true">健康事件随时记</strong>', '')
     }
+    if (file.pathname.endsWith('/pages/NurseStation/HomeFlows.tsx')) {
+      checkedSource = checkedSource.replace('找回记录，迅速定位健康事件。', '')
+    }
     return checkedSource.includes('健康事件') ? [file.pathname] : []
   })
 

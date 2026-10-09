@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Send } from 'lucide-react'
+import { Keyboard, MessageSquare, Send } from 'lucide-react'
 import { Button } from '../../components/common'
 import { collectFeedbackDevice, appVersion } from '../../features/feedback/environment'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
@@ -26,6 +26,7 @@ const appendInput = (turns: FeedbackTurn[], text: string): FeedbackTurn[] => {
 export function FeedbackInterview({ token, accountId, source, initialCategory, onSubmitted }: { token: string | null; accountId: string; source: FeedbackSource; initialCategory: FeedbackProblemType | null; onSubmitted: () => void }) {
   const storageKey = `hoooho-feedback-interview:${accountId}`
   const [draft, setDraft] = useState<Draft>(() => ({ ...readDraft(storageKey), ...(initialCategory ? { problemType: initialCategory } : {}) }))
+  const [keyboard, setKeyboard] = useState(false)
   const [voiceBusy, setVoiceBusy] = useState(false)
   const [images, setImages] = useState<PendingFeedbackImage[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [retry, setRetry] = useState<{ turns: FeedbackTurn[]; mode: 'chat' | 'organize' } | null>(null)
@@ -44,6 +45,7 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
     try {
       const result = await interviewFeedback(token, turns, mode, controller.current.signal)
       if (controller.current.signal.aborted) return
+      setKeyboard(false)
       patch(mode === 'organize' ? { description: result.description, problemType: result.problemType, review: true } : { turns: [...turns, { role: 'assistant', text: result.reply }], problemType: result.problemType })
     } catch (cause) {
       if (controller.current.signal.aborted) return
@@ -94,7 +96,8 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
       {error && <div className="feedback-interview-error"><p className="feedback-error" role="alert">{error}</p>{retry && <Button variant="secondary" disabled={busy} onClick={() => void request(retry.turns, retry.mode)}>重试</Button>}<Button variant="ghost" disabled={busy || voiceBusy} onClick={manualReview}>手动整理</Button></div>}
       <form className="feedback-interview-composer" onSubmit={event => { event.preventDefault(); send('chat') }}>
         <fieldset disabled={busy}>
-          <FeedbackComposer onVoiceBusyChange={setVoiceBusy} compact text={draft.text} onTextChange={value => patch({ text: value })} images={images} onImagesChange={setImages} textLabel="你的回答" placeholder="说说遇到的问题或想改进的地方…" maxTextLength={1500} submitAction={<button className="feedback-check-submit" type="submit" aria-label="发送回答" disabled={!token || busy || voiceBusy || !draft.text.trim()}><Send/></button>}/>
+          <Button variant="ghost" aria-expanded={keyboard} disabled={voiceBusy} onClick={() => setKeyboard(!keyboard)}><Keyboard size={20}/>{keyboard ? '收起文字输入' : '文字输入'}</Button>
+          <FeedbackComposer showText={keyboard} onVoiceBusyChange={setVoiceBusy} compact text={draft.text} onTextChange={value => patch({ text: value })} images={images} onImagesChange={setImages} textLabel="你的回答" placeholder="说说遇到的问题或想改进的地方…" maxTextLength={1500} submitAction={<button className="feedback-check-submit" type="submit" aria-label="发送回答" disabled={!token || busy || voiceBusy || !draft.text.trim()}><Send/></button>}/>
         </fieldset>
         <Button fullWidth variant="secondary" disabled={!token || busy || voiceBusy || (!draft.turns.length && !draft.text.trim())} onClick={() => send('organize')}>整理反馈，下一步</Button>
       </form>

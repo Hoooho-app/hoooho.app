@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Send } from 'lucide-react'
+import { Keyboard, MessageSquare, Send } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { HohoButton, HohoInput, HohoSection, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -12,12 +12,14 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 export function HelpChat({ active, onOpenArticle }: {active:boolean; onOpenArticle:(id:string)=>void}) {
   const token=useAppStore(s=>s.authToken)??'',name=useAppStore(s=>s.accountProfile?.nickname??s.authUser?.nickname)
   const [session,setSession]=useState<HelpSession|null>(null),[draft,setDraft]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pending,setPending]=useState('')
+  const [keyboard,setKeyboard]=useState(false)
+  const openKeyboard=()=>{setKeyboard(true);requestAnimationFrame(()=>input.current?.focus())}
   const lock=useRef(false),alive=useRef(true),request=useRef<{text:string;id:string}|null>(null),input=useRef<HTMLInputElement>(null),ratingRetry=useRef<{turnId:string;solved:boolean}|null>(null),tail=useRef<HTMLDivElement>(null)
   useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[])
-  const load=async(fresh=false)=>{if(!token||lock.current)return;lock.current=true;setBusy(true);setError('');try{const next=await productHelpService.start(token,fresh);if(alive.current){setSession(next);if(fresh){setDraft('');request.current=null;ratingRetry.current=null}}}catch(e){if(alive.current)setError(e instanceof Error?e.message:'帮助对话未加载，请重试')}finally{lock.current=false;if(alive.current)setBusy(false)}}
+  const load=async(fresh=false)=>{if(!token||lock.current)return;lock.current=true;setBusy(true);setError('');try{const next=await productHelpService.start(token,fresh);if(alive.current){setSession(next);if(fresh){setDraft('');setKeyboard(false);request.current=null;ratingRetry.current=null}}}catch(e){if(alive.current)setError(e instanceof Error?e.message:'帮助对话未加载，请重试')}finally{lock.current=false;if(alive.current)setBusy(false)}}
   useEffect(()=>{if(active&&token&&!session&&!lock.current)void load()},[active,token])
   async function send(value=draft){const text=value.trim();if(!session||!text||lock.current||!token)return;lock.current=true;ratingRetry.current=null;setBusy(true);setError('');setPending(text);if(request.current?.text!==text)request.current={text,id:crypto.randomUUID()};
-    try{const next=await productHelpService.turn(token,session.id,{text,version:session.version,requestId:request.current.id});if(alive.current){setSession(next);setDraft('');request.current=null}}
+    try{const next=await productHelpService.turn(token,session.id,{text,version:session.version,requestId:request.current.id});if(alive.current){setSession(next);setDraft('');setKeyboard(false);request.current=null}}
     catch(e){if(alive.current){setDraft(text);setError(e instanceof Error?e.message:'回复暂时不可用，问题已保留，可重试');if(e instanceof ApiRequestError&&e.status===409){try{const latest=await productHelpService.get(token,session.id);if(alive.current)setSession(latest)}catch{/* keep current conversation and input */}}}}
     finally{lock.current=false;if(alive.current){setBusy(false);setPending('')}}
   }
@@ -32,8 +34,8 @@ export function HelpChat({ active, onOpenArticle }: {active:boolean; onOpenArtic
     {session?.notice&&<p role="status" className="hoho-text-caption">{session.notice}</p>}
     {latest?.role==='assistant'&&(latest.choices?.length??0)>0&&<div className="help-choice-list">{latest.choices?.map(choice=><HohoButton key={choice} disabled={busy} variant="secondary" onClick={()=>void send(choice)}>{choice}</HohoButton>)}</div>}
     {latest?.role==='assistant'&&latest.askResolved&&!rated&&<HohoSection title="这次的办法帮到你了吗？"><div className="help-footer-actions"><HohoButton disabled={busy} variant="secondary" onClick={()=>void rate(latest.id,true)}>解决了</HohoButton><HohoButton disabled={busy} variant="secondary" onClick={()=>void rate(latest.id,false)}>还没解决</HohoButton></div></HohoSection>}
-    {error&&<StatusNotice title="暂时没有完成" tone="error">{error}<div className="help-footer-actions"><HohoButton disabled={busy} variant="secondary" onClick={()=>ratingRetry.current?void rate(ratingRetry.current.turnId,ratingRetry.current.solved):session&&draft.trim()?void send():void load()}>重试</HohoButton><HohoButton variant="text" onClick={()=>input.current?.focus()}>继续补充</HohoButton></div></StatusNotice>}
-    {session&&<form className="help-chat-composer" onSubmit={e=>{e.preventDefault();void send()}}><HohoInput ref={input} label="描述遇到的问题" id="help-chat-input" placeholder="告诉我卡在哪一步…" value={draft} maxLength={2000} disabled={busy} onChange={e=>setDraft(e.target.value)}/><HohoButton type="submit" disabled={busy||!draft.trim()} aria-label="发送问题"><Send size={17}/>发送</HohoButton></form>}
+    {error&&<StatusNotice title="暂时没有完成" tone="error">{error}<div className="help-footer-actions"><HohoButton disabled={busy} variant="secondary" onClick={()=>ratingRetry.current?void rate(ratingRetry.current.turnId,ratingRetry.current.solved):session&&draft.trim()?void send():void load()}>重试</HohoButton><HohoButton variant="text" onClick={openKeyboard}>继续补充</HohoButton></div></StatusNotice>}
+    {session&&<form className="help-chat-composer" onSubmit={e=>{e.preventDefault();void send()}}><HohoButton variant="ghost" size="icon" aria-label={keyboard?"收起文字输入":"文字输入"} aria-expanded={keyboard} disabled={busy} onClick={()=>keyboard?setKeyboard(false):openKeyboard()}><Keyboard size={20}/></HohoButton>{keyboard&&<><HohoInput ref={input} label="描述遇到的问题" hideLabel id="help-chat-input" placeholder="告诉我卡在哪一步…" value={draft} maxLength={2000} disabled={busy} onChange={e=>setDraft(e.target.value)}/><HohoButton type="submit" disabled={busy||!draft.trim()} aria-label="发送问题"><Send size={17}/>发送</HohoButton></>}</form>}
     <div ref={tail}/>
     <p className="hoho-text-caption">请勿发送密码、验证码或完整病历。帮助不会自动读取健康记录。</p>
     <Link to="/feedback?page=帮助中心" state={makeFeedbackState('/help?view=chat','帮助中心',window.scrollY)} className="help-text-action">问题仍未解决？反馈产品问题</Link>
