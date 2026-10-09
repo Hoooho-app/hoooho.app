@@ -33,7 +33,11 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       {error && <HohoButton variant="text" onClick={reload}>重试加载</HohoButton>}
       <HohoButton variant="secondary" onClick={() => navigate(latest ? `/cases?eventId=${encodeURIComponent(latest.event.id)}` : '/cases')}>查看进度 / 补充进展</HohoButton>
     </HealthCard>
-    <HealthCard className="home-flow-card" aria-label="准备和医生说清楚"><Typography variant="sectionTitle">准备和医生说清楚</Typography><Typography variant="body">把症状、用药和变化整理好，就诊时少漏掉重要的事。</Typography><HohoButton fullWidth variant="secondary" size="large" onClick={() => navigate('/visit-summary')}>生成就诊情况单</HohoButton></HealthCard>
+    <HealthCard className="home-flow-card" aria-label="准备和医生说清楚">
+      <Typography variant="sectionTitle" className="flex items-center gap-2"><ClipboardList size={24} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />准备和医生说清楚</Typography>
+      <Typography variant="body">准备孩子的就诊情况单，一张内容，把所有的事情说清楚、整理清楚。</Typography>
+      <HohoButton fullWidth variant="secondary" size="large" onClick={() => navigate('/visit-summary')}>就诊情况单</HohoButton>
+    </HealthCard>
     <HealthCard className="home-flow-card" aria-label="想查什么，问一问"><Typography variant="sectionTitle">想查什么，问一问</Typography><Typography variant="body">最近两个月有没有吃新东西？第一次红屁股是什么时候？那次红疹后来有什么变化？</Typography><Typography variant="caption">直接问，帮你找到已有记录和原文。</Typography><HohoButton fullWidth variant="secondary" size="large" disabled={!token || !memberId} onClick={() => setOpen('search')}>查找记录</HohoButton></HealthCard>
     {notice && <p role="status">{notice}</p>}
     {open === 'record' && <SmartRecordWorkspace key={`${accountId}:${memberId}`} conversational memberId={memberId} token={token} onClose={() => setOpen(null)} onSaved={message => { setNotice(message); reload() }} />}
