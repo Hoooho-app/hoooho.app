@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoSurfaceRow } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
+import './About.css'
 
 const appVersion = import.meta.env.VITE_APP_VERSION
 const updatedAt = new Intl.DateTimeFormat('zh-CN', {
@@ -20,6 +21,8 @@ const entries = [
   { id: 'legal', label: '版权与法律声明' },
   { id: 'business', label: '商业合作' }
 ] as const
+
+const entryGroups = [entries.slice(0, 1), entries.slice(1, 7), entries.slice(7)]
 
 // Keep each published version here; future releases must preserve earlier entries.
 const releases = [{
@@ -79,15 +82,20 @@ export function AboutPage() {
   return (
     <main className="app-shell pb-0">
       <MainAppHeader compact title="关于" />
-      <div className="settings-content">
-        <section className="flex flex-col items-center px-4 py-6 text-center" aria-label="产品介绍">
-          <strong className="hoho-text-page-title text-primary">HOO</strong>
-          <span className="hoho-text-caption mt-2">v{appVersion}</span>
-          <p className="hoho-text-body mt-4 leading-7 text-text-secondary">帮助过敏人群及其家庭，记录日常变化、整理过敏相关信息，做好就医准备。</p>
+      <div className="about-content">
+        <section className="about-brand" aria-label="Hoooho 与版本">
+          <strong className="hoho-text-display">Hoooho</strong>
+          <span className="hoho-text-caption">v{appVersion}</span>
         </section>
-        <section className="settings-list" aria-label="关于页入口">
-          {entries.map((entry) => (
-            <HohoSurfaceRow key={entry.id} title={entry.label} onActivate={() => setSearchParams({ section: entry.id })} />
+        <section className="about-menu" aria-label="关于页入口">
+          {entryGroups.map((group) => (
+            <ul className="about-menu-group" key={group[0].id}>
+              {group.map((entry) => (
+                <li key={entry.id}>
+                  <HohoSurfaceRow title={entry.label} onActivate={() => setSearchParams({ section: entry.id })} />
+                </li>
+              ))}
+            </ul>
           ))}
         </section>
       </div>
