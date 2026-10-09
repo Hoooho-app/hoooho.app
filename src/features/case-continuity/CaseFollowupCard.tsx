@@ -12,8 +12,8 @@ const timeKnown = (r: HealthEventRecordApiDto) => !r.caseContext?.timeUnknown &&
 export const chronologicalRecords = (records: HealthEventRecordApiDto[]) => [...records].sort((a,b) => Number(timeKnown(b)) - Number(timeKnown(a)) || (timeKnown(a) && timeKnown(b) ? a.occurredAt.localeCompare(b.occurredAt) : 0) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
 const dateText = (value: string | null | undefined, timezone: string) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('zh-CN', {timeZone:timezone,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,year:'numeric'}).format(new Date(value)) : '未提供'
 
-export function CaseFollowupCard({item, memberId, token, timezone, reload, onDirty, onStatus}: {item:FollowedCase;memberId:string;token:string;timezone:string;reload:()=>void;onDirty:(id:string,dirty:boolean)=>void;onStatus:(id:string,requestId:string,archivedAt:string|null,recovered:boolean)=>void}) {
-  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'record'|'materials'|null>(null), [initialText,setInitialText]=useState('')
+export function CaseFollowupCard({item, memberId, token, timezone, reload, onDirty, onStatus}: {item:FollowedCase;memberId:string;token:string;timezone:string;reload:()=>void;onDirty:(id:string,dirty:boolean)=>void;onStatus:(archived:boolean)=>void}) {
+  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'record'|'materials'|null>(null)
   const [materialRecordId,setMaterialRecordId]=useState<string|null>(null)
   const [records,setRecords] = useState<HealthEventRecordApiDto[]|null>(null), [error,setError] = useState(''), [version,setVersion] = useState(0)
   const [busy,setBusy] = useState(false), [failure,setFailure] = useState(''), [notice,setNotice] = useState('')
@@ -37,7 +37,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
     const currentArchivedAt=item.event.caseArchivedAt??null
     if(!statusRequest.current||statusRequest.current.archivedAt!==currentArchivedAt)statusRequest.current={archivedAt:currentArchivedAt,id:crypto.randomUUID()}
     const requestId=statusRequest.current.id
-    try { const event=await caseService.recovery(memberId,token,id,{action:archived?'restore':'archive',requestId,expectedArchivedAt:item.event.caseArchivedAt??null});setForm(null);onStatus(id,requestId,event.caseArchivedAt??null,!archived);reload() }
+    try { await caseService.recovery(memberId,token,id,{action:archived?'restore':'archive',requestId,expectedArchivedAt:item.event.caseArchivedAt??null});setForm(null);onStatus(!archived);reload() }
     catch(e){setFailure(e instanceof Error?e.message:'状态未保存，请重试')}
     finally{pending.current=false;setBusy(false)}
   }
@@ -61,8 +61,8 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
         {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setForm('materials')}}}>核对这份资料</HohoButton>}
       </li>)}</ol>}
     </div>}
-    {!archived&&<><div className="case-followup-primary-actions">{['好转','差不多','加重','补充情况'].map(label=><HohoButton key={label} variant={label==='补充情况'?'text':'secondary'} disabled={busy} onClick={()=>{setInitialText(label==='补充情况'?'':`这次情况${label}`);open('record')}}>{label}</HohoButton>)}</div>
-      {form==='record'&&<SmartRecordWorkspace conversational initialText={initialText} memberId={memberId} token={token} eventId={id} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
+    {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={()=>open('record')}>补充情况</HohoButton></div>
+      {form==='record'&&<SmartRecordWorkspace conversational memberId={memberId} token={token} eventId={id} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
       {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>

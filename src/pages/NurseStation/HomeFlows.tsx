@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ClipboardList, Search } from 'lucide-react'
+import { ClipboardList, Route, Search } from 'lucide-react'
 import { HealthCard, HealthTag, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { SmartRecordWorkspace } from '../../features/ai-business/SmartRecordWorkspace'
@@ -23,7 +23,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="正在跟进">
       <header>
-        <div className="home-followup-heading"><ClipboardList size={20} aria-hidden="true" /><Typography variant="sectionTitle">正在跟进</Typography></div>
+        <div className="home-followup-heading"><Route size={20} aria-hidden="true" /><Typography variant="sectionTitle">正在跟进</Typography></div>
         <Typography variant="caption" className="home-followup-count" aria-label={data ? `${data.active.length} 个跟进事项` : '跟进数量暂未加载'}>{data ? `${data.active.length} 项` : '— 项'}</Typography>
       </header>
       {latest ? <>
