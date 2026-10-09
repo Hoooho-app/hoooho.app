@@ -151,7 +151,7 @@ export function SettingsPage() {
           title="隐私与权限"
         />
         <HohoSurfaceRow
-          description="登录方式、设备与账号管理"
+          description="登录信息与退出登录"
           leading={<LeadingIcon><LockKeyhole size={18} strokeWidth={1.7} /></LeadingIcon>}
           onActivate={() => navigate('/settings/account')}
           title="账号与安全"
