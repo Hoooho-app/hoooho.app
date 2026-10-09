@@ -51,6 +51,8 @@ import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
 import {profileListRoute,profileListResult} from './health-profile/child-profile-list-api.mjs'
+import { CareHandoffService } from './care-handoff/care-handoff-service.mjs'
+import { handoffRoute, handoffResult } from './care-handoff/api.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -107,6 +109,7 @@ const desensitizationTests = new DesensitizationTestService(sharedOptions)
 const visitSheets = new VisitSheetService(sharedOptions)
 const aiBusiness = new AIBusinessService(sharedOptions)
 const childProfileLists = new ChildProfileListService(sharedOptions)
+const careHandoff = new CareHandoffService(sharedOptions)
 const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
@@ -115,7 +118,7 @@ aiDraftCleanup.unref()
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
-  response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  if (!response.hasHeader('Referrer-Policy')) response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
 }
 
 function sendJson(response, statusCode, data) {
@@ -836,6 +839,13 @@ async function handleApi(request, response, pathname, searchParams) {
   }
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  const handoff = handoffRoute(pathname)
+  if (handoff) {
+    response.setHeader('Referrer-Policy', 'no-referrer')
+    const accountId = handoff.shared ? null : await readAccountId(request)
+    sendJson(response, 200, await handoffResult(careHandoff, accountId, handoff, request.method, request.method === 'POST' ? await readJson(request, 1024) : undefined))
+    return true
+  }
   if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {
     const result = await nurseApiResult(nurse, await readAccountId(request), request.method, pathname, limit => readJson(request, limit))
     sendJson(response, result.status ?? 200, result.data)
@@ -1002,6 +1012,7 @@ const server = createServer(async (request, response) => {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
+    if (pathname.startsWith('/care-handoff/shared/')) response.setHeader('Referrer-Policy', 'no-referrer')
     observeSessionRequest(request, response, pathname)
     const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
     const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
