@@ -155,9 +155,11 @@ export function NurseStationPage() {
     state: { selectedMeasure, returnTo: getCurrentPath(location.pathname, location.search, location.hash) },
   })
 
+  const quickSearchAction = <HohoButton variant="text" size="small" style={{ minHeight: 'var(--hoho-touch-target)' }} disabled={!token || !currentMemberId || !member} onClick={() => navigate('/quick-search')}>快速查找</HohoButton>
+
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="服务前台" />
+      <MainAppHeader title="服务前台" action={quickSearchAction} showInstallApp={false} />
       <section className="nurse-station-empty-member">
         <div className="nurse-station-empty-member__copy">
           <p className="nurse-station-empty-member__eyebrow">欢迎来到 Hoooho</p>
@@ -182,7 +184,7 @@ export function NurseStationPage() {
 
   return (
     <main className="app-shell nurse-station-page">
-      <MainAppHeader title="服务前台" childSelectionRequest={childSelectionRequest} />
+      <MainAppHeader title="服务前台" childSelectionRequest={childSelectionRequest} action={quickSearchAction} showInstallApp={false} />
       <div className="nurse-station-scroll">
         {listState.status === 'loading' && !member ? (
           <section aria-label="正在加载当前人物" className="nurse-station-hero nurse-station-hero--loading"><span /><span /></section>

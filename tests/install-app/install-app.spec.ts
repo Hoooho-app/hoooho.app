@@ -11,6 +11,9 @@ async function enterApp(page: Page) {
   await page.getByPlaceholder('设置一个密码').fill('12345678')
   await page.getByRole('button', { name: '注册并进入' }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
+  await expect(page.getByRole('button', { name: '添加 Hoooho 到主屏' })).toHaveCount(0)
+  await expect(page.locator('.hoho-main-header').getByRole('button', { name: '快速查找', exact: true })).toBeVisible()
+  await page.goto('/about')
 }
 
 async function addMember(page: Page) {
@@ -61,7 +64,7 @@ test('iOS Safari 全局入口打开双图引导并可关闭恢复焦点', async 
   await guide.getByRole('button', { name: '关闭添加到主屏幕图示' }).click()
 
   await addMember(page)
-  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/settings', '/about']) {
+  for (const route of ['/health-events', '/health-profile', '/settings', '/about']) {
     await page.goto(route)
     await expect(page.getByRole('button', { name: '添加 Hoooho 到主屏' })).toBeVisible()
   }

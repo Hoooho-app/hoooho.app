@@ -40,12 +40,16 @@ test('紧凑人物资料保留头像和成长操作，护士素材传入新模�
   assert.doesNotMatch(source, /今天想让我们帮你做什么|容易忘、需要持续观察/)
 })
 
-test('首页四个单列入口，日期属于随记，工具进入侧栏', () => {
+test('首页信息板与三个单列入口，快速查找进入顶栏', () => {
   const flows = readFileSync(new URL('./HomeFlows.tsx', import.meta.url), 'utf8')
   const flowStyles = readFileSync(new URL('./HomeFlows.css', import.meta.url), 'utf8')
   const drawer = readFileSync(new URL('../../components/navigation/SideDrawer.tsx', import.meta.url), 'utf8')
-  assert.equal((flows.match(/<HealthCard /g) ?? []).length, 4)
-  for(const title of ['健康随记','正在跟进','准备和医生说清楚','快速查找']) assert.ok(flows.includes(title))
+  assert.equal((flows.match(/<HealthCard /g) ?? []).length, 3)
+  for(const title of ['正在跟进','健康随记','准备和医生说清楚']) assert.ok(flows.includes(title))
+  assert.doesNotMatch(flows, /aria-label="快速查找"/)
+  assert.ok(flows.indexOf('aria-label="正在跟进"') < flows.indexOf('aria-label="健康随记"'))
+  assert.match(source, /action=\{quickSearchAction\} showInstallApp=\{false\}/)
+  assert.match(source, /navigate\('\/quick-search'\)/)
   assert.match(flowStyles, /\.home-flows\{display:grid;gap:/)
   assert.doesNotMatch(source, /HomeEntries|fixedHomeEntries|nurse-home-entry/)
   assert.match(flows, /<time dateTime=/)

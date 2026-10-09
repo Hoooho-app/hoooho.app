@@ -8,7 +8,7 @@ import { consumeMemberProfileRestore, getCurrentPath, readMemberProfileRestore, 
 import { useAppStore } from '../../store/useAppStore'
 import { useInstallApp } from '../../features/install-app'
 
-export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0 }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number }) {
+export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, showInstallApp = true }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; showInstallApp?: boolean }) {
   const location = useLocation()
   const navigate = useNavigate()
   const accountNotice = (location.state as { accountNotice?: string } | null)?.accountNotice ?? ''
@@ -68,9 +68,9 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
           <Menu size={24} strokeWidth={1.8} />
         </button>
         <h1 className="hoho-text-section-title w-full truncate text-center">{title}</h1>
-        {(action || installApp.visible) && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
+        {(action || (showInstallApp && installApp.visible)) && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
           {action}
-          {installApp.visible && <button aria-label="添加 Hoooho 到主屏" className="install-app-trigger" disabled={installApp.busy} onClick={() => void installApp.activate()} type="button">添加到主屏</button>}
+          {showInstallApp && installApp.visible && <button aria-label="添加 Hoooho 到主屏" className="install-app-trigger" disabled={installApp.busy} onClick={() => void installApp.activate()} type="button">添加到主屏</button>}
         </div>}
       </header>
       <SideDrawer open={open} onClose={() => setOpen(false)} onOpenChildSheet={() => setChildSheetOpen(true)} />
