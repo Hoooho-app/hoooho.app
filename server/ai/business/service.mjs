@@ -16,7 +16,7 @@ import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-repl
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
 import { withAIAccount } from '../providers/call-control.mjs'
-import { documentPageWarnings, prepareDocuments, recognizePage } from './documents.mjs'
+import { documentPageWarnings, prepareDocuments, prepareVoiceOriginals, recognizePage } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
 import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
 import { memberInsights } from './insights.mjs'
@@ -110,9 +110,11 @@ export class AIBusinessService {
     if(previous?.state==='saved')throw fail('这份草稿已保存，请新建记录',409)
     if(previous && input.version!==previous.version)throw fail('草稿已更新，请重新加载',409,'AI_DRAFT_VERSION_CONFLICT')
     const raw=text(input.text,15000);if(!raw&&!(input.files?.length)&&!previous?.documents?.length)throw fail('请先填写文字或上传资料')
-    const prepared=input.files?.length?await prepareDocuments(input.files):{documents:previous?.documents??[],pages:previous?.pages??[]}
+    const voices=Object.hasOwn(input,'voiceFiles')?prepareVoiceOriginals(input.voiceFiles):previous?.voices??[]
+    const prepared=Object.hasOwn(input,'files')?await prepareDocuments(input.files):{documents:previous?.documents??[],pages:previous?.pages??[]}
+    if(voices.length+prepared.documents.length>12||[...voices,...prepared.documents].reduce((n,f)=>n+Buffer.from(f.dataUrl.split(',')[1],'base64').length,0)>15*1024*1024)throw fail('原件最多12份，总大小15 MB',413)
     const task=['record','report','visit','archive'].includes(input.task)?input.task:'record'
-    const targetEventId = input.eventId ?? previous?.targetEventId ?? null
+    const targetEventId = Object.hasOwn(input,'eventId') ? input.eventId || null : previous?.targetEventId ?? null
     const sourceIdentity = input.sourceIdentity ?? previous?.sourceIdentity ?? null
     const sourceRecordId = input.sourceRecordId ?? previous?.sourceRecordId ?? null
     if (targetEventId) { const target = await this.events.get(accountId, targetEventId); if (target.memberId !== memberId || target.caseArchivedAt) throw fail('资料必须接回当前人物未归档的情况', 409) }
@@ -120,7 +122,12 @@ export class AIBusinessService {
     if (sourceIdentity && !['parent','medical_consultation','examination_report','external_ai','pending'].includes(sourceIdentity)) throw fail('资料来源无效')
     const profileBatch=input.profileBatch===true||previous?.profileBatch===true
     const profileBatchId=profileBatch?(text(input.profileBatchId,100)||previous?.profileBatchId||null):null
-    const digest=fingerprint([raw,prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(profileBatch?['profile-batch',profileBatchId]:[])])
+    const smartRecord = task==='record' && (input.smartRecord===true || previous?.smartRecord===true)
+    const confirmOccurrenceTime = smartRecord && (input.confirmOccurrenceTime ?? previous?.confirmOccurrenceTime ?? false) === true
+    const followUp = smartRecord ? input.followUp ?? previous?.followUp ?? true : true
+    const selectedOccurredAt = smartRecord ? input.selectedOccurredAt ?? previous?.selectedOccurredAt ?? this.now().toISOString() : null
+    if(smartRecord&&(!Number.isFinite(Date.parse(selectedOccurredAt))||Date.parse(selectedOccurredAt)>this.now().getTime()))throw fail('发生时间不能晚于现在',422,'INVALID_OCCURRED_AT')
+    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
@@ -128,7 +135,8 @@ export class AIBusinessService {
     }
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??now.toISOString(),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
-    draft.manualOriginal=false
+    draft.manualOriginal=false;draft.voices=voices
+    draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
     draft.profileBatch=profileBatch
     draft.profileBatchId=profileBatchId
     draft.targetEventId = targetEventId; draft.sourceIdentity = sourceIdentity
@@ -201,7 +209,7 @@ export class AIBusinessService {
       if(syntheticCapture)error.details={...error.details,syntheticReplay:{...syntheticCapture,validation:error.validation??{stage:'semantic_validation',fieldPath:'/items',reason:'invalid_extraction'},businessCode:/^[A-Z_]{1,80}$/.test(error.code??'')?error.code:null}}
       if(syntheticRequested&&syntheticStages.length)error.details={...error.details,syntheticStages,syntheticFixtureId:input.syntheticReplay,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}
       const latest=await this.get(accountId,memberId,draft.id).catch(()=>null)
-      if(latest?.version===draft.version){if(signal?.aborted)await this.cancel(accountId,memberId,draft.id);else{draft.state='failed';await this.write(draft)}}
+      if(latest?.version===draft.version){draft.state='failed';await this.write(draft)}
       throw error
     }
   }
@@ -209,6 +217,9 @@ export class AIBusinessService {
     if(['chronic','surgery','family-history'].includes(item.archiveCategory)&&!field(item,'historyName')||item.archiveCategory==='family-history'&&!field(item,'relationship'))item.archiveCategory=null
     if(item.archiveCategory==='vaccination'&&field(item,'vaccineName'))item.category='vaccination'
     item.time=resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})
+    // Only live parent narration opts into the user's current-time default.
+    // Explicit vague/historical dates and uploaded report times stay unresolved.
+    if(draft.smartRecord&&!draft.confirmOccurrenceTime&&!draft.documents.length&&!item.timeText&&!item.timeEditedBy)item.time={...item.time,resolvedStart:draft.selectedOccurredAt,precision:'exact',defaulted:true}
     for(const f of item.fields.filter(f=>['sleepAt','wakeAt'].includes(f.name))){delete f.resolvedValue;const resolved=resolveItemTime({timeText:f.value},{referenceNow:draft.referenceNow,timezone:draft.timezone});if(resolved.precision==='exact')f.resolvedValue=resolved.resolvedStart}
     const forJournal={...item,fields:item.fields.map(f=>({...f,value:f.resolvedValue??f.value}))}
     item.journal=buildJournal(forJournal);return item
@@ -264,7 +275,7 @@ export class AIBusinessService {
       if(d.documentWarnings?.length&&!d.confirmPageWarnings)throw fail('材料存在页码缺失或重复，请先核对并明确按不完整材料保存',422,'AI_DOCUMENT_PAGE_GAP')
       const ownedEvents=await this.events.repository.findByAccountId(accountId),eventIds=new Set(ownedEvents.filter(e=>e.memberId===memberId).map(e=>e.id))
       const existing=(await this.records.repository.findByAccountId(accountId)).filter(r=>eventIds.has(r.eventId) && (!d.targetEventId || r.eventId === d.targetEventId))
-      const targetEvent = d.targetEventId ? await this.events.get(accountId, d.targetEventId) : null
+      let targetEvent = d.targetEventId ? await this.events.get(accountId, d.targetEventId) : null
       if (targetEvent && (targetEvent.memberId !== memberId || targetEvent.caseArchivedAt)) throw fail('这次情况已归档或归属已变更，本次未保存', 409)
       const sourceRecord = d.sourceRecordId ? await this.records.getOwnedRecord(accountId, d.sourceRecordId) : null
       await this.reviewProfileAssociations(d)
@@ -296,12 +307,13 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
           record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:d.documents.length?'medical_file':'text_record',sourceText:d.raw.slice(0,5000)},this.now())
           history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!targetEvent&&!relatedEvent})
         }
+        if(d.smartRecord&&!targetEvent)targetEvent=event
         const sources=[...(record.aiProvenance?.sources??[]),...item.fields.flatMap(f=>f.sources)],refs=[]
-        for(const document of d.documents.filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
+        for(const document of [...d.documents,...(d.voices??[])].filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
         await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
         if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { ...record.caseContext, identity: d.sourceIdentity, confirmed: true, attachmentIds: [...new Set([...(record.caseContext?.attachmentIds??[]),...refs])], originalText: record.caseContext?.originalText ?? record.sourceText ?? d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
-        if (targetEvent) await this.events.repository.update(event.id, { caseTracking: true }, this.now())
+        if (targetEvent && (!match || d.targetEventId || d.followUp !== false)) await this.events.repository.update(event.id, { caseTracking: d.followUp !== false || Boolean(d.targetEventId) || event.caseTracking === true }, this.now())
         if (!['external_ai','pending'].includes(d.sourceIdentity)) profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now(),profileBatch:d.profileBatch})
         history[history.length-1].afterKey=revisionKey(await this.records.repository.findById(record.id))
         if(!ownedEvents.some(e=>e.id===event.id))ownedEvents.push(event)
@@ -312,7 +324,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
       const changedSections=profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId&&JSON.stringify(s)!==JSON.stringify(profileBefore.find(p=>p.sectionId===s.sectionId))).map(s=>({sectionId:s.sectionId,revision:s.revision,before:profileBefore.find(p=>p.sectionId===s.sectionId)??null}))
       if(changedSections.length)await this.profiles.update(()=>profileData)
       if (targetEvent) await this.records.recomputeAfterMutation(accountId, targetEvent.id, this.now())
-      d.state='saved';d.result={records:saved,count:saved.length};d.undo=history;d.profileUndo=changedSections;d.documents=[];d.pages=[];d.version++
+      d.state='saved';d.result={records:saved,count:saved.length};d.undo=history;d.profileUndo=changedSections;d.documents=[];d.voices=[];d.pages=[];d.version++
       return this.write(d)
     })
   }

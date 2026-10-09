@@ -6,10 +6,10 @@ const page = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const panel = readFileSync(new URL('./DietaryCardPanel.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('./dietaryCard.css', import.meta.url), 'utf8')
 const router = readFileSync(new URL('../../app/router.tsx', import.meta.url), 'utf8')
-const home = readFileSync(new URL('../NurseStation/index.tsx', import.meta.url), 'utf8')
+const home = readFileSync(new URL('../../components/navigation/SideDrawer.tsx', import.meta.url), 'utf8')
 
-test('首页唯一入口进入受当前人物保护的忌口出示卡', () => {
-  assert.match(home, /title: '忌口出示卡'.*to: '\/dietary-card'/)
+test('侧栏工具入口进入受当前人物保护的忌口出示卡', () => {
+  assert.match(home, /label: '忌口出示卡'.*to: '\/dietary-card'/)
   assert.doesNotMatch(home, /忌口出示卡功能暂未开放/)
   assert.match(router, /path: '\/dietary-card'/)
   assert.match(router, /path: '\/dietary-card\/edit'/)

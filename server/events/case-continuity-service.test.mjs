@@ -221,3 +221,12 @@ test('批量原件失败事务回滚，不产生半记录；身体涂抹与户�
   assert.deepEqual(validateJournal({categories:['care'],topical:{kind:'skincare',productName:'合成产品',bodyLocations:[]}}).topical,{kind:'skincare',productName:'合成产品',bodyLocations:[]})
   assert.equal(validateJournal({categories:['activity'],outdoorActivity:{activities:[],places:[],contacts:[],observations:[]}}).categories[0],'activity')
 })
+test('结束跟进是归档而非康复，记录可追溯且可撤销或重新跟进',async t=>{
+ const f=await fixture(t),saved=await f.capture(),id=saved.eventId
+ const before=await f.service.events.get('synthetic-account',id)
+ let event=await f.service.recovery('synthetic-account',f.member.id,id,{action:'archive',requestId:'archive-only',expectedArchivedAt:null})
+ assert.equal(event.status,before.status);assert.equal(event.caseArchiveReason,'general');assert.equal(event.caseRecoveryMarkedAt,null);assert.equal(event.recoveredAt,before.recoveredAt??null)
+ assert.equal((await f.service.list('synthetic-account',f.member.id)).archived.length,1);assert.equal((await f.service.records.list('synthetic-account',id)).length,1)
+ await f.service.recovery('synthetic-account',f.member.id,id,{action:'undo',requestId:'undo-archive',undoRequestId:'archive-only',expectedArchivedAt:event.caseArchivedAt})
+ assert.equal((await f.service.list('synthetic-account',f.member.id)).active.length,1)
+})

@@ -11,6 +11,7 @@ import { AudioRequestError, audioErrorMessage } from './audioErrors'
 import { useAppStore } from '../../store/useAppStore'
 import { CaseCaptureWorkspace } from './CaseCaptureWorkspace'
 import { captureDraft } from './captureDraft'
+import { SmartRecordWorkspace } from './SmartRecordWorkspace'
 type Field={name:string;value:string;editedBy:string;sources:{sourceId:string;page:number;quote:string}[]}
 type Item={id:string;category:string;title:string;timeText:string|null;fields:Field[];journal:JournalMetadata;time:{resolvedStart:string|null;precision:string};archiveCategory:string|null;originText?:string}
 type Draft={id:string;version:number;state:string;targetEventId?:string|null;sourceRecordId?:string|null;preview?:AIUnverifiedPreview|null;inputText:string;conflicts:{itemId:string;text:string}[];confirmConflicts:boolean;documentWarnings:string[];confirmPageWarnings:boolean;unmappedRows:{sourceId:string;page:number;text:string}[];items:Item[];questions:{id:string;itemId:string;field:string;label:string}[];sources:{id:string;page:number;text:string;status:string}[];pages:{id:string;page:number;name:string}[];result:{count:number;records:{eventId:string;recordId:string}[]}|null}
@@ -24,7 +25,7 @@ function ComposerSurface({embedded, children, onClose, title, label, className}:
 }
 export function AIBusinessComposer(props: ComposerProps) {
   const accountId = useAppStore(s => s.authUser?.id ?? 'guest')
-  return props.profileMode || props.structuredReview ? <StructuredBusinessComposer {...props}/> : <CaseCaptureWorkspace key={`${accountId}:${props.memberId}:${props.eventId ?? ''}:${props.taskId ?? ''}`} memberId={props.memberId} token={props.token} onClose={props.onClose} onSaved={props.onSaved} initialEventId={props.eventId} taskId={props.taskId} onCaptured={props.onCaptured}/>
+  return props.profileMode || props.structuredReview ? <StructuredBusinessComposer {...props}/> : props.taskId || props.onCaptured ? <CaseCaptureWorkspace key={`${accountId}:${props.memberId}:${props.eventId ?? ''}:${props.taskId ?? ''}`} memberId={props.memberId} token={props.token} onClose={props.onClose} onSaved={props.onSaved} initialEventId={props.eventId} taskId={props.taskId} onCaptured={props.onCaptured}/> : <SmartRecordWorkspace key={`${accountId}:${props.memberId}:${props.eventId??''}`} memberId={props.memberId} token={props.token} eventId={props.eventId} onClose={props.onClose} onSaved={props.onSaved}/>
 }
 function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,initialTask='record',profileMode=false,memberName='',eventId,initialText='',initialFiles=[],sourceIdentity,initialDraftId,embedded=false,sourceRecordId}:ComposerProps){
   const accountId=useAppStore(state=>state.authUser?.id??''),credentials=useRef({accountId,token});credentials.current={accountId,token}

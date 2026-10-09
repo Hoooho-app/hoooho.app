@@ -1,0 +1,3 @@
+import {defineConfig,devices} from '@playwright/test'
+import path from 'node:path'
+export default defineConfig({testDir:'.',workers:1,timeout:60000,use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium',timezoneId:'Asia/Shanghai',baseURL:'http://127.0.0.1:4196',serviceWorkers:'block',launchOptions:{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']},trace:'retain-on-failure'},webServer:{cwd:path.resolve(import.meta.dirname,'../..'),command:'node tests/visit-sheet/serve.mjs',env:{VISIT_AI_TEST:'1'},url:'http://127.0.0.1:4196/api/health',reuseExistingServer:false,timeout:60000}})
