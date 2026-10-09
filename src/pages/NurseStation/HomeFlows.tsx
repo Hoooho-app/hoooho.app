@@ -34,8 +34,8 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <HohoButton variant="secondary" onClick={() => navigate(latest ? `/cases?eventId=${encodeURIComponent(latest.event.id)}` : '/cases')}>查看进度 / 补充进展</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="准备和医生说清楚">
-      <Typography variant="sectionTitle" className="flex items-center gap-2"><ClipboardList size={24} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />准备和医生说清楚</Typography>
-      <Typography variant="body">准备孩子的就诊情况单，一张内容，把所有的事情说清楚、整理清楚。</Typography>
+      <div className="home-followup-heading"><ClipboardList size={18} aria-hidden="true" /><Typography variant="sectionTitle">准备和医生说清楚</Typography></div>
+      <Typography variant="body">快速准备孩子的就诊情况单（既往史）</Typography>
       <HohoButton fullWidth variant="secondary" size="large" onClick={() => navigate('/visit-summary')}>就诊情况单</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="快速回看查找">
