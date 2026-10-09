@@ -32,7 +32,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
-      { path: '/health-calendar', lazy: lazyPage(() => import('../pages/NurseStation/SupportPages'), 'HealthCalendarPage') },
+      { path: '/health-calendar', lazy: lazyPage(() => import('../pages/HealthCalendar'), 'HealthCalendarPage') },
       { path: '/care-handoff', lazy: lazyPage(() => import('../pages/NurseStation/SupportPages'), 'CareHandoffPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/food-label', lazy: lazyPage(() => import('../pages/FoodLabel'), 'FoodLabelPage') },
