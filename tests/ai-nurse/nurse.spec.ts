@@ -230,3 +230,47 @@ test('voice-first composer uses one main action, preserves unsent text across mo
  await expect(panel.locator('.nurse-turn--user').getByText(text,{exact:true})).toHaveCount(1)
  await expect(panel.getByRole('button',{name:'继续语音',exact:true})).toBeVisible()
 })
+
+for (const manualTime of [false, true]) test(`录音草稿发生时间：${manualTime ? '保留人工时间' : '默认当前时间'}`, async ({page, request}) => {
+ await init(page)
+ const form = page.getByRole('dialog', {name:'症状记录', exact:true})
+ let selected = ''
+ if (manualTime) {
+  selected = await page.evaluate(() => {
+   const date = new Date(Date.now() - 3600000)
+   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16)
+  })
+  await form.getByLabel('发生时间', {exact:true}).fill(selected)
+ }
+ await form.getByRole('button', {name:/^智能记录/}).click()
+ const panel = page.getByRole('dialog', {name:'智能记录', exact:true})
+ await panel.getByRole('button', {name:'改用文字', exact:true}).click()
+ await panel.getByLabel('跟护士说').fill('脸颊发红发痒，没有发热。我担心鸡蛋过敏。')
+ await panel.getByRole('button', {name:'发送', exact:true}).click()
+ await expect(panel.getByText('有没有影响睡眠？', {exact:true})).toBeVisible()
+ await panel.getByRole('button', {name:'整理到表单', exact:true}).click()
+ await expect(panel).toHaveCount(0)
+ await expect(form.getByText('AI 已回填草稿，请核对后保存。模糊时间与不确定表达均已保留。', {exact:true})).toHaveCount(0)
+ await expect(form.getByText(/发生时间待确认/)).toHaveCount(0)
+ if (manualTime) await expect(form.getByLabel('发生时间', {exact:true})).toHaveValue(selected)
+ await page.reload()
+ await expect(form.getByLabel('哪里不舒服')).toHaveValue('脸颊发红发痒，没有发热')
+ if (manualTime) await expect(form.getByLabel('发生时间', {exact:true})).toHaveValue(selected)
+ const before = Date.now()
+ await form.getByRole('button', {name:'确认并保存', exact:true}).click()
+ await expect(page).toHaveURL(/\/health-events\/[^/]+$/)
+ const after = Date.now()
+ const records = await (await request.get('/api/events/' + page.url().split('/').at(-1) + '/records', {headers})).json()
+ expect(records).toHaveLength(1)
+ expect(records[0].journal.timePrecision).toBe('exact')
+ expect(records[0].journal.timeLabel).toBeUndefined()
+ const savedTime = Date.parse(records[0].occurredAt)
+ if (manualTime) {
+  const expected = await page.evaluate(value => new Date(value).getTime(), selected)
+  expect(savedTime).toBe(expected)
+ } else {
+  expect(savedTime).toBeGreaterThanOrEqual(before)
+  expect(savedTime).toBeLessThanOrEqual(after)
+ }
+ expect(records[0].journal.aiNurse.turns.some((turn:any) => turn.text.includes('我担心鸡蛋过敏'))).toBe(true)
+})
