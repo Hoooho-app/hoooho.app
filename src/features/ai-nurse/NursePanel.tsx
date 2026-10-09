@@ -1,8 +1,6 @@
-import { CompleteImage } from '../../components/common/CompleteImage'
 import { Mic, Pause, Stethoscope } from 'lucide-react'
 import { nurseGreetingText } from '../../../shared/nurse-greeting.mjs'
-import nursePortrait from '../../assets/nurse-triage/nurses-idle-loop-1-poster.webp'
-import { userInitial } from './userInitial'
+import { NurseMessage } from './NurseMessage'
 import type { JournalMetadata } from '../../types/journal'
 import { useEffect, useRef, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
@@ -148,11 +146,9 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
   return <BottomSheetSurface label="智能记录" title="智能记录" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} footer={composer}>
     {!draft && !error && <p role="status">正在恢复草稿…</p>}
     {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p></div>}
-    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <div className={`nurse-turn nurse-turn--${turn.role}`} key={turn.id}>
-      {turn.role === 'user' ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span> : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label="值班护士"><CompleteImage src={nursePortrait} alt=""/></span>}
-      <div className="nurse-turn-content"><p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p>{turn.status === 'interrupted' && <small>回复已打断</small>}</div>
-
-    </div>)}</div>
+    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <NurseMessage role={turn.role} recorderName={recorderName} interrupted={turn.status === 'interrupted'} key={turn.id}>
+      <p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p>
+    </NurseMessage>)}</div>
     {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
     {preview && <p className="nurse-live-preview" aria-live="polite">{preview}（尚未完成）</p>}
   </BottomSheetSurface>

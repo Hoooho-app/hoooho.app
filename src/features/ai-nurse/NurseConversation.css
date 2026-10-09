@@ -1,0 +1,31 @@
+.nurse-controls { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2, 8px); }
+.nurse-turn { padding-block: var(--hoho-space-3, 12px); border-bottom: 1px solid rgb(var(--hoho-color-border)); overflow-wrap: anywhere; }
+.nurse-turn p, .nurse-notes p { white-space: pre-wrap; }
+.nurse-turn--user strong { color: rgb(var(--hoho-color-primary)); }
+.nurse-notes input, .nurse-notes textarea { width: 100%; min-height: 44px; }
+.nurse-notes > div { padding-block: var(--hoho-space-3, 12px); }
+.symptom-input-layer {z-index:90}
+.symptom-input-layer .nurse-conversation-sheet { width:min(100%,480px);height:calc(100% - 56px);max-height:calc(100% - 56px);margin:0; border-bottom-left-radius:0;border-bottom-right-radius:0; }
+.nurse-conversation-sheet .hoho-bottom-sheet__header {padding-inline:var(--hoho-space-4);gap:var(--hoho-space-1)}
+.nurse-conversation-sheet .hoho-bottom-sheet__title-group {flex:1}
+.nurse-conversation-sheet .hoho-bottom-sheet__header h2 {font-size:var(--hoho-font-size-card-title)}
+.nurse-conversation-sheet .hoho-bottom-sheet__body {padding-inline:var(--hoho-space-4)}
+.nurse-conversation-sheet .hoho-bottom-sheet__footer {padding:var(--hoho-space-2) var(--hoho-space-4) max(var(--hoho-space-3),env(safe-area-inset-bottom));}
+.nurse-turn {padding:0;border:0;margin-block:var(--hoho-space-3)}
+.nurse-turn {display:flex;align-items:flex-start;gap:var(--hoho-space-2);margin-right:var(--hoho-space-5)}
+.nurse-turn-content {min-width:0;flex:1}
+.nurse-turn p {border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle));margin:0}
+.nurse-turn--user {flex-direction:row-reverse;margin-left:var(--hoho-space-5);margin-right:0}
+.nurse-turn--user p {background:rgb(var(--hoho-color-primary-soft))}
+.nurse-avatar {display:flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border-radius:var(--hoho-radius-pill);overflow:hidden;position:relative;background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border))}
+.nurse-avatar--assistant img {position:absolute;width:126px;max-width:none;height:126px;left:-26px;top:-18px}
+.nurse-avatar--user {color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-body);font-weight:600}
+.nurse-compose {display:block;font-size:var(--hoho-font-size-caption)}
+.nurse-compose textarea {display:block;width:100%;min-height:44px;height:52px;resize:none;font-size:16px}
+.nurse-input-status {text-align:center;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));margin:0 0 var(--hoho-space-2)}
+.nurse-voice-compose {display:flex;flex-direction:column;gap:var(--hoho-space-2)}
+.nurse-footer-actions {display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2)}
+.nurse-voice-action .hoho-button__content {display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-2)}
+.nurse-text-actions {margin-top:var(--hoho-space-2)}
+.nurse-controls {margin-top:var(--hoho-space-1)}
+.nurse-connection-error {border:1px solid rgb(var(--hoho-color-error) / .2);border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-error) / .04)}

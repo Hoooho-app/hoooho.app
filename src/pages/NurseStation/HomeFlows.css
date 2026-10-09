@@ -18,11 +18,6 @@
 .record-finder-compose{display:grid;gap:var(--hoho-space-3)}
 .record-finder-tools{display:flex;gap:var(--hoho-space-2)}
 .record-finder-tools .case-hold-voice{min-height:var(--hoho-touch-target)}
-.smart-nurse-message{display:flex;align-items:flex-start;gap:var(--hoho-space-3)}
-.smart-nurse-message>img{width:44px;height:44px;object-fit:cover;border-radius:var(--hoho-radius-card);flex:none}
-.smart-nurse-message>div{display:grid;gap:var(--hoho-space-2)}
-.smart-parent-message{display:flex;align-items:flex-start;gap:var(--hoho-space-3);flex-direction:row-reverse;white-space:pre-wrap;overflow-wrap:anywhere}
-.smart-parent-message>span{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary))}
-.smart-parent-message>p{flex:1}
 .smart-record-dialog .case-capture-body{padding:0;overflow:visible}
 .smart-record-dialog .case-input-tools{padding:0;border:0}
+.home-flow-card .home-record-time-hint{color:rgb(var(--hoho-color-primary))}
