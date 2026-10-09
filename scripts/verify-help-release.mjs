@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { chromium, expect } from '@playwright/test'
+import { chromium, expect as baseExpect } from '@playwright/test'
+const expect=baseExpect.configure({timeout:40_000})
 const target=process.env.HELP_ACCEPTANCE_TARGET??'production'
 assert.ok(['staging','production'].includes(target))
 const live=target==='staging'&&process.env.RUN_HELP_ACCEPTANCE==='1'
@@ -13,9 +14,13 @@ await mkdir(output,{recursive:true})
 const proxyUrl=process.env.HELP_ACCEPTANCE_USE_SYSTEM_PROXY==='1'&&process.env.HTTPS_PROXY?new URL(process.env.HTTPS_PROXY):null
 const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,...(proxyUrl?{proxy:{server:proxyUrl.protocol+'//'+proxyUrl.host,...(proxyUrl.username?{username:decodeURIComponent(proxyUrl.username),password:decodeURIComponent(proxyUrl.password)}:{})}}:{})})
 const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
+let closing=false,checkpoint='public-help'
 // The API transport trusts the configured environment CA and verifies upstream TLS.
 // Relay page requests through that transport; do not disable certificate validation.
-if(proxyUrl)await context.route(base+'/**',async route=>route.fulfill({response:await route.fetch({timeout:40_000,maxRetries:0})}))
+if(proxyUrl)await context.route(base+'/**',async route=>{
+  try{await route.fulfill({response:await route.fetch({timeout:40_000,maxRetries:0})})}
+  catch{if(!closing)console.log(JSON.stringify({networkFailure:new URL(route.request().url()).pathname}));await route.abort().catch(()=>{})}
+})
 const page=await context.newPage(),errors=[]
 page.on('pageerror',error=>errors.push(error.name))
 const results={target,checks:{},aiCalls:0}
@@ -42,6 +47,7 @@ try{
   results.checks.publicHelp='PASS';results.checks.authentication='PASS'
   await page.screenshot({path:path.join(output,'operation-help.png')})
   if(live){
+    checkpoint='real-model'
     const registered=await api('/api/auth/register',{nickname:'帮助验收'+randomUUID().slice(0,8),password:randomUUID(),idempotencyKey:randomUUID()})
     token=registered.token
     assert.ok(token)
@@ -63,14 +69,22 @@ try{
     assert.ok(answer.askResolved,'Solution should request user confirmation')
     assert.doesNotMatch(answer.text,/https?:\/\//)
     results.reply=answer.text
-    session=await api(`/api/help/sessions/${session.id}/ratings`,{turnId:answer.id,solved:false,version:session.version})
-    assert.equal(session.ratings[0].solved,false)
-    assert.match(session.turns.at(-1).text,/继续排查/)
-    const restored=await api(`/api/help/sessions/${session.id}`,undefined,'GET')
-    assert.equal(restored.version,session.version)
-    assert.equal(restored.ratings.length,1)
+    console.log(JSON.stringify({checkpoint,mode:answer.mode,evaluationAvailable:answer.askResolved}))
+    checkpoint='browser-feedback'
+    await page.addInitScript(({token,user})=>{
+      sessionStorage.setItem('hoooho-auth-token',token)
+      localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:user,members:[],currentMemberId:'self'},version:5}))
+    },{token,user:registered.user})
     await page.goto(base+'/help?view=chat')
     await expect(page.getByText(answer.text,{exact:true})).toBeVisible()
+    await expect(page.getByRole('button',{name:'解决了',exact:true})).toBeVisible()
+    await page.getByRole('button',{name:'还没解决',exact:true}).click()
+    await expect(page.getByText('那我们继续排查。',{exact:false})).toBeVisible()
+    const restored=await api(`/api/help/sessions/${session.id}`,undefined,'GET')
+    assert.equal(restored.ratings.length,1)
+    assert.equal(restored.ratings[0].solved,false)
+    assert.match(restored.turns.at(-1).text,/继续排查/)
+    checkpoint='tab-continuity'
     await expect(page.getByLabel('描述遇到的问题')).toBeVisible()
     await page.getByLabel('描述遇到的问题').fill('这段内容尚未发送')
     await page.getByRole('radio',{name:'用户手册',exact:true}).click()
@@ -83,4 +97,16 @@ try{
   results.checks.runtime='PASS'
   await writeFile(path.join(output,'results.json'),JSON.stringify(results,null,2))
   console.log(JSON.stringify(results))
-}finally{if(token)await api('/api/auth/logout',{}).catch(()=>{});await browser.close()}
+}catch(error){
+  // Error objects from Playwright can contain request headers. Report no raw errors.
+  const failure={target,checkpoint,name:error.name,checks:results.checks}
+  await page.screenshot({path:path.join(output,'failure.png')}).catch(()=>{})
+  await writeFile(path.join(output,'failure.json'),JSON.stringify(failure,null,2))
+  console.error(JSON.stringify(failure));process.exitCode=1
+}finally{
+  closing=true
+  await page.close().catch(()=>{})
+  await context.unrouteAll({behavior:'wait'})
+  if(token)await api('/api/auth/logout',{}).catch(()=>{})
+  await browser.close()
+}
