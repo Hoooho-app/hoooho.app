@@ -4,7 +4,7 @@ const event=(id:string,memberId=child)=>({id,accountId,memberId,title:id==='case
 const row=(id:string,category:string,time:string,other:any={})=>({id,accountId,eventId:'case',type:category,content:id,occurredAt:`${day}T${time}:00Z`,createdAt:`${day}T01:00:00Z`,updatedAt:`${day}T01:00:00Z`,journal:{categories:[category],timePrecision:'exact'},...other})
 const rows=[row('早餐吃了米粥','diet','00:00'),row('上午出现红疹','symptom','02:00'),row('用了医生开的药','medication','03:00',{journal:{categories:['medication'],timePrecision:'exact',medication:{medicationName:'医嘱药',amountValue:2,amountUnit:'mL',administrationRoute:'oral'}}}),row('夜间睡眠','sleep','14:00',{journal:{categories:['sleep'],timePrecision:'exact',sleep:{sleepAt:`${day}T14:00:00Z`,wakeAt:'2026-10-09T00:00:00Z',kind:'night',durationMinutes:600,status:'completed'}}}),row('不确定哪天痒','symptom','01:00',{journal:{categories:['symptom'],timePrecision:'unknown'}}),row('当天哭闹','symptom','00:00',{journal:{categories:['symptom'],timePrecision:'day'}})]
 async function prepare(page:Page, fail=false) {
- const records=[...rows]; const writes:any[]=[]; let saveFailures=0; let duplicate=false
+ const records=[...rows,...Array.from({length:8},(_,i)=>row(`六行月份记录${i}`,'other','01:00',{occurredAt:'2026-03-08T01:00:00Z'}))]; const writes:any[]=[]; let saveFailures=0; let duplicate=false
  await page.addInitScript(({child,accountId})=>{localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:accountId},currentMemberId:child,members:[],profile:null},version:5}));sessionStorage.setItem('hoooho-auth-token','fixture-token')},{child,accountId})
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.route('**/api/**',async route=>{
@@ -48,6 +48,9 @@ test('one-screen month fits SE, six-week months and larger phones with four-char
   await page.getByLabel('选择日历日期').fill('2026-03-08')
   await expect(page.locator('.health-calendar__grid > .health-calendar__day, .health-calendar__grid > .health-calendar__blank')).toHaveCount(42)
   expect(await page.locator('.health-calendar').evaluate(main=>main.scrollHeight<=main.clientHeight+1)).toBe(true)
+  const dense=page.getByRole('button',{name:/2026-03-08，/})
+  expect(await dense.evaluate(cell=>Array.from(cell.querySelectorAll('.health-calendar__preview,.health-calendar__more')).every(item=>item.getBoundingClientRect().bottom<=cell.getBoundingClientRect().bottom))).toBe(true)
+  expect(await dense.evaluate(cell=>{const more=cell.querySelector('.health-calendar__more'),items=cell.querySelectorAll('.health-calendar__preview');return !more||!items.length||items[items.length-1].getBoundingClientRect().bottom<=more.getBoundingClientRect().top})).toBe(true)
   const last=await page.getByRole('button',{name:/2026-03-31，/}).boundingBox();expect(last!.y+last!.height).toBeLessThanOrEqual(height)
   await page.getByLabel('选择日历日期').fill(day)
  }
