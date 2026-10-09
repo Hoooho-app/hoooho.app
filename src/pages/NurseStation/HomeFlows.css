@@ -7,6 +7,10 @@
 .home-flow-card .hoho-text-body{color:rgb(var(--hoho-color-text-secondary));overflow-wrap:anywhere}
 .home-flow-card>strong{font-size:var(--hoho-font-size-card-title);font-weight:600}
 .home-flow-actions{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2)}
+.home-followup-heading{display:flex;align-items:center;gap:var(--hoho-space-2);min-width:0}
+.home-followup-heading>svg{flex:none;color:rgb(var(--hoho-color-primary))}
+.home-followup-count{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
+.home-followup-tags{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);min-width:0}
 .record-finder-content{display:grid;gap:var(--hoho-space-4)}
 .record-finder-answer{display:grid;gap:var(--hoho-space-3);border-bottom:1px solid rgb(var(--hoho-color-border));padding-block:var(--hoho-space-4)}
 .record-finder-answer p{white-space:pre-wrap;overflow-wrap:anywhere}
