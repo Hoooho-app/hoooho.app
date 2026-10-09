@@ -19,6 +19,7 @@ export const router = createBrowserRouter([
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
   { path: '/medical-preparation/:shareToken', lazy: lazyPage(() => import('../pages/MedicalPreparationShared'), 'MedicalPreparationSharedPage') },
+  { path: '/care-handoff/shared/:shareToken', lazy: lazyPage(() => import('../pages/CareHandoff'), 'CareHandoffSharedPage') },
   { path: '/ops/login', lazy: lazyPage(() => import('../pages/Ops/Login'), 'OpsLoginPage') },
   {
     element: <RequireOpsAuth />,
@@ -33,7 +34,7 @@ export const router = createBrowserRouter([
       { path: '/onboarding/success', element: <Navigate to="/onboarding/profile" replace /> },
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/health-calendar', lazy: lazyPage(() => import('../pages/HealthCalendar'), 'HealthCalendarPage') },
-      { path: '/care-handoff', lazy: lazyPage(() => import('../pages/NurseStation/SupportPages'), 'CareHandoffPage') },
+      { path: '/care-handoff', lazy: lazyPage(() => import('../pages/CareHandoff'), 'CareHandoffPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/food-label', lazy: lazyPage(() => import('../pages/FoodLabel'), 'FoodLabelPage') },
       { path: '/food-allergy-status-index', lazy: lazyPage(() => import('../features/case-continuity/Pages'), 'RetiredIndexPage') },

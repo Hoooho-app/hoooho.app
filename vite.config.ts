@@ -23,6 +23,7 @@ import { desensitizationTestsApiPlugin } from './server/desensitization-tests/vi
 import { visitSheetsApiPlugin } from './server/visit-sheets/vite-visit-sheets-plugin.mjs'
 import { foodLabelApiPlugin } from './server/food-label/vite-plugin.mjs'
 import { childProfileListApiPlugin } from './server/health-profile/child-profile-list-api.mjs'
+import { careHandoffApiPlugin } from './server/care-handoff/api.mjs'
 
 const buildEnvironment = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const buildTimestamp = buildEnvironment.VITE_APP_UPDATED_AT || new Date().toISOString()
@@ -39,6 +40,7 @@ export default defineConfig({
     host: true
   },
   plugins: [
+    careHandoffApiPlugin(),
     authApiPlugin(),
     childProfileListApiPlugin(),
     foodLabelApiPlugin(),
