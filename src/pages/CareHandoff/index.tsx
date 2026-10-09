@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Baby, ClipboardList, HeartPulse, Pill, ShieldCheck, Syringe, Utensils, Eye, Share2 } from 'lucide-react'
+import { newShareToken, presentShareLink } from './shareLink'
 import { MainAppHeader } from '../../components/navigation'
-import { HealthCard, HohoButton, HohoSection, StatusNotice, Typography } from '../../components/design-system'
+import { HealthCard, HohoButton, StatusNotice, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { apiRequest, ApiRequestError } from '../../services/apiClient'
 import '../../features/case-continuity/cases.css'
@@ -21,19 +23,30 @@ function age(birthday: string | undefined, day: string) {
   return months < 12 ? `${Math.max(0, months)}个月` : `${Math.floor(months / 12)}岁${months % 12 ? `${months % 12}个月` : ''}`
 }
 
+const moduleIcons = { medication: Pill, restrictions: ShieldCheck, attention: ClipboardList, observations: Eye, routine: Utensils, chronic: HeartPulse, surgery: HeartPulse, vaccination: Syringe }
+const sourceLabels: Record<string, string> = { '已确认的过敏史': '已确认', '家长设置的忌口清单': '家长设置', '过敏史 · 待确认': '待确认', '家长已设置的用药安排': '用药安排', '已录入医嘱原文': '医嘱原文' }
+
 // One content renderer for the parent and the person opening the shared link.
 function HandoffContent({ data }: { data: HandoffData }) {
   const m = data.member
-  const info = [age(m.birthday, data.asOf), (m.gender === 'male' ? '男' : m.gender === 'female' ? '女' : ''), m.birthday ? `${m.birthday}出生` : '', m.heightCm ? `身高 ${m.heightCm} cm` : '', m.weightKg ? `体重 ${m.weightKg} kg` : '', m.bloodType ? `${m.bloodType}型` : ''].filter(Boolean)
+  const summary = [age(m.birthday, data.asOf), m.gender === 'male' ? '男孩' : m.gender === 'female' ? '女孩' : ''].filter(Boolean).join(' · ')
+  const facts = [m.birthday && ['出生日期', m.birthday], m.heightCm && ['身高', `${m.heightCm} cm`], m.weightKg && ['体重', `${m.weightKg} kg`], m.bloodType && ['血型', `${m.bloodType}型`]].filter(Boolean) as string[][]
   return <>
-    <HealthCard className="handoff-basic"><Typography variant="caption">基本资料</Typography><Typography variant="sectionTitle">{m.name}</Typography><Typography variant="body">{info.length ? info.join(' · ') : '尚未录入基本资料。'}</Typography><Typography variant="caption">资料版本：{data.asOf}</Typography></HealthCard>
-    {data.sections.map(section => <HohoSection key={section.id} title={section.title} className="handoff-section">
-      {section.rows.length ? section.rows.map((row, i) => <article className="handoff-row" key={`${section.id}-${i}`}>
-        <Typography variant="cardTitle">{row.title}</Typography>
-        {row.detail && <Typography variant="body">{row.detail}</Typography>}
-        {row.source && <Typography variant="caption">{row.source}</Typography>}
-      </article>) : <Typography variant="body" className="handoff-empty">{section.empty}</Typography>}
-    </HohoSection>)}
+    <HealthCard className="handoff-basic">
+      <div className="handoff-identity"><span className="handoff-identity-icon"><Baby size={24} aria-hidden="true" /></span><div><Typography variant="caption">基本资料</Typography><Typography variant="sectionTitle">{m.name}</Typography>{summary && <Typography variant="body">{summary}</Typography>}</div></div>
+      {facts.length > 0 && <dl className="handoff-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+      <Typography variant="caption" className="handoff-version">资料更新至 {data.asOf}</Typography>
+    </HealthCard>
+    {data.sections.map(section => {
+      const Icon = moduleIcons[section.id as keyof typeof moduleIcons] ?? ClipboardList
+      return <section key={section.id} className="hoho-health-card handoff-section" aria-labelledby={`handoff-${section.id}`}>
+        <header className="handoff-module-heading"><Icon size={18} aria-hidden="true" /><Typography variant="sectionTitle" id={`handoff-${section.id}`}>{section.title}</Typography></header>
+        {section.rows.length ? section.rows.map((row, i) => <article className={`handoff-row${section.id === 'routine' || section.id === 'vaccination' ? ' handoff-row-inline' : ''}`} key={`${section.id}-${i}`}>
+          <div className="handoff-row-heading"><Typography variant="cardTitle">{row.title}</Typography>{sourceLabels[row.source] && <Typography variant="caption" className="handoff-source">{sourceLabels[row.source]}</Typography>}</div>
+          {row.detail && <Typography variant="body">{row.detail}</Typography>}
+        </article>) : <Typography variant="body" className="handoff-empty">{section.empty}</Typography>}
+      </section>
+    })}
   </>
 }
 
@@ -41,34 +54,38 @@ function ParentHandoff({ memberId, token }: { memberId: string; token: string })
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [revision, setRevision] = useState(0), [sharing, setSharing] = useState(false)
   const [message, setMessage] = useState(''), [fallbackUrl, setFallbackUrl] = useState('')
+  const accountId = useAppStore(s => s.authUser?.id)
   const busy = useRef(false), alive = useRef(true), cachedShare = useRef<{ fingerprint: string; url: string } | null>(null)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => {
     const controller = new AbortController()
-    setState({ status: 'loading' }); cachedShare.current = null
+    setState({ status: 'loading' })
     apiRequest<HandoffData>(`/api/members/${encodeURIComponent(memberId)}/care-handoff`, { token, signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setState({ status: 'ready', data }) })
       .catch(e => { if (!controller.signal.aborted) setState({ status: 'error', message: e.message || '暂时无法读取照看资料' }) })
     return () => controller.abort()
   }, [memberId, token, revision])
-  const stillCurrent = () => alive.current && useAppStore.getState().currentMemberId === memberId && useAppStore.getState().authToken === token
+  const stillCurrent = () => alive.current && useAppStore.getState().currentMemberId === memberId && useAppStore.getState().authUser?.id === accountId
   async function share() {
     if (busy.current || state.status !== 'ready' || !stillCurrent()) return
     busy.current = true; setSharing(true); setMessage(''); setFallbackUrl('')
     try {
-      let url = cachedShare.current?.fingerprint === state.data.fingerprint ? cachedShare.current.url : ''
-      if (!url) {
-        const result = await apiRequest<{ path: string }>(`/api/members/${encodeURIComponent(memberId)}/care-handoff/share`, { token, method: 'POST', body: { fingerprint: state.data.fingerprint } })
-        if (!stillCurrent()) return
-        url = new URL(result.path, window.location.origin).href
-        cachedShare.current = { fingerprint: state.data.fingerprint, url }
-      }
-      if (navigator.share) {
-        try { await navigator.share({ title: `${state.data.member.name}的照看交接`, url }); if (stillCurrent()) setMessage('已分享链接'); return }
-        catch (e) { if (e instanceof Error && e.name === 'AbortError') return }
-      }
-      try { await navigator.clipboard.writeText(url); if (stillCurrent()) setMessage('链接已复制，发给照看人即可') }
-      catch { if (stillCurrent()) { setFallbackUrl(url); setMessage('请长按复制链接，发给照看人') } }
+      const cached = cachedShare.current?.fingerprint === state.data.fingerprint ? cachedShare.current : null
+      const shareToken = cached ? '' : newShareToken()
+      const url = cached?.url ?? new URL(`/care-handoff/shared/${shareToken}`, window.location.origin).href
+      const published = cached ? Promise.resolve() : apiRequest<{ path: string }>(`/api/members/${encodeURIComponent(memberId)}/care-handoff/share`, { token, method: 'POST', body: { fingerprint: state.data.fingerprint, token: shareToken } }).then(result => {
+        if (new URL(result.path, window.location.origin).href !== url) throw new Error('分享链接生成失败，请重试')
+        if (stillCurrent()) cachedShare.current = { fingerprint: state.data.fingerprint, url }
+      })
+      // No await before this call: native sharing and clipboard need the click.
+      const presented = presentShareLink(url, `${state.data.member.name}的照看交接`, published, Boolean(cached))
+      await published
+      const outcome = await presented
+      if (!stillCurrent()) return
+      if (outcome === 'shared') setMessage('已分享链接')
+      else if (outcome === 'copied') setMessage('链接已复制，发给照看人即可')
+      else if (outcome === 'manual') { setFallbackUrl(url); setMessage('链接已生成，请长按复制后发送') }
+
     } catch (e) {
       if (stillCurrent()) {
         setMessage(e instanceof Error ? e.message : '分享未完成，请重试')
@@ -82,7 +99,7 @@ function ParentHandoff({ memberId, token }: { memberId: string; token: string })
     </div>
     <footer className="handoff-share">
       <Typography variant="caption">分享以上全部内容，对方打开链接即可查看。</Typography>
-      <HohoButton fullWidth loading={sharing} disabled={state.status !== 'ready'} onClick={() => void share()}>分享链接</HohoButton>
+      <HohoButton fullWidth loading={sharing} disabled={state.status !== 'ready'} onClick={() => void share()}><Share2 size={18} aria-hidden="true" />分享链接</HohoButton>
       {message && <p role="status" className="hoho-text-caption">{message}</p>}
       {fallbackUrl && <input className="handoff-url" aria-label="分享链接" readOnly value={fallbackUrl} onFocus={e => e.currentTarget.select()} />}
     </footer>
@@ -90,17 +107,34 @@ function ParentHandoff({ memberId, token }: { memberId: string; token: string })
 }
 
 export function CareHandoffPage() {
-  const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? ''
-  return <main className="app-shell continuity-page handoff-page"><MainAppHeader title="照看交接" /><ParentHandoff key={`${memberId}:${token}`} memberId={memberId} token={token} /></main>
+  const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', accountId = useAppStore(s => s.authUser?.id) ?? ''
+  return <main className="app-shell continuity-page handoff-page"><MainAppHeader title="照看交接" /><ParentHandoff key={`${memberId}:${accountId}`} memberId={memberId} token={token} /></main>
 }
 
 export function CareHandoffSharedPage() {
   const { shareToken = '' } = useParams(), [state, setState] = useState<LoadState>({ status: 'loading' })
   useEffect(() => {
     const controller = new AbortController(); setState({ status: 'loading' })
-    apiRequest<HandoffData>(`/api/care-handoffs/shared/${encodeURIComponent(shareToken)}`, { signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) setState({ status: 'ready', data }) })
-      .catch(() => { if (!controller.signal.aborted) setState({ status: 'error', message: '暂时无法打开这份照看资料，请稍后重试或联系分享者。' }) })
+    async function open() {
+      // The share sheet opens immediately, while the explicit share POST is
+      // publishing. A very fast recipient can arrive before that POST finishes.
+      for (let attempt = 0; !controller.signal.aborted; attempt++) {
+        try {
+          const data = await apiRequest<HandoffData>(`/api/care-handoffs/shared/${encodeURIComponent(shareToken)}`, { signal: controller.signal })
+          if (!controller.signal.aborted) setState({ status: 'ready', data })
+          return
+        } catch (e) {
+          if (controller.signal.aborted) return
+          if (e instanceof ApiRequestError && e.status === 404 && /^[A-Za-z0-9_-]{32}$/.test(shareToken) && attempt < 10) {
+            await new Promise<void>(resolve => { const timeout = setTimeout(done, 1000); function done() { clearTimeout(timeout); controller.signal.removeEventListener('abort', done); resolve() } controller.signal.addEventListener('abort', done, { once: true }) })
+            continue
+          }
+          setState({ status: 'error', message: '暂时无法打开这份照看资料，请稍后重试或联系分享者。' })
+          return
+        }
+      }
+    }
+    void open()
     return () => controller.abort()
   }, [shareToken])
   return <main className="app-shell continuity-page handoff-page"><header className="handoff-public-header"><Typography variant="pageTitle">照看交接</Typography><Typography variant="caption">家长分享的照看资料</Typography></header><div className="continuity-scroll handoff-content">
