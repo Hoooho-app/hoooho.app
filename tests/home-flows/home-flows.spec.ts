@@ -11,13 +11,13 @@ test('四卡单列与冻结人物资料；泛记录护士弹窗支持关闭恢�
  for(const width of [320,375,390]){await page.setViewportSize({width,height:667});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'智能记录',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'键盘输入',exact:true}).click()
+ await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await page.getByLabel('原始记录内容').fill('昨天吃了粥，午睡一个小时')
- await page.getByRole('button',{name:'关闭智能记录',exact:true}).click()
+ await page.getByRole('button',{name:'收起',exact:true}).click()
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
- await page.getByRole('button',{name:'键盘输入',exact:true}).click()
+ await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await expect(page.getByLabel('原始记录内容')).toHaveValue('昨天吃了粥，午睡一个小时')
- await page.getByRole('button',{name:'关闭智能记录',exact:true}).click()
+ await page.getByRole('button',{name:'收起',exact:true}).click()
  await page.getByRole('button',{name:'生成就诊情况单',exact:true}).click();await expect(page).toHaveURL(/visit-summary/)
 })
 test('真实原记录最早查询、复制、详情返回与继续限定保留问题',async({page,request})=>{
@@ -34,4 +34,34 @@ test('真实原记录最早查询、复制、详情返回与继续限定保留�
  await page.getByRole('textbox',{name:'想查什么',exact:true}).fill('只看屁股上的')
  await page.getByRole('button',{name:'查找',exact:true}).click()
  await expect(page.getByLabel('查找结果')).toContainText('屁股红疹');await expect(page.getByLabel('查找结果')).not.toContainText('脸上红疹')
+})
+
+test('首页与症状智能记录共用排版、头像和标题，首页保留按住说话',async({page},testInfo)=>{
+ const copy=page.locator('.nurse-home-dialogue__copy')
+ await expect(copy).toContainText('现在、过去的情况都可以记。')
+ expect(await copy.locator('.hoho-text-caption').first().evaluate(el=>getComputedStyle(el).fontSize)).toBe('13px')
+ await page.getByRole('button',{name:'和护士说说',exact:true}).click()
+ const panel=page.getByRole('dialog',{name:'智能记录',exact:true})
+ await expect(panel.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ const visual=()=>panel.evaluate(el=>{
+   const style=(selector:string)=>{const node=el.querySelector(selector)!;const css=getComputedStyle(node);return {fontSize:css.fontSize,padding:css.padding,borderRadius:css.borderRadius,background:css.backgroundColor,...(selector==='.nurse-avatar'?{width:css.width,height:css.height}:{})}}
+   return {sheet:style('.hoho-bottom-sheet__body'),title:style('h2'),avatar:style('.nurse-avatar'),bubble:style('.nurse-turn p'),portrait:(el.querySelector('.nurse-avatar img') as HTMLImageElement).src,icon:el.querySelector('.hoho-bottom-sheet__header svg')?.outerHTML}
+ })
+ const homeVisual=await visual()
+ for(const width of [320,375,390]){
+  await page.setViewportSize({width,height:667})
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await expect(panel.getByRole('button',{name:'按住说话',exact:true})).toBeInViewport()
+ }
+ await page.setViewportSize({width:375,height:667})
+ await page.screenshot({path:testInfo.outputPath('home-smart-record.png')})
+ await panel.getByRole('button',{name:'收起',exact:true}).click()
+ await page.goto('/health-events')
+ await page.getByRole('button',{name:'记录症状',exact:true}).click()
+ const form=page.getByRole('dialog',{name:'记录症状',exact:true})
+ await form.getByRole('button',{name:/^智能记录/,exact:true}).click()
+ await expect(panel.locator('.nurse-avatar img')).toBeVisible()
+ const symptomVisual=await visual()
+ expect(symptomVisual).toEqual(homeVisual)
+ await page.screenshot({path:testInfo.outputPath('symptom-smart-record.png')})
 })

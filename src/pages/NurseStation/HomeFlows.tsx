@@ -18,7 +18,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   return <section className="home-flows" aria-label="首页服务入口">
     <HealthCard className="home-flow-card nurse-home-dialogue" aria-label="健康随记">
       <header><Typography variant="sectionTitle">健康随记</Typography><time dateTime={new Date().toLocaleDateString('sv-SE')}>{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</time></header>
-      <div className="nurse-home-dialogue__body"><div className="nurse-home-dialogue__copy"><Typography variant="body">吃了什么、睡得怎样、有什么症状，都可以和护士说说，帮你记清楚。</Typography><Typography variant="caption">现在的事、过去的情况，都可以记。</Typography></div><div className="nurse-station-visual">{nurseVisual}</div></div>
+      <div className="nurse-home-dialogue__body"><div className="nurse-home-dialogue__copy"><Typography variant="caption">吃了什么、睡得怎样、有什么症状，都可以和护士说说，帮你记清楚。</Typography><Typography className="home-record-time-hint" variant="caption">现在、过去的情况都可以记。</Typography></div><div className="nurse-station-visual">{nurseVisual}</div></div>
       <HohoButton fullWidth size="large" disabled={!token || !memberId} onClick={() => setOpen('record')}>和护士说说</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="正在跟进">

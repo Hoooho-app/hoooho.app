@@ -9,3 +9,8 @@
 .smart-record-review,.smart-record-item{display:grid;gap:var(--hoho-space-3)}.smart-record-review h2,.smart-record-item h3{font-size:var(--hoho-font-size-card-title);font-weight:600}.smart-record-item{padding-block:var(--hoho-space-4);border-bottom:1px solid rgb(var(--hoho-color-border))}.smart-record-item label{display:grid;gap:var(--hoho-space-2)}.smart-record-item details[open]{display:grid;gap:var(--hoho-space-3)}.smart-record-item summary,.smart-record-review>details>summary{min-height:44px;display:flex;align-items:center;color:rgb(var(--hoho-color-primary));cursor:pointer}.smart-record-item select,.case-supplements select{width:100%;min-height:44px;background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);font:inherit}.smart-record-original{white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--hoho-font-size-body)}.case-input-tools>.hoho-button{margin-top:var(--hoho-space-3)}
 
 .smart-record-workspace .case-capture-body>*{flex-shrink:0}.smart-record-workspace .hoho-status-notice .hoho-button{margin-top:var(--hoho-space-2);margin-right:var(--hoho-space-2)}
+
+.smart-record-dialog .case-capture-body{padding:0;overflow:visible}
+.smart-record-dialog .case-input-tools{padding:0;border:0}
+.smart-home-hold{touch-action:none;user-select:none;-webkit-user-select:none}
+.smart-home-hold.is-listening{background:rgb(var(--hoho-color-primary))}
