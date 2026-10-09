@@ -12,7 +12,8 @@ import type { CasesData, ObservationResult } from '../case-continuity/types'
 import { captureDraft, type CaptureDraft } from './captureDraft'
 import './caseCapture.css'
 
-export const fileDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('原件读取失败，请重试')); reader.readAsDataURL(blob) })
+export {fileDataUrl} from './draftFiles'
+import {fileDataUrl} from './draftFiles'
 const resultChoices = [['improved', '改善'], ['unchanged', '无变化'], ['worse', '加重'], ['not_observed', '未观察']] as const
 export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initialEventId, taskId, onCaptured }: { memberId: string; token: string; onClose: () => void; onSaved?: (message: string) => void; initialEventId?: string; taskId?: string; onCaptured?: (eventId: string) => void }) {
   const accountId = useAppStore(s => s.authUser?.id ?? 'guest')

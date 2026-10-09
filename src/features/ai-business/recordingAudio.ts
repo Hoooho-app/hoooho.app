@@ -1,5 +1,6 @@
 // Decode the actual MediaRecorder bytes (Safari: MP4/AAC; Chrome: WebM/Opus)
 // and encode mono PCM WAV. Never change only the MIME label of encoded audio.
+import {fileBytes} from './draftFiles'
 export function encodeMonoWav(channels:Float32Array[],sampleRate:number):Blob {
   if(!channels.length||!channels[0].length||sampleRate<8000||sampleRate>192000)throw Object.assign(new Error('录音内容无法读取，请重新录音或输入文字'),{code:'AUDIO_DECODE_FAILED'})
   const sourceLength=channels[0].length,targetRate=16000,length=Math.floor(sourceLength*targetRate/sampleRate)
@@ -20,8 +21,10 @@ export async function recordingToWav(blob:Blob):Promise<Blob> {
   let context:AudioContext|undefined
   try {
     context=new AudioContext()
-    const decoded=await context.decodeAudioData(await blob.arrayBuffer())
+    // decodeAudioData takes ownership of (and detaches) its buffer. Keep the
+    // immutable snapshot usable for IDB writes, original upload and retries.
+    const decoded=await context.decodeAudioData((await fileBytes(blob)).slice(0))
     return encodeMonoWav(Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i)),decoded.sampleRate)
-  }catch(error){if(error instanceof Error&&'code' in error&&typeof error.code==='string'&&error.code.startsWith('AUDIO_'))throw error;throw Object.assign(new Error('录音格式无法读取，请重新录音或继续输入文字'),{code:'AUDIO_DECODE_FAILED'})}
+  }catch(error){if(error instanceof Error&&'code' in error&&typeof error.code==='string'&&(error.code.startsWith('AUDIO_')||error.code==='FILE_READ_FAILED'))throw error;throw Object.assign(new Error('录音格式无法读取，请重新录音或继续输入文字'),{code:'AUDIO_DECODE_FAILED'})}
   finally {await context?.close().catch(()=>undefined)}
 }

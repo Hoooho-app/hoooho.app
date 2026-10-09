@@ -64,18 +64,22 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (String(url) !== process.env.BAILIAN_BASE_URL + '/chat/completions') throw new Error('Non-fixture HTTPS target prohibited')
     const request = new EventEmitter()
     let stopped = false
-    request.destroy = () => { stopped = true; return request }
+    const abort=()=>{if(!stopped){stopped=true;request.emit('error',options.signal.reason)}}
+    const detach=()=>options.signal?.removeEventListener('abort',abort)
+    request.destroy = () => { stopped = true;detach();return request }
     request.end = body => {
       void globalThis.fetch(String(url), { ...options, body }).then(async response => {
         if (stopped) return
         const incoming = Readable.from(Buffer.from(await response.arrayBuffer()))
         incoming.statusCode = response.status
         incoming.headers = Object.fromEntries(response.headers)
+        incoming.once('end',detach)
+        incoming.once('close',detach)
         callback(incoming)
-      }).catch(error => { if (!stopped) request.emit('error', error) })
+      }).catch(error => {detach();if (!stopped) request.emit('error', error) })
       return request
     }
-    options.signal?.addEventListener('abort', () => { if (!stopped) { stopped = true; request.emit('error', options.signal.reason) } }, { once: true })
+    options.signal?.addEventListener('abort',abort,{once:true})
     return request
   }
   createServer(async(req, res) => {
