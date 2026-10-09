@@ -45,7 +45,7 @@
 .case-followup-timeline .continuity-source { margin-top: var(--hoho-space-2); font-size: var(--hoho-font-size-body-small); }
 .case-followup-timeline summary { min-height: var(--hoho-touch-target); padding-block: var(--hoho-space-2); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-primary)); cursor: pointer; }
 .case-followup-timeline button,.case-followup-timeline a { min-height: var(--hoho-touch-target); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); }
-.case-followup-primary-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.case-followup-primary-actions { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
 .case-followup-primary-actions .hoho-button { min-width: 0; min-height: var(--hoho-touch-target); padding-inline: var(--hoho-space-1); font-size: var(--hoho-font-size-body-small); white-space: normal; }
 .case-followup-state-action { display: flex; justify-content: flex-end; }
 .case-followup-state-action .hoho-button { min-height: var(--hoho-touch-target); background: rgb(var(--hoho-color-surface-subtle)); font-size: var(--hoho-font-size-caption); }

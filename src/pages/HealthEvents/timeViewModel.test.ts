@@ -114,3 +114,22 @@ test('自然语言搜索日期、类型、食物和症状；关联只取已有�
   assert.deepEqual(searchJournalEntries([diet,symptom,exam],'检查 不含牛奶',now).map(e=>e.id),['exam'])
   assert.deepEqual(searchJournalEntries([symptom],'上次喝奶后起疹子的记录',now),[])
 })
+
+
+test('spoken sleep names match structured and colloquial records without matching unrelated records', () => {
+  const structured = { ...entry('structured', '2026-09-10T13:00:00'), categories: ['sleep'] as const, content: '午间休息一小时' }
+  const spoken = { ...entry('spoken', '2026-09-09T13:00:00'), content: '今天睡觉很安稳' }
+  const unrelated = { ...entry('unrelated', '2026-09-10T14:00:00'), categories: ['medication'] as const, content: '服药后观察' }
+  for (const query of ['睡觉', '睡眠', '宝宝睡觉的记录']) {
+    assert.deepEqual(searchJournalEntries([spoken, unrelated, structured], query).map(item => item.id), ['structured', 'spoken'])
+  }
+  assert.deepEqual(searchJournalEntries([structured, spoken], '睡眠 不含睡觉'), [])
+  assert.deepEqual(searchJournalEntries([structured, spoken], '昨天睡觉', new Date('2026-09-11T12:00:00')).map(item => item.id), ['structured'])
+})
+test('spoken medication and bowel names keep all supplied search terms', () => {
+  const medication = { ...entry('medicine', '2026-09-10T13:00:00'), content: '按时用药，随后缓解' }
+  const bowel = { ...entry('bowel', '2026-09-10T14:00:00'), content: '正常排便' }
+  assert.deepEqual(searchJournalEntries([medication, bowel], '吃药 缓解').map(item => item.id), ['medicine'])
+  assert.deepEqual(searchJournalEntries([medication, bowel], '便便').map(item => item.id), ['bowel'])
+  assert.deepEqual(searchJournalEntries([medication, bowel], '便便 缓解'), [])
+})

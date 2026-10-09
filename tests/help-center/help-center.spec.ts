@@ -9,7 +9,7 @@ test.beforeEach(async({page})=>{
 })
 async function chat(page:Page){
   await page.goto('/help?view=chat')
-  await expect(page.getByLabel('描述遇到的问题')).toBeVisible()
+  await expect(page.getByLabel('描述遇到的问题')).toHaveCount(0)
   await page.getByRole('button',{name:'新对话',exact:true}).click()
   await expect(page.getByRole('button',{name:'录音没有成功',exact:true})).toBeVisible()
 }
@@ -41,6 +41,7 @@ test('conversation, draft and article return survive switching; unresolved feedb
   await expect(page.getByRole('button',{name:'录音后转写失败',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'录音后转写失败',exact:true}).click()
   await expect(page.getByRole('button',{name:'还没解决',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'文字输入',exact:true}).click()
   await page.getByLabel('描述遇到的问题').fill('补充内容尚未发送')
   await page.getByRole('radio',{name:'用户手册',exact:true}).click()
   await page.getByRole('radio',{name:'帮助',exact:true}).click()
@@ -63,6 +64,7 @@ test('failed send preserves input and explicit retry uses same request identifie
     if(requests.length===1)await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'测试网络中断'}})})
     else await route.continue()
   })
+  await page.getByRole('button',{name:'文字输入',exact:true}).click()
   await page.getByLabel('描述遇到的问题').fill('录音后转写失败')
   await page.getByRole('button',{name:'发送问题'}).click()
   await expect(page.getByText('测试网络中断')).toBeVisible()
@@ -79,7 +81,7 @@ test('help, manual and chat fit 320–430px mobile viewports',async({page})=>{
     await page.setViewportSize({width,height:844})
     for(const [name,url]of [['home','/help'],['manual','/help?tab=manual&manual=smart'],['chat','/help?view=chat']]){
       await page.goto(url)
-      if(name==='chat')await expect(page.getByLabel('描述遇到的问题')).toBeVisible()
+      if(name==='chat'){await expect(page.getByLabel('描述遇到的问题')).toHaveCount(0);await page.getByRole('button',{name:'文字输入',exact:true}).click();await expect(page.getByLabel('描述遇到的问题')).toBeVisible()}
       await expect(page.getByRole('radio',{name:'用户手册',exact:true})).toBeVisible()
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
       expect(await page.locator('.help-content').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)

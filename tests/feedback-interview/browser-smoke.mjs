@@ -34,6 +34,7 @@ await page.route('**/api/feedback', async route => {
 await mkdir('.codex-tmp/feedback-interview', { recursive: true })
 try {
   await page.goto(origin + '/feedback')
+  await page.getByRole('button', { name: '文字输入', exact: true }).click()
   await page.getByLabel('你的回答', { exact: true }).waitFor()
   for (const width of [375, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 800 : 760 })
@@ -72,6 +73,7 @@ try {
   assert.equal(await page.evaluate(() => sessionStorage.getItem('hoooho-feedback-interview:design-quality-account')), null)
   await page.goto(origin + '/feedback')
   failInterview = true
+  await page.getByRole('button', { name: '文字输入', exact: true }).click()
   await page.getByLabel('你的回答', { exact: true }).fill('希望添加一个查找反馈的入口')
   await page.getByRole('button', { name: '发送回答', exact: true }).click()
   await page.getByRole('button', { name: '手动整理' }).click()
