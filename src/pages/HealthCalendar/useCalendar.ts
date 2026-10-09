@@ -24,7 +24,7 @@ export function useCalendar(memberId: string, token: string, revision: number) {
       if (!controller.signal.aborted) setState(s => ({ ...s, cases: [...data.active, ...data.archived].filter(item => item.event.memberId === memberId) }))
     }).catch(() => { if (!controller.signal.aborted) setState(s => ({ ...s, caseError: '跟进事项加载失败，请刷新重试' })) })
     const timeout = window.setTimeout(() => {
-      setState(s => ({ ...s, loading: false, error: '记录读取超时，请刷新重试；当前不展示或导出不完整的回看结果。' }))
+      setState(s => ({ ...s, loading: false, error: '记录读取超时，请重试' }))
       controller.abort()
     }, 45000)
     void (async () => {
@@ -40,7 +40,7 @@ export function useCalendar(memberId: string, token: string, revision: number) {
         }))
         if (!controller.signal.aborted) setState(s => ({ ...s, entries: calendarEntries(events, records, memberId), loading: false }))
       } catch {
-        if (!controller.signal.aborted) setState(s => ({ ...s, loading: false, error: '记录加载未完成，请刷新重试；当前不展示或导出不完整的回看结果。' }))
+        if (!controller.signal.aborted) setState(s => ({ ...s, loading: false, error: '记录加载未完成，请重试' }))
       } finally { window.clearTimeout(timeout) }
     })()
     return () => { window.clearTimeout(timeout); controller.abort() }
