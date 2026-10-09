@@ -8,10 +8,10 @@ The browser re-encodes supported images to JPEG with a maximum edge near 2048px 
 
 Images are written only with the final feedback submission, so abandoned drafts create no server-side temporary files. The owned-feedback deletion service removes the feedback, messages, status history, attachment metadata, and corresponding private files together.
 
-## AI product-manager interview
+## Current feedback entry
 
-`POST /api/feedback/interview` requires the existing authenticated account session. It uses the configured AI provider and account call limiter, with no automatic retry, health-profile access or server-side draft persistence. The model asks at most one question per turn and assigns source quotes to page/function, actual issue or suggestion, desired improvement, impact, and reproduction/frequency. Every submitted quote must match a user turn; unknown fields remain unprovided. Screenshots are attachments only and are not sent to this text interview.
+The feedback page temporarily restores the direct form: optional problem type, editable feedback text, browser speech input, image upload, and an explicit submit control. It uses the existing feedback creation endpoint with a stable idempotency key, and keeps text/images in memory on submission failure. “我的反馈”, private screenshots and operations processing keep their existing records and behavior.
 
-The client stores conversation text and edited review in account-scoped session storage. Images remain in memory. The user explicitly chooses organization, can edit the complete structured text and classification, and must press “确认并提交” before the existing feedback creation endpoint runs. The submission key remains stable through retries. Requests and failed submissions preserve content; AI failure exposes retry and manual review. “我的反馈”, private screenshot delivery and operations processing continue using the existing records. Browser speech support is unchanged.
+The AI product-manager interview implementation remains available in source for future iteration, but is not mounted or requested by this page. Existing AI-generated feedback records remain readable.
 
-Validation: `npm run test:help`, `node --import ./scripts/register-node-ts-loader.mjs --test src/pages/Feedback/Feedback.contract.test.ts`, `npm run build`, and `node tests/feedback-interview/browser-smoke.mjs` (launches a local fixture server; AI responses/failures mocked, final feedback persistence real).
+Validation: `npm run test:help`, `node --import ./scripts/register-node-ts-loader.mjs --test src/pages/Feedback/Feedback.contract.test.ts`, `npm run build`, and `node tests/feedback-interview/browser-smoke.mjs` (legacy script location; now verifies the restored form, failure retention and actual local feedback persistence).
