@@ -24,7 +24,7 @@ export const sidebarMenuGroups = [
     items: [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日记', icon: BookOpen, to: '/health-events' },
-    { label: '健康日历', icon: CalendarDays, to: '/health-calendar' },
+    { label: '健康月历', icon: CalendarDays, to: '/health-calendar' },
     { label: '照护交接', icon: ClipboardList, to: '/care-handoff' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
     { label: '正在跟进', icon: ClipboardList, to: '/cases' },
