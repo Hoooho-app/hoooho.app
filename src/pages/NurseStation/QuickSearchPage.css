@@ -1,0 +1,8 @@
+.quick-search-page { position: fixed; inset-inline: 0; top: var(--quick-search-top, 0px); display: flex; flex-direction: column; height: var(--quick-search-height, 100dvh); min-height: 0; padding-bottom: 0; }
+.quick-search-page > .hoho-page-header { position: static; flex: none; }
+.quick-search-header { flex: none; padding: var(--hoho-space-2) var(--hoho-page-gutter) var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.quick-search-header input { font-size: max(16px, var(--hoho-font-size-label)); }
+.quick-search-page .journal-search-body { flex: 1; height: auto; min-height: 0; padding-bottom: var(--hoho-space-4); }
+.quick-search-footer { flex: none; padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); border-top: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); }
+.quick-search-hold { touch-action: none; user-select: none; -webkit-user-select: none; }
+.quick-search-hold .hoho-button__content { display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); }

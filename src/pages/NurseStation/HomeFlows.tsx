@@ -5,14 +5,13 @@ import { HealthCard, HealthTag, HohoButton, Typography } from '../../components/
 import { useCases } from '../../features/case-continuity/useCases'
 import { SmartRecordWorkspace } from '../../features/ai-business/SmartRecordWorkspace'
 import { useAppStore } from '../../store/useAppStore'
-import { RecordFinder } from './RecordFinder'
 import './HomeFlows.css'
 
 export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const navigate = useNavigate()
   const { data, error, reload, memberId, token } = useCases()
   const accountId = useAppStore(s => s.authUser?.id ?? '')
-  const [open, setOpen] = useState<'record' | 'search' | null>(null)
+  const [open, setOpen] = useState<'record' | null>(null)
   const [notice, setNotice] = useState('')
   const latest = data?.active.slice().sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id))[0]
   return <section className="home-flows" aria-label="首页服务入口">
@@ -38,13 +37,12 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <Typography variant="body">快速准备孩子的就诊情况单（既往史）</Typography>
       <HohoButton fullWidth variant="primary" size="large" onClick={() => navigate('/visit-summary')}>就诊情况单</HohoButton>
     </HealthCard>
-    <HealthCard className="home-flow-card" aria-label="快速回看查找">
-      <Typography variant="sectionTitle" className="home-followup-heading"><Search size={18} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />快速回看查找</Typography>
+    <HealthCard className="home-flow-card" aria-label="快速查找">
+      <Typography variant="sectionTitle" className="home-followup-heading"><Search size={18} strokeWidth={1.8} className="shrink-0" aria-hidden="true" />快速查找</Typography>
       <Typography variant="caption">找回记录，迅速定位健康事件。</Typography>
-      <HohoButton fullWidth variant="primary" size="large" disabled={!token || !memberId} onClick={() => setOpen('search')}>查找记录</HohoButton>
+      <HohoButton fullWidth variant="primary" size="large" disabled={!token || !memberId} onClick={() => navigate('/quick-search')}>查找记录</HohoButton>
     </HealthCard>
     {notice && <p role="status">{notice}</p>}
     {open === 'record' && <SmartRecordWorkspace key={`${accountId}:${memberId}`} conversational memberId={memberId} token={token} onClose={() => setOpen(null)} onSaved={message => { setNotice(message); reload() }} />}
-    {open === 'search' && <RecordFinder key={`${accountId}:${memberId}`} memberId={memberId} token={token} onClose={() => setOpen(null)} />}
   </section>
 }

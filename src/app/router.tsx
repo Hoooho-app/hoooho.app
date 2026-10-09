@@ -49,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/visit-summary/:eventId', lazy: lazyPage(() => import('../pages/VisitSummary'), 'VisitSummaryPage') },
       { path: '/visit-summary', lazy: lazyPage(() => import('../pages/VisitSummary'), 'VisitSummaryPage') },
       { path: '/health-events', lazy: lazyPage(() => import('../pages/HealthEvents'), 'HealthEventsPage') },
+      { path: '/quick-search', lazy: lazyPage(() => import('../pages/NurseStation/RecordFinder'), 'QuickSearchPage') },
       { path: '/health-events/search', lazy: lazyPage(() => import('../pages/HealthEvents/JournalSearchPage'), 'JournalSearchPage') },
       { path: '/health-events/new', lazy: lazyPage(() => import('../pages/HealthEvents'), 'CreateHealthEventPage') },
       {
