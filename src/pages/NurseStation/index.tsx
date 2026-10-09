@@ -1,13 +1,6 @@
-import { CompleteImage } from '../../components/common/CompleteImage'
 import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import dietaryCardImage from '../../assets/nurse-station/home-entries/dietary-card.677cd570cc.webp'
-import healthDiaryImage from '../../assets/nurse-station/home-entries/health-diary.cf525c8bbb.webp'
-import healthProfileImage from '../../assets/nurse-station/home-entries/health-profile.cec39ae6b8.webp'
-import medicationRemindersImage from '../../assets/nurse-station/home-entries/medication-reminders.07ae4e7c04.webp'
-import visitSummaryImage from '../../assets/nurse-station/home-entries/visit-summary.c28024de2b.webp'
-import foodLabelImage from '../../assets/food-label/food-label-entry.bceb60adfc.webp'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
@@ -24,7 +17,7 @@ import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
 import { BloodTypeEditorSheet } from './BloodTypeEditorSheet'
-import { HomeNurseDialogue } from './HomeNurseDialogue'
+import { HomeFlows } from './HomeFlows'
 import './nurseStation.css'
 import { readHomeReading, writeHomeReading } from './homeReadings'
 
@@ -151,9 +144,6 @@ export function NurseStationPage() {
   const knownMemberDto = memberDto ?? readHomeReading(token, currentMemberId, 'member')
   const guardedDays = knownMemberDto ? getGuardedDays(knownMemberDto.createdAt) : '—'
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
-  const medicationCount = medicationMemberId === currentMemberId
-    ? medicationReminders.filter((item) => item.status === 'active').length
-    : null
   const growth = growthMemberId === currentMemberId && member
     ? resolveCurrentGrowthSnapshot(member, growthMeasurements, currentMemberId)
     : null
@@ -217,54 +207,10 @@ export function NurseStationPage() {
           </section>
         ) : null}
         {member && (listState.status === 'error' || growthStatus === 'error') && <p className="nurse-station-sync-notice" role="status">资料同步失败，已读取的数据仍保留。</p>}
-        {member && <HomeNurseDialogue key={`${identityId}:${currentMemberId}`} nurseVisual={<NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly />} />}
-        <HomeEntries
-          medicationCount={medicationCount}
-          medicationStatus={medicationStatus}
-        />
+        {member && <HomeFlows key={`${identityId}:${currentMemberId}`} nurseVisual={<NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly />} />}
+
       </div>
       {member && bloodEditorMemberId === member.id && <BloodTypeEditorSheet member={member} onClose={() => setBloodEditorMemberId('')} onSaved={() => setBloodEditorMemberId('')} token={token} />}
     </main>
   )
-}
-
-const fixedHomeEntries = [
-  { id: 'visit', title: '就诊情况单', subtitle: '就诊前，一页理清病情', image: visitSummaryImage, to: '/visit-summary' },
-  { id: 'dietary', title: '忌口出示卡', subtitle: '哪些不能吃，出示就懂', image: dietaryCardImage, to: '/dietary-card' },
-  { id: 'diary', title: '健康日记', subtitle: '记录日常与身体变化', image: healthDiaryImage, to: '/health-events' },
-  { id: 'profile', title: '孩子档案', subtitle: '整理家人的健康信息', image: healthProfileImage, to: '/health-profile' },
-] as const
-
-type HomeEntry = { id: string; title: string; subtitle: string; image: string; to: string }
-
-function HomeEntryContent({ entry }: { entry: HomeEntry }) {
-  return <><span className="nurse-home-entry__copy"><strong>{entry.title}</strong><small>{entry.subtitle}</small></span><span aria-hidden="true" className="nurse-home-entry__visual"><CompleteImage alt="" decoding="async" height="384" onError={(event) => { event.currentTarget.hidden = true }} src={entry.image} width="384" /></span></>
-}
-
-function taskCountLabel(status: EntryStatus, count: number | null, noun: '提醒' | '测试') {
-  if (status === 'error') return count == null ? '加载失败，点此重试' : `${count} 个${noun}任务 · 同步失败`
-  if (count === null) return '正在同步任务…'
-  return `${count} 个${noun}任务`
-}
-
-function HomeEntries({ medicationCount, medicationStatus }: {
-  medicationCount: number | null
-  medicationStatus: EntryStatus
-}) {
-  const entries: HomeEntry[] = [
-    ...fixedHomeEntries.slice(0, 2),
-    { id: 'food-label', title: '配料表扫描', subtitle: '拍配料表，对照过敏史', image: foodLabelImage, to: '/food-label' },
-    {
-      id: 'medication',
-      title: '用药安排',
-      subtitle: taskCountLabel(medicationStatus, medicationCount, '提醒'),
-      image: medicationRemindersImage,
-      to: '/medication-reminders',
-    },
-    ...fixedHomeEntries.slice(2),
-  ]
-
-  return <section aria-label="首页服务入口" className="nurse-home-entries">{entries.map((entry) => (
-    <Link aria-label={`${entry.title}，${entry.subtitle}`} className={`nurse-home-entry nurse-home-entry--${entry.id}`} key={entry.id} to={entry.to}><HomeEntryContent entry={entry} /></Link>
-  ))}</section>
 }

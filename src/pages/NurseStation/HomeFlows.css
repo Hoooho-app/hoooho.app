@@ -1,0 +1,24 @@
+@import './HomeNurseDialogue.css';
+.home-flows{display:grid;gap:var(--hoho-space-4);margin-top:var(--hoho-space-4);padding-bottom:var(--hoho-space-5)}
+.home-flow-card{display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-5);box-shadow:none;min-width:0}
+.home-flow-card.nurse-home-dialogue{margin-top:0}
+.home-flow-card>header{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2)}
+.home-flow-card time,.home-flow-card .hoho-text-caption{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.home-flow-card .hoho-text-body{color:rgb(var(--hoho-color-text-secondary));overflow-wrap:anywhere}
+.home-flow-card>strong{font-size:var(--hoho-font-size-card-title);font-weight:600}
+.home-flow-actions{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2)}
+.record-finder-content{display:grid;gap:var(--hoho-space-4)}
+.record-finder-answer{display:grid;gap:var(--hoho-space-3);border-bottom:1px solid rgb(var(--hoho-color-border));padding-block:var(--hoho-space-4)}
+.record-finder-answer p{white-space:pre-wrap;overflow-wrap:anywhere}
+.record-finder-answer time{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.record-finder-compose{display:grid;gap:var(--hoho-space-3)}
+.record-finder-tools{display:flex;gap:var(--hoho-space-2)}
+.record-finder-tools .case-hold-voice{min-height:var(--hoho-touch-target)}
+.smart-nurse-message{display:flex;align-items:flex-start;gap:var(--hoho-space-3)}
+.smart-nurse-message>img{width:44px;height:44px;object-fit:cover;border-radius:var(--hoho-radius-card);flex:none}
+.smart-nurse-message>div{display:grid;gap:var(--hoho-space-2)}
+.smart-parent-message{display:flex;align-items:flex-start;gap:var(--hoho-space-3);flex-direction:row-reverse;white-space:pre-wrap;overflow-wrap:anywhere}
+.smart-parent-message>span{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary))}
+.smart-parent-message>p{flex:1}
+.smart-record-dialog .case-capture-body{padding:0;overflow:visible}
+.smart-record-dialog .case-input-tools{padding:0;border:0}

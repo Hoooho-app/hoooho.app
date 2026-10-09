@@ -56,3 +56,17 @@ export async function recognizePage(page,model,signal,syntheticOptions={}){
   const status=!value.text.trim()?'blank':value.status==='readable'&&/\[不清楚\]|无法辨认|辨认不清/.test(value.text)?'uncertain':value.status
   return {id:page.id,page:page.page,name:page.name,hash:page.hash,text:value.text,status,diagnostics}
 }
+
+// Voice originals are retained as attachments, never passed to vision extraction.
+export function prepareVoiceOriginals(files=[]) {
+  if(!Array.isArray(files)||files.length>12)throw fail('一次最多保留12份语音原件')
+  let total=0
+  return files.map(file=>{
+    const match=/^data:(audio\/(?:webm|mp4|ogg|wav)(?:;codecs=[a-z0-9]+)?);base64,([A-Za-z0-9+/=]+)$/.exec(file?.dataUrl??'')
+    if(!match||file.mimeType!==match[1])throw fail('语音原件格式无效',415)
+    const bytes=Buffer.from(match[2],'base64'),magic=bytes.subarray(0,12);total+=bytes.length
+    if(bytes.length<800||bytes.length>6*1024*1024||total>15*1024*1024||!(magic.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3]))||magic.subarray(0,4).toString()==='OggS'||magic.subarray(0,4).toString()==='RIFF'||magic.subarray(4,8).toString()==='ftyp'))throw fail('语音原件不可读取或超过大小限制',413)
+    const contentHash=fingerprint(file.dataUrl)
+    return {id:`voice-${contentHash.slice(0,24)}`,name:String(file.name||'语音原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120),mimeType:match[1].split(';')[0],dataUrl:file.dataUrl,contentHash}
+  })
+}

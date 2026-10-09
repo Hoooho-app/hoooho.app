@@ -42,6 +42,7 @@ export class CaseContinuityService {
     const records = await this.records.repository.findByAccountId(accountId)
     const cases = events.flatMap(event => {
       const own = records.filter(r => r.eventId === event.id)
+      if (event.caseTracking === false) return []
       if (!event.caseTracking && event.category === 'other' && !own.some(r => r.type === 'symptom')) return []
       const latest = ordered(own)[0]
       const observations = (event.observationTasks ?? []).map(task => {
@@ -115,7 +116,7 @@ export class CaseContinuityService {
     })
   }
   async recovery(accountId, memberId, eventId, input) {
-    if (!['recover', 'restore', 'undo'].includes(input.action) || !input.requestId) throw fail('康复操作参数无效')
+    if (!['recover', 'archive', 'restore', 'undo'].includes(input.action) || !input.requestId) throw fail('康复操作参数无效')
     const requestId = clean(input.requestId, 100)
     return accountTransaction(this.directory, async () => {
       const event = await this.owned(accountId, memberId, eventId), history = event.caseStateHistory ?? []
@@ -129,10 +130,10 @@ export class CaseContinuityService {
         if (JSON.stringify(event.observationTasks??[]) !== JSON.stringify(last.afterTasks??[])) throw fail('观察安排已有修改，请用恢复跟进修正状态，不撤销新安排', 409)
         patch = last.before
       } else {
-        if (input.action === 'recover' && event.caseArchivedAt) throw fail('这次情况已归档，请刷新', 409)
+        if (['recover','archive'].includes(input.action) && event.caseArchivedAt) throw fail('这次情况已归档，请刷新', 409)
         if (input.action === 'restore' && !event.caseArchivedAt) throw fail('这次情况已在跟进中，请刷新', 409)
         const at = this.now().toISOString()
-        patch = { status: input.action === 'recover' ? 'recovered' : 'observing', recoveredAt: input.action === 'recover' ? at : null, caseArchivedAt: input.action === 'recover' ? at : null, caseArchiveReason: input.action === 'recover' ? 'user_recovered' : null, caseRecoveryMarkedAt: input.action === 'recover' ? at : null, ...(input.action === 'recover' ? { observationTasks: (event.observationTasks ?? []).map(t => t.status === 'active' ? { ...t, status: 'paused', pausedByArchive: true } : t) } : {}) }
+        patch = { status: input.action === 'recover' ? 'recovered' : input.action === 'archive' ? event.status : 'observing', recoveredAt: input.action === 'recover' ? at : input.action === 'archive' ? event.recoveredAt??null : null, caseArchivedAt: ['recover','archive'].includes(input.action) ? at : null, caseArchiveReason: input.action === 'recover' ? 'user_recovered' : input.action === 'archive' ? 'general' : null, caseRecoveryMarkedAt: input.action === 'recover' ? at : null, ...(['recover','archive'].includes(input.action) ? { observationTasks: (event.observationTasks ?? []).map(t => t.status === 'active' ? { ...t, status: 'paused', pausedByArchive: true } : t) } : {}) }
       }
       const before = { status: event.status, recoveredAt: event.recoveredAt??null, caseArchivedAt: event.caseArchivedAt ?? null, caseArchiveReason: event.caseArchiveReason ?? null, caseRecoveryMarkedAt: event.caseRecoveryMarkedAt ?? null, observationTasks: event.observationTasks ?? [] }
       return this.events.repository.update(eventId, { ...patch, caseTracking: true, caseStateHistory: [...history, { action: input.action, requestId, at: this.now().toISOString(), before, afterTasks: patch.observationTasks??event.observationTasks??[] }] }, this.now())
