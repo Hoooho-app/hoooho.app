@@ -38,6 +38,7 @@ export function HelpChat({ active, onOpenArticle }: {active:boolean; onOpenArtic
       {session?.turns.map(turn=><NurseMessage key={turn.id} role={turn.role} recorderName={name} {...productBubble}><p>{turn.text}</p>{turn.imageAttached&&<p>附了一张图片。</p>}{turn.articleIds?.map(id=>{const article=getArticle(id);return article?<HohoButton key={id} variant="text" onClick={()=>onOpenArticle(id)}>{article.title}</HohoButton>:null})}
         {turn.id===latest?.id&&turn.choices?.map(choice=><HohoButton key={choice} disabled={busy||voice.busy} variant="text" onClick={()=>void send(choice)}>{choice}</HohoButton>)}
         {turn.id===latest?.id&&turn.askResolved&&!rated&&<><p>这次的办法帮到你了吗？</p><HohoButton disabled={busy} variant="text" onClick={()=>void rate(turn.id,true)}>解决了</HohoButton><HohoButton disabled={busy} variant="text" onClick={()=>void rate(turn.id,false)}>还没解决</HohoButton></>}
+        {turn.id===latest?.id&&turn.role==='assistant'&&<Link to="/feedback?page=帮助中心" state={makeFeedbackState('/help?view=chat','帮助中心',window.scrollY)} className="help-text-action">反馈产品问题</Link>}
       </NurseMessage>)}
       {image&&<NurseMessage role="user" recorderName={name}><img className="dialogue-image" src={image} alt="本次截图"/><HohoButton variant="text" disabled={busy} onClick={()=>setImage(undefined)}>移除图片</HohoButton><HohoButton disabled={busy||photoBusy} onClick={()=>void send()}>发送图片</HohoButton></NurseMessage>}
       {pending&&<NurseMessage role="user" recorderName={name}><p>{pending}</p></NurseMessage>}
@@ -45,10 +46,9 @@ export function HelpChat({ active, onOpenArticle }: {active:boolean; onOpenArtic
       {session?.notice&&<NurseMessage role="assistant" {...productBubble}><p>{session.notice}</p></NurseMessage>}
       {(error||voice.error)&&<NurseMessage role="assistant" {...productBubble}><p role="alert">{error||voice.error}</p><HohoButton disabled={busy||voice.busy} variant="text" onClick={()=>voice.pendingVoice?voice.retry():ratingRetry.current?void rate(ratingRetry.current.turnId,ratingRetry.current.solved):session&&draft.trim()?void send():void load()}>再试一次</HohoButton></NurseMessage>}
       {voice.pendingVoice&&!voice.error&&<NurseMessage role="assistant" {...productBubble}><p>这段录音还在，要我再听一次吗？</p><HohoButton disabled={busy||voice.busy} variant="text" onClick={voice.retry}>再试一次</HohoButton></NurseMessage>}
+      <div ref={tail}/>
     </div>
     {session&&<div className="dialogue-page-footer"><DialogueComposer text={draft} onTextChange={setDraft} onSend={()=>void send()} maxLength={2000} placeholder="告诉我卡在哪一步…" disabled={busy||photoBusy||!token} voiceDisabled={!!voice.pendingVoice} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>void voice.start()} onStop={voice.stop} onDiscard={voice.discard} onPhoto={()=>camera.current?.click()}/></div>}
     <input type="file" ref={camera} hidden accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(!file)return;setPhotoBusy(true);void processFeedbackImage(file).then(result=>{if(alive.current)setImage(result.dataUrl??undefined)}).catch(e=>{if(alive.current)setError(e.message)}).finally(()=>{if(alive.current)setPhotoBusy(false)})}}/>
-    <div ref={tail}/>
-    <Link to="/feedback?page=帮助中心" state={makeFeedbackState('/help?view=chat','帮助中心',window.scrollY)} className="help-text-action">反馈产品问题</Link>
   </section>
 }
