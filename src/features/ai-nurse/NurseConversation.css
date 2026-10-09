@@ -29,3 +29,15 @@
 .nurse-text-actions {margin-top:var(--hoho-space-2)}
 .nurse-controls {margin-top:var(--hoho-space-1)}
 .nurse-connection-error {border:1px solid rgb(var(--hoho-color-error) / .2);border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-error) / .04)}
+.nurse-turn-content{border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle))}
+.nurse-turn-content>p{border:0;background:transparent;padding:0}
+.nurse-turn--user .nurse-turn-content{background:rgb(var(--hoho-color-primary-soft))}
+.nurse-turn-content>.hoho-button{margin-top:var(--hoho-space-2)}
+.dialogue-file{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);overflow-wrap:anywhere}
+.dialogue-image{max-width:100%;max-height:200px;object-fit:contain;border-radius:var(--hoho-radius-small)}
+.dialogue-page-footer{position:sticky;bottom:0;padding:var(--hoho-space-2) 0 max(var(--hoho-space-2),env(safe-area-inset-bottom));background:rgb(var(--hoho-color-surface));z-index:1}
+.dialogue-review,.dialogue-review-item{display:grid;gap:var(--hoho-space-2)}
+.dialogue-review{margin-block:var(--hoho-space-3)}
+.dialogue-review-item+ .dialogue-review-item{padding-top:var(--hoho-space-3);border-top:1px solid rgb(var(--hoho-color-border))}
+.dialogue-review-item label{display:grid;gap:var(--hoho-space-1);font-size:var(--hoho-font-size-caption)}
+.dialogue-review-item input{min-width:0;width:100%;min-height:44px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);color:inherit;background:rgb(var(--hoho-color-surface));font-size:16px;box-sizing:border-box}

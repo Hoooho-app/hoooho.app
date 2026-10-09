@@ -20,6 +20,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 
 - `HohoButton`: primary, secondary, tertiary, ghost, danger and text levels; small/medium/large/icon sizes; disabled and loading states.
 - `HohoInput`: label, hint, invalid state, associated message and screen-reader alert.
+- `DialogueComposer`: a single 44px row shared by nurse, record, help and feedback conversations, ordered “改用文字 / 按住说话 / 拍照”. Text mode replaces the middle control with an input and send action. Keep status, retry, organization and confirmation actions inside the assistant's conversation bubble rather than additional footer rows.
 - `HealthCard`: quiet bordered surface; interaction adds a restrained state, not a stronger default shadow.
 - `HealthTag`: compact semantic label; visible wording accompanies color.
 - Food-label facts use `--hoho-color-food-common-surface` (pale orange) and personal uncertainty uses `--hoho-color-food-possible-surface` (pale yellow), with the existing warning foreground and `HealthTag`. These opt-in semantic surfaces apply to ingredient rows and packaging notices only; existing warning/error components and all other pages are unchanged.

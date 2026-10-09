@@ -271,7 +271,7 @@ async function handleFeedback(request, response, pathname, searchParams) {
   }
   if (!pathname.startsWith('/api/feedback')) return false
   const accountId = await readAccountId(request)
-  if (pathname === '/api/feedback/interview' && request.method === 'POST') sendJson(response, 200, await feedbackInterview.respond(accountId, await readJson(request, 32_000)))
+  if (pathname === '/api/feedback/interview' && request.method === 'POST') sendJson(response, 200, await feedbackInterview.respond(accountId, await readJson(request, 3_000_000)))
   else if (pathname === '/api/feedback' && request.method === 'POST') sendJson(response, 201, await feedback.create(accountId, await readJson(request, 29_000_000)))
   else if (pathname === '/api/feedback' && request.method === 'GET') sendJson(response, 200, await feedback.listForAccount(accountId))
   else {
@@ -833,7 +833,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true
   if (pathname.startsWith('/api/help/')) {
-    const result = await helpApi(productHelp, await readAccountId(request), pathname, request.method, () => readJson(request))
+    const result = await helpApi(productHelp, await readAccountId(request), pathname, request.method, () => readJson(request, 3_000_000))
     sendJson(response, result.status, result.body)
     return true
   }
