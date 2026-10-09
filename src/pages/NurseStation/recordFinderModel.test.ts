@@ -62,3 +62,10 @@ test('切换排序按发生时间稳定排序，未知时间始终置后且不�
  assert.deepEqual(orderLookupMatches(found,'recent').map(match=>match.entry.id),['b','a','u'])
  assert.deepEqual(found.map(match=>match.entry.id),ids)
 })
+
+
+test('quick lookup shares journal sleep aliases for ordinary and earliest queries', () => {
+  const sleeping = { ...row('sleep', '午间休息一小时', '2026-09-10T13:00:00'), categories: ['sleep'] as const }
+  assert.deepEqual(lookupRecords([sleeping], '睡觉').map(match => match.entry.id), ['sleep'])
+  assert.deepEqual(lookupRecords([sleeping], '最早睡觉').map(match => match.entry.id), ['sleep'])
+})

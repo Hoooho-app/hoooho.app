@@ -132,7 +132,7 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
   const voiceLabel = playbackBlocked ? '播放回复并继续语音' : rtc.current ? state === 'connecting' ? '取消连接' : '暂停语音' : state === 'error' || state === 'disconnected' ? '重新连接' : ['paused', 'listening', 'speaking'].includes(state) || draft?.turns.some(turn => turn.role === 'user') ? '继续语音' : '开始语音'
   const composer=<>
     {pendingCount > 0 && <div role="alert"><p>{pendingCount} 段原话尚未同步，保留在当前账号的本次页面草稿中。</p><HohoButton variant="secondary" onClick={() => void retrySync()} disabled={busy.current}>重试同步原话</HohoButton></div>}
-    <p className="nurse-input-status" role="status">{mode === 'text' && ['idle','paused','error','disconnected'].includes(state) ? '文字模式，填写后发送给护士' : states[state]}</p>
+    {['connecting','processing','organizing','saving'].includes(state) && <p className="nurse-input-status" role="status">{states[state]}</p>}
     {mode === 'voice' ? <div className="nurse-voice-compose">
       <div className="nurse-footer-actions"><HohoButton variant="secondary" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton><HohoButton variant="ghost" onClick={() => void switchMode('text')}>改用文字</HohoButton></div>
       <HohoButton className="nurse-voice-action" fullWidth size="large" onClick={playbackBlocked ? () => void rtc.current?.resumePlayback() : rtc.current ? pause : start} disabled={busy.current || !draft || pendingCount > 0}>

@@ -1,4 +1,4 @@
-import { journalSearchFields, journalSearchResultSummary, normalizeJournalSearch, searchJournalEntries, type JournalEntry } from '../HealthEvents/timeViewModel'
+import { journalSearchAlternatives, journalSearchFields, journalSearchResultSummary, normalizeJournalSearch, searchJournalEntries, type JournalEntry } from '../HealthEvents/timeViewModel'
 export interface FinderPlan { question: string; terms: string[][]; relatedTerms: string[]; filters: string[][]; excludes: string[]; from: number | null; to: number | null; first: boolean; changes: boolean; newFood: boolean; category?: string }
 export interface FinderMatch { entry: JournalEntry; evidence: string; related: boolean; reason?: string }
 // Ordinary lookup uses the journal magnifier's existing matcher. The extended
@@ -42,7 +42,7 @@ function words(text: string) {
   const related = concepts.find(c => c.related.some(w => text.includes(w)))
   if (related) return { terms: [[related.related.find(w => text.includes(w))!]], relatedTerms: [...related.words, ...related.related.filter(w => !text.includes(w))] }
   const clean = text.replace(/第一次|最早|最近一次|后来|有什么变化|变化|最近|这次|那次|帮我|宝宝|孩子|最近一次|上次|请|查找|查一下|查|搜索|记录|随记|有没有|是否|什么时候|是什么|什么|时候|吃过什么|用过什么|出现过|出现|发生过|发生|吃过|吃了|吃|喝过|喝了|喝|的|了|吗|呢|在|过/g, ' ').replace(/[？?，,。]/g, ' ')
-  return { terms: clean.split(/\s+/).filter(Boolean).map(w => [w]), relatedTerms: [] as string[] }
+  return { terms: clean.split(/\s+/).filter(Boolean).map(journalSearchAlternatives), relatedTerms: [] as string[] }
 }
 export function finderPlan(question: string, previous?: FinderPlan, now = new Date()): FinderPlan {
   const refine = !!previous && /^(只看|只查|仅看|仅查|排除|不要|不含|再看)/.test(question.trim())
@@ -66,8 +66,8 @@ export function finderPlan(question: string, previous?: FinderPlan, now = new Da
   const day = raw.match(/今天|昨天|前天/)
   if (day) { const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (day[0] === '昨天' ? 1 : day[0] === '前天' ? 2 : 0)); from = start.getTime(); const end = new Date(start); end.setDate(end.getDate() + 1); to = end.getTime() - 1; raw = raw.replace(day[0], '') }
   const newFood = /新(东西|食物|食材)|第一次吃/.test(raw)
-  const category = newFood || /饮食|吃了什么/.test(raw) ? 'diet' : /睡眠|睡得|睡了/.test(raw) ? 'sleep' : /用药|吃药/.test(raw) ? 'medication' : undefined
-  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes: [], from, to, first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
+  const category = newFood || /饮食|吃了什么/.test(raw) ? 'diet' : /睡眠|睡觉|睡着|睡得|睡了/.test(raw) ? 'sleep' : /用药|吃药/.test(raw) ? 'medication' : undefined
+  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡觉|睡着|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes: [], from, to, first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
 }
 export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan): FinderMatch[] {
   if (!plan.terms.length && !plan.category) return []

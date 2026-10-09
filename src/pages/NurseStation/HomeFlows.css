@@ -15,11 +15,7 @@
 .record-finder-compose{display:grid;gap:var(--hoho-space-3)}
 .record-finder-tools{display:flex;align-items:center;gap:var(--hoho-space-2)}
 .record-finder-hold{flex:1;min-width:0}
-.record-finder-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--hoho-space-1);font-size:var(--hoho-font-size-caption)}
-.record-finder-sort{display:flex;align-items:center;flex-wrap:wrap;gap:var(--hoho-space-1);margin-bottom:var(--hoho-space-3)}
 .record-finder-examples{display:flex;flex-direction:column;align-items:flex-start}
-.record-finder-related-heading{margin-block:var(--hoho-space-4) var(--hoho-space-2);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
-.record-finder-caption{margin-top:var(--hoho-space-4);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .record-finder-sheet .journal-search-empty{padding-block:var(--hoho-space-5)}
 .smart-record-dialog .case-capture-body{padding:0;overflow:visible}
 .smart-record-dialog .case-input-tools{padding:0;border:0}

@@ -122,23 +122,39 @@ export function journalSearchFields(entry: JournalEntry) {
   ].map((value) => value.trim()).filter(Boolean)
 }
 
+// Common spoken names share a search concept; records and summaries stay unchanged.
+const journalSearchAliases = [
+  ['睡眠', '睡觉', '睡着', '睡得'],
+  ['发烧', '发热'],
+  ['起疹子', '疹子', '红疹', '皮疹'],
+  ['大便', '排便', '便便', '拉屎'],
+  ['用药', '服药', '吃药'],
+  ['喂养', '喂奶', '吃奶'],
+  ['检查', '报告', 'examination'],
+  ['呕吐', '吐'],
+  ['奶', 'milk'],
+]
+export function journalSearchAlternatives(term: string): string[] {
+  const normalized = normalizeJournalSearch(term)
+  return journalSearchAliases.find(aliases => aliases.includes(normalized)) ?? [term]
+}
+
 export function searchJournalEntries(entries: readonly JournalEntry[], query: string, now = new Date()) {
-  let raw=query.trim(),from:number|null=null,to:number|null=null
+  let raw=query.trim().replace(/吃药/g,'服药').replace(/吃奶/g,'喂奶'),from:number|null=null,to:number|null=null
   const midnight=new Date(now);midnight.setHours(0,0,0,0)
   if(/上个?月/.test(raw)){const end=new Date(midnight);end.setDate(1);to=end.getTime();const start=new Date(end);start.setMonth(start.getMonth()-1);from=start.getTime();raw=raw.replace(/上个?月/g,'')}
   else if(/上周|上星期/.test(raw)){const end=new Date(midnight);end.setDate(end.getDate()-((end.getDay()+6)%7));to=end.getTime();const start=new Date(end);start.setDate(start.getDate()-7);from=start.getTime();raw=raw.replace(/上周|上星期/g,'')}
   else if(/昨天|昨日|今天|今日/.test(raw)){const start=new Date(midnight);if(/昨天|昨日/.test(raw))start.setDate(start.getDate()-1);from=start.getTime();to=from+86400000;raw=raw.replace(/昨天|昨日|今天|今日/g,'')}
   const latest=/最近一次|上次/.test(raw)
-  raw=raw.replace(/的检查/g,'检查').replace(/最近一次|上次|的记录|的随记|记录|随记|帮我找|查找|搜索|什么时候|有没有|出现过|过的|的|喝|吃|后|了/g,' ').trim()
+  raw=raw.replace(/的检查/g,'检查').replace(/最近一次|上次|的记录|的随记|记录|随记|帮我找|宝宝|孩子|查找|搜索|什么时候|有没有|出现过|过的|的|喝|吃|后|了/g,' ').trim()
   const exclusions=[...raw.matchAll(/(?:不含|排除|不要)([^\s，,]+)/g)].map(m=>normalizeJournalSearch(m[1]));raw=raw.replace(/(?:不含|排除|不要)[^\s，,]+/g,'')
-  const synonyms:Record<string,string[]>={发烧:['发烧','发热'],起疹子:['疹','红疹','皮疹'],奶:['奶','milk'],检查:['检查','报告','examination'],呕吐:['呕吐','吐']}
   const needle = normalizeJournalSearch(raw)
   if (!needle) return []
-  const terms=raw.split(/[\s，,]+/).filter(Boolean).map(term=>synonyms[term]??[term])
+  const terms=raw.split(/[\s，,]+/).filter(Boolean).map(journalSearchAlternatives)
   const scopedById=new Map(entries.map(e=>[e.id,e]))
   const results=entries.filter(entry=>{const linked=Object.values(entry.symptom?.linkedRecordIds??{}).flat().flatMap(id=>scopedById.has(id)?[scopedById.get(id)!]:[]),values=[...journalSearchFields(entry),...linked.flatMap(journalSearchFields)].map(normalizeJournalSearch),at=Date.parse(entry.occurredAt)
     if(from!==null&&(entry.timePrecision==='unknown'||at<from||at>=to!))return false
-    if(exclusions.some(term=>values.some(v=>v.includes(term))))return false
+    if(exclusions.some(term=>journalSearchAlternatives(term).some(alias=>values.some(v=>v.includes(normalizeJournalSearch(alias))))))return false
     return values.some(v=>v.includes(needle))||terms.every(alternatives=>alternatives.some(term=>values.some(v=>v.includes(normalizeJournalSearch(term)))))})
     .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt) || right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
   return latest?results.slice(0,1):results

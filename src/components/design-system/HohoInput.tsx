@@ -4,10 +4,11 @@ export interface HohoInputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
   hint?: string
   label: string
+  hideLabel?: boolean
 }
 
 export const HohoInput = forwardRef<HTMLInputElement, HohoInputProps>(function HohoInput(
-  { error, hint, id, label, className = '', ...props },
+  { error, hint, id, label, hideLabel = false, className = '', ...props },
   ref
 ) {
   const inputId = id ?? `input-${label}`
@@ -15,7 +16,7 @@ export const HohoInput = forwardRef<HTMLInputElement, HohoInputProps>(function H
 
   return (
     <label className="hoho-field" htmlFor={inputId}>
-      <span className="hoho-text-label">{label}</span>
+      <span className={hideLabel ? "sr-only" : "hoho-text-label"}>{label}</span>
       <input
         aria-describedby={messageId}
         aria-invalid={Boolean(error)}
