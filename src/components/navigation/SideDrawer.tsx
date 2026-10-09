@@ -31,7 +31,6 @@ export const sidebarMenuGroups = [
     title: '工具与帮助',
     items: [
     { label: '设置', icon: Settings, to: '/settings' },
-    { label: '说明', icon: BookOpen, to: '/guide' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
     { label: '反馈', icon: MessageCircle, to: '/feedback' },
     { label: '关于', icon: Info, to: '/about' }

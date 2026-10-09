@@ -11,6 +11,7 @@ import { eventAttachmentsApiPlugin } from './server/events/vite-event-attachment
 import { aiApiPlugin } from './server/ai/vite-ai-plugin.mjs'
 import { opsApiPlugin } from './server/ops/vite-ops-plugin.mjs'
 import { feedbackApiPlugin } from './server/help/vite-feedback-plugin.mjs'
+import { helpApiPlugin } from './server/help/vite-help-plugin.mjs'
 import { onlineConsultationsApiPlugin } from './server/consultations/vite-online-consultations-plugin.mjs'
 import { accountEntryStateApiPlugin } from './server/onboarding/vite-account-entry-state-plugin.mjs'
 import { healthProfileFactsApiPlugin } from './server/health-profile/vite-health-profile-facts-plugin.mjs'
@@ -54,6 +55,7 @@ export default defineConfig({
     eventAttachmentsApiPlugin(),
     aiApiPlugin(),
     feedbackApiPlugin(),
+    helpApiPlugin(),
     opsApiPlugin(),
     onlineConsultationsApiPlugin(),
     healthProfileFactsApiPlugin(),

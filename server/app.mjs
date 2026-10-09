@@ -28,6 +28,8 @@ import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
 import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
+import { HelpService } from './help/help-service.mjs'
+import { helpApi } from './help/help-api.mjs'
 import { FeedbackInterview } from './help/feedback-interview.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
@@ -81,6 +83,7 @@ const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
+const productHelp = new HelpService(sharedOptions)
 const feedbackInterview = new FeedbackInterview(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
 const accountEntryState = new AccountEntryStateService(sharedOptions)
@@ -826,6 +829,11 @@ async function handleApi(request, response, pathname, searchParams) {
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true
+  if (pathname.startsWith('/api/help/')) {
+    const result = await helpApi(productHelp, await readAccountId(request), pathname, request.method, () => readJson(request))
+    sendJson(response, result.status, result.body)
+    return true
+  }
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
   if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {

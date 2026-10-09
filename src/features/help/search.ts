@@ -57,7 +57,7 @@ function articleScore(article: HelpArticle, rawQuery: string, category?: HelpCat
     else score += similarity(query, keyword) * 8
   }
   score += similarity(query, title) * 44
-  const queryParts = Array.from(new Set([...bigrams(query), ...article.keywords.map(normalizeHelpText)]))
+  const queryParts = Array.from(new Set(bigrams(query)))
   const searchable = `${title}${summary}${keywordValues.join('')}${aliasValues.join('')}`
   score += queryParts.filter((part) => part.length > 1 && searchable.includes(part)).length * 2
   if (category === article.category) score += 12

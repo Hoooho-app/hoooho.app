@@ -5,6 +5,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
+  ['help-conversations.json', 'sessions'],
   ['nurse-drafts.json', 'drafts'],
   ['nurse-drafts.json', 'usage'],
   ['ai-business-drafts.json', 'drafts'],

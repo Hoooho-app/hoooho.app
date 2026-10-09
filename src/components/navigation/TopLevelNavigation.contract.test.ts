@@ -12,7 +12,7 @@ const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
 
 test('every direct sidebar destination is represented by the shared top-level header contract', () => {
-  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/guide', '/settings', '/help', '/feedback', '/about']) {
+  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/settings', '/help', '/feedback', '/about']) {
     assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
   }
   assert.match(header, /aria-label="打开菜单"/)
@@ -22,7 +22,11 @@ test('every direct sidebar destination is represented by the shared top-level he
 
 test('sidebar uses the approved concise navigation copy', () => {
   assert.match(drawer, /label: '服务前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康日记'[^\n]*to: '\/health-events'[\s\S]*label: '孩子档案'[^\n]*to: '\/health-profile'/)
-  assert.match(drawer, /label: '设置'[^\n]*to: '\/settings'[\s\S]*label: '说明'[^\n]*to: '\/guide'[\s\S]*label: '帮助'[^\n]*to: '\/help'/)
+  assert.match(drawer, /label: '设置'[^\n]*to: '\/settings'[\s\S]*label: '帮助'[^\n]*to: '\/help'/)
+})
+
+test('merged help entry removes the former guide entry', () => {
+  assert.doesNotMatch(drawer, /label: '说明'|to: '\/guide'/)
 })
 
 test('sidebar service and account summary use the current member context', () => {
@@ -33,8 +37,8 @@ test('sidebar service and account summary use the current member context', () =>
 
 test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
-  assert.match(guide, /<MainAppHeader compact title="使用说明" \/>/)
-  assert.match(help, /<MainAppHeader compact title="帮助中心" \/>/)
+  assert.match(guide, /Navigate to="\/help\?tab=manual" replace/)
+  assert.match(help, /<MainAppHeader compact title="帮助中心"\s*\/>/)
   assert.match(feedback, /<MainAppHeader action=\{<button className="feedback-header-action"/)
   assert.match(feedback, /compact title="反馈意见" \/>/)
   assert.match(about, /<MainAppHeader compact title="关于" \/>/)
@@ -42,7 +46,7 @@ test('top-level utility pages use the shared compact sidebar header', () => {
 
 test('nested settings, help and feedback pages retain back navigation', () => {
   assert.match(settings, /<WebPageHeader title=\{title\} fallback="\/settings" \/>/)
-  assert.match(help, /nested \? <WebPageHeader title="帮助中心" onBack=\{home\} \/>/)
+  assert.match(help, /nested\s*\?\s*<WebPageHeader title="帮助中心" onBack=\{back\}\s*\/>/)
   assert.match(feedback, /<WebPageHeader title="我的反馈" fallback="\/feedback"/)
   assert.match(feedback, /<WebPageHeader title="反馈详情" fallback="\/feedback\/mine"/)
   assert.match(feedback, />我的反馈<\/button>/)

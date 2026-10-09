@@ -6,12 +6,8 @@ const pageSource = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 const mediaSource = readFileSync(new URL('./TutorialMedia.tsx', import.meta.url), 'utf8')
 const detailSource = readFileSync(new URL('./TutorialDetailSheet.tsx', import.meta.url), 'utf8')
 
-test('使用说明提供搜索、四个场景入口和真实功能跳转', () => {
-  assert.match(pageSource, /placeholder="例如：怎么记录体温"/)
-  assert.match(pageSource, /guideFilters\.map/)
-  assert.match(pageSource, /to=\{tutorial\.actionTo\}/)
-  assert.match(pageSource, /三分钟了解 Hoooho/)
-  assert.match(pageSource, /你可能还不知道/)
+test('旧说明链接直接进入帮助中心用户手册', () => {
+  assert.match(pageSource, /Navigate to="\/help\?tab=manual" replace/)
 })
 
 test('动态教程支持可视区播放、失败封面和减少动态效果', () => {
