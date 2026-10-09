@@ -43,10 +43,10 @@ export function JournalSearchPage() {
 
   return <main className="journal-search-page app-shell app-shell--wide">
     <header className="journal-search-header">
-      <button aria-label="返回健康随身记" className="journal-search-back" onClick={leaveSearch} type="button"><ChevronLeft size={24} /></button>
+      <button aria-label="返回健康随记" className="journal-search-back" onClick={leaveSearch} type="button"><ChevronLeft size={24} /></button>
       <label className="journal-search-field">
         <Search aria-hidden="true" size={19} />
-        <input aria-label="搜索健康随身记" autoFocus enterKeyHint="search" inputMode="search" onChange={(event) => setQuery(event.target.value)} placeholder="输入名称，即可查看发生时间" ref={inputRef} type="search" value={query} />
+        <input aria-label="搜索健康随记" autoFocus enterKeyHint="search" inputMode="search" onChange={(event) => setQuery(event.target.value)} placeholder="输入名称，即可查看发生时间" ref={inputRef} type="search" value={query} />
         {query && <button aria-label="清除搜索" onPointerDown={(event) => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }} type="button"><X size={15} /></button>}
       </label>
       <button className="journal-search-cancel" onClick={leaveSearch} type="button">取消</button>

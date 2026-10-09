@@ -31,7 +31,7 @@ const station = read('../NurseStation/index.tsx')
 const homeFlows = read('../NurseStation/HomeFlows.tsx')
 
 test('健康随记与前台护士站都保留就诊情况单真实入口', () => {
-  assert.match(page, /<MainAppHeader title="健康日记"/)
+  assert.match(page, /<MainAppHeader title="健康随记"/)
   assert.match(page, /<HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)

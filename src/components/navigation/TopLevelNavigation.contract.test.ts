@@ -21,7 +21,7 @@ test('every direct sidebar destination is represented by the shared top-level he
 })
 
 test('sidebar uses the approved concise navigation copy', () => {
-  assert.match(drawer, /label: '服务前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康日记'[^\n]*to: '\/health-events'[\s\S]*label: '孩子档案'[^\n]*to: '\/health-profile'/)
+  assert.match(drawer, /label: '服务前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康随记'[^\n]*to: '\/health-events'[\s\S]*label: '孩子档案'[^\n]*to: '\/health-profile'/)
   assert.match(drawer, /label: '设置'[^\n]*to: '\/settings'[\s\S]*label: '帮助'[^\n]*to: '\/help'/)
 })
 

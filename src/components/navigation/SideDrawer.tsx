@@ -23,15 +23,14 @@ export const sidebarMenuGroups = [
     title: '健康管理',
     items: [
     { label: '服务前台', icon: House, to: '/nurse-station' },
-    { label: '健康日记', icon: BookOpen, to: '/health-events' },
-    { label: '健康日历', icon: CalendarDays, to: '/health-calendar' },
-    { label: '照护交接', icon: ClipboardList, to: '/care-handoff' },
+    { label: '健康随记', icon: BookOpen, to: '/health-events' },
+    { label: '健康月历', icon: CalendarDays, to: '/health-calendar' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '正在跟进', icon: ClipboardList, to: '/cases' },
     { label: '就诊情况单', icon: ClipboardList, to: '/visit-summary' },
     { label: '忌口出示卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
-    { label: '用药安排', icon: Pill, to: '/medication-reminders' }
+    { label: '用药安排', icon: Pill, to: '/medication-reminders' },
+    { label: '照护交接', icon: ClipboardList, to: '/care-handoff' }
     ]
   },
   {
