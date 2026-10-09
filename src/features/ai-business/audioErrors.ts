@@ -25,6 +25,10 @@ const messages:Record<string,string>={
  AUDIO_TOO_LARGE:'录音超过大小限制，请缩短后重新录音',
  ASR_AUDIO_TOO_LARGE:'录音超过大小限制，请缩短后重新录音',
  UNAUTHORIZED:'登录已过期，请重新登录后使用语音',
+ SESSION_RECOVERY_FAILED:'使用状态暂未恢复，录音已保留；网络恢复后可以再试一次',
+ FILE_READ_FAILED:'这段旧录音无法读取，请重新录音或输入文字；已有文字不会清空',
+ VOICE_DELIVERY_FAILED:'刚才的内容尚未发送，录音仍然保留；可以重试发送',
+ CAPTURE_TEXT_TOO_LONG:'这段记录较长，请先保存，再继续记录。录音仍然保留',
 }
 export class AudioRequestError extends Error {
  code:string

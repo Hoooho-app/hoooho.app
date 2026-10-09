@@ -22,14 +22,13 @@ const readDraft = (key: string): Draft => {
 }
 const appendInput = (turns: FeedbackTurn[], text: string): FeedbackTurn[] => {
   if (!text.trim()) return turns
-  if (turns.at(-1)?.role === 'user') return [...turns.slice(0, -1), { role: 'user', text: `${turns.at(-1)!.text}\n${text.trim()}` }]
   return [...turns, { role: 'user', text: text.trim() }]
 }
 
 export function FeedbackInterview({ token, accountId, source, initialCategory, onSubmitted }: { token: string | null; accountId: string; source: FeedbackSource; initialCategory: FeedbackProblemType | null; onSubmitted: () => void }) {
   const storageKey = `hoooho-feedback-interview:${accountId}`
   const [draft, setDraft] = useState<Draft>(() => ({ ...readDraft(storageKey), ...(initialCategory ? { problemType: initialCategory } : {}) }))
-  const camera=useRef<HTMLInputElement>(null)
+  const camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
   const voice=useDialogueVoice(`feedback-voice:${accountId}`,token??'',async text=>{if(text.length>1500)throw new Error('这段话较长，请分成两次反馈；录音还在。');send('chat',text)})
   const voiceBusy=voice.busy
   const [images, setImages] = useState<PendingFeedbackImage[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState('')
@@ -99,10 +98,12 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
         {(error||voice.error)&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p role="alert">{error||voice.error}</p>{voice.pendingVoice&&<HohoButton variant="text" disabled={busy||voiceBusy} onClick={voice.retry}>再听一次</HohoButton>}{retry&&<HohoButton variant="text" disabled={busy} onClick={()=>void request(retry.turns,retry.mode)}>再试一次</HohoButton>}<HohoButton variant="text" disabled={busy||voiceBusy} onClick={manualReview}>我来整理反馈</HohoButton></NurseMessage>}
         {voice.pendingVoice&&!voice.error&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>这段录音还在，要我再听一次吗？</p><HohoButton variant="text" disabled={busy||voiceBusy} onClick={voice.retry}>再试一次</HohoButton></NurseMessage>}
         {!busy&&!voiceBusy&&(draft.turns.length>0||draft.text.trim())&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>要我把刚才说的整理成反馈意见吗？你核对文字后再提交。</p><HohoButton variant="text" disabled={!token} onClick={()=>send('organize')}>帮我整理</HohoButton></NurseMessage>}
-        <div ref={end}/>
+        {voice.pendingVoice&&voice.unreadable&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>这份录音无法读取，移除后可以重新录音，已有对话仍然保留。</p><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>void voice.discardPending()}>移除无法读取的录音</HohoButton></NurseMessage>}
+      <div ref={end}/>
       </div>
-      <div className="dialogue-page-footer"><DialogueComposer text={draft.text} onTextChange={text=>patch({text})} onSend={()=>send('chat')} disabled={busy||!token||images.some(image=>image.status==='processing')} voiceDisabled={!!voice.pendingVoice} maxLength={1500} placeholder="说说哪里需要改进…" listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>void voice.start()} onStop={voice.stop} onDiscard={voice.discard} onPhoto={()=>camera.current?.click()}/></div>
+      <div className="dialogue-page-footer"><DialogueComposer text={draft.text} onTextChange={text=>patch({text})} onSend={()=>send('chat')} disabled={busy||!token||images.some(image=>image.status==='processing')} voiceDisabled={!!voice.pendingVoice} maxLength={1500} placeholder="说说哪里需要改进…" listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>void voice.start()} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()}/></div>
       <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(!file)return;if(imagesRef.current.length>=10){setError('这次最多添加10张图片');return}const entry:PendingFeedbackImage={id:crypto.randomUUID(),file,name:file.name,type:file.type,previewUrl:URL.createObjectURL(file),dataUrl:null,size:file.size,status:'processing',error:null};setImages(items=>[...items,entry]);void processFeedbackImage(file).then(value=>setImages(items=>items.map(item=>item.id===entry.id?{...item,...value,status:'ready'}:item))).catch(e=>setImages(items=>items.map(item=>item.id===entry.id?{...item,status:'failed',error:e.message}:item)))}}/>
+      <input type="file" ref={album} accept="image/jpeg,image/png,image/webp,image/heic,image/heif" aria-label="从相册选择" hidden onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(!file)return;if(imagesRef.current.length>=10){setError('这次最多添加10张图片');return}const entry:PendingFeedbackImage={id:crypto.randomUUID(),file,name:file.name,type:file.type,previewUrl:URL.createObjectURL(file),dataUrl:null,size:file.size,status:'processing',error:null};setImages(items=>[...items,entry]);void processFeedbackImage(file).then(value=>setImages(items=>items.map(item=>item.id===entry.id?{...item,...value,status:'ready'}:item))).catch(e=>setImages(items=>items.map(item=>item.id===entry.id?{...item,status:'failed',error:e.message}:item)))}}/>
     </>}
   </div>
 }
