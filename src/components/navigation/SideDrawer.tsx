@@ -25,7 +25,12 @@ export const sidebarMenuGroups = [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康随记', icon: BookOpen, to: '/health-events' },
     { label: '健康月历', icon: CalendarDays, to: '/health-calendar' },
-    { label: '孩子档案', icon: Folder, to: '/health-profile' },
+    { label: '孩子档案', icon: Folder, to: '/health-profile' }
+    ]
+  },
+  {
+    title: '辅助工具',
+    items: [
     { label: '就诊情况单', icon: ClipboardList, to: '/visit-summary' },
     { label: '忌口出示卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
@@ -34,7 +39,7 @@ export const sidebarMenuGroups = [
     ]
   },
   {
-    title: '工具与帮助',
+    title: '改善系统',
     items: [
     { label: '设置', icon: Settings, to: '/settings' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
