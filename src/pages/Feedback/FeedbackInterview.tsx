@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Keyboard, MessageSquare, Send } from 'lucide-react'
+import { MessageSquare, X } from 'lucide-react'
+import { DialogueComposer, HohoButton } from '../../components/design-system'
+import { NurseMessage } from '../../features/ai-nurse/NurseMessage'
+import { useDialogueVoice } from '../../features/ai-business/useDialogueVoice'
 import { Button } from '../../components/common'
 import { collectFeedbackDevice, appVersion } from '../../features/feedback/environment'
-import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
+import { revokeFeedbackImages, processFeedbackImage, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import type { FeedbackSource } from '../../features/feedback/navigation'
 import { feedbackCategoryOptions, interviewFeedback, submitFeedback, type FeedbackTurn, type FeedbackProblemType } from '../../services/feedback'
 import { FeedbackComposer } from './FeedbackComposer'
@@ -26,8 +29,9 @@ const appendInput = (turns: FeedbackTurn[], text: string): FeedbackTurn[] => {
 export function FeedbackInterview({ token, accountId, source, initialCategory, onSubmitted }: { token: string | null; accountId: string; source: FeedbackSource; initialCategory: FeedbackProblemType | null; onSubmitted: () => void }) {
   const storageKey = `hoooho-feedback-interview:${accountId}`
   const [draft, setDraft] = useState<Draft>(() => ({ ...readDraft(storageKey), ...(initialCategory ? { problemType: initialCategory } : {}) }))
-  const [keyboard, setKeyboard] = useState(false)
-  const [voiceBusy, setVoiceBusy] = useState(false)
+  const camera=useRef<HTMLInputElement>(null)
+  const voice=useDialogueVoice(`feedback-voice:${accountId}`,token??'',async text=>{if(text.length>1500)throw new Error('这段话较长，请分成两次反馈；录音还在。');send('chat',text)})
+  const voiceBusy=voice.busy
   const [images, setImages] = useState<PendingFeedbackImage[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [retry, setRetry] = useState<{ turns: FeedbackTurn[]; mode: 'chat' | 'organize' } | null>(null)
   const lock = useRef(false), controller = useRef<AbortController | null>(null), imagesRef = useRef(images), submitted = useRef(false), end = useRef<HTMLDivElement>(null), reviewInput = useRef<HTMLTextAreaElement>(null)
@@ -43,9 +47,8 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
     lock.current = true; setBusy(true); setError(''); setRetry(null)
     controller.current = new AbortController()
     try {
-      const result = await interviewFeedback(token, turns, mode, controller.current.signal)
+      const result = await interviewFeedback(token, turns, mode, controller.current.signal, imagesRef.current.filter(image=>image.status==='ready').at(-1)?.dataUrl??undefined)
       if (controller.current.signal.aborted) return
-      setKeyboard(false)
       patch(mode === 'organize' ? { description: result.description, problemType: result.problemType, review: true } : { turns: [...turns, { role: 'assistant', text: result.reply }], problemType: result.problemType })
     } catch (cause) {
       if (controller.current.signal.aborted) return
@@ -53,9 +56,9 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
       setRetry({ turns, mode })
     } finally { lock.current = false; setBusy(false) }
   }
-  const send = (mode: 'chat' | 'organize') => {
-    if (lock.current || voiceBusy) return
-    const turns = appendInput(draft.turns, draft.text)
+  const send = (mode: 'chat' | 'organize', spoken?:string) => {
+    if (lock.current || (!spoken && voiceBusy)) return
+    const turns = appendInput(draft.turns, spoken??draft.text)
     if (!turns.length) { setError('请先说说你希望改进的地方。'); return }
     if (turns.length > 24 || turns.some(turn => turn.text.length > 1500)) { setError('这次内容较长，可以手动整理并提交，或分成两次反馈。'); return }
     patch({ turns, text: '' }); void request(turns, mode)
@@ -88,19 +91,18 @@ export function FeedbackInterview({ token, accountId, source, initialCategory, o
       <Button fullWidth disabled={!token || busy || !draft.description.trim() || draft.description.length > 5000 || images.some(image => image.status !== 'ready')} onClick={() => void submit()}>{busy ? '正在提交…' : '确认并提交'}</Button>
       <Button fullWidth variant="ghost" disabled={busy} onClick={() => { patch({ review: false }); setError('') }}>返回继续补充</Button>
     </section> : <>
-      <div className="feedback-conversation" role="log" aria-label="与 Hoooho 产品经理的对话" aria-live="polite">
-        <article className="feedback-interview-turn" data-role="assistant"><span className="feedback-interview-avatar" aria-hidden="true"><MessageSquare size={18}/></span><div><strong>Hoooho 产品经理 · AI</strong><p>{greeting}</p></div></article>
-        {draft.turns.map((turn, index) => <article className="feedback-interview-turn" data-role={turn.role} key={index}><span className="feedback-interview-avatar" aria-hidden="true">{turn.role === 'user' ? '我' : <MessageSquare size={18}/>}</span><div><strong>{turn.role === 'user' ? '你' : 'Hoooho 产品经理 · AI'}</strong><p>{turn.text}</p></div></article>)}
-        {busy && <p className="feedback-state" role="status">正在整理你的反馈…</p>}<div ref={end}/>
+      <div className="nurse-conversation" role="log" aria-label="与 Hoooho 产品经理的对话" aria-live="polite">
+        <NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>{greeting}</p></NurseMessage>
+        {draft.turns.map((turn,index)=><NurseMessage role={turn.role} key={index} assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>{turn.text}</p></NurseMessage>)}
+        {images.length>0&&<NurseMessage role="user">{images.map((image,index)=><div key={image.id}><img className="dialogue-image" src={image.previewUrl} alt={`反馈图片${index+1}`}/><HohoButton variant="text" disabled={busy} aria-label={`移除图片${index+1}`} onClick={()=>{URL.revokeObjectURL(image.previewUrl);setImages(items=>items.filter(item=>item.id!==image.id))}}><X size={16}/></HohoButton>{image.error&&<p>{image.error}</p>}</div>)}</NurseMessage>}
+        {(busy||voiceBusy)&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p role="status">{voice.state==='listening'?'我在听，松手后就能发送。':voiceBusy?'我在听这段录音，请稍等。':'让我看看你刚才说的问题。'}</p></NurseMessage>}
+        {(error||voice.error)&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p role="alert">{error||voice.error}</p>{voice.pendingVoice&&<HohoButton variant="text" disabled={busy||voiceBusy} onClick={voice.retry}>再听一次</HohoButton>}{retry&&<HohoButton variant="text" disabled={busy} onClick={()=>void request(retry.turns,retry.mode)}>再试一次</HohoButton>}<HohoButton variant="text" disabled={busy||voiceBusy} onClick={manualReview}>我来整理反馈</HohoButton></NurseMessage>}
+        {voice.pendingVoice&&!voice.error&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>这段录音还在，要我再听一次吗？</p><HohoButton variant="text" disabled={busy||voiceBusy} onClick={voice.retry}>再试一次</HohoButton></NurseMessage>}
+        {!busy&&!voiceBusy&&(draft.turns.length>0||draft.text.trim())&&<NurseMessage role="assistant" assistantName="Hoooho 产品经理" assistantAvatar={<MessageSquare size={18}/>}><p>要我把刚才说的整理成反馈意见吗？你核对文字后再提交。</p><HohoButton variant="text" disabled={!token} onClick={()=>send('organize')}>帮我整理</HohoButton></NurseMessage>}
+        <div ref={end}/>
       </div>
-      {error && <div className="feedback-interview-error"><p className="feedback-error" role="alert">{error}</p>{retry && <Button variant="secondary" disabled={busy} onClick={() => void request(retry.turns, retry.mode)}>重试</Button>}<Button variant="ghost" disabled={busy || voiceBusy} onClick={manualReview}>手动整理</Button></div>}
-      <form className="feedback-interview-composer" onSubmit={event => { event.preventDefault(); send('chat') }}>
-        <fieldset disabled={busy}>
-          <Button variant="ghost" aria-expanded={keyboard} disabled={voiceBusy} onClick={() => setKeyboard(!keyboard)}><Keyboard size={20}/>{keyboard ? '收起文字输入' : '文字输入'}</Button>
-          <FeedbackComposer showText={keyboard} onVoiceBusyChange={setVoiceBusy} compact text={draft.text} onTextChange={value => patch({ text: value })} images={images} onImagesChange={setImages} textLabel="你的回答" placeholder="说说遇到的问题或想改进的地方…" maxTextLength={1500} submitAction={<button className="feedback-check-submit" type="submit" aria-label="发送回答" disabled={!token || busy || voiceBusy || !draft.text.trim()}><Send/></button>}/>
-        </fieldset>
-        <Button fullWidth variant="secondary" disabled={!token || busy || voiceBusy || (!draft.turns.length && !draft.text.trim())} onClick={() => send('organize')}>整理反馈，下一步</Button>
-      </form>
+      <div className="dialogue-page-footer"><DialogueComposer text={draft.text} onTextChange={text=>patch({text})} onSend={()=>send('chat')} disabled={busy||!token||images.some(image=>image.status==='processing')} voiceDisabled={!!voice.pendingVoice} maxLength={1500} placeholder="说说哪里需要改进…" listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>void voice.start()} onStop={voice.stop} onDiscard={voice.discard} onPhoto={()=>camera.current?.click()}/></div>
+      <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';if(!file)return;if(imagesRef.current.length>=10){setError('这次最多添加10张图片');return}const entry:PendingFeedbackImage={id:crypto.randomUUID(),file,name:file.name,type:file.type,previewUrl:URL.createObjectURL(file),dataUrl:null,size:file.size,status:'processing',error:null};setImages(items=>[...items,entry]);void processFeedbackImage(file).then(value=>setImages(items=>items.map(item=>item.id===entry.id?{...item,...value,status:'ready'}:item))).catch(e=>setImages(items=>items.map(item=>item.id===entry.id?{...item,status:'failed',error:e.message}:item)))}}/>
     </>}
   </div>
 }

@@ -41,7 +41,7 @@ export function feedbackApiPlugin(options = {}) {
         if (itemMatch && request.method === 'GET') return send(response, 200, await service.getForOps(decodeURIComponent(itemMatch[1])))
         if (itemMatch && request.method === 'PATCH') return send(response, 200, await service.updateFromOps(auth.sub, decodeURIComponent(itemMatch[1]), await readJson(request)))
       } else {
-        if (pathname === '/api/feedback/interview' && request.method === 'POST') return send(response, 200, await interview.respond(auth.sub, await readJson(request, 32_000)))
+        if (pathname === '/api/feedback/interview' && request.method === 'POST') return send(response, 200, await interview.respond(auth.sub, await readJson(request, 3_000_000)))
         if (pathname === '/api/feedback' && request.method === 'GET') return send(response, 200, await service.listForAccount(auth.sub))
         if (pathname === '/api/feedback' && request.method === 'POST') return send(response, 201, await service.create(auth.sub, await readJson(request)))
         const messageMatch = /^\/api\/feedback\/([^/]+)\/messages$/.exec(pathname), readMatch = /^\/api\/feedback\/([^/]+)\/read$/.exec(pathname), itemMatch = /^\/api\/feedback\/([^/]+)$/.exec(pathname)

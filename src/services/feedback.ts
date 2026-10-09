@@ -57,4 +57,4 @@ export const addOpsFeedbackMessage = (token: string, id: string, input: { kind: 
 
 export interface FeedbackTurn { role: 'user' | 'assistant'; text: string }
 export interface FeedbackInterviewResult { reply: string; problemType: FeedbackProblemType; description: string; fields: Record<'page' | 'actual' | 'expected' | 'impact' | 'reproduction', string> }
-export const interviewFeedback = (token: string, turns: FeedbackTurn[], mode: 'chat' | 'organize', signal?: AbortSignal) => apiRequest<FeedbackInterviewResult>('/api/feedback/interview', { token, method: 'POST', body: { turns, mode }, signal })
+export const interviewFeedback = (token: string, turns: FeedbackTurn[], mode: 'chat' | 'organize', signal?: AbortSignal, image?: string) => apiRequest<FeedbackInterviewResult>('/api/feedback/interview', { token, method: 'POST', body: { turns, mode, image }, signal })

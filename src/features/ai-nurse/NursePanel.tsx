@@ -1,26 +1,23 @@
-import { Mic, Pause, Stethoscope } from 'lucide-react'
+import { Stethoscope } from 'lucide-react'
 import { nurseGreetingText } from '../../../shared/nurse-greeting.mjs'
 import { NurseMessage } from './NurseMessage'
 import type { JournalMetadata } from '../../types/journal'
 import { useEffect, useRef, useState } from 'react'
-import { BottomSheetSurface, HohoButton } from '../../components/design-system'
+import { BottomSheetSurface, HohoButton, DialogueComposer } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { nurseApi } from './api'
-import { RealtimeNurse } from './RealtimeNurse'
+import { useSmartRecordVoice } from '../ai-business/useSmartRecordVoice'
+import { captureDraft } from '../ai-business/captureDraft'
+import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import type { NurseDraft, NurseFields, NurseMetadata, NurseState, NurseTurn } from './types'
 
-const states: Record<NurseState, string> = { idle: '点击开始语音，跟护士说说本次情况', connecting: '正在连接，接通后即可说话', listening: '正在听，请继续说', processing: '护士正在理解，请稍等', speaking: '护士正在回复，你也可以直接说话', paused: '语音已暂停，点击继续语音', disconnected: '连接中断，点击重新连接', organizing: '正在整理，可保留草稿', reviewing: '请核对整理结果', saving: '正在保存', saved: '已保存', error: '语音未连接，可重试或改用文字' }
-export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onPaused, formContext, initialMode, resuming }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text'; resuming?: boolean }) {
-  const entryHandled = useRef(false)
-  const [playbackBlocked, setPlaybackBlocked] = useState(false)
-  const [mode, setMode] = useState<'voice' | 'text'>(initialMode === 'text' ? 'text' : 'voice')
+export function NursePanel({ memberId, token, scope, onClose, onApply, initialReview, onPaused, formContext, initialMode, resuming, onPhoto, photoCount = 0 }: { memberId: string; token: string; scope: string; onClose: () => void; onApply: (fields: Partial<NurseFields>, metadata: NurseMetadata, form?: JournalMetadata, restore?:boolean, warnings?:string[]) => void; initialReview?: NurseDraft['review']; onPaused:()=>void; formContext:JournalMetadata; initialMode?: 'voice' | 'text'; resuming?: boolean; onPhoto:()=>void; photoCount?:number }) {
   const recorderName = useAppStore(store => store.accountProfile?.nickname || store.authUser?.nickname || store.profile?.nickname)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
   const conversationRef = useRef<HTMLDivElement>(null)
   const [openingNeedsPlay, setOpeningNeedsPlay] = useState(false)
   const [draft, setDraft] = useState<NurseDraft>()
-  const [state, setState] = useState<NurseState>(resuming ? 'paused' : 'idle'), [error, setError] = useState(''), [input, setInput] = useState(''), [preview, setPreview] = useState('')
-  const draftRef = useRef<NurseDraft>(), rtc = useRef<RealtimeNurse>(), controller = useRef<AbortController>(), mounted = useRef(true), sequence = useRef(Promise.resolve()), busy = useRef(false)
+  const [state, setState] = useState<NurseState>(resuming ? 'paused' : 'idle'), [error, setError] = useState(''), [input, setInput] = useState('')
+  const draftRef = useRef<NurseDraft>(), controller = useRef<AbortController>(), mounted = useRef(true), sequence = useRef(Promise.resolve()), busy = useRef(false)
   const identity = useRef(useAppStore.getState().authUser?.id)
   const pending = useRef<NurseTurn[]>([]), [pendingCount, setPendingCount] = useState(0)
   const greetingKey=`hoooho-nurse-greeting:${identity.current}:${memberId}:${scope}`
@@ -39,15 +36,15 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
   const stash = () => { if (active()) { sessionStorage.setItem(pendingKey, JSON.stringify(pending.current)); setPendingCount(pending.current.length) } }
   const active = () => mounted.current && useAppStore.getState().currentMemberId === memberId && useAppStore.getState().authUser?.id === identity.current
   const accept = (value: NurseDraft) => { draftRef.current = value; if (active()) { pending.current=pending.current.filter(turn=>!value.turns.some(saved=>saved.id===turn.id));stash();setDraft(value) } }
-  const pause = () => { stopOpening(); rtc.current?.stop(); rtc.current = undefined; setPreview(''); if (active()) setState('paused') }
+  const pause = () => { stopOpening(); voice.stop(); if (active()) setState('paused') }
   useEffect(() => {
     mounted.current = true; const abort = new AbortController()
     try { pending.current = JSON.parse(sessionStorage.getItem(pendingKey) || '[]'); setPendingCount(pending.current.length) } catch { pending.current = [] }
     void nurseApi.open(memberId, token, scope, abort.signal).then(async value => { if (active()){const next=await nurseApi.change(memberId,token,value,{formContext},abort.signal);if(active()){accept(next);playOpening(next)}} }).catch(e => { if (active() && e.name !== 'AbortError') setError(e.message) })
-    const hidden = () => { if (document.hidden) pause() }, exit = () => pause(), offline=()=>{pause();setState('disconnected');setError('连接中断，已有文字仍在。中断后未上传的内容，请重连后重新说。')}
+    const hidden = () => { if (document.hidden) pause() }, exit = () => pause(), offline=()=>{pause();setState('disconnected');setError('连接中断，刚才的内容还在，可以稍后重试。')}
     document.addEventListener('visibilitychange', hidden); window.addEventListener('pagehide', exit); window.addEventListener('offline', offline)
-    const unsubscribe = useAppStore.subscribe(current => { if (current.currentMemberId !== memberId || current.authUser?.id !== identity.current) { stopOpening();rtc.current?.stop(); controller.current?.abort(); mounted.current = false; pending.current = []; setDraft(undefined); setPreview(''); setInput('') } })
-    return () => { stopOpening();rtc.current?.stop(); mounted.current = false; abort.abort(); controller.current?.abort(); document.removeEventListener('visibilitychange', hidden); window.removeEventListener('pagehide', exit); window.removeEventListener('offline', offline); unsubscribe() }
+    const unsubscribe = useAppStore.subscribe(current => { if (current.currentMemberId !== memberId || current.authUser?.id !== identity.current) { stopOpening(); controller.current?.abort(); mounted.current = false; pending.current = []; setDraft(undefined); setInput('') } })
+    return () => { stopOpening(); mounted.current = false; abort.abort(); controller.current?.abort(); document.removeEventListener('visibilitychange', hidden); window.removeEventListener('pagehide', exit); window.removeEventListener('offline', offline); unsubscribe() }
   }, [memberId, scope])
   const append = async (turn: NurseTurn) => {
     const current = draftRef.current
@@ -65,7 +62,7 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
   }
   const organize = async () => {
     if (busy.current || !draftRef.current) return
-    busy.current = true; setError(''); stopOpening();rtc.current?.stop(); await rtc.current?.drain(); rtc.current = undefined
+    busy.current = true; setError(''); stopOpening(); voice.stop()
     await sequence.current
     if (pending.current.length) { setError('还有原话尚未同步，请先重试同步'); busy.current = false; return }
     const current = draftRef.current!
@@ -85,10 +82,10 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
     } catch (e) { if (active()) { setError(e instanceof Error ? e.message : '整理失败，原话保留'); setState('error') } }
     finally { busy.current = false }
   }
-  const send = async () => {
-    if (!input.trim() || busy.current || pending.current.length || !draftRef.current || rtc.current) return
+  const send = async (value = input) => {
+    if (!value.trim() || busy.current || pending.current.length || !draftRef.current) return
     busy.current = true; setError('');stopOpening(); setState('processing')
-    const text = input.trim(); setInput(''); const abort = new AbortController(); controller.current = abort
+    const text = value.trim(); setInput(''); const abort = new AbortController(); controller.current = abort
     const turn: NurseTurn = { id: crypto.randomUUID(), role: 'user', text, at: new Date().toISOString(), order: 0, final: true, status: 'completed' }
     queueFinal(turn)
     try {
@@ -99,57 +96,29 @@ export function NursePanel({ memberId, token, scope, onClose, onApply, initialRe
       if (!active()) return
       accept(next); setState(next.emergency ? 'paused' : 'idle')
       if (next.emergency) pause()
-      else if (next.organizeSuggested) { busy.current = false; await organize() }
+
     } catch (e) { if (active()) { setError(e instanceof Error ? e.message : '本轮未成功，原话保留'); setState('error'); if (pending.current.length) setInput(current => current || text) } }
     finally { busy.current = false }
   }
   const queueFinal = (turn: NurseTurn) => { if(active()&&!draftRef.current?.turns.some(t=>t.id===turn.id)&&!pending.current.some(t=>t.id===turn.id)){pending.current.push(turn);stash()} }
-  const start = () => {
-    if (!draftRef.current || busy.current || pending.current.length || rtc.current) return
-    setError('');stopOpening()
-    const transport = new RealtimeNurse({ queued:queueFinal, playbackBlocked: blocked => { if (active()) setPlaybackBlocked(blocked) }, memberId, token, draftId: draftRef.current.id, state: value => { if (active()) setState(value) }, error: value => { if (active()) { rtc.current = undefined; setError(value) } }, preview: value => { if (active()) setPreview(value) }, usage: (responseId, usage) => { if (responseId) void nurseApi.usage(memberId, token, draftRef.current!.id, responseId, usage).catch(() => undefined) },
-      turn: turn => { const work = sequence.current.then(async () => { await append(turn); if (turn.role === 'user') { const result = await nurseApi.assess(memberId, token, draftRef.current!); if (!active()) return; accept(result); if (result.emergency) { pause(); setError('请先立即联系当地急救或就近急诊，记录可以稍后补充。') } else if (result.organizeSuggested) { busy.current = false; void organize() } } }); sequence.current = work.catch(() => undefined); return work }
-    })
-    rtc.current = transport; void transport.start()
-  }
-  const switchMode = async (next: 'voice' | 'text') => {
-    const current = rtc.current
-    pause(); setMode(next)
-    await current?.drain(); await sequence.current
-  }
-  useEffect(() => { if (mode === 'text') inputRef.current?.focus() }, [mode])
-  useEffect(() => {
-    const body = conversationRef.current?.closest('.hoho-bottom-sheet__body')
-    if (body) body.scrollTop = body.scrollHeight
-  }, [draft?.turns.length, pendingCount, preview])
-  useEffect(() => {
-    if (!draft || entryHandled.current) return
-    entryHandled.current = true
-    if (initialMode === 'voice' && !pending.current.length) start()
-    else if (initialMode === 'text') inputRef.current?.focus()
-  }, [draft?.id, initialMode])
+  const voiceKey=`nurse-voice:${identity.current}:${memberId}:${scope}`
+  const [pendingVoice,setPendingVoice]=useState<File>()
+  useEffect(()=>{void captureDraft(voiceKey).then(saved=>{if(active())setPendingVoice(saved?.pendingVoice)}).catch(()=>setError('录音草稿没有恢复，请再试一次'))},[voiceKey])
+  const voice=useSmartRecordVoice({memberId,token,pendingVoice,onRecorded:async file=>{await captureDraft(voiceKey,{text:'',files:[file],pendingVoice:file,occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID()});if(active())setPendingVoice(file)},onTranscript:async text=>{setPendingVoice(undefined);await send(text);await captureDraft(voiceKey,null)}})
+  useEffect(() => { const body = conversationRef.current?.closest('.hoho-bottom-sheet__body'); if (body) body.scrollTop = body.scrollHeight }, [draft?.turns.length, pendingCount, state, voice.state])
   const close = () => { pause(); controller.current?.abort(); onPaused(); onClose() }
-  const voiceLabel = playbackBlocked ? '播放回复并继续语音' : rtc.current ? state === 'connecting' ? '取消连接' : '暂停语音' : state === 'error' || state === 'disconnected' ? '重新连接' : ['paused', 'listening', 'speaking'].includes(state) || draft?.turns.some(turn => turn.role === 'user') ? '继续语音' : '开始语音'
-  const composer=<>
-    {pendingCount > 0 && <div role="alert"><p>{pendingCount} 段原话尚未同步，保留在当前账号的本次页面草稿中。</p><HohoButton variant="secondary" onClick={() => void retrySync()} disabled={busy.current}>重试同步原话</HohoButton></div>}
-    {['connecting','processing','organizing','saving'].includes(state) && <p className="nurse-input-status" role="status">{states[state]}</p>}
-    {mode === 'voice' ? <div className="nurse-voice-compose">
-      <div className="nurse-footer-actions"><HohoButton variant="secondary" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton><HohoButton variant="ghost" onClick={() => void switchMode('text')}>改用文字</HohoButton></div>
-      <HohoButton className="nurse-voice-action" fullWidth size="large" onClick={playbackBlocked ? () => void rtc.current?.resumePlayback() : rtc.current ? pause : start} disabled={busy.current || !draft || pendingCount > 0}>
-        {rtc.current && !playbackBlocked ? <Pause size={24} aria-hidden="true"/> : <Mic size={24} aria-hidden="true"/>}{voiceLabel}
-      </HohoButton>
-    </div> : <div className="nurse-text-compose">
-      <label className="nurse-compose">跟护士说<textarea ref={inputRef} className="hoho-textarea" maxLength={4000} value={input} onChange={e => setInput(e.target.value)}/></label>
-      <div className="nurse-footer-actions nurse-text-actions"><HohoButton variant="secondary" onClick={() => void organize()} disabled={busy.current || !draft}>整理到表单</HohoButton><HohoButton variant="ghost" onClick={() => void switchMode('voice')}>改用语音</HohoButton><HohoButton onClick={() => void send()} disabled={busy.current || pendingCount > 0 || !draft || !input.trim() || Boolean(rtc.current)}>发送</HohoButton></div>
-    </div>}
-  </>
+  const composer=<DialogueComposer initialTyping={initialMode==='text'} text={input} onTextChange={setInput} onSend={()=>void send()} disabled={busy.current||!draft} voiceDisabled={pendingCount>0||!!pendingVoice} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{stopOpening();void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={onPhoto}/>
   return <BottomSheetSurface label="智能记录" title="智能记录" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" open size="workspace" viewportAware className="nurse-conversation-sheet" layerClassName="symptom-input-layer" onClose={() => void close()} footer={composer}>
-    {!draft && !error && <p role="status">正在恢复草稿…</p>}
-    {error&&<div className="nurse-connection-error" role="alert"><p>{error}</p></div>}
-    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">{[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <NurseMessage role={turn.role} recorderName={recorderName} interrupted={turn.status === 'interrupted'} key={turn.id}>
-      <p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p>
-    </NurseMessage>)}</div>
-    {openingNeedsPlay && draft && !draft.turns.some(t=>t.role==='user') && <HohoButton variant="ghost" onClick={()=>playOpening(draft)}>播放开场</HohoButton>}
-    {preview && <p className="nurse-live-preview" aria-live="polite">{preview}（尚未完成）</p>}
+    <div ref={conversationRef} className="nurse-conversation" aria-label="本次对话">
+      {[...(draft?.turns ?? []), ...pending.current.filter(t => !draft?.turns.some(v => v.id === t.id))].map((turn, index) => <NurseMessage role={turn.role} recorderName={recorderName} key={turn.id}><p>{turn.role === 'assistant' ? nurseGreetingText(turn.text, index) : turn.text}</p></NurseMessage>)}
+      {photoCount>0&&<NurseMessage role="user" recorderName={recorderName}><p>添加了 {photoCount} 份图片或影像。</p></NurseMessage>}
+      {!draft&&!error&&<NurseMessage role="assistant"><p role="status">我在找回刚才的对话，请稍等。</p></NurseMessage>}
+      {(state==='processing'||state==='organizing'||voice.busy)&&<NurseMessage role="assistant"><p role="status">{voice.state==='listening'?'我在听，松手后就帮你记录。':voice.busy?'我在听这段录音，请稍等。':state==='organizing'?'我在整理刚才的内容。':'让我看看你刚才说的情况。'}</p></NurseMessage>}
+      {(error||voice.error)&&<NurseMessage role="assistant"><p role="alert">{error||voice.error}</p>{error&&!pendingCount&&draft?.turns.some(t=>t.role==='user')&&<HohoButton variant="text" disabled={busy.current||voice.busy} onClick={()=>{busy.current=true;setState('processing');setError('');void nurseApi.generate(memberId,token,draftRef.current!,false).then(next=>{if(active()){accept(next);setState(next.emergency?'paused':'idle')}}).catch(e=>{if(active()){setError(e.message);setState('error')}}).finally(()=>{busy.current=false})}}>再试一次</HohoButton>}</NurseMessage>}
+      {pendingCount>0&&<NurseMessage role="assistant"><p>刚才的内容还在，要再发送一次吗？</p><HohoButton variant="text" onClick={()=>void retrySync()} disabled={busy.current}>再试一次</HohoButton></NurseMessage>}
+      {pendingVoice&&<NurseMessage role="assistant"><p>这段录音还在，要我再听一次吗？</p><HohoButton variant="text" onClick={voice.retry} disabled={busy.current||voice.busy}>再试一次</HohoButton></NurseMessage>}
+      {draft?.turns.some(t=>t.role==='user')&&!pendingCount&&!busy.current&&!voice.busy&&<NurseMessage role="assistant"><p>{draft.organizeSuggested?'要我现在把这些内容整理到记录里吗？':'还有想补充的吗？也可以让我先整理刚才说的。'}</p><HohoButton variant="text" onClick={()=>void organize()}>帮我整理</HohoButton></NurseMessage>}
+      {openingNeedsPlay&&draft&&!draft.turns.some(t=>t.role==='user')&&<NurseMessage role="assistant"><p>也可以听我说。</p><HohoButton variant="text" onClick={()=>playOpening(draft)}>播放开场</HohoButton></NurseMessage>}
+    </div>
   </BottomSheetSurface>
 }

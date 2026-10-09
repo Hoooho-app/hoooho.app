@@ -1,6 +1,6 @@
 import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
-export interface CaptureDraft { text: string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { text: string; conversationInput?: string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 const database = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('hoooho-smart-record-drafts', 1)
   request.onupgradeneeded = () => request.result.createObjectStore('drafts')
