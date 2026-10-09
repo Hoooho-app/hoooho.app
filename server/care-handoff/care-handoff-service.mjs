@@ -131,10 +131,17 @@ export class CareHandoffService {
   }
   async share(accountId, memberId, input) {
     if (!/^[a-f0-9]{64}$/.test(input?.fingerprint ?? '')) throw new CareHandoffError('请先读取并确认照看资料')
+    if (input.token !== undefined && !/^[A-Za-z0-9_-]{32}$/.test(input.token)) throw new CareHandoffError('分享链接格式错误')
     return accountTransaction(this.directory, async () => {
+      await this.owned(accountId, memberId)
+      const token = input.token ?? randomBytes(24).toString('base64url'), tokenHash = digest(token)
+      const existing = (await this.shares.read()).shares.find(s => s.tokenHash === tokenHash)
+      if (existing) {
+        if (existing.accountId !== accountId || existing.memberId !== memberId || existing.data.fingerprint !== input.fingerprint) throw new CareHandoffError('请重新生成分享链接', 409)
+        return { path: `/care-handoff/shared/${token}` }
+      }
       const data = await this.preview(accountId, memberId)
       if (data.fingerprint !== input.fingerprint) throw new CareHandoffError('照看资料已有更新，请重新查看后分享', 409, 'CARE_HANDOFF_CHANGED')
-      const token = randomBytes(24).toString('base64url'), tokenHash = digest(token)
       await this.shares.update(store => ({ ...store, shares: [...store.shares, { accountId, memberId, tokenHash, data, createdAt: this.now().toISOString() }] }))
       return { path: `/care-handoff/shared/${token}` }
     })

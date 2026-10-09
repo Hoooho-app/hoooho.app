@@ -81,3 +81,22 @@ test('a failed source read prevents partial sharing; routes enforce methods', as
   assert.deepEqual(handoffRoute('/api/members/child/care-handoff/share'), { memberId: 'child', share: true })
   await assert.rejects(handoffResult(f.service, null, { shared: 'token' }, 'POST'), { status: 405 })
 })
+
+test('client capability publishes only on click, retries are idempotent, and collisions cannot cross accounts', async t => {
+  const f = await fixture(t), preview = await f.service.preview('parent', 'child')
+  const token = 'abcdefghijklmnopqrstuvwx01234567'
+  await assert.rejects(f.service.shared(token), { status: 404 })
+  await assert.rejects(f.service.share('parent', 'child', { ...preview, token: 'invalid' }), { status: 400 })
+  const input = { fingerprint: preview.fingerprint, token }
+  const result = await f.service.share('parent', 'child', input)
+  assert.equal(result.path, `/care-handoff/shared/${token}`)
+  assert.deepEqual(await f.service.shared(token), preview)
+  assert.deepEqual(await f.service.share('parent', 'child', input), result)
+  assert.equal((await f.service.shares.read()).shares.length, 1)
+  await assert.rejects(f.service.share('stranger', 'child', input), { status: 404 })
+  await assert.rejects(f.service.share('parent', 'child', { ...input, fingerprint: 'a'.repeat(64) }), { status: 409 })
+  const freshToken = 'ABCDEFGHIJKLMNOPQRSTUVWX01234567'
+  f.setSections([section('care', [{ title: '变更内容' }])])
+  await assert.rejects(f.service.share('parent', 'child', { ...input, token: freshToken }), { code: 'CARE_HANDOFF_CHANGED' })
+  await assert.rejects(f.service.shared(freshToken), { status: 404 })
+})
