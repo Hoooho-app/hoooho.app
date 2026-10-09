@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, WebPageHeader } from '../../components/common'
 import { HealthTrace } from '../../components/design-system'
@@ -7,11 +7,11 @@ import { MainAppHeader } from '../../components/navigation'
 import { appVersion, collectFeedbackDevice } from '../../features/feedback/environment'
 import { revokeFeedbackImages, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { resolveFeedbackSource, type FeedbackSource } from '../../features/feedback/navigation'
-import { addFeedbackMessage, feedbackCategoryOptions, feedbackStatusLabels, getMyFeedback, listMyFeedback, markFeedbackRead, type FeedbackProblemType, type FeedbackRecord } from '../../services/feedback'
+import { addFeedbackMessage, feedbackCategoryOptions, feedbackStatusLabels, getMyFeedback, listMyFeedback, markFeedbackRead, submitFeedback, type FeedbackProblemType, type FeedbackRecord } from '../../services/feedback'
 import { useAppStore } from '../../store/useAppStore'
 import { FeedbackComposer } from './FeedbackComposer'
 import { MyFeedbackCard } from './MyFeedbackCard'
-import { FeedbackInterview } from './FeedbackInterview'
+import { Check, LoaderCircle } from 'lucide-react'
 
 const sourceStorageKey = 'hoooho-feedback-source'
 const categoryFromQuery = (value: string | null): FeedbackProblemType | null => feedbackCategoryOptions.find((item) => item.value === value || item.label === value)?.value ?? null
@@ -26,13 +26,27 @@ function FeedbackHeader({ onHistory }: { onHistory: () => void }) {
 export function FeedbackPage() {
   const token = useAppStore((state) => state.authToken), navigate = useNavigate(), location = useLocation(), [params] = useSearchParams()
   const source = useMemo(() => resolveFeedbackSource(location.state, readPersistedSource(), isReload()), [location.state])
-  const accountId = useAppStore((state) => state.authUser?.id ?? 'pending')
-  useEffect(() => { try { sessionStorage.setItem(sourceStorageKey, JSON.stringify(source)) } catch { /* Source remains available in memory. */ } }, [source])
-  return <main className="app-shell feedback-page pb-0"><FeedbackHeader onHistory={() => navigate('/feedback/mine')}/>
-    <FeedbackInterview key={accountId} token={token} accountId={accountId} source={source} initialCategory={categoryFromQuery(params.get('category'))} onSubmitted={() => {
-      try { sessionStorage.removeItem(sourceStorageKey) } catch { /* Submission has already succeeded. */ }
+  const [problemType, setProblemType] = useState<FeedbackProblemType | null>(() => categoryFromQuery(params.get('category'))), [description, setDescription] = useState(''), [images, setImages] = useState<PendingFeedbackImage[]>([])
+  const [error, setError] = useState(''), [submitting, setSubmitting] = useState(false), submissionKey = useRef(crypto.randomUUID()), imagesRef = useRef(images)
+  imagesRef.current = images
+  useEffect(() => { sessionStorage.setItem(sourceStorageKey, JSON.stringify(source)); return () => revokeFeedbackImages(imagesRef.current) }, [source])
+  const processing = images.some((image) => image.status === 'processing'), failed = images.some((image) => image.status === 'failed'), canSubmit = Boolean(description.trim() || images.some((image) => image.status === 'ready')) && !processing && !failed && !submitting
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); if (!token || !canSubmit) return
+    setSubmitting(true); setError('')
+    try {
+      await submitFeedback(token, { category: problemType, problemPage: null, problemType, description: description.trim(), sourcePath: source.path, sourceName: source.name, appVersion, idempotencyKey: submissionKey.current, device: collectFeedbackDevice(), attachments: images.filter((image) => image.status === 'ready' && image.dataUrl).map((image) => ({ name: image.name, type: image.type, dataUrl: image.dataUrl! })) })
+      sessionStorage.removeItem(sourceStorageKey)
       navigate('/feedback/mine', { replace: true, state: { feedbackReceived: true } })
-    }}/></main>
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败，请检查网络后重试。你的文字和图片仍保留在这里。') }
+    finally { setSubmitting(false) }
+  }
+  return <main className="app-shell feedback-page pb-0"><FeedbackHeader onHistory={() => navigate('/feedback/mine')}/>
+    <form onSubmit={submit} className="feedback-form">
+      <fieldset className="feedback-categories"><legend>问题类型</legend><div>{feedbackCategoryOptions.map((item) => <button type="button" key={item.value} aria-pressed={problemType === item.value} onClick={() => setProblemType((value) => value === item.value ? null : item.value)}>{item.label}</button>)}</div></fieldset>
+      <FeedbackComposer text={description} onTextChange={setDescription} images={images} onImagesChange={setImages} submitAction={<button className="feedback-check-submit" type="submit" aria-label="确认提交反馈" disabled={!canSubmit}>{submitting ? <LoaderCircle className="animate-spin"/> : <Check/>}</button>}/>
+      {error && <p className="feedback-error" role="alert">{error}</p>}
+    </form></main>
 }
 
 export function FeedbackSubmittedPage() {
