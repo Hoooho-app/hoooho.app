@@ -45,7 +45,7 @@ test('首页四个单列入口，日期属于随记，工具进入侧栏', () =>
   const flowStyles = readFileSync(new URL('./HomeFlows.css', import.meta.url), 'utf8')
   const drawer = readFileSync(new URL('../../components/navigation/SideDrawer.tsx', import.meta.url), 'utf8')
   assert.equal((flows.match(/<HealthCard /g) ?? []).length, 4)
-  for(const title of ['健康随记','正在跟进','准备和医生说清楚','想查什么，问一问']) assert.ok(flows.includes(title))
+  for(const title of ['健康随记','正在跟进','准备和医生说清楚','快速回看查找']) assert.ok(flows.includes(title))
   assert.match(flowStyles, /\.home-flows\{display:grid;gap:/)
   assert.doesNotMatch(source, /HomeEntries|fixedHomeEntries|nurse-home-entry/)
   assert.match(flows, /<time dateTime=/)

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { finderPlan, findRecords, finderAnswer } from './recordFinderModel'
+import { finderPlan, findRecords, finderAnswer, lookupRecords, orderLookupMatches } from './recordFinderModel'
+import { searchJournalEntries } from '../HealthEvents/timeViewModel'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 const now = new Date('2026-10-09T14:00:00Z')
 const row = (id: string, content: string, occurredAt: string, patch: Partial<JournalEntry> = {}): JournalEntry => ({ id, eventId: 'matter', content, occurredAt, createdAt: '2026-10-09T12:00:00Z', categories: ['symptom'], timePrecision: 'exact', attachmentCount: 0, status: 'observing', ...patch })
@@ -29,4 +30,35 @@ test('支持用药、睡眠和任意文本；不存在的记录不推断未发�
  assert.equal(findRecords(rows,finderPlan('西替利嗪的记录',undefined,now))[0].entry.id,'med')
  assert.equal(findRecords(rows,finderPlan('睡眠',undefined,now))[0].entry.id,'sleep')
  const plan=finderPlan('草莓',undefined,now);assert.match(finderAnswer(findRecords(rows,plan),plan),/没有记录不代表没有发生/)
+})
+
+test('普通查找与健康随记放大镜共用时间、同义词、结构字段和排除匹配', () => {
+ const rows = [row('fever','发热 38℃','2026-10-01T10:00:00Z'), row('med','护理','2026-10-02T10:00:00Z',{categories:['medication'],medication:{medicationName:'阿司匹林'}}),row('diet','喝了牛奶','2026-10-02T11:00:00Z',{categories:['diet']})]
+ for (const query of ['发烧', '上周用药', '  阿司 匹林  ', '用药 不含牛奶', '没有的关键词']) {
+   assert.deepEqual(lookupRecords(rows,query,now).map(match=>match.entry.id),searchJournalEntries(rows,query,now).map(entry=>entry.id))
+ }
+})
+test('显式缩小当前结果只查原结果，支持只看前缀，不混入其他事项', () => {
+ const rows=[row('face','脸颊红疹','2026-10-02T10:00:00Z'),row('butt','屁股红疹','2026-10-01T10:00:00Z'),row('outside','脸颊擦伤','2026-10-03T10:00:00Z')]
+ const scope=lookupRecords(rows,'红疹',now).map(match=>match.entry)
+ assert.deepEqual(lookupRecords(scope,'只看脸颊',now).map(match=>match.entry.id),['face'])
+ assert.deepEqual(lookupRecords(scope,'只看屁股上的',now).map(match=>match.entry.id),['butt'])
+})
+test('护士解读不进入事实搜索，否定与未知时间仍单独标记', () => {
+ const rows=[row('no','没有红疹','2026-10-01T10:00:00Z'),row('unknown','脸上红疹','2026-09-01T10:00:00Z',{timePrecision:'unknown'}),row('note','皮肤正常','2026-10-03T10:00:00Z',{aiNurse:{professionalNotes:[{heading:'红疹',text:'仅护士说明'}]} as JournalEntry['aiNurse']})]
+ const found=lookupRecords(rows,'红疹',now)
+ assert.deepEqual(found.map(match=>[match.entry.id,match.related]),[['no',true],['unknown',true]])
+})
+test('最早、某次变化和新食物继续走已有证据规则', () => {
+ const rows=[row('a','脸颊红疹','2026-10-01T10:00:00Z',{eventId:'face'}),row('b','比昨天好转','2026-10-02T10:00:00Z',{eventId:'face'}),row('c','腿上红疹','2026-10-03T10:00:00Z',{eventId:'leg'})]
+ assert.equal(lookupRecords(rows,'最早红疹',now)[0].entry.id,'a')
+ assert.deepEqual(lookupRecords(rows,'脸颊红疹后来有什么变化',now).map(match=>match.entry.id),['b','a'])
+ assert.equal(lookupRecords(rows,'上周最早红疹',now)[0].entry.id,'a')
+})
+test('切换排序按发生时间稳定排序，未知时间始终置后且不修改原结果', () => {
+ const rows=[row('a','红疹','2026-10-01T10:00:00Z'),row('b','红疹','2026-10-03T10:00:00Z'),row('u','红疹','2026-08-01T10:00:00Z',{timePrecision:'unknown'})]
+ const found=lookupRecords(rows,'红疹',now),ids=found.map(match=>match.entry.id)
+ assert.deepEqual(orderLookupMatches(found,'earliest').map(match=>match.entry.id),['a','b','u'])
+ assert.deepEqual(orderLookupMatches(found,'recent').map(match=>match.entry.id),['b','a','u'])
+ assert.deepEqual(found.map(match=>match.entry.id),ids)
 })

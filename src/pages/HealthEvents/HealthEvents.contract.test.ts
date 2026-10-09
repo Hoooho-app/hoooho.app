@@ -31,7 +31,7 @@ const station = read('../NurseStation/index.tsx')
 const homeFlows = read('../NurseStation/HomeFlows.tsx')
 
 test('健康随记与前台护士站都保留就诊情况单真实入口', () => {
-  assert.match(page, /<MainAppHeader title="健康日记"/)
+  assert.match(page, /<MainAppHeader title="健康随记"/)
   assert.match(page, /<HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
@@ -151,7 +151,8 @@ test('进食入口保留通用勺子且时间线按具体饮食类型显示语�
   assert.match(journalCategoryIcon, /return <SpoonIcon/)
   assert.match(journalCategoryIcon, /journal-category-icon--spoon/)
   assert.match(timeView, /dietKind=\{entry\.diet\?\.kind\}/)
-  assert.match(journalSearch, /dietKind=\{entry\.diet\?\.kind\}/)
+  assert.match(journalSearch, /<JournalSearchResults entries=\{results\}/)
+  assert.match(readFileSync(new URL('./JournalSearchResults.tsx', import.meta.url), 'utf8'), /dietKind=\{entry\.diet\?\.kind\}/)
   assert.match(journalRecorder, /记录喂养\/饮食/)
 })
 
