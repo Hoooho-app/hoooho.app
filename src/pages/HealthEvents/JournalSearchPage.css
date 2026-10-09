@@ -14,7 +14,7 @@
 .journal-search-summary { display: grid; gap: 3px; margin-bottom: var(--hoho-space-4); }
 .journal-search-summary strong { font-size: var(--hoho-font-size-body); font-weight: 600; }
 .journal-search-summary span { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); }
-.journal-search-results { display: grid; gap: var(--hoho-space-5); }
+.journal-search-results { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--hoho-space-5); }
 .journal-search-date-group h2 { margin-bottom: var(--hoho-space-1); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-body); font-weight: 600; }
 .journal-search-date-group > div { border-top: 1px solid rgb(var(--hoho-color-border)); }
 .journal-search-result { display: flex; width: 100%; min-height: 52px; min-width: 0; align-items: center; gap: var(--hoho-space-2); border-bottom: 1px solid rgb(var(--hoho-color-border)); text-align: left; }

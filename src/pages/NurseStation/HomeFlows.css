@@ -11,7 +11,7 @@
 .home-followup-heading>svg{flex:none;color:rgb(var(--hoho-color-primary))}
 .home-followup-count{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
 .home-followup-tags{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);min-width:0}
-.record-finder-content{display:grid;gap:var(--hoho-space-4)}
+.record-finder-content{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:var(--hoho-space-4)}
 .record-finder-compose{display:grid;gap:var(--hoho-space-3)}
 .record-finder-tools{display:flex;align-items:center;gap:var(--hoho-space-2)}
 .record-finder-hold{flex:1;min-width:0}
