@@ -62,7 +62,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
       </li>)}</ol>}
     </div>}
     {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={()=>open('record')}>补充情况</HohoButton></div>
-      {form==='record'&&<SmartRecordWorkspace conversational memberId={memberId} token={token} eventId={id} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
+      {form==='record'&&<SmartRecordWorkspace conversational memberId={memberId} token={token} eventId={id} eventTitle={item.followup.title} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
       {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>

@@ -22,7 +22,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       </header>
       {latest ? <>
         <div className="home-followup-tags"><HealthTag>{latest.followup.title.length > 12 ? `${latest.followup.title.slice(0, 12)}…` : latest.followup.title}</HealthTag></div>
-        <Typography variant="caption">最近更新：{new Date(latest.changedAt).toLocaleDateString('zh-CN')} · {latest.followup.recordCount} 条记录</Typography>
+        <Typography variant="caption">最近记录：{latest.followup.latestOccurredAt ? new Date(latest.followup.latestOccurredAt).toLocaleDateString('zh-CN', { timeZone: data?.timezone }) : '发生时间未提供'} · {latest.followup.recordCount} 条记录</Typography>
       </> : <Typography variant="body">{data ? '还没有正在跟进的事项。记录后，可以选择继续跟进。' : error ? '跟进事项暂未加载，其他功能仍可使用。' : '正在读取跟进事项…'}</Typography>}
       {error && <HohoButton variant="text" onClick={reload}>重试加载</HohoButton>}
       <HohoButton fullWidth variant="primary" size="large" onClick={() => navigate(latest ? `/cases?eventId=${encodeURIComponent(latest.event.id)}` : '/cases')}>查看进度 / 补充进展</HohoButton>

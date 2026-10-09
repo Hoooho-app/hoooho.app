@@ -61,7 +61,7 @@ export class ChildProfileListService{
         const target={outer,index,nested:outer===r?null:nested,raw:r}
         if(kind==='allergy'){
           if(!name)continue
-          if(!confirmed(r)){if(!['excluded','tolerated'].includes(r.currentStatus))pending.push(id);continue}
+          if(!confirmed(r)){if(!['excluded','tolerated','已排除','曾经有，目前已耐受'].includes(r.currentStatus??r.certainty))pending.push({id,name,group:allergyGroups[r.category]??'类别待确认'});continue}
           const group=allergyGroups[r.category]??(profileGroups.allergy.includes(r.category)?r.category:profileGroups.allergy.includes(r.type)?r.type:null)
           if(!group){unknown.push(id);continue}add({...base,group},target,r)
         }else if(kind==='family-history'){
@@ -84,7 +84,7 @@ export class ChildProfileListService{
       }
     }
     if(kind==='surgery')rows.sort((a,b)=>{const x=targets.get(a.id),y=targets.get(b.id);return (x.raw.sequence>0?x.raw.sequence:x.index+1)-(y.raw.sequence>0?y.raw.sequence:y.index+1)})
-    return {rows,groups:kind==='family-history'?relations.map(r=>({id:r.id,name:r.name})):profileGroups[kind].map(name=>({id:name,name})),compatibility:{pendingAllergies:pending.length,confirmedUnknownCategory:unknown.length,unknownVaccineAge:rows.filter(r=>r.group==='年龄待确认').length,olderVaccineAge:rows.filter(r=>r.group==='7岁及以上').length},targets,context:c}
+    return {rows,pendingAllergyRows:pending,groups:kind==='family-history'?relations.map(r=>({id:r.id,name:r.name})):profileGroups[kind].map(name=>({id:name,name})),compatibility:{pendingAllergies:pending.length,confirmedUnknownCategory:unknown.length,unknownVaccineAge:rows.filter(r=>r.group==='年龄待确认').length,olderVaccineAge:rows.filter(r=>r.group==='7岁及以上').length},targets,context:c}
   }
   async list(a,m,k){const {targets,context,...result}=await this.project(a,m,k);return result}
   async command(accountId,memberId,kind,input){return accountTransaction(this.directory,async()=>{

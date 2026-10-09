@@ -51,7 +51,7 @@ test('过敏只展示明确五类：待排查和未分类原数据保留；局�
   const {service,child,command,seed}=await setup(t)
   const originals=[{id:'confirmed',name:'牛奶',currentStatus:'confirmed',category:'food',tests:[{id:'test',value:'原报告值'}],attachmentIds:['existing'],sourceType:'clinician'},{id:'pending',name:'鸡蛋',category:'food',currentStatus:'investigating',reaction:'原症状'},{id:'unknown',name:'尘螨',currentStatus:'confirmed',category:'unknown'}]
   await seed('allergy',originals)
-  let list=await service.list('a',child.id,'allergy');assert.equal(list.rows.length,1);assert.equal(list.compatibility.pendingAllergies,1);assert.equal(list.compatibility.confirmedUnknownCategory,1)
+  let list=await service.list('a',child.id,'allergy');assert.equal(list.rows.length,1);assert.equal(list.compatibility.pendingAllergies,1);assert.deepEqual(list.pendingAllergyRows,[{id:'pending',name:'鸡蛋',group:'食物'}]);assert.equal(list.compatibility.confirmedUnknownCategory,1)
   list=await command('allergy',{action:'edit',id:'confirmed',version:list.rows[0].version,name:'牛奶蛋白',group:'食物'})
   let raw=(await service.sections.read()).sections[0].records;assert.deepEqual(raw[0].tests,originals[0].tests);assert.deepEqual(raw[0].attachmentIds,['existing']);assert.deepEqual(raw[1],originals[1])
   await command('allergy',{action:'add',name:'花生',group:'食物'});await assert.rejects(()=>command('allergy',{action:'add',name:' 花生 ',group:'食物'}),/已有/)

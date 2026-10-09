@@ -59,13 +59,13 @@ const ignoredFoodNames = new Set(['尚未明确', '过敏原未明', '不明确'
 const foodIds: Record<string, string> = {
   牛奶: 'milk', 鸡蛋: 'egg', 花生: 'peanut', 坚果: 'tree-nuts', 核桃: 'walnut', 杏仁: 'almond', 腰果: 'cashew',
   小麦: 'wheat', 大豆: 'soy', 芝麻: 'sesame', 鱼: 'fish', 鱼类: 'fish', 甲壳类: 'shellfish', 虾: 'shrimp', 蟹: 'crab',
-  芒果: 'mango', 猕猴桃: 'kiwi', 草莓: 'strawberry', 桃: 'peach', 番茄: 'tomato', 燕麦: 'oat'
+  芒果: 'mango', 猕猴桃: 'kiwi', 草莓: 'strawberry', 桃: 'peach', 番茄: 'tomato', 燕麦: 'oat', 鳕鱼: 'cod', 羊肉: 'lamb-mutton', 火龙果: 'dragon-fruit'
 }
 
 export const foodTranslations: Record<string, string> = {
   milk: 'Milk', egg: 'Egg', peanut: 'Peanut', 'tree-nuts': 'Tree nuts', walnut: 'Walnut', almond: 'Almond', cashew: 'Cashew',
   wheat: 'Wheat', soy: 'Soy', sesame: 'Sesame', fish: 'Fish', shellfish: 'Shellfish', shrimp: 'Shrimp', crab: 'Crab',
-  mango: 'Mango', kiwi: 'Kiwifruit', strawberry: 'Strawberry', peach: 'Peach', tomato: 'Tomato', oat: 'Oats'
+  mango: 'Mango', kiwi: 'Kiwifruit', strawberry: 'Strawberry', peach: 'Peach', tomato: 'Tomato', oat: 'Oats', cod: 'Cod', 'lamb-mutton': 'Lamb / Mutton', 'dragon-fruit': 'Dragon fruit'
 }
 
 const traditionalFoodNames: Record<string, string> = {

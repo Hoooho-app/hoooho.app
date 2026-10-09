@@ -30,14 +30,29 @@ interface PendingDuplicate { duplicate: QuickRecordDuplicate; input: QuickRecord
 interface SavedRecordFocus { recordId: string; day: string; revision: number; entry?: JournalEntry }
 
 export function HealthEventsPage() {
+  const memberId = useAppStore(state => state.currentMemberId)
+  const accountId = useAppStore(state => state.authUser?.id ?? '')
+  return <HealthEventsContent key={`${accountId}:${memberId}`} />
+}
+
+function HealthEventsContent() {
   const navigate = useNavigate(); const location = useLocation()
   const token = useAppStore((state) => state.authToken); const currentMemberId = useAppStore((state) => state.currentMemberId); const cachedMembers = useAppStore((state) => state.members)
+  const accountId = useAppStore(state=>state.authUser?.id ?? '')
+  const dayStorageKey = `hoooho:journal-day:${accountId}:${currentMemberId}`
+  const restoredDay = () => {
+    const today = getLocalDateKey(new Date())!
+    let saved: string | null = null
+    try { saved = sessionStorage.getItem(dayStorageKey) } catch { /* Navigation remains usable without storage. */ }
+    const requested = returnState?.day ?? saved
+    return requested && parsePlainDate(requested) && requested <= today ? requested : today
+  }
   const { state, retry } = useHealthEventsList()
   const returnState = (location.state as { journalReturn?: { day?: string; scrollTop?: number } } | null)?.journalReturn
-  const [today, setToday] = useState(() => getLocalDateKey(new Date())!); const [day, setDay] = useState(() => returnState?.day && parsePlainDate(returnState.day) ? returnState.day : getLocalDateKey(new Date())!); const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); const [recorderMode, setRecorderMode] = useState<'manual' | null>(null); const [selectedRecord, setSelectedRecord] = useState<{ eventId: string; recordId: string; correctSleep?: boolean } | null>(null); const [nextActionOpen, setNextActionOpen] = useState(false); const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null); const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: currentMemberId, eventId: null }); const [revision, setRevision] = useState(0); const [savedNotice, setSavedNotice] = useState(''); const [savedRecordFocus, setSavedRecordFocus] = useState<SavedRecordFocus | null>(null); const submissionKeyRef = useRef(''); const contentRef = useRef<HTMLDivElement>(null)
+  const [today, setToday] = useState(() => getLocalDateKey(new Date())!); const [day, setDay] = useState(restoredDay); const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); const [recorderMode, setRecorderMode] = useState<'manual' | null>(null); const [selectedRecord, setSelectedRecord] = useState<{ eventId: string; recordId: string; correctSleep?: boolean } | null>(null); const [nextActionOpen, setNextActionOpen] = useState(false); const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null); const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: currentMemberId, eventId: null }); const [revision, setRevision] = useState(0); const [savedNotice, setSavedNotice] = useState(''); const [savedRecordFocus, setSavedRecordFocus] = useState<SavedRecordFocus | null>(null); const submissionKeyRef = useRef(''); const contentRef = useRef<HTMLDivElement>(null)
   const [recorderInitialCategory, setRecorderInitialCategory] = useState<JournalCategory | undefined>()
   const [recorderInitialDietKind, setRecorderInitialDietKind] = useState<DietRecordKind | undefined>()
-  const accountId = useAppStore(state=>state.authUser?.id ?? '')
+  useEffect(() => { try { sessionStorage.setItem(dayStorageKey, day) } catch { /* Optional navigation state. */ } }, [day, dayStorageKey])
   const tutorial = Boolean((location.state as { nurseTutorial?: boolean } | null)?.nurseTutorial)
   const loadedMembers = state.status === 'success' ? state.data.members : []; const currentMember = loadedMembers.find((member) => member.id === currentMemberId) ?? cachedMembers.find((member) => member.id === currentMemberId) ?? loadedMembers[0] ?? cachedMembers[0] ?? null
   const nextActionEventId = getNurseNextActionEventId(state.status === 'success' ? state.data.events : [], currentMemberId) ?? (journalContext.memberId === currentMemberId ? journalContext.eventId : null)

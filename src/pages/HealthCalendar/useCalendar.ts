@@ -35,7 +35,7 @@ export function useCalendar(memberId: string, token: string, revision: number) {
         await Promise.all(Array.from({ length: Math.min(6, events.length) }, async () => {
           while (index < events.length && !controller.signal.aborted) {
             const event = events[index++]
-            records.set(event.id, await apiRequest<HealthEventRecordApiDto[]>(`/api/events/${encodeURIComponent(event.id)}/records`, { token, signal: controller.signal }))
+            records.set(event.id, await apiRequest<HealthEventRecordApiDto[]>(`/api/events/${encodeURIComponent(event.id)}/records?view=time`, { token, signal: controller.signal }))
           }
         }))
         if (!controller.signal.aborted) setState(s => ({ ...s, entries: calendarEntries(events, records, memberId), loading: false }))

@@ -5,10 +5,10 @@ import { DailyRecordScope, DailyRecordSettings, DailyTypeFields } from './DailyR
 
 export function useDailyInstances(memberId: string, day: string, token: string, revision: number) {
   const key = `${memberId}:${day}:${token}`
-  const [state, setState] = useState<{ key: string; items: DailyInstance[]; error: string }>({ key, items: [], error: '' }), [attempt, setAttempt] = useState(0)
+  const [state, setState] = useState<{ key: string; items: DailyInstance[]; error: string; loading: boolean }>({ key, items: [], error: '', loading: true }), [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    const abort = new AbortController(); setState({ key, items: [], error: '' })
-    const load = () => dailyRecords.instances(memberId, day, token, abort.signal).then(value => { if (!abort.signal.aborted) setState({ key, items: value, error: '' }) }).catch(reason => { if (!abort.signal.aborted) setState(previous => ({ ...previous, key, error: reason instanceof Error ? reason.message : '自动记录加载失败' })) })
+    const abort = new AbortController(); setState({ key, items: [], error: '', loading: true })
+    const load = () => dailyRecords.instances(memberId, day, token, abort.signal).then(value => { if (!abort.signal.aborted) setState({ key, items: value, error: '', loading: false }) }).catch(reason => { if (!abort.signal.aborted) setState(previous => ({ ...previous, key, loading: false, error: reason instanceof Error ? reason.message : '自动记录加载失败' })) })
     void load()
     // This refreshes server-created proposals; it never generates records in the browser.
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load() }, 30_000)
@@ -16,7 +16,7 @@ export function useDailyInstances(memberId: string, day: string, token: string, 
     document.addEventListener('visibilitychange', visible)
     return () => { abort.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) }
   }, [memberId, day, token, revision, attempt, key])
-  return { ...(state.key === key ? state : { items: [], error: '' }), retry: () => setAttempt(value => value + 1) }
+  return { ...(state.key === key ? state : { items: [], error: '', loading: true }), retry: () => setAttempt(value => value + 1) }
 }
 
 function localInput(iso: string) { const date = new Date(iso); return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16) }

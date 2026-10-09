@@ -82,7 +82,7 @@ function DailyRecordSettingsContent({ kind, seed, name }: { kind: DailyKind; see
   return <section className="record-form-group daily-record-settings" aria-label="每天自动记录设置">
     <div className="daily-record-heading"><strong>每天自动记录</strong><fieldset disabled={!ready} className="daily-toggle-fieldset"><HohoToggle label="每天自动记录" checked={enabled} onChange={value => { if (value && !seedUsed.current) { setSlots(slots => slots.map((slot, index) => index === 0 ? { ...slot, name: name.trim() || slot.name, fields: seed } : slot)); seedUsed.current = true } setEnabled(value) }} /></fieldset></div>
     {!ready && !error && <small role="status">正在加载每天设置…</small>}
-    {ready && !enabled && <small>只给一个开头，名称和内容由你决定。</small>}
+    {ready && !enabled && <small>开启后每天生成待确认条目；核对真实发生后，才计入健康记录。</small>}
     {error && <p role="alert">{error}<HohoButton variant="ghost" onClick={() => setRetry(value => value + 1)}>重试</HohoButton></p>}
     {ready && enabled && <><small>时区：{timeZone}。新设置从当地次日生效。到点生成未确认条目，确认后才计入真实记录。</small>{slots.map((slot, index) => <div key={slot.id} className="daily-record-slot">
       <div className="daily-record-heading"><HohoInput label={`第${index + 1}项名称`} value={slot.name} maxLength={20} onChange={event => update(slot.id, { name: event.target.value })} /><HohoToggle label={`启用第${index + 1}项`} checked={slot.enabled} onChange={value => update(slot.id, { enabled: value })} /></div>

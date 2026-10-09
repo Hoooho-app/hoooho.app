@@ -11,6 +11,11 @@ export async function reconcileExtraction(items,sources,context){
  for(const source of sources)parsed.set(`${source.id}:${source.page}`,await local.organize(source.text))
  const reconciled=items.map((item,index)=>{
   const result=structuredClone(item)
+  // An explicit absence of medication is context, never a medication intake.
+  const medicationFields=result.fields.filter(f=>['medicationName','doseOriginal','frequency','route'].includes(f.name))
+  if(result.category==='medication' && medicationFields.length && medicationFields.every(f=>/^(?:今天|昨天|昨晚|目前|暂时)?\s*(?:未用药|没有用药|没用药|未服药|没有服药|没服药|没有吃药|没吃药|未吃药)[。！!]?$/u.test(f.value.trim()))) {
+   result.categoryResolution={original:result.category,source:'explicit_no_medication'};result.category='other';result.archiveCategory=null
+  }
   if(['examination','other'].includes(result.category)&&result.fields.some(f=>f.name==='symptom')&&result.fields.every(f=>symptomFields.has(f.name))){
    result.categoryResolution={original:result.category,source:'field_contract'};result.category='symptom'
   }

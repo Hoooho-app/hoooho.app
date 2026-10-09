@@ -57,3 +57,12 @@ test('不能跨句继承日期或补全缺失的否定事实',async t=>{
  const f=await fixture(t,'昨天恶心。头痛',[{quote:'头痛'}]);const d=await f.prepare();assert.equal(d.items[0].timeText,null)
  const omitted=await fixture(t,'今天没有呕吐，只是恶心',[{quote:'恶心'}]);await assert.rejects(()=>omitted.prepare(),e=>{assert.equal(e.code,'AI_EVIDENCE_MISMATCH');assert.equal(e.validation.stage,'source_validation');return true})
 })
+
+ test('明确未用药只保存原话背景，不能建立服药事实或用药归档', async t=>{
+  const f=await fixture(t,'昨晚未用药',[{category:'medication',timeText:'昨晚',fields:[['medicationName','未用药']]}])
+  const draft=await f.prepare()
+  assert.equal(draft.items[0].category,'other')
+  const saved=await f.service.save('quality-fixture',f.member.id,draft.id,{version:draft.version,confirmed:true})
+  const record=await f.service.records.getOwnedRecord('quality-fixture',saved.result.records[0].recordId)
+  assert.equal(record.type,'note'); assert.deepEqual(record.journal.categories,['other']); assert.ok(!record.journal.medication); assert.match(record.content,/未用药/)
+ })

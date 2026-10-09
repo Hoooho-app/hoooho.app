@@ -37,7 +37,8 @@ export function localHelpReply(turns) {
   let articleIds = [], reply, choices = [], askResolved = true
   if (/录音|语音|麦克风|转写/.test(prior)) {
     articleIds = ['mic']
-    if (!/没反应|转写失败|超时|权限|未配置/.test(last)) { reply = '是按住说话没有反应，还是录音结束后转写失败？'; choices = ['按住说话没反应', '录音后转写失败']; askResolved = false }
+    if (/转写.*(?:失败|不成功)|重试.*(?:两|2|多)次/.test(prior) && /(?:权限.*(?:开启|允许)|可以录音|能录音|录音正常)/.test(prior)) { reply = '已经可以录音，先保留录音和草稿，不用再重复检查麦克风权限。请把转写失败的完整提示告诉我；若已经多次重试，可以通过反馈意见注明“录音正常、转写失败”和尝试次数。同时可继续用文字补充记录。'; articleIds = ['mic']; askResolved = false }
+    else if (!/没反应|转写失败|超时|权限|未配置/.test(last)) { reply = '是按住说话没有反应，还是录音结束后转写失败？'; choices = ['按住说话没反应', '录音后转写失败']; askResolved = false }
     else reply = /没反应|权限/.test(last) ? '先检查当前网站是否允许使用麦克风。允许后回到智能记录，按住说一小段再松开。如果仍无反应，请告诉我页面提示，不用清空已有草稿。' : '先保留录音和草稿，检查网络，再按页面提示重试。超时或“服务未配置”的文字不能单独证明后台原因；若仍失败，请告诉我具体提示。'
   } else if (/图片|照片|识别|上传/.test(prior)) {
     articleIds = ['upload']; reply = '先保留已有内容，确认网络可用后重试。检查图片是否清晰、文字完整，没有反光或裁切。仍失败时，把页面提示告诉我；识别出的文字需要你核对。'

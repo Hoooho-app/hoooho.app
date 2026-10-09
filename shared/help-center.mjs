@@ -36,8 +36,8 @@ export const SUPPORT_ARTICLES = [
   },
   {
     "id": "profile",
-    "title": "怎么补充孩子的健康档案？",
-    "summary": "把需要长期保留的背景放进健康档案，日常变化继续记在健康随记里。",
+    "title": "怎么补充孩子的孩子档案？",
+    "summary": "把需要长期保留的背景放进孩子档案，日常变化继续记在健康随记里。",
     "category": "家庭成员",
     "module": "family",
     "keywords": [
@@ -47,9 +47,9 @@ export const SUPPORT_ARTICLES = [
       "疫苗"
     ],
     "aliases": [],
-    "conclusion": "把需要长期保留的背景放进健康档案，日常变化继续记在健康随记里。",
+    "conclusion": "把需要长期保留的背景放进孩子档案，日常变化继续记在健康随记里。",
     "steps": [
-      "选择孩子，进入健康档案。",
+      "选择孩子，进入孩子档案。",
       "进入过敏史、慢性病史、家族史、手术史或疫苗接种记录。",
       "补充已有信息并保存；不清楚的内容可以先不填写。"
     ],
@@ -60,7 +60,7 @@ export const SUPPORT_ARTICLES = [
     ],
     "actions": [
       {
-        "label": "去健康档案",
+        "label": "去孩子档案",
         "to": "/health-profile"
       }
     ],
@@ -191,7 +191,7 @@ export const SUPPORT_ARTICLES = [
     "aliases": [],
     "conclusion": "在过敏史里维护已知过敏信息，并保留确认来源。相关页面使用同一份孩子资料。",
     "steps": [
-      "确认孩子，进入健康档案中的过敏史。",
+      "确认孩子，进入孩子档案中的过敏史。",
       "补充过敏对象、反应和确认来源。",
       "保存后查看过敏史，核对名称和状态。"
     ],
@@ -212,8 +212,8 @@ export const SUPPORT_ARTICLES = [
   },
   {
     "id": "diet",
-    "title": "怎么查看饮食处方卡？",
-    "summary": "饮食处方卡用于整理孩子的饮食相关信息。查看前先确认当前孩子。",
+    "title": "怎么查看忌口出示卡？",
+    "summary": "忌口出示卡用于整理孩子的饮食相关信息。查看前先确认当前孩子。",
     "category": "过敏与饮食",
     "module": "allergy",
     "keywords": [
@@ -223,20 +223,20 @@ export const SUPPORT_ARTICLES = [
       "饮食"
     ],
     "aliases": [],
-    "conclusion": "饮食处方卡用于整理孩子的饮食相关信息。查看前先确认当前孩子。",
+    "conclusion": "忌口出示卡用于整理孩子的饮食相关信息。查看前先确认当前孩子。",
     "steps": [
-      "进入饮食处方卡。",
+      "进入忌口出示卡。",
       "查看已有食物条目及相关说明。",
       "需要更新时，打开对应条目并核对过敏信息。"
     ],
-    "result": "更新后的条目在饮食处方卡中查看。",
+    "result": "更新后的条目在忌口出示卡中查看。",
     "relatedArticleIds": [
       "allergy",
       "scan"
     ],
     "actions": [
       {
-        "label": "去饮食处方卡",
+        "label": "去忌口出示卡",
         "to": "/dietary-card"
       }
     ],
@@ -325,7 +325,7 @@ export const SUPPORT_ARTICLES = [
     "module": "follow",
     "keywords": [
       "首页",
-      "情况收记",
+      "健康随记",
       "观察"
     ],
     "aliases": [],
@@ -681,7 +681,7 @@ export const SUPPORT_ARTICLES = [
   },
   {
     "id": "collect",
-    "title": "怎么使用情况收记？",
+    "title": "怎么使用健康随记？",
     "summary": "先保存发生的情况，再根据需要处理后续安排。",
     "category": "安排与跟进",
     "module": "follow",
@@ -694,7 +694,7 @@ export const SUPPORT_ARTICLES = [
     "aliases": [],
     "conclusion": "先保存发生的情况，再根据需要处理后续安排。",
     "steps": [
-      "在首页进入情况收记，确认孩子。",
+      "在首页进入健康随记，确认孩子。",
       "通过口述或文字留下情况，必要时补充图片。",
       "核对正文后先保存，再根据需要安排观察或补充资料。"
     ],
@@ -705,7 +705,7 @@ export const SUPPORT_ARTICLES = [
     ],
     "actions": [
       {
-        "label": "去情况收记",
+        "label": "去健康随记",
         "to": "/smart-record"
       }
     ],
@@ -747,7 +747,7 @@ export const USER_MANUAL = [
   {
     "id": "profile",
     "cat": "family",
-    "title": "健康档案",
+    "title": "孩子档案",
     "brief": "整理就医时需要反复说明的背景",
     "purpose": "把过敏史、慢性病史、家族史、手术史和疫苗接种记录集中保存，减少每次就医重新回忆和整理的负担。",
     "scene": "获得新的诊断、完成接种，或补充既往资料时。",
@@ -831,7 +831,7 @@ export const USER_MANUAL = [
   {
     "id": "diet",
     "cat": "allergy",
-    "title": "饮食处方卡",
+    "title": "忌口出示卡",
     "brief": "把孩子的饮食相关信息集中查看",
     "purpose": "提供一个集中查看饮食条目和相关说明的位置，方便照护时回顾已整理的信息。",
     "scene": "选择食物前，或需要给家人交接饮食信息时。",
@@ -859,7 +859,7 @@ export const USER_MANUAL = [
   {
     "id": "collect",
     "cat": "follow",
-    "title": "情况收记",
+    "title": "健康随记",
     "brief": "先记下情况，再决定后续怎么跟进",
     "purpose": "遇到情况时先把内容留住，再根据需要安排观察或补充资料，减少一开始就要做很多选择的负担。",
     "scene": "刚发生一件需要记下的事，还没想好后续安排时。",
@@ -918,7 +918,7 @@ export const HELP_MODULES = [
   {
     "id": "family",
     "label": "孩子与资料",
-    "description": "添加、切换孩子 · 健康档案",
+    "description": "添加、切换孩子 · 孩子档案",
     "articleIds": [
       "add",
       "profile",

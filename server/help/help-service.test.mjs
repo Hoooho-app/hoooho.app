@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { HelpService } from './help-service.mjs'
+import { HelpService, localHelpReply } from './help-service.mjs'
 import { helpApi } from './help-api.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { SUPPORT_ARTICLES, EXTRA_ARTICLES, USER_MANUAL, HELP_MODULES } from '../../shared/help-center.mjs'
@@ -112,4 +112,9 @@ test('API rejects unsupported routes and exposes only owned session views',async
   assert.equal(created.status,200);assert.equal(created.body.accountId,undefined)
   await assert.rejects(helpApi(service,'b',`/api/help/sessions/${created.body.id}`,'GET',async()=>({})),{status:404})
   await assert.rejects(helpApi(service,'a','/api/help/unknown','POST',async()=>({})),{status:404})
+})
+
+test('录音正常且重复转写失败时保留输入并进入具体错误排查，不再循环要求麦克风权限',()=>{
+ const result=localHelpReply([{role:'user',text:'麦克风权限已开启，可以录音，但转写提示失败。重试两次还不成功，下一步怎么操作？'}])
+ assert.match(result.reply,/完整提示/);assert.match(result.reply,/反馈意见/);assert.match(result.reply,/文字/);assert.doesNotMatch(result.reply,/先检查当前网站/);assert.equal(result.askResolved,false)
 })

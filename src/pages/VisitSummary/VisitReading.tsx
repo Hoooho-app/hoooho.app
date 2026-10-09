@@ -143,7 +143,6 @@ export function VisitReading({
               ? formatAgeFromBirthday(
                   report.member.birthday,
                   new Date(),
-                  report.timezone,
                 )
               : "生日未填写"}
           </small>
@@ -177,6 +176,7 @@ export function VisitReading({
           )}
         </div>
       </div>
+      <p className="visit-muted">显示时区：{report.timezone === 'Asia/Shanghai' ? '北京时间（UTC+8）' : report.timezone}。原始记录按当前设备时区显示；年龄按今天计算。</p>
       {card(
         "overview",
         "目前情况",

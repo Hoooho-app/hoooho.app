@@ -16,7 +16,7 @@ async function fixture(t) {
   const records = [{ id: 'visit', accountId: 'parent', eventId: 'case', occurredAt: '2026-10-08T00:00:00Z', createdAt: '2026-10-08T00:00:00Z', journal: { visit: { doctorStatement: '按已录入安排服药，三天后复查。' } } }, { id: 'meal', accountId: 'parent', eventId: 'case', occurredAt: '2026-10-09T00:00:00Z', createdAt: '2026-10-09T00:00:00Z', content: '今天实际吃饭时间不构成作息', journal: { diet: { foods: ['历史食物'] } } }]
   let sectionData = { sections: [] }
   const service = new CareHandoffService({ dataDirectory: directory, now: () => new Date('2026-10-09T10:00:00Z'), members: { findById: async id => id === member.id ? member : null }, events: { repository: { findByAccountId: async () => events } }, records: { findByAccountId: async () => records }, profiles: { read: async () => sectionData }, profileLists: { list: async () => ({ rows: [{ id: 'v1', name: '疫苗甲', date: '2026-09-01' }, { id: 'v2', name: '疫苗乙', displayName: '疫苗乙（第2剂）', date: '2026-10-01' }] }) } })
-  return { service, directory, member, setSections: sections => { sectionData = { sections } } }
+  return { service, directory, member, events, records, setSections: sections => { sectionData = { sections } } }
 }
 const section = (id, records, memberId = 'child') => ({ accountId: 'parent', memberId, sectionId: id, records })
 const rows = (data, id) => data.sections.find(s => s.id === id).rows
@@ -99,4 +99,16 @@ test('client capability publishes only on click, retries are idempotent, and col
   f.setSections([section('care', [{ title: '变更内容' }])])
   await assert.rejects(f.service.share('parent', 'child', { ...input, token: freshToken }), { code: 'CARE_HANDOFF_CHANGED' })
   await assert.rejects(f.service.shared(freshToken), { status: 404 })
+})
+
+test('历史症状不会自动变成正在观察，只呈现用户选择的有效跟进并标注最近发生日期', async t=>{
+ const f=await fixture(t)
+ f.events.push({id:'old',memberId:'child',accountId:'parent',title:'历史皮疹',category:'allergy',status:'observing'})
+ f.records.push({id:'old-symptom',accountId:'parent',eventId:'old',type:'symptom',content:'旧症状',occurredAt:'2026-09-01T00:00:00Z',createdAt:'2026-09-01T00:00:00Z'})
+ const preview=await f.service.preview('parent','child')
+ assert.ok(!rows(preview,'observations').some(row=>row.title==='历史皮疹'))
+ assert.equal(rows(preview,'observations').length,1)
+ assert.match(rows(preview,'observations')[0].detail,/最近记录.*2026/)
+ f.events[0].caseArchivedAt='2026-10-09T10:00:00Z'
+ assert.equal(rows(await f.service.preview('parent','child'),'observations').length,0)
 })

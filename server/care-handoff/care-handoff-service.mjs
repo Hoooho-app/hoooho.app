@@ -65,10 +65,11 @@ export class CareHandoffService {
     ])
     const attention = unique(['care', 'care-notes', 'attention'].flatMap(kind => sectionRows(kind)).map(r => ({ title: text(r.name ?? r.title ?? r.content), detail: text(r.note), source: '家长设置' })))
     const observations = unique([
-      ...activeEvents.filter(e => e.caseTracking !== false && (e.caseTracking || e.category !== 'other' || records.some(r => r.eventId === e.id && (r.type === 'symptom' || r.journal?.symptom)))).map(e => {
+      ...activeEvents.filter(e => e.caseTracking === true).map(e => {
         const followup = caseFollowupView(e, records.filter(r => r.eventId === e.id))
         const tasks = (e.observationTasks ?? []).filter(t => t.status === 'active' && t.startsOn <= localDateKey(now, t.timezone || 'Asia/Shanghai') && t.endsOn >= localDateKey(now, t.timezone || 'Asia/Shanghai'))
-        return { title: followup.title, detail: [followup.supplement, ...tasks.map(t => `${t.item}（${t.startsOn}至${t.endsOn}，每天${t.timesPerDay}次）`)].filter(Boolean).join('\n'), source: '正在跟进' }
+        const latest = followup.latestOccurredAt ? `最近记录：${new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'numeric', day: 'numeric' }).format(new Date(followup.latestOccurredAt))}` : '发生时间未提供'
+        return { title: followup.title, detail: [latest, followup.supplement, ...tasks.map(t => `${t.item}（${t.startsOn}至${t.endsOn}，每天${t.timesPerDay}次）`)].filter(Boolean).join('\n'), source: '正在跟进' }
       }),
       ...allergies.filter(r => !confirmed(r) && !['excluded', 'tolerated', '已排除', '曾经有，目前已耐受'].includes(r.currentStatus ?? r.certainty)).map(r => ({ title: text(r.name ?? r.subject), detail: '尚未确认，仍在观察。', source: '过敏史 · 待确认' }))
     ])
