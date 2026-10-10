@@ -6,10 +6,12 @@ import { BottomSheetSurface, EmptyState, HohoButton } from '../../components/des
 import { useAppStore } from '../../store/useAppStore'
 import { getLocalDateKey, parsePlainDate, formatPlainMonthDay } from '../../utils/localCalendarDate'
 import { JournalRecordDetail } from '../HealthEvents/JournalRecordDetail'
-import { journalCategoryLabels, journalListSummary } from '../HealthEvents/timeViewModel'
+import { journalListSummary } from '../HealthEvents/timeViewModel'
 import { calendarCategories, calendarItems, calendarMonthDays, calendarTime, scopeEntries, type CalendarEntry } from './model'
 import type { JournalCategory } from '../../types/journal'
 import { CalendarRecorder } from './CalendarRecorder'
+import { calendarCategoryLabels, calendarRecordTone } from './presentation'
+import { calendarDayInfo } from './holidays'
 import { useCalendar } from './useCalendar'
 import './calendar.css'
 
@@ -65,18 +67,19 @@ function CalendarView({ memberId, token }: { memberId: string; token: string }) 
             <HohoButton variant="ghost" size="icon" aria-label="上个月" onClick={() => shiftMonth(-1)}><ChevronLeft size={18}/></HohoButton>
             <label className="health-calendar__month-picker"><strong>{Number(month.slice(0, 4))}年{Number(month.slice(5))}月</strong><input aria-label="选择日历日期" type="date" value={day} max={today} onChange={e => chooseDay(e.target.value)}/></label>
             <HohoButton variant="ghost" size="icon" aria-label="下个月" disabled={month >= today.slice(0, 7)} onClick={() => shiftMonth(1)}><ChevronRight size={18}/></HohoButton>
-            <select aria-label="筛选记录类型" value={category} onChange={e => { setCategory(e.target.value); setDayOpen(false) }}><option value="">全部类型</option>{calendarCategories.map(c => <option key={c} value={c}>{c === 'care' ? '身体涂抹' : c === 'diet' ? '喂养 / 饮食' : journalCategoryLabels[c]}</option>)}</select>
+            <select aria-label="筛选记录类型" value={category} onChange={e => { setCategory(e.target.value); setDayOpen(false) }}><option value="">全部类型</option>{calendarCategories.map(c => <option key={c} value={c}>{calendarCategoryLabels[c]}</option>)}</select>
           </div>
           {(data.loading || data.error) && <div className="health-calendar__status" role={data.error ? 'alert' : 'status'}>{data.error || '正在读取记录…'}{data.error && <HohoButton size="small" variant="text" onClick={() => setRevision(v => v + 1)}>重试</HohoButton>}</div>}
           <div className="health-calendar__grid" ref={grid} style={{ '--calendar-weeks': weeks } as CSSProperties}>
-            {['一','二','三','四','五','六','日'].map(weekday => <span className="health-calendar__weekday" key={weekday}>{weekday}</span>)}
+            {['一','二','三','四','五','六','日'].map(weekday => <span className="health-calendar__weekday" data-weekend={weekday === '六' || weekday === '日'} key={weekday}>{weekday}</span>)}
             {Array.from({ length: weeks * 7 }, (_, i) => {
               const date = dates[i]
               if (!date) return <span className="health-calendar__blank" key={`blank:${i}`} aria-hidden="true"/>
+              const info = calendarDayInfo(date)
               const previews = [...new Map(calendarItems(scoped, date, 'desc', now).map(item => [item.entry.id, item.entry])).values()]
-              return <button key={date} type="button" disabled={date > today} className="health-calendar__day" aria-label={`${date}，${!ready ? '记录加载中' : previews.length ? `${previews.length}条记录` : '暂无记录'}`} aria-current={date === day ? 'date' : undefined} data-today={date === today} onClick={() => { chooseDay(date); setDayOpen(ready && previews.length > 0) }}>
-                <span className="health-calendar__date-number">{Number(date.slice(8))}</span>
-                <span className="health-calendar__previews">{ready && previews.slice(0, previewLimit).map(entry => <span key={entry.id} className="health-calendar__preview">{journalListSummary(entry)}</span>)}</span>
+              return <button key={date} type="button" disabled={date > today} className="health-calendar__day" data-weekend={info.weekend} data-rest={info.rest} data-work={info.work} title={info.description} aria-label={`${date}，${!ready ? '记录加载中' : previews.length ? `${previews.length}条记录` : '暂无记录'}，${info.description}`} aria-current={date === day ? 'date' : undefined} data-today={date === today} onClick={() => { chooseDay(date); setDayOpen(ready && previews.length > 0) }}>
+                <span className="health-calendar__date-heading"><span className="health-calendar__date-number">{Number(date.slice(8))}</span>{info.festival && <span className="health-calendar__festival">{info.festival}</span>}{!info.festival && (info.work || info.rest) && <span className="health-calendar__holiday-marker">{info.work ? '班' : '休'}</span>}</span>
+                <span className="health-calendar__previews">{ready && previews.slice(0, previewLimit).map(entry => <span key={entry.id} className="health-calendar__preview" data-tone={calendarRecordTone(entry.categories, category)} title={(entry.categories ?? []).map(c => calendarCategoryLabels[c]).join('、')}>{journalListSummary(entry)}</span>)}</span>
                 {ready && previews.length > previewLimit && <small className="health-calendar__more">+{previews.length - previewLimit}</small>}
               </button>
             })}

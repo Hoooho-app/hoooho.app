@@ -4,8 +4,7 @@ import { normalizeHealthEventTitle } from '../../services/healthEventFacts'
 import { quickRecordService, type QuickRecordCreateInput, type QuickRecordDuplicate } from '../../services/quickRecords'
 import { BottomSheetSurface, HohoButton, HohoInput } from '../../components/design-system'
 import { OccurrenceTimeField, useOccurrenceTime } from '../HealthEvents/OccurrenceTimeField'
-import { journalCategoryLabels } from '../HealthEvents/timeViewModel'
-import { calendarCategories } from './model'
+import { calendarCategories, calendarCategoryLabels } from './presentation'
 import { DuplicateRecordPrompt } from '../HealthEvents/DuplicateRecordPrompt'
 import type { JournalCategory, JournalMetadata } from '../../types/journal'
 import type { DailyExtras } from '../../services/dailyRecords'
@@ -62,7 +61,7 @@ export function CalendarRecorder({ memberId, token, day, today, initialCategory,
   }
   return <><BottomSheetSurface open title="新增记录" label="新增记录" onClose={() => { if (!saving) onClose() }} footer={<HohoButton fullWidth disabled={saving || !content.trim()} loading={saving} onClick={() => void submit()}>保存记录</HohoButton>}>
     <div className="health-calendar__new-record"><HohoInput label="记录内容" placeholder="例如：上午皮肤发痒" maxLength={500} value={content} disabled={saving} onChange={e => setContent(e.target.value)}/>
-      <label className="hoho-field"><span className="hoho-text-label">记录类型</span><select className="hoho-input" aria-label="记录类型" value={category} disabled={saving} onChange={e => setCategory(e.target.value as JournalCategory)}>{calendarCategories.map(c => <option key={c} value={c}>{c === 'care' ? '身体涂抹' : c === 'diet' ? '喂养 / 饮食' : journalCategoryLabels[c]}</option>)}</select></label>
+      <label className="hoho-field"><span className="hoho-text-label">记录类型</span><select className="hoho-input" aria-label="记录类型" value={category} disabled={saving} onChange={e => setCategory(e.target.value as JournalCategory)}>{calendarCategories.map(c => <option key={c} value={c}>{calendarCategoryLabels[c]}</option>)}</select></label>
       <OccurrenceTimeField model={occurrence}/>{error && <p className="hoho-field__message" role="alert" data-error="true">{error}</p>}
     </div>
   </BottomSheetSurface>{pending && <DuplicateRecordPrompt duplicate={pending.duplicate} onCancel={discardDuplicate} onDiscard={discardDuplicate} onUpdate={summary => resolveDuplicate('update', summary)} onCreate={() => resolveDuplicate('create')}/>}</>
