@@ -47,7 +47,7 @@ test('首页信息板与三个单列入口，快速查找进入顶栏', () => {
   assert.equal((flows.match(/<HealthCard /g) ?? []).length, 3)
   for(const title of ['正在跟进','健康随记','准备和医生说清楚']) assert.ok(flows.includes(title))
   assert.doesNotMatch(flows, /aria-label="快速查找"/)
-  assert.ok(flows.indexOf('aria-label="正在跟进"') < flows.indexOf('aria-label="健康随记"'))
+  assert.ok(flows.indexOf('aria-label="健康随记"') < flows.indexOf('aria-label="正在跟进"'))
   assert.match(source, /action=\{quickSearchAction\} showInstallApp=\{false\}/)
   assert.match(source, /navigate\('\/quick-search'\)/)
   assert.match(flowStyles, /\.home-flows\{display:grid;gap:/)

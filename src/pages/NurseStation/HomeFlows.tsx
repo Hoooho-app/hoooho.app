@@ -15,6 +15,11 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const [notice, setNotice] = useState('')
   const previews = data?.active.slice().sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id)).slice(0, 2) ?? []
   return <section className="home-flows" aria-label="首页服务入口">
+    <HealthCard className="home-flow-card nurse-home-dialogue" aria-label="健康随记">
+      <header><div className="home-followup-heading"><NotebookText size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康随记</Typography></div><time dateTime={new Date().toLocaleDateString('sv-SE')}>{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</time></header>
+      <div className="nurse-home-dialogue__body"><div className="nurse-home-dialogue__copy"><Typography variant="caption">吃了什么、睡得怎样、有什么症状，都可以和护士说说，帮你记清楚。</Typography><Typography className="home-record-time-hint" variant="caption">现在、过去的情况都可以记。</Typography></div><div className="nurse-station-visual">{nurseVisual}</div></div>
+      <HohoButton fullWidth size="large" disabled={!token || !memberId} onClick={() => setOpen('record')}>和护士说说</HohoButton>
+    </HealthCard>
     <HealthCard className="home-flow-card" aria-label="正在跟进">
       <header>
         <div className="home-followup-heading"><Route size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">正在跟进</Typography></div>
@@ -33,11 +38,6 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
         : <Typography variant="body">{data ? '还没有正在跟进的事项。记录后，可以选择继续跟进。' : error ? '跟进事项暂未加载，其他功能仍可使用。' : '正在读取跟进事项…'}</Typography>}
       {error && <HohoButton variant="text" onClick={reload}>重试加载</HohoButton>}
       <HohoButton fullWidth variant="primary" size="large" onClick={() => navigate('/cases')}>查看进度</HohoButton>
-    </HealthCard>
-    <HealthCard className="home-flow-card nurse-home-dialogue" aria-label="健康随记">
-      <header><div className="home-followup-heading"><NotebookText size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康随记</Typography></div><time dateTime={new Date().toLocaleDateString('sv-SE')}>{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</time></header>
-      <div className="nurse-home-dialogue__body"><div className="nurse-home-dialogue__copy"><Typography variant="caption">吃了什么、睡得怎样、有什么症状，都可以和护士说说，帮你记清楚。</Typography><Typography className="home-record-time-hint" variant="caption">现在、过去的情况都可以记。</Typography></div><div className="nurse-station-visual">{nurseVisual}</div></div>
-      <HohoButton fullWidth size="large" disabled={!token || !memberId} onClick={() => setOpen('record')}>和护士说说</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card" aria-label="准备和医生说清楚">
       <div className="home-followup-heading"><ClipboardList size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">准备和医生说清楚</Typography></div>
