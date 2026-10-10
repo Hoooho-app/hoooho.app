@@ -68,6 +68,8 @@ export function VisitReading({
   const currentMember = useAppStore((s) =>
     s.members.find((m) => m.id === report.memberId),
   );
+  const description = report.reading?.description || report.caseDetails?.description || report.complaint;
+  const showComplaint = !description.replace(/\s+/g, "").startsWith(report.complaint.replace(/\s+/g, ""));
   const reading = report.reading,
     questions = report.question.split("\n").filter((line) => line.trim()),
     groups = reading?.courseGroups ?? [],
@@ -107,7 +109,7 @@ export function VisitReading({
         </div>
         <div id={`reading-${id}`} hidden={!folds[id]}>
           {body}
-          <div className="visit-reading-actions">
+          {id !== "overview" && <div className="visit-reading-actions">
             <button
               className="visit-reading-edit"
               disabled={busy}
@@ -117,7 +119,7 @@ export function VisitReading({
               <Pencil size={14} />
               编辑
             </button>
-          </div>
+          </div>}
         </div>
       </section>
     );
@@ -185,12 +187,12 @@ export function VisitReading({
         "",
         <>
           <div className="visit-reading-case">
-            <h1>{report.complaint}</h1>
-            <p>
-              {reading?.description ||
-                report.caseDetails?.description ||
-                report.complaint}
-            </p>
+            <div className="visit-reading-description-head">
+              <span>情况描述</span>
+              <button className="visit-reading-edit" disabled={busy} aria-label="编辑目前情况" onClick={() => onEdit("current")}><Pencil size={14} />编辑</button>
+            </div>
+            {showComplaint && <p className="visit-reading-complaint"><span>本次主诉：</span>{report.complaint}</p>}
+            <p>{description}</p>
           </div>
           {!!reading?.keywords?.length && (
             <div className="visit-reading-keywords" aria-label="症状关键词">

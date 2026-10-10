@@ -20,11 +20,12 @@ function resultDateLabel(day: string, today: string) {
   return day === today ? `今天 · ${formatPlainMonthDay(day)}` : day === yesterday ? `昨天 · ${formatPlainMonthDay(day)}` : formatPlainMonthDay(day)
 }
 
-export function JournalSearchResults({ entries, query, today, onOpen, summaryFor }: {
+export function JournalSearchResults({ entries, query, today, onOpen, summaryFor, layout = 'compact' }: {
   entries: readonly JournalEntry[]
   query: string
   today: string
   onOpen: (entry: JournalEntry) => void
+  layout?: 'compact' | 'stacked'
   summaryFor?: (entry: JournalEntry) => string
 }) {
   const groups = useMemo(() => {
@@ -41,10 +42,16 @@ export function JournalSearchResults({ entries, query, today, onOpen, summaryFor
     <div>{group.items.map(entry => {
       const summary = summaryFor?.(entry) ?? journalSearchResultSummary(entry, query)
       return <button className="journal-search-result" key={entry.id} onClick={() => onOpen(entry)} type="button" aria-label={`${journalTime(entry).label} ${journalCategoryLabels[entry.categories?.[0] ?? 'other']} ${summary}，查看原话和附件`}>
+        {layout === 'stacked' ? <>
+          <span className="journal-search-result-meta"><time>{journalTime(entry).label}</time><JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} /><HealthTag>{journalCategoryLabels[entry.categories?.[0] ?? 'other']}</HealthTag></span>
+          <span className="journal-search-result-text"><HighlightedText query={query} text={summary} /></span>
+          <span className="journal-search-result-hint">查看原话和附件</span>
+        </> : <>
         <time>{journalTime(entry).label}</time>
         <JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} />
         <HealthTag>{journalCategoryLabels[entry.categories?.[0] ?? 'other']}</HealthTag>
         <span><HighlightedText query={query} text={summary} /></span>
+        </>}
         <ChevronRight aria-hidden="true" size={17} />
       </button>
     })}</div>

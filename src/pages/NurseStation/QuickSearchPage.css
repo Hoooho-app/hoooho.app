@@ -6,3 +6,10 @@
 .quick-search-footer { flex: none; padding: var(--hoho-space-3) var(--hoho-page-gutter) max(var(--hoho-space-3), env(safe-area-inset-bottom)); border-top: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); }
 .quick-search-hold { touch-action: none; user-select: none; -webkit-user-select: none; }
 .quick-search-hold .hoho-button__content { display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-2); }
+
+.quick-search-page .journal-search-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--hoho-space-2);padding-block:var(--hoho-space-3)}
+.quick-search-page .journal-search-result>span:not(.hoho-health-tag){white-space:normal;overflow:visible;text-overflow:clip;flex:none}
+.quick-search-page .journal-search-result .journal-search-result-meta{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);grid-column:1}
+.quick-search-page .journal-search-result .journal-search-result-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);grid-column:1}
+.quick-search-page .journal-search-result .journal-search-result-hint{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));grid-column:1}
+.quick-search-page .journal-search-result>svg:last-child{grid-column:2;grid-row:1 / 4}

@@ -4,7 +4,7 @@ test('开发 StrictMode 重开导出不复用取消信号，Vite 照片真实上
   const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
   await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token)
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
-  await page.goto('/visit-summary');await expect(page.locator('#chapter-overview h1')).toBeVisible()
+  await page.goto('/visit-summary');await expect(page.locator('#chapter-overview .visit-reading-case')).toBeVisible()
   await page.getByRole('button',{name:'完整资料档案',exact:true}).click();await page.getByRole('button',{name:'编辑完整资料档案',exact:true}).click();await page.getByRole('button',{name:'添加 / 调整影像',exact:true}).click()
   const picker=page.getByRole('dialog',{name:'添加 / 调整影像'})
   const buffer=await(await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers:{Authorization:`Bearer ${token}`}})).body()
@@ -13,7 +13,7 @@ test('开发 StrictMode 重开导出不复用取消信号，Vite 照片真实上
   await picker.getByRole('button',{name:'保存影像选择'}).click();await expect(picker).toHaveCount(0)
   for(let i=0;i<2;i++){
     await page.getByRole('button',{name:'导出情况单',exact:true}).click()
-    const download=page.waitForEvent('download');await page.getByRole('button',{name:'保存 HTML 情况单',exact:true}).click();await download
+    const download=page.waitForEvent('download');await page.getByRole('button',{name:'保存情况单，带去就诊',exact:true}).click();await download
     await page.getByRole('dialog',{name:'导出情况单'}).getByRole('button',{name:'关闭导出情况单',exact:true}).click()
   }
   expect(errors).toEqual([])
@@ -22,7 +22,7 @@ test('开发 StrictMode 重开导出不复用取消信号，Vite 照片真实上
 test('开发 StrictMode 上传等待中切换孩子，迟到图片不串成员',async({page})=>{
   const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
   await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'child-a',members:[],profile:null},version:5}))},token)
-  await page.goto('/visit-summary');await expect(page.locator('#chapter-overview h1')).toBeVisible()
+  await page.goto('/visit-summary');await expect(page.locator('#chapter-overview .visit-reading-case')).toBeVisible()
   const buffer=await(await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers})).body()
   let release!:()=>void,uploaded!:()=>void,draftId='';const gate=new Promise<void>(r=>release=r),ready=new Promise<void>(r=>uploaded=r)
   await page.route('**/api/quick-records/*/photos',async route=>{if(route.request().method()!=='POST')return route.continue();draftId=new URL(route.request().url()).pathname.split('/')[3];const response=await route.fetch();uploaded();await gate;await route.fulfill({response}).catch(()=>{})})

@@ -14,3 +14,11 @@
 .smart-record-dialog .case-capture-body{padding:0;overflow:visible}
 .smart-record-dialog .case-input-tools{padding:0;border:0}
 .home-flow-card .home-record-time-hint{color:rgb(var(--hoho-color-primary))}
+
+.home-followup-previews{display:grid;min-width:0}
+.home-followup-preview{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-3);min-height:var(--hoho-control-min-height,44px);width:100%;padding:var(--hoho-space-3) 0;border-top:1px solid rgb(var(--hoho-color-border));text-align:left;color:rgb(var(--hoho-color-text-primary))}
+.home-followup-preview>span{min-width:0;display:grid;gap:var(--hoho-space-1)}
+.home-followup-preview strong{font-size:var(--hoho-font-size-body);font-weight:600;line-height:var(--hoho-line-height-body);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.home-followup-preview small{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.home-followup-preview>svg{flex:none;color:rgb(var(--hoho-color-primary))}
+.home-followup-preview:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}

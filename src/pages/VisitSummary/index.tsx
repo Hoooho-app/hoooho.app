@@ -726,19 +726,20 @@ function ExportSheet({ report, onClose, token, memberId, onRefresh }: {
   return (
     <BottomSheetSurface open label="导出情况单" title="导出情况单" onClose={() => {controller.current.abort();onClose()}}>
       <div className="visit-export-options">
-        <HohoButton fullWidth loading={running==='prompt'} disabled={!!running} onClick={() => void run('prompt', () => copy(promptText, '问诊提示词'))}>
-          <Copy size={18} aria-hidden="true" />复制问诊提示词
-        </HohoButton>
-        <HohoButton fullWidth variant="secondary" loading={running==='html'} disabled={!!running} onClick={() => void run('html', async () => {
+        <p className="hoho-text-caption">选择你接下来要做的事。</p>
+        <HohoButton fullWidth className="visit-export-option" aria-label="保存情况单，带去就诊" loading={running==='html'} disabled={!!running} onClick={() => void run('html', async () => {
           const result = await resources()
           if (controller.current.signal.aborted) return
           downloadContent(consultationHtml(report,result,true), 'Hoooho-就诊情况单.html', 'text/html;charset=utf-8')
           setNotice(`已发起下载，请在浏览器下载列表查看。内嵌 ${Object.keys(result.images).length} 份影像原件。`)
         })}>
-          <Download size={18} aria-hidden="true" />保存 HTML 情况单
+          <Download size={18} aria-hidden="true" /><span><strong>保存情况单，带去就诊</strong><small>可离线打开的 HTML 文件</small></span>
         </HohoButton>
-        <HohoButton fullWidth variant="text" loading={running==='text'} disabled={!!running} onClick={() => void run('text', () => copy(plainText, '纯文本'))}>
-          <FileText size={18} aria-hidden="true" />复制纯文本
+        <HohoButton fullWidth className="visit-export-option" aria-label="复制给 AI 继续提问" variant="secondary" loading={running==='prompt'} disabled={!!running} onClick={() => void run('prompt', () => copy(promptText, '问诊提示词'))}>
+          <Copy size={18} aria-hidden="true" /><span><strong>复制给 AI 继续提问</strong><small>复制问诊提示词与已整理资料</small></span>
+        </HohoButton>
+        <HohoButton fullWidth className="visit-export-option" aria-label="复制文字内容" variant="secondary" loading={running==='text'} disabled={!!running} onClick={() => void run('text', () => copy(plainText, '文字内容'))}>
+          <FileText size={18} aria-hidden="true" /><span><strong>复制文字内容</strong><small>粘贴到聊天或备忘录</small></span>
         </HohoButton>
         {notice && <p role="status">{notice}</p>}
         {fallback && <label>可复制的{fallback.label}<textarea readOnly value={fallback.text} onFocus={e => e.target.select()} /></label>}

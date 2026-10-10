@@ -79,7 +79,7 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
   const today = getLocalDateKey(new Date())!
   const openEntry = (entry: JournalEntry) => { scrollTop.current = content.current?.scrollTop ?? 0; voice.stop(); setSelected(entry) }
 
-  return <main className="quick-search-page journal-search-page app-shell app-shell--wide" style={{ '--quick-search-height': `${viewport.height}px`, '--quick-search-top': `${viewport.top}px` } as CSSProperties}>
+  return <main className="quick-search-page journal-search-page app-shell" style={{ '--quick-search-height': `${viewport.height}px`, '--quick-search-top': `${viewport.top}px` } as CSSProperties}>
     <WebPageHeader title="快速查找" onBack={() => { voice.stop(); onClose() }} />
     <form className="quick-search-header" role="search" onSubmit={e => { e.preventDefault(); search(text); input.current?.blur() }}>
       <label className="journal-search-field">
@@ -95,7 +95,7 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
       {loading && <p role="status">正在读取记录…</p>}
       {error && <StatusNotice tone="error" title="记录同步未完成">{error}。当前结果可能不完整。<HohoButton variant="text" onClick={retry}>重试加载</HohoButton></StatusNotice>}
       {question && <section aria-label="查找结果" aria-live="polite">
-        {!!matches.length && <JournalSearchResults entries={matches.map(match => match.entry)} query={question} today={today} onOpen={openEntry} summaryFor={entry => evidence.get(entry.id) ?? entry.content} />}
+        {!!matches.length && <JournalSearchResults layout="stacked" entries={matches.map(match => match.entry)} query={question} today={today} onOpen={openEntry} summaryFor={entry => evidence.get(entry.id) ?? entry.content} />}
         {!matches.length && !loading && <div className="journal-search-empty"><strong>没有找到相关记录</strong><span>换个关键词试试</span></div>}
       </section>}
     </div>
