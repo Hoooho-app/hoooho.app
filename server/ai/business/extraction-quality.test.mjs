@@ -66,3 +66,26 @@ test('不能跨句继承日期或补全缺失的否定事实',async t=>{
   const record=await f.service.records.getOwnedRecord('quality-fixture',saved.result.records[0].recordId)
   assert.equal(record.type,'note'); assert.deepEqual(record.journal.categories,['other']); assert.ok(!record.journal.medication); assert.match(record.content,/未用药/)
  })
+
+test('旧草稿的状态原话未用药在缓存预览与直接保存时都不成为服药事实', async t=>{
+ const f=await fixture(t,'昨晚未用药',[{category:'medication',timeText:'昨晚',fields:[['statusRaw','未用药']]}])
+ const draft=await f.prepare();assert.equal(draft.items[0].category,'other')
+ const makeLegacy=()=>f.service.store.update(data=>({...data,drafts:data.drafts.map(d=>d.id===draft.id?{...d,items:d.items.map(item=>({...item,category:'medication',archiveCategory:'medication',journal:{...item.journal,categories:['medication']}}))}:d)}))
+ await makeLegacy()
+ for(const restored of [await f.service.read('quality-fixture',f.member.id,draft.id),await f.service.latest('quality-fixture',f.member.id)]){
+  assert.equal(restored.items[0].category,'other');assert.deepEqual(restored.items[0].journal.categories,['other']);assert.equal(restored.version,draft.version)
+ }
+ assert.equal((await f.service.get('quality-fixture',f.member.id,draft.id)).items[0].category,'medication');assert.equal(f.calls(),1)
+ await makeLegacy();const cached=await f.prepare();assert.equal(cached.items[0].category,'other');assert.equal(f.calls(),1)
+ await makeLegacy();const saved=await f.service.save('quality-fixture',f.member.id,draft.id,{version:draft.version,confirmed:true})
+ const record=await f.service.records.getOwnedRecord('quality-fixture',saved.result.records[0].recordId)
+ assert.equal(record.type,'note');assert.deepEqual(record.journal.categories,['other']);assert.ok(!record.journal.medication);assert.match(record.content,/未用药/)
+})
+
+test('真实药名和剂量仍保留实际用药分类',async t=>{
+ const f=await fixture(t,'今天吃了AD一滴',[{category:'medication',timeText:'今天',fields:[['medicationName','AD'],['doseOriginal','一滴']]}])
+ const draft=await f.prepare();assert.equal(draft.items[0].category,'medication')
+ const saved=await f.service.save('quality-fixture',f.member.id,draft.id,{version:draft.version,confirmed:true})
+ const record=await f.service.records.getOwnedRecord('quality-fixture',saved.result.records[0].recordId)
+ assert.equal(record.type,'medication');assert.deepEqual(record.journal.categories,['medication']);assert.equal(record.aiProvenance.fields.find(field=>field.name==='medicationName').value,'AD')
+})

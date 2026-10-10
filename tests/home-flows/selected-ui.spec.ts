@@ -58,6 +58,33 @@ test('新记录保留旧草稿、照片和录音，关闭后可分别恢复', as
   expect(retained.some(d=>d.conversationInput==='新的独立记录')).toBe(true)
 })
 
+test('恢复旧未用药草稿修正分类，保留人工时间并保存为原话说明', async ({page,request}) => {
+  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:[{category:'medication',title:'未用药',timeText:'昨晚',archiveCategory:null,subject:'current',relationKey:null,fields:[{name:'statusRaw',value:'未用药',quote:'未用药',sourceId:'input',page:1}]}]}})
+  const response=await request.post('/api/members/empty-child/ai-drafts',{headers,data:{text:'昨晚未用药',task:'record',smartRecord:true,confirmOccurrenceTime:true,followUp:false,timezone:'Asia/Shanghai',selectedOccurredAt:new Date(Date.now()-3600000).toISOString()}})
+  expect(response.ok()).toBe(true)
+  const draft=await response.json()
+  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
+  const panel=page.getByRole('dialog',{name:'智能记录',exact:true})
+  await expect(panel.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+  await panel.getByRole('button',{name:'收起',exact:true}).click()
+  await page.evaluate(draft=>new Promise<void>((resolve,reject)=>{
+    const r=indexedDB.open('hoooho-smart-record-drafts',1)
+    r.onsuccess=()=>{const db=r.result,t=db.transaction('drafts','readwrite');t.objectStore('drafts').put({text:'昨晚未用药',files:[],occurredAt:'2026-01-01T10:00',timeUnknown:false,requestId:'legacy-absence',smartReview:{...draft,items:draft.items.map((item:any)=>({...item,category:'medication',timeText:'昨天晚上',timeChanged:true}))}},'home-smart:visit-test:empty-child:new');t.oncomplete=()=>{db.close();resolve()};t.onerror=()=>reject(t.error)}
+  }),draft)
+  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
+  await panel.getByRole('button',{name:'继续上次记录',exact:true}).click()
+  const row=panel.locator('.dialogue-review-item')
+  await expect(row).toContainText('其他')
+  await row.getByText('编辑这条记录',{exact:true}).click()
+  await expect(row.getByRole('textbox',{name:/发生时间/})).toHaveValue('昨天晚上')
+  const savedResponse=page.waitForResponse(r=>r.url().endsWith('/save')&&r.request().method()==='POST')
+  await panel.getByRole('button',{name:'确认保存 1 条',exact:true}).click()
+  const saved=await(await savedResponse).json()
+  const records=await(await request.get(`/api/events/${saved.result.records[0].eventId}/records`,{headers})).json()
+  const record=records.find((r:any)=>r.id===saved.result.records[0].recordId)
+  expect(record.type).toBe('note');expect(record.journal.categories).toEqual(['other']);expect(record.content).toContain('未用药')
+})
+
 test('独立核对页保留编辑和原话，发生时间确认后保存三条实际记录', async ({page},info) => {
   await page.getByRole('button',{name:'和护士说说',exact:true}).click()
   const panel=page.getByRole('dialog',{name:'智能记录',exact:true})
