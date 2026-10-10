@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, ShieldCheck } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
@@ -155,7 +155,7 @@ export function NurseStationPage() {
     state: { selectedMeasure, returnTo: getCurrentPath(location.pathname, location.search, location.hash) },
   })
 
-  const quickSearchAction = <HohoButton variant="text" size="small" style={{ minHeight: 'var(--hoho-touch-target)' }} disabled={!token || !currentMemberId || !member} onClick={() => navigate('/quick-search')}>快速查找</HohoButton>
+  const quickSearchAction = <HohoButton variant="text" size="icon" style={{ minHeight: 'var(--hoho-touch-target)' }} aria-label="快速查找" title="快速查找" disabled={!token || !currentMemberId || !member} onClick={() => navigate('/quick-search')}><Search size={20} strokeWidth={1.8} aria-hidden="true" /></HohoButton>
 
   if (listState.status === 'success' && listState.data.entryState.familyMemberCount === 0) return (
     <main className="app-shell nurse-station-page">

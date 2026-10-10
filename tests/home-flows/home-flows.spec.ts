@@ -7,8 +7,10 @@ test.beforeEach(async({page})=>{
 })
 test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支持关闭恢复',async({page})=>{
  await expect(page.locator('.home-flow-card')).toHaveCount(3)
- expect(await page.locator('.home-flow-card').evaluateAll(cards=>cards.map(card=>card.getAttribute('aria-label')))).toEqual(['正在跟进','健康随记','准备和医生说清楚'])
+ expect(await page.locator('.home-flow-card').evaluateAll(cards=>cards.map(card=>card.getAttribute('aria-label')))).toEqual(['健康随记','正在跟进','准备和医生说清楚'])
  await expect(page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true})).toBeEnabled()
+ await expect(page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true})).toHaveText('')
+ await expect(page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true}).locator('svg')).toBeVisible()
  await expect(page.getByRole('button',{name:'添加 Hoooho 到主屏',exact:true})).toHaveCount(0)
  await expect(page.locator('.nurse-station-growth-data')).toContainText('身高')
  for(const width of [320,375,390]){
@@ -17,6 +19,7 @@ test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支�
   const search=await page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true}).boundingBox()
   const title=await page.getByRole('heading',{name:'服务前台',exact:true}).boundingBox()
   expect(search!.height).toBeGreaterThanOrEqual(44)
+  expect(search!.width).toBeGreaterThanOrEqual(44)
   expect(search!.x).toBeGreaterThanOrEqual(title!.x+title!.width/2+36)
  }
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
