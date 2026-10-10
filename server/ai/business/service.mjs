@@ -11,7 +11,7 @@ import { HealthRecordOrganizationService } from '../health-record-organization-s
 import { AIService } from '../ai-service.mjs'
 import { LocalFactProvider } from '../providers/local-fact-provider.mjs'
 import { BusinessModel } from './model.mjs'
-import { reconcileExtraction } from './extraction-quality.mjs'
+import { normalizeMedicationAbsence, reconcileExtraction } from './extraction-quality.mjs'
 import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-replay.mjs'
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
@@ -130,6 +130,7 @@ export class AIBusinessService {
     const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
+      previous.items=previous.items.map(item=>this.resolve(item,previous))
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
       return publicDraft(previous)
     }
@@ -214,6 +215,7 @@ export class AIBusinessService {
     }
   }
   resolve(item,draft){
+    normalizeMedicationAbsence(item)
     if(['chronic','surgery','family-history'].includes(item.archiveCategory)&&!field(item,'historyName')||item.archiveCategory==='family-history'&&!field(item,'relationship'))item.archiveCategory=null
     if(item.archiveCategory==='vaccination'&&field(item,'vaccineName'))item.category='vaccination'
     item.time=resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})
