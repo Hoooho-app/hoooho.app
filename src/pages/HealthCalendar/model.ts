@@ -3,7 +3,7 @@ import type { JournalCategory } from '../../types/journal'
 import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import { journalCategoryLabels, type JournalEntry } from '../HealthEvents/timeViewModel'
 
-export const calendarCategories = ['symptom', 'medication', 'sleep', 'diet', 'elimination', 'care', 'vaccination', 'visit', 'examination', 'measurement', 'growth', 'injury', 'activity', 'emotion', 'social', 'environment', 'other'] as const
+export { calendarCategories } from './presentation'
 export const calendarBoundary = '这里呈现记录的先后顺序。时间上的关联不等于过敏原因，是否过敏需结合医生评估。'
 export interface CalendarEntry extends JournalEntry { eventTitle: string; originalText: string; sourceLabel: string }
 export interface CalendarItem { entry: CalendarEntry; at: string; label: string; precision: 'exact' | 'period' | 'day' | 'unknown'; key: string }
@@ -99,7 +99,7 @@ export function calendarFacts(entry: CalendarEntry): string[] {
 }
 
 export function calendarCounts(items: readonly CalendarItem[]) {
-  return Object.fromEntries(calendarCategories.map(category => [category, new Set(items.filter(item => item.entry.categories?.includes(category)).map(item => item.entry.id)).size])) as Record<typeof calendarCategories[number], number>
+  return Object.fromEntries((Object.keys(journalCategoryLabels) as JournalCategory[]).map(category => [category, new Set(items.filter(item => item.entry.categories?.includes(category)).map(item => item.entry.id)).size])) as Record<JournalCategory, number>
 }
 export function calendarMonthDays(month: string) {
   const first = parsePlainDate(`${month}-01`)
