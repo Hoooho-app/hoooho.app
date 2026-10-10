@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ClipboardList, NotebookText, Route } from 'lucide-react'
-import { HealthCard, HealthTag, HohoButton, Typography } from '../../components/design-system'
+import { ChevronRight, ClipboardList, NotebookText, Route } from 'lucide-react'
+import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { SmartRecordWorkspace } from '../../features/ai-business/SmartRecordWorkspace'
 import { useAppStore } from '../../store/useAppStore'
@@ -13,19 +13,26 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const accountId = useAppStore(s => s.authUser?.id ?? '')
   const [open, setOpen] = useState<'record' | null>(null)
   const [notice, setNotice] = useState('')
-  const latest = data?.active.slice().sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id))[0]
+  const previews = data?.active.slice().sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id)).slice(0, 2) ?? []
   return <section className="home-flows" aria-label="首页服务入口">
     <HealthCard className="home-flow-card" aria-label="正在跟进">
       <header>
         <div className="home-followup-heading"><Route size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">正在跟进</Typography></div>
         <Typography variant="caption" className="home-followup-count" aria-label={data ? `${data.active.length} 个跟进事项` : '跟进数量暂未加载'}>{data ? `${data.active.length} 项` : '— 项'}</Typography>
       </header>
-      {latest ? <>
-        <div className="home-followup-tags"><HealthTag>{latest.followup.title.length > 12 ? `${latest.followup.title.slice(0, 12)}…` : latest.followup.title}</HealthTag></div>
-        <Typography variant="caption">最近记录：{latest.followup.latestOccurredAt ? new Date(latest.followup.latestOccurredAt).toLocaleDateString('zh-CN', { timeZone: data?.timezone }) : '发生时间未提供'} · {latest.followup.recordCount} 条记录</Typography>
-      </> : <Typography variant="body">{data ? '还没有正在跟进的事项。记录后，可以选择继续跟进。' : error ? '跟进事项暂未加载，其他功能仍可使用。' : '正在读取跟进事项…'}</Typography>}
+      {previews.length ? <div className="home-followup-previews">{previews.map(item => <button
+        key={item.event.id}
+        className="home-followup-preview"
+        type="button"
+        aria-label={`查看${item.followup.title}的进度`}
+        onClick={() => navigate(`/cases?eventId=${encodeURIComponent(item.event.id)}`)}
+      >
+        <span><strong>{item.followup.title}</strong><small>{item.followup.latestOccurredAt ? new Date(item.followup.latestOccurredAt).toLocaleDateString('zh-CN', { timeZone: data?.timezone }) : '发生时间未提供'} · {item.followup.recordCount} 条过程记录</small></span>
+        <ChevronRight size={17} aria-hidden="true" />
+      </button>)}{data && data.active.length > 2 && <Typography variant="caption">还有 {data.active.length - 2} 项正在跟进</Typography>}</div>
+        : <Typography variant="body">{data ? '还没有正在跟进的事项。记录后，可以选择继续跟进。' : error ? '跟进事项暂未加载，其他功能仍可使用。' : '正在读取跟进事项…'}</Typography>}
       {error && <HohoButton variant="text" onClick={reload}>重试加载</HohoButton>}
-      <HohoButton fullWidth variant="primary" size="large" onClick={() => navigate(latest ? `/cases?eventId=${encodeURIComponent(latest.event.id)}` : '/cases')}>查看进度 / 补充进展</HohoButton>
+      <HohoButton fullWidth variant="primary" size="large" onClick={() => navigate('/cases')}>查看进度</HohoButton>
     </HealthCard>
     <HealthCard className="home-flow-card nurse-home-dialogue" aria-label="健康随记">
       <header><div className="home-followup-heading"><NotebookText size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康随记</Typography></div><time dateTime={new Date().toLocaleDateString('sv-SE')}>{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</time></header>

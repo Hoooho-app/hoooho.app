@@ -26,6 +26,7 @@ test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支�
  await page.getByLabel('对话输入').fill('昨天吃了粥，午睡一个小时')
  await page.getByRole('button',{name:'收起',exact:true}).click()
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
+ await page.getByRole('button',{name:'继续上次记录',exact:true}).click()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await expect(page.getByLabel('对话输入')).toHaveValue('昨天吃了粥，午睡一个小时')

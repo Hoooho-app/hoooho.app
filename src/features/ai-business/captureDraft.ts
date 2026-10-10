@@ -24,6 +24,31 @@ const database = () => new Promise<IDBDatabase>((resolve, reject) => {
   request.onsuccess = () => resolve(request.result)
   request.onerror = () => reject(request.error)
 })
+export const hasCaptureContent = (draft: CaptureDraft | null) => Boolean(draft && (draft.text.trim() || draft.conversationInput?.trim() || draft.files.length || draft.pendingVoice || draft.smartReview?.items.length))
+
+/** Only retained drafts of this exact account/member/event context are read. */
+export async function retainedCaptureDrafts(key: string): Promise<{ key: string; draft: CaptureDraft }[]> {
+  const db = await database()
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction('drafts', 'readonly')
+      const request = transaction.objectStore('drafts').openCursor()
+      const drafts: { key: string; draft: CaptureDraft }[] = []
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+        if (typeof cursor.key === 'string' && cursor.key.startsWith(`${key}:retained:`)) {
+          const draft = unpackCaptureDraft(cursor.value)
+          if (hasCaptureContent(draft) && draft.smartReview?.state !== 'saved') drafts.push({ key: cursor.key, draft })
+        }
+        cursor.continue()
+      }
+      transaction.oncomplete = () => resolve(drafts.sort((a, b) => b.key.localeCompare(a.key)))
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+  } finally { db.close() }
+}
 export function guestDraftKeys(key: string, keys: IDBValidKey[], owner: {accountId:string;memberId:string}) {
   const prefix = key.startsWith('return:') ? 'return:' : '', target = `${prefix}${owner.accountId}`
   if (owner.accountId.startsWith('guest:') || !key.startsWith(`${target}:${owner.memberId}:`)) return []
