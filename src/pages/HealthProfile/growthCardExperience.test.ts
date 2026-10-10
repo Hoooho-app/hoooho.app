@@ -12,7 +12,8 @@ const polish = readFileSync(new URL('../../styles/product-polish.css', import.me
 
 test('健康档案首页复用健康随记的记录对象页头并直接衔接过敏记录', () => {
   assert.match(home, /HealthRecordSubjectHeader className="health-profile-record-subject"/)
-  assert.match(healthEvents, /HealthRecordSubjectHeader className="health-events-member mx-4 mt-2"/)
+  assert.doesNotMatch(healthEvents, /HealthRecordSubjectHeader/)
+  assert.match(healthEvents, /<MainAppHeader title="健康日历"/)
   assert.match(subjectHeader, /journal-subject-row/)
   assert.match(subjectHeader, /就诊情况单/)
   assert.match(subjectHeader, /formatAgeFromBirthday/)

@@ -49,6 +49,7 @@
     "test:quick-record-photos": "node --test server/events/quick-record-photo-service.test.mjs server/events/quick-record-service.test.mjs",
     "test:e2e:quick-record": "npm run build && playwright test --config tests/quick-record-mobile/playwright.config.ts",
     "test:e2e:time-view": "npm run build && playwright test --config tests/time-view/playwright.config.ts",
+    "test:e2e:health-calendar": "npm run build && playwright test --config tests/unified-health-calendar/playwright.config.ts",
     "test:e2e:record-entry": "npm run build && playwright test --config tests/record-entry/playwright.config.ts",
     "test:e2e:journal-occurrence": "npm run build && playwright test --config tests/journal-single-occurrence/playwright.config.ts",
     "test:journal": "node --test server/events/journal-metadata.test.mjs",

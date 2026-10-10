@@ -78,7 +78,7 @@ export const projectSleepInterval = projectActivityInterval
 
 export function entriesForDay(entries: readonly JournalEntry[], day: string, now = new Date()) {
   void now
-  return entries.filter(entry => getLocalDateKey(journalOccurrenceAt(entry, entry.occurredAt)) === day)
+  return entries.filter(entry => entry.timePrecision !== 'unknown' && getLocalDateKey(journalOccurrenceAt(entry, entry.occurredAt)) === day)
     .sort((left, right) => Date.parse(left.occurredAt) - Date.parse(right.occurredAt) || right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id))
 }
 

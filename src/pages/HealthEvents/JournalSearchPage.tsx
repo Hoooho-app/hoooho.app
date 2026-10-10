@@ -9,7 +9,8 @@ import { searchJournalEntries } from './timeViewModel'
 import { useJournal } from './useJournal'
 import './JournalSearchPage.css'
 
-interface JournalReturnState { day?: string; scrollTop?: number }
+import { calendarNavigationParams, normalizeCalendarNavigation } from '../HealthCalendar/navigation'
+import type { CalendarReturnState as JournalReturnState } from '../HealthCalendar/useCalendarNavigation'
 
 function useDebouncedValue(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value)
@@ -22,16 +23,20 @@ export function JournalSearchPage() {
   const location = useLocation()
   const token = useAppStore((state) => state.authToken)
   const memberId = useAppStore((state) => state.currentMemberId)
+  const accountId = useAppStore((state) => state.authUser?.id ?? '')
+  const identity = `${accountId}:${memberId}`
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<{ eventId: string; recordId: string } | null>(null)
+  useEffect(() => { setSelected(null); setQuery('') }, [identity])
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { if (!query) inputRef.current?.focus() }, [query])
   const debouncedQuery = useDebouncedValue(query, 300)
   const { entries, loading, error, retry } = useJournal(memberId, token ?? '', 0)
   const results = useMemo(() => searchJournalEntries(entries, debouncedQuery), [debouncedQuery, entries])
   const today = getLocalDateKey(new Date())!
-  const returnState = (location.state as { journalReturn?: JournalReturnState } | null)?.journalReturn
-  const leaveSearch = () => navigate('/health-events', { replace: true, state: { journalReturn: returnState } })
+  const rawReturn = (location.state as { journalReturn?: JournalReturnState } | null)?.journalReturn
+  const returnState = !rawReturn?.identity || rawReturn.identity === identity ? rawReturn : undefined
+  const leaveSearch = () => navigate(`/health-events?${calendarNavigationParams(normalizeCalendarNavigation(new URLSearchParams(), today, returnState), new URLSearchParams(returnState?.search))}${returnState?.hash ?? ''}`, { replace: true, state: { journalReturn: returnState } })
   const normalizedQuery = debouncedQuery.trim()
   const datedResults=results.filter(entry=>entry.timePrecision!=='unknown')
   const earliest = datedResults.at(-1)
@@ -43,10 +48,10 @@ export function JournalSearchPage() {
 
   return <main className="journal-search-page app-shell app-shell--wide">
     <header className="journal-search-header">
-      <button aria-label="返回健康随记" className="journal-search-back" onClick={leaveSearch} type="button"><ChevronLeft size={24} /></button>
+      <button aria-label="返回健康日历" className="journal-search-back" onClick={leaveSearch} type="button"><ChevronLeft size={24} /></button>
       <label className="journal-search-field">
         <Search aria-hidden="true" size={19} />
-        <input aria-label="搜索健康随记" autoFocus enterKeyHint="search" inputMode="search" onChange={(event) => setQuery(event.target.value)} placeholder="输入名称，即可查看发生时间" ref={inputRef} type="search" value={query} />
+        <input aria-label="搜索健康日历" autoFocus enterKeyHint="search" inputMode="search" onChange={(event) => setQuery(event.target.value)} placeholder="输入名称，即可查看发生时间" ref={inputRef} type="search" value={query} />
         {query && <button aria-label="清除搜索" onPointerDown={(event) => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }} type="button"><X size={15} /></button>}
       </label>
       <button className="journal-search-cancel" onClick={leaveSearch} type="button">取消</button>
