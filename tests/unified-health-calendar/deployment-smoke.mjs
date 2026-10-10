@@ -35,7 +35,7 @@ try {
     if (asset.endsWith('.js')) deployedCode += await response.text()
   }
   assert(deployedCode.includes(commit), 'Live JavaScript does not contain the expected build commit')
-  const session = await (await api('/api/auth/register', 'POST', { nickname: '日历隔离验收', password: randomUUID(), idempotencyKey: randomUUID() })).json()
+  const session = await (await api('/api/auth/register', 'POST', { nickname: `日历验收${randomUUID().replaceAll('-', '').slice(0, 12)}`, password: randomUUID(), idempotencyKey: randomUUID() })).json()
   token = session.token; accountId = session.user.id; assert(token && accountId)
   memberId = (await (await api('/api/members', 'POST', { name: '日历只读测试对象', birthday: '2025-01-01', gender: 'female', relationship: 'child' })).json()).id
   assert(memberId)
