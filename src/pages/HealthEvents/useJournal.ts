@@ -5,8 +5,13 @@ import { apiRequest, ApiRequestError } from '../../services/apiClient'
 import { eventAttachmentService } from '../../services/eventAttachments'
 import { flattenJournal, type JournalEntry } from './timeViewModel'
 
-export function useJournal(memberId: string, token: string, revision: number) {
+export function useJournal(memberId: string, token: string, revision: number): { entries: JournalEntry[]; sourceEntries: JournalEntry[]; loading: boolean; error: string; retry: () => void } {
   const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const refresh = () => setAttempt(value => value + 1)
+    window.addEventListener('hoooho-data-changed', refresh)
+    return () => window.removeEventListener('hoooho-data-changed', refresh)
+  }, [])
   const accountId = useAppStore(s => s.authUser?.id ?? '')
   const scope = `${accountId}:${token}:${memberId}`
   const cacheKey = `hoooho-journal-cache:${accountId}:${memberId}`

@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ClipboardList, ScanLine, Pill, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
+import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -23,8 +23,7 @@ export const sidebarMenuGroups = [
     title: '健康管理',
     items: [
     { label: '服务前台', icon: House, to: '/nurse-station' },
-    { label: '健康随记', icon: BookOpen, to: '/health-events' },
-    { label: '健康月历', icon: CalendarDays, to: '/health-calendar' },
+    { label: '健康日历', icon: CalendarDays, to: '/health-events' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' }
     ]
   },
@@ -95,7 +94,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
     navigate(to, to === '/feedback' ? {
       state: makeFeedbackState(
         getCurrentPath(location.pathname, location.search, location.hash),
-        location.pathname.startsWith('/health-events/') ? '健康随记详情' : location.pathname === '/health-events' ? '健康随记' : location.pathname === '/settings' ? '我的' : '原页面',
+        location.pathname.startsWith('/health-events/') ? '健康日历详情' : location.pathname === '/health-events' || location.pathname === '/health-calendar' ? '健康日历' : location.pathname === '/settings' ? '我的' : '原页面',
         window.scrollY
       )
     } : undefined)
@@ -136,7 +135,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
               <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
               <div className="hoho-drawer__menu">
               {group.items.map(({ label, icon: Icon, to }) => {
-                const active = location.pathname === to || (to !== '/health-events' && location.pathname.startsWith(`${to}/`))
+                const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
                 return (
                   <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
                     <Icon size={20} strokeWidth={1.7} />

@@ -41,19 +41,17 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   expect(await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().height))).toEqual([44,44,44,44])
   expect(await footer.locator('.record-symptom-action .hoho-button__content').evaluate(el=>getComputedStyle(el).justifyContent)).toBe('center')
   const geometry = await page.evaluate(() => {
-    const year = document.querySelector('.journal-year-picker')!.getBoundingClientRect()
     const marker = document.querySelector('.journal-timeline-row--now .journal-timeline-marker')!.getBoundingClientRect()
     const now = document.querySelector('.journal-now-cell')!.getBoundingClientRect()
-    const date = document.querySelector('.journal-date-navigation')!.getBoundingClientRect()
-    const subject = document.querySelector('.journal-subject-row')!.getBoundingClientRect()
-    const summary = getComputedStyle(document.querySelector('.journal-subject-summary')!)
-    return { axisDifference: Math.abs(marker.x + marker.width / 2 - (year.right - .5)), nowHeight: now.height, above: date.top - subject.bottom, below: now.top - date.bottom, border: summary.borderTopWidth, style: summary.borderTopStyle, overflow: document.documentElement.scrollWidth > innerWidth }
+    const date = document.querySelector('.calendar-toolbar')!.getBoundingClientRect()
+    const header = document.querySelector('.hoho-main-header')!.getBoundingClientRect()
+    return { markerLeft: marker.left, nowHeight: now.height, above: date.top - header.bottom, below: now.top - date.bottom, subjectCount: document.querySelectorAll('.journal-subject-row').length, overflow: document.documentElement.scrollWidth > innerWidth }
   })
-  expect(geometry.axisDifference).toBeLessThanOrEqual(.6)
+  expect(geometry.markerLeft).toBeGreaterThan(0)
   expect(geometry.nowHeight).toBe(26)
   expect(geometry.above).toBe(6)
   expect(geometry.below).toBe(6)
-  expect(geometry.border).toBe('1px'); expect(geometry.style).toBe('solid'); expect(geometry.overflow).toBe(false)
+  expect(geometry.subjectCount).toBe(0); expect(geometry.overflow).toBe(false)
   const entryColors=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))
   expect(entryColors).toEqual(['rgb(255, 242, 226)','rgb(243, 237, 250)','rgb(237, 245, 252)','rgb(233, 246, 242)'])
   await shot(page,`home-${width}`)
@@ -71,7 +69,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await shot(page,`daily-open-${width}`)
   await daily.click();await expect(options).toHaveCount(0)
-  await daily.click();await page.getByRole('heading',{name:'健康日记',exact:true}).click();await expect(options).toHaveCount(0)
+  await daily.click();await page.getByRole('heading',{name:'健康日历',exact:true}).click();await expect(options).toHaveCount(0)
   for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['补剂','记录补剂'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
@@ -267,6 +265,10 @@ for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便'
 test('shared case capture route remains usable outside the retired journal entry',async({page})=>{
   await prepare(page)
   await page.goto('/smart-record')
-  await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toBeVisible()
+  // The current formal branch uses the shared AI workspace here, not the
+  // retired journal-specific entry. Keep that existing route and tools intact.
+  await expect(page.getByRole('dialog',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'改用文字',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'拍照',exact:true})).toBeVisible()
   await expect(page.locator('.journal-record-actions')).toHaveCount(0)
 })
