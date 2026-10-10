@@ -69,9 +69,10 @@ export class AIBusinessService {
     if(!draft)throw fail('草稿已过期或不存在，请重新整理',404,'AI_DRAFT_NOT_FOUND')
     return structuredClone(draft)
   }
-  async read(accountId,memberId,id){return publicDraft(await this.get(accountId,memberId,id))}
+  previewDraft(draft){const d=structuredClone(draft);if(d.state==='ready')d.items=d.items.map(item=>this.resolve(item,d));return publicDraft(d)}
+  async read(accountId,memberId,id){return this.previewDraft(await this.get(accountId,memberId,id))}
   async write(draft) { await this.store.update(data=>({...data,drafts:[...data.drafts.filter(d=>d.id!==draft.id),structuredClone(draft)]}));return publicDraft(draft) }
-  async latest(accountId,memberId){await this.scoped(accountId,memberId);await this.prune();const d=(await this.store.read()).drafts.filter(d=>d.accountId===accountId&&d.memberId===memberId&&['ready','failed'].includes(d.state)).at(-1);return d?publicDraft(d):null}
+  async latest(accountId,memberId){await this.scoped(accountId,memberId);await this.prune();const d=(await this.store.read()).drafts.filter(d=>d.accountId===accountId&&d.memberId===memberId&&['ready','failed'].includes(d.state)).at(-1);return d?this.previewDraft(d):null}
   async file(accountId,memberId,id,fileId){const d=await this.get(accountId,memberId,id),file=d.documents.find(f=>f.id===fileId);if(!file)throw fail('草稿原件不存在或已保存到正式记录',404);return {name:file.name,mimeType:file.mimeType,buffer:Buffer.from(file.dataUrl.split(',')[1],'base64')}}
   async cancel(accountId,memberId,id) { const draft=await this.get(accountId,memberId,id);return accountTransaction(this.directory,async()=>{if(draft.sourceRecordId){const source=await this.records.getOwnedRecord(accountId,draft.sourceRecordId);if(source.caseContext?.aiDraftId===id)await this.records.repository.update(source.id,{caseContext:{...source.caseContext,aiDraftId:null}},this.now())}await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>d.id!==id)}));return {cancelled:true}}) }
   async context(accountId,memberId,raw){

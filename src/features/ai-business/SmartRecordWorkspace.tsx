@@ -34,6 +34,18 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const controller=new AbortController();abort.current=controller;const timer=setTimeout(()=>controller.abort(),90000)
     try{const value=await apiRequest<T>(path,{method,token:credentials.current,signal:controller.signal,body:input});if(!mounted.current)throw new DOMException('Closed','AbortError');return value}finally{clearTimeout(timer)}
   }
+  useEffect(()=>{
+    const saved=current.current.smartReview
+    if(!ready||saved?.state!=='ready')return
+    let active=true
+    // Refresh only the exact retained draft; keep local edits and offline input.
+    void request<SmartRecordDraft>(`${url}/${saved.id}`,'GET').then(restored=>{
+      if(active&&mounted.current&&!pending.current&&current.current.smartReview===saved&&restored.state==='ready'){
+        void persist({...current.current,smartReview:retainSmartRecordEdits(restored,saved)}).catch(()=>undefined)
+      }
+    }).catch(()=>undefined)
+    return()=>{active=false}
+  },[ready,key])
   async function prepare(input=current.current){
     if(pending.current||!ready||(!input.text.trim()&&!input.files.some(f=>!f.type.startsWith('audio/'))))return
     pending.current=true;setBusy(true);setError('');setStatus('正在整理成饮食、症状、睡眠等记录…')
