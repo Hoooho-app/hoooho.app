@@ -51,7 +51,6 @@ function HealthEventsContent() {
   const navigation = useCalendarNavigation(identity, today), calendar = navigation.state, day = calendar.day
   const previousToday = useRef(today)
   const setDay = (value: string) => navigation.change({ ...calendar, day: value, month: value.slice(0, 7) })
-  const [settingsRequest, setSettingsRequest] = useState(0)
   const journal = useJournal(currentMemberId, token ?? '', revision)
   const filteredEntries = useMemo(() => journal.entries.filter(entry => !calendar.category || entry.categories?.includes(calendar.category as JournalCategory)), [journal.entries, calendar.category])
   const filteredJournal = { ...journal, entries: filteredEntries }
@@ -159,9 +158,9 @@ function HealthEventsContent() {
   if (nextActionOpen && currentMemberId) return <Navigate to="/visit-summary" />
   return <main className="hoho-health-events-page unified-health-calendar app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode="list" data-calendar-view={calendar.view}>
     <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
-    <CalendarToolbar state={calendar} today={today} onChange={navigation.change} onSettings={() => setSettingsRequest(value => value + 1)}/>
+    <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
-      <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} settingsRequest={settingsRequest} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
+      <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
       {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={day} category={calendar.category} entries={filteredEntries} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => navigation.change({ ...calendar, view: 'day', day: value, month: value.slice(0, 7) })}/>}
     </div>
     <footer className="journal-record-actions"><RecordEntryActions disabled={!token || currentMember?.id !== currentMemberId} identity={identity} onRecord={(category, kind) => { submissionKeyRef.current = ''; setRecorderInitialCategory(category); setRecorderInitialDietKind(kind); setRecorderMode('manual') }}/></footer>

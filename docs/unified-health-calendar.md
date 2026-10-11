@@ -20,7 +20,8 @@ Routine configuration does not become a calendar fact.
 
 One shared `RecordEntryActions` and existing `JournalRecorder` preserve distinct
 feeding/supplement kinds, photos, draft/retry/duplicate handling and real saves.
-The existing routine and daily-management sheets are available in both views.
+Record-specific daily-management sheets remain available. The legacy routine
+setup entry is removed from the calendar page.
 No schema, API, authentication, AI configuration or production data migration.
 
 Regression: `npm run test:e2e:health-calendar`; the former
@@ -35,9 +36,19 @@ fixture creation/cleanup, existing session-member synchronization and production
 Cloudflare edge telemetry separately. No other application write is permitted.
 Screenshots: `outputs/unified-health-calendar`, including 320×568, 375×667,
 390×844, 430×932 and desktop, four/five/six-week months, long/dense previews,
-view menu and merged drawer. Physical iPhone Safari still needs human acceptance.
+direct view switching and merged drawer. Physical iPhone Safari still needs human acceptance.
 
 The older time-view voice/interim-SpeechRecognition and thumbnail retry tests
 do not match the current formal branch's voice/photo flow; its save-error locator
 also matches two alerts. These three failures were reproduced on unmodified
 `34624b82` and were not hidden or used to modify shared AI/upload behavior.
+
+## Calendar toolbar correction
+
+The type picker keeps its native selection behavior with no visible arrow.
+The view button switches directly between day and month, including touch and
+keyboard activation. Only day view exposes sorting; its order and category
+remain selected on return. The inactive timeline stays mounted but is hidden
+entirely, so it cannot consume month-grid space. The toolbar gear and legacy
+routine setup entry are removed from this page; existing automatic-record
+confirmation and record-specific daily settings remain available.
