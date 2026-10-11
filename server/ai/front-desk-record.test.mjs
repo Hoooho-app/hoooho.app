@@ -36,6 +36,7 @@ test('image bytes reach vision, multiple selections remain separate messages, cu
  const image={name:'测试红方块.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${bytes.toString('base64')}`,lastModified:42}
  const first=await f.service.submit('synthetic',f.member.id,{id:'picture-1',kind:'image',text:'',files:[image]})
  assert.equal(f.calls[0].vision,true);assert.equal(f.calls[0].input[0].content[1].type,'input_image')
+ assert.ok(f.calls[0].instructions.includes(JSON.stringify(f.calls[0].schema)),'the vision instruction carries the exact reply contract instead of relying only on supplier response_format')
  const decoded=Buffer.from(f.calls[0].input[0].content[1].image_url.split(',')[1],'base64')
  assert.equal((await sharp(decoded).metadata()).format,'jpeg');assert.equal(first.context.messages[0].files[0].lastModified,42)
  await f.service.submit('synthetic',f.member.id,{id:'picture-2',kind:'image',text:'',files:[image,image]})

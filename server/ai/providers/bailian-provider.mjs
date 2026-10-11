@@ -114,7 +114,7 @@ export class BailianProvider extends OpenAIProvider {
             // The home reply contract can be diagnosed without clinical text.
             if(format.name==='hoooho_front_desk_reply'){
               const first=Array.isArray(value)?value[0]:value
-              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,fields:Object.fromEntries(['reply','contextId','action','text','status'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
+              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
             }
             throw error
           }
