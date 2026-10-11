@@ -6,7 +6,7 @@ export function useDialogueSpeech(){
   const stop=()=>{if(supported)window.speechSynthesis.cancel();if(alive.current)setReadingId(undefined)}
   const activate=()=>{stop();if(!supported)return;const prime=new SpeechSynthesisUtterance(' ');prime.lang='zh-CN';prime.volume=0;window.speechSynthesis.speak(prime)}
   const speak=(text:string,id:string,force=false)=>{
-    if(!supported||!text.trim()||(!force&&seen.current.has(id)))return
+    if(!alive.current||!supported||!text.trim()||(!force&&seen.current.has(id)))return
     stop();const speech=new SpeechSynthesisUtterance(text);speech.lang='zh-CN';speech.rate=1
     const voices=window.speechSynthesis.getVoices(),chinese=voices.filter(v=>/^zh[-_]CN/i.test(v.lang))
     speech.voice=chinese.find(v=>/Tingting|Xiaoxiao|Huihui|女|普通话/i.test(v.name))??chinese[0]??voices.find(v=>/^zh/i.test(v.lang))??null

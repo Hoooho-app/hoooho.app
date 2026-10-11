@@ -1,10 +1,11 @@
 import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
-export interface CaptureDraft { text: string; conversationInput?: string; conversationTurns?: {id:string;text:string}[]; voiceTranscript?:string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureTurn {id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;contextId?:string}
+export interface CaptureDraft { text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
-const fileIdentity=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
+export const fileIdentity=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
 function checkpointValue(value:CaptureDraft){const {files,pendingVoice,...metadata}=value;return JSON.stringify({metadata,files:files.map(fileIdentity),pendingVoice:pendingVoice?fileIdentity(pendingVoice):null})}
 // A tiny synchronous journal protects metadata while the existing IDB byte
 // transaction is pending. It contains no encoded audio/images and is scoped to
@@ -18,6 +19,7 @@ function restoreCheckpoint(key:string,value:CaptureDraft|null):CaptureDraft|null
     if(saved.metadata.requestId!==value.requestId)return value
     const files=value.files.filter(file=>saved.files.includes(fileIdentity(file)))
     const pendingVoice=saved.pendingVoice?(files.find(file=>fileIdentity(file)===saved.pendingVoice)??(value.pendingVoice&&fileIdentity(value.pendingVoice)===saved.pendingVoice?value.pendingVoice:undefined)):undefined
+    if((saved.metadata.updatedAt??0)<(value.updatedAt??0))return value
     return {...value,...saved.metadata,files,pendingVoice}
   }catch{return value}
 }
@@ -61,7 +63,7 @@ export async function retainedCaptureDrafts(key: string): Promise<{ key: string;
         }
         cursor.continue()
       }
-      transaction.oncomplete = () => resolve(drafts.sort((a, b) => b.key.localeCompare(a.key)))
+      transaction.oncomplete = () => resolve(drafts.sort((a, b) => (b.draft.updatedAt??Number(b.key.split(':retained:')[1]?.split(':')[0])??0)-(a.draft.updatedAt??Number(a.key.split(':retained:')[1]?.split(':')[0])??0)))
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
     })
