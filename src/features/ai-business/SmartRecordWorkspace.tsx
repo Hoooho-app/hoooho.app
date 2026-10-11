@@ -149,7 +149,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const reviewFooter=<div className="smart-record-review-footer">
     {!!saveBlocked&&!busy&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
     <HohoButton fullWidth loading={busy} disabled={!!saveBlocked} onClick={()=>void save()}>确认保存 {review?.items.length??0} 条</HohoButton>
-    <HohoButton fullWidth variant="text" disabled={busy} onClick={()=>setStage('conversation')}>返回对话继续补充</HohoButton>
+    {!page&&<HohoButton fullWidth variant="text" disabled={busy} onClick={()=>setStage('conversation')}>返回对话继续补充</HohoButton>}
   </div>
   const footer=resumeChoices?undefined:stage==='review'?reviewFooter:conversationFooter
   const resumeMessage='上次的内容我还留着。你想接着记录，还是重新记一件事？'
@@ -176,6 +176,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
         </details>
       </section>)}
       {error&&<p role="alert">{error}。内容已保留，可重试。</p>}
+      {page&&<NurseMessage role="assistant" onRead={speech.supported?()=>speech.read('还想补充吗？你说过的内容我都留着。',`${key}:supplement`):undefined} reading={speech.readingId===`${key}:supplement`}><p>还想补充吗？你说过的内容我都留着。</p><HohoButton variant="text" disabled={busy} onClick={()=>setStage('conversation')}>返回对话继续补充</HohoButton></NurseMessage>}
     </div> : <div className="nurse-conversation" aria-label="本次对话">
       <p className="hoho-text-caption">记录对象：{memberName || '当前孩子'}{eventTitle ? ` · 正在补充：${eventTitle}` : ''}</p>
       <NurseMessage role="assistant" onRead={speech.supported?()=>speech.read(greeting,`${key}:greeting`):undefined} reading={speech.readingId===`${key}:greeting`}><p>{greeting}</p></NurseMessage>
