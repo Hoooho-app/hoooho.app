@@ -15,6 +15,11 @@ export function SmartCaseRecordPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', navigate = useNavigate(), [query] = useSearchParams()
   const accountId = useAppStore(s => s.authUser?.id ?? '')
   const location = useLocation()
+  const frontDesk = query.get('source') === 'front-desk' && !query.get('eventId') && !query.get('taskId')
+  const closeFrontDesk = () => {
+    if ((location.state as {frontDeskReturn?:boolean}|null)?.frontDeskReturn && window.history.state?.idx > 0) navigate(-1)
+    else navigate('/nurse-station', {replace:true})
+  }
   const [homeEntry] = useState(() => (location.state as { homeNurseEntry?: { mode?: string; memberId?: string; accountId?: string } } | null)?.homeNurseEntry)
   const entryIdentityChanged = useRef(false)
   if (homeEntry && (homeEntry.memberId !== memberId || homeEntry.accountId !== accountId)) entryIdentityChanged.current = true
@@ -27,7 +32,7 @@ export function SmartCaseRecordPage() {
       navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     }
   }, [location.pathname, location.search, location.state, navigate])
-  return <main className="app-shell continuity-page">{query.get('taskId') ? <SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} initialNurseMode={initialNurseMode} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/> : <SmartRecordWorkspace key={`${accountId}:${memberId}:${query}`} memberId={memberId} token={token} eventId={query.get('eventId')??undefined} onClose={()=>navigate(-1)} onCaptured={id=>navigate(`/health-events/${id}`,{replace:true})}/>}</main>
+  return <main className="app-shell continuity-page">{frontDesk ? <SmartRecordWorkspace key={`home:${accountId}:${memberId}`} page conversational memberId={memberId} token={token} onClose={closeFrontDesk}/> : query.get('taskId') ? <SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} initialNurseMode={initialNurseMode} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/> : <SmartRecordWorkspace key={`${accountId}:${memberId}:${query}`} memberId={memberId} token={token} eventId={query.get('eventId')??undefined} onClose={()=>navigate(-1)} onCaptured={id=>navigate(`/health-events/${id}`,{replace:true})}/>}</main>
 }
 export function CaseListPage() {
   const { data, error, reload, memberId, token } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')

@@ -5,22 +5,26 @@ import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '..
 import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
 import { caseService } from '../case-continuity/api'
-import { appendCaptureTurn,captureDraft, hasCaptureContent, retainedCaptureDrafts, type CaptureDraft } from './captureDraft'
+import { appendCaptureTurn,captureDraft, checkpointCaptureDraft, hasCaptureContent, retainedCaptureDrafts, type CaptureDraft } from './captureDraft'
 import { fileDataUrl } from './CaseCaptureWorkspace'
 import { isKeyRecordField, recordCategoryLabels, retainSmartRecordEdits, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
 import { useSmartRecordVoice } from './useSmartRecordVoice'
 import { NurseMessage } from '../ai-nurse/NurseMessage'
 import {useDialogueSpeech} from '../ai-nurse/useDialogueSpeech'
 import {apiRequest} from '../../services/apiClient'
+import { WebPageHeader } from '../../components/common'
+import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import './caseCapture.css'
 
 type EditableItem=SmartRecordItem & {categoryChanged?:boolean;timeChanged?:boolean}
 const labels:Record<string,string>=fieldLabels
-export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,initialText=''}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;initialText?:string}) {
+export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,page=false,initialText=''}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;page?:boolean;initialText?:string}) {
+  const viewport=useVisibleViewport()
   const accountId=useAppStore(s=>s.authUser?.id??'guest'),key=`${conversational?'home-smart':'smart'}:${accountId}:${memberId}:${eventId??'new'}`
   const [local,setLocal]=useState<CaptureDraft>(()=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId}))
   const current=useRef(local),credentials=useRef(token);credentials.current=token
   const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState('')
+  const [originalsNeedReview,setOriginalsNeedReview]=useState(false)
   const mounted=useRef(true),pending=useRef(false),sendLock=useRef(false),writes=useRef<Promise<unknown>>(Promise.resolve()),abort=useRef<AbortController|null>(null),camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
   const memberName=useAppStore(s=>s.members.find(member=>member.id===memberId)?.name)
   const speech=useDialogueSpeech(),greeting=eventTitle ? `继续补充“${eventTitle}”的进展。有什么变化、做过什么处理，都可以和我说说。` : '吃了什么、睡得怎样、有什么症状，都可以和我说说。现在、过去的情况都可以记。'
@@ -31,7 +35,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const reviewHeading=useRef<HTMLHeadingElement>(null),switchingDraft=useRef(false)
   const freshDraft=():CaptureDraft=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId})
   useEffect(()=>{if(stage==='review')reviewHeading.current?.focus({preventScroll:true})},[stage])
-  const persist=async(next:CaptureDraft)=>{current.current=next;if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
+  const persist=async(next:CaptureDraft)=>{current.current=next;checkpointCaptureDraft(key,next);if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
   const change=(patch:Partial<CaptureDraft>)=>void persist({...current.current,...patch}).catch(()=>undefined)
   useEffect(()=>{
     let active=true;mounted.current=true
@@ -84,7 +88,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     return()=>{active=false}
   },[ready,key,local.smartReview?.id,Boolean(resumeChoices)])
   async function prepare(input=current.current){
-    if(pending.current||!ready||(!input.text.trim()&&!input.files.some(f=>!f.type.startsWith('audio/'))))return
+    if(pending.current||!ready||input.pendingVoice||(!input.text.trim()&&!input.files.some(f=>!f.type.startsWith('audio/'))))return
     pending.current=true;setBusy(true);setError('');setStatus('正在整理成饮食、症状、睡眠等记录…')
     let retained=input.smartReview
     try{
@@ -100,15 +104,16 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const review=retainSmartRecordEdits(await request<SmartRecordDraft>(url,'POST',{...base,id:retained.id,version:retained.version}),input.smartReview)
       await persist({...current.current,smartReview:review,aiDraftId:review.id})
       if(mounted.current)speech.speak(`我整理了 ${review.items.length} 条，请看看有没有需要改的地方，核对后就能保存。`,`${review.id}:${review.version}`)
-      if(mounted.current){setStatus(`已整理 ${review.items.length} 条，请核对关键内容`);if(review.items.length)setStage('review')}
+      if(mounted.current){setStatus(`已整理 ${review.items.length} 条，请核对关键内容`);if(review.items.length&&!page)setStage('review')}
     }catch(e){
+      if(mounted.current&&e&&typeof e==='object'&&'code' in e&&String(e.code).startsWith('VOICE_ORIGINAL_'))setOriginalsNeedReview(true)
       if(mounted.current){if(retained)try{const restored=retainSmartRecordEdits(await request<SmartRecordDraft>(`${url}/${retained.id}`,'GET'),input.smartReview);await persist({...current.current,smartReview:restored})}catch{/* The exact local draft remains retryable. */}setError(e instanceof Error&&e.name!=='AbortError'?e.message:'整理已中断，原话和草稿保留，可重试');setStatus('')}
     }finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
   const voice=useSmartRecordVoice({memberId,token,pendingVoice:local.pendingVoice,onRecorded:async file=>{await persist({...current.current,pendingVoice:file,files:[...current.current.files,file]})},onTranscript:async (transcript,file)=>{
-    const next=appendCaptureTurn(current.current,transcript,`voice:${file.name}:${file.lastModified}`);await persist(next);await prepare(next)
+    const next=appendCaptureTurn(current.current,transcript,`voice:${file.name}:${file.lastModified}`);await persist(next);if(!page)await prepare(next)
   }})
-  async function sendText(){if(sendLock.current||pending.current)return;speech.activate();sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;const next=appendCaptureTurn(current.current,text);await persist(next);await prepare(next)}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
+  async function sendText(){if(sendLock.current||pending.current||voice.busy||current.current.pendingVoice)return;speech.activate();sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;const next=appendCaptureTurn(current.current,text);await persist(next);if(!page)await prepare(next)}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
   useEffect(()=>{if(ready&&!resumeChoices&&!local.text)speech.speak(greeting,`${key}:greeting`)},[ready,resumeChoices])
   const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice&&(!conversational||review.items.every(item=>!!item.timeText?.trim()))
   useEffect(()=>setSeparateTimes(false),[review?.id])
@@ -139,7 +144,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
   const fieldInput=(item:SmartRecordItem,field:SmartRecordItem['fields'][number])=><label key={field.name}>{labels[field.name]??field.name}<input value={field.value} disabled={busy||voice.busy} onChange={e=>editItem(item.id,i=>({...i,fields:i.fields.map(f=>f.name===field.name?{...f,value:e.target.value,editedBy:'user'}:f)}))}/></label>
-  const conversationFooter=<DialogueComposer text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||busy||!!savedEvent||!!resumeChoices} voiceDisabled={!!local.pendingVoice} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{speech.activate();void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||busy||!!savedEvent||!!resumeChoices} voiceDisabled={!!local.pendingVoice} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{speech.activate();void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {!!saveBlocked&&!busy&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
@@ -147,8 +152,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     <HohoButton fullWidth variant="text" disabled={busy} onClick={()=>setStage('conversation')}>返回对话继续补充</HohoButton>
   </div>
   const footer=resumeChoices?undefined:stage==='review'?reviewFooter:conversationFooter
-  return <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title={stage==='review'&&!resumeChoices?'核对记录':'智能记录'} label="智能记录" onClose={()=>{voice.stop();onClose()}} footer={footer}>
-    {resumeChoices ? <div className="smart-record-resume">
+  const resumeMessage='上次的内容我还留着。你想接着记录，还是重新记一件事？'
+  const body=<>
+    {resumeChoices ? page ? <div className="nurse-conversation"><NurseMessage role="assistant" onRead={speech.supported?()=>speech.read(resumeMessage,`${key}:resume`):undefined} reading={speech.readingId===`${key}:resume`}><div className="smart-record-resume-bubble"><p>{resumeMessage}</p><HohoButton variant="secondary" loading={busy} onClick={()=>void chooseDraft(resumeChoices[0])}>继续上次的记录</HohoButton><HohoButton variant="text" disabled={busy} onClick={()=>void chooseDraft()}>重新开始记录</HohoButton>{resumeChoices.slice(1).map(choice=><HohoButton key={choice.key} variant="text" disabled={busy} onClick={()=>void chooseDraft(choice)}>继续保留的另一份记录</HohoButton>)}{error&&<p role="alert">{error}</p>}</div></NurseMessage></div> : <div className="smart-record-resume">
       <Typography variant="sectionTitle">上次还有未保存的草稿</Typography>
       <Typography variant="body">可以继续核对，也可以开始新的记录。原对话、录音和填写内容都会保留。</Typography>
       {resumeChoices.map((choice,index)=><section key={choice.key} className="smart-record-resume-choice">
@@ -177,6 +183,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}
       {(!ready||busy||voice.busy)&&<NurseMessage role="assistant"><p role="status">{!ready?'我在找回刚才的内容，请稍等。':voice.state==='listening'?'我在听，松手后就帮你记录。':voice.state==='requesting'?'正在打开麦克风。':voice.state==='transcribing'?'我在听这段录音，请稍等。':status||'我在整理，请稍等。'}</p></NurseMessage>}
       {(error||voice.error)&&<NurseMessage role="assistant"><p role="alert">{error||voice.error}。你刚才的内容还在，可以再试一次。</p></NurseMessage>}
+      {originalsNeedReview&&<NurseMessage role="assistant"><p>有语音原件无法读取或格式不一致。文字和其他资料还在；可以明确移除问题原件后整理文字，也可以重新录音。</p>{local.files.filter(file=>file.type.startsWith('audio/')).map(file=><HohoButton key={`${file.name}:${file.lastModified}`} variant="text" disabled={busy||voice.busy} onClick={()=>{change({files:current.current.files.filter(f=>f!==file),pendingVoice:current.current.pendingVoice===file?undefined:current.current.pendingVoice,smartReview:review?{...review,state:'changed'}:undefined});setOriginalsNeedReview(false);setError('')}}>移除语音原件：{file.name}</HohoButton>)}</NurseMessage>}
       {local.pendingVoice&&<NurseMessage role="assistant"><p>{voice.unreadable?'这份录音已经无法读取，可以移除后重新录音。你说过的文字仍然保留。':'这段录音还在，要我再听一次吗？'}</p>{voice.unreadable?<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>void persist({...current.current,pendingVoice:undefined,files:current.current.files.filter(file=>file!==current.current.pendingVoice)}).then(()=>{voice.clearError();setError('')}).catch(()=>undefined)}>移除无法读取的录音</HohoButton>:<HohoButton variant="text" disabled={busy||voice.busy} onClick={voice.retry}>再试一次</HohoButton>}{!voice.unreadable&&<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>change({pendingVoice:undefined})}>继续用文字补充</HohoButton>}</NurseMessage>}
       {!savedEvent&&!busy&&(local.text.trim()||local.files.some(f=>!f.type.startsWith('audio/')))&&<NurseMessage role="assistant"><p>{review?.items.length?'还想补充或修改吗？补充后我可以重新整理。':'要我把刚才说的整理成记录吗？'}</p><HohoButton variant="text" disabled={!ready||voice.busy||!!local.pendingVoice} onClick={()=>void prepare()}>{error||review?.state==='failed'?'再试一次':review?'重新整理':'帮我整理'}</HohoButton></NurseMessage>}
       {!savedEvent&&!!review?.items.length&&<NurseMessage role="assistant" onRead={speech.supported?()=>speech.read(`我整理了 ${review.items.length} 条，请看看有没有需要改的地方，核对后就能保存。`,`${review.id}:${review.version}`):undefined} reading={speech.readingId===`${review.id}:${review.version}`}><p>我整理了 {review.items.length} 条，请看看有没有需要改的地方，核对后就能保存。</p><HohoButton disabled={busy||voice.busy} onClick={()=>setStage('review')}>核对 {review.items.length} 条记录</HohoButton></NurseMessage>}
@@ -186,5 +193,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     </div>}
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept="image/jpeg,image/png,image/webp" hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
-  </BottomSheetSurface>
+  </>
+  const close=()=>{speech.stop();voice.stop();onClose()}
+  return page ? <section className="smart-record-page smart-record-dialog" aria-label="智能记录" style={{top:viewport.top,height:viewport.height}}><WebPageHeader title="智能记录" onBack={close}/><div className="smart-record-page__body">{body}</div>{footer&&<footer className="smart-record-page__footer">{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title={stage==='review'&&!resumeChoices?'核对记录':'智能记录'} label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>
 }

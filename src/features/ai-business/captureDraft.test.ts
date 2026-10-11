@@ -1,6 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { guestDraftKeys } from './captureDraft.ts'
+
+test('刷新检查点只存同上下文元数据和文件身份，不复制音频字节；禁用存储不抛错',async()=>{
+  const {checkpointCaptureDraft}=await import('./captureDraft.ts')
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'sessionStorage'),entries=new Map<string,string>()
+  Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{setItem:(key:string,value:string)=>entries.set(key,value)}})
+  try{
+    const file=new File(['private-audio-bytes'],'voice.webm',{type:'audio/webm',lastModified:42})
+    const draft={text:'合成观察',files:[file],pendingVoice:file,occurredAt:'2026-01-01T10:00',timeUnknown:false,requestId:'request-a'}
+    checkpointCaptureDraft('home-smart:account-a:member-a:new',draft)
+    checkpointCaptureDraft('home-smart:account-b:member-b:new',{...draft,text:'另一上下文'})
+    assert.equal(entries.size,2)
+    const saved=entries.get('hoooho-capture-checkpoint:home-smart:account-a:member-a:new')!
+    assert.equal(saved.includes('private-audio-bytes'),false)
+    assert.equal(JSON.parse(saved).metadata.requestId,'request-a')
+    assert.equal(JSON.parse(saved).pendingVoice,JSON.parse(saved).files[0])
+    Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{setItem:()=>{throw new Error('storage denied')}}})
+    assert.doesNotThrow(()=>checkpointCaptureDraft('home-smart:account-a:member-a:new',draft))
+  }finally{if(previous)Object.defineProperty(globalThis,'sessionStorage',previous);else Reflect.deleteProperty(globalThis,'sessionStorage')}
+})
 test('游客设备草稿只跟随服务器已核验的同成员及同上下文，不导入其他账号或任务',()=>{
   const owner={accountId:'formal-a',memberId:'member-a'}
   assert.deepEqual(guestDraftKeys('formal-a:member-a:event-a:task-a',['guest:old:member-a:event-a:task-a','guest:old:member-b:event-a:task-a','guest:old:member-a:event-b:task-a','formal-b:member-a:event-a:task-a','guest:old:member-a:event-a:task-b'],owner),['guest:old:member-a:event-a:task-a'])
