@@ -1,5 +1,5 @@
 import { parsePlainDate } from '../../utils/localCalendarDate'
-import { calendarCategories } from './presentation'
+import { normalizeCalendarCategory } from './presentation'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
@@ -19,7 +19,7 @@ export function normalizeCalendarNavigation(params: URLSearchParams, today: stri
   const category = params.get('category') ?? fallback?.category ?? ''
   return {
     view: (params.get('view') ?? fallback?.view) === 'month' ? 'month' : 'day', day, month,
-    category: calendarCategories.includes(category as typeof calendarCategories[number]) ? category : '',
+    category: normalizeCalendarCategory(category),
     sort: (params.get('sort') ?? fallback?.sort) === 'asc' ? 'asc' : 'desc',
   }
 }
@@ -39,16 +39,19 @@ export function shiftCalendarMonth(month: string, amount: number) {
   return getLocalDateKey(new Date(parts.year, parts.month - 1 + amount, 1, 12))!.slice(0, 7)
 }
 // Both projections use the saved fact's occurrence, never its audit timestamp or a planned instance.
+export function savedCalendarFacts(entries: readonly JournalEntry[], now = Date.now()) {
+  return entries.filter(entry => entry.caseContext?.confirmed !== false && entry.caseContext?.identity !== 'pending' && (entry.timePrecision === 'unknown' || Date.parse(journalOccurrenceAt(entry, entry.occurredAt)) <= now))
+}
 export function monthOccurrenceEntries(entries: readonly JournalEntry[], month: string) {
   const days = new Map<string, JournalEntry[]>()
-  for (const entry of entries) {
-    if (entry.timePrecision === 'unknown') continue
+  for (const entry of savedCalendarFacts(entries)) {
+    if (entry.timePrecision === 'unknown' || entry.caseContext?.timeUnknown) continue
     const day = getLocalDateKey(journalOccurrenceAt(entry, entry.occurredAt))
     if (!day?.startsWith(`${month}-`)) continue
     const items = days.get(day) ?? []
     if (!items.some(item => item.id === entry.id)) items.push(entry)
     days.set(day, items)
   }
-  for (const items of days.values()) items.sort((a, b) => Date.parse(journalOccurrenceAt(b, b.occurredAt)) - Date.parse(journalOccurrenceAt(a, a.occurredAt)))
+  for (const items of days.values()) items.sort((a, b) => Date.parse(journalOccurrenceAt(b, b.occurredAt)) - Date.parse(journalOccurrenceAt(a, a.occurredAt)) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
   return days
 }

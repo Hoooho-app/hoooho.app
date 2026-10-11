@@ -34,7 +34,7 @@ async function save(page:Page,form:ReturnType<Page['getByRole']>) {
 for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and direct flows at ${width}`,async({page})=>{
   await page.setViewportSize({width,height:width===1280?900:667});await prepare(page)
   const footer=page.locator('.journal-record-actions')
-  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','补剂','记录日常','记录用药'])
+  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','记录日常','记录用药','就诊资料'])
   for(const button of await footer.locator('button').all())await expect(button).toBeInViewport()
   expect(await footer.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
   await expect(footer.locator('.record-entry-grid img,.record-entry-grid svg,.record-symptom-action svg,.record-symptom-action img')).toHaveCount(0)
@@ -53,7 +53,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   expect(geometry.below).toBe(6)
   expect(geometry.subjectCount).toBe(0); expect(geometry.overflow).toBe(false)
   const entryColors=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))
-  expect(entryColors).toEqual(['rgb(255, 242, 226)','rgb(243, 237, 250)','rgb(237, 245, 252)','rgb(233, 246, 242)'])
+  expect(entryColors).toEqual(['rgb(255, 242, 226)','rgb(237, 245, 252)','rgb(233, 246, 242)','rgb(243, 237, 250)'])
   await shot(page,`home-${width}`)
   const daily=page.getByRole('button',{name:'记录日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
@@ -70,7 +70,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await shot(page,`daily-open-${width}`)
   await daily.click();await expect(options).toHaveCount(0)
   await daily.click();await page.getByRole('heading',{name:'健康日历',exact:true}).click();await expect(options).toHaveCount(0)
-  for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['补剂','记录补剂'],['记录用药','记录用药']]) {
+  for(const [button,title] of [['喂养/饮食','喂养/饮食'],['记录症状','记录症状'],['就诊资料','记录就医'],['记录用药','记录用药']]) {
     await daily.click();await footer.getByRole('button',{name:button,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     if(title==='记录症状')await form.getByRole('button',{name:'返回',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
@@ -153,22 +153,22 @@ test('drafts, common food fields, timer pause, reload and no automatic saves',as
   await form.getByRole('radio',{name:'母乳',exact:true}).click();await expect(form.getByLabel('左侧手填分钟')).toHaveValue('3')
   await expect(form.getByRole('button',{name:'左侧停止计时'})).toHaveCount(0)
   const duration=await form.locator('.diet-total-duration strong:visible').textContent();await page.waitForTimeout(1100);await expect(form.locator('.diet-total-duration strong:visible')).toHaveText(duration!)
-  await form.getByRole('radio',{name:'食物饮食',exact:true}).click();await form.getByLabel('输入食物名称').fill('香蕉');await form.getByRole('button',{name:'添加食物'}).click()
+  await form.getByRole('radio',{name:'饮食',exact:true}).click();await form.getByLabel('输入食物名称').fill('香蕉');await form.getByRole('button',{name:'添加食物'}).click()
   await form.getByRole('button',{name:'皮肤',exact:true}).click();await form.locator('input[aria-label="记录时间"]').fill('2026-09-25T12:00')
   await form.getByLabel('输入食物名称').fill('尚未添加的苹果')
   for(const name of ['正餐','零食','辅食']){await form.getByRole('radio',{name,exact:true}).click();await expect(form.getByLabel('已添加食物')).toContainText('香蕉');await expect(form.getByLabel('输入食物名称')).toHaveValue('尚未添加的苹果');await expect(form.locator('input[aria-label="记录时间"]')).toHaveValue('2026-09-25T12:00');await expect(form.getByRole('button',{name:'皮肤',exact:true})).toHaveAttribute('aria-pressed','true')}
   await shot(page,'food-filled-375')
-  await form.getByRole('radio',{name:'奶类喂养'}).click();await form.getByRole('radio',{name:'配方奶',exact:true}).click();await expect(form.getByLabel('喂奶量')).toHaveValue('120')
+  await form.getByRole('radio',{name:'奶类'}).click();await form.getByRole('radio',{name:'配方奶',exact:true}).click();await expect(form.getByLabel('喂奶量')).toHaveValue('120')
   await page.reload();const restored=await diet(page);await expect(restored.getByLabel('喂奶量')).toHaveValue('120')
-  await restored.getByRole('radio',{name:'食物饮食'}).click();await expect(restored.getByLabel('已添加食物')).toContainText('香蕉');await expect(restored.locator('input[aria-label="记录时间"]')).toHaveValue('2026-09-25T12:00')
+  await restored.getByRole('radio',{name:'饮食'}).click();await expect(restored.getByLabel('已添加食物')).toContainText('香蕉');await expect(restored.locator('input[aria-label="记录时间"]')).toHaveValue('2026-09-25T12:00')
   expect(posts).toBe(0)
   await expect(restored.getByLabel('备注')).toHaveCount(0);await expect(restored.getByText('吃了多少', {exact:true})).toHaveCount(0)
-  await restored.getByRole('radio',{name:'奶类喂养'}).click();await shot(page,'milk-filled-375')
+  await restored.getByRole('radio',{name:'奶类'}).click();await shot(page,'milk-filled-375')
 })
 for(const [kind,label] of [['breast','母乳'],['formula','配方奶'],['expressed','瓶喂母乳'],['mixed','混合喂养'],['complementary','辅食'],['meal','正餐'],['snack','零食']]) test(`save and historical editor restores ${kind}`,async({page})=>{
   await prepare(page,'routine-child');const form=await diet(page)
   const milk=['breast','formula','expressed','mixed'].includes(kind)
-  if(!milk)await form.getByRole('radio',{name:'食物饮食'}).click()
+  if(!milk)await form.getByRole('radio',{name:'饮食'}).click()
   await form.getByRole('radio',{name:label,exact:true}).click()
   if(kind==='breast'||kind==='mixed')await form.getByLabel('左侧手填分钟').fill('4')
   if(milk&&kind!=='breast')await form.getByLabel('喂奶量').fill('110')
@@ -183,7 +183,7 @@ for(const [kind,label] of [['breast','母乳'],['formula','配方奶'],['express
   await page.locator(`[data-record-id="${ids.recordId}"]`).click()
   await page.getByRole('button',{name:'编辑喂养/饮食'}).click()
   const editor=page.getByRole('dialog',{name:'喂养/饮食',exact:true})
-  await expect(editor.getByRole('radio',{name:milk?'奶类喂养':'食物饮食',exact:true})).toHaveAttribute('aria-checked','true')
+  await expect(editor.getByRole('radio',{name:milk?'奶类':'饮食',exact:true})).toHaveAttribute('aria-checked','true')
   await expect(editor.getByRole('radio',{name:label,exact:true})).toHaveAttribute('aria-checked','true')
   await expect(editor.locator('input[aria-label="记录时间"]')).toHaveValue('2026-09-25T13:10')
   if(milk&&kind!=='breast')await expect(editor.getByLabel('喂奶量')).toHaveValue('110')
@@ -230,8 +230,8 @@ test('short screen anchoring, resize and keyboard segmented navigation',async({p
 
 test('direct supplement preserves dose, saves supplement type and restores edit fields',async({page})=>{
   await prepare(page,'routine-child')
-  await page.getByRole('button',{name:'补剂',exact:true}).click()
-  const form=page.getByRole('dialog',{name:'记录补剂',exact:true})
+  const form=await diet(page)
+  await form.getByRole('radio',{name:'补剂',exact:true}).click()
   await form.getByLabel('输入补剂名称').fill('合成补剂');await form.getByRole('button',{name:'添加补剂'}).click()
   await form.getByLabel('用量',{exact:true}).fill('2')
   await form.getByRole('button',{name:'粒',exact:true}).click()
@@ -267,7 +267,7 @@ test('shared case capture route remains usable outside the retired journal entry
   await page.goto('/smart-record')
   // The current formal branch uses the shared AI workspace here, not the
   // retired journal-specific entry. Keep that existing route and tools intact.
-  await expect(page.getByRole('dialog',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'改用文字',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'拍照',exact:true})).toBeVisible()
   await expect(page.locator('.journal-record-actions')).toHaveCount(0)

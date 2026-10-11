@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { calendarDayInfo } from './holidays'
-import { calendarCategories, calendarCategoryLabels, calendarRecordTone } from './presentation'
+import { calendarCategories, calendarGroupLabels, calendarRecordTone } from './presentation'
 
 test('2026 official holidays and makeup workdays cover all seven holiday arrangements', () => {
   for (const [start,end] of [['01-01','01-03'],['02-15','02-23'],['04-04','04-06'],['05-01','05-05'],['06-19','06-21'],['09-25','09-27'],['10-01','10-07']]) {
@@ -25,11 +25,11 @@ test('festival dates are civil dates with lunar festivals distinct from vacation
   // No guessed compensatory workdays for years without an official annual table.
   assert.equal(calendarDayInfo('2030-10-12').work,false)
 })
-test('calendar uses short labels and hides only legacy creation/filter choices', () => {
-  assert.ok(calendarCategories.every(c=>calendarCategoryLabels[c].length===2))
+test('calendar exposes five presentation groups without changing legacy types', () => {
+  assert.deepEqual(calendarCategories.map(c => calendarGroupLabels[c]), ['喂养','日常','用药','症状','就诊资料'])
   for (const legacy of ['measurement','environment','social']) assert.ok(!calendarCategories.includes(legacy as typeof calendarCategories[number]))
-  assert.equal(calendarRecordTone(['symptom','sleep']),'red')
-  assert.equal(calendarRecordTone(['vaccination']),'orange')
-  for (const c of ['diet','sleep','growth','care','elimination'] as const) assert.equal(calendarRecordTone([c]),'blue')
-  assert.equal(calendarRecordTone(['symptom','sleep'],'sleep'),'blue')
+  assert.equal(calendarRecordTone({ categories: ['symptom','sleep'] }),'symptom')
+  assert.equal(calendarRecordTone({ categories: ['vaccination'] }),'materials')
+  assert.equal(calendarRecordTone({ categories: ['diet'] }),'feeding')
+  for (const c of ['sleep','growth','care','elimination'] as const) assert.equal(calendarRecordTone({ categories: [c] }),'daily')
 })

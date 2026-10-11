@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { calendarNavigationParams, normalizeCalendarNavigation, type CalendarNavigation } from './navigation'
+import { normalizeCalendarCategory } from './presentation'
 
 export interface CalendarReturnState extends Partial<CalendarNavigation> { scrollTop?: number; identity?: string; search?: string; hash?: string }
 export function useCalendarNavigation(identity: string, today: string) {
@@ -22,6 +23,8 @@ export function useCalendarNavigation(identity: string, today: string) {
   }
   const differentOwner = Boolean(owner && owner !== identity)
   const original = new URLSearchParams(location.search)
+  const [legacyNotice, setLegacyNotice] = useState(() => Boolean(original.get('category') && !normalizeCalendarCategory(original.get('category')!)))
+  useEffect(() => { if (!legacyNotice) return; const timer = window.setTimeout(() => setLegacyNotice(false), 5000); return () => window.clearTimeout(timer) }, [legacyNotice])
   if (differentOwner) { original.delete('eventId'); original.delete('recordId') }
   const state = normalizeCalendarNavigation(differentOwner ? new URLSearchParams() : original, today, initial.current)
   const canonical = calendarNavigationParams(state, original).toString()
@@ -33,5 +36,5 @@ export function useCalendarNavigation(identity: string, today: string) {
     const validated = normalizeCalendarNavigation(calendarNavigationParams(next), today)
     navigate(`${location.pathname}?${calendarNavigationParams(validated, new URLSearchParams(location.search))}${location.hash}`, { flushSync, state: { ...location.state, journalReturn: undefined, calendarIdentity: identity } })
   }
-  return { state, change }
+  return { state, change, legacyNotice }
 }

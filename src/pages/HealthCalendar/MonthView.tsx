@@ -2,9 +2,9 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from '
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { calendarMonthDays } from './model'
 import { calendarDayInfo } from './holidays'
-import { calendarCategoryLabels, calendarRecordTone } from './presentation'
+import { calendarRecordTone, presentCalendarRecord } from './presentation'
 import { monthOccurrenceEntries } from './navigation'
-import { journalListSummary, type JournalEntry } from '../HealthEvents/timeViewModel'
+import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import './calendar.css'
 
 export function MonthView({ month, today, day, category, entries, loading, error, onRetry, onDay }: { month: string; today: string; day: string; category: string; entries: readonly JournalEntry[]; loading: boolean; error: string; onRetry: () => void; onDay: (day: string) => void }) {
@@ -36,8 +36,8 @@ export function MonthView({ month, today, day, category, entries, loading, error
           <span className="health-calendar__date-heading"><span className="health-calendar__date-number">{Number(date.slice(8))}</span>{(info.rest || info.work) && <span className="health-calendar__holiday-marker">{info.work ? '班' : '休'}</span>}</span>
           {info.festival && <span className="health-calendar__festival">{info.festival}</span>}
           <span className="health-calendar__previews">{items.slice(0, limit).map(entry => {
-            const summary = journalListSummary(entry), label = calendarCategoryLabels[entry.categories?.[0] ?? 'other']
-            return <span className="health-calendar__preview" key={entry.id} data-tone={calendarRecordTone(entry.categories, category)} title={summary}>{summary.startsWith(label) ? summary : `${label}·${summary}`}</span>
+            const summary = presentCalendarRecord(entry)
+            return <span className="health-calendar__preview" key={entry.id} data-tone={calendarRecordTone(entry)} title={summary.fullDetail}>{summary.monthSummary}</span>
           })}</span>
           {hidden > 0 && <span className="health-calendar__more">+{hidden}</span>}
         </button>
