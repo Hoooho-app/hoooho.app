@@ -31,7 +31,7 @@ async function shot(page: Page, name: string) {
 test('dense filtered previews, holidays, today and zero/error states remain accurate and readable', async ({ page }) => {
   const member = await page.request.post('/api/members', { headers, data: { name: '密集月历测试对象', birthday: '2025-01-01', gender: 'female', relationship: 'child' } })
   const memberId = (await member.json()).id
-  for (const category of ['symptom', 'medication', 'diet']) for (let index = 0; index < 5; index++) {
+  for (const category of ['symptom', 'medication', 'diet']) for (let index = 0; index < 8; index++) {
     const data = { memberId, title: '日历可控测试', content: `${category}很长的测试记录${index}，详情保留完整原文`, occurredAt: `2026-03-08T10:${String(index).padStart(2, '0')}:00+08:00`, inputChannel: 'text', idempotencyKey: `calendar-${category}-${index}`, journal: { categories: [category], timePrecision: 'exact' } }
     const checked = await page.request.post('/api/quick-records/duplicate-check', { headers, data })
     expect(checked.ok()).toBe(true)
@@ -40,10 +40,10 @@ test('dense filtered previews, holidays, today and zero/error states remain accu
     expect(saved.status(), await saved.text()).toBe(201)
   }
   await prepare(page, '/health-events?view=month&day=2026-03-08&month=2026-03', memberId)
-  await expect(page.getByRole('button', { name: /^2026-03-08，/ })).toHaveAccessibleName(/15条记录/)
+  await expect(page.getByRole('button', { name: /^2026-03-08，/ })).toHaveAccessibleName(/24条记录/)
   for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932]]) {
     await page.setViewportSize({ width, height })
-    for (const [category, count] of [['', 15], ['symptom', 5], ['medication', 5], ['feeding', 5], ['materials', 0]] as const) {
+    for (const [category, count] of [['', 24], ['symptom', 8], ['medication', 8], ['feeding', 8], ['materials', 0]] as const) {
       await page.getByLabel('筛选记录类型').selectOption(category)
       const cell = page.getByRole('button', { name: /^2026-03-08，/ })
       await expect(cell).toHaveAccessibleName(new RegExp(`${count}条记录`))
@@ -52,6 +52,7 @@ test('dense filtered previews, holidays, today and zero/error states remain accu
         return { shown: previews.length, hidden: Number(more?.textContent?.slice(1) ?? 0), fits: [...previews, ...(more ? [more] : [])].every(item => item.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1), width: el.clientWidth / parseFloat(getComputedStyle(el).fontSize) }
       })
       expect(geometry.shown + geometry.hidden).toBe(count); expect(geometry.fits).toBe(true); expect(geometry.width).toBeGreaterThanOrEqual(4)
+      if (!category) { await cell.click(); await expect(page.locator('[data-day-record]')).toHaveCount(24); await page.keyboard.press('Escape') }
     }
     await page.getByLabel('筛选记录类型').selectOption('')
     await page.getByRole('heading', { name: '健康日历', exact: true }).click()
