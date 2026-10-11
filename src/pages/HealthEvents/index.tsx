@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
@@ -14,6 +14,9 @@ import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { useJournal } from './useJournal'
 import { CalendarToolbar } from '../HealthCalendar/CalendarToolbar'
 import { MonthView } from '../HealthCalendar/MonthView'
+import { DayRecordsSheet } from '../HealthCalendar/DayRecordsSheet'
+import { matchesCalendarGroup } from '../HealthCalendar/presentation'
+import { monthOccurrenceEntries, savedCalendarFacts } from '../HealthCalendar/navigation'
 import { useCalendarNavigation, type CalendarReturnState } from '../HealthCalendar/useCalendarNavigation'
 import '../HealthCalendar/unifiedCalendar.css'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
@@ -49,10 +52,18 @@ function HealthEventsContent() {
   const returnState = !rawReturn?.identity || rawReturn.identity === identity ? rawReturn : undefined
   const [today, setToday] = useState(() => getLocalDateKey(new Date())!); const [recorderMode, setRecorderMode] = useState<'manual' | null>(null); const [selectedRecord, setSelectedRecord] = useState<{ eventId: string; recordId: string; correctSleep?: boolean } | null>(null); const [nextActionOpen, setNextActionOpen] = useState(false); const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null); const [journalContext, setJournalContext] = useState<{ memberId: string; eventId: string | null }>({ memberId: currentMemberId, eventId: null }); const [revision, setRevision] = useState(0); const [savedNotice, setSavedNotice] = useState(''); const [savedRecordFocus, setSavedRecordFocus] = useState<SavedRecordFocus | null>(null); const submissionKeyRef = useRef(''); const contentRef = useRef<HTMLDivElement>(null)
   const navigation = useCalendarNavigation(identity, today), calendar = navigation.state, day = calendar.day
+  const [sheetDay, setSheetDay] = useState<string | null>(null)
+  const [monthSelection, setMonthSelection] = useState(day)
+  const backgroundRef = useRef<HTMLDivElement>(null)
+  const monthTrigger = useRef<HTMLElement | null>(null)
+  const closeDaySheet = () => { setSheetDay(null); requestAnimationFrame(() => monthTrigger.current?.focus({ preventScroll: true })) }
+  useLayoutEffect(() => { if (backgroundRef.current) backgroundRef.current.inert = Boolean(sheetDay || selectedRecord || recorderMode) }, [sheetDay, selectedRecord, recorderMode])
+  useEffect(() => { setSheetDay(null); setMonthSelection(day) }, [identity, calendar.view, calendar.month, calendar.category])
   const previousToday = useRef(today)
   const setDay = (value: string) => navigation.change({ ...calendar, day: value, month: value.slice(0, 7) })
   const journal = useJournal(currentMemberId, token ?? '', revision)
-  const filteredEntries = useMemo(() => journal.entries.filter(entry => !calendar.category || entry.categories?.includes(calendar.category as JournalCategory)), [journal.entries, calendar.category])
+  const filteredEntries = useMemo(() => savedCalendarFacts(journal.entries).filter(entry => matchesCalendarGroup(entry, calendar.category)), [journal.entries, calendar.category])
+  const monthRecords = useMemo(() => monthOccurrenceEntries(filteredEntries, calendar.month), [filteredEntries, calendar.month])
   const filteredJournal = { ...journal, entries: filteredEntries }
   useEffect(() => {
     const previous = previousToday.current; previousToday.current = today
@@ -140,7 +151,7 @@ function HealthEventsContent() {
     const saved = await quickRecordService.create(input, token)
     const savedDay = getLocalDateKey(new Date(occurredAt))!
     setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...journal, id: saved.recordId, eventId: saved.eventId, content, occurredAt, createdAt: new Date().toISOString(), attachmentCount: photos.photoIds.length, status: 'observing' } })
-    navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: !calendar.category || journal.categories?.includes(calendar.category as JournalCategory) ? calendar.category : '' }); finishSave(); return '已记录'
+    navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(journal, calendar.category) ? calendar.category : '' }); finishSave(); return '已记录'
   }
   const resolveDuplicate = async (action: 'update' | 'create', changeSummary?: string): Promise<void> => {
     if (!pendingDuplicate || !token) return
@@ -149,7 +160,7 @@ function HealthEventsContent() {
       const saved = await quickRecordService.create({ ...pending.input, rawText: pending.input.content, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, duplicateAction: action, duplicateEventId: pending.duplicate.eventId }, token)
       const savedDay = getLocalDateKey(new Date(pending.input.occurredAt))!
       setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...pending.input.journal, id: saved.recordId, eventId: saved.eventId, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, occurredAt: pending.input.occurredAt, createdAt: new Date().toISOString(), attachmentCount: pending.input.photoIds?.length ?? 0, status: 'observing', categories: pending.input.journal?.categories ?? ['other'] } })
-      navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: !calendar.category || pending.input.journal?.categories?.includes(calendar.category as JournalCategory) ? calendar.category : '' }); finishSave(); pending.resolve(action === 'update' ? '已补充到原来的记录' : '已新增一条记录')
+      navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(pending.input.journal ?? {}, calendar.category) ? calendar.category : '' }); finishSave(); pending.resolve(action === 'update' ? '已补充到原来的记录' : '已新增一条记录')
     } catch (error) { pending.reject(error) }
   }
   const discardDuplicate = () => { if (!pendingDuplicate) return; const pending = pendingDuplicate; setPendingDuplicate(null); submissionKeyRef.current = ''; pending.resolve('已保留原来的记录') }
@@ -157,17 +168,21 @@ function HealthEventsContent() {
   if (state.status === 'success' && state.data.entryState.familyMemberCount === 0) return <Navigate to="/nurse-station" replace />
   if (nextActionOpen && currentMemberId) return <Navigate to="/visit-summary" />
   return <main className="hoho-health-events-page unified-health-calendar app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode="list" data-calendar-view={calendar.view}>
+    <div className="calendar-background" ref={backgroundRef}>
     <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
-      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={day} category={calendar.category} entries={filteredEntries} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => navigation.change({ ...calendar, view: 'day', day: value, month: value.slice(0, 7) })}/>}
+      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
     </div>
     <footer className="journal-record-actions"><RecordEntryActions disabled={!token || currentMember?.id !== currentMemberId} identity={identity} onRecord={(category, kind) => { submissionKeyRef.current = ''; setRecorderInitialCategory(category); setRecorderInitialDietKind(kind); setRecorderMode('manual') }}/></footer>
-    {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay) setDay(changedDay); setSavedRecordFocus(changedDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}`, { replace: true, state: location.state }) } }}/ >}
+    </div>
+    {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} suspended={Boolean(selectedRecord)} loading={journal.loading} error={journal.error} onRetry={journal.retry} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
+    {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay && !sheetDay) setDay(changedDay); setSavedRecordFocus(changedDay && !sheetDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}${location.hash}`, { replace: true, state: location.state }) } }}/ >}
     {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
     {pendingDuplicate && <DuplicateRecordPrompt duplicate={pendingDuplicate.duplicate} onCancel={discardDuplicate} onDiscard={discardDuplicate} onUpdate={changeSummary => resolveDuplicate('update', changeSummary)} onCreate={() => resolveDuplicate('create')}/>}
     {savedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{savedNotice}</div>}
+    {navigation.legacyNotice && <div className="journal-saved-toast" role="status">旧类型已按全部类型显示</div>}
     {tutorial && <div className="nurse-station-modal-layer" role="dialog" aria-modal="true"><div className="nurse-station-modal"><button aria-label="退出教程" className="sheet-close" onClick={() => navigate('/nurse-station', { replace: true })} type="button"><X/></button><h2>试着记录一次喂养</h2><p className="tutorial-example">宝宝刚喝了120ml配方奶</p><p>这是教程示例，不会保存为真实记录。</p><HohoButton fullWidth size="large" onClick={() => navigate('/nurse-station', { replace: true, state: { tutorialComplete: true } })}>使用示例</HohoButton><button className="sheet-secondary" onClick={() => navigate('/nurse-station', { replace: true })} type="button">跳过这一步</button></div></div>}
     <NurseNextAction currentMemberId={currentMemberId} eventId={nextActionEventId} key={`${currentMemberId}:${nextActionEventId ?? 'none'}`} onClose={() => setNextActionOpen(false)} open={nextActionOpen}/>
   </main>

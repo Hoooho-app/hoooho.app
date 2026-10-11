@@ -23,8 +23,8 @@ export function JournalDietIcon({ kind, size = 20, strokeWidth = 1.8 }: { kind?:
 }
 
 const icons = { sleep: Moon, elimination: Toilet, activity: PersonStanding, emotion: Smile, social: Users, symptom: Cross, measurement: Thermometer, growth: Baby, injury: Bandage, medication: Pill, care: HandHeart, vaccination: Syringe, environment: Leaf, visit: Hospital, examination: FileText, other: CircleEllipsis }
-export function JournalCategoryIcon({ category, dietKind }: { category: JournalCategory; dietKind?: DietRecordKind }) {
-  if (category === 'diet') return <JournalDietIcon kind={dietKind} />
+export function JournalCategoryIcon({ category, dietKind, size = 20, strokeWidth = 1.8 }: { category: JournalCategory; dietKind?: DietRecordKind; size?: number; strokeWidth?: number }) {
+  if (category === 'diet') return <JournalDietIcon kind={dietKind} size={size} strokeWidth={strokeWidth}/>
   const Icon = icons[category] ?? CircleEllipsis
-  return <Icon aria-hidden="true" className="text-primary shrink-0" size={20} strokeWidth={1.8} />
+  return <Icon aria-hidden="true" className="text-primary shrink-0" size={size} strokeWidth={strokeWidth} />
 }

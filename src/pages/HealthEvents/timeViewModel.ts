@@ -14,6 +14,10 @@ export const journalCategoryLabels: Record<JournalCategory, string> = {
   care: '护理干预', vaccination: '疫苗接种', environment: '接触环境', visit: '就医', examination: '检查报告', other: '其他'
 }
 export interface JournalEntry extends JournalMetadata {
+  sourceType?: HealthEventRecordApiDto['sourceType']
+  caseContext?: HealthEventRecordApiDto['caseContext']
+  sourceText?: HealthEventRecordApiDto['sourceText']
+  aiProvenance?: HealthEventRecordApiDto['aiProvenance']
   id: string
   eventId: string
   content: string
@@ -48,8 +52,12 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       const latestOccurredAt = journalOccurrenceAt(first.journal, latest.journal?.occurredAt ?? latest.occurredAt)
       return {
       id: first.id, eventId: event.id, content: first.content, occurredAt: latestOccurredAt, createdAt: latest.createdAt,
+      sourceType: first.sourceType,
+      caseContext: first.caseContext,
+      sourceText: first.sourceText,
+      aiProvenance: first.aiProvenance,
       categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
-      timePrecision: latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (!first.sourceType || ['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType) ? 'exact' : 'unknown'),
+      timePrecision: first.caseContext?.timeUnknown ? 'unknown' : latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (!first.sourceType || ['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType) ? 'exact' : 'unknown'),
       timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
       diet: first.journal?.diet,
       sleep: first.journal?.sleep,
@@ -57,6 +65,9 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       medication: first.journal?.medication,
       vaccination: first.journal?.vaccination,
       symptom: first.journal?.symptom,
+      visit: first.journal?.visit,
+      bowel: first.journal?.bowel,
+      topical: first.journal?.topical,
       aiNurse: first.journal?.aiNurse,
       attachmentCount: files.filter((file) => !file.recordId || ordered.some((record) => record.id === file.recordId)).length,
       status: event.status,

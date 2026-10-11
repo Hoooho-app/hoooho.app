@@ -4,7 +4,8 @@ import { HohoButton, StatusNotice } from '../../components/design-system'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { JournalCategoryIcon } from './JournalCategoryIcon'
 import { entriesForDay, hourProgress, orderedHours } from './timeGridModel'
-import { journalCategoryLabels, journalListSummary, type JournalEntry } from './timeViewModel'
+import type { JournalEntry } from './timeViewModel'
+import { matchesCalendarGroup, presentCalendarRecord, calendarRecordTone, calendarGroupLabels } from '../HealthCalendar/presentation'
 import { useJournal } from './useJournal'
 import { useRoutineTracks } from './useRoutineTracks'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
@@ -39,8 +40,8 @@ function CurrentTimeRow() {
 }
 
 function RecordRow({ confirmed, entry, highlighted, onOpen }: { confirmed: boolean; entry: JournalEntry; highlighted: boolean; onOpen: () => void }) {
-  const category = entry.categories?.[0] ?? 'other'; const summary = journalListSummary(entry)
-  return <article className={`journal-record journal-grid-record${entry.symptom ? ' journal-record--symptom' : ''}${confirmed ? ' journal-grid-record--confirmed' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={entry.id}><button aria-label={`${journalCategoryLabels[category]}：${summary}`} className="journal-record-main" onClick={onOpen} type="button"><JournalCategoryIcon category={category} dietKind={entry.diet?.kind} /><span className="journal-record-content"><span className="journal-record-summary">{summary}{(entry.sleep?.status === 'ongoing' || entry.diet?.status === 'ongoing') && <span aria-hidden="true" className="journal-sleep-ongoing-dots"><span>.</span><span>.</span><span>.</span></span>}</span>{Boolean(entry.aiNurse?.professionalNotes.length) && <span className="journal-attachment">专业备注 {entry.aiNurse!.professionalNotes.length}</span>}{entry.attachmentCount > 0 && <span aria-label={`${entry.attachmentCount} 个附件`} className="journal-attachment"><Paperclip size={13} />{entry.attachmentCount}</span>}</span>{confirmed ? <CheckCircle2 aria-label="已确认" className="routine-confirm-stamp" size={17} /> : <ChevronRight aria-hidden="true" size={16} />}</button></article>
+  const category = entry.categories?.[0] ?? 'other'; const presented = presentCalendarRecord(entry); const summary = presented.coreSummary
+  return <article className={`journal-record journal-grid-record${entry.symptom ? ' journal-record--symptom' : ''}${confirmed ? ' journal-grid-record--confirmed' : ''}${highlighted ? ' journal-grid-record--highlighted' : ''}`} data-record-id={entry.id} data-tone={calendarRecordTone(entry)}><button aria-label={`${presented.group ? calendarGroupLabels[presented.group] : '未分类'} / ${presented.subtype}：${summary}；${entry.content}${entry.medication ? `；${presented.fullDetail}` : ''}`} className="journal-record-main" onClick={onOpen} type="button"><JournalCategoryIcon category={category} dietKind={entry.diet?.kind} size={16} strokeWidth={1.75}/><span className="journal-record-content"><span className="journal-record-summary">{summary}{(entry.sleep?.status === 'ongoing' || entry.diet?.status === 'ongoing') && <span aria-hidden="true" className="journal-sleep-ongoing-dots"><span>.</span><span>.</span><span>.</span></span>}</span>{Boolean(entry.aiNurse?.professionalNotes.length) && <span className="journal-attachment">专业备注 {entry.aiNurse!.professionalNotes.length}</span>}{entry.attachmentCount > 0 && <span aria-label={`${entry.attachmentCount} 个附件`} className="journal-attachment"><Paperclip size={13} />{entry.attachmentCount}</span>}</span>{confirmed ? <CheckCircle2 aria-label="已确认" className="routine-confirm-stamp" size={17} /> : <ChevronRight aria-hidden="true" size={16} />}</button></article>
 }
 
 function timelineRowClass(item: TimelineItem) {
@@ -64,7 +65,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
       const at = new Date(journalOccurrenceAt(entry, entry.occurredAt))
       return { kind: 'record', entry, createdTime: Date.parse(entry.createdAt), hour: at.getHours(), minute: at.getMinutes(), key: `record:${entry.id}`, sortTime: at.getTime() }
     })
-    for (const instance of daily.items.filter(item => (item.status === 'unconfirmed' || item.status === 'confirming') && (!category || item.journal.categories?.includes(category as import('../../types/journal').JournalCategory)))) {
+    for (const instance of daily.items.filter(item => (item.status === 'unconfirmed' || item.status === 'confirming') && matchesCalendarGroup(item.journal, category))) {
       const at = new Date(instance.plannedAt)
       items.push({ kind: 'automatic', instance, createdTime: Date.parse(instance.generatedAt), hour: at.getHours(), minute: at.getMinutes(), key: `automatic:${instance.id}`, sortTime: at.getTime() })
     }

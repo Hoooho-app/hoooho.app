@@ -17,9 +17,10 @@ test('all existing daily forms expose one starter without writing on cancellatio
   const settings = () => page.getByRole('region', { name: '每天自动记录设置' })
   let writes = 0
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/quick-records' && request.method() === 'POST') writes++ })
-  for (const [entry, title] of [['补剂', '记录补剂'], ['记录用药', '记录用药']]) {
+  for (const [entry, title] of [['喂养/饮食', '喂养/饮食'], ['记录用药', '记录用药']]) {
     await page.getByRole('button', { name: entry, exact: true }).click()
     const form = page.getByRole('dialog', { name: title, exact: true })
+    if (entry === '喂养/饮食') await form.getByRole('radio', { name: '补剂', exact: true }).click()
     await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toBeEnabled()
     await settings().getByRole('switch', { name: '每天自动记录', exact: true }).click(); await expect(settings().locator('.daily-record-slot')).toHaveCount(1)
     await form.getByRole('button', { name: /^返回/ }).click(); await expect(form).toHaveCount(0)
@@ -35,10 +36,11 @@ test('all existing daily forms expose one starter without writing on cancellatio
   await page.evaluate(({ accountId, memberId }) => sessionStorage.setItem(`hoooho:daily:${accountId}:${memberId}:feeding`, JSON.stringify({ enabled: true, slots: null, revision: 0 })), { accountId, memberId })
   await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
   let form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
+  await form.getByRole('radio', { name: '奶类', exact: true }).click()
   await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toBeEnabled()
   await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toHaveAttribute('aria-checked', 'false')
   for (const kind of ['辅食', '正餐', '零食']) {
-    await form.getByRole('radio', { name: '食物饮食', exact: true }).click(); await form.getByRole('radio', { name: kind, exact: true }).click()
+    await form.getByRole('radio', { name: '饮食', exact: true }).click(); await form.getByRole('radio', { name: kind, exact: true }).click()
     await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toBeEnabled()
     await settings().getByRole('switch', { name: '每天自动记录', exact: true }).click(); await expect(settings().locator('.daily-record-slot')).toHaveCount(1)
   }
@@ -46,7 +48,7 @@ test('all existing daily forms expose one starter without writing on cancellatio
   const url = `**/api/routines/${memberId}/daily`
   await page.route(url, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '验收加载失败' } }) }))
   await page.getByRole('button', { name: '喂养/饮食', exact: true }).click(); form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
-  await form.getByRole('radio', { name: '奶类喂养', exact: true }).click()
+  await form.getByRole('radio', { name: '奶类', exact: true }).click()
   await form.getByRole('radio', { name: '配方奶', exact: true }).click(); await form.getByRole('spinbutton', { name: /^喂奶量/ }).fill('150')
   await expect(settings().getByRole('alert')).toContainText('验收加载失败')
   await form.getByRole('button', { name: '保存记录', exact: true }).click(); await expect(form.getByText('每天设置尚未加载', { exact: false })).toBeVisible(); expect(writes).toBe(0)
@@ -120,16 +122,22 @@ for (const width of [375, 390, 430]) {
     expect(actual.journal.diet.bottleMl).toBe(190)
     await page.locator('[data-record-id]').getByRole('button').click(); await expect(page.getByText('自动记录 · 已确认 · 晚奶')).toBeVisible(); await page.getByRole('dialog', { name: '症状记录详情' }).getByRole('button', { name: '关闭症状记录详情', exact: true }).click()
     await page.locator('[data-automatic-id]').first().getByRole('button').click(); await page.getByRole('button', { name: '本次未发生', exact: true }).click(); await expect(page.locator('[data-automatic-id]')).toHaveCount(1)
-    await page.getByRole('button', { name: '调整作息', exact: true }).click(); await page.getByRole('button', { name: '管理每天自动记录', exact: true }).click()
-    await expect(page.getByRole('dialog', { name: '每天记录设置' })).toBeVisible(); await page.getByRole('button', { name: /早奶、午奶、晚奶/ }).click(); await expect(page.locator('.daily-record-slot')).toHaveCount(3)
+    await page.locator('[data-record-id]').getByRole('button').click()
+    await page.getByRole('button', { name: '修改每天设置', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: '每天记录设置' })).toBeVisible(); await expect(page.locator('.daily-record-slot')).toHaveCount(3)
     await shot(page, `manage-${width}`)
     await page.getByRole('dialog', { name: '每天记录设置' }).getByRole('button', { name: '关闭每天记录设置', exact: true }).click()
+    await page.getByRole('dialog', { name: '症状记录详情' }).getByRole('button', { name: '关闭症状记录详情', exact: true }).click()
     await page.getByLabel('选择日期', { exact: true }).fill(localDay())
+    const dueToday = (await (await page.request.get(`/api/routines/${memberId}/daily/instances?day=${localDay()}`, { headers })).json()).filter((value: any) => value.status === 'unconfirmed')
+    expect(dueToday.length).toBeGreaterThanOrEqual(2) // Two midnight fixtures plus milk slots already due at the actual test time.
     await page.getByRole('button', { name: '核对今天的自动记录', exact: true }).click()
     const batch = page.getByRole('dialog', { name: '核对自动记录' })
-    await expect(batch.getByRole('checkbox')).toHaveCount(2); await expect(batch.getByRole('button', { name: '确认选中的0项已发生' })).toBeDisabled()
+    await expect(batch.getByRole('checkbox')).toHaveCount(dueToday.length); await expect(batch.getByRole('button', { name: '确认选中的0项已发生' })).toBeDisabled()
     for (const checkbox of await batch.getByRole('checkbox').all()) await checkbox.check()
-    await shot(page, `batch-${width}`); await batch.getByRole('button', { name: '确认选中的2项已发生' }).click()
-    await expect(batch).toHaveCount(0); await expect(page.locator('[data-automatic-id]')).toHaveCount(0); await expect(page.locator('[data-record-id]')).toHaveCount(2)
+    await shot(page, `batch-${width}`); await batch.getByRole('button', { name: `确认选中的${dueToday.length}项已发生` }).click()
+    await expect(batch).toHaveCount(0); await expect(page.locator('[data-automatic-id]')).toHaveCount(0); await expect(page.locator('[data-record-id]')).toHaveCount(dueToday.length)
+    const afterBatch = await (await page.request.get(`/api/routines/${memberId}/daily/instances?day=${localDay()}`, { headers })).json()
+    expect(afterBatch.filter((value: any) => dueToday.some((due: any) => due.id === value.id) && value.status === 'confirmed')).toHaveLength(dueToday.length)
   })
 }

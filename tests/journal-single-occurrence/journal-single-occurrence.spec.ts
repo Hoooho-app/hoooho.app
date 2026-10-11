@@ -206,7 +206,7 @@ test('meal start/finish retains foods and unchanged exact endpoint seconds durin
   await day(page, '2026-09-30')
   await page.locator('.journal-record-actions').getByRole('button', { name: '喂养/饮食', exact: true }).click()
   const form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
-  await form.getByRole('radio', { name: '食物饮食', exact: true }).click()
+  await form.getByRole('radio', { name: '饮食', exact: true }).click()
   await form.getByRole('radio', { name: '正餐', exact: true }).click()
   await form.getByLabel('本次名称（选填）').fill('晚餐')
   await form.getByRole('button', { name: '米饭', exact: true }).click()

@@ -9,9 +9,9 @@ import './RecordEntryActions.css'
 
 const direct: readonly { id: string; category: JournalCategory; label: string; kind?: DietRecordKind }[] = [
   { id:'feeding',category:'diet',kind:'feeding',label:'喂养/饮食' },
-  { id:'supplement',category:'diet',kind:'supplement',label:'补剂' },
   { id:'daily',category:'other',label:'记录日常' },
-  { id:'medication',category:'medication',label:'记录用药' }
+  { id:'medication',category:'medication',label:'记录用药' },
+  { id:'materials',category:'visit',label:'就诊资料' }
 ]
 const routines = [{ category:'sleep',label:'睡眠',image:sleep },{ category:'elimination',label:'排便',image:bowel },{ category:'care',label:'身体涂抹',image:activity }] as const
 export function RecordEntryActions({ disabled, identity, onRecord }: { disabled: boolean; identity: string; onRecord: (category: JournalCategory, kind?: DietRecordKind) => void }) {

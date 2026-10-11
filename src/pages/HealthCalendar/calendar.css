@@ -13,11 +13,11 @@
 
 .health-calendar__new-record { display: grid; gap: var(--hoho-space-4); }
 
-.health-calendar__weekday[data-weekend=true], .health-calendar__day[data-weekend=true] .health-calendar__date-number, .health-calendar__day[data-rest=true] .health-calendar__date-number { color: rgb(var(--hoho-color-error)); }
+.health-calendar__weekday[data-weekend=true], .health-calendar__day[data-weekend=true] .health-calendar__date-number, .health-calendar__day[data-rest=true] .health-calendar__date-number { color: rgb(var(--hoho-color-text-secondary)); }
 .health-calendar__date-heading { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 var(--hoho-space-5); min-width: 0; }
-.health-calendar__festival { font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-error)); white-space: nowrap; }
-.health-calendar__holiday-marker { position: absolute; right: 1px; top: 1px; font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-error)); }
-.health-calendar__day[data-work=true] .health-calendar__date-number, .health-calendar__day[data-work=true] .health-calendar__holiday-marker { color: rgb(var(--hoho-color-text-secondary)); }
+.health-calendar__festival { font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-text-secondary)); white-space: nowrap; }
+.health-calendar__holiday-marker { position: absolute; right: 1px; top: 1px; font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-text-secondary)); }
+.health-calendar__day[data-work=true] .health-calendar__date-number, .health-calendar__day[data-work=true] .health-calendar__holiday-marker { color: rgb(var(--hoho-color-text-primary)); }
 .health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-primary)); }
 .health-calendar__day[aria-current=date] .health-calendar__date-number { color: rgb(var(--hoho-color-surface)); }
 .health-calendar__day:disabled .health-calendar__date-heading { opacity: .65; }

@@ -25,6 +25,11 @@
   --hoho-color-error: 174 62 67;
   --hoho-color-danger: var(--hoho-color-error);
   --hoho-color-info: 48 103 152;
+  /* Opt-in calendar groups; existing semantic colors and other surfaces are unchanged. */
+  --hoho-color-calendar-daily-surface: 234 240 250;
+  --hoho-color-calendar-symptom-surface: 250 233 236;
+  --hoho-color-calendar-material: 114 82 143;
+  --hoho-color-calendar-material-surface: 243 237 250;
   --hoho-color-disabled: 153 166 169;
 
   --hoho-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
