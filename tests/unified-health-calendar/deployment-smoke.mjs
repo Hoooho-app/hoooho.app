@@ -72,6 +72,7 @@ try {
     await page.setViewportSize({ width, height })
     await page.screenshot({ path: `${output}/day-${width}x${height}.png` })
     await expect(page.locator('.record-entry-grid button')).toHaveText(['喂养/饮食', '记录日常', '记录用药', '就诊资料'])
+    await expect(page.getByLabel('筛选记录类型').locator('option')).toHaveText(['全部类型', '喂养', '日常', '用药', '症状', '就诊资料'])
     await expect(page.getByRole('button', { name: '调整作息' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: '切换日历视图' }).locator('svg')).toHaveCount(0)
     assert.equal(await page.getByLabel('筛选记录类型').evaluate(el => getComputedStyle(el).appearance), 'none')
@@ -100,7 +101,20 @@ try {
     await page.getByRole('button', { name: '记录日常', exact: true }).click()
     await expect(page.getByRole('group', { name: '记录日常选项' }).getByRole('button')).toHaveText(['睡眠', '排便', '身体涂抹'])
     await expect(page.getByRole('button', { name: '记录症状', exact: true })).toBeInViewport()
+    await page.screenshot({ path: `${output}/daily-open-${width}x${height}.png` })
     await page.getByRole('button', { name: '记录日常', exact: true }).click()
+    for (const [label, title] of [['喂养/饮食', '喂养/饮食'], ['记录用药', '记录用药'], ['就诊资料', '记录就医'], ['记录症状', '记录症状']]) {
+      await page.getByRole('button', { name: label, exact: true }).click()
+      const form = page.getByRole('dialog', { name: title, exact: true })
+      await expect(form).toBeVisible()
+      if (label === '喂养/饮食') {
+        await expect(form.getByRole('radiogroup', { name: '喂养/饮食分类' }).getByRole('radio')).toHaveText(['奶类', '饮食', '补剂'])
+        await form.getByRole('radio', { name: '补剂', exact: true }).click()
+        await expect(form.getByLabel('输入补剂名称')).toBeVisible()
+      }
+      await form.getByRole('button', { name: /^(返回|关闭)$/ }).first().click()
+      await expect(form).toHaveCount(0)
+    }
     await page.getByRole('button', { name: '打开菜单' }).click()
     await expect(page.getByRole('button', { name: '健康日历', exact: true })).toHaveCount(1)
     await expect(page.getByRole('button', { name: /^(健康月历|健康随记)$/ })).toHaveCount(0)
