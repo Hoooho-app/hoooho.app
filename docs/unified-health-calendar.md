@@ -30,7 +30,9 @@ entry and real local API save/edit/delete assertions. Also run client/server,
 record-entry, journal-single-occurrence and daily-records suites.
 
 Writing acceptance tests use isolated temporary local JSON stores and controlled
-test accounts. Deployment acceptance must be read-only and reported separately.
+test accounts. Deployment acceptance keeps health facts read-only and reports
+fixture creation/cleanup, existing session-member synchronization and production
+Cloudflare edge telemetry separately. No other application write is permitted.
 Screenshots: `outputs/unified-health-calendar`, including 320×568, 375×667,
 390×844, 430×932 and desktop, four/five/six-week months, long/dense previews,
 view menu and merged drawer. Physical iPhone Safari still needs human acceptance.

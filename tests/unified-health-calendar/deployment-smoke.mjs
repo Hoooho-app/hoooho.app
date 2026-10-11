@@ -11,7 +11,7 @@ await mkdir(output, { recursive: true })
 const browser = await chromium.launch({ headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', proxy: { server: 'http://127.0.0.1:7890' } })
 const context = await browser.newContext({ ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 let token = '', memberId = '', accountId = ''
-const errors = [], healthWrites = [], unexpectedWrites = [], contextWrites = [], clientBuilds = new Set()
+const errors = [], healthWrites = [], unexpectedWrites = [], contextWrites = [], telemetryWrites = [], clientBuilds = new Set()
 async function api(path, method = 'GET', data) {
   const r = await context.request.fetch(origin + path, { method, data, headers: { 'Content-Type': 'application/json', 'X-Hoooho-Timezone': 'Asia/Shanghai', ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
   assert(r.ok(), `${method} ${path}: ${r.status()}`)
@@ -49,6 +49,11 @@ try {
     if (build) clientBuilds.add(build)
     if (['GET', 'HEAD', 'OPTIONS'].includes(r.method())) return
     const path = new URL(r.url()).pathname
+    // Production's existing Cloudflare edge beacon is not an application API.
+    if (r.method() === 'POST' && new URL(r.url()).origin === origin && path === '/cdn-cgi/rum') {
+      telemetryWrites.push(`${r.method()} ${path}`)
+      return
+    }
     // Existing login restoration synchronizes this synthetic member selection.
     // This is session context, not a health fact; never allow any other member.
     if (r.method() === 'POST' && path === '/api/auth/current-member' && r.postDataJSON()?.memberId === memberId) {
@@ -106,7 +111,7 @@ try {
   assert.equal((await (await api('/api/events?view=time')).json()).length, 0)
   assert.deepEqual(errors, []); assert.deepEqual(healthWrites, []); assert.deepEqual(unexpectedWrites, [])
   assert(clientBuilds.has(commit), 'Browser did not load the expected client build')
-  const report = { environment, commit, status: 'PASS', fixturePreparation: 'new synthetic account/member; no health facts', acceptance: 'real authenticated APIs; health facts read-only; existing session-member synchronization separately checked; no mocked responses', widths: [320, 375, 390, 430], routes: 'PASS', assets: 'PASS', buildCommit: 'PASS', navigation: 'PASS', errors, healthWrites, contextWrites }
+  const report = { environment, commit, status: 'PASS', fixturePreparation: 'new synthetic account/member; no health facts', acceptance: 'real authenticated APIs; health facts read-only; existing session-member synchronization and edge telemetry separately checked; no mocked responses', widths: [320, 375, 390, 430], routes: 'PASS', assets: 'PASS', buildCommit: 'PASS', navigation: 'PASS', errors, healthWrites, contextWrites, telemetryWriteCount: telemetryWrites.length }
   await writeFile(`${output}/smoke.json`, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } catch (error) { await page.screenshot({ path: `${output}/failure.png` }).catch(() => {}); throw error }
