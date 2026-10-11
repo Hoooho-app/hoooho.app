@@ -137,6 +137,25 @@ test('development entry uses the same durable dialogue API',async({page})=>{
   await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
+test('invalid image explains processing phase and can be explicitly removed without blocking valid text',async({page})=>{
+  await page.getByRole('button',{name:'改用文字'}).click();await page.getByLabel('对话输入').fill('今天吃了半碗粥');await page.getByRole('button',{name:'发送',exact:true}).click()
+  await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
+  const choosing=page.waitForEvent('filechooser');await page.getByRole('button',{name:'拍照',exact:true}).click();await(await choosing).setFiles({name:'损坏的测试图片.png',mimeType:'image/png',buffer:Buffer.from('synthetic broken image')})
+  await expect(page.getByRole('alert').first()).toContainText('图片处理失败')
+  await page.getByRole('button',{name:'移除这条未成功的消息'}).click()
+  await expect(page.getByRole('button',{name:'移除这条未成功的消息'})).toHaveCount(0)
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+  await expect(page.getByRole('button',{name:'帮我整理',exact:true})).toBeEnabled()
+})
+test('old failed audio does not silently disable Chinese text sending',async({page})=>{
+  await page.route('**/api/ai/audio/transcriptions',route=>route.fulfill({status:503,json:{error:{code:'ASR_TIMEOUT',message:'转写暂时失败'}}}))
+  const hold=page.getByRole('button',{name:'按住说话',exact:true});await hold.focus();await page.keyboard.down('Space');await page.waitForTimeout(900);await page.keyboard.up('Space')
+  await expect(page.getByRole('button',{name:'再试一次',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'改用文字'}).click();await page.getByLabel('对话输入').fill('中文文字仍能发送')
+  await expect(page.getByRole('button',{name:'发送',exact:true})).toBeEnabled();await page.getByRole('button',{name:'发送',exact:true}).click()
+  await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'再试一次',exact:true})).toBeVisible()
+})
 
 test('Chinese composition, independent sends, failed message retry and two image selections retain their own bubbles',async({page},info)=>{
   await page.getByRole('button',{name:'改用文字'}).click()

@@ -1,10 +1,13 @@
 import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
-export interface CaptureTurn {id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;contextId?:string}
+export interface CaptureTurn {id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;errorCode?:string;contextId?:string}
 export interface CaptureDraft { text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
+const finalizations=new Map<string,Promise<void>>()
+/** Back navigation does not wait; reopening waits only for the final byte save. */
+export function beginCaptureFinalization(key:string){let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve}),previous=finalizations.get(key)??Promise.resolve(),combined=Promise.all([previous,pending]).then(()=>undefined);finalizations.set(key,combined);let finished=false;return()=>{if(finished)return;finished=true;release();void combined.then(()=>{if(finalizations.get(key)===combined)finalizations.delete(key)})}}
 export const fileIdentity=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
 function checkpointValue(value:CaptureDraft){const {files,pendingVoice,...metadata}=value;return JSON.stringify({metadata,files:files.map(fileIdentity),pendingVoice:pendingVoice?fileIdentity(pendingVoice):null})}
 // A tiny synchronous journal protects metadata while the existing IDB byte
@@ -79,6 +82,7 @@ export function guestDraftKeys(key: string, keys: IDBValidKey[], owner: {account
 // Existing guest merges preserve member/event IDs. Only one exact-context local
 // draft may follow that owned member; no all-guest/account-wide import occurs.
 export async function captureDraft(key: string, value?: CaptureDraft | null, verifiedOwner?: {accountId:string;memberId:string}): Promise<CaptureDraft | null> {
+  if(value===undefined)await finalizations.get(key)
   // Read bytes before opening the IDB transaction; awaiting inside it would let
   // Safari auto-commit. Store bytes rather than OS-backed File references.
   const packed=value?await packCaptureDraft(value):value

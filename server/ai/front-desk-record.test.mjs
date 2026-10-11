@@ -74,3 +74,12 @@ test('legacy originals migrate once, retain wrong recorder declaration and never
  assert.equal(first.id,again.id);assert.equal(first.messages.length,2);assert.equal(first.messages[1].voices[0].dataUrl,original.dataUrl);assert.equal(first.messages[1].voices[0].unreadable,true);assert.equal(f.calls.length,0)
  assert.equal(await f.service.latest('synthetic',f.other.id),null)
 })
+test('explicit removal archives only failed message; completed submissions and other member stay intact',async t=>{
+ const f=await setup(t),completed=await f.service.submit('synthetic',f.member.id,{id:'submitted',kind:'text',text:'今天吃了粥'})
+ await assert.rejects(()=>f.service.discard('synthetic',f.member.id,'submitted'),{code:'FRONT_RECORD_ALREADY_SUBMITTED'})
+ f.model.structured=async()=>{throw new Error('temporary unavailable')}
+ await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{id:'failed',kind:'text',text:'未提交内容'}))
+ await f.service.discard('synthetic',f.member.id,'failed')
+ assert.equal((await f.service.latest('synthetic',f.member.id)).id,completed.context.id)
+ assert.equal((await f.service.store.read()).messages.find(m=>m.id==='failed').status,'discarded')
+})

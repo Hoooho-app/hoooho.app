@@ -2,6 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { guestDraftKeys } from './captureDraft.ts'
 
+test('快速返回同一成员只等待录音原件最终写入，不等待AI且不阻塞其他上下文',async()=>{
+ const {beginCaptureFinalization,captureDraft}=await import('./captureDraft.ts'),previous=Object.getOwnPropertyDescriptor(globalThis,'indexedDB')
+ const opened:string[]=[],stopped=new Error('intentional test database stop')
+ Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){opened.push('open');const request:{error?:Error;onerror?:()=>void}={};queueMicrotask(()=>{request.error=stopped;request.onerror?.()});return request}}})
+ const release=beginCaptureFinalization('account:member:context')
+ try{
+   const same=captureDraft('account:member:context').catch(e=>e);await new Promise(resolve=>setTimeout(resolve,0));assert.equal(opened.length,0)
+   assert.equal(await captureDraft('account:other:context').catch(e=>e),stopped);assert.equal(opened.length,1)
+   release();assert.equal(await same,stopped);assert.equal(opened.length,2);release()
+ }finally{release();if(previous)Object.defineProperty(globalThis,'indexedDB',previous);else Reflect.deleteProperty(globalThis,'indexedDB')}
+})
+
 test('刷新检查点只存同上下文元数据和文件身份，不复制音频字节；禁用存储不抛错',async()=>{
   const {checkpointCaptureDraft}=await import('./captureDraft.ts')
   const previous=Object.getOwnPropertyDescriptor(globalThis,'sessionStorage'),entries=new Map<string,string>()

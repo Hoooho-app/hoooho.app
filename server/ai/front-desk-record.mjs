@@ -60,8 +60,13 @@ export class FrontDeskRecord {
   async latest(accountId, memberId) {
     await this.scope(accountId, memberId)
     const data = await this.store.read()
-    const context = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
+    const context = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
     return context ? this.snapshot(accountId, memberId, context.id) : null
+  }
+  async discard(accountId,memberId,id){
+    await this.scope(accountId,memberId)
+    await this.store.update(data=>{const message=data.messages.find(m=>m.id===id&&m.accountId===accountId&&m.memberId===memberId);if(message?.status==='completed')throw fail('这条消息已经提交，请重试找回回复',409,'FRONT_RECORD_ALREADY_SUBMITTED');return {...data,messages:data.messages.map(m=>m===message?{...m,status:'discarded'}:m)}})
+    return {removed:true}
   }
   async checkpoint(accountId, memberId, contextId, input) {
     await this.scope(accountId, memberId)
@@ -98,7 +103,8 @@ export class FrontDeskRecord {
       try { const converted = await normalizePhoto(f); return {...f,name:f.name.replace(/\.hei[cf]$/i,'.jpg'),mimeType:'image/jpeg',dataUrl:converted.dataUrl} }
       catch { throw fail('HEIC/HEIF 图片转换失败，原图保留，请导出 JPG 后重新选择',422,'FRONT_IMAGE_CONVERSION_FAILED') }
     }))
-    const prepared = await prepareDocuments(imageInputs)
+    let prepared
+    try{prepared=await prepareDocuments(imageInputs)}catch(error){throw fail(`图片处理失败：${error.message}。原图保留，可重新选择`,error.status??422,'FRONT_IMAGE_PROCESSING_FAILED')}
     prepared.documents = prepared.documents.map(f => ({...f, lastModified: imageInputs.find(source => source.dataUrl === f.dataUrl)?.lastModified ?? 0}))
     const voices = prepareVoiceOriginals(input.voiceFiles ?? []).map(f => ({...f, lastModified: input.voiceFiles.find(source => source.dataUrl === f.dataUrl)?.lastModified ?? 0}))
     if (!message) {

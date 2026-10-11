@@ -61,6 +61,8 @@ export function eventsApiPlugin(options = {}) {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const failedFront=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
+        if(failedFront&&request.method==='DELETE'){try{return sendJson(response,200,await frontDesk.discard(readAccountId(request,tokens),decodeURIComponent(failedFront[1]),decodeURIComponent(failedFront[2])))}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.message}})}}
         const front=/^\/api\/members\/([^/]+)\/front-desk-record(?:\/contexts\/([^/]+))?$/.exec(pathname)
         if(front){
           try{const accountId=readAccountId(request,tokens),memberId=decodeURIComponent(front[1]);if(request.method==='GET'&&!front[2])return sendJson(response,200,await frontDesk.latest(accountId,memberId));if(request.method==='POST'){const input=await readJson(request,22*1024*1024);return sendJson(response,200,front[2]?await frontDesk.checkpoint(accountId,memberId,decodeURIComponent(front[2]),input):input.kind==='legacy'?await frontDesk.retainLegacy(accountId,memberId,input):await frontDesk.submit(accountId,memberId,input))}return sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'请求方法不支持'}})}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.status?error.message:'智能记录暂不可用，内容保留'}})}

@@ -4,7 +4,7 @@ import { AudioRequestError, audioErrorMessage } from './audioErrors'
 import {apiRequest} from '../../services/apiClient'
 import {fileDataUrl} from './draftFiles'
 
-type Options = {memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
+type Options = {memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onFinalizationStart?:()=>()=>void;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
 // The raw recording is persisted before contacting ASR. Retry consumes the same
 // file, so a network failure or closing the workspace never requires re-recording.
 export function useSmartRecordVoice(options:Options) {
@@ -12,6 +12,7 @@ export function useSmartRecordVoice(options:Options) {
   const [state,setState]=useState<'idle'|'requesting'|'listening'|'transcribing'>('idle'),[error,setError]=useState(''),[errorCode,setErrorCode]=useState('')
   const recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null),controller=useRef<AbortController|null>(null),limit=useRef<ReturnType<typeof setTimeout>|null>(null)
   const mounted=useRef(true),generation=useRef(0),locked=useRef(false),keep=useRef(true),stopRequested=useRef(false)
+  const releaseFinalization=useRef<(()=>void)|undefined>()
   const clean=()=>{stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;if(limit.current)clearTimeout(limit.current);limit.current=null}
   const transcribe=async(file:File)=>{
     if(locked.current)return
@@ -29,7 +30,7 @@ export function useSmartRecordVoice(options:Options) {
     }catch(e){if(mounted.current&&turn===generation.current){setErrorCode(e&&typeof e==='object'&&'code' in e?String(e.code):'');setError(audioErrorMessage(abort.signal.aborted?{code:'ASR_TIMEOUT'}:e))}}
     finally{clearTimeout(timeout);locked.current=false;if(mounted.current&&turn===generation.current)setState('idle')}
   }
-  const stop=()=>{stopRequested.current=true;if(recorder.current?.state==='recording')recorder.current.stop()}
+  const stop=()=>{stopRequested.current=true;if(recorder.current?.state==='recording'){releaseFinalization.current??=latest.current.onFinalizationStart?.();try{recorder.current.stop()}catch{releaseFinalization.current?.();releaseFinalization.current=undefined;clean()}}}
   const discard=()=>{keep.current=false;stop()}
   const start=async()=>{
     if(locked.current||recorder.current||latest.current.pendingVoice)return
@@ -46,11 +47,12 @@ export function useSmartRecordVoice(options:Options) {
       r.onstop=()=>{void(async()=>{
         clean();recorder.current=null;locked.current=false
         if(mounted.current)setState('idle')
-        if(!keep.current)return
+        const release=()=>{releaseFinalization.current?.();releaseFinalization.current=undefined}
+        if(!keep.current){release();return}
         const blob=new Blob(chunks,{type:r.mimeType});chunks.length=0
-        if(blob.size<300||Date.now()-started<500){if(mounted.current)setError('录音太短，请重新录音');return}
+        if(blob.size<300||Date.now()-started<500){release();if(mounted.current)setError('录音太短，请重新录音');return}
         const file=new File([blob],`语音原件-${started}.${r.mimeType.includes('mp4')?'m4a':'webm'}`,{type:r.mimeType})
-        try{await config.onRecorded(file);if(mounted.current&&turn===generation.current)await transcribe(file)}catch{if(mounted.current)setError('录音草稿保存失败，请保持页面打开并重试')}
+        try{await config.onRecorded(file);release();if(mounted.current&&turn===generation.current)await transcribe(file)}catch{release();if(mounted.current)setError('录音草稿保存失败，请保持页面打开并重试')}
       })()}
       r.start(250);locked.current=false;setState('listening');limit.current=setTimeout(stop,90000)
     }catch(e){clean();locked.current=false;if(mounted.current){setState('idle');setError(e instanceof DOMException&&e.name==='NotAllowedError'?'麦克风未获授权，请允许麦克风或输入文字':'麦克风暂不可用，请输入文字')}}

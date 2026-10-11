@@ -1,5 +1,5 @@
 // Real service acceptance against an explicitly supplied deployment. Uses only
-// a newly created synthetic guest/member, never existing personal records.
+// a newly created synthetic account/member, never existing personal records.
 import {readFile,mkdir,writeFile} from 'node:fs/promises'
 import path from 'node:path'
 import {randomUUID} from 'node:crypto'
@@ -10,6 +10,9 @@ const base=process.argv[2],label=process.argv[3]??'live'
 if(!/^https:\/\//.test(base??''))throw new Error('Pass the verified deployment HTTPS URL')
 const output=path.resolve('outputs',`front-desk-${label}`);await mkdir(output,{recursive:true})
 const receipts=[],modelResults=[],cookies=new Map();let token,memberId,browser
+const stateFile=path.join(output,'synthetic-session.local');let state
+try{state=JSON.parse(await readFile(stateFile,'utf8'));if(state.base!==base)state=undefined}catch{}
+state??={base,at:Date.now(),textId:randomUUID(),imageId:randomUUID(),voiceId:randomUUID()}
 async function api(phase,route,method='GET',body){
  const started=Date.now(),response=await fetch(base+route,{method,headers:{Origin:new URL(base).origin,...(token?{Authorization:`Bearer ${token}`} : {}),...(cookies.size?{Cookie:[...cookies].map(([name,value])=>`${name}=${value}`).join('; ')}:{}),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(100000)})
  for(const header of response.headers.getSetCookie()){const pair=header.split(';')[0],index=pair.indexOf('=');if(index>0)cookies.set(pair.slice(0,index),pair.slice(index+1))}
@@ -20,22 +23,25 @@ async function api(phase,route,method='GET',body){
 }
 try{
  await api('health','/api/health')
- const session=await api('synthetic-session','/api/auth/session');token=session.token
- const member=await api('synthetic-member','/api/members','POST',{name:'小禾（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'});memberId=member.id
+ const session=state.session??await api('synthetic-registration','/api/auth/register','POST',{nickname:`验收${randomUUID().replaceAll('-','').slice(0,12)}`,password:randomUUID(),idempotencyKey:randomUUID()});token=session.token
+ if(state.cookies)for(const pair of state.cookies)cookies.set(...pair)
+ state.session=session;state.cookies=[...cookies];await writeFile(stateFile,JSON.stringify(state))
+ const member=state.member??await api('synthetic-member','/api/members','POST',{name:'小禾（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'});memberId=member.id;state.member=member;await writeFile(stateFile,JSON.stringify(state))
  const route=`/api/members/${memberId}/front-desk-record`
- const first=await api('text-dialogue',route,'POST',{id:randomUUID(),kind:'text',text:'今天吃了半碗粥。',inputAt:Date.now()})
+ const first=await api('text-dialogue',route,'POST',{id:state.textId,kind:'text',text:'今天吃了半碗粥。',inputAt:state.at})
  modelResults.push(...first.context.messages.filter(m=>m.kind==='assistant').map(m=>({stage:'text',requestId:m.diagnostics?.requestId,model:m.diagnostics?.model,reply:m.text})))
  const picture=await sharp(Buffer.from('<svg width="640" height="400" xmlns="http://www.w3.org/2000/svg"><rect width="640" height="400" fill="white"/><circle cx="170" cy="200" r="105" fill="red"/><rect x="360" y="100" width="190" height="200" fill="blue"/></svg>')).png().toBuffer()
- const image={name:'合成红圆蓝方.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${picture.toString('base64')}`,lastModified:Date.now()}
- const visual=await api('image-only-dialogue',route,'POST',{id:randomUUID(),kind:'image',text:'',files:[image],inputAt:Date.now()})
+ const image={name:'合成红圆蓝方.png',mimeType:'image/png',dataUrl:`data:image/png;base64,${picture.toString('base64')}`,lastModified:state.at+1}
+ const visual=await api('image-only-dialogue',route,'POST',{id:state.imageId,kind:'image',text:'',files:[image],inputAt:state.at+1})
  const reply=visual.context.messages.filter(m=>m.kind==='assistant').at(-1)
- modelResults.push({stage:'image',requestId:reply.diagnostics?.requestId,model:reply.diagnostics?.model,reply:reply.text})
+ modelResults.push({stage:'image',requestId:reply.diagnostics?.requestId,model:reply.diagnostics?.model,reply:reply.text,envelope:reply.diagnostics?.dialogueEnvelope??'object'})
  if(!/(红|圆)/.test(reply.text)||!/(蓝|方|矩形)/.test(reply.text)||/重新录音/.test(reply.text))throw new Error('Vision reply did not describe the actual synthetic geometry')
  const wav=await readFile(path.resolve('outputs/live-record-observation.wav'))
- const audio={name:'synthetic-observation.wav',mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${wav.toString('base64')}`,lastModified:Date.now()}
- const transcription=await api('real-asr','/api/ai/audio/transcriptions','POST',{memberId,...audio})
+ const audio={name:'synthetic-observation.wav',mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${wav.toString('base64')}`,lastModified:state.at+2}
+ const transcription=state.transcription??await api('real-asr','/api/ai/audio/transcriptions','POST',{memberId,...audio});state.transcription=transcription;await writeFile(stateFile,JSON.stringify(state))
+ modelResults.push({stage:'asr',requestId:transcription.diagnostics?.requestId??transcription.requestId,model:transcription.model})
  if(!transcription.transcript?.trim())throw new Error('Real ASR returned no spoken transcript')
- const spoken=await api('voice-transcript-dialogue',route,'POST',{id:randomUUID(),kind:'voice',text:transcription.transcript,voiceFiles:[audio],inputAt:Date.now()})
+ const spoken=await api('voice-transcript-dialogue',route,'POST',{id:state.voiceId,kind:'voice',text:transcription.transcript,voiceFiles:[audio],inputAt:state.at+2})
  const voiceReply=spoken.context.messages.filter(m=>m.kind==='assistant').at(-1)
  modelResults.push({stage:'voice-dialogue',requestId:voiceReply.diagnostics?.requestId,model:voiceReply.diagnostics?.model,reply:voiceReply.text})
  // Choose exactly the model-selected intent; include only this context's sources.

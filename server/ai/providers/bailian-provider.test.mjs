@@ -23,6 +23,13 @@ test('非单页图片入口仍拒绝OCR数组协议，但用户可读预览保�
  await assert.rejects(()=>model.structured({task:'document-page',schema:ocrSchema,instructions:'synthetic',input:'synthetic'}),e=>{assert.equal(e.code,'AI_OUTPUT_INVALID');assert.deepEqual(e.validation,{stage:'schema_validation',fieldPath:'/',reason:'type'});assert.equal(e.preview.text,JSON.parse(observedOCR.content)[0].text);assert.equal(e.preview.requestId,observedOCR.requestId);return true})
  assert.equal(calls,1)
 })
+test('首页图片回复仅解包一个严格有效的回复对象，不影响其他入口',async()=>{
+ const replySchema={type:'object',additionalProperties:false,required:['reply','contextId','action'],properties:{reply:{type:'string'},contextId:{enum:['new']},action:{enum:['record','history']}}}
+ const reply={reply:'图上是红色圆形和蓝色矩形。',contextId:'new',action:'record'},input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ for(const payload of [reply,[reply]]){const model=modelFor(async()=>success(payload));const result=await model.structured({task:'front-desk-dialogue',schema:replySchema,instructions:'synthetic',vision:true,input});assert.deepEqual(result.value,reply)}
+ for(const payload of [[],[reply,reply],[{reply:reply.reply,contextId:'new'}],[{...reply,diagnosis:'不允许'}],[{...reply,contextId:'foreign'}]]){const model=modelFor(async()=>success(payload));await assert.rejects(()=>model.structured({task:'front-desk-dialogue',schema:replySchema,instructions:'synthetic',vision:true,input}),{code:'AI_OUTPUT_INVALID'})}
+ const other=modelFor(async()=>success([reply]));await assert.rejects(()=>other.structured({task:'another-dialogue',schema:replySchema,instructions:'synthetic',vision:true,input}),{code:'AI_OUTPUT_INVALID'})
+})
 
 test('单页图片OCR协议兼容仅解包一个完整且严格有效的对象，不改原文或补字段',async()=>{
  let calls=0

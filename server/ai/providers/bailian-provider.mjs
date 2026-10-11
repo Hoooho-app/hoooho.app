@@ -106,8 +106,10 @@ export class BailianProvider extends OpenAIProvider {
           if (imageCount === 1 && format.name === 'hoooho_business' && JSON.stringify(format.schema) === singlePageOCRSchema && Array.isArray(value) && value.length === 1 && validate(value[0])) {
             value = value[0]; ocrEnvelope = 'single-page-array'
           }
+          let dialogueEnvelope
+          if(imageCount===1&&format.name==='hoooho_front_desk_reply'&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];dialogueEnvelope='single-reply-array'}
           if (!validate(value)) {const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]);throw outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)}
-          const diagnostics = { provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}) }
+          const diagnostics = { provider: this.name, model, task:format.name==='hoooho_front_desk_reply'?'front-desk-dialogue':task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })
