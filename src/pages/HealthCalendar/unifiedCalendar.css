@@ -5,14 +5,10 @@
 .calendar-date-picker { position: relative; flex: 1; display: grid; place-items: center; min-width: 52px; height: var(--hoho-touch-target); color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-caption); white-space: nowrap; }
 .calendar-date-picker input { position: absolute; inset: 0; opacity: 0; width: 100%; font-size: var(--hoho-font-size-body); cursor: pointer; }
 .calendar-date-picker:focus-within { outline: 2px solid rgb(var(--hoho-color-primary)); border-radius: var(--hoho-radius-small); }
-.calendar-toolbar > select { flex: 0 1 80px; width: 80px; min-width: 70px; height: var(--hoho-touch-target); border: 0; padding-inline: 2px; color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-surface)); font-size: var(--hoho-font-size-caption); }
-.calendar-view-menu { position: relative; flex: none; }
-.calendar-view-menu > button { display: flex; align-items: center; justify-content: center; gap: 1px; width: 44px; height: var(--hoho-touch-target); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-primary)); }
-.calendar-view-options { position: absolute; z-index: 20; top: calc(100% + var(--hoho-space-1)); right: 0; width: 120px; padding: var(--hoho-space-1); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); box-shadow: var(--hoho-shadow-floating); }
-.calendar-view-options button { width: 100%; min-height: var(--hoho-touch-target); display: flex; align-items: center; justify-content: space-between; padding-inline: var(--hoho-space-3); color: rgb(var(--hoho-color-text-primary)); }
-.calendar-view-options button[aria-checked='true'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); border-radius: var(--hoho-radius-small); }
+.calendar-toolbar > select { flex: 0 1 80px; width: 80px; min-width: 70px; height: var(--hoho-touch-target); border: 0; appearance: none; -webkit-appearance: none; background-image: none; padding-inline: 2px; color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-surface)); font-size: var(--hoho-font-size-caption); }
+.calendar-toolbar .calendar-view-toggle { flex: none; min-width: var(--hoho-touch-target); height: var(--hoho-touch-target); padding-inline: var(--hoho-space-2); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-primary)); }
 .unified-calendar-content { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; padding-inline: var(--hoho-page-gutter); }
-.unified-calendar-content .journal-time-view[data-active='false'] { height: auto; flex: none; }
+.unified-calendar-content .journal-time-view[hidden] { display: none; }
 .unified-calendar-content .journal-scroll-region[hidden] { display: none; }
 .unified-health-calendar .health-calendar__month { padding-bottom: var(--hoho-space-1); }
 .unified-health-calendar .health-calendar__grid { font-size: clamp(10px, 2.9vw, var(--hoho-font-size-caption)); }

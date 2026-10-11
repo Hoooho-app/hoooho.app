@@ -8,7 +8,7 @@ assert(['https://hooohoapp-staging.up.railway.app', 'https://hoooho.com'].includ
 const environment = origin.includes('staging') ? 'staging' : 'production'
 const output = `outputs/unified-health-calendar/${environment}`
 await mkdir(output, { recursive: true })
-const browser = await chromium.launch({ headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', proxy: { server: 'http://127.0.0.1:7890' } })
+const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ...(process.env.PLAYWRIGHT_PROXY_SERVER ? { proxy: { server: process.env.PLAYWRIGHT_PROXY_SERVER } } : {}) })
 const context = await browser.newContext({ ...devices['iPhone SE'], timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 let token = '', memberId = '', accountId = ''
 const errors = [], healthWrites = [], unexpectedWrites = [], contextWrites = [], telemetryWrites = [], clientBuilds = new Set()
@@ -67,20 +67,21 @@ try {
   await expect(page.getByRole('heading', { name: '健康日历', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '记录日常', exact: true })).toBeEnabled()
   await expect(page.getByText('正在加载时间轴…', { exact: true })).toHaveCount(0)
-  const switchView = async mode => { await page.getByRole('button', { name: '切换日历视图' }).click(); await page.getByRole('menuitemradio', { name: mode, exact: true }).click() }
+  const switchView = async mode => { const toggle = page.getByRole('button', { name: '切换日历视图' }); if (await toggle.textContent() !== mode) await toggle.click(); await expect(page.getByRole('region', { name: mode === '月历' ? '月历' : '单日时间轴', exact: true })).toBeVisible() }
   for (const [width, height] of [[320, 568], [375, 667], [390, 844], [430, 932]]) {
     await page.setViewportSize({ width, height })
     await page.screenshot({ path: `${output}/day-${width}x${height}.png` })
     await expect(page.locator('.record-entry-grid button')).toHaveText(['喂养/饮食', '补剂', '记录日常', '记录用药'])
-    await page.getByRole('button', { name: '切换日历视图' }).click()
-    await page.screenshot({ path: `${output}/view-menu-${width}x${height}.png` })
-    await page.getByRole('menuitemradio', { name: '月历', exact: true }).click()
+    await expect(page.getByRole('button', { name: '调整作息' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '切换日历视图' }).locator('svg')).toHaveCount(0)
+    assert.equal(await page.getByLabel('筛选记录类型').evaluate(el => getComputedStyle(el).appearance), 'none')
+    await switchView('月历')
     await expect(page.getByRole('button', { name: /^记录顺序：/ })).toHaveCount(0)
     for (const month of ['2021-02', '2026-10', '2026-03']) {
       await page.getByLabel('选择月份').fill(month)
       await page.getByRole('heading', { name: '健康日历', exact: true }).click()
       const box = await page.locator('.health-calendar__grid').boundingBox(), footer = await page.locator('.journal-record-actions').boundingBox()
-      assert(box && footer && box.y + box.height <= footer.y + 1 && footer.y + footer.height <= height + 1)
+      assert(box && footer && box.height > 200 && box.y + box.height <= footer.y + 1 && footer.y + footer.height <= height + 1)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
       await expect(page.locator('.health-calendar__day').last()).toBeInViewport()
       await page.screenshot({ path: `${output}/month-${month}-${width}x${height}.png` })
