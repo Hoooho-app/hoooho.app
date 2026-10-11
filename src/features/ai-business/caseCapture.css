@@ -37,3 +37,11 @@
 .smart-record-shared-time label{display:grid;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption)}
 .smart-record-shared-time input{min-height:44px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);padding:var(--hoho-space-2);font-size:16px;background:rgb(var(--hoho-color-surface));color:inherit;width:100%;min-width:0}
 .smart-record-shared-time .smart-record-time-actions{flex-wrap:wrap}
+
+/* Only the front-desk entry is a page; other conversation sheets stay sheets. */
+.smart-record-page{position:fixed;inset-inline:0;max-width:var(--app-max-width,480px);margin-inline:auto;display:flex;flex-direction:column;min-width:0;background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-primary))}
+.smart-record-page__body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:var(--hoho-space-4)}
+.smart-record-page__footer{flex:none;padding:var(--hoho-space-2) var(--hoho-space-4) max(var(--hoho-space-3),env(safe-area-inset-bottom));border-top:1px solid rgb(var(--hoho-color-border));background:rgb(var(--hoho-color-surface))}
+.smart-record-page .hoho-dialogue-mode,.smart-record-page .hoho-dialogue-photo{border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface-subtle))}
+.smart-record-resume-bubble{display:grid;gap:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle))}
+.smart-record-resume-bubble p{border:0;padding:0;background:transparent}

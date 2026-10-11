@@ -3,6 +3,24 @@ import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
 export interface CaptureDraft { text: string; conversationInput?: string; conversationTurns?: {id:string;text:string}[]; voiceTranscript?:string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
+const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
+const fileIdentity=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
+function checkpointValue(value:CaptureDraft){const {files,pendingVoice,...metadata}=value;return JSON.stringify({metadata,files:files.map(fileIdentity),pendingVoice:pendingVoice?fileIdentity(pendingVoice):null})}
+// A tiny synchronous journal protects metadata while the existing IDB byte
+// transaction is pending. It contains no encoded audio/images and is scoped to
+// the same account/member/context key, not a second draft or routing system.
+export function checkpointCaptureDraft(key:string,value:CaptureDraft){
+  try{sessionStorage.setItem(checkpointKey(key),checkpointValue(value))}catch{/* IDB remains authoritative; storage denial does not discard the draft. */}
+}
+function restoreCheckpoint(key:string,value:CaptureDraft|null):CaptureDraft|null{
+  try{const saved=JSON.parse(sessionStorage.getItem(checkpointKey(key))??'null');if(!saved)return value
+    if(!value)return saved.files.length===0&&!saved.pendingVoice?{...saved.metadata,files:[]}:null
+    if(saved.metadata.requestId!==value.requestId)return value
+    const files=value.files.filter(file=>saved.files.includes(fileIdentity(file)))
+    const pendingVoice=saved.pendingVoice?(files.find(file=>fileIdentity(file)===saved.pendingVoice)??(value.pendingVoice&&fileIdentity(value.pendingVoice)===saved.pendingVoice?value.pendingVoice:undefined)):undefined
+    return {...value,...saved.metadata,files,pendingVoice}
+  }catch{return value}
+}
 export async function packCaptureDraft(value:CaptureDraft):Promise<StoredDraft>{
   const files=await Promise.all(value.files.map(storeDraftFile)),index=value.pendingVoice?value.files.indexOf(value.pendingVoice):-1
   return {...value,files,pendingVoice:value.pendingVoice?(index>=0?files[index]:await storeDraftFile(value.pendingVoice)):undefined}
@@ -80,7 +98,10 @@ export async function captureDraft(key: string, value?: CaptureDraft | null, ver
         }
       }
     }
-    transaction.oncomplete = () => resolve(value === undefined ? restored : value)
+    transaction.oncomplete = () => {
+      try{if(value===null||(value&&sessionStorage.getItem(checkpointKey(key))===checkpointValue(value)))sessionStorage.removeItem(checkpointKey(key))}catch{/* Storage may be disabled. */}
+      resolve(value === undefined ? restoreCheckpoint(key,restored) : value)
+    }
     transaction.onerror = () => reject(transaction.error)
     transaction.onabort = () => reject(transaction.error)
   }) } finally { db.close() }

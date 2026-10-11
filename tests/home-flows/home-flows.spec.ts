@@ -5,7 +5,7 @@ test.beforeEach(async({page})=>{
  await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:'empty-child',members:[],profile:null},version:5}))},token)
  await page.goto('/nurse-station')
 })
-test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支持关闭恢复',async({page})=>{
+test('信息板加三卡单列、顶栏快速查找；首页智能记录独立页面支持返回恢复',async({page})=>{
  await expect(page.locator('.home-flow-card')).toHaveCount(3)
  expect(await page.locator('.home-flow-card').evaluateAll(cards=>cards.map(card=>card.getAttribute('aria-label')))).toEqual(['健康随记','正在跟进','准备和医生说清楚'])
  await expect(page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true})).toBeEnabled()
@@ -13,7 +13,7 @@ test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支�
  await expect(page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true}).locator('svg')).toBeVisible()
  await expect(page.getByRole('button',{name:'添加 Hoooho 到主屏',exact:true})).toHaveCount(0)
  await expect(page.locator('.nurse-station-growth-data')).toContainText('身高')
- for(const width of [320,375,390]){
+ for(const width of [320,375,390,430]){
   await page.setViewportSize({width,height:667})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   const search=await page.locator('.hoho-main-header').getByRole('button',{name:'快速查找',exact:true}).boundingBox()
@@ -23,17 +23,21 @@ test('信息板加三卡单列、顶栏快速查找；泛记录护士弹窗支�
   expect(search!.x).toBeGreaterThanOrEqual(title!.x+title!.width/2+36)
  }
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
- await expect(page.getByRole('dialog',{name:'智能记录',exact:true})).toBeVisible()
+ await expect(page).toHaveURL(/\/smart-record\?source=front-desk$/)
+ await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
+ await expect(page.getByRole('dialog')).toHaveCount(0)
+ await expect(page.locator('.hoho-bottom-sheet-layer')).toHaveCount(0)
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await page.getByLabel('对话输入').fill('昨天吃了粥，午睡一个小时')
- await page.getByRole('button',{name:'收起',exact:true}).click()
+ await page.getByRole('button',{name:'返回',exact:true}).click()
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
- await page.getByRole('button',{name:'继续上次记录',exact:true}).click()
+ await expect(page.getByRole('button',{name:'继续上次的记录',exact:true}).locator('xpath=ancestor::*[contains(@class,"nurse-turn-content")]')).toHaveCount(1)
+ await page.getByRole('button',{name:'继续上次的记录',exact:true}).click()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await expect(page.getByLabel('对话输入')).toHaveValue('昨天吃了粥，午睡一个小时')
- await page.getByRole('button',{name:'收起',exact:true}).click()
+ await page.getByRole('button',{name:'返回',exact:true}).click()
  await page.getByRole('button',{name:'就诊情况单',exact:true}).click();await expect(page).toHaveURL(/visit-summary/)
 })
 test('快速查找独立页面固定搜索框和语音按钮，详情返回与重新进入保留内容',async({page,request})=>{
@@ -83,11 +87,11 @@ test('首页与症状智能记录共用排版、头像和标题，首页保留�
  await expect(copy).toContainText('现在、过去的情况都可以记。')
  expect(await copy.locator('.hoho-text-caption').first().evaluate(el=>getComputedStyle(el).fontSize)).toBe('13px')
  await page.getByRole('button',{name:'和护士说说',exact:true}).click()
- const panel=page.getByRole('dialog',{name:'智能记录',exact:true})
+ let panel=page.locator('.smart-record-page')
  await expect(panel.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
  const visual=()=>panel.evaluate(el=>{
    const style=(selector:string)=>{const node=el.querySelector(selector)!;const css=getComputedStyle(node);return {fontSize:css.fontSize,padding:css.padding,borderRadius:css.borderRadius,background:css.backgroundColor,...(selector==='.nurse-avatar'?{width:css.width,height:css.height}:{})}}
-   return {sheet:style('.hoho-bottom-sheet__body'),title:style('h2'),avatar:style('.nurse-avatar'),bubble:style('.nurse-turn p'),portrait:(el.querySelector('.nurse-avatar img') as HTMLImageElement).src,icon:el.querySelector('.hoho-bottom-sheet__header svg')?.outerHTML}
+   return {avatar:style('.nurse-avatar'),bubble:style('.nurse-turn p'),portrait:(el.querySelector('.nurse-avatar img') as HTMLImageElement).src}
  })
  const homeVisual=await visual()
  for(const width of [320,375,390]){
@@ -97,11 +101,12 @@ test('首页与症状智能记录共用排版、头像和标题，首页保留�
  }
  await page.setViewportSize({width:375,height:667})
  await page.screenshot({path:testInfo.outputPath('home-smart-record.png')})
- await panel.getByRole('button',{name:'收起',exact:true}).click()
+ await panel.getByRole('button',{name:'返回',exact:true}).click()
  await page.goto('/health-events')
  await page.getByRole('button',{name:'记录症状',exact:true}).click()
  const form=page.getByRole('dialog',{name:'记录症状',exact:true})
  await form.getByRole('button',{name:/^智能记录/,exact:true}).click()
+ panel=page.getByRole('dialog',{name:'智能记录',exact:true})
  await expect(panel.locator('.nurse-avatar img')).toBeVisible()
  const symptomVisual=await visual()
  expect(symptomVisual).toEqual(homeVisual)

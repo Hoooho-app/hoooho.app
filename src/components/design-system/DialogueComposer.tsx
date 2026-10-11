@@ -6,11 +6,11 @@ import './DialogueComposer.css'
 
 export type DialoguePhotoSource = 'camera' | 'album'
 /** A 44px row; choice and recording feedback float above it. */
-export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, disabled = false, voiceDisabled = false, listening = false, processing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
+export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, disabled = false, voiceDisabled = false, listening = false, processing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
   text: string; onTextChange: (value: string) => void; onSend: () => void
   onStart: () => void; onStop: () => void; onDiscard?: () => void; onPhoto: (source: DialoguePhotoSource) => void
   disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; processing?: boolean
-  maxLength?: number; placeholder?: string; initialTyping?: boolean
+  maxLength?: number; placeholder?: string; initialTyping?: boolean; directPhoto?: boolean
 }) {
   const [typing, setTyping] = useState(initialTyping), [photoOpen, setPhotoOpen] = useState(false)
   const [press, setPress] = useState<{x:number;y:number}>()
@@ -32,7 +32,7 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
       <HohoButton variant="secondary" className={`hoho-dialogue-hold${listening?' is-listening':''}`} aria-label={listening ? '正在录音，松手发送' : '按住说话'} disabled={disabled || voiceDisabled || processing} onPointerDown={e => {if (e.button !== 0) return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);start(e.clientX,e.clientY)}} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish()} onContextMenu={e => e.preventDefault()} onKeyDown={e => {if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {e.preventDefault();const r=e.currentTarget.getBoundingClientRect();start(r.left+r.width/2,r.top)}if (e.key === 'Escape') {e.stopPropagation();finish(true)}}} onKeyUp={e => {if (e.key === ' ' || e.key === 'Enter') {e.preventDefault();finish()}}}>
         <Mic size={18} aria-hidden/>{listening ? '正在听…' : processing ? '识别中…' : '按住说话'}
       </HohoButton>}
-    <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="拍照" aria-haspopup="menu" aria-expanded={photoOpen} aria-controls={photoOpen?menuId:undefined} disabled={disabled || listening || processing} onClick={() => setPhotoOpen(!photoOpen)}><Camera size={21} aria-hidden/></HohoButton>
+    <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="拍照" aria-haspopup={directPhoto?undefined:'menu'} aria-expanded={directPhoto?undefined:photoOpen} aria-controls={photoOpen?menuId:undefined} disabled={disabled || listening || processing} onClick={() => directPhoto?onPhoto('album'):setPhotoOpen(!photoOpen)}><Camera size={21} aria-hidden/></HohoButton>
     {photoOpen&&<div id={menuId} role="menu" aria-label="添加图片" className="hoho-dialogue-photo-menu" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setPhotoOpen(false);root.current?.querySelector<HTMLButtonElement>('.hoho-dialogue-photo')?.focus()}}}>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('camera')}}><Camera size={20} aria-hidden/>拍照</HohoButton>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('album')}}><Image size={20} aria-hidden/>从相册选择</HohoButton>
