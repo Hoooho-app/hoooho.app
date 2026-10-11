@@ -108,7 +108,16 @@ export class BailianProvider extends OpenAIProvider {
           }
           let dialogueEnvelope
           if(imageCount===1&&format.name==='hoooho_front_desk_reply'&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];dialogueEnvelope='single-reply-array'}
-          if (!validate(value)) {const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]);throw outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)}
+          if (!validate(value)) {
+            const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]),error=outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)
+            // Shape only, never scalar values or unrecognised property names.
+            // The home reply contract can be diagnosed without clinical text.
+            if(format.name==='hoooho_front_desk_reply'){
+              const first=Array.isArray(value)?value[0]:value
+              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,fields:Object.fromEntries(['reply','contextId','action','text','status'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
+            }
+            throw error
+          }
           const diagnostics = { provider: this.name, model, task:format.name==='hoooho_front_desk_reply'?'front-desk-dialogue':task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
