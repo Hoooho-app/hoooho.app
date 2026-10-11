@@ -75,6 +75,7 @@ test('two native Chromium recordings, ASR login recovery, mixed image organizati
   await request.post('http://127.0.0.1:4198/draft-data',{data:{items:mixedItems,ocrText:'脸颊有点红，没有呕吐'}})
   const organize=page.getByRole('button',{name:'帮我整理',exact:true});await expect(organize.locator('xpath=ancestor::*[contains(@class,"nurse-turn-content")]')).toHaveCount(1)
   await organize.click();await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click()
+  await expect(page.getByRole('button',{name:'返回对话继续补充',exact:true}).locator('xpath=ancestor::*[contains(@class,"nurse-turn-content")]')).toHaveCount(1)
   expect(originalMimes).toHaveLength(2);expect(originalMimes.every(m=>m.startsWith('audio/webm'))).toBe(true)
   await page.getByRole('button',{name:'确认保存 1 条',exact:true}).click()
   await expect(page.getByText('已经记好了。',{exact:false})).toBeVisible()
