@@ -105,6 +105,7 @@ function HealthEventsContent() {
     const owner = (location.state as { calendarIdentity?: string } | null)?.calendarIdentity
     if (owner && owner !== identity) return
     const params = new URLSearchParams(location.search)
+    if(params.get('memberId')&&params.get('memberId')!==currentMemberId)return
     const eventId = params.get('eventId')
     const recordId = params.get('recordId')
     if (eventId && recordId) setSelectedRecord({ eventId, recordId })

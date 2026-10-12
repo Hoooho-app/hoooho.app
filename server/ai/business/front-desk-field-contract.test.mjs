@@ -6,6 +6,7 @@ import os from 'node:os'
 import {AIBusinessService} from './service.mjs'
 import {FamilyMemberRepository} from '../../members/repositories/family-member-repository.mjs'
 import {reconcileFrontDeskFields} from './front-desk-field-contract.mjs'
+import {CaseContinuityService} from '../../events/case-continuity-service.mjs'
 
 test('front-desk field contracts reconcile wrong symptom metadata and duration-as-clock without changing quotes or other entrypoints',async t=>{
  const dataDirectory=await mkdtemp(path.join(os.tmpdir(),'hoooho-front-field-'));t.after(()=>rm(dataDirectory,{recursive:true,force:true}))
@@ -20,6 +21,9 @@ test('front-desk field contracts reconcile wrong symptom metadata and duration-a
  assert.equal(draft.items[1].fields[0].sources[0].quote,text)
  const saved=await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
  assert.equal(saved.result.count,2)
+ assert.deepEqual(saved.result.records.map(r=>r.category),['diet','sleep'])
+ assert.ok(saved.result.records.every(r=>r.memberId===member.id&&r.recordId&&r.eventId))
+ assert.equal((await new CaseContinuityService({dataDirectory,business:service}).list('synthetic',member.id)).active.length,0)
 })
 test('explicit symptoms, clock phrases and human edits are never reclassified',()=>{
  const physical={category:'symptom',fields:[{name:'food',value:'鸡蛋'},{name:'symptom',value:'脸上有红点'}]};assert.equal(reconcileFrontDeskFields(physical).category,'symptom')

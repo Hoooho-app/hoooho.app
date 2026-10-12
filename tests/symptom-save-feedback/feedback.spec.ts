@@ -1,0 +1,115 @@
+import {test,expect,type Page,type APIRequestContext} from '@playwright/test'
+import {TokenService} from '../../server/auth/token-service.mjs'
+const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
+let memberId:string
+const output=(category:string,title:string,fields:Record<string,string>,archiveCategory:string|null=null)=>({category,title,timeText:'今天',subject:'current',archiveCategory,relationKey:null,fields:Object.entries(fields).map(([name,value])=>({name,value,quote:value,sourceId:'input',page:1}))})
+test.beforeEach(async({page,request})=>{
+  const created=await request.post('/api/members',{headers,data:{name:'小禾（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'}})
+  expect(created.ok()).toBe(true);memberId=(await created.json()).id
+  await request.get('http://127.0.0.1:4768/success')
+  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
+})
+async function send(page:Page,text:string){
+  const input=page.getByLabel('对话输入')
+  if(!await input.isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
+  await input.fill(text);await page.getByRole('button',{name:'发送',exact:true}).click()
+  await expect(page.getByRole('button',{name:'帮我整理',exact:true})).toBeEnabled()
+}
+async function save(page:Page,request:APIRequestContext,item:ReturnType<typeof output>,raw:string){
+  await request.post('http://127.0.0.1:4768/draft-data',{data:{items:[item]}})
+  await send(page,raw)
+  await page.getByRole('button',{name:'帮我整理',exact:true}).click()
+  await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click()
+  await expect(page.locator('.smart-record-saved')).toHaveCount(0)
+  const response=page.waitForResponse(r=>r.url().endsWith('/save')&&r.request().method()==='POST')
+  await page.getByRole('button',{name:'确认保存 1 条',exact:true}).click()
+  const saved=await(await response).json();expect(saved.state).toBe('saved')
+  await expect(page.locator(`[data-save-id^="${saved.id}:"]`)).toBeVisible()
+  return saved
+}
+test('multiple symptoms use real business times, one compact preview, all remain in followup',async({page,request},info)=>{
+  const create=async(text:string,at:string)=>{
+    const response=await request.post(`/api/members/${memberId}/case-records`,{headers,data:{requestId:crypto.randomUUID(),text,title:text,occurredAt:at,files:[],journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:text,generatedSummary:text.includes('脖子')?'颈部皮疹':'手臂发红',keywords:['发痒'],locations:[],descriptors:[]}}}})
+    expect(response.ok()).toBe(true);return response.json()
+  }
+  const first=await create('洗完澡脖子上起了红疹，有点痒，过了一会儿还是没退。晚上看起来还是发红，碰到衣领时会痒。','2026-10-11T02:00:00Z')
+  const second=await create('手臂发红','2026-10-12T02:00:00Z')
+  await page.goto('/nurse-station')
+  const card=page.getByRole('region',{name:'症状跟进',exact:true})
+  await expect(card.locator('.home-followup-preview')).toHaveCount(1);await expect(card).toContainText('2 项');await expect(card.locator('.home-symptom-title')).toContainText('手臂发红')
+  const supplement=await request.post(`/api/members/${memberId}/case-records`,{headers,data:{eventId:first.eventId,requestId:crypto.randomUUID(),text:'今天红疹还在',occurredAt:'2026-10-12T10:00:00Z',files:[]}})
+  expect(supplement.ok()).toBe(true)
+  const refreshed=await(await request.get(`/api/members/${memberId}/cases`,{headers})).json();expect(refreshed.active.find((item:any)=>item.event.id===first.eventId).followup.latestOccurredAt).toBe('2026-10-12T10:00:00.000Z')
+  const reloadResponse=page.waitForResponse(response=>response.url().includes('/cases?'));await page.evaluate(()=>window.dispatchEvent(new Event('hoooho-data-changed')));await reloadResponse
+  await expect(card.locator('.home-symptom-title')).toContainText('颈部皮疹')
+  await expect(card.locator('.home-symptom-dates small')).toHaveText(['首次记录 10/11','最近更新 10/12'])
+  const dimensions=await card.evaluate(element=>{const description=element.querySelector('.home-symptom-description')!;const style=getComputedStyle(description);const dates=element.querySelectorAll('small');const button=element.querySelector('.hoho-button')!;return {descriptionHeight:description.getBoundingClientRect().height,lineHeight:parseFloat(style.lineHeight),clamp:style.webkitLineClamp,dateFont:getComputedStyle(dates[0]).fontSize,buttonHeight:button.getBoundingClientRect().height,icons:button.querySelectorAll('svg').length,overflow:document.documentElement.scrollWidth>innerWidth}})
+  expect(dimensions.descriptionHeight).toBeLessThanOrEqual(dimensions.lineHeight*2+1);expect(dimensions.clamp).toBe('2');expect(dimensions.dateFont).toBe('12px');expect(dimensions.buttonHeight).toBeGreaterThanOrEqual(44);expect(dimensions.buttonHeight).toBeLessThanOrEqual(48);expect(dimensions.icons).toBe(0);expect(dimensions.overflow).toBe(false)
+  await card.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('symptom-followup.png')})
+  await card.getByRole('button',{name:'情况跟进',exact:true}).click();await expect(page.locator('.case-followup-card')).toHaveCount(2)
+  await page.goBack();await card.locator('.home-followup-preview').click();await expect(page).toHaveURL(new RegExp('/health-events/'+first.eventId+'$'))
+  const archive=await request.post(`/api/members/${memberId}/cases/${first.eventId}/archive`,{headers,data:{archived:true}});expect(archive.ok()).toBe(true)
+  await page.goto('/nurse-station');await expect(card).toContainText('1 项');await expect(card.locator('.home-symptom-title')).toContainText('手臂发红')
+  expect(first.eventId).not.toBe(second.eventId)
+})
+test('real sleep and vaccination saves, exact links, dismissal, return draft, old bubble identity and deleted record',async({page,request},info)=>{
+  await page.goto('/smart-record?source=front-desk')
+  const first=await save(page,request,output('sleep','睡眠',{durationMinutes:'睡了一个小时'}),'今天睡了一个小时。')
+  const firstBubble=page.locator(`[data-save-id^="${first.id}:"]`)
+  await expect(firstBubble).toContainText('睡眠已记好，可在健康随记查看。')
+  const cases=await(await request.get(`/api/members/${memberId}/cases`,{headers})).json();expect(cases.active).toHaveLength(0)
+  await page.screenshot({path:info.outputPath('diary-success.png')})
+  await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByLabel('对话输入').fill('未发送的新草稿')
+  await firstBubble.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${first.result.records[0].recordId}`))
+  await expect(page.getByRole('dialog',{name:/记录详情$/})).toBeVisible()
+  await page.goBack();await page.getByRole('button',{name:'改用文字',exact:true}).click();await expect(page.getByLabel('对话输入')).toHaveValue('未发送的新草稿')
+  await expect(firstBubble).toBeVisible();await expect(page.locator('.nurse-turn--user')).toContainText('今天睡了一个小时。')
+  await request.post('http://127.0.0.1:4768/draft-data',{data:{items:[output('vaccination','接种记录',{vaccineName:'乙肝疫苗',doseOriginal:'第2剂'},'vaccination')]}})
+  await send(page,'今天接种乙肝疫苗第2剂。');await page.getByRole('button',{name:'帮我整理',exact:true}).click();await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click()
+  const savedResponse=page.waitForResponse(r=>r.url().endsWith('/save')&&r.request().method()==='POST');await page.getByRole('button',{name:'确认保存 1 条',exact:true}).click();const vaccine=await(await savedResponse).json()
+  const vaccineBubble=page.locator(`[data-save-id^="${vaccine.id}:"]`);await expect(vaccineBubble).toContainText('接种记录已保存，可在健康档案查看。');await page.screenshot({path:info.outputPath('profile-success.png')})
+  await vaccineBubble.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/health-profile\/vaccination\?/)
+  await expect(page.locator(`[data-record-id="${vaccine.result.records[0].profileEntries[0].entryId}"]`)).toBeVisible()
+  await page.goBack();await firstBubble.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${first.result.records[0].recordId}`));await page.goBack()
+  await vaccineBubble.getByRole('button',{name:'知道了',exact:true}).click();await expect(page).toHaveURL(/smart-record/);await expect(vaccineBubble.getByRole('button')).toHaveCount(0)
+  expect((await request.get(`/api/events/${vaccine.result.records[0].eventId}/records`,{headers})).ok()).toBe(true)
+  expect((await request.delete(`/api/records/${first.result.records[0].recordId}`,{headers})).ok()).toBe(true)
+  await firstBubble.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/smart-record/);await expect(page.getByRole('alert')).toContainText('这条记录已不存在或暂不可访问')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})
+test('unconfirmed and failed saves never show success, retry same draft id persists once',async({page,request})=>{
+  await page.goto('/smart-record?source=front-desk');await request.post('http://127.0.0.1:4768/draft-data',{data:{items:[output('sleep','睡眠',{durationMinutes:'睡了两个小时'})]}})
+  await send(page,'今天睡了两个小时。');await page.getByRole('button',{name:'帮我整理',exact:true}).click();await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click();await expect(page.locator('.smart-record-saved')).toHaveCount(0)
+  let saveRequests=0;const ids:string[]=[]
+  await page.route('**/ai-drafts/*/save',async route=>{ids.push(route.request().url());if(++saveRequests===1)await route.fulfill({status:503,json:{error:{message:'合成保存失败'}}});else await route.continue()})
+  await page.getByRole('button',{name:'确认保存 1 条',exact:true}).click();await expect(page.getByRole('alert')).toContainText('合成保存失败');await expect(page.locator('.smart-record-saved')).toHaveCount(0)
+  await page.getByRole('button',{name:'确认保存 1 条',exact:true}).click();await expect(page.locator('.smart-record-saved')).toHaveCount(1);expect(ids[0]).toBe(ids[1])
+  const id=page.locator('.smart-record-saved').first();await id.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/health-events\?.*recordId=/)
+  const recordId=new URL(page.url()).searchParams.get('recordId'),eventId=new URL(page.url()).searchParams.get('eventId')
+  const records=await(await request.get(`/api/events/${eventId}/records`,{headers})).json();expect(records).toHaveLength(1);expect(records[0].id).toBe(recordId)
+})
+test('member switch hides old symptoms while new data loads and rejects delayed old response',async({page,request})=>{
+  const otherName=`小岚（虚构）${crypto.randomUUID().slice(0,6)}`;const created=await request.post('/api/members',{headers,data:{name:otherName,relationship:'child',birthday:'2023-01-01',gender:'male'}}),other=(await created.json()).id
+  await request.post(`/api/members/${memberId}/case-records`,{headers,data:{requestId:crypto.randomUUID(),text:'当前孩子的皮肤发红',occurredAt:'2026-10-11T02:00:00Z',files:[],journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'当前孩子的皮肤发红',generatedSummary:'当前孩子皮肤发红',locations:[],descriptors:[]}}}})
+  await page.goto('/nurse-station');await expect(page.locator('.home-symptom-title')).toContainText('当前孩子皮肤发红')
+  let release!:()=>void;const delayed=new Promise<void>(resolve=>{release=resolve})
+  await page.route(`**/api/members/${memberId}/cases?*`,async route=>{const response=await route.fetch();await delayed;await route.fulfill({response}).catch(()=>undefined)})
+  await page.evaluate(()=>window.dispatchEvent(new Event('hoooho-data-changed')))
+  await page.getByRole('button',{name:/选择孩子/}).click();await page.getByRole('button',{name:`切换到${otherName}`,exact:true}).click()
+  await expect(page.getByRole('button',{name:`选择孩子，当前${otherName}`,exact:true})).toBeVisible();await expect(page.locator('.home-symptom-followup')).toHaveCount(0)
+  release();await page.waitForTimeout(300);await expect(page.locator('.home-symptom-followup')).toHaveCount(0)
+  await page.goto(`/health-profile/vaccination?memberId=${other}&entryId=missing`);await expect(page.getByRole('status')).toContainText('这条记录不属于当前孩子')
+  expect(other).not.toBe(memberId)
+})
+test('view and back retain the exact unsubmitted photo and recording bytes with new input',async({page,request})=>{
+  await page.goto('/smart-record?source=front-desk')
+  const saved=await save(page,request,output('sleep','睡眠',{durationMinutes:'睡了三十分钟'}),'今天睡了三十分钟。')
+  await page.evaluate(async memberId=>{
+    const key=`home-smart:visit-test:${memberId}:new`;sessionStorage.removeItem(`hoooho-capture-checkpoint:${key}`)
+    await new Promise<void>((resolve,reject)=>{const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onsuccess=()=>{const db=open.result,transaction=db.transaction('drafts','readwrite'),store=transaction.objectStore('drafts'),read=store.get(key);read.onsuccess=()=>{const voice={kind:'bytes-v1',name:'新录音.webm',type:'audio/webm',lastModified:123,bytes:new Uint8Array([1,2,3,4]).buffer},photo={kind:'bytes-v1',name:'新照片.png',type:'image/png',lastModified:124,bytes:new Uint8Array([5,6,7,8]).buffer};store.put({...read.result,conversationInput:'尚未发送的新输入',files:[photo,voice],pendingVoice:voice,updatedAt:Date.now()},key)};transaction.oncomplete=()=>{db.close();resolve()};transaction.onerror=()=>reject(transaction.error)}})
+  },memberId)
+  await page.reload();const bubble=page.locator(`[data-save-id^="${saved.id}:"]`);await expect(bubble).toBeVisible()
+  await bubble.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/health-events\?/);await page.goBack()
+  const retained=await page.evaluate(memberId=>new Promise<any>((resolve,reject)=>{const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onsuccess=()=>{const db=open.result,read=db.transaction('drafts').objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);read.onsuccess=()=>resolve({input:read.result.conversationInput,files:read.result.files.map((file:any)=>({name:file.name,bytes:Array.from(new Uint8Array(file.bytes))})),voice:read.result.pendingVoice.name});read.onerror=()=>reject(read.error)}}),memberId)
+  expect(retained.input).toBe('尚未发送的新输入');expect(retained.files).toEqual([{name:'新照片.png',bytes:[5,6,7,8]},{name:'新录音.webm',bytes:[1,2,3,4]}]);expect(retained.voice).toBe('新录音.webm')
+})

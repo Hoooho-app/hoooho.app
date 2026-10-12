@@ -1,6 +1,6 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
 import { HohoButton, Typography } from '../../components/design-system'
@@ -88,6 +88,14 @@ export function HealthProfileSectionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const location=useLocation(),focusQuery=new URLSearchParams(location.search),focusedEntry=focusQuery.get('entryId'),requestedMember=focusQuery.get('memberId')
+  useEffect(()=>{
+    if(!focusedEntry||requestedMember&&requestedMember!==member.id)return
+    const element=Array.from(document.querySelectorAll<HTMLElement>('[data-record-id]')).find(element=>element.dataset.recordId===focusedEntry)
+    if(element){element.tabIndex=-1;element.focus({preventScroll:true});element.scrollIntoView({block:'center'})}
+    else setStatus('这条记录已不存在或暂不可访问')
+  },[focusedEntry,member.id,requestedMember])
+  if(requestedMember&&requestedMember!==member.id)return <main className="app-shell"><WebPageHeader title="健康档案"/><p role="status">这条记录不属于当前孩子</p></main>
 
   if (!section) return <Navigate replace to="/health-profile" />
   if (section.id === 'medication') return <MedicationProfilePage member={member} storageKey={storageKey} />

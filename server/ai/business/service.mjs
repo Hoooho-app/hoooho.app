@@ -322,13 +322,23 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
         const conflicts=conflictRecords.map(r=>r.id)
         await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
         if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { ...record.caseContext, identity: d.sourceIdentity, confirmed: true, attachmentIds: [...new Set([...(record.caseContext?.attachmentIds??[]),...refs])], originalText: record.caseContext?.originalText ?? record.sourceText ?? d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
-        if (targetEvent && (!match || d.targetEventId || d.followUp !== false)) await this.events.repository.update(event.id, { caseTracking: d.followUp !== false || Boolean(d.targetEventId) || event.caseTracking === true }, this.now())
+        if (targetEvent && (!match || d.targetEventId || d.followUp !== false)) {
+          const currentEvent=await this.events.repository.findById(event.id)
+          await this.events.repository.update(event.id, { caseTracking: Boolean(d.targetEventId) || currentEvent.caseTracking === true || item.category === 'symptom' && d.followUp !== false }, this.now())
+        }
         if (!['external_ai','pending'].includes(d.sourceIdentity)) profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now:this.now(),profileBatch:d.profileBatch})
         history[history.length-1].afterKey=revisionKey(await this.records.repository.findById(record.id))
         if(!ownedEvents.some(e=>e.id===event.id))ownedEvents.push(event)
         const finalRecord=await this.records.repository.findById(record.id),position=existing.findIndex(r=>r.id===record.id)
         if(position<0)existing.push(finalRecord);else existing[position]=finalRecord
-        saved.push({eventId:event.id,recordId:record.id,duplicate:Boolean(match),archiveCategory:item.archiveCategory})
+        const profileEntries = (finalRecord.journal?.vaccination?.items ?? []).map(v => ({sectionId:'vaccination',entryId:`${record.id}/${v.id}`}))
+        for (const section of profileData.sections.filter(s => s.accountId === accountId && s.memberId === memberId)) {
+          for (const entry of section.records.filter(r => r.sourceRecordId === record.id || r.sourceReferences?.some(ref => ref.id === `ai:${record.id}`))) {
+            if (section.sectionId === 'family-history') profileEntries.push(...(entry.healthIssues ?? []).map(issue => ({sectionId:section.sectionId,entryId:`${entry.id}/${issue.id}`})))
+            else profileEntries.push({sectionId:section.sectionId,entryId:entry.id})
+          }
+        }
+        saved.push({memberId,category:item.category,eventId:event.id,recordId:record.id,duplicate:Boolean(match),archiveCategory:item.archiveCategory,profileEntries})
       }
       const changedSections=profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId&&JSON.stringify(s)!==JSON.stringify(profileBefore.find(p=>p.sectionId===s.sectionId))).map(s=>({sectionId:s.sectionId,revision:s.revision,before:profileBefore.find(p=>p.sectionId===s.sectionId)??null}))
       if(changedSections.length)await this.profiles.update(()=>profileData)
