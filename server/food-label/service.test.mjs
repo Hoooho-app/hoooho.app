@@ -10,6 +10,36 @@ const page={text:'Ingredients: Water, Whey, Egg. Contains: Milk. May contain soy
 const translated={ingredients:[{original:'Water',chinese:'水',reliable:true,sourceUnknown:false},{original:'Whey',chinese:'乳清',reliable:true,sourceUnknown:false},{original:'Egg',chinese:'鸡蛋',reliable:true,sourceUnknown:false}],contains:[{original:'Milk',chinese:'牛奶',reliable:true,sourceUnknown:false}],advisory:[{original:'May contain soy',chinese:'可能含有大豆',reliable:true,sourceUnknown:false}]}
 const records=[{name:'牛奶',category:'food',currentStatus:'confirmed'},{name:'鸡蛋',category:'food',currentStatus:'suspected'}]
 
+test('translation overlaps coverage but no result escapes before coverage finishes',async()=>{
+  let releaseCoverage,coverageStarted,translationStarted
+  const coverageReady=new Promise(resolve=>{coverageStarted=resolve})
+  const translationReady=new Promise(resolve=>{translationStarted=resolve})
+  const coverage=new Promise(resolve=>{releaseCoverage=resolve})
+  const s=service([page,translated])
+  const original=s.service.model.structured
+  s.service.model.structured=async request=>{
+    if(request.task==='food-label-coverage'){coverageStarted();await coverage}
+    if(request.task==='food-label-translate')translationStarted()
+    return original(request)
+  }
+  let settled=false
+  const result=s.service.analyze('owner',input).then(value=>{settled=true;return value})
+  await coverageReady
+  await Promise.race([translationReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Translation waited for coverage')),500))])
+  assert.equal(settled,false)
+  releaseCoverage()
+  const r=await result
+  assert.equal(r.diagnostics.calls,3);assert.equal(r.diagnostics.successfulCalls,3)
+  assert.equal(r.complete,true);assert.equal(r.conflictCount,1)
+})
+
+test('failed parallel coverage keeps its diagnostic and original conflict',async()=>{
+  const s=service([page,translated],Object.assign(new Error('coverage'),{code:'AI_TIMEOUT'}))
+  const r=await s.service.analyze('owner',input)
+  assert.equal(r.complete,false);assert.equal(r.conflictCount,1)
+  assert.equal(r.diagnostics.calls,3);assert.deepEqual(r.diagnostics.errorCodes,['AI_TIMEOUT'])
+})
+
 test('screenshot OCR explicitly separates interface icons from printed ingredient text',async()=>{
  const requests=[];const model={structured:async request=>{requests.push(request);throw Object.assign(new Error('fixture'),{code:'AI_OUTPUT_INVALID'})}}
  const service=new FoodLabelService({model,members:{get:async()=>{}},readRecords:async()=>[]})
