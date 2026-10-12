@@ -42,7 +42,7 @@ try{
  modelResults.push({stage:'asr',requestId:transcription.diagnostics?.requestId??transcription.requestId,model:transcription.model})
  if(!transcription.transcript?.trim())throw new Error('Real ASR returned no spoken transcript')
  const spoken=await api('voice-transcript-dialogue',route,'POST',{id:state.voiceId,kind:'voice',text:transcription.transcript,voiceFiles:[audio],inputAt:state.at+2})
- const voiceReply=spoken.context.messages.filter(m=>m.kind==='assistant').at(-1)
+ const voiceReply=spoken.context.messages.find(m=>m.id===`${state.voiceId}:reply`)
  modelResults.push({stage:'voice-dialogue',requestId:voiceReply.diagnostics?.requestId,model:voiceReply.diagnostics?.model,reply:voiceReply.text})
  // Choose exactly the model-selected intent; include only this context's sources.
  // The local speech fixture is English. Exercise the requested Chinese mixed
@@ -57,7 +57,8 @@ try{
  draft=await api('organization-generate',drafts,'POST',{...baseInput,id:draft.id,version:draft.version})
  modelResults.push({stage:'organization',requestId:draft.generation?.requestId,model:draft.generation?.model,documentPages:draft.pages?.length??0})
  if(!draft.items?.length||draft.state!=='ready')throw new Error('No usable real organization preview')
- for(const item of draft.items)if(!item.timeText)draft=await api('synthetic-time-confirmation',`${drafts}/${draft.id}`,'PATCH',{version:draft.version,itemId:item.id,field:'time',value:'刚才'})
+ if(!draft.items.some(i=>i.category==='diet')||!draft.items.some(i=>i.category==='sleep'))throw new Error('Synthetic meal/sleep facts were not classified into their actual record categories')
+ for(const item of draft.items){const time=!item.timeText?'不记得':item.time?.precision==='unknown'&&/^yesterday$/i.test(item.timeText)?'昨天':null;if(time)draft=await api('synthetic-time-confirmation',`${drafts}/${draft.id}`,'PATCH',{version:draft.version,itemId:item.id,field:'time',value:time})}
  const saved=await api('formal-save',`${drafts}/${draft.id}/save`,'POST',{version:draft.version,confirmed:true})
  const again=await api('idempotent-save',`${drafts}/${draft.id}/save`,'POST',{version:saved.version,confirmed:true})
  if(JSON.stringify(saved.result)!==JSON.stringify(again.result))throw new Error('Save retry changed formal records')
@@ -73,7 +74,7 @@ try{
  const retrieved=page.waitForResponse(r=>r.url().endsWith('/front-desk-record')&&r.request().method()==='POST');await page.getByRole('button',{name:'发送',exact:true}).click()
  const retrievedResponse=await retrieved,related=await retrievedResponse.json();receipts.push({phase:'live-history-dialogue',status:retrievedResponse.status(),code:related.error?.code??null})
  if(!retrievedResponse.ok())throw new Error('Live history dialogue failed')
- const historicalReply=related.context.messages.filter(m=>m.kind==='assistant').at(-1);modelResults.push({stage:'history-dialogue',requestId:historicalReply.diagnostics?.requestId,model:historicalReply.diagnostics?.model,reply:historicalReply.text})
+ const historicalReply=related.context.messages.find(m=>m.id===related.replyId);modelResults.push({stage:'history-dialogue',requestId:historicalReply.diagnostics?.requestId,model:historicalReply.diagnostics?.model,reply:historicalReply.text})
  await page.getByRole('img',{name:'合成红圆蓝方.png'}).waitFor();await page.screenshot({path:path.join(output,'live-image-history-iphone-se.png')});await browser.close()
  if(failures.length)throw new Error('Live browser errors: '+failures.join(','))
  await writeFile(path.join(output,'acceptance.json'),JSON.stringify({status:'PASS',receipts,modelResults,formalRecords:saved.result.count,device:'background Playwright iPhone SE; physical device not tested'},null,2))

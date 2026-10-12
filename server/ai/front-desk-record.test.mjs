@@ -40,9 +40,15 @@ test('image bytes reach vision, multiple selections remain separate messages, cu
  const decoded=Buffer.from(f.calls[0].input[0].content[1].image_url.split(',')[1],'base64')
  assert.equal((await sharp(decoded).metadata()).format,'jpeg');assert.equal(first.context.messages[0].files[0].lastModified,42)
  await f.service.submit('synthetic',f.member.id,{id:'picture-2',kind:'image',text:'',files:[image,image]})
+ const history=JSON.parse(f.calls[1].input[0].content[0].text).history
+ assert.equal(history[0].turns[0].kind,'image');assert.equal(history[0].turns[0].files[0].name,image.name)
  assert.equal(f.calls[1].input[0].content.filter(c=>c.type==='input_image').length,1)
  assert.equal(JSON.stringify(f.calls[1].input[0].content[0]).includes(bytes.toString('base64')),false)
  assert.equal((await f.service.store.read()).messages.filter(m=>m.kind==='image').length,2)
+ f.model.structured=async()=>({value:{reply:'找到了这张图片。',contextId:first.context.id,action:'history'},diagnostics:{provider:'test'}})
+ await f.service.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id===first.context.id?{...c,saved:true}:c)}))
+ const recalled=await f.service.submit('synthetic',f.member.id,{id:'recall-picture',kind:'text',text:'找刚才红方块的图片'})
+ assert.equal(recalled.context.saved,true);assert.equal(recalled.context.messages[0].files[0].dataUrl,image.dataUrl)
 })
 test('provider failure retains original message and bytes, retry never retranscribes or duplicates',async t=>{
  const f=await setup(t);f.model.structured=async()=>{throw Object.assign(new Error('provider failure'),{code:'AI_BUSINESS_UNAVAILABLE'})}

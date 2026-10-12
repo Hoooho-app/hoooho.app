@@ -6,7 +6,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
 import { caseService } from '../case-continuity/api'
 import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCaptureDraft, fileIdentity, hasCaptureContent, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
-import {restoreFrontContext, type FrontContext} from './frontDeskRecord'
+import {restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
 import {RecordMedia} from './RecordMedia'
 import { fileDataUrl } from './CaseCaptureWorkspace'
 import { isKeyRecordField, recordCategoryLabels, retainSmartRecordEdits, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
@@ -150,6 +150,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
         const serialized=await Promise.all(files.map(async f=>({name:f.name,mimeType:f.type,lastModified:f.lastModified,dataUrl:await fileDataUrl(f)})))
         const result=await request<{context:FrontContext;replyId:string}>(frontUrl,'POST',{id:turn.id,kind:turn.kind??'text',text:turn.text,inputAt:turn.at,files:serialized.filter(f=>!f.mimeType.startsWith('audio/')),voiceFiles:serialized.filter(f=>f.mimeType.startsWith('audio/'))})
         result.context.messages.forEach(message=>hiddenTurns.current.delete(message.id))
+        // Saved sources remain visible in their original bubbles without
+        // becoming inputs for another formal record.
+        result.context.messages.flatMap(message=>[...message.files??[],...message.voices??[]]).map(restoreFrontFile).forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
         const restored=restoreFrontContext(result.context,current.current)
         // Keep the visible input boundaries from this visit across topic changes.
         const old=(current.current.conversationTurns??[]).filter(t=>!hiddenTurns.current.has(t.id)&&!restored.conversationTurns?.some(s=>s.id===t.id))

@@ -201,6 +201,8 @@ test('Chinese composition, independent sends, failed message retry and two image
   await page.screenshot({path:info.outputPath('multimodal-images.png')})
   await page.reload()
   await expect(page.getByRole('button',{name:/继续上次|重新开始/})).toHaveCount(0)
+  await page.route('**/front-desk-record',async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch(),body=await response.json();body.context.saved=true;await route.fulfill({response,json:body})})
   await page.getByRole('button',{name:'改用文字'}).click();await page.getByLabel('对话输入').fill('继续刚才的图片');await page.getByRole('button',{name:'发送',exact:true}).click()
   await expect(page.getByRole('img',{name:'测试图片0.png'})).toBeVisible();await expect(page.getByRole('img',{name:'测试图片1.png'})).toBeVisible()
+  await expect(page.getByRole('button',{name:'帮我整理',exact:true})).toHaveCount(0)
 })
