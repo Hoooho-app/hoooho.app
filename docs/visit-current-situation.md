@@ -8,6 +8,8 @@
 
 校验拒绝时沿用摘要服务的安全诊断日志，记录固定 stage、schema 字段路径、数组索引与代码内规则名，区分来源、格式和语义失败；不记录模型正文、引用原话、未知 JSON 字段、账号凭据或密钥。诊断不改变严格校验和失败不保存的行为。
 
+目前情况调用同时说明两种引用：基础 keyPoints 的 sectionId 必须来自已提供的 sections，quote 是对应 lines 的连续逐字片段；currentSituation 的 sourceId 来自当前来源，quote 是该来源裸 text 的连续逐字片段。基础章节编号通过该请求独立的 JSON schema 枚举约束，普通整单摘要 schema 不变；不能把来源编号与正文拼接而省略中间元数据。
+
 `PUT /api/members/:memberId/visit-sheet` 兼容原请求，可选 `currentSituation: {scopeKey, block, text}`，block 为 description / symptoms / diet，最多 5000 字。沿用 expectedVersion、requestId、账户事务和成员权限；当前焦点或版本不匹配时拒绝补丁。局部修改保存到 `currentSituationEdits[photoKey]`，换焦点不套用另一情况的修改，切回恢复。旧 caseDetails 描述按原焦点兼容迁入；原记录不修改。复制和离线 HTML 使用同一份展示内容。
 
 V2 对症状支持兼容补丁 `{scopeKey, block:'symptoms', rows:[{text,note}]}`，只编辑当前已有行，最多 12 行，文本最多 5000 字、相关备注最多 1000 字；分类、类型和来源由服务端原行保留，不能伪造来源或任意增行。每块在局部底部弹层编辑，保存/取消保留位置；失败保留输入。症状旁备注与行标签同时进入复制和离线 HTML。主诉选择沿用已有记录及手动/自动选择，只将该入口改为底部列表，其他编辑页不变。
