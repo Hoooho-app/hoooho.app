@@ -37,6 +37,23 @@ test('真实合成输出回归先复现遗漏；完整参考保留12项事实与
  assert.deepEqual(Object.values(quality(verified)),Array(12).fill(true))
 })
 
+test('真实未验证预览的标签长引文复现否定校验，精确症状引文保持严格核验',()=>{
+ const input={sections:[{id:'record',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw}]}
+ const value=situationOutput()
+ value.currentSituation.keywords[0].quote='早上起来的时候就开始其实有点头晕但不是头疼'
+ assert.throws(()=>normalizeMedicalSummary(value,input),error=>error.validation.fieldPath==='/currentSituation/keywords/0/text'&&error.validation.rule==='negative_lost')
+ value.currentSituation.keywords[0].quote='有点头晕'
+ assert.equal(normalizeMedicalSummary(value,input).currentSituation.keywords[0].text,'头晕')
+ const observed=structuredClone(value)
+ observed.currentSituation.symptoms[0].text='头晕：早上起来的时候开始，不是头疼。'
+ const baseline=quality(normalizeMedicalSummary(observed,input).currentSituation)
+ assert.equal(baseline.degreeOnSymptom,false)
+ assert.equal(quality(normalizeMedicalSummary(value,input).currentSituation).degreeOnSymptom,true)
+ const negated=structuredClone(value)
+ negated.currentSituation.keywords[0].text='头痛';negated.currentSituation.keywords[0].quote='不是头疼'
+ assert.throws(()=>normalizeMedicalSummary(negated,input))
+})
+
 test('不同来源的普通饮食及新增食物都保留，不能拼接跨来源引文',()=>{
  const symptoms='午睡醒来后有点咳嗽，但没有发热。'
  const diet='昨晚只吃平时常吃的粥和青菜，第一次加了鸡蛋。'
