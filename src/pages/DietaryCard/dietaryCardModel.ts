@@ -126,8 +126,7 @@ export function translateFood(item: Pick<DietaryCardItem, 'foodId' | 'name' | 'e
   if (language === 'zh' || language === 'zh-Hant') return nativeName
   const translation = englishFoodName(item)
   if (language === 'en') {
-    if (!translation) throw new Error('请先补充所有食物的英文名称')
-    return translation
+    return translation ?? nativeName
   }
   return translation ? `${translation} / ${nativeName}` : `${nativeName}${language.includes('Hant') ? '（英文待補充）' : '（英文待补充）'}`
 }
@@ -237,7 +236,7 @@ export function dietaryItemExists(items: DietaryCardItem[], name: string, except
 }
 
 export function presentDietaryCard(snapshot: DietaryCardSnapshot, language: DietaryCardLanguage): DietaryCardPresentation {
-  const visible = snapshot.items.filter((item) => item.visible)
+  const visible = snapshot.items.filter((item) => item.visible && item.group === 'avoid')
   return {
     avoid: visible.filter((item) => item.group === 'avoid'),
     temporary: visible.filter((item) => item.group === 'temporary'),

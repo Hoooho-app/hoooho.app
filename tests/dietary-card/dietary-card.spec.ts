@@ -11,7 +11,7 @@ const iconFoods = [
 async function prepareIcons(page: Page) {
   const control = await prepare(page)
   const items = [...iconFoods, ['dragon-fruit', '火龙果', 'Dragon fruit']].map(([foodId, name, englishName], index) => ({
-    id: `manual:${foodId}`, foodId, name, englishName, group: index < 8 ? 'avoid' : 'temporary', visible: true,
+    id: `manual:${foodId}`, foodId, name, englishName, group: 'avoid', visible: true,
     manuallyAdded: true, nameAdjusted: true, groupAdjusted: true
   }))
   control.sections.set(`${memberId}:dietary-card`, { memberId, sectionId: 'dietary-card', revision: 1,
@@ -131,12 +131,12 @@ test('P-002 单项直接出示、切换英文并导出 PNG', async ({ page }, te
 
 test('P-003 长清单完整滚动并导出视口外全部食物', async ({ page }, testInfo) => {
   const names = ['牛奶', '鸡蛋', '花生', '小麦', '大豆', '芝麻', '核桃', '杏仁', '腰果', '虾', '蟹', '鱼', '芒果', '猕猴桃', '草莓', '桃', '番茄', '燕麦']
-  await prepare(page, names.map((name, index) => allergy(name, index < 12 ? 'confirmed' : 'investigating')))
+  await prepare(page, names.map(name => allergy(name, 'confirmed')))
   await page.goto('/dietary-card')
   await page.getByLabel('选择出示语言').selectOption('zh')
   await expect(page.getByText('共18项，请下滑查看全部')).toBeVisible()
   await expect(page.getByText('明确不能吃', { exact: true })).toBeVisible()
-  await expect(page.getByText('暂时请避开', { exact: true })).toBeVisible()
+  await expect(page.getByText('暂时请避开', { exact: true })).toHaveCount(0)
   await page.getByText('燕麦', { exact: true }).scrollIntoViewIfNeeded()
   await expect(page.getByText('燕麦', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -150,7 +150,7 @@ test('P-003 长清单完整滚动并导出视口外全部食物', async ({ page 
 })
 
 test('P-004 编辑使用独立草稿，取消不修改已保存资料', async ({ page }, testInfo) => {
-  const sourceRecords = [allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'suspected')]
+  const sourceRecords = [allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'confirmed')]
   const control = await prepare(page, sourceRecords)
   await page.goto('/dietary-card')
   await page.getByRole('button', { name: '修改编辑', exact: true }).click()
@@ -158,7 +158,6 @@ test('P-004 编辑使用独立草稿，取消不修改已保存资料', async ({
   await page.getByRole('button', { name: '取消选择牛奶' }).click()
   await page.getByRole('button', { name: '修改鸡蛋' }).click()
   await page.getByLabel('食物名称', { exact: true }).fill('未保存名称')
-  await page.getByLabel('所属分组').selectOption('avoid')
   await page.getByRole('button', { name: '保存修改' }).click()
   await page.getByRole('button', { name: '添加食物' }).click()
   await page.getByLabel('食物名称', { exact: true }).fill('未保存香料')
@@ -211,7 +210,7 @@ test('320px 窄屏工具栏、长名称和编辑操作不重叠', async ({ page 
 })
 
 test('纯英文切换、键盘操作及 PNG 实际绘制文字无中文', async ({ page }, testInfo) => {
-  await prepare(page, [allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'suspected')])
+  await prepare(page, [allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'confirmed')])
   await page.goto('/dietary-card')
   await expect(page.getByText('牛奶', { exact: true })).toBeVisible()
   const choice = page.getByLabel('选择出示语言')
@@ -252,7 +251,7 @@ test('纯英文切换、键盘操作及 PNG 实际绘制文字无中文', async 
 
 test('台湾设备仅提供繁体和英文，默认单一繁体且正文及导出一致', async ({ page }, testInfo) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'language', { get: () => 'zh-TW' }))
-  await prepare(page, [allergy('鸡蛋', 'confirmed'), allergy('虾', 'suspected')])
+  await prepare(page, [allergy('鸡蛋', 'confirmed'), allergy('虾', 'confirmed')])
   await page.goto('/dietary-card')
   const choice = page.getByLabel('选择出示语言')
   await expect(choice.locator('option')).toHaveText(['繁體中文', 'English'])
@@ -270,22 +269,36 @@ test('台湾设备仅提供繁体和英文，默认单一繁体且正文及导�
   await page.screenshot({ path: `test-results/dietary-card-traditional-ui-${testInfo.project.name}.png`, fullPage: true })
 })
 
-test('缺失英文不会遗漏食物或生成伪纯英文卡片，补充后可切换', async ({ page }) => {
-  await prepare(page, [allergy('自制香料', 'confirmed')])
+test('简化编辑仅保留食物名称，未知英文保留原名且可保存', async ({ page }) => {
+  const control = await prepare(page, [allergy('自制香料', 'confirmed'), allergy('鳕鱼', 'suspected')])
   await page.goto('/dietary-card')
   await expect(page.getByText('自制香料', { exact: true })).toBeVisible()
+  await expect(page.getByText('鳕鱼', { exact: true })).toHaveCount(0)
   await page.getByLabel('选择出示语言').selectOption('en')
-  await expect(page.getByText('请先补充英文名称', { exact: true })).toBeVisible()
-  await expect(page.getByRole('article', { name: '忌口卡正文' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '保存图片' })).toBeDisabled()
-  await page.getByRole('button', { name: '补充英文名称' }).click()
-  await page.getByRole('button', { name: '修改自制香料' }).click()
-  await page.getByLabel('英文食物名称（可核对修改）').fill('Homemade spices')
-  await page.getByRole('button', { name: '保存修改' }).click()
-  await page.getByRole('button', { name: '保存并更新' }).click()
-  await page.getByLabel('选择出示语言').selectOption('en')
-  await expect(page.getByText('Homemade spices', { exact: true })).toBeVisible()
+  await expect(page.getByText('自制香料', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '保存图片' })).toBeEnabled()
+  await captureCanvas(page)
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存图片' }).click()
+  expect((await sharp((await (await download).path())!).metadata()).width).toBe(1200)
+  const texts = await page.evaluate(() => (window as unknown as { foodIconTexts: string[] }).foodIconTexts.join(''))
+  expect(texts).not.toContain('鳕鱼')
+  await page.getByRole('button', { name: '修改编辑' }).click()
+  await expect(page.getByRole('heading', { name: '过敏食物清单', exact: true })).toBeVisible()
+  await expect(page.locator('.dietary-page-header p')).toHaveCount(0)
+  await expect(page.locator('[data-group="temporary"]')).toHaveCount(0)
+  await expect(page.locator('.dietary-edit-note')).toHaveCount(0)
+  await page.getByRole('button', { name: '添加食物' }).click()
+  await expect(page.getByLabel('所属分组')).toHaveCount(0)
+  await expect(page.getByLabel('英文食物名称（可核对修改）')).toHaveCount(0)
+  await page.getByLabel('食物名称', { exact: true }).fill('苹果')
+  await page.getByRole('button', { name: '添加到清单' }).click()
+  await page.getByRole('button', { name: '保存并更新' }).click()
+  await expect(page.getByText('苹果', { exact: true })).toBeVisible()
+  const saved = control.sections.get(`${memberId}:dietary-card`)?.records[0] as { items: Array<{ name: string; group: string }> }
+  expect(saved.items.find(item => item.name === '苹果')?.group).toBe('avoid')
+  expect(saved.items.find(item => item.name === '鳕鱼')?.group).toBe('temporary')
+  expect(control.sections.get(`${memberId}:allergy`)?.records).toHaveLength(2)
 })
 
 test('访问和恢复前台自动更新，保留隐藏和手工项且无需写入', async ({ page }, testInfo) => {
@@ -295,7 +308,7 @@ test('访问和恢复前台自动更新，保留隐藏和手工项且无需写�
     items: [
       { id: 'source:allergy-牛奶', sourceId: 'allergy-牛奶', name: '牛奶', group: 'avoid', visible: false, manuallyAdded: false, nameAdjusted: false, groupAdjusted: false },
       { id: 'source:allergy-鸡蛋', sourceId: 'allergy-鸡蛋', name: '鸡蛋', group: 'avoid', visible: true, manuallyAdded: false, nameAdjusted: false, groupAdjusted: false },
-      { id: 'manual:spices', name: '自制香料', englishName: 'Homemade spices', group: 'temporary', visible: true, manuallyAdded: true, nameAdjusted: true, groupAdjusted: true }
+      { id: 'manual:spices', name: '自制香料', englishName: 'Homemade spices', group: 'avoid', visible: true, manuallyAdded: true, nameAdjusted: true, groupAdjusted: true }
     ]
   }
   control.sections.set(`${memberId}:dietary-card`, { memberId, sectionId: 'dietary-card', records: [saved], revision: 1 })
@@ -306,7 +319,7 @@ test('访问和恢复前台自动更新，保留隐藏和手工项且无需写�
   await expect(page.getByRole('heading', { name: '忌口卡', exact: true })).toBeVisible()
   await expect(page.locator('.dietary-page-header p')).toHaveCount(0)
   await expect(page.getByLabel('选择出示语言')).toHaveValue('zh')
-  await expect(page.getByText('火龙果', { exact: true })).toBeVisible()
+  await expect(page.getByText('火龙果', { exact: true })).toHaveCount(0)
   await expect(page.getByText('自制香料', { exact: true })).toBeVisible()
   await expect(page.getByText('牛奶', { exact: true })).toHaveCount(0)
   await expect(page.getByText('鸡蛋', { exact: true })).toHaveCount(0)
@@ -318,7 +331,7 @@ test('访问和恢复前台自动更新，保留隐藏和手工项且无需写�
   control.sections.set(`${memberId}:allergy`, { memberId, sectionId: 'allergy', records: [allergy('牛奶', 'confirmed'), allergy('火龙果', 'confirmed'), allergy('鳕鱼', 'suspected')], revision: 2 })
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(page.locator('[data-group="avoid"] .dietary-food-item').getByText('火龙果', { exact: true })).toBeVisible()
-  await expect(page.getByText('鳕鱼', { exact: true })).toBeVisible()
+  await expect(page.getByText('鳕鱼', { exact: true })).toHaveCount(0)
   await expect(page.getByText('自制香料', { exact: true })).toBeVisible()
   await expect(page.getByText('牛奶', { exact: true })).toHaveCount(0)
   expect(mutations).toEqual([])
@@ -421,4 +434,22 @@ test('导出 decode 停滞在五秒预算后回退且恢复保存按钮', async 
   expect((await sharp(file).metadata()).width).toBe(1200)
   await expect(page.getByRole('button', { name: '保存图片', exact: true })).toBeEnabled()
   expect(await page.evaluate(() => (window as unknown as { foodIconTexts: string[] }).foodIconTexts)).toContain('牛')
+})
+
+
+test('仅待确认记录显示空清单，保存不删除过敏记录或升级分类', async ({ page }) => {
+  const records = [allergy('鳕鱼', 'suspected'), allergy('羊肉', 'suspected')]
+  const control = await prepare(page, records)
+  await page.goto('/dietary-card')
+  await expect(page.getByRole('heading', { name: '本次还没有选择忌口食物' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '保存图片' })).toBeDisabled()
+  await page.getByRole('button', { name: '修改编辑' }).click()
+  await expect(page.getByText('还没有食物，可添加到清单。')).toBeVisible()
+  await expect(page.locator('.dietary-edit-item')).toHaveCount(0)
+  await page.getByRole('button', { name: '保存并更新' }).click()
+  await expect(page.getByRole('button', { name: '保存图片' })).toBeDisabled()
+  expect(control.sections.get(`${memberId}:allergy`)?.records).toEqual(records)
+  const saved = control.sections.get(`${memberId}:dietary-card`)?.records[0] as { items: Array<{ group: string }> }
+  expect(saved.items).toHaveLength(2)
+  expect(saved.items.every(item => item.group === 'temporary')).toBe(true)
 })

@@ -19,7 +19,6 @@ export function DietaryCardPanel({ language, snapshot }: { language: DietaryCard
   return <article aria-label="忌口卡正文" className="dietary-display-card" lang={language === 'en' ? 'en' : language.includes('Hant') ? 'zh-Hant' : 'zh-Hans'}>
     <header className="dietary-display-card__brand"><span>Hoooho</span><h2>{copy.title}</h2><p>{copy.intro}</p></header>
     <FoodGroup group="avoid" items={presentation.avoid} language={language} />
-    <FoodGroup group="temporary" items={presentation.temporary} language={language} />
     <footer>{copy.thanks}</footer>
   </article>
 }

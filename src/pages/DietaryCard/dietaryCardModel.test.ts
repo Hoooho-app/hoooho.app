@@ -37,7 +37,7 @@ test('母语使用显式账号选择或设备语言地区，繁体与简体脚�
   assert.equal(defaultDietaryLanguage('en'), 'en')
 })
 
-test('纯英文正文及导出无中文，手工英文优先，缺失译名禁止不完整导出', () => {
+test('纯英文正文及导出无中文，手工英文优先，缺失译名保留原名', () => {
   const item = createManualDietaryItem('鸡蛋', 'avoid')
   const snapshot = { ...emptyDietarySnapshot(memberId, at), items: [item], avoidCrossContact: true }
   assert.equal(translateFood(item, 'en'), 'Egg')
@@ -46,10 +46,10 @@ test('纯英文正文及导出无中文，手工英文优先，缺失译名禁�
   assert.equal(translateFood(item, 'en'), 'Chicken egg')
   item.englishName = '   '
   assert.equal(translateFood(item, 'en'), 'Egg')
-  const unknown = createManualDietaryItem('自制香料')
+  const unknown = createManualDietaryItem('自制香料', 'avoid')
   snapshot.items.push(unknown)
   assert.deepEqual(presentDietaryCard(snapshot, 'en').missingTranslations, ['自制香料'])
-  assert.throws(() => buildDietaryCardExportLayout(snapshot, 'en'), /补充/)
+  assert.ok(buildDietaryCardExportLayout(snapshot, 'en').texts.includes('自制香料'))
   unknown.visible = false
   assert.deepEqual(presentDietaryCard(snapshot, 'en').missingTranslations, [])
   unknown.visible = true
@@ -126,13 +126,16 @@ test('P-002 仅一项已确认食物直接进入明确不能吃并可生成完�
   assert.equal(exportLayout.rows[0].labels.length, 1)
 })
 
-test('P-002 仅一项暂避食物也直接显示且不制造明确不能吃分组', () => {
+test('P-002 暂避记录保留在快照但不进入出示和导出', () => {
   const temporary = allergy('鸡蛋', 'suspected')
   temporary.dietaryAction = 'temporary'
   const snapshot = snapshotFromSources(memberId, deriveDietarySources(storage([temporary]), memberId, accountId), at)
   const card = presentDietaryCard(snapshot, 'zh')
   assert.equal(card.avoid.length, 0)
-  assert.deepEqual(card.temporary.map((item) => item.name), ['鸡蛋'])
+  assert.deepEqual(card.temporary, [])
+  assert.equal(card.visibleCount, 0)
+  assert.ok(!buildDietaryCardExportLayout(snapshot, 'zh').texts.includes('鸡蛋'))
+  assert.equal(snapshot.items[0].group, 'temporary')
 })
 
 test('普通待排查、动物和仅报告线索不会自动变成忌口', () => {
@@ -143,7 +146,7 @@ test('普通待排查、动物和仅报告线索不会自动变成忌口', () =>
   assert.deepEqual(deriveDietarySources(storage([suspected, animal, reportOnly]), memberId, accountId), [])
 })
 
-test('P-003 多项记录按明确和暂避分组、全量进入导出且高度随内容增长', () => {
+test('P-003 多项记录仅明确清单进入导出且高度随内容增长', () => {
   const names = ['牛奶', '鸡蛋', '花生', '小麦', '大豆', '芝麻', '核桃', '杏仁', '腰果', '虾', '蟹', '鱼', '芒果', '猕猴桃', '草莓', '桃', '番茄', '燕麦']
   const records = names.map((name, index) => allergy(name, index < 12 ? 'confirmed' : 'investigating'))
   records.slice(12).forEach((item) => { item.dietaryAction = 'temporary' })
@@ -151,14 +154,14 @@ test('P-003 多项记录按明确和暂避分组、全量进入导出且高度�
   const snapshot = snapshotFromSources(memberId, sources, at)
   const full = buildDietaryCardExportLayout(snapshot, 'zh')
   const short = buildDietaryCardExportLayout(snapshotFromSources(memberId, sources.slice(0, 1), at), 'zh')
-  assert.equal(presentDietaryCard(snapshot, 'zh').visibleCount, 18)
-  assert.equal(full.texts.includes('燕麦'), true)
-  assert.equal(full.rows.reduce((sum, row) => sum + row.labels.length, 0), 18)
+  assert.equal(presentDietaryCard(snapshot, 'zh').visibleCount, 12)
+  assert.equal(full.texts.includes('燕麦'), false)
+  assert.equal(full.rows.reduce((sum, row) => sum + row.labels.length, 0), 12)
   assert.ok(full.height > short.height)
 })
 
 test('P-003 超过18项仍保留最后一项并继续增长导出高度', () => {
-  const items = Array.from({ length: 19 }, (_, index) => createManualDietaryItem(`自定义食物${index + 1}`, index < 12 ? 'avoid' : 'temporary'))
+  const items = Array.from({ length: 19 }, (_, index) => createManualDietaryItem(`自定义食物${index + 1}`, 'avoid'))
   const snapshot = { ...emptyDietarySnapshot(memberId, at), items }
   const layout = buildDietaryCardExportLayout(snapshot, 'zh')
   assert.equal(layout.rows.reduce((sum, row) => sum + row.labels.length, 0), 19)
@@ -200,7 +203,7 @@ test('更新跟随统一名称与状态、保留手工项和隐藏设置，删�
 })
 
 test('精确去重且双语未知项保留中文并明确待补', () => {
-  const items = [createManualDietaryItem('牛奶'), createManualDietaryItem('自制香料')]
+  const items = [createManualDietaryItem('牛奶', 'avoid'), createManualDietaryItem('自制香料', 'avoid')]
   assert.equal(dietaryItemExists(items, ' 牛奶 '), true)
   assert.equal(dietaryItemExists(items, '奶粉'), false)
   assert.equal(translateFood(items[0], 'en-zh'), 'Milk / 牛奶')
