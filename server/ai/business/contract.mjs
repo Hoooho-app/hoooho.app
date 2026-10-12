@@ -85,7 +85,7 @@ export function buildJournal(item) {
   }
   if (item.category === 'elimination') journal.bowel = { shapes: field(item,'bowelShape') ? [known(field(item,'bowelShape'), ['硬小颗粒','细小颗粒','成团偏硬','光滑条状','松散软块','糊状','水样','无法判断'])].filter(Boolean) : [], color: known(field(item,'bowelColor'), ['灰白','黄色','黄褐','棕色','深棕','绿色','近黑','红色','无法判断']), observations: /^(肚子痛|腹痛|肚子疼)$/.test(field(item,'bowelPain')??'') ? ['肚子痛（孩子能表达时）'] : [] }
   if (item.category === 'activity') {
-    const activity = field(item,'activity'), minute = field(item,'durationMinutes')
+    const activity = field(item,'activity') ?? field(item,'symptom'), minute = field(item,'durationMinutes')
     const minutes=minute==='半小时'?30:/^\d+(?:\.\d+)?\s*(?:小时|分钟|分)?$/.test(minute??'')?Number.parseFloat(minute)*(/小时/.test(minute)?60:1):null
     const kind = ({散步:'walking',跑跳:'running_jumping',骑行:'cycling_balance_bike',攀爬:'climbing'})[activity] || 'other'
     journal.outdoorActivity = { activities: [kind], ...(kind === 'other' && activity ? { activityOtherText: activity } : {}), places: [], contacts: [], observations: [], ...(Number.isInteger(minutes)&&minutes>0 ? { durationMinutes: minutes } : {}) }
@@ -123,7 +123,7 @@ export function mergeItems(items) {
 export const extractionSchema = {
   type:'object', additionalProperties:false, required:['items'], properties:{items:{type:'array',maxItems:30,items:{
     type:'object',additionalProperties:false,required:['category','title','timeText','fields','archiveCategory','subject','relationKey'],properties:{
-      category:{type:'string',enum:categories,description:'按事实类型而非上传形式分类。身体症状、否定症状观察属于symptom；examination必须有真实检查项目/结果，visit必须是就诊事实。仅有症状原话不能分类为检查。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。只有来源未说时间或存在未解决时间冲突才为null。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null']},
+      category:{type:'string',enum:categories,description:'按整句话的实际事项分类，不能仅因身体部位就判为symptom。喂养饮食diet、睡眠sleep、排便elimination、涂抹护理care、户外活动及无不适的普通晒黑activity；实际身体不适及否定症状观察symptom。混合事项拆分。examination必须有真实检查项目/结果，visit必须是就诊事实。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。没说时间必须为null，不能自行补今天或00:00；实时录入的缺省时分由程序处理。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null']},
       fields:{type:'array',maxItems:50,items:{type:'object',additionalProperties:false,required:['name','value','sourceId','quote','page'],properties:{name:{type:'string',enum:fieldNames},value:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},page:{type:'integer'}}}
     }
   }}}}

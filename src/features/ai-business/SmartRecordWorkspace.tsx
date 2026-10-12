@@ -7,7 +7,7 @@ import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurr
 import { caseService } from '../case-continuity/api'
 import { appendCaptureTurn,captureDraft, checkpointCaptureDraft, hasCaptureContent, retainedCaptureDrafts, type CaptureDraft } from './captureDraft'
 import { fileDataUrl } from './CaseCaptureWorkspace'
-import { isKeyRecordField, recordCategoryLabels, retainSmartRecordEdits, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
+import { isKeyRecordField, recordCategoryLabels, retainSmartRecordEdits, smartRecordTimeLabel, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
 import { useSmartRecordVoice } from './useSmartRecordVoice'
 import { NurseMessage } from '../ai-nurse/NurseMessage'
 import {useDialogueSpeech} from '../ai-nurse/useDialogueSpeech'
@@ -92,13 +92,14 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     pending.current=true;setBusy(true);setError('');setStatus('正在整理成饮食、症状、睡眠等记录…')
     let retained=input.smartReview
     try{
-      const occurredAt=localDateTimeToIso(input.occurredAt)
+      const occurredAt=input.capturedAt??(input.smartReview?localDateTimeToIso(input.occurredAt):new Date().toISOString())
       if(!occurredAt||Date.parse(occurredAt)>Date.now())throw new Error('发生时间不能晚于现在')
+      if(!input.capturedAt){input={...input,capturedAt:occurredAt};await persist(input)}
       const files=await Promise.all(input.files.filter(f=>!f.type.startsWith('audio/')).map(async f=>({name:f.name,mimeType:f.type,dataUrl:await fileDataUrl(f)})))
       // Allocate and persist the draft ID before generation, so an interrupted
       // response can always be recovered by exact account/member/draft identity.
       const voiceFiles=await Promise.all(input.files.filter(f=>f.type.startsWith('audio/')).map(async f=>({name:f.name,mimeType:f.type,dataUrl:await fileDataUrl(f)})))
-      const base={text:input.text,task:'record',eventId:input.eventId||null,smartRecord:true,confirmOccurrenceTime:conversational,followUp:!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}
+      const base={text:input.text,task:'record',eventId:input.eventId||null,smartRecord:true,confirmOccurrenceTime:false,followUp:!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}
       retained=await request<SmartRecordDraft>(url,'POST',{...base,id:retained?.id,version:retained?.version,files,voiceFiles,deferRecognition:true})
       await persist({...current.current,smartReview:retained,aiDraftId:retained.id})
       const review=retainSmartRecordEdits(await request<SmartRecordDraft>(url,'POST',{...base,id:retained.id,version:retained.version}),input.smartReview)
@@ -110,12 +111,12 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       if(mounted.current){if(retained)try{const restored=retainSmartRecordEdits(await request<SmartRecordDraft>(`${url}/${retained.id}`,'GET'),input.smartReview);await persist({...current.current,smartReview:restored})}catch{/* The exact local draft remains retryable. */}setError(e instanceof Error&&e.name!=='AbortError'?e.message:'整理已中断，原话和草稿保留，可重试');setStatus('')}
     }finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const voice=useSmartRecordVoice({memberId,token,pendingVoice:local.pendingVoice,onRecorded:async file=>{await persist({...current.current,pendingVoice:file,files:[...current.current.files,file]})},onTranscript:async (transcript,file)=>{
+  const voice=useSmartRecordVoice({memberId,token,pendingVoice:local.pendingVoice,onRecorded:async file=>{await persist({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,files:[...current.current.files,file]})},onTranscript:async (transcript,file)=>{
     const next=appendCaptureTurn(current.current,transcript,`voice:${file.name}:${file.lastModified}`);await persist(next);if(!page)await prepare(next)
   }})
-  async function sendText(){if(sendLock.current||pending.current||voice.busy||current.current.pendingVoice)return;speech.activate();sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;const next=appendCaptureTurn(current.current,text);await persist(next);if(!page)await prepare(next)}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
+  async function sendText(){if(sendLock.current||pending.current||voice.busy||current.current.pendingVoice)return;speech.activate();sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;const next=appendCaptureTurn({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString()},text);await persist(next);if(!page)await prepare(next)}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
   useEffect(()=>{if(ready&&!resumeChoices&&!local.text)speech.speak(greeting,`${key}:greeting`)},[ready,resumeChoices])
-  const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice&&(!conversational||review.items.every(item=>!!item.timeText?.trim()))
+  const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice
   useEffect(()=>setSeparateTimes(false),[review?.id])
   const sharedTime = !separateTimes && Boolean(review && review.items.length > 1 && review.items[0].time.resolvedStart && review.items.every(item => item.time.resolvedStart === review.items[0].time.resolvedStart && item.time.precision === review.items[0].time.precision && item.timeText === review.items[0].timeText))
   const editSharedTime = (value: string) => { if(review) change({smartReview:{...review,items:review.items.map(item=>({...item,timeText:value,timeChanged:true}))}}) }
@@ -143,7 +144,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const fieldInput=(item:SmartRecordItem,field:SmartRecordItem['fields'][number])=><label key={field.name}>{labels[field.name]??field.name}<input value={field.value} disabled={busy||voice.busy} onChange={e=>editItem(item.id,i=>({...i,fields:i.fields.map(f=>f.name===field.name?{...f,value:e.target.value,editedBy:'user'}:f)}))}/></label>
+  const fieldInput=(item:SmartRecordItem,field:SmartRecordItem['fields'][number])=><label key={field.name}>{item.category==='activity'&&field.name==='symptom'?'活动原话':labels[field.name]??field.name}<input value={field.value} disabled={busy||voice.busy} onChange={e=>editItem(item.id,i=>({...i,fields:i.fields.map(f=>f.name===field.name?{...f,value:e.target.value,editedBy:'user'}:f)}))}/></label>
   const conversationFooter=<DialogueComposer directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||busy||!!savedEvent||!!resumeChoices} voiceDisabled={!!local.pendingVoice} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{speech.activate();void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
@@ -169,7 +170,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {sharedTime&&<div className="smart-record-shared-time"><label>这{review.items.length}条记录识别为同一时间，可一起核对<input aria-label="统一核对发生时间" value={review.items[0].timeText??''} disabled={busy||voice.busy} onChange={e=>editSharedTime(e.target.value)}/></label><div className="smart-record-time-actions"><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editSharedTime('刚才')}>都是刚才</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editSharedTime('不记得')}>都不记得</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>setSeparateTimes(true)}>分别核对时间</HohoButton></div></div>}
       {review.items.map(item=><section key={item.id} className="smart-record-item dialogue-review-item">
         <header><strong>{item.title}</strong><span>{recordCategoryLabels[item.category]??'其他'}</span></header>
-        <dl>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=><div key={f.name}><dt>{labels[f.name]??f.name}</dt><dd>{f.value||'未填写'}</dd></div>)}<div><dt>发生时间</dt><dd>{item.timeText||'待确认'}</dd></div></dl>
+        <dl>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=><div key={f.name}><dt>{item.category==='activity'&&f.name==='symptom'?'活动原话':labels[f.name]??f.name}</dt><dd>{f.value||'未填写'}</dd></div>)}<div><dt>发生时间</dt><dd>{smartRecordTimeLabel(item)}</dd></div></dl>
         <details><summary>编辑这条记录<ChevronDown size={16} aria-hidden="true" /></summary>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=>fieldInput(item,f))}
           {!sharedTime&&<><label>这件事大约是什么时候？<input aria-label={`确认${item.title}的发生时间`} placeholder="刚才、昨天、上个月；不记得也可以说" value={item.timeText??''} disabled={busy||voice.busy} onChange={e=>editItem(item.id,i=>({...i,timeText:e.target.value,timeChanged:true}))}/></label>
           <div className="smart-record-time-actions"><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editItem(item.id,i=>({...i,timeText:'刚才',timeChanged:true}))}>就是刚才</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editItem(item.id,i=>({...i,timeText:'不记得',timeChanged:true}))}>不记得</HohoButton></div></>}

@@ -1,7 +1,7 @@
 import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
-export interface CaptureDraft { text: string; conversationInput?: string; conversationTurns?: {id:string;text:string}[]; voiceTranscript?:string; files: File[]; occurredAt: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { text: string; conversationInput?: string; conversationTurns?: {id:string;text:string}[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
 const fileIdentity=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
