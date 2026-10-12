@@ -7,7 +7,8 @@ import { loadProfileSections, readProfileSection, readProfileSectionRevision, sa
 import { useAppStore } from '../../store/useAppStore'
 import { ApiRequestError } from '../../services/apiClient'
 import { useSettingsStore } from '../../store/useSettingsStore'
-import { DietaryCardPanel, DietaryEmptyState, FoodGlyph } from './DietaryCardPanel'
+import { DietaryCardPanel, DietaryEmptyState } from './DietaryCardPanel'
+import { DietaryFoodIcon } from './DietaryFoodIcon'
 import { downloadDietaryCard } from './dietaryCardExport'
 import {
   createManualDietaryItem,
@@ -222,7 +223,7 @@ export function DietaryCardEditPage() {
   return <main className="app-shell dietary-card-page dietary-edit-page">
     <DietaryHeader editing memberName={member.name} onBack={() => navigate('/dietary-card', { replace: true })} />
     <div className="dietary-edit-scroll">
-      {groups.map(([group, label]) => <section className="dietary-edit-group" data-group={group} key={group}><header><span aria-hidden="true" /><h2>{label}</h2>{group === 'temporary' && <small>尚待确认，本次也请避开</small>}</header><div>{draft.items.filter((item) => item.group === group).map((item) => <article className="dietary-edit-item" data-visible={item.visible} key={item.id}><button aria-label={`${item.visible ? '取消选择' : '选择'}${item.name}`} aria-pressed={item.visible} className="dietary-item-check" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: !entry.visible } : entry) })} type="button">{item.visible && <Check />}</button><FoodGlyph group={group} name={item.name} /><div><strong>{item.name}</strong>{item.needsReview && <small>来源有变化，请核对</small>}</div><button aria-label={`修改${item.name}`} className="dietary-item-edit" onClick={() => openEditor(item)} type="button"><Pencil /></button><button aria-label={`从出示清单移除${item.name}`} className="dietary-item-remove" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: false } : entry) })} type="button"><Trash2 /></button></article>)}</div></section>)}
+      {groups.map(([group, label]) => <section className="dietary-edit-group" data-group={group} key={group}><header><span aria-hidden="true" /><h2>{label}</h2>{group === 'temporary' && <small>尚待确认，本次也请避开</small>}</header><div>{draft.items.filter((item) => item.group === group).map((item) => <article className="dietary-edit-item" data-visible={item.visible} key={item.id}><button aria-label={`${item.visible ? '取消选择' : '选择'}${item.name}`} aria-pressed={item.visible} className="dietary-item-check" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: !entry.visible } : entry) })} type="button">{item.visible && <Check />}</button><DietaryFoodIcon food={item} group={group} /><div><strong>{item.name}</strong>{item.needsReview && <small>来源有变化，请核对</small>}</div><button aria-label={`修改${item.name}`} className="dietary-item-edit" onClick={() => openEditor(item)} type="button"><Pencil /></button><button aria-label={`从出示清单移除${item.name}`} className="dietary-item-remove" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: false } : entry) })} type="button"><Trash2 /></button></article>)}</div></section>)}
       {!draft.items.length && <p className="dietary-edit-empty">还没有食物，添加后可选择本次出示分组。</p>}
       <button className="dietary-add-food" onClick={() => openEditor()} type="button"><Plus />添加食物</button>
       <p className="dietary-edit-note">食物名称与分组会同步更新过敏资料；取消选择或移除仅影响本次出示。</p>

@@ -1,6 +1,42 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import sharp from 'sharp'
 
+const iconFoods = [
+  ['orange', '橘子', 'Orange'], ['apple', '苹果', 'Apple'], ['banana', '香蕉', 'Banana'], ['milk', '牛奶', 'Milk'],
+  ['egg', '鸡蛋', 'Egg'], ['peanut', '花生', 'Peanut'], ['soy', '大豆', 'Soy'], ['wheat', '小麦', 'Wheat'],
+  ['fish', '鱼', 'Fish'], ['shrimp', '虾', 'Shrimp'], ['crab', '螃蟹', 'Crab'], ['beef', '牛肉', 'Beef'],
+  ['lamb-mutton', '羊肉', 'Lamb / Mutton'], ['carrot', '胡萝卜', 'Carrot'], ['broccoli', '西兰花', 'Broccoli'], ['tomato', '番茄', 'Tomato']
+] as const
+
+async function prepareIcons(page: Page) {
+  const control = await prepare(page)
+  const items = [...iconFoods, ['dragon-fruit', '火龙果', 'Dragon fruit']].map(([foodId, name, englishName], index) => ({
+    id: `manual:${foodId}`, foodId, name, englishName, group: index < 8 ? 'avoid' : 'temporary', visible: true,
+    manuallyAdded: true, nameAdjusted: true, groupAdjusted: true
+  }))
+  control.sections.set(`${memberId}:dietary-card`, { memberId, sectionId: 'dietary-card', revision: 1,
+    records: [{ version: 1, memberId, items, avoidCrossContact: false, savedAt: '2026-10-12T00:00:00Z', syncedAt: '2026-10-12T00:00:00Z' }] })
+  return control
+}
+
+async function captureCanvas(page: Page) {
+  await page.evaluate(() => {
+    const imageOriginal = CanvasRenderingContext2D.prototype.drawImage
+    const textOriginal = CanvasRenderingContext2D.prototype.fillText
+    const draws: Array<{ src: string; x: number; y: number; width: number; height: number; naturalWidth: number }> = []
+    const texts: string[] = []
+    Object.assign(window, { foodIconDraws: draws, foodIconTexts: texts })
+    CanvasRenderingContext2D.prototype.drawImage = function (image: CanvasImageSource, ...args: number[]) {
+      if (image instanceof HTMLImageElement) draws.push({ src: image.src, x: args[0], y: args[1], width: args[2], height: args[3], naturalWidth: image.naturalWidth })
+      return Reflect.apply(imageOriginal, this, [image, ...args])
+    }
+    CanvasRenderingContext2D.prototype.fillText = function (...args: Parameters<typeof textOriginal>) {
+      texts.push(args[0])
+      return textOriginal.apply(this, args)
+    }
+  })
+}
+
 const accountId = 'dietary-card-e2e-account'
 const memberId = 'dietary-card-e2e-child'
 const otherMemberId = 'dietary-card-e2e-other-child'
@@ -176,6 +212,7 @@ test('320px 窄屏工具栏、长名称和编辑操作不重叠', async ({ page 
 test('纯英文切换、键盘操作及 PNG 实际绘制文字无中文', async ({ page }, testInfo) => {
   await prepare(page, [allergy('牛奶', 'confirmed'), allergy('鸡蛋', 'suspected')])
   await page.goto('/dietary-card')
+  await expect(page.getByText('牛奶', { exact: true })).toBeVisible()
   const choice = page.getByLabel('选择出示语言')
   await expect(choice.locator('option')).toHaveText(['简体中文', 'English'])
   await choice.selectOption('en')
@@ -235,6 +272,7 @@ test('台湾设备仅提供繁体和英文，默认单一繁体且正文及导�
 test('缺失英文不会遗漏食物或生成伪纯英文卡片，补充后可切换', async ({ page }) => {
   await prepare(page, [allergy('自制香料', 'confirmed')])
   await page.goto('/dietary-card')
+  await expect(page.getByText('自制香料', { exact: true })).toBeVisible()
   await page.getByLabel('选择出示语言').selectOption('en')
   await expect(page.getByText('请先补充英文名称', { exact: true })).toBeVisible()
   await expect(page.getByRole('article', { name: '忌口卡正文' })).toHaveCount(0)
@@ -286,4 +324,100 @@ test('访问和恢复前台自动更新，保留隐藏和手工项且无需写�
   expect(control.sections.get(`${memberId}:dietary-card`)?.records).toEqual([saved])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: `test-results/dietary-card-auto-${testInfo.project.name}.png`, fullPage: true })
+})
+
+test('16 个图标在正文和编辑页共用映射，切换英文保持图标且只请求 96px', async ({ page }, testInfo) => {
+  await prepareIcons(page)
+  const requests: string[] = []
+  page.on('request', request => { if (request.url().includes('/food-icons/')) requests.push(request.url()) })
+  await page.goto('/dietary-card')
+  const icons = page.locator('.dietary-display-card .dietary-food-icon img')
+  await expect(icons).toHaveCount(16)
+  await expect.poll(() => icons.evaluateAll(elements => elements.every(element => (element as HTMLImageElement).naturalWidth === 96))).toBe(true)
+  await expect(page.locator('.dietary-display-card .dietary-food-glyph')).toHaveText(['火'])
+  const before = await icons.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))
+  const sizes = await page.locator('.dietary-display-card .dietary-food-icon').evaluateAll(elements => elements.map(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })))
+  expect(sizes.every(size => size.width === 40 && size.height === 40)).toBe(true)
+  await page.getByLabel('选择出示语言').selectOption('en')
+  await expect(page.getByText('Milk', { exact: true })).toBeVisible()
+  expect(await icons.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))).toEqual(before)
+  await expect(page.locator('.dietary-display-card .dietary-food-glyph')).toHaveText(['D'])
+  expect(requests.every(url => url.includes('/webp-96/'))).toBe(true)
+  await page.screenshot({ path: `test-results/dietary-icons-english-${testInfo.project.name}.png`, fullPage: true })
+  await page.getByRole('button', { name: '修改编辑', exact: true }).click()
+  const editIcons = page.locator('.dietary-edit-item .dietary-food-icon img')
+  await expect(editIcons).toHaveCount(16)
+  await expect.poll(() => editIcons.evaluateAll(elements => elements.every(element => (element as HTMLImageElement).naturalWidth === 96))).toBe(true)
+  expect(await editIcons.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))).toEqual(before)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: `test-results/dietary-icons-editor-${testInfo.project.name}.png`, fullPage: true })
+})
+
+test('真实 PNG 绘制 16 个 144px 图标且透明像素保留卡片背景', async ({ page }, testInfo) => {
+  await prepareIcons(page)
+  await page.goto('/dietary-card')
+  await expect(page.getByText('橘子', { exact: true })).toBeVisible()
+  await captureCanvas(page)
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存图片', exact: true }).click()
+  const download = await downloadPromise
+  const file = `test-results/dietary-icons-export-${testInfo.project.name}.png`
+  await download.saveAs(file)
+  const draws = await page.evaluate(() => (window as unknown as { foodIconDraws: Array<{ src: string; x: number; y: number; width: number; height: number; naturalWidth: number }> }).foodIconDraws)
+  expect(draws).toHaveLength(16)
+  expect(draws.every(draw => draw.src.includes('/webp-144/') && draw.naturalWidth === 144 && draw.width === 80 && draw.height === 80)).toBe(true)
+  expect(draws.some(draw => draw.src.includes('dragon'))).toBe(false)
+  expect((await sharp(file).metadata()).width).toBe(1200)
+  const first = draws[0]
+  const pixels = await sharp(file).extract({ left: Math.round(first.x), top: Math.round(first.y), width: 80, height: 80 }).removeAlpha().raw().toBuffer()
+  expect([...pixels.subarray(0, 3)]).toEqual([255, 248, 246])
+  let colored = 0
+  for (let i = 0; i < pixels.length; i += 3) if (pixels[i] !== 255 || pixels[i + 1] !== 248 || pixels[i + 2] !== 246) colored++
+  expect(colored).toBeGreaterThan(400)
+})
+
+test('页面和导出图片失败回退单字，保留完整名称和固定占位', async ({ page }, testInfo) => {
+  await prepare(page, [allergy('牛奶', 'confirmed'), allergy('火龙果', 'suspected')])
+  await page.route('**/food-icons/**/milk.*.webp', route => route.abort('failed'))
+  await page.goto('/dietary-card')
+  const milk = page.locator('.dietary-food-icon[data-icon="milk"]')
+  await expect(milk.locator('img')).toHaveCount(0)
+  await expect(milk.locator('.dietary-food-glyph')).toHaveText('牛')
+  await expect(page.getByText('牛奶', { exact: true })).toBeVisible()
+  expect(await milk.evaluate(element => element.getBoundingClientRect().width)).toBe(40)
+  await captureCanvas(page)
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存图片', exact: true }).click()
+  const file = `test-results/dietary-icons-fallback-export-${testInfo.project.name}.png`
+  await (await downloadPromise).saveAs(file)
+  expect((await sharp(file).metadata()).width).toBe(1200)
+  const result = await page.evaluate(() => ({ draws: (window as unknown as { foodIconDraws: unknown[] }).foodIconDraws, texts: (window as unknown as { foodIconTexts: string[] }).foodIconTexts }))
+  expect(result.draws).toEqual([])
+  expect(result.texts).toContain('牛')
+  expect(result.texts.join('')).toContain('牛奶')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('导出 decode 停滞在五秒预算后回退且恢复保存按钮', async ({ page }, testInfo) => {
+  test.skip(!['iphone-se', 'webkit-iphone-se'].includes(testInfo.project.name), '超时兼容性专项覆盖 Chromium 与 WebKit')
+  await prepare(page, [allergy('牛奶', 'confirmed')])
+  await page.goto('/dietary-card')
+  await expect(page.getByText('牛奶', { exact: true })).toBeVisible()
+  await captureCanvas(page)
+  await page.evaluate(() => {
+    const original = HTMLImageElement.prototype.decode
+    HTMLImageElement.prototype.decode = function () {
+      return this.src.includes('/webp-144/') ? new Promise<void>(() => {}) : original.call(this)
+    }
+  })
+  const started = Date.now()
+  const downloadPromise = page.waitForEvent('download', { timeout: 12000 })
+  await page.getByRole('button', { name: '保存图片', exact: true }).click()
+  await expect(page.getByRole('button', { name: '生成中', exact: true })).toBeDisabled()
+  const file = `test-results/dietary-icons-decode-timeout-${testInfo.project.name}.png`
+  await (await downloadPromise).saveAs(file)
+  expect(Date.now() - started).toBeLessThan(11000)
+  expect((await sharp(file).metadata()).width).toBe(1200)
+  await expect(page.getByRole('button', { name: '保存图片', exact: true })).toBeEnabled()
+  expect(await page.evaluate(() => (window as unknown as { foodIconTexts: string[] }).foodIconTexts)).toContain('牛')
 })
