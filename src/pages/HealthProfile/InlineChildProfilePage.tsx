@@ -23,11 +23,14 @@ export function InlineChildProfilePage({kind:given}:{kind?:Kind}){
   const {sectionId}=useParams(),location=useLocation(),kind=given??(sectionId??location.pathname.split('/').at(-1)) as Kind
   const memberId=useAppStore(s=>s.currentMemberId),accountId=useAppStore(s=>s.authUser?.id),members=useAppStore(s=>s.members)
   const member=members.find(m=>m.id===memberId)
+  const requestedMember=new URLSearchParams(location.search).get('memberId')
+  if(requestedMember&&requestedMember!==memberId)return <main className="app-shell"><WebPageHeader fallback="/health-profile" title="孩子档案"/><p role="status">这条记录不属于当前孩子</p></main>
   if(!Object.hasOwn(titles,kind)||!member)return <main className="app-shell"><WebPageHeader fallback="/health-profile" title="孩子档案"/><p role="status">正在加载当前孩子…</p></main>
   return <InlineProfile key={`${accountId}:${memberId}:${kind}`} accountId={accountId??''} member={member} kind={kind}/>
 }
 function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountId:string}){
   const navigate=useNavigate(),token=useAppStore(s=>s.authToken)??''
+  const location=useLocation(),focusedEntry=new URLSearchParams(location.search).get('entryId')
   const storageKey=`hoooho-profile-inline:${JSON.stringify([accountId,member.id,kind])}`
   const [session,setSession]=useState<Session>(()=>{try{const saved=JSON.parse(sessionStorage.getItem(storageKey)??'null');if(saved?.drafts&&saved?.active)return saved}catch{/* Fall back without pretending persistence succeeded. */}return {group:'',drafts:{},active:{}}})
   const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[reload,setReload]=useState(0),[undo,setUndo]=useState<string>(),[confirmDelete,setConfirmDelete]=useState<string>()
@@ -40,6 +43,14 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     if(token)void apiRequest<Snapshot>(endpoint,{token,signal:controller.signal}).then(next=>{if(controller.signal.aborted)return;setData(next);setSession(old=>({...old,group:next.groups.some(g=>g.id===old.group)?old.group:next.groups[0]?.id??''}));setError('')}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'读取失败，请重试')}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})
     return ()=>controller.abort()
   },[endpoint,token,reload])
+  useEffect(()=>{
+    if(!data||!focusedEntry||loading)return
+    const row=data.rows.find(row=>row.id===focusedEntry)
+    if(!row){setStatus('这条记录已不存在或暂不可访问');return}
+    if(data.groups.some(group=>group.id===row.group)&&session.group!==row.group){setSession(old=>({...old,group:row.group}));return}
+    const element=Array.from(document.querySelectorAll<HTMLElement>('[data-record-id]')).find(element=>element.dataset.recordId===focusedEntry)
+    if(element){element.querySelector('details')?.setAttribute('open','');element.tabIndex=-1;element.focus({preventScroll:true});element.scrollIntoView({block:'center'})}
+  },[data,focusedEntry,loading,session.group])
   useEffect(()=>{
     const refresh=()=>{if(document.visibilityState==='visible'&&!locked.current)setReload(value=>value+1)}
     const unsubscribe=subscribeProfileSectionInvalidation(refresh)

@@ -10,5 +10,8 @@ export function caseFollowupView(event, records) {
   const source = details?.generatedSummary || details?.keywords?.length ? raw : clauses.find(s => /头晕|头痛|头疼|发热|发烧|咳嗽|鼻塞|发红|红肿|瘙痒|发痒|呕吐|腹泻|疼痛|呼吸|皮疹|不舒服/u.test(s)) || clauses[0] || raw
   const title = source.length > 48 ? `${source.slice(0,48)}…` : source || '情况记录'
   const supplement = details?.shortNote?.trim() || symptom?.caseContext?.supplement?.trim() || ''
-  return { title, supplement: supplement && !raw.includes(supplement) && !supplement.includes(title.replace(/…$/, '')) ? supplement : null, recordCount: records.length, firstOccurredAt: known[0]?.occurredAt ?? null, latestOccurredAt: known.at(-1)?.occurredAt ?? null, hasUnknownTime: known.length < records.length }
+  const hasSymptom = records.some(r => r.type === 'symptom' || r.journal?.categories?.includes('symptom') || r.journal?.symptom) || event.category !== 'other'
+  const description = details?.narrative?.trim() || symptom?.caseContext?.originalText?.trim() || symptom?.sourceText?.trim() || symptom?.content?.trim() || null
+  const keyword = details?.keywords?.find(value => typeof value === 'string' && value.trim())?.trim() || null
+  return { title, description, keyword, hasSymptom, supplement: supplement && !raw.includes(supplement) && !supplement.includes(title.replace(/…$/, '')) ? supplement : null, recordCount: records.length, firstOccurredAt: known[0]?.occurredAt ?? null, latestOccurredAt: known.at(-1)?.occurredAt ?? null, hasUnknownTime: known.length < records.length }
 }

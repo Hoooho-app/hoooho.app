@@ -101,7 +101,7 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
           const expanded = expandedId === record.id
           const detail = medicationDetailSummary(record)
           const dates = medicationDateSummary(record)
-          return <article className="rounded-card border bg-surface p-4" key={record.id}>
+          return <article className="rounded-card border bg-surface p-4" key={record.id} data-record-id={record.id}>
             <div className="flex items-center gap-3">
               <MedicationNumber sequence={record.sequence} />
               <button aria-expanded={expanded} className="min-w-0 flex-1 text-left" onClick={() => toggleRecord(record.id)} type="button">

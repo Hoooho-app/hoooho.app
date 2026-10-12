@@ -8,6 +8,11 @@ export function useCases() {
   const [version, setVersion] = useState(0)
   const [state, setState] = useState<{ scope: string; data?: CasesData; error?: string }>({ scope: '' })
   useEffect(() => {
+    const refresh = () => setVersion(v => v + 1)
+    window.addEventListener('hoooho-data-changed', refresh)
+    return () => window.removeEventListener('hoooho-data-changed', refresh)
+  }, [])
+  useEffect(() => {
     const controller = new AbortController(); setState(current => current.scope === scope ? { ...current, error: undefined } : { scope })
     if (token && memberId) void caseService.list(memberId, token, controller.signal).then(data => { if (!controller.signal.aborted) setState({ scope, data }) }).catch(e => { if (!controller.signal.aborted) setState(current => ({ ...(current.scope===scope?current:{scope}), error: e instanceof Error ? e.message : '情况未能加载' })) })
     return () => controller.abort()

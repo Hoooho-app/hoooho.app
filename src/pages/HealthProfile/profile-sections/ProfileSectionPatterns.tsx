@@ -240,6 +240,7 @@ export function ProfileRecordList({
         {records.map((record, index) => (
           <HealthCard
             className="p-0"
+            data-record-id={String(record.id??'')}
             key={`${String(record._savedAt ?? record.date ?? index)}-${index}`}
           >
             <article className="flex min-w-0 items-center gap-3 px-4 py-3.5">

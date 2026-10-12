@@ -34,7 +34,7 @@ function Toast({children,onClose}:{children:ReactNode;onClose:()=>void}){
   return <div className="allergy-toast" role="status"><Check size={18}/><span>{children}</span><button aria-label="关闭提示" onClick={onClose} type="button"><X size={16}/></button></div>
 }
 
-export function AllergyHistoryPage(){const member=useCurrentMember();return <AllergyProfilePage member={member} storageKey={`hoho-health-profile:${member.id}:allergy`}/>}
+export function AllergyHistoryPage(){const member=useCurrentMember(),location=useLocation(),requestedMember=new URLSearchParams(location.search).get('memberId');if(requestedMember&&requestedMember!==member.id)return <main className="app-shell"><Header onBack={()=>window.history.back()} title="过敏史"/><p role="status">这条记录不属于当前孩子</p></main>;return <AllergyProfilePage member={member} storageKey={`hoho-health-profile:${member.id}:allergy`}/>}
 
 export function AllergyProfilePage({member,storageKey}:{member:Member;storageKey:string}){
   const navigate=useNavigate(),location=useLocation(),accountId=useAppStore(state=>state.authUser?.id??''),token=useAppStore(state=>state.authToken)
