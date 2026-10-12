@@ -2,7 +2,7 @@ import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
 import { sameReadingTopic } from './reading-context.mjs'
 import { readingProjection } from './reading-projection.mjs'
 import { currentSituation } from './current-situation.mjs'
-import { situationSources, situationFingerprint } from './current-situation-output.mjs'
+import { situationSources, situationFingerprint, safeSituationEmphasis } from './current-situation-output.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
@@ -848,10 +848,12 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   report.currentSituation.needsOrganization=!!situationSourceList.length&&organized?.fingerprint!==situationSourceFingerprint
   if(organized?.fingerprint===situationSourceFingerprint){
     const edits=report.currentSituationEdits[report.photoKey]??{},value=organized.value
+    const description=Object.hasOwn(edits,'description')?edits.description:report.caseDetails?.description||value.description.map(l=>l.text).join('')
+    const displayLines=values=>values.map(line=>({...line,emphasis:safeSituationEmphasis(line.text,line.emphasis)}))
     report.currentSituation={...report.currentSituation,
-      description:Object.hasOwn(edits,'description')?edits.description:report.caseDetails?.description||value.description.map(l=>l.text).join(''),
-      descriptionEmphasis:value.description.flatMap(l=>l.emphasis),keywords:value.keywords.map(l=>l.text),
-      ...Object.fromEntries(['symptoms','diet'].map(k=>[k,Object.hasOwn(edits,k)||(k==='symptoms'&&edits.symptomRows)?report.currentSituation[k]:value[k]])),changes:value.changes,treatment:value.treatment,
+      description,
+      descriptionEmphasis:safeSituationEmphasis(description,value.description.flatMap(l=>l.emphasis),0.5),keywords:value.keywords.map(l=>l.text),
+      ...Object.fromEntries(['symptoms','diet'].map(k=>[k,displayLines(Object.hasOwn(edits,k)||(k==='symptoms'&&edits.symptomRows)?report.currentSituation[k]:value[k])])),changes:displayLines(value.changes),treatment:displayLines(value.treatment),
     }
   }
   if (!preferences.questionEdited) {

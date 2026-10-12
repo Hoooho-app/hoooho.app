@@ -5,6 +5,7 @@ import {BailianProvider} from '../ai/providers/bailian-provider.mjs'
 import {situationRaw,situationOutput} from '../../tests/visit-sheet/current-situation-v2.fixture.mjs'
 import {MedicalSummaryService} from '../ai/medical-summary-service.mjs'
 import {visitAISummaryInput} from './visit-ai-summary.mjs'
+import {safeSituationEmphasis} from './current-situation-output.mjs'
 const input={sections:[{id:'record',title:'当前记录',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw,occurredAt:'2026-10-13T00:00:00Z'}]}
 const ordinaryOutput=()=>({overview:'今早有点头晕，无头痛，体温正常；颈部和腿部有皮肤观察。',keyPoints:[{text:'有点头晕但无头痛，体温正常',sectionId:'record',quote:situationRaw}],missingInformation:[]})
 test('V2原话在同一摘要链路成为概览、症状、饮食，保留否定与家属猜测',()=>{
@@ -13,8 +14,22 @@ test('V2原话在同一摘要链路成为概览、症状、饮食，保留否定
  assert.match(result.description[0].text,/无头痛/);assert.match(result.symptoms[1].note,/家属怀疑/);assert.equal(result.symptoms[2].text,'正常。');assert.deepEqual(result.treatment,[])
 })
 test('V2数据校验拒绝跨成员来源、无依据数值、反转否定、确诊、缺结构',()=>{
- const mutations=[r=>{r.currentSituation.symptoms[0].text='早上起床后头痛，无发烧。';r.currentSituation.symptoms[0].quote='早上起来的时候就开始其实有点头晕但不是头疼，发烧也不发烧';r.currentSituation.symptoms[0].emphasis=[]},r=>r.currentSituation.symptoms[1].label='肺炎',r=>r.currentSituation.symptoms[1].label='确诊湿疹',r=>r.currentSituation.symptoms[1].label='严重过敏反应',r=>r.currentSituation.symptoms[1].label='湿疹',r=>r.currentSituation.symptoms[0].sourceId='record:foreign',r=>r.currentSituation.symptoms[2].text='37.5℃',r=>r.currentSituation.symptoms[0].text='有头痛',r=>r.currentSituation.symptoms[1].note='确诊湿疹',r=>delete r.currentSituation,r=>r.currentSituation.description[0].text='严重头晕，确诊热疹',r=>r.currentSituation.symptoms[0].emphasis=['头痛'],r=>r.currentSituation.extra='not-allowed',r=>{r.currentSituation.description[0].text='湿疹';r.currentSituation.description[0].quote='湿疹'}]
+ const mutations=[r=>{r.currentSituation.symptoms[0].text='早上起床后头痛，无发烧。';r.currentSituation.symptoms[0].quote='早上起来的时候就开始其实有点头晕但不是头疼，发烧也不发烧';r.currentSituation.symptoms[0].emphasis=[]},r=>r.currentSituation.symptoms[1].label='肺炎',r=>r.currentSituation.symptoms[1].label='确诊湿疹',r=>r.currentSituation.symptoms[1].label='严重过敏反应',r=>r.currentSituation.symptoms[1].label='湿疹',r=>r.currentSituation.symptoms[0].sourceId='record:foreign',r=>r.currentSituation.symptoms[2].text='37.5℃',r=>r.currentSituation.symptoms[0].text='有头痛',r=>r.currentSituation.symptoms[1].note='确诊湿疹',r=>delete r.currentSituation,r=>r.currentSituation.description[0].text='严重头晕，确诊热疹',r=>r.currentSituation.extra='not-allowed',r=>{r.currentSituation.description[0].text='湿疹';r.currentSituation.description[0].quote='湿疹'}]
  for(const change of mutations){const result=situationOutput();change(result);assert.throws(()=>normalizeMedicalSummary(result,input))}
+})
+
+test('强调提示安全归一化保留完整事实，不能突出被否定症状或不存在的文字',()=>{
+ const response=situationOutput();response.currentSituation.symptoms[0].emphasis=['头痛','模型额外片段','无头痛']
+ const result=normalizeMedicalSummary(response,input).currentSituation.symptoms[0]
+ assert.equal(result.text,response.currentSituation.symptoms[0].text);assert.deepEqual(result.emphasis,['无头痛']);assert.deepEqual(result.sourceIds,['record:focus'])
+ assert.deepEqual(safeSituationEmphasis('有头痛，无发烧。',['有头痛','无发烧']),['有头痛','无发烧'])
+ assert.deepEqual(safeSituationEmphasis('早上有头痛。晚上无头痛。',['头痛','无头痛']),['无头痛'])
+ assert.deepEqual(safeSituationEmphasis('无头痛，无发热，体温正常。',['头痛','发热','体温正常']),['体温正常'])
+ assert.deepEqual(safeSituationEmphasis('没有明显头疼，未发热。',['没有明显头疼','未发热']),['没有明显头疼','未发热'])
+ assert.deepEqual(safeSituationEmphasis('无头痛。无头痛。',['无头痛'],0.5),[])
+ assert.deepEqual(safeSituationEmphasis('有点头晕，无头痛。',['','无头痛','无头痛'],0.5),['无头痛'])
+ for(const emphasis of ['not-array',[1],['a','b','c','d']]){const invalid=situationOutput();invalid.currentSituation.symptoms[0].emphasis=emphasis;assert.throws(()=>normalizeMedicalSummary(invalid,input),error=>error.validation.stage==='schema_validation')}
+ for(const text of ['37.5℃','确诊湿疹']){const invalid=situationOutput();invalid.currentSituation.symptoms[2].text=text;invalid.currentSituation.symptoms[2].emphasis=['不存在的片段'];assert.throws(()=>normalizeMedicalSummary(invalid,input))}
 })
 test('目前情况仅请求严格局部结构，普通摘要契约与连续调用保持隔离',async()=>{
  const bodies=[];const provider=new OpenAIProvider({apiKey:'test',fetchImpl:async(_,init)=>{const body=JSON.parse(init.body);bodies.push(body);return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify(body.text.format.schema.properties.currentSituation?situationOutput():ordinaryOutput())}]}]})}})

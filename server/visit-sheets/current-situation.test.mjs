@@ -3,7 +3,21 @@ import test from 'node:test'
 import {buildVisitSheet} from './report-model.mjs'
 import {visitFixture} from './fixtures.mjs'
 import {shanghaiWeek,weeklyTemperature} from './weekly-temperature.mjs'
+import {normalizeMedicalSummary} from '../ai/providers/openai-provider.mjs'
 const now=new Date('2026-10-14T02:00:00Z')
+
+test('描述合并和人工编辑后，另一句的强调不能拆开无头痛，缓存正文与原话保留',()=>{
+ const f=visitFixture(),raw='早上有头痛。晚上无头痛。',sourceId='record:focus'
+ f.records=[{id:'focus',accountId:f.member.accountId,eventId:'event-a',type:'symptom',content:raw,sourceText:raw,occurredAt:'2026-10-13T00:00:00Z'}]
+ const focus={mode:'source',sourceId},before=buildVisitSheet(f,{focus},now)
+ const line=(text,emphasis)=>({text,quote:text,sourceId,emphasis})
+ const value=normalizeMedicalSummary({currentSituation:{description:[line('早上有头痛。',['头痛']),line('晚上无头痛。',[])],symptoms:[],diet:[],changes:[],treatment:[],keywords:[]}},{currentSituationSources:[{id:sourceId,text:raw}]}).currentSituation
+ const preferences={focus,currentSituationResults:{[before.photoKey]:{fingerprint:before.currentSituation.sourceFingerprint,value,provider:'bailian',model:'fixture'}}}
+ const report=buildVisitSheet(f,preferences,now)
+ assert.equal(report.currentSituation.description,raw);assert.deepEqual(report.currentSituation.descriptionEmphasis,[]);assert.equal(report.currentSituation.raw[0].text,raw)
+ const edited=buildVisitSheet(f,{...preferences,currentSituationEdits:{[before.photoKey]:{description:'用户编辑：无头痛。'}}},now)
+ assert.equal(edited.currentSituation.description,'用户编辑：无头痛。');assert.deepEqual(edited.currentSituation.descriptionEmphasis,[]);assert.equal(edited.currentSituation.raw[0].text,raw)
+})
 
 test('重新查询跨周或发生时间编辑/删除后，不能保留旧周曲线资格',()=>{
  const f=visitFixture();f.records=['a','b'].map((id,i)=>({id,eventId:'event-a',type:'temperature',content:'体温 37℃',occurredAt:`2026-10-12T0${i}:00:00Z`,createdAt:'2026-10-14T00:00:00Z'}))
