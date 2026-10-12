@@ -15,10 +15,11 @@ export function SmartCaseRecordPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', navigate = useNavigate(), [query] = useSearchParams()
   const accountId = useAppStore(s => s.authUser?.id ?? '')
   const location = useLocation()
-  const frontDesk = query.get('source') === 'front-desk' && !query.get('eventId') && !query.get('taskId')
+  const frontDesk = ['front-desk', 'calendar'].includes(query.get('source') ?? '') && !query.get('eventId') && !query.get('taskId')
   const closeFrontDesk = () => {
-    if ((location.state as {frontDeskReturn?:boolean}|null)?.frontDeskReturn && window.history.state?.idx > 0) navigate(-1)
-    else navigate('/nurse-station', {replace:true})
+    const origin = location.state as { frontDeskReturn?: boolean; calendarReturn?: boolean } | null
+    if ((origin?.frontDeskReturn || origin?.calendarReturn) && window.history.state?.idx > 0) { navigate(-1); return }
+    navigate(query.get('source') === 'calendar' ? '/health-events' : '/nurse-station', {replace:true})
   }
   const [homeEntry] = useState(() => (location.state as { homeNurseEntry?: { mode?: string; memberId?: string; accountId?: string } } | null)?.homeNurseEntry)
   const entryIdentityChanged = useRef(false)

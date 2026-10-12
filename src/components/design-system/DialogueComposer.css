@@ -15,3 +15,7 @@
 .hoho-dialogue-hold.is-listening{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary))}
 @keyframes hoho-dialogue-wave{from{transform:scaleY(.4)}to{transform:scaleY(1)}}
 @media(prefers-reduced-motion:reduce){.hoho-dialogue-recording-wave span{animation:none}}
+
+.hoho-dialogue-composer--input-only { grid-template-columns:var(--hoho-touch-target) minmax(0,1fr); }
+.hoho-dialogue-composer--input-only .hoho-dialogue-photo { grid-column:1; grid-row:1; }
+.hoho-dialogue-composer--input-only .hoho-dialogue-hold { grid-column:2; grid-row:1; }

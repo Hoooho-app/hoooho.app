@@ -159,3 +159,9 @@
 .symptom-voice-sheet .hoho-bottom-sheet__header {padding-inline:var(--hoho-space-4);gap:var(--hoho-space-1)}
 .symptom-input-target {display:inline-block;background:rgb(var(--hoho-color-primary-soft));padding:var(--hoho-space-1) var(--hoho-space-2);border-radius:var(--hoho-radius-small);font-size:var(--hoho-font-size-caption)}
 .symptom-voice-sheet textarea {width:100%;min-height:96px;font-size:16px}
+
+.symptom-record-page--brand-white .symptom-record-toolbar--compact { display:block; }
+.symptom-record-page--brand-white .symptom-record-toolbar--compact button { flex-direction:row; }
+.symptom-record-page--brand-white .symptom-record-toolbar--compact .hoho-dialogue-composer { width:100%; }
+.symptom-record-page--brand-white .symptom-record-toolbar--compact .hoho-dialogue-photo { width:var(--hoho-touch-target); }
+.symptom-record-page--brand-white .symptom-record-toolbar--compact .hoho-dialogue-hold { min-height:var(--hoho-touch-target); width:100%; }

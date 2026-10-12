@@ -1,6 +1,6 @@
 .journal-record-actions:has(.record-entry-actions) { position:relative; z-index:10; }
 .record-entry-actions { position:relative; display:grid; gap:var(--hoho-space-2); }
-.record-entry-grid,.daily-record-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--hoho-space-1); }
+.record-entry-grid,.daily-record-options { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1.2fr) minmax(44px,.65fr) minmax(44px,.65fr) minmax(0,1.2fr); gap:var(--hoho-space-1); }
 .record-entry-grid > button,.daily-record-options > button { display:flex; min-width:0; min-height:var(--hoho-touch-target); flex-direction:column; align-items:center; justify-content:center; gap:var(--hoho-space-1); padding:var(--hoho-space-1); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-control); background:rgb(var(--hoho-color-surface)); color:rgb(var(--hoho-color-text-primary)); font-size:var(--hoho-font-size-caption); font-weight:500; white-space:nowrap; }
 .record-entry-grid > button { height:var(--hoho-touch-target); flex-direction:row; padding:0 var(--hoho-space-1); line-height:1.2; }
 .record-entry-grid > button[data-record-entry='feeding'] { --record-entry-surface:#FFF2E2; }
@@ -16,3 +16,5 @@
 .daily-record-options::after { content:''; position:absolute; left:37.5%; bottom:-6px; width:12px; height:12px; background:rgb(var(--hoho-color-surface)); border-right:1px solid rgb(var(--hoho-color-border)); border-bottom:1px solid rgb(var(--hoho-color-border)); transform:translateX(-50%) rotate(45deg); }
 .record-symptom-action .hoho-button__content { justify-content:center; gap:var(--hoho-space-2); }
 @media(max-height:400px) { .record-entry-actions.is-daily-open { padding-top:88px; } .daily-record-options { top:0; bottom:auto; } }
+
+.record-entry-grid > button[data-record-entry="symptom"] { --record-entry-surface:rgb(var(--hoho-color-primary-soft)); }
