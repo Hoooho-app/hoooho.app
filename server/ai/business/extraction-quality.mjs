@@ -14,6 +14,21 @@ export function normalizeMedicationAbsence(item) {
  }
  return item
 }
+
+// A routine activity's visible effect is not, on its own, a symptom. Keep the
+// sourced wording and never override a parent's reviewed category or a clinical
+// observation (including a negative observation such as “不痛不痒”).
+export function normalizeRoutineActivity(item) {
+ if(item.categoryEditedBy==='user'||!['symptom','other'].includes(item.category)||item.archiveCategory)return item
+ if(!item.fields.length||!item.fields.every(f=>['symptom','location','activity','durationMinutes'].includes(f.name)))return item
+ const evidence=item.fields.map(f=>f.value).join('；')
+ const ordinary=/(?:晒黑|晒得[^，。；\n]{0,12}黑)/u.test(evidence)||item.fields.some(f=>f.name==='activity')&&!item.fields.some(f=>f.name==='symptom')
+ const clinical=/(?:晒伤|疼|痛|痒|红|肿|疹|起泡|水疱|脱皮|破皮|出血|发热|发烧|咳|吐|泻|过敏|不舒服|异常|不适|受伤|呼吸|头晕|恶心|喘|麻木|乏力|疲倦|晕倒)/u.test(evidence)
+ if(ordinary&&!clinical){
+  item.categoryResolution={original:item.category,source:'routine_activity_evidence'};item.category='activity'
+ }
+ return item
+}
 // Reconcile metadata only after exact quote validation. Do not create fields,
 // remove negation, infer diagnoses, or replace the supplier's extracted facts.
 export async function reconcileExtraction(items,sources,context){
@@ -22,6 +37,7 @@ export async function reconcileExtraction(items,sources,context){
  const reconciled=items.map((item,index)=>{
   const result=structuredClone(item)
   normalizeMedicationAbsence(result)
+  normalizeRoutineActivity(result)
   if(['examination','other'].includes(result.category)&&result.fields.some(f=>f.name==='symptom')&&result.fields.every(f=>symptomFields.has(f.name))){
    result.categoryResolution={original:result.category,source:'field_contract'};result.category='symptom'
   }

@@ -31,12 +31,13 @@ test('识别中断保留精确草稿及原话，重试沿用同一份草稿',asy
  model.structured=original
  const ready=await service.prepare('synthetic',member.id,{id:failed.id,version:failed.version,text:raw,smartRecord:true});assert.equal(ready.id,failed.id);assert.equal(ready.state,'ready')
 })
-test('首页护士确认发生时间，保留不确定；随记保存不默认加入跟进',async t=>{
+test('首页护士未说时间保留录入时分，明确不确定仍可保存；随记不默认加入跟进',async t=>{
  const {service,member}=await setup(t)
  let draft=await service.prepare('synthetic',member.id,{text:raw,smartRecord:true,confirmOccurrenceTime:true,followUp:false})
- assert.ok(draft.items.every(i=>!i.time.defaulted&&!i.time.resolvedStart));assert.ok(draft.questions.some(q=>q.field==='time'))
+ assert.ok(draft.items.every(i=>i.time.defaulted&&i.time.resolvedStart==='2026-10-09T14:00:00.000Z'));assert.ok(!draft.questions.some(q=>q.field==='time'))
  draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,itemId:draft.items[0].id,field:'time',value:'昨天'})
  assert.equal(draft.items[0].time.precision,'day')
+ draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,itemId:draft.items[1].id,field:'time',value:'不记得'})
  const saved=await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true}),event=await service.events.get('synthetic',saved.result.records[0].eventId)
  assert.equal(event.caseTracking,false)
  const first=await service.records.getOwnedRecord('synthetic',saved.result.records[0].recordId);assert.equal(first.journal.timePrecision,'period')
