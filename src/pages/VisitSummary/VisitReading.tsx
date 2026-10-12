@@ -167,18 +167,11 @@ export function VisitReading({
           })}
           {report.member.bloodType && (
             <span className="visit-reading-blood" aria-label="血型">
-              {report.member.bloodType}
-              {report.member.rhBloodType === "negative"
-                ? " Rh−"
-                : report.member.rhBloodType === "positive"
-                  ? " Rh+"
-                  : ""}{" "}
-              型
+              {report.member.bloodType}型
             </span>
           )}
         </div>
       </div>
-      <p className="visit-muted">显示时区：{report.timezone === 'Asia/Shanghai' ? '北京时间（UTC+8）' : report.timezone}。原始记录按当前设备时区显示；年龄按今天计算。</p>
       {card(
         "overview",
         "目前情况",

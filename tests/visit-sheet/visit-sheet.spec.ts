@@ -105,6 +105,31 @@ test('刷新页面会保护未保存草稿，取消刷新后仍可继续编辑',
     await expect(d.getByRole('textbox',{name:'最近变化',exact:true})).toHaveValue('刷新保护的草稿');
     await d.getByRole('button',{name:'返回编辑目前情况'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
 });
+test('情况单血型只显示 ABO，移除时区与年龄说明', async ({ page: p }, info) => {
+    let bloodType: string | null = 'B';
+    let rhBloodType: string | null = 'positive';
+    await p.route('**/api/members/child-a/visit-sheet', async route => {
+        if (route.request().method() !== 'GET') return route.continue();
+        const response = await route.fetch(), body = await response.json();
+        body.report.member = { ...body.report.member, bloodType, rhBloodType };
+        await route.fulfill({ response, json: body });
+    });
+    await enter(p);
+    for (const [abo, rh] of [['B', 'positive'], ['A', 'negative'], ['AB', 'unknown'], ['O', null], [null, 'positive']]) {
+        bloodType = abo; rhBloodType = rh;
+        await p.reload();
+        await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
+        if (abo) await expect(p.getByLabel('血型', { exact: true })).toHaveText(`${abo}型`);
+        else await expect(p.getByLabel('血型', { exact: true })).toHaveCount(0);
+        await expect(p.locator('.visit-reading > .visit-muted')).toHaveCount(0);
+        await width(p);
+    }
+    bloodType = 'B'; rhBloodType = 'positive';
+    await p.reload();
+    await expect(p.getByLabel('血型', { exact: true })).toHaveText('B型');
+    await p.screenshot({ path: info.outputPath('abo-header.png') });
+});
+
 test('四卡片默认展开、独立编辑、目录键盘定位、实际全页截图无溢出', async ({ page: p }, info) => {
     const errors: string[] = [];
     p.on('pageerror', e => errors.push(e.message));
