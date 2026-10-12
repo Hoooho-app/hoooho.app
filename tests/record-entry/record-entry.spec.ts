@@ -13,7 +13,7 @@ async function prepare(page:Page,member='child-one') {
     }
   },{token,member,accountId})
   await page.goto('/health-events')
-  await expect(page.getByRole('button',{name:'记录日常',exact:true})).toBeEnabled()
+  await expect(page.getByRole('button',{name:'日常',exact:true})).toBeEnabled()
 }
 async function diet(page:Page) {
   await page.locator('.journal-record-actions').getByRole('button',{name:'喂养/饮食',exact:true}).click()
@@ -34,11 +34,11 @@ async function save(page:Page,form:ReturnType<Page['getByRole']>) {
 for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and direct flows at ${width}`,async({page})=>{
   await page.setViewportSize({width,height:width===1280?900:667});await prepare(page)
   const footer=page.locator('.journal-record-actions')
-  await expect(footer.locator('.record-entry-grid button')).toHaveText(['喂养/饮食','记录日常','记录用药','就诊资料'])
+  await expect(footer.locator('.record-entry-grid button')).toHaveText(['记录症状','喂养/饮食','日常','用药','就诊资料'])
   for(const button of await footer.locator('button').all())await expect(button).toBeInViewport()
   expect(await footer.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
   await expect(footer.locator('.record-entry-grid img,.record-entry-grid svg,.record-symptom-action svg,.record-symptom-action img')).toHaveCount(0)
-  expect(await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().height))).toEqual([44,44,44,44])
+  expect(await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>button.getBoundingClientRect().height))).toEqual([44,44,44,44,44])
   expect(await footer.locator('.record-symptom-action .hoho-button__content').evaluate(el=>getComputedStyle(el).justifyContent)).toBe('center')
   const geometry = await page.evaluate(() => {
     const marker = document.querySelector('.journal-timeline-row--now .journal-timeline-marker')!.getBoundingClientRect()
@@ -55,7 +55,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   const entryColors=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))
   expect(entryColors).toEqual(['rgb(255, 242, 226)','rgb(237, 245, 252)','rgb(233, 246, 242)','rgb(243, 237, 250)'])
   await shot(page,`home-${width}`)
-  const daily=page.getByRole('button',{name:'记录日常',exact:true})
+  const daily=page.getByRole('button',{name:'日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
   await expect(options.getByRole('button')).toHaveText(['睡眠','排便','身体涂抹'])
   await expect(options.locator('img')).toHaveCount(3)
@@ -209,7 +209,7 @@ test('save failure and repeated click keep one record, drafts are member isolate
 
 test('short screen anchoring, resize and keyboard segmented navigation',async({page})=>{
   await page.setViewportSize({width:375,height:360});await prepare(page)
-  const daily=page.getByRole('button',{name:'记录日常',exact:true})
+  const daily=page.getByRole('button',{name:'日常',exact:true})
   await daily.click()
   for(const button of await page.locator('.journal-record-actions button').all())await expect(button).toBeInViewport()
   await page.setViewportSize({width:390,height:667})
@@ -247,7 +247,7 @@ test('direct supplement preserves dose, saves supplement type and restores edit 
 for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['身体涂抹','记录身体涂抹','care'],['记录用药','记录用药','medication']]) test(`reorganized ${entry} saves through its original form for the selected member`,async({page})=>{
   await prepare(page,'child-two')
   if(entry==='记录用药')await page.getByRole('button',{name:entry,exact:true}).click()
-  else {await page.getByRole('button',{name:'记录日常',exact:true}).click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:entry,exact:true}).click()}
+  else {await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:entry,exact:true}).click()}
   const form=page.getByRole('dialog',{name:title,exact:true})
   if(category==='care')await form.getByLabel('产品名称（或添加包装照片）').fill('合成保湿产品')
   if(category==='medication'){await form.getByLabel('药品名称',{exact:true}).fill('合成记录测试药');await form.getByLabel('本次用量').fill('1')}

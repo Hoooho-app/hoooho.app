@@ -1,3 +1,4 @@
+import { RecordSaveTarget, RecordEditorSave } from './RecordSaveAction'
 import { ArrowLeft, ChevronDown, Moon, Sun } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
@@ -93,11 +94,12 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
     <section className="sleep-editor-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen(!supplementOpen)} type="button"><span>睡得怎么样<small>（选填）</small></span><ChevronDown size={18} /></button>{!supplementOpen && Boolean(draft.quality || draft.observations?.length) && <p>{[draft.quality, ...(draft.observations ?? []), draft.otherNote].filter(Boolean).join('、')}</p>}{supplementOpen && <><div className="sleep-choice-row">{qualities.map(option => <button aria-pressed={draft.quality === option} key={option} onClick={() => setDraft({ ...draft, quality: draft.quality === option ? undefined : option })} type="button">{option}</button>)}{observations.map(option => <button aria-pressed={draft.observations?.includes(option)} key={option} onClick={() => setDraft({ ...draft, observations: draft.observations?.includes(option) ? draft.observations.filter(item => item !== option) : [...(draft.observations ?? []), option] })} type="button">{option}</button>)}</div>{draft.observations?.includes('其他') && <input aria-label="其他影响睡眠的情况" maxLength={120} onChange={event => setDraft({ ...draft, otherNote: event.target.value })} value={draft.otherNote ?? ''} />}</>}</section>
     {minutes > 1440 && <p className="sleep-editor-hint">这是一段较长的睡眠，请核对实际日期与时间。</p>}{validation && <p className="sleep-validation" role="alert">{validation}</p>}{error && <p className="sleep-save-error" role="alert">{error}</p>}
     {allowStatusChange && <DailyRecordSettings kind="sleep" seed={{ kind: draft.kind, endTime: clock(draft.wakeAt) }} />}
-    <div className="sleep-editor-save"><HohoButton disabled={Boolean(validation)} fullWidth loading={saving} onClick={() => onSave({ ...draft, timeZone: zone, durationMinutes: minutes, ...(!draft.observations?.includes('其他') ? { otherNote: undefined } : {}) })} size="large"><DailySaveText /></HohoButton>{onSkip && <HohoButton disabled={saving} fullWidth onClick={onSkip} variant="secondary">本次未发生</HohoButton>}</div>
+    <div className="sleep-editor-save"><RecordEditorSave disabled={Boolean(validation)} saving={saving} onClick={() => onSave({ ...draft, timeZone: zone, durationMinutes: minutes, ...(!draft.observations?.includes('其他') ? { otherNote: undefined } : {}) })}><DailySaveText /></RecordEditorSave>{onSkip && <HohoButton disabled={saving} fullWidth onClick={onSkip} variant="secondary">本次未发生</HohoButton>}</div>
   </div>
 }
 
 export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+  const [saveTarget, setSaveTarget] = useState<HTMLElement | null>(null)
   const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const initial = useRef(mode === 'start' ? { ...draft, sleepAt: new Date(Math.floor(Date.now() / 60000) * 60000).toISOString(), wakeAt: new Date(Math.floor(Date.now() / 60000) * 60000 + 480 * 60000).toISOString(), status: 'ongoing' as const } : draft)
   const layerRef = useRef<HTMLElement>(null)
@@ -109,5 +111,5 @@ export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSav
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
-  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span /></header><div className="sleep-record-scroll"><SleepEditor allowStatusChange error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></section></div>
+  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span className="record-header-save-target" ref={setSaveTarget}/></header><RecordSaveTarget.Provider value={saveTarget}><div className="sleep-record-scroll"><SleepEditor allowStatusChange error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></RecordSaveTarget.Provider></section></div>
 }
