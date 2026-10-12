@@ -31,7 +31,7 @@ export const sidebarMenuGroups = [
     title: '辅助工具',
     items: [
     { label: '就诊情况单', icon: ClipboardList, to: '/visit-summary' },
-    { label: '忌口出示卡', icon: ClipboardList, to: '/dietary-card' },
+    { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
     { label: '用药安排', icon: Pill, to: '/medication-reminders' },
     { label: '照看交接', icon: ClipboardList, to: '/care-handoff' }

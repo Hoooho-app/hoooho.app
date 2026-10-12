@@ -15,12 +15,12 @@ export function resolveDietaryNativeLanguage(accountLanguage?: string, deviceLan
 export function dietaryLanguageOptions(native: DietaryCardNativeLanguage) {
   if (native === 'en') return [{ value: 'en', label: 'English' }] as const
   return native === 'zh-Hant'
-    ? [{ value: 'zh-Hant', label: '繁體中文' }, { value: 'en', label: 'English' }, { value: 'en-zh-Hant', label: '繁體中文 + English' }] as const
-    : [{ value: 'zh', label: '简体中文' }, { value: 'en', label: 'English' }, { value: 'en-zh', label: '简体中文 + English' }] as const
+    ? [{ value: 'zh-Hant', label: '繁體中文' }, { value: 'en', label: 'English' }] as const
+    : [{ value: 'zh', label: '简体中文' }, { value: 'en', label: 'English' }] as const
 }
 
 export function defaultDietaryLanguage(native: DietaryCardNativeLanguage): DietaryCardLanguage {
-  return native === 'en' ? 'en' : native === 'zh-Hant' ? 'en-zh-Hant' : 'en-zh'
+  return native
 }
 
 export interface DietaryCardItem {

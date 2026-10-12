@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../components/design-system'
@@ -23,7 +23,6 @@ import {
   readDietarySnapshot,
   resolveDietaryNativeLanguage,
   snapshotFromSources,
-  snapshotsEqual,
   type DietaryCardGroup,
   type DietaryCardItem,
   type DietaryCardLanguage,
@@ -101,20 +100,19 @@ function useDietaryCardData() {
 }
 
 function DietaryHeader({ editing = false, memberName, onBack }: { editing?: boolean; memberName: string; onBack: () => void }) {
-  return <header className="dietary-page-header"><button aria-label={editing ? '取消修改' : '返回前台'} onClick={onBack} type="button"><ArrowLeft /></button><div><h1>{editing ? '修改忌口清单' : '忌口出示卡'}</h1><p>当前：{memberName}</p></div><span aria-hidden="true" /></header>
+  return <header className="dietary-page-header"><button aria-label={editing ? '取消修改' : '返回前台'} onClick={onBack} type="button"><ArrowLeft /></button><div><h1>{editing ? '修改忌口清单' : '忌口卡'}</h1>{editing && <p>当前：{memberName}</p>}</div><span aria-hidden="true" /></header>
 }
 
 export function DietaryCardPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const member = useCurrentMember()
-  const { accountId, currentMemberId, members, reload, setState, state, token } = useDietaryCardData()
+  const { accountId, reload, state } = useDietaryCardData()
   const accountLanguage = useSettingsStore((store) => store.accounts[accountId]?.interfaceLanguage)
   const nativeLanguage = resolveDietaryNativeLanguage(accountLanguage, navigator.language)
   const languageOptions = dietaryLanguageOptions(nativeLanguage)
   const [language, setLanguage] = useState<DietaryCardLanguage>(() => defaultDietaryLanguage(nativeLanguage))
   useEffect(() => { setLanguage(defaultDietaryLanguage(nativeLanguage)) }, [nativeLanguage])
-  const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState(() => (location.state as { notice?: string } | null)?.notice ?? '')
 
@@ -129,24 +127,6 @@ export function DietaryCardPage() {
   const selectionEmpty = Boolean(snapshot?.items.length && !presentation?.visibleCount)
   const englishIncomplete = language === 'en' && Boolean(presentation?.missingTranslations.length)
 
-  const update = async () => {
-    if (!snapshot || !token || refreshing) return
-    const requestMemberId = currentMemberId
-    setRefreshing(true)
-    try {
-      await loadProfileSections(token, members)
-      if (useAppStore.getState().currentMemberId !== requestMemberId) return
-      const sources = deriveDietarySources(readProfileSection(allergyKey(requestMemberId)), requestMemberId, accountId)
-      const next = mergeDietarySources(snapshot, sources)
-      const unchanged = snapshotsEqual(snapshot, next)
-      await saveProfileSection(sectionKey(requestMemberId), [next])
-      if (useAppStore.getState().currentMemberId !== requestMemberId) return
-      setState({ status: 'ready', snapshot: next, sourceCount: sources.length, error: '' })
-      setNotice(next.items.some((item) => item.needsReview) ? '来源有变化，请在修改中核对' : unchanged ? '已是最新' : '已更新')
-    } catch { setNotice('更新失败，请重试') }
-    finally { setRefreshing(false) }
-  }
-
   const saveImage = async () => {
     if (!snapshot || !presentation?.visibleCount || englishIncomplete || exporting) return
     const captured = snapshot
@@ -159,16 +139,15 @@ export function DietaryCardPage() {
   return <main className="app-shell dietary-card-page">
     <DietaryHeader memberName={member.name} onBack={() => navigate('/nurse-station')} />
     <div className="dietary-card-scroll">
-      <nav aria-label="忌口出示卡操作" className="dietary-toolbar">
-        <button disabled={state.status !== 'ready'} onClick={() => navigate('/dietary-card/edit')} type="button"><Pencil />修改</button>
+      <nav aria-label="忌口卡操作" className="dietary-toolbar">
+        <button disabled={state.status !== 'ready'} onClick={() => navigate('/dietary-card/edit')} type="button"><Pencil />修改编辑</button>
         <label aria-label="选择出示语言"><select onChange={(event) => setLanguage(event.target.value as DietaryCardLanguage)} value={language}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown aria-hidden="true" /></label>
-        <button disabled={state.status !== 'ready' || refreshing} onClick={() => void update()} type="button"><RefreshCw className={refreshing ? 'is-spinning' : ''} />{refreshing ? '更新中' : '更新'}</button>
         <button disabled={!presentation?.visibleCount || englishIncomplete || exporting} onClick={() => void saveImage()} type="button"><Download />{exporting ? '生成中' : '保存图片'}</button>
       </nav>
       {state.status === 'loading' ? <section aria-label="正在读取忌口清单" className="dietary-loading"><span /><span /><span /></section>
         : state.status === 'error' ? <StatusNotice action={<HohoButton onClick={() => void reload(false)} variant="secondary">重试</HohoButton>} tone="error" title={state.error || '读取失败，请重试'} />
           : snapshot && presentation ? <>
-            {state.error && <p className="dietary-inline-error" role="status">最新来源读取失败，当前已保存卡片仍可使用。</p>}
+            {state.error && <p className="dietary-inline-error" role="status">最新来源读取失败，当前已保存卡片仍可使用。<button onClick={() => void reload(true)} type="button">重试</button></p>}
             {presentation.visibleCount > 12 && <p className="dietary-overflow-hint">共{presentation.visibleCount}项，请下滑查看全部</p>}
             {englishIncomplete ? <StatusNotice tone="warning" title="请先补充英文名称" action={<HohoButton onClick={() => navigate('/dietary-card/edit')} variant="secondary">补充英文名称</HohoButton>}>{presentation.missingTranslations.join('、')}缺少英文名称。补充后即可出示和保存纯英文卡片。</StatusNotice> : <>
               {presentation.missingTranslations.length > 0 && <p className="dietary-translation-notice">{presentation.missingTranslations.join('、')}缺少英文名称，已保留中文。</p>}
@@ -246,7 +225,6 @@ export function DietaryCardEditPage() {
       {groups.map(([group, label]) => <section className="dietary-edit-group" data-group={group} key={group}><header><span aria-hidden="true" /><h2>{label}</h2>{group === 'temporary' && <small>尚待确认，本次也请避开</small>}</header><div>{draft.items.filter((item) => item.group === group).map((item) => <article className="dietary-edit-item" data-visible={item.visible} key={item.id}><button aria-label={`${item.visible ? '取消选择' : '选择'}${item.name}`} aria-pressed={item.visible} className="dietary-item-check" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: !entry.visible } : entry) })} type="button">{item.visible && <Check />}</button><FoodGlyph group={group} name={item.name} /><div><strong>{item.name}</strong>{item.needsReview && <small>来源有变化，请核对</small>}</div><button aria-label={`修改${item.name}`} className="dietary-item-edit" onClick={() => openEditor(item)} type="button"><Pencil /></button><button aria-label={`从出示清单移除${item.name}`} className="dietary-item-remove" onClick={() => setDraft({ ...draft, items: draft.items.map((entry) => entry.id === item.id ? { ...entry, visible: false } : entry) })} type="button"><Trash2 /></button></article>)}</div></section>)}
       {!draft.items.length && <p className="dietary-edit-empty">还没有食物，添加后可选择本次出示分组。</p>}
       <button className="dietary-add-food" onClick={() => openEditor()} type="button"><Plus />添加食物</button>
-      <label className="dietary-cross-contact-toggle"><input checked={draft.avoidCrossContact} onChange={(event) => setDraft({ ...draft, avoidCrossContact: event.target.checked })} type="checkbox" /><span aria-hidden="true" /><strong>提醒避免共用锅具、餐具接触</strong></label>
       <p className="dietary-edit-note">食物名称与分组会同步更新过敏资料；取消选择或移除仅影响本次出示。</p>
       {saveError && <p className="dietary-save-error" role="alert">{saveError}</p>}
     </div>
