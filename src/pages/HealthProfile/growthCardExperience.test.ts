@@ -33,8 +33,8 @@ test('健康档案首页复用健康随记的记录对象页头并直接衔接�
 
 test('成长数据合并曲线、录入和记录列表入口', () => {
   assert.match(editor, /title="成长数据"/)
-  assert.match(editor, /growth-record-list-entry/)
-  assert.match(editor, /查看历史 · 编辑 · 删除/)
+  assert.match(editor, /WebPageHeader action=\{<HohoButton aria-label="记录列表"/)
+  assert.doesNotMatch(editor, /growth-record-list-entry|查看历史 · 编辑 · 删除/)
   assert.match(editor, /保存本次更新/)
   assert.match(editor, /已保存，并加入成长记录/)
   assert.match(editor, /growthMeasurementService\.upsert/)
