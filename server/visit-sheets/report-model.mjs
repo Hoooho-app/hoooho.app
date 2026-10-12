@@ -1,6 +1,7 @@
 import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
 import { sameReadingTopic } from './reading-context.mjs'
 import { readingProjection } from './reading-projection.mjs'
+import { currentSituation } from './current-situation.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
@@ -207,7 +208,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'readable-summary-v2',
+        projectionRevision: 'readable-summary-v3-current-situation',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -837,6 +838,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   report.member.bloodType ||= basic?.aboBloodType || basic?.bloodType || null
   report.member.rhBloodType ||= basic?.rhBloodType || null
   report.reading=readingProjection(report,input)
+  report.currentSituationEdits = Object.fromEntries(Object.entries(preferences.currentSituationEdits ?? {}).filter(([key])=>!key.startsWith('record:') || input.records.some(r=>`record:${r.id}`===key && !r.deletedAt)))
+  report.currentSituation=currentSituation(report,input,report.currentSituationEdits)
   if (!preferences.questionEdited) {
     const recorded = (report.questionSourceIds?.length ? report.question.split('\n').filter(Boolean) : [])
     report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,3).join('\n')

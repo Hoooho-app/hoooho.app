@@ -71,6 +71,23 @@ async function setup(t) {
   return { svc, f, dir }
 }
 
+test('分块补丁只修改对应情况，版本与焦点阻止迟到写入，原始记录不改',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ let state=await svc.save(a,m,{requestId:'situation-initial',expectedVersion:0,focus:{mode:'source',sourceId:'record:s7'}})
+ const raw=structuredClone(f.records),scopeKey=state.report.currentSituation.scopeKey
+ const patch={scopeKey,block:'description',text:'手动保留：无头痛'}
+ state=await svc.save(a,m,{requestId:'situation-description',expectedVersion:state.report.version,currentSituation:patch})
+ assert.equal(state.report.currentSituation.description,patch.text);assert.deepEqual(state.report.currentSituation.symptoms,[]);assert.deepEqual(f.records,raw)
+ state=await svc.save(a,m,{requestId:'situation-other',expectedVersion:state.report.version,focus:{mode:'source',sourceId:'record:s0'}})
+ assert.notEqual(state.report.currentSituation.description,patch.text)
+ await assert.rejects(()=>svc.save(a,m,{requestId:'situation-late',expectedVersion:state.report.version,currentSituation:patch}),{status:409})
+ state=await svc.save(a,m,{requestId:'situation-back',expectedVersion:state.report.version,focus:{mode:'source',sourceId:'record:s7'}})
+ assert.equal(state.report.currentSituation.description,patch.text)
+ await assert.rejects(()=>svc.weeklyTemperature('foreign',m),{status:404})
+ const temps=await svc.weeklyTemperature(a,m,new Date('2026-09-20T23:00:00Z'))
+ assert.equal(temps.points.length,1);assert.ok(temps.points.every(p=>p.sourceId!=='record:private'))
+})
+
 test('整单更新草稿不写正式版本，显式确认幂等且保留人工修订',async t=>{
   const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
   const first=await svc.save(a,m,{requestId:'four-card-first',expectedVersion:0,caseDetails:{description:'家长原话：没有测温',onset:'不确定'},question:'需要检查吗？',notes:{course:'护理后变化未知'},selectedPhotoIds:[]})

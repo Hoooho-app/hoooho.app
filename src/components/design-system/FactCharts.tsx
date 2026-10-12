@@ -65,6 +65,8 @@ export function FactLineChart({
   onPoint,
   scatter = false,
   domain,
+  accessibleLabel,
+  interactivePoints = false,
 }: {
   points: Array<{ value: number; at: string; sourceId: string }>
   unit: string
@@ -72,6 +74,8 @@ export function FactLineChart({
   onPoint?: (id: string) => void
   scatter?: boolean
   domain?: [number, number]
+  accessibleLabel?: string
+  interactivePoints?: boolean
 }) {
   if (points.length < 2) return null
   const times = points.map((p) => Date.parse(p.at)),
@@ -96,8 +100,8 @@ export function FactLineChart({
     <svg
       className="hoho-fact-line"
       viewBox="0 0 320 162"
-      role="img"
-      aria-label={`${label}，${points.length} 个测量点，具体数值见下方列表`}
+      role={interactivePoints?'group':'img'}
+      aria-label={accessibleLabel ?? `${label}，${points.length} 个测量点，具体数值见下方列表`}
     >
       <text x="4" y="15">
         {unit}
@@ -116,13 +120,14 @@ export function FactLineChart({
         strokeWidth="2"
       />}
       {points.map((p, i) => (
-        <g key={`${p.sourceId}:${i}`}>
+        <g key={`${p.sourceId}:${i}`} role={interactivePoints?'button':undefined} tabIndex={interactivePoints?0:undefined} aria-label={interactivePoints?`${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(p.at))} · ${p.value} ${unit}`:undefined} onClick={interactivePoints?()=>onPoint?.(p.sourceId):undefined} onKeyDown={interactivePoints?event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onPoint?.(p.sourceId)}}:undefined}>
+          {interactivePoints&&<circle cx={coords[i].x} cy={coords[i].y} r="20" fill="transparent"/>}
           <circle
             cx={coords[i].x}
             cy={coords[i].y}
             r="4"
             className="hoho-chart-point"
-            onClick={onPoint ? () => onPoint(p.sourceId) : undefined}
+            onClick={onPoint&&!interactivePoints ? () => onPoint(p.sourceId) : undefined}
           />
           <title>
             {p.at} · {p.value} {unit}

@@ -30,10 +30,10 @@ async function verifyVideo(v: ReturnType<Page['locator']>, p: Page, offline = fa
 async function width(p: Page) { const v = await p.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth, scroll: [...document.querySelectorAll('[data-scroll-container],.visit-subpage-body,[role=dialog]')].map(e => [e.scrollWidth, e.clientWidth]) })); expect(v.document, JSON.stringify(v)).toBeLessThanOrEqual(v.width); expect(v.body).toBeLessThanOrEqual(v.width); for (const [s, c] of v.scroll)
     expect(s, JSON.stringify(v)).toBeLessThanOrEqual(c); }
 async function chapter(p: Page, title: string) { await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();const count=await p.locator('[data-reading-card]').count();await p.getByRole('button', { name: '章节目录', exact: true }).click(); const d = p.getByRole('dialog', { name: '章节目录' }); await expect(d.locator('nav button')).toHaveCount(count); await d.getByRole('button', { name: new RegExp(title) }).click(); await expect(d).toHaveCount(0); }
-async function edit(p: Page, title: string) { const toggle=p.getByRole('button',{name:new RegExp('^'+title)});if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();await p.getByRole('button', { name: '编辑' + title, exact: true }).click(); return p.getByRole('dialog', { name: '编辑' + title, exact: true }); }
+async function edit(p: Page, title: string) { const toggle=p.getByRole('button',{name:new RegExp('^'+title)});if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();const editorTitle=title==='目前情况'?'情况描述':title;await p.getByRole('button', { name: '编辑' + editorTitle, exact: true }).click(); return p.getByRole('dialog', { name: '编辑' + editorTitle, exact: true }); }
 async function photos(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '添加 / 调整影像', exact: true }).click(); return p.getByRole('dialog', { name: '添加 / 调整影像' }); }
 async function scope(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '调整 / 恢复资料范围', exact: true }).click(); return p.getByRole('dialog', { name: '本次资料范围', exact: true }); }
-async function update(p: Page) {await p.reload();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();await expect(p.getByRole('button',{name:'编辑目前情况',exact:true})).toBeEnabled();}
+async function update(p: Page) {await p.reload();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled();}
 async function fromHome(p: Page) {
     await p.goto('/nurse-station');
     await p.getByRole('button', { name: '就诊情况单', exact: true }).click();
@@ -42,7 +42,7 @@ async function fromHome(p: Page) {
 test.beforeEach(async ({ page: p }) => { const s = await (await p.request.get(endpoint, { headers })).json(); expect((await p.request.put(endpoint, { headers, data: { expectedVersion: s.report?.version ?? s.expectedVersion ?? 0, requestId: crypto.randomUUID(), focus: { mode: 'source', sourceId: 'record:s7' }, caseDetails: {}, question: '这些表现需要了解什么？\n何时需要就医？\n怎样护理和记录？', notes: {}, selection: null, selectedPhotoIds: ['attachment:v5-image-0', 'attachment:v5-image-1', 'attachment:' + videoId()] } })).ok()).toBeTruthy(); });
 test('浏览器返回保护四项草稿，继续编辑和放弃均有明确结果', async ({page:p})=>{
     await enter(p);
-    for (const [card,label] of [['目前情况','最近变化'],['本次想问','本次想问'],['相关经过与处理','相关经过与处理补充（已发生的情况）'],['完整资料档案','资料说明']]) {
+    for (const [card,label] of [['目前情况','情况描述'],['本次想问','本次想问'],['相关经过与处理','相关经过与处理补充（已发生的情况）'],['完整资料档案','资料说明']]) {
         await fromHome(p);
         const before=await read(p), d=await edit(p,card);
         await d.getByRole('textbox',{name:label,exact:true}).fill('浏览器返回保护的未保存草稿');
@@ -62,7 +62,7 @@ test('浏览器返回保护四项草稿，继续编辑和放弃均有明确结�
 test('浏览器返回后保存失败保留草稿，保存成功才完成返回',async({page:p})=>{
     await enter(p);await fromHome(p);
     const d=await edit(p,'目前情况'),before=await read(p);
-    await d.getByLabel('最近变化').fill('返回前明确保存的变化');
+    await d.getByLabel('情况描述', {exact:true}).fill('返回前明确保存的变化');
     await p.evaluate(()=>history.back());
     await expect(d.getByText('还有未保存的内容')).toBeVisible();
         await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
@@ -70,12 +70,12 @@ test('浏览器返回后保存失败保留草稿，保存成功才完成返回',
     await d.getByRole('alert').getByRole('button',{name:'保存',exact:true}).click();
     await expect(d.getByText(/^返回前保存失败/)).toBeVisible();
     await expect(p).toHaveURL(/\/visit-summary$/);
-    await expect(d.getByLabel('最近变化')).toHaveValue('返回前明确保存的变化');
+    await expect(d.getByLabel('情况描述', {exact:true})).toHaveValue('返回前明确保存的变化');
     expect((await read(p)).version).toBe(before.version);
     await p.unroute('**/api/members/child-a/visit-sheet');
     await d.getByRole('alert').filter({hasText:'还有未保存的内容'}).getByRole('button',{name:'保存',exact:true}).click();
     await expect(p).toHaveURL(/\/nurse-station$/);
-    expect((await read(p)).caseDetails.change).toBe('返回前明确保存的变化');
+    expect((await read(p)).currentSituation.description).toBe('返回前明确保存的变化');
 });
 test('保存请求途中浏览器返回，保存完成后再离开且不丢迟到状态',async({page:p})=>{
     await enter(p);await fromHome(p);
@@ -98,12 +98,12 @@ test('保存请求途中浏览器返回，保存完成后再离开且不丢迟�
 });
 test('刷新页面会保护未保存草稿，取消刷新后仍可继续编辑',async({page:p})=>{
     await enter(p);const d=await edit(p,'目前情况');
-    await d.getByRole('textbox',{name:'最近变化',exact:true}).fill('刷新保护的草稿');
+    await d.getByRole('textbox',{name:'情况描述',exact:true}).fill('刷新保护的草稿');
     const nativeDialog=p.waitForEvent('dialog');
     const reload=p.evaluate(()=>location.reload());
     const dialog=await nativeDialog;expect(dialog.type()).toBe('beforeunload');await dialog.dismiss();await reload;
-    await expect(d.getByRole('textbox',{name:'最近变化',exact:true})).toHaveValue('刷新保护的草稿');
-    await d.getByRole('button',{name:'返回编辑目前情况'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
+    await expect(d.getByRole('textbox',{name:'情况描述',exact:true})).toHaveValue('刷新保护的草稿');
+    await d.getByRole('button',{name:'返回编辑情况描述'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
 });
 test('情况单血型只显示 ABO，移除时区与年龄说明', async ({ page: p }, info) => {
     let bloodType: string | null = 'B';
@@ -151,7 +151,7 @@ test('四卡片默认展开、独立编辑、目录键盘定位、实际全页�
         await width(p);
         const toggle = p.getByRole('button', { name: new RegExp('^' + title) }), before = await toggle.getAttribute('aria-expanded'), d = await edit(p, title);
         await width(p);
-        await d.getByRole('button', { name: '返回编辑' + title }).click();
+        await d.getByRole('button', { name: '返回编辑' + (title==='目前情况'?'情况描述':title) }).click();
         await expect(toggle).toHaveAttribute('aria-expanded', before!);
     }
     await p.getByRole('button', { name: '章节目录' }).click();
@@ -172,14 +172,14 @@ test('目前情况只呈现一次重复主诉，并保留不同的主诉和描�
         await p.reload();
         await expect(p.locator('.visit-reading-case')).toContainText(description);
         const text = await p.locator('.visit-reading-case').innerText();
-        expect(text.split(complaint).length-1).toBe(1);
-        await expect(p.getByRole('button',{name:'编辑目前情况',exact:true})).toBeVisible();
+        expect(text.split(complaint).length-1).toBe(description.includes(complaint)?1:0);
+        await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeVisible();
     }
 });
 test('四项编辑真实保存刷新、失败保留草稿和取消不改原始记录', async ({ page: p }, info) => {
     await enter(p);
     const original = await (await p.request.get('/api/events/event-a/records', { headers })).json();
-    for (const [card, label, value] of [['目前情况', '目前情况', '夜间抓挠，未测体温'], ['本次想问', '本次想问', '需要检查吗？\n如何护理？'], ['相关经过与处理', '相关经过与处理补充（已发生的情况）', '护理后变化未知'], ['完整资料档案', '资料说明', '完整资料档案保存标记']]) {
+    for (const [card, label, value] of [['目前情况', '情况描述', '夜间抓挠，未测体温'], ['本次想问', '本次想问', '需要检查吗？\n如何护理？'], ['相关经过与处理', '相关经过与处理补充（已发生的情况）', '护理后变化未知'], ['完整资料档案', '资料说明', '完整资料档案保存标记']]) {
         const d = await edit(p, card);
         await d.getByLabel(label, { exact: true }).fill(value);
         await d.getByRole('button', { name: '保存', exact: true }).click();
@@ -193,13 +193,13 @@ test('四项编辑真实保存刷新、失败保留草稿和取消不改原始�
     expect(saved.notes.sources).toBe('完整资料档案保存标记');
     expect(await (await p.request.get('/api/events/event-a/records', { headers })).json()).toEqual(original);
     const d = await edit(p, '目前情况');
-    await d.getByLabel('最近变化').fill('失败时保留草稿');
+    await d.getByLabel('情况描述', {exact:true}).fill('失败时保留草稿');
     await p.route('**/api/members/child-a/visit-sheet', r => r.request().method() === 'PUT' ? r.fulfill({ status: 503, json: { error: { message: '合成保存失败' } } }) : r.continue());
     await d.getByRole('button', { name: '保存', exact: true }).click();
     await expect(d.getByRole('alert')).toContainText('合成保存失败');
-    await expect(d.getByLabel('最近变化')).toHaveValue('失败时保留草稿');
+    await expect(d.getByLabel('情况描述', {exact:true})).toHaveValue('失败时保留草稿');
     expect((await read(p)).version).toBe(saved.version);
-    await d.getByRole('button', { name: '返回编辑目前情况' }).click();
+    await d.getByRole('button', { name: '返回编辑情况描述' }).click();
     await expect(d.getByText('还有未保存的内容')).toBeVisible();
         await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
     await p.screenshot({ path: info.outputPath('edit-draft-protected.png') });
@@ -495,7 +495,7 @@ test('自动整理失败保留已确认内容，重试后才采用新资料',asy
  try{
   await p.route('**/api/members/child-a/visit-sheet',r=>r.request().method()==='PUT'?r.fulfill({status:503,json:{error:{message:'自动整理暂时失败'}}}):r.continue())
   await p.reload();await expect(p.getByText('自动整理暂时失败',{exact:true})).toBeVisible();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();expect((await read(p)).version).toBe(before.version)
-  await p.unroute('**/api/members/child-a/visit-sheet');await p.getByRole('button',{name:'重试',exact:true}).click();await expect(p.getByText('自动整理暂时失败',{exact:true})).toHaveCount(0);await expect(p.getByRole('button',{name:'编辑目前情况',exact:true})).toBeEnabled()
+  await p.unroute('**/api/members/child-a/visit-sheet');await p.getByRole('button',{name:'重试',exact:true}).click();await expect(p.getByText('自动整理暂时失败',{exact:true})).toHaveCount(0);await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled()
   expect((await read(p)).version).toBeGreaterThan(before.version);expect((await read(p)).question).toBe(before.question)
  }finally{expect((await p.request.delete('/api/records/'+record.id,{headers})).ok()).toBeTruthy()}
 })

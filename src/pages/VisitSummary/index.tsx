@@ -3,7 +3,7 @@ import { ArrowLeft, Copy, Download, FileText, List } from 'lucide-react'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import {
   BottomSheetSurface,
@@ -30,6 +30,7 @@ import { consultationHtml, doctorBriefText, downloadContent, type ExportResource
 import { PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
 import './reading.css'
+import { situationData } from './currentSituationCopy'
 import { ReportDirectory } from './ReportDirectory'
 import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
 import { preliminarySummaryExport } from './preliminarySummaryExport'
@@ -83,6 +84,8 @@ function VisitSheetReader({
   const [opened,setOpened]=useState<{id:VisitChapterId;serial:number}>({id:'overview',serial:0})
   const [updateOpen,setUpdateOpen]=useState(false),[updateDraft,setUpdateDraft]=useState<VisitSheetState['updateCandidate']>(),[useAI,setUseAI]=useState(false)
   const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
+  const [attachmentPicker,setAttachmentPicker]=useState(false)
+  const [selectedSymptom,setSelectedSymptom]=useState(0)
   const parentEvidence=useRef<string[]|null>(null)
   const [scopeOpen,setScopeOpen] = useState(false)
   const [scopeUndo,setScopeUndo] = useState<{selection:VisitSheetUpdate['selection']}|null>(null)
@@ -291,7 +294,7 @@ function VisitSheetReader({
         {report && (
           <>
             {[...new Set([...(state?.warnings??[]),...report.warnings])].map(w=><StatusNotice title={w} tone="warning" key={w}/>)}
-            <VisitReading report={report} token={token} busy={loading||working} onEvidence={openEvidence} onEdit={kind=>{setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>setPhotoPicker(true)} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
+            <VisitReading report={report} token={token} busy={loading||working} onEvidence={openEvidence} onEdit={(kind,line=0)=>{setSelectedSymptom(line);setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>{setAttachmentPicker(true);setPhotoPicker(true)}} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
           </>
         )}
         {notice && (
@@ -304,6 +307,7 @@ function VisitSheetReader({
       {report && scopeOpen && <ReportScopeSheet initial={report.selection} memberId={memberId} token={token} version={report.version} busy={working} error={error} onClose={()=>{if(!working)setScopeOpen(false)}} onSave={async selection=>{const previous=report.selection??null;if(await update({selection})){setScopeUndo({selection:previous});setScopeOpen(false)}}} onUndo={scopeUndo?async()=>{if(await update({selection:scopeUndo.selection})){setScopeUndo(null);setScopeOpen(false)}}:undefined}/>}
       {report && editing && (
         <ReportEditor
+          selectedLine={selectedSymptom}
           report={report}
           kind={editing}
           onDirty={setEditorDirty}
@@ -312,7 +316,7 @@ function VisitSheetReader({
           working={working}
           error={error}
           onScope={()=>{setEditing(null);setScopeOpen(true)}}
-          onPhotos={()=>{setEditing(null);setPhotoPicker(true)}}
+          onPhotos={()=>{setAttachmentPicker(false);setEditing(null);setPhotoPicker(true)}}
           onClose={() => {setEditing(null);setEditorDirty(false);if(blockerRef.current.state==='blocked')blockerRef.current.proceed()}}
           onSave={async (changes) => {
             const success = await update(changes)
@@ -415,7 +419,7 @@ function VisitSheetReader({
       {report && exporting && (
         <ExportSheet report={report} token={token} memberId={memberId} onRefresh={async()=>{setExporting(false);await load();setNotice("资料或版本已变化，已重新读取。请核对当前情况单后重新导出。")}} onClose={() => setExporting(false)} />
       )}
-      {report&&photoPicker&&<PhotoPicker key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
+      {report&&photoPicker&&<PhotoPicker attachments={attachmentPicker} key={`${memberId}:${report.photoKey}`} memberId={memberId} report={report} token={token} working={working} error={error} onClose={()=>setPhotoPicker(false)} onSave={async changes=>{const success=await update(changes);if(success)setPhotoPicker(false);return success}}/>}
       {report&&photoId&&<PhotoViewer report={report} token={token} id={photoId} onClose={()=>setPhotoId(null)}/>}
     </main>
   )
@@ -423,6 +427,7 @@ function VisitSheetReader({
 
 function ReportEditor({
   report,
+  selectedLine = 0,
   kind,
   working,
   error,
@@ -435,6 +440,7 @@ function ReportEditor({
   onKeepEditing,
 }: {
   report: VisitSheet
+  selectedLine?: number
   kind: ReadingEditor
   working: boolean
   error: string
@@ -451,14 +457,20 @@ function ReportEditor({
     [question, setQuestion] = useState(report.question),
     [query, setQuery] = useState(''),
     [confirmExit, setConfirmExit] = useState(false)
-  const [caseDetails,setCaseDetails]=useState(report.caseDetails??{}),[notes,setNotes]=useState(report.notes)
+  const [notes,setNotes]=useState(report.notes)
+  const block = kind === 'current' ? 'description' : kind === 'symptoms' ? 'symptoms' : kind === 'diet' ? 'diet' : null
+  const [situation]=useState(()=>situationData(report))
+  const originalBlock=block==='description'?situation.description:block?situation[block].map(line=>line.text).join('\n'):''
+  const [blockText,setBlockText]=useState(originalBlock)
+  const blockInput=useRef<HTMLTextAreaElement>(null)
+  useEffect(()=>{if(!block)return;const frame=requestAnimationFrame(()=>{if(!blockInput.current)return;blockInput.current.focus({preventScroll:true});if(block==='symptoms'){const start=originalBlock.split('\n').slice(0,selectedLine).reduce((total,line)=>total+line.length+1,0);blockInput.current.setSelectionRange(start,start+(originalBlock.split('\n')[selectedLine]?.length??0))}});return()=>cancelAnimationFrame(frame)},[block,originalBlock,selectedLine])
   const exitPrompt=useRef<HTMLDivElement>(null)
   useEffect(()=>{if(confirmExit||navigationBlocked){exitPrompt.current?.focus({preventScroll:true});exitPrompt.current?.scrollIntoView({block:'center'})}},[confirmExit,navigationBlocked])
   const dirty =
     JSON.stringify(focus) !== JSON.stringify(report.focus) ||
     custom !== (report.focus.text ?? '') ||
-    question !== report.question || JSON.stringify(caseDetails)!==JSON.stringify(report.caseDetails??{}) || JSON.stringify(notes)!==JSON.stringify(report.notes)
-  useEffect(()=>onDirty(dirty),[dirty,onDirty])
+    question !== report.question || blockText!==originalBlock || JSON.stringify(notes)!==JSON.stringify(report.notes)
+  useLayoutEffect(()=>onDirty(dirty),[dirty,onDirty])
   useEffect(()=>{
     const guard=(event:BeforeUnloadEvent)=>{if(dirty||working){event.preventDefault();event.returnValue=''}}
     window.addEventListener('beforeunload',guard)
@@ -469,7 +481,7 @@ function ReportEditor({
     if (dirty) setConfirmExit(true)
     else onClose()
   }
-  const changes =
+  const changes: Partial<VisitSheetUpdate> =
     (kind === 'focus'||kind==='association')
       ? {
           focus:
@@ -477,14 +489,14 @@ function ReportEditor({
               ? { ...focus, mode: 'custom' as const, text: custom.trim() }
               : focus,
         }
-      : kind==='question'?{ question }:kind==='current'?{caseDetails}:{notes}
+      : kind==='question'?{ question }:block?{currentSituation:{scopeKey:situation.scopeKey,block,text:blockText}}:{notes}
   const valid = (kind !== 'focus'&&kind!=='association') || focus.mode !== 'custom' || !!custom.trim()
   // Group exact equivalent labels only; never merge different symptoms by guesswork.
   const groups=[...new Set(report.candidates.map(c=>c.text.trim()))].map(text=>report.candidates.filter(c=>c.text.trim()===text))
   return (
     <VisitSubpage
-      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑目前情况',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
-      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑目前情况',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
+      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
+      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
       onClose={close}
 
     >
@@ -548,7 +560,7 @@ function ReportEditor({
               </label>
               <div className="visit-question-suggestions" aria-label="可选问题">{(report.reading?.questionCandidates??[]).slice(3,10).map(template=><button type="button" aria-label={`添加问题：${template}`} key={template} disabled={question.split('\n').some(line=>line.trim()===template)} onClick={()=>setQuestion(previous=>previous.trim()?`${previous.trimEnd()}\n${template}`:template)}>{template}</button>)}</div>
           </>
-        ) : kind==='current'?<>{(['description','onset','change','other'] as const).map(key=><label key={key}>{{description:'目前情况',onset:'实际开始时间',change:'最近变化',other:'其他表现'}[key]}<textarea maxLength={5000} value={caseDetails[key]??''} placeholder={report.reading?.[key]??'未填写'} onChange={e=>setCaseDetails(previous=>({...previous,[key]:e.target.value}))}/></label>)}<p>补充只保存到情况单；不覆盖原始记录。不确定的内容请保持未知。</p></>:kind==='course'?<label>相关经过与处理补充（已发生的情况）<textarea aria-label="相关经过与处理补充（已发生的情况）" maxLength={5000} value={notes.course??''} onChange={e=>setNotes(previous=>({...previous,course:e.target.value}))}/><small>原始经过保持来源可追溯；此处仅保存家长补充，不改写原记录。</small></label>:<>{(['history','allergy','sources'] as const).map(key=><label key={key}>{{history:'既往背景补充',allergy:'过敏资料补充（不是确诊）',sources:'资料说明'}[key]}<textarea maxLength={5000} value={notes[key]??''} onChange={e=>setNotes(previous=>({...previous,[key]:e.target.value}))}/></label>)}<HohoButton variant="secondary" disabled={dirty||working} onClick={onScope}>调整 / 恢复资料范围</HohoButton><HohoButton variant="secondary" disabled={dirty||working} onClick={onPhotos}>添加 / 调整影像</HohoButton><p>原始记录与全局健康档案不在这里覆盖。</p></>}
+        ) : block?<label>{{description:'情况描述',symptoms:'症状表现',diet:'近期饮食'}[block]}<textarea ref={blockInput} autoFocus aria-label={{description:'情况描述',symptoms:'症状表现',diet:'近期饮食'}[block]} rows={7} maxLength={5000} value={blockText} onChange={e=>setBlockText(e.target.value)}/></label>:kind==='course'?<label>相关经过与处理补充（已发生的情况）<textarea aria-label="相关经过与处理补充（已发生的情况）" maxLength={5000} value={notes.course??''} onChange={e=>setNotes(previous=>({...previous,course:e.target.value}))}/><small>原始经过保持来源可追溯；此处仅保存家长补充，不改写原记录。</small></label>:<>{(['history','allergy','sources'] as const).map(key=><label key={key}>{{history:'既往背景补充',allergy:'过敏资料补充（不是确诊）',sources:'资料说明'}[key]}<textarea maxLength={5000} value={notes[key]??''} onChange={e=>setNotes(previous=>({...previous,[key]:e.target.value}))}/></label>)}<HohoButton variant="secondary" disabled={dirty||working} onClick={onScope}>调整 / 恢复资料范围</HohoButton><HohoButton variant="secondary" disabled={dirty||working} onClick={onPhotos}>添加 / 调整影像</HohoButton><p>原始记录与全局健康档案不在这里覆盖。</p></>}
         </fieldset>
         {error && <p role="alert">{error}</p>}
         <div className="visit-editor-bottom"><HohoButton variant="secondary" disabled={working} onClick={close}>取消</HohoButton><HohoButton disabled={!valid} loading={working} onClick={()=>void onSave(changes)}>保存</HohoButton></div>

@@ -122,3 +122,29 @@
 .visit-export-option .hoho-button__content>svg{flex:none}
 .visit-export-option strong{display:block;font:inherit}
 .visit-export-option.hoho-button small{display:block;color:inherit;font-size:var(--hoho-font-size-caption);font-weight:400;line-height:var(--hoho-line-height-body);margin-top:var(--hoho-space-1);opacity:.85}
+
+/* Scoped to the current situation; other chapters retain their approved layout. */
+.visit-current-situation { padding:var(--hoho-space-2) var(--hoho-space-1) var(--hoho-space-2);overflow-wrap:anywhere; }
+.visit-current-situation>.hoho-button { margin-bottom:var(--hoho-space-2); }
+.visit-current-situation .visit-situation-block { margin:0;padding:var(--hoho-space-2) 0; }
+.visit-situation-heading { display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);min-height:44px; }
+.visit-situation-heading h3 { margin:0;font-size:var(--hoho-font-size-label);font-weight:500;color:rgb(var(--hoho-color-primary));line-height:1.6; }
+.visit-situation-heading h3 small { margin-left:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);font-weight:400;color:rgb(var(--hoho-color-text-secondary));white-space:nowrap; }
+.visit-situation-edit { display:flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:57px;padding:0;border:0;background:none;color:rgb(var(--hoho-color-primary));font-size:12px; }
+.visit-situation-edit>span { display:flex;align-items:center;justify-content:center;gap:4px;height:26px;line-height:20px;font-size:12px;box-sizing:border-box;padding:3px 8px;background:var(--visit-neutral-surface);border-radius:var(--hoho-radius-small); }
+.visit-current-situation p { margin:var(--hoho-space-1) 0 var(--hoho-space-2);font-size:var(--hoho-font-size-body);line-height:1.8;white-space:pre-wrap; }
+.visit-current-situation strong { font-weight:600; }
+.visit-situation-symptom { display:flex;gap:var(--hoho-space-2);align-items:baseline;flex-wrap:wrap; }
+.visit-situation-symptom p { flex:1;min-width:0; }
+.visit-symptom-line { min-height:44px;flex:1;min-width:0;text-align:left;border:0;background:none;padding:0;color:inherit; }
+.visit-temperature-action { min-height:44px;flex:none;font-size:12px; }
+.visit-situation-original>summary { font-size:12px;color:rgb(var(--hoho-color-primary))!important;list-style:none; }
+.visit-situation-original>summary::-webkit-details-marker { display:none; }
+.visit-situation-original p { background:var(--visit-neutral-surface);padding:var(--hoho-space-3);border-radius:var(--hoho-radius-control); }
+.visit-temperature-chart { min-height:200px;padding-bottom:var(--hoho-space-3); }
+.visit-temperature-chart .hoho-fact-line { width:100%; }
+.visit-temperature-chart p { text-align:center;font-size:13px; }
+.visit-temperature-layer { z-index:130; }
+.visit-temperature-layer .hoho-bottom-sheet { width:min(100vw,520px);margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0; }
+.visit-temperature-layer .hoho-bottom-sheet__body { padding-bottom:calc(var(--hoho-space-5) + env(safe-area-inset-bottom)); }
+@media print { .visit-current-situation>.hoho-button,.visit-situation-edit,.visit-temperature-action,.visit-current-situation .visit-situation-block>.hoho-button {display:none;} }

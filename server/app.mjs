@@ -901,6 +901,13 @@ async function handleApi(request, response, pathname, searchParams) {
     response.writeHead(200,{'Content-Type':result.mimeType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Length':result.buffer.length})
     response.end(result.buffer);return true
   }
+  const visitTemperatureMatch = /^\/api\/members\/([^/]+)\/visit-sheet\/temperature$/.exec(pathname)
+  if(visitTemperatureMatch) {
+    const accountId=await readAccountId(request)
+    if(request.method === 'GET') sendJson(response,200,await visitSheets.weeklyTemperature(accountId,decodeRouteValue(visitTemperatureMatch[1])))
+    else sendEmpty(response,405)
+    return true
+  }
   const visitSheetMatch = /^\/api\/members\/([^/]+)\/visit-sheet$/.exec(pathname)
   if (visitSheetMatch) {
     const accountId = await readAccountId(request)

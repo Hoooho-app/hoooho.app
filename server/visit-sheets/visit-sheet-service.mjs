@@ -6,6 +6,7 @@ import { withAccountLock } from '../auth/account-lock.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { QuickRecordPhotoService } from '../events/quick-record-photo-service.mjs'
 import { photoDetails } from './photo-preferences.mjs'
+import { weeklyTemperature } from './weekly-temperature.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
@@ -170,6 +171,11 @@ export class VisitSheetService {
     if(!resource)throw failure('档案原件已失效或不可用',404)
     const file = {mimeType:resource.mimeType,buffer:Buffer.from(resource.data,'base64')}; return variant === 'preview' ? imagePreview(file) : file
   }
+  async weeklyTemperature(accountId,memberId,now = new Date()) {
+    const input = await this.collect(accountId,memberId,now)
+    if(input.warnings.length) throw failure('体温记录读取失败',503)
+    return weeklyTemperature(input,now)
+  }
   async get(accountId, memberId) {
     const input = await this.collect(accountId, memberId)
     const saved = (await this.store.read()).reports.find(
@@ -274,6 +280,19 @@ export class VisitSheetService {
         throw failure('请填写 1–1000 字的主诉')
       const notes = request.notes ?? previous?.notes ?? {}
       const caseDetails=request.caseDetails??previous?.caseDetails??{}
+      const currentSituationEdits = structuredClone(previous?.currentSituationEdits ?? {})
+      const situationTarget=buildVisitSheet(input,{focus,selection},now)
+      // Migrate existing manual copy to its original focus once, without moving it to another case.
+      if(previous?.photoKey && previous.caseDetails?.description && !currentSituationEdits[previous.photoKey]) currentSituationEdits[previous.photoKey] = {description:previous.caseDetails.description}
+      if(request.caseDetails && !Object.keys(request.caseDetails).length) delete currentSituationEdits[situationTarget.photoKey]
+      if(request.caseDetails && Object.hasOwn(request.caseDetails,'description')) currentSituationEdits[situationTarget.photoKey]={...currentSituationEdits[situationTarget.photoKey],description:request.caseDetails.description}
+      if(request.currentSituation !== undefined) {
+        const patch=request.currentSituation
+        if(!patch || !['description','symptoms','diet'].includes(patch.block) || typeof patch.text !== 'string' || patch.text.length>5000 || typeof patch.scopeKey !== 'string' || Object.keys(patch).some(k => !['scopeKey','block','text'].includes(k)) || request.focus) throw failure('目前情况编辑格式无效')
+        const target=buildVisitSheet(input,{focus,selection},now)
+        if(patch.scopeKey !== previous?.currentSituation?.scopeKey || patch.scopeKey !== target.photoKey) throw failure('目前情况已切换，请重新读取后编辑；填写内容仍保留',409)
+        currentSituationEdits[patch.scopeKey] = {...currentSituationEdits[patch.scopeKey],[patch.block]:patch.text}
+      }
       if(!caseDetails||typeof caseDetails!=='object'||Array.isArray(caseDetails)||Object.entries(caseDetails).some(([key,value])=>!['description','onset','change','other'].includes(key)||typeof value!=='string'||value.length>5000))throw failure('本次情况补充格式无效')
       if (
         !notes ||
@@ -331,7 +350,7 @@ export class VisitSheetService {
       const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails:situationTarget.photoKey !== previous?.photoKey && !request.caseDetails ? {} : caseDetails, currentSituationEdits }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }
@@ -387,7 +406,7 @@ export class VisitSheetService {
         (JSON.stringify(previous.focus) !== JSON.stringify(focus) ||
           previous.question !== question ||
           JSON.stringify(previous.notes) !== JSON.stringify(notes) ||
-          JSON.stringify(previous.caseDetails??{}) !== JSON.stringify(caseDetails))
+          JSON.stringify(previous.caseDetails??{}) !== JSON.stringify(caseDetails) || JSON.stringify(previous.currentSituationEdits??{}) !== JSON.stringify(currentSituationEdits))
       )
         report.changes.push({
           sourceId: '家长报告编辑',

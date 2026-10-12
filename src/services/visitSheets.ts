@@ -6,6 +6,7 @@ import type {
   VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
+  currentSituation?: {scopeKey:string;block:'description'|'symptoms'|'diet';text:string}
   previewUpdate?: boolean
   confirmUpdate?: string
   caseDetails?: import('../types/visitSheet').VisitSheet['caseDetails']
@@ -25,6 +26,9 @@ export interface VisitSheetUpdate {
   notes?: Partial<Record<VisitChapterId, string>>
 }
 export const visitSheetService = {
+  temperature(memberId:string,token:string,signal:AbortSignal) {
+    return apiRequest<{from:string;to:string;points:import('../types/visitSheet').VisitPoint[]}>(`/api/members/${encodeURIComponent(memberId)}/visit-sheet/temperature`,{token,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])})
+  },
   async uploadMedia(memberId:string,draftId:string,file:File,token:string,sortOrder:number,uploadId:string){
     if(file.size>100*1024*1024)throw new Error('单个视频超过100MB，请裁剪或选择较小原件')
     const mime=file.type||({mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'}[file.name.split('.').at(-1)?.toLowerCase()??'']??'application/octet-stream')
