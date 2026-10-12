@@ -3,6 +3,7 @@ import test from 'node:test'
 import {normalizeMedicalSummary,OpenAIProvider} from '../ai/providers/openai-provider.mjs'
 import {BailianProvider} from '../ai/providers/bailian-provider.mjs'
 import {situationRaw,situationOutput} from '../../tests/visit-sheet/current-situation-v2.fixture.mjs'
+import {MedicalSummaryService} from '../ai/medical-summary-service.mjs'
 const input={sections:[{id:'record',title:'当前记录',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw,occurredAt:'2026-10-13T00:00:00Z'}]}
 test('V2原话在同一摘要链路成为概览、症状、饮食，保留否定与家属猜测',()=>{
  const result=normalizeMedicalSummary(situationOutput(),input).currentSituation
@@ -24,4 +25,28 @@ test('现有百炼摘要适配器核验同一V2结构，仍只发起一次模型
  const provider=new BailianProvider({env:{AI_PROVIDER:'bailian',BAILIAN_API_KEY:'fixture-only',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'},logger:{info(){},warn(){}},fetchImpl:async(_,init)=>{calls++;body=JSON.parse(init.body);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(situationOutput())}}]})}})
  const result=await provider.summarizeMedicalPreparation(input)
  assert.equal(calls,1);assert.equal(result.currentSituation.diet.length,2);assert.ok(body.response_format.json_schema.schema.properties.currentSituation)
+})
+
+test('V2校验诊断穿过摘要服务，仅记录固定字段和规则，不记录原话或无效模型正文',async()=>{
+ const fixtures=[
+  {change:r=>r.currentSituation.symptoms[0].sourceId='private-invalid-source',path:'/currentSituation/symptoms/0/sourceId',rule:'unknown_source'},
+  {change:r=>r.currentSituation.symptoms[1].label='private-invalid',path:'/currentSituation/symptoms/1/label',rule:'unverified_label'},
+  {change:r=>r.currentSituation.symptoms[2].text='37.5℃',path:'/currentSituation/symptoms/2/text',rule:'unverified_number'},
+  {change:r=>r.currentSituation['private-invalid-key']='private-invalid-body',path:'/currentSituation',reason:'additionalProperties'},
+ ]
+ for(const fixture of fixtures){
+  const logs=[],body=situationOutput();fixture.change(body);let calls=0
+  const provider=new BailianProvider({env:{BAILIAN_API_KEY:'fixture-only-secret',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'},logger:{info(){},warn(){}},fetchImpl:async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(body)}}]})}})
+  const service=new MedicalSummaryService({provider,logger:{warn:(...args)=>logs.push(args)}})
+  await assert.rejects(()=>service.generate(input),error=>{
+   assert.equal(error.code,'AI_MEDICAL_SUMMARY_UNAVAILABLE')
+   assert.equal(error.validation.fieldPath,fixture.path)
+   if(fixture.rule)assert.equal(error.validation.rule,fixture.rule)
+   if(fixture.reason)assert.equal(error.validation.reason,fixture.reason)
+   assert.doesNotMatch(JSON.stringify(error),/private-invalid|fixture-only-secret|牛肉|头晕|37\.5/)
+   return true
+  })
+  assert.equal(calls,1);assert.equal(logs.length,1)
+  assert.doesNotMatch(JSON.stringify(logs),/private-invalid|fixture-only-secret|牛肉|头晕|37\.5/)
+ }
 })
