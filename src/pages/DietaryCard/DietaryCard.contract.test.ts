@@ -18,7 +18,7 @@ test('侧栏工具入口进入受当前人物保护的忌口卡', () => {
 test('主页面保留修改编辑、单一语言、保存图片三项工具且没有全屏入口', () => {
   for (const copy of ['修改编辑', '保存图片']) assert.match(page, new RegExp(copy))
   assert.doesNotMatch(page + panel, /全屏|生成卡片|重新生成|RefreshCw|dietary-cross-contact/)
-  assert.match(page, /disabled=\{!presentation\?\.visibleCount \|\| englishIncomplete \|\| exporting\}/)
+  assert.match(page, /disabled=\{!presentation\?\.visibleCount \|\| exporting\}/)
 })
 
 test('页面以单一纵向滚动承载完整清单并覆盖 320px 窄屏', () => {
@@ -30,5 +30,6 @@ test('页面以单一纵向滚动承载完整清单并覆盖 320px 窄屏', () =
 test('编辑页保存独立草稿并支持空快照', () => {
   assert.match(page, /structuredClone\(state\.snapshot\)/)
   assert.match(page, /保存并更新/)
-  assert.match(page, /食物名称与分组会同步更新过敏资料/)
+  assert.match(page, /过敏食物清单/)
+  assert.doesNotMatch(page, /英文食物名称（可核对修改）|所属分组|dietary-edit-note|当前：/)
 })
