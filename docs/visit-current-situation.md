@@ -1,6 +1,6 @@
 # 就诊情况单：目前情况
 
-`currentSituation` 提供描述、带来源的症状/饮食/发生变化/已做处理与完整原话。原来的本地投影只读取已保存事实；缺少整理结果的旧记录因而显示整段原话，无法获得症状、饮食分块。V2 复用 `MedicalSummaryService.generate`、当前供应商与账户调用控制，在同一次摘要请求中按条件扩展严格 JSON schema；普通整单摘要不变，未建立第二套模型或解析服务。
+`currentSituation` 提供描述、带来源的症状/饮食/发生变化/已做处理与完整原话。原来的本地投影只读取已保存事实；缺少整理结果的旧记录因而显示整段原话，无法获得症状、饮食分块。V2 复用 `MedicalSummaryService.generate`、当前供应商与账户调用控制；目前情况模式在同一次摘要请求中使用严格的 `{currentSituation}` 响应，避免生成该模块没有使用的整单字段。普通整单摘要 schema、提示和校验不变，未建立第二套模型或解析服务。
 
 旧记录由 `needsOrganization` 标记，页面针对当前焦点和来源指纹自动尝试一次 `organizeCurrent: {scopeKey}`。服务端重新读取当前账号/成员的主诉及明确关联饮食，对所有输入沿用既有去标识化；模型必须逐行引用其来源 ID 与真实原文，复用既有数字、日期、否定及诊断检查。猜测必须归属家属，强调必须是正文中的完整事实；没有数值体温时不得推断数值。合法结果以 `currentSituationResults[photoKey] = {fingerprint, value, provider, model, generatedAt}` 保存，当前来源指纹一致时重用。该字段由服务端产生，客户端不能提交结果或任意来源正文。
 
@@ -8,7 +8,7 @@
 
 校验拒绝时沿用摘要服务的安全诊断日志，记录固定 stage、schema 字段路径、数组索引与代码内规则名，区分来源、格式和语义失败；不记录模型正文、引用原话、未知 JSON 字段、账号凭据或密钥。诊断不改变严格校验和失败不保存的行为。
 
-目前情况调用同时说明两种引用：基础 keyPoints 的 sectionId 必须来自已提供的 sections，quote 是对应 lines 的连续逐字片段；currentSituation 的 sourceId 来自当前来源，quote 是该来源裸 text 的连续逐字片段。基础章节编号通过该请求独立的 JSON schema 枚举约束，普通整单摘要 schema 不变；不能把来源编号与正文拼接而省略中间元数据。
+目前情况响应根对象在本地严格核验，仅允许 `currentSituation`；缺失字段、旧整单字段或任意额外字段均拒绝，不能只依赖供应商的 strict schema。每行 sourceId 来自当前来源，quote 是该来源裸 text 的连续逐字片段；逐行继续调用既有整单摘要的来源、数字、日期、否定和医疗结论校验，不带目前情况请求标记，避免递归进入局部模式。普通整单摘要继续核验 keyPoints 的真实章节与连续逐字引文，不能把来源编号与正文拼接而省略中间元数据。两种请求不互相修改 schema 或缓存形状。
 
 `PUT /api/members/:memberId/visit-sheet` 兼容原请求，可选 `currentSituation: {scopeKey, block, text}`，block 为 description / symptoms / diet，最多 5000 字。沿用 expectedVersion、requestId、账户事务和成员权限；当前焦点或版本不匹配时拒绝补丁。局部修改保存到 `currentSituationEdits[photoKey]`，换焦点不套用另一情况的修改，切回恢复。旧 caseDetails 描述按原焦点兼容迁入；原记录不修改。复制和离线 HTML 使用同一份展示内容。
 
