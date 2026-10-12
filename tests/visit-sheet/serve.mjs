@@ -47,6 +47,7 @@ if (process.env.VISIT_AI_TEST === '1') {
       return fixtureResponse({ usage: { input_tokens: 30, output_tokens: 30 }, output: [{ content: [{ type: 'output_text', text: JSON.stringify(organized) }] }] })
     }
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
+    if(body.text.format.name==='hoooho_front_desk_reply'){const input=JSON.parse(body.input),last=input.history.at(-1);return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。还有什么需要记下来的吗？':'这次观察收到了，可以接着补充。',contextId:last?.id??'new',action:'record'})}]}]})}
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]

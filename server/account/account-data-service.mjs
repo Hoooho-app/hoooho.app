@@ -10,6 +10,8 @@ export const accountCollections = [
   ['nurse-drafts.json', 'drafts'],
   ['nurse-drafts.json', 'usage'],
   ['ai-business-drafts.json', 'drafts'],
+  ['front-desk-records.json', 'contexts'],
+  ['front-desk-records.json', 'messages'],
   ['visit-ai-candidates.json', 'candidates'],
   ['visit-update-candidates.json', 'candidates'],
   ['visit-sheets.json', 'reports'],

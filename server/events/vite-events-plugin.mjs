@@ -5,6 +5,7 @@ import { HealthRecordOrganizationService } from '../ai/health-record-organizatio
 import { CaseContinuityService } from './case-continuity-service.mjs'
 import { caseApiResult } from './case-api.mjs'
 import { NurseService, nurseApiResult } from '../ai/nurse-service.mjs'
+import {FrontDeskRecord} from '../ai/front-desk-record.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = ''
@@ -53,12 +54,19 @@ export function eventsApiPlugin(options = {}) {
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
   const cases = new CaseContinuityService(config)
   const nurse = new NurseService({ ...config, events })
+  const frontDesk = new FrontDeskRecord({...config,events,business:cases.business})
 
   return {
     name: 'hoooho-local-events-api',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        const failedFront=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
+        if(failedFront&&request.method==='DELETE'){try{return sendJson(response,200,await frontDesk.discard(readAccountId(request,tokens),decodeURIComponent(failedFront[1]),decodeURIComponent(failedFront[2])))}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.message}})}}
+        const front=/^\/api\/members\/([^/]+)\/front-desk-record(?:\/contexts\/([^/]+))?$/.exec(pathname)
+        if(front){
+          try{const accountId=readAccountId(request,tokens),memberId=decodeURIComponent(front[1]);if(request.method==='GET'&&!front[2])return sendJson(response,200,await frontDesk.latest(accountId,memberId));if(request.method==='POST'){const input=await readJson(request,22*1024*1024);return sendJson(response,200,front[2]?await frontDesk.checkpoint(accountId,memberId,decodeURIComponent(front[2]),input):input.kind==='legacy'?await frontDesk.retainLegacy(accountId,memberId,input):await frontDesk.submit(accountId,memberId,input))}return sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'请求方法不支持'}})}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.status?error.message:'智能记录暂不可用，内容保留'}})}
+        }
         if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {
           try { const result = await nurseApiResult(nurse, readAccountId(request, tokens), request.method, pathname, limit => readJson(request, limit)); return sendJson(response, result.status ?? 200, result.data) }
           catch (error) { return sendJson(response, error.status ?? 500, { error: { message: error.status ? error.message : '智能记录暂不可用，原内容保留', code: error.code ?? 'NURSE_ERROR' } }) }

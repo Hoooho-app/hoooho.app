@@ -47,6 +47,7 @@ import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
+import { FrontDeskRecord } from './ai/front-desk-record.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
@@ -113,6 +114,7 @@ const careHandoff = new CareHandoffService(sharedOptions)
 const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
+const frontDeskRecord = new FrontDeskRecord({ ...sharedOptions, events, business: aiBusiness })
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
 
@@ -857,6 +859,18 @@ async function handleApi(request, response, pathname, searchParams) {
   }
   const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
+  const failedFrontMessage=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
+  if(failedFrontMessage&&request.method==='DELETE'){response.setHeader('Cache-Control','no-store');sendJson(response,200,await frontDeskRecord.discard(await readAccountId(request),decodeRouteValue(failedFrontMessage[1]),decodeRouteValue(failedFrontMessage[2])));return true}
+  const frontRecordMatch = /^\/api\/members\/([^/]+)\/front-desk-record(?:\/contexts\/([^/]+))?$/.exec(pathname)
+  if (frontRecordMatch) {
+    const accountId = await readAccountId(request), memberId = decodeRouteValue(frontRecordMatch[1])
+    response.setHeader('Cache-Control', 'no-store')
+    if (request.method === 'GET' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.latest(accountId, memberId))
+    else if (request.method === 'POST' && !frontRecordMatch[2]) {const input=await readJson(request,22*1024*1024);sendJson(response,200,input.kind==='legacy'?await frontDeskRecord.retainLegacy(accountId,memberId,input):await frontDeskRecord.submit(accountId,memberId,input))}
+    else if (request.method === 'POST' && frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.checkpoint(accountId, memberId, decodeRouteValue(frontRecordMatch[2]), await readJson(request)))
+    else sendEmpty(response, 405)
+    return true
+  }
   const businessMatch=/^\/api\/members\/([^/]+)\/ai-drafts(?:\/([^/]+)(?:\/(save|speech|undo))?)?$/.exec(pathname)
   const draftFileMatch=/^\/api\/members\/([^/]+)\/ai-drafts\/([^/]+)\/files\/([^/]+)$/.exec(pathname)
   if(draftFileMatch&&request.method==='GET'){const file=await aiBusiness.file(await readAccountId(request),...draftFileMatch.slice(1).map(decodeRouteValue));setCommonHeaders(response);response.setHeader('Cache-Control','no-store');response.setHeader('Content-Type',file.mimeType);response.end(file.buffer);return true}

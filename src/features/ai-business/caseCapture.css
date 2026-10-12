@@ -45,3 +45,11 @@
 .smart-record-page .hoho-dialogue-mode,.smart-record-page .hoho-dialogue-photo{border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface-subtle))}
 .smart-record-resume-bubble{display:grid;gap:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-subtle))}
 .smart-record-resume-bubble p{border:0;padding:0;background:transparent}
+.smart-record-page .smart-record-opening-note{margin-top:var(--hoho-space-3);color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.smart-record-page .nurse-turn-content>.hoho-button[data-variant="text"]:not([data-size="icon"]){border:1px solid rgb(var(--hoho-color-border));padding-inline:var(--hoho-space-3)}
+.smart-record-thumbnail{display:block;width:100%;min-height:44px;padding:0;border:0;background:transparent;cursor:zoom-in}
+.smart-record-thumbnail .is-expanded{max-height:none;width:100%}
+.smart-record-media{display:grid;gap:var(--hoho-space-2);min-width:0}
+.smart-record-page audio{width:100%;max-width:100%;margin-top:var(--hoho-space-2)}
+.smart-record-page .hoho-dialogue-text textarea{border-radius:0;box-shadow:none!important;outline:none}
+.smart-record-page .hoho-dialogue-text:focus-within{border-color:rgb(var(--hoho-color-primary));outline:2px solid rgb(var(--hoho-color-primary)/.3);outline-offset:2px}

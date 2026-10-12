@@ -12,6 +12,7 @@ import { AIService } from '../ai-service.mjs'
 import { LocalFactProvider } from '../providers/local-fact-provider.mjs'
 import { BusinessModel } from './model.mjs'
 import { normalizeMedicationAbsence, normalizeRoutineActivity, reconcileExtraction } from './extraction-quality.mjs'
+import {reconcileFrontDeskFields} from './front-desk-field-contract.mjs'
 import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-replay.mjs'
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
@@ -27,7 +28,7 @@ const text = (v, limit = 10000) => typeof v === 'string' && v.length <= limit ? 
 const field = (item, name) => item.fields.find(f => f.name === name)?.value
 const keyFor = (item,draft) => fingerprint({category:item.category,time:item.time?.resolvedStart ?? item.timeText ?? draft.referenceNow,fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value))})
 const publicDraft = d => ({id:d.id,version:d.version,state:d.state,profileBatchId:d.profileBatchId??null,targetEventId:d.targetEventId??null,sourceRecordId:d.sourceRecordId??null,preview:d.preview??null,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
-const contentFor=item=>item.fields.map(f=>`${item.category==='activity'&&f.name==='symptom'?'活动原话':fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
+const contentFor=item=>item.fields.map(f=>`${f.nameResolution?.source==='duration_phrase'?'睡眠时长':item.category==='activity'&&f.name==='symptom'?'活动原话':fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
 const revisionKey=r=>fingerprint([r.type,r.content,r.occurredAt,r.journal,r.aiProvenance])
 const groupFor=item=>{
   if(!item.time?.resolvedStart)return null
@@ -124,11 +125,12 @@ export class AIBusinessService {
     const profileBatch=input.profileBatch===true||previous?.profileBatch===true
     const profileBatchId=profileBatch?(text(input.profileBatchId,100)||previous?.profileBatchId||null):null
     const smartRecord = task==='record' && (input.smartRecord===true || previous?.smartRecord===true)
+    const frontDeskRecord=smartRecord&&(input.frontDeskRecord===true||previous?.frontDeskRecord===true)
     const confirmOccurrenceTime = smartRecord && (input.confirmOccurrenceTime ?? previous?.confirmOccurrenceTime ?? false) === true
     const followUp = smartRecord ? input.followUp ?? previous?.followUp ?? true : true
     const selectedOccurredAt = smartRecord ? input.selectedOccurredAt ?? previous?.selectedOccurredAt ?? this.now().toISOString() : null
     if(smartRecord&&(!Number.isFinite(Date.parse(selectedOccurredAt))||Date.parse(selectedOccurredAt)>this.now().getTime()))throw fail('发生时间不能晚于现在',422,'INVALID_OCCURRED_AT')
-    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[])])
+    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record']:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
       previous.items=previous.items.map(item=>this.resolve(item,previous))
@@ -139,6 +141,7 @@ export class AIBusinessService {
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??(smartRecord?selectedOccurredAt:now.toISOString()),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     draft.manualOriginal=false;draft.voices=voices
     draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
+    draft.frontDeskRecord=frontDeskRecord
     draft.profileBatch=profileBatch
     draft.profileBatchId=profileBatchId
     draft.targetEventId = targetEventId; draft.sourceIdentity = sourceIdentity
@@ -216,6 +219,7 @@ export class AIBusinessService {
     }
   }
   resolve(item,draft){
+    if(draft.frontDeskRecord)reconcileFrontDeskFields(item)
     normalizeMedicationAbsence(item)
     normalizeRoutineActivity(item)
     if(['chronic','surgery','family-history'].includes(item.archiveCategory)&&!field(item,'historyName')||item.archiveCategory==='family-history'&&!field(item,'relationship'))item.archiveCategory=null
