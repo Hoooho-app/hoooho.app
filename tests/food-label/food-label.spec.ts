@@ -11,6 +11,7 @@ async function prepare(page:Page,language='zh-CN',ingredients=rows){
     if(path==='/api/auth/session')body={token:'synthetic-token',user:{id:accountId,currentMemberId:memberId,nickname:'合成验收'}}
     if(path==='/api/members')body=[{id:memberId,name:'不应在核对页展示',birthday:'2025-01-01',gender:'female',relationship:'child'}]
     if(path==='/api/account/entry-state')body={familyMemberCount:1,hasValidHealthRecord:false}
+    if(path.endsWith('/cases'))body={active:[],archived:[],timezone:'Asia/Shanghai',today:'2026-10-12'}
     if(path==='/api/events'||path==='/api/auth/profile-sections'||path.endsWith('/medication-reminders')||path.endsWith('/growth-measurements')||path.endsWith('/case-records'))body=[]
     if(path==='/api/food-label/check'){const input=route.request().postDataJSON();requests.push(input);body={taskId:input.taskId,memberId:input.memberId,ingredients,contains:[],advisory:[],title:'标签未读完整，请补拍',counts:'21项待确认',scope:'标签未完整，暂不能排除遗漏',tone:'warning'}}
     await route.fulfill({json:body,headers:{'Cache-Control':'no-store'}})
@@ -41,7 +42,8 @@ test('result back clears this scan; entry back works with keyboard and direct en
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
   await page.getByRole('button',{name:'返回',exact:true}).press('Enter')
   await expect(page.locator('.nurse-station-page')).toBeVisible()
-  await page.getByRole('link',{name:/配料表扫描/}).click()
+  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+  await page.getByRole('button',{name:'配料表扫描',exact:true}).click()
   await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)
 })
