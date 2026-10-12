@@ -8,7 +8,7 @@ const chart = readFileSync(new URL('./GrowthCurveChart.tsx', import.meta.url), '
 const reassurance = readFileSync(new URL('./GrowthReassurancePage.tsx', import.meta.url), 'utf8')
 
 test('成长数据二级页在同页完成录入、曲线与确定性解读', () => {
-  for (const copy of ['成长数据', '身高曲线', '体重曲线', '最新记录', '记录本次测量', '保存本次更新', '成长解读', '记录列表']) assert.match(basic, new RegExp(copy))
+  for (const copy of ['成长数据', '身高曲线', '体重曲线', '最新记录', '保存本次更新', '成长解读', '记录列表']) assert.match(basic, new RegExp(copy))
   assert.match(basic, /<GrowthCurveChart measure=\{measure\}/)
   assert.match(basic, /buildGrowthInterpretation/)
   assert.match(basic, /heightTouched|weightTouched/)

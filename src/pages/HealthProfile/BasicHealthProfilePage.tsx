@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, List, Minus, Pencil, Plus } from 'lucide-react'
+import { Check, Minus, Pencil, Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
@@ -33,7 +33,7 @@ const ageText = (birthday: string | undefined, measuredAt: string) => {
 function readDraft(memberId: string): Draft | null {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(draftKey(memberId)) ?? 'null') as Draft | null
-    return parsed?.memberId === memberId ? parsed : null
+    return parsed?.memberId === memberId && parsed.measuredAt === localToday() ? parsed : null
   } catch { return null }
 }
 
@@ -46,7 +46,8 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
   const initialMeasure = routeState?.selectedMeasure ?? restoredRef.current?.measure ?? (storedMeasure === 'weight' ? 'weight' : 'height')
   const [measure, setMeasure] = useState<GrowthMeasure>(initialMeasure)
   const [records, setRecords] = useState<GrowthMeasurementApiDto[]>([]), [loading, setLoading] = useState(true), [loadError, setLoadError] = useState('')
-  const [measuredAt, setMeasuredAt] = useState(restoredRef.current?.measuredAt ?? localToday()), [height, setHeight] = useState(restoredRef.current?.height ?? ''), [weightKg, setWeightKg] = useState(restoredRef.current?.weightKg ?? '')
+  const measuredAt = localToday()
+  const [height, setHeight] = useState(restoredRef.current?.height ?? ''), [weightKg, setWeightKg] = useState(restoredRef.current?.weightKg ?? '')
   const [heightTouched, setHeightTouched] = useState(restoredRef.current?.heightTouched ?? false), [weightTouched, setWeightTouched] = useState(restoredRef.current?.weightTouched ?? false)
   const [editing, setEditing] = useState<'height' | 'weight' | null>(null), [saveState, setSaveState] = useState<SaveState>('idle'), [message, setMessage] = useState('')
   const initialHeightRef = useRef<number | null>(validHeight(height) ? Number(height) : null)
@@ -62,14 +63,14 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
       setRecords(items)
       const restored = readDraft(openedMemberId)
       if (restored) {
-        setMeasure(routeState?.selectedMeasure ?? restored.measure); setMeasuredAt(restored.measuredAt); setHeight(restored.height); setWeightKg(restored.weightKg); setHeightTouched(restored.heightTouched); setWeightTouched(restored.weightTouched)
+        setMeasure(routeState?.selectedMeasure ?? restored.measure); setHeight(restored.height); setWeightKg(restored.weightKg); setHeightTouched(restored.heightTouched); setWeightTouched(restored.weightTouched)
         initialHeightRef.current = validHeight(restored.height) ? Number(restored.height) : null
         requestAnimationFrame(() => contentRef.current?.scrollTo({ top: restored.scrollTop ?? 0 }))
         return
       }
       const current = resolveCurrentGrowthMeasurements(member, items, openedMemberId)
       const nextHeight = current.heightCm == null ? '' : current.heightCm.toFixed(1), nextWeight = formatWeightKg(current.weightKg)
-      setMeasuredAt(localToday()); setHeight(nextHeight); setWeightKg(nextWeight); setHeightTouched(false); setWeightTouched(false)
+      setHeight(nextHeight); setWeightKg(nextWeight); setHeightTouched(false); setWeightTouched(false)
       initialHeightRef.current = validHeight(nextHeight) ? Number(nextHeight) : null
     }).catch((reason) => {
       if (reason instanceof DOMException && reason.name === 'AbortError') return
@@ -103,17 +104,6 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
   const weightDelta = weightTouched && validWeightKg(weightKg) && previousWeight?.weightKg != null ? Number(weightKg) - previousWeight.weightKg : null
   const heightAtFloor = initialHeightRef.current != null && Number(height) <= initialHeightRef.current
 
-  const setDate = (nextDate: string) => {
-    const existing = records.find((item) => item.measuredAt === nextDate)
-    const priorRecords = records.filter((item) => item.measuredAt <= nextDate)
-    const priorHeight = metricRecords(priorRecords, 'height').at(-1)?.heightCm
-    const priorWeight = metricRecords(priorRecords, 'weight').at(-1)?.weightKg
-    const nextHeight = existing?.heightCm == null ? priorHeight == null ? '' : priorHeight.toFixed(1) : existing.heightCm.toFixed(1)
-    const nextWeight = formatWeightKg(existing?.weightKg ?? priorWeight)
-    setMeasuredAt(nextDate); setHeight(nextHeight); setWeightKg(nextWeight); setHeightTouched(false); setWeightTouched(false); setSaveState('idle'); setMessage('')
-    initialHeightRef.current = validHeight(nextHeight) ? Number(nextHeight) : null
-  }
-
   const save = async () => {
     if (!token || !formValid || saveState === 'saving') return
     const openedMemberId = member.id
@@ -144,17 +134,17 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
     navigate('/health-profile/growth', { state: { selectedMeasure: measure, returnTo } })
   }
 
-  const selectMeasure = (nextMeasure: GrowthMeasure) => { setMeasure(nextMeasure); sessionStorage.setItem(measureKey(member.id), nextMeasure) }
+  const selectMeasure = (nextMeasure: GrowthMeasure) => { setMeasure(nextMeasure); sessionStorage.setItem(measureKey(member.id), nextMeasure); navigate(location.pathname, { replace: true, state: { ...routeState, selectedMeasure: nextMeasure } }) }
 
   const updateHeight = (value: string) => { setHeight(value); setHeightTouched(true); setSaveState('idle'); setMessage('') }
   const updateWeight = (value: string) => { setWeightKg(value); setWeightTouched(true); setSaveState('idle'); setMessage('') }
   const tabLabel = growthMetricLabel(measure, member.birthday, latest?.measuredAt)
   const recordsRange = measureItems.length ? `${measureItems[0].measuredAt.slice(5).replace('-', '/')}—${measureItems.at(-1)!.measuredAt.slice(5).replace('-', '/')}` : '暂无记录'
 
-  return <main className="app-shell health-profile-detail-shell growth-data-page"><WebPageHeader action={<HohoButton aria-label="记录列表" onClick={openRecords} size="icon" title="记录列表" variant="ghost"><List aria-hidden="true" size={21} /></HohoButton>} fallback="/health-profile" onBack={returnTo ? () => navigate(returnTo, { replace: true }) : undefined} title="成长数据" /><div className="page-content growth-data-content" ref={contentRef}>
-    <div className="growth-tabs growth-data-tabs" role="tablist" aria-label="成长指标"><button aria-selected={measure === 'height'} onClick={() => selectMeasure('height')} role="tab" type="button">身高曲线</button><button aria-selected={measure === 'weight'} onClick={() => selectMeasure('weight')} role="tab" type="button">体重曲线</button></div>
+  return <main className="app-shell health-profile-detail-shell growth-data-page"><WebPageHeader fallback="/health-profile" onBack={returnTo ? () => navigate(returnTo, { replace: true }) : undefined} title="成长数据" /><div className="page-content growth-data-content" ref={contentRef}>
+    <div className="growth-tabs growth-data-tabs"><div className="growth-data-curve-tabs" role="tablist" aria-label="成长指标"><button aria-selected={measure === 'height'} onClick={() => selectMeasure('height')} role="tab" type="button">身高曲线</button><button aria-selected={measure === 'weight'} onClick={() => selectMeasure('weight')} role="tab" type="button">体重曲线</button></div><button onClick={openRecords} type="button">记录列表</button></div>
     {loading ? <p className="growth-loading">正在加载成长数据…</p> : loadError ? <button className="growth-retry" onClick={load} type="button">{loadError}，点击重试</button> : <>
-      <section className="growth-update-form growth-data-measurement" aria-busy={saveState === 'saving'}><header><h1>记录本次测量</h1><input aria-label="测量日期" max={localToday()} onChange={(event) => setDate(event.target.value)} type="date" value={measuredAt} /></header>
+      <section className="growth-update-form growth-data-measurement" aria-busy={saveState === 'saving'}>
         <div className="growth-step-grid"><GrowthStepCard savedDate={savedGrowth.heightMeasuredAt} delta={heightDelta == null ? heightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(heightDelta)} cm`} error={!heightValid ? '请输入 20–260 cm' : ''} label={heightMeasureLabel(member.birthday, measuredAt)}>
           <button aria-label="身高减少0.1厘米" disabled={!validHeight(height) || heightAtFloor} onClick={() => updateHeight(stepHeightValue(height, -1, initialHeightRef.current))} type="button"><Minus /></button>{editing === 'height' ? <input aria-label="手动编辑身高 cm" autoFocus inputMode="decimal" max="260" min="20" onBlur={() => setEditing(null)} onChange={(event) => updateHeight(event.target.value)} step="0.1" type="number" value={height} /> : <button className="growth-step-value" onClick={() => setEditing('height')} type="button"><strong>{height || '—'}</strong><small>cm</small><Pencil aria-hidden="true" /></button>}<button aria-label="身高增加0.1厘米" disabled={!validHeight(height)} onClick={() => updateHeight(stepHeightValue(height, 1, initialHeightRef.current))} type="button"><Plus /></button>
         </GrowthStepCard><GrowthStepCard savedDate={savedGrowth.weightMeasuredAt} delta={weightDelta == null ? weightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(weightDelta)} kg`} error={!weightValid ? '请输入 1–500 kg，保留 1 位小数' : ''} label="体重">
@@ -164,7 +154,7 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
         <p className={`growth-update-message growth-update-message--${saveState}`} aria-live="polite">{saveState === 'saved' && <Check aria-hidden="true" />}{message}</p>
       </section>
       <section className="growth-data-curve" aria-label={`${tabLabel}最新记录与曲线`}>
-        <header className="growth-data-latest"><span><small>最新记录</small>{latest && <em>{latest.measuredAt} · {ageText(member.birthday, latest.measuredAt)}</em>}</span>{latestValue == null ? <strong>暂无记录</strong> : <strong>{metricDisplayValue(measure, latestValue)} <i>{latestPosition?.percentileLabel ?? '暂无百分位'}</i></strong>}<p className="growth-data-reference" title="WHO 儿童生长标准（2006），同性别、测量时月龄的 P50 中位数">标准参考值：{referenceValue == null ? '暂不可用' : `${referenceValue.toFixed(1)}${measure === 'height' ? 'cm' : 'kg'}`}</p></header>
+        <header className="growth-data-latest"><span><small>最新记录</small>{latest && <em>{latest.measuredAt} · {ageText(member.birthday, latest.measuredAt)}</em>}</span><div className="growth-data-latest-value">{latestValue == null ? <strong>暂无记录</strong> : <strong>{metricDisplayValue(measure, latestValue)} <i>{latestPosition?.percentileLabel ?? '暂无百分位'}</i></strong>}<p className="growth-data-reference" title="WHO 儿童生长标准（2006），同性别、测量时月龄的 P50 中位数">标准参考值：{referenceValue == null ? '暂不可用' : `${referenceValue.toFixed(1)}${measure === 'height' ? 'cm' : 'kg'}`}</p></div></header>
         <GrowthCurveChart measure={measure} member={member} records={records} />
       </section>
       <section className="growth-interpretation" aria-label={`${tabLabel}成长解读`}><header><h2>成长解读</h2><small>依据 {measureItems.length} 条记录 · {recordsRange}</small></header><dl><div><dt>这次记录</dt><dd>{interpretation.latest}</dd></div><div><dt>与上次相比</dt><dd>{interpretation.comparison}</dd></div><div><dt>这些记录能说明什么</dt><dd>{interpretation.observation}</dd></div><div><dt>接下来怎么做</dt><dd>{interpretation.next}</dd></div></dl><p>参考：WHO 儿童生长标准。百分位需结合准确月龄和测量方式理解。</p></section>

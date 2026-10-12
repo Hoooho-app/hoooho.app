@@ -33,14 +33,14 @@ test('健康档案首页复用健康随记的记录对象页头并直接衔接�
 
 test('成长数据合并曲线、录入和记录列表入口', () => {
   assert.match(editor, /title="成长数据"/)
-  assert.match(editor, /WebPageHeader action=\{<HohoButton aria-label="记录列表"/)
+  assert.match(editor, /体重曲线<\/button><\/div><button onClick=\{openRecords\} type="button">记录列表/)
   assert.doesNotMatch(editor, /growth-record-list-entry|查看历史 · 编辑 · 删除/)
   assert.match(editor, /保存本次更新/)
   assert.match(editor, /已保存，并加入成长记录/)
   assert.match(editor, /growthMeasurementService\.upsert/)
   assert.match(editor, /heightMeasureLabel\(member\.birthday, measuredAt\)/)
   assert.match(editor, /<small>kg<\/small>/)
-  assert.match(editor, /aria-label="测量日期"/)
+  assert.doesNotMatch(editor, /aria-label="测量日期"|记录本次测量|WebPageHeader action=/)
   assert.doesNotMatch(editor, /growth-update-member|点击数值可手动编辑|<label>测量日期|<small>g<\/small>|血型/)
   assert.match(polish, /\.growth-data-content \{[^}]*align-content: start/)
   assert.doesNotMatch(editor, /今日成长落点|填写后自动保存|查看完整成长曲线|头围|腰围|体脂率/)
