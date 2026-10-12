@@ -13,7 +13,7 @@ import type { VisitChapterId, VisitSheet } from "../../types/visitSheet";
 import { formatAgeFromBirthday } from "../../utils/formatAgeFromBirthday";
 import { FactLineChart } from "../../components/design-system/FactCharts";
 import { reportTime } from "./ReportChapter";
-import { ReportPhotos } from "./ReportPhotos";
+import { CurrentSituation } from "./CurrentSituation";
 import { growthReading, visitSignature } from "./reportCopy";
 export const readingCards = [
   { id: "overview", title: "目前情况" },
@@ -26,6 +26,8 @@ export type ReadingEditor =
   | "association"
   | "question"
   | "current"
+  | "symptoms"
+  | "diet"
   | "course"
   | "data";
 export function visibleReadingCards(report: VisitSheet) {
@@ -50,7 +52,7 @@ export function VisitReading({
   report: VisitSheet;
   token: string;
   onEvidence: (ids: string[]) => void;
-  onEdit: (kind: ReadingEditor) => void;
+  onEdit: (kind: ReadingEditor, line?: number) => void;
   onMedia: (id: string) => void;
   onChoose: () => void;
   onMedications: () => void;
@@ -68,8 +70,6 @@ export function VisitReading({
   const currentMember = useAppStore((s) =>
     s.members.find((m) => m.id === report.memberId),
   );
-  const description = report.reading?.description || report.caseDetails?.description || report.complaint;
-  const showComplaint = !description.replace(/\s+/g, "").startsWith(report.complaint.replace(/\s+/g, ""));
   const reading = report.reading,
     questions = report.question.split("\n").filter((line) => line.trim()),
     groups = reading?.courseGroups ?? [],
@@ -178,72 +178,8 @@ export function VisitReading({
         <Cross size={19} />,
         "current",
         "",
-        <>
-          <div className="visit-reading-case">
-            <div className="visit-reading-description-head">
-              <span>情况描述</span>
-              <button className="visit-reading-edit" disabled={busy} aria-label="编辑目前情况" onClick={() => onEdit("current")}><Pencil size={14} />编辑</button>
-            </div>
-            {showComplaint && <p className="visit-reading-complaint"><span>本次主诉：</span>{report.complaint}</p>}
-            <p>{description}</p>
-          </div>
-          {!!reading?.keywords?.length && (
-            <div className="visit-reading-keywords" aria-label="症状关键词">
-              {reading.keywords.map((keyword) => (
-                <span key={keyword}>{keyword}</span>
-              ))}
-            </div>
-          )}
-          {reading &&
-            [reading.onset, reading.change, reading.other].some(Boolean) && (
-              <dl className="visit-reading-facts">
-                {(
-                  [
-                    ["开始时间", reading.onset],
-                    ["最近变化", reading.change],
-                    ["其他表现", reading.other],
-                  ] as const
-                )
-                  .filter(([, value]) => value)
-                  .map(([label, value]) => (
-                    <div key={label}>
-                      <dt>{label}</dt>
-                      <dd>{value}</dd>
-                    </div>
-                  ))}
-              </dl>
-            )}
-          <ReportPhotos
-            report={report}
-            token={token}
-            onChoose={onChoose}
-            onOpen={onMedia}
-          />
-          <div className="visit-reading-actions">
-            <button
-              className="visit-text-action"
-              disabled={busy}
-              onClick={() => onEdit("focus")}
-            >
-              更改主诉
-            </button>
-            <button
-              className="visit-text-action"
-              disabled={busy}
-              onClick={onChoose}
-            >
-              添加影像
-            </button>
-            {!!reading?.sourceIds.length && (
-              <button
-                className="visit-text-action"
-                onClick={() => onEvidence(reading.sourceIds)}
-              >
-                查看原话
-              </button>
-            )}
-          </div>
-        </>,
+        <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia}/>,
+
       )}
       {card(
         "medication",

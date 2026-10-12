@@ -101,6 +101,8 @@ export interface VisitReadingGroup {
 }
 export interface VisitArchiveGroup { id:string;title:string;items:Array<{title:string;detail:string;sourceIds:string[]}> }
 export interface VisitSheet {
+  currentSituation?: {scopeKey:string;description:string;symptoms:CurrentSituationLine[];diet:CurrentSituationLine[];changes:CurrentSituationLine[];treatment:CurrentSituationLine[];raw:Array<{text:string;sourceId:string}>}
+  currentSituationEdits?: Record<string,Partial<Record<'description'|'symptoms'|'diet',string>>>
   reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null;keywords?:string[];courseGroups?:VisitReadingGroup[];archive?:VisitArchiveGroup[];questionCandidates?:string[];contextRange?:{from:string|null;to:string|null}}
   caseDetails?: {description?:string;onset?:string;change?:string;other?:string}
   selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
@@ -155,6 +157,7 @@ export interface VisitSheet {
     at: string
   }>
 }
+export interface CurrentSituationLine {text:string;kind?:string;emphasize?:boolean;sourceIds:string[]}
 export interface VisitSheetState {
   updateCandidate?: {id:string;report:VisitSheet}
   scopePreview?: {sourceCount:number;totalSources:number;focusAvailable:boolean;excludedPhotos:number}
