@@ -25,6 +25,7 @@ test('完成任务进入归档而拒绝建议不进入归档', () => {
 
 test('守护天数按本地自然日计算并安全处理无效日期', () => {
   assert.equal(getGuardedDays('2026-09-10T23:30:00+08:00', new Date('2026-09-12T00:05:00+08:00')), 3)
-  assert.equal(getGuardedDays('not-a-date', new Date('2026-09-12T00:05:00+08:00')), 1)
-  assert.equal(getGuardedDays(null), 1)
+  assert.equal(getGuardedDays('not-a-date', new Date('2026-09-12T00:05:00+08:00')), '—')
+  assert.equal(getGuardedDays(null), '—')
+  assert.equal(getGuardedDays('2026-09-12T00:01:00+08:00', new Date('2026-09-12T00:05:00+08:00')), 1)
 })
