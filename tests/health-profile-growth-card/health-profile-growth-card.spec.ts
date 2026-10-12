@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { exactAgeInMonths, growthValueAtZScore } from '../../src/features/health-profile/utils/childGrowthReference'
 
 const today = () => new Date().toLocaleDateString('sv-SE')
 
 test('growth data hub saves, explains, preserves drafts and manages history', async ({ page }, testInfo) => {
+  test.skip(!!process.env.GROWTH_LIVE_BASE_URL, 'Real persistence acceptance runs only against isolated local data')
   const suffix = Date.now().toString().slice(-8)
   await page.goto('/login')
   await page.getByRole('tab', { name: '注册' }).click()
@@ -25,6 +27,15 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await expect(page.getByText('成长解读')).toBeVisible()
   await expect(page.getByText(/当前没有数据，不能判断位置或趋势/)).toBeVisible()
   await expect(page.locator('.growth-step-card__heading time')).toHaveCount(0)
+  await expect(page.locator('.growth-data-reference')).toHaveText('标准参考值：暂不可用')
+  await expect(page.locator('.growth-record-list-entry')).toHaveCount(0)
+  const recordsEntry = page.getByRole('button', { name: '记录列表', exact: true })
+  await expect(page.locator('.hoho-page-header').getByRole('button', { name: '记录列表' })).toBeVisible()
+  const entryBox = await recordsEntry.boundingBox()
+  expect(entryBox!.width).toBeGreaterThanOrEqual(44)
+  expect(entryBox!.height).toBeGreaterThanOrEqual(44)
+  expect(await page.locator('.growth-data-content > section').first().getAttribute('class')).toContain('growth-data-measurement')
+  expect(await page.getByLabel('测量日期').evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeLessThan(16)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(testInfo.project.use.viewport?.width ?? 1280)
 
   const historyLength = await page.evaluate(() => history.length)
@@ -42,6 +53,11 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.getByRole('button', { name: '保存本次更新' }).click()
   await expect(page.getByText('已保存，并加入成长记录')).toBeVisible()
   await expect(page.locator('.growth-data-latest')).toContainText('82.0 cm')
+  const ageInMonths = exactAgeInMonths('2024-01-15', today())!
+  const heightReference = growthValueAtZScore({ ageInMonths, gender: 'female', measure: 'height', zScore: 0 })!.toFixed(1)
+  const weightReference = growthValueAtZScore({ ageInMonths, gender: 'female', measure: 'weight', zScore: 0 })!.toFixed(1)
+  await expect(page.locator('.growth-data-reference')).toHaveText(`标准参考值：${heightReference}cm`)
+  expect(await page.locator('.growth-data-reference').evaluate(element => getComputedStyle(element).textAlign)).toBe('right')
   await expect(page.locator('.growth-chart-record')).toHaveCount(1)
   for (const card of await page.locator('.growth-step-card').all()) {
     await expect(card.locator('time')).toHaveAttribute('datetime', today())
@@ -72,6 +88,7 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.getByRole('tab', { name: '体重曲线' }).click()
   await expect(page.getByRole('button', { name: '10.8 kg', exact: true })).toBeVisible()
   await expect(page.locator('.growth-data-latest')).toContainText('11.0 kg')
+  await expect(page.locator('.growth-data-reference')).toHaveText(`标准参考值：${weightReference}kg`)
   await page.getByRole('tab', { name: '身高曲线' }).click()
   await expect(page.getByRole('button', { name: '80.0 cm', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '保存本次更新' }).click()
@@ -96,7 +113,8 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.reload()
   await expect(page.locator('.growth-chart-record')).toHaveCount(2)
   await expect(page.locator('.growth-data-latest')).toContainText('11.0 kg')
-  await page.getByRole('button', { name: /记录列表.*2 条/ }).click()
+  await recordsEntry.focus()
+  await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { name: '记录列表' })).toBeVisible()
   await expect(page.locator('.growth-record-row')).toHaveCount(2)
   await expect(page.locator('.growth-record-row').first()).toContainText(`最新 · ${today()}`)
@@ -109,7 +127,7 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await expect(page.getByRole('heading', { name: '成长数据' })).toBeVisible()
   await expect(page.getByRole('tab', { name: '体重曲线' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.growth-chart-record')).toHaveCount(2)
-  await page.getByRole('button', { name: /记录列表.*2 条/ }).click()
+  await recordsEntry.click()
 
   await page.getByRole('button', { name: '编辑' }).first().click()
   await expect(page.getByRole('dialog')).toBeVisible()

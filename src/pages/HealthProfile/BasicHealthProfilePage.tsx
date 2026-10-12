@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronRight, List, Minus, Pencil, Plus } from 'lucide-react'
+import { Check, List, Minus, Pencil, Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton } from '../../components/design-system'
-import { calculateGrowthPosition, exactAgeInMonths, heightMeasureLabel } from '../../features/health-profile/utils/childGrowthReference'
+import { calculateGrowthPosition, exactAgeInMonths, growthValueAtZScore, heightMeasureLabel } from '../../features/health-profile/utils/childGrowthReference'
 import { requiresMeasurementConfirmation } from '../../features/health-profile/utils/growthTrend'
 import { resolveCurrentGrowthMeasurements, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import { familyMemberService } from '../../services/familyMembers'
@@ -91,6 +91,7 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
   const measureItems = useMemo(() => metricRecords(records, measure), [measure, records]), latest = measureItems.at(-1)
   const latestValue = latest ? (measure === 'height' ? latest.heightCm : latest.weightKg) : null
   const latestPosition = latest && latestValue != null ? calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: latest.measuredAt, measure, value: latestValue }) : null
+  const referenceValue = latestPosition && member.gender ? growthValueAtZScore({ ageInMonths: latestPosition.ageInMonths, gender: member.gender, measure, zScore: 0 }) : null
   const interpretation = useMemo(() => buildGrowthInterpretation({ member, measure, records, position: latestPosition }), [latestPosition, measure, member, records])
   const dateRecord = records.find((item) => item.measuredAt === measuredAt)
   const previousHeight = metricRecords(records.filter((item) => item.measuredAt < measuredAt), 'height').at(-1)
@@ -150,13 +151,9 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
   const tabLabel = growthMetricLabel(measure, member.birthday, latest?.measuredAt)
   const recordsRange = measureItems.length ? `${measureItems[0].measuredAt.slice(5).replace('-', '/')}—${measureItems.at(-1)!.measuredAt.slice(5).replace('-', '/')}` : '暂无记录'
 
-  return <main className="app-shell health-profile-detail-shell growth-data-page"><WebPageHeader fallback="/health-profile" onBack={returnTo ? () => navigate(returnTo, { replace: true }) : undefined} title="成长数据" /><div className="page-content growth-data-content" ref={contentRef}>
+  return <main className="app-shell health-profile-detail-shell growth-data-page"><WebPageHeader action={<HohoButton aria-label="记录列表" onClick={openRecords} size="icon" title="记录列表" variant="ghost"><List aria-hidden="true" size={21} /></HohoButton>} fallback="/health-profile" onBack={returnTo ? () => navigate(returnTo, { replace: true }) : undefined} title="成长数据" /><div className="page-content growth-data-content" ref={contentRef}>
     <div className="growth-tabs growth-data-tabs" role="tablist" aria-label="成长指标"><button aria-selected={measure === 'height'} onClick={() => selectMeasure('height')} role="tab" type="button">身高曲线</button><button aria-selected={measure === 'weight'} onClick={() => selectMeasure('weight')} role="tab" type="button">体重曲线</button></div>
     {loading ? <p className="growth-loading">正在加载成长数据…</p> : loadError ? <button className="growth-retry" onClick={load} type="button">{loadError}，点击重试</button> : <>
-      <section className="growth-data-curve" aria-label={`${tabLabel}最新记录与曲线`}>
-        <header className="growth-data-latest"><span><small>最新记录</small>{latest && <em>{latest.measuredAt} · {ageText(member.birthday, latest.measuredAt)}</em>}</span>{latestValue == null ? <strong>暂无记录</strong> : <strong>{metricDisplayValue(measure, latestValue)} <i>{latestPosition?.percentileLabel ?? '暂无百分位'}</i></strong>}</header>
-        <GrowthCurveChart measure={measure} member={member} records={records} />
-      </section>
       <section className="growth-update-form growth-data-measurement" aria-busy={saveState === 'saving'}><header><h1>记录本次测量</h1><input aria-label="测量日期" max={localToday()} onChange={(event) => setDate(event.target.value)} type="date" value={measuredAt} /></header>
         <div className="growth-step-grid"><GrowthStepCard savedDate={savedGrowth.heightMeasuredAt} delta={heightDelta == null ? heightTouched ? '暂无上次记录' : '调整后显示变化' : `较上次 ${formatSigned(heightDelta)} cm`} error={!heightValid ? '请输入 20–260 cm' : ''} label={heightMeasureLabel(member.birthday, measuredAt)}>
           <button aria-label="身高减少0.1厘米" disabled={!validHeight(height) || heightAtFloor} onClick={() => updateHeight(stepHeightValue(height, -1, initialHeightRef.current))} type="button"><Minus /></button>{editing === 'height' ? <input aria-label="手动编辑身高 cm" autoFocus inputMode="decimal" max="260" min="20" onBlur={() => setEditing(null)} onChange={(event) => updateHeight(event.target.value)} step="0.1" type="number" value={height} /> : <button className="growth-step-value" onClick={() => setEditing('height')} type="button"><strong>{height || '—'}</strong><small>cm</small><Pencil aria-hidden="true" /></button>}<button aria-label="身高增加0.1厘米" disabled={!validHeight(height)} onClick={() => updateHeight(stepHeightValue(height, 1, initialHeightRef.current))} type="button"><Plus /></button>
@@ -166,8 +163,11 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
         <HohoButton className="growth-update-save" disabled={!formValid} fullWidth loading={saveState === 'saving'} onClick={() => void save()} size="large">保存本次更新</HohoButton>
         <p className={`growth-update-message growth-update-message--${saveState}`} aria-live="polite">{saveState === 'saved' && <Check aria-hidden="true" />}{message}</p>
       </section>
+      <section className="growth-data-curve" aria-label={`${tabLabel}最新记录与曲线`}>
+        <header className="growth-data-latest"><span><small>最新记录</small>{latest && <em>{latest.measuredAt} · {ageText(member.birthday, latest.measuredAt)}</em>}</span>{latestValue == null ? <strong>暂无记录</strong> : <strong>{metricDisplayValue(measure, latestValue)} <i>{latestPosition?.percentileLabel ?? '暂无百分位'}</i></strong>}<p className="growth-data-reference" title="WHO 儿童生长标准（2006），同性别、测量时月龄的 P50 中位数">标准参考值：{referenceValue == null ? '暂不可用' : `${referenceValue.toFixed(1)}${measure === 'height' ? 'cm' : 'kg'}`}</p></header>
+        <GrowthCurveChart measure={measure} member={member} records={records} />
+      </section>
       <section className="growth-interpretation" aria-label={`${tabLabel}成长解读`}><header><h2>成长解读</h2><small>依据 {measureItems.length} 条记录 · {recordsRange}</small></header><dl><div><dt>这次记录</dt><dd>{interpretation.latest}</dd></div><div><dt>与上次相比</dt><dd>{interpretation.comparison}</dd></div><div><dt>这些记录能说明什么</dt><dd>{interpretation.observation}</dd></div><div><dt>接下来怎么做</dt><dd>{interpretation.next}</dd></div></dl><p>参考：WHO 儿童生长标准。百分位需结合准确月龄和测量方式理解。</p></section>
-      <button className="growth-record-list-entry" onClick={openRecords} type="button"><i><List aria-hidden="true" /></i><span><strong>记录列表</strong><small>查看历史 · 编辑 · 删除</small></span><b>{records.length} 条</b><ChevronRight aria-hidden="true" /></button>
     </>}
   </div></main>
 }

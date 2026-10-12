@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { calculateGrowthPosition, exactAgeInMonths, growthReferenceMessage, heightMeasureLabel, WHO_CHILD_GROWTH_STANDARD } from './childGrowthReference.ts'
+import { calculateGrowthPosition, exactAgeInMonths, growthReferenceMessage, growthValueAtZScore, heightMeasureLabel, WHO_CHILD_GROWTH_STANDARD } from './childGrowthReference.ts'
 
 test('23个月与24个月准确切换身长和身高', () => {
   assert.equal(heightMeasureLabel('2024-01-15', '2025-12-14'), '身长')
@@ -30,4 +30,13 @@ test('极端百分位不会被描述成常见参考区间', () => {
   assert.match(growthReferenceMessage(3), /超出主要参考区间/)
   assert.doesNotMatch(growthReferenceMessage(-3), /常见参考区间/)
   assert.equal(growthReferenceMessage(0), '参考区间中部')
+})
+
+test('WHO P50 参考值使用对应性别、指标和测量月龄的中位数', () => {
+  assert.equal(growthValueAtZScore({ ageInMonths: 12, gender: 'female', measure: 'height', zScore: 0 }), 74.015)
+  assert.equal(growthValueAtZScore({ ageInMonths: 12, gender: 'male', measure: 'height', zScore: 0 }), 75.7488)
+  assert.equal(growthValueAtZScore({ ageInMonths: 12, gender: 'female', measure: 'weight', zScore: 0 }), 8.9481)
+  assert.equal(growthValueAtZScore({ ageInMonths: 12.5, gender: 'female', measure: 'height', zScore: 0 }), (74.015 + 75.2176) / 2)
+  assert.equal(growthValueAtZScore({ ageInMonths: 61, gender: 'female', measure: 'height', zScore: 0 }), null)
+  assert.equal(growthValueAtZScore({ ageInMonths: 12, gender: 'undisclosed', measure: 'weight', zScore: 0 }), null)
 })

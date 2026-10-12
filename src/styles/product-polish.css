@@ -46,13 +46,14 @@
 .growth-data-latest em { overflow: hidden; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .growth-data-latest > strong { color: rgb(var(--hoho-color-text-primary)); font-size: 27px; letter-spacing: -.04em; line-height: 1.1; }
 .growth-data-latest > strong i { margin-left: 8px; color: rgb(var(--hoho-color-text-secondary)); font-size: 13px; font-style: normal; letter-spacing: 0; }
+.growth-data-reference { margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: 1.4; text-align: right; }
 .growth-data-curve .growth-curve-chart { margin-top: 0; }
 .growth-data-curve .growth-curve-chart svg { min-height: 250px; }
 .growth-data-curve .growth-chart-footnote { margin: -1px 4px 0; font-size: 10px; line-height: 1.45; text-align: center; }
 .growth-data-measurement { border: 1px solid rgb(var(--hoho-color-primary-border) / .72); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface)); padding: 10px; }
 .growth-data-measurement > header { padding-top: 0; }
 .growth-data-measurement > header h1 { font-size: 15px; }
-.growth-data-measurement > header input { width: 116px; font-size: 12px; }
+.growth-update-form.growth-data-measurement > header input { width: 116px; min-height: 44px; font-size: var(--hoho-font-size-caption); }
 .growth-data-measurement .growth-step-card { min-height: 116px; border-color: rgb(var(--hoho-color-border)); box-shadow: none; }
 .growth-data-measurement .growth-update-message:empty { display: none; }
 .growth-interpretation { display: grid; gap: 9px; border: 1px solid rgb(var(--hoho-color-primary-border) / .62); border-radius: var(--hoho-radius-card); background: linear-gradient(145deg, rgb(var(--hoho-color-surface)), rgb(var(--hoho-color-primary-soft) / .34)); padding: 13px; }
