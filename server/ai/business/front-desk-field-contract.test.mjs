@@ -26,3 +26,17 @@ test('explicit symptoms, clock phrases and human edits are never reclassified',(
  const manual={category:'symptom',categoryEditedBy:'user',fields:[{name:'food',value:'粥'}]};assert.equal(reconcileFrontDeskFields(manual).category,'symptom')
  for(const field of [{name:'sleepAt',value:'昨天13:00'},{name:'sleepAt',value:'一个小时',editedBy:'user'}])assert.equal(reconcileFrontDeskFields({category:'sleep',fields:[field]}).fields[0].name,'sleepAt')
 })
+
+test('front-desk quoted duration rejects invented minute values and retains a retryable exact draft',async t=>{
+ const dataDirectory=await mkdtemp(path.join(os.tmpdir(),'hoooho-front-duration-'));t.after(()=>rm(dataDirectory,{recursive:true,force:true}))
+ const member=await new FamilyMemberRepository(dataDirectory).create({accountId:'synthetic',name:'小禾（虚构）',relationship:'child'})
+ const text='Yesterday she slept for one hour.',calls=[]
+ const model={structured:async input=>{calls.push(input);return {value:{items:[{category:'sleep',title:'睡眠时长',timeText:'Yesterday',archiveCategory:null,subject:'current',relationKey:null,fields:[{name:'durationMinutes',value:'60',quote:'slept for one hour',sourceId:'input',page:1}]}]},diagnostics:{provider:'test'}}}}
+ const service=new AIBusinessService({dataDirectory,model})
+ const retained=await service.prepare('synthetic',member.id,{text,smartRecord:true,frontDeskRecord:true,deferRecognition:true})
+ await assert.rejects(()=>service.prepare('synthetic',member.id,{text,id:retained.id,version:retained.version}),{code:'AI_EVIDENCE_MISMATCH'})
+ const failed=await service.get('synthetic',member.id,retained.id);assert.equal(failed.state,'failed');assert.equal(failed.raw,text);assert.equal(failed.items.length,0)
+ assert.ok(calls[0].instructions.includes('时长字段durationMinutes的value'))
+ await assert.rejects(()=>service.prepare('synthetic',member.id,{text,smartRecord:true}),{code:'AI_EVIDENCE_MISMATCH'})
+ assert.equal(calls[1].instructions.includes('时长字段durationMinutes的value'),false,'other extraction entrypoints keep their existing instruction')
+})
