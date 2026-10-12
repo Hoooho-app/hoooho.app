@@ -31,6 +31,18 @@ test('强调提示安全归一化保留完整事实，不能突出被否定症�
  for(const emphasis of ['not-array',[1],['a','b','c','d']]){const invalid=situationOutput();invalid.currentSituation.symptoms[0].emphasis=emphasis;assert.throws(()=>normalizeMedicalSummary(invalid,input),error=>error.validation.stage==='schema_validation')}
  for(const text of ['37.5℃','确诊湿疹']){const invalid=situationOutput();invalid.currentSituation.symptoms[2].text=text;invalid.currentSituation.symptoms[2].emphasis=['不存在的片段'];assert.throws(()=>normalizeMedicalSummary(invalid,input))}
 })
+
+test('家长或家属猜测保持相邻备注与原文引用，具体诊断及错误引用仍拒绝',()=>{
+ for(const note of ['家长猜测是痱子，也可能是热疹或湿疹。','家属推测是痱子，也不确定是否为热疹或湿疹。','记录者猜想是痱子或热疹、湿疹。']){
+  const value=situationOutput();value.currentSituation.symptoms[1].note=note
+  assert.equal(normalizeMedicalSummary(value,input).currentSituation.symptoms[1].note,note)
+ }
+ const cases=[{note:'家长猜测是痱子。',noteQuote:'',field:'noteQuote',rule:'missing_guess_quote'},{note:'家长猜测是痱子。',noteQuote:'private-noncontiguous-quote',field:'noteQuote',rule:'guess_quote_not_in_source'},{note:'家长确诊湿疹。',field:'text',rule:'uncertainty_lost'},{note:'猜测是痱子。',field:'note',rule:'guess_attribution_missing'}]
+ for(const mutation of cases){const value=situationOutput();const row=value.currentSituation.symptoms[1];row.note=mutation.note;if(Object.hasOwn(mutation,'noteQuote'))row.noteQuote=mutation.noteQuote;assert.throws(()=>normalizeMedicalSummary(value,input),error=>error.validation.fieldPath===`/currentSituation/symptoms/1/${mutation.field}`&&error.validation.rule===mutation.rule)}
+ for(const note of ['妈妈猜测是痱子。','爸爸推测是痱子。','父母猜想是痱子。']){const value=situationOutput();value.currentSituation.symptoms[1].note=note;assert.throws(()=>normalizeMedicalSummary(value,input),error=>error.validation.rule==='guess_attribution_missing')}
+ const certain=situationOutput();certain.currentSituation.symptoms[2].note='家属描述体温正常。';certain.currentSituation.symptoms[2].noteQuote='体温是正常的'
+ assert.throws(()=>normalizeMedicalSummary(certain,input),error=>error.validation.fieldPath==='/currentSituation/symptoms/2/note'&&error.validation.rule==='guess_uncertainty_lost')
+})
 test('目前情况仅请求严格局部结构，普通摘要契约与连续调用保持隔离',async()=>{
  const bodies=[];const provider=new OpenAIProvider({apiKey:'test',fetchImpl:async(_,init)=>{const body=JSON.parse(init.body);bodies.push(body);return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify(body.text.format.schema.properties.currentSituation?situationOutput():ordinaryOutput())}]}]})}})
  const result=await provider.summarizeMedicalPreparation(input);assert.equal(result.currentSituation.symptoms.length,3);assert.deepEqual(Object.keys(result),['currentSituation'])
@@ -64,6 +76,7 @@ test('V2校验诊断穿过摘要服务，仅记录固定字段和规则，不记
   {change:r=>r.currentSituation.symptoms[2].text='37.5℃',path:'/currentSituation/symptoms/2/text',rule:'unverified_number'},
   {change:r=>r.currentSituation['private-invalid-key']='private-invalid-body',path:'/currentSituation',reason:'additionalProperties'},
   {change:r=>r['private-invalid-key']='private-invalid-body',path:'/',reason:'additionalProperties'},
+  {change:r=>r.currentSituation.symptoms[1].noteQuote='private-invalid-quote',path:'/currentSituation/symptoms/1/noteQuote',rule:'guess_quote_not_in_source'},
  ]
  for(const fixture of fixtures){
   const logs=[],body=situationOutput();fixture.change(body);let calls=0
@@ -74,6 +87,7 @@ test('V2校验诊断穿过摘要服务，仅记录固定字段和规则，不记
    assert.equal(error.validation.fieldPath,fixture.path)
    if(fixture.rule)assert.equal(error.validation.rule,fixture.rule)
    if(fixture.reason)assert.equal(error.validation.reason,fixture.reason)
+   assert.equal(error.preview.status,'unverified');assert.equal(error.preview.issues[0].fieldPath,fixture.path)
    assert.doesNotMatch(JSON.stringify(error),/private-invalid|fixture-only-secret|牛肉|头晕|37\.5/)
    return true
   })

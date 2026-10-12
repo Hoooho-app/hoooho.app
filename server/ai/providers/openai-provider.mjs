@@ -219,7 +219,7 @@ export class OpenAIProvider {
       failure.upstream=upstream
       const rule=diagnostic.rule??rules[error.message]
       if(rule)failure.validation.rule=rule
-      const quarantined=quarantinePreview(preview??readablePreview(text,{provider:this.name,model:this.model,requestId:upstream.requestId}),{stage:'semantic_validation',fieldPath:'/summary'})
+      const quarantined=quarantinePreview(preview??readablePreview(text,{provider:this.name,model:this.model,requestId:upstream.requestId}),{stage:diagnostic.stage,fieldPath:diagnostic.fieldPath})
       if(quarantined&&error.issueMessage)quarantined.issues[0].message=error.issueMessage
       Object.defineProperty(failure,'preview',{value:quarantined,enumerable:false})
       throw failure

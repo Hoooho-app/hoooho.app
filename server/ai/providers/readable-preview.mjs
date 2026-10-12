@@ -34,6 +34,21 @@ export function readablePreview(content, metadata = {}) {
     }
     for (const point of Array.isArray(value.keyPoints) ? value.keyPoints.slice(0,12) : []) add(typeof point === 'string' ? point : point?.text)
     for (const line of Array.isArray(value.missingInformation) ? value.missingInformation.slice(0,20) : []) if(typeof line==='string') add(`待补充：${line}`)
+    if(value.currentSituation&&typeof value.currentSituation==='object'&&!Array.isArray(value.currentSituation)){
+      for(const [key,title,limit] of [['description','情况描述',6],['symptoms','症状表现',12],['diet','近期饮食',12],['changes','发生变化',12],['treatment','已做处理',12],['keywords','关键词',8]]){
+        const rows=value.currentSituation[key]
+        if(rows===undefined)continue
+        if(!Array.isArray(rows)||rows.length>limit||rows.some(row=>!row||typeof row!=='object'||Array.isArray(row)||typeof row.text!=='string'||['label','note','quote','noteQuote'].some(field=>row[field]!==undefined&&typeof row[field]!=='string')))return null
+        if(rows.length)add(`${title}（未验证）：`)
+        for(const row of rows){
+          if(key==='symptoms'&&typeof row.label==='string'&&row.label)add(`模型分类（未验证）：${row.label}`)
+          add(row.text)
+          if(typeof row.note==='string'&&row.note)add(`模型备注（未验证）：${row.note}`)
+          if(typeof row.quote==='string'&&row.quote)add(`模型引用（未验证）：${row.quote}`)
+          if(typeof row.noteQuote==='string'&&row.noteQuote)add(`备注引用（未验证）：${row.noteQuote}`)
+        }
+      }
+    }
   }
   const text = lines.join('\n')
   if (!text || text.length > 24000) return null // No silent truncation.
