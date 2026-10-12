@@ -1,10 +1,11 @@
 import { dietaryCopy, presentDietaryCard, translateFood, type DietaryCardLanguage, type DietaryCardSnapshot } from './dietaryCardModel'
+import { getDietaryFoodIcon, loadDietaryFoodIcon, type DietaryFoodIdentity } from './dietaryFoodIcons'
 
 export interface DietaryCardExportLayout {
   width: number
   height: number
   texts: string[]
-  rows: Array<{ group: 'avoid' | 'temporary'; labels: string[]; rowHeights: number[] }>
+  rows: Array<{ group: 'avoid' | 'temporary'; labels: string[]; foods: DietaryFoodIdentity[]; rowHeights: number[] }>
 }
 
 const width = 1200
@@ -32,7 +33,7 @@ export function buildDietaryCardExportLayout(snapshot: DietaryCardSnapshot, lang
     .filter(([, items]) => items.length)
     .map(([group, items]) => {
       const labels = items.map((item) => translateFood(item, language))
-      return { group, labels, rowHeights: exportRowHeights(labels) }
+      return { group, labels, foods: items, rowHeights: exportRowHeights(labels) }
     })
   const groupsHeight = rows.reduce((sum, row) => sum + groupBaseHeight + (row.group === 'temporary' ? 32 : 0) + row.rowHeights.reduce((height, value) => height + value, 0), 0)
   const height = Math.max(900, 380 + groupsHeight)
@@ -66,21 +67,26 @@ function drawCenteredLines(context: CanvasRenderingContext2D, text: string, cent
   return lines.length
 }
 
-function drawFoodItem(context: CanvasRenderingContext2D, label: string, x: number, y: number, itemWidth: number, itemHeight: number, group: 'avoid' | 'temporary') {
+function drawFoodItem(context: CanvasRenderingContext2D, label: string, x: number, y: number, itemWidth: number, itemHeight: number, group: 'avoid' | 'temporary', image: HTMLImageElement | null) {
   const background = group === 'avoid' ? '#FFF8F6' : '#FFFBEE'
   const accent = group === 'avoid' ? '#FF7164' : '#F3A70C'
   roundRect(context, x, y, itemWidth, itemHeight, 18)
   context.fillStyle = background
   context.fill()
-  context.fillStyle = accent
-  context.beginPath()
-  context.arc(x + 48, y + itemHeight / 2, 27, 0, Math.PI * 2)
-  context.fill()
-  context.fillStyle = '#FFFFFF'
-  context.font = '600 25px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
+  if (image) context.drawImage(image, x + 8, y + (itemHeight - 80) / 2, 80, 80)
+  else {
+    context.fillStyle = accent
+    context.beginPath()
+    context.arc(x + 48, y + itemHeight / 2, 27, 0, Math.PI * 2)
+    context.fill()
+    context.fillStyle = '#FFFFFF'
+    context.font = '600 25px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillText(label.trim().slice(0, 1), x + 48, y + itemHeight / 2)
+  }
   context.textAlign = 'center'
   context.textBaseline = 'middle'
-  context.fillText(label.trim().slice(0, 1), x + 48, y + itemHeight / 2)
   context.fillStyle = '#18312F'
   context.font = '600 26px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
   const lines = wrapText(context, label, itemWidth - 124)
@@ -92,6 +98,8 @@ function drawFoodItem(context: CanvasRenderingContext2D, label: string, x: numbe
 export async function createDietaryCardPng(snapshot: DietaryCardSnapshot, language: DietaryCardLanguage) {
   await document.fonts?.ready
   const layout = buildDietaryCardExportLayout(snapshot, language)
+  const iconSources = [...new Set(layout.rows.flatMap(row => row.foods.map(food => getDietaryFoodIcon(food, 144)?.src).filter((src): src is string => Boolean(src))))]
+  const images = new Map(await Promise.all(iconSources.map(async src => [src, await loadDietaryFoodIcon(src)] as const)))
   const copy = dietaryCopy[language]
   const canvas = document.createElement('canvas')
   canvas.width = layout.width
@@ -145,7 +153,8 @@ export async function createDietaryCardPng(snapshot: DietaryCardSnapshot, langua
     for (let line = 0; line < row.rowHeights.length; line += 1) {
       const lineHeight = row.rowHeights[line] - rowGap
       row.labels.slice(line * columns, line * columns + columns).forEach((label, column) => {
-        drawFoodItem(context, label, contentX + column * (itemWidth + gap), y, itemWidth, lineHeight, row.group)
+        const icon = getDietaryFoodIcon(row.foods[line * columns + column], 144)
+        drawFoodItem(context, label, contentX + column * (itemWidth + gap), y, itemWidth, lineHeight, row.group, icon ? images.get(icon.src) ?? null : null)
       })
       y += row.rowHeights[line]
     }

@@ -1,9 +1,6 @@
 import { Sprout, Sun } from 'lucide-react'
+import { DietaryFoodIcon } from './DietaryFoodIcon'
 import { dietaryCopy, presentDietaryCard, translateFood, type DietaryCardGroup, type DietaryCardLanguage, type DietaryCardSnapshot } from './dietaryCardModel'
-
-export function FoodGlyph({ name, group }: { name: string; group: DietaryCardGroup }) {
-  return <span aria-hidden="true" className="dietary-food-glyph" data-group={group}>{name.trim().slice(0, 1)}</span>
-}
 
 function FoodGroup({ group, items, language }: { group: DietaryCardGroup; items: ReturnType<typeof presentDietaryCard>['avoid']; language: DietaryCardLanguage }) {
   if (!items.length) return null
@@ -11,7 +8,7 @@ function FoodGroup({ group, items, language }: { group: DietaryCardGroup; items:
   return <section className="dietary-card-group" data-group={group}>
     <header><span aria-hidden="true" /><strong>{group === 'avoid' ? copy.avoid : copy.temporary}</strong>{group === 'temporary' && <small>{copy.pending}</small>}</header>
     <div className={`dietary-food-grid ${items.length === 1 ? 'dietary-food-grid--single' : ''}`}>
-      {items.map((item) => <div className="dietary-food-item" key={item.id}><FoodGlyph group={group} name={translateFood(item, language === 'en' ? 'en' : language.includes('Hant') ? 'zh-Hant' : 'zh')} /><strong>{translateFood(item, language)}</strong></div>)}
+      {items.map((item) => <div className="dietary-food-item" key={item.id}><DietaryFoodIcon food={item} group={group} fallbackName={translateFood(item, language === 'en' ? 'en' : language.includes('Hant') ? 'zh-Hant' : 'zh')} /><strong>{translateFood(item, language)}</strong></div>)}
     </div>
   </section>
 }

@@ -13,6 +13,7 @@ export default defineConfig({
   outputDir: '../../.codex-tmp/dietary-card-results',
   use: { baseURL: liveBaseUrl || 'http://127.0.0.1:4199', locale: 'zh-CN', serviceWorkers: 'block', timezoneId: 'Asia/Shanghai', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
+    { name: 'webkit-iphone-se', use: { ...devices['iPhone SE'], browserName: 'webkit', viewport: { width: 375, height: 667 } } },
     { name: 'iphone-se', use: { ...devices['iPhone SE'], browserName: 'chromium', launchOptions: { executablePath: chrome }, viewport: { width: 375, height: 667 } } },
     { name: 'mobile-390', use: { ...devices['iPhone 13'], browserName: 'chromium', launchOptions: { executablePath: chrome } } },
     { name: 'mobile-430', use: { ...devices['iPhone 15 Pro Max'], browserName: 'chromium', launchOptions: { executablePath: chrome } } },

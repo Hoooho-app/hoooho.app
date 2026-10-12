@@ -1,0 +1,226 @@
+[
+  {
+    "id": "orange",
+    "name": "橘子",
+    "files": {
+      "96": {
+        "path": "webp-96/orange.f4c0cfd0f3.webp",
+        "bytes": 3474
+      },
+      "144": {
+        "path": "webp-144/orange.e858abea55.webp",
+        "bytes": 5638
+      }
+    }
+  },
+  {
+    "id": "apple",
+    "name": "苹果",
+    "files": {
+      "96": {
+        "path": "webp-96/apple.eb252a46dd.webp",
+        "bytes": 2830
+      },
+      "144": {
+        "path": "webp-144/apple.6a4dca6914.webp",
+        "bytes": 4674
+      }
+    }
+  },
+  {
+    "id": "banana",
+    "name": "香蕉",
+    "files": {
+      "96": {
+        "path": "webp-96/banana.2f2f271593.webp",
+        "bytes": 2844
+      },
+      "144": {
+        "path": "webp-144/banana.2c4fab4070.webp",
+        "bytes": 4354
+      }
+    }
+  },
+  {
+    "id": "milk",
+    "name": "牛奶",
+    "files": {
+      "96": {
+        "path": "webp-96/milk.b4e9e86f22.webp",
+        "bytes": 1862
+      },
+      "144": {
+        "path": "webp-144/milk.6e5ff2407f.webp",
+        "bytes": 2754
+      }
+    }
+  },
+  {
+    "id": "egg",
+    "name": "鸡蛋",
+    "files": {
+      "96": {
+        "path": "webp-96/egg.2a1e23967e.webp",
+        "bytes": 2634
+      },
+      "144": {
+        "path": "webp-144/egg.e71882a51f.webp",
+        "bytes": 4124
+      }
+    }
+  },
+  {
+    "id": "peanut",
+    "name": "花生",
+    "files": {
+      "96": {
+        "path": "webp-96/peanut.929286dd7c.webp",
+        "bytes": 2782
+      },
+      "144": {
+        "path": "webp-144/peanut.6012e9e452.webp",
+        "bytes": 4486
+      }
+    }
+  },
+  {
+    "id": "soy",
+    "name": "大豆",
+    "files": {
+      "96": {
+        "path": "webp-96/soy.c6f3f6636f.webp",
+        "bytes": 2736
+      },
+      "144": {
+        "path": "webp-144/soy.26a640a219.webp",
+        "bytes": 4234
+      }
+    }
+  },
+  {
+    "id": "wheat",
+    "name": "小麦",
+    "files": {
+      "96": {
+        "path": "webp-96/wheat.a3dac369e0.webp",
+        "bytes": 4320
+      },
+      "144": {
+        "path": "webp-144/wheat.b6b4f0471a.webp",
+        "bytes": 7440
+      }
+    }
+  },
+  {
+    "id": "fish",
+    "name": "鱼",
+    "files": {
+      "96": {
+        "path": "webp-96/fish.45248923cf.webp",
+        "bytes": 3070
+      },
+      "144": {
+        "path": "webp-144/fish.e978adc8ca.webp",
+        "bytes": 5138
+      }
+    }
+  },
+  {
+    "id": "shrimp",
+    "name": "虾",
+    "files": {
+      "96": {
+        "path": "webp-96/shrimp.c5ac57656e.webp",
+        "bytes": 4524
+      },
+      "144": {
+        "path": "webp-144/shrimp.9467756ca1.webp",
+        "bytes": 7174
+      }
+    }
+  },
+  {
+    "id": "crab",
+    "name": "螃蟹",
+    "files": {
+      "96": {
+        "path": "webp-96/crab.50acce164d.webp",
+        "bytes": 5486
+      },
+      "144": {
+        "path": "webp-144/crab.486d552ffb.webp",
+        "bytes": 9220
+      }
+    }
+  },
+  {
+    "id": "beef",
+    "name": "牛肉",
+    "files": {
+      "96": {
+        "path": "webp-96/beef.2481d36db6.webp",
+        "bytes": 3140
+      },
+      "144": {
+        "path": "webp-144/beef.b7ff07a6a4.webp",
+        "bytes": 4978
+      }
+    }
+  },
+  {
+    "id": "lamb",
+    "name": "羊肉",
+    "files": {
+      "96": {
+        "path": "webp-96/lamb.ac2b996485.webp",
+        "bytes": 3318
+      },
+      "144": {
+        "path": "webp-144/lamb.190ddf4761.webp",
+        "bytes": 5340
+      }
+    }
+  },
+  {
+    "id": "carrot",
+    "name": "胡萝卜",
+    "files": {
+      "96": {
+        "path": "webp-96/carrot.990b884c0e.webp",
+        "bytes": 2966
+      },
+      "144": {
+        "path": "webp-144/carrot.1e1de93546.webp",
+        "bytes": 4722
+      }
+    }
+  },
+  {
+    "id": "broccoli",
+    "name": "西兰花",
+    "files": {
+      "96": {
+        "path": "webp-96/broccoli.a6b6ff56ae.webp",
+        "bytes": 3488
+      },
+      "144": {
+        "path": "webp-144/broccoli.312ccb1e54.webp",
+        "bytes": 5424
+      }
+    }
+  },
+  {
+    "id": "tomato",
+    "name": "番茄",
+    "files": {
+      "96": {
+        "path": "webp-96/tomato.d597108eb7.webp",
+        "bytes": 3548
+      },
+      "144": {
+        "path": "webp-144/tomato.0734d1d6ec.webp",
+        "bytes": 5610
+      }
+    }
+  }
+]

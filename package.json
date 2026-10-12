@@ -66,7 +66,7 @@
     "test:help": "tsc -p tsconfig.help-test.json && node --test server/help/search.test.mjs server/help/feedback-service.test.mjs server/help/help-service.test.mjs server/help/feedback-interview.test.mjs",
     "test:client": "node --import ./scripts/register-node-ts-loader.mjs --test \"src/**/*.test.ts\"",
     "test:body-locator-assets": "node scripts/check-body-locator-assets.mjs",
-    "test:image-assets": "node scripts/check-product-image-assets.mjs",
+    "test:image-assets": "node scripts/check-product-image-assets.mjs && npm run test:food-icons",
     "test:avatar-assets": "node scripts/check-child-avatar-assets.mjs && node scripts/check-clay-avatar-assets.mjs",
     "test:viewport": "node scripts/check-viewport-config.mjs",
     "test:install-app-config": "node scripts/check-install-app-config.mjs",
@@ -81,7 +81,8 @@
     "test:care-handoff": "node --test server/care-handoff/care-handoff-service.test.mjs && playwright test --config tests/care-handoff/playwright.config.ts",
     "test:profile-sync": "node --test server/health-profile/profile-section-store.test.mjs",
     "test:e2e:allergy-sync": "npm run build && playwright test --config tests/allergy-global-sync/playwright.config.ts",
-    "test:e2e:help": "playwright test --config tests/help-center/playwright.config.ts"
+    "test:e2e:help": "playwright test --config tests/help-center/playwright.config.ts",
+    "test:food-icons": "node scripts/check-dietary-food-icons.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "0.1.100",
