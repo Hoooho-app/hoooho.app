@@ -49,7 +49,7 @@ export function normalizeCurrentSituation(value,sources,checkEvidence) {
   const fail=(fieldPath,rule,stage='semantic_validation',reason='invalid_extraction')=>{
     const error=outputFailure('Unverified current situation',stage,fieldPath,reason,'INVALID_AI_SUMMARY')
     error.validation.rule=rule;throw error
-  },neg=/没有|不是|不发|未|无|否认|不头|不疼|不痛/,uncertain=/怀疑|估计|可能|疑似|不确定|不知道|待核对/
+  },neg=/没有|不是|不发|未|无|否认|不头|不疼|不痛/,uncertain=/怀疑|估计|猜测|猜想|推测|可能|疑似|不确定|不知道|待核对/
   if(!validateCurrentSituation(value)){
     const diagnostic=schemaFailureDiagnostic(currentSituationSchema,validateCurrentSituation.errors?.[0])
     throw outputFailure('Invalid current situation schema',diagnostic.stage,'/currentSituation'+diagnostic.fieldPath,diagnostic.reason,'INVALID_AI_SUMMARY')
@@ -79,7 +79,12 @@ export function normalizeCurrentSituation(value,sources,checkEvidence) {
       if(uncertain.test(context)&&/痱子|热疹|湿疹|过敏|诊断|确诊/.test(item.label)&&!uncertain.test(item.label))fail(path+'/label','uncertain_diagnosis_label')
       if(!quote.includes(item.label)&&!({症状:/./,皮肤:/皮肤|红点|疹|痒|红肿/,皮疹:/疹|红点/,体温:/体温|温度|发热|发烧|℃|°C/i,头痛:/头痛|头疼/,发热:/发热|发烧/,颈部:/颈部|脖子|脖颈/,腹部:/腹|肚/}[item.label]?.test(quote)))fail(path+'/label','unverified_label')
       if(item.kind==='temperature'&&!/体温|温度|发热|发烧|℃|°C/i.test(quote))fail(path+'/kind','unverified_temperature')
-      if(item.note&&(!item.noteQuote||!source.text.includes(item.noteQuote)||!uncertain.test(item.note)||!/家属|记录者|用户|本人/.test(item.note)))fail(path+'/note','unverified_attributed_guess')
+      if(item.note){
+        if(!item.noteQuote)fail(path+'/noteQuote','missing_guess_quote','source_validation','source_mismatch')
+        if(!source.text.includes(item.noteQuote))fail(path+'/noteQuote','guess_quote_not_in_source','source_validation','source_mismatch')
+        if(!uncertain.test(item.note))fail(path+'/note','guess_uncertainty_lost')
+        if(!/家属|家长|记录者|用户|本人/.test(item.note))fail(path+'/note','guess_attribution_missing')
+      }
       if(item.note)verify(item.note,'note')
       result.label=item.label;result.kind=item.kind;result.note=item.note
     }

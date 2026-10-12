@@ -20,3 +20,14 @@ test('不可读或含凭据的内容不投影，不虚构空结果；HTML只作�
   assert.equal(readablePreview(JSON.stringify({text:'合成资料原文'})).text,'合成资料原文')
   assert.equal(readablePreview(JSON.stringify({text:'<img onerror=alert(1)>'})).text,'<img onerror=alert(1)>')
 })
+
+test('目前情况只投影白名单事实及引用，严格限量且始终是未验证预览',()=>{
+ const row={text:'有点头晕，无头痛。',quote:'只是有点头晕，没有头痛',sourceId:'private-source',emphasis:['ignored-hint'],label:'皮肤',note:'家长猜测是痱子。',noteQuote:'我估计是痱子',thought:'private-reasoning'}
+ const p=readablePreview(JSON.stringify({currentSituation:{description:[row],symptoms:[row],diet:[],changes:[],treatment:[],keywords:[],tools:['private-tool']},unknown:'private-extra'}),{provider:'bailian'})
+ assert.match(p.text,/有点头晕，无头痛/);assert.match(p.text,/家长猜测/);assert.match(p.text,/备注引用（未验证）：我估计是痱子/)
+ assert.doesNotMatch(p.text,/private-|ignored-hint|sourceId|"currentSituation"|thought|tools/)
+ const q=quarantinePreview(p,{stage:'source_validation',fieldPath:'/currentSituation/symptoms/0/noteQuote'})
+ assert.equal(q.status,'unverified');assert.match(q.warning,/不会自动保存/)
+ for(const currentSituation of [{description:Array(7).fill(row)},{symptoms:Array(13).fill(row)},{diet:'invalid'},{description:['invalid']},{description:[{text:123}]},{symptoms:[{...row,note:{unknown:'invalid'}}]},{description:[{text:'x'.repeat(24001)}]}])assert.equal(readablePreview(JSON.stringify({currentSituation})),null)
+ for(const text of ['Bearer synthetic','sk-synthetic','PRIVATE KEY'])assert.equal(readablePreview(JSON.stringify({currentSituation:{description:[{text}]}})),null)
+})
