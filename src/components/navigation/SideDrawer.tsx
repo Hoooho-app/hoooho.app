@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, Wrench, X } from 'lucide-react'
+import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -31,6 +31,8 @@ export const sidebarMenuGroups = [
   {
     title: '辅助工具',
     collapsible: true,
+    icon: Wrench,
+    menuId: 'drawer-tools-menu',
     items: [
     { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
@@ -40,6 +42,9 @@ export const sidebarMenuGroups = [
   },
   {
     title: '产品中心',
+    collapsible: true,
+    icon: Package,
+    menuId: 'drawer-product-menu',
     items: [
     { label: '设置', icon: Settings, to: '/settings' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
@@ -66,7 +71,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [toolsOpen, setToolsOpen] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const accountRelationship = member.primaryRecorderRelationship
     ? recorderRelationshipLabel[member.primaryRecorderRelationship]
     : null
@@ -74,7 +79,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   useDialogFocus(open, drawerRef)
 
   useEffect(() => {
-    if (!open) setToolsOpen(false)
+    if (!open) setExpandedGroups({})
   }, [open])
 
   useEffect(() => {
@@ -136,20 +141,23 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
         </section>
 
         <nav className="mt-3 flex-1 space-y-3" aria-label="侧边栏导航">
-          {sidebarMenuGroups.map((group) => (
+          {sidebarMenuGroups.map((group) => {
+            const groupOpen = Boolean(expandedGroups[group.title])
+            const GroupIcon = group.icon
+            return (
             <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
-              {group.collapsible ? (
+              {group.collapsible && GroupIcon ? (
                 <h2 id={`drawer-${group.title}`}>
-                  <button className="hoho-drawer__item" type="button" aria-expanded={toolsOpen} aria-controls="drawer-tools-menu" onClick={() => setToolsOpen((value) => !value)}>
-                    <Wrench size={20} strokeWidth={1.7} />
+                  <button className="hoho-drawer__item" type="button" aria-expanded={groupOpen} aria-controls={group.menuId} onClick={() => setExpandedGroups((value) => ({ ...value, [group.title]: !value[group.title] }))}>
+                    <GroupIcon size={20} strokeWidth={1.7} />
                     <span className="flex-1">{group.title}</span>
-                    {toolsOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
+                    {groupOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
                   </button>
                 </h2>
               ) : (
                 <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
               )}
-              {(!group.collapsible || toolsOpen) && <div id={group.collapsible ? 'drawer-tools-menu' : undefined} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
+              {(!group.collapsible || groupOpen) && <div id={group.menuId} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
               {group.items.map(({ label, icon: Icon, to }) => {
                 const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
                 return (
@@ -162,7 +170,8 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
               })}
               </div>}
             </section>
-          ))}
+            )
+          })}
         </nav>
 
         <button className="hoho-drawer__account mt-3 flex min-h-[58px] w-full items-center gap-3 px-2 text-left" type="button" onClick={() => setAccountOpen(true)}>

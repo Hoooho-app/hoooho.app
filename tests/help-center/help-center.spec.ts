@@ -16,6 +16,7 @@ async function chat(page:Page){
 test('single sidebar entry, two pages, relevant search and existing guide redirect',async({page})=>{
   await page.goto('/help')
   await page.getByRole('button',{name:'打开菜单'}).click()
+  await page.getByRole('button',{name:'产品中心',exact:true}).click()
   await expect(page.getByRole('button',{name:'帮助',exact:true})).toHaveCount(1)
   await expect(page.getByRole('button',{name:'说明',exact:true})).toHaveCount(0)
   await page.getByRole('button',{name:'帮助',exact:true}).click()
