@@ -65,7 +65,7 @@
 .dietary-toolbar {
   display: grid;
   min-height: 48px;
-  grid-template-columns: auto minmax(68px, 1fr) auto auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   overflow: hidden;
   border: 1px solid rgb(var(--hoho-color-border));
@@ -113,7 +113,6 @@
   text-align: center;
 }
 .dietary-toolbar button:disabled { color: rgb(var(--hoho-color-disabled)); cursor: not-allowed; }
-.dietary-toolbar .is-spinning { animation: dietary-spin .7s linear infinite; }
 
 .dietary-overflow-hint,
 .dietary-translation-notice,
@@ -126,6 +125,7 @@
 }
 .dietary-translation-notice { color: var(--dietary-amber); }
 .dietary-inline-error { color: rgb(var(--hoho-color-error)); }
+.dietary-inline-error button { min-height: 44px; padding-inline: 8px; text-decoration: underline; }
 
 .dietary-display-card {
   display: grid;
@@ -166,8 +166,6 @@
 .dietary-food-glyph[data-group='temporary'] { background: #f3a70c; }
 .dietary-food-grid--single .dietary-food-glyph { width: 64px; height: 64px; font-size: 24px; }
 
-.dietary-cross-contact { display: flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; margin: 0; border-radius: 10px; background: #f5f8f6; padding: 8px 10px; color: rgb(var(--hoho-color-text-secondary)); font-size: 12px; line-height: 1.45; text-align: center; }
-.dietary-cross-contact svg { width: 17px; height: 17px; flex: none; }
 .dietary-display-card > footer { border-top: 1px solid rgb(var(--hoho-color-border) / .75); padding-top: 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 12px; line-height: 1.5; text-align: center; }
 
 .dietary-empty-state {
@@ -224,13 +222,6 @@
 
 .dietary-add-food { display: flex; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 1px dashed rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-primary)); font-size: 14px; font-weight: 720; }
 .dietary-add-food svg { width: 21px; }
-.dietary-cross-contact-toggle { display: grid; min-height: 52px; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 9px; border-top: 1px solid rgb(var(--hoho-color-border)); border-bottom: 1px solid rgb(var(--hoho-color-border)); padding: 7px 2px; }
-.dietary-cross-contact-toggle input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
-.dietary-cross-contact-toggle > span { position: relative; display: block; width: 22px; height: 22px; border: 1.5px solid rgb(var(--hoho-color-border-strong)); border-radius: 50%; }
-.dietary-cross-contact-toggle input:checked + span { border-color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary)); }
-.dietary-cross-contact-toggle input:checked + span::after { position: absolute; top: 5px; left: 4px; width: 11px; height: 6px; transform: rotate(-45deg); border-bottom: 2px solid #fff; border-left: 2px solid #fff; content: ''; }
-.dietary-cross-contact-toggle input:focus-visible + span { outline: 2px solid rgb(var(--hoho-color-primary) / .3); outline-offset: 2px; }
-.dietary-cross-contact-toggle strong { font-size: 13px; font-weight: 620; line-height: 1.45; }
 .dietary-edit-note,
 .dietary-edit-empty,
 .dietary-save-error { margin: -6px 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 1.5; text-align: center; }
@@ -262,9 +253,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dietary-toolbar .is-spinning,
   .dietary-loading span { animation: none; }
 }
 
-@keyframes dietary-spin { to { transform: rotate(360deg); } }
 @keyframes dietary-loading { to { background-position: -220% 0; } }

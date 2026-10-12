@@ -29,10 +29,12 @@ test('母语使用显式账号选择或设备语言地区，繁体与简体脚�
   assert.equal(resolveDietaryNativeLanguage('en-US', 'zh-TW'), 'en')
   assert.equal(resolveDietaryNativeLanguage(undefined, 'en-GB'), 'en')
   assert.equal(resolveDietaryNativeLanguage(undefined, 'ja-JP'), 'zh')
-  assert.deepEqual(dietaryLanguageOptions('zh-Hant').map((option) => option.label), ['繁體中文', 'English', '繁體中文 + English'])
-  assert.deepEqual(dietaryLanguageOptions('zh').map((option) => option.value), ['zh', 'en', 'en-zh'])
+  assert.deepEqual(dietaryLanguageOptions('zh-Hant').map((option) => option.label), ['繁體中文', 'English'])
+  assert.deepEqual(dietaryLanguageOptions('zh').map((option) => option.value), ['zh', 'en'])
   assert.deepEqual(dietaryLanguageOptions('en'), [{ value: 'en', label: 'English' }])
-  assert.equal(defaultDietaryLanguage('zh-Hant'), 'en-zh-Hant')
+  assert.equal(defaultDietaryLanguage('zh-Hant'), 'zh-Hant')
+  assert.equal(defaultDietaryLanguage('zh'), 'zh')
+  assert.equal(defaultDietaryLanguage('en'), 'en')
 })
 
 test('纯英文正文及导出无中文，手工英文优先，缺失译名禁止不完整导出', () => {
@@ -69,6 +71,15 @@ test('繁体正文、食物和双语导出使用相同词汇，不改原始记�
   assert.equal(traditionalItem.foodId, 'egg')
   assert.equal(translateFood(traditionalItem, 'en'), 'Egg')
   assert.equal(translateFood(traditionalItem, 'zh'), '鸡蛋')
+})
+
+test('旧快照的共用餐具设置不会进入任何单一语言图片', () => {
+  const snapshot = { ...emptyDietarySnapshot(memberId, at), items: [createManualDietaryItem('牛奶', 'avoid')], avoidCrossContact: true }
+  for (const language of ['zh', 'zh-Hant', 'en'] as const) {
+    const layout = buildDietaryCardExportLayout(snapshot, language)
+    assert.ok(!layout.texts.includes(dietaryCopy[language].crossContact))
+    assert.equal(layout.height, buildDietaryCardExportLayout({ ...snapshot, avoidCrossContact: false }, language).height)
+  }
 })
 
 test('人工译名优先，资料重新同步不覆盖人工译名，不扩展食物范围',()=>{

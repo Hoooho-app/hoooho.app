@@ -21,7 +21,7 @@ export default defineConfig({
   webServer: liveBaseUrl ? undefined : {
     command: 'npm run dev -- --host 127.0.0.1 --port 4199',
     url: 'http://127.0.0.1:4199/login',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 30_000,
   }
 })

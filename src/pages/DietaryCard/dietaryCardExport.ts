@@ -35,13 +35,12 @@ export function buildDietaryCardExportLayout(snapshot: DietaryCardSnapshot, lang
       return { group, labels, rowHeights: exportRowHeights(labels) }
     })
   const groupsHeight = rows.reduce((sum, row) => sum + groupBaseHeight + (row.group === 'temporary' ? 32 : 0) + row.rowHeights.reduce((height, value) => height + value, 0), 0)
-  const reminderHeight = snapshot.avoidCrossContact ? 108 : 0
-  const height = Math.max(900, 380 + groupsHeight + reminderHeight)
+  const height = Math.max(900, 380 + groupsHeight)
   return {
     width,
     height,
     rows,
-    texts: [copy.title, copy.intro, ...rows.flatMap((row) => row.labels), ...(snapshot.avoidCrossContact ? [copy.crossContact] : []), copy.thanks]
+    texts: [copy.title, copy.intro, ...rows.flatMap((row) => row.labels), copy.thanks]
   }
 }
 
@@ -153,17 +152,6 @@ export async function createDietaryCardPng(snapshot: DietaryCardSnapshot, langua
     y += 34
   }
 
-  if (snapshot.avoidCrossContact) {
-    roundRect(context, contentX, y, contentWidth, 76, 18)
-    context.fillStyle = '#F5F8F6'
-    context.fill()
-    context.fillStyle = '#526966'
-    context.font = '500 26px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
-    context.textAlign = 'center'
-    context.fillText(copy.crossContact, canvas.width / 2, y + 47)
-    y += 106
-  }
-
   context.fillStyle = '#18312F'
   context.font = '500 27px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
   context.textAlign = 'center'
@@ -177,7 +165,7 @@ export async function downloadDietaryCard(snapshot: DietaryCardSnapshot, languag
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   const date = new Date().toISOString().slice(0, 10)
-  link.download = `Hoooho_忌口出示卡_${date}.png`
+  link.download = `Hoooho_忌口卡_${date}.png`
   link.href = url
   link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
