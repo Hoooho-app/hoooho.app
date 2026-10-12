@@ -72,10 +72,13 @@ export function normalizeMedicalSummary(value,input) {
   }
   if (!overview) throw Object.assign(new Error('AI 未返回可用病情摘要'), { code: 'EMPTY_AI_SUMMARY' })
   if(typeof source.overview!=='string'||source.overview.length>1000||!Array.isArray(source.keyPoints)||source.keyPoints.length>8)throw new Error('Invalid summary')
-  const evidence=source.keyPoints.map(point=>{
+  const evidence=source.keyPoints.map((point,index)=>{
     const section=input.sections.find(s=>s.id===point?.sectionId),quote=typeof point?.quote==='string'?point.quote.trim():''
+    const rejectEvidence=(field,rule)=>{const error=outputFailure('Unverified summary evidence','source_validation',`/keyPoints/${index}/${field}`,'source_mismatch','INVALID_AI_SUMMARY');error.validation.rule=rule;throw error}
+    if(!section)rejectEvidence('sectionId','unknown_section')
     const line=section?.lines.find(line=>quote&&line.includes(quote))
-    if(!line||typeof point.text!=='string'||!point.text.trim()||point.text.length>300)throw new Error('Unverified summary evidence')
+    if(!line)rejectEvidence('quote','quote_not_contiguous_in_section')
+    if(typeof point.text!=='string'||!point.text.trim()||point.text.length>300)rejectEvidence('text','invalid_evidence_text')
     const sourceId=/^\[([^\]]+)\]/.exec(line)?.[1]??null
     const fact=input.visitFacts?.sources.find(s=>s.id===sourceId)
     if(fact)checkDates(point.text,[fact])
@@ -159,6 +162,15 @@ export class OpenAIProvider {
   async summarizeMedicalPreparation(summary) {
     if (!this.apiKey) throw Object.assign(new Error('AI 服务尚未配置'), { code: 'AI_NOT_CONFIGURED' })
     const input=medicalSummaryInput(summary),serialized=JSON.stringify(input)
+    if(input.currentSituationSources&&(!input.sections.length||!input.currentSituationSources.length))throw Object.assign(new Error('目前情况没有可引用资料'),{code:'INVALID_AI_SUMMARY'})
+    const schema=input.currentSituationSources?{
+      ...medicalSummarySchema,required:[...medicalSummarySchema.required,'currentSituation'],
+      properties:{...medicalSummarySchema.properties,currentSituation:currentSituationSchema,keyPoints:{
+        ...medicalSummarySchema.properties.keyPoints,items:{...medicalSummarySchema.properties.keyPoints.items,properties:{
+          ...medicalSummarySchema.properties.keyPoints.items.properties,sectionId:{type:'string',enum:input.sections.map(section=>section.id)},
+        }},
+      }},
+    }:medicalSummarySchema
     if(serialized.length>60000)throw Object.assign(new Error('本次关联资料过长，请缩小焦点范围；未截断原文'),{code:'INVALID_AI_SUMMARY'})
     let preview
     const response = await this.fetch(`${this.baseUrl}/responses`, {
@@ -176,7 +188,7 @@ export class OpenAIProvider {
             type: 'json_schema',
             name: 'hoooho_medical_summary',
             strict: true,
-            schema: input.currentSituationSources?{...medicalSummarySchema,required:[...medicalSummarySchema.required,'currentSituation'],properties:{...medicalSummarySchema.properties,currentSituation:currentSituationSchema}}:medicalSummarySchema
+            schema
           }
         }
       }),
