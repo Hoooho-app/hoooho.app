@@ -1,0 +1,3 @@
+import {defineConfig,devices} from '@playwright/test'
+import base from './playwright.config'
+export default defineConfig({...base,testMatch:'current-situation-v2.spec.ts',outputDir:'../../outputs/visit-current-situation-v2/browser',projects:[375,390,430].map(width=>({name:`mobile-${width}`,use:{...devices['iPhone SE'],viewport:{width,height:844},timezoneId:'Asia/Shanghai',browserName:'chromium' as const,launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}}})),webServer:{...base.webServer,command:'node tests/visit-sheet/serve.mjs',cwd:import.meta.dirname+'/../..',env:{VISIT_AI_TEST:'1'}}})

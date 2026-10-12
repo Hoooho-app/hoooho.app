@@ -4,7 +4,7 @@ const lines = value => Array.isArray(value) ? value.map(clean).filter(Boolean) :
 const unique = values => [...new Set(values.filter(Boolean))]
 export function currentSituation(report, input, edits = {}) {
   const focused = new Set(report.focusSourceIds)
-  const records = input.records.filter(r => focused.has(`record:${r.id}`))
+  const records = input.records.filter(r => focused.has(`record:${r.id}`)).sort((a,b)=>Number(`record:${b.id}`===report.complaintSourceId)-Number(`record:${a.id}`===report.complaintSourceId))
   const symptoms = [], diet = [], changes = [], treatment = [], raw = []
   const add = (target, text, record, kind = 'symptom', emphasize = false) => {
     text = clean(text)
@@ -64,7 +64,7 @@ export function currentSituation(report, input, edits = {}) {
   return {
     scopeKey:key,
     description: Object.hasOwn(override,'description') ? override.description : report.caseDetails?.description || (factual.length ? unique(factual).join('；') : report.reading.description),
-    symptoms:apply('symptoms',symptoms), diet:apply('diet',diet),
+    symptoms:override.symptomRows??apply('symptoms',symptoms), diet:apply('diet',diet),
     changes: [...(report.reading.onset ? [{text:report.reading.onset,sourceIds:report.reading.sourceIds}] : []),...(report.reading.change ? [{text:report.reading.change,sourceIds:report.reading.sourceIds}] : []),...changes],
     treatment, raw,
   }

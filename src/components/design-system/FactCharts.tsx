@@ -1,4 +1,5 @@
 import './FactCharts.css'
+import type { MouseEvent } from 'react'
 
 export function FactDistribution({
   values,
@@ -67,6 +68,7 @@ export function FactLineChart({
   domain,
   accessibleLabel,
   interactivePoints = false,
+  presentation = 'default', selectedSourceId,
 }: {
   points: Array<{ value: number; at: string; sourceId: string }>
   unit: string
@@ -76,8 +78,30 @@ export function FactLineChart({
   domain?: [number, number]
   accessibleLabel?: string
   interactivePoints?: boolean
+  presentation?: 'default' | 'temperature'
+  selectedSourceId?: string
 }) {
   if (points.length < 2) return null
+  if(presentation==='temperature'){
+    const ordered=[...points].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)||a.sourceId.localeCompare(b.sourceId)),w=350,h=246,left=38,right=14,top=22,bottom=45
+    const min=Math.floor((Math.min(...ordered.map(p=>p.value))-.2)*2)/2,max=Math.max(min+.5,Math.ceil((Math.max(...ordered.map(p=>p.value))+.2)*2)/2),start=Date.parse(ordered[0].at),span=Date.parse(ordered.at(-1)!.at)-start||1
+    const x=(p:typeof ordered[number])=>left+(Date.parse(p.at)-start)/span*(w-left-right),y=(value:number)=>top+(max-value)/(max-min)*(h-top-bottom),shown=new Set([0,Math.floor((ordered.length-1)/2),ordered.length-1])
+    const date=(at:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit'}).format(new Date(at)).split('/').reverse().join('/'),time=(at:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(at)),selected=ordered.find(p=>p.sourceId===selectedSourceId)
+    const fullTime=(at:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(at))
+    const selectNearest=(event:MouseEvent<SVGGElement>,fallback:string)=>{
+      const matrix=event.currentTarget.ownerSVGElement?.getScreenCTM()
+      if(!matrix||event.detail===0){onPoint?.(fallback);return}
+      const pointer=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse()),distances=ordered.map(p=>({p,distance:Math.hypot(pointer.x-x(p),pointer.y-y(p.value))})),nearest=Math.min(...distances.map(p=>p.distance))
+      const candidates=distances.filter(p=>p.distance<=nearest+.01).map(({p})=>p),index=candidates.findIndex(p=>p.sourceId===selectedSourceId)
+      onPoint?.(candidates[(index+1)%candidates.length].sourceId)
+    }
+    return <svg className="hoho-fact-line hoho-fact-line--temperature" viewBox={`0 0 ${w} ${h}`} role="group" aria-label={accessibleLabel??label}>
+      <text x={4} y={13}>{unit}</text>{[0,1,2].map(i=>{const value=min+(max-min)*i/2;return <g key={i}><line x1={left} y1={y(value)} x2={w-right} y2={y(value)} className="hoho-chart-axis"/><text x={left-8} y={y(value)+4} textAnchor="end">{value.toFixed(1)}</text></g>})}
+      <polyline points={ordered.map(p=>`${x(p)},${y(p.value)}`).join(' ')} fill="none" className="hoho-chart-trace" strokeWidth={2.3}/>
+      {ordered.map((p,i)=><g key={p.sourceId}><g role="button" tabIndex={0} aria-label={`${fullTime(p.at)} · ${p.value} ${unit}`} aria-pressed={p.sourceId===selectedSourceId} onClick={event=>selectNearest(event,p.sourceId)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onPoint?.(p.sourceId)}}}><circle cx={x(p)} cy={y(p.value)} r={22} fill="transparent"/><circle cx={x(p)} cy={y(p.value)} r={4} className="hoho-chart-point"/></g>{shown.has(i)&&<><text x={x(p)} y={h-25} textAnchor={i===0?'start':i===ordered.length-1?'end':'middle'}>{date(p.at)}</text><text x={x(p)} y={h-9} textAnchor={i===0?'start':i===ordered.length-1?'end':'middle'}>{time(p.at)}</text></>}</g>)}
+      {selected&&<g pointerEvents="none" transform={`translate(${Math.min(w-156,Math.max(0,x(selected)-76))},${Math.max(0,y(selected.value)-35)})`}><rect width={152} height={24} rx={7} className="hoho-chart-tooltip"/><text x={76} y={16} textAnchor="middle" role="status">{date(selected.at)} {time(selected.at)} · {selected.value} {unit}</text></g>}
+    </svg>
+  }
   const times = points.map((p) => Date.parse(p.at)),
     values = points.map((p) => p.value)
   const minTime = Math.min(...times),

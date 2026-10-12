@@ -2,6 +2,7 @@ import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
 import { sameReadingTopic } from './reading-context.mjs'
 import { readingProjection } from './reading-projection.mjs'
 import { currentSituation } from './current-situation.mjs'
+import { situationSources, situationFingerprint } from './current-situation-output.mjs'
 import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
@@ -208,7 +209,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'readable-summary-v3-current-situation',
+        projectionRevision: 'readable-summary-v4-current-situation',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -840,6 +841,19 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   report.reading=readingProjection(report,input)
   report.currentSituationEdits = Object.fromEntries(Object.entries(preferences.currentSituationEdits ?? {}).filter(([key])=>!key.startsWith('record:') || input.records.some(r=>`record:${r.id}`===key && !r.deletedAt)))
   report.currentSituation=currentSituation(report,input,report.currentSituationEdits)
+  const ownedSituationRecords=new Set(input.records.filter(r=>!r.deletedAt).map(r=>`record:${r.id}`))
+  report.currentSituationResults=Object.fromEntries(Object.entries(preferences.currentSituationResults??{}).filter(([key,result])=>(!key.startsWith('record:')||ownedSituationRecords.has(key))&&Object.values(result.value).flat().every(line=>line.sourceIds?.every(id=>ownedSituationRecords.has(id)))))
+  const situationSourceList=situationSources(report),situationSourceFingerprint=situationFingerprint(situationSourceList),organized=report.currentSituationResults[report.photoKey]
+  report.currentSituation.sourceFingerprint=situationSourceFingerprint
+  report.currentSituation.needsOrganization=!!situationSourceList.length&&organized?.fingerprint!==situationSourceFingerprint
+  if(organized?.fingerprint===situationSourceFingerprint){
+    const edits=report.currentSituationEdits[report.photoKey]??{},value=organized.value
+    report.currentSituation={...report.currentSituation,
+      description:Object.hasOwn(edits,'description')?edits.description:report.caseDetails?.description||value.description.map(l=>l.text).join(''),
+      descriptionEmphasis:value.description.flatMap(l=>l.emphasis),keywords:value.keywords.map(l=>l.text),
+      ...Object.fromEntries(['symptoms','diet'].map(k=>[k,Object.hasOwn(edits,k)||(k==='symptoms'&&edits.symptomRows)?report.currentSituation[k]:value[k]])),changes:value.changes,treatment:value.treatment,
+    }
+  }
   if (!preferences.questionEdited) {
     const recorded = (report.questionSourceIds?.length ? report.question.split('\n').filter(Boolean) : [])
     report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,3).join('\n')

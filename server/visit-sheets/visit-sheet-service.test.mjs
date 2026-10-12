@@ -8,6 +8,36 @@ import { AccountDataService } from '../account/account-data-service.mjs'
 import { visitFixture } from './fixtures.mjs'
 import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
+import {situationRaw,situationOutput} from '../../tests/visit-sheet/current-situation-v2.fixture.mjs'
+
+test('旧记录只调用一次现有摘要服务，缓存真实结构、保存人工行与原话并隔离焦点',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ f.records=[{id:'focus',accountId:a,eventId:'event-a',type:'symptom',content:situationRaw,sourceText:situationRaw,occurredAt:'2026-10-12T00:00:00Z',updatedAt:'2026-10-12T00:00:00Z'}]
+ let calls=0;svc.medicalSummary={generate:async input=>{calls++;return {...normalizeMedicalSummary(situationOutput(),input),provider:'bailian',model:'fixture'}}}
+ let state=await svc.save(a,m,{requestId:'v2-focus',expectedVersion:0,focus:{mode:'source',sourceId:'record:focus'}})
+ assert.equal(state.report.currentSituation.needsOrganization,true)
+ state=await svc.save(a,m,{requestId:'v2-organize',expectedVersion:state.report.version,organizeCurrent:{scopeKey:state.report.photoKey}})
+ assert.equal(state.report.currentSituation.needsOrganization,false);assert.equal(state.report.currentSituation.symptoms.length,3);assert.equal(state.report.currentSituation.diet.length,2)
+ assert.equal(state.report.currentSituation.raw[0].text,situationRaw);assert.equal(calls,1)
+ state=await svc.save(a,m,{requestId:'v2-edit',expectedVersion:state.report.version,currentSituation:{scopeKey:state.report.photoKey,block:'description',text:'真实用户编辑：无头痛'}})
+ const editedRows=state.report.currentSituation.symptoms.map(l=>({text:l.text,note:l.note??''}));editedRows[1].text='用户皮肤细节'
+ state=await svc.save(a,m,{requestId:'v2-row',expectedVersion:state.report.version,currentSituation:{scopeKey:state.report.photoKey,block:'symptoms',rows:editedRows}})
+ assert.equal(state.report.currentSituation.symptoms[1].label,'皮肤');assert.match(state.report.currentSituation.symptoms[1].note,/家属怀疑/)
+ state=await svc.save(a,m,{requestId:'v2-cache',expectedVersion:state.report.version,organizeCurrent:{scopeKey:state.report.photoKey}})
+ assert.equal(calls,1);assert.equal(state.report.currentSituation.description,'真实用户编辑：无头痛');assert.equal(state.report.currentSituation.symptoms[1].text,'用户皮肤细节')
+ const scope=state.report.photoKey
+ state=await svc.save(a,m,{requestId:'v2-custom',expectedVersion:state.report.version,focus:{mode:'custom',text:'另一次关注'}})
+ await assert.rejects(()=>svc.save(a,m,{requestId:'v2-late',expectedVersion:state.report.version,organizeCurrent:{scopeKey:scope}}),{status:409})
+ state=await svc.save(a,m,{requestId:'v2-back',expectedVersion:state.report.version,focus:{mode:'source',sourceId:'record:focus'}})
+ assert.equal(state.report.currentSituation.description,'真实用户编辑：无头痛');assert.equal(state.report.currentSituation.needsOrganization,false)
+ f.records[0].updatedAt='2026-10-13T00:00:00Z';svc.medicalSummary={generate:async()=>{throw new Error('isolated unavailable')}}
+ await assert.rejects(()=>svc.save(a,m,{requestId:'v2-fail',expectedVersion:state.report.version,organizeCurrent:{scopeKey:scope}}))
+ const retained=await svc.get(a,m);assert.equal(retained.report.currentSituation.description,'真实用户编辑：无头痛');assert.equal(retained.report.currentSituation.raw[0].text,situationRaw)
+ await assert.rejects(()=>svc.save('foreign',m,{requestId:'v2-foreign',expectedVersion:state.report.version,organizeCurrent:{scopeKey:scope}}),{status:404})
+ f.records=[]
+ const removed=await svc.save(a,m,{requestId:'v2-deleted',expectedVersion:state.report.version,focus:{mode:'auto'}})
+ assert.deepEqual(removed.report.currentSituationResults,{})
+})
 
 test('旧统计规则的情况单标记待更新，重新整理后恢复当前指纹', async t => {
   const { svc, f } = await setup(t), accountId = f.member.accountId, memberId = f.member.id
