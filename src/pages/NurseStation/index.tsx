@@ -10,9 +10,11 @@ import type { NurseStationItem, NurseStationState } from '../../features/nurse-s
 import { readNurseStationState, reconcileNurseStationItems, writeNurseStationState } from '../../features/nurse-station/state'
 import { useHealthEventsList } from '../../hooks/useHealthEventsList'
 import { growthMeasurementService } from '../../services/growthMeasurements'
+import { familyMemberService } from '../../services/familyMembers'
 import { medicationReminderService, type MedicationReminderDto } from '../../services/medicationReminders'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore } from '../../store/useSettingsStore'
+import type { FamilyMemberApiDto } from '../../types'
 import { NurseTriageDesk } from '../HealthEvents/NurseTriageDesk'
 import { useJournal } from '../HealthEvents/useJournal'
 import { getGuardedDays } from './nurseStationView'
@@ -48,6 +50,7 @@ export function NurseStationPage() {
   const [growthMemberId, setGrowthMemberId] = useState(() => readHomeReading(token, currentMemberId, 'growth') ? currentMemberId : '')
   const [childSelectionRequest, setChildSelectionRequest] = useState(0)
   const [bloodEditorMemberId, setBloodEditorMemberId] = useState('')
+  const [guardedMember, setGuardedMember] = useState<{ token: string; member: FamilyMemberApiDto } | null>(null)
   const migratingIds = useRef(new Set<string>())
   const member = cachedMembers.find((item) => item.id === currentMemberId)
     ?? (listState.status === 'success' ? listState.data.members.find((item) => item.id === currentMemberId) : null)
@@ -139,9 +142,27 @@ export function NurseStationPage() {
 
   const memberDto = listState.status === 'success' ? listState.data.memberDtos.find((item) => item.id === member?.id) : null
   useEffect(() => {
+    if (!token || !currentMemberId || !member) return
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 10_000)
+    // The header must not depend on every health-event record loading successfully.
+    void familyMemberService.getById(currentMemberId, token, controller.signal)
+      .then((dto) => {
+        if (controller.signal.aborted) return
+        setGuardedMember({ token, member: dto })
+        writeHomeReading(token, currentMemberId, 'member', dto)
+      })
+      .catch(() => { /* Keep only previously confirmed data for this session and member. */ })
+      .finally(() => window.clearTimeout(timeout))
+    return () => { window.clearTimeout(timeout); controller.abort() }
+  }, [currentMemberId, member?.id, token])
+  useEffect(() => {
     if (memberDto && memberDto.id === currentMemberId) writeHomeReading(token, currentMemberId, 'member', memberDto)
   }, [memberDto, currentMemberId, token])
-  const knownMemberDto = memberDto ?? readHomeReading(token, currentMemberId, 'member')
+  const knownMemberDto = memberDto
+    ?? (guardedMember?.token === token && guardedMember.member.id === currentMemberId ? guardedMember.member : undefined)
+    ?? familyMemberService.getCachedById(currentMemberId, token)
+    ?? readHomeReading(token, currentMemberId, 'member')
   const guardedDays = knownMemberDto ? getGuardedDays(knownMemberDto.createdAt) : '—'
   const reducedMotion = systemReducedMotion || (care.enabled && care.reduceMotion)
   const growth = growthMemberId === currentMemberId && member
@@ -208,7 +229,6 @@ export function NurseStationPage() {
             </div>
           </section>
         ) : null}
-        {member && (listState.status === 'error' || growthStatus === 'error') && <p className="nurse-station-sync-notice" role="status">资料同步失败，已读取的数据仍保留。</p>}
         {member && <HomeFlows key={`${identityId}:${currentMemberId}`} nurseVisual={<NurseTriageDesk audioLevel={0} idleActive idleAnimationResetKey={currentMemberId} reducedMotion={reducedMotion} state="idle" stationIdleOnly />} />}
 
       </div>
