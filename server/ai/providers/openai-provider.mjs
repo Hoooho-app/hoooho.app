@@ -3,6 +3,7 @@ import { normalizeHealthAIOutput } from '../ai-types.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails } from './openai-error.mjs'
 import { readablePreview, quarantinePreview } from './readable-preview.mjs'
 import { currentSituationSchema, currentSituationInstructions, normalizeCurrentSituation } from '../../visit-sheets/current-situation-output.mjs'
+import { outputFailure } from './output-diagnostics.mjs'
 
 function readOutputText(response) {
   for (const output of response?.output ?? []) {
@@ -201,7 +202,18 @@ export class OpenAIProvider {
     try {
       return normalizeMedicalSummary(JSON.parse(text),input)
     } catch (error) {
-      const failure=Object.assign(new Error('AI 返回的病情摘要格式无效'), { code: 'INVALID_AI_SUMMARY', upstream })
+      const rules={
+        'Invalid summary':'invalid_summary','Unverified summary evidence':'unverified_evidence',
+        'Unverified summary number':'unverified_number','Lost uncertainty':'uncertainty_lost',
+        'Unverified occurrence date':'occurrence_date_mismatch','Known basic information reported missing':'known_information_missing',
+        'Unverified overview number':'unverified_overview_number','Unverified overview unit':'unverified_overview_unit',
+        'Unsupported medical conclusion':'unsupported_conclusion','Overview lost uncertainty':'overview_uncertainty_lost',
+      }
+      const diagnostic=error.validation??{stage:error instanceof SyntaxError?'json_parse':'semantic_validation',fieldPath:'/summary',reason:error instanceof SyntaxError?'invalid_json':'invalid_extraction'}
+      const failure=outputFailure('AI 返回的病情摘要格式无效',diagnostic.stage,diagnostic.fieldPath,diagnostic.reason,'INVALID_AI_SUMMARY')
+      failure.upstream=upstream
+      const rule=diagnostic.rule??rules[error.message]
+      if(rule)failure.validation.rule=rule
       const quarantined=quarantinePreview(preview??readablePreview(text,{provider:this.name,model:this.model,requestId:upstream.requestId}),{stage:'semantic_validation',fieldPath:'/summary'})
       if(quarantined&&error.issueMessage)quarantined.issues[0].message=error.issueMessage
       Object.defineProperty(failure,'preview',{value:quarantined,enumerable:false})

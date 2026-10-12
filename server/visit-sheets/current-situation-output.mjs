@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import Ajv from 'ajv'
+import { outputFailure, schemaFailureDiagnostic } from '../ai/providers/output-diagnostics.mjs'
 
 const evidence = {text:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},emphasis:{type:'array',items:{type:'string'},maxItems:3}}
 const line = {type:'object',additionalProperties:false,required:Object.keys(evidence),properties:evidence}
@@ -25,38 +26,51 @@ export function situationSources(report) {
 export function situationFingerprint(sources) {return createHash('sha256').update(JSON.stringify(sources)).digest('hex')}
 
 export function normalizeCurrentSituation(value,sources,checkEvidence) {
-  const fail=()=>{throw new Error('Unverified current situation')},neg=/没有|不是|不发|未|无|否认|不头|不疼|不痛/,uncertain=/怀疑|估计|可能|疑似|不确定|不知道|待核对/
-  if(!validateCurrentSituation(value))fail()
-  const read=(item,key)=>{
+  const fail=(fieldPath,rule,stage='semantic_validation',reason='invalid_extraction')=>{
+    const error=outputFailure('Unverified current situation',stage,fieldPath,reason,'INVALID_AI_SUMMARY')
+    error.validation.rule=rule;throw error
+  },neg=/没有|不是|不发|未|无|否认|不头|不疼|不痛/,uncertain=/怀疑|估计|可能|疑似|不确定|不知道|待核对/
+  if(!validateCurrentSituation(value)){
+    const diagnostic=schemaFailureDiagnostic(currentSituationSchema,validateCurrentSituation.errors?.[0])
+    throw outputFailure('Invalid current situation schema',diagnostic.stage,'/currentSituation'+diagnostic.fieldPath,diagnostic.reason,'INVALID_AI_SUMMARY')
+  }
+  const read=(item,key,index)=>{
+    const path=`/currentSituation/${key}/${index}`
     const source=sources.find(s=>s.id===item?.sourceId),text=item?.text,quote=item?.quote
-    if(!source||typeof text!=='string'||!text.trim()||text.length>1000||typeof quote!=='string'||!quote||!source.text.includes(quote))fail()
+    if(!source)fail(path+'/sourceId','unknown_source','source_validation','source_mismatch')
+    if(typeof text!=='string'||!text.trim()||text.length>1000)fail(path+'/text','invalid_text')
+    if(typeof quote!=='string'||!quote||!source.text.includes(quote))fail(path+'/quote','quote_not_in_source','source_validation','source_mismatch')
     const context=source.text.slice(0,source.text.indexOf(quote)).split(/[，。；\n]/).at(-1)+quote
-    if(neg.test(context)&&!neg.test(text))fail()
-    if(negativeSubjects.some(rule=>rule.negative.test(context)&&rule.subject.test(text)&&!rule.negative.test(text)))fail()
-    if(uncertain.test(context)&&!uncertain.test(text)&&key!=='description'&&!(key==='symptoms'&&uncertain.test(item.note??'')))fail()
-    if(key==='description'&&uncertain.test(context)&&!uncertain.test(text)&&!/[，。；\n]/.test(quote))fail()
-    if(/严重|剧烈|大量|持续高热|确诊|导致|引起|过敏反应/.test(text)&&!quote.includes(text))fail()
-    checkEvidence({text,quote,source})
-    if(!Array.isArray(item.emphasis)||item.emphasis.length>3||item.emphasis.some(e=>typeof e!=='string'||!e||!text.includes(e)||(neg.test(text)&&/头疼|头痛/.test(e)&&!neg.test(e))))fail()
+    if(neg.test(context)&&!neg.test(text))fail(path+'/text','negative_lost')
+    if(negativeSubjects.some(rule=>rule.negative.test(context)&&rule.subject.test(text)&&!rule.negative.test(text)))fail(path+'/text','negative_subject_lost')
+    if(uncertain.test(context)&&!uncertain.test(text)&&key!=='description'&&!(key==='symptoms'&&uncertain.test(item.note??'')))fail(path+'/text','uncertainty_lost')
+    if(key==='description'&&uncertain.test(context)&&!uncertain.test(text)&&!/[，。；\n]/.test(quote))fail(path+'/text','uncertainty_lost')
+    if(/严重|剧烈|大量|持续高热|确诊|导致|引起|过敏反应/.test(text)&&!quote.includes(text))fail(path+'/text','unsupported_conclusion')
+    const verify=(body,field)=>{
+      try{checkEvidence({text:body,quote:field==='note'?item.noteQuote:quote,source})}
+      catch(error){error.validation??={stage:'semantic_validation',fieldPath:path+'/'+field,reason:'invalid_extraction'};throw error}
+    }
+    verify(text,'text')
+    if(!Array.isArray(item.emphasis)||item.emphasis.length>3||item.emphasis.some(e=>typeof e!=='string'||!e||!text.includes(e)||(neg.test(text)&&/头疼|头痛/.test(e)&&!neg.test(e))))fail(path+'/emphasis','invalid_emphasis')
     const emphasis=key==='description'&&item.emphasis.reduce((a,e)=>a+e.length,0)>text.length/2?[]:item.emphasis
     const result={text:text.trim(),sourceIds:[source.id],emphasis}
     if(key==='symptoms'){
-      if(typeof item.label!=='string'||!item.label.trim()||item.label.length>20||!['symptom','temperature'].includes(item.kind)||typeof item.note!=='string'||typeof item.noteQuote!=='string')fail()
-      if(/严重|剧烈|大量|持续高热|确诊|诊断|患有|导致|引起|过敏反应/.test(item.label)&&!quote.includes(item.label))fail()
-      if(uncertain.test(context)&&/痱子|热疹|湿疹|过敏|诊断|确诊/.test(item.label)&&!uncertain.test(item.label))fail()
-      if(!quote.includes(item.label)&&!({症状:/./,皮肤:/皮肤|红点|疹|痒|红肿/,皮疹:/疹|红点/,体温:/体温|温度|发热|发烧|℃|°C/i,头痛:/头痛|头疼/,发热:/发热|发烧/,颈部:/颈部|脖子|脖颈/,腹部:/腹|肚/}[item.label]?.test(quote)))fail()
-      if(item.kind==='temperature'&&!/体温|温度|发热|发烧|℃|°C/i.test(quote))fail()
-      if(item.note&&(!item.noteQuote||!source.text.includes(item.noteQuote)||!uncertain.test(item.note)||!/家属|记录者|用户|本人/.test(item.note)))fail()
-      if(item.note)checkEvidence({text:item.note,quote:item.noteQuote,source})
+      if(typeof item.label!=='string'||!item.label.trim()||item.label.length>20||!['symptom','temperature'].includes(item.kind)||typeof item.note!=='string'||typeof item.noteQuote!=='string')fail(path+'/label','invalid_symptom_fields')
+      if(/严重|剧烈|大量|持续高热|确诊|诊断|患有|导致|引起|过敏反应/.test(item.label)&&!quote.includes(item.label))fail(path+'/label','unsupported_label')
+      if(uncertain.test(context)&&/痱子|热疹|湿疹|过敏|诊断|确诊/.test(item.label)&&!uncertain.test(item.label))fail(path+'/label','uncertain_diagnosis_label')
+      if(!quote.includes(item.label)&&!({症状:/./,皮肤:/皮肤|红点|疹|痒|红肿/,皮疹:/疹|红点/,体温:/体温|温度|发热|发烧|℃|°C/i,头痛:/头痛|头疼/,发热:/发热|发烧/,颈部:/颈部|脖子|脖颈/,腹部:/腹|肚/}[item.label]?.test(quote)))fail(path+'/label','unverified_label')
+      if(item.kind==='temperature'&&!/体温|温度|发热|发烧|℃|°C/i.test(quote))fail(path+'/kind','unverified_temperature')
+      if(item.note&&(!item.noteQuote||!source.text.includes(item.noteQuote)||!uncertain.test(item.note)||!/家属|记录者|用户|本人/.test(item.note)))fail(path+'/note','unverified_attributed_guess')
+      if(item.note)verify(item.note,'note')
       result.label=item.label;result.kind=item.kind;result.note=item.note
     }
     return result
   }
   const result={}
   for(const key of ['description','symptoms','diet','changes','treatment','keywords']){
-    if(!Array.isArray(value[key])||value[key].length>(key==='description'?6:key==='keywords'?8:12))fail()
-    result[key]=value[key].map(item=>read(item,key))
+    if(!Array.isArray(value[key])||value[key].length>(key==='description'?6:key==='keywords'?8:12))fail('/currentSituation/'+key,'invalid_rows')
+    result[key]=value[key].map((item,index)=>read(item,key,index))
   }
-  if(!result.description.length)fail()
+  if(!result.description.length)fail('/currentSituation/description','empty_description')
   return result
 }
