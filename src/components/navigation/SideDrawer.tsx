@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, X } from 'lucide-react'
+import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Settings, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -24,13 +24,14 @@ export const sidebarMenuGroups = [
     items: [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
-    { label: '孩子档案', icon: Folder, to: '/health-profile' }
+    { label: '孩子档案', icon: Folder, to: '/health-profile' },
+    { label: '情况单', icon: ClipboardList, to: '/visit-summary' }
     ]
   },
   {
     title: '辅助工具',
+    collapsible: true,
     items: [
-    { label: '就诊情况单', icon: ClipboardList, to: '/visit-summary' },
     { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
     { label: '用药安排', icon: Pill, to: '/medication-reminders' },
@@ -38,7 +39,7 @@ export const sidebarMenuGroups = [
     ]
   },
   {
-    title: '改善系统',
+    title: '产品中心',
     items: [
     { label: '设置', icon: Settings, to: '/settings' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
@@ -65,11 +66,16 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const accountRelationship = member.primaryRecorderRelationship
     ? recorderRelationshipLabel[member.primaryRecorderRelationship]
     : null
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
+
+  useEffect(() => {
+    if (!open) setToolsOpen(false)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -132,8 +138,18 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
         <nav className="mt-3 flex-1 space-y-3" aria-label="侧边栏导航">
           {sidebarMenuGroups.map((group) => (
             <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
-              <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
-              <div className="hoho-drawer__menu">
+              {group.collapsible ? (
+                <h2 id={`drawer-${group.title}`}>
+                  <button className="hoho-drawer__item" type="button" aria-expanded={toolsOpen} aria-controls="drawer-tools-menu" onClick={() => setToolsOpen((value) => !value)}>
+                    <Wrench size={20} strokeWidth={1.7} />
+                    <span className="flex-1">{group.title}</span>
+                    {toolsOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
+                  </button>
+                </h2>
+              ) : (
+                <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
+              )}
+              {(!group.collapsible || toolsOpen) && <div id={group.collapsible ? 'drawer-tools-menu' : undefined} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
               {group.items.map(({ label, icon: Icon, to }) => {
                 const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
                 return (
@@ -144,7 +160,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
                   </button>
                 )
               })}
-              </div>
+              </div>}
             </section>
           ))}
         </nav>
