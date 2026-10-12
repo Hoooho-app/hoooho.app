@@ -20,6 +20,7 @@ import {profileResources} from './profile-resources.mjs'
 import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from './visit-ai-summary.mjs'
+import { situationSources, situationFingerprint } from './current-situation-output.mjs'
 import {
   buildVisitSheet,
   chapters,
@@ -216,6 +217,7 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date()) {
+    if(request.organizeCurrent!==undefined&&(!request.organizeCurrent||typeof request.organizeCurrent.scopeKey!=='string'||Object.keys(request.organizeCurrent).some(k=>k!=='scopeKey')||Object.keys(request).some(k=>!['organizeCurrent','expectedVersion','requestId'].includes(k))))throw failure('目前情况整理设置无效')
     if(request.previewUpdate!==undefined&&typeof request.previewUpdate!=='boolean')throw failure('更新预览设置无效')
     if(request.confirmUpdate!==undefined&&(typeof request.confirmUpdate!=='string'||Object.keys(request).some(k=>!['confirmUpdate','expectedVersion','requestId'].includes(k))))throw failure('更新确认设置无效')
     if(request.previewScope!==undefined&&(request.previewScope!==true||Object.keys(request).some(k=>!['selection','previewScope','requestId','expectedVersion'].includes(k))))throw failure('范围预览设置无效')
@@ -288,10 +290,14 @@ export class VisitSheetService {
       if(request.caseDetails && Object.hasOwn(request.caseDetails,'description')) currentSituationEdits[situationTarget.photoKey]={...currentSituationEdits[situationTarget.photoKey],description:request.caseDetails.description}
       if(request.currentSituation !== undefined) {
         const patch=request.currentSituation
-        if(!patch || !['description','symptoms','diet'].includes(patch.block) || typeof patch.text !== 'string' || patch.text.length>5000 || typeof patch.scopeKey !== 'string' || Object.keys(patch).some(k => !['scopeKey','block','text'].includes(k)) || request.focus) throw failure('目前情况编辑格式无效')
-        const target=buildVisitSheet(input,{focus,selection},now)
+        const rowPatch=patch?.block==='symptoms'&&Array.isArray(patch.rows)&&patch.rows.length<=12&&patch.text===undefined&&patch.rows.every(r=>r&&typeof r.text==='string'&&r.text.length<=5000&&typeof r.note==='string'&&r.note.length<=1000&&Object.keys(r).every(k=>['text','note'].includes(k)))
+        if(!patch || !['description','symptoms','diet'].includes(patch.block) || (!rowPatch&&(typeof patch.text!=='string'||patch.text.length>5000)) || typeof patch.scopeKey !== 'string' || Object.keys(patch).some(k => !['scopeKey','block','text','rows'].includes(k)) || request.focus || (patch.rows!==undefined&&!rowPatch)) throw failure('目前情况编辑格式无效')
+        const target=buildVisitSheet(input,{...previous,focus,selection},now)
         if(patch.scopeKey !== previous?.currentSituation?.scopeKey || patch.scopeKey !== target.photoKey) throw failure('目前情况已切换，请重新读取后编辑；填写内容仍保留',409)
-        currentSituationEdits[patch.scopeKey] = {...currentSituationEdits[patch.scopeKey],[patch.block]:patch.text}
+        if(rowPatch){
+          if(patch.rows.length!==target.currentSituation.symptoms.length)throw failure('症状行已变化，请重新读取',409)
+          const next={...currentSituationEdits[patch.scopeKey],symptomRows:patch.rows.map((row,i)=>({...target.currentSituation.symptoms[i],text:row.text,note:row.note,emphasis:[],emphasize:false}))};delete next.symptoms;currentSituationEdits[patch.scopeKey]=next
+        }else{currentSituationEdits[patch.scopeKey] = {...currentSituationEdits[patch.scopeKey],[patch.block]:patch.text};if(patch.block==='symptoms')delete currentSituationEdits[patch.scopeKey].symptomRows}
       }
       if(!caseDetails||typeof caseDetails!=='object'||Array.isArray(caseDetails)||Object.entries(caseDetails).some(([key,value])=>!['description','onset','change','other'].includes(key)||typeof value!=='string'||value.length>5000))throw failure('本次情况补充格式无效')
       if (
@@ -350,7 +356,7 @@ export class VisitSheetService {
       const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails:situationTarget.photoKey !== previous?.photoKey && !request.caseDetails ? {} : caseDetails, currentSituationEdits }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails:situationTarget.photoKey !== previous?.photoKey && !request.caseDetails ? {} : caseDetails, currentSituationEdits, currentSituationResults:previous?.currentSituationResults }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }
@@ -418,6 +424,22 @@ export class VisitSheetService {
       // Local report generation remains independent of AI availability. Never
       // send client-supplied report text; collect() is account/member scoped.
       const aiFingerprint = visitAISummaryFingerprint(report)
+      if(request.organizeCurrent){
+        if(request.organizeCurrent.scopeKey!==previous?.photoKey||request.organizeCurrent.scopeKey!==report.photoKey)throw failure('目前情况已切换，请重新读取后整理',409)
+        const sources=situationSources(report),fingerprint=situationFingerprint(sources)
+        if(!sources.length)throw failure('当前主诉没有可整理来源')
+        if(report.currentSituationResults[report.photoKey]?.fingerprint!==fingerprint){
+          // One existing medical-summary call, with a scoped view extension. Never overwrite user edits or source records.
+          const summaryInput=visitAISummaryInput({...report,focusSourceIds:[...new Set([...report.focusSourceIds,...sources.map(s=>s.id)])]}),cleanSources=sources.map(s=>({...s,text:summaryInput.visitFacts.sources.find(f=>f.id===s.id)?.text??''}))
+          const summary=await this.medicalSummary.generate({...summaryInput,currentSituationSources:cleanSources},accountId)
+          if(!['openai','bailian'].includes(summary.provider)||!summary.currentSituation)throw failure('目前情况整理暂不可用，原话和已有编辑保留',503)
+          const latestInput=await this.collect(accountId,memberId,now),latest=buildVisitSheet(latestInput,report,now)
+          if(latestInput.warnings.length||fingerprint!==situationFingerprint(situationSources(latest)))throw failure('来源已变化，请重新读取后整理；已有内容保留',409)
+          report.currentSituationResults[report.photoKey]={fingerprint,value:summary.currentSituation,provider:summary.provider,model:summary.model,generatedAt:now.toISOString()}
+          const projected=buildVisitSheet(input,report,now)
+          report.currentSituation=projected.currentSituation
+        }
+      }
       if(request.previewUpdate){
         if(request.photoDraft)throw failure('请先保存影像选择，再整理草稿')
         const cached=(await this.updateCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.version===(previous?.version??0)&&c.report.fingerprint===report.fingerprint&&Date.parse(c.expiresAt)>now.getTime())

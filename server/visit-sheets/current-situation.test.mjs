@@ -4,6 +4,22 @@ import {buildVisitSheet} from './report-model.mjs'
 import {visitFixture} from './fixtures.mjs'
 import {shanghaiWeek,weeklyTemperature} from './weekly-temperature.mjs'
 const now=new Date('2026-10-14T02:00:00Z')
+
+test('重新查询跨周或发生时间编辑/删除后，不能保留旧周曲线资格',()=>{
+ const f=visitFixture();f.records=['a','b'].map((id,i)=>({id,eventId:'event-a',type:'temperature',content:'体温 37℃',occurredAt:`2026-10-12T0${i}:00:00Z`,createdAt:'2026-10-14T00:00:00Z'}))
+ assert.equal(weeklyTemperature(f,now).points.length,2)
+ assert.equal(weeklyTemperature(f,new Date('2026-10-18T16:00:00Z')).points.length,0)
+ f.records[0].occurredAt='2026-10-11T15:59:59Z'
+ assert.deepEqual(weeklyTemperature(f,now).points.map(p=>p.sourceId),['record:b'])
+ f.records[1].deletedAt='2026-10-14T01:00:00Z'
+ assert.equal(weeklyTemperature(f,now).points.length,0)
+})
+
+test('同文主诉分组时原话来源优先当前选择，不能错指较早记录',()=>{
+ const f=visitFixture();f.records=[{id:'old',eventId:'event-a',type:'symptom',content:'今早有点头晕',sourceText:'今早有点头晕',occurredAt:'2026-10-12T00:00:00Z'},{id:'selected',eventId:'event-a',type:'symptom',content:'今早有点头晕',sourceText:'今早有点头晕',occurredAt:'2026-10-13T00:00:00Z'}]
+ const report=buildVisitSheet(f,{focus:{mode:'source',sourceId:'record:selected'}},now)
+ assert.equal(report.currentSituation.raw[0].sourceId,'record:selected')
+})
 test('上海周一边界、有效发生时间、同温不同记录和重复身份',()=>{
   assert.deepEqual(shanghaiWeek(new Date('2026-10-11T15:59:59Z')),{from:'2026-10-04T16:00:00.000Z',to:'2026-10-11T16:00:00.000Z'})
   assert.deepEqual(shanghaiWeek(new Date('2026-10-11T16:00:00Z')),{from:'2026-10-11T16:00:00.000Z',to:'2026-10-18T16:00:00.000Z'})

@@ -1,11 +1,17 @@
 # 就诊情况单：目前情况
 
-此投影只使用已保存资料，不触发 AI。`currentSituation` 提供描述、带来源的症状/饮食/发生变化/已做处理与完整原话。已整理事实仅在原引用可核对、记录版本一致、属于当前成员且不是被替代、未来或条件事实时展示。阴性观察与家属猜测保留完整原引用；没有结构化事实的旧记录保守显示原描述，不猜测分块。
+`currentSituation` 提供描述、带来源的症状/饮食/发生变化/已做处理与完整原话。原来的本地投影只读取已保存事实；缺少整理结果的旧记录因而显示整段原话，无法获得症状、饮食分块。V2 复用 `MedicalSummaryService.generate`、当前供应商与账户调用控制，在同一次摘要请求中按条件扩展严格 JSON schema；普通整单摘要不变，未建立第二套模型或解析服务。
+
+旧记录由 `needsOrganization` 标记，页面针对当前焦点和来源指纹自动尝试一次 `organizeCurrent: {scopeKey}`。服务端重新读取当前账号/成员的主诉及明确关联饮食，对所有输入沿用既有去标识化；模型必须逐行引用其来源 ID 与真实原文，复用既有数字、日期、否定及诊断检查。猜测必须归属家属，强调必须是正文中的完整事实；没有数值体温时不得推断数值。合法结果以 `currentSituationResults[photoKey] = {fingerprint, value, provider, model, generatedAt}` 保存，当前来源指纹一致时重用。该字段由服务端产生，客户端不能提交结果或任意来源正文。
+
+生成失败保留原话和已保存版本，当前模块提供重试。来源变化后重新核验，删除来源时清除依赖它的缓存；焦点/版本变化拒绝迟到补丁。同文记录分组时原话优先引用实际选中的记录。人工描述、症状行、饮食仍优先于新整理结果；原随记和用户编辑不因整理而覆盖。
 
 `PUT /api/members/:memberId/visit-sheet` 兼容原请求，可选 `currentSituation: {scopeKey, block, text}`，block 为 description / symptoms / diet，最多 5000 字。沿用 expectedVersion、requestId、账户事务和成员权限；当前焦点或版本不匹配时拒绝补丁。局部修改保存到 `currentSituationEdits[photoKey]`，换焦点不套用另一情况的修改，切回恢复。旧 caseDetails 描述按原焦点兼容迁入；原记录不修改。复制和离线 HTML 使用同一份展示内容。
+
+V2 对症状支持兼容补丁 `{scopeKey, block:'symptoms', rows:[{text,note}]}`，只编辑当前已有行，最多 12 行，文本最多 5000 字、相关备注最多 1000 字；分类、类型和来源由服务端原行保留，不能伪造来源或任意增行。每块在局部底部弹层编辑，保存/取消保留位置；失败保留输入。症状旁备注与行标签同时进入复制和离线 HTML。主诉选择沿用已有记录及手动/自动选择，只将该入口改为底部列表，其他编辑页不变。
 
 `GET /api/members/:memberId/visit-sheet/temperature` 是只读接口，沿用情况单成员权限，返回 `{from,to,points:[{sourceId,at,value}]}`。查询当前成员全部来源，不受情况单选择范围影响；复用既有测量提取校验，上海周一 00:00 到下周一，排除删除、无数值、未知发生时间、范围外和未来记录，按记录身份去重并按实际时间排序。读取未能确认时失败，不把不可用当成空记录。前端加载/失败期间隐藏入口，有两条不同记录才显示。刷新、成员/版本变化、窗口恢复与可见页定时刷新更新资格；失去资格时关闭弹层。
 
 附件仍使用原上传草稿、选择、元数据和预览服务，文件类型与限制未扩展。取消选择仅调整本次展示，原随记附件保留。温度弹层复用 BottomSheetSurface 与 FactLineChart，普通折线、点值、焦点/背景锁定和底部安全区；局部样式不影响其他弹层或章节。
 
-验证入口：`node --test server/visit-sheets/*.test.mjs`、`npm run test:client`、`npm run build`、`playwright test -c tests/visit-sheet/current-situation.config.ts`。浏览器夹具只用于隔离测试服务，绝不写入生产成员记录。
+验证入口：`node --test server/visit-sheets/*.test.mjs`、`npm run test:client`、`npm run build`、`playwright test -c tests/visit-sheet/current-situation.config.ts` 和 `playwright test -c tests/visit-sheet/current-situation-v2.config.ts`。V2 测试以原话创建真实临时记录，经现有供应商适配、严格校验、事务保存和实际 DOM 验收；仅模型响应使用隔离替身，未替换报告投影。375/390/430 截图、编辑/错误重试、附件上传/预览/确认移除、键盘视口模拟、空态、长文和离线导出都使用该测试服务。交互稿仅为视觉参考，不作为应用验收证据；实体 iPhone 和真实软键盘需人工验收。测试夹具不进入生产用户记录。

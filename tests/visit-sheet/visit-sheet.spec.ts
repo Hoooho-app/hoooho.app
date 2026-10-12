@@ -9,7 +9,7 @@ const videoId = () => webmFixture() ? 'test-webm' : 'test-video';
 const videoMime = () => webmFixture() ? 'video/webm' : 'video/mp4';
 const videoName = () => webmFixture() ? '合成视频上传.webm' : '合成视频上传.mp4';
 const read = async (p: Page) => (await (await p.request.get(endpoint, { headers })).json()).report;
-async function enter(p: Page, member = 'child-a') { await p.addInitScript(({ token, member }) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 })); }, { token, member }); await p.goto('/visit-summary'); await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible(); }
+async function enter(p: Page, member = 'child-a') { await p.addInitScript(({ token, member }) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 })); }, { token, member }); await p.goto('/visit-summary'); await expect(p.locator('#chapter-overview')).toBeVisible(); }
 async function verifyVideo(v: ReturnType<Page['locator']>, p: Page, offline = false) {
     await expect.poll(() => v.evaluate((e: HTMLVideoElement) => e.readyState >= 2 ? 'ready' : e.error ? 'error' : 'waiting')).not.toBe('waiting');
     const error = await v.evaluate((e: HTMLVideoElement) => e.error?.code ?? null);
@@ -29,7 +29,7 @@ async function verifyVideo(v: ReturnType<Page['locator']>, p: Page, offline = fa
 }
 async function width(p: Page) { const v = await p.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth, scroll: [...document.querySelectorAll('[data-scroll-container],.visit-subpage-body,[role=dialog]')].map(e => [e.scrollWidth, e.clientWidth]) })); expect(v.document, JSON.stringify(v)).toBeLessThanOrEqual(v.width); expect(v.body).toBeLessThanOrEqual(v.width); for (const [s, c] of v.scroll)
     expect(s, JSON.stringify(v)).toBeLessThanOrEqual(c); }
-async function chapter(p: Page, title: string) { await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();const count=await p.locator('[data-reading-card]').count();await p.getByRole('button', { name: '章节目录', exact: true }).click(); const d = p.getByRole('dialog', { name: '章节目录' }); await expect(d.locator('nav button')).toHaveCount(count); await d.getByRole('button', { name: new RegExp(title) }).click(); await expect(d).toHaveCount(0); }
+async function chapter(p: Page, title: string) { await expect(p.locator('#chapter-overview')).toBeVisible();const count=await p.locator('[data-reading-card]').count();await p.getByRole('button', { name: '章节目录', exact: true }).click(); const d = p.getByRole('dialog', { name: '章节目录' }); await expect(d.locator('nav button')).toHaveCount(count); await d.getByRole('button', { name: new RegExp(title) }).click(); await expect(d).toHaveCount(0); }
 async function edit(p: Page, title: string) { const toggle=p.getByRole('button',{name:new RegExp('^'+title)});if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();const editorTitle=title==='目前情况'?'情况描述':title;await p.getByRole('button', { name: '编辑' + editorTitle, exact: true }).click(); return p.getByRole('dialog', { name: '编辑' + editorTitle, exact: true }); }
 async function photos(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '添加 / 调整影像', exact: true }).click(); return p.getByRole('dialog', { name: '添加 / 调整影像' }); }
 async function scope(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '调整 / 恢复资料范围', exact: true }).click(); return p.getByRole('dialog', { name: '本次资料范围', exact: true }); }
@@ -103,7 +103,7 @@ test('刷新页面会保护未保存草稿，取消刷新后仍可继续编辑',
     const reload=p.evaluate(()=>location.reload());
     const dialog=await nativeDialog;expect(dialog.type()).toBe('beforeunload');await dialog.dismiss();await reload;
     await expect(d.getByRole('textbox',{name:'情况描述',exact:true})).toHaveValue('刷新保护的草稿');
-    await d.getByRole('button',{name:'返回编辑情况描述'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
+    await d.getByRole('button',{name:'关闭编辑情况描述'}).click();await d.getByRole('button',{name:'放弃修改'}).click();
 });
 test('情况单血型只显示 ABO，移除时区与年龄说明', async ({ page: p }, info) => {
     let bloodType: string | null = 'B';
@@ -151,12 +151,12 @@ test('四卡片默认展开、独立编辑、目录键盘定位、实际全页�
         await width(p);
         const toggle = p.getByRole('button', { name: new RegExp('^' + title) }), before = await toggle.getAttribute('aria-expanded'), d = await edit(p, title);
         await width(p);
-        await d.getByRole('button', { name: '返回编辑' + (title==='目前情况'?'情况描述':title) }).click();
+        await d.getByRole('button', { name: title==='目前情况'?'关闭编辑情况描述':'返回编辑'+title }).click();
         await expect(toggle).toHaveAttribute('aria-expanded', before!);
     }
     await p.getByRole('button', { name: '章节目录' }).click();
     const d = p.getByRole('dialog', { name: '章节目录' });
-    await d.getByRole('button', { name: '关闭章节目录' }).focus();
+    await expect(d.getByRole('button', { name: '关闭章节目录' })).toBeFocused();
     await p.keyboard.press('Shift+Tab');
     await expect(d.getByRole('button', { name: /04/ })).toBeFocused();
     await p.keyboard.press('Escape');
@@ -199,7 +199,7 @@ test('四项编辑真实保存刷新、失败保留草稿和取消不改原始�
     await expect(d.getByRole('alert')).toContainText('合成保存失败');
     await expect(d.getByLabel('情况描述', {exact:true})).toHaveValue('失败时保留草稿');
     expect((await read(p)).version).toBe(saved.version);
-    await d.getByRole('button', { name: '返回编辑情况描述' }).click();
+    await d.getByRole('button', { name: '关闭编辑情况描述' }).click();
     await expect(d.getByText('还有未保存的内容')).toBeVisible();
         await expect(d.getByRole('alert').filter({hasText:'还有未保存的内容'})).toBeInViewport({ratio:1});
     await p.screenshot({ path: info.outputPath('edit-draft-protected.png') });
@@ -221,13 +221,13 @@ test('原图缩放关闭回焦、选图持久化、无关联主题不套旧影�
     await picker.getByRole('button', { name: '保存影像选择' }).click();
     await expect(picker).toHaveCount(0);
     await p.reload();
-    await expect(p.locator('.visit-photos img')).toHaveCount(1);
+    await expect(p.locator('#chapter-overview .visit-situation-file img')).toHaveCount(1);
     await p.getByRole('button', { name: '更改主诉', exact: true }).click();
-    await p.getByLabel('本次主诉').fill('无关联自填主题');
-    await p.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click();
-    await expect(p.locator('.visit-photos')).toHaveCount(0);
+    await p.getByRole('dialog',{name:'更改主诉'}).getByText('其他选择',{exact:true}).click(); await p.getByRole('radio',{name:'自己描述'}).check(); await p.getByLabel('本次主诉').fill('无关联自填主题');
+    await p.getByRole('dialog',{name:'更改主诉'}).getByRole('button', { name: '确定', exact: true }).click();
+    await expect(p.locator('#chapter-overview .visit-situation-file')).toHaveCount(0);
 });
-test('视频原件真实播放、返回停止、纯视频、七项三列自然换行', async ({ page: p }, info) => {
+test('视频原件真实播放、返回停止、纯视频和七项附件自然列表', async ({ page: p }, info) => {
     await enter(p);
     await p.getByRole('button', { name: '查看视频 3' }).click();
     const viewer = p.getByRole('dialog', { name: '视频原件' }), v = viewer.locator('video');
@@ -241,8 +241,8 @@ test('视频原件真实播放、返回停止、纯视频、七项三列自然�
     const r = await read(p);
     await p.request.put(endpoint, { headers, data: { expectedVersion: r.version, requestId: crypto.randomUUID(), selectedPhotoIds: ['attachment:' + videoId()] } });
     await p.reload();
-    await expect(p.locator('.visit-photos figure')).toHaveCount(1);
-    await expect(p.locator('.visit-photos img')).toHaveCount(0);
+    await expect(p.locator('#chapter-overview .visit-situation-file')).toHaveCount(1);
+    await expect(p.locator('#chapter-overview .visit-situation-file img')).toHaveCount(0);
     await p.route('**/api/members/child-a/visit-sheet', async (route) => { const response = await route.fetch(), state = await response.json(); if (route.request().method() === 'GET' && state.report) {
         const r = state.report, photo = r.photos.find((p: any) => p.sourceId === 'attachment:v5-image-0'), source = r.sources.find((s: any) => s.id === photo.sourceId);
         r.photos = Array.from({ length: 7 }, (_, i) => ({ ...photo, sourceId: 'stress:' + i, title: '影像-' + i }));
@@ -250,10 +250,10 @@ test('视频原件真实播放、返回停止、纯视频、七项三列自然�
         r.selectedPhotoIds = r.photos.map((p: any) => p.sourceId);
     } await route.fulfill({ response, json: state }); });
     await p.reload();
-    await expect(p.locator('.visit-photos figure')).toHaveCount(7);
-    const cells = await p.locator('.visit-reading-media-thumb').evaluateAll(es => es.map(e => ({ y: e.getBoundingClientRect().y, h: e.getBoundingClientRect().height })));
-    expect(cells[0].y).toBe(cells[2].y);
-    expect(cells[3].y).toBe(cells[5].y);
+    await expect(p.locator('#chapter-overview .visit-situation-file')).toHaveCount(7);
+    const cells = await p.locator('#chapter-overview .visit-situation-file-thumb').evaluateAll(es => es.map(e => ({ y: e.getBoundingClientRect().y, h: e.getBoundingClientRect().height })));
+    expect(cells[2].y).toBeGreaterThan(cells[0].y);
+    expect(cells[5].y).toBeGreaterThan(cells[3].y);
     expect(cells[6].y).toBeGreaterThan(cells[5].y);
     expect(cells[0].h).toBeLessThanOrEqual(64);
     await width(p);
@@ -274,7 +274,7 @@ test('视频上传保存不启动 AI 分析，原件可播放', async ({ page: p
     expect(video.duration).toBeGreaterThan(0);
     expect(jobs).toEqual([]);
     await p.reload();
-    await expect(p.locator('.visit-video-thumb')).toHaveCount(2);
+    await expect(p.locator('#chapter-overview .visit-situation-file-thumb button[aria-label^=查看视频]')).toHaveCount(2);
 });
 test('精简导出三按钮顺序、完整离线照片视频与两种复制回退', async ({ page: p, browser, browserName }, info) => {
     await enter(p);
@@ -477,7 +477,7 @@ test('自动读取最新保存资料，相关经过按摘要核对来源，手�
 })
 
 test('首次打开三个默认问题，七条整行建议可追加编辑，空经过隐藏',async({page:p},info)=>{
-  const created=await p.request.post('/api/members',{headers,data:{name:'问题编辑验收（虚构）',relationship:'child',gender:'female',birthday:'2024-01-01'}});expect(created.ok()).toBeTruthy();const member=await created.json();await enter(p,member.id)
+  const created=await p.request.post('/api/members',{headers,data:{name:'问题编辑验收（虚构）',relationship:'child',gender:'female',birthday:'2024-01-01'}});expect(created.ok()).toBeTruthy();const member=await created.json();await enter(p,member.id);await expect(p.getByRole('button',{name:'选择主诉',exact:true})).toBeVisible()
   await expect(p.locator('#chapter-course')).toHaveCount(0)
   const d=await edit(p,'本次想问');const input=d.getByRole('textbox',{name:'本次想问',exact:true})
   expect((await input.inputValue()).split('\n').filter(Boolean)).toHaveLength(3)
@@ -486,7 +486,7 @@ test('首次打开三个默认问题，七条整行建议可追加编辑，空�
   await input.fill((await input.inputValue())+'\n家长自行补充的问题')
   await width(p);await p.screenshot({path:info.outputPath('question-editor.png')})
   await d.getByRole('button',{name:'保存',exact:true}).click();await expect(d).toHaveCount(0)
-  await p.reload();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();await chapter(p,'本次想问');await expect(p.locator('#chapter-medication')).toContainText('家长自行补充的问题')
+  await p.reload();await expect(p.getByRole('button',{name:'选择主诉',exact:true})).toBeVisible();await chapter(p,'本次想问');await expect(p.locator('#chapter-medication')).toContainText('家长自行补充的问题')
 })
 
 test('自动整理失败保留已确认内容，重试后才采用新资料',async({page:p})=>{

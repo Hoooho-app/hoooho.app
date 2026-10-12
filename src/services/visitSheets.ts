@@ -6,7 +6,8 @@ import type {
   VisitPhotoDetail,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
-  currentSituation?: {scopeKey:string;block:'description'|'symptoms'|'diet';text:string}
+  currentSituation?: {scopeKey:string;block:'description'|'symptoms'|'diet';text?:string;rows?:Array<{text:string;note:string}>}
+  organizeCurrent?: {scopeKey:string}
   previewUpdate?: boolean
   confirmUpdate?: string
   caseDetails?: import('../types/visitSheet').VisitSheet['caseDetails']
@@ -61,8 +62,8 @@ export const visitSheetService = {
         method: 'PUT',
         body,
         signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(body.generateAI?130000:30000)])
-          : AbortSignal.timeout(body.generateAI?130000:30000),
+          ? AbortSignal.any([signal, AbortSignal.timeout(body.generateAI||body.organizeCurrent?130000:30000)])
+          : AbortSignal.timeout(body.generateAI||body.organizeCurrent?130000:30000),
       },
     )
   },

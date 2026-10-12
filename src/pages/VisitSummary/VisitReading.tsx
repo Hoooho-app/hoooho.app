@@ -48,6 +48,7 @@ export function VisitReading({
   onMedications,
   opened,
   busy = false,
+  organizing = false, organizationError = '', onOrganize,
 }: {
   report: VisitSheet;
   token: string;
@@ -58,6 +59,7 @@ export function VisitReading({
   onMedications: () => void;
   opened: { id: VisitChapterId; serial: number };
   busy?: boolean;
+  organizing?:boolean;organizationError?:string;onOrganize?:()=>void;
 }) {
   const [folds, setFolds] = useState<Record<string, boolean>>({
     overview: true,
@@ -178,7 +180,7 @@ export function VisitReading({
         <Cross size={19} />,
         "current",
         "",
-        <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia}/>,
+        <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia} organizing={organizing} organizationError={organizationError} onOrganize={onOrganize}/>,
 
       )}
       {card(
