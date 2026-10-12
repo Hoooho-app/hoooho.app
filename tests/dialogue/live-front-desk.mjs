@@ -45,8 +45,13 @@ try{
  const voiceReply=spoken.context.messages.filter(m=>m.kind==='assistant').at(-1)
  modelResults.push({stage:'voice-dialogue',requestId:voiceReply.diagnostics?.requestId,model:voiceReply.diagnostics?.model,reply:voiceReply.text})
  // Choose exactly the model-selected intent; include only this context's sources.
- const context=spoken.context,raw=context.messages.filter(m=>m.kind!=='assistant').map(m=>m.text).filter(Boolean).join('\n'),files=context.messages.flatMap(m=>m.files??[]),voiceFiles=context.messages.flatMap(m=>m.voices??[])
- const drafts=`/api/members/${memberId}/ai-drafts`,baseInput={text:raw,task:'record',smartRecord:true,confirmOccurrenceTime:true,followUp:false,selectedOccurredAt:new Date().toISOString(),timezone:'Asia/Shanghai'}
+ // The local speech fixture is English. Exercise the requested Chinese mixed
+ // record flow by adding its faithful Chinese supplement; do not fabricate ASR.
+ state.supplementId??=randomUUID();await writeFile(stateFile,JSON.stringify(state))
+ const supplemented=await api('chinese-voice-supplement',route,'POST',{id:state.supplementId,kind:'text',text:'补充刚才的录音：昨天吃了半碗粥，睡了一个小时。',inputAt:state.at+3})
+ const supplementReply=supplemented.context.messages.filter(m=>m.kind==='assistant').at(-1);modelResults.push({stage:'chinese-supplement',requestId:supplementReply.diagnostics?.requestId,model:supplementReply.diagnostics?.model})
+ const context=supplemented.context,raw=context.messages.filter(m=>m.kind!=='assistant').map(m=>m.text).filter(Boolean).join('\n'),files=context.messages.flatMap(m=>m.files??[]),voiceFiles=context.messages.flatMap(m=>m.voices??[])
+ const drafts=`/api/members/${memberId}/ai-drafts`,baseInput={text:raw,task:'record',smartRecord:true,frontDeskRecord:true,confirmOccurrenceTime:true,followUp:false,selectedOccurredAt:new Date().toISOString(),timezone:'Asia/Shanghai'}
  let draft=await api('organization-retain',drafts,'POST',{...baseInput,files,voiceFiles,deferRecognition:true})
  await api('context-checkpoint',`${route}/contexts/${context.id}`,'POST',{draftId:draft.id})
  draft=await api('organization-generate',drafts,'POST',{...baseInput,id:draft.id,version:draft.version})

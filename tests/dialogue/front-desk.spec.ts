@@ -156,6 +156,19 @@ test('old failed audio does not silently disable Chinese text sending',async({pa
   await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'再试一次',exact:true})).toBeVisible()
 })
+test('a reply arriving during recording waits for microphone release before automatic speech',async({page})=>{
+  await page.evaluate(()=>{(window as any).__recordSpoken=[];Object.defineProperty(window,'SpeechSynthesisUtterance',{value:class{ text:string; constructor(text:string){this.text=text} }});Object.defineProperty(window,'speechSynthesis',{value:{cancel(){},getVoices(){return[]},speak(value:any){if(value.text.trim())(window as any).__recordSpoken.push(value.text);value.onstart?.();setTimeout(()=>value.onend?.(),10)}}})})
+  let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve})
+  await page.route('**/front-desk-record',async route=>{if(route.request().method()==='POST')await gate;await route.continue()})
+  await page.getByRole('button',{name:'改用文字'}).click();await page.getByLabel('对话输入').fill('今天吃了半碗粥');await page.getByRole('button',{name:'发送',exact:true}).click()
+  await page.getByRole('button',{name:'改用语音'}).click();await page.getByRole('button',{name:'按住说话',exact:true}).focus();await page.keyboard.down('Space')
+  await expect(page.getByRole('button',{name:'正在录音，松手发送'})).toBeVisible();release()
+  await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
+  expect(await page.evaluate(()=>(window as any).__recordSpoken)).not.toContain('这次观察收到了，可以接着补充。')
+  for(const button of await page.getByRole('button',{name:'朗读护士回复'}).all())await expect(button).toBeDisabled()
+  await page.keyboard.up('Space')
+  await expect.poll(()=>page.evaluate(()=>(window as any).__recordSpoken)).toContain('这次观察收到了，可以接着补充。')
+})
 
 test('Chinese composition, independent sends, failed message retry and two image selections retain their own bubbles',async({page},info)=>{
   await page.getByRole('button',{name:'改用文字'}).click()

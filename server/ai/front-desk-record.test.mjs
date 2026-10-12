@@ -84,3 +84,14 @@ test('explicit removal archives only failed message; completed submissions and o
  assert.equal((await f.service.latest('synthetic',f.member.id)).id,completed.context.id)
  assert.equal((await f.service.store.read()).messages.find(m=>m.id==='failed').status,'discarded')
 })
+test('restored codec MIME aliases reuse the exact voice message; changed text or forged WAV container remain rejected',async t=>{
+ const f=await setup(t),wav=Buffer.alloc(400);wav.write('RIFF');wav.write('WAVE',8)
+ const original={name:'原件.wav',mimeType:'audio/wav;codecs=pcm',dataUrl:`data:audio/wav;codecs=pcm;base64,${wav.toString('base64')}`},input={id:'codec-voice',kind:'voice',text:'昨天睡了一个小时',voiceFiles:[original]}
+ f.model.structured=async()=>{throw new Error('temporary reply failure')};await assert.rejects(()=>f.service.submit('synthetic',f.member.id,input))
+ f.model.structured=async()=>({value:{reply:'这段观察已收到。',contextId:'new',action:'record'},diagnostics:{provider:'test'}})
+ const restored={...input,voiceFiles:[{...original,mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${wav.toString('base64')}`}]}
+ const result=await f.service.submit('synthetic',f.member.id,restored);assert.equal(result.context.messages.length,2)
+ assert.equal(result.context.messages[0].voices[0].dataUrl,original.dataUrl)
+ await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,text:'改写原话'}),{code:'FRONT_RECORD_ID_CONFLICT'})
+ await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,voiceFiles:[{...original,mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${Buffer.alloc(400).toString('base64')}`}]}),{code:'VOICE_ORIGINAL_FORMAT_MISMATCH'})
+})

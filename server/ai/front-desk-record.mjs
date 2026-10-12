@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { randomUUID,createHash } from 'node:crypto'
 import sharp from 'sharp'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
@@ -10,6 +10,7 @@ import { withAIAccount } from './providers/call-control.mjs'
 import { fail, fingerprint } from './business/contract.mjs'
 import { normalizePhoto } from '../food-label/service.mjs'
 const messageOrder=(a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at))||a.id.localeCompare(b.id)
+const messageSignature=(kind,text,files=[],voices=[])=>fingerprint([kind,text.trim(),files.map(f=>f.contentHash??fingerprint(f.dataUrl)),voices.map(f=>createHash('sha256').update(Buffer.from(f.dataUrl.slice(f.dataUrl.indexOf(',')+1),'base64')).digest('hex'))])
 
 // Submitted chat is durable evidence; it never creates a formal health record.
 // Only a selected context's originals are loaded. History search sends bounded
@@ -55,7 +56,7 @@ export class FrontDeskRecord {
     if (!context) return null
     let review
     if (context.draftId) try { review = await this.business.read(accountId, memberId, context.draftId) } catch (error) { if (error.code !== 'AI_DRAFT_NOT_FOUND') throw error }
-    return { ...context, accountId: undefined, memberId: undefined, review, messages: data.messages.filter(m => m.contextId === contextId && m.accountId === accountId && m.memberId === memberId).sort(messageOrder).map(({ accountId, memberId, digest, ...m }) => m) }
+    return { ...context, accountId: undefined, memberId: undefined, review, messages: data.messages.filter(m => m.contextId === contextId && m.accountId === accountId && m.memberId === memberId).sort(messageOrder).map(({ accountId, memberId, digest, signature, ...m }) => m) }
   }
   async latest(accountId, memberId) {
     await this.scope(accountId, memberId)
@@ -96,8 +97,6 @@ export class FrontDeskRecord {
     if(bytesFor([...(input.files??[]),...(input.voiceFiles??[])])>15*1024*1024)throw fail('原件总大小不能超过15 MB',413,'FRONT_RECORD_MEDIA_LIMIT')
     let data = await this.store.read()
     let message = data.messages.find(m => m.id === input.id && m.accountId === accountId && m.memberId === memberId)
-    if (message && message.digest !== digest) throw fail('消息标识已使用，请重试原消息', 409, 'FRONT_RECORD_ID_CONFLICT')
-    if (message?.status === 'completed') return { context: await this.snapshot(accountId, memberId, message.contextId), messageId: message.id, replyId: `${message.id}:reply` }
     const imageInputs = await Promise.all((input.files ?? []).map(async f => {
       if (!/^image\/hei[cf]$/.test(f.mimeType)) return f
       try { const converted = await normalizePhoto(f); return {...f,name:f.name.replace(/\.hei[cf]$/i,'.jpg'),mimeType:'image/jpeg',dataUrl:converted.dataUrl} }
@@ -107,10 +106,16 @@ export class FrontDeskRecord {
     try{prepared=await prepareDocuments(imageInputs)}catch(error){throw fail(`图片处理失败：${error.message}。原图保留，可重新选择`,error.status??422,'FRONT_IMAGE_PROCESSING_FAILED')}
     prepared.documents = prepared.documents.map(f => ({...f, lastModified: imageInputs.find(source => source.dataUrl === f.dataUrl)?.lastModified ?? 0}))
     const voices = prepareVoiceOriginals(input.voiceFiles ?? []).map(f => ({...f, lastModified: input.voiceFiles.find(source => source.dataUrl === f.dataUrl)?.lastModified ?? 0}))
+    // Validate containers first, then compare actual sources. Codec declaration
+    // formatting and converted HEIC preview headers may change on restoration;
+    // identical bytes still belong to the same immutable input operation.
+    const signature=messageSignature(input.kind,input.text,prepared.documents,voices)
+    if(message&&(message.signature??messageSignature(message.kind,message.text,message.files,message.voices))!==signature)throw fail('消息标识已使用，请重试原消息',409,'FRONT_RECORD_ID_CONFLICT')
+    if(message?.status==='completed')return {context:await this.snapshot(accountId,memberId,message.contextId),messageId:message.id,replyId:`${message.id}:reply`}
     if (!message) {
       const at = this.now().toISOString(), contextId = randomUUID()
       const inputAt=Number.isFinite(input.inputAt)?Math.min(input.inputAt,this.now().getTime()):this.now().getTime()
-      message = { id: input.id, accountId, memberId, kind: input.kind, text: input.text.trim(), inputAt, files: prepared.documents, originalFiles: (input.files??[]).filter(f=>/^image\/hei[cf]$/.test(f.mimeType)), voices, contextId, at, status: 'pending', digest }
+      message = { id: input.id, accountId, memberId, kind: input.kind, text: input.text.trim(), inputAt, files: prepared.documents, originalFiles: (input.files??[]).filter(f=>/^image\/hei[cf]$/.test(f.mimeType)), voices, contextId, at, status: 'pending', digest,signature }
       await accountTransaction(this.directory, async () => {
         await this.scope(accountId,memberId)
         await this.store.update(d => ({ ...d, contexts: [...d.contexts, { id: contextId, accountId, memberId, updatedAt: at, createdAt: at, provisional: true }], messages: [...d.messages, message] }))
