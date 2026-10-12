@@ -1,3 +1,4 @@
+import { RecordSaveAction } from './RecordSaveAction'
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { ArrowLeft, ImagePlus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -88,7 +89,7 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
     } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') } finally { setSaving(false) }
   }
   return <div className="diet-record-page-layer"><section aria-label="记录排便" aria-modal="true" className="diet-record-page bowel-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
-    <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录排便</h1><span aria-hidden="true" /></header>
+    <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录排便</h1><RecordSaveAction disabled={saving || photos.blocked} saving={saving} onClick={() => void save()}/></header>
     <div className="diet-record-scroll">
       <BowelPhotos model={photos} />
       <fieldset className="bowel-fieldset"><legend>形状 <span>（可多选）</span></legend><div className="bowel-shape-grid">{bowelShapes.map((shape, index) => <button aria-pressed={draft.shapes.includes(shape)} key={shape} onClick={() => update('shapes', toggle(draft.shapes, shape))} type="button"><i data-shape={index} aria-hidden="true"><b /><b /><b /></i><span>{shape}</span></button>)}</div></fieldset>
@@ -104,7 +105,7 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
       <section className="record-time-group"><OccurrenceTimeField model={occurrence} label="记录时间" /></section>
       <DailyRecordSettings kind="bowel" />
       {error && <p className="diet-save-error" role="alert">{error}</p>}
-      <div className="diet-record-save"><HohoButton disabled={saving || photos.blocked} fullWidth loading={saving} onClick={save} size="large"><DailySaveText /></HohoButton></div>
+
     </div>
   </section></div>
 }

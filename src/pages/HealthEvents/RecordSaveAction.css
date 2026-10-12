@@ -1,0 +1,9 @@
+:is(.diet-record-page,.sleep-record-page,.medication-record-page,.symptom-record-page) > header:has(.record-header-save,.record-header-save-target) { grid-template-columns: 64px minmax(0,1fr) 64px; }
+:is(.diet-record-page,.sleep-record-page,.medication-record-page,.symptom-record-page) > header .record-header-save {
+  width:auto; min-width:var(--hoho-touch-target); min-height:var(--hoho-touch-target); height:auto;
+  padding:0 var(--hoho-space-1); border:0; border-radius:var(--hoho-radius-control);
+  color:rgb(var(--hoho-color-primary)); background:transparent; box-shadow:none;
+  font-size:var(--hoho-font-size-body); white-space:nowrap; justify-self:end;
+}
+.record-header-save-target { display:flex; justify-content:flex-end; min-width:0; }
+:is(.diet-record-scroll,.sleep-record-scroll,.medication-record-scroll) { padding-bottom:calc(var(--hoho-space-5) + env(safe-area-inset-bottom)); }

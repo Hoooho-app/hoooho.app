@@ -9,7 +9,7 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('const form ='), source.indexOf('export function RelatedRecordsSheet'))
   const cardSource=formSource.slice(formSource.indexOf('symptom-narrative'))
-  const labels = ['症状描述', '症状部位', '补充信息', '发生时间', '拍照', '选照片', '语音输入', '智能记录']
+  const labels = ['症状描述', '症状部位', '补充信息', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = cardSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)
@@ -23,7 +23,11 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂未生成摘要，可直接保存原文/)
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
-  assert.match(source, /SymptomVoiceSheet/)
+  assert.match(source, /DialogueComposer inputOnly directPhoto releaseLabel="松手结束"/)
+  assert.match(source, /onStart=\{\(\) => void voice\.start\(\)\}/)
+  assert.match(source, /onStop=\{voice\.stop\}/)
+  assert.doesNotMatch(source, /SymptomVoiceSheet|symptom-nurse-entry/)
+  assert.match(formSource, /<header>.*RecordSaveAction/s)
   assert.match(source, /symptom-record-toolbar/)
   assert.doesNotMatch(formSource.split('symptom-record-save')[0], /记录输入方式/)
   assert.doesNotMatch(formSource, /aria-label="关闭"/)

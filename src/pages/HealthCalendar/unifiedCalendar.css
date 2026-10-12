@@ -28,9 +28,12 @@
 .unified-health-calendar [data-tone=neutral] { --calendar-tone: var(--hoho-color-text-secondary); --calendar-tone-surface: var(--hoho-color-surface-subtle); }
 .unified-health-calendar .health-calendar__preview { color: rgb(var(--calendar-tone)); background: rgb(var(--calendar-tone-surface)); }
 .unified-health-calendar .journal-day-grid [data-tone] .journal-record-main > svg:first-child { color: rgb(var(--calendar-tone)); justify-self: center; }
+.unified-health-calendar .journal-day-grid .journal-record[data-tone], .unified-health-calendar .journal-day-grid [data-tone] .journal-record-main { background: rgb(var(--calendar-tone-surface)); }
+.unified-health-calendar .journal-day-grid [data-tone] .journal-record-main:hover { background: rgb(var(--calendar-tone) / .12); }
 .calendar-day-sheet .hoho-bottom-sheet__body { overscroll-behavior: contain; }
 .calendar-day-records { display: grid; gap: var(--hoho-space-3); }
 .calendar-day-records > article { border-bottom: 1px solid rgb(var(--hoho-color-border)); padding-bottom: var(--hoho-space-2); }
+.calendar-day-records > article[data-tone] { background: rgb(var(--calendar-tone-surface)); border-radius: var(--hoho-radius-small); padding: var(--hoho-space-2); }
 .calendar-day-records button { display: grid; grid-template-columns: 44px 20px minmax(0,1fr) 16px; gap: var(--hoho-space-2); width: 100%; min-height: var(--hoho-touch-target); align-items: center; text-align: left; }
 .calendar-day-records button > svg:first-of-type, .calendar-day-records small { color: rgb(var(--calendar-tone)); }
 .calendar-day-records small, .calendar-day-records strong { display: block; overflow-wrap: anywhere; }

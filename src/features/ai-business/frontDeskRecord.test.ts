@@ -7,6 +7,7 @@ const local=():CaptureDraft=>({text:'另一件旧事情',files:[],conversationIn
 test('模型选择的记录上下文只汇总该事件用户来源，护士回复不进入整理',()=>{
  const restored=restoreFrontContext({id:'food',updatedAt:'2026-10-12T00:00:00Z',messages:[{id:'input-1',kind:'text',text:'吃了半碗粥',contextId:'food',status:'completed'},{id:'reply-1',kind:'assistant',text:'收到。',contextId:'food',status:'completed'}]},local())
  assert.equal(restored.text,'吃了半碗粥');assert.equal(restored.conversationInput,'还没发送的中文');assert.equal(restored.requestId,'food');assert.equal(restored.conversationTurns?.length,2)
+ assert.equal(restored.capturedAt,'2026-10-12T00:00:00.000Z')
 })
 test('后端回调不能吞掉后续待提交消息、录音原件和未发送文字',()=>{
  const file=new File(['original'],'voice.webm',{type:'audio/webm',lastModified:42}),draft={...local(),files:[file],pendingVoice:file,conversationTurns:[{id:'pending-voice',text:'',kind:'voice' as const,status:'transcribing' as const,fileKeys:[fileIdentity(file)]}]}
