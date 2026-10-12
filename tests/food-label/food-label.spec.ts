@@ -43,6 +43,7 @@ test('result back clears this scan; entry back works with keyboard and direct en
   await page.getByRole('button',{name:'返回',exact:true}).press('Enter')
   await expect(page.locator('.nurse-station-page')).toBeVisible()
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+  await page.getByRole('button',{name:'辅助工具',exact:true}).click()
   await page.getByRole('button',{name:'配料表扫描',exact:true}).click()
   await expect(page.getByRole('button',{name:'拍摄配料表',exact:true})).toBeVisible()
   await expect(page.locator('.food-label-ingredients li')).toHaveCount(0)

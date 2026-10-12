@@ -97,6 +97,7 @@ test('P-001 首页进入空状态，保存图片禁用且页面无横向溢出',
   await prepare(page)
   await page.goto('/nurse-station')
   await page.getByRole('button', { name: '打开菜单' }).click()
+  await page.getByRole('button', { name: '辅助工具', exact: true }).click()
   await page.getByRole('button', { name: '忌口卡', exact: true }).click()
   await expect(page).toHaveURL(/\/dietary-card$/)
   await expect(page.getByRole('heading', { name: '目前还没有记录食物过敏' })).toBeVisible()
