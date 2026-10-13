@@ -148,3 +148,69 @@ test('medication editor keeps paper material and existing close behavior', async
   await editor.getByRole('button',{name:'返回',exact:true}).click()
   await expect(editor).toBeHidden()
 })
+
+test('home uses aligned calendar controls, button hierarchy and count-based paper layers', async ({ page }, info) => {
+  await preparePage(page)
+  let count = 1
+  await page.route('**/api/members/*/cases?*', async route => {
+    const response = await route.fetch()
+    const data = await response.json()
+    const base = data.active.find((item: any) => item.followup.hasSymptom)
+    expect(base).toBeTruthy()
+    await route.fulfill({ response, json: { ...data, active: Array.from({length:count}, (_, index) => ({ ...base, event: {...base.event, id: `${base.event.id}-${index}`}, followup: {...base.followup, title: index ? base.followup.title : '连续发热观察及较长的症状标题用于验证单行布局', keyword:'发热'} })) } })
+  })
+  for (count of [0, 1, 2, 4]) {
+    await page.goto('/nurse-station')
+    const symptom = page.getByRole('region', {name:'症状跟进'})
+    await expect(symptom.locator('.home-followup-count')).toHaveText(`${count} 项`)
+    await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers', String(Math.max(1,Math.min(3,count))))
+    const card = page.locator('.nurse-home-dialogue')
+    const row = card.locator('.record-entry-grid')
+    const smart = card.getByRole('button',{name:'智能记录',exact:true})
+    await expect(row.getByRole('button')).toHaveText(['记录症状','喂养/饮食','日常','用药','就诊资料'])
+    await expect(row.locator('svg,img')).toHaveCount(0)
+    const geometry = await page.evaluate(() => {
+      const card = document.querySelector('.nurse-home-dialogue')!
+      const row = card.querySelector('.record-entry-grid')!.getBoundingClientRect()
+      const smart = card.querySelector('.record-symptom-action')!.getBoundingClientRect()
+      const buttons = [...card.querySelectorAll('.record-entry-grid button')]
+      const symptom = document.querySelector('.home-symptom-followup')!.getBoundingClientRect()
+      return { left:Math.abs(row.left-smart.left),right:Math.abs(row.right-smart.right),height:smart.height, sameRow:buttons.every(b=>Math.abs(b.getBoundingClientRect().top-row.top)<1), labelsFit:buttons.every(b=>b.scrollWidth<=b.clientWidth), ordered:symptom.bottom<card.getBoundingClientRect().top,overflow:document.documentElement.scrollWidth>innerWidth }
+    })
+    expect(geometry).toMatchObject({sameRow:true,labelsFit:true,ordered:true,overflow:false})
+    expect(geometry.left).toBeLessThan(1);expect(geometry.right).toBeLessThan(1);expect(geometry.height).toBeGreaterThanOrEqual(44)
+    await expect(symptom.getByRole('button',{name:'情况单',exact:true})).toHaveAttribute('data-variant','primary')
+    await expect(symptom.getByRole('button',{name:'情况跟进',exact:true})).toHaveAttribute('data-variant','secondary')
+    if (count) {
+      await expect(symptom.locator('.home-symptom-description')).toHaveCount(0)
+      const dates = await symptom.locator('.home-symptom-dates small').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top))
+      expect(dates[0]).toBe(dates[1])
+    }
+    if(count===2) await page.screenshot({path:path.join(evidenceRoot, `${info.project.name}-home-stacked.png`),fullPage:true})
+    await expect(page.getByLabel('准备和医生说清楚',{exact:true})).toHaveCount(0)
+    await expect(smart).toBeEnabled()
+  }
+})
+
+test('home record entries open the existing forms and preserve main destinations', async ({page}) => {
+  await preparePage(page)
+  for(const [entry, title] of [['记录症状','记录症状'],['喂养/饮食','喂养/饮食'],['用药','记录用药'],['就诊资料','记录就医'],['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]) {
+    await page.goto('/nurse-station')
+    const card = page.locator('.nurse-home-dialogue')
+    await expect(card.getByRole('button',{name:'智能记录',exact:true})).toBeEnabled()
+    if(['睡眠','排便','身体涂抹'].includes(entry)) {
+      await card.getByRole('button',{name:'日常',exact:true}).click()
+      await expect(card.getByRole('group',{name:'记录日常选项'})).toBeVisible()
+    }
+    await card.getByRole('button',{name:entry,exact:true}).click()
+    await expect(page.getByRole('dialog',{name:title,exact:true})).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/health-events')
+    await page.getByRole('dialog',{name:title,exact:true}).getByRole('button',{name:/返回/,exact:true}).click()
+    await expect(page.getByRole('dialog',{name:title,exact:true})).toBeHidden()
+  }
+  for(const [label, target] of [['智能记录','/smart-record'],['情况跟进','/cases'],['情况单','/visit-summary']]) {
+    await page.goto('/nurse-station')
+    await page.getByRole('button',{name:label,exact:true}).click()
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(target)
+  }
+})

@@ -94,13 +94,15 @@ function HealthEventsContent() {
     return () => { window.clearTimeout(timeout); window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) }
   }, [])
   useEffect(() => {
-    const entry = (location.state as { nurseMedicationEntry?: boolean; nurseRecordEntry?: 'symptom' } | null)
+    const entry = (location.state as { nurseMedicationEntry?: boolean; nurseRecordEntry?: JournalCategory; nurseRecordDietKind?: DietRecordKind; calendarIdentity?: string } | null)
     if (!entry?.nurseMedicationEntry && !entry?.nurseRecordEntry) return
+    if (entry.calendarIdentity && entry.calendarIdentity !== identity) return
     submissionKeyRef.current = ''
     setRecorderInitialCategory(entry.nurseRecordEntry ?? 'medication')
+    setRecorderInitialDietKind(entry.nurseRecordDietKind)
     setRecorderMode('manual')
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: { ...location.state, nurseMedicationEntry: undefined, nurseRecordEntry: undefined, calendarIdentity: identity } })
-  }, [location.pathname, location.search, location.state, navigate])
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: { ...location.state, nurseMedicationEntry: undefined, nurseRecordEntry: undefined, nurseRecordDietKind: undefined, calendarIdentity: identity } })
+  }, [location.pathname, location.search, location.state, navigate, identity])
   useEffect(() => {
     const owner = (location.state as { calendarIdentity?: string } | null)?.calendarIdentity
     if (owner && owner !== identity) return

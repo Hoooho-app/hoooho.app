@@ -19,10 +19,32 @@
 .home-followup-preview{display:grid;gap:var(--hoho-space-2);min-width:0;width:100%;padding:var(--hoho-space-3) 0 0;border-top:1px solid rgb(var(--hoho-color-border));text-align:left;color:rgb(var(--hoho-color-text-primary))}
 .home-symptom-title{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-body);font-weight:600;line-height:var(--hoho-line-height-body);min-width:0}
 .home-symptom-title>svg{flex:none;color:rgb(var(--hoho-color-primary))}
-.home-symptom-title>span{overflow-wrap:anywhere}
+.home-symptom-title>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-symptom-description{font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .home-symptom-keyword{justify-self:start}
-.home-symptom-dates{display:grid;gap:var(--hoho-space-1)}
+.home-symptom-dates{display:flex;align-items:center;gap:var(--hoho-space-2);white-space:nowrap}
+.home-symptom-dates small+small::before{content:"/";margin-right:var(--hoho-space-2);color:rgb(var(--hoho-color-text-tertiary))}
 .home-symptom-dates:empty{display:none}
 .home-symptom-dates small{font-size:0.75rem;font-weight:400;line-height:1.4;color:rgb(var(--hoho-color-text-secondary))}
 .home-followup-preview:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
+
+/* Record count controls the paper layers; decorative sheets never receive clicks. */
+.home-followup-paper{position:relative;isolation:isolate;min-width:0}
+.home-followup-paper[data-paper-layers="2"]{margin-bottom:var(--hoho-space-1)}
+.home-followup-paper[data-paper-layers="3"]{margin-bottom:var(--hoho-space-2)}
+.home-followup-paper::before,.home-followup-paper::after{content:"";display:none;position:absolute;inset:0;pointer-events:none;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background-color:rgb(var(--hoho-color-surface));background-image:var(--hoho-paper-grain);box-shadow:var(--hoho-shadow-card)}
+.home-followup-paper[data-paper-layers="2"]::before,.home-followup-paper[data-paper-layers="3"]::before{display:block;transform:translateY(var(--hoho-space-1)) scaleX(.98);z-index:0}
+.home-followup-paper[data-paper-layers="3"]::after{display:block;transform:translateY(var(--hoho-space-2)) scaleX(.96);z-index:-1}
+.home-followup-paper>.home-symptom-followup{position:relative;z-index:1}
+.home-paper-fold{position:absolute;right:0;top:0;width:20px;height:20px;pointer-events:none;border-top-right-radius:var(--hoho-radius-card);background:linear-gradient(45deg,rgb(var(--hoho-color-surface-elevated)) 48%,rgb(var(--hoho-color-border)) 50%,rgb(var(--hoho-color-page-background)) 53%);clip-path:polygon(0 0,100% 0,100% 100%);filter:drop-shadow(-1px 1px 1px rgb(var(--hoho-color-text-primary)/.12))}
+.home-symptom-followup>header{padding-right:var(--hoho-space-2)}
+.home-symptom-summary{display:flex;align-items:center;gap:var(--hoho-space-2);min-width:0}
+.home-symptom-summary>.home-symptom-title{flex:1;min-width:0}
+.home-symptom-keyword{flex:none;max-width:35%;overflow:hidden;white-space:nowrap}
+.home-followup-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-3)}
+.home-followup-actions>.hoho-button{min-width:0}
+.home-followup-actions>.hoho-button[data-variant="secondary"]{border-color:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-primary))}
+.home-followup-actions .hoho-button__content{gap:var(--hoho-space-2)}
+/* Reuse the calendar controls, including its full-width smart record button. */
+.home-flow-card>.record-entry-actions{min-width:0;width:100%}
+@media(max-width:359px){.home-flow-card{padding:var(--hoho-space-3)}.home-symptom-dates{gap:var(--hoho-space-1)}.home-symptom-dates small+small::before{margin-right:var(--hoho-space-1)}}

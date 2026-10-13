@@ -43,3 +43,11 @@ Revert the isolated UI commit, or redeploy the preceding known-successful source
 Run browser checks with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using a locally supplied Chromium executable. No new runtime dependency.
 
 Follow-up scope: moss filled controls with pure white content, opaque drawer base, page-colored headers and large dietary/report/medication wrappers. Original nurse media remains byte-identical; a soft white-to-paper backdrop bridges the opaque footage. The legacy Header uses the same material class; no layout or navigation handler changes.
+
+## Authorized homepage revision, 2026-10-14
+
+The product owner approved the preview and requested implementation. Preserve the child information board and sidebar. Below the board, show symptom follow-up before the health jot card; move the visit-summary action into follow-up and shorten its home label to “情况单”. “情况单” is primary moss and “情况跟进” is outlined secondary. Keep the action available when no symptom is being followed. Symptom title/keyword and the two dates each occupy one compact line; the duplicate description is removed. The card has a subtle folded corner; one item uses one sheet, two items two sheets, three or more at most three sheets.
+
+Reuse `RecordEntryActions` inside the health jot card, including its exact text-only category row, daily option popover and full-width large “智能记录” button. Home category actions open the existing calendar record forms with member identity and feeding kind preserved. Smart recording preserves its existing front-desk source/return state. No API, record, nurse artwork/video or navigation changes.
+
+Validation: 644 client checks, production build, and 66 browser checks across 375px, 430px and 1280px. Added browser coverage checks the full-width alignment, labels fitting in one row, count-based layer cap, empty follow-up access, seven manual record destinations and returns, and the three main destinations. Prior home description feedback is superseded by latest-update feedback because the description is no longer displayed.
