@@ -27,14 +27,15 @@ function quality(value){
   attributedUncertainty:value.symptoms.some(row=>/家属|家长/.test(row.note??'')&&/估计|怀疑|不确定/.test(row.note)&&/痱子|热疹|湿疹/.test(row.note)),
   habitualFood:/平时|日常|常吃|常规|熟悉/.test(diet),
   newFood:/新添加|首次|第一次/.test(diet)&&/牛肉/.test(diet),
+  overviewBodyObservations:/(?:颈|脖)/.test(description)&&/腿/.test(description),
  }
 }
-test('真实合成输出回归先复现遗漏；完整参考保留12项事实与展示质量',()=>{
+test('真实合成输出回归先复现遗漏；完整参考保留13项事实与展示质量',()=>{
  const baseline=quality(stagingBaseline)
  assert.deepEqual(Object.keys(baseline).filter(key=>!baseline[key]),['conciseOverview','onsetOnSymptom','degreeOnSymptom','neckCount','legDegree','habitualFood'])
  const input={sections:[{id:'record',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw}]}
  const verified=normalizeMedicalSummary(situationOutput(),input).currentSituation
- assert.deepEqual(Object.values(quality(verified)),Array(12).fill(true))
+ assert.deepEqual(Object.values(quality(verified)),Array(13).fill(true))
 })
 
 test('真实未验证预览的标签长引文复现否定校验，精确症状引文保持严格核验',()=>{
@@ -52,6 +53,20 @@ test('真实未验证预览的标签长引文复现否定校验，精确症状�
  const negated=structuredClone(value)
  negated.currentSituation.keywords[0].text='头痛';negated.currentSituation.keywords[0].quote='不是头疼'
  assert.throws(()=>normalizeMedicalSummary(negated,input))
+})
+
+test('真实未验证预览的饮食误入症状复现拒绝，食品保留在饮食块',()=>{
+ const input={sections:[{id:'record',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw}]}
+ const value=situationOutput(),food={text:'昨天饮食均为平时吃的东西，新添加了牛肉。',sourceId:'record:focus',quote:'昨天没给他吃太多什么不正常的东西，都是他平时吃的东西，只有牛肉是新添加的',emphasis:[],label:'饮食',kind:'symptom',note:'',noteQuote:''}
+ value.currentSituation.symptoms.push(food,structuredClone(food))
+ assert.throws(()=>normalizeMedicalSummary(value,input),error=>error.validation.fieldPath==='/currentSituation/symptoms/3/label'&&error.validation.rule==='unverified_label')
+ value.currentSituation.symptoms.splice(3)
+ const result=normalizeMedicalSummary(value,input).currentSituation
+ assert.equal(result.symptoms.length,3);assert.equal(result.diet.length,2)
+ assert.deepEqual(Object.values(quality(result)),Array(13).fill(true))
+ const missingOverview=structuredClone(result)
+ missingOverview.description=[{text:'早上起来时开始有点头晕，无头疼。体温正常，无发烧。'}]
+ assert.equal(quality(missingOverview).overviewBodyObservations,false)
 })
 
 test('不同来源的普通饮食及新增食物都保留，不能拼接跨来源引文',()=>{
