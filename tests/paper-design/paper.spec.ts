@@ -220,8 +220,8 @@ test('home record entries open the existing forms and preserve main destinations
   }
 })
 
-test('SE Safari usable height keeps the entire home visible with three paper sheets', async ({page}, info) => {
-  await page.setViewportSize({width:375,height:548})
+test('SE home preserves approved proportions and keeps the smart action accessible', async ({page}, info) => {
+  await page.setViewportSize({width:375,height:667})
   await preparePage(page)
   await page.route('**/api/members/*/cases?*', async route => {
     const response=await route.fetch(),data=await response.json()
@@ -249,5 +249,12 @@ test('SE Safari usable height keeps the entire home visible with three paper she
   expect(geometry.videoTop).toBe(geometry.headingTop);expect(geometry.minTouchHeight).toBeGreaterThanOrEqual(44)
   expect(geometry.textures.every(value=>value.includes('home-paper-grain.svg'))).toBeTruthy()
   expect(geometry.clip).toContain('polygon');expect(geometry.healthWhite).toBe('rgb(255, 255, 255)')
-  await page.screenshot({path:path.join(evidenceRoot,`${info.project.name}-se-usable-height.png`)})
+  await page.screenshot({path:path.join(evidenceRoot,`${info.project.name}-se-restored-proportions.png`)})
+  const proportions=await page.locator('.hoho-main-header,.nurse-station-hero--compact,.home-symptom-followup').evaluateAll(nodes=>nodes.map(node=>({height:node.getBoundingClientRect().height,padding:getComputedStyle(node).padding})))
+  expect(proportions[0].height).toBe(64)
+  await page.setViewportSize({width:375,height:548})
+  expect(await page.locator('.hoho-main-header,.nurse-station-hero--compact,.home-symptom-followup').evaluateAll(nodes=>nodes.map(node=>({height:node.getBoundingClientRect().height,padding:getComputedStyle(node).padding})))).toEqual(proportions)
+  await page.locator('.nurse-station-scroll').evaluate(node=>{node.scrollTop=node.scrollHeight})
+  await expect(page.getByRole('button',{name:'智能记录',exact:true})).toBeInViewport({ratio:1})
+  await page.screenshot({path:path.join(evidenceRoot,`${info.project.name}-se-short-viewport-scroll.png`)})
 })

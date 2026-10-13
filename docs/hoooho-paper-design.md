@@ -63,3 +63,9 @@ Name the home follow-up card “健康事件”; use an outlined medical cross f
 The child-information board, event sheet and backing sheets opt into a stronger static SVG paper-fiber texture. A clipped top corner, shaded underside and crease form the small folded corner; offset warm textured backing sheets preserve the one/two/maximum-three count rule. The nurse card remains white. No backend/API/data/AI, record-entry styling or sidebar changes.
 
 Refinement validation: 646 client checks; production build and original nurse-media checks; 69 browser checks, including 375×548 usable height, all buttons fully visible, no main-page scrolling, both primary text-only actions, medical cross and folded/textured sheets, original record forms and the renamed secondary header/back action.
+
+## Restore home proportions after product-owner feedback, 2026-10-14
+
+The previous short-viewport rule overcompressed the approved layout. Remove its reductions to the child board, event sheet, typography, icon size, inter-card gaps and nurse artwork. Restore the original 64px header and 122px square nurse artwork. Preserve approved names, both green text-only actions, fold, paper materials and count-based layering. Only the health-jot card loses unused vertical padding and white media margins; its original artwork remains at its original aspect ratio, shifted within the wrapper. Remove trailing empty page padding.
+
+At 375×667, verify all actions without scrolling. At the shorter 375×548 Safari content viewport, preserve the same header/child/event dimensions and normal vertical scrolling rather than distorting the page to force a fit. This supersedes the earlier claim that the three-card page must fit 548px at any cost. Verify actual browser rendering and the existing record destinations before Staging and Production release.
