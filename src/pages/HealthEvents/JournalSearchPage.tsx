@@ -36,7 +36,7 @@ export function JournalSearchPage() {
   const today = getLocalDateKey(new Date())!
   const rawReturn = (location.state as { journalReturn?: JournalReturnState } | null)?.journalReturn
   const returnState = !rawReturn?.identity || rawReturn.identity === identity ? rawReturn : undefined
-  const leaveSearch = () => navigate(`/health-events?${calendarNavigationParams(normalizeCalendarNavigation(new URLSearchParams(), today, returnState), new URLSearchParams(returnState?.search))}${returnState?.hash ?? ''}`, { replace: true, state: { journalReturn: returnState } })
+  const leaveSearch = () => navigate(`/health-events?${calendarNavigationParams(normalizeCalendarNavigation(new URLSearchParams(), today, returnState), new URLSearchParams(returnState?.search))}${returnState?.hash ?? ''}`, { replace: true, state: { journalReturn: { ...returnState, documentTimeOrigin: performance.timeOrigin } } })
   const normalizedQuery = debouncedQuery.trim()
   const datedResults=results.filter(entry=>entry.timePrecision!=='unknown')
   const earliest = datedResults.at(-1)

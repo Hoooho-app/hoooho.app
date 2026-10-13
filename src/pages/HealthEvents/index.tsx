@@ -18,6 +18,10 @@ import { DayRecordsSheet } from '../HealthCalendar/DayRecordsSheet'
 import { matchesCalendarGroup } from '../HealthCalendar/presentation'
 import { monthOccurrenceEntries, savedCalendarFacts } from '../HealthCalendar/navigation'
 import { useCalendarNavigation, type CalendarReturnState } from '../HealthCalendar/useCalendarNavigation'
+import { useCalendarReminders } from '../HealthCalendar/useCalendarReminders'
+import { calendarReminderDays } from '../HealthCalendar/reminders'
+import { CalendarReminderRows } from '../HealthCalendar/CalendarReminderRows'
+import { StatusNotice } from '../../components/design-system'
 import '../HealthCalendar/unifiedCalendar.css'
 import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
@@ -62,8 +66,10 @@ function HealthEventsContent() {
   const previousToday = useRef(today)
   const setDay = (value: string) => navigation.change({ ...calendar, day: value, month: value.slice(0, 7) })
   const journal = useJournal(currentMemberId, token ?? '', revision)
+  const scheduled = useCalendarReminders(accountId, currentMemberId, token ?? '', today, revision)
+  const reminderDays = useMemo(() => calendarReminderDays(scheduled.reminders, calendar.category), [scheduled.reminders, calendar.category])
   const filteredEntries = useMemo(() => savedCalendarFacts(journal.entries).filter(entry => matchesCalendarGroup(entry, calendar.category)), [journal.entries, calendar.category])
-  const monthRecords = useMemo(() => monthOccurrenceEntries(filteredEntries, calendar.month), [filteredEntries, calendar.month])
+  const monthRecords = useMemo(() => monthOccurrenceEntries(filteredEntries, sheetDay?.slice(0, 7) ?? calendar.month), [filteredEntries, sheetDay, calendar.month])
   const filteredJournal = { ...journal, entries: filteredEntries }
   useEffect(() => {
     const previous = previousToday.current; previousToday.current = today
@@ -175,14 +181,16 @@ function HealthEventsContent() {
     <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
+      {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
+      {calendar.view === 'day' && (reminderDays.get(day)?.length ?? 0) > 0 && <CalendarReminderRows reminders={reminderDays.get(day)!} onOpen={reminder => navigate(reminder.href)}/>}
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
-      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
+      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
     </div>
     <footer className="journal-record-actions"><RecordEntryActions onSmartRecord={() => navigate('/smart-record?source=calendar', { state: { calendarReturn: true } })} disabled={!token || currentMember?.id !== currentMemberId} identity={identity} onRecord={(category, kind) => { submissionKeyRef.current = ''; setRecorderInitialCategory(category); setRecorderInitialDietKind(kind); setRecorderMode('manual') }}/></footer>
     </div>
-    {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} suspended={Boolean(selectedRecord)} loading={journal.loading} error={journal.error} onRetry={journal.retry} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
+    {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} reminders={reminderDays.get(sheetDay) ?? []} onReminder={reminder => navigate(reminder.href)} suspended={Boolean(selectedRecord)} loading={journal.loading || scheduled.loading} error={journal.error || scheduled.error} onRetry={() => { journal.retry(); scheduled.retry() }} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
     {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay && !sheetDay) setDay(changedDay); setSavedRecordFocus(changedDay && !sheetDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}${location.hash}`, { replace: true, state: location.state }) } }}/ >}
-    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
+    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day > today ? today : day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
     {pendingDuplicate && <DuplicateRecordPrompt duplicate={pendingDuplicate.duplicate} onCancel={discardDuplicate} onDiscard={discardDuplicate} onUpdate={changeSummary => resolveDuplicate('update', changeSummary)} onCreate={() => resolveDuplicate('create')}/>}
     {savedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{savedNotice}</div>}
     {navigation.legacyNotice && <div className="journal-saved-toast" role="status">旧类型已按全部类型显示</div>}

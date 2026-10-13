@@ -8,12 +8,12 @@ const today = '2026-10-11'
 test('invalid URL state normalizes without discarding unrelated business parameters', () => {
   const params = new URLSearchParams('view=wrong&day=2026-02-30&month=2026-99&category=measurement&sort=wrong&recordId=record')
   const state = normalizeCalendarNavigation(params, today)
-  assert.deepEqual(state, { view: 'day', day: today, month: '2026-10', category: '', sort: 'desc' })
+  assert.deepEqual(state, { view: 'month', day: today, month: '2026-10', category: '', sort: 'desc' })
   assert.equal(calendarNavigationParams(state, params).get('recordId'), 'record')
-  assert.equal(normalizeCalendarNavigation(new URLSearchParams('day=2099-01-01&month=2099-01'), today).day, today)
+  assert.equal(normalizeCalendarNavigation(new URLSearchParams('day=2099-01-01&month=2099-01'), today).day, '2099-01-01')
 })
-test('view changes preserve filter/sort, selected month and valid day without future dates', () => {
-  const state = normalizeCalendarNavigation(new URLSearchParams('day=2026-09-30&category=sleep&sort=asc'), today)
+test('view changes preserve filter/sort, selected month and valid past or future browsing dates', () => {
+  const state = normalizeCalendarNavigation(new URLSearchParams('view=day&day=2026-09-30&category=sleep&sort=asc'), today)
   const monthly = switchCalendarView(state, 'month', today)
   assert.equal(monthly.month, '2026-09')
   assert.equal(switchCalendarView(monthly, 'day', today).day, state.day)

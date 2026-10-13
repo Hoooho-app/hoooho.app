@@ -5,8 +5,10 @@ import { JournalCategoryIcon } from '../HealthEvents/JournalCategoryIcon'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 import { calendarGroupLabels, presentCalendarRecord } from './presentation'
+import type { CalendarReminder } from './reminders'
+import { CalendarReminderRows } from './CalendarReminderRows'
 
-export function DayRecordsSheet({ day, entries, suspended, loading, error, onRetry, onClose, onOpen }: { day: string; entries: readonly JournalEntry[]; suspended: boolean; loading: boolean; error: string; onRetry: () => void; onClose: () => void; onOpen: (entry: JournalEntry) => void }) {
+export function DayRecordsSheet({ day, entries, reminders = [], suspended, loading, error, onRetry, onClose, onOpen, onReminder }: { day: string; entries: readonly JournalEntry[]; reminders?: readonly CalendarReminder[]; suspended: boolean; loading: boolean; error: string; onRetry: () => void; onClose: () => void; onOpen: (entry: JournalEntry) => void; onReminder?: (reminder: CalendarReminder) => void }) {
   const root = useRef<HTMLDivElement>(null), lastRecord = useRef(''), scroll = useRef(0), titleId = useId()
   useLayoutEffect(() => {
     if (suspended) return
@@ -29,11 +31,14 @@ export function DayRecordsSheet({ day, entries, suspended, loading, error, onRet
     const frame = requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>(`[data-day-record="${CSS.escape(lastRecord.current)}"]`)?.focus({ preventScroll: true }))
     return () => cancelAnimationFrame(frame)
   }, [suspended])
-  return <BottomSheetSurface open={!suspended} viewportAware label="当天记录" title={`${day} · ${entries.length}条记录`} className="calendar-day-sheet" onClose={onClose}>
+  const reminderTitle = `${Number(day.slice(5, 7))}月${Number(day.slice(8))}日 ${new Date(`${day}T12:00:00`).toLocaleDateString('zh-CN', { weekday: 'long' })}`
+  return <BottomSheetSurface open={!suspended} viewportAware label="当天记录" title={reminders.length ? reminderTitle : `${day} · ${entries.length}条记录`} className="calendar-day-sheet" onClose={onClose}>
     <div ref={root}>
+      {reminders.length > 0 && <p className="calendar-day-reminder-count">{reminders.length}项待办{entries.length ? ` · ${entries.length}条记录` : ''}</p>}
       {loading && <StatusNotice title="正在读取当天记录"/>}
       {error && <StatusNotice tone="error" title={error} action={<HohoButton variant="secondary" onClick={onRetry}>重新加载</HohoButton>}/>}
-      {!loading && !error && !entries.length && <p>当天暂无此类记录</p>}
+      {!loading && !error && !entries.length && !reminders.length && <p>当天暂无此类记录</p>}
+      {reminders.length > 0 && onReminder && <CalendarReminderRows reminders={reminders} onOpen={onReminder}/>}
       <div className="calendar-day-records">{entries.map(entry => {
         const presented = presentCalendarRecord(entry), at = new Date(journalOccurrenceAt(entry, entry.occurredAt))
         const clock = at.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })

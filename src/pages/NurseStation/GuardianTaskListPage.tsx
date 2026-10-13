@@ -84,6 +84,17 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
   }, [load])
 
   useEffect(() => {
+    if (kind !== 'medication' || status !== 'success') return
+    const requestedId = new URLSearchParams(location.search).get('reminderId')
+    if (!requestedId || !medicationReminders.some(reminder => reminder.id === requestedId)) return
+    const frame = requestAnimationFrame(() => {
+      const card = Array.from(document.querySelectorAll<HTMLElement>('[data-reminder-id]')).find(element => element.dataset.reminderId === requestedId)
+      if (card) { card.tabIndex = -1; card.focus({ preventScroll: true }); card.scrollIntoView({ block: 'center' }) }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [kind, status, location.search, medicationReminders])
+
+  useEffect(() => {
     if (kind !== 'medication') return
     const tick = () => setNow(new Date())
     const timer = window.setInterval(tick, 1000)

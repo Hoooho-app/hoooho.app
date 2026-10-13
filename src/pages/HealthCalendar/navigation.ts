@@ -13,12 +13,12 @@ export interface CalendarNavigation {
 }
 export function normalizeCalendarNavigation(params: URLSearchParams, today: string, fallback?: Partial<CalendarNavigation>): CalendarNavigation {
   const requestedDay = params.get('day') ?? fallback?.day ?? today
-  const day = parsePlainDate(requestedDay) && requestedDay <= today ? requestedDay : today
+  const day = parsePlainDate(requestedDay) ? requestedDay : today
   const requestedMonth = params.get('month') ?? (params.has('day') ? day.slice(0, 7) : fallback?.month) ?? day.slice(0, 7)
-  const month = parsePlainDate(`${requestedMonth}-01`) && requestedMonth <= today.slice(0, 7) ? requestedMonth : day.slice(0, 7)
+  const month = parsePlainDate(`${requestedMonth}-01`) ? requestedMonth : day.slice(0, 7)
   const category = params.get('category') ?? fallback?.category ?? ''
   return {
-    view: (params.get('view') ?? fallback?.view) === 'month' ? 'month' : 'day', day, month,
+    view: (params.get('view') ?? fallback?.view) === 'day' ? 'day' : 'month', day, month,
     category: normalizeCalendarCategory(category),
     sort: (params.get('sort') ?? fallback?.sort) === 'asc' ? 'asc' : 'desc',
   }
@@ -28,10 +28,10 @@ export function calendarNavigationParams(state: CalendarNavigation, original = n
   for (const [key, value] of Object.entries(state)) params.set(key, value)
   return params
 }
-export function switchCalendarView(state: CalendarNavigation, view: CalendarNavigation['view'], today: string): CalendarNavigation {
+export function switchCalendarView(state: CalendarNavigation, view: CalendarNavigation['view'], _today: string): CalendarNavigation {
   if (view === 'month') return { ...state, view, month: state.day.slice(0, 7) }
   const candidate = state.day.startsWith(state.month) ? state.day : `${state.month}-01`
-  return { ...state, view, day: candidate > today ? today : candidate }
+  return { ...state, view, day: candidate }
 }
 export function shiftCalendarMonth(month: string, amount: number) {
   const parts = parsePlainDate(`${month}-01`)
