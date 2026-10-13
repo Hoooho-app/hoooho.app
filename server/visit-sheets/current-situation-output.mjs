@@ -4,11 +4,13 @@ import { outputFailure, schemaFailureDiagnostic } from '../ai/providers/output-d
 
 const evidence = {text:{type:'string',description:'由quote支持的当前行文字，不能添加引文没有的日期、数值或结论。'},sourceId:{type:'string'},quote:{type:'string'},emphasis:{type:'array',items:{type:'string'},maxItems:3}}
 const line = {type:'object',additionalProperties:false,required:Object.keys(evidence),properties:evidence}
+const factEvidence={...evidence,text:{type:'string',description:'简短完整事实，保留quote明示的起始时间、程度词、数量和限定，尤其有点/轻微/少量/只等词。每项否定分别表达，不能用一个无字统领多个症状。家属猜测不放正文。不得添加原文没有的日期或数值。'}}
+const factLine={...line,properties:factEvidence}
 export const currentSituationSchema = {
   type:'object',additionalProperties:false,required:['description','symptoms','diet','changes','treatment','keywords'],properties:{
-    description:{type:'array',description:'简短重点概览：保留明示时间、主要不适、程度、各部位观察和重要否定；去除口语填充，不重复饮食细节。只有饮食事实时可简述已有饮食，不补造症状。',items:line,minItems:1,maxItems:6},
-    symptoms:{type:'array',description:'仅症状、身体部位观察和体温。正文保留原有开始时间、程度、数量和相关否定。饮食只能放diet，不可放这里；变化和已做处理也不放这里。不重复同一事实行。',maxItems:12,items:{type:'object',additionalProperties:false,required:[...Object.keys(evidence),'label','kind','note','noteQuote'],properties:{...evidence,label:{type:'string'},kind:{type:'string',enum:['symptom','temperature']},note:{type:'string'},noteQuote:{type:'string'}}}},
-    ...Object.fromEntries(['diet','changes','treatment','keywords'].map(k=>[k,{type:'array',...(k==='diet'?{description:'仅明确饮食事实：普通或平时吃过的食物和新增食物均保留，按句或行区分，保留时间与限定，无事实为空。'}:{}),items:line,maxItems:k==='keywords'?8:12}]))
+    description:{type:'array',description:'简短重点概览：保留明示时间、主要不适、程度、各部位观察和重要否定；去除口语填充，不重复饮食细节。只有饮食事实时可简述已有饮食，不补造症状。',items:factLine,minItems:1,maxItems:6},
+    symptoms:{type:'array',description:'仅症状、身体部位观察和体温。每项保留开始时间、程度、数量和相关否定；原文明示体温时保留独立体温行。饮食只放diet，变化和处理放对应块，同一块不重复事实。',maxItems:12,items:{type:'object',additionalProperties:false,required:[...Object.keys(evidence),'label','kind','note','noteQuote'],properties:{...factEvidence,label:{type:'string'},kind:{type:'string',enum:['symptom','temperature'],description:'明确体温事实用temperature并单独一行，文字正常不推断数值。其他身体观察用symptom。'},note:{type:'string',description:'只有原文明示猜测时填写：注明原文明示的主体（如家属、本人）；身份不明用记录者，保留原有怀疑语气，不只照抄我，不写确诊，不重复正文观察。没有猜测为空字符串。'},noteQuote:{type:'string',description:'note所述猜测的连续逐字原文，note为空时也为空。'}}}},
+    ...Object.fromEntries(['diet','changes','treatment','keywords'].map(k=>[k,{type:'array',...(k==='diet'?{description:'仅明确饮食事实：普通或平时吃过的食物和新增食物均保留，分成短行，保留时间与限定，无事实为空。'}:{}),items:k==='keywords'?line:factLine,maxItems:k==='keywords'?8:12}]))
   }
 }
 export const currentSituationResponseSchema={type:'object',additionalProperties:false,required:['currentSituation'],properties:{currentSituation:currentSituationSchema}}
@@ -21,7 +23,7 @@ export const currentSituationInstructions = `本次现有摘要调用仅返回 {
 currentSituation各行sourceId只用currentSituationSources.id，quote从该来源的裸text中连续逐字复制，不带行首来源编号或章节元数据，不自行拼接、改词或添加省略号。
 先在内部核对各来源的明确事实：每项不适的开始时间、程度、相关否定，各部位观察的数量和程度，文字体温，普通饮食与新增食物，以及已有变化和处理；再分别写入对应块。核对过程不输出。概览有某事实不能代替对应详情块保留它。仅保留明示的时间、程度、数量和联系，没有则不补；不同时间或来源的事实不能混为同一次。
 description 通常2至4个短句，概括时间、主要不适、程度、各部位观察及重要否定。删去没有事实意义的口语填充和重复表达，不能复制原话句式再仅删除尾段；简化句子仍须保留否定与限定语义，不为短来源补凑句子。饮食细节放diet；来源只有饮食事实时概览可简述已有饮食，不补造不适。
-symptoms 按原文明示的关联事实组成简短行，每项不适在原文明确提供的开始时间、程度和相关否定与该不适放在同一行，不能只留症状名称或把其已知时间、程度省掉，未提供的时间、程度不补写。相关部位观察可在同一行内分句换行，保留原有数量和程度，不用只有部位名称的碎片替代。label 用引文可核对的症状/部位或简短分类（如头晕、皮肤、体温），不能用猜测病名、诊断或严重程度作分类。kind 只有明确体温事实才用temperature。“体温正常”不推断数值。正文仅写直接观察；家属猜测只写相邻note，不在正文重复，注明家属和原有怀疑语气，noteQuote引用原话；没有note时两个字段为空。
+symptoms 按原文明示的关联事实组成简短行，每项不适在原文明确提供的开始时间、程度和相关否定与该不适放在同一行，不能只留症状名称或把其已知时间、程度省掉，未提供的时间、程度不补写。相关部位观察可在同一行内分句换行，保留原有数量和程度，不用只有部位名称的碎片替代。label 用引文可核对的症状/部位或简短分类（如头晕、皮肤、体温），不能用猜测病名、诊断或严重程度作分类。kind 只有明确体温事实才用temperature。“体温正常”不推断数值。正文仅写直接观察；原文猜测只写相邻note，不在正文重复，注明原文明示主体，身份未知用记录者，保留原有怀疑语气，noteQuote引用原话；没有note时两个字段为空。
 diet 保留所有明确饮食事实：普通/平时吃过的食物与新增食物分别分句或分行，不能因为新增食物更醒目就漏掉普通饮食，也不能只保留食物名。保留明示时间以及“只/仅”等限定，不为未提到的饮食补句，不做因果判断。changes、treatment只列明确已有事实，没有则空数组。keywords只用本次真实症状/部位，无事实则为空，不把猜测当确诊。
 每行只引用一个来源。合并同一来源的关联事实时，quote可以覆盖中间文字，但必须是覆盖全部事实的连续原文；不同来源的事实分行分别引用。不要为精简quote丢掉正文所需的时间、程度、数量、否定或限定。
 symptoms的text写可独立阅读的完整陈述，不重复“label：”。正文必须包含原有不适及程度，不能只有起始时间和相关否定；label不能代替正文中的不适事实。输出前对照quote逐项确认已知开始时间和程度仍在该症状正文中。概览中的口语时间改为同义的简短书面时间短语，不改变其时间归属。

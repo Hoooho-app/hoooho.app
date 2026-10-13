@@ -18,15 +18,15 @@ function quality(value){
  const skin=value.symptoms.filter(row=>/红点|疹子/.test(row.text)).map(row=>row.text).join('\n')
  return {
   conciseOverview:description.length<situationRaw.length&&!/起来的时候|其实|然后|那里/.test(description),
-  onsetOnSymptom:/早上|今早|起床/.test(dizziness),
-  degreeOnSymptom:/有点|轻微|轻度|略/.test(dizziness),
-  negativeHeadache:/无头痛|不是头疼|没有头痛/.test(symptoms),
+  onsetOnSymptom:/今早|早上|早晨|清晨|晨起/.test(dizziness)&&/开始|出现|初现|起病|起床后|起来后|醒来后|睡醒后|晨起/.test(dizziness),
+  degreeOnSymptom:/有点|有些|稍(?:微)?|轻微|轻度|少许|些许|一点/.test(dizziness),
+  negativeHeadache:/(?:无|没有|不是|不|未)(?:明显|出现|有)?头(?:痛|疼)|头(?:痛|疼)(?:没有|不)/.test(symptoms),
   normalTemperature:value.symptoms.some(row=>row.kind==='temperature'&&/正常/.test(row.text)&&!/[0-9]/.test(row.text)),
   neckObserved:/颈|脖/.test(skin),neckCount:/一个/.test(skin),
-  legObserved:/腿/.test(skin),legDegree:/少量|有点/.test(skin),
-  attributedUncertainty:value.symptoms.some(row=>/家属|家长/.test(row.note??'')&&/估计|怀疑|不确定/.test(row.note)&&/痱子|热疹|湿疹/.test(row.note)),
-  habitualFood:/平时|日常|常吃|常规|熟悉/.test(diet),
-  newFood:/新添加|首次|第一次/.test(diet)&&/牛肉/.test(diet),
+  legObserved:/腿/.test(skin),legDegree:/少量|有点|有些|稍(?:微)?|少许|些许/.test(skin),
+  attributedUncertainty:value.symptoms.some(row=>/家属|家长|记录者|用户|本人/.test(row.note??'')&&/怀疑|估计|猜测|猜想|推测|可能|疑似|不确定|不知道|待核对/.test(row.note)&&/痱子|热疹|湿疹/.test(row.note)),
+  habitualFood:/平时|日常|常吃|通常|原有|常规|既往|以往|以前|食用过|吃过|熟悉/.test(diet),
+  newFood:/新添加|新加|首次|初次|第一次/.test(diet)&&/牛肉/.test(diet),
   overviewBodyObservations:/(?:颈|脖)/.test(description)&&/腿/.test(description),
  }
 }
@@ -36,6 +36,19 @@ test('真实合成输出回归先复现遗漏；完整参考保留13项事实与
  const input={sections:[{id:'record',lines:[`[record:focus] ${situationRaw}`]}],currentSituationSources:[{id:'record:focus',text:situationRaw}]}
  const verified=normalizeMedicalSummary(situationOutput(),input).currentSituation
  assert.deepEqual(Object.values(quality(verified)),Array(13).fill(true))
+})
+
+test('内容评估识别同义程度及记录者归属，开始动作和程度遗漏仍失败',()=>{
+ const input={currentSituationSources:[{id:'record:focus',text:situationRaw}]},value=situationOutput()
+ value.currentSituation.symptoms[0].text='晨起后开始有些头晕，无头疼。'
+ value.currentSituation.symptoms[1].text='颈部有一个小红点，腿部有些小疹子。'
+ value.currentSituation.symptoms[1].note='记录者推测是痱子，也不确定是否为热疹或湿疹。'
+ value.currentSituation.diet[0].text='吃的是平时原有食物。';value.currentSituation.diet[1].text='新加了牛肉。'
+ assert.deepEqual(Object.values(quality(normalizeMedicalSummary(value,input).currentSituation)),Array(13).fill(true))
+ const missing=structuredClone(value);missing.currentSituation.symptoms[0].text='早上有些头晕，无头疼。'
+ assert.equal(quality(normalizeMedicalSummary(missing,input).currentSituation).onsetOnSymptom,false)
+ missing.currentSituation.symptoms[0].text='晨起后开始头晕，无头疼。'
+ assert.equal(quality(normalizeMedicalSummary(missing,input).currentSituation).degreeOnSymptom,false)
 })
 
 test('真实未验证预览的标签长引文复现否定校验，精确症状引文保持严格核验',()=>{
@@ -67,6 +80,18 @@ test('真实未验证预览的饮食误入症状复现拒绝，食品保留在�
  const missingOverview=structuredClone(result)
  missingOverview.description=[{text:'早上起来时开始有点头晕，无头疼。体温正常，无发烧。'}]
  assert.equal(quality(missingOverview).overviewBodyObservations,false)
+})
+
+test('真实预览的合并否定、第一人称猜测与遗漏体温仍须分别核对',()=>{
+ const input={currentSituationSources:[{id:'record:focus',text:situationRaw}]}
+ const observed=situationOutput();observed.currentSituation.description[0].text='早上起来时出现头晕，无头痛及发烧，体温正常。'
+ assert.throws(()=>normalizeMedicalSummary(observed,input),error=>error.validation.rule==='negative_subject_lost')
+ const unattributed=situationOutput();unattributed.currentSituation.symptoms[1].note='我估计是痱子，不知道是热疹还是湿疹'
+ assert.throws(()=>normalizeMedicalSummary(unattributed,input),error=>error.validation.rule==='guess_attribution_missing')
+ const missing=situationOutput();missing.currentSituation.symptoms.splice(2);missing.currentSituation.symptoms[0].text='早上起来时开始头晕，不是头疼。'
+ const checks=quality(normalizeMedicalSummary(missing,input).currentSituation)
+ assert.equal(checks.degreeOnSymptom,false);assert.equal(checks.normalTemperature,false)
+ assert.deepEqual(Object.values(quality(normalizeMedicalSummary(situationOutput(),input).currentSituation)),Array(13).fill(true))
 })
 
 test('不同来源的普通饮食及新增食物都保留，不能拼接跨来源引文',()=>{
