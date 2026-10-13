@@ -49,3 +49,11 @@ test('facts counted once at end date, stable ties, no future, unknown or pending
   assert.equal(presentCalendarRecord(sleep).coreSummary, '睡眠 · 已醒 · 约9小时')
   assert.equal(presentCalendarRecord({ ...base, sleep: { ...sleep.sleep!, status: 'ongoing' } }).coreSummary, '睡眠 · 持续中')
 })
+
+test('one mixed occurrence is visible in feeding and symptom filters without changing its identity or materials boundary',()=>{
+ const mixed={...base,id:'mixed',content:'配方奶，后来红屁股',categories:['diet','symptom'] as const}
+ const record={...mixed,categories:[...mixed.categories]}
+ assert.equal(matchesCalendarGroup(record,'feeding'),true);assert.equal(matchesCalendarGroup(record,'symptom'),true)
+ assert.equal(matchesCalendarGroup(record,'medication'),false);assert.equal(record.id,'mixed')
+ assert.equal(matchesCalendarGroup({...record,sourceType:'medical_file'},'feeding'),false)
+})

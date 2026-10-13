@@ -1,3 +1,4 @@
+import { visibleRecordCategories } from '../../shared/record-categories.mjs'
 import { validateNurseMetadata } from '../ai/nurse-contract.mjs'
 import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
@@ -453,7 +454,7 @@ export function validateJournal(value, { allowEmptySymptomDraft = false } = {}) 
 
 // Read-only presentation: never backfill guessed timestamps into historical records.
 export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
-  record = { ...record, occurredAt: journalOccurrenceAt(record.journal, record.occurredAt) }
+  record = { ...record, journal: { ...record.journal, categories: visibleRecordCategories(record) }, occurredAt: journalOccurrenceAt(record.journal, record.occurredAt) }
   if(record.journal?.vaccination?.items.some(v=>v.profileListDeletedAt)){
     const items=record.journal.vaccination.items.filter(v=>!v.profileListDeletedAt),journal={...record.journal}
     if(items.length)journal.vaccination={...journal.vaccination,items}

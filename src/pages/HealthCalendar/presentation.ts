@@ -24,7 +24,19 @@ export function presentationGroup(record: Presentable): PresentationGroup | null
   if (categories.includes('measurement') && /(?:身高|身长|体重)\s*[:：]?\s*\d+(?:\.\d+)?\s*(?:cm|厘米|kg|公斤|千克)/i.test(record.content ?? '')) return 'daily'
   return null
 }
-export function matchesCalendarGroup(record: Presentable, selected: string) { return !selected || presentationGroup(record) === selected }
+export function matchesCalendarGroup(record: Presentable, selected: string) {
+  const primary = presentationGroup(record)
+  if (!selected || primary === selected) return true
+  // A single occurrence can contain feeding and symptom observations. Preserve
+  // the established materials boundary and keep one row/id in the unfiltered list.
+  if (primary === 'materials') return false
+  const categories = record.categories ?? []
+  if (selected === 'feeding') return categories.includes('diet')
+  if (selected === 'symptom') return categories.some(c => ['symptom','injury'].includes(c))
+  if (selected === 'medication') return categories.includes('medication')
+  if (selected === 'daily') return categories.some(c => dailyCategories.includes(c))
+  return false
+}
 export function normalizeCalendarCategory(category: string) {
   if (calendarCategories.includes(category as PresentationGroup)) return category
   const legacy: Partial<Record<JournalCategory, PresentationGroup>> = { diet: 'feeding', sleep: 'daily', elimination: 'daily', care: 'daily', growth: 'daily', activity: 'daily', emotion: 'daily', environment: 'daily', social: 'daily', injury: 'symptom', vaccination: 'materials', visit: 'materials', examination: 'materials' }

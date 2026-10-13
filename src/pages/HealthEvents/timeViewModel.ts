@@ -1,3 +1,4 @@
+import { visibleRecordCategories } from '../../../shared/record-categories.mjs'
 import type { HealthEventApiDto, HealthEventRecordApiDto, EventAttachmentApiDto, HealthEventStage } from '../../types'
 import { getLocalDateKey, parsePlainDate } from '../../utils/localCalendarDate'
 import type { JournalCategory, JournalMetadata } from '../../types/journal'
@@ -56,7 +57,7 @@ export function flattenJournal(events: readonly HealthEventApiDto[], records: Re
       caseContext: first.caseContext,
       sourceText: first.sourceText,
       aiProvenance: first.aiProvenance,
-      categories: first.journal?.categories?.length ? first.journal.categories.filter((category) => category in journalCategoryLabels) : [first.type in journalCategoryLabels ? first.type as JournalCategory : 'other' as const],
+      categories: visibleRecordCategories(first).filter((category): category is JournalCategory => category in journalCategoryLabels),
       timePrecision: first.caseContext?.timeUnknown ? 'unknown' : latest.journal?.timePrecision ?? first.journal?.timePrecision ?? (!first.sourceType || ['user_record', 'measurement', 'doctor_confirmation'].includes(first.sourceType) ? 'exact' : 'unknown'),
       timeLabel: latest.journal?.timeLabel ?? first.journal?.timeLabel,
       diet: first.journal?.diet,
@@ -121,6 +122,7 @@ export function journalSearchFields(entry: JournalEntry) {
   return [
     journalListSummary(entry),
     entry.content,
+    entry.sourceText ?? '',
     ...(entry.searchContents ?? []),
     ...(entry.categories ?? ['other']).map((category) => journalCategoryLabels[category]),
     ...(entry.aiNurse?.professionalNotes.flatMap(n => [n.heading, n.text]) ?? []),
@@ -138,9 +140,10 @@ const journalSearchAliases = [
   ['睡眠', '睡觉', '睡着', '睡得'],
   ['发烧', '发热'],
   ['起疹子', '疹子', '红疹', '皮疹'],
+  ['红屁股', '屁股发红', '臀部发红'],
   ['大便', '排便', '便便', '拉屎'],
   ['用药', '服药', '吃药'],
-  ['喂养', '喂奶', '吃奶'],
+  ['喂养', '喂奶', '吃奶', '饮食'],
   ['检查', '报告', 'examination'],
   ['呕吐', '吐'],
   ['奶', 'milk'],

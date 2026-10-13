@@ -7,7 +7,7 @@ import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes 
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
 import {syntheticEvidenceProof,safeSyntheticStage} from '../business/synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from './readable-preview.mjs'
-import {createBailianTransport} from './bailian-transport.mjs'
+import {createBailianTransport,transportTimings} from './bailian-transport.mjs'
 
 const validator = new Ajv({ strict: false, allowUnionTypes: true, allErrors: false })
 const validators = new Map()
@@ -118,7 +118,7 @@ export class BailianProvider extends OpenAIProvider {
             }
             throw error
           }
-          const diagnostics = { provider: this.name, model, task:format.name==='hoooho_front_desk_reply'?'front-desk-dialogue':task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
+          const diagnostics = { network:transportTimings(response), provider: this.name, model, task:format.name==='hoooho_front_desk_reply'?'front-desk-dialogue':task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })

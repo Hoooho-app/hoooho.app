@@ -27,6 +27,11 @@ export class EventAttachmentRepository {
     return { attachment, duplicate }
   }
 
+  async findIndexByAccountId(accountId) {
+    const data = await this.#store.read()
+    return data.attachments.filter(file => file.accountId === accountId).map(({id, accountId, eventId, recordId, createdAt}) => ({id, accountId, eventId, recordId, createdAt}))
+  }
+
   async findByEventId(eventId) {
     const data = await this.#store.read()
     return data.attachments.filter((item) => item.eventId === eventId)

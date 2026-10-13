@@ -67,6 +67,34 @@ export async function reconcileExtraction(items,sources,context){
   }else if(raw){result.timeText=raw;result.timeResolution={source:'local_source_context',references:timeSources}}
   return result
  })
+ // Recover a narrowly supported colloquial observation if a feeding item
+ // swallowed it. The existing parser supplies subject, polarity and time; no
+ // diagnosis, invented fact or additional provider call is involved.
+ for(const source of sources){
+  for(const fact of parsed.get(`${source.id}:${source.page}`).facts.filter(f=>f.name==='臀部发红'&&f.subject==='event_subject'&&f.polarity==='affirmed'&&f.temporality==='current'&&f.assertionType==='observation')){
+   const quote=fact.sourceText
+   if(!quote||!source.text.includes(quote)||source.text.indexOf(quote)!==source.text.lastIndexOf(quote))continue
+   const represented=reconciled.filter(item=>item.fields.some(f=>f.sources.some(r=>r.sourceId===source.id&&r.page===source.page)&&/红屁股|(?:屁股|臀部).*红/u.test(f.value)))
+   const start=source.text.indexOf(quote),end=start+quote.length
+   const sentenceStart=Math.max(...['。','；',';','\n','!','！','?','？'].map(mark=>source.text.lastIndexOf(mark,start)))+1
+   const sentenceEnd=source.text.slice(end).search(/[。；;\n!！?？]/u)
+   const boundary=sentenceEnd<0?source.text.length:end+sentenceEnd
+   const timeText=fact.time?.raw??null
+   const expected=resolveItemTime({timeText},context)
+   const candidates=reconciled.filter(item=>item.category==='diet'&&item.fields.some(f=>f.name==='food'&&f.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page&&ref.start>=sentenceStart&&ref.start<boundary))&&(!item.timeText||!timeText||resolveItemTime(item,context).resolvedStart===expected.resolvedStart))
+   if(represented.length){
+    const clinical=represented.length===1?represented[0]:null
+    if(candidates.length===1&&clinical?.category==='symptom'&&!clinical.archiveCategory&&clinical.fields.every(f=>symptomFields.has(f.name)&&f.sources.every(ref=>ref.sourceId===source.id&&ref.page===source.page&&ref.start>=sentenceStart&&ref.end<=boundary))&&(!clinical.timeText||!timeText||resolveItemTime(clinical,context).resolvedStart===expected.resolvedStart)){
+      candidates[0].fields.push(...clinical.fields)
+      reconciled.splice(reconciled.indexOf(clinical),1)
+    }
+    continue
+   }
+   const field={name:'symptom',value:quote,sources:[{sourceId:source.id,page:source.page,quote,start,end}],confirmed:false,editedBy:'source',recovery:'explicit_colloquial_observation'}
+   if(candidates.length===1)candidates[0].fields.push(field)
+   else reconciled.push({id:`source-symptom-${reconciled.length+1}`,category:'symptom',title:quote.slice(0,80),timeText,fields:[field],archiveCategory:null,relationKey:null})
+  }
+ }
  const values=new Map()
  for(const [sourceIndex,source] of sources.entries()){
   for(const [factIndex,fact] of parsed.get(`${source.id}:${source.page}`).facts.entries()){

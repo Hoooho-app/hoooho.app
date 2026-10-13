@@ -1,3 +1,4 @@
+import { JournalIndexService } from './events/journal-index-service.mjs'
 import {uploadSymptomMedia} from './events/symptom-media-upload.mjs'
 import {SymptomMediaJobs} from './ai/symptom-media-jobs.mjs'
 import { createReadStream } from 'node:fs'
@@ -841,6 +842,13 @@ async function handleApi(request, response, pathname, searchParams) {
   }
   if (await handleAccount(request, response, pathname)) return true
   if (await handleAccountEntryState(request, response, pathname)) return true
+  const journalIndex = /^\/api\/members\/([^/]+)\/journal-index$/.exec(pathname)
+  if (journalIndex) {
+    const accountId = await readAccountId(request)
+    if (request.method !== 'GET') sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
+    else sendJson(response, 200, await new JournalIndexService({ events, recordRepository: records.repository, attachmentRepository: attachments.repository }).list(accountId, decodeRouteValue(journalIndex[1]), request.headers['x-hoooho-timezone']))
+    return true
+  }
   const handoff = handoffRoute(pathname)
   if (handoff) {
     response.setHeader('Referrer-Policy', 'no-referrer')

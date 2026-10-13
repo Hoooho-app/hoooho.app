@@ -100,7 +100,7 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
       </section>}
     </div>
     <footer className="quick-search-footer">
-      <HohoButton fullWidth className="quick-search-hold" type="button" variant={voice.state === 'listening' ? 'primary' : 'secondary'} aria-pressed={voice.state === 'listening'} disabled={!ready || !!pendingVoice || voice.busy && voice.state !== 'listening' && voice.state !== 'requesting'}
+      <HohoButton fullWidth className="quick-search-hold" type="button" variant="primary" aria-pressed={voice.state === 'listening'} disabled={!ready || !!pendingVoice || voice.busy && voice.state !== 'listening' && voice.state !== 'requesting'}
         onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); input.current?.blur(); e.currentTarget.setPointerCapture(e.pointerId); void voice.start() }} onPointerUp={voice.stop} onPointerCancel={voice.discard}
         onKeyDown={e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); void voice.start() } if (e.key === 'Escape') voice.discard() }} onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); voice.stop() } }}>
         <Mic size={20} aria-hidden="true" />{voice.state === 'listening' ? '正在听…' : voice.state === 'transcribing' ? '识别中…' : voice.state === 'requesting' ? '开启中…' : '按住说话'}

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
-import type { HealthEventApiDto, HealthEventRecordApiDto } from '../../types'
+import type { HealthEventApiDto, HealthEventRecordApiDto, EventAttachmentApiDto } from '../../types'
 import { apiRequest, ApiRequestError } from '../../services/apiClient'
-import { eventAttachmentService } from '../../services/eventAttachments'
 import { flattenJournal, type JournalEntry } from './timeViewModel'
 
 export function useJournal(memberId: string, token: string, revision: number): { entries: JournalEntry[]; sourceEntries: JournalEntry[]; loading: boolean; error: string; retry: () => void } {
@@ -24,14 +23,9 @@ export function useJournal(memberId: string, token: string, revision: number): {
     setState({ scope, memberId, entries: cached, sourceEntries: readSources(), loading: cached.length === 0, error: '' })
     const load = async () => {
       try {
-        const events = (await apiRequest<HealthEventApiDto[]>('/api/events?view=time', { token, signal: controller.signal })).filter((event) => event.memberId === memberId)
-        const results = await Promise.all(events.map(async (event) => {
-          const [records, attachments] = await Promise.all([
-            apiRequest<HealthEventRecordApiDto[]>(`/api/events/${encodeURIComponent(event.id)}/records?view=time`, { token, signal: controller.signal }),
-            eventAttachmentService.list(event.id, token, controller.signal)
-          ])
-          return { event, records, attachments }
-        }))
+        const index = await apiRequest<{ events: HealthEventApiDto[]; records: HealthEventRecordApiDto[]; attachments: EventAttachmentApiDto[] }>(`/api/members/${encodeURIComponent(memberId)}/journal-index`, { token, signal: controller.signal })
+        const events = index.events.filter(event => event.memberId === memberId)
+        const results = events.map(event => ({ event, records: index.records.filter(record => record.eventId === event.id && record.accountId === event.accountId), attachments: index.attachments.filter(file => file.eventId === event.id && file.accountId === event.accountId) }))
         if (!controller.signal.aborted) {
           const entries = flattenJournal(events, new Map(results.map((item) => [item.event.id, item.records])), new Map(results.map((item) => [item.event.id, item.attachments])), memberId)
           const sourceEntries = results.flatMap(({event, records, attachments}) => records.length ? records.flatMap(record => flattenJournal([event], new Map([[event.id, [record]]]), new Map([[event.id, attachments]]), memberId)) : flattenJournal([event], new Map(), new Map([[event.id, attachments]]), memberId))

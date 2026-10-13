@@ -1,3 +1,4 @@
+import { itemRecordCategories } from '../../../shared/record-categories.mjs'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { TimeResolverService } from '../time-resolver-service.mjs'
@@ -74,8 +75,8 @@ export function resolveItemTime(item, options) {
 const field = (item, name) => item.fields.find(field => field.name === name)?.value
 const known = (value, choices) => choices.includes(value) ? value : undefined
 export function buildJournal(item) {
-  const journal = { categories: [item.category], timePrecision: item.time?.precision === 'exact' ? 'exact' : item.time?.precision === 'unknown' || !item.time ? 'unknown' : 'period' }
-  if (item.category === 'symptom') journal.symptom = { symptomCategory: /皮肤|疹|痒/.test(field(item,'symptom') || '') ? 'skin' : 'other', narrative: field(item,'symptom'), locations: bodyLocations(field(item,'location')), descriptors: [], locationText: field(item,'location') }
+  const journal = { categories: itemRecordCategories(item), timePrecision: item.time?.precision === 'exact' ? 'exact' : item.time?.precision === 'unknown' || !item.time ? 'unknown' : 'period' }
+  if (item.category === 'symptom' || journal.categories.includes('symptom') && field(item,'symptom')) journal.symptom = { symptomCategory: /皮肤|疹|痒|红屁股|臀部|屁股.*红/.test(field(item,'symptom') || '') ? 'skin' : 'other', narrative: field(item,'symptom'), locations: bodyLocations(field(item,'location')), descriptors: [], locationText: field(item,'location') }
   if (item.category === 'sleep') {
     const sleepAt = field(item,'sleepAt'), wakeAt = field(item,'wakeAt')
     // ISO values are used only after a user supplied them or the time resolver

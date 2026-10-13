@@ -69,3 +69,8 @@ test('quick lookup shares journal sleep aliases for ordinary and earliest querie
   assert.deepEqual(lookupRecords([sleeping], '睡觉').map(match => match.entry.id), ['sleep'])
   assert.deepEqual(lookupRecords([sleeping], '最早睡觉').map(match => match.entry.id), ['sleep'])
 })
+
+test('mixed feeding and symptom remains one searchable occurrence in both filters',()=>{
+ const record=row('mixed','食物：配方奶\n症状：后来出现红屁股','2026-10-09T10:00:00Z',{categories:['diet','symptom']})
+ for(const query of ['红屁股','臀部发红','配方奶','喂养 红屁股'])assert.deepEqual(lookupRecords([record],query,now).map(m=>m.entry.id),['mixed'])
+})

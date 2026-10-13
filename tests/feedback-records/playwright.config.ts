@@ -1,0 +1,3 @@
+import {defineConfig} from '@playwright/test'
+import path from 'node:path'
+export default defineConfig({testDir:'.',workers:1,timeout:60000,expect:{timeout:12000},use:{baseURL:'http://127.0.0.1:4196',viewport:{width:375,height:667},isMobile:true,hasTouch:true,timezoneId:'Asia/Shanghai',serviceWorkers:'block',launchOptions:{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox']}},webServer:{cwd:path.resolve(import.meta.dirname,'../..'),command:'node tests/visit-sheet/serve.mjs',env:{VISIT_AI_TEST:'1',VISIT_BAILIAN_TEST:'1',AI_MAX_CALLS_PER_ACCOUNT_HOUR:'1000'},url:'http://127.0.0.1:4196/api/health',timeout:60000}})

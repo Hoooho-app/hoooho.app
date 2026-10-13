@@ -10,7 +10,7 @@ import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCapt
 import {restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
 import {RecordMedia} from './RecordMedia'
 import { fileDataUrl } from './CaseCaptureWorkspace'
-import { isKeyRecordField, recordCategoryLabels, retainSmartRecordEdits, smartRecordTimeLabel, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
+import { isKeyRecordField, smartRecordCategories, recordCategoryLabels, retainSmartRecordEdits, smartRecordTimeLabel, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
 import { useSmartRecordVoice } from './useSmartRecordVoice'
 import { NurseMessage } from '../ai-nurse/NurseMessage'
 import {useDialogueSpeech} from '../ai-nurse/useDialogueSpeech'
@@ -228,6 +228,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       await writes.current
       for(const item of review.items as EditableItem[]){
         if(item.categoryChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,category:item.category})
+        if(item.categoriesChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,visibilityCategories:item.visibilityCategories})
         if(item.timeChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,field:'time',value:item.timeText})
         for(const field of item.fields.filter(f=>f.editedBy==='user'))saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,field:field.name,value:field.value})
       }
@@ -268,9 +269,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       <p>点开需要修改的内容，核对后一起保存。</p>
       {sharedTime&&<div className="smart-record-shared-time"><label>这{review.items.length}条记录识别为同一时间，可一起核对<input aria-label="统一核对发生时间" value={review.items[0].timeText??''} disabled={busy||voice.busy} onChange={e=>editSharedTime(e.target.value)}/></label><div className="smart-record-time-actions"><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editSharedTime('刚才')}>都是刚才</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editSharedTime('不记得')}>都不记得</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>setSeparateTimes(true)}>分别核对时间</HohoButton></div></div>}
       {review.items.map(item=><section key={item.id} className="smart-record-item dialogue-review-item">
-        <header><strong>{item.title}</strong><span>{recordCategoryLabels[item.category]??'其他'}</span></header>
+        <header><strong>{item.title}</strong><span>{smartRecordCategories(item).map(c=>recordCategoryLabels[c]??'其他').join(' · ')}</span></header>
         <dl>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=><div key={f.name}><dt>{page&&item.category==='sleep'&&f.name==='durationMinutes'?'睡眠时长':item.category==='activity'&&f.name==='symptom'?'活动原话':labels[f.name]??f.name}</dt><dd>{f.value||'未填写'}</dd></div>)}<div><dt>发生时间</dt><dd>{smartRecordTimeLabel(item)}</dd></div></dl>
-        <details><summary>编辑这条记录<ChevronDown size={16} aria-hidden="true" /></summary>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=>fieldInput(item,f))}
+        <details><summary>编辑这条记录<ChevronDown size={16} aria-hidden="true" /></summary><div className="smart-record-time-actions" aria-label="记录分类">{[...new Set([item.category,'diet','symptom'])].map(category=><HohoButton key={category} size="small" variant={smartRecordCategories(item).includes(category)?'primary':'secondary'} aria-pressed={smartRecordCategories(item).includes(category)} disabled={busy||voice.busy||category===item.category} onClick={()=>editItem(item.id,i=>({...i,visibilityCategories:smartRecordCategories(i).includes(category)?smartRecordCategories(i).filter(c=>c!==category):[...smartRecordCategories(i),category],categoriesChanged:true}))}>{recordCategoryLabels[category]}</HohoButton>)}</div>{item.fields.filter(f=>isKeyRecordField(item.category,f.name)).map(f=>fieldInput(item,f))}
           {!sharedTime&&<><label>这件事大约是什么时候？<input aria-label={`确认${item.title}的发生时间`} placeholder="刚才、昨天、上个月；不记得也可以说" value={item.timeText??''} disabled={busy||voice.busy} onChange={e=>editItem(item.id,i=>({...i,timeText:e.target.value,timeChanged:true}))}/></label>
           <div className="smart-record-time-actions"><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editItem(item.id,i=>({...i,timeText:'刚才',timeChanged:true}))}>就是刚才</HohoButton><HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>editItem(item.id,i=>({...i,timeText:'不记得',timeChanged:true}))}>不记得</HohoButton></div></>}
         </details>
