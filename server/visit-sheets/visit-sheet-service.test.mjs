@@ -19,6 +19,12 @@ test('旧记录只调用一次现有摘要服务，缓存真实结构、保存�
  state=await svc.save(a,m,{requestId:'v2-organize',expectedVersion:state.report.version,organizeCurrent:{scopeKey:state.report.photoKey}})
  assert.equal(state.report.currentSituation.needsOrganization,false);assert.equal(state.report.currentSituation.symptoms.length,3);assert.equal(state.report.currentSituation.diet.length,2)
  assert.equal(state.report.currentSituation.raw[0].text,situationRaw);assert.equal(calls,1)
+ assert.deepEqual(state.report.caseDetails,{})
+ assert.equal(state.report.currentSituationEdits[state.report.photoKey],undefined)
+ const generatedDescription=situationOutput().currentSituation.description.map(line=>line.text).join('')
+ assert.equal(state.report.currentSituation.description,generatedDescription)
+ assert.equal(state.report.currentSituationResults[state.report.photoKey].value.description.map(line=>line.text).join(''),generatedDescription)
+ assert.equal((await svc.get(a,m)).report.currentSituation.description,generatedDescription);assert.equal(calls,1)
  state=await svc.save(a,m,{requestId:'v2-edit',expectedVersion:state.report.version,currentSituation:{scopeKey:state.report.photoKey,block:'description',text:'真实用户编辑：无头痛'}})
  const editedRows=state.report.currentSituation.symptoms.map(l=>({text:l.text,note:l.note??''}));editedRows[1].text='用户皮肤细节'
  state=await svc.save(a,m,{requestId:'v2-row',expectedVersion:state.report.version,currentSituation:{scopeKey:state.report.photoKey,block:'symptoms',rows:editedRows}})

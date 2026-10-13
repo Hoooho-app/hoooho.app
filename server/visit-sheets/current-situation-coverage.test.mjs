@@ -38,6 +38,15 @@ test('真实合成输出回归先复现遗漏；完整参考保留13项事实与
  assert.deepEqual(Object.values(quality(verified)),Array(13).fill(true))
 })
 
+test('第十二轮真实保存结果复现口语概览；详情完整不等于展示验收通过',()=>{
+ const captured={description:'早上起来的时候就开始其实有点头晕但不是头疼，发烧也不发烧，但是脖子那里有一个小红点，腿部其实也是有点小疹子。',symptoms:[{label:'症状',kind:'symptom',text:'早上起来的时候就开始有点头晕，不是头疼。',note:''},{label:'体温',kind:'temperature',text:'不发烧，体温正常。',note:''},{label:'皮肤',kind:'symptom',text:'脖子那里有一个小红点。',note:'记录者估计是痱子，不知道是热疹还是湿疹'},{label:'皮疹',kind:'symptom',text:'腿部有点小疹子。',note:''}],diet:[{text:'昨天吃的都是平时吃的东西。'},{text:'只有牛肉是新添加的。'}]}
+ assert.deepEqual(Object.keys(quality(captured)).filter(key=>!quality(captured)[key]),['conciseOverview'])
+ assert.doesNotMatch(captured.description,/体温.*正常|正常.*体温/)
+ const complete=situationOutput().currentSituation
+ assert.equal(quality(complete).conciseOverview,true)
+ assert.match(textOf(complete.description),/体温.*正常|正常.*体温/)
+})
+
 test('内容评估识别同义程度及记录者归属，开始动作和程度遗漏仍失败',()=>{
  const input={currentSituationSources:[{id:'record:focus',text:situationRaw}]},value=situationOutput()
  value.currentSituation.symptoms[0].text='晨起后开始有些头晕，无头疼。'
