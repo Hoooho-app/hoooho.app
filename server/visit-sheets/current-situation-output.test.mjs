@@ -48,9 +48,10 @@ test('目前情况仅请求严格局部结构，普通摘要契约与连续调�
  const result=await provider.summarizeMedicalPreparation(input);assert.equal(result.currentSituation.symptoms.length,3);assert.deepEqual(Object.keys(result),['currentSituation'])
  const ordinary=await provider.summarizeMedicalPreparation({sections:input.sections});assert.equal(ordinary.overview,ordinaryOutput().overview);assert.equal(ordinary.currentSituation,undefined)
  await provider.summarizeMedicalPreparation(input);assert.equal(bodies.length,3)
- for(const body of [bodies[0],bodies[2]]){assert.deepEqual(body.text.format.schema.required,['currentSituation']);assert.deepEqual(Object.keys(body.text.format.schema.properties),['currentSituation']);assert.equal(body.text.format.schema.additionalProperties,false);assert.equal(body.store,false);assert.match(body.instructions,/仅返回 \{currentSituation\}/);assert.doesNotMatch(body.instructions,/overview 用一到三句话/);assert.equal(body.text.format.name,'hoooho_medical_summary')}
+ for(const body of [bodies[0],bodies[2]]){assert.deepEqual(body.text.format.schema.required,['currentSituation']);assert.deepEqual(Object.keys(body.text.format.schema.properties),['currentSituation']);assert.equal(body.text.format.schema.additionalProperties,false);assert.equal(body.store,false);assert.equal(body.temperature,undefined);assert.match(body.instructions,/仅返回 \{currentSituation\}/);assert.doesNotMatch(body.instructions,/overview 用一到三句话/);assert.equal(body.text.format.name,'hoooho_medical_summary')}
  assert.deepEqual(bodies[1].text.format.schema.required,['overview','keyPoints','missingInformation']);assert.equal(bodies[1].text.format.schema.properties.currentSituation,undefined);assert.match(bodies[1].instructions,/overview 用一到三句话/);assert.doesNotMatch(bodies[1].instructions,/仅返回 \{currentSituation\}/)
  assert.deepEqual(bodies[0].text.format.schema,bodies[2].text.format.schema)
+ assert.equal(bodies[1].temperature,undefined)
  for(const body of bodies)assert.match(body.instructions,/不要把姓名或其他身份信息重复写入摘要/)
 })
 
@@ -67,6 +68,7 @@ test('现有百炼摘要适配器核验同一V2结构，仍只发起一次模型
  const provider=new BailianProvider({env:{AI_PROVIDER:'bailian',BAILIAN_API_KEY:'fixture-only',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'},logger:{info(){},warn(){}},fetchImpl:async(_,init)=>{calls++;body=JSON.parse(init.body);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(situationOutput())}}]})}})
  const result=await provider.summarizeMedicalPreparation(input)
  assert.equal(calls,1);assert.equal(result.currentSituation.diet.length,2);assert.ok(body.response_format.json_schema.schema.properties.currentSituation)
+ assert.equal(body.temperature,0)
 })
 
 test('V2校验诊断穿过摘要服务，仅记录固定字段和规则，不记录原话或无效模型正文',async()=>{
