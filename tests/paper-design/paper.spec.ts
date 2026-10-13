@@ -66,7 +66,20 @@ for (const route of routes) {
     await expect(page.locator('main')).toBeVisible()
     await page.waitForLoadState('networkidle')
     await page.evaluate(() => document.fonts.ready)
+    for (const header of await page.locator('.hoho-page-header, .hoho-legacy-header, .dietary-page-header, .visit-report-header').all()) {
+      await expect(header).toHaveCSS('background-color', 'rgb(244, 242, 237)')
+      await expect(header).toHaveCSS('backdrop-filter', 'none')
+    }
+    const primary = page.locator('.hoho-button[data-variant="primary"]').first()
+    if (await primary.count()) {
+      await expect(primary).toHaveCSS('background-color', 'rgb(89, 185, 154)')
+      await expect(primary).toHaveCSS('color', 'rgb(255, 255, 255)')
+      for (const icon of await primary.locator('svg').all()) await expect(icon).toHaveCSS('color', 'rgb(255, 255, 255)')
+    }
     if (route.slug === 'visit-summary') await expect(page.locator('.visit-reading')).toBeVisible()
+    for (const wrapper of await page.locator('.dietary-card, .visit-report, .visit-reading-card').all()) {
+      await expect(wrapper).toHaveCSS('background-color', 'rgb(244, 242, 237)')
+    }
     expect(new URL(page.url()).pathname).toBe(route.slug === "guide" ? "/help" : target)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
     await page.screenshot({ path: path.join(evidenceRoot, `${testInfo.project.name}-${route.slug}.png`), fullPage: true })
@@ -82,6 +95,7 @@ test('sidebar retains side drawer and expandable groups', async ({ page }) => {
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
   await expect(drawer).toBeVisible()
+  await expect(drawer.locator('.hoho-drawer')).toHaveCSS('background-color', 'rgb(252, 251, 247)')
   const group = drawer.locator('button[aria-expanded]').first()
   const before = await group.getAttribute('aria-expanded')
   await group.click()
@@ -118,4 +132,17 @@ test('recording feedback follows real stream amplitude and releases microphone',
   await expect(page.locator('.hoho-dialogue-recording')).toBeHidden()
   await expect.poll(() => page.evaluate(() => (window as any).paperAudio.stream.getTracks().every((track: MediaStreamTrack) => track.readyState === 'ended'))).toBeTruthy()
   await page.evaluate(() => (window as any).paperAudio.context.close())
+})
+
+test('medication editor keeps paper material and existing close behavior', async ({ page }, info) => {
+  await preparePage(page)
+  await page.goto('/medication-reminders')
+  await page.getByRole('button', {name:'新增提醒',exact:true}).click()
+  const editor = page.getByRole('dialog',{name:'新增用药提醒'})
+  await expect(editor).toBeVisible()
+  await expect(editor).toHaveCSS('background-color','rgb(244, 242, 237)')
+  await expect(editor.locator('header')).toHaveCSS('background-color','rgb(244, 242, 237)')
+  await page.screenshot({path:path.join(evidenceRoot, `${info.project.name}-medication-editor.png`)})
+  await editor.getByRole('button',{name:'返回',exact:true}).click()
+  await expect(editor).toBeHidden()
 })

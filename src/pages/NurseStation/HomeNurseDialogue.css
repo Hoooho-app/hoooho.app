@@ -35,7 +35,7 @@
 }
 .nurse-home-dialogue > .hoho-button {
   margin-top: var(--hoho-space-2);
-  background: rgb(var(--hoho-color-primary));
+  background: rgb(var(--hoho-color-action));
 }
 .nurse-home-dialogue__footer {
   display: flex;

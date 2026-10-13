@@ -492,7 +492,7 @@ body.visit-report-active { min-width: 0; }
 .visit-photo-metadata label{display:grid;gap:6px;margin:12px 0}
 .visit-photo-metadata input{width:100%;max-width:100%;border:1px solid rgb(var(--hoho-color-border));border-radius:8px;padding:10px}
 .visit-photos .visit-photo-grid img{height:132px;max-height:132px;object-fit:contain}
-.visit-chapter--overview>.visit-section-actions>button{min-height:44px;padding:8px 12px;background:rgb(var(--hoho-color-primary));color:white;border-radius:10px;font-weight:600}
+.visit-chapter--overview>.visit-section-actions>button{min-height:44px;padding:8px 12px;background:rgb(var(--hoho-color-action));color: rgb(var(--hoho-color-action-text));border-radius:10px;font-weight:600}
 .visit-course-nodes:has(article:nth-child(3)){grid-template-columns:1fr}
 .visit-course-nodes:has(article:nth-child(3)) article{padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:3px}
 .visit-course-nodes:has(article:nth-child(3)) article h3{font-size:14px}

@@ -7,6 +7,7 @@
   .visit-reading-card, .visit-reading-person, .settings-group, .profile-directory-group {
     background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
   }
+  .hoho-drawer.hoho-drawer { background-color: rgb(var(--hoho-color-surface)); }
   .hoho-text-page-title, .hoho-text-section-title, .section-title, .visit-report h1, .visit-report h2,
   .hoho-page-header h1, .visit-report-header strong { font-family: var(--hoho-font-family-heading); font-weight: 600; letter-spacing: .015em; }
   .hoho-input, .hoho-textarea, .hoho-select { box-shadow: inset 0 1px 3px rgb(39 51 50 / .035); }
@@ -25,6 +26,68 @@
   @keyframes hoho-paper-update { from { background-color: rgb(var(--hoho-color-primary-border) / .5); } to { background-color: transparent; } }
   @keyframes hoho-paper-content { from { opacity: .45; } to { opacity: 1; } }
 }
+/* Grain is translucent: the drawer must always keep an opaque paper base. */
+body .hoho-drawer.hoho-drawer {
+  background-color: rgb(var(--hoho-color-surface));
+  background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
+}
+/* Explicit material bridges also cover page CSS outside Tailwind's component layer. */
+body header.hoho-page-header, body .hoho-legacy-header, body .dietary-page-header, body .help-header,
+body .allergy-history-header, body .allergy-header, body .visit-report-header,
+body .visit-subpage > header, body .med-reminder-flow > header, body .desensitization-new-header, body .journal-search-header {
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image: var(--hoho-paper-grain);
+  border-bottom-color: rgb(var(--hoho-color-border) / .55);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body .app-shell, body .dietary-card-page, body .food-label-page, body .nurse-station-page {
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image: var(--hoho-paper-grain);
+}
+body .dietary-card, body .medication-course-card__surface, body .med-reminder-flow {
+  background-color: rgb(var(--hoho-color-surface));
+  background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
+}
+/* Large neutral wrappers share the page paper rather than stacking a white slab. */
+body .dietary-card, body .visit-report, body .visit-summary-page, body .visit-reading-person,
+body .visit-subpage, body .visit-reading-card, body .med-reminder-flow {
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image: var(--hoho-paper-grain);
+}
+body .med-action-sheet, body .medication-delete-dialog, body .nurse-station-sheet {
+  background-color: rgb(var(--hoho-color-surface));
+  background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
+}
+body .med-reminder-flow footer, body .dietary-edit-footer {
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image: var(--hoho-paper-grain);
+}
+body .nurse-home-dialogue__body {
+  background: radial-gradient(ellipse 122px 110px at calc(100% - 61px) center, #fff 78%, rgb(255 255 255 / 0) 100%);
+}
+body .nurse-home-dialogue .nurse-station-visual {
+  overflow: visible;
+  box-shadow: 0 0 12px 8px #fff;
+}
+body .hoho-button[data-variant='primary'],
+body .medication-course-card__take:not(:disabled), body button.bg-primary,
+body .med-action-grid button:first-child {
+  background-color: rgb(var(--hoho-color-action));
+  background-image: var(--hoho-paper-grain);
+  border-color: rgb(var(--hoho-color-action-border) / .4);
+  color: rgb(var(--hoho-color-action-text));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .25), 0 2px 3px rgb(39 51 50 / .06);
+}
+body .hoho-button[data-variant='primary'] :is(span, svg),
+body button.bg-primary :is(span, svg), body .med-action-grid button:first-child :is(span, svg),
+body .medication-course-card__take:not(:disabled) :is(span, svg) { color: inherit; }
+body .hoho-button[data-variant='primary']:hover:not(:disabled),
+body .medication-course-card__take:hover:not(:disabled), body button.bg-primary:hover:not(:disabled),
+body .med-action-grid button:first-child:hover:not(:disabled) { background-color: rgb(var(--hoho-color-action-hover)); }
+body .hoho-button[data-variant='primary']:active:not(:disabled),
+body .medication-course-card__take:active:not(:disabled), body button.bg-primary:active:not(:disabled),
+body .med-action-grid button:first-child:active:not(:disabled) { background-color: rgb(var(--hoho-color-action-active)); }
 @media (prefers-reduced-motion: reduce) {
   .home-symptom-description[data-paper-updated='true'], .home-symptom-dates small[data-paper-updated='true'], .visit-reading[data-paper-updated='true'] .visit-reading-card { animation: none; }
 }

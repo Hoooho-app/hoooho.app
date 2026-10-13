@@ -6,6 +6,12 @@
   --hoho-color-primary-soft: 235 239 230;
   --hoho-color-primary-border: 199 210 193;
   --hoho-color-secondary: 94 105 97;
+  /* Product-owner selected Qingrun green for filled action buttons. */
+  --hoho-color-action: 89 185 154;
+  --hoho-color-action-hover: 80 174 144;
+  --hoho-color-action-active: 70 162 133;
+  --hoho-color-action-text: 255 255 255;
+  --hoho-color-action-border: 63 148 124;
   --hoho-color-page-background: 244 242 237;
   --hoho-color-background: 244 242 237;
   --hoho-color-surface: 252 251 247;

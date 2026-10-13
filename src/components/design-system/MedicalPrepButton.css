@@ -6,7 +6,7 @@
 
 .hoho-button.medical-prep-button:hover:not(:disabled),
 .hoho-button.medical-prep-button:active:not(:disabled) {
-  background: rgb(var(--hoho-color-primary));
+  background: rgb(var(--hoho-color-action));
   box-shadow: none;
   transform: none;
 }

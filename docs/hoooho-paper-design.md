@@ -11,7 +11,9 @@ Product-owner authorization: 2026-10-13; apply approved paper direction througho
 
 ## Shared foundations
 
-Plaster page `#F4F2ED`, paper `#FCFBF7`, ink `#273332`, moss action `#486253`, stone borders `#D6DAD3`. Keep semantic medical/error/calendar colors and factual labels.
+Plaster page `#F4F2ED`, paper `#FCFBF7`, ink `#273332`, moss text/accent `#486253`, stone borders `#D6DAD3`. On 2026-10-13 the product owner selected Qingrun green `#59B99A` for filled action buttons with white text and icons; action tokens remain separate from accent and medical semantic colors.
+
+The follow-up material fix gives the drawer an opaque paper base below translucent grain, joins shared headers to the plaster page material, covers dedicated dietary/medication surfaces, and blends the white nurse wrapper into the surrounding paper without changing source media or playback.
 
 Headings use self-hosted Noto Serif SC; body uses Noto Sans SC with system fallbacks. Both fonts are locally subset from public SIL OFL assets to the application glyph inventory. Unknown user-entered characters fall back to system fonts. Licenses accompany assets. Text keeps existing type roles and data uses tabular numerals.
 
@@ -39,3 +41,5 @@ Revert the isolated UI commit, or redeploy the preceding known-successful source
 - Local AI requests without credentials intentionally exercise existing 503 recovery; live provider accuracy is outside this visual change. The older September design suite contains obsolete self-member fixtures and /guide routing assumptions; use the current child fixture and existing /guide -> /help route contract.
 
 Run browser checks with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using a locally supplied Chromium executable. No new runtime dependency.
+
+Follow-up scope: clear green filled controls with pure white content, opaque drawer base, page-colored headers and large dietary/report/medication wrappers. Original nurse media remains byte-identical; a soft white-to-paper backdrop bridges the opaque footage. The legacy Header uses the same material class; no layout or navigation handler changes.

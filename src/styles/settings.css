@@ -119,7 +119,7 @@
   .settings-care-preview[data-size='large'] { font-size: 1.0625rem; line-height: 1.65; }
   .settings-care-preview[data-size='extra-large'] { font-size: 1.1875rem; line-height: 1.7; }
   .settings-care-preview[data-contrast='true'] { border-color: rgb(var(--hoho-color-border-strong)); color: rgb(var(--hoho-color-text-primary)); }
-  .settings-care-preview__button { min-height: 44px; border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-primary)); color: white; font-weight: 600; }
+  .settings-care-preview__button { min-height: 44px; border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-action)); color: rgb(var(--hoho-color-action-text)); font-weight: 600; }
   .settings-care-preview[data-targets='true'] .settings-care-preview__button { min-height: 52px; }
 
   .settings-segmented {
@@ -133,7 +133,7 @@
   }
 
   .settings-segmented button { min-height: 38px; border-radius: calc(var(--hoho-radius-control) - 4px); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-label); font-weight: 600; }
-  .settings-segmented button[aria-pressed='true'] { background: rgb(var(--hoho-color-primary)); color: white; }
+  .settings-segmented button[aria-pressed='true'] { background: rgb(var(--hoho-color-action)); color: rgb(var(--hoho-color-action-text)); }
 
   .settings-permission-status {
     max-width: 104px;

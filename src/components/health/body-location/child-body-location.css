@@ -8,7 +8,7 @@
 .child-body-navigation p,.child-body-orientation,.child-body-help,.child-body-legacy-note { margin: 0; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); line-height: 1.5; }
 .child-body-segments { display: flex; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-background)); padding: 3px; }
 .child-body-segments button { flex: 1; min-height: 44px; border-radius: var(--hoho-radius-pill); font-size: var(--hoho-font-size-body-small); }
-.child-body-segments button[aria-pressed=true] { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); font-weight: 600; }
+.child-body-segments button[aria-pressed=true] { background: rgb(var(--hoho-color-action)); color: rgb(var(--hoho-color-action-text)); font-weight: 600; }
 .child-body-content { display: grid; gap: var(--hoho-space-3); min-width: 0; }
 .child-body-region-heading,.child-body-selection-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); }
 .child-body-content h3,.child-body-content h4 { font-size: var(--hoho-font-size-body-small); font-weight: 600; margin: 0; }

@@ -7,7 +7,7 @@
 .guardian-task-page__tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid rgb(var(--hoho-color-primary) / .38); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); }
 .guardian-task-page__tabs button { min-width: 0; min-height: 44px; color: rgb(var(--hoho-color-primary)); font-size: var(--hoho-font-size-label); font-weight: 650; }
 .guardian-task-page__tabs button + button { border-left: 1px solid rgb(var(--hoho-color-primary) / .2); }
-.guardian-task-page__tabs button[aria-selected='true'] { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
+.guardian-task-page__tabs button[aria-selected='true'] { background: rgb(var(--hoho-color-action)); color: rgb(var(--hoho-color-action-text)); }
 .guardian-task-page__tabs span { display: inline-grid; min-width: 20px; height: 20px; place-items: center; margin-left: 3px; border-radius: var(--hoho-radius-pill); padding-inline: 5px; background: rgb(var(--hoho-color-primary) / .1); color: inherit; font-variant-numeric: tabular-nums; }
 .guardian-task-page__tabs button[aria-selected='true'] span { background: rgb(var(--hoho-color-surface) / .18); }
 .guardian-task-page__summary { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
