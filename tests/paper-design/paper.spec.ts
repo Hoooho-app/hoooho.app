@@ -161,7 +161,7 @@ test('home uses aligned calendar controls, button hierarchy and count-based pape
   })
   for (count of [0, 1, 2, 4]) {
     await page.goto('/nurse-station')
-    const symptom = page.getByRole('region', {name:'症状跟进'})
+    const symptom = page.getByRole('region', {name:'健康事件'})
     await expect(symptom.locator('.home-followup-count')).toHaveText(`${count} 项`)
     await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers', String(Math.max(1,Math.min(3,count))))
     const card = page.locator('.nurse-home-dialogue')
@@ -180,7 +180,7 @@ test('home uses aligned calendar controls, button hierarchy and count-based pape
     expect(geometry).toMatchObject({sameRow:true,labelsFit:true,ordered:true,overflow:false})
     expect(geometry.left).toBeLessThan(1);expect(geometry.right).toBeLessThan(1);expect(geometry.height).toBeGreaterThanOrEqual(44)
     await expect(symptom.getByRole('button',{name:'情况单',exact:true})).toHaveAttribute('data-variant','primary')
-    await expect(symptom.getByRole('button',{name:'情况跟进',exact:true})).toHaveAttribute('data-variant','secondary')
+    await expect(symptom.getByRole('button',{name:'症状跟进',exact:true})).toHaveAttribute('data-variant','primary')
     if (count) {
       await expect(symptom.locator('.home-symptom-description')).toHaveCount(0)
       const dates = await symptom.locator('.home-symptom-dates small').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top))
@@ -208,9 +208,46 @@ test('home record entries open the existing forms and preserve main destinations
     await page.getByRole('dialog',{name:title,exact:true}).getByRole('button',{name:/返回/,exact:true}).click()
     await expect(page.getByRole('dialog',{name:title,exact:true})).toBeHidden()
   }
-  for(const [label, target] of [['智能记录','/smart-record'],['情况跟进','/cases'],['情况单','/visit-summary']]) {
+  for(const [label, target] of [['智能记录','/smart-record'],['症状跟进','/cases'],['情况单','/visit-summary']]) {
     await page.goto('/nurse-station')
     await page.getByRole('button',{name:label,exact:true}).click()
     await expect.poll(()=>new URL(page.url()).pathname).toBe(target)
+    if(target==='/cases'){
+      await expect(page.getByRole('heading',{name:'症状跟进',exact:true})).toBeVisible()
+      await page.locator('header').getByRole('button',{name:'返回',exact:true}).click()
+      await expect.poll(()=>new URL(page.url()).pathname).toBe('/nurse-station')
+    }
   }
+})
+
+test('SE Safari usable height keeps the entire home visible with three paper sheets', async ({page}, info) => {
+  await page.setViewportSize({width:375,height:548})
+  await preparePage(page)
+  await page.route('**/api/members/*/cases?*', async route => {
+    const response=await route.fetch(),data=await response.json()
+    const base=data.active.find((item:any)=>item.followup.hasSymptom)
+    expect(base).toBeTruthy()
+    await route.fulfill({response,json:{...data,active:Array.from({length:4},(_,index)=>({...base,event:{...base.event,id:`${base.event.id}-${index}`},followup:{...base.followup,title:'连续发热观察及较长的症状标题用于验证单行布局',keyword:'发热'}}))}})
+  })
+  await page.goto('/nurse-station')
+  await expect(page.locator('.home-followup-count')).toHaveText('4 项')
+  await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers','3')
+  await page.evaluate(()=>document.fonts.ready)
+  await expect(page.getByRole('button',{name:'智能记录',exact:true})).toBeInViewport({ratio:1})
+  await expect(page.locator('.home-followup-actions svg')).toHaveCount(0)
+  await expect(page.getByRole('region',{name:'健康事件'}).getByRole('button',{name:'症状跟进',exact:true})).toHaveCSS('background-color','rgb(72, 98, 83)')
+  await expect(page.getByRole('region',{name:'健康事件'}).getByRole('button',{name:'情况单',exact:true})).toHaveCSS('color','rgb(255, 255, 255)')
+  await expect(page.locator('.nurse-home-dialogue time,.home-record-time-hint')).toHaveCount(0)
+  const geometry=await page.evaluate(()=>{
+    const scroll=document.querySelector('.nurse-station-scroll')!,card=document.querySelector('.nurse-home-dialogue')!,heading=card.querySelector('.home-followup-heading')!.getBoundingClientRect(),visual=card.querySelector('.nurse-station-visual')!.getBoundingClientRect(),hero=document.querySelector('.nurse-station-hero')!,event=document.querySelector('.home-symptom-followup')!
+    const front=event.getBoundingClientRect(),journal=card.getBoundingClientRect()
+    const touches=[...document.querySelectorAll('.home-followup-actions button,.record-entry-grid button,.record-symptom-action')]
+    return {scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight,scrollTop:scroll.scrollTop,videoTop:visual.top,headingTop:heading.top,bottom:journal.bottom,viewport:innerHeight,minTouchHeight:Math.min(...touches.map(n=>n.getBoundingClientRect().height)),textures:[getComputedStyle(hero).backgroundImage,getComputedStyle(event).backgroundImage,getComputedStyle(event.parentElement!,'::before').backgroundImage],clip:getComputedStyle(event).clipPath,healthWhite:getComputedStyle(card).backgroundColor,frontBottom:front.bottom}
+  })
+  expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight+1)
+  expect(geometry.scrollTop).toBe(0);expect(geometry.bottom).toBeLessThan(geometry.viewport)
+  expect(geometry.videoTop).toBe(geometry.headingTop);expect(geometry.minTouchHeight).toBeGreaterThanOrEqual(44)
+  expect(geometry.textures.every(value=>value.includes('home-paper-grain.svg'))).toBeTruthy()
+  expect(geometry.clip).toContain('polygon');expect(geometry.healthWhite).toBe('rgb(255, 255, 255)')
+  await page.screenshot({path:path.join(evidenceRoot,`${info.project.name}-se-usable-height.png`)})
 })

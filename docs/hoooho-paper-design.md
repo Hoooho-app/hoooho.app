@@ -51,3 +51,15 @@ The product owner approved the preview and requested implementation. Preserve th
 Reuse `RecordEntryActions` inside the health jot card, including its exact text-only category row, daily option popover and full-width large “智能记录” button. Home category actions open the existing calendar record forms with member identity and feeding kind preserved. Smart recording preserves its existing front-desk source/return state. No API, record, nurse artwork/video or navigation changes.
 
 Validation: 644 client checks, production build, and 66 browser checks across 375px, 430px and 1280px. Added browser coverage checks the full-width alignment, labels fitting in one row, count-based layer cap, empty follow-up access, seven manual record destinations and returns, and the three main destinations. Prior home description feedback is superseded by latest-update feedback because the description is no longer displayed.
+
+## SE homepage refinement, 2026-10-14
+
+Product-owner feedback from an actual phone screenshot: the browser toolbar hid the smart-record action. The member homepage now uses the existing compact 56px header; a local short-viewport spacing rule preserves every control's 44px touch target and the 50px full-width smart action. Validate the whole three-card page at 375×548 usable CSS pixels, including the three-sheet case, without scrolling or clipping. Normal/taller layouts retain their spacing and scrolling remains available when required.
+
+Remove the health-jot date/week and separate past/current-time hint. Place the original nurse footage in the upper-right of the title/copy grid on its white surface. Preserve footage, poster, playback and reduced-motion behavior; only the white media framing changes.
+
+Name the home follow-up card “健康事件”; use an outlined medical cross for the heading and symptom preview. Rename its existing /cases action and that secondary page's header to “症状跟进”. Both symptom-follow-up and situation-sheet buttons are moss with white centered text and no icons. This is an exact home-card terminology exception; other health-jot module names are unchanged.
+
+The child-information board, event sheet and backing sheets opt into a stronger static SVG paper-fiber texture. A clipped top corner, shaded underside and crease form the small folded corner; offset warm textured backing sheets preserve the one/two/maximum-three count rule. The nurse card remains white. No backend/API/data/AI, record-entry styling or sidebar changes.
+
+Refinement validation: 646 client checks; production build and original nurse-media checks; 69 browser checks, including 375×548 usable height, all buttons fully visible, no main-page scrolling, both primary text-only actions, medical cross and folded/textured sheets, original record forms and the renamed secondary header/back action.

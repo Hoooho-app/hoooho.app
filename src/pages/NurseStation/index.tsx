@@ -204,8 +204,8 @@ export function NurseStationPage() {
   )
 
   return (
-    <main className="app-shell nurse-station-page">
-      <MainAppHeader title="服务前台" childSelectionRequest={childSelectionRequest} action={quickSearchAction} showInstallApp={false} />
+    <main className="app-shell nurse-station-page nurse-station-page--home">
+      <MainAppHeader compact title="服务前台" childSelectionRequest={childSelectionRequest} action={quickSearchAction} showInstallApp={false} />
       <div className="nurse-station-scroll">
         {listState.status === 'loading' && !member ? (
           <section aria-label="正在加载当前人物" className="nurse-station-hero nurse-station-hero--loading"><span /><span /></section>
