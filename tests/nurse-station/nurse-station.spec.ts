@@ -109,6 +109,16 @@ for (const width of [375, 390, 430, 1280]) {
     await expect(drawer.getByText('就诊情况单', { exact: true })).toHaveCount(0)
     const tools = drawer.getByRole('button', { name: '辅助工具', exact: true })
     const product = drawer.getByRole('button', { name: '产品中心', exact: true })
+    const recordRows = await health.getByRole('button').evaluateAll((rows) => rows.map((row) => {
+      const box = row.getBoundingClientRect()
+      return { top: box.top, bottom: box.bottom }
+    }))
+    const recordGap = recordRows[1].top - recordRows[0].bottom
+    const toolsBox = await tools.boundingBox()
+    const productBox = await product.boundingBox()
+    expect(toolsBox).not.toBeNull()
+    expect(productBox).not.toBeNull()
+    expect(productBox!.y - (toolsBox!.y + toolsBox!.height)).toBeCloseTo(recordGap, 1)
     await expect(product).toHaveAttribute('aria-expanded', 'false')
     await expect(drawer.getByRole('button', { name: '设置', exact: true })).toHaveCount(0)
     await product.focus()
