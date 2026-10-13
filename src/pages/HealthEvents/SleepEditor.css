@@ -16,7 +16,7 @@
 .sleep-editor-card em { position: absolute; right: 6px; top: 8px; font-style: normal; font-size: 10px; padding: 2px 4px; border-radius: var(--hoho-radius-pill); }
 .sleep-editor-inputs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .sleep-editor-inputs label { min-width: 0; font-size: 12px; }
-.sleep-editor input:not([type=checkbox]), .sleep-editor select { min-height: 44px; max-width: 100%; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 4px; font-size: 16px; background: white; }
+.sleep-editor input:not([type=checkbox]), .sleep-editor select { min-height: 44px; max-width: 100%; width: 100%; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 4px; font-size: 16px; background: rgb(var(--hoho-color-surface)); }
 .sleep-editor-supplement { border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: 0 8px; }
 .sleep-editor-supplement > button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; font-size: 13px; text-align: left; }
 .sleep-editor-supplement small,.sleep-editor-supplement p { font-size: 11px; color: rgb(var(--hoho-color-text-secondary)); }

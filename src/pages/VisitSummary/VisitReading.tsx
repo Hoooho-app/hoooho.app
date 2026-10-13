@@ -6,7 +6,7 @@ import {
   History,
   Pencil,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "../../components/common/Avatar";
 import { useAppStore } from "../../store/useAppStore";
 import type { VisitChapterId, VisitSheet } from "../../types/visitSheet";
@@ -61,6 +61,17 @@ export function VisitReading({
   busy?: boolean;
   organizing?:boolean;organizationError?:string;onOrganize?:()=>void;
 }) {
+  const wasOrganizing = useRef(organizing)
+  const [paperUpdated, setPaperUpdated] = useState(false)
+  useEffect(() => {
+    if (wasOrganizing.current && !organizing && !organizationError) setPaperUpdated(true)
+    wasOrganizing.current = organizing
+  }, [organizing, organizationError])
+  useEffect(() => {
+    if (!paperUpdated) return
+    const timer = setTimeout(() => setPaperUpdated(false), 450)
+    return () => clearTimeout(timer)
+  }, [paperUpdated])
   const [folds, setFolds] = useState<Record<string, boolean>>({
     overview: true,
   });
@@ -127,7 +138,7 @@ export function VisitReading({
     );
   }
   return (
-    <div className="visit-reading">
+    <div className="visit-reading" data-paper-updated={paperUpdated || undefined}>
       <div className="visit-reading-person">
         <Avatar
           name={report.member.name}

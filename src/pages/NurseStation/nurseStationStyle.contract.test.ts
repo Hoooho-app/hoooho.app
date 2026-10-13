@@ -19,7 +19,7 @@ test('紧凑人物资料保留头像和成长操作，护士素材传入新模�
   assert.match(styles, /\.nurse-station-visual\s*\{[^}]*height:\s*104px[^}]*background:\s*#fff/)
   assert.match(styles, /\.nurse-station-growth-data\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
   assert.match(styles, /\.nurse-station-hero--compact \.nurse-station-growth-data > button\s*\{[^}]*min-height:\s*53px/)
-  assert.match(styles, /\.nurse-station-growth-data > button:not\(:last-child\)\s*\{[^}]*border-right:\s*1px solid #d6e8e3/)
+  assert.match(styles, /\.nurse-station-growth-data > button:not\(:last-child\)\s*\{[^}]*border-right:\s*1px solid rgb\(var\(--hoho-color-border\)\)/)
   assert.match(source, /选择孩子，当前\$\{member\.name\}/)
   assert.match(source, /openGrowthData\('height'\)/)
   assert.match(source, /openGrowthData\('weight'\)/)

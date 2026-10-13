@@ -8,7 +8,7 @@
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 0;
-  background: #fff;
+  background: rgb(var(--hoho-color-surface));
   color: rgb(var(--hoho-color-text-primary));
 }
 
@@ -133,7 +133,7 @@
   margin-top: 14px;
   border: 1px solid #69c9a5;
   border-radius: 17px;
-  background: #fff;
+  background: rgb(var(--hoho-color-surface));
   padding: 17px 13px 14px;
   box-shadow: 0 7px 22px rgb(18 92 85 / .045);
 }
@@ -206,7 +206,7 @@
 .dietary-edit-group[data-group='temporary'] > header h2 { color: var(--dietary-amber); }
 .dietary-edit-group > div { display: grid; gap: 8px; }
 
-.dietary-edit-item { display: grid; min-height: 72px; grid-template-columns: 38px 46px minmax(0, 1fr) 38px 38px; align-items: center; gap: 6px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: #fff; padding: 7px 7px 7px 9px; }
+.dietary-edit-item { display: grid; min-height: 72px; grid-template-columns: 38px 46px minmax(0, 1fr) 38px 38px; align-items: center; gap: 6px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); padding: 7px 7px 7px 9px; }
 .dietary-edit-item[data-visible='false'] { background: rgb(var(--hoho-color-surface-subtle)); opacity: .68; }
 .dietary-item-check,
 .dietary-item-edit,
@@ -226,11 +226,11 @@
 .dietary-edit-empty,
 .dietary-save-error { margin: -6px 0 0; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 1.5; text-align: center; }
 .dietary-save-error { color: rgb(var(--hoho-color-error)); }
-.dietary-edit-footer { flex: none; border-top: 1px solid rgb(var(--hoho-color-border)); background: #fff; padding: 10px var(--hoho-page-gutter) calc(10px + env(safe-area-inset-bottom)); }
+.dietary-edit-footer { flex: none; border-top: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); padding: 10px var(--hoho-page-gutter) calc(10px + env(safe-area-inset-bottom)); }
 
 .dietary-food-editor { display: grid; gap: 17px; }
 .dietary-food-editor > label { display: grid; gap: 8px; }
-.dietary-food-editor select { min-height: 48px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: #fff; padding: 0 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 14px; }
+.dietary-food-editor select { min-height: 48px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); padding: 0 12px; color: rgb(var(--hoho-color-text-primary)); font-size: 14px; }
 
 @media (min-width: 480px) {
   .dietary-food-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

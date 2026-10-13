@@ -21,7 +21,7 @@ assert.equal(manifest.name, 'Hoooho')
 assert.equal(manifest.short_name, 'Hoooho')
 assert.equal(manifest.start_url, '/health-events')
 assert.equal(manifest.display, 'standalone')
-assert.equal(manifest.theme_color, '#1B7A6E')
+assert.equal(manifest.theme_color, '#486253')
 assert.equal(manifest.background_color, '#F5F8F6')
 
 for (const expected of [

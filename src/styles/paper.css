@@ -1,0 +1,30 @@
+@font-face { font-family: 'Hoooho Paper Sans'; src: url('/fonts/paper-sans.woff') format('woff'); font-display: swap; font-weight: 100 900; }
+/* Shared paper material. No positioning, DOM order or navigation changes. */
+@font-face { font-family: 'Hoooho Paper Serif'; src: url('/fonts/paper-serif.woff') format('woff'); font-display: swap; font-weight: 200 900; }
+@layer components {
+  .app-shell { background-image: var(--hoho-paper-grain); }
+  .hoho-health-card, .hoho-modal-surface, .hoho-bottom-sheet, .hoho-drawer.hoho-drawer,
+  .visit-reading-card, .visit-reading-person, .settings-group, .profile-directory-group {
+    background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
+  }
+  .hoho-text-page-title, .hoho-text-section-title, .section-title, .visit-report h1, .visit-report h2,
+  .hoho-page-header h1, .visit-report-header strong { font-family: var(--hoho-font-family-heading); font-weight: 600; letter-spacing: .015em; }
+  .hoho-input, .hoho-textarea, .hoho-select { box-shadow: inset 0 1px 3px rgb(39 51 50 / .035); }
+  .hoho-input:focus, .hoho-textarea:focus, .hoho-select:focus { box-shadow: 0 0 0 3px rgb(var(--hoho-color-primary) / .08); }
+  .hoho-button[data-variant='secondary'] { background-image: var(--hoho-paper-grain); box-shadow: inset 0 1px 0 rgb(255 255 255 / .85), 0 1px 2px rgb(39 51 50 / .035); }
+  .hoho-button[data-variant='tertiary'] { border: 1px solid rgb(var(--hoho-color-primary-border)); }
+  .hoho-button:active:not(:disabled) { transform: translateY(1px); }
+  .home-flow-card { box-shadow: var(--hoho-shadow-card); }
+  .home-flow-card > .hoho-button { justify-self: start; width: auto; min-width: 132px; }
+  .home-flow-card > .hoho-button[data-size='large'] { min-height: 44px; }
+  .home-flow-card .home-followup-heading > svg { width: 28px; height: 28px; padding: 4px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); stroke-width: 1.5; background: rgb(var(--hoho-color-surface-elevated)); }
+  .home-symptom-description[data-paper-updated='true'], .home-symptom-dates small[data-paper-updated='true'] { animation: hoho-paper-update 1100ms var(--hoho-ease-standard); }
+  .visit-reading[data-paper-updated='true'] .visit-reading-card { animation: hoho-paper-content 220ms var(--hoho-ease-standard); }
+  .visit-reading[data-paper-updated='true'] .visit-reading-card:nth-child(3) { animation-delay: 60ms; }
+  .visit-reading[data-paper-updated='true'] .visit-reading-card:nth-child(4) { animation-delay: 100ms; }
+  @keyframes hoho-paper-update { from { background-color: rgb(var(--hoho-color-primary-border) / .5); } to { background-color: transparent; } }
+  @keyframes hoho-paper-content { from { opacity: .45; } to { opacity: 1; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-symptom-description[data-paper-updated='true'], .home-symptom-dates small[data-paper-updated='true'], .visit-reading[data-paper-updated='true'] .visit-reading-card { animation: none; }
+}

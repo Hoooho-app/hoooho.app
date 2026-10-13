@@ -169,7 +169,7 @@
 .visit-statistics {margin-top:16px;}
 .visit-statistics summary,.visit-fact-block > summary {min-height:44px;cursor:pointer;}
 .visit-observation-entry {border-left:2px solid rgb(var(--hoho-color-border));padding:4px 0 4px 16px;margin-top:16px;}
-.visit-copy-controls button,button.visit-copy-controls,.visit-offline dialog button {min-height:44px;padding:8px 12px;color:rgb(var(--hoho-color-primary));border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:white;}
+.visit-copy-controls button,button.visit-copy-controls,.visit-offline dialog button {min-height:44px;padding:8px 12px;color:rgb(var(--hoho-color-primary));border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));}
 .visit-offline dialog {width:min(90vw,560px);max-height:85dvh;overflow:auto;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-overlay);padding:24px;}
 .visit-offline dialog::backdrop {background:rgb(24 49 47 / .4);}
 .visit-offline dialog textarea,.visit-offline dialog select {width:100%;font:inherit;min-height:44px;border:1px solid rgb(var(--hoho-color-border));padding:12px;display:block;margin:16px 0;}

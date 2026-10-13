@@ -1,22 +1,22 @@
 :root {
-  /* Hoooho Design System V2: quiet, trustworthy and information-first. */
-  --hoho-color-primary: 27 122 110;
-  --hoho-color-primary-hover: 22 103 94;
-  --hoho-color-primary-active: 17 82 76;
-  --hoho-color-primary-soft: 233 246 242;
-  --hoho-color-primary-border: 181 220 211;
-  --hoho-color-secondary: 82 105 102;
-  --hoho-color-page-background: 255 255 255;
-  --hoho-color-background: 245 248 246;
-  --hoho-color-surface: 255 255 255;
-  --hoho-color-surface-subtle: 248 251 249;
-  --hoho-color-surface-elevated: 255 255 255;
-  --hoho-color-visit-entry-surface: 242 246 249;
-  --hoho-color-border: 219 228 224;
-  --hoho-color-border-strong: 187 205 198;
-  --hoho-color-text-primary: 24 49 47;
-  --hoho-color-text-secondary: 82 105 102;
-  --hoho-color-text-weak: 87 108 104;
+  /* Hoooho paper direction: product-owner authorized whole-site visual migration. */
+  --hoho-color-primary: 72 98 83;
+  --hoho-color-primary-hover: 57 80 66;
+  --hoho-color-primary-active: 44 64 52;
+  --hoho-color-primary-soft: 235 239 230;
+  --hoho-color-primary-border: 199 210 193;
+  --hoho-color-secondary: 94 105 97;
+  --hoho-color-page-background: 244 242 237;
+  --hoho-color-background: 244 242 237;
+  --hoho-color-surface: 252 251 247;
+  --hoho-color-surface-subtle: 242 241 234;
+  --hoho-color-surface-elevated: 255 254 250;
+  --hoho-color-visit-entry-surface: 242 241 234;
+  --hoho-color-border: 214 218 211;
+  --hoho-color-border-strong: 185 194 181;
+  --hoho-color-text-primary: 39 51 50;
+  --hoho-color-text-secondary: 94 105 97;
+  --hoho-color-text-weak: 101 112 104;
   --hoho-color-success: 42 120 82;
   --hoho-color-warning: 166 105 34;
   /* Food facts are distinct from personal uncertainty; no global warning change. */
@@ -32,8 +32,11 @@
   --hoho-color-calendar-material-surface: 243 237 250;
   --hoho-color-disabled: 153 166 169;
 
-  --hoho-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
-  --hoho-font-size-display: 1.5rem;
+  --hoho-font-family: "Hoooho Paper Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  --hoho-font-family-heading: "Hoooho Paper Serif", "Songti SC", "Noto Serif CJK SC", serif;
+  --hoho-paper-grain: url("/images/paper-grain.svg");
+  --hoho-paper-light: linear-gradient(145deg, rgb(255 255 255 / .32), rgb(214 218 211 / .07));
+  --hoho-font-size-display: 1.75rem;
   --hoho-line-height-display: 1.25;
   --hoho-font-size-page-title: 1.375rem;
   --hoho-line-height-page-title: 1.35;
@@ -61,16 +64,16 @@
   --hoho-space-8: 32px;
   --hoho-space-10: 40px;
 
-  --hoho-radius-small: 8px;
-  --hoho-radius-control: 12px;
-  --hoho-radius-card: 16px;
+  --hoho-radius-small: 6px;
+  --hoho-radius-control: 10px;
+  --hoho-radius-card: 14px;
   --hoho-radius-overlay: 26px;
   --hoho-radius-medium: var(--hoho-radius-control);
   --hoho-radius-large: var(--hoho-radius-card);
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-card: 0 1px 2px rgb(18 92 85 / 0.035), 0 8px 24px rgb(18 92 85 / 0.035);
+  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(39 51 50 / .05), 0 8px 24px rgb(39 51 50 / .045);
   --hoho-shadow-soft: var(--hoho-shadow-card);
   --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / 0.12);
   --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / 0.18);

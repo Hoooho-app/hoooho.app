@@ -6,10 +6,10 @@ import './DialogueComposer.css'
 
 export type DialoguePhotoSource = 'camera' | 'album'
 /** A 44px row; choice and recording feedback float above it. */
-export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松手发送', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
+export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松手发送', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
   text: string; onTextChange: (value: string) => void; onSend: () => void
   onStart: () => void; onStop: () => void; onDiscard?: () => void; onPhoto: (source: DialoguePhotoSource) => void
-  disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; processing?: boolean
+  audioLevel?: number; disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; processing?: boolean
   maxLength?: number; placeholder?: string; initialTyping?: boolean; directPhoto?: boolean; allowTextWhileProcessing?:boolean; inputOnly?:boolean; releaseLabel?:string; discardOnBlur?:boolean
 }) {
   const [typing, setTyping] = useState(initialTyping), [photoOpen, setPhotoOpen] = useState(false)
@@ -38,9 +38,9 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('camera')}}><Camera size={20} aria-hidden/>拍照</HohoButton>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('album')}}><Image size={20} aria-hidden/>从相册选择</HohoButton>
     </div>}
-    {press&&createPortal(<div role="status" className="hoho-dialogue-recording" style={{left:press.x,top:Math.max(110,press.y-24)}}>
+    {press&&createPortal(<div role="status" className="hoho-dialogue-recording" style={{left:press.x,top:Math.max(110,press.y-24), "--voice-level": Math.min(1, Math.max(0, audioLevel))} as React.CSSProperties}>
       <svg viewBox="0 0 180 36" aria-hidden="true"><path d="M8 31 Q90 -20 172 31"/><path d="M22 34 Q90 -4 158 34"/></svg>
-      <div className="hoho-dialogue-recording-wave" aria-hidden="true">{[0,1,2,3,4].map(i=><span key={i} style={{animationDelay:`${i*100}ms`}}/>)}</div>
+      <div className="hoho-dialogue-recording-wave" aria-hidden="true">{[0,1,2,3,4].map(i=><span key={i} style={{height:`${4 + audioLevel * (12 - Math.abs(i - 2) * 3)}px`}}/>)}</div>
       <span>{listening?`正在录音 · ${releaseLabel}`:'正在打开麦克风…'}</span>
     </div>,document.body)}
   </div>

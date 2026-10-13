@@ -27,8 +27,8 @@ test('copy success, retry, failure fallback, and accessibility feedback are expl
   assert.match(source, /role="status"/)
 })
 
-test('mobile workspace uses white surfaces, safe-area padding, and 44px touch targets', () => {
-  assert.match(styles, /ask-ai-workspace[^}]*bg-white/)
+test('mobile workspace uses paper surfaces, safe-area padding, and 44px touch targets', () => {
+  assert.match(styles, /ask-ai-workspace[^}]*bg-surface/)
   assert.match(styles, /ask-ai-quick-questions button[^}]*min-h-11/)
   assert.match(styles, /ask-ai-actions[^}]*safe-area-inset-bottom/)
   assert.match(styles, /ask-ai-adjust-group__toggle[\s\S]*min-h-14/)

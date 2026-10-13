@@ -76,7 +76,7 @@ export default defineConfig({
         name: 'Hoooho',
         short_name: 'Hoooho',
         description: '家庭健康随记与就诊准备工具',
-        theme_color: '#1B7A6E',
+        theme_color: '#486253',
         background_color: '#F5F8F6',
         display: 'standalone',
         start_url: '/health-events',

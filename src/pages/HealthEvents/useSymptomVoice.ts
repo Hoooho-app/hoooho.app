@@ -1,9 +1,12 @@
+import { observeAudioLevel } from '../../features/ai-business/observeAudioLevel'
 import { useEffect, useRef, useState } from 'react'
 import { getSpeechRecognitionConstructor, speechErrorMessage, type SpeechRecognitionLike } from '../../features/feedback/speechInput'
 import { getBrowserVoiceCapability } from '../../features/quick-record/browserVoiceCapability'
 
 type VoiceState = 'idle' | 'requesting' | 'listening' | 'stopping'
 export function useSymptomVoice(text: string, onText: (value: string) => void, maxLength = 1000, onAudio?: (file: File) => void) {
+  const [audioLevel, setAudioLevel] = useState(0)
+  const stopMeter = useRef<(() => void) | undefined>()
   const [state, setState] = useState<VoiceState>('idle'), [error, setError] = useState('')
   const [audioPending,setAudioPending] = useState(false), [partial,setPartial] = useState(false)
   const current = useRef<SpeechRecognitionLike | null>(null), generation = useRef(0)
@@ -15,6 +18,7 @@ export function useSymptomVoice(text: string, onText: (value: string) => void, m
   textRef.current = text; onTextRef.current = onText
   const change = (value: VoiceState) => { stateRef.current = value; setState(value) }
   const dispose = () => {
+    stopMeter.current?.(); stopMeter.current = undefined
     window.clearTimeout(timer.current)
     const instance = current.current; current.current = null
     if (instance) { instance.onresult = null; instance.onerror = null; instance.onend = null; try { instance.abort() } catch { /* Already-ended engines have no microphone to release. */ } }
@@ -31,6 +35,7 @@ export function useSymptomVoice(text: string, onText: (value: string) => void, m
   const stop = () => {
     if (stateRef.current === 'requesting') { cancel(); return }
     if (stateRef.current !== 'listening') return
+    stopMeter.current?.(); stopMeter.current = undefined
     change('stopping')
     if (recorder.current?.state === 'recording') { setAudioPending(true); recorder.current.stop() }
     audioStream.current?.getTracks().forEach(t => t.stop()); audioStream.current = null
@@ -50,6 +55,7 @@ export function useSymptomVoice(text: string, onText: (value: string) => void, m
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       if (version !== generation.current) { stream.getTracks().forEach(track => track.stop()); return }
       if (audioRef.current && typeof MediaRecorder !== 'undefined') {
+        stopMeter.current = observeAudioLevel(stream, setAudioLevel)
         audioStream.current = stream; const segment = { keep: true }, callback = audioRef.current; audioSegment.current = segment
         const mime = ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(value => MediaRecorder.isTypeSupported(value))
         const recording = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks: Blob[] = []
@@ -72,5 +78,5 @@ export function useSymptomVoice(text: string, onText: (value: string) => void, m
       instance.start(); change('listening')
     } catch { if (version === generation.current) { setError('无法使用麦克风，请检查浏览器权限'); cancel() } }
   }
-  return { state, error, partial, audioPending, busy: state !== 'idle', start, stop, cancel, discardSegment }
+  return { audioLevel, state, error, partial, audioPending, busy: state !== 'idle', start, stop, cancel, discardSegment }
 }
