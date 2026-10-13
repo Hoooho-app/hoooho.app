@@ -92,8 +92,18 @@ for (const width of [375, 390, 430, 1280]) {
     await registerMember(page)
     await page.getByRole('button', { name: '打开菜单' }).click()
     const drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
-    const health = drawer.getByRole('region', { name: '健康管理' })
+    const health = drawer.getByRole('region', { name: '记录', exact: true })
     await expect(health.getByRole('button')).toHaveText(['服务前台', '健康日历', '孩子档案', '情况单'])
+    await expect(drawer.getByRole('region', { name: '其他', exact: true }).getByRole('button')).toHaveText(['辅助工具', '产品中心'])
+    await expect(drawer.locator('nav > section')).toHaveCount(2)
+    await expect(drawer.getByRole('heading', { name: '健康管理', exact: true })).toHaveCount(0)
+    const headingTypography = (element: HTMLElement | SVGElement) => {
+      const style = getComputedStyle(element)
+      return { fontSize: style.fontSize, fontWeight: style.fontWeight, fontFamily: style.fontFamily, lineHeight: style.lineHeight, letterSpacing: style.letterSpacing, color: style.color }
+    }
+    expect(await drawer.getByRole('heading', { name: '其他', exact: true }).evaluate(headingTypography)).toEqual(
+      await drawer.getByRole('heading', { name: '记录', exact: true }).evaluate(headingTypography)
+    )
     await expect(drawer.getByRole('heading', { name: '产品中心' })).toBeVisible()
     await expect(drawer.getByText('改善系统', { exact: true })).toHaveCount(0)
     await expect(drawer.getByText('就诊情况单', { exact: true })).toHaveCount(0)

@@ -20,7 +20,7 @@ interface SideDrawerProps {
 
 export const sidebarMenuGroups = [
   {
-    title: '健康管理',
+    title: '记录',
     items: [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
@@ -52,6 +52,11 @@ export const sidebarMenuGroups = [
     { label: '关于', icon: Info, to: '/about' }
     ]
   }
+]
+
+const sidebarMenuSections = [
+  { title: sidebarMenuGroups[0].title, groups: sidebarMenuGroups.slice(0, 1) },
+  { title: '其他', groups: sidebarMenuGroups.slice(1) }
 ]
 
 const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
@@ -141,37 +146,42 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
         </section>
 
         <nav className="mt-3 flex-1 space-y-3" aria-label="侧边栏导航">
-          {sidebarMenuGroups.map((group) => {
-            const groupOpen = Boolean(expandedGroups[group.title])
-            const GroupIcon = group.icon
-            return (
-            <section key={group.title} aria-labelledby={`drawer-${group.title}`}>
-              {group.collapsible && GroupIcon ? (
-                <h2 id={`drawer-${group.title}`}>
-                  <button className="hoho-drawer__item" type="button" aria-expanded={groupOpen} aria-controls={group.menuId} onClick={() => setExpandedGroups((value) => ({ ...value, [group.title]: !value[group.title] }))}>
-                    <GroupIcon size={20} strokeWidth={1.7} />
-                    <span className="flex-1">{group.title}</span>
-                    {groupOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
-                  </button>
-                </h2>
-              ) : (
-                <h2 id={`drawer-${group.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{group.title}</h2>
-              )}
-              {(!group.collapsible || groupOpen) && <div id={group.menuId} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
-              {group.items.map(({ label, icon: Icon, to }) => {
-                const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
-                return (
-                  <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
-                    <Icon size={20} strokeWidth={1.7} />
-                    <span className="flex-1">{label}</span>
-                    <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
-                  </button>
-                )
-              })}
+          {sidebarMenuSections.map((section) => (
+            <section key={section.title} aria-labelledby={`drawer-${section.title}`}>
+              <h2 id={`drawer-${section.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{section.title}</h2>
+              <div className="space-y-3">
+                {section.groups.map((group) => {
+                  const groupOpen = Boolean(expandedGroups[group.title])
+                  const GroupIcon = group.icon
+                  return (
+                  <div key={group.title}>
+                    {group.collapsible && GroupIcon ? (
+                      <h3 id={`drawer-${group.title}`}>
+                        <button className="hoho-drawer__item" type="button" aria-expanded={groupOpen} aria-controls={group.menuId} onClick={() => setExpandedGroups((value) => ({ ...value, [group.title]: !value[group.title] }))}>
+                          <GroupIcon size={20} strokeWidth={1.7} />
+                          <span className="flex-1">{group.title}</span>
+                          {groupOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
+                        </button>
+                      </h3>
+                    ) : null}
+                    {(!group.collapsible || groupOpen) && <div id={group.menuId} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
+                    {group.items.map(({ label, icon: Icon, to }) => {
+                      const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
+                      return (
+                        <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
+                          <Icon size={20} strokeWidth={1.7} />
+                          <span className="flex-1">{label}</span>
+                          <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
+                        </button>
+                      )
+                    })}
               </div>}
-            </section>
+            </div>
             )
           })}
+              </div>
+            </section>
+          ))}
         </nav>
 
         <button className="hoho-drawer__account mt-3 flex min-h-[58px] w-full items-center gap-3 px-2 text-left" type="button" onClick={() => setAccountOpen(true)}>
