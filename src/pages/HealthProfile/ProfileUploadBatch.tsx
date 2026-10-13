@@ -1,5 +1,6 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Upload } from 'lucide-react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import fieldLabels from '../../../shared/ai-business-field-labels.json'
@@ -21,7 +22,7 @@ async function supported(file:File){
   const signature=String.fromCharCode(...bytes)
   return file.type==='application/pdf'?signature.startsWith('%PDF-'):file.type==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:file.type==='image/png'?bytes[0]===137&&signature.slice(1,4)==='PNG':file.type==='image/webp'?signature.startsWith('RIFF')&&signature.slice(8,12)==='WEBP':false
 }
-export function ProfileUploadBatch({member,token,onSaved}:{member:Owner|null;token:string;onSaved:()=>void}){
+export function ProfileUploadBatch({member,token,onSaved,renderTrigger}:{member:Owner|null;token:string;onSaved:()=>void;renderTrigger?:(props:{disabled:boolean;onClick:()=>void})=>ReactNode}){
   const accountId=useAppStore(s=>s.authUser?.id),activeToken=useAppStore(s=>s.authToken)
   const picker=useRef<HTMLInputElement>(null),camera=useRef<HTMLInputElement>(null),pickerOwner=useRef<Owner|null>(null)
   const [owner,setOwner]=useState<Owner|null>(null),[files,setFiles]=useState<Added[]>([]),[draft,setDraft]=useState<Draft|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
@@ -74,7 +75,7 @@ export function ProfileUploadBatch({member,token,onSaved}:{member:Owner|null;tok
   return <>
     <input ref={picker} hidden aria-label="选择上传资料" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value='';void append(selected)}}/>
     <input ref={camera} hidden aria-label="拍摄资料照片" type="file" capture="environment" accept="image/jpeg,image/png,image/webp" onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value='';void append(selected)}}/>
-    <button className="health-profile-smart-record" disabled={!member||!token} onClick={()=>openPicker()} type="button"><span><strong>上传资料</strong><small>报告、病历、接种回执，自动整理到各项档案</small></span><Upload aria-hidden="true" size={24} strokeWidth={1.6}/></button>
+    {renderTrigger ? renderTrigger({disabled:!member||!token,onClick:()=>openPicker()}) : <button className="health-profile-smart-record" disabled={!member||!token} onClick={()=>openPicker()} type="button"><span><strong>上传资料</strong><small>报告、病历、接种回执，自动整理到各项档案</small></span><Upload aria-hidden="true" size={24} strokeWidth={1.6}/></button>}
     {!owner&&error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
     <BottomSheetSurface open={!!owner} label={ready?'整理结果':'上传资料'} title={ready?'整理结果':'上传资料'} onClose={()=>void close()} size="workspace" className="profile-upload-sheet" footer={<HohoButton disabled={busy||(!ready&&!files.length)} loading={busy} onClick={()=>void(ready?save():organize())}>{busy?'正在整理资料…':ready?'保存到档案':'开始整理'}</HohoButton>}>
       <p>资料归属：{owner?.name}</p>

@@ -1,7 +1,8 @@
-import { ChevronRight, HeartPulse, Scissors, ShieldPlus, Syringe, UsersRound } from 'lucide-react'
+import { ChevronRight, HeartPulse, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HealthRecordSubjectHeader } from '../../components/health'
+import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { readAllergyArchive, allergyGroup } from '../../features/health-profile/utils/allergyProfile'
 import { loadProfileSections, readProfileSection } from '../../services/profileSectionStorage'
@@ -37,12 +38,18 @@ export function HealthProfilePage() {
   }, [token, currentMemberId, members, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview"><MainAppHeader compact title="孩子档案" /><div className="page-content health-profile-home">
-    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} onSummary={() => navigate('/visit-summary')} />
+    <ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger =>
+      <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={
+        <HohoButton className="journal-subject-summary health-profile-upload-action" variant="secondary" {...trigger}>
+          <Upload aria-hidden="true" size={22} strokeWidth={1.7} />
+          <span>上传资料</span>
+        </HohoButton>
+      } />
+    } />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
       <span className="health-profile-entry__text"><strong>{title}</strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
     {summary.text.startsWith('数量暂不可用') && <button className="health-profile-summary-retry" onClick={() => setRetry(value => value + 1)} type="button">重试加载数量</button>}
-    <ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} />
   </div></main>
 }

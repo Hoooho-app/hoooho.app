@@ -1,4 +1,5 @@
 import { Avatar } from '../common'
+import type { ReactNode } from 'react'
 import { MedicalPrepButton } from '../design-system'
 import type { Member } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
@@ -8,12 +9,13 @@ const genderLabels = { male: '男', female: '女', undisclosed: '未填写', '':
 
 interface HealthRecordSubjectHeaderProps {
   member: Member | null
-  onSummary: () => void
+  onSummary?: () => void
+  action?: ReactNode
   summaryDisabled?: boolean
   className?: string
 }
 
-export function HealthRecordSubjectHeader({ member, onSummary, summaryDisabled = !member, className = '' }: HealthRecordSubjectHeaderProps) {
+export function HealthRecordSubjectHeader({ member, onSummary, action, summaryDisabled = !member || !onSummary, className = '' }: HealthRecordSubjectHeaderProps) {
   const age = member?.birthday ? formatAgeFromBirthday(member.birthday) : member?.age
   const meta = member ? [genderLabels[member.gender ?? ''], age].filter(Boolean).join(' · ') : ''
   const rootClassName = ['health-record-subject-header', className].filter(Boolean).join(' ')
@@ -27,7 +29,7 @@ export function HealthRecordSubjectHeader({ member, onSummary, summaryDisabled =
           <span className="journal-subject-meta">{meta}</span>
         </span>
       </div>
-      <MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单" onClick={onSummary} disabled={summaryDisabled} />
+      {action ?? <MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单" onClick={onSummary} disabled={summaryDisabled} />}
     </div>
   </div>
 }
