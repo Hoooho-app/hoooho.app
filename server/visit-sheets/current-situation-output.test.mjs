@@ -112,6 +112,9 @@ test('目前情况使用裸来源，普通摘要保留真实章节与连续引�
  await provider.summarizeMedicalPreparation(summaryInput)
  assert.deepEqual(Object.keys(body.text.format.schema.properties),['currentSituation'])
  assert.match(body.instructions,/裸text中连续逐字复制/)
+ assert.deepEqual(JSON.parse(body.input.split('\n\n').at(-1)),{currentSituationSources:[{id:sourceId,text:situationRaw}]})
+ assert.doesNotMatch(body.input,/2026-10-13|发生：|录入（非发生日期）|visitFacts|sections/)
+ assert.doesNotMatch(body.instructions,/该来源的发生日期/)
  await provider.summarizeMedicalPreparation({sections:summaryInput.sections})
  assert.equal(body.text.format.schema.properties.keyPoints.items.properties.sectionId.enum,undefined)
  assert.doesNotMatch(body.instructions,/裸text中连续逐字复制/)
@@ -124,4 +127,15 @@ test('目前情况使用裸来源，普通摘要保留真实章节与连续引�
  let calls=0;const emptyProvider=new OpenAIProvider({apiKey:'fixture',fetchImpl:async()=>{calls++;throw new Error('must not call')}})
  await assert.rejects(()=>emptyProvider.summarizeMedicalPreparation({sections:[],currentSituationSources:summaryInput.currentSituationSources}),error=>error.code==='INVALID_AI_SUMMARY')
  assert.equal(calls,0)
+})
+
+test('真实失败预览中的元数据日期不能写入原话正文，明示日期和相对时间仍可用',()=>{
+ const withFacts={...input,visitFacts:{sources:[{id:'record:focus',text:situationRaw,occurredDate:'2026-10-13'}]}}
+ const observed=situationOutput();observed.currentSituation.description[0].text='2026-10-13早上出现头晕，无头痛，体温正常。'
+ assert.throws(()=>normalizeMedicalSummary(observed,withFacts),error=>error.message==='Unverified summary number')
+ assert.doesNotThrow(()=>normalizeMedicalSummary(situationOutput(),withFacts))
+ const raw='10月12日晚上有点咳嗽，未见发热。',sourceId='record:dated'
+ const line={text:raw,quote:raw,sourceId,emphasis:[]}
+ const value={currentSituation:{description:[line],symptoms:[{...line,label:'咳嗽',kind:'symptom',note:'',noteQuote:''}],diet:[],changes:[],treatment:[],keywords:[]}}
+ assert.doesNotThrow(()=>normalizeMedicalSummary(value,{currentSituationSources:[{id:sourceId,text:raw}]}))
 })

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import Ajv from 'ajv'
 import { outputFailure, schemaFailureDiagnostic } from '../ai/providers/output-diagnostics.mjs'
 
-const evidence = {text:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},emphasis:{type:'array',items:{type:'string'},maxItems:3}}
+const evidence = {text:{type:'string',description:'由quote支持的当前行文字，不能添加引文没有的日期、数值或结论。'},sourceId:{type:'string'},quote:{type:'string'},emphasis:{type:'array',items:{type:'string'},maxItems:3}}
 const line = {type:'object',additionalProperties:false,required:Object.keys(evidence),properties:evidence}
 export const currentSituationSchema = {
   type:'object',additionalProperties:false,required:['description','symptoms','diet','changes','treatment','keywords'],properties:{
@@ -21,7 +21,7 @@ export const currentSituationInstructions = `本次现有摘要调用仅返回 {
 currentSituation各行sourceId只用currentSituationSources.id，quote从该来源的裸text中连续逐字复制，不带行首来源编号或章节元数据，不自行拼接、改词或添加省略号。
 先在内部核对各来源的明确事实：每项不适的开始时间、程度、相关否定，各部位观察的数量和程度，文字体温，普通饮食与新增食物，以及已有变化和处理；再分别写入对应块。核对过程不输出。概览有某事实不能代替对应详情块保留它。仅保留明示的时间、程度、数量和联系，没有则不补；不同时间或来源的事实不能混为同一次。
 description 通常2至4个短句，概括时间、主要不适、程度、各部位观察及重要否定。删去没有事实意义的口语填充和重复表达，不能复制原话句式再仅删除尾段；简化句子仍须保留否定与限定语义，不为短来源补凑句子。饮食细节放diet；来源只有饮食事实时概览可简述已有饮食，不补造不适。
-symptoms 按原文明示的关联事实组成简短行，每项不适在原文明确提供的开始时间、程度和相关否定与该不适放在同一行，不能只留症状名称或把其已知时间、程度省掉，未提供的时间、程度不补写。相关部位观察可在同一行内分句换行，保留原有数量和程度，不用只有部位名称的碎片替代。label 用引文可核对的症状/部位或简短分类（如头晕、皮肤、体温），不能用猜测病名、诊断或严重程度作分类。kind 只有明确体温事实才用temperature。“体温正常”不推断数值。家属猜测写相邻note，注明家属和原有怀疑语气，noteQuote引用原话；没有note时两个字段为空。
+symptoms 按原文明示的关联事实组成简短行，每项不适在原文明确提供的开始时间、程度和相关否定与该不适放在同一行，不能只留症状名称或把其已知时间、程度省掉，未提供的时间、程度不补写。相关部位观察可在同一行内分句换行，保留原有数量和程度，不用只有部位名称的碎片替代。label 用引文可核对的症状/部位或简短分类（如头晕、皮肤、体温），不能用猜测病名、诊断或严重程度作分类。kind 只有明确体温事实才用temperature。“体温正常”不推断数值。正文仅写直接观察；家属猜测只写相邻note，不在正文重复，注明家属和原有怀疑语气，noteQuote引用原话；没有note时两个字段为空。
 diet 保留所有明确饮食事实：普通/平时吃过的食物与新增食物分别分句或分行，不能因为新增食物更醒目就漏掉普通饮食，也不能只保留食物名。保留明示时间以及“只/仅”等限定，不为未提到的饮食补句，不做因果判断。changes、treatment只列明确已有事实，没有则空数组。keywords只用本次真实症状/部位，无事实则为空，不把猜测当确诊。
 每行只引用一个来源。合并同一来源的关联事实时，quote可以覆盖中间文字，但必须是覆盖全部事实的连续原文；不同来源的事实分行分别引用。不要为精简quote丢掉正文所需的时间、程度、数量、否定或限定。
 symptoms的text写可独立阅读的完整陈述，不重复“label：”。正文必须包含原有不适及程度，不能只有起始时间和相关否定；label不能代替正文中的不适事实。输出前对照quote逐项确认已知开始时间和程度仍在该症状正文中。概览中的口语时间改为同义的简短书面时间短语，不改变其时间归属。
