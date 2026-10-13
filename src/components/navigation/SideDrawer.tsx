@@ -149,7 +149,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
           {sidebarMenuSections.map((section) => (
             <section key={section.title} aria-labelledby={`drawer-${section.title}`}>
               <h2 id={`drawer-${section.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{section.title}</h2>
-              <div className="space-y-3">
+              <div className="hoho-drawer__menu">
                 {section.groups.map((group) => {
                   const groupOpen = Boolean(expandedGroups[group.title])
                   const GroupIcon = group.icon
