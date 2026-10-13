@@ -72,7 +72,9 @@ for (const route of routes) {
     }
     const primary = page.locator('.hoho-button[data-variant="primary"]').first()
     if (await primary.count()) {
-      await expect(primary).toHaveCSS('background-color', 'rgb(89, 185, 154)')
+      // The independently styled speech hold control was already ink before this palette rollback.
+      const isSpeechHold = await primary.evaluate(node => node.classList.contains('quick-search-hold'))
+      await expect(primary).toHaveCSS('background-color', isSpeechHold ? 'rgb(39, 51, 50)' : 'rgb(72, 98, 83)')
       await expect(primary).toHaveCSS('color', 'rgb(255, 255, 255)')
       for (const icon of await primary.locator('svg').all()) await expect(icon).toHaveCSS('color', 'rgb(255, 255, 255)')
     }

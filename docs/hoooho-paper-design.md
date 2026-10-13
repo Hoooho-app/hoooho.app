@@ -11,7 +11,7 @@ Product-owner authorization: 2026-10-13; apply approved paper direction througho
 
 ## Shared foundations
 
-Plaster page `#F4F2ED`, paper `#FCFBF7`, ink `#273332`, moss text/accent `#486253`, stone borders `#D6DAD3`. On 2026-10-13 the product owner selected Qingrun green `#59B99A` for filled action buttons with white text and icons; action tokens remain separate from accent and medical semantic colors.
+Plaster page `#F4F2ED`, paper `#FCFBF7`, ink `#273332`, moss text/accent `#486253`, stone borders `#D6DAD3`. The product owner restored the previous moss `#486253` filled button palette after reviewing Qingrun green. Action tokens alias the original moss normal/hover/pressed colors; current white text/icons and all material fixes are retained.
 
 The follow-up material fix gives the drawer an opaque paper base below translucent grain, joins shared headers to the plaster page material, covers dedicated dietary/medication surfaces, and blends the white nurse wrapper into the surrounding paper without changing source media or playback.
 
@@ -42,4 +42,4 @@ Revert the isolated UI commit, or redeploy the preceding known-successful source
 
 Run browser checks with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using a locally supplied Chromium executable. No new runtime dependency.
 
-Follow-up scope: clear green filled controls with pure white content, opaque drawer base, page-colored headers and large dietary/report/medication wrappers. Original nurse media remains byte-identical; a soft white-to-paper backdrop bridges the opaque footage. The legacy Header uses the same material class; no layout or navigation handler changes.
+Follow-up scope: moss filled controls with pure white content, opaque drawer base, page-colored headers and large dietary/report/medication wrappers. Original nurse media remains byte-identical; a soft white-to-paper backdrop bridges the opaque footage. The legacy Header uses the same material class; no layout or navigation handler changes.
