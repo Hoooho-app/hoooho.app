@@ -1,4 +1,5 @@
 import { itemRecordCategories } from '../../../shared/record-categories.mjs'
+import { symptomItemCorePhrase } from '../../../shared/symptom-core-phrase.mjs'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { TimeResolverService } from '../time-resolver-service.mjs'
@@ -48,7 +49,8 @@ function validateExtractionContent(output, sources) {
     if (timeText && !fields.some(field => field.sources.some(ref => ref.quote.includes(timeText))) && !sources.some(source => itemSources.has(`${source.id}:${source.page}`)&&source.text.includes(timeText))) throw fail('发生时间缺少同一条资料的原文依据')
     if (!fields.length) return []
     if (item.archiveCategory != null && !archiveCategories.includes(item.archiveCategory)) throw fail('归档栏目无效')
-    return [{ id: `item-${index + 1}`, category: item.category, title: fields[0].value.slice(0,80), timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
+    const title = item.category === 'symptom' ? symptomItemCorePhrase({fields}) : fields[0].value.slice(0,80)
+    return [{ id: `item-${index + 1}`, category: item.category, title, timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
   })
 }
 
@@ -76,7 +78,7 @@ const field = (item, name) => item.fields.find(field => field.name === name)?.va
 const known = (value, choices) => choices.includes(value) ? value : undefined
 export function buildJournal(item) {
   const journal = { categories: itemRecordCategories(item), timePrecision: item.time?.precision === 'exact' ? 'exact' : item.time?.precision === 'unknown' || !item.time ? 'unknown' : 'period' }
-  if (item.category === 'symptom' || journal.categories.includes('symptom') && field(item,'symptom')) journal.symptom = { symptomCategory: /皮肤|疹|痒|红屁股|臀部|屁股.*红/.test(field(item,'symptom') || '') ? 'skin' : 'other', narrative: field(item,'symptom'), locations: bodyLocations(field(item,'location')), descriptors: [], locationText: field(item,'location') }
+  if (item.category === 'symptom' || journal.categories.includes('symptom') && field(item,'symptom')) journal.symptom = { symptomCategory: /皮肤|疹|痒|红屁股|臀部|屁股.*红/.test(field(item,'symptom') || '') ? 'skin' : 'other', narrative: field(item,'symptom'), locations: bodyLocations(field(item,'location')), descriptors: [], locationText: field(item,'location'), generatedSummary: symptomItemCorePhrase(item) }
   if (item.category === 'sleep') {
     const sleepAt = field(item,'sleepAt'), wakeAt = field(item,'wakeAt')
     // ISO values are used only after a user supplied them or the time resolver

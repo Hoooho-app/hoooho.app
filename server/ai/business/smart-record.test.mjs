@@ -8,6 +8,20 @@ import {AIBusinessService} from './service.mjs'
 const raw='吃了半碗粥，脸颊有点红，没有呕吐，午睡睡了一个小时'
 const extracted=[['diet',[['food','粥'],['amount','半碗']]],['symptom',[['symptom','脸颊有点红，没有呕吐'],['location','脸颊']]],['sleep',[['quality','午睡睡了一个小时']]]].map(([category,fields])=>({category,title:category,timeText:null,archiveCategory:null,subject:'current',relationKey:null,fields:fields.map(([name,value])=>({name,value,quote:value,sourceId:'input',page:1}))}))
 async function setup(t){const directory=await mkdtemp(path.join(os.tmpdir(),'hoooho-smart-record-'));t.after(()=>rm(directory,{recursive:true,force:true}));const member=await new FamilyMemberRepository(directory).create({accountId:'synthetic',name:'合成测试儿童',relationship:'child'});let calls=0;const model={structured:async()=>{calls++;return {value:{items:structuredClone(extracted)},diagnostics:{provider:'test'}}}};const service=new AIBusinessService({dataDirectory:directory,model,now:()=>new Date('2026-10-09T14:00:00Z')});return {service,member,model,calls:()=>calls}}
+test('full-page followup supplement saves to the original event with shared core titles and original sources',async t=>{
+ const {service,member,calls}=await setup(t)
+ const original=await service.events.create('synthetic',{memberId:member.id,title:'颈部瘙痒',category:'other',startTime:'2026-10-01T10:00:00Z'},new Date('2026-10-09T14:00:00Z'))
+ const draft=await service.prepare('synthetic',member.id,{text:raw,eventId:original.id,smartRecord:true,frontDeskRecord:true,selectedOccurredAt:'2026-10-09T13:59:00Z'})
+ const saved=await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
+ assert.ok(saved.result.records.every(record=>record.eventId===original.id))
+ assert.equal((await service.events.repository.findByAccountId('synthetic')).length,1)
+ assert.equal((await service.events.get('synthetic',original.id)).title,'颈部瘙痒')
+ const symptom=await service.records.getOwnedRecord('synthetic',saved.result.records.find(record=>record.category==='symptom')?.recordId??saved.result.records[1].recordId)
+ assert.equal(symptom.journal.symptom.generatedSummary,'脸颊发红')
+ assert.equal(symptom.sourceText,raw)
+ assert.match(symptom.content,/没有呕吐/)
+ assert.equal(calls(),1)
+})
 test('一段原话拆成饮食、症状、睡眠，同一次情况批量保存，默认时间且原话否定可追溯',async t=>{
  const {service,member,calls}=await setup(t),draft=await service.prepare('synthetic',member.id,{text:raw,smartRecord:true,selectedOccurredAt:'2026-10-09T13:59:00Z'})
  assert.deepEqual(draft.items.map(i=>i.category),['diet','symptom','sleep']);assert.ok(draft.items.every(i=>i.time.defaulted&&i.time.precision==='exact'));assert.ok(!draft.questions.some(q=>q.field==='time'))

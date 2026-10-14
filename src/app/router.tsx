@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireEstablishedHealthData />,
         children: [
-          { path: '/health-events/:eventId', lazy: lazyPage(() => import('../pages/HealthEventDetail'), 'HealthEventDetailPage') },
+          { path: '/health-events/:eventId', lazy: lazyPage(() => import('../features/case-continuity/Pages'), 'LegacyCaseRedirectPage') },
           { path: '/health-events/:eventId/health-information', lazy: lazyPage(() => import('../pages/HealthEventDetail/HealthInformationCandidatesPage'), 'HealthInformationCandidatesPage') },
           { path: '/health-events/:eventId/online-consultation', lazy: lazyPage(() => import('../pages/OnlineConsultation'), 'OnlineConsultationPage') }
         ]

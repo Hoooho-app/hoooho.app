@@ -82,13 +82,59 @@ for (const route of routes) {
     for (const wrapper of await page.locator('.dietary-card, .visit-report, .visit-reading-card').all()) {
       await expect(wrapper).toHaveCSS('background-color', 'rgb(244, 242, 237)')
     }
-    expect(new URL(page.url()).pathname).toBe(route.slug === "guide" ? "/help" : target)
+    expect(new URL(page.url()).pathname).toBe(route.slug === "guide" ? "/help" : route.slug === "health-event-detail" ? "/cases" : target)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
     await page.screenshot({ path: path.join(evidenceRoot, `${testInfo.project.name}-${route.slug}.png`), fullPage: true })
     const unexpected = runtimeErrors.filter(message => !(route.slug === 'visit-summary' && message.includes('status of 503')))
     expect(unexpected, unexpected.join('\n')).toEqual([])
   })
 }
+
+test('followup uses core titles, a real recovery marker, and event-bound full-page supplement', async ({page,request}) => {
+  await preparePage(page)
+  const headers={Authorization:`Bearer ${token}`}
+  const created=await request.post('/api/events',{headers,data:{memberId,title:'颈部伴有红肿和瘙痒，夜间很明显',category:'other',startTime:'2026-10-01T08:00:00Z'}})
+  expect(created.ok()).toBeTruthy()
+  const ownId=(await created.json()).id
+  const recorded=await request.post(`/api/events/${ownId}/records`,{headers,data:{type:'symptom',content:'颈部伴有红肿和瘙痒，夜间很明显',occurredAt:'2026-10-01T08:00:00Z'}})
+  expect(recorded.ok()).toBeTruthy()
+  await page.goto(`/health-events/${ownId}`)
+  await expect(page).toHaveURL(/\/cases\?eventId=/)
+  await expect(page.getByRole('heading',{name:'症状跟进',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'症状跟踪',exact:true})).toHaveCount(0)
+  const card=()=>page.locator(`[data-case-id="${ownId}"]`)
+  await expect(card().getByRole('heading',{name:'颈部红肿、瘙痒',exact:true})).toBeVisible()
+  await expect(card().locator('.case-followup-supplement')).toHaveCount(0)
+  await expect(card().getByText('颈部伴有红肿和瘙痒，夜间很明显',{exact:true})).toHaveCount(0)
+  await card().getByRole('button',{name:'展开',exact:true}).click()
+  await expect(card().getByText('颈部伴有红肿和瘙痒，夜间很明显',{exact:true})).toBeVisible()
+  await card().getByRole('button',{name:'补充情况',exact:true}).click()
+  await expect(page).toHaveURL(new RegExp(`/smart-record\\?source=case-followup&eventId=${ownId}`))
+  await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.hoho-bottom-sheet-layer')).toHaveCount(0)
+  let target=''
+  await page.route('**/api/members/*/ai-drafts',async route=>{target=route.request().postDataJSON().eventId;await route.abort('failed')})
+  await page.getByRole('button',{name:'改用文字',exact:true}).click()
+  await page.getByLabel('对话输入').fill('合成补充：颈部仍然发痒')
+  await page.getByRole('button',{name:'发送',exact:true}).click()
+  await expect.poll(()=>target).toBe(ownId)
+  await expect(page.getByRole('alert')).toBeVisible()
+  page.on('dialog',dialog=>void dialog.accept())
+  await page.getByRole('button',{name:'返回',exact:true}).click()
+  await expect(page).toHaveURL(/\/cases\?eventId=/)
+  await card().getByRole('button',{name:'补充情况',exact:true}).click()
+  await expect(page.getByText('合成补充：颈部仍然发痒',{exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'返回',exact:true}).click()
+  await card().getByRole('button',{name:'已康复',exact:true}).click()
+  await expect(page.getByRole('status')).toContainText('已标记康复并归档')
+  const result=await request.get(`/api/events/${ownId}`,{headers})
+  const recovered=await result.json()
+  expect(recovered.status).toBe('recovered');expect(recovered.caseArchiveReason).toBe('user_recovered');expect(recovered.caseRecoveryMarkedAt).toBeTruthy()
+  await page.getByRole('tab',{name:/已归档/}).click()
+  await expect(card().getByRole('button',{name:'恢复跟进',exact:true})).toBeVisible()
+  await card().getByRole('button',{name:'恢复跟进',exact:true}).click()
+})
 
 
 test('sidebar retains side drawer and expandable groups', async ({ page }) => {
@@ -149,7 +195,7 @@ test('medication editor keeps paper material and existing close behavior', async
   await expect(editor).toBeHidden()
 })
 
-test('home uses aligned calendar controls, button hierarchy and count-based paper layers', async ({ page }, info) => {
+test('home uses aligned calendar controls and up to three static core descriptions', async ({ page }, info) => {
   await preparePage(page)
   let count = 1
   await page.route('**/api/members/*/cases?*', async route => {
@@ -163,7 +209,7 @@ test('home uses aligned calendar controls, button hierarchy and count-based pape
     await page.goto('/nurse-station')
     const symptom = page.getByRole('region', {name:'健康事件'})
     await expect(symptom.locator('.home-followup-count')).toHaveText(`${count} 项`)
-    await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers', String(Math.max(1,Math.min(3,count))))
+    await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers', '1')
     const card = page.locator('.nurse-home-dialogue')
     const row = card.locator('.record-entry-grid')
     const smart = card.getByRole('button',{name:'智能记录',exact:true})
@@ -183,8 +229,9 @@ test('home uses aligned calendar controls, button hierarchy and count-based pape
     await expect(symptom.getByRole('button',{name:'症状跟进',exact:true})).toHaveAttribute('data-variant','primary')
     if (count) {
       await expect(symptom.locator('.home-symptom-description')).toHaveCount(0)
-      const dates = await symptom.locator('.home-symptom-dates small').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top))
-      expect(dates[0]).toBe(dates[1])
+      await expect(symptom.locator('.home-event-descriptions li')).toHaveCount(Math.min(3,count))
+      await expect(symptom.locator('.home-symptom-dates,.home-symptom-keyword,.home-followup-preview')).toHaveCount(0)
+      await expect(symptom.locator('.home-event-descriptions button,.home-event-descriptions a')).toHaveCount(0)
     }
     if(count===2) await page.screenshot({path:path.join(evidenceRoot, `${info.project.name}-home-stacked.png`),fullPage:true})
     await expect(page.getByLabel('准备和医生说清楚',{exact:true})).toHaveCount(0)
@@ -231,7 +278,7 @@ test('SE home preserves approved proportions and keeps the smart action accessib
   })
   await page.goto('/nurse-station')
   await expect(page.locator('.home-followup-count')).toHaveText('4 项')
-  await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers','3')
+  await expect(page.locator('.home-followup-paper')).toHaveAttribute('data-paper-layers','1')
   await page.evaluate(()=>document.fonts.ready)
   await expect(page.getByRole('button',{name:'智能记录',exact:true})).toBeInViewport({ratio:1})
   await expect(page.locator('.home-followup-actions svg')).toHaveCount(0)
