@@ -1,15 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NotebookText, Cross } from 'lucide-react'
-import { HealthCard, HealthTag, HohoButton, Typography } from '../../components/design-system'
+import { NotebookText, Stethoscope } from 'lucide-react'
+import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { useAppStore } from '../../store/useAppStore'
 import { RecordEntryActions } from '../HealthEvents/RecordEntryActions'
-import { activeSymptomFollowups, followupDate } from './symptomFollowup'
+import { activeSymptomFollowups } from './symptomFollowup'
 import './HomeFlows.css'
-
-type FollowupSnapshot = { time?: string | null }
-const seenFollowups = new Map<string, FollowupSnapshot>()
 
 export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const navigate = useNavigate()
@@ -17,36 +14,15 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const accountId = useAppStore(state => state.authUser?.id ?? '')
   const identity = `${accountId}:${memberId}`
   const symptoms = activeSymptomFollowups(data?.active ?? [], memberId)
-  const item = symptoms[0]
-  const [updated, setUpdated] = useState(false)
-  useEffect(() => {
-    const next = { id: item?.event.id, time: item?.followup.latestOccurredAt }
-    if (!next.id) return
-    const key = `${memberId}:${next.id}`
-    const previous = seenFollowups.get(key)
-    setUpdated(!!previous && previous.time !== next.time)
-    if (seenFollowups.size > 50) seenFollowups.clear()
-    seenFollowups.set(key, next)
-    const timer = setTimeout(() => setUpdated(false), 1200)
-    return () => clearTimeout(timer)
-  }, [memberId, item?.event.id, item?.followup.latestOccurredAt])
   return <section className="home-flows" aria-label="首页服务入口">
-    <div className="home-followup-paper" data-paper-layers={Math.max(1, Math.min(3, symptoms.length))}>
+    <div className="home-followup-paper" data-paper-layers="1">
       <HealthCard className="home-flow-card home-symptom-followup" role="region" aria-label="健康事件">
         <span className="home-paper-fold" aria-hidden="true" />
         <header>
-          <div className="home-followup-heading"><Cross size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康事件</Typography></div>
+          <div className="home-followup-heading"><Stethoscope size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康事件</Typography></div>
           <Typography variant="caption" className="home-followup-count">{symptoms.length} 项</Typography>
         </header>
-        {item ? <button className="home-followup-preview" type="button" aria-label={`查看${item.followup.title}的详情`} onClick={() => navigate(`/health-events/${encodeURIComponent(item.event.id)}`)}>
-          <span className="home-symptom-summary"><strong className="home-symptom-title"><Cross size={18} strokeWidth={1.8} aria-hidden="true" /><span>{item.followup.title}</span></strong>
-            {item.followup.keyword && <span className="home-symptom-keyword"><HealthTag tone="primary">{item.followup.keyword}</HealthTag></span>}
-          </span>
-          <span className="home-symptom-dates">
-            {followupDate(item.followup.firstOccurredAt) && <small>首次记录 {followupDate(item.followup.firstOccurredAt)}</small>}
-            {followupDate(item.followup.latestOccurredAt) && <small data-paper-updated={updated || undefined}>最近更新 {followupDate(item.followup.latestOccurredAt)}</small>}
-          </span>
-        </button> : <Typography variant="caption">暂无跟进症状</Typography>}
+        {symptoms.length ? <ul className="home-event-descriptions" aria-label="症状简述">{symptoms.slice(0, 3).map(item => <li key={item.event.id}><span className="home-symptom-title">{item.followup.title}</span></li>)}</ul> : <Typography variant="caption">暂无跟进症状</Typography>}
         <div className="home-followup-actions">
           <HohoButton fullWidth variant="primary" onClick={() => navigate('/cases')}>症状跟进</HohoButton>
           <HohoButton fullWidth variant="primary" disabled={!token || !memberId} onClick={() => navigate('/visit-summary')}>情况单</HohoButton>

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
 import { healthEventRecordService } from '../../services/healthEventRecords'
+import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventRecordApiDto } from '../../types'
 import { RecordOriginals } from '../ai-business/RecordOriginals'
-import { SmartRecordWorkspace } from '../ai-business/SmartRecordWorkspace'
 import { MaterialReturnForm } from './MaterialReturnPage'
 import type { FollowedCase } from './types'
 import { caseService } from './api'
@@ -13,7 +14,8 @@ export const chronologicalRecords = (records: HealthEventRecordApiDto[]) => [...
 const dateText = (value: string | null | undefined, timezone: string) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('zh-CN', {timeZone:timezone,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,year:'numeric'}).format(new Date(value)) : '未提供'
 
 export function CaseFollowupCard({item, memberId, token, timezone, reload, onDirty, onStatus}: {item:FollowedCase;memberId:string;token:string;timezone:string;reload:()=>void;onDirty:(id:string,dirty:boolean)=>void;onStatus:(archived:boolean)=>void}) {
-  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'record'|'materials'|null>(null)
+  const navigate = useNavigate()
+  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'materials'|null>(null)
   const [materialRecordId,setMaterialRecordId]=useState<string|null>(null)
   const [records,setRecords] = useState<HealthEventRecordApiDto[]|null>(null), [error,setError] = useState(''), [version,setVersion] = useState(0)
   const [busy,setBusy] = useState(false), [failure,setFailure] = useState(''), [notice,setNotice] = useState('')
@@ -29,7 +31,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
     return()=>c.abort()
   },[id,token,memberId,expanded,version,item.changedAt])
   const saved = () => { setExpanded(true);setVersion(v=>v+1);setNotice('已保存到这次情况');reload() }
-  const open = (next:'record'|'materials') => { if (form && form!==next && dirty.current && !window.confirm('当前内容尚未保存，切换后保留设备草稿，确定切换吗？')) return;setForm(next);setFailure('') }
+  const supplement = () => { if (dirty.current && !window.confirm('当前内容尚未保存，离开后保留设备草稿，确定继续吗？')) return;navigate(`/smart-record?source=case-followup&eventId=${encodeURIComponent(id)}`, {state:{caseReturn:true,eventTitle:item.followup.title,memberId,accountId:useAppStore.getState().authUser?.id??''}}) }
   async function changeStatus() {
     if(pending.current)return
     if(dirty.current&&!window.confirm('当前内容尚未保存，改变状态后保留设备草稿，确定继续吗？'))return
@@ -37,7 +39,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
     const currentArchivedAt=item.event.caseArchivedAt??null
     if(!statusRequest.current||statusRequest.current.archivedAt!==currentArchivedAt)statusRequest.current={archivedAt:currentArchivedAt,id:crypto.randomUUID()}
     const requestId=statusRequest.current.id
-    try { await caseService.recovery(memberId,token,id,{action:archived?'restore':'archive',requestId,expectedArchivedAt:item.event.caseArchivedAt??null});setForm(null);onStatus(!archived);reload() }
+    try { await caseService.recovery(memberId,token,id,{action:archived?'restore':'recover',requestId,expectedArchivedAt:item.event.caseArchivedAt??null});setForm(null);onStatus(!archived);reload() }
     catch(e){setFailure(e instanceof Error?e.message:'状态未保存，请重试')}
     finally{pending.current=false;setBusy(false)}
   }
@@ -45,9 +47,8 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   return <article className="continuity-card case-followup-card" data-case-id={id} aria-label={view.title}>
     <div className="case-followup-card-header">
       <h2>{view.title}</h2>
-      <div className="case-followup-state-action"><HohoButton variant="secondary" size="small" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'结束跟进'}</HohoButton></div>
+      <div className="case-followup-state-action"><HohoButton variant="secondary" size="small" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'已康复'}</HohoButton></div>
     </div>
-    {view.supplement&&<p className="case-followup-supplement">{view.supplement}</p>}
     <p className="case-followup-time">开始：{dateText(view.firstOccurredAt,timezone)}<br/>最近记录：{dateText(view.latestOccurredAt,timezone)}{view.hasUnknownTime&&<span>含发生时间未提供的记录</span>}</p>
     {archived&&<p className="case-followup-time">{knownRecovery ? `${item.event.caseArchiveReason==='user_recovered'?'用户标记康复':'已记录康复'}：${dateText(item.event.caseRecoveryMarkedAt||item.event.recoveredAt,timezone)}` : <><span className="case-legacy-archive">历史归档</span>归档时间：{dateText(item.event.caseArchivedAt,timezone)}<span>未记录康复原因，不代表已确认康复</span></>}</p>}
     <div className="case-followup-toggle"><strong>过程记录 · {view.recordCount}条</strong><HohoButton variant="text" aria-expanded={expanded} aria-controls={`case-timeline-${id}`} onClick={()=>setExpanded(v=>!v)}>{expanded?'收起':'展开'}</HohoButton></div>
@@ -57,12 +58,12 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
         <RecordText text={record.content}/>
         {(record.sourceText||record.caseContext?.originalText)&& (record.sourceText||record.caseContext?.originalText)!==record.content && <details><summary>查看完整原文</summary><p className="continuity-source">{record.caseContext?.originalText||record.sourceText}</p></details>}
         {record.caseContext?.supplement&&<p className="continuity-source">{record.caseContext.supplement}</p>}
+        {record.journal?.symptom?.shortNote&&!record.content.includes(record.journal.symptom.shortNote)&&<p className="continuity-source">{record.journal.symptom.shortNote}</p>}
         <RecordOriginals eventId={id} recordId={record.id} attachmentIds={record.caseContext?.attachmentIds??record.aiProvenance?.attachmentIds??[]}/>
         {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setForm('materials')}}}>核对这份资料</HohoButton>}
       </li>)}</ol>}
     </div>}
-    {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={()=>open('record')}>补充情况</HohoButton></div>
-      {form==='record'&&<SmartRecordWorkspace conversational memberId={memberId} token={token} eventId={id} eventTitle={item.followup.title} onClose={()=>setForm(null)} onCaptured={()=>{setForm(null);saved()}}/>}
+    {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={supplement}>补充情况</HohoButton></div>
       {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>

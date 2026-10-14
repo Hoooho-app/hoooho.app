@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -15,6 +15,10 @@ export function SmartCaseRecordPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', navigate = useNavigate(), [query] = useSearchParams()
   const accountId = useAppStore(s => s.authUser?.id ?? '')
   const location = useLocation()
+  const eventId = query.get('eventId') || undefined
+  const caseOrigin = location.state as {caseReturn?:boolean;eventTitle?:string;memberId?:string;accountId?:string} | null
+  const wrongCaseIdentity = Boolean(caseOrigin?.caseReturn && (caseOrigin.memberId !== memberId || caseOrigin.accountId !== accountId))
+  const closeCase = () => { if (caseOrigin?.caseReturn && window.history.state?.idx > 0) navigate(-1); else navigate(`/cases${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ''}`, {replace:true}) }
   const frontDesk = ['front-desk', 'calendar'].includes(query.get('source') ?? '') && !query.get('eventId') && !query.get('taskId')
   const closeFrontDesk = () => {
     const origin = location.state as { frontDeskReturn?: boolean; calendarReturn?: boolean } | null
@@ -33,7 +37,12 @@ export function SmartCaseRecordPage() {
       navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     }
   }, [location.pathname, location.search, location.state, navigate])
-  return <main className="app-shell continuity-page">{frontDesk ? <SmartRecordWorkspace key={`home:${accountId}:${memberId}`} page conversational memberId={memberId} token={token} onClose={closeFrontDesk}/> : query.get('taskId') ? <SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} initialNurseMode={initialNurseMode} accountId={accountId} memberId={memberId} token={token} eventId={query.get('eventId') ?? undefined} taskId={query.get('taskId') ?? undefined} onClose={() => navigate(-1)} onCaptured={id => navigate(`/health-events/${id}`, { replace: true })}/> : <SmartRecordWorkspace key={`${accountId}:${memberId}:${query}`} memberId={memberId} token={token} eventId={query.get('eventId')??undefined} onClose={()=>navigate(-1)} onCaptured={id=>navigate(`/health-events/${id}`,{replace:true})}/>}</main>
+  if (wrongCaseIdentity) return <Navigate to="/cases" replace />
+  return <main className="app-shell continuity-page">{frontDesk ? <SmartRecordWorkspace key={`home:${accountId}:${memberId}`} page conversational memberId={memberId} token={token} onClose={closeFrontDesk}/> : query.get('taskId') ? <SymptomCaseRecord key={`${accountId}:${memberId}:${query}`} initialNurseMode={initialNurseMode} accountId={accountId} memberId={memberId} token={token} eventId={eventId} taskId={query.get('taskId') ?? undefined} onClose={closeCase} onCaptured={id => navigate(`/cases?eventId=${encodeURIComponent(id)}`, { replace: true })}/> : <SmartRecordWorkspace key={`${accountId}:${memberId}:${query}`} page conversational memberId={memberId} token={token} eventId={eventId} eventTitle={caseOrigin?.eventTitle} onClose={closeCase}/>}</main>
+}
+export function LegacyCaseRedirectPage() {
+  const {eventId} = useParams()
+  return <Navigate to={`/cases${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ''}`} replace />
 }
 export function CaseListPage() {
   const { data, error, reload, memberId, token } = useCases(), [query] = useSearchParams(), [archived, setArchived] = useState(query.get('state') === 'archived')
@@ -48,7 +57,7 @@ export function CaseListPage() {
   return <main className="app-shell continuity-page case-followup-page"><WebPageHeader title="症状跟进" onBack={()=>{if(guard())navigate(-1)}}/><div className="continuity-scroll"><div className="continuity-tabs" role="tablist" aria-label="情况状态"><button role="tab" aria-selected={!archived} aria-pressed={!archived} onClick={() => {if(guard())setArchived(false)}}>跟进中{data ? ` ${data.active.length}` : ''}</button><button role="tab" aria-selected={archived} aria-pressed={archived} onClick={() => {if(guard())setArchived(true)}}>已归档{data ? ` ${data.archived.length}` : ''}</button></div>
     {feedback&&<div role="status" className="case-followup-feedback">{feedback}</div>}
     {error&&<StatusNotice tone="error" title="列表未加载">{error}<HohoButton onClick={reload}>重试</HohoButton></StatusNotice>}
-    {!items ? !error&&<p role="status">正在加载…</p> : !items.length ? <p className="continuity-empty">暂无{archived ? '归档' : '跟进中'}的情况</p> : items.slice().sort((a,b)=>Number(b.event.id===query.get('eventId'))-Number(a.event.id===query.get('eventId'))).map(item => <CaseFollowupCard key={`${accountId}:${memberId}:${item.event.id}`} item={item} memberId={memberId} token={token} timezone={data!.timezone} reload={reload} onDirty={onDirty} onStatus={archived=>setFeedback(archived?'已结束跟进并归档':'已恢复跟进')}/>)}
+    {!items ? !error&&<p role="status">正在加载…</p> : !items.length ? <p className="continuity-empty">暂无{archived ? '归档' : '跟进中'}的情况</p> : items.slice().sort((a,b)=>Number(b.event.id===query.get('eventId'))-Number(a.event.id===query.get('eventId'))).map(item => <CaseFollowupCard key={`${accountId}:${memberId}:${item.event.id}`} item={item} memberId={memberId} token={token} timezone={data!.timezone} reload={reload} onDirty={onDirty} onStatus={archived=>setFeedback(archived?'已标记康复并归档':'已恢复跟进')}/>)}
   </div></main>
 }
 export function CaseComparePage() {
