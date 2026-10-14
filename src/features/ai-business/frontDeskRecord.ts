@@ -17,7 +17,8 @@ export function restoreFrontContext(context:FrontContext,local:CaptureDraft):Cap
   for(const message of context.messages){
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     files.push(...media)
-    turns.push({id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status,contextId:context.id})
+    const previous=local.conversationTurns?.find(turn=>turn.id===message.id)
+    turns.push({id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
   }
   const pending=(local.conversationTurns??[]).filter(t=>t.role!=='assistant'&&t.status&&t.status!=='completed'&&!turns.some(s=>s.id===t.id))
   const pendingKeys=new Set(pending.flatMap(t=>t.fileKeys??[]))

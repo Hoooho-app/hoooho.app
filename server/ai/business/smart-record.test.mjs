@@ -6,6 +6,40 @@ import path from 'node:path'
 import {FamilyMemberRepository} from '../../members/repositories/family-member-repository.mjs'
 import {AIBusinessService} from './service.mjs'
 const raw='吃了半碗粥，脸颊有点红，没有呕吐，午睡睡了一个小时'
+
+test('manual review additions preserve user sources, deletion and idempotent save',async t=>{
+ const {service,member}=await setup(t)
+ let draft=await service.prepare('synthetic',member.id,{text:raw,smartRecord:true,frontDeskRecord:true})
+ const removed=draft.items[0].id
+ draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,deleteItem:removed})
+ const added={id:'manual-unique-test',category:'symptom',text:'昨天胳膊有点痒',timeText:'昨天'}
+ draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,addItem:added})
+ draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,addItem:added})
+ assert.equal(draft.items.filter(item=>item.id===added.id).length,1)
+ assert.equal(draft.items.some(item=>item.id===removed),false)
+ const saved=await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
+ assert.equal(saved.result.count,3)
+ const records=await Promise.all(saved.result.records.map(record=>service.records.getOwnedRecord('synthetic',record.recordId)))
+ const record=records.find(record=>record.content.includes(added.text))
+ assert.ok(record)
+ assert.equal(new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date(record.occurredAt)),'2026-10-08')
+ assert.equal(record.aiProvenance.fields[0].editedBy,'user')
+ assert.equal(record.aiProvenance.sources[0].quote,added.text)
+ assert.equal(record.sourceText,added.text)
+ await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
+ assert.equal((await service.records.repository.findByAccountId('synthetic')).length,3)
+})
+test('manual additions reject future, missing time and cross-member edits without writing',async t=>{
+ const {service,member}=await setup(t)
+ const draft=await service.prepare('synthetic',member.id,{text:raw,smartRecord:true})
+ const added={id:'manual-invalid-test',category:'symptom',text:'皮肤发痒',timeText:'2026年10月10日'}
+ await assert.rejects(()=>service.edit('synthetic',member.id,draft.id,{version:draft.version,addItem:added}),/发生时间.*晚于现在/)
+ await assert.rejects(()=>service.edit('synthetic',member.id,draft.id,{version:draft.version,addItem:{...added,timeText:''}}),/新增记录内容无效/)
+ const other=await new FamilyMemberRepository(service.directory).create({accountId:'synthetic',name:'另一个虚构儿童',relationship:'child'})
+ await assert.rejects(()=>service.edit('synthetic',other.id,draft.id,{version:draft.version,addItem:{...added,timeText:'不记得'}}))
+ assert.equal((await service.read('synthetic',member.id,draft.id)).version,draft.version)
+ assert.equal((await service.records.repository.findByAccountId('synthetic')).length,0)
+})
 const extracted=[['diet',[['food','粥'],['amount','半碗']]],['symptom',[['symptom','脸颊有点红，没有呕吐'],['location','脸颊']]],['sleep',[['quality','午睡睡了一个小时']]]].map(([category,fields])=>({category,title:category,timeText:null,archiveCategory:null,subject:'current',relationKey:null,fields:fields.map(([name,value])=>({name,value,quote:value,sourceId:'input',page:1}))}))
 async function setup(t){const directory=await mkdtemp(path.join(os.tmpdir(),'hoooho-smart-record-'));t.after(()=>rm(directory,{recursive:true,force:true}));const member=await new FamilyMemberRepository(directory).create({accountId:'synthetic',name:'合成测试儿童',relationship:'child'});let calls=0;const model={structured:async()=>{calls++;return {value:{items:structuredClone(extracted)},diagnostics:{provider:'test'}}}};const service=new AIBusinessService({dataDirectory:directory,model,now:()=>new Date('2026-10-09T14:00:00Z')});return {service,member,model,calls:()=>calls}}
 test('full-page followup supplement saves to the original event with shared core titles and original sources',async t=>{
