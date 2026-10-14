@@ -59,3 +59,22 @@
 .smart-record-saved-actions{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:var(--hoho-space-2)}
 .smart-record-saved-actions>.hoho-button{min-width:0;padding-inline:var(--hoho-space-2);white-space:nowrap}
 .nurse-turn .smart-record-saved>p{border:0;background:transparent;padding:0}
+
+/* Smart record conversation and review share the existing paper foundations. */
+.smart-record-page,.smart-record-page__footer{background:rgb(var(--hoho-color-page-background))}
+.smart-record-page .nurse-turn-content{background:rgb(var(--hoho-color-surface-white))}
+.smart-record-page .nurse-turn--user .nurse-turn-content{background:rgb(var(--hoho-color-primary-soft))}
+.smart-record-page .smart-review-card{background:rgb(var(--hoho-color-surface-white));padding:var(--hoho-space-4);border-radius:var(--hoho-radius-card);border:1px solid rgb(var(--hoho-color-border));gap:var(--hoho-space-3)}
+.smart-record-page .smart-review-card header{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2)}
+.smart-record-page .smart-review-card dl{display:grid;gap:var(--hoho-space-2);margin:0}
+.smart-record-page .smart-review-card dl>.smart-review-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:var(--hoho-space-2);row-gap:var(--hoho-space-1)}
+.smart-review-row dt{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.smart-record-page .smart-review-card dd{grid-column:1;margin:0;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--hoho-font-size-body)}
+.smart-review-row>.hoho-button{grid-column:2;grid-row:1 / span 2}
+.smart-review-editor{display:grid;gap:var(--hoho-space-4)}
+.smart-review-editor label{display:grid;gap:var(--hoho-space-2)}
+.smart-review-editor input,.smart-review-editor textarea,.smart-review-editor select{width:100%;min-height:var(--hoho-touch-target);padding:var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface-white));color:inherit;font:inherit;box-sizing:border-box}
+.smart-review-editor textarea{min-height:100px;resize:vertical}
+.smart-record-actions{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);margin-top:var(--hoho-space-3)}
+.smart-record-actions>.hoho-button{flex:1;min-width:0;white-space:nowrap}
+.smart-record-saved-actions{display:flex}

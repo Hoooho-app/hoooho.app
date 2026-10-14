@@ -1,4 +1,5 @@
 import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
+import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import fieldLabels from '../../../shared/ai-business-field-labels.json' with {type:'json'}
@@ -266,11 +267,25 @@ export class AIBusinessService {
     if (input.sourceRecordId) { const source = await this.records.getOwnedRecord(accountId,input.sourceRecordId); if (source.eventId !== d.targetEventId || !source.caseContext || d.sourceRecordId && d.sourceRecordId !== source.id) throw fail('原件关联无效',404); if (!d.sourceRecordId) { d.sourceRecordId=source.id;d.sourceRecordRevision=revisionKey(source) } }
     if (input.sourceIdentity) { if (!['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.sourceIdentity)) throw fail('资料来源无效'); d.sourceIdentity = input.sourceIdentity }
     if(input.deleteItem)d.items=d.items.filter(i=>i.id!==input.deleteItem)
+    if(input.addItem){
+      const value=input.addItem,original=text(value.text,4000),timeText=text(value.timeText,100)
+      if(!d.smartRecord||d.state!=='ready'||!categories.includes(value.category)||!original||!timeText||!/^manual-[A-Za-z0-9-]{1,80}$/.test(value.id??''))throw fail('新增记录内容无效')
+      if(d.items.length>=30&&!d.items.some(item=>item.id===value.id))throw fail('最多30条记录，请分批保存')
+      const previous=d.items.find(item=>item.id===value.id)
+      if(previous&&!previous.manualAdded)throw fail('新增记录标识已使用',409)
+      const sourceId=value.id
+      if(!d.sources.some(source=>source.id===sourceId))d.sources.push({id:sourceId,page:1,text:original,status:'readable',editedBy:'user'})
+      const source=d.sources.find(source=>source.id===sourceId)
+      const item=this.resolve({id:value.id,manualAdded:true,category:value.category,title:text(value.title,100)||original.slice(0,24),archiveCategory:null,subject:'current',timeText,timeEditedBy:'user',fields:[{name:manualRecordField(value.category),value:original,sources:[{sourceId,page:1,quote:source.text}],editedBy:'user',confirmed:true}]},d)
+      if(item.time.resolvedStart&&Date.parse(item.time.resolvedStart)>this.now().getTime())throw fail('发生时间不能晚于现在')
+      d.items=previous?d.items.map(candidate=>candidate.id===item.id?item:candidate):[...d.items,item]
+    }
     if(input.itemId){const item=d.items.find(i=>i.id===input.itemId);if(!item)throw fail('待确认记录不存在',404)
       if(input.visibilityCategories!==undefined){if(!Array.isArray(input.visibilityCategories)||!input.visibilityCategories.length||input.visibilityCategories.some(c=>!categories.includes(c)))throw fail('记录类型无效');item.visibilityCategories=[...new Set(input.visibilityCategories)]}
       if(input.category){if(!categories.includes(input.category))throw fail('记录类型无效');item.category=input.category;item.categoryEditedBy='user'}
       if(Object.hasOwn(input,'archiveCategory')){if(input.archiveCategory!==null&&!archiveCategories.includes(input.archiveCategory))throw fail('归档栏目无效');item.archiveCategory=input.archiveCategory;item.archiveEditedBy='user';if(item.archiveCategory==='vaccination'){if(!field(item,'vaccineName'))throw fail('接种归档需要明确的疫苗名称');item.category='vaccination'}}
-      if(input.field==='time'){item.originalTimeText??=item.timeText;item.timeEditedBy='user';item.timeText=text(input.value,100)||null;item.time=resolveItemTime(item,{referenceNow:d.referenceNow,timezone:d.timezone})}
+      if(input.field==='title'){const title=text(input.value,100);if(!title)throw fail('记录名称不能为空');item.title=title;item.titleEditedBy='user'}
+      else if(input.field==='time'){item.originalTimeText??=item.timeText;item.timeEditedBy='user';item.timeText=text(input.value,100)||null;item.time=resolveItemTime(item,{referenceNow:d.referenceNow,timezone:d.timezone})}
       else if(input.field){const existing=item.fields.find(f=>f.name===input.field);if(!existing&&!['location','sleepAt','wakeAt','sleepKind'].includes(input.field))throw fail('字段不存在');const f={...existing,name:input.field,value:text(input.value,4000),sources:existing?.sources??[],confirmed:true,editedBy:'user'};if(!f.value)throw fail('字段不能为空');if(existing)item.fields=item.fields.map(n=>n===existing?f:n);else item.fields.push(f)}
       this.resolve(item,d)
       await this.reviewProfileAssociations(d)
@@ -329,7 +344,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
           const occurredAt=item.time?.resolvedStart??d.referenceNow
           const relatedEvent=conflictRecords.length?ownedEvents.find(e=>e.id===conflictRecords[0].eventId):null
           event=targetEvent??relatedEvent??await this.events.create(accountId,{memberId,title:item.title,category:'other',startTime:occurredAt},this.now())
-          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:d.documents.length?'medical_file':'text_record',sourceText:d.raw.slice(0,5000)},this.now())
+          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:item.manualAdded?'text_record':d.documents.length?'medical_file':'text_record',sourceText:(item.manualAdded?d.sources.find(source=>source.id===item.id)?.text??d.raw:d.raw).slice(0,5000)},this.now())
           history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!targetEvent&&!relatedEvent})
         }
         if(d.smartRecord&&!targetEvent)targetEvent=event
