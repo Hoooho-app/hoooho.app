@@ -15,6 +15,36 @@ async function setup(t){
  const service=new FrontDeskRecord({dataDirectory,events:new HealthEventService({dataDirectory}),business:{read:async()=>null},model})
  return {service,member,other,calls,model}
 }
+test('discarded session is not restored or offered to the model; other members and saved records remain intact',async t=>{
+ const f=await setup(t)
+ const older=await f.service.submit('synthetic',f.member.id,{id:'older',kind:'text',text:'头皮发痒'})
+ await f.service.submit('synthetic',f.member.id,{id:'newer',kind:'text',text:'脸颊发红'})
+ const other=await f.service.submit('synthetic',f.other.id,{id:'other',kind:'text',text:'吃了粥'})
+ await f.service.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id===older.context.id?{...c,saved:true,recordResult:{count:1,records:[{id:'formal-record'}]}}:c)}))
+ await assert.rejects(()=>f.service.closeSession('foreign',f.member.id))
+ assert.ok(await f.service.latest('synthetic',f.member.id))
+ assert.deepEqual(await f.service.closeSession('synthetic',f.member.id),{closed:true})
+ assert.equal(await f.service.latest('synthetic',f.member.id),null)
+ assert.equal((await f.service.latest('synthetic',f.other.id)).id,other.context.id)
+ const preserved=await f.service.snapshot('synthetic',f.member.id,older.context.id)
+ assert.equal(preserved.recordResult.records[0].id,'formal-record')
+ assert.equal(preserved.messages.length,2)
+ const next=await f.service.submit('synthetic',f.member.id,{id:'fresh',kind:'text',text:'今天头皮发痒'})
+ assert.notEqual(next.context.id,older.context.id)
+ assert.deepEqual(JSON.parse(f.calls.at(-1).input[0].content[0].text).history,[])
+ assert.equal((await f.service.latest('synthetic',f.member.id)).id,next.context.id)
+})
+test('discard waits for an outstanding reply so its late completion cannot revive a session',async t=>{
+ const f=await setup(t)
+ let entered,release
+ const started=new Promise(resolve=>{entered=resolve}),gate=new Promise(resolve=>{release=resolve})
+ f.model.structured=async()=>{entered();await gate;return {value:{reply:'收到。',contextId:'new',action:'record'}}}
+ const sending=f.service.submit('synthetic',f.member.id,{id:'slow',kind:'text',text:'今天头皮发痒'})
+ await started
+ const closing=f.service.closeSession('synthetic',f.member.id)
+ release();await sending;await closing
+ assert.equal(await f.service.latest('synthetic',f.member.id),null)
+})
 test('durable per-message retry, scope isolation, latest update ordering and independent new intents',async t=>{
  const f=await setup(t),a={id:'turn-1',kind:'text',text:'今天吃了粥'}
  const first=await f.service.submit('synthetic',f.member.id,a)

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Stethoscope, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useBlocker, useNavigate } from 'react-router-dom'
 import { savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -41,14 +41,18 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [stage,setStage]=useState<'conversation'|'review'>('conversation')
   const [resumeChoices,setResumeChoices]=useState<{key:string;draft:CaptureDraft}[]|null>(null)
   const switchingDraft=useRef(false)
+  const [exitOpen,setExitOpen]=useState(false),[exiting,setExiting]=useState(false),[exitError,setExitError]=useState('')
+  const leaving=useRef(false),allowLeave=useRef(false),voiceBusy=useRef(false),initialization=useRef<Promise<void>>(Promise.resolve())
+  const unfinished=!completed&&(hasCaptureContent(local)||Boolean(local.conversationTurns?.some(t=>t.role!=='assistant'&&t.status&&t.status!=='completed')))
+  const blocker=useBlocker(({currentLocation,nextLocation})=>!allowLeave.current&&(unfinished||voiceBusy.current)&&(currentLocation.pathname!==nextLocation.pathname||currentLocation.search!==nextLocation.search))
+  useEffect(()=>{if(blocker.state==='blocked')setExitOpen(true)},[blocker.state])
   const freshDraft=():CaptureDraft=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId})
   const returning=useRef(false)
-  const showReturnedHistory=useRef(false)
   const persist=async(value:CaptureDraft)=>{const next={...value,updatedAt:Date.now()};current.current=next;checkpointCaptureDraft(key,next);if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
   const change=(patch:Partial<CaptureDraft>)=>void persist({...current.current,...patch}).catch(()=>undefined)
   useEffect(()=>{
     let active=true;mounted.current=true
-    void (async()=>{
+    const openingTask=(async()=>{
       let saved=await captureDraft(key)
       const retained=conversational&&!eventId?await retainedCaptureDrafts(key):[]
       if(!active)return
@@ -58,8 +62,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
         saved=[...(saved?[saved]:[]),...retained.map(c=>c.draft)].filter(d=>d.smartReview?.state!=='saved').sort((a,b)=>(b.updatedAt??0)-(a.updatedAt??0))[0]??null
         const opening=saved??current.current
         returning.current=Boolean(opening.returningFromRecord)
-        showReturnedHistory.current=returning.current
-        hiddenTurns.current=new Set(returning.current?[]:(opening.conversationTurns??[]).filter(t=>!t.status||t.status==='completed').map(t=>t.id))
+        hiddenTurns.current=new Set()
         current.current=opening;setLocal(opening);setReady(true)
         if(saved&&!saved.frontContextId&&(saved.text.trim()||saved.files.some(f=>!f.type.startsWith('audio/')))){
           try{const media=await Promise.all(saved.files.filter(f=>f!==saved?.pendingVoice).map(async f=>({name:f.name,mimeType:f.type,lastModified:f.lastModified,dataUrl:await fileDataUrl(f)})));const migrated=await request<FrontContext|null>(frontUrl,'POST',{kind:'legacy',requestId:saved.requestId,updatedAt:saved.updatedAt,turns:saved.conversationTurns??(saved.text?[{text:saved.text}]:[]),files:media.filter(f=>!f.mimeType.startsWith('audio/')),voiceFiles:media.filter(f=>f.mimeType.startsWith('audio/')),draftId:saved.smartReview?.id});if(!active)return;if(migrated)saved=restoreFrontContext(migrated,saved)}catch{/* Unreadable legacy originals remain in the local recovery draft. */}
@@ -72,7 +75,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
         // Start talking immediately from local recovery. A late history read
         // must never replace text, media or a new intent entered since opening.
         if(current.current!==opening)return
-        hiddenTurns.current=new Set(showReturnedHistory.current?[]:(saved?.conversationTurns??[]).filter(t=>!t.status||t.status==='completed').map(t=>t.id))
+        hiddenTurns.current=new Set()
         if(saved){saved={...saved,conversationTurns:saved.conversationTurns?.map(t=>t.status==='pending'?{...t,status:'failed',error:'上次提交中断，请重试原消息'}:t)};current.current=saved;setLocal(saved)}
         setReady(true);return
       }
@@ -82,7 +85,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
         if(choices.length)setResumeChoices(choices)
       }else if(saved?.smartReview?.items.length)setStage('review')
       setReady(true)
-    })().catch(()=>{if(active)setError('草稿读取失败，请重新打开后重试')})
+    })()
+    initialization.current=openingTask
+    void openingTask.catch(()=>{if(active)setError('草稿读取失败，请重新打开后重试')})
     return()=>{active=false;mounted.current=false;abort.current?.abort()}
   },[key])
   useEffect(()=>{if(page&&ready&&stage==='conversation'){const restore=returning.current;scrollBody.current?.scrollTo({top:restore?local.returnScrollTop??0:scrollBody.current.scrollHeight,behavior:'auto'});if(restore){returning.current=false;change({returningFromRecord:false})}}},[page,ready,stage,local.conversationTurns?.length,local.savedGuides?.length,dialogueBusy,viewport.height])
@@ -170,9 +175,11 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   }
   async function discardTurn(turn:CaptureTurn){try{await request(`${frontUrl}/messages/${encodeURIComponent(turn.id)}`,'DELETE');const remaining=current.current.conversationTurns?.filter(t=>t.id!==turn.id)??[];await persist({...current.current,conversationTurns:remaining,files:current.current.files.filter(file=>!turn.fileKeys?.includes(fileIdentity(file))||remaining.some(t=>t.fileKeys?.includes(fileIdentity(file))))})}catch(e){setError(e instanceof Error?e.message:'移除未完成，请重试')}}
   const voiceId=(file:File)=>`voice:${file.lastModified}:${file.size}`
-  const voice=useSmartRecordVoice({memberId,token,onFinalizationStart:page?()=>beginCaptureFinalization(key):undefined,pendingVoice:local.pendingVoice,pendingTranscript:local.voiceTranscript,onRecorded:async file=>{await persist({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,voiceTranscript:undefined,files:[...current.current.files,file],...(page&&!eventId?{conversationTurns:[...current.current.conversationTurns??[],{id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'transcribing'} as CaptureTurn]}:{})})},onTranscript:async (transcript,file)=>{
+  const voice=useSmartRecordVoice({memberId,token,onFinalizationStart:()=>beginCaptureFinalization(key),pendingVoice:local.pendingVoice,pendingTranscript:local.voiceTranscript,onRecorded:async file=>{await persist({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,voiceTranscript:undefined,files:[...current.current.files,file],...(page&&!eventId?{conversationTurns:[...current.current.conversationTurns??[],{id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'transcribing'} as CaptureTurn]}:{})})},onTranscript:async (transcript,file)=>{
+    if(leaving.current)return
     if(page&&!eventId){const turn:CaptureTurn={id:voiceId(file),text:transcript,at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'pending'},turns=current.current.conversationTurns??[];await persist({...current.current,pendingVoice:undefined,voiceTranscript:transcript,conversationTurns:turns.some(t=>t.id===turn.id)?turns.map(t=>t.id===turn.id?turn:t):[...turns,turn]});void submitTurn(turn).catch(()=>undefined)}else{const next=appendCaptureTurn(current.current,transcript,`voice:${file.name}:${file.lastModified}`);await persist(next);await prepare(next)}
   }})
+  voiceBusy.current=voice.busy
   async function sendText(){if(sendLock.current||pending.current||((!page||eventId)&&(voice.busy||current.current.pendingVoice)))return;sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;if(page&&!eventId){const turn:CaptureTurn={id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'};await persist({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString(),conversationInput:'',conversationTurns:[...current.current.conversationTurns??[],turn]});void submitTurn(turn).catch(()=>undefined)}else{const next=appendCaptureTurn({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString()},text);await persist(next);await prepare(next)}}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
   const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice
   const pickFiles=(files:FileList|null)=>{if(!files?.length)return;const selected=Array.from(files),next=[...current.current.files,...selected];if(next.length>12||next.reduce((sum,f)=>sum+f.size,0)>15*1024*1024){setError('最多12份原件，总大小15 MB');return}if(page&&!eventId){const turn:CaptureTurn={id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'};void persist({...current.current,files:next,conversationTurns:[...current.current.conversationTurns??[],turn]}).then(()=>submitTurn(turn)).catch(()=>undefined)}else change({files:next,smartReview:review?{...review,state:'changed'}:undefined})}
@@ -230,7 +237,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||busy||completed||!!resumeChoices} voiceDisabled={!!local.pendingVoice} allowTextWhileProcessing={page} audioLevel={voice.audioLevel} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||busy||completed||!!resumeChoices||exitOpen} voiceDisabled={!!local.pendingVoice} allowTextWhileProcessing={page} audioLevel={voice.audioLevel} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {!!saveBlocked&&!busy&&Boolean(review?.items.length)&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
@@ -276,6 +283,28 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
   </>
-  const close=()=>{if(busy)return;voice.stop();onClose()}
-  return page||stage==='review' ? <section className="smart-record-page smart-record-dialog" aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}><WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'&&!busy?setStage('conversation'):close()}/><div ref={scrollBody} className="smart-record-page__body">{body}</div>{footer&&<footer className="smart-record-page__footer">{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>
+  const close=()=>{if(exiting||busy)return;if(unfinished||voice.busy){voice.stop();setExitError('');setExitOpen(true)}else{allowLeave.current=true;onClose()}}
+  const cancelExit=()=>{if(exiting)return;setExitOpen(false);setExitError('');if(blocker.state==='blocked')blocker.reset()}
+  const finishExit=async(keepDraft:boolean)=>{
+    if(leaving.current)return
+    leaving.current=true;setExiting(true);setExitError('')
+    try{
+      voice.stop()
+      // Wait for raw recording bytes, queued replies and every draft write.
+      await initialization.current
+      await captureDraft(key)
+      await queue.current
+      await writes.current
+      if(keepDraft)await persist(current.current)
+      else{
+        if(page&&!eventId)await request(frontUrl,'DELETE')
+        for(const retained of await retainedCaptureDrafts(key))await captureDraft(retained.key,null)
+        await captureDraft(key,null)
+      }
+      allowLeave.current=true
+      if(blocker.state==='blocked')blocker.proceed();else onClose()
+    }catch{leaving.current=false;setExiting(false);setExitError(keepDraft?'草稿保存失败，请重试。当前内容仍在。':'退出未完成，请重试。当前内容仍在。')}
+  }
+  const exitDialog=<BottomSheetSurface open={exitOpen} viewportAware label="退出智能记录" title="保存这次草稿吗？" onClose={cancelExit} footer={<><HohoButton fullWidth loading={exiting} disabled={busy||dialogueBusy} onClick={()=>void finishExit(true)}>保存草稿并退出</HohoButton><HohoButton fullWidth variant="secondary" disabled={exiting||busy||dialogueBusy} onClick={()=>void finishExit(false)}>不保存并退出</HohoButton></>}><p>保存后，下次可以接着记录；不保存，下次将重新开始。</p>{exitError&&<p role="alert">{exitError}</p>}</BottomSheetSurface>
+  return <>{page||stage==='review' ? <section className="smart-record-page smart-record-dialog" aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}><WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'&&!busy?setStage('conversation'):close()}/><div ref={scrollBody} className="smart-record-page__body">{body}</div>{footer&&<footer className="smart-record-page__footer">{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>}{exitDialog}</>
 }

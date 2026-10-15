@@ -61,13 +61,25 @@ export class FrontDeskRecord {
   async latest(accountId, memberId) {
     await this.scope(accountId, memberId)
     const data = await this.store.read()
-    const context = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
+    const context = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId&&!c.closedAt&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
     return context ? this.snapshot(accountId, memberId, context.id) : null
   }
   async discard(accountId,memberId,id){
     await this.scope(accountId,memberId)
     await this.store.update(data=>{const message=data.messages.find(m=>m.id===id&&m.accountId===accountId&&m.memberId===memberId);if(message?.status==='completed')throw fail('这条消息已经提交，请重试找回回复',409,'FRONT_RECORD_ALREADY_SUBMITTED');return {...data,messages:data.messages.map(m=>m===message?{...m,status:'discarded'}:m)}})
     return {removed:true}
+  }
+  async closeSession(accountId,memberId){
+    await this.scope(accountId,memberId)
+    // A reply already being generated must settle before the session ends, or
+    // its late write could make the discarded conversation current again.
+    await this.inFlight.get(JSON.stringify([accountId,memberId]))?.promise.catch(()=>undefined)
+    await accountTransaction(this.directory,async()=>{
+      await this.scope(accountId,memberId)
+      await this.store.update(data=>({...data,contexts:data.contexts.map(c=>c.accountId===accountId&&c.memberId===memberId&&!c.closedAt?{...c,closedAt:this.now().toISOString()}:c)}))
+    })
+    // End the resumable conversation only; formal records and originals stay intact.
+    return {closed:true}
   }
   async checkpoint(accountId, memberId, contextId, input) {
     await this.scope(accountId, memberId)
@@ -124,7 +136,7 @@ export class FrontDeskRecord {
     const provisionalId = message.contextId
     try {
       data = await this.store.read()
-      const all = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId && !c.provisional).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))
+      const all = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId && !c.provisional && !c.closedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))
       const terms=[...new Set((message.text.match(/[\u4e00-\u9fff]{2,}/g)??[]).flatMap(word=>Array.from({length:word.length-1},(_,i)=>word.slice(i,i+2))))].filter(t=>!['之前','刚才','继续','整理','内容','帮我','上次','一下'].includes(t))
       const relevant=all.map(c=>({c,score:terms.filter(term=>data.messages.some(m=>m.contextId===c.id&&(m.text.includes(term)||(m.files??[]).some(f=>f.name.includes(term))))).length})).filter(item=>item.score>0).sort((a,b)=>b.score-a.score).slice(0,3).map(item=>item.c)
       const candidates=[...new Map([...all.slice(0,5),...relevant].map(c=>[c.id,c])).values()]
