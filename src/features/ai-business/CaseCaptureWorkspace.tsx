@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Camera, Keyboard, Mic, X } from 'lucide-react'
+import { Camera, Keyboard, X } from 'lucide-react'
 import { WebPageHeader } from '../../components/common'
-import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
+import { BottomSheetSurface, HohoButton, HoldToTalkButton, StatusNotice } from '../../components/design-system'
 import { ChildBodyLocationPicker } from '../../components/health/body-location/ChildBodyLocationPicker'
 import type { BodyLocationSelection } from '../../features/body-location'
 import { useSymptomVoice } from '../../pages/HealthEvents/useSymptomVoice'
@@ -22,9 +22,9 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
   const textInput = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState<CaptureDraft>(() => ({ text: '', files: [], occurredAt: localDateTimeValue(), timeUnknown: false, requestId: crypto.randomUUID(), eventId: initialEventId }))
   const [hydrated, setHydrated] = useState(false), [cases, setCases] = useState<CasesData | null>(null), [error, setError] = useState(''), [caseError, setCaseError] = useState('')
-  const [saving, setSaving] = useState(false), [ownership, setOwnership] = useState(false), [chosen, setChosen] = useState(initialEventId ?? ''), [cancelVoice, setCancelVoice] = useState(false)
+  const [saving, setSaving] = useState(false), [ownership, setOwnership] = useState(false), [chosen, setChosen] = useState(initialEventId ?? '')
   const [result, setResult] = useState<ObservationResult | undefined>(), [locations, setLocations] = useState<BodyLocationSelection[]>([])
-  const camera = useRef<HTMLInputElement>(null), album = useRef<HTMLInputElement>(null), pending = useRef(false), mounted = useRef(true), pointerStart = useRef<number | null>(null), gesture = useRef(false), discard = useRef(false)
+  const camera = useRef<HTMLInputElement>(null), album = useRef<HTMLInputElement>(null), pending = useRef(false), mounted = useRef(true)
   const voice = useSymptomVoice(draft.text, text => setDraft(d => ({ ...d, text })), 5000, file => { if (mounted.current) setDraft(d => ({ ...d, files: [...d.files, file] })) })
   const [recognition, setRecognition] = useState(''), [types, setTypes] = useState<string[]>([])
   const recognitionRun = useRef(0), recognitionAbort = useRef<AbortController | null>(null)
@@ -67,8 +67,7 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
       if (current()) { setTypes(prepared.items.map(item => item.title)); setRecognition('类型草稿待确认；保存原件后可在详情核对或改类型') }
     } catch (e) { if (current()) setRecognition(`待确认：${e instanceof Error ? e.message : '识别未完成'}。仍可先保存原件，再手动整理。`) }
   }
-  useEffect(() => { const hide = () => { if (document.hidden) { gesture.current = false; pointerStart.current = null; setCancelVoice(false); voice.stop() } }; document.addEventListener('visibilitychange', hide); return () => document.removeEventListener('visibilitychange', hide) }, [voice.stop])
-  const openOwnership = () => { gesture.current = false; voice.stop(); setCancelVoice(false); pointerStart.current = null; setOwnership(true) }
+  const openOwnership = () => { voice.stop(); setOwnership(true) }
   const chooseFiles = (files: FileList | null) => { if (!files?.length) return; const selected = [...draft.files, ...Array.from(files)]; if (selected.length > 12 || selected.reduce((n, f) => n + f.size, 0) > 15 * 1024 * 1024) { setError('最多12份原件，总大小15 MB'); return } setDraft(d => ({ ...d, files: selected, aiDraftId: undefined })); setError(''); void recognize(selected) }
   const save = async () => {
     if (pending.current || !hydrated) return
@@ -85,9 +84,8 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
       onSaved?.('已保存，原话与原件已保留'); if (onCaptured) onCaptured(response.eventId); else onClose()
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '保存未完成，草稿保留，请重试') } finally { pending.current = false; if (mounted.current) setSaving(false) }
   }
-  const release = (discard: boolean) => { if (!gesture.current) return; gesture.current = false; discard ? voice.discardSegment() : voice.stop(); pointerStart.current = null; setCancelVoice(false) }
   return <section className="case-capture-workspace" style={{ '--capture-height': `${height}px` } as CSSProperties} aria-label="智能记录">
-    <WebPageHeader title="智能记录" onBack={() => { release(false); onClose() }} action={<HohoButton variant="text" size="small" disabled={saving || !hydrated || (!draft.text.trim() && !draft.files.length)} onClick={openOwnership}>先保存</HohoButton>} />
+    <WebPageHeader title="智能记录" onBack={() => { voice.stop(); onClose() }} action={<HohoButton variant="text" size="small" disabled={saving || !hydrated || (!draft.text.trim() && !draft.files.length)} onClick={openOwnership}>先保存</HohoButton>} />
     <div className="case-capture-body">
       {!hydrated && <p role="status">正在读取当前人物的草稿…</p>}
       {!keyboard && draft.text && <p className="smart-record-original">{draft.text}</p>}
@@ -99,9 +97,9 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
       <label className="case-time">记录时间<input type="datetime-local" max={localDateTimeValue()} value={draft.occurredAt} disabled={draft.timeUnknown || saving || !hydrated} onChange={e => setDraft(d => ({ ...d, occurredAt: e.target.value }))}/></label>
       <label className="case-time-unknown"><input type="checkbox" disabled={saving || !hydrated} checked={draft.timeUnknown} onChange={e => setDraft(d => ({ ...d, timeUnknown: e.target.checked }))}/>发生时间不确定</label>
       {(error || voice.error) && <StatusNotice tone="error" title="暂未完成">{error || voice.error}</StatusNotice>}
-      {voice.busy && <p className="case-voice-status" role="status">{cancelVoice ? '松手取消本段，之前的内容保留' : voice.state === 'requesting' ? '正在开启麦克风…' : voice.state === 'stopping' ? '已停止收音，正在确认本段' : voice.partial ? '实时转写（本段暂定），松手确认' : '本段已识别，继续说或松手停止'}</p>}
+      {voice.busy && <p className="case-voice-status" role="status">{voice.state === 'requesting' ? '正在开启麦克风…' : voice.state === 'stopping' ? '已停止收音，正在确认本段' : voice.partial ? '实时转写（本段暂定），松手确认' : '本段已识别，继续说或松手停止'}</p>}
     </div>
-    <footer className="case-input-tools"><div><button className="case-camera" aria-label="文字输入" aria-expanded={keyboard} disabled={saving || !hydrated || voice.busy} onClick={() => { setKeyboard(!keyboard); if (!keyboard) requestAnimationFrame(() => textInput.current?.focus()) }}><Keyboard size={23}/><span>文字</span></button><button className="case-camera" aria-label="拍照" disabled={saving || !hydrated} onClick={() => { release(false); camera.current?.click() }}><Camera size={23}/><span>拍照</span></button><button className={`case-hold-voice${voice.busy ? ' is-listening' : ''}${cancelVoice ? ' is-cancelling' : ''}`} disabled={saving || !hydrated || voice.state === 'stopping'} onPointerDown={e => { if (e.button !== 0 || gesture.current) return; e.preventDefault(); setKeyboard(false); discard.current = false; gesture.current = true; pointerStart.current = e.clientY; e.currentTarget.setPointerCapture(e.pointerId); void voice.start() }} onPointerMove={e => { if (pointerStart.current !== null) { discard.current = pointerStart.current - e.clientY > 55; setCancelVoice(discard.current) } }} onPointerUp={() => release(discard.current)} onPointerCancel={() => release(true)} onKeyDown={e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); setKeyboard(false); gesture.current = true; void voice.start() } if (e.key === 'Escape') release(true) }} onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); release(false) } }}><Mic size={20}/>{cancelVoice ? '松手取消本段' : voice.busy ? '正在听…' : '按住说话'}</button></div></footer>
+    <footer className="case-input-tools"><div><button className="case-camera" aria-label="文字输入" aria-expanded={keyboard} disabled={saving || !hydrated || voice.busy} onClick={() => { setKeyboard(!keyboard); if (!keyboard) requestAnimationFrame(() => textInput.current?.focus()) }}><Keyboard size={23}/><span>文字</span></button><button className="case-camera" aria-label="拍照" disabled={saving || !hydrated} onClick={() => { voice.stop(); camera.current?.click() }}><Camera size={23}/><span>拍照</span></button><HoldToTalkButton className="case-hold-voice" disabled={saving || !hydrated} listening={voice.state === 'listening'} requesting={voice.state === 'requesting'} processing={voice.state === 'stopping'} audioLevel={voice.audioLevel} onStart={() => { setKeyboard(false); void voice.start() }} onStop={voice.stop} onDiscard={voice.discardSegment}/></div></footer>
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e => { chooseFiles(e.target.files); e.currentTarget.value = '' }}/><input type="file" ref={album} accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden onChange={e => { chooseFiles(e.target.files); e.currentTarget.value = '' }}/>
     {ownership && <BottomSheetSurface open label="这条记录放在哪里" title="这条记录放在哪里" onClose={() => { if (!saving) setOwnership(false) }} footer={<HohoButton fullWidth loading={saving} disabled={saving || voice.busy || voice.audioPending || (chosen !== '' && !cases)} onClick={() => void save()}>确认保存</HohoButton>}><div className="case-ownership"><p>由你选择，不自动合并</p><label><input type="radio" name="case-link" checked={chosen !== ''} disabled={!cases?.active.length || !!taskId} onChange={() => { const id = initialEventId ?? cases?.active[0]?.event.id ?? ''; setChosen(id); setDraft(d => ({...d,eventId:id})) }}/>接着这次记</label>{chosen !== '' && <select aria-label="选择这次情况" value={chosen} disabled={!!taskId || saving} onChange={e => { setChosen(e.target.value); setDraft(d => ({...d,eventId:e.target.value})) }}>{cases?.active.map(c => <option key={c.event.id} value={c.event.id}>{c.event.title}</option>)}</select>}<label><input type="radio" name="case-link" checked={chosen === ''} disabled={!!taskId} onChange={() => { setChosen(''); setDraft(d => ({...d,eventId:''})) }}/>新的一次情况</label>{caseError && <StatusNotice tone="error" title="情况列表未加载">{caseError}<HohoButton variant="text" onClick={loadCases}>重试</HohoButton></StatusNotice>}{error && <p role="alert">{error}</p>}</div></BottomSheetSurface>}
   </section>

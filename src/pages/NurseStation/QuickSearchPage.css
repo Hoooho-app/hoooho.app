@@ -13,13 +13,3 @@
 .quick-search-page .journal-search-result .journal-search-result-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);grid-column:1}
 .quick-search-page .journal-search-result .journal-search-result-hint{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));grid-column:1}
 .quick-search-page .journal-search-result>svg:last-child{grid-column:2;grid-row:1 / 4}
-
-/* Explicit product feedback: the voice entry uses the heading ink. */
-body .quick-search-page .quick-search-hold[data-variant='primary'],
-body .quick-search-page .quick-search-hold[data-variant='primary']:hover:not(:disabled),
-body .quick-search-page .quick-search-hold[data-variant='primary']:active:not(:disabled) {
-  background-color: rgb(var(--hoho-color-text-primary));
-  border-color: rgb(var(--hoho-color-text-primary));
-  color: rgb(var(--hoho-color-action-text));
-}
-body .quick-search-page .quick-search-hold[aria-pressed='true'] { box-shadow: inset 0 0 0 2px rgb(var(--hoho-color-action)); }
