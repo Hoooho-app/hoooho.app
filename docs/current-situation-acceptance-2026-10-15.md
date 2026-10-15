@@ -28,6 +28,6 @@
 服务回归：`npm run test:visit-sheets`。
 浏览器回归：`playwright test --config tests/visit-sheet/current-situation-v2.config.ts`。
 跨环境浏览器路径通过 `VISIT_E2E_CHROMIUM_PATH` 配置，不依赖某一台 Windows 的浏览器位置。
-发布验证：`node tests/visit-sheet/current-situation-release.mjs https://staging.hoooho.com`，然后在正式环境运行同一脚本。
+发布验证：`node tests/visit-sheet/current-situation-release.mjs https://staging.hoooho.com`，然后在正式环境运行同一脚本。预发布自定义域名不可用时，使用同一服务的 `https://hooohoapp-staging.up.railway.app` 原生域名。
 该发布脚本只创建并清理自己的合成成员，不调用付费模型，不使用真实孩子资料。
 本任务的视觉差异仅为附件模块顺序及「继续添加」文案；其余已存在的确认条目进行回归验证。

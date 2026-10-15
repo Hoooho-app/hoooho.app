@@ -5,9 +5,14 @@ import { mkdir } from 'node:fs/promises'
 import { chromium, expect } from '@playwright/test'
 
 const target = process.argv[2]
-assert.ok(['https://staging.hoooho.com', 'https://hoooho.com'].includes(target), 'Explicit release target required')
+assert.ok(['https://staging.hoooho.com', 'https://hooohoapp-staging.up.railway.app', 'https://hoooho.com'].includes(target), 'Explicit release target required')
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy
+const proxy = proxyUrl ? (() => {
+  const url = new URL(proxyUrl)
+  return { server: `${url.protocol}//${url.host}`, ...(url.username ? { username: decodeURIComponent(url.username), password: decodeURIComponent(url.password) } : {}) }
+})() : undefined
 const browser = await chromium.launch({ executablePath: process.env.VISIT_E2E_CHROMIUM_PATH })
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block', proxy })
 const page = await context.newPage(), errors = []
 page.on('pageerror', error => errors.push(error.message))
 const output = `outputs/visit-current-situation-release/${new URL(target).hostname}`
