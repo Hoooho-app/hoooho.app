@@ -98,3 +98,18 @@ test('同时间同数值的不同测量均可触摸选择，键盘亦可选择�
  await same.first().focus();await page.keyboard.press('Enter');await expect(same.first()).toHaveAttribute('aria-pressed','true')
  await expect(chart.getByRole('status')).toContainText('10/12 14:00');await page.keyboard.press('Escape')
 })
+
+test('同一账号会话恢复后保留正在编辑的情况描述',async({page})=>{
+ await page.route('**/visit-sheet/temperature',r=>r.fulfill({json:{points:[]}}))
+ await page.goto('/visit-summary');const card=page.locator('#chapter-overview')
+ await card.getByRole('button',{name:'编辑情况描述'}).click()
+ const editor=page.getByRole('dialog',{name:'编辑情况描述'})
+ await editor.getByRole('textbox').fill('会话恢复期间的未保存描述')
+ const restored=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/session')
+ await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')))
+ await restored
+ await expect(editor.getByRole('textbox')).toHaveValue('会话恢复期间的未保存描述')
+ await editor.getByRole('button',{name:'保存',exact:true}).click()
+ await expect(editor).toHaveCount(0)
+ await expect(card.locator('.visit-reading-case>p')).toHaveText('会话恢复期间的未保存描述')
+})
