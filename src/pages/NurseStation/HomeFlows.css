@@ -80,3 +80,5 @@
 
 .nurse-station-page--home .home-flows{padding-bottom:0}
 .nurse-station-page--home .nurse-station-scroll{padding-bottom:max(var(--hoho-space-1),env(safe-area-inset-bottom))}
+
+.home-followup-actions{display:flex;flex-wrap:wrap}.home-followup-actions>.hoho-button,.home-followup-actions>.case-merge-prompt{flex:1;min-width:120px}.case-merge-prompt{min-width:0}

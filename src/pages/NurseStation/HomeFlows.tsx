@@ -7,11 +7,14 @@ import { useAppStore } from '../../store/useAppStore'
 import { RecordEntryActions } from '../HealthEvents/RecordEntryActions'
 import { activeSymptomFollowups } from './symptomFollowup'
 import './HomeFlows.css'
+import {CaseMergePrompt} from '../../features/case-continuity/CaseMergePrompt'
+import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 
 export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const navigate = useNavigate()
   const { data, memberId, token } = useCases()
   const accountId = useAppStore(state => state.authUser?.id ?? '')
+  const updates=useRecordUpdates()
   const identity = `${accountId}:${memberId}`
   const symptoms = activeSymptomFollowups(data?.active ?? [], memberId)
   return <section className="home-flows" aria-label="首页服务入口">
@@ -19,13 +22,13 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <HealthCard className="home-flow-card home-symptom-followup" role="region" aria-label="健康事件">
         <span className="home-paper-fold" aria-hidden="true" />
         <header>
-          <div className="home-followup-heading"><Stethoscope size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康事件</Typography></div>
+          <div className="home-followup-heading"><Stethoscope size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">情况跟进</Typography></div>
           <Typography variant="caption" className="home-followup-count">{symptoms.length} 项</Typography>
         </header>
-        {symptoms.length ? <ul className="home-event-descriptions" aria-label="症状简述">{symptoms.slice(0, 3).map(item => <li key={item.event.id}><span className="home-symptom-title">{item.followup.title}</span></li>)}</ul> : <Typography variant="caption">暂无跟进症状</Typography>}
+        {symptoms.length ? <ul className="home-event-descriptions" aria-label="症状简述">{symptoms.slice(0, 1).map(item => <li key={item.event.id}><span className="home-symptom-title">{item.followup.title}</span></li>)}</ul> : <Typography variant="caption">暂无跟进症状</Typography>}
         <div className="home-followup-actions">
-          <HohoButton fullWidth variant="primary" onClick={() => navigate('/cases')}>症状跟进</HohoButton>
-          <HohoButton fullWidth variant="primary" disabled={!token || !memberId} onClick={() => navigate('/visit-summary')}>情况单</HohoButton>
+          <HohoButton fullWidth variant="primary" onClick={() => navigate('/cases')}>症状跟进<UpdateDot show={updates.some(i=>i.destination==='symptom')}/></HohoButton>
+          <CaseMergePrompt key={identity}/>
         </div>
       </HealthCard>
     </div>

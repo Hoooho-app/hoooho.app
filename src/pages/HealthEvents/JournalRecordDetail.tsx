@@ -1,3 +1,4 @@
+import {useReadRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../components/design-system'
 import type { JournalDietDetails } from '../../types/journal'
 import { useHealthEventDetail } from '../../hooks/useHealthEventDetail'
@@ -24,6 +25,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   const { state, retry, updateRecord, deleteRecord } = useHealthEventDetail(eventId, true)
   const memberId = useAppStore((value) => value.currentMemberId)
   const token = useAppStore((value) => value.authToken ?? '')
+  useReadRecordUpdates(state.status==='success'&&state.data.member.id===memberId&&state.data.records.some(r=>r.id===recordId)?[recordId]:[])
   const relatedJournal = useJournal(memberId, token, 0)
   const [now, setNow] = useState(() => Date.now())
   const [editingDiet,setEditingDiet] = useState(false)

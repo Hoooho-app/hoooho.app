@@ -1,3 +1,4 @@
+import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { ChevronRight, HeartPulse, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -19,6 +20,7 @@ const entries = [
 ]
 
 export function HealthProfilePage() {
+  const updates=useRecordUpdates()
   const navigate = useNavigate()
   const { authToken: token, currentMemberId, members, authUser } = useAppStore()
   const member = members.find(item => item.id === currentMemberId) ?? null
@@ -48,7 +50,7 @@ export function HealthProfilePage() {
     } />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
-      <span className="health-profile-entry__text"><strong>{title}</strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
+      <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
     {summary.text.startsWith('数量暂不可用') && <button className="health-profile-summary-retry" onClick={() => setRetry(value => value + 1)} type="button">重试加载数量</button>}
   </div></main>

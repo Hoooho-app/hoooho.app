@@ -79,7 +79,7 @@ test('voice recording remains available and automatically gets the two record ac
  await page.getByRole('button',{name:'改用语音'}).click()
  const hold=page.getByRole('button',{name:'按住说话',exact:true})
  await expect(hold).toBeEnabled();await hold.focus();await page.keyboard.down('Space')
- await expect(page.getByRole('button',{name:'正在录音，松手发送'})).toBeVisible()
+ await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
  await page.waitForTimeout(900);await page.keyboard.up('Space')
  await expect(page.locator('.nurse-turn--user').last()).toContainText('今天胳膊有点痒')
  await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对 \d+ 条记录/})).toBeEnabled()

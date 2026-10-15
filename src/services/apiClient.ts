@@ -1,3 +1,4 @@
+import {trackSavedMutation} from '../features/record-updates/store'
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
 import type { AIUnverifiedPreview } from '../features/ai-business/AIResultPreview'
 
@@ -30,6 +31,7 @@ interface ApiRequestOptions {
 }
 
 async function executeApiRequest<T>(path: string, options: ApiRequestOptions, mayRecover: boolean): Promise<T> {
+  const mutationScope=options.method&&options.method!=='GET'?await import('../store/useAppStore').then(({useAppStore})=>{const s=useAppStore.getState();return {accountId:s.authUser?.id??'',memberId:s.currentMemberId}}):undefined
   const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const response = await fetch(path, {
     method: options.method ?? 'GET',
@@ -74,6 +76,7 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
   }
 
   if (options.method && options.method !== 'GET' && typeof window !== 'undefined') {
+    if(mutationScope)trackSavedMutation(mutationScope,path,options.method,options.body,data)
     window.dispatchEvent(new Event('hoooho-data-changed'))
   }
   return data as T

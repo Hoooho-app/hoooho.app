@@ -1,0 +1,11 @@
+import {useEffect} from 'react'
+import {useNavigate} from 'react-router-dom'
+import {useAppStore} from '../../store/useAppStore'
+import {useUpdateStore,type RecordUpdate} from './store'
+import './updates.css'
+export function useRecordUpdates(){const accountId=useAppStore(s=>s.authUser?.id),memberId=useAppStore(s=>s.currentMemberId),items=useUpdateStore(s=>s.items);return items.filter(i=>i.accountId===accountId&&i.memberId===memberId)}
+export function UpdateDot({show=true}:{show?:boolean}){return show?<span className="record-update-dot" role="img" aria-label="有新内容"/>:null}
+export function updateUrl(i:RecordUpdate){const q=new URLSearchParams({memberId:i.memberId});if(i.destination==='profile'){if(i.entryId)q.set('entryId',i.entryId);return `/health-profile/${i.sectionId??''}?${q}`}if(i.eventId)q.set('eventId',i.eventId);if(i.recordId)q.set('recordId',i.recordId);return `${i.destination==='symptom'?'/cases':'/health-events'}?${q}`}
+export function UpdatedRecordLinks({destination,sectionId}:{destination:RecordUpdate['destination'];sectionId?:string}){const navigate=useNavigate(),items=useRecordUpdates().filter(i=>i.destination===destination&&(!sectionId||i.sectionId===sectionId));return items.length?<nav className="record-update-links" aria-label="新记录">{items.map(i=><button key={i.id} onClick={()=>navigate(updateUrl(i))}><UpdateDot/>{i.label}<span>查看记录</span></button>)}</nav>:null}
+export function useReadRecordUpdates(recordIds:string[],eventIds:string[]=[],sectionId?:string,through=Infinity){const items=useRecordUpdates();const key=JSON.stringify(items.filter(i=>i.at<=through&&(recordIds.includes(i.recordId??'')||!i.recordId&&eventIds.includes(i.eventId??'')||sectionId&&i.sectionId===sectionId&&(!i.entryId||recordIds.includes(i.entryId)))).map(i=>[i.id,i.at]));useEffect(()=>{const entries=JSON.parse(key) as [string,number][];if(entries.length)useUpdateStore.getState().read(entries.map(e=>e[0]),Math.max(...entries.map(e=>e[1])))},[key])}
+export function ProfileUpdateMarker({sectionId,entryId}:{sectionId:string;entryId:string}){const items=useRecordUpdates().filter(i=>i.destination==='profile'&&i.sectionId===sectionId&&i.entryId===entryId);return items.length?<button type="button" className="record-update-view" onClick={()=>useUpdateStore.getState().read(items.map(i=>i.id))} aria-label="查看本条更新"><UpdateDot/>新更新</button>:null}

@@ -8,7 +8,8 @@ export interface ObservationTask {
   reminderEnabled: false; todayRecorded: number; todayNotObserved: number; todayTarget: number
 }
 export interface FollowedCase {
-  event: HealthEventApiDto & { caseArchivedAt?: string | null; caseArchiveReason?: string | null; caseRecoveryMarkedAt?: string | null }
+  sourceEventIds?: string[]
+  event: HealthEventApiDto & { caseArchivedAt?: string | null; caseArchiveReason?: string | null; caseRecoveryMarkedAt?: string | null; caseSeparateIds?: string[] }
   followup: { title: string; description?: string | null; keyword?: string | null; hasSymptom?: boolean; supplement: string | null; recordCount: number; firstOccurredAt: string | null; latestOccurredAt: string | null; hasUnknownTime: boolean }
   latest: { id: string; content: string; occurredAt: string; createdAt: string } | null
   observations: ObservationTask[]; changedAt: string
