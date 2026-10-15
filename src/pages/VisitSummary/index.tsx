@@ -40,11 +40,13 @@ export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
 export function VisitSummaryPage() {
   const memberId = useAppStore((s) => s.currentMemberId),
+    accountId = useAppStore((s) => s.authUser?.id ?? ''),
     token = useAppStore((s) => s.authToken ?? '')
   const { eventId } = useParams()
+  // Renewed credentials must not discard an editor; identity changes still reset it.
   return (
     <VisitSheetReader
-      key={`${memberId}:${token}:${eventId ?? ''}`}
+      key={`${accountId}:${memberId}:${eventId ?? ''}`}
       memberId={memberId}
       token={token}
       eventId={eventId}

@@ -52,6 +52,10 @@ try {
   await card.getByRole('button', { name: '编辑情况描述' }).click()
   const editor = page.getByRole('dialog', { name: '编辑情况描述' })
   await editor.getByRole('textbox').fill('合成验收：局部修改已保存。')
+  const resumed = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/session')
+  await page.evaluate(() => window.dispatchEvent(new Event('pageshow')))
+  await resumed
+  await expect(editor.getByRole('textbox')).toHaveValue('合成验收：局部修改已保存。')
   await editor.getByRole('button', { name: '保存', exact: true }).click()
   await expect(editor).toHaveCount(0)
   await page.reload()
@@ -71,7 +75,7 @@ try {
     await card.screenshot({ path: `${output}/current-${width}.png` })
   }
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ target, status: 'PASS', realSaveReload: true, attachmentOrderAndOpen: true, widths: [375, 390, 430], modelCalls: 0 }))
+  console.log(JSON.stringify({ target, status: 'PASS', realSaveReload: true, sessionRecoveryDraft: true, attachmentOrderAndOpen: true, widths: [375, 390, 430], modelCalls: 0 }))
 } catch (error) {
   await page.screenshot({ path: `${output}/failure.png` }).catch(() => {})
   throw error
