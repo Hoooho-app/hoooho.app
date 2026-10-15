@@ -41,8 +41,9 @@ export class CaseContinuityService {
     const events = (await this.events.repository.findByAccountId(accountId)).filter(e => e.memberId === memberId)
     const records = await this.records.repository.findByAccountId(accountId)
     const cases = events.flatMap(event => {
-      const own = records.filter(r => r.eventId === event.id)
-      if (event.caseTracking === false) return []
+      const sourceEventIds = events.filter(e => e.id === event.id || e.caseMergedInto === event.id).map(e => e.id)
+      const own = records.filter(r => sourceEventIds.includes(r.eventId))
+      if (event.caseTracking === false || event.caseMergedInto) return []
       if (!event.caseTracking && event.category === 'other' && !own.some(r => r.type === 'symptom')) return []
       const latest = ordered(own)[0]
       const observations = (event.observationTasks ?? []).map(task => {
@@ -51,9 +52,35 @@ export class CaseContinuityService {
         const feedback = own.filter(r => r.caseContext?.taskId === task.id && dayAt(new Date(r.occurredAt), task.timezone) === taskToday)
         return { ...task, state, todayRecorded: feedback.length, todayNotObserved: feedback.filter(r => r.caseContext.result === 'not_observed').length, todayTarget: state === 'active' && !event.caseArchivedAt ? task.timesPerDay : 0 }
       })
-      return [{ event, followup: caseFollowupView(event, own), latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, event.updatedAt) }]
+      return [{ event, sourceEventIds, followup: caseFollowupView(event, own), latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, event.updatedAt) }]
     }).sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id))
     return { active: cases.filter(c => !c.event.caseArchivedAt), archived: cases.filter(c => c.event.caseArchivedAt), timezone, today }
+  }
+  async groupedRecords(accountId, memberId, eventId) {
+    await this.owned(accountId, memberId, eventId)
+    const events = await this.events.repository.findByAccountId(accountId)
+    const ids = new Set(events.filter(e => e.memberId === memberId && (e.id === eventId || e.caseMergedInto === eventId)).map(e => e.id))
+    return ordered((await this.records.repository.findByAccountId(accountId)).filter(r => ids.has(r.eventId)))
+  }
+  async merge(accountId, memberId, eventId, input) {
+    if (!['merge', 'separate'].includes(input.action)) throw fail('请选择合并或分开保留')
+    if (!input.sourceEventId || input.sourceEventId === eventId) throw fail('请选择两项不同的情况')
+    const title = input.action === 'merge' ? clean(input.title ?? '', 24) : ''
+    if (input.action === 'merge' && !title) throw fail('请填写合并后的名称')
+    return accountTransaction(this.directory, async () => {
+      const target = await this.owned(accountId, memberId, eventId)
+      const source = await this.owned(accountId, memberId, input.sourceEventId)
+      if (source.caseMergedInto === target.id && input.action === 'merge') return target
+      if (target.caseArchivedAt || source.caseArchivedAt || target.caseMergedInto || source.caseMergedInto) throw fail('情况状态已变化，请刷新后再操作', 409)
+      if (input.expectedTargetAt !== target.updatedAt || input.expectedSourceAt !== source.updatedAt) throw fail('记录已有更新，请刷新后再操作', 409)
+      if (input.action === 'separate') {
+        return this.events.repository.update(target.id, { caseSeparateIds: [...new Set([...(target.caseSeparateIds ?? []), source.id])] }, this.now())
+      }
+      const all = await this.events.repository.findByAccountId(accountId)
+      const group = all.filter(e => e.memberId === memberId && (e.id === source.id || e.caseMergedInto === source.id))
+      for (const event of group) await this.events.repository.update(event.id, { caseMergedInto: target.id }, this.now())
+      return this.events.repository.update(target.id, { caseTracking: true, caseTitle: title, observationTasks: [...new Map([...(target.observationTasks??[]),...group.flatMap(e=>e.observationTasks??[])].map(t=>[t.id,t])).values()], caseMergeHistory: [...(target.caseMergeHistory ?? []), {sourceEventIds: group.map(e => e.id), at: this.now().toISOString()}] }, this.now())
+    })
   }
   async capture(accountId, memberId, input) {
     await this.events.assertMemberOwnership(accountId, memberId)
@@ -86,6 +113,7 @@ export class CaseContinuityService {
         return { eventId: event.id, recordId: previous.id, attachmentIds: previous.caseContext.attachmentIds ?? [], duplicate: true }
       }
       let event = input.eventId ? await this.owned(accountId, memberId, input.eventId) : null
+      if(event?.caseMergedInto&&(await this.owned(accountId,memberId,event.caseMergedInto)).caseArchivedAt) throw fail('这次情况已归档，请恢复跟进后再记录',409)
       if (event?.caseArchivedAt) throw fail('这次情况已归档，请恢复跟进或选择新的一次情况', 409)
       const task = input.taskId && event?.observationTasks?.find(t => t.id === input.taskId)
       if (input.taskId && (!task || task.status !== 'active' || dayAt(this.now(), task.timezone) > task.endsOn || dayAt(this.now(), task.timezone) < task.startsOn)) throw fail('本项观察尚未开始、已到期或已停止，请查看安排', 409)

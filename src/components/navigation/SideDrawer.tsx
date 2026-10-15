@@ -1,3 +1,4 @@
+import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -66,6 +67,7 @@ const recorderRelationshipLabel = {
 } as const
 
 export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps) {
+  const updates=useRecordUpdates()
   const drawerRef = useRef<HTMLElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -170,7 +172,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
                       return (
                         <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
                           <Icon size={20} strokeWidth={1.7} />
-                          <span className="flex-1">{label}</span>
+                          <span className="flex-1">{label}<UpdateDot show={updates.some(i=>to==='/health-events'?i.destination==='calendar':to==='/health-profile'?i.destination==='profile':false)}/></span>
                           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
                         </button>
                       )

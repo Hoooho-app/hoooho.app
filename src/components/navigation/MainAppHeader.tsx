@@ -1,3 +1,4 @@
+import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { Menu } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
@@ -9,6 +10,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { useInstallApp } from '../../features/install-app'
 
 export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, showInstallApp = true }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; showInstallApp?: boolean }) {
+  const updates=useRecordUpdates()
   const location = useLocation()
   const navigate = useNavigate()
   const accountNotice = (location.state as { accountNotice?: string } | null)?.accountNotice ?? ''
@@ -65,7 +67,7 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
     <>
       <header className={`hoho-page-header hoho-main-header relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
         <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
-          <Menu size={24} strokeWidth={1.8} />
+          <Menu size={24} strokeWidth={1.8} /><span className="absolute right-1 top-1"><UpdateDot show={updates.some(i=>i.destination!=='symptom')}/></span>
         </button>
         <h1 className="hoho-text-section-title w-full truncate text-center">{title}</h1>
         {(action || (showInstallApp && installApp.visible)) && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">

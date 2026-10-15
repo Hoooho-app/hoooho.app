@@ -40,7 +40,7 @@ test('saving while ASR is pending keeps original recording bytes for retry on re
  await page.getByRole('button',{name:'改用语音'}).click()
  const hold=page.getByRole('button',{name:'按住说话',exact:true})
  await hold.focus();await page.keyboard.down('Space')
- await expect(page.getByRole('button',{name:'正在录音，松手发送'})).toBeVisible()
+ await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
  await page.waitForTimeout(900);await page.keyboard.up('Space')
  await expect(page.getByText('这段录音还在，要我再听一次吗？',{exact:true})).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click()

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Stethoscope, X } from 'lucide-react'
 import { useBlocker, useNavigate } from 'react-router-dom'
-import { savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
+import { savedRecordUrl, savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
@@ -19,6 +19,7 @@ import {apiRequest} from '../../services/apiClient'
 import { WebPageHeader } from '../../components/common'
 import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import './caseCapture.css'
+import {CaseMergePrompt} from '../case-continuity/CaseMergePrompt'
 
 export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,page=false,initialText=''}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;page?:boolean;initialText?:string}) {
   const viewport=useVisibleViewport()
@@ -203,6 +204,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     setError('')
     try{
       await persist({...current.current,returningFromRecord:true,returnScrollTop:scrollBody.current?.scrollTop??0})
+      if(guide.sectionId&&guide.entryId){navigate(savedRecordUrl(guide));return}
       const records=await request<{id:string;occurredAt:string;journal?:Parameters<typeof journalOccurrenceAt>[0] & {timePrecision?:string}}[]>(`/api/events/${encodeURIComponent(guide.eventId)}/records`,'GET')
       const record=records.find(item=>item.id===guide.recordId)
       if(!record)throw new Error('记录暂不可访问')
@@ -280,6 +282,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
 
 
     </div>}
+    {completed&&<CaseMergePrompt key={`${accountId}:${memberId}`} focusIds={local.savedGuides?.filter(g=>completedGuideIds.current.has(g.id)).map(g=>g.eventId)}/>}
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
   </>

@@ -128,7 +128,7 @@ export class AIBusinessService {
     const targetEventId = Object.hasOwn(input,'eventId') ? input.eventId || null : previous?.targetEventId ?? null
     const sourceIdentity = input.sourceIdentity ?? previous?.sourceIdentity ?? null
     const sourceRecordId = input.sourceRecordId ?? previous?.sourceRecordId ?? null
-    if (targetEventId) { const target = await this.events.get(accountId, targetEventId); if (target.memberId !== memberId || target.caseArchivedAt) throw fail('资料必须接回当前人物未归档的情况', 409) }
+    if (targetEventId) { const target = await this.events.get(accountId, targetEventId); if (target.memberId !== memberId || target.caseArchivedAt || target.caseMergedInto && (await this.events.get(accountId,target.caseMergedInto)).caseArchivedAt) throw fail('资料必须接回当前人物未归档的情况', 409) }
     if (sourceRecordId) { const source = await this.records.getOwnedRecord(accountId, sourceRecordId); if (!targetEventId || source.eventId !== targetEventId || !source.caseContext) throw fail('原始资料不属于这次情况', 404) }
     if (sourceIdentity && !['parent','medical_consultation','examination_report','external_ai','pending'].includes(sourceIdentity)) throw fail('资料来源无效')
     const profileBatch=input.profileBatch===true||previous?.profileBatch===true
@@ -316,7 +316,7 @@ export class AIBusinessService {
       const ownedEvents=await this.events.repository.findByAccountId(accountId),eventIds=new Set(ownedEvents.filter(e=>e.memberId===memberId).map(e=>e.id))
       const existing=(await this.records.repository.findByAccountId(accountId)).filter(r=>eventIds.has(r.eventId) && (!d.targetEventId || r.eventId === d.targetEventId))
       let targetEvent = d.targetEventId ? await this.events.get(accountId, d.targetEventId) : null
-      if (targetEvent && (targetEvent.memberId !== memberId || targetEvent.caseArchivedAt)) throw fail('这次情况已归档或归属已变更，本次未保存', 409)
+      if (targetEvent && (targetEvent.memberId !== memberId || targetEvent.caseArchivedAt || targetEvent.caseMergedInto && (await this.events.get(accountId,targetEvent.caseMergedInto)).caseArchivedAt)) throw fail('这次情况已归档或归属已变更，本次未保存', 409)
       const sourceRecord = d.sourceRecordId ? await this.records.getOwnedRecord(accountId, d.sourceRecordId) : null
       await this.reviewProfileAssociations(d)
       if (sourceRecord && (!targetEvent || sourceRecord.eventId !== targetEvent.id || !sourceRecord.caseContext)) throw fail('原件关联已变化，请重新核对', 409)

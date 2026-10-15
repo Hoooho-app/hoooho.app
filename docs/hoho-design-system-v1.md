@@ -106,3 +106,7 @@ Development fixtures, test pages and internal tools are outside the migration sc
 ## 8. Frozen boundaries
 
 V1 does not authorize changes to data models, APIs, permissions, AI/parser behavior, HealthFact, time resolution, event matching, event creation rules or established interaction flows. Local visual changes must remain inside the explicitly requested surface.
+
+### Record update indicators
+
+`UpdateDot` is a 5px semantic indicator reused across the homepage, navigation drawer and profile sections. It points to saved record destinations; opening navigation does not clear updates. Reading a concrete record clears its matching update while other destinations remain unread.

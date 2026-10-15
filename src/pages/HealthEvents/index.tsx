@@ -1,3 +1,4 @@
+import {UpdatedRecordLinks} from '../../features/record-updates/RecordUpdates'
 import { Search, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
@@ -181,6 +182,7 @@ function HealthEventsContent() {
     <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
+      <UpdatedRecordLinks destination="calendar"/>
       {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
       {calendar.view === 'day' && (reminderDays.get(day)?.length ?? 0) > 0 && <CalendarReminderRows reminders={reminderDays.get(day)!} onOpen={reminder => navigate(reminder.href)}/>}
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>

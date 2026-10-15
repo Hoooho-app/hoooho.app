@@ -1,7 +1,7 @@
+import {useReadRecordUpdates} from '../record-updates/RecordUpdates'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate,useSearchParams } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
-import { healthEventRecordService } from '../../services/healthEventRecords'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventRecordApiDto } from '../../types'
 import { RecordOriginals } from '../ai-business/RecordOriginals'
@@ -10,26 +10,29 @@ import type { FollowedCase } from './types'
 import { caseService } from './api'
 
 const timeKnown = (r: HealthEventRecordApiDto) => !r.caseContext?.timeUnknown && r.journal?.timePrecision !== 'unknown' && Number.isFinite(Date.parse(r.occurredAt))
-export const chronologicalRecords = (records: HealthEventRecordApiDto[]) => [...records].sort((a,b) => Number(timeKnown(b)) - Number(timeKnown(a)) || (timeKnown(a) && timeKnown(b) ? a.occurredAt.localeCompare(b.occurredAt) : 0) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+export const chronologicalRecords = (records: HealthEventRecordApiDto[]) => [...records].sort((a,b) => Number(timeKnown(b)) - Number(timeKnown(a)) || (timeKnown(a) && timeKnown(b) ? b.occurredAt.localeCompare(a.occurredAt) : 0) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
 const dateText = (value: string | null | undefined, timezone: string) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('zh-CN', {timeZone:timezone,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,year:'numeric'}).format(new Date(value)) : '未提供'
 
 export function CaseFollowupCard({item, memberId, token, timezone, reload, onDirty, onStatus}: {item:FollowedCase;memberId:string;token:string;timezone:string;reload:()=>void;onDirty:(id:string,dirty:boolean)=>void;onStatus:(archived:boolean)=>void}) {
-  const navigate = useNavigate()
-  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'materials'|null>(null)
-  const [materialRecordId,setMaterialRecordId]=useState<string|null>(null)
+  const navigate = useNavigate(),[query]=useSearchParams()
+  const [expanded,setExpanded] = useState(()=>new URLSearchParams(window.location.search).get('eventId')===item.event.id), [form,setForm] = useState<'materials'|null>(null)
+  const [materialRecordId,setMaterialRecordId]=useState<string|null>(null),[materialEventId,setMaterialEventId]=useState(item.event.id)
   const [records,setRecords] = useState<HealthEventRecordApiDto[]|null>(null), [error,setError] = useState(''), [version,setVersion] = useState(0)
+  const [recordsLoadedAt,setRecordsLoadedAt]=useState(0)
   const [busy,setBusy] = useState(false), [failure,setFailure] = useState(''), [notice,setNotice] = useState('')
   const pending = useRef(false), dirty = useRef(false), materialDirty = useRef(false)
   const statusRequest = useRef<{archivedAt:string|null;id:string}|null>(null)
   const id = item.event.id, archived = Boolean(item.event.caseArchivedAt), knownRecovery = item.event.caseArchiveReason === 'user_recovered' || item.event.status==='recovered'&&Boolean(item.event.recoveredAt)
+  useEffect(()=>{const focus=query.get('eventId');if(focus&&(item.sourceEventIds??[item.event.id]).includes(focus))setExpanded(true)},[query,item.event.id])
   const setMaterialDirty = useCallback((value:boolean) => { materialDirty.current=value;dirty.current=value;onDirty(id,dirty.current) },[id,onDirty])
   useEffect(() => () => onDirty(id,false),[id,onDirty])
   useEffect(() => {
     if (!expanded) return
     const c=new AbortController();setError('')
-    void healthEventRecordService.list(id,token,c.signal).then(data=>{if(!c.signal.aborted)setRecords(chronologicalRecords(data))}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'过程记录未能加载')})
+    void caseService.records(memberId,token,id,c.signal).then(data=>{if(!c.signal.aborted){setRecords(chronologicalRecords(data));setRecordsLoadedAt(Date.now())}}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'过程记录未能加载')})
     return()=>c.abort()
   },[id,token,memberId,expanded,version,item.changedAt])
+  useReadRecordUpdates(expanded&&!error?records?.map(r=>r.id)??[]:[],expanded&&!error&&records?(item.sourceEventIds??[id]):[],undefined,recordsLoadedAt)
   const saved = () => { setExpanded(true);setVersion(v=>v+1);setNotice('已保存到这次情况');reload() }
   const supplement = () => { if (dirty.current && !window.confirm('当前内容尚未保存，离开后保留设备草稿，确定继续吗？')) return;navigate(`/smart-record?source=case-followup&eventId=${encodeURIComponent(id)}`, {state:{caseReturn:true,eventTitle:item.followup.title,memberId,accountId:useAppStore.getState().authUser?.id??''}}) }
   async function changeStatus() {
@@ -59,12 +62,12 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
         {(record.sourceText||record.caseContext?.originalText)&& (record.sourceText||record.caseContext?.originalText)!==record.content && <details><summary>查看完整原文</summary><p className="continuity-source">{record.caseContext?.originalText||record.sourceText}</p></details>}
         {record.caseContext?.supplement&&<p className="continuity-source">{record.caseContext.supplement}</p>}
         {record.journal?.symptom?.shortNote&&!record.content.includes(record.journal.symptom.shortNote)&&<p className="continuity-source">{record.journal.symptom.shortNote}</p>}
-        <RecordOriginals eventId={id} recordId={record.id} attachmentIds={record.caseContext?.attachmentIds??record.aiProvenance?.attachmentIds??[]}/>
-        {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setForm('materials')}}}>核对这份资料</HohoButton>}
+        <RecordOriginals eventId={record.eventId} recordId={record.id} attachmentIds={record.caseContext?.attachmentIds??record.aiProvenance?.attachmentIds??[]}/>
+        {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setMaterialEventId(record.eventId);setForm('materials')}}}>核对这份资料</HohoButton>}
       </li>)}</ol>}
     </div>}
     {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={supplement}>补充情况</HohoButton></div>
-      {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={id} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
+      {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={materialEventId} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>
 }

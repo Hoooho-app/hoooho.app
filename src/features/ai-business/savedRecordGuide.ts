@@ -13,7 +13,7 @@ export function savedRecordGuides(draft:SmartRecordDraft, memberId:string):Saved
 }
 export function savedRecordUrl(guide:SavedRecordGuide) {
   const query=new URLSearchParams({memberId:guide.memberId})
-  if(guide.sectionId&&guide.entryId){query.set('entryId',guide.entryId);return `/health-profile/${encodeURIComponent(guide.sectionId)}${guide.sectionId==='allergy'?`/${encodeURIComponent(guide.entryId)}`:''}?${query}`}
+  if(guide.sectionId&&guide.entryId){query.set('entryId',guide.entryId);return `/health-profile/${encodeURIComponent(guide.sectionId)}?${query}`}
   query.set('eventId',guide.eventId);query.set('recordId',guide.recordId)
   return `/health-events?${query}`
 }
