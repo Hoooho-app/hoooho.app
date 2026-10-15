@@ -1,20 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Camera, Image, Keyboard, Mic, Send } from 'lucide-react'
 import { HohoButton } from './HohoButton'
+import { HoldToTalkButton } from './HoldToTalkButton'
 import './DialogueComposer.css'
 
 export type DialoguePhotoSource = 'camera' | 'album'
 /** A 44px row; choice and recording feedback float above it. */
-export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松手发送', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
+export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松开即结束', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, requesting = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
   text: string; onTextChange: (value: string) => void; onSend: () => void
   onStart: () => void; onStop: () => void; onDiscard?: () => void; onPhoto: (source: DialoguePhotoSource) => void
-  audioLevel?: number; disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; processing?: boolean
+  audioLevel?: number; disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; requesting?: boolean; processing?: boolean
   maxLength?: number; placeholder?: string; initialTyping?: boolean; directPhoto?: boolean; allowTextWhileProcessing?:boolean; inputOnly?:boolean; releaseLabel?:string; discardOnBlur?:boolean
 }) {
   const [typing, setTyping] = useState(initialTyping), [photoOpen, setPhotoOpen] = useState(false)
-  const [press, setPress] = useState<{x:number;y:number}>()
-  const input = useRef<HTMLTextAreaElement>(null), root = useRef<HTMLDivElement>(null), holding = useRef(false)
+  const input = useRef<HTMLTextAreaElement>(null), root = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const composing=useRef(false),textBlocked=disabled||(processing&&!allowTextWhileProcessing)
   useEffect(() => {
@@ -23,25 +22,17 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
   }, [photoOpen])
-  const start = (x:number,y:number) => { if (holding.current) return; holding.current=true;setPhotoOpen(false);setPress({x:Math.max(100,Math.min(innerWidth-100,x)),y});onStart() }
-  const finish = (discard=false) => { if (!holding.current) return;holding.current=false;setPress(undefined);(discard ? onDiscard??onStop : onStop)() }
   return <div ref={root} className={`hoho-dialogue-composer${inputOnly ? ' hoho-dialogue-composer--input-only' : ''}`}>
     {!inputOnly && <HohoButton variant="ghost" size="icon" className="hoho-dialogue-mode" disabled={textBlocked || listening} onClick={() => {setPhotoOpen(false);setTyping(!typing);if (!typing) requestAnimationFrame(() => input.current?.focus())}} aria-label={typing ? '改用语音' : '改用文字'}>
       {typing ? <Mic size={20} aria-hidden/> : <Keyboard size={20} aria-hidden/>}
     </HohoButton>}
     {typing ? <div className="hoho-dialogue-text"><textarea ref={input} aria-label="对话输入" rows={1} maxLength={maxLength} value={text} placeholder={placeholder} disabled={textBlocked} onChange={e => onTextChange(e.target.value)} onCompositionStart={()=>{composing.current=true}} onCompositionEnd={()=>{composing.current=false}} onKeyDown={e => {if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !composing.current && e.keyCode!==229 && text.trim()) {e.preventDefault();onSend()}}}/><HohoButton variant="text" size="icon" aria-label="发送" disabled={textBlocked || !text.trim()} onClick={onSend}><Send size={18} aria-hidden/></HohoButton></div> :
-      <HohoButton variant="secondary" className={`hoho-dialogue-hold${listening?' is-listening':''}`} aria-label={listening ? `正在录音，${releaseLabel}` : '按住说话'} disabled={disabled || voiceDisabled || processing} onPointerDown={e => {if (e.button !== 0) return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);start(e.clientX,e.clientY)}} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish()} onContextMenu={e => e.preventDefault()} onKeyDown={e => {if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {e.preventDefault();const r=e.currentTarget.getBoundingClientRect();start(r.left+r.width/2,r.top)}if (e.key === 'Escape') {e.stopPropagation();finish(true)}}} onKeyUp={e => {if (e.key === ' ' || e.key === 'Enter') {e.preventDefault();finish()}}} onBlur={() => finish(discardOnBlur)}>
-        <Mic size={18} aria-hidden/>{listening ? '正在听…' : processing ? '识别中…' : '按住说话'}
-      </HohoButton>}
+      <HoldToTalkButton className="hoho-dialogue-hold" disabled={disabled || voiceDisabled} listening={listening} requesting={requesting} processing={processing} audioLevel={audioLevel} releaseLabel={releaseLabel} discardOnBlur={discardOnBlur} onStart={() => {setPhotoOpen(false);onStart()}} onStop={onStop} onDiscard={onDiscard}/> }
     <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="拍照" aria-haspopup={directPhoto?undefined:'menu'} aria-expanded={directPhoto?undefined:photoOpen} aria-controls={photoOpen?menuId:undefined} disabled={disabled || listening || processing} onClick={() => directPhoto?onPhoto('album'):setPhotoOpen(!photoOpen)}><Camera size={21} aria-hidden/></HohoButton>
     {photoOpen&&<div id={menuId} role="menu" aria-label="添加图片" className="hoho-dialogue-photo-menu" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setPhotoOpen(false);root.current?.querySelector<HTMLButtonElement>('.hoho-dialogue-photo')?.focus()}}}>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('camera')}}><Camera size={20} aria-hidden/>拍照</HohoButton>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('album')}}><Image size={20} aria-hidden/>从相册选择</HohoButton>
     </div>}
-    {press&&createPortal(<div role="status" className="hoho-dialogue-recording" style={{left:press.x,top:Math.max(110,press.y-24), "--voice-level": Math.min(1, Math.max(0, audioLevel))} as React.CSSProperties}>
-      <svg viewBox="0 0 180 36" aria-hidden="true"><path d="M8 31 Q90 -20 172 31"/><path d="M22 34 Q90 -4 158 34"/></svg>
-      <div className="hoho-dialogue-recording-wave" aria-hidden="true">{[0,1,2,3,4].map(i=><span key={i} style={{height:`${4 + audioLevel * (12 - Math.abs(i - 2) * 3)}px`}}/>)}</div>
-      <span>{listening?`正在录音 · ${releaseLabel}`:'正在打开麦克风…'}</span>
-    </div>,document.body)}
+
   </div>
 }

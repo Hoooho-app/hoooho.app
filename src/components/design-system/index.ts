@@ -17,3 +17,5 @@ export * from './Skeleton'
 export * from './StatusNotice'
 export * from './Typography'
 export * from './DialogueComposer'
+
+export * from './HoldToTalkButton'

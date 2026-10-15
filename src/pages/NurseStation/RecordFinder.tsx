@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Mic, Search, X } from 'lucide-react'
-import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
+import { Search, X } from 'lucide-react'
+import { BottomSheetSurface, HohoButton, HoldToTalkButton, StatusNotice } from '../../components/design-system'
 import { useJournal } from '../HealthEvents/useJournal'
 import { JournalRecordDetail } from '../HealthEvents/JournalRecordDetail'
 import { JournalSearchResults } from '../HealthEvents/JournalSearchResults'
@@ -100,11 +100,8 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
       </section>}
     </div>
     <footer className="quick-search-footer">
-      <HohoButton fullWidth className="quick-search-hold" type="button" variant="primary" aria-pressed={voice.state === 'listening'} disabled={!ready || !!pendingVoice || voice.busy && voice.state !== 'listening' && voice.state !== 'requesting'}
-        onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); input.current?.blur(); e.currentTarget.setPointerCapture(e.pointerId); void voice.start() }} onPointerUp={voice.stop} onPointerCancel={voice.discard}
-        onKeyDown={e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); void voice.start() } if (e.key === 'Escape') voice.discard() }} onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); voice.stop() } }}>
-        <Mic size={20} aria-hidden="true" />{voice.state === 'listening' ? '正在听…' : voice.state === 'transcribing' ? '识别中…' : voice.state === 'requesting' ? '开启中…' : '按住说话'}
-      </HohoButton>
+      <HoldToTalkButton fullWidth className="quick-search-hold" disabled={!ready || !!pendingVoice} listening={voice.state === 'listening'} requesting={voice.state === 'requesting'} processing={voice.state === 'transcribing'} audioLevel={voice.audioLevel} onStart={() => { input.current?.blur(); void voice.start() }} onStop={voice.stop} onDiscard={voice.discard}/>
+
     </footer>
     {selected && (selected.id.startsWith('event:') ? <BottomSheetSurface open title="记录详情" label="记录详情" onClose={() => setSelected(null)}><p>{selected.content}</p><p className="hoho-text-caption">来源：已有事项标题，尚无单独的随记或原话。</p></BottomSheetSurface> : <JournalRecordDetail eventId={selected.eventId} recordId={selected.id} onChanged={retry} onClose={() => setSelected(null)} />)}
   </main>

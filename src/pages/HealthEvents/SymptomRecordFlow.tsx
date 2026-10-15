@@ -210,7 +210,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
     </div>
     <div className="symptom-record-save" hidden={nurseOpen||!!conflict}>
       <section aria-label="记录输入方式" className="symptom-record-toolbar symptom-record-toolbar--compact">
-        <DialogueComposer inputOnly directPhoto releaseLabel="松手结束" text="" onTextChange={() => undefined} onSend={() => undefined} onPhoto={() => photoInputRef.current?.click()} onStart={() => void voice.start()} onStop={voice.stop} onDiscard={voice.discardSegment} audioLevel={voice.audioLevel} listening={voice.state === 'listening'} processing={voice.state === 'stopping'} disabled={saving}/>
+        <DialogueComposer inputOnly directPhoto releaseLabel="松手结束" text="" onTextChange={() => undefined} onSend={() => undefined} onPhoto={() => photoInputRef.current?.click()} onStart={() => void voice.start()} onStop={voice.stop} onDiscard={voice.discardSegment} audioLevel={voice.audioLevel} requesting={voice.state === 'requesting'} listening={voice.state === 'listening'} processing={voice.state === 'stopping'} disabled={saving}/>
       </section>
       {voice.error && <p role="alert" className="symptom-save-error">{voice.error}</p>}
       {embedded && <div className="symptom-save-buttons"><HohoButton variant="secondary" disabled={saving || voice.busy} onClick={() => leave(onBack)}>取消</HohoButton><HohoButton disabled={saving || voice.busy} loading={saving} onClick={() => void save()}>{saveFailed ? '重试保存' : saveLabel || '保存'}</HohoButton></div>}
