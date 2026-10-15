@@ -30,7 +30,7 @@ test('结构、否定高亮、原话、附件空态与大字长文没有溢出',
   expect(await edit.locator('span').evaluate(e=>e.getBoundingClientRect().height)).toBeLessThanOrEqual(28)
   await card.getByText('查看原话',{exact:true}).click();await expect(card.getByText(raw,{exact:true})).toBeVisible();await expect(card.locator('.visit-situation-original img')).toHaveCount(0)
   await card.getByText('收起原话',{exact:true}).click();await expect(card.getByText(raw,{exact:true})).toBeHidden()
-  await card.getByRole('button',{name:'添加附件',exact:true}).click()
+  await card.getByRole('button',{name:'继续添加',exact:true}).click()
   await expect(page.getByRole('dialog',{name:'添加 / 管理附件'})).toBeVisible()
   await page.getByRole('dialog',{name:'添加 / 管理附件'}).getByRole('button',{name:'关闭添加 / 管理附件'}).click()
   await page.screenshot({path:info.outputPath('attachments-actual.png')})

@@ -10,7 +10,25 @@ test.beforeEach(async({page})=>{
  const state=await(await page.request.get(endpoint,{headers})).json();expect((await page.request.put(endpoint,{headers,data:{expectedVersion:state.report?.version??state.expectedVersion??0,requestId:crypto.randomUUID(),focus:{mode:'source',sourceId:`record:${focusId}`},selectedPhotoIds:[]}})).ok()).toBeTruthy()
  await page.addInitScript(token=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:sessionStorage.getItem('v2-member')??'child-a',members:[],profile:null},version:5}))},token)
 })
-test('旧原话经过真实摘要API与保存链路成为三块，六个界面按稿验收',async({page},info)=>{
+test('附件紧接饮食，保留后续变化与处理，继续添加可打开管理',async({page})=>{
+ await page.route('**/api/members/child-a/visit-sheet',async route=>{
+  const response=await route.fetch(),body=await response.json()
+  if(body.report?.currentSituation){
+   body.report.currentSituation.changes=[{text:'观察到后续变化',sourceIds:[]}]
+   body.report.currentSituation.treatment=[{text:'已记录处理经过',sourceIds:[]}]
+  }
+  await route.fulfill({response,json:body})
+ })
+ await page.goto('/visit-summary');const card=page.locator('#chapter-overview')
+ await expect(card.getByRole('region',{name:'近期饮食'})).toBeVisible()
+ await expect(card.locator('.visit-situation-block h3')).toHaveText(['情况描述本次重点','症状表现','近期饮食','附件','发生与变化','已做处理'])
+ await expect(card.getByText('观察到后续变化',{exact:true})).toBeVisible()
+ await expect(card.getByText('已记录处理经过',{exact:true})).toBeVisible()
+ await card.getByRole('button',{name:'继续添加',exact:true}).click()
+ await expect(page.getByRole('dialog',{name:'添加 / 管理附件'})).toBeVisible()
+})
+
+test('旧原话经过真实摘要API与保存链路成为三块，六个界面按稿验收' ,async({page},info)=>{
  await page.route('**/visit-sheet/temperature',r=>r.fulfill({json:{points:[]}}))
  const before=(await(await page.request.get('http://127.0.0.1:4198/success')).json()).calls
  await page.goto('/visit-summary');const card=page.locator('#chapter-overview')
@@ -28,7 +46,7 @@ test('旧原话经过真实摘要API与保存链路成为三块，六个界面�
  await page.setViewportSize({width,height:844});await card.getByRole('button',{name:'编辑情况描述'}).click();const d=page.getByRole('dialog',{name:'编辑情况描述'});await expect(d.getByRole('textbox')).toHaveCount(1);await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('edit-description.png')});console.log(await d.evaluate(e=>{const rect=(el:Element)=>{const b=el.getBoundingClientRect(),s=getComputedStyle(el);return {x:b.x,y:b.y,w:b.width,h:b.height,font:s.fontSize,line:s.lineHeight,mt:s.marginTop,mb:s.marginBottom}};return JSON.stringify({sheet:rect(e),header:rect(e.querySelector('header')!),label:rect(e.querySelector('label')!),textarea:rect(e.querySelector('textarea')!),footer:rect(e.querySelector('footer')!)})}));await d.getByRole('button',{name:'取消',exact:true}).click();await expect(d).toHaveCount(0)
  await expect(card.getByRole('button',{name:'编辑情况描述'})).toBeFocused()
  await card.getByRole('button',{name:'更改主诉',exact:true}).click();const choice=page.getByRole('dialog',{name:'更改主诉'});await expect(choice.getByRole('radio',{checked:true})).toHaveCount(1);await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('switch-complaint.png')});await choice.getByRole('button',{name:'取消',exact:true}).click()
- await card.getByRole('button',{name:'添加附件',exact:true}).click();await expect(page.getByRole('dialog',{name:'添加 / 管理附件'})).toBeVisible();await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('attachments-empty.png')});await page.getByRole('dialog',{name:'添加 / 管理附件'}).getByRole('button',{name:'关闭添加 / 管理附件'}).click()
+ await card.getByRole('button',{name:'继续添加',exact:true}).click();await expect(page.getByRole('dialog',{name:'添加 / 管理附件'})).toBeVisible();await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('attachments-empty.png')});await page.getByRole('dialog',{name:'添加 / 管理附件'}).getByRole('button',{name:'关闭添加 / 管理附件'}).click()
  const points=[{sourceId:'record:t1',at:'2026-10-12T00:00:00Z',value:36.5},{sourceId:'record:t2',at:'2026-10-12T06:00:00Z',value:36.8},{sourceId:'record:t3',at:'2026-10-12T12:00:00Z',value:36.6}]
  await page.route('**/visit-sheet/temperature',r=>r.fulfill({json:{points}}));await page.reload();const trigger=card.getByRole('button',{name:'体温曲线',exact:true});await trigger.click();const chart=page.getByRole('dialog',{name:'体温曲线',exact:true});await expect(chart.locator('polyline')).toHaveCount(1);await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('temperature-sheet.png')});expect(await chart.evaluate(e=>Math.abs(e.getBoundingClientRect().bottom-innerHeight))).toBeLessThanOrEqual(1);await chart.getByRole('button',{name:/36.8 °C/}).click();await expect(chart.getByRole('status')).toContainText('36.8');await page.keyboard.press('Escape');await expect(chart).toHaveCount(0);await expect(trigger).toBeFocused()
 })
@@ -43,11 +61,11 @@ test('局部行编辑、取消、失败重试、手动版本和原话隔离',asy
 
 test('附件真实上传、长名称、管理预览与确认移除不删原件',async({page},info)=>{
  await page.route('**/visit-sheet/temperature',r=>r.fulfill({json:{points:[]}}));await page.goto('/visit-summary');const card=page.locator('#chapter-overview');await expect(card.getByRole('button',{name:'编辑症状表现'})).toBeVisible()
- await card.getByRole('button',{name:'添加附件',exact:true}).click();const manager=page.getByRole('dialog',{name:'添加 / 管理附件'});const image=await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers});expect(image.ok()).toBeTruthy();const filename='隔离测试很长的皮肤观察附件名称'.repeat(5)+'-'+info.project.name+'.png';await manager.locator('input[type=file]').setInputFiles({name:filename,mimeType:'image/png',buffer:await image.body()});await expect(manager.getByText(/上传完成，待保存/)).toBeVisible();await manager.getByRole('button',{name:'保存附件选择'}).click();await expect(manager).toHaveCount(0);await expect(card.getByRole('button',{name:'编辑附件'})).toBeVisible();await expect(card.locator('.visit-situation-file')).toHaveCount(1)
+ await card.getByRole('button',{name:'继续添加',exact:true}).click();const manager=page.getByRole('dialog',{name:'添加 / 管理附件'});const image=await page.request.get('/api/events/event-a/attachments/v5-image-0/content',{headers});expect(image.ok()).toBeTruthy();const filename='隔离测试很长的皮肤观察附件名称'.repeat(5)+'-'+info.project.name+'.png';await manager.locator('input[type=file]').setInputFiles({name:filename,mimeType:'image/png',buffer:await image.body()});await expect(manager.getByText(/上传完成，待保存/)).toBeVisible();await manager.getByRole('button',{name:'保存附件选择'}).click();await expect(manager).toHaveCount(0);await expect(card.getByRole('button',{name:'编辑附件'})).toBeVisible();await expect(card.locator('.visit-situation-file')).toHaveCount(1)
  await page.setViewportSize({width:page.viewportSize()!.width,height:1500});await card.screenshot({path:info.outputPath('attachments-nonempty.png')});expect(await card.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBeTruthy();await page.setViewportSize({width:page.viewportSize()!.width,height:844})
  await card.getByRole('button',{name:'编辑附件'}).click();await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:info.outputPath('manage-attachments.png')});await manager.getByRole('button',{name:'选择已有记录'}).click();const preview=manager.getByRole('button',{name:`预览附件：${filename.replace(/\.png$/,'.webp')}`,exact:true});await preview.scrollIntoViewIfNeeded();const managerScroll=await manager.locator('.hoho-bottom-sheet__body').evaluate(e=>e.scrollTop);await preview.click();const original=page.getByRole('dialog',{name:'照片原图'});await expect(original.locator('img')).toBeVisible();await original.getByRole('button',{name:'关闭照片原图'}).click();await expect(manager).toBeVisible();await expect(preview).toBeFocused();await expect.poll(()=>manager.locator('.hoho-bottom-sheet__body').evaluate(e=>e.scrollTop)).toBeCloseTo(managerScroll,0);await manager.getByRole('button',{name:'选择已有记录'}).click()
  await manager.getByRole('button',{name:'移除',exact:true}).click();await expect(manager.getByRole('button',{name:'确认移除'})).toBeVisible();await manager.getByRole('button',{name:'取消移除'}).click();await expect(manager.getByRole('checkbox',{checked:true})).toHaveCount(1);await manager.getByRole('button',{name:'移除',exact:true}).click();await manager.getByRole('button',{name:'确认移除'}).click();await manager.getByRole('button',{name:'保存附件选择'}).click();await expect(manager).toHaveCount(0);await expect(card.locator('.visit-situation-file')).toHaveCount(0);await expect(card.getByRole('button',{name:'编辑附件'})).toHaveCount(0)
- await card.getByRole('button',{name:'添加附件',exact:true}).click();await manager.getByRole('button',{name:'选择已有记录'}).click();await expect(manager.getByRole('checkbox',{name:`选中附件：${filename.replace(/\.png$/,'.webp')}`,exact:true})).toBeVisible();await manager.getByRole('button',{name:'关闭添加 / 管理附件'}).click()
+ await card.getByRole('button',{name:'继续添加',exact:true}).click();await manager.getByRole('button',{name:'选择已有记录'}).click();await expect(manager.getByRole('checkbox',{name:`选中附件：${filename.replace(/\.png$/,'.webp')}`,exact:true})).toBeVisible();await manager.getByRole('button',{name:'关闭添加 / 管理附件'}).click()
 })
 
 test('无饮食、无主诉和较大字体长正文是实际兼容状态',async({page},info)=>{

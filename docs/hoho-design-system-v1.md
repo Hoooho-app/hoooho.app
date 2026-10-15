@@ -6,7 +6,7 @@
 
 Status: **historical baseline, superseded by V2**.
 
-Hoho Design System V1 is the only default visual system for current and future product pages. The production `/health-events` page is the primary real-product reference. V1 standardizes visual language without changing product information architecture, business rules, data contracts or navigation flows.
+Hoho Design System V1 was the default visual system before V2; current work follows `hoooho-design-system-v2.md`. The production `/health-events` page is the primary real-product reference. V1 standardizes visual language without changing product information architecture, business rules, data contracts or navigation flows.
 
 Principles: Calm, Trustworthy, Human, Medical and Private.
 

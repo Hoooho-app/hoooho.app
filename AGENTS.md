@@ -1,4 +1,4 @@
-# Hoho Design System Freeze V1
+# Hoooho execution and design standards
 
 ## Hoho mandatory delivery chain
 
@@ -16,7 +16,7 @@
 - A new Codex Thread must read both `$CODEX_HOME/AGENTS.md` and this repository `AGENTS.md` before work begins.
 - Existing Threads may not reliably hot-load later rule changes. Before resuming an existing development task, compare the Thread start context with the applicable rule file update times; if the Thread predates either file, re-read both rule layers before continuing.
 
-Hoho Design System V1 is the project's formal and frozen visual baseline.
+Hoooho Design System V2 is the project's current visual baseline; V1 is historical only.
 The reference implementation is the production-approved `/health-events` page,
 the `--hoho-*` tokens in `src/styles/tokens.css`, and the components in
 `src/components/design-system/`.
@@ -34,11 +34,11 @@ the `--hoho-*` tokens in `src/styles/tokens.css`, and the components in
 
 Illustration artwork such as virtual-avatar skin, hair and clothing palettes is an asset-level exception; those colors are not UI tokens.
 
-See `docs/hoho-design-system-v1.md` for the component and token contract and `docs/ui-freeze-v1.md` for the review checklist.
+See `docs/hoooho-design-system-v2.md` for the component and token contract and `docs/ui-audit-v2.md` for the review checklist.
 
 ## Impeccable 使用规则
 
-Hoho Design System V1 已冻结。
+Hoooho Design System V2 是当前视觉基线；V1 只保留为历史。
 
 Impeccable 默认只能用于：
 
@@ -54,14 +54,14 @@ Impeccable 默认只能用于：
 
 - redesign 整个页面
 - 创建新的视觉体系
-- 更换 Hoho Design System V1
+- 更换 Hoooho Design System V2
 - 修改主色、Typography Scale、Radius、Shadow 基线
 - 引入新的 UI Framework
 - 改变冻结的信息架构和业务交互
 
 所有 Impeccable 优化必须：
 
-1. 先读取 Hoho Design System V1；
+1. 先读取 Hoooho Design System V2；
 2. 读取目标页面当前实现；
 3. 保留现有产品视觉语言；
 4. 只修改用户明确授权的范围。
@@ -103,3 +103,15 @@ Repository-wide interaction audits must use `.agents/skills/hoooho-interaction-a
 ## Hoooho visual acceptance authority
 
 AI visual scores, blind reviews, and automated gates are supporting evidence only; they do not constitute product-owner acceptance. Without explicit product-owner approval, do not mark a visual exploration as a final success, add it to Approved Screens, or automatically propagate it across the product.
+
+## Shared execution contract (ChatGPT and Codex)
+
+These rules apply to every task, regardless of whether it is executed directly in ChatGPT, in Codex, or through a generated handoff prompt.
+
+- Start from the canonical repository and current `origin/main`; record the base commit, branch and working-tree status. Another workspace is not assumed identical merely because it uses the same repository. Preserve uncommitted work and isolate the task.
+- Before editing, turn the user's confirmed requirements into one acceptance checklist, with the named surface, permitted behavior changes, frozen boundaries and necessary direct dependencies. The executor owns this bookkeeping; do not ask the user to reconfirm information already supplied.
+- Implement the smallest sufficient change. Do not add unrelated refactors, copy changes, dependencies, API/data/AI changes or product capabilities. Discovering a necessary dependency does not authorize unrelated work.
+- Use V2 tokens and existing components. Preserve approved page-specific behavior and current business data. A user's explicit local layout or interaction request authorizes that change only; it does not authorize a global migration.
+- Reuse the same checklist in any Codex handoff. Include the base commit, scope, acceptance checks and the mandatory delivery chain; do not summarize away requirements or invent extra ones.
+- Review the final diff against the scope, run the required build and relevant automated checks, and operate the changed flow in a real browser at mobile widths. Distinguish browser emulation from physical iPhone/Safari verification; report unverified checks explicitly.
+- Follow the delivery chain above. Report implementation, checks, deployment and product-owner acceptance separately. Identical process and observable acceptance criteria are required; do not promise identical code or guaranteed identical model output.
