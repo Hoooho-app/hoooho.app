@@ -1,6 +1,6 @@
 # Overview selection acceptance — 2026-10-16
 
-Base: canonical Hoooho-app/hoooho.app origin/main 449c3e644d59f5ec5de0bbe59a6e5916510b9ea2. Working tree clean; branch codex/approved-overview-ui-20261016.
+Base: canonical Hoooho-app/hoooho.app origin/main 449c3e644d59f5ec5de0bbe59a6e5916510b9ea2. Work started from a clean branch codex/approved-overview-ui-20261016; application changes were merged to main in PR #432 as a2db5b789034330bb3fcf471efa35c8d6d0c7fc4.
 
 Authority is the user's spoken selection of Hoooho_UI_Overview_2026-10-16.pdf, not the detailed Proposal document or audit's 323 recommendations.
 
@@ -11,7 +11,7 @@ Authority is the user's spoken selection of Hoooho_UI_Overview_2026-10-16.pdf, n
 - [x] Board 6: only duplicate-record prompt, clear update/create/cancel; closing preserves unsaved input and attachments.
 - [x] Diff excludes symptom/feeding, visit sheet, day/month calendar, lookup/search, visit/medication forms, dietary card, settings/support and login/account; homepage/nurses/assets frozen. Shared CSS must be scoped.
 - [x] Build, relevant client/server checks, mobile browser normal/failure/retry/close/save behavior, 375/390/430 widths, diff scope check.
-- [ ] Commit/push/main, isolated Staging verification, Production verification. Browser emulation is not physical iPhone acceptance.
+- [x] Commit/push/main, isolated Staging verification, Production verification. Browser emulation is not physical iPhone acceptance.
 
 ## Implementation dependencies and validation
 
@@ -24,3 +24,13 @@ Authority is the user's spoken selection of Hoooho_UI_Overview_2026-10-16.pdf, n
 - tests/overview-approved: 7 mobile browser scenarios PASS. Captures at 320/375/390/430px. Includes all profile CRUD/undo, date sheet detail/focus, duplicate close preservation, sleep confirmation, stool fields/6-photo recovery/upload retry, actual pause/resume, and raw-save lost-acknowledgement retry without model calls.
 - AI browser coverage uses the isolated Bailian fixture, not real provider latency measurement. Browser emulation does not constitute physical iPhone/Safari acceptance or final product-owner visual signoff.
 - No production dependency added; no nurse/media assets, homepage, symptom/feeding form, visit sheet, calendar main views, search, dietary card, settings or authentication page changed.
+
+## Release evidence
+
+- PR: https://github.com/Hoooho-app/hoooho.app/pull/432. The tested application tree is 70a5fc915d9978ea6c100ee21260c6e2910b4b4d; source commit 23a4547d9926b6b7c9ba2532e2df64306ef7f22d and merged main a2db5b789034330bb3fcf471efa35c8d6d0c7fc4 contain this tree.
+- Railway Staging deployment e15821d9-267f-4f69-bd39-1e76825655b7: SUCCESS, merged main a2db5b7. Isolated synthetic member checks passed for profile save/edit and case save/title-edit/delete; the synthetic member was removed. No model calls were made.
+- The configured Staging custom domain returned 502 during acceptance; verification used https://hooohoapp-staging.up.railway.app instead. No domain configuration was changed.
+- Railway Production deployment e9c3ec4c-605c-42a6-a327-a496641688e7: SUCCESS, merged main a2db5b7; service Online, one healthy replica and zero issues. Existing automatic deployment was active for both environments, so their build windows overlapped.
+- Both live environments returned health 200 and served all six selected UI bundle markers. Production browser restored its existing session and rendered /nurse-station normally. Production acceptance was read-only.
+- The pre-existing staged Production patch d84dcfff-1e74-4b0c-998c-4e6224de24db points at the older 449c3e6 source and was not accepted. It is separate from the successful live a2db5b7 deployment.
+- Physical iPhone/Safari behavior and product-owner visual acceptance remain unverified.
