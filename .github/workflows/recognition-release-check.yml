@@ -1,0 +1,26 @@
+name: Recognition release acceptance
+on:
+  push:
+    branches: [codex/recognition-release-check-20261016]
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/dialogue/recognition-release-check.mjs "$RELEASE_REQUEST"
+        env:
+          RELEASE_REQUEST: ${{ github.event.head_commit.message }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recognition-release-acceptance
+          path: outputs/recognition-release/
