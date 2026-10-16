@@ -29,6 +29,7 @@ export class RecognitionJobs {
       CREATE TABLE IF NOT EXISTS events(job_id TEXT NOT NULL,seq INTEGER NOT NULL,document TEXT NOT NULL,PRIMARY KEY(job_id,seq));
       CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY,job_id TEXT NOT NULL,document TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS outbox(job_id TEXT PRIMARY KEY,document TEXT NOT NULL);`)
+    const limit=Number(process.env.AI_MAX_CONCURRENT_CALLS??2);this.maxConcurrentJobs=Number.isInteger(limit)&&limit>=1&&limit<=10?limit:2
     this.owner=randomUUID();this.active=new Map();this.closed=false;this.unregister=registerRecognitionInstance(dataDirectory,this)
     if(autoStart){this.timer=setInterval(()=>this.kick(),1000);this.timer.unref();queueMicrotask(()=>this.kick())}
   }
@@ -129,7 +130,7 @@ export class RecognitionJobs {
   guard(id,epoch,signal){signal.throwIfAborted();const j=this.raw(id);if(!j||j.cancelEpoch!==epoch||j.owner!==this.owner||j.leaseUntil<this.now()||!['running','publishing'].includes(j.state))throw new DOMException('Task stopped','AbortError');return j}
   async updateActive(id,epoch,signal,patch){return withStorageLock(()=>{const j=this.guard(id,epoch,signal);return this.put({...j,...patch})})}
   async run(id,active){
-    let j=this.transaction(()=>{const job=this.raw(id);if(job.state!=='queued'||this.all().some(other=>other.id!==id&&other.accountId===job.accountId&&other.memberId===job.memberId&&['running','publishing'].includes(other.state)&&other.leaseUntil>this.now()))return null;job.state='running';job.owner=this.owner;job.leaseUntil=this.now()+15000;return this.put(job)})
+    let j=this.transaction(()=>{const job=this.raw(id),running=this.all().filter(other=>other.id!==id&&['running','publishing'].includes(other.state)&&other.leaseUntil>this.now());if(job.state!=='queued'||running.length>=this.maxConcurrentJobs||running.some(other=>other.accountId===job.accountId&&other.memberId===job.memberId))return null;job.state='running';job.owner=this.owner;job.leaseUntil=this.now()+15000;return this.put(job)})
     if(!j)return
     active.claimed=true
     const epoch=j.cancelEpoch,started=this.now(),budget=j.inputs.some(i=>i.kind==='image')?300000:120000,signal=AbortSignal.any([active.controller.signal,AbortSignal.timeout(Math.max(1,budget-j.activeMs))])
