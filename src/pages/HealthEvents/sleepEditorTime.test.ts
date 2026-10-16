@@ -30,3 +30,11 @@ test('G-J: two full turns, reverse, seam, multiple gestures and input reseeding'
 test('H: period switches at 06:00 and 18:00, independently from AM/PM', () => {
   for (const [time, period] of [['05:59','夜间'],['06:00','白天'],['17:59','白天'],['18:00','夜间']]) assert.equal(sleepPeriod(sleepInstant(`2026-09-30T${time}`)).label, period)
 })
+
+test('manual 24h geometry and minute keyboard steps retain dates across midnight',()=>{
+  const instant=sleepInstant('2026-10-01T21:00')
+  assert.equal(sleepAngle(instant,'Asia/Shanghai',1440),315)
+  assert.equal(sleepAngle(sleepInstant('2026-10-01T09:00'),'Asia/Shanghai',1440),135)
+  assert.equal(sleepLocal(draggedSleepInstant(instant,90,1440)),'2026-10-02T03:00')
+  assert.equal(sleepLocal(draggedSleepInstant(sleepInstant('2026-10-01T23:59'),.25,1440)),'2026-10-02T00:00')
+})

@@ -65,3 +65,13 @@
 .symptom-record-inline .symptom-record-save .hoho-button { font-size: var(--hoho-font-size-body-small); min-height: var(--hoho-touch-target); padding-inline: var(--hoho-space-1); }
 .symptom-record-inline .symptom-record-page input,.symptom-record-inline .symptom-record-page textarea { min-width: 0; max-width: 100%; font-size: 16px; }
 .symptom-record-inline .symptom-record-page .symptom-media-actions { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr); gap: var(--hoho-space-1); }
+
+.case-followup-card-header>h2{display:flex;align-items:center;gap:var(--hoho-space-2);white-space:normal}
+.case-followup-card-header>h2>svg{flex:none;color:rgb(var(--hoho-color-primary))}
+.case-followup-management{display:flex;align-items:center}
+.case-followup-description{margin-top:var(--hoho-space-3);font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body)}
+.case-followup-keyword{display:inline-block;margin-top:var(--hoho-space-2);padding:var(--hoho-space-1) var(--hoho-space-2);border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-caption)}
+.case-followup-dates{margin-top:var(--hoho-space-4);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.case-followup-dates>div{display:flex;justify-content:space-between;gap:var(--hoho-space-3);padding-block:var(--hoho-space-2);border-top:1px solid rgb(var(--hoho-color-border))}
+.case-followup-dates dd{text-align:right;font-variant-numeric:tabular-nums}
+.case-followup-recovery{margin-top:var(--hoho-space-4)}

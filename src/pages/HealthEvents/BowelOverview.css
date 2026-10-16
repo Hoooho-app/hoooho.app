@@ -1,0 +1,12 @@
+/* Approved Overview board 2; only the bowel entry form is affected. */
+.bowel-record-page .bowel-shape-grid,.bowel-record-page .bowel-color-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--hoho-space-2)}
+.bowel-record-page .bowel-shape-grid>button{min-height:76px;gap:var(--hoho-space-2);padding:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);line-height:1.4;border-radius:var(--hoho-radius-control)}
+.bowel-record-page .bowel-color-grid>button{display:grid;place-items:center;gap:var(--hoho-space-1);min-height:72px;aspect-ratio:auto;border:1px solid rgb(var(--hoho-color-border));background:rgb(var(--hoho-color-surface));box-shadow:none;padding:var(--hoho-space-2);color:rgb(var(--hoho-color-text-primary));font-size:var(--hoho-font-size-caption)}
+.bowel-record-page .bowel-color-grid>button[aria-pressed=true]{border-color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft)/.58)}
+.bowel-record-page .bowel-color-grid i{display:block;width:30px;height:30px;border-radius:50%;background:#ddd9ca;border:1px solid rgb(var(--hoho-color-border))}
+.bowel-record-page [data-color='黄色'] i{background:#f4ce59}.bowel-record-page [data-color='黄褐'] i{background:#aa7830}.bowel-record-page [data-color='棕色'] i{background:#8a4f23}.bowel-record-page [data-color='深棕'] i{background:#4e2b19}.bowel-record-page [data-color='绿色'] i{background:#479452}.bowel-record-page [data-color='近黑'] i{background:#273238}.bowel-record-page [data-color='红色'] i{background:#d84949}
+.bowel-overview-supplement{border-block:1px solid rgb(var(--hoho-color-border))}
+.bowel-overview-supplement>summary{display:flex;justify-content:space-between;align-items:center;min-height:44px;list-style:none;font-size:var(--hoho-font-size-body-small);cursor:pointer}
+.bowel-overview-supplement>summary::-webkit-details-marker{display:none}
+.bowel-overview-supplement>div{display:grid;gap:var(--hoho-space-3);padding-block:var(--hoho-space-3)}
+.bowel-record-page .bowel-photo-actions button{min-height:44px;background:rgb(var(--hoho-color-surface));font-weight:500}

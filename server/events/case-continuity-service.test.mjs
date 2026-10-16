@@ -261,3 +261,40 @@ test('合并拒绝跨人物、过期版本、归档和循环关联；分开保�
  await f.service.archive('synthetic-account',f.member.id,b.eventId,true)
  await assert.rejects(()=>f.service.merge('synthetic-account',f.member.id,a.eventId,{...base,action:'merge'}),/状态已变化/)
 })
+
+test('case management edits the projected title, rejects stale/cross-member writes, deletes the entire merged group',async t=>{
+  const f=await fixture(t),first=await f.capture(),second=await f.capture(),third=await f.capture()
+  let cases=(await f.service.list('synthetic-account',f.member.id)).active
+  let a=cases.find(item=>item.event.id===first.eventId),b=cases.find(item=>item.event.id===second.eventId)
+  f.now('2026-10-02T08:01:00Z')
+  await f.service.manage('synthetic-account',f.member.id,a.event.id,{title:'家长确认的情况名称',expectedUpdatedAt:a.event.updatedAt})
+  await assert.rejects(()=>f.service.manage('synthetic-account',f.member.id,a.event.id,{title:'过期覆盖',expectedUpdatedAt:a.event.updatedAt}),/更新/)
+  cases=(await f.service.list('synthetic-account',f.member.id)).active;a=cases.find(item=>item.event.id===first.eventId)
+  assert.equal(a.followup.title,'家长确认的情况名称')
+  const other=await f.members.create({accountId:'synthetic-account',name:'其他孩子',relationship:'other'})
+  await assert.rejects(()=>f.service.manage('synthetic-account',other.id,a.event.id,{title:'跨孩子',expectedUpdatedAt:a.event.updatedAt}))
+  await assert.rejects(()=>f.service.manage('other-account',f.member.id,a.event.id,{title:'跨账号',expectedUpdatedAt:a.event.updatedAt}))
+  await f.service.merge('synthetic-account',f.member.id,a.event.id,{action:'merge',title:'合并后的情况',sourceEventId:b.event.id,expectedTargetAt:a.event.updatedAt,expectedSourceAt:b.event.updatedAt})
+  const merged=(await f.service.list('synthetic-account',f.member.id)).active.find(item=>item.event.id===a.event.id)
+  await assert.rejects(()=>f.service.manage('synthetic-account',f.member.id,a.event.id,{expectedUpdatedAt:merged.event.updatedAt,expectedChangedAt:merged.changedAt,sourceEventIds:[a.event.id]},true),/关联情况/)
+  f.now('2026-10-02T08:02:00Z');await f.capture({eventId:b.event.id,text:'子项新增记录'})
+  await assert.rejects(()=>f.service.manage('synthetic-account',f.member.id,a.event.id,{expectedUpdatedAt:merged.event.updatedAt,expectedChangedAt:merged.changedAt,sourceEventIds:merged.sourceEventIds},true),/关联记录已有更新/)
+  const fresh=(await f.service.list('synthetic-account',f.member.id)).active.find(item=>item.event.id===a.event.id)
+  const removed=await f.service.manage('synthetic-account',f.member.id,a.event.id,{expectedUpdatedAt:fresh.event.updatedAt,expectedChangedAt:fresh.changedAt,sourceEventIds:fresh.sourceEventIds},true)
+  assert.deepEqual(removed.deletedIds.sort(),[first.eventId,second.eventId].sort())
+  const remaining=(await f.service.list('synthetic-account',f.member.id)).active
+  assert.deepEqual(remaining.map(item=>item.event.id),[third.eventId])
+})
+
+test('原话保存复用Safari音频容器校验、保留原件且不调用模型',async t=>{
+ let calls=0
+ const f=await fixture(t,{model:{async structured(){calls++;throw new Error('不得调用模型')}}})
+ const bytes=Buffer.alloc(400);bytes.write('ftyp',4)
+ const mimeType='audio/mp4;codecs=mp4a.40.2',input={requestId:'raw-safari-stable',followUp:false,text:'保留原话',timeUnknown:true,files:[{name:'原录音.m4a',mimeType,dataUrl:`data:${mimeType};base64,${bytes.toString('base64')}`}],journal:{categories:['other'],timePrecision:'unknown'}}
+ const saved=await f.capture(input),again=await f.capture(input)
+ assert.equal(saved.recordId,again.recordId);assert.equal(calls,0)
+ assert.equal((await f.service.list('synthetic-account',f.member.id)).active.length,0)
+ const originals=await f.service.attachments.findByEventId(saved.eventId)
+ assert.equal(originals.length,1);assert.equal(originals[0].originalMimeType,mimeType)
+ assert.equal(Buffer.from(originals[0].dataUrl.split(',')[1],'base64').equals(bytes),true)
+})

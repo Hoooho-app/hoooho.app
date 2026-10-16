@@ -1491,11 +1491,12 @@ test('bowel record is one continuous form, restores its member draft and saves r
       colorText: [...colors.querySelectorAll('button')].map((button) => button.textContent?.trim() ?? '').join('')
     }
   })
-  expect(compactLayout).toEqual({ photoFirst: true, shapeRows: 1, colorRows: 1, colorText: '' })
+  expect(compactLayout).toEqual({ photoFirst: false, shapeRows: 3, colorRows: 3, colorText: '黄色黄褐棕色深棕绿色灰白近黑红色' })
   await page.screenshot({ path: 'test-results/bowel-record-compact-iphone-se.png' })
   await page.getByRole('group', { name: '形状 （可多选）' }).getByRole('button', { name: '光滑条状' }).click()
   await page.getByRole('group', { name: '形状 （可多选）' }).getByRole('button', { name: '糊状' }).click()
   await page.getByRole('group', { name: '颜色' }).getByRole('button', { name: '黄褐' }).click()
+  await page.locator('.bowel-overview-supplement > summary').click()
   await page.getByRole('slider', { name: '分量' }).fill('2')
   await expect(page.getByRole('group', { name: '分量' }).getByRole('button', { name: '一般', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('slider', { name: '排便大约用了多久？' }).fill('1')
@@ -1518,23 +1519,22 @@ test('bowel record is one continuous form, restores its member draft and saves r
   await expect(page.getByRole('button', { name: '光滑条状' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.bowel-photo-grid img')).toHaveCount(6)
   const form = page.getByRole('dialog', { name: '记录排便' })
-  await expect(form.getByText('记录时间', { exact: true })).toBeVisible()
+  await expect(form.getByText('发生时间', { exact: true })).toBeVisible()
   const order = await form.evaluate((node) => {
     const photo = node.querySelector('.bowel-photo-section')!
     const shape = node.querySelector('.bowel-shape-grid')!.closest('fieldset')!
     const time = node.querySelector('.occurrence-time-field')!
-    const save = [...node.querySelectorAll('button')].find((button) => button.textContent?.includes('保存记录'))!
-    return Boolean(photo.compareDocumentPosition(shape) & Node.DOCUMENT_POSITION_FOLLOWING) && Boolean(shape.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING) && Boolean(time.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING)
+    return Boolean(time.compareDocumentPosition(shape) & Node.DOCUMENT_POSITION_FOLLOWING) && Boolean(shape.compareDocumentPosition(photo) & Node.DOCUMENT_POSITION_FOLLOWING)
   })
   expect(order).toBe(true)
   const time = form.locator('.occurrence-time-field')
   await time.scrollIntoViewIfNeeded()
-  await expect(time.getByRole('textbox', { name: '记录时间' })).toHaveAttribute('type', 'datetime-local')
+  await expect(time.getByRole('textbox', { name: '发生时间' })).toHaveAttribute('type', 'datetime-local')
   await expect(time.locator('.occurrence-time-control > span')).toHaveText(/^\d{2}:\d{2}( ›)?$/)
   const timeBox = await time.boundingBox()
   expect(timeBox!.height).toBeLessThanOrEqual(64)
   const saveBox = await page.getByRole('button', { name: '保存记录', exact: true }).boundingBox()
-  expect(timeBox!.y + timeBox!.height).toBeLessThanOrEqual(saveBox!.y)
+  expect(saveBox!.height).toBeGreaterThanOrEqual(44)
   await page.screenshot({ path: 'test-results/bowel-record-iphone-se.png', fullPage: true })
   await page.getByRole('button', { name: '保存记录', exact: true }).click()
   await expect(page.locator('.journal-saved-toast')).toHaveText('已记录')

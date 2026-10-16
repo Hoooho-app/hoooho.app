@@ -4,7 +4,7 @@ import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/d
 import { JournalCategoryIcon } from '../HealthEvents/JournalCategoryIcon'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
-import { calendarGroupLabels, presentCalendarRecord } from './presentation'
+import { presentCalendarRecord } from './presentation'
 import type { CalendarReminder } from './reminders'
 import { CalendarReminderRows } from './CalendarReminderRows'
 
@@ -32,7 +32,7 @@ export function DayRecordsSheet({ day, entries, reminders = [], suspended, loadi
     return () => cancelAnimationFrame(frame)
   }, [suspended])
   const reminderTitle = `${Number(day.slice(5, 7))}月${Number(day.slice(8))}日 ${new Date(`${day}T12:00:00`).toLocaleDateString('zh-CN', { weekday: 'long' })}`
-  return <BottomSheetSurface open={!suspended} viewportAware label="当天记录" title={reminders.length ? reminderTitle : `${day} · ${entries.length}条记录`} className="calendar-day-sheet" onClose={onClose}>
+  return <BottomSheetSurface open={!suspended} viewportAware label="当天记录" title={reminders.length ? reminderTitle : `${Number(day.slice(5,7))}月${Number(day.slice(8))}日 · ${entries.length}条记录`} className="calendar-day-sheet" onClose={onClose}>
     <div ref={root}>
       {reminders.length > 0 && <p className="calendar-day-reminder-count">{reminders.length}项待办{entries.length ? ` · ${entries.length}条记录` : ''}</p>}
       {loading && <StatusNotice title="正在读取当天记录"/>}
@@ -44,11 +44,10 @@ export function DayRecordsSheet({ day, entries, reminders = [], suspended, loadi
         const clock = at.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
         return <article key={entry.id} data-tone={presented.group ?? 'neutral'}>
           <button type="button" data-day-record={entry.id} onClick={() => { lastRecord.current = entry.id; scroll.current = root.current?.parentElement?.scrollTop ?? 0; onOpen(entry) }}>
-            <time dateTime={at.toISOString()}>{clock}</time><JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} size={16} strokeWidth={1.75}/>
-            <span><small>{presented.group ? calendarGroupLabels[presented.group] : '未分类'} / {presented.subtype}</small><strong>{presented.coreSummary}</strong></span><ChevronRight aria-hidden="true" size={16}/>
-            {entry.attachmentCount > 0 && <span className="calendar-day-attachment"><Paperclip aria-hidden="true" size={14}/>{entry.attachmentCount}个附件 · 查看详情</span>}
+            <span className="calendar-day-icon"><JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} size={22} strokeWidth={1.75}/></span><time dateTime={at.toISOString()}>{clock}</time>
+            <span><strong>{presented.group?presented.coreSummary:entry.content.split('\n')[0]||presented.coreSummary}</strong></span><ChevronRight aria-hidden="true" size={16}/>
+            {entry.attachmentCount > 0 && <span className="calendar-day-attachment"><Paperclip aria-hidden="true" size={14}/>{entry.attachmentCount}个附件</span>}
           </button>
-          <details><summary>完整记录</summary><div className="calendar-day-original">{presented.fullDetail}</div></details>
         </article>
       })}</div>
     </div>

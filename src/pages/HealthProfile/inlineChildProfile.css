@@ -28,3 +28,24 @@ body:has(.inline-profile-shell){min-width:0;}
 .inline-profile-delete{display:flex;align-items:center;justify-content:flex-end;gap:var(--hoho-space-2);flex-wrap:wrap;padding:var(--hoho-space-2);border-top:1px solid rgb(var(--hoho-color-border));}
 .inline-profile-add{min-height:56px;}
 .inline-profile-empty{text-align:center;margin:var(--hoho-space-3) 0;}
+
+/* Approved Overview: compact lists, with management and editing on demand. */
+.inline-profile-content{display:flex;flex-direction:column;min-height:calc(100dvh - 64px);padding-bottom:max(var(--hoho-space-4),env(safe-area-inset-bottom))}
+.inline-profile-tabs{flex-wrap:nowrap;overflow-x:auto;flex-shrink:0;padding-bottom:var(--hoho-space-1)}
+.inline-profile-tabs>button{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);font-size:var(--hoho-font-size-body-small);padding-inline:var(--hoho-space-3)}
+.inline-profile-list{gap:0;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);overflow:hidden;flex-shrink:0}
+.inline-profile-list:empty{display:none}
+.inline-profile-list>.inline-profile-item{border:0;border-radius:0;border-bottom:1px solid rgb(var(--hoho-color-border))}
+.inline-profile-list>.inline-profile-item:last-child{border-bottom:0}
+.inline-profile-row{padding:var(--hoho-space-2) var(--hoho-space-3);min-height:64px}
+.inline-profile-row strong{font-weight:500;display:block;line-height:var(--hoho-line-height-body)}
+.inline-profile-row small{display:block;margin-top:var(--hoho-space-1);color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.inline-profile-more{display:grid;place-items:center;flex:0 0 44px;width:44px;min-height:44px;color:rgb(var(--hoho-color-text-secondary))}
+.inline-profile-add{margin-top:auto;min-height:44px;flex-shrink:0}
+.inline-profile-menu{display:grid;gap:var(--hoho-space-2)}
+.inline-profile-menu .hoho-button{justify-content:flex-start;width:100%}
+.hoho-bottom-sheet .inline-profile-editor{border:0;padding:0}
+
+.inline-profile-shell{padding-bottom:0!important}
+.inline-profile-content{flex:1;min-height:0;overflow:auto}
+.inline-profile-shell{display:flex;flex-direction:column}

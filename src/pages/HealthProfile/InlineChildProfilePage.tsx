@@ -1,10 +1,10 @@
 import {ProfileUpdateMarker,useReadRecordUpdates,UpdatedRecordLinks} from '../../features/record-updates/RecordUpdates'
 import {useEffect,useRef,useState} from 'react'
 import {useLocation,useNavigate,useParams} from 'react-router-dom'
-import {ChevronDown,Pencil,Plus,Trash2} from 'lucide-react'
+import {ChevronDown,MoreHorizontal,Pencil,Plus,Trash2} from 'lucide-react'
 import {WebPageHeader} from '../../components/common'
 import {MemberIdentityCard} from '../../components/health'
-import {HohoButton,StatusNotice} from '../../components/design-system'
+import {BottomSheetSurface,HohoButton,StatusNotice} from '../../components/design-system'
 import {useAppStore} from '../../store/useAppStore'
 import {apiRequest} from '../../services/apiClient'
 import {loadProfileSections,subscribeProfileSectionInvalidation,announceProfileSectionsChange} from '../../services/profileSectionStorage'
@@ -35,6 +35,7 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
   const storageKey=`hoooho-profile-inline:${JSON.stringify([accountId,member.id,kind])}`
   const [session,setSession]=useState<Session>(()=>{try{const saved=JSON.parse(sessionStorage.getItem(storageKey)??'null');if(saved?.drafts&&saved?.active)return saved}catch{/* Fall back without pretending persistence succeeded. */}return {group:'',drafts:{},active:{}}})
   const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[reload,setReload]=useState(0),[undo,setUndo]=useState<string>(),[confirmDelete,setConfirmDelete]=useState<string>()
+  const [menu,setMenu]=useState<Row>(),[moreOpen,setMoreOpen]=useState(false)
   const locked=useRef(false),mounted=useRef(true)
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
   useEffect(()=>{try{sessionStorage.setItem(storageKey,JSON.stringify(session))}catch{setError('本机暂时无法保留草稿，请不要关闭页面；仍可保存到档案')}},[session,storageKey])
@@ -59,11 +60,11 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     return()=>{unsubscribe();window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh)}
   },[])
   useReadRecordUpdates(!loading&&data?.rows.some(r=>r.id===focusedEntry)?[focusedEntry!]:[],[],!loading&&data?kind:undefined)
-  const group=session.group,active=session.active[group],rows=data?.rows.filter(r=>kind==='surgery'||r.group===group)??[]
+  const group=session.group,active=session.active[group],rows=data?.rows.filter(r=>kind==='surgery'||kind==='family-history'||r.group===group)??[]
   function put(groupId:string,id:string,changes:Partial<Draft>,row?:Row){
     setSession(old=>{const key=draftId(groupId,id),draft=old.drafts[key]??fresh(row);return {...old,drafts:{...old.drafts,[key]:{...draft,...changes,key:crypto.randomUUID()}}}})
   }
-  function begin(id:string,row?:Row){setConfirmDelete(undefined);setError('');setSession(old=>{const key=draftId(group,id);return {...old,active:{...old.active,[group]:id},drafts:{...old.drafts,[key]:old.drafts[key]??fresh(row)}}})}
+  function begin(id:string,row?:Row){setConfirmDelete(undefined);setError('');setSession(old=>{const key=draftId(group,id);return {...old,active:{[group]:id},drafts:{...old.drafts,[key]:old.drafts[key]??fresh(row)}}})}
   function clear(groupId:string,id:string){setSession(old=>{const drafts={...old.drafts},active={...old.active};delete drafts[draftId(groupId,id)];if(active[groupId]===id)delete active[groupId];return {...old,drafts,active}});setConfirmDelete(undefined)}
   async function command(input:Record<string,unknown>,after:(next:Snapshot)=>void){
     if(locked.current)return
@@ -83,47 +84,43 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     const draft=session.drafts[draftId(groupId,id)];if(!draft)return
     void command({action:id==='new'?'add':'edit',id:row?.id,version:draft.version,name:draft.name,group:groupId,key:draft.key,...(kind==='chronic'&&draft.frequencyDirty?{frequency:draft.frequency}:{}),...(kind==='vaccination'&&(id==='new'||draft.dateDirty)?{date:draft.date}: {})},next=>{clear(groupId,id);const moved=next.rows.find(r=>r.id===row?.id);if(moved&&moved.group!==groupId&&next.groups.some(g=>g.id===moved.group))setSession(old=>({...old,group:moved.group}))})
   }
-  function pickFrequency(row:Row,value:string){
-    const key=draftId(row.group,row.id),draft={...(session.drafts[key]??fresh(row)),frequency:value,frequencyDirty:true,key:crypto.randomUUID()}
-    setSession(old=>({...old,drafts:{...old.drafts,[key]:draft}}))
-    void command({action:'edit',id:row.id,version:draft.version,name:row.name,group:row.group,frequency:value,key:draft.key},()=>clear(row.group,row.id))
-  }
-  function frequencyChoices(id:string,g:string,draft:Draft,row?:Row,immediate=false){return <div className="inline-profile-choices" role="group" aria-label="出现频率">{frequencies.map(f=><button disabled={busy} type="button" key={f} aria-pressed={draft.frequency===f} onClick={()=>immediate&&row?pickFrequency(row,f):put(g,id,{frequency:f,frequencyDirty:true},row)}>{f}</button>)}</div>}
+  function frequencyChoices(id:string,g:string,draft:Draft,row?:Row){return <div className="inline-profile-choices" role="group" aria-label="出现频率">{frequencies.map(f=><button disabled={busy} type="button" key={f} aria-pressed={draft.frequency===f} onClick={()=>put(g,id,{frequency:f,frequencyDirty:true},row)}>{f}</button>)}</div>}
   function editor(id:string,g:string,row?:Row){
     const draft=session.drafts[draftId(g,id)]??fresh(row),field=kind==='allergy'?'过敏对象':kind==='vaccination'?'疫苗名称':kind==='surgery'?'手术名称或描述':kind==='chronic'?'长期健康问题':'健康问题'
     return <form className="inline-profile-editor" aria-label={`${id==='new'?'新增':'编辑'}${titles[kind]}`} onSubmit={e=>{e.preventDefault();save(id,g,row)}}>
-      <header><strong>{id==='new'?'新增':'编辑'}{field}</strong><small>未保存草稿</small></header>
+      {kind==='family-history'&&<label className="hoho-field"><span>亲属关系</span>{row?<input className="hoho-input" readOnly value={data?.groups.find(item=>item.id===g)?.name??g}/>:<select aria-label="亲属关系" className="hoho-input" disabled={busy} value={g} onChange={e=>{const next=e.target.value;setSession(old=>({...old,group:next,active:{...old.active,[g]:'', [next]:'new'},drafts:{...old.drafts,[draftId(next,'new')]:draft}}))}}>{data?.groups.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>}</label>}
       <label className="hoho-field"><span>{field}</span><input className="hoho-input" maxLength={kind==='vaccination'?120:200} disabled={busy} autoFocus value={draft.name} placeholder={kind==='chronic'?'如：哮喘、反复湿疹':kind==='surgery'?'用一句话写做过什么手术':'输入名称'} onChange={e=>put(g,id,{name:e.target.value},row)}/></label>
-      {kind==='chronic'&&<details><summary>出现频率<ChevronDown aria-hidden size={16}/></summary>{frequencyChoices(id,g,draft,row)}</details>}
-      {kind==='vaccination'&&<details><summary>接种日期<ChevronDown aria-hidden size={16}/></summary><label className="hoho-field"><span>接种日期</span><input className="hoho-input" disabled={busy} type="date" value={draft.date} onChange={e=>put(g,id,{date:e.target.value,dateDirty:true},row)}/></label></details>}
+      {kind==='chronic'&&<section><p>出现频率</p>{frequencyChoices(id,g,draft,row)}</section>}
+      {kind==='vaccination'&&<><label className="hoho-field"><span>接种日期</span><input className="hoho-input" disabled={busy} type="date" value={draft.date} onChange={e=>put(g,id,{date:e.target.value,dateDirty:true},row)}/></label></>}
       <div className="inline-profile-actions"><HohoButton disabled={busy} variant="text" onClick={()=>clear(g,id)}>取消</HohoButton><HohoButton disabled={!draft.name.trim()} loading={busy} type="submit">保存</HohoButton></div>
     </form>
   }
-  function record(row:Row,index:number,g=group){
-    const draft=session.drafts[draftId(g,row.id)]??fresh(row)
-    const isActive=session.active[g]===row.id
+  function record(row:Row,index:number,g=row.group){
     return <li className="inline-profile-item" key={row.id} data-record-id={row.id}><ProfileUpdateMarker sectionId={kind} entryId={row.id}/>
-      {isActive?editor(row.id,g,row):<>
-        {(kind==='chronic'||kind==='vaccination')?<details><summary className="inline-profile-row"><span className="inline-profile-number">{index+1}</span><span>{row.displayName??row.name}</span><ChevronDown aria-hidden size={18}/></summary><div className="inline-profile-fold">
-          {kind==='chronic'?frequencyChoices(row.id,g,draft,row,true):<><label className="hoho-field"><span>接种日期</span><input className="hoho-input" disabled={busy} type="date" value={draft.date} onChange={e=>put(g,row.id,{date:e.target.value,dateDirty:true},row)}/></label><HohoButton disabled={busy||!draft.dateDirty} size="small" variant="text" onClick={()=>save(row.id,g,row)}>保存日期</HohoButton></>}
-          {kind==='chronic'&&draft.frequencyDirty&&<HohoButton loading={busy} variant="text" onClick={()=>save(row.id,g,row)}>重试保存频率</HohoButton>}
-        </div></details>:<div className="inline-profile-row"><span className="inline-profile-number">{index+1}</span><span>{row.name}</span></div>}
-        <div className="inline-profile-tools"><button disabled={busy} aria-label={`编辑${row.name}`} type="button" onClick={()=>{put(g,row.id,{},row);setSession(old=>({...old,active:{...old.active,[g]:row.id}}))}}><Pencil aria-hidden size={14}/>编辑</button><button disabled={busy} aria-label={`删除${row.name}`} type="button" onClick={()=>setConfirmDelete(row.id)}><Trash2 aria-hidden size={14}/>删除</button></div>
-        {confirmDelete===row.id&&<div className="inline-profile-delete" role="group" aria-label="确认删除"><span>删除这条记录？</span><HohoButton variant="text" disabled={busy} onClick={()=>setConfirmDelete(undefined)}>取消</HohoButton><HohoButton variant="danger" loading={busy} onClick={()=>void command({action:'delete',id:row.id,version:row.version,key:crypto.randomUUID()},()=>{clear(g,row.id);setConfirmDelete(undefined)})}>确认删除</HohoButton></div>}
-      </>}
+      <div className="inline-profile-row"><span className="inline-profile-number">{index+1}</span><span><strong>{kind==='family-history'?`${data?.groups.find(item=>item.id===g)?.name??g} · `:''}{row.displayName??row.name}</strong>{kind==='vaccination'&&<small>{row.date||'接种日期未填写'}</small>}{kind==='chronic'&&row.frequency&&<small>{row.frequency}</small>}</span><button className="inline-profile-more" disabled={busy} aria-label={`管理${row.name}`} type="button" onClick={()=>setMenu(row)}><MoreHorizontal aria-hidden size={22}/></button></div>
     </li>
   }
+  const editingGroup=group,editingId=session.active[group],editingRow=data?.rows.find(row=>row.id===editingId)
+  const primaryGroups=data?.groups.filter((_,index)=>kind!=='vaccination'||index<3)??[]
+  const extraGroups=data?.groups.filter((_,index)=>kind==='vaccination'&&index>=3)??[]
   return <main className="app-shell inline-profile-shell" aria-busy={busy}><WebPageHeader title={titles[kind]} onBack={()=>navigate('/health-profile')}/><div className="page-content inline-profile-content">
     <MemberIdentityCard member={member}/><UpdatedRecordLinks destination="profile" sectionId={kind}/>
     {kind==='allergy'&&Boolean(data?.pendingAllergyRows?.length)&&<details className="inline-profile-item"><summary className="inline-profile-row">待排查 · {data!.pendingAllergyRows!.length}项<ChevronDown aria-hidden size={18}/></summary><p className="hoho-text-caption">以下仍是待确认线索，不代表已明确过敏。</p><ul className="inline-profile-list">{data!.pendingAllergyRows!.map(row=><li className="inline-profile-row" key={row.id}><span>{row.name}</span><small>{row.group} · 待排查</small></li>)}</ul></details>}
-    {kind!=='surgery'&&<nav className="inline-profile-tabs" aria-label={`${titles[kind]}分类`}>{data?.groups.map(g=><button type="button" disabled={busy} key={g.id} aria-pressed={group===g.id} onClick={()=>{setSession(old=>({...old,group:g.id}));setConfirmDelete(undefined)}}>{g.name}</button>)}{kind==='family-history'&&<button disabled={busy} type="button" aria-label="添加亲属关系" onClick={()=>setSession(old=>({...old,relation:old.relation??fresh()}))}><Plus size={18} aria-hidden/></button>}</nav>}
+    {kind!=='surgery'&&kind!=='family-history'&&<nav className="inline-profile-tabs" aria-label={`${titles[kind]}分类`}>{primaryGroups.map(g=><button type="button" disabled={busy} key={g.id} aria-pressed={group===g.id} onClick={()=>{setSession(old=>({...old,group:g.id}));setConfirmDelete(undefined)}}>{g.name}</button>)}{extraGroups.length>0&&<button type="button" disabled={busy} aria-expanded={moreOpen} aria-pressed={extraGroups.some(g=>g.id===group)} onClick={()=>setMoreOpen(true)}>{extraGroups.find(g=>g.id===group)?.name??'更多'}<ChevronDown size={16} aria-hidden/></button>}</nav>}
     {kind==='family-history'&&session.relation&&<form className="inline-profile-editor" onSubmit={e=>{e.preventDefault();void command({action:'relation',name:session.relation?.name,key:session.relation?.key},next=>{setSession(old=>({...old,relation:undefined,group:next.groups.at(-1)?.id??old.group}))})}}><label className="hoho-field"><span>亲属关系</span><input className="hoho-input" autoFocus maxLength={20} disabled={busy} value={session.relation.name} onChange={e=>setSession(old=>({...old,relation:{...old.relation!,name:e.target.value,key:crypto.randomUUID()}}))}/></label><div className="inline-profile-actions"><HohoButton variant="text" disabled={busy} onClick={()=>setSession(old=>({...old,relation:undefined}))}>取消</HohoButton><HohoButton type="submit" loading={busy} disabled={!session.relation.name.trim()}>添加关系</HohoButton></div></form>}
     {loading&&<p role="status">正在读取档案…</p>}
     {busy&&<p role="status">正在保存…</p>}
     {error&&<StatusNotice tone="error" title={error} action={<HohoButton variant="text" disabled={busy} onClick={()=>setReload(v=>v+1)}>重新加载</HohoButton>}/>}
     {status&&<p role="status">{status}{undo&&<HohoButton variant="text" disabled={busy} onClick={()=>void command({action:'restore',undoId:undo,key:crypto.randomUUID()},()=>setUndo(undefined))}>撤销</HohoButton>}</p>}
-    {data&&<><ul className="inline-profile-list">{rows.map((r,i)=>record(r,i))}</ul>{!rows.length&&!active&&<p className="inline-profile-empty">暂无已录入记录</p>}{active==='new'?editor('new',group):<HohoButton className="inline-profile-add" variant="secondary" fullWidth disabled={busy} onClick={()=>begin('new')}><Plus aria-hidden size={18}/>新增</HohoButton>}
-      {kind==='vaccination'&&['年龄待确认','7岁及以上'].map(g=>{const entries=data.rows.filter(r=>r.group===g);return entries.length?<section key={g}><h2 className="hoho-text-card-title">{g}</h2><p className="hoho-text-caption">保留原记录，不归入其他年龄组。</p><ul className="inline-profile-list">{entries.map((r,i)=>record(r,i,g))}</ul></section>:null})}
+    {data&&<><ul className="inline-profile-list">{rows.map((r,i)=>record(r,i))}</ul>{!rows.length&&!active&&<p className="inline-profile-empty">暂无已录入记录</p>}
+      {kind==='family-history'&&<HohoButton variant="text" disabled={busy} onClick={()=>setSession(old=>({...old,relation:old.relation??fresh()}))}><Plus size={18} aria-hidden/>添加亲属关系</HohoButton>}
+      {kind==='vaccination'&&['年龄待确认','7岁及以上'].map(g=>{const entries=data.rows.filter(r=>r.group===g);return entries.length?<section key={g}><h2 className="hoho-text-card-title">{g}</h2><ul className="inline-profile-list">{entries.map((r,i)=>record(r,i,g))}</ul></section>:null})}
+      <HohoButton className="inline-profile-add" fullWidth disabled={busy} onClick={()=>begin('new')}><Plus aria-hidden size={18}/>添加{titles[kind]}</HohoButton>
     </>}
+    <BottomSheetSurface open={Boolean(editingId)} viewportAware label={`${editingId==='new'?'添加':'编辑'}${titles[kind]}`} title={`${editingId==='new'?'添加':'编辑'}${titles[kind]}`} onClose={()=>{if(!busy)clear(editingGroup,editingId)}}>{editingId&&(editingId==='new'||editingRow?editor(editingId,editingGroup,editingRow):<p role="status">{loading?'正在读取这条记录…':'这条记录已不存在，草稿仍保留。'}</p>)}{error&&<p role="alert">{error}</p>}</BottomSheetSurface>
+    <BottomSheetSurface open={Boolean(menu)} label="记录操作" title={menu?.name??'记录操作'} onClose={()=>{if(!busy)setMenu(undefined)}}><div className="inline-profile-menu"><HohoButton variant="text" disabled={busy} onClick={()=>{if(!menu)return;const row=menu;setMenu(undefined);put(row.group,row.id,{},row);setSession(old=>({...old,group:row.group,active:{[row.group]:row.id}}))}}><Pencil size={18} aria-hidden/>编辑</HohoButton><HohoButton variant="text" disabled={busy} onClick={()=>{setConfirmDelete(menu?.id);setMenu(undefined)}}><Trash2 size={18} aria-hidden/>删除</HohoButton></div></BottomSheetSurface>
+    <BottomSheetSurface open={Boolean(confirmDelete)} label="确认删除" title="删除这条记录？" onClose={()=>{if(!busy)setConfirmDelete(undefined)}} footer={<HohoButton variant="danger" fullWidth loading={busy} onClick={()=>{const row=data?.rows.find(row=>row.id===confirmDelete);if(row)void command({action:'delete',id:row.id,version:row.version,key:crypto.randomUUID()},()=>clear(row.group,row.id))}}>确认删除</HohoButton>}><p>{data?.rows.find(row=>row.id===confirmDelete)?.name}</p>{error&&<p role="alert">{error}</p>}</BottomSheetSurface>
+    <BottomSheetSurface open={moreOpen} label="接种年龄" title="接种年龄" onClose={()=>setMoreOpen(false)}><div className="inline-profile-menu">{extraGroups.map(item=><HohoButton key={item.id} variant="text" onClick={()=>{setSession(old=>({...old,group:item.id}));setMoreOpen(false)}}>{item.name}</HohoButton>)}</div></BottomSheetSurface>
+
   </div></main>
 }
