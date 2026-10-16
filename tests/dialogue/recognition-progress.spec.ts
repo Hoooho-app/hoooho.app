@@ -112,3 +112,20 @@ test('archive visibility interruption persists recorded bytes before invalidatin
  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await page.getByRole('button',{name:'上传与智能识别'}).click()
  await expect(page.getByRole('button',{name:'重试语音转写',exact:true})).toBeVisible()
 })
+test('late pause acknowledgement cannot restore a cancelled archive job or erase new input',async({page,request})=>{
+ await request.get('http://127.0.0.1:4198/delay?ms=4000')
+ await page.goto('/health-profile/smart-record');await page.getByRole('button',{name:'上传与智能识别'}).click()
+ const dialog=page.getByRole('dialog',{name:'智能整理记录'}),input=dialog.getByLabel('原始记录内容')
+ await input.fill('脸颊发红');await dialog.getByRole('button',{name:'整理成待确认记录'}).click()
+ await expect(dialog.getByTestId('recognition-progress')).toHaveAttribute('data-stage',/preparing|reading|organizing/)
+ let entered!:()=>void,release!:()=>void
+ const paused=new Promise<void>(resolve=>{entered=resolve}),held=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/recognition-jobs/*/commands',async route=>{
+   if(route.request().postDataJSON().type==='pause'){const response=await route.fetch();entered();await held;await route.fulfill({response})}else await route.continue()
+ })
+ await dialog.getByRole('button',{name:'打断',exact:true}).click();await paused
+ await dialog.getByRole('button',{name:'取消草稿',exact:true}).click();await expect(dialog.getByText('已取消整理草稿，已保存原件仍保留',{exact:true})).toBeVisible()
+ await input.fill('脸颊发红，没有呕吐');await dialog.getByRole('button',{name:'整理成待确认记录'}).click();await expect(dialog.getByTestId('recognition-progress')).toBeVisible()
+ release();await expect(dialog.getByTestId('recognition-progress')).toHaveAttribute('data-stage','ready')
+ await expect(input).toHaveValue('脸颊发红，没有呕吐');await expect(dialog.getByText('暂停尚未确认，请重试',{exact:false})).toHaveCount(0)
+})
