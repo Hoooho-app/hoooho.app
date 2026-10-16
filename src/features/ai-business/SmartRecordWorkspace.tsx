@@ -209,7 +209,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
               context.messages.flatMap(message=>[...message.files??[],...message.voices??[]]).map(restoreFrontFile).forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
               const restored=restoreFrontContext(context,current.current),old=(current.current.conversationTurns??[]).filter(t=>!restored.conversationTurns?.some(s=>s.id===t.id))
               next={...restored,pendingVoice:undefined,recognitionSnapshot:snapshot,conversationTurns:[...old,...restored.conversationTurns??[]]}
-            }else next={...next,recognitionSnapshot:snapshot,text:snapshot.review.inputText,smartReview:retainSmartRecordEdits(snapshot.review,current.current.smartReview),aiDraftId:snapshot.review.id,conversationTurns:current.current.conversationTurns}
+            }else next={...next,recognitionSnapshot:snapshot,text:snapshot.review.inputText,smartReview:retainSmartRecordEdits(snapshot.review,current.current.smartReview),aiDraftId:snapshot.review.id,conversationTurns:next.conversationTurns}
             if(snapshot.review.state==='ready'&&!page&&snapshot.review.items.length)setStage('review')
           }
           if(active&&!leaving.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)){await persist(next);lastSeq.current=snapshot.seq}

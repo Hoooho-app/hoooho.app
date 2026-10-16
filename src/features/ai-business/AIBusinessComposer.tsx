@@ -47,7 +47,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const [localReady,setLocalReady]=useState(false)
   useEffect(()=>{let active=true;setTtsConfigured(false);void fetch('/api/ai/audio/capabilities',{headers:{Authorization:`Bearer ${token}`}}).then(async response=>{if(!response.ok)return;const capabilities=await response.json();if(active)setTtsConfigured(capabilities.tts?.configured===true)}).catch(()=>undefined);return()=>{active=false}},[memberId,token])
   const [originals,setOriginals]=useState<Record<string,string>>({}),originalUrls=useRef<string[]>([])
-  const recordingFinalization=useRef<Promise<void>>(Promise.resolve()),releaseRecording=useRef<(()=>void)|null>(null),closing=useRef(false)
+  const recordingFinalization=useRef<Promise<void>>(Promise.resolve()),releaseRecording=useRef<(()=>void)|null>(null),closing=useRef(false),keepRecording=useRef(true),backgrounding=useRef(false)
   const audioContext=useRef<AudioContext|null>(null),audioSampler=useRef<ReturnType<typeof setInterval>|null>(null),audioPeak=useRef<number|null>(null)
   useEffect(()=>()=>{originalUrls.current.forEach(url=>URL.revokeObjectURL(url))},[])
   const current=(d:Draft|null)=>{draftRef.current=d;setDraft(d);setPreviewText(d?.preview?.text??'')}
@@ -55,7 +55,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const stopPlayback=()=>{audio.current?.pause();audio.current=null;if(audioUrl.current)URL.revokeObjectURL(audioUrl.current);audioUrl.current=''}
   const stopTracks=()=>{stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;if(timer.current)clearInterval(timer.current);timer.current=null;if(audioSampler.current)clearInterval(audioSampler.current);audioSampler.current=null;void audioContext.current?.close().catch(()=>undefined);audioContext.current=null}
   const interrupt=(pause=true)=>{if(pause&&jobIdentity.current&&recognitionActive(recognitionRef.current))void recognitionCommand(memberId,credentials.current.token,jobIdentity.current,'pause').then(applyJob).catch(()=>setError('暂停尚未确认，请重试'));stopPlayback();session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();recorder.current=null;stopTracks();permissionPending.current=false;operationPending.current=null;setRecording(false);setBusy(false);setTranscribing(false);if(pendingAudio.current){setVoiceError(audioErrorMessage({code:'ASR_CANCELLED'}));setCanRetryVoice(true)}}
-  useEffect(()=>{const hide=()=>{if(document.visibilityState==='hidden')interrupt(false)};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide)},[])
+  useEffect(()=>{const hide=()=>{if(document.visibilityState==='hidden'){backgrounding.current=true;void (async()=>{if(recorder.current?.state==='recording'){recorder.current.stop();await recordingFinalization.current}interrupt(false);backgrounding.current=false})().catch(()=>setVoiceError('录音原件尚未保存，请重试'))}};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide)},[])
   // Token refresh is not a change of data owner. Only owner/member/closure
   // ends this recording session; normal resume must retain retryable audio.
   useEffect(()=>{session.current++;return()=>{session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();stopTracks();stopPlayback();pendingAudio.current=null;const d=draftRef.current,cleanupToken=credentials.current.accountId===accountId?credentials.current.token:token;if(d&&d.state!=='saved'&&!profileMode&&!eventId&&!jobIdentity.current)void fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${cleanupToken}`}}).catch(()=>undefined)}},[memberId,accountId,profileMode,eventId])
@@ -63,16 +63,17 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const run=async(operation:()=>Promise<void>,status='正在处理…')=>{if(operationPending.current!==null)return;const operationId=++operationSequence.current;operationPending.current=operationId;const turn=session.current;setPhase(status);setBusy(true);setError('');try{await operation()}catch(e){if(turn===session.current&&!(e instanceof DOMException&&e.name==='AbortError'))setError(e instanceof Error?e.message:'操作失败，请重试')}finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current)setBusy(false)}}
   useEffect(() => { void run(async () => {
     const local=await captureDraft(localKey)
+    submittedFiles.current=new Set(local?.recognitionSubmittedFiles??[])
     appliedVoices.current=local?.appliedVoiceJobIds??[]
     const voice=await captureDraft(`${localKey}:voice`);if(voice?.pendingVoice){pendingAudio.current=voice.pendingVoice;voiceJobIdentity.current=voice.recognitionJobId;if(voice.recognitionSnapshot)setVoiceJob(voice.recognitionSnapshot);setCanRetryVoice(true);setVoiceError('上次录音原件仍保留，可继续获取转写结果')}
     jobIdentity.current=local?.recognitionJobId;assetIds.current=local?.recognitionAssets??{};if(local?.recognitionSnapshot)applyJob(local.recognitionSnapshot)
     if(local){setText(local.text);setFiles(local.files)}
     const draftId=initialDraftId||local?.aiDraftId
-    if(draftId){try{let retained=await request<Draft>(`${url}/${draftId}`,'GET');if(retained.state!=='saved'&&(eventId||sourceIdentity))retained=await request<Draft>(`${url}/${retained.id}`,'PATCH',{version:retained.version,eventId,sourceIdentity,sourceRecordId});current(retained);setText(local?.text??(initialText||retained.inputText));setFiles(local?.files??[]);setNotice('已恢复同一份识别草稿，核对后才保存')}catch(e){if(embedded&&e instanceof Error&&e.message.includes('草稿已过期')){setText(local?.text??initialText);setFiles(local?.files?.length?local.files:initialFiles);setNotice('识别草稿已过期，原件仍保留，可重新整理')}else throw e}}
+    if(draftId){try{let retained=await request<Draft>(`${url}/${draftId}`,'GET');if(retained.state!=='saved'&&(eventId||sourceIdentity))retained=await request<Draft>(`${url}/${retained.id}`,'PATCH',{version:retained.version,eventId,sourceIdentity,sourceRecordId});current(retained);setText(local?.text??(initialText||retained.inputText));setFiles((local?.files??[]).filter(file=>!(retained.state==='ready'&&submittedFiles.current.has(fileKey(file)))));setNotice('已恢复同一份识别草稿，核对后才保存')}catch(e){if(embedded&&e instanceof Error&&e.message.includes('草稿已过期')){setText(local?.text??initialText);setFiles(local?.files?.length?local.files:initialFiles);setNotice('识别草稿已过期，原件仍保留，可重新整理')}else throw e}}
     else if(local){setText(local.text);setFiles(local.files)}
     setLocalReady(true)
   }).finally(()=>setLocalReady(true)) }, [initialDraftId,localKey])
-  useEffect(()=>{if(localReady&&draft?.state!=='saved')void captureDraft(localKey,{text,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:draft?.id,recognitionJobId:jobIdentity.current,recognitionAssets:assetIds.current,recognitionSnapshot:recognition??undefined,appliedVoiceJobIds:appliedVoices.current}).catch(()=>setError('本机整理草稿未保存，离开前请保留原文'))},[embedded,localReady,localKey,text,files,draft?.id,draft?.state,eventId,sourceRecordId,recognition?.seq])
+  useEffect(()=>{if(localReady&&draft?.state!=='saved')void captureDraft(localKey,{text,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:draft?.id,recognitionJobId:jobIdentity.current,recognitionAssets:assetIds.current,recognitionSnapshot:recognition??undefined,appliedVoiceJobIds:appliedVoices.current,recognitionSubmittedFiles:[...submittedFiles.current]}).catch(()=>setError('本机整理草稿未保存，离开前请保留原文'))},[embedded,localReady,localKey,text,files,draft?.id,draft?.state,eventId,sourceRecordId,recognition?.seq])
   async function playReply(d:Draft){if(!voiceReply)return;const turn=session.current;stopPlayback();try{const result=await request<{mimeType:string;data:string}>(`${url}/${d.id}/speech`,'POST');const blob=await(await fetch(`data:${result.mimeType};base64,${result.data}`)).blob();if(turn!==session.current||cancelled.current)return;audioUrl.current=URL.createObjectURL(blob);audio.current=new Audio(audioUrl.current);await audio.current.play()}catch{if(turn===session.current&&!cancelled.current)setNotice('语音回复暂不可用，文字结果仍可查看')}}
   async function prepareText(raw=text){
     stopPlayback();const turn=session.current,controller=new AbortController();uploadController.current=controller;const check=()=>{if(turn!==session.current||controller.signal.aborted)throw new DOMException('Cancelled','AbortError')};const d=draftRef.current,id=jobIdentity.current??crypto.randomUUID();jobIdentity.current=id
@@ -81,7 +82,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
       const originals:string[]=[]
       for(const file of files){const key=JSON.stringify([file.name,file.type,file.size,file.lastModified]);let assetId=assetIds.current[key];if(!assetId){assetId=await uploadRecognitionFile(memberId,credentials.current.token,file,controller.signal);check();assetIds.current[key]=assetId}originals.push(assetId)}
       check()
-      await captureDraft(localKey,{text:raw,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:d?.id,recognitionJobId:id,recognitionAssets:assetIds.current})
+      await captureDraft(localKey,{text:raw,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:d?.id,recognitionJobId:id,recognitionAssets:assetIds.current,recognitionSubmittedFiles:[...submittedFiles.current]})
       check()
       const next=await request<RecognitionJob>(recognitionUrl(memberId),'POST',{id,mode:'structured',scopeKey:localKey,input:{id:crypto.randomUUID(),kind:originals.length?'image':'text',text:raw,assetIds:originals},options:{id:d?.id,version:d?.version,task,eventId,sourceRecordId,sourceIdentity,reviewArchives:profileMode,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}})
       check();applyJob(next);setNotice('原件已收到，正在处理；可离开后继续核对')
@@ -95,6 +96,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
       try{const job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');if(!active||jobIdentity.current!==id||job.seq<(recognitionRef.current?.seq??0))return
         if(job.seq!==(recognitionRef.current?.seq??-1)||job.review?.state==='saved'){
           applyJob(job)
+          if(job.state==='failed'&&job.draftId){try{current(await request<Draft>(`${url}/${job.draftId}`,'GET'))}catch{/* Exact failed draft may have expired; originals remain task-owned. */}}
           if(job.review&&job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state)){const next=job.review as unknown as Draft;current(next);setFiles(previous=>previous.filter(file=>!submittedFiles.current.has(fileKey(file))));setNotice('已整理，核对后才会保存');await playReply(next)}
         }
       }catch{if(active)setNotice('暂时无法获取处理进度，连接恢复后会继续查询；原件仍保留')}
@@ -110,7 +112,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const prepare=()=>void run(()=>prepareText(),'上传／识别中，请稍候…')
   const edit=(input:Record<string,unknown>)=>void run(async()=>{if(!draft)return;current(await request<Draft>(`${url}/${draft.id}`,'PATCH',{version:draft.version,...input}))})
   async function saveCurrent(){const d=draftRef.current;if(processing||!d?.items.length||d.state!=='ready')throw new Error('请先成功整理并核对记录');if(text!==d.inputText||files.length)throw new Error('原文或资料已有修改，请先继续整理');const saved=await request<Draft>(`${url}/${d.id}/save`,'POST',{version:d.version,confirmed:true});current(saved);await captureDraft(localKey,null);setNotice(`已保存 ${saved.result?.count??0} 条记录`);onSaved?.(`已保存 ${saved.result?.count??0} 条记录`);await playReply(saved)}
-  async function cancelCurrent(){interrupt();if(voiceJobIdentity.current)await recognitionCommand(memberId,credentials.current.token,voiceJobIdentity.current,'discard');await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setVoiceError('');const d=draftRef.current;if(jobIdentity.current){await recognitionCommand(memberId,credentials.current.token,jobIdentity.current,'discard');jobIdentity.current=undefined;recognitionRef.current=null;setRecognition(null)}if(d&&d.state!=='saved')await fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});current(null);setText('');setFiles([]);await captureDraft(localKey,null);setNotice('已取消整理草稿，已保存原件仍保留');setError('')}
+  async function cancelCurrent(){keepRecording.current=false;interrupt();await recordingFinalization.current;if(voiceJobIdentity.current)await recognitionCommand(memberId,credentials.current.token,voiceJobIdentity.current,'discard');await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setVoiceError('');const d=draftRef.current;if(jobIdentity.current){await recognitionCommand(memberId,credentials.current.token,jobIdentity.current,'discard');jobIdentity.current=undefined;recognitionRef.current=null;setRecognition(null)}if(d&&d.state!=='saved')await fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});current(null);setText('');setFiles([]);await captureDraft(localKey,null);setNotice('已取消整理草稿，已保存原件仍保留');setError('')}
   async function transcribeRecording(){
     const blob=pendingAudio.current;if(!blob||operationPending.current!==null)return
     const turn=session.current,operationId=++operationSequence.current;operationPending.current=operationId;setTranscribing(true);setBusy(true);setVoiceError('');setPhase('录音已停止，正在转写为文字…')
@@ -137,7 +139,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
       if(turn!==session.current||cancelled.current)return
       if(!appliedVoices.current.includes(id)){
         const nextText=[textRef.current,job.transcript.text].filter(Boolean).join('\n');const nextApplied=[...appliedVoices.current,id];appliedVoices.current=nextApplied;textRef.current=nextText;setText(nextText)
-        await captureDraft(localKey,{text:nextText,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:draftRef.current?.id,recognitionJobId:jobIdentity.current,recognitionAssets:assetIds.current,recognitionSnapshot:recognitionRef.current??undefined,appliedVoiceJobIds:nextApplied})
+        await captureDraft(localKey,{text:nextText,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:draftRef.current?.id,recognitionJobId:jobIdentity.current,recognitionAssets:assetIds.current,recognitionSnapshot:recognitionRef.current??undefined,appliedVoiceJobIds:nextApplied,recognitionSubmittedFiles:[...submittedFiles.current]})
         appliedVoices.current=nextApplied
       }
       await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setNotice('转写完成，请先编辑核对文字，再点击整理；不会自动保存')
@@ -147,15 +149,25 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const toggleRecording=async()=>{
     stopPlayback();if(recording){if(recorder.current?.state==='recording')recorder.current.stop();return}if(busy||operationPending.current!==null||permissionPending.current)return
     if(!navigator.mediaDevices?.getUserMedia||!globalThis.MediaRecorder){setVoiceError('当前浏览器不支持录音，请使用文字输入');return}
-    const turn=session.current,generation=++recordingGeneration.current;cancelled.current=false;setVoiceError('');pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);permissionPending.current=true
+    const turn=session.current,generation=++recordingGeneration.current;cancelled.current=false;keepRecording.current=true;setVoiceError('');pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);permissionPending.current=true
     const active=()=>turn===session.current&&generation===recordingGeneration.current&&!cancelled.current
     try{const media=await navigator.mediaDevices.getUserMedia({audio:true});if(!active()){media.getTracks().forEach(t=>t.stop());return}stream.current=media;audioPeak.current=null
       try{const context=new AudioContext(),source=context.createMediaStreamSource(media),analyser=context.createAnalyser(),samples=new Uint8Array(1024);audioContext.current=context;analyser.fftSize=1024;source.connect(analyser);audioPeak.current=0;void context.resume();audioSampler.current=setInterval(()=>{analyser.getByteTimeDomainData(samples);const rms=Math.sqrt(samples.reduce((sum,v)=>sum+((v-128)/128)**2,0)/samples.length);audioPeak.current=Math.max(audioPeak.current??0,rms)},100)}catch{/* Empty/short transcript validation remains available without Web Audio. */}
       const mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(m=>MediaRecorder.isTypeSupported(m)),r=new MediaRecorder(media,mime?{mimeType:mime}:undefined);recorder.current=r;const chunks:Blob[]=[],started=Date.now();setSeconds(0)
       recordingFinalization.current=new Promise(resolve=>{releaseRecording.current=resolve})
       const finalize=()=>{releaseRecording.current?.();releaseRecording.current=null}
-      r.ondataavailable=e=>{if(active()&&e.data.size)chunks.push(e.data)};r.onerror=()=>{if(!active())return;cancelled.current=true;stopTracks();recorder.current=null;setRecording(false);setVoiceError('录音中断，请重新录音或改用文字');finalize()}
-      r.onstop=async()=>{if(!active()){chunks.length=0;media.getTracks().forEach(t=>t.stop());finalize();return}stopTracks();recorder.current=null;setRecording(false);const blob=new Blob(chunks,{type:r.mimeType.split(';')[0]});chunks.length=0;if(blob.size<300||Date.now()-started<500||(audioPeak.current!==null&&audioPeak.current<0.001)){setVoiceError('录音太短或没有声音，请重试');finalize();return}if(blob.size>15*1024*1024){setVoiceError('录音超过15 MB，请缩短后重试');finalize();return}pendingAudio.current=blob;setCanRetryVoice(true);const file=new File([blob],blob.type.includes('mp4')?'语音原件.m4a':'语音原件.webm',{type:blob.type});try{await captureDraft(`${localKey}:voice`,{text:'',files:[file],pendingVoice:file,occurredAt:'',timeUnknown:true,requestId:crypto.randomUUID()})}finally{finalize()}if(!closing.current)await transcribeRecording()}
+      r.ondataavailable=e=>{if(keepRecording.current&&e.data.size)chunks.push(e.data)};r.onerror=()=>{if(!active())return;cancelled.current=true;stopTracks();recorder.current=null;setRecording(false);setVoiceError('录音中断，请重新录音或改用文字');finalize()}
+      r.onstop=async()=>{
+        const currentSession=active();media.getTracks().forEach(t=>t.stop());if(currentSession){stopTracks();recorder.current=null;setRecording(false)}
+        const blob=new Blob(chunks,{type:r.mimeType.split(';')[0]});chunks.length=0
+        if(!keepRecording.current){finalize();return}
+        if(blob.size<300||Date.now()-started<500||(audioPeak.current!==null&&audioPeak.current<0.001)){if(currentSession)setVoiceError('录音太短或没有声音，请重试');finalize();return}
+        if(blob.size>15*1024*1024){if(currentSession)setVoiceError('录音超过15 MB，请缩短后重试');finalize();return}
+        const file=new File([blob],blob.type.includes('mp4')?'语音原件.m4a':'语音原件.webm',{type:blob.type})
+        try{await captureDraft(`${localKey}:voice`,{text:'',files:[file],pendingVoice:file,occurredAt:'',timeUnknown:true,requestId:crypto.randomUUID()})}finally{finalize()}
+        if(currentSession){pendingAudio.current=blob;setCanRetryVoice(true);if(!closing.current&&!backgrounding.current)await transcribeRecording()}
+      }
+
       r.start(250);setRecording(true);timer.current=setInterval(()=>{if(!active())return;const s=Math.floor((Date.now()-started)/1000);setSeconds(s);if(s>=90&&r.state==='recording')r.stop()},250)
     }catch(e){if(active()){stopTracks();setRecording(false);setVoiceError(e instanceof DOMException&&e.name==='NotAllowedError'?'麦克风未获授权，请在浏览器的网站权限中允许麦克风，或继续文字输入':'麦克风暂不可用，请检查设备或输入文字')}}finally{if(generation===recordingGeneration.current)permissionPending.current=false}
   }
