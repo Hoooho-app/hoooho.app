@@ -18,7 +18,7 @@ try{
  const bundle=await(await context.request.get(entry)).text();assert.ok(bundle.includes(sha),'Deployed UI must contain the exact release SHA');result.checks.push('exact UI build SHA')
  const unauth=await context.request.get('/api/members/release-check-no-member/recognition-jobs');assert.equal(unauth.status(),401);result.checks.push('job authorization boundary')
  if(target==='production'){
-   await page.goto('/',{waitUntil:'domcontentloaded'});await page.screenshot({path:`${out}/public-entry.png`});result.checks.push('public entry rendered; no production health data written')
+   await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'欢迎使用 Hoooho',exact:true})).toBeVisible({timeout:30000});await expect(page.getByRole('tab',{name:'登录',exact:true})).toBeVisible();await expect(page.getByText('正在恢复使用状态…',{exact:true})).toHaveCount(0);await page.screenshot({path:`${out}/public-entry.png`});result.checks.push('public login fully rendered; no production health data written')
  }else{
    const session=await api('/api/auth/register','POST',{nickname:`recqa${randomUUID().slice(0,8)}`,password:randomUUID(),idempotencyKey:randomUUID()});token=session.token
    memberId=(await api('/api/members','POST',{name:'识别发布验收（合成）',relationship:'child'})).id;await api('/api/auth/current-member','POST',{memberId})
