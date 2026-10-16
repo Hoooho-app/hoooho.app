@@ -2,7 +2,7 @@ import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
 export interface CaptureTurn {id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;errorCode?:string;contextId?:string;reviewId?:string;recordCount?:number}
-export interface CaptureDraft { savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
 const finalizations=new Map<string,Promise<void>>()
@@ -48,6 +48,11 @@ const database = () => new Promise<IDBDatabase>((resolve, reject) => {
   request.onerror = () => reject(request.error)
 })
 export const hasCaptureContent = (draft: CaptureDraft | null) => Boolean(draft && (draft.text.trim() || draft.conversationInput?.trim() || draft.files.length || draft.pendingVoice || draft.smartReview?.items.length))
+
+export async function pendingCaptureCancellations(key:string):Promise<{key:string;draft:CaptureDraft}[]>{
+  const db=await database()
+  try{return await new Promise((resolve,reject)=>{const transaction=db.transaction('drafts','readonly'),request=transaction.objectStore('drafts').openCursor(),items:{key:string;draft:CaptureDraft}[]=[];request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(typeof cursor.key==='string'&&cursor.key.startsWith(`${key}:cancel:`))items.push({key:cursor.key,draft:unpackCaptureDraft(cursor.value)});cursor.continue()};transaction.oncomplete=()=>resolve(items);transaction.onerror=()=>reject(transaction.error)})}finally{db.close()}
+}
 
 /** Only retained drafts of this exact account/member/event context are read. */
 export async function retainedCaptureDrafts(key: string): Promise<{ key: string; draft: CaptureDraft }[]> {

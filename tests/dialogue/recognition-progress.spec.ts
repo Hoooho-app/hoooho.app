@@ -1,0 +1,66 @@
+import {test,expect} from '@playwright/test'
+import {TokenService} from '../../server/auth/token-service.mjs'
+import sharp from 'sharp'
+const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
+const headers={Authorization:`Bearer ${token}`}
+let memberId:string
+test.beforeEach(async({page,request})=>{
+ const response=await request.post('/api/members',{headers,data:{name:'进度验收（虚构）',relationship:'child'}});expect(response.ok()).toBe(true);memberId=(await response.json()).id
+ await request.get('http://127.0.0.1:4198/success');await request.get('http://127.0.0.1:4198/delay?ms=1200')
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null,ocrText:'脸颊发红'}})
+ await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
+ await page.goto('/smart-record?source=front-desk');await page.getByRole('button',{name:'改用文字'}).click()
+ await expect(page.getByLabel('对话输入')).toBeEnabled()
+})
+test.afterEach(async({request})=>{await request.get('http://127.0.0.1:4198/delay?ms=400');await request.delete(`/api/members/${memberId}`,{headers})})
+async function send(page:import('@playwright/test').Page,text:string){await page.getByLabel('对话输入').fill(text);await page.getByRole('button',{name:'发送',exact:true}).click()}
+test('real progress, additional input while working and only latest result can save',async({page},info)=>{
+ await send(page,'今天脸颊发红')
+ const progress=page.getByTestId('recognition-progress');await expect(progress).toBeVisible();await expect(progress).toHaveAttribute('data-stage',/responding|organizing/)
+ await expect(page.getByLabel('对话输入')).toBeEnabled();await send(page,'没有呕吐')
+ await expect(page.locator('.nurse-turn--user')).toHaveCount(2)
+ await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+ await expect(progress).toHaveCount(1);await expect(progress).toHaveAttribute('data-stage','ready')
+ for(const width of [320,390,430]){await page.setViewportSize({width,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}
+ await page.screenshot({path:info.outputPath('latest-ready.png')})
+ await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click();await expect(page.locator('.dialogue-review-item')).toContainText('没有呕吐')
+})
+test('exit during processing responds and reopening recovers the same task',async({page})=>{
+ await send(page,'今天脸颊发红');await expect(page.getByTestId('recognition-progress')).toBeVisible()
+ await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('dialog',{name:'退出智能记录'})).toBeVisible()
+ await expect(page.getByRole('button',{name:'保存草稿并退出',exact:true})).toBeEnabled();await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
+ await page.goto('/smart-record?source=front-desk');await page.getByRole('button',{name:'改用文字'}).click()
+ await expect(page.locator('.nurse-turn--user')).toContainText('今天脸颊发红');await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+})
+test('pause keeps originals and resume uses the same job identity',async({page,request})=>{
+ await send(page,'今天脸颊发红');await expect(page.getByRole('button',{name:'暂停处理'})).toBeVisible()
+ const before=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()
+ await page.getByRole('button',{name:'暂停处理'}).click();await expect(page.getByTestId('recognition-progress')).toHaveAttribute('data-stage','paused')
+ await page.getByRole('button',{name:'继续处理'}).click();await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+ const after=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json();expect(after.id).toBe(before.id)
+})
+test('one failed artifact read is retried; original input and typed supplement survive',async({page})=>{
+ let failed=false
+ await page.route('**/front-desk-record/contexts/*',route=>{if(route.request().method()==='GET'&&!failed){failed=true;return route.fulfill({status:503,json:{error:{code:'TEMPORARY',message:'合成临时中断'}}})}return route.continue()})
+ await send(page,'今天脸颊发红');await page.getByLabel('对话输入').fill('尚未发送的补充')
+ await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled();expect(failed).toBe(true)
+ await expect(page.getByLabel('对话输入')).toHaveValue('尚未发送的补充');await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+})
+test('image then supplement reuses OCR and keeps a single original bubble per input',async({page,request})=>{
+ await request.get('http://127.0.0.1:4198/delay?ms=400')
+ const before=await(await request.get('http://127.0.0.1:4198/stats')).json(),png=await sharp({create:{width:80,height:90,channels:3,background:'#fff'}}).png().toBuffer()
+ await page.getByLabel('从相册选择').setInputFiles({name:'合成资料.png',mimeType:'image/png',buffer:png})
+ await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+ const first=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(first.calls-before.calls).toBe(3)
+ await send(page,'没有呕吐');await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+ const next=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(next.calls-first.calls).toBe(2)
+ await expect(page.locator('.nurse-turn--user')).toHaveCount(2);await expect(page.getByRole('img',{name:'合成资料.png'})).toHaveCount(1)
+})
+test('discard before task upload completes fences late responses and does not restore local content',async({page})=>{
+ await page.route('**/recognition-assets?*',async route=>{await new Promise(r=>setTimeout(r,2000));await route.continue().catch(()=>undefined)})
+ const png=await sharp({create:{width:80,height:90,channels:3,background:'#fff'}}).png().toBuffer()
+ await page.getByLabel('从相册选择').setInputFiles({name:'上传中.png',mimeType:'image/png',buffer:png});await expect(page.getByTestId('recognition-progress')).toBeVisible()
+ await page.getByRole('button',{name:'返回',exact:true}).click();await page.getByRole('button',{name:'不保存并退出',exact:true}).click()
+ await page.waitForTimeout(2200);await page.goto('/smart-record?source=front-desk');await page.getByRole('button',{name:'改用文字'}).click()
+ await expect(page.locator('.nurse-turn--user')).toHaveCount(0);await expect(page.getByTestId('recognition-progress')).toHaveCount(0)
+})

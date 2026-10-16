@@ -5,7 +5,7 @@ import { AudioRequestError, audioErrorMessage } from './audioErrors'
 import {apiRequest} from '../../services/apiClient'
 import {fileDataUrl} from './draftFiles'
 
-type Options = {memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onFinalizationStart?:()=>()=>void;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
+type Options = {autoTranscribe?:boolean;memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onFinalizationStart?:()=>()=>void;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
 // The raw recording is persisted before contacting ASR. Retry consumes the same
 // file, so a network failure or closing the workspace never requires re-recording.
 export function useSmartRecordVoice(options:Options) {
@@ -36,7 +36,7 @@ export function useSmartRecordVoice(options:Options) {
   const stop=()=>{stopRequested.current=true;if(recorder.current?.state==='recording'){releaseFinalization.current??=latest.current.onFinalizationStart?.();try{recorder.current.stop()}catch{releaseFinalization.current?.();releaseFinalization.current=undefined;clean()}}}
   const discard=()=>{keep.current=false;stop()}
   const start=async()=>{
-    if(locked.current||recorder.current||latest.current.pendingVoice)return
+    if(locked.current||recorder.current||(latest.current.autoTranscribe!==false&&latest.current.pendingVoice))return
     if(!navigator.mediaDevices?.getUserMedia||!globalThis.MediaRecorder){setError('当前浏览器不支持录音，请输入文字');return}
     const turn=++generation.current;locked.current=true;keep.current=true;stopRequested.current=false;setState('requesting');setError('')
     try{
@@ -56,7 +56,7 @@ export function useSmartRecordVoice(options:Options) {
         const blob=new Blob(chunks,{type:r.mimeType});chunks.length=0
         if(blob.size<300||Date.now()-started<500){release();if(mounted.current)setError('录音太短，请重新录音');return}
         const file=new File([blob],`语音原件-${started}.${r.mimeType.includes('mp4')?'m4a':'webm'}`,{type:r.mimeType})
-        try{await config.onRecorded(file);release();if(mounted.current&&turn===generation.current)await transcribe(file)}catch{release();if(mounted.current)setError('录音草稿保存失败，请保持页面打开并重试')}
+        try{await config.onRecorded(file);release();if(config.autoTranscribe!==false&&mounted.current&&turn===generation.current)await transcribe(file)}catch{release();if(mounted.current)setError('录音草稿保存失败，请保持页面打开并重试')}
       })()}
       r.start(250);locked.current=false;setState('listening');limit.current=setTimeout(stop,90000)
     }catch(e){clean();locked.current=false;if(mounted.current){setState('idle');setError(e instanceof DOMException&&e.name==='NotAllowedError'?'麦克风未获授权，请允许麦克风或输入文字':'麦克风暂不可用，请输入文字')}}

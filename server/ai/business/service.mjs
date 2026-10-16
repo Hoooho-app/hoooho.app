@@ -18,7 +18,7 @@ import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-repl
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
 import { withAIAccount } from '../providers/call-control.mjs'
-import { documentPageWarnings, prepareDocuments, prepareVoiceOriginals, recognizePage } from './documents.mjs'
+import { documentPageWarnings, prepareDocuments, prepareVoiceOriginals, recognizePage, recognitionKey } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
 import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
 import { memberInsights } from './insights.mjs'
@@ -55,6 +55,7 @@ export class AIBusinessService {
     const configured=Number(options.maxDraftCalls??process.env.AI_DRAFT_MAX_CALLS??14)
     this.maxDraftCalls=Number.isInteger(configured)&&configured>=2&&configured<=100?configured:14
     this.inFlight=new Map()
+    this.assertRecognitionCurrent=options.assertRecognitionCurrent??(draft=>{if(draft.recognitionBinding)throw fail('请通过原识别任务核对后保存',409,'RECOGNITION_REVISION_CONFLICT')})
   }
   async scoped(accountId,memberId) { return this.events.assertMemberOwnership(accountId,memberId) }
   async insights(accountId,memberId){await this.scoped(accountId,memberId);const ids=new Set((await this.events.repository.findByAccountId(accountId)).filter(e=>e.memberId===memberId).map(e=>e.id));return memberInsights((await this.records.repository.findByAccountId(accountId)).filter(r=>ids.has(r.eventId)))}
@@ -79,6 +80,18 @@ export class AIBusinessService {
   }
   previewDraft(draft){const d=structuredClone(draft);if(d.state==='ready')d.items=d.items.map(item=>this.resolve(item,d));return publicDraft(d)}
   async read(accountId,memberId,id){return this.previewDraft(await this.get(accountId,memberId,id))}
+  async bindRecognition(accountId,memberId,id,binding,signal){
+    await this.store.update(data=>{signal?.throwIfAborted();return {...data,drafts:data.drafts.map(d=>d.id===id&&d.accountId===accountId&&d.memberId===memberId?{...d,recognitionBinding:binding}:d)}})
+  }
+  async checkpoint(draft,signal) {
+    await this.store.update(data=>{
+      signal?.throwIfAborted()
+      const latest=data.drafts.find(d=>d.id===draft.id&&d.accountId===draft.accountId&&d.memberId===draft.memberId)
+      if(!latest||latest.version!==draft.version)throw fail('本次整理已被更新取消',409,'AI_DRAFT_VERSION_CONFLICT')
+      return {...data,drafts:data.drafts.map(d=>d===latest?structuredClone(draft):d)}
+    })
+    return publicDraft(draft)
+  }
   async write(draft) { await this.store.update(data=>({...data,drafts:[...data.drafts.filter(d=>d.id!==draft.id),structuredClone(draft)]}));return publicDraft(draft) }
   async latest(accountId,memberId){await this.scoped(accountId,memberId);await this.prune();const d=(await this.store.read()).drafts.filter(d=>d.accountId===accountId&&d.memberId===memberId&&['ready','failed'].includes(d.state)).at(-1);return d?this.previewDraft(d):null}
   async file(accountId,memberId,id,fileId){const d=await this.get(accountId,memberId,id),file=d.documents.find(f=>f.id===fileId);if(!file)throw fail('草稿原件不存在或已保存到正式记录',404);return {name:file.name,mimeType:file.mimeType,buffer:Buffer.from(file.dataUrl.split(',')[1],'base64')}}
@@ -106,14 +119,14 @@ export class AIBusinessService {
       }
     }
   }
-  async prepare(accountId,memberId,input={},signal){
+  async prepare(accountId,memberId,input={},signal,progress){
     await this.scoped(accountId,memberId)
     const key=JSON.stringify([accountId,memberId]),hash=fingerprint(input),active=this.inFlight.get(key)
     if(active){if(active.hash===hash)return active.promise;throw fail('正在整理这位人物的资料，请等待完成或取消后再操作',409,'AI_DRAFT_IN_PROGRESS')}
-    const promise=withAIAccount(accountId,()=>this.prepareOnce(accountId,memberId,input,signal));this.inFlight.set(key,{hash,promise})
+    const promise=withAIAccount(accountId,()=>this.prepareOnce(accountId,memberId,input,signal,progress));this.inFlight.set(key,{hash,promise})
     try{return await promise}finally{if(this.inFlight.get(key)?.promise===promise)this.inFlight.delete(key)}
   }
-  async prepareOnce(accountId,memberId,input={},signal) {
+  async prepareOnce(accountId,memberId,input={},signal,progress) {
     const started=Date.now(),timings={};let phaseAt=started
     const mark=stage=>{const at=Date.now();timings[stage]=at-phaseAt;phaseAt=at}
     await this.scoped(accountId,memberId);const syntheticRequested=assertSyntheticRequest(input);await this.prune()
@@ -141,13 +154,15 @@ export class AIBusinessService {
     if(smartRecord&&(!Number.isFinite(Date.parse(selectedOccurredAt))||Date.parse(selectedOccurredAt)>this.now().getTime()))throw fail('发生时间不能晚于现在',422,'INVALID_OCCURRED_AT')
     const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record']:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
-    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length){
+    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length&&previous.pages.every(p=>previous.sources.some(s=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,this.model)))){
       previous.items=previous.items.map(item=>this.resolve(item,previous))
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
       return publicDraft(previous)
     }
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??(smartRecord?selectedOccurredAt:now.toISOString()),timezone:input.timezone??previous?.timezone??'Asia/Shanghai',raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
+    // Raw-input checkpoints preserve already verified recognition artifacts.
+    draft.sources=(previous?.sources??[]).filter(s=>draft.pages.some(p=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,this.model)))
     draft.manualOriginal=false;draft.voices=voices
     draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
     draft.frontDeskRecord=frontDeskRecord
@@ -157,32 +172,37 @@ export class AIBusinessService {
     draft.sourceRecordId = sourceRecordId
     if (sourceRecordId) draft.sourceRecordRevision = revisionKey(await this.records.getOwnedRecord(accountId, sourceRecordId))
     draft.preview=null
-    await this.write(draft)
+    await this.store.update(data=>{signal?.throwIfAborted();const latest=data.drafts.find(d=>d.id===draft.id);if(previous?(!latest||latest.version!==previous.version):Boolean(latest))throw fail('草稿状态已变化，请重新加载',409,'AI_DRAFT_VERSION_CONFLICT');return {...data,drafts:[...data.drafts.filter(d=>d.id!==draft.id),structuredClone(draft)]}})
     if (sourceRecordId) { const source = await this.records.getOwnedRecord(accountId, sourceRecordId); await this.records.repository.update(sourceRecordId, { caseContext: { ...source.caseContext, aiDraftId: draft.id } }, now) }
     // Store the original in the existing draft repository before any model call.
-    if (input.deferRecognition === true) { draft.state = 'changed'; return this.write(draft) }
+    if (input.deferRecognition === true) { draft.state = 'changed'; return this.checkpoint(draft,signal) }
     mark('preparationMs')
     let syntheticCapture=null,extractionDiagnostics=null,readable=null
     const syntheticStages=[],syntheticOptions={...(syntheticRequested?{syntheticEvidence:syntheticEvidenceProof,onSyntheticOutput:e=>syntheticStages.push(e)}:{}),onReadableOutput:p=>{readable=p}}
     try {
+      draft.sources=[]
       if(syntheticRequested)assertSyntheticRequest(input,await this.context(accountId,memberId,raw))
       if(raw)draft.sources.push({id:'input',page:1,text:raw,status:'readable'})
       for(const page of draft.pages){
         signal?.throwIfAborted()
-        const cached=previous?.sources?.find(s=>s.hash===page.hash)
-        if(cached&&!input.reprocessPages?.includes(`${page.id}:${page.page}`)){draft.sources.push({...cached,id:page.id,page:page.page});continue}
+        const cached=previous?.sources?.find(s=>s.hash===page.hash&&s.recognitionKey===recognitionKey(page,this.model))
+        if(cached&&!input.reprocessPages?.includes(`${page.id}:${page.page}`)){draft.sources.push({...cached,id:page.id,page:page.page});await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length,reused:true});continue}
+        await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length})
         if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，尚未识别的页面未标记为完成',429,'AI_DRAFT_CALL_LIMIT')
-        draft.callCount++;await this.write(draft)
-        const source=await recognizePage(page,this.model,signal,syntheticOptions);draft.sources.push(source);draft.diagnostics.push(source.diagnostics)
+        draft.callCount++;await this.checkpoint(draft,signal)
+        const source=await recognizePage(page,this.model,signal,syntheticOptions);signal?.throwIfAborted();draft.sources.push(source);draft.diagnostics.push(source.diagnostics)
+        await this.checkpoint(draft,signal)
+        await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length})
       }
       mark('recognitionMs')
       if(draft.sources.reduce((n,s)=>n+s.text.length,0)>60000)throw fail('资料内容过长，请分批整理；本次未截断或保存资料')
       if(!draft.sources.some(s=>s.text.trim()))throw fail('没有可整理的文字，请换一份资料或手动输入')
       if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，请核对现有草稿，未截断资料',429,'AI_DRAFT_CALL_LIMIT')
       signal?.throwIfAborted()
+      await progress?.({stage:'organizing'})
       const extractionContext=await this.context(accountId,memberId,raw)
       if(syntheticRequested)assertSyntheticRequest(input,extractionContext)
-      draft.callCount++;await this.write(draft)
+      draft.callCount++;await this.checkpoint(draft,signal)
       mark('contextAndCheckpointMs')
       const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。'+(draft.frontDeskRecord?' 时长字段durationMinutes的value必须保留时长单位及对应的连续原文，不能把小时换算为分钟数字；字段名不是换算指令。时长不能放进sleepAt或wakeAt，只有原文钟点才使用这些字段。金额、数量及单位也不改写成标准数字；任何计算或单位换算都由后续程序负责。输出前逐字段核对：quote必须逐字存在于source，value必须逐字存在于quote；不符合就重新从原文抽取，不能编造数字或删除事实绕过核对。':''),signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,sources:draft.sources.map(({id,page,text})=>({id,page,text}))})}).finally(()=>mark('modelMs'))
       extractionDiagnostics=diagnostics
@@ -215,8 +235,7 @@ export class AIBusinessService {
       draft.documentWarnings=documentPageWarnings(draft.sources);draft.confirmPageWarnings=false;draft.questions=this.questions(draft.items,previous?.skippedQuestions??[],previous?.questionHistory??[]);draft.questionHistory=[...new Set([...(previous?.questionHistory??[]),...draft.questions.map(q=>q.id)])];draft.state='ready';draft.diagnostics.push(diagnostics)
       // A cancelled or newer draft must not be resurrected by a late response.
       signal?.throwIfAborted()
-      const latest=await this.get(accountId,memberId,draft.id);if(latest.version!==draft.version)throw fail('本次整理已被更新取消',409)
-      const result=await this.write(draft)
+      const result=await this.checkpoint(draft,signal)
       return syntheticRequested?{...result,syntheticReplay:syntheticCapture,syntheticStages,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}:result
     }catch(error){
       // Failed output is display-only. Retain the last verified items and never
@@ -226,8 +245,8 @@ export class AIBusinessService {
       if(typeof extractionDiagnostics?.requestId==='string'&&/^[A-Za-z0-9_.:-]{1,200}$/.test(extractionDiagnostics.requestId))error.upstream={...error.upstream,requestId:extractionDiagnostics.requestId}
       if(syntheticCapture)error.details={...error.details,syntheticReplay:{...syntheticCapture,validation:error.validation??{stage:'semantic_validation',fieldPath:'/items',reason:'invalid_extraction'},businessCode:/^[A-Z_]{1,80}$/.test(error.code??'')?error.code:null}}
       if(syntheticRequested&&syntheticStages.length)error.details={...error.details,syntheticStages,syntheticFixtureId:input.syntheticReplay,syntheticReference:{referenceNow:draft.referenceNow,timezone:draft.timezone,sources:draft.sources.map(({id,page,text,status})=>({id,page,text,status}))}}
-      const latest=await this.get(accountId,memberId,draft.id).catch(()=>null)
-      if(latest?.version===draft.version){draft.state='failed';await this.write(draft)}
+      draft.state='failed'
+      await this.checkpoint(draft).catch(()=>undefined)
       throw error
     }finally{
       mark('finalizationMs')
@@ -307,6 +326,7 @@ export class AIBusinessService {
     await this.scoped(accountId,memberId)
     return accountTransaction(this.directory,async()=>{
       const d=await this.get(accountId,memberId,id);if(d.state==='saved')return publicDraft(d)
+      this.assertRecognitionCurrent(d)
       if(d.version!==input.version||d.state!=='ready'||!d.items.length||input.confirmed!==true)throw fail('请先成功整理并核对待确认记录',409)
       if(d.conflicts?.length&&!d.confirmConflicts)throw fail('已有相关档案，请先核对差异并确认保留来源',409,'AI_ARCHIVE_REVIEW_REQUIRED')
       if(!d.manualOriginal&&d.pages.some(p=>!d.sources.some(s=>s.id===p.id&&s.page===p.page)))throw fail('有页面尚未识别，本次未保存')
@@ -374,6 +394,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
       const changedSections=profileData.sections.filter(s=>s.accountId===accountId&&s.memberId===memberId&&JSON.stringify(s)!==JSON.stringify(profileBefore.find(p=>p.sectionId===s.sectionId))).map(s=>({sectionId:s.sectionId,revision:s.revision,before:profileBefore.find(p=>p.sectionId===s.sectionId)??null}))
       if(changedSections.length)await this.profiles.update(()=>profileData)
       if (targetEvent) await this.records.recomputeAfterMutation(accountId, targetEvent.id, this.now())
+      this.assertRecognitionCurrent(d)
       d.state='saved';d.result={records:saved,count:saved.length};d.undo=history;d.profileUndo=changedSections;d.documents=[];d.voices=[];d.pages=[];d.version++
       return this.write(d)
     })

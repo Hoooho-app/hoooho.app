@@ -15,6 +15,7 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 // never reads this flag, and no fixture is written to the normal data directory.
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
+  let delayMs=400
   let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
@@ -32,7 +33,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     if(String(url)==='https://api.openai.com/v1/audio/speech'){speechCalls++;const wave=Buffer.alloc(44+3200);wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);wave.writeUInt32LE(16000,24);wave.writeUInt32LE(32000,28);wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);wave.write('data',36);wave.writeUInt32LE(3200,40);return new Response(wave,{headers:{'Content-Type':'audio/wav'}})}
     if(String(url)!==(bailian?process.env.BAILIAN_BASE_URL+'/chat/completions':'https://api.openai.com/v1/responses'))throw new Error('Unconfigured synthetic endpoint; network prohibited')
     calls++
-    await new Promise(resolve => setTimeout(resolve, 400))
+    await new Promise(resolve => setTimeout(resolve, delayMs))
     if (mode === 'failure') return new Response(JSON.stringify({ error: { type: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', code: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: bailian?403:429, headers: { 'x-request-id': 'req_fixture' } })
     let body=JSON.parse(init.body)
     if(bailian){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
@@ -85,6 +86,7 @@ if (process.env.VISIT_AI_TEST === '1') {
   }
   createServer(async(req, res) => {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
+    if(controlUrl.pathname==='/delay')delayMs=Math.max(0,Math.min(10000,Number(controlUrl.searchParams.get('ms'))||0))
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
     if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null}
     if (req.url === '/success') mode = 'success'

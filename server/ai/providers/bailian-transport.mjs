@@ -26,7 +26,7 @@ function createTransport(expected,{requestImpl=https.request,connectionAgent=age
     const started=Date.now(),metadata={stage:'dns_tcp',addressFamilyAttemptTimeoutMs:1000,httpResponseReceived:false}
     const fail=error=>{error.transportDiagnostic={...metadata,elapsedMs:Date.now()-started,cause:safeNetworkCause(error)};reject(error)}
     const request=requestImpl(url,{method:init.method??'GET',headers:init.headers,agent:connectionAgent,rejectUnauthorized:true,signal:init.signal},incoming=>{
-      metadata.stage='response_body';metadata.httpResponseReceived=true;metadata.httpStatus=incoming.statusCode;metadata.firstByteMs=Date.now()-started
+      metadata.stage='response_body';metadata.httpResponseReceived=true;metadata.httpStatus=incoming.statusCode;metadata.firstByteMs=Date.now()-started;if(Number.isFinite(metadata.requestBodyFinishMs))metadata.upstreamWaitMs=Math.max(0,metadata.firstByteMs-metadata.requestBodyFinishMs)
       incoming.once('end',()=>{metadata.totalMs=Date.now()-started;metadata.bodyMs=metadata.totalMs-metadata.firstByteMs})
       if(incoming.statusCode>=300&&incoming.statusCode<400){incoming.resume();request.destroy();fail(Object.assign(new TypeError('Redirect rejected'),{code:'AI_TRANSPORT_REDIRECT'}));return}
       incoming.prependListener('error',error=>{error.transportDiagnostic={...metadata,elapsedMs:Date.now()-started,cause:safeNetworkCause(error)}})
@@ -42,6 +42,7 @@ function createTransport(expected,{requestImpl=https.request,connectionAgent=age
       socket.once('connect',()=>{metadata.stage='tls';metadata.tcpMs=Date.now()-started;metadata.address=socket.remoteAddress;metadata.family=socket.remoteFamily})
       socket.once('secureConnect',()=>{metadata.stage='http_wait';metadata.tlsMs=Date.now()-started})
     })
+    request.once('finish',()=>{metadata.requestBodyFinishMs=Date.now()-started})
     request.once('error',fail)
     request.end(init.body)
   })
@@ -51,5 +52,5 @@ function createTransport(expected,{requestImpl=https.request,connectionAgent=age
 export function transportTimings(response) {
   const source=response?.transportDiagnostic
   if(!source)return undefined
-  return Object.fromEntries(['dnsMs','tcpMs','tlsMs','firstByteMs','bodyMs','totalMs','reusedSocket'].filter(key=>typeof source[key]==='boolean'||Number.isFinite(source[key])).map(key=>[key,source[key]]))
+  return Object.fromEntries(['dnsMs','tcpMs','tlsMs','requestBodyFinishMs','upstreamWaitMs','firstByteMs','bodyMs','totalMs','reusedSocket'].filter(key=>typeof source[key]==='boolean'||Number.isFinite(source[key])).map(key=>[key,source[key]]))
 }
