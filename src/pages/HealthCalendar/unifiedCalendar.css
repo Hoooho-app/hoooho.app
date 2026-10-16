@@ -71,3 +71,11 @@
 
 .unified-health-calendar .health-calendar__day[data-selected='true'] { border-radius: var(--hoho-radius-small); box-shadow: inset 0 0 0 1px rgb(var(--hoho-color-primary)); }
 .calendar-day-reminder-count { font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); margin-bottom: var(--hoho-space-2); }
+
+.calendar-day-records{gap:0}
+.calendar-day-records>article[data-tone]{border-radius:0;padding:var(--hoho-space-2) 0;background:transparent}
+.calendar-day-records>article:last-child{border-bottom:0}
+.calendar-day-records button{grid-template-columns:44px 44px minmax(0,1fr) 16px;min-height:56px}
+.calendar-day-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:var(--hoho-radius-pill);background:rgb(var(--calendar-tone-surface));color:rgb(var(--calendar-tone))}
+.calendar-day-records time{color:rgb(var(--hoho-color-text-secondary));font-variant-numeric:tabular-nums}
+.calendar-day-records strong{font-size:var(--hoho-font-size-body);font-weight:500;line-height:var(--hoho-line-height-body)}

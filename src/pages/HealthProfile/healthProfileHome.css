@@ -17,3 +17,16 @@ body:has(.health-profile-overview),body:has(.health-profile-materials){min-width
 .health-profile-summary-retry{padding:10px;color:rgb(var(--hoho-color-primary));font-size:.8125rem}
 .health-profile-materials{display:grid;gap:12px}.health-profile-materials a,.health-profile-materials>button{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgb(var(--hoho-color-border));padding:12px 0;text-align:left;min-height:44px;color:inherit}
 .health-profile-materials small{display:block;color:rgb(var(--hoho-color-text-secondary))}.health-profile-materials h2{font-size:1rem;font-weight:600;margin-top:12px}
+
+/* Approved Overview board 3: one directory and one upload action. */
+.health-profile-overview{display:flex;flex-direction:column;min-height:100dvh}
+.health-profile-home{display:flex;flex:1;flex-direction:column;gap:var(--hoho-space-3)}
+.health-profile-entries{gap:0;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));overflow:hidden}
+.health-profile-entry{min-height:64px;border:0;border-bottom:1px solid rgb(var(--hoho-color-border));border-radius:0;background:transparent;background-image:none}
+.health-profile-entry:last-child{border-bottom:0}
+.health-profile-entry__count{flex:none;color:rgb(var(--hoho-color-text-secondary));font-variant-numeric:tabular-nums}
+.health-profile-home>.health-profile-upload-action{margin-top:auto;min-height:var(--hoho-touch-target)}
+
+.health-profile-overview{padding-bottom:0!important}
+.health-profile-overview .health-profile-record-subject .journal-subject-row{grid-template-columns:minmax(0,1fr)}
+.health-profile-home{padding-bottom:max(var(--hoho-space-4),env(safe-area-inset-bottom))!important}

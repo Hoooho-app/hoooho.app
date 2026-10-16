@@ -6,8 +6,11 @@ export type UpdateScope={accountId:string;memberId:string}
 export function trackSavedMutation(scope:UpdateScope,path:string,method:string,input:any,data:any) {
  if(!scope.accountId||!scope.memberId||!data||typeof data!=='object'||data.memberId&&data.memberId!==scope.memberId||input?.memberId&&input.memberId!==scope.memberId)return
  if(method==='DELETE') {
+  const cases=/^\/api\/members\/([^/]+)\/cases\/([^/]+)$/.exec(path)
+  if(cases&&decodeURIComponent(cases[1])!==scope.memberId)return
+  const deletedEvents=cases&&Array.isArray(data.deletedIds)?data.deletedIds:[]
   const record=/^\/api\/records\/([^/]+)$/.exec(path),event=/^\/api\/events\/([^/]+)$/.exec(path)
-  const ids=useUpdateStore.getState().items.filter(i=>i.accountId===scope.accountId&&i.memberId===scope.memberId&&(record&&i.recordId===decodeURIComponent(record[1])||event&&i.eventId===decodeURIComponent(event[1]))).map(i=>i.id)
+  const ids=useUpdateStore.getState().items.filter(i=>i.accountId===scope.accountId&&i.memberId===scope.memberId&&(record&&i.recordId===decodeURIComponent(record[1])||event&&i.eventId===decodeURIComponent(event[1])||deletedEvents.includes(i.eventId))).map(i=>i.id)
   if(ids.length)useUpdateStore.getState().read(ids)
   return
  }

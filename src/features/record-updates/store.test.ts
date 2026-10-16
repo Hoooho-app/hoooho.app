@@ -29,3 +29,12 @@ test('手动编辑、睡眠结束和档案新增归属当前记录，删除不�
  trackSavedMutation(scope,'/api/records/r','DELETE',{}, {success:true})
  assert.equal(items().length,1);assert.equal(items()[0].entryId,'p')
 })
+
+test('删除合并情况只清除当前孩子和实际删除事件的更新点',()=>{
+ clear()
+ for(const eventId of ['root','child','keep'])trackSavedMutation(scope,'/api/quick-records','POST',{journal:{categories:['symptom']}},{eventId,recordId:`r-${eventId}`})
+ trackSavedMutation(scope,'/api/members/another/cases/root','DELETE',{}, {deletedIds:['root','child']})
+ assert.equal(items().length,3)
+ trackSavedMutation(scope,'/api/members/synthetic-member/cases/root','DELETE',{}, {deletedIds:['root','child']})
+ assert.deepEqual(items().map(item=>item.eventId),['keep'])
+})

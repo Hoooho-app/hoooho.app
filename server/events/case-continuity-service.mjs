@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { AIBusinessService } from '../ai/business/service.mjs'
-import { prepareDocuments } from '../ai/business/documents.mjs'
+import { normalizePhoto } from '../food-label/service.mjs'
+import { prepareDocuments, prepareVoiceOriginals } from '../ai/business/documents.mjs'
 import { fail } from '../ai/business/contract.mjs'
 import { validateOccurredAt } from './health-event-record-service.mjs'
 import { validateJournal } from './journal-metadata.mjs'
@@ -52,7 +53,7 @@ export class CaseContinuityService {
         const feedback = own.filter(r => r.caseContext?.taskId === task.id && dayAt(new Date(r.occurredAt), task.timezone) === taskToday)
         return { ...task, state, todayRecorded: feedback.length, todayNotObserved: feedback.filter(r => r.caseContext.result === 'not_observed').length, todayTarget: state === 'active' && !event.caseArchivedAt ? task.timesPerDay : 0 }
       })
-      return [{ event, sourceEventIds, followup: caseFollowupView(event, own), latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, event.updatedAt) }]
+      return [{ event, sourceEventIds, followup: caseFollowupView(event, own), latest: latest ? { id: latest.id, content: latest.content, occurredAt: latest.occurredAt, createdAt: latest.createdAt } : null, observations, changedAt: own.reduce((last, r) => r.updatedAt > last ? r.updatedAt : last, events.filter(e=>sourceEventIds.includes(e.id)).reduce((last,e)=>e.updatedAt>last?e.updatedAt:last,event.updatedAt)) }]
     }).sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.event.id.localeCompare(a.event.id))
     return { active: cases.filter(c => !c.event.caseArchivedAt), archived: cases.filter(c => c.event.caseArchivedAt), timezone, today }
   }
@@ -61,6 +62,26 @@ export class CaseContinuityService {
     const events = await this.events.repository.findByAccountId(accountId)
     const ids = new Set(events.filter(e => e.memberId === memberId && (e.id === eventId || e.caseMergedInto === eventId)).map(e => e.id))
     return ordered((await this.records.repository.findByAccountId(accountId)).filter(r => ids.has(r.eventId)))
+  }
+  async manage(accountId, memberId, eventId, input, deleting = false) {
+    if(!input||typeof input!=='object'||Array.isArray(input))throw fail('操作内容无效')
+    const title = deleting ? '' : clean(input.title ?? '', 24)
+    if (!deleting && !title) throw fail('请填写情况名称')
+    return accountTransaction(this.directory, async () => {
+      const event = await this.owned(accountId, memberId, eventId)
+      if (event.caseMergedInto || input.expectedUpdatedAt !== event.updatedAt) throw fail('情况已有更新，请刷新后再操作', 409)
+      if (!deleting) return this.events.repository.update(eventId, { caseTitle: title }, this.now())
+      const group = (await this.events.repository.findByAccountId(accountId)).filter(item => item.memberId === memberId && (item.id === eventId || item.caseMergedInto === eventId))
+      const ids=new Set(group.map(item=>item.id))
+      const changedAt=(await this.records.repository.findByAccountId(accountId)).filter(record=>ids.has(record.eventId)).reduce((last,record)=>record.updatedAt>last?record.updatedAt:last,group.reduce((last,item)=>item.updatedAt>last?item.updatedAt:last,event.updatedAt))
+      if(input.expectedChangedAt!==changedAt)throw fail('关联记录已有更新，请刷新后再删除',409)
+      const actual = group.map(item=>item.id).sort()
+      if (!Array.isArray(input.sourceEventIds) || JSON.stringify([...new Set(input.sourceEventIds)].sort()) !== JSON.stringify(actual)) throw fail('关联情况已有变化，请刷新后再删除', 409)
+      // Match the established event deletion policy, atomically for the whole
+      // merged group so no surviving case points at a deleted root.
+      for (const item of group) await this.events.repository.delete(item.id)
+      return { deletedIds: actual }
+    })
   }
   async merge(accountId, memberId, eventId, input) {
     if (!['merge', 'separate'].includes(input.action)) throw fail('请选择合并或分开保留')
@@ -87,15 +108,19 @@ export class CaseContinuityService {
     const content = clean(input.text ?? '')
     const allFiles = input.files ?? []
     if (!Array.isArray(allFiles) || allFiles.length > 12) throw fail('最多保存12份原件')
-    const voices = allFiles.filter(f => /^audio\//.test(f.mimeType ?? '')).map(file => {
-      const match = /^data:(audio\/(?:webm|mp4|ogg|wav)(?:;codecs=[a-z0-9]+)?);base64,([A-Za-z0-9+/=]+)$/.exec(file.dataUrl ?? '')
-      if (!match) throw fail('语音原件格式无效')
-      const buffer = Buffer.from(match[2], 'base64'), magic = buffer.subarray(0, 12)
-      if (buffer.length < 800 || buffer.length > 6 * 1024 * 1024 || !(magic.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3])) || magic.subarray(0,4).toString() === 'OggS' || magic.subarray(0,4).toString() === 'RIFF' || magic.subarray(4,8).toString() === 'ftyp')) throw fail('语音原件不可读取或超过6 MB')
-      return { name: clean(file.name, 160), mimeType: match[1].split(';')[0], dataUrl: file.dataUrl, contentHash: createHash('sha256').update(buffer).digest('hex') }
-    })
-    const files = await prepareDocuments(allFiles.filter(f => !/^audio\//.test(f.mimeType ?? '')))
-    files.documents.push(...voices)
+    const voices = prepareVoiceOriginals(allFiles.filter(file=>/^audio\//.test(file.mimeType??'')))
+    const heic=allFiles.filter(file=>/^image\/hei[cf]$/.test(file.mimeType??''))
+    const originals=await Promise.all(heic.map(async file=>{
+      // Reuse the existing HEIC decoder for validation, but retain the selected
+      // original bytes in this no-model fallback instead of a JPEG derivative.
+      if(typeof file.dataUrl!=='string'||!file.dataUrl.startsWith(`data:${file.mimeType};base64,`))throw fail('图片原件格式与声明不一致')
+      const bytes=Buffer.from(file.dataUrl.split(',')[1],'base64')
+      if(bytes.subarray(4,8).toString()!=='ftyp')throw fail('图片原件格式与声明不一致')
+      await normalizePhoto(file)
+      return {name:String(file.name||'图片原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120),mimeType:file.mimeType,dataUrl:file.dataUrl,contentHash:createHash('sha256').update(Buffer.from(file.dataUrl.split(',')[1],'base64')).digest('hex')}
+    }))
+    const files = await prepareDocuments(allFiles.filter(f => !/^audio\//.test(f.mimeType ?? '')&&!/^image\/hei[cf]$/.test(f.mimeType??'')))
+    files.documents.push(...voices,...originals)
     if (files.documents.reduce((n, file) => n + Buffer.from(file.dataUrl.split(',')[1], 'base64').length, 0) > 15 * 1024 * 1024) throw fail('原件总大小不能超过15 MB')
     if (!content && !files.documents.length && !input.photoIds?.length) throw fail('先留一句话或一份原件，不保存空情况')
     const key = clean(input.requestId ?? '', 100)
@@ -131,7 +156,7 @@ export class CaseContinuityService {
       }
       const bodyLocations = Array.isArray(input.bodyLocations) ? input.bodyLocations.slice(0, 20).map(v => clean(v, 100)) : []
       await this.records.repository.update(record.id, { caseContext: { requestId: key, identity, timeUnknown: Boolean(input.timeUnknown), supplement: clean(input.supplement ?? '', 1000), bodyLocations, attachmentIds, ...(linkedDraft ? { aiDraftId: linkedDraft.id } : {}), ...(task ? { taskId: task.id, result: input.result } : {}) } }, this.now())
-      await this.events.repository.update(event.id, { caseTracking: true }, this.now())
+      await this.events.repository.update(event.id, { caseTracking: input.followUp===false&&!input.eventId?false:true }, this.now())
       await this.photos.consume(accountId, input.photoDraftId, photos, this.now())
       return { eventId: event.id, recordId: record.id, attachmentIds, duplicate: false }
     })

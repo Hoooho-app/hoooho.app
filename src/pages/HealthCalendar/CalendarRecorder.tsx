@@ -48,6 +48,7 @@ export function CalendarRecorder({ memberId, token, day, today, initialCategory,
       finish(current.input.occurredAt); current.resolve('已记录')
     } catch (error) { current.reject(error) }
   }
+  const cancelDuplicate = () => { if(!pending)return;const current=pending;setPending(null);current.reject(new Error('')) }
   const discardDuplicate = () => { if (!pending) return; pending.resolve('已保留原来的记录'); setPending(null); submissionKey.current = '' }
   const submit = async () => {
     if (saving || !content.trim()) return
@@ -65,5 +66,5 @@ export function CalendarRecorder({ memberId, token, day, today, initialCategory,
       <label className="hoho-field"><span className="hoho-text-label">记录类型</span><select className="hoho-input" aria-label="记录类型" value={category} disabled={saving} onChange={e => setCategory(e.target.value as JournalCategory)}>{calendarCategories.map(c => <option key={c} value={c}>{calendarCategoryLabels[c]}</option>)}</select></label>
       <OccurrenceTimeField model={occurrence}/>{error && <p className="hoho-field__message" role="alert" data-error="true">{error}</p>}
     </div>
-  </BottomSheetSurface>{pending && <DuplicateRecordPrompt duplicate={pending.duplicate} onCancel={discardDuplicate} onDiscard={discardDuplicate} onUpdate={summary => resolveDuplicate('update', summary)} onCreate={() => resolveDuplicate('create')}/>}</>
+  </BottomSheetSurface>{pending && <DuplicateRecordPrompt duplicate={pending.duplicate} onCancel={cancelDuplicate} onDiscard={discardDuplicate} onUpdate={summary => resolveDuplicate('update', summary)} onCreate={() => resolveDuplicate('create')}/>}</>
 }

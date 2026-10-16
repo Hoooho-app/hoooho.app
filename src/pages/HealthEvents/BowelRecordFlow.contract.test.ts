@@ -12,9 +12,9 @@ test('bowel form exposes the confirmed fields without diagnostic or low-value ch
   assert.match(source, /<ScaleChoice label="排便大约用了多久？"/)
 })
 
-test('bowel form keeps photo first then time and save order with the six-photo limit', () => {
-  assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('legend>形状'))
-  assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('<OccurrenceTimeField'))
+test('bowel form keeps time first and photo lower with save order with the six-photo limit', () => {
+  assert.ok(source.indexOf('<OccurrenceTimeField') < source.indexOf('legend>形状'))
+  assert.ok(source.indexOf('还观察到什么') < source.indexOf('<BowelPhotos'))
   assert.ok(source.indexOf('<OccurrenceTimeField') < source.indexOf('<DailyRecordSettings'))
   assert.match(source, /<header>.*RecordSaveAction.*<\/header>/)
   assert.doesNotMatch(source, /diet-record-save/)

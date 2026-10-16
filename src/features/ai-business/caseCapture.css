@@ -78,3 +78,16 @@
 .smart-record-actions{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);margin-top:var(--hoho-space-3)}
 .smart-record-actions>.hoho-button{flex:1;min-width:0;white-space:nowrap}
 .smart-record-saved-actions{display:flex}
+
+.smart-record-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+.smart-record-actions>strong{font-size:var(--hoho-font-size-body);font-weight:600}
+.smart-record-dialog .recognition-steps{display:flex;list-style:none;gap:var(--hoho-space-2);padding:var(--hoho-space-4) 0;margin:0}
+.recognition-steps>li{position:relative;flex:1;display:grid;justify-items:center;gap:var(--hoho-space-2);text-align:center;min-width:0;color:rgb(var(--hoho-color-text-secondary))}
+.recognition-steps>li:not(:last-child)::after{content:'';position:absolute;top:15px;left:calc(50% + 20px);width:calc(100% - 32px);height:1px;background:rgb(var(--hoho-color-border))}
+.recognition-steps>li>span{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface))}
+.recognition-steps>li[data-state=done]>span{background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-surface))}
+.recognition-steps>li[data-state=current]>span{border-color:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-primary))}
+.recognition-steps small{font-size:var(--hoho-font-size-caption);line-height:1.4}
+.smart-record-dialog .recognition-progress>.hoho-button{width:100%;margin-top:var(--hoho-space-2)}
+
+.smart-record-dialog .recognition-progress>p{border:0;border-radius:0;background:transparent;padding:0;margin:var(--hoho-space-2) 0;font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-text-secondary))}

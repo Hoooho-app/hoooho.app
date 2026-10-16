@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { HealthRecordSubjectHeader } from '../../components/health'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
-import { readAllergyArchive, allergyGroup } from '../../features/health-profile/utils/allergyProfile'
-import { loadProfileSections, readProfileSection } from '../../services/profileSectionStorage'
+import { subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
+import { apiRequest } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
 import './healthProfileHome.css'
 import { ProfileUploadBatch } from './ProfileUploadBatch'
@@ -24,34 +24,32 @@ export function HealthProfilePage() {
   const navigate = useNavigate()
   const { authToken: token, currentMemberId, members, authUser } = useAppStore()
   const member = members.find(item => item.id === currentMemberId) ?? null
-  const [summary, setSummary] = useState({ memberId: '', text: '正在加载…' })
+  const [counts, setCounts] = useState<{memberId:string; values:Record<string,number>}>({memberId:'',values:{}})
   const [retry, setRetry] = useState(0)
   useEffect(() => {
+    const refresh=()=>setRetry(value=>value+1)
+    const unsubscribe=subscribeProfileSectionInvalidation(refresh)
+    window.addEventListener('focus',refresh)
+    return()=>{unsubscribe();window.removeEventListener('focus',refresh)}
+  },[])
+  useEffect(() => {
     const controller = new AbortController()
-    setSummary({ memberId: currentMemberId, text: '正在加载…' })
-    if (token && member) void loadProfileSections(token, members, controller.signal).then(() => {
-      if (controller.signal.aborted) return
-      const archive = readAllergyArchive(readProfileSection(`hoho-health-profile:${currentMemberId}:allergy`), currentMemberId, authUser?.id ?? '')
-      const pending = archive.items.filter(item => allergyGroup(item) === 'investigating').length
-      const confirmed = archive.items.filter(item => allergyGroup(item) === 'confirmed').length
-      setSummary({ memberId: currentMemberId, text: `待排查 ${pending} · 已明确 ${confirmed}` })
-    }).catch(() => { if (!controller.signal.aborted) setSummary({ memberId: currentMemberId, text: '数量暂不可用，点击查看' }) })
+    setCounts({memberId:currentMemberId,values:{}})
+    if (token && member) void Promise.allSettled(entries.map(async ({id})=>{
+      const result=await apiRequest<{rows:unknown[];pendingAllergyRows?:unknown[]}>(`/api/members/${encodeURIComponent(currentMemberId)}/profile-list/${id}`,{token,signal:controller.signal})
+      return [id,result.rows.length+(id==='allergy'?(result.pendingAllergyRows?.length??0):0)] as const
+    })).then(results=>{
+      if(!controller.signal.aborted)setCounts({memberId:currentMemberId,values:Object.fromEntries(results.flatMap(result=>result.status==='fulfilled'?[result.value]:[]))})
+    })
     return () => controller.abort()
-  }, [token, currentMemberId, members, authUser?.id, retry])
+  }, [token, currentMemberId, member?.id, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview"><MainAppHeader compact title="孩子档案" /><div className="page-content health-profile-home">
-    <ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger =>
-      <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={
-        <HohoButton className="journal-subject-summary health-profile-upload-action" variant="secondary" {...trigger}>
-          <Upload aria-hidden="true" size={22} strokeWidth={1.7} />
-          <span>上传资料</span>
-        </HohoButton>
-      } />
-    } />
+    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={<></>} />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
-      <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong><small>{id === 'allergy' ? summary.memberId === currentMemberId ? summary.text : '正在加载…' : '查看与补充'}</small></span><ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
+      <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
-    {summary.text.startsWith('数量暂不可用') && <button className="health-profile-summary-retry" onClick={() => setRetry(value => value + 1)} type="button">重试加载数量</button>}
+    <ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger => <HohoButton className="health-profile-upload-action" fullWidth {...trigger}><Upload aria-hidden="true" size={20}/><span>上传资料</span></HohoButton>} />
   </div></main>
 }
