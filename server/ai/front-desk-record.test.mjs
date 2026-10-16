@@ -132,3 +132,10 @@ test('restored codec MIME aliases reuse the exact voice message; changed text or
  await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,text:'改写原话'}),{code:'FRONT_RECORD_ID_CONFLICT'})
  await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,voiceFiles:[{...original,mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${Buffer.alloc(400).toString('base64')}`}]}),{code:'VOICE_ORIGINAL_FORMAT_MISMATCH'})
 })
+test('supplier acknowledgement cannot claim that unconfirmed input was formally saved',async t=>{
+ const f=await setup(t)
+ f.model.structured=async()=>({value:{reply:'收到，已记录体温38.2度。孩子精神怎么样？',contextId:'new',action:'record'}})
+ const result=await f.service.submit('synthetic',f.member.id,{id:'unconfirmed',kind:'text',text:'今天体温38.2度'})
+ const reply=result.context.messages.find(message=>message.kind==='assistant').text
+ assert.match(reply,/内容已收到/);assert.doesNotMatch(reply,/已记录|已保存/);assert.notEqual(result.context.saved,true)
+})
