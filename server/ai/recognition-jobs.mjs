@@ -8,8 +8,9 @@ import {registerRecognitionInstance} from './recognition-lifecycle.mjs'
 import { fail, fingerprint } from './business/contract.mjs'
 
 const validId=value=>typeof value==='string'&&/^[A-Za-z0-9:_-]{1,180}$/.test(value)
+const unresolved=j=>Object.keys(j.inputErrors??{}).filter(id=>!(j.excludedInputs??[]).includes(id))
 const cleanName=value=>String(value||'原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120)
-const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftId','draftVersion','outbox','activeMs','baseText'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,messages:j.frontDesk.context.messages.map(m=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}};return result}
+const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftId','draftVersion','outbox','activeMs','baseText'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,messages:j.frontDesk.context.messages.map(m=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}};result.inputStates=(j.inputs??[]).map((item,index)=>({id:item.id,status:j.inputErrors?.[item.id]?'failed':index<(j.cursor??0)?'completed':'pending',text:j.transcripts?.[item.id]??item.text}));result.unresolvedInputs=unresolved(j).map(id=>({id,...j.inputErrors[id]}));return result}
 const mediaTypes=/^(?:application\/pdf|image\/(?:jpeg|png|webp|heic|heif)|audio\/(?:wav|webm|mp4|ogg)(?:;\s*codecs=(?:"[a-z0-9., _-]+"|[a-z0-9.,_-]+))?)$/i
 
 // One SQLite WAL database on the existing persistent volume. It stores task
@@ -47,10 +48,14 @@ export class RecognitionJobs {
     if(existing)return this.assetPublic(JSON.parse(existing.document))
     const file=path.join(this.directory,id),temporary=`${file}.${randomUUID()}.tmp`,handle=await open(temporary,'wx',0o600)
     try{await handle.writeFile(buffer);await handle.sync()}finally{await handle.close()}
-    try{await rename(temporary,file);const directory=await open(this.directory,'r');try{await directory.sync()}finally{await directory.close()}}catch(error){await unlink(temporary).catch(()=>undefined);throw error}
-    const asset={id,accountId,memberId,hash,mimeType,name:cleanName(name),lastModified:Number.isFinite(lastModified)?lastModified:0,bytes:buffer.length,createdAt:new Date(this.now()).toISOString()}
-    this.db.prepare('INSERT OR IGNORE INTO assets VALUES(?,?,?,?)').run(id,accountId,memberId,JSON.stringify(asset));return this.assetPublic(asset)
+    try{return await withStorageLock(async()=>{
+      await this.scope(accountId,memberId)
+      await rename(temporary,file);const directory=await open(this.directory,'r');try{await directory.sync()}finally{await directory.close()}
+      const asset={id,accountId,memberId,hash,mimeType,name:cleanName(name),lastModified:Number.isFinite(lastModified)?lastModified:0,bytes:buffer.length,createdAt:new Date(this.now()).toISOString()}
+      this.db.prepare('INSERT OR IGNORE INTO assets VALUES(?,?,?,?)').run(id,accountId,memberId,JSON.stringify(asset));return this.assetPublic(asset)
+    })}catch(error){await unlink(temporary).catch(()=>undefined);throw error}
   }
+
   assetPublic({id,hash,mimeType,name,lastModified,bytes}){return {id,hash,mimeType,name,lastModified,bytes}}
   asset(accountId,memberId,id){const row=typeof id==='string'?this.db.prepare('SELECT document FROM assets WHERE id=?').get(id):null,asset=row?JSON.parse(row.document):null;if(!asset||asset.accountId!==accountId||asset.memberId!==memberId)throw fail('原件不属于当前人物',404,'RECOGNITION_ASSET_NOT_FOUND');return asset}
   async materialize(j,ids=[]){return Promise.all(ids.map(async id=>{const a=this.asset(j.accountId,j.memberId,id),buffer=await readFile(path.join(this.directory,a.id));if(createHash('sha256').update(buffer).digest('hex')!==a.hash)throw fail('原件校验失败，请重新上传',503,'RECOGNITION_ASSET_CORRUPT');return {...this.assetPublic(a),dataUrl:`data:${a.mimeType};base64,${buffer.toString('base64')}`}}))}
@@ -63,7 +68,7 @@ export class RecognitionJobs {
     if(item.asrAssetId){const a=this.asset(accountId,memberId,item.asrAssetId);if(a.mimeType!=='audio/wav')throw fail('转写音频格式无效',415)}
     if(!item.text.trim()&&!originals.length)throw fail('请先输入内容或上传原件')
     const options=input.options??{};if(JSON.stringify(options).length>10000)throw fail('任务参数过长')
-    const j=await withStorageLock(()=>this.transaction(()=>{
+    const j=await withStorageLock(async()=>{await this.scope(accountId,memberId);return this.transaction(()=>{
       let job=this.raw(input.id)
       if(job&&(job.accountId!==accountId||job.memberId!==memberId))throw fail('未找到这次识别任务',404,'RECOGNITION_NOT_FOUND')
       if(job?.state==='discarded')throw fail('这次任务已取消，请开始新的记录',409,'RECOGNITION_DISCARDED')
@@ -74,24 +79,28 @@ export class RecognitionJobs {
       const at=new Date(this.now()).toISOString()
       job??={id:input.id,accountId,memberId,mode:input.mode,scopeKey:input.scopeKey??input.mode,state:'queued',stage:'queued',seq:0,inputRevision:0,resultRevision:0,cursor:0,inputs:[],transcripts:{},baseText:options.initialText??'',options,createdAt:at,cancelEpoch:0,commandIds:[],activeMs:0}
       const ids=new Set([...job.inputs.flatMap(i=>i.assetIds),...item.assetIds]);if(ids.size>12||[...ids].reduce((n,id)=>n+this.asset(accountId,memberId,id).bytes,0)>15*1024*1024)throw fail('本次原件最多12份，总大小15 MB',413)
-      job.inputs.push(item);job.inputRevision++;job.options=options;job.error=null;job.review=null;job.activeMs=0
+      job.inputs.push(item);job.inputRevision++;job.processingStartedAt=at;job.options=options;job.error=null;job.review=null;job.activeMs=0
       if(job.state==='publishing'){this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(job.id);job.state='queued';job.stage='queued'}
       if(!['running','publishing','paused'].includes(job.state)){job.state='queued';job.stage='queued'}
       return this.put(job)
-    }))
+    })})
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active?.id===j.id&&active.stage==='organizing')active.controller.abort(new DOMException('New input','AbortError'))
     this.kick();return publicJob(j)
   }
   async command(accountId,memberId,id,input){
     await this.scope(accountId,memberId)
-    if(!validId(input.id)||!['pause','resume','retry','discard'].includes(input.type))throw fail('任务操作无效')
-    const result=await withStorageLock(()=>this.transaction(()=>{
+    if(!validId(input.id)||!['pause','resume','retry','discard','use_text'].includes(input.type))throw fail('任务操作无效')
+    // Expiry is resolved on an explicit command, never by retrying a GET.
+    const before=this.raw(id);let expired=false;if(before?.draftId&&input.type==='retry')try{await this.business.get(accountId,memberId,before.draftId)}catch(error){if(error.code==='AI_DRAFT_NOT_FOUND')expired=true;else throw error}
+    const result=await withStorageLock(async()=>{await this.scope(accountId,memberId);return this.transaction(()=>{
       let j=this.raw(id);if(!j&&input.type==='discard'){j={id,accountId,memberId,mode:'front',scopeKey:'front',state:'discarded',stage:'discarded',inputRevision:0,resultRevision:0,cancelEpoch:1,inputs:[],commandIds:[input.id],createdAt:new Date(this.now()).toISOString()};return this.put(j)}j=this.owned(accountId,memberId,id);if(j.commandIds.includes(input.id))return j
       if(j.state==='discarded')return j
-      if(input.type==='pause'||input.type==='discard'){j.state=input.type==='pause'?'paused':'discarded';j.stage=j.state;j.cancelEpoch++;j.leaseUntil=0;j.owner=null}
-      else {if(!['paused','failed'].includes(j.state))return j;const outbox=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(j.id);j.state=outbox&&JSON.parse(outbox.document).revision===j.inputRevision?'publishing':'queued';j.stage=j.state;j.error=null;j.activeMs=0}
+      if(expired&&['ready','needs_review','failed'].includes(j.state)&&j.draftId===before.draftId){j.state='failed';j.draftId=null;j.draftVersion=null;j.options={...j.options,id:undefined,version:undefined};this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)}
+      if(input.type==='use_text'){if(j.state!=='needs_review'||!j.review)throw fail('请先完成可用文字的整理',409);j.excludedInputs=[...new Set([...(j.excludedInputs??[]),...unresolved(j)])];j.state='ready';j.stage='ready'}
+      else if(input.type==='pause'||input.type==='discard'){j.state=input.type==='pause'?'paused':'discarded';j.stage=j.state;j.cancelEpoch++;j.leaseUntil=0;j.owner=null}
+      else {if(!['paused','failed','needs_review'].includes(j.state))return j;if(input.type==='retry'&&unresolved(j).length){j.cursor=Math.min(...unresolved(j).map(id=>j.inputs.findIndex(i=>i.id===id)));j.inputErrors={}}const outbox=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(j.id);j.state=outbox&&JSON.parse(outbox.document).revision===j.inputRevision?'publishing':'queued';j.stage=j.state;j.error=null;j.activeMs=0;j.processingStartedAt=new Date(this.now()).toISOString()}
       j.commandIds=[...j.commandIds,input.id].slice(-200);return this.put(j)
-    }))
+    })})
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active?.id===id&&['pause','discard'].includes(input.type))active.controller.abort()
     if(input.type==='discard'){
       // The durable tombstone above is the authoritative cancellation ACK.
@@ -104,7 +113,7 @@ export class RecognitionJobs {
   assertCurrent(draft){
     if(!draft.recognitionBinding)return
     const {jobId,revision}=draft.recognitionBinding,j=this.raw(jobId)
-    if(!j||j.state!=='ready'&&j.state!=='needs_review'&&!(draft.manualOriginal&&j.state==='failed')||j.inputRevision!==revision||(!draft.manualOriginal&&j.resultRevision!==revision)||j.draftId!==draft.id)throw fail('内容已有更新或尚未完成，请重新核对后保存',409,'RECOGNITION_REVISION_CONFLICT')
+    if(!j||j.state!=='ready'&&j.state!=='needs_review'&&!(draft.manualOriginal&&j.state==='failed')||unresolved(j).length>0||j.inputRevision!==revision||(!draft.manualOriginal&&j.resultRevision!==revision)||j.draftId!==draft.id)throw fail('内容已有更新或尚未完成，请重新核对后保存',409,'RECOGNITION_REVISION_CONFLICT')
   }
   kick(){
     if(this.closed)return
@@ -140,7 +149,9 @@ export class RecognitionJobs {
             if(!item.asrAssetId)throw fail('录音原件已保留，请重新转码后重试',422,'RECOGNITION_AUDIO_REQUIRED')
             const [wav]=await this.materialize(j,[item.asrAssetId]),attempt=randomUUID()
             this.db.prepare('INSERT INTO attempts VALUES(?,?,?)').run(attempt,id,JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'calling',startedAt:new Date(this.now()).toISOString()}))
-            const result=await this.audio.transcribe(wav,j.accountId,signal);this.guard(id,epoch,signal);text=result.transcript
+            let result
+            try{result=await this.audio.transcribe(wav,j.accountId,signal)}catch(error){this.guard(id,epoch,signal);await this.updateActive(id,epoch,signal,{cursor:j.cursor+1,inputErrors:{...this.raw(id).inputErrors,[item.id]:{code:error.code??'ASR_UNAVAILABLE',message:'这段录音尚未转写，原件仍保留'}}});continue}
+            this.guard(id,epoch,signal);text=result.transcript
             const transcripts={...this.raw(id).transcripts,[item.id]:text};await this.updateActive(id,epoch,signal,{transcripts,transcript:{inputId:item.id,text}})
             this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'completed',requestId:result.requestId??null}),attempt)
           }
@@ -153,7 +164,8 @@ export class RecognitionJobs {
         await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
       }
       j=this.guard(id,epoch,signal);const revision=j.inputRevision
-      if(j.mode==='transcription'){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
+      if(j.mode==='transcription'){if(unresolved(j).length)throw fail('录音尚未转写，原件保留，请重试',422,'RECOGNITION_INPUT_PENDING');await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
+      if(j.mode==='front'&&!j.contextId)throw fail('这段录音尚未转写，原件仍保留，可以重试或继续文字输入',422,'RECOGNITION_INPUT_PENDING')
       let input
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
@@ -185,7 +197,7 @@ export class RecognitionJobs {
         else {current.state='failed';current.stage='failed';current.error={code:error.code??(signal.aborted?'RECOGNITION_TIMEOUT':'RECOGNITION_FAILED'),message:error.status&&error.status<500?error.message:signal.aborted?'处理时间较长，原件和已完成步骤保留，可以重试':'这一步未完成，原件和已完成步骤保留，可以重试'}}
         current.owner=null;current.leaseUntil=0;this.put(current)
       })
-    }finally{clearInterval(heartbeat);const current=this.raw(id);if(current){current.activeMs=['ready','needs_review'].includes(current.state)?0:(current.activeMs??0)+this.now()-started;this.put(current,false)}}
+    }finally{clearInterval(heartbeat);const current=this.raw(id);this.logger.info?.('[Hoooho recognition] task completed',{requestId:fingerprint(id).slice(0,24),revision:current?.inputRevision??null,state:current?.state??'removed',elapsedMs:this.now()-started});if(current){current.activeMs=['ready','needs_review'].includes(current.state)?0:(current.activeMs??0)+this.now()-started;this.put(current,false)}}
   }
   async publish(id){
     const row=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(id);if(!row)return
@@ -194,7 +206,7 @@ export class RecognitionJobs {
     if(review.id!==outbox.review.id||review.version!==outbox.review.version||review.state!=='ready')throw fail('整理结果已有变化，请重新核对',409)
     if(j.mode==='front'&&outbox.contextId)await this.front.checkpoint(j.accountId,j.memberId,outbox.contextId,{draftId:review.id},()=>{const current=this.raw(id);if(current.state!=='publishing'||current.cancelEpoch!==j.cancelEpoch||current.inputRevision!==outbox.revision)throw fail('任务已变化',409)})
     await withStorageLock(()=>this.transaction(()=>{const latest=this.raw(id);if(latest.state!=='publishing'||latest.inputRevision!==outbox.revision)return
-      const needsReview=!!(review.documentWarnings?.length||review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain'))
+      const needsReview=!!(unresolved(latest).length||review.documentWarnings?.length||review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain'))
       this.put({...latest,state:needsReview?'needs_review':'ready',stage:'ready',review,resultRevision:outbox.revision,draftVersion:review.version,owner:null,leaseUntil:0,error:null})
       this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)
     }))

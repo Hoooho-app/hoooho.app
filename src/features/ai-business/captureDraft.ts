@@ -2,7 +2,7 @@ import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
 export interface CaptureTurn {id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;errorCode?:string;contextId?:string;reviewId?:string;recordCount?:number}
-export interface CaptureDraft { recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { appliedVoiceJobIds?:string[]; recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
 const finalizations=new Map<string,Promise<void>>()
@@ -86,8 +86,17 @@ export function guestDraftKeys(key: string, keys: IDBValidKey[], owner: {account
 // The caller must first verify member ownership with the authenticated server.
 // Existing guest merges preserve member/event IDs. Only one exact-context local
 // draft may follow that owned member; no all-guest/account-wide import occurs.
+const draftOperations=new Map<string,Promise<unknown>>()
 export async function captureDraft(key: string, value?: CaptureDraft | null, verifiedOwner?: {accountId:string;memberId:string}): Promise<CaptureDraft | null> {
+  // Byte snapshots can complete out of order. Serialize an owner's exact key
+  // so a slow media write cannot overwrite a later edit or explicit removal.
   if(value===undefined)await finalizations.get(key)
+  const previous=draftOperations.get(key)??Promise.resolve()
+  const operation=previous.catch(()=>undefined).then(()=>captureDraftOnce(key,value,verifiedOwner))
+  draftOperations.set(key,operation)
+  try{return await operation}finally{if(draftOperations.get(key)===operation)draftOperations.delete(key)}
+}
+async function captureDraftOnce(key: string, value?: CaptureDraft | null, verifiedOwner?: {accountId:string;memberId:string}): Promise<CaptureDraft | null> {
   // Read bytes before opening the IDB transaction; awaiting inside it would let
   // Safari auto-commit. Store bytes rather than OS-backed File references.
   const packed=value?await packCaptureDraft(value):value

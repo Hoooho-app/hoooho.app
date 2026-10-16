@@ -74,7 +74,7 @@ export function prepareVoiceOriginals(files=[]) {
     const mimeType=match[1].split(';')[0].toLowerCase()
     const container=magic.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3]))?'audio/webm':magic.subarray(0,4).toString()==='OggS'?'audio/ogg':magic.subarray(0,4).toString()==='RIFF'&&magic.subarray(8,12).toString()==='WAVE'?'audio/wav':magic.subarray(4,8).toString()==='ftyp'?'audio/mp4':null
     if(container!==mimeType)throw fail('语音原件内容与格式声明不一致，请重新录音；已有文字仍保留',415,'VOICE_ORIGINAL_FORMAT_MISMATCH')
-    const contentHash=fingerprint(file.dataUrl)
-    return {id:`voice-${contentHash.slice(0,24)}`,name:String(file.name||'语音原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120),mimeType,dataUrl:file.dataUrl,contentHash}
+    const dataUrl=`data:${mimeType};base64,${match[2]}`,contentHash=fingerprint(dataUrl)
+    return {id:`voice-${contentHash.slice(0,24)}`,name:String(file.name||'语音原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120),mimeType,dataUrl,originalMimeType:file.originalMimeType??match[1],contentHash}
   })
 }

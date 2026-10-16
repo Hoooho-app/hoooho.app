@@ -4,7 +4,7 @@ import {recordingToWav} from './recordingAudio'
 import type {SmartRecordDraft} from './smartRecordTypes'
 import type {FrontContext} from './frontDeskRecord'
 export type RecognitionState='queued'|'running'|'publishing'|'paused'|'failed'|'ready'|'needs_review'|'discarded'
-export interface RecognitionJob {id:string;state:RecognitionState;stage:string;seq:number;inputRevision:number;resultRevision:number;createdAt:string;updatedAt:string;progress?:{completed:number;total:number;reused?:boolean}|null;transcript?:{inputId:string;text:string};frontDesk?:{context:FrontContext;messageId:string;replyId:string};review?:SmartRecordDraft|null;error?:{code:string;message:string}|null}
+export interface RecognitionJob {id:string;state:RecognitionState;stage:string;seq:number;inputRevision:number;resultRevision:number;createdAt:string;processingStartedAt?:string;updatedAt:string;inputStates?:{id:string;status:'pending'|'completed'|'failed';text:string}[];unresolvedInputs?:{id:string;code:string;message:string}[];progress?:{completed:number;total:number;reused?:boolean}|null;transcript?:{inputId:string;text:string};frontDesk?:{context:FrontContext;messageId:string;replyId:string};review?:SmartRecordDraft|null;error?:{code:string;message:string}|null}
 export const recognitionUrl=(memberId:string)=>`/api/members/${encodeURIComponent(memberId)}/recognition-jobs`
 export const recognitionActive=(job?:RecognitionJob|null)=>!!job&&['queued','running','publishing'].includes(job.state)
 export async function uploadRecognitionFile(memberId:string,token:string,file:File,signal?:AbortSignal):Promise<string>{
@@ -15,4 +15,4 @@ export async function uploadRecognitionFile(memberId:string,token:string,file:Fi
   return result.id
 }
 export async function uploadRecognitionAudio(memberId:string,token:string,file:File,signal?:AbortSignal){const wav=await recordingToWav(file);return uploadRecognitionFile(memberId,token,new File([wav],'转写音频.wav',{type:'audio/wav',lastModified:file.lastModified}),signal)}
-export const recognitionCommand=(memberId:string,token:string,id:string,type:'pause'|'resume'|'retry'|'discard',commandId:string=crypto.randomUUID())=>apiRequest<RecognitionJob>(`${recognitionUrl(memberId)}/${encodeURIComponent(id)}/commands`,{method:'POST',token,body:{id:commandId,type}})
+export const recognitionCommand=(memberId:string,token:string,id:string,type:'pause'|'resume'|'retry'|'discard'|'use_text',commandId:string=crypto.randomUUID())=>apiRequest<RecognitionJob>(`${recognitionUrl(memberId)}/${encodeURIComponent(id)}/commands`,{method:'POST',token,body:{id:commandId,type}})

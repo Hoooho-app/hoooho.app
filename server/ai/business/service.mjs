@@ -70,7 +70,9 @@ export class AIBusinessService {
     const snapshots=await Promise.all(owners.map(async accountId=>({accountId,members:await this.events.members.findByAccountId(accountId),records:current.some(d=>d.accountId===accountId&&d.state==='saved')?await this.records.repository.findByAccountId(accountId):[]})))
     const byOwner=new Map(snapshots.map(s=>[s.accountId,{members:new Set(s.members.map(m=>m.id)),records:new Set(s.records.map(r=>r.id))}]))
     for(const d of current){const scope=byOwner.get(d.accountId);if(Date.parse(d.expiresAt)>now&&scope?.members.has(d.memberId)&&(d.state!=='saved'||(d.result?.records??[]).every(r=>scope.records.has(r.recordId))))valid.add(d.id)}
-    await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>valid.has(d.id))}))
+    if(current.every(d=>valid.has(d.id)))return
+    const checked=new Set(current.map(d=>d.id))
+    await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>!checked.has(d.id)||valid.has(d.id))}))
   }
   async get(accountId,memberId,id) {
     await this.scoped(accountId,memberId);await this.prune()

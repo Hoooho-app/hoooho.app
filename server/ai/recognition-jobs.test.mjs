@@ -7,6 +7,7 @@ import sharp from 'sharp'
 import {RecognitionJobs} from './recognition-jobs.mjs'
 import {recognitionOwnerLifecycle} from './recognition-lifecycle.mjs'
 import {FamilyMemberRepository} from '../members/repositories/family-member-repository.mjs'
+import {FamilyMemberService} from '../members/family-member-service.mjs'
 import {HealthEventService} from '../events/health-event-service.mjs'
 import {FrontDeskRecord} from './front-desk-record.mjs'
 import {AIBusinessService} from './business/service.mjs'
@@ -79,4 +80,52 @@ test('cross-owner isolation and deletion clean tasks, events and private origina
  await f.submit('first','脸颊发红');await until(async()=>{const j=await f.snapshot();return j.state==='ready'})
  await recognitionOwnerLifecycle(f.directory,'synthetic',{memberId:f.member.id})
  assert.equal(f.jobs.all().length,0);assert.equal(f.jobs.db.prepare('SELECT count(*) AS n FROM events').get().n,0);assert.deepEqual(await readdir(path.join(f.directory,'recognition-originals')),[])
+})
+test('restart pauses unknown in-flight calls and publication retry never invokes a model again',async t=>{
+ const f=await setup(t),original=f.front.checkpoint.bind(f.front);let failOnce=true
+ f.front.checkpoint=async(...args)=>{if(failOnce){failOnce=false;throw new Error('simulated storage publication failure')}return original(...args)}
+ await f.submit('first','脸颊发红');await until(async()=>{const j=await f.snapshot();return j.state==='failed'})
+ const calls=f.calls.length;assert.ok(f.jobs.db.prepare('SELECT document FROM outbox WHERE job_id=?').get('task-1'))
+ await f.jobs.command('synthetic',f.member.id,'task-1',{id:'retry-publication',type:'retry'})
+ await until(async()=>{const j=await f.snapshot();return j.state==='ready'});assert.equal(f.calls.length,calls)
+ const j=f.jobs.raw('task-1');j.state='running';j.stage='transcribing';j.owner='stopped-process';j.leaseUntil=0;f.jobs.put(j);f.jobs.kick()
+ assert.equal((await f.snapshot()).state,'paused');assert.equal(f.calls.length,calls)
+})
+test('discard before create persists a tombstone and rejects a late task POST',async t=>{
+ const f=await setup(t);await f.jobs.command('synthetic',f.member.id,'task-1',{id:'discard-before-create',type:'discard'})
+ await assert.rejects(()=>f.submit('first','迟到的上传'),{code:'RECOGNITION_DISCARDED'});assert.equal(f.calls.length,0)
+})
+test('a cancelled operation during preparation cannot create a recoverable draft',async t=>{
+ const f=await setup(t),controller=new AbortController(),original=f.business.prune.bind(f.business)
+ f.business.prune=async()=>{await original();controller.abort()}
+ await assert.rejects(()=>f.business.prepare('synthetic',f.member.id,{text:'脸颊发红',deferRecognition:true},controller.signal))
+ assert.equal((await f.business.store.read()).drafts.length,0)
+})
+test('expiry retries from retained originals without reviving a discarded job',async t=>{
+ const f=await setup(t);await f.submit('first','脸颊发红');let ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j})
+ const originalId=ready.review.id
+ await f.business.store.update(data=>({...data,drafts:data.drafts.map(d=>d.id===originalId?{...d,expiresAt:'2000-01-01T00:00:00Z'}:d)}))
+ assert.equal((await f.snapshot()).state,'failed')
+ await f.jobs.command('synthetic',f.member.id,'task-1',{id:'retry-expired',type:'retry'})
+ ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j});assert.notEqual(ready.review.id,originalId)
+ await f.jobs.command('synthetic',f.member.id,'task-1',{id:'discard-after-expiry',type:'discard'})
+ await f.jobs.command('synthetic',f.member.id,'task-1',{id:'retry-after-discard',type:'retry'});assert.equal((await f.snapshot()).state,'discarded')
+})
+test('deleting a member while an upload is writing cannot publish a late private original',async t=>{
+ const f=await setup(t),upload=f.jobs.upload('synthetic',f.member.id,{buffer:Buffer.alloc(1024*1024),mimeType:'image/png',name:'合成.png'}).then(value=>({value}),error=>({error}))
+ await new FamilyMemberService({dataDirectory:f.directory}).delete('synthetic',f.member.id)
+ const result=await upload;assert.equal(result.error?.status,404)
+ assert.equal(f.jobs.db.prepare('SELECT count(*) AS n FROM assets').get().n,0);assert.deepEqual(await readdir(path.join(f.directory,'recognition-originals')),[])
+})
+test('ASR failure does not silently retry on new text; user explicitly selects usable text',async t=>{
+ const f=await setup(t),wave=Buffer.alloc(364);wave.write('RIFF');wave.write('WAVE',8)
+ const asset=await f.jobs.upload('synthetic',f.member.id,{buffer:wave,mimeType:'audio/wav',name:'合成.wav'});let asrCalls=0
+ f.audio.transcribe=async()=>{asrCalls++;throw Object.assign(new Error('synthetic unavailable'),{code:'ASR_TIMEOUT'})}
+ await f.jobs.submit('synthetic',f.member.id,{id:'task-1',mode:'front',input:{id:'voice-1',kind:'voice',text:'',assetIds:[asset.id],asrAssetId:asset.id},options:{smartRecord:true,selectedOccurredAt:new Date().toISOString()}})
+ await until(async()=>{const j=await f.snapshot();return j.state==='failed'})
+ await f.submit('text-1','没有呕吐')
+ const ready=await until(async()=>{const j=await f.snapshot();return j.state==='needs_review'&&j});assert.equal(asrCalls,1);assert.equal(ready.unresolvedInputs.length,1)
+ await assert.rejects(()=>f.business.save('synthetic',f.member.id,ready.review.id,{version:ready.review.version,confirmed:true}),{code:'RECOGNITION_REVISION_CONFLICT'})
+ const selected=await f.jobs.command('synthetic',f.member.id,'task-1',{id:'use-text',type:'use_text'});assert.equal(selected.state,'ready');assert.equal(selected.unresolvedInputs.length,0)
+ assert.equal((await f.business.save('synthetic',f.member.id,ready.review.id,{version:ready.review.version,confirmed:true})).state,'saved')
 })

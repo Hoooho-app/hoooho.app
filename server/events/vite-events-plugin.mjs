@@ -57,12 +57,13 @@ export function eventsApiPlugin(options = {}) {
   const cases = new CaseContinuityService(config)
   const nurse = new NurseService({ ...config, events })
   const frontDesk = new FrontDeskRecord({...config,events,business:cases.business})
-  const recognition=new RecognitionJobs({...config,events,business:cases.business,frontDesk,audio:new AudioTranscriptionService(config)})
-  cases.business.assertRecognitionCurrent=draft=>recognition.assertCurrent(draft)
+  let recognition
 
   return {
     name: 'hoooho-local-events-api',
     configureServer(server) {
+      recognition=new RecognitionJobs({...config,events,business:cases.business,frontDesk,audio:new AudioTranscriptionService(config)})
+      cases.business.assertRecognitionCurrent=draft=>recognition.assertCurrent(draft)
       server.httpServer?.once('close',()=>void recognition.close())
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
