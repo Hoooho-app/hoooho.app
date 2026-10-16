@@ -44,7 +44,9 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const draftRef=useRef<Draft|null>(null),recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null),abort=useRef<AbortController|null>(null),timer=useRef<ReturnType<typeof setInterval>|null>(null),audio=useRef<HTMLAudioElement|null>(null),audioUrl=useRef(''),cancelled=useRef(false),session=useRef(0),operationPending=useRef<number|null>(null),operationSequence=useRef(0),permissionPending=useRef(false),recordingGeneration=useRef(0)
   const url=`/api/members/${encodeURIComponent(memberId)}/ai-drafts`
   const localKey=`review:${accountId}:${memberId}:${eventId??'new'}:${sourceRecordId??'new'}`
-  const [localReady,setLocalReady]=useState(false)
+  const [localReady,setLocalReady]=useState(false),[cancelling,setCancelling]=useState(false),cancelPending=useRef(false)
+  const commandCurrent=(id:string,turn:number)=>turn===session.current&&id===jobIdentity.current
+  const applyCommand=(job:RecognitionJob,id:string,turn:number)=>{if(commandCurrent(id,turn)&&job.id===id&&job.seq>=(recognitionRef.current?.seq??-1))applyJob(job)}
   useEffect(()=>{let active=true;setTtsConfigured(false);void fetch('/api/ai/audio/capabilities',{headers:{Authorization:`Bearer ${token}`}}).then(async response=>{if(!response.ok)return;const capabilities=await response.json();if(active)setTtsConfigured(capabilities.tts?.configured===true)}).catch(()=>undefined);return()=>{active=false}},[memberId,token])
   const [originals,setOriginals]=useState<Record<string,string>>({}),originalUrls=useRef<string[]>([])
   const recordingFinalization=useRef<Promise<void>>(Promise.resolve()),releaseRecording=useRef<(()=>void)|null>(null),closing=useRef(false),keepRecording=useRef(true),backgrounding=useRef(false)
@@ -54,13 +56,17 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const fileKey=(file:File)=>JSON.stringify([file.name,file.type,file.size,file.lastModified])
   const stopPlayback=()=>{audio.current?.pause();audio.current=null;if(audioUrl.current)URL.revokeObjectURL(audioUrl.current);audioUrl.current=''}
   const stopTracks=()=>{stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;if(timer.current)clearInterval(timer.current);timer.current=null;if(audioSampler.current)clearInterval(audioSampler.current);audioSampler.current=null;void audioContext.current?.close().catch(()=>undefined);audioContext.current=null}
-  const interrupt=(pause=true)=>{if(pause&&jobIdentity.current&&recognitionActive(recognitionRef.current))void recognitionCommand(memberId,credentials.current.token,jobIdentity.current,'pause').then(applyJob).catch(()=>setError('暂停尚未确认，请重试'));stopPlayback();session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();recorder.current=null;stopTracks();permissionPending.current=false;operationPending.current=null;setRecording(false);setBusy(false);setTranscribing(false);if(pendingAudio.current){setVoiceError(audioErrorMessage({code:'ASR_CANCELLED'}));setCanRetryVoice(true)}}
+  const interrupt=(pause=true)=>{
+    const id=jobIdentity.current,turn=++session.current
+    if(pause&&id&&recognitionActive(recognitionRef.current))void recognitionCommand(memberId,credentials.current.token,id,'pause').then(job=>applyCommand(job,id,turn)).catch(()=>{if(commandCurrent(id,turn))setError('暂停尚未确认，请重试')})
+    stopPlayback();recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();recorder.current=null;stopTracks();permissionPending.current=false;operationPending.current=null;setRecording(false);setBusy(false);setTranscribing(false);if(pendingAudio.current){setVoiceError(audioErrorMessage({code:'ASR_CANCELLED'}));setCanRetryVoice(true)}
+  }
   useEffect(()=>{const hide=()=>{if(document.visibilityState==='hidden'){backgrounding.current=true;void (async()=>{if(recorder.current?.state==='recording'){recorder.current.stop();await recordingFinalization.current}interrupt(false);backgrounding.current=false})().catch(()=>setVoiceError('录音原件尚未保存，请重试'))}};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide)},[])
   // Token refresh is not a change of data owner. Only owner/member/closure
   // ends this recording session; normal resume must retain retryable audio.
   useEffect(()=>{session.current++;return()=>{session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();stopTracks();stopPlayback();pendingAudio.current=null;const d=draftRef.current,cleanupToken=credentials.current.accountId===accountId?credentials.current.token:token;if(d&&d.state!=='saved'&&!profileMode&&!eventId&&!jobIdentity.current)void fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${cleanupToken}`}}).catch(()=>undefined)}},[memberId,accountId,profileMode,eventId])
   async function request<T>(path:string,method:string,input?:unknown):Promise<T>{const turn=session.current,controller=new AbortController();abort.current=controller;const response=await fetch(path,{method,headers:{Authorization:`Bearer ${credentials.current.token}`,'Content-Type':'application/json'},body:input===undefined?undefined:JSON.stringify(input),signal:controller.signal});const isAudio=path==='/api/ai/audio/transcriptions';let result;try{result=await response.json()}catch{if(isAudio)throw new AudioRequestError('ASR_OUTPUT_INVALID',response.status);throw new Error('服务响应无法读取，原稿仍保留')}if(turn!==session.current)throw new DOMException('Cancelled','AbortError');if(!response.ok){if(isAudio)throw new AudioRequestError(result.error?.code??'ASR_UPSTREAM_UNAVAILABLE',response.status,result.error?.requestId??null);throw new Error(result.error?.message||result.message||'操作暂时失败，原稿仍保留')}return result as T}
-  const run=async(operation:()=>Promise<void>,status='正在处理…')=>{if(operationPending.current!==null)return;const operationId=++operationSequence.current;operationPending.current=operationId;const turn=session.current;setPhase(status);setBusy(true);setError('');try{await operation()}catch(e){if(turn===session.current&&!(e instanceof DOMException&&e.name==='AbortError'))setError(e instanceof Error?e.message:'操作失败，请重试')}finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current)setBusy(false)}}
+  const run=async(operation:()=>Promise<void>,status='正在处理…')=>{if(operationPending.current!==null||cancelPending.current)return;const operationId=++operationSequence.current;operationPending.current=operationId;const turn=session.current;setPhase(status);setBusy(true);setError('');try{await operation()}catch(e){if(turn===session.current&&!(e instanceof DOMException&&e.name==='AbortError'))setError(e instanceof Error?e.message:'操作失败，请重试')}finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current)setBusy(false)}}
   useEffect(() => { void run(async () => {
     const local=await captureDraft(localKey)
     submittedFiles.current=new Set(local?.recognitionSubmittedFiles??[])
@@ -93,9 +99,10 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
     let active=true,timer:ReturnType<typeof setTimeout>|undefined;const id=jobIdentity.current
     const poll=async()=>{
       if(!active||document.hidden||pollBusy.current)return;pollBusy.current=true
-      try{const job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');if(!active||jobIdentity.current!==id||job.seq<(recognitionRef.current?.seq??0))return
+      try{const job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');if(!active||cancelPending.current||jobIdentity.current!==id||job.seq<(recognitionRef.current?.seq??0))return
         if(job.seq!==(recognitionRef.current?.seq??-1)||job.review?.state==='saved'){
           applyJob(job)
+          if(job.state==='discarded')jobIdentity.current=undefined
           if(job.state==='failed'&&job.draftId){try{current(await request<Draft>(`${url}/${job.draftId}`,'GET'))}catch{/* Exact failed draft may have expired; originals remain task-owned. */}}
           if(job.review&&job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state)){const next=job.review as unknown as Draft;current(next);setFiles(previous=>previous.filter(file=>!submittedFiles.current.has(fileKey(file))));setNotice('已整理，核对后才会保存');await playReply(next)}
         }
@@ -106,15 +113,30 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
     return()=>{active=false;if(timer)clearTimeout(timer);document.removeEventListener('visibilitychange',visibility)}
   },[localReady,recognition?.id,localKey])
   async function jobCommand(type:'pause'|'resume'|'retry'|'use_text'){
-    if(!jobIdentity.current)return
-    try{applyJob(await recognitionCommand(memberId,credentials.current.token,jobIdentity.current,type))}catch{setError('操作尚未确认，原件仍保留，请重试')}
+    const id=jobIdentity.current,turn=session.current;if(!id||cancelPending.current)return
+    try{applyCommand(await recognitionCommand(memberId,credentials.current.token,id,type),id,turn)}catch{if(commandCurrent(id,turn))setError('操作尚未确认，原件仍保留，请重试')}
   }
   const prepare=()=>void run(()=>prepareText(),'上传／识别中，请稍候…')
   const edit=(input:Record<string,unknown>)=>void run(async()=>{if(!draft)return;current(await request<Draft>(`${url}/${draft.id}`,'PATCH',{version:draft.version,...input}))})
   async function saveCurrent(){const d=draftRef.current;if(processing||!d?.items.length||d.state!=='ready')throw new Error('请先成功整理并核对记录');if(text!==d.inputText||files.length)throw new Error('原文或资料已有修改，请先继续整理');const saved=await request<Draft>(`${url}/${d.id}/save`,'POST',{version:d.version,confirmed:true});current(saved);await captureDraft(localKey,null);setNotice(`已保存 ${saved.result?.count??0} 条记录`);onSaved?.(`已保存 ${saved.result?.count??0} 条记录`);await playReply(saved)}
-  async function cancelCurrent(){keepRecording.current=false;interrupt();await recordingFinalization.current;if(voiceJobIdentity.current)await recognitionCommand(memberId,credentials.current.token,voiceJobIdentity.current,'discard');await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setVoiceError('');const d=draftRef.current;if(jobIdentity.current){await recognitionCommand(memberId,credentials.current.token,jobIdentity.current,'discard');jobIdentity.current=undefined;recognitionRef.current=null;setRecognition(null)}if(d&&d.state!=='saved')await fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});current(null);setText('');setFiles([]);await captureDraft(localKey,null);setNotice('已取消整理草稿，已保存原件仍保留');setError('')}
+  async function cancelCurrent(){
+    if(cancelPending.current)return
+    cancelPending.current=true;setCancelling(true);keepRecording.current=false;interrupt(false)
+    const turn=session.current,id=jobIdentity.current,voiceId=voiceJobIdentity.current,d=draftRef.current,operationId=++operationSequence.current
+    operationPending.current=operationId;setPhase('正在取消本次处理…');setBusy(true)
+    const check=()=>{if(turn!==session.current||id!==jobIdentity.current||voiceId!==voiceJobIdentity.current)throw new DOMException('Cancelled','AbortError')}
+    try{
+      await recordingFinalization.current;check()
+      if(voiceId){await recognitionCommand(memberId,credentials.current.token,voiceId,'discard');check()}
+      if(id){await recognitionCommand(memberId,credentials.current.token,id,'discard');check()}
+      if(d&&d.state!=='saved'){await request(`${url}/${d.id}`,'DELETE');check()}
+      await captureDraft(`${localKey}:voice`,null);check();await captureDraft(localKey,null);check()
+      pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setVoiceError('');jobIdentity.current=undefined;recognitionRef.current=null;setRecognition(null);current(null);setText('');setFiles([]);setNotice('已取消整理草稿，已保存原件仍保留');setError('')
+    }catch(e){if(turn===session.current&&!(e instanceof DOMException&&e.name==='AbortError'))setError('取消尚未确认，原件仍保留，请重试')}
+    finally{cancelPending.current=false;setCancelling(false);if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current)setBusy(false)}
+  }
   async function transcribeRecording(){
-    const blob=pendingAudio.current;if(!blob||operationPending.current!==null)return
+    const blob=pendingAudio.current;if(!blob||operationPending.current!==null||cancelPending.current)return
     const turn=session.current,operationId=++operationSequence.current;operationPending.current=operationId;setTranscribing(true);setBusy(true);setVoiceError('');setPhase('录音已停止，正在转写为文字…')
     try{
       const id=voiceJobIdentity.current??crypto.randomUUID();voiceJobIdentity.current=id
@@ -147,7 +169,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
     finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current){setLocalStage('');setTranscribing(false);setBusy(false)}}
   }
   const toggleRecording=async()=>{
-    stopPlayback();if(recording){if(recorder.current?.state==='recording')recorder.current.stop();return}if(busy||operationPending.current!==null||permissionPending.current)return
+    stopPlayback();if(recording){if(recorder.current?.state==='recording')recorder.current.stop();return}if(busy||operationPending.current!==null||permissionPending.current||cancelPending.current)return
     if(!navigator.mediaDevices?.getUserMedia||!globalThis.MediaRecorder){setVoiceError('当前浏览器不支持录音，请使用文字输入');return}
     const turn=session.current,generation=++recordingGeneration.current;cancelled.current=false;keepRecording.current=true;setVoiceError('');pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);permissionPending.current=true
     const active=()=>turn===session.current&&generation===recordingGeneration.current&&!cancelled.current
@@ -175,7 +197,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   if(manualText!==null)return <BottomSheetSurface open label="手动核对AI内容" title="手动核对后保存" onClose={()=>setManualText(null)} className="ai-business-sheet"><p>此内容尚未通过 AI 校验，请对照原输入核对事实、否定和发生时间。按手动记录保存，不自动归档、修改医嘱或覆盖摘要。原件请在此表单重新选择。</p><QuickVoiceRecordFlow open forceManual presentation="nurse-inline" initialInputChannel="text" initialText={manualText} photoMemberId={memberId} photoToken={token} onClose={()=>setManualText(null)} onSaved={message=>{setNotice(message);onSaved?.(message);onClose()}} onConfirm={async(content,occurredAt,_candidates,inputChannel,photos)=>{await quickRecordService.create({memberId,content,rawText:text||undefined,occurredAt,inputChannel,idempotencyKey:manualKey.current,title:'人工核对记录',journal:{categories:['other']},...(photos.photoIds.length?{photoDraftId:photos.draftId,photoIds:photos.photoIds}:{})},token);return '已按手动记录保存，未自动归档'}}/></BottomSheetSurface>
   return <ComposerSurface embedded={embedded} label="智能整理记录" title={profileMode?'智能记录':'智能整理记录'} onClose={() => {if(embedded&&!window.confirm('退出整理区域？已上传的识别草稿会保留，未确认内容不会保存。'))return;closing.current=true;void (async()=>{if(recorder.current?.state==='recording'){recorder.current.stop();await recordingFinalization.current}interrupt(false);onClose()})().catch(()=>{closing.current=false;setError('录音草稿尚未保存，请重试退出')})}} className="ai-business-sheet"><div className="ai-business-composer">
     {profileMode&&<p role="status">资料归属：{memberName}。核对并确认后才会写入正式档案。</p>}
-    {(recognition||voiceJob||localStage)&&draft?.state!=='saved'&&<RecognitionProgress job={voiceJob??recognition} localStage={localStage} onCommand={voiceJob?undefined:type=>void jobCommand(type)}/>}
+    {(recognition||voiceJob||localStage)&&draft?.state!=='saved'&&<RecognitionProgress job={voiceJob??recognition} localStage={cancelling?'cancelling':localStage} commandBusy={cancelling} onCommand={voiceJob?undefined:type=>void jobCommand(type)}/>}
     {busy&&!recognition&&!localStage&&<p role="status">{phase}</p>}
     <label>资料类型<select value={task} disabled={busy||recording} onChange={e=>setTask(e.target.value as typeof task)}><option value="record">健康随记</option><option value="report">检查报告</option><option value="visit">就诊资料</option><option value="archive">历史档案</option></select></label>
       <label>文字输入（可直接填写）<textarea aria-label="原始记录内容" value={text} maxLength={15000} disabled={(busy&&!transcribing)||draft?.state==='saved'} placeholder="在这里输入记录；录音转写后也可编辑。语音失败不影响文字或图片。" onChange={e=>setText(e.target.value)}/></label>
@@ -186,7 +208,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
     <small>录音最长90秒，停止后先转写，再由你核对文字并整理。未完成的录音会保留，重新打开后可重试；取消草稿会停止本次处理。资料最多12页、15 MB。只整理当前人物，不会自动保存。</small>
     <label className="ai-business-voice-reply"><input type="checkbox" checked={ttsConfigured&&voiceReply} disabled={!ttsConfigured} onChange={e=>setVoiceReply(e.target.checked)}/>对话式记录（AI 合成语音）{!ttsConfigured&&' · 尚未接通'}</label>
     {voiceError&&<section role="alert"><p>{voiceError}。文字输入、图片及已有结果仍可使用。</p>{canRetryVoice&&<HohoButton variant="secondary" disabled={busy||recording} onClick={()=>{cancelled.current=false;void transcribeRecording()}}>重试语音转写</HohoButton>}{canRetryVoice&&<HohoButton variant="text" disabled={busy||recording} onClick={()=>void (async()=>{if(voiceJobIdentity.current)await recognitionCommand(memberId,credentials.current.token,voiceJobIdentity.current,'discard');await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setVoiceError('')})().catch(()=>setVoiceError('移除尚未确认，请重试'))}>移除这段未完成的录音</HohoButton>}</section>}
-    <div className="ai-business-actions"><HohoButton disabled={busy||recording||draft?.state==='saved'||(!text.trim()&&!files.length&&!draft?.pages.length)} onClick={prepare}>{busy?'正在处理…':draft?'继续整理这份草稿':'整理成待确认记录'}</HohoButton><button type="button" onClick={()=>interrupt()}>打断</button><button type="button" onClick={()=>void cancelCurrent().catch(()=>setError('取消尚未确认，原件仍保留，请重试'))}>取消草稿</button></div>
+    <div className="ai-business-actions"><HohoButton disabled={busy||recording||draft?.state==='saved'||(!text.trim()&&!files.length&&!draft?.pages.length)} onClick={prepare}>{busy?'正在处理…':draft?'继续整理这份草稿':'整理成待确认记录'}</HohoButton><button disabled={cancelling} type="button" onClick={()=>interrupt()}>打断</button><button disabled={cancelling} type="button" onClick={()=>void cancelCurrent()}>取消草稿</button></div>
     {error&&<p role="alert">{error}。未保存新结果，原稿与上一版仍保留，可继续查看。<button disabled={busy||recording} onClick={prepare} type="button">重试整理</button></p>}{notice&&!busy&&<p role="status">{notice}</p>}
     {draft?.preview&&<AIResultPreview preview={draft.preview} value={previewText} onChange={setPreviewText}>{!eventId&&!sourceIdentity&&<HohoButton variant="secondary" disabled={busy||!previewText.trim()} onClick={()=>toManual(previewText)}>带入手动表单核对</HohoButton>}</AIResultPreview>}
     {!eventId&&!sourceIdentity&&draft?.state!=='saved'&&<HohoButton variant="secondary" disabled={busy||!text.trim()} onClick={()=>toManual(text)}>原文带入手动记录</HohoButton>}

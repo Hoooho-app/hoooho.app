@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react'
 import {HohoButton} from '../../components/design-system'
 import {recognitionActive,type RecognitionJob} from './recognitionJobs'
-const labels:Record<string,string>={uploading:'正在上传原件',converting:'录音已保留，正在准备转写',queued:'原件已收到，等待处理',transcribing:'正在把录音转成文字',responding:'正在理解这次内容',preparing:'正在读取资料',reading:'正在识别资料',organizing:'正在整理记录',publishing:'正在核对并保留整理结果',ready:'已整理，请核对关键内容',paused:'处理已暂停，原件和已完成步骤保留',failed:'这一步未完成',discarded:'这次处理已取消'}
+const labels:Record<string,string>={uploading:'正在上传原件',cancelling:'正在取消本次处理，原件仍保留',converting:'录音已保留，正在准备转写',queued:'原件已收到，等待处理',transcribing:'正在把录音转成文字',responding:'正在理解这次内容',preparing:'正在读取资料',reading:'正在识别资料',organizing:'正在整理记录',publishing:'正在核对并保留整理结果',ready:'已整理，请核对关键内容',paused:'处理已暂停，原件和已完成步骤保留',failed:'这一步未完成',discarded:'这次处理已取消'}
 /** This surface renders server checkpoints, never an invented percentage. */
 export function RecognitionProgress({job,localStage,onCommand,commandBusy=false,children}:{job?:RecognitionJob|null;localStage?:string;onCommand?:(type:'pause'|'resume'|'retry'|'use_text')=>void;commandBusy?:boolean;children?:React.ReactNode}){
   const [now,setNow]=useState(Date.now())
