@@ -13,7 +13,8 @@ function original(mime, container) {
 test('Safari dotted AAC codec and Chromium Opus originals retain exact encoded bytes',()=>{
   for(const [mime,container] of [['audio/mp4;codecs=mp4a.40.2','mp4'],['audio/mp4;codecs="mp4a.40.2"','mp4'],['audio/webm;codecs=opus','webm'],['audio/wav','wav']]){
     const file=original(mime,container),[retained]=prepareVoiceOriginals([file])
-    assert.equal(retained.dataUrl,file.dataUrl)
+    assert.equal(retained.dataUrl.split(',')[1],file.dataUrl.split(',')[1])
+    assert.deepEqual(prepareVoiceOriginals([retained]),[retained])
     assert.equal(retained.mimeType,mime.split(';')[0])
     assert.equal(retained.name,file.name)
   }

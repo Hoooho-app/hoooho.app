@@ -1,3 +1,5 @@
+import {withStorageLock} from '../auth/storage/transaction.mjs'
+import {recognitionOwnerLifecycle} from '../ai/recognition-lifecycle.mjs'
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
@@ -181,6 +183,7 @@ function validateDietFrequentFoods(value) {
 
 export class FamilyMemberService {
   constructor(options = {}) {
+    this.dataDirectory=options.dataDirectory
     this.aiDrafts=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'ai-business-drafts.json'),{drafts:[]}):null
     this.frontDeskRecords=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'front-desk-records.json'),{contexts:[],messages:[]}):null
     this.aiCandidates=options.dataDirectory?new JsonStore(path.join(options.dataDirectory,'visit-ai-candidates.json'),{candidates:[]}):null
@@ -260,12 +263,15 @@ export class FamilyMemberService {
   }
 
   async delete(accountId, id) {
+    return withStorageLock(async()=>{
     await this.get(accountId, id)
+    await recognitionOwnerLifecycle(this.dataDirectory,accountId,{memberId:id})
     if(this.aiDrafts)await this.aiDrafts.update(data=>({...data,drafts:data.drafts.filter(d=>d.accountId!==accountId||d.memberId!==id)}))
     if(this.frontDeskRecords)await this.frontDeskRecords.update(data=>({...data,contexts:data.contexts.filter(d=>d.accountId!==accountId||d.memberId!==id),messages:data.messages.filter(d=>d.accountId!==accountId||d.memberId!==id)}))
     if(this.aiCandidates)await this.aiCandidates.update(data=>({...data,candidates:data.candidates.filter(c=>c.accountId!==accountId||c.memberId!==id)}))
     if(this.profileListState)await this.profileListState.update(data=>({...data,members:(data.members??[]).filter(m=>m.accountId!==accountId||m.memberId!==id),requests:(data.requests??[]).filter(r=>r.accountId!==accountId||r.memberId!==id)}))
     await this.repository.delete(id)
     return { success: true }
+    })
   }
 }

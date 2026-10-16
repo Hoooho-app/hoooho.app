@@ -48,6 +48,7 @@ import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
+import {RecognitionJobs,recognitionRoute,recognitionApi} from './ai/recognition-jobs.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
@@ -116,8 +117,12 @@ const foodLabels = createFoodLabelService(sharedOptions)
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
 const frontDeskRecord = new FrontDeskRecord({ ...sharedOptions, events, business: aiBusiness })
+const recognitionJobs=new RecognitionJobs({...sharedOptions,events,business:aiBusiness,frontDesk:frontDeskRecord,audio:audioTranscription})
+aiBusiness.assertRecognitionCurrent=draft=>recognitionJobs.assertCurrent(draft)
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
+
+function requestSignal(request,response){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});return controller.signal}
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -865,6 +870,7 @@ async function handleApi(request, response, pathname, searchParams) {
     const result = await caseApiResult(caseContinuity, await readAccountId(request), request.method, pathname, limit => readJson(request, limit), searchParams)
     if (result) { sendJson(response, result.status ?? 200, result.data); return true }
   }
+  if(recognitionRoute(pathname)){const result=await recognitionApi(recognitionJobs,await readAccountId(request),request,pathname,limit=>readJson(request,limit));response.setHeader('Cache-Control','no-store');sendJson(response,result.status??200,result.data);return true}
   const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
   const failedFrontMessage=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
@@ -873,9 +879,10 @@ async function handleApi(request, response, pathname, searchParams) {
   if (frontRecordMatch) {
     const accountId = await readAccountId(request), memberId = decodeRouteValue(frontRecordMatch[1])
     response.setHeader('Cache-Control', 'no-store')
-    if (request.method === 'GET' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.latest(accountId, memberId))
+    if(request.method==='GET'&&frontRecordMatch[2])sendJson(response,200,await frontDeskRecord.snapshot(accountId,memberId,decodeRouteValue(frontRecordMatch[2])))
+    else if (request.method === 'GET' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.latest(accountId, memberId))
     else if (request.method === 'DELETE' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.closeSession(accountId, memberId))
-    else if (request.method === 'POST' && !frontRecordMatch[2]) {const input=await readJson(request,22*1024*1024);sendJson(response,200,input.kind==='legacy'?await frontDeskRecord.retainLegacy(accountId,memberId,input):await frontDeskRecord.submit(accountId,memberId,input))}
+    else if (request.method === 'POST' && !frontRecordMatch[2]) {const input=await readJson(request,22*1024*1024);sendJson(response,200,input.kind==='legacy'?await frontDeskRecord.retainLegacy(accountId,memberId,input):await frontDeskRecord.submit(accountId,memberId,input,requestSignal(request,response)))}
     else if (request.method === 'POST' && frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.checkpoint(accountId, memberId, decodeRouteValue(frontRecordMatch[2]), await readJson(request)))
     else sendEmpty(response, 405)
     return true
@@ -1072,6 +1079,7 @@ function shutdown(signal) {
   if (shuttingDown) return
   shuttingDown = true
   console.info(`[Hoooho] received ${signal}, shutting down`)
+  void recognitionJobs.close()
   stopOpsScheduler()
   server.closeAllConnections?.()
   server.close((error) => {

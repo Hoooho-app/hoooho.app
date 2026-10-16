@@ -127,7 +127,8 @@ test('restored codec MIME aliases reuse the exact voice message; changed text or
  f.model.structured=async()=>({value:{reply:'这段观察已收到。',contextId:'new',action:'record'},diagnostics:{provider:'test'}})
  const restored={...input,voiceFiles:[{...original,mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${wav.toString('base64')}`}]}
  const result=await f.service.submit('synthetic',f.member.id,restored);assert.equal(result.context.messages.length,2)
- assert.equal(result.context.messages[0].voices[0].dataUrl,original.dataUrl)
+ assert.equal(result.context.messages[0].voices[0].dataUrl.split(',')[1],original.dataUrl.split(',')[1])
+ assert.equal(result.context.messages[0].voices[0].originalMimeType,original.mimeType)
  await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,text:'改写原话'}),{code:'FRONT_RECORD_ID_CONFLICT'})
  await assert.rejects(()=>f.service.submit('synthetic',f.member.id,{...restored,voiceFiles:[{...original,mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${Buffer.alloc(400).toString('base64')}`}]}),{code:'VOICE_ORIGINAL_FORMAT_MISMATCH'})
 })

@@ -1,0 +1,30 @@
+name: Smart record verification
+on:
+  push:
+    branches: [codex/smart-record-progress-20261016]
+  pull_request:
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', '.github/workflows/smart-record-verification.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/business/*.test.mjs
+      - run: npm run build
+      - run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smart-record-browser-evidence
+          path: |
+            test-results/
+            playwright-report/

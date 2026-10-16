@@ -1,8 +1,9 @@
+import {recognitionOwnerLifecycle} from '../ai/recognition-lifecycle.mjs'
 import path from 'node:path'
 import { access, unlink } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { JsonStore } from '../auth/storage/json-store.mjs'
-import { accountTransaction } from '../auth/storage/transaction.mjs'
+import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
   ['care-handoff-shares.json', 'shares'],
@@ -52,7 +53,9 @@ export class AccountDataService {
   }
 
   async mergeGuest(guestAccountId, accountId, now = new Date()) {
-    return accountTransaction(this.dataDirectory, () => this.mergeGuestTransaction(guestAccountId, accountId, now))
+    const result=await accountTransaction(this.dataDirectory, () => this.mergeGuestTransaction(guestAccountId, accountId, now))
+    if(guestAccountId.startsWith('guest:')&&guestAccountId!==accountId)await recognitionOwnerLifecycle(this.dataDirectory,guestAccountId,{mergeInto:accountId})
+    return result
   }
 
   async mergeGuestTransaction(guestAccountId, accountId, now) {
@@ -88,6 +91,8 @@ export class AccountDataService {
   }
 
   async deleteAccount(accountId) {
+    return withStorageLock(async()=>{
+    await recognitionOwnerLifecycle(this.dataDirectory,accountId)
     const dailyRules = (await this.store('routine-templates.json', 'dailyRules').read()).dailyRules ?? []
     const ownedRuleIds = new Set(dailyRules.filter(rule => rule.accountId === accountId).map(rule => rule.id))
     const databasePath = path.join(this.dataDirectory, 'routine-instances.sqlite')
@@ -120,5 +125,6 @@ export class AccountDataService {
     await Promise.all([...storageKeys].map((storageKey) =>
       unlink(path.join(this.dataDirectory, 'quick-record-photo-files', storageKey)).catch(() => undefined)
     ))
+    })
   }
 }
