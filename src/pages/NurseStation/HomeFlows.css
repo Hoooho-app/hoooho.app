@@ -81,4 +81,27 @@
 .nurse-station-page--home .home-flows{padding-bottom:0}
 .nurse-station-page--home .nurse-station-scroll{padding-bottom:max(var(--hoho-space-1),env(safe-area-inset-bottom))}
 
-.home-followup-actions{display:flex;flex-wrap:wrap}.home-followup-actions>.hoho-button,.home-followup-actions>.case-merge-prompt{flex:1;min-width:120px}.case-merge-prompt{min-width:0}
+
+
+/* Fill the available viewport with the journal; intrinsic sizes still allow scrolling
+   on smaller screens, with larger text or longer saved symptom descriptions. */
+.nurse-station-page--home .nurse-station-scroll{display:flex;flex-direction:column;padding-bottom:max(var(--hoho-space-4),env(safe-area-inset-bottom))}
+.nurse-station-page--home .nurse-station-scroll>.nurse-station-hero{flex-shrink:0}
+.nurse-station-page--home .home-flows{flex:1 0 auto;grid-template-rows:auto minmax(min-content,1fr)}
+.nurse-station-page--home .home-flow-card.nurse-home-dialogue{grid-template-rows:minmax(88px,1fr) auto;align-content:stretch}
+.nurse-home-dialogue__intro{align-content:center}
+.nurse-home-dialogue__intro>.home-followup-heading{align-self:start}
+.nurse-station-page--home .nurse-home-dialogue__intro>.nurse-station-visual{align-self:center}
+.home-event-descriptions>li{display:grid;gap:var(--hoho-space-1);padding-top:var(--hoho-space-2)}
+.home-event-descriptions .home-symptom-description{margin:0;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-body)}
+.home-symptom-meta{display:flex;flex-wrap:wrap;gap:var(--hoho-space-1) var(--hoho-space-3);color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-body)}
+@media(min-height:760px){
+ .nurse-station-page--home .home-flow-card.nurse-home-dialogue{padding-block:var(--hoho-space-4);gap:var(--hoho-space-4)}
+ .nurse-home-dialogue__intro{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;justify-items:center;gap:var(--hoho-space-3)}
+ .nurse-home-dialogue__intro>.home-followup-heading{justify-self:start;width:100%}
+ .nurse-home-dialogue__summary{grid-column:1;text-align:center;max-width:28ch}
+ .nurse-station-page--home .nurse-home-dialogue__intro>.nurse-station-visual{grid-column:1;grid-row:3;width:154px;height:112px}
+ .nurse-home-dialogue__intro .nurse-triage-desk{width:154px;height:154px}
+}
+.home-symptom-followup{gap:var(--hoho-space-2)}
+.home-event-descriptions>li{gap:0;padding-top:var(--hoho-space-1)}

@@ -382,7 +382,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
 
 
     </div>}
-    {completed&&<CaseMergePrompt key={`${accountId}:${memberId}`} focusIds={local.savedGuides?.filter(g=>completedGuideIds.current.has(g.id)).map(g=>g.eventId)}/>}
+    {completed&&<CaseMergePrompt key={`${accountId}:${memberId}`} focusIds={(local.savedGuides??[]).filter(g=>completedGuideIds.current.has(g.id)).map(g=>g.eventId)}/>}
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
   </>

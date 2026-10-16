@@ -9,37 +9,7 @@ test.beforeEach(async({page,request})=>{
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}));(window as any).__vibrations=[];Object.defineProperty(navigator,'vibrate',{value:(n:number)=>{(window as any).__vibrations.push(n);return true}})},{token,memberId})
 })
-test('merge explains ownership, preserves two originals, and the home shows one label',async({page,request},info)=>{
- for(const text of ['颈部发痒','颈部皮疹']){
-  const res=await request.post(`/api/members/${memberId}/case-records`,{headers,data:{requestId:crypto.randomUUID(),text,occurredAt:new Date(Date.now()-60000).toISOString(),files:[],journal:{categories:['symptom']}}});expect(res.ok()).toBe(true)
- }
- await page.goto('/nurse-station')
- await expect(page.locator('.home-event-descriptions>li')).toHaveCount(1)
- await expect(page.locator('.home-followup-actions').getByRole('button',{name:'情况单',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'合并这两项',exact:true}).click()
- const dialog=page.getByRole('dialog',{name:'合并情况'})
- await expect(dialog).toContainText('原文、图片和时间都会保留')
- for(const width of [320,375,390]){await page.setViewportSize({width,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}
- await page.screenshot({path:info.outputPath('merge-confirmation.png')})
- await dialog.getByRole('button',{name:'确认合并',exact:true}).click()
- await expect(dialog).toHaveCount(0)
- await expect(page.locator('.home-event-descriptions')).toContainText('皮疹伴瘙痒')
- await expect(page.getByRole('button',{name:/^症状跟进/}).getByRole('img',{name:'有新内容'})).toBeVisible()
- await page.getByRole('button',{name:/^症状跟进/}).click()
- await page.locator('.case-followup-card').getByRole('button',{name:'展开',exact:true}).click()
- await expect(page.locator('.case-followup-timeline li')).toHaveCount(2)
- await expect(page.locator('.case-followup-timeline')).toContainText('颈部发痒')
- await expect(page.locator('.case-followup-timeline')).toContainText('颈部皮疹')
- await page.goto('/nurse-station')
- await expect(page.getByRole('button',{name:/^症状跟进/}).getByRole('img',{name:'有新内容'})).toHaveCount(0)
-})
-test('separate suppresses the same pair after reload',async({page,request})=>{
- for(const text of ['颈部发痒','颈部皮疹'])await request.post(`/api/members/${memberId}/case-records`,{headers,data:{requestId:crypto.randomUUID(),text,occurredAt:new Date(Date.now()-60000).toISOString(),files:[],journal:{categories:['symptom']}}})
- await page.goto('/nurse-station');await page.getByRole('button',{name:'合并这两项',exact:true}).click()
- await page.getByRole('button',{name:'分开保留',exact:true}).click()
- await expect(page.getByRole('dialog')).toHaveCount(0);await page.reload()
- await expect(page.getByRole('button',{name:'合并这两项',exact:true})).toHaveCount(0)
-})
+// Homepage and smart-record merge coverage moved to home-layout.spec.ts.
 test('profile red dots survive drawer opening and clear only after the corresponding entry is read',async({page},info)=>{
  await page.goto('/health-profile/surgery')
  await page.getByRole('button',{name:'新增',exact:true}).click()

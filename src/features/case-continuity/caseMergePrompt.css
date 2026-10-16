@@ -1,0 +1,7 @@
+.case-merge-prompt{display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-subtle));color:rgb(var(--hoho-color-text-primary));min-width:0;overflow-wrap:anywhere}
+.case-merge-prompt h3{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-body);font-weight:600}
+.case-merge-prompt h3 svg{flex:none;color:rgb(var(--hoho-color-primary))}
+.case-merge-prompt p{font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body)}
+.case-merge-prompt small{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.case-merge-prompt__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2)}
+.case-merge-prompt__actions>.hoho-button{min-width:0}

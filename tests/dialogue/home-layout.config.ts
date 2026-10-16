@@ -1,0 +1,2 @@
+import base from './playwright.config'
+export default {...base,testMatch:'home-layout.spec.ts',use:{...base.use,baseURL:'http://127.0.0.1:4296'},webServer:{...base.webServer,command:'node tests/visit-sheet/serve.mjs',url:'http://127.0.0.1:4296/api/health',env:{VISIT_AI_TEST:'1',VISIT_BAILIAN_TEST:'1',VISIT_ASR_TEST:'1',VISIT_E2E_PORT:'4296',VISIT_E2E_DEV_PORT:'4297',VISIT_CONTROL_PORT:'4298',AI_MAX_CALLS_PER_ACCOUNT_HOUR:'1000'}}}
