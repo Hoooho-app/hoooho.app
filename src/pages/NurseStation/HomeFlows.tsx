@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpRight, BookOpen, NotebookText, Stethoscope } from 'lucide-react'
+import { ArrowUpRight, NotebookText, Stethoscope } from 'lucide-react'
 import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { useAppStore } from '../../store/useAppStore'
@@ -37,7 +37,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <div className="nurse-home-dialogue__intro">
         <div className="home-followup-heading"><NotebookText size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康随记</Typography></div>
         {knowledge ? <HohoButton className="home-knowledge-entry nurse-home-dialogue__summary" variant="text" onClick={() => navigate(`/allergy-knowledge/${knowledge.id}`, { state: { fromNurseStation: true } })}>
-          <span className="home-knowledge-entry__copy"><span className="home-knowledge-entry__label"><BookOpen size={14} aria-hidden="true" />今日过敏小知</span><span className="home-knowledge-entry__title">{knowledge.title}<ArrowUpRight size={14} aria-hidden="true" /></span></span>
+          <span className="home-knowledge-entry__copy"><span className="home-knowledge-entry__label">今日过敏小知</span><span className="home-knowledge-entry__title">{knowledge.title}<ArrowUpRight size={14} aria-hidden="true" /></span></span>
         </HohoButton> : <Typography className="nurse-home-dialogue__summary" variant="caption">吃了什么、睡得怎样、哪里不舒服，都帮你记清楚。</Typography>}
         <div className="nurse-station-visual">{nurseVisual}</div>
       </div>

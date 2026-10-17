@@ -108,8 +108,7 @@
 .home-knowledge-entry.hoho-button{justify-self:stretch;min-height:var(--hoho-touch-target);padding:var(--hoho-space-1) 0;text-align:left;white-space:normal}
 .home-knowledge-entry>.hoho-button__content{width:100%;justify-content:flex-start;min-width:0}
 .home-knowledge-entry__copy{display:grid;gap:var(--hoho-space-1);min-width:0}
-.home-knowledge-entry__label{display:flex;align-items:center;gap:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);font-weight:400}
-.home-knowledge-entry__label svg{flex:none}
+.home-knowledge-entry__label{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);font-weight:400}
 .home-knowledge-entry__title{font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);font-weight:500;overflow-wrap:anywhere}
 .home-knowledge-entry__title svg{display:inline;vertical-align:middle;margin-left:var(--hoho-space-1)}
 /* The daily entry occupies the existing welcome copy beside the unchanged nurse footage. */
