@@ -132,3 +132,9 @@ test('肉类不匹配宝贝、奶瓶、鸡蛋或肌肉；部位别名与多个�
  assert.deepEqual(lookupRecords(rows,'最近两个月屁股上红疹',now).map(m=>m.entry.id),['rash'])
  assert.deepEqual(lookupRecords(rows,'最近两个月皮肤情况和睡眠',now).map(m=>m.entry.id),['baby','rash'])
 })
+
+test('保留过敏等完整词，支持把…找出来的口语顺序', () => {
+ const rows=[row('allergy','过敏观察','2026-10-01T10:00:00Z'),row('meat','吃了牛肉','2026-10-02T10:00:00Z',{categories:['diet']})]
+ assert.deepEqual(lookupRecords(rows,'最近两周的过敏记录',now).map(m=>m.entry.id),['allergy'])
+ assert.deepEqual(lookupRecords(rows,'把最近两个月吃过的肉都找出来',now).map(m=>m.entry.id),['meat'])
+})
