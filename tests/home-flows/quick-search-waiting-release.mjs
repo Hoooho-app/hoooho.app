@@ -68,6 +68,7 @@ try{
  await expect(page.getByText('继续查找',{exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:/重试识别|重新识别|改用文字|改变文字/})).toHaveCount(0)
  await expect(hold).toBeEnabled();await expect(input).toBeEnabled()
+ await page.screenshot({path:`${out}/failed-without-recovery-controls.png`})
  await input.fill('最近两周草莓');await expect(page.getByRole('alert')).toHaveCount(0)
  const nextBox=await hold.boundingBox();await page.mouse.move(nextBox.x+nextBox.width/2,nextBox.y+nextBox.height/2);await page.mouse.down();await page.waitForTimeout(1200);await page.mouse.up()
  await expect(input).toHaveValue('查找最近两个月的皮肤情况')
@@ -79,9 +80,11 @@ try{
  await page.getByRole('button',{name:/关闭/}).last().click();await expect(input).toHaveValue('查找最近两个月的皮肤情况')
  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page).toHaveURL(/\/nurse-station$/)
  await page.getByRole('button',{name:'快速查找',exact:true}).click();await clean()
- await input.fill('刷新前的皮肤查找');await expect(page.locator('.journal-search-result')).toHaveCount(1)
+ await input.fill('查找最近两个月的皮肤情况');await expect(page.locator('.journal-search-result')).toHaveCount(1)
  await page.reload({waitUntil:'domcontentloaded'});await clean()
  await expect.poll(stored).toEqual({lookup:false,other:'保留其他记录草稿',checkpoint:null})
+ await expect(page.locator('.quick-search-progress')).toHaveCount(0)
+ await page.screenshot({path:`${out}/fresh-entry.png`})
  report.checks.push('runtime commit','animated waiting without premature empty/retained notice/retry controls','8s hint','320/375/390px layouts','reduced motion','failure allows text and a new recording without recovery controls','automatic fuzzy lookup','original detail retains current query','leaving/reentering and reload start empty','new text and recordings never persisted');assert.deepEqual(errors,[]);report.status='PASS'
 }catch(error){report.status='FAILED';report.error=error.message;await page.screenshot({path:`${out}/failure.png`}).catch(()=>{});throw error}
 finally{
