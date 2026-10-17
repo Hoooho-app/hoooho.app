@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/business/*.test.mjs
+      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts
       - run: npm run build
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
@@ -28,5 +29,6 @@ jobs:
         with:
           name: smart-record-browser-evidence
           path: |
+            outputs/symptom-followup/
             test-results/
             playwright-report/
