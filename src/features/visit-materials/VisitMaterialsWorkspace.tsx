@@ -8,7 +8,9 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useAppStore } from '../../store/useAppStore'
 import { healthEventRecordService } from '../../services/healthEventRecords'
 import type { HealthEventRecordApiDto } from '../../types'
-import { localDateTimeValue } from '../../utils/healthOccurredAt'
+import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
+import { getLocalDateKey } from '../../utils/localCalendarDate'
+import { OccurrenceTimeField } from '../../pages/HealthEvents/OccurrenceTimeField'
 import { useJournal } from '../../pages/HealthEvents/useJournal'
 import { RecordOriginals } from '../ai-business/RecordOriginals'
 import { ownRecordFormHistory } from '../body-location/childBodyHistory'
@@ -94,19 +96,22 @@ export function VisitMaterialsWorkspace({ memberId, token, initialRecord, onBack
     <p className="vm-paragraph">{block.text}</p>
     <HohoButton variant="text" size="small" className="vm-source-link" onClick={() => { const document = model.documents.find(item => item.id === block.documentId); if (document) showOriginal(document, block.quote) }}><ScanText aria-hidden="true" size={14}/>对照原件{block.page > 1 ? ' · 第' + block.page + '页' : ''}<ChevronRight aria-hidden="true" size={13}/></HohoButton>
   </section>
+  // A missing visit time stays unknown until explicitly chosen, including after clearing.
+  const recordTime = <section className="record-time-group vm-record-time"><OccurrenceTimeField label="记录时间" disabled={locked} showDateContext displayLabel={!model.occurredAt ? '资料未注明' : undefined} model={{ mode: 'specified', specifiedValue: model.occurredAt, now: new Date(), today: getLocalDateKey(new Date()) ?? '', error: model.occurredAt && Date.parse(localDateTimeToIso(model.occurredAt) ?? '') > Date.now() ? FUTURE_OCCURRED_AT_MESSAGE : '', setSpecifiedValue: model.setOccurredAt, setMode: () => model.setOccurredAt('') }}/></section>
+  const supplementRow = <button className="vm-recent-row vm-supplement-row" aria-label="补充一句" type="button" disabled={locked} onClick={() => openText('supplement')}><PencilLine aria-hidden="true" size={23}/><span><strong>补充一句</strong>{model.supplement && <small>{model.supplement}</small>}</span><ChevronRight aria-hidden="true" size={17}/></button>
   const importPanel = <HealthCard className="vm-import">
     <div className="vm-import-art">{model.source === 'hospital' ? <Files aria-hidden="true" size={40} strokeWidth={1.3}/> : <MessageSquareText aria-hidden="true" size={40} strokeWidth={1.3}/>}</div>
     <h2>{model.source === 'hospital' ? '把这次就诊的资料放进来' : '把问诊对话带回来'}</h2>
     <p>{model.source === 'hospital' ? '病历、报告、处方、医嘱和回执' : model.source === 'online_doctor' ? '医生回复、电子处方、聊天截图' : '截图或复制对话，保留提问和回答'}</p>
-    <div className="vm-action-pair"><HohoButton variant="secondary" disabled={locked || !model.hydrated} onClick={() => { setCameraMode(true); camera.current?.click() }}><Camera aria-hidden="true" size={19}/>拍照</HohoButton><HohoButton disabled={locked || !model.hydrated} onClick={() => { setCameraMode(false); album.current?.click() }}><Images aria-hidden="true" size={19}/>{model.source === 'hospital' ? '从相册选择' : '上传截图'}</HohoButton></div>
-    <div className="vm-action-pair vm-import-more"><HohoButton variant="text" disabled={locked} onClick={() => { setCameraMode(false); pdf.current?.click() }}><FileUp aria-hidden="true" size={18}/>导入 PDF</HohoButton><HohoButton variant="text" disabled={locked} onClick={() => openText('paste')}><ClipboardPaste aria-hidden="true" size={18}/>{model.source === 'hospital' ? '粘贴文字' : '粘贴对话'}</HohoButton></div>
+    <div className="vm-action-pair vm-import-actions"><HohoButton variant="secondary" disabled={locked || !model.hydrated} onClick={() => { setCameraMode(true); camera.current?.click() }}><Camera aria-hidden="true" size={19}/>拍照</HohoButton><HohoButton variant="secondary" disabled={locked || !model.hydrated} onClick={() => { setCameraMode(false); album.current?.click() }}><Images aria-hidden="true" size={19}/>{model.source === 'hospital' ? '从相册选择' : '上传截图'}</HohoButton>
+    <HohoButton variant="secondary" disabled={locked} onClick={() => { setCameraMode(false); pdf.current?.click() }}><FileUp aria-hidden="true" size={18}/>导入 PDF</HohoButton><HohoButton variant="secondary" disabled={locked} onClick={() => openText('paste')}><ClipboardPaste aria-hidden="true" size={18}/>{model.source === 'hospital' ? '粘贴文字' : '粘贴对话'}</HohoButton></div>
   </HealthCard>
   const review = <>
     {model.stage === 'saved' && <div className="vm-saved" role="status"><CheckCircle2 size={20} aria-hidden="true"/>{model.targetRecordId && model.targetRecordId !== model.saved?.recordId ? '已补充到原就诊 · 健康日历' : '已保存到健康日历'}</div>}
     <div className="vm-between"><HealthTag tone="primary"><SourceIcon size={15} aria-hidden="true"/>{visitMaterialSources[model.source]}</HealthTag><span className="vm-secondary">{member?.name ? '保存给' + member.name : ''}</span></div>
     {model.source === 'external_ai' && <div className="vm-source-notice"><Sparkles size={16} aria-hidden="true"/><span>AI 参考，尚未经医生确认。</span></div>}
     <div className="vm-document-title">{model.title || (model.source === 'hospital' ? '医院就诊资料' : model.source === 'online_doctor' ? '在线问诊资料' : 'AI 问诊参考')}</div>
-    <div className="vm-metadata"><span>{model.source === 'hospital' ? '就诊时间' : '问诊时间'}</span><span>{model.occurredAt ? new Date(model.occurredAt).toLocaleString('zh-CN', { hour12: false }) : '资料未注明'}</span>{model.stage === 'review' && <HohoButton size="small" variant="text" disabled={locked} onClick={() => setSheet('meta')}>编辑</HohoButton>}</div>
+    {model.stage === 'review' ? recordTime : <div className="vm-metadata"><span>{model.source === 'hospital' ? '就诊时间' : '问诊时间'}</span><span>{model.occurredAt ? new Date(model.occurredAt).toLocaleString('zh-CN', { hour12: false }) : '资料未注明'}</span></div>}
     <div className="vm-metadata"><span>{model.source === 'hospital' ? '就诊机构' : model.source === 'online_doctor' ? '问诊平台' : 'AI 来源'}</span><span>{model.institution || '待补充'}</span>{model.stage === 'review' && <HohoButton size="small" variant="text" disabled={locked} onClick={() => setSheet('meta')}>编辑</HohoButton>}</div>
     {model.stage === 'saved' && model.originalsOnly ? <StatusNotice title="原件已保存，尚未确认整理结果"/> : model.blocks.map(block => renderBlock(block, model.stage === 'review'))}
     {model.stage === 'review' && !model.blocks.length && <StatusNotice title="暂无可用整理内容，可对照原件补充"/>}
@@ -114,7 +119,7 @@ export function VisitMaterialsWorkspace({ memberId, token, initialRecord, onBack
     <section className="vm-reading-section"><div className="vm-section-heading"><h3>资料原件 <span className="vm-secondary">{model.documents.length}份</span></h3>{model.stage === 'review' && !model.saved && <HohoButton variant="text" size="small" disabled={locked} onClick={() => { model.setStage('processing'); album.current?.click() }}>继续添加</HohoButton>}</div><div className="vm-original-grid">{model.documents.map(document => <div key={document.id}>{thumbnail(document)}</div>)}</div></section>
     {previous.length > 0 && <section className="vm-reading-section"><h3>此前的就诊资料</h3>{previous.map(record => <div className="vm-prior-record" key={record.id}><p>{record.journal?.visit?.materials?.title || record.content}</p><RecordOriginals eventId={record.eventId} attachmentIds={record.caseContext?.attachmentIds ?? []} recordId={record.id}/></div>)}</section>}
     {!model.targetRecordId && <HohoButton variant="text" className="vm-full-row" disabled={locked} onClick={() => setSheet('related')}><Link2 aria-hidden="true" size={17}/>{model.targetEventId ? '已关联症状事件' : '关联症状事件'}<ChevronRight aria-hidden="true" size={16}/></HohoButton>}
-    {model.supplement ? <section className="vm-reading-section"><div className="vm-section-heading"><h3>补充说明</h3>{model.stage === 'review' && <HohoButton variant="text" size="small" disabled={locked} onClick={() => openText('supplement')}>编辑</HohoButton>}</div><p className="vm-paragraph">{model.supplement}</p></section> : model.stage === 'review' && <HohoButton variant="text" className="vm-full-row" disabled={locked} onClick={() => openText('supplement')}><PencilLine aria-hidden="true" size={17}/>补充一句</HohoButton>}
+    {model.supplement ? <section className="vm-reading-section"><div className="vm-section-heading"><h3>补充说明</h3>{model.stage === 'review' && <HohoButton variant="text" size="small" disabled={locked} onClick={() => openText('supplement')}>编辑</HohoButton>}</div><p className="vm-paragraph">{model.supplement}</p></section> : model.stage === 'review' && supplementRow}
   </>
   return <div className="medication-record-page-layer"><section ref={page} role="dialog" aria-modal="true" aria-label="就诊资料" className="medication-record-page visit-materials-page" tabIndex={-1}>
     <header className="vm-header"><button aria-label="返回" disabled={model.saving} onClick={close} type="button"><ArrowLeft size={22}/></button><h1>{stageTitle}</h1>{model.stage === 'saved' ? <button className="vm-header-action" onClick={onClose} type="button">完成</button> : <span/>}</header>
@@ -125,12 +130,12 @@ export function VisitMaterialsWorkspace({ memberId, token, initialRecord, onBack
       {model.error && <StatusNotice tone="error" title={model.error}/>}
       {model.notice && <p className="vm-notice" role="status">{model.notice}</p>}
       {model.stage === 'entry' ? <>
-        <div className="vm-source-heading"><span>资料来源</span><HohoButton size="small" variant="text" onClick={() => setSheet('help')}>怎么带回来<CircleHelp aria-hidden="true" size={15}/></HohoButton></div>
         <div className="vm-source-segment" role="group" aria-label="资料来源">{(Object.keys(visitMaterialSources) as VisitMaterialSource[]).map(value => <button disabled={locked} aria-pressed={model.source === value} key={value} type="button" onClick={() => model.setSource(value)}>{visitMaterialSources[value]}</button>)}</div>
         {model.draft && <HealthCard className="vm-draft"><HohoButton fullWidth variant="text" disabled={locked} onClick={() => void model.resumeDraft()}>继续上次的资料（{model.draft.visitMaterials?.documents.length}份）<ChevronRight size={17}/></HohoButton></HealthCard>}
         {model.targetRecordId && <div className="vm-target" role="status"><FolderPlus aria-hidden="true" size={17}/><span>补充到：{model.title || '原就诊'}</span></div>}
         {importPanel}
-        <HohoButton fullWidth variant="text" className="vm-full-row" onClick={() => openText('supplement')}><PencilLine aria-hidden="true" size={17}/>{model.supplement || '补充一句'}<ChevronRight aria-hidden="true" size={16}/></HohoButton>
+        <div className="vm-supplement">{supplementRow}<button className="vm-import-tip" type="button" onClick={() => setSheet('help')}><CircleHelp aria-hidden="true" size={14}/><span>怎么带回来：截图、复制对话或导出 PDF</span><ChevronRight aria-hidden="true" size={14}/></button></div>
+        {recordTime}
         {recent.length > 0 && !model.targetRecordId && <section className="vm-recent"><div className="vm-source-heading"><span>给已有就诊补资料</span>{recent.length > 1 && <HohoButton variant="text" size="small" onClick={() => setSheet('recent')}>选择</HohoButton>}</div><button className="vm-recent-row" type="button" onClick={() => selectRecent(recent[0])}><FolderPlus aria-hidden="true" size={23}/><span><strong>{recent[0].visit?.materials?.title || recent[0].content.split('\n')[0]}</strong><small>{recent[0].timePrecision === 'unknown' ? '就诊时间未注明' : new Date(recent[0].occurredAt).toLocaleDateString('zh-CN')} · {recent[0].attachmentCount}份资料</small></span><ChevronRight size={17}/></button></section>}
       </> : model.stage === 'processing' ? <>
         <div className="vm-between"><HealthTag tone="primary"><SourceIcon size={15}/>{visitMaterialSources[model.source]}</HealthTag><span className="vm-secondary">{model.documents.length}份资料</span></div>
@@ -145,6 +150,7 @@ export function VisitMaterialsWorkspace({ memberId, token, initialRecord, onBack
         <div className="vm-action-pair vm-add-actions"><HohoButton variant="secondary" disabled={locked || Boolean(model.saved)} onClick={() => cameraMode ? camera.current?.click() : album.current?.click()}>{cameraMode ? <Camera size={18}/> : <Plus size={18}/>} {cameraMode ? '继续拍下一张' : '继续添加'}</HohoButton><HohoButton variant="text" disabled={locked || Boolean(model.saved)} onClick={() => openText('paste')}><ClipboardPaste size={17}/>补充文字</HohoButton></div>
         <section className="vm-process" aria-live="polite"><h2>{processing ? '正在逐份整理资料' : '接下来，核对整理结果'}</h2><ol><li data-done={model.documents.every(document => !['preparing','uploading'].includes(document.status))}>上传原件</li><li data-done={!processing}>识别文字</li><li data-done={!processing && ready > 0}>整理要点</li></ol></section>
         {model.documents.some(document => document.status === 'failed') && <p className="vm-secondary">没识别清的原件也会保留，可以稍后再整理。</p>}
+        {recordTime}
       </> : review}
     </main>
     {model.stage === 'processing' && <footer className="vm-footer"><HohoButton fullWidth disabled={locked || !ready} onClick={() => model.setStage('review')}>{processing ? ready ? '先核对已整理的 ' + ready + ' 份' : '正在整理资料…' : '核对整理结果'}</HohoButton><HohoButton fullWidth variant="text" disabled={model.saving || !model.documents.length} onClick={() => void model.save('originals_only')}>{model.saveLocked ? '重试保存' : '稍后整理，先保存原件'}</HohoButton></footer>}
