@@ -1,6 +1,6 @@
 # Hoooho Design System V2
 
-Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is a restrained three-point continuous health trace, used in the logo and selected brand moments rather than repeated as decoration. It uses hierarchy, spacing, borders and restrained surfaces before effects.
+Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approved logo (2026-10-17) is the ivory parent-and-child h-shaped mark with an apricot dot on a green background. Use the shared brand assets in app identity, installation icons and selected brand moments; the former three-point trace is retired. It uses hierarchy, spacing, borders and restrained surfaces before effects.
 
 ## Foundations
 

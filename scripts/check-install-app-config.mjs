@@ -14,7 +14,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
 const entryMatch = html.match(/src="\/(assets\/index-[A-Za-z0-9_-]+\.js)"/)
 
 assert.match(html, /rel="manifest"/i)
-assert.match(html, /rel="apple-touch-icon"[^>]+href="\/icons\/apple-touch-icon\.png"/i)
+assert.match(html, /rel="apple-touch-icon"[^>]+href="\/icons\/apple-touch-icon-huhu-20261017\.png"/i)
 assert.match(html, /name="apple-mobile-web-app-capable" content="yes"/i)
 assert.match(html, /name="apple-mobile-web-app-title" content="Hoooho"/i)
 assert.equal(manifest.name, 'Hoooho')
@@ -25,9 +25,9 @@ assert.equal(manifest.theme_color, '#486253')
 assert.equal(manifest.background_color, '#F5F8F6')
 
 for (const expected of [
-  ['/icons/app-icon-192.png', '192x192', 'any'],
-  ['/icons/app-icon-512.png', '512x512', 'any'],
-  ['/icons/app-icon-maskable-512.png', '512x512', 'maskable']
+  ['/icons/app-icon-192-huhu-20261017.png', '192x192', 'any'],
+  ['/icons/app-icon-512-huhu-20261017.png', '512x512', 'any'],
+  ['/icons/app-icon-maskable-512-huhu-20261017.png', '512x512', 'maskable']
 ]) {
   const icon = manifest.icons.find((candidate) => candidate.src === expected[0])
   assert.ok(icon, `manifest icon ${expected[0]} must exist`)
@@ -36,7 +36,7 @@ for (const expected of [
   assert.equal(existsSync(resolve(root, 'dist', expected[0].slice(1))), true, `${expected[0]} must be emitted`)
 }
 
-assert.equal(existsSync(resolve(root, 'dist/icons/apple-touch-icon.png')), true, 'Apple touch icon must be emitted')
+assert.equal(existsSync(resolve(root, 'dist/icons/apple-touch-icon-huhu-20261017.png')), true, 'Apple touch icon must be emitted')
 assert.equal(existsSync(resolve(root, 'dist/sw.js')), true, 'service worker must be emitted')
 assert.ok(entryMatch, 'versioned app entry must be emitted')
 const entry = readFileSync(resolve(root, 'dist', entryMatch[1]), 'utf8')

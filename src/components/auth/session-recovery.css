@@ -1,7 +1,7 @@
 .session-recovery-screen { min-height: 100dvh; }
 .session-protected-page { display: contents; }
 .session-recovery-screen__header { display: flex; align-items: center; min-height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--hoho-page-gutter) 0; }
-.session-recovery-screen__header img { width: 112px; height: 34px; object-fit: contain; }
+.session-recovery-screen__header img { width: 36px; height: 36px; object-fit: contain; }
 .session-recovery-screen__body { display: flex; flex-direction: column; align-items: center; padding: clamp(56px, 12dvh, 100px) var(--hoho-page-gutter) var(--hoho-space-10); text-align: center; }
 .session-recovery-screen__body p { max-width: 300px; }
 .session-recovery-screen__body > button { min-width: 140px; }

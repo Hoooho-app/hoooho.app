@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import logoUrl from '../../assets/logo.svg'
 import { useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoSurfaceRow } from '../../components/design-system'
@@ -84,7 +85,7 @@ export function AboutPage() {
       <MainAppHeader compact title="关于" />
       <div className="about-content">
         <section className="about-brand" aria-label="Hoooho 与版本">
-          <strong className="hoho-text-display">Hoooho</strong>
+          <img className="about-brand__logo" src={logoUrl} alt="Hoooho" width={72} height={72} />
           <span className="hoho-text-caption">v{appVersion}</span>
         </section>
         <section className="about-menu" aria-label="关于页入口">
