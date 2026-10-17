@@ -8,8 +8,8 @@ const name = '合成测试药品'
 let image: Buffer
 const upload = () => ({ name: 'photo-test.png', mimeType: 'image/png', buffer: image })
 
-async function model(category = 'medication', fields = [{ name: 'medicationName', value: name }]) {
-  await fetch(`${control}/draft-data`, { method: 'POST', body: JSON.stringify({ ocrText: fields.map(f => f.value).join('\n'), items: [{ category, title: '合成测试原件', timeText: null, subject: 'current', archiveCategory: null, relationKey: null, fields: fields.map(f => ({ ...f, quote: f.value, sourceId: '@first', page: 1 })) }] }) })
+async function model(category = 'medication', fields = [{ name: 'medicationName', value: name }], extraText = '') {
+  await fetch(`${control}/draft-data`, { method: 'POST', body: JSON.stringify({ ocrText: fields.map(f => f.value).join('\n') + extraText, items: [{ category, title: '合成测试原件', timeText: null, subject: 'current', archiveCategory: null, relationKey: null, fields: fields.map(f => ({ ...f, quote: f.value, sourceId: '@first', page: 1 })) }] }) })
 }
 async function openReminder(page: Page) {
   await page.goto('/medication-reminders')
@@ -48,6 +48,17 @@ test('reminder uploads, displays and actually recognizes; adopts only on confirm
   await expect(page.getByLabel('药品名称', { exact: true })).toHaveValue(name)
   expect(jobs).toBe(1)
   await page.screenshot({ path: testInfo.outputPath('reminder-result.png') })
+})
+
+test('partially recognized originals retain sourced candidates with an explicit warning', async ({ page }) => {
+  await model('medication', [{ name: 'medicationName', value: name }], '\n规格：10 mg / 片')
+  await openReminder(page)
+  await page.locator('input[type=file]').setInputFiles(upload())
+  await expect(page.getByText(/部分内容尚未识别完整/)).toBeVisible()
+  await expect(page.getByLabel('药品名称', { exact: true })).toHaveValue('')
+  await page.getByRole('button', { name: '已核对，采用识别结果', exact: true }).click()
+  await expect(page.getByLabel('药品名称', { exact: true })).toHaveValue(name)
+  await expect(page.getByText(/部分内容尚未识别完整/)).toBeVisible()
 })
 
 test('recognition failure is truthful and retry reaches sourced results', async ({ page }) => {
