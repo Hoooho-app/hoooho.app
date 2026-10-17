@@ -1,3 +1,4 @@
+import { CareHandsIcon } from '../design-system/SproutEntry'
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -30,6 +31,11 @@ export const sidebarMenuGroups = [
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
     { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
     ]
+  },
+  {
+    title: '呵护之旅',
+    icon: CareHandsIcon,
+    items: [{ label: '呵护之旅', icon: CareHandsIcon, to: '/care-journey' }]
   },
   {
     title: '辅助工具',
@@ -174,7 +180,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
                     {group.items.map(({ label, icon: Icon, to }) => {
                       const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
                       return (
-                        <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
+                        <button aria-current={active ? 'page' : undefined} key={label} className={`hoho-drawer__item${to === '/care-journey' ? ' hoho-drawer__item--sprout' : ''}`} data-active={active} type="button" onClick={() => openPage(to)}>
                           <Icon size={20} strokeWidth={1.7} />
                           <span className="flex-1">{label}<UpdateDot show={updates.some(i=>to==='/health-events'?i.destination!=='profile':to==='/health-profile'?i.destination==='profile':false)}/></span>
                           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />

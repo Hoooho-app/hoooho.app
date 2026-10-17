@@ -1,3 +1,5 @@
+import { familyOwnerLifecycle } from '../family-sharing/lifecycle.mjs'
+import { mergeCareJourneyAccounts } from '../care-journey/account-merge.mjs'
 import {recognitionOwnerLifecycle} from '../ai/recognition-lifecycle.mjs'
 import path from 'node:path'
 import { access, unlink } from 'node:fs/promises'
@@ -6,6 +8,8 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
+  ['care-journey.json', 'accounts'],
+  ['care-tool-templates.json', 'templates'],
   ['care-handoff-shares.json', 'shares'],
   ['help-conversations.json', 'sessions'],
   ['nurse-drafts.json', 'drafts'],
@@ -74,7 +78,9 @@ export class AccountDataService {
         ? data.merges
         : [...data.merges, { id: operationId, guestAccountId, accountId, status: 'in_progress', startedAt: now.toISOString() }]
     }))
-    for (const [file, collection] of accountCollections) {
+    await familyOwnerLifecycle(this.dataDirectory,guestAccountId,{mergeInto:accountId})
+    await mergeCareJourneyAccounts(this.dataDirectory,guestAccountId,accountId,now)
+    for (const [file, collection] of accountCollections.filter(([file])=>file!=='care-journey.json')) {
       await this.store(file, collection).update((data) => ({
         ...data,
         [collection]: (data[collection] ?? []).map((item) => item.accountId === guestAccountId ? { ...item, accountId } : item)
@@ -92,6 +98,7 @@ export class AccountDataService {
 
   async deleteAccount(accountId) {
     return withStorageLock(async()=>{
+    await familyOwnerLifecycle(this.dataDirectory,accountId)
     await recognitionOwnerLifecycle(this.dataDirectory,accountId)
     const dailyRules = (await this.store('routine-templates.json', 'dailyRules').read()).dailyRules ?? []
     const ownedRuleIds = new Set(dailyRules.filter(rule => rule.accountId === accountId).map(rule => rule.id))
@@ -122,6 +129,7 @@ export class AccountDataService {
         [collection]: (data[collection] ?? []).filter((item) => item.accountId !== accountId)
       }))
     }
+    await new JsonStore(path.join(this.dataDirectory,'care-journey.json'),{accounts:[]}).update(data=>({...data,merges:(data.merges??[]).filter(x=>x.guestAccountId!==accountId&&x.accountId!==accountId)}))
     await Promise.all([...storageKeys].map((storageKey) =>
       unlink(path.join(this.dataDirectory, 'quick-record-photo-files', storageKey)).catch(() => undefined)
     ))

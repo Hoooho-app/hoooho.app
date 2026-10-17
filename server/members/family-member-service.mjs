@@ -1,5 +1,7 @@
 import {withStorageLock} from '../auth/storage/transaction.mjs'
 import {recognitionOwnerLifecycle} from '../ai/recognition-lifecycle.mjs'
+import {familyChildLifecycle} from '../family-sharing/lifecycle.mjs'
+import {careMemberLifecycle} from '../care-journey/member-lifecycle.mjs'
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
@@ -273,6 +275,8 @@ export class FamilyMemberService {
   async delete(accountId, id) {
     return withStorageLock(async()=>{
     await this.get(accountId, id)
+    await familyChildLifecycle(this.dataDirectory,accountId,id)
+    await careMemberLifecycle(this.dataDirectory,accountId,id)
     await recognitionOwnerLifecycle(this.dataDirectory,accountId,{memberId:id})
     if(this.aiDrafts)await this.aiDrafts.update(data=>({...data,drafts:data.drafts.filter(d=>d.accountId!==accountId||d.memberId!==id)}))
     if(this.frontDeskRecords)await this.frontDeskRecords.update(data=>({...data,contexts:data.contexts.filter(d=>d.accountId!==accountId||d.memberId!==id),messages:data.messages.filter(d=>d.accountId!==accountId||d.memberId!==id)}))

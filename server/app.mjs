@@ -1,3 +1,9 @@
+import { CareJourneyService } from './care-journey/service.mjs'
+import { careJourneyRoute, careJourneyResult, readCareAccountId, CARE_BODY_LIMIT } from './care-journey/api.mjs'
+import { FamilySharingService } from './family-sharing/family-sharing-service.mjs'
+import { familySharingRoute, familySharingResult, FAMILY_SHARING_BODY_LIMIT } from './family-sharing/api.mjs'
+import { CareToolsService } from './care-tools/service.mjs'
+import { careToolsRoute, careToolsResult, CARE_TOOLS_BODY_LIMIT } from './care-tools/api.mjs'
 import {withAITrace,safeTraceId,aiRequestOperation,bypassAccountRequestLock,safeClientTiming} from './ai/providers/telemetry.mjs'
 import { resolveBusinessAssetInput } from './ai/business/asset-input.mjs'
 import { parseJsonObject } from './json-input.mjs'
@@ -117,6 +123,9 @@ const aiBusiness = new AIBusinessService(sharedOptions)
 const childProfileLists = new ChildProfileListService(sharedOptions)
 const careHandoff = new CareHandoffService(sharedOptions)
 const foodLabels = createFoodLabelService(sharedOptions)
+const careJourney = new CareJourneyService({ ...sharedOptions, enabledProducts: ['growth-comparison','food-comparison','handoff-enhanced','medication-templates'] })
+const careTools = new CareToolsService({ ...sharedOptions, care: careJourney, food: foodLabels })
+const familySharing = new FamilySharingService({ ...sharedOptions, attachmentReader: attachments })
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
 const frontDeskRecord = new FrontDeskRecord({ ...sharedOptions, events, business: aiBusiness })
@@ -822,6 +831,20 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  const careRoute=careJourneyRoute(pathname), toolRoute=careToolsRoute(pathname), familyRoute=familySharingRoute(pathname)
+  if(careRoute||toolRoute||familyRoute){
+    const accountId=await readCareAccountId(request,{tokens,service:careJourney,sessions:browserSessions})
+    const limit=careRoute?CARE_BODY_LIMIT:toolRoute?CARE_TOOLS_BODY_LIMIT:FAMILY_SHARING_BODY_LIMIT
+    const input=request.method==='POST'?await readJson(request,limit):{}
+    let result
+    if(careRoute)result=await careJourneyResult(careJourney,accountId,careRoute,request.method,input,{...Object.fromEntries(searchParams),timeZone:request.headers['x-hoooho-timezone']})
+    else if(toolRoute)result=await careToolsResult(careTools,accountId,toolRoute,request.method,input,requestSignal(request,response))
+    else result=await familySharingResult(familySharing,accountId,familyRoute,request.method,input)
+    if(result?.file){response.writeHead(200,{'Content-Type':result.mimeType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(result.name)}`});response.end(result.buffer)}
+    else sendJson(response,200,result)
+    return true
+  }
+
   if (pathname === '/api/food-label/check') {
     browserSessions.assertSameOrigin(request)
     const accountId = await readAccountId(request)

@@ -19,3 +19,4 @@ export * from './Typography'
 export * from './DialogueComposer'
 
 export * from './HoldToTalkButton'
+export * from './SproutEntry'

@@ -1,3 +1,6 @@
+import { careJourneyApiPlugin } from './server/care-journey/api.mjs'
+import { familySharingApiPlugin } from './server/family-sharing/api.mjs'
+import { careToolsApiPlugin } from './server/care-tools/api.mjs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -40,6 +43,9 @@ export default defineConfig({
     host: true
   },
   plugins: [
+    careJourneyApiPlugin({enabledProducts:['growth-comparison','food-comparison','handoff-enhanced','medication-templates']}),
+    familySharingApiPlugin(),
+    careToolsApiPlugin(),
     careHandoffApiPlugin(),
     authApiPlugin(),
     childProfileListApiPlugin(),

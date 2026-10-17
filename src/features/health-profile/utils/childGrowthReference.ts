@@ -7,10 +7,28 @@ import {
   WHO_CHILD_GROWTH_STANDARD,
   type WhoLmsPoint
 } from './whoGrowthReferenceData'
+import { CDC_CHILD_GROWTH_REFERENCE, CDC_FEMALE_STATURE_FOR_AGE, CDC_FEMALE_WEIGHT_FOR_AGE, CDC_MALE_STATURE_FOR_AGE, CDC_MALE_WEIGHT_FOR_AGE } from './cdcGrowthReferenceData'
 
-export { WHO_CHILD_GROWTH_STANDARD }
+export { WHO_CHILD_GROWTH_STANDARD, CDC_CHILD_GROWTH_REFERENCE }
 
 export type GrowthMeasure = 'height' | 'weight'
+export type GrowthReferenceId = 'who-2006' | 'cdc-2000'
+
+export const GROWTH_REFERENCE_COMPARISON_VERSION = 'who-cdc-v1'
+export const GROWTH_REFERENCE_COMPARISON_PATH = '/health-profile/basic'
+
+export function growthReferenceRange(referenceId: GrowthReferenceId = 'who-2006') {
+  return referenceId === 'cdc-2000' ? CDC_CHILD_GROWTH_REFERENCE : WHO_CHILD_GROWTH_STANDARD
+}
+
+function referencePoints(gender: ProfileGender, measure: GrowthMeasure, referenceId: GrowthReferenceId) {
+  if (referenceId === 'cdc-2000') return gender === 'female'
+    ? measure === 'height' ? CDC_FEMALE_STATURE_FOR_AGE : CDC_FEMALE_WEIGHT_FOR_AGE
+    : measure === 'height' ? CDC_MALE_STATURE_FOR_AGE : CDC_MALE_WEIGHT_FOR_AGE
+  return gender === 'female'
+    ? measure === 'height' ? FEMALE_LENGTH_HEIGHT_FOR_AGE : FEMALE_WEIGHT_FOR_AGE
+    : measure === 'height' ? MALE_LENGTH_HEIGHT_FOR_AGE : MALE_WEIGHT_FOR_AGE
+}
 
 export interface GrowthPosition {
   ageInMonths: number
@@ -48,26 +66,24 @@ export function heightMeasureLabel(birthday: string | undefined, measuredAt: str
 }
 
 export function interpolateGrowthLms(points: readonly WhoLmsPoint[], ageInMonths: number): WhoLmsPoint | null {
-  if (ageInMonths < WHO_CHILD_GROWTH_STANDARD.minimumMonth || ageInMonths > WHO_CHILD_GROWTH_STANDARD.maximumMonth) return null
-  const lowerMonth = Math.floor(ageInMonths)
-  const upperMonth = Math.ceil(ageInMonths)
-  const lower = points.find(([month]) => month === lowerMonth)
-  const upper = points.find(([month]) => month === upperMonth)
+  if (!Number.isFinite(ageInMonths) || !points.length || ageInMonths < points[0][0] || ageInMonths > points[points.length - 1][0]) return null
+  const upperIndex = points.findIndex(([month]) => month >= ageInMonths)
+  const upper = points[upperIndex]
+  const lower = upper?.[0] === ageInMonths ? upper : points[upperIndex - 1]
   if (!lower || !upper) return null
-  if (lowerMonth === upperMonth) return lower
-  const ratio = ageInMonths - lowerMonth
+  if (lower[0] === upper[0]) return lower
+  const ratio = (ageInMonths - lower[0]) / (upper[0] - lower[0])
   return [ageInMonths, lower[1] + (upper[1] - lower[1]) * ratio, lower[2] + (upper[2] - lower[2]) * ratio, lower[3] + (upper[3] - lower[3]) * ratio]
 }
 
-export function growthValueAtZScore(input: { ageInMonths: number; gender: ProfileGender; measure: GrowthMeasure; zScore: number }) {
-  if (input.gender !== 'female' && input.gender !== 'male') return null
-  const points = input.gender === 'female'
-    ? input.measure === 'height' ? FEMALE_LENGTH_HEIGHT_FOR_AGE : FEMALE_WEIGHT_FOR_AGE
-    : input.measure === 'height' ? MALE_LENGTH_HEIGHT_FOR_AGE : MALE_WEIGHT_FOR_AGE
+export function growthValueAtZScore(input: { ageInMonths: number; gender: ProfileGender; measure: GrowthMeasure; zScore: number; referenceId?: GrowthReferenceId }) {
+  if ((input.gender !== 'female' && input.gender !== 'male') || !Number.isFinite(input.zScore)) return null
+  const points = referencePoints(input.gender, input.measure, input.referenceId ?? 'who-2006')
   const lms = interpolateGrowthLms(points, input.ageInMonths)
   if (!lms) return null
   const [, l, median, coefficient] = lms
-  return Math.abs(l) < 0.000001 ? median * Math.exp(coefficient * input.zScore) : median * ((1 + l * coefficient * input.zScore) ** (1 / l))
+  const value = Math.abs(l) < 0.000001 ? median * Math.exp(coefficient * input.zScore) : median * ((1 + l * coefficient * input.zScore) ** (1 / l))
+  return Number.isFinite(value) && value > 0 ? value : null
 }
 
 function normalCdf(value: number) {
@@ -97,13 +113,12 @@ export function calculateGrowthPosition(input: {
   measuredAt: string | Date
   measure: GrowthMeasure
   value: number
+  referenceId?: GrowthReferenceId
 }): GrowthPosition | null {
   if ((input.gender !== 'female' && input.gender !== 'male') || !Number.isFinite(input.value) || input.value <= 0) return null
   const ageInMonths = exactAgeInMonths(input.birthday, input.measuredAt)
   if (ageInMonths == null) return null
-  const points = input.gender === 'female'
-    ? input.measure === 'height' ? FEMALE_LENGTH_HEIGHT_FOR_AGE : FEMALE_WEIGHT_FOR_AGE
-    : input.measure === 'height' ? MALE_LENGTH_HEIGHT_FOR_AGE : MALE_WEIGHT_FOR_AGE
+  const points = referencePoints(input.gender, input.measure, input.referenceId ?? 'who-2006')
   const lms = interpolateGrowthLms(points, ageInMonths)
   if (!lms) return null
   const [, l, median, coefficient] = lms
@@ -111,6 +126,7 @@ export function calculateGrowthPosition(input: {
     ? Math.log(input.value / median) / coefficient
     : ((input.value / median) ** l - 1) / (l * coefficient)
   const percentile = normalCdf(zScore) * 100
+  if (!Number.isFinite(zScore) || !Number.isFinite(percentile)) return null
   return {
     ageInMonths,
     percentile,

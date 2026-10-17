@@ -1,3 +1,4 @@
+import { CareHandsIcon } from '../../components/design-system/SproutEntry'
 import { ChevronDown, ChevronRight, ClipboardCheck, FileText, FolderOpen, Pencil, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -217,9 +218,9 @@ export function NurseStationPage() {
               <span className="nurse-station-copy" role="presentation">
               <button aria-label={`选择孩子，当前${member.name}`} className="nurse-station-identity" onClick={() => setChildSelectionRequest(v => v + 1)} type="button">
                 <Avatar name={member.name} src={member.avatar} size="lg" />
-                <span><strong><span>{member.name}</span><ChevronDown aria-hidden="true" className="nurse-station-child-chevron" size={13} /></strong><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
+                <span><span className="nurse-station-name-line"><strong><span>{member.name}</span><ChevronDown aria-hidden="true" className="nurse-station-child-chevron" size={13} /></strong><span className="nurse-station-guarded">已守护 <b>{guardedDays}</b> 天</span></span><em>{genderLabels[member.gender ?? '']} · {member.age}</em></span>
               </button>
-              <span className="nurse-station-guarded">已守护 <strong>{guardedDays}</strong> 天</span>
+              <button aria-label="呵护之旅" title="呵护之旅" className="nurse-station-care-entry" type="button" onClick={() => navigate('/care-journey')}><CareHandsIcon /></button>
               </span>
             </div>
             <div aria-label={`${member.name}的成长数据摘要`} className="nurse-station-growth-data">

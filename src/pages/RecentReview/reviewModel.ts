@@ -49,7 +49,8 @@ export function buildReview(data: ReviewSources, memberId: string, start: string
   for (const record of data.index.records) if (accounts.get(record.eventId) === record.accountId) grouped.get(record.eventId)?.push(record)
   const entries = flattenJournal(events, grouped, new Map(), memberId)
   const inRange = (at: string) => { const dt = day(at); return Boolean(dt && dt >= start && dt <= end && Date.parse(at) <= now.getTime()) }
-  const ranged = entries.filter(e => known(e) && inRange(e.firstOccurredAt ?? e.occurredAt))
+  const confirmedEntry = (entry: JournalEntry) => !['external_ai', 'pending'].includes(entry.caseContext?.identity ?? '')
+  const ranged = entries.filter(e => confirmedEntry(e) && known(e) && inRange(e.firstOccurredAt ?? e.occurredAt))
   const buckets = makeBuckets(start, end), totalDays = Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1
   const groupIds = new Map<string, string>()
   for (const item of [...data.cases.active, ...data.cases.archived]) for (const id of new Set([item.event.id, ...(item.sourceEventIds ?? [])])) groupIds.set(id, item.event.id)
@@ -79,7 +80,7 @@ export function buildReview(data: ReviewSources, memberId: string, start: string
   }
   const sleepRows: ReviewRow[] = [], bedValues = new Map<string, number>(), durationValues = new Map<string, number>()
   for (const e of entries) {
-    const sleep = e.sleep; if (!known(e) || !sleep || sleep.kind !== 'night' || sleep.status === 'ongoing' || !inRange(sleep.sleepAt)) continue
+    const sleep = e.sleep; if (!confirmedEntry(e) || !known(e) || !sleep || sleep.kind !== 'night' || sleep.status === 'ongoing' || !inRange(sleep.sleepAt)) continue
     const duration = (Date.parse(sleep.wakeAt) - Date.parse(sleep.sleepAt)) / 3_600_000
     if (!Number.isFinite(duration) || duration <= 0 || duration > 24 || Date.parse(sleep.wakeAt) > now.getTime()) continue
     const parts = new Intl.DateTimeFormat('en-GB', { timeZone: reviewZone, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(sleep.sleepAt)), hours = Number(parts.find(p => p.type === 'hour')?.value), minutes = Number(parts.find(p => p.type === 'minute')?.value), value = hours + minutes / 60

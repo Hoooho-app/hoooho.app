@@ -1,0 +1,15 @@
+.growth-reference-entry.hoho-surface-row {
+  margin-top: var(--hoho-space-3);
+  background: rgb(var(--hoho-color-sprout-surface));
+  border-color: rgb(var(--hoho-color-sprout-border));
+  color: rgb(var(--hoho-color-sprout-text));
+}
+.growth-reference-entry .hoho-text-caption { white-space: normal; }
+.growth-reference-entry > svg { flex-shrink: 0; }
+.growth-reference-comparison { display: grid; gap: var(--hoho-space-4); }
+.growth-reference-comparison > p { margin: 0; }
+.growth-reference-readings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--hoho-space-4); }
+.growth-reference-readings > div { border-left: 2px solid rgb(var(--hoho-color-sprout-border)); padding-left: var(--hoho-space-3); }
+.growth-reference-readings h3, .growth-reference-readings p { margin: 0 0 var(--hoho-space-1); }
+.growth-reference-readings strong { display: block; }
+.growth-reference-comparison a { color: rgb(var(--hoho-color-sprout-text)); text-decoration: underline; text-underline-offset: 3px; }

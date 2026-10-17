@@ -98,12 +98,17 @@ export class FeedbackService {
   #storage
   #tokenSecret
   #dataDirectory
+  #rewardFeedback
   constructor(options = {}) {
     const directory = options.dataDirectory ?? process.cwd()
     this.#dataDirectory = directory
     this.#store = options.store ?? new JsonStore(path.join(directory, 'feedback', 'records.json'), emptyData)
     this.#storage = options.storage ?? new FeedbackAttachmentStorage(path.join(directory, 'feedback', 'attachments'))
     this.#tokenSecret = options.tokenSecret ?? 'hoooho-local-development-secret'
+    this.#rewardFeedback = options.rewardFeedback ?? (async ({ feedbackId, actorAccountId, now }) => {
+      const { CareJourneyService } = await import('../care-journey/service.mjs')
+      return new CareJourneyService({ dataDirectory: directory }).rewardFeedback(feedbackId, actorAccountId, now)
+    })
   }
 
   async create(accountId, input, now = new Date()) {
@@ -249,7 +254,9 @@ export class FeedbackService {
   async updateFromOps(actorAccountId, feedbackId, input, now = new Date()) {
     checkedInput(input)
     if (input.status !== undefined && !STATUSES.has(input.status) && !STATUS_ALIASES.has(input.status)) throw new FeedbackError('反馈状态无效', 400, 'INVALID_FEEDBACK_STATUS')
+    if (input.rewardNewIssue !== undefined && typeof input.rewardNewIssue !== 'boolean') throw new FeedbackError('奖励确认格式错误', 400, 'INVALID_FEEDBACK_REWARD')
     const createdAt = iso(now)
+    return accountTransaction(this.#dataDirectory, async () => {
     await this.#store.update((raw) => {
       const data = normalizeData(raw), index = data.feedback.findIndex((item) => item.id === feedbackId)
       if (index < 0) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
@@ -263,13 +270,23 @@ export class FeedbackService {
       if (status === 'not_planned' && !noActionReason) throw new FeedbackError('暂不调整时必须填写内部处理原因', 400, 'NOT_PLANNED_REASON_REQUIRED')
       if (status === 'merged' && !mergedIntoId) throw new FeedbackError('标记已合并时必须关联反馈', 400, 'MERGED_FEEDBACK_REQUIRED')
       if (status === 'merged' && (mergedIntoId === feedbackId || !data.feedback.some((item) => item.id === mergedIntoId))) throw new FeedbackError('关联的反馈不存在或不能关联自身', 400, 'INVALID_MERGED_FEEDBACK')
-      const next = { ...current, status, priority, noActionReason, handledVersion, mergedIntoId, updatedAt: createdAt, statusUpdatedAt: status !== currentStatus ? createdAt : (current.statusUpdatedAt ?? current.updatedAt), closedAt: ['improved', 'merged', 'not_planned'].includes(status) ? createdAt : null }
+      const rewardReview = input.rewardNewIssue === true ? { verifiedNewIssue: true, verifiedBy: actorAccountId, verifiedAt: createdAt } : current.rewardReview
+      const next = { ...current, ...(rewardReview ? { rewardReview } : {}), status, priority, noActionReason, handledVersion, mergedIntoId, updatedAt: createdAt, statusUpdatedAt: status !== currentStatus ? createdAt : (current.statusUpdatedAt ?? current.updatedAt), closedAt: ['improved', 'merged', 'not_planned'].includes(status) ? createdAt : null }
       const feedback = [...data.feedback]; feedback[index] = next
       const history = status !== currentStatus ? [...data.statusHistory, { id: randomUUID(), feedbackId, status, actorAccountId, createdAt }] : data.statusHistory
       const messages = officialReply ? [...data.messages, { id: randomUUID(), feedbackId, authorAccountId: actorAccountId, kind: 'user-reply', text: officialReply, createdAt, readByUserAt: null }] : data.messages
       return { ...data, feedback, statusHistory: history, messages }
     })
+    if (input.rewardNewIssue === true) {
+      const result = await this.#rewardFeedback({ feedbackId, actorAccountId, now })
+      await this.#store.update(raw => {
+        const data = normalizeData(raw)
+        const previous = data.feedback.find(item => item.id === feedbackId)?.sproutReward
+        return { ...data, feedback: data.feedback.map(item => item.id === feedbackId ? { ...item, sproutReward: result, rewardReview: { ...item.rewardReview, result: result.status } } : item), statusHistory: result.idempotent || (previous?.status === result.status && previous?.month === result.month) ? data.statusHistory : [...data.statusHistory, { id: randomUUID(), feedbackId, status: data.feedback.find(item => item.id === feedbackId).status, action: 'sprout-reward-review', amount: result.amount, rewardStatus: result.status, actorAccountId, createdAt }] }
+      })
+    }
     return this.getForOps(feedbackId, now)
+    })
   }
 
   async addOpsMessage(actorAccountId, feedbackId, input, now = new Date()) {
@@ -334,7 +351,7 @@ export class FeedbackService {
     const visibleMessages = data.messages.filter((entry) => entry.feedbackId === item.id && entry.kind !== 'internal-note' && !(entry.kind === 'user-reply' && item.noActionReason && entry.text === item.noActionReason && entry.createdAt === item.statusUpdatedAt))
     const latestReply = [...visibleMessages].reverse().find((entry) => entry.kind === 'user-reply')?.text ?? null
     const unreadReplyCount = visibleMessages.filter((entry) => entry.kind === 'user-reply' && !entry.readByUserAt).length
-    const base = { id: item.id, category: item.category, problemPage: item.problemPage ?? null, problemType: item.problemType ?? item.category ?? null, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, unreadReplyCount, attachmentCount: attachments.length }
+    const base = { id: item.id, category: item.category, problemPage: item.problemPage ?? null, problemType: item.problemType ?? item.category ?? null, description: item.description, summary: item.summary, sourcePath: item.sourcePath, sourceName: item.sourceName, appVersion: item.appVersion, status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, createdAt: item.createdAt, updatedAt: item.updatedAt, latestReply, unreadReplyCount, attachmentCount: attachments.length, ...(item.sproutReward ? { sproutReward: { status: item.sproutReward.status, amount: item.sproutReward.amount, grantedAt: item.sproutReward.grantedAt ?? null } } : {}) }
     const messages = visibleMessages.map((entry) => ({ ...entry, senderType: entry.kind === 'user-reply' ? 'team' : 'user', readByUserAt: entry.readByUserAt ?? null }))
     return detailed ? { ...base, attachments, messages } : base
   }

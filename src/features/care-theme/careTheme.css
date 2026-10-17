@@ -1,0 +1,28 @@
+:root[data-care-theme='mist-blue'] {
+  --hoho-color-primary: 74 110 125;
+  --hoho-color-primary-hover: 57 88 101;
+  --hoho-color-primary-active: 44 70 81;
+  --hoho-color-primary-soft: 232 240 242;
+  --hoho-color-primary-border: 193 210 216;
+  --hoho-color-page-background: 240 244 245;
+  --hoho-color-background: 240 244 245;
+  --hoho-color-surface: 249 252 252;
+  --hoho-color-surface-subtle: 235 242 244;
+}
+.hoho-sprout-entry {
+  display:flex;align-items:center;gap:var(--hoho-space-3);min-height:var(--hoho-touch-target);
+  padding:var(--hoho-space-3);margin-block:var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-sprout-border));
+  border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-sprout-surface));
+  color:rgb(var(--hoho-color-sprout-text));text-decoration:none;
+}
+.hoho-sprout-entry>svg {flex:none}.hoho-sprout-entry>span{flex:1;min-width:0}
+.hoho-sprout-entry strong{display:block;font-size:var(--hoho-font-size-body-small);font-weight:500}
+.hoho-sprout-entry small{display:block;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));line-height:var(--hoho-line-height-caption)}
+.hoho-sprout-entry:focus-visible{outline:2px solid rgb(var(--hoho-color-sprout-text));outline-offset:2px}
+.hoho-drawer__item.hoho-drawer__item--sprout {background:rgb(var(--hoho-color-sprout-surface));color:rgb(var(--hoho-color-sprout-text))}
+.nurse-station-care-entry{display:grid;place-items:center;flex:none;width:40px;min-height:40px;border:1px solid rgb(var(--hoho-color-sprout-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-sprout-surface));color:rgb(var(--hoho-color-sprout-text))}
+.nurse-station-care-entry svg{width:28px;height:28px}
+.nurse-station-identity .nurse-station-name-line{display:flex;align-items:baseline;min-width:0;gap:var(--hoho-space-1)}
+.nurse-station-identity .nurse-station-guarded{display:inline-flex;align-items:baseline;gap:1px;margin:0;color:rgb(var(--hoho-color-text-secondary));font-size:11px;font-weight:400;flex:none}
+.nurse-station-identity .nurse-station-guarded b{color:rgb(var(--hoho-color-primary));font-size:16px;font-weight:600}
+@media(max-width:374px){.nurse-station-identity .nurse-station-guarded{font-size:10px}.nurse-station-identity .nurse-station-guarded b{font-size:15px}.nurse-station-care-entry{width:36px;min-height:36px}}

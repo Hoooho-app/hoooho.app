@@ -252,6 +252,9 @@ function ProcessingPanel({ item, token, open, onClose, onChange }: { item: OpsFe
   const [handledVersion, setHandledVersion] = useState(item.handledVersion ?? '')
   const [noActionReason, setNoActionReason] = useState(item.noActionReason ?? '')
   const [mergedIntoId, setMergedIntoId] = useState(item.mergedIntoId ?? '')
+  const [rewardNewIssue, setRewardNewIssue] = useState(false)
+  const rewardGranted = item.sproutReward?.status === 'granted'
+  const duplicateIssue = status === 'merged' || Boolean(mergedIntoId.trim()) || item.statusHistory?.some(entry => entry.status === 'merged')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const availableStatuses = item.status === 'needs_more_info' ? ([['needs_more_info', '待用户补充（当前）'], ...processingStatuses] as [FeedbackStatus, string][]) : processingStatuses
@@ -264,8 +267,9 @@ function ProcessingPanel({ item, token, open, onClose, onChange }: { item: OpsFe
     setSaving(true)
     setError('')
     try {
-      const next = await updateOpsFeedback(token, item.id, { status, priority, handledVersion: handledVersion.trim(), noActionReason: reason, mergedIntoId: mergeTarget })
+      const next = await updateOpsFeedback(token, item.id, { status, priority, handledVersion: handledVersion.trim(), noActionReason: reason, mergedIntoId: mergeTarget, rewardNewIssue: rewardNewIssue && !rewardGranted && !duplicateIssue })
       onChange(next)
+      setRewardNewIssue(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '保存失败')
     } finally {
@@ -278,6 +282,7 @@ function ProcessingPanel({ item, token, open, onClose, onChange }: { item: OpsFe
     <form onSubmit={save}>
       <section><h3>处理结论</h3><div className="ops-feedback-quick-actions"><button type="button" aria-pressed={status === 'improved'} onClick={() => setStatus('improved')}>采纳</button><button type="button" aria-pressed={status === 'not_planned'} onClick={() => setStatus('not_planned')}>不采纳</button></div><label className="ops-feedback-field"><span>状态</span><select value={status} onChange={(event) => setStatus(event.target.value as FeedbackStatus)}>{availableStatuses.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></section>
       <section><h3>处理信息</h3><label className="ops-feedback-field"><span>内部优先级</span><select value={priority} onChange={(event) => setPriority(event.target.value as FeedbackPriority)}>{Object.entries(priorityLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="ops-feedback-field"><span>关联上线版本</span><input value={handledVersion} onChange={(event) => setHandledVersion(event.target.value)} placeholder="例如 1.8.0" /></label>{status === 'merged' && <label className="ops-feedback-field"><span>合并到反馈 ID</span><input value={mergedIntoId} onChange={(event) => setMergedIntoId(event.target.value)} /></label>}{status === 'not_planned' && <label className="ops-feedback-field"><span>不采纳原因 · 仅内部</span><textarea value={noActionReason} onChange={(event) => setNoActionReason(event.target.value)} placeholder="记录内部处理原因" /></label>}</section>
+      <section style={{ background: 'rgb(var(--hoho-color-sprout-surface))' }} aria-label="有效问题树芽奖励"><h3>树芽奖励</h3><label className="ops-feedback-check"><input type="checkbox" checked={rewardGranted || rewardNewIssue} disabled={saving || rewardGranted || Boolean(duplicateIssue)} onChange={event => setRewardNewIssue(event.target.checked)} />核实为新的有效问题，奖励2树芽</label><p>独立审核后勾选；采纳或改进状态不会自动奖励。每问题一次，每账户北京时间自然月最多10树芽，重复合并不奖励。</p>{rewardGranted && <p role="status">已发放2树芽 · {time(item.sproutReward?.grantedAt)}，不会重复发放。</p>}{item.sproutReward?.status === 'monthly_limit' && <p role="status">该账户当月奖励已达10树芽，本次未发放。</p>}{duplicateIssue && !rewardGranted && <p>此项为重复合并问题，不发放奖励。</p>}{item.rewardReview && <p>审核人 {item.rewardReview.verifiedBy} · {time(item.rewardReview.verifiedAt)}</p>}</section>
       <section className="ops-feedback-context"><h3>用户和环境信息</h3><dl><dt>用户 ID</dt><dd>{item.accountId}</dd><dt>来源页面</dt><dd>{item.sourcePath ?? '—'}</dd><dt>来源名称</dt><dd>{item.sourceName ?? '—'}</dd><dt>产品版本</dt><dd>{item.appVersion ?? '—'}</dd><dt>设备类型</dt><dd>{item.device.type || '—'}</dd><dt>操作系统</dt><dd>{item.device.os ?? '—'}</dd><dt>浏览器</dt><dd>{item.device.browser ?? '—'}</dd><dt>屏幕尺寸</dt><dd>{item.device.screen ?? '—'}</dd><dt>提交时间</dt><dd>{time(item.createdAt)}</dd><dt>最后补充</dt><dd>{time(latestSupplementAt(item))}</dd></dl></section>
       {error && <p className="ops-feedback-inline-error" role="alert">{error}</p>}
       <footer><button type="submit" disabled={saving}>{saving ? '保存中…' : '保存处理结果'}</button></footer>
