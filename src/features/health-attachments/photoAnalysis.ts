@@ -36,8 +36,8 @@ export async function analyzePhotos(memberId: string, token: string, files: File
     })
     job = await apiRequest<RecognitionJob>(`${url}/${id}`, { token, signal })
   }
-  if (job.state !== 'ready' || !job.review) throw new Error(job.error?.message ?? '识别未完成，请重试或按原图手动填写')
-  return job.review.items
+  if (!['ready', 'needs_review'].includes(job.state) || !job.review) throw new Error(job.error?.message ?? '识别未完成，请重试或按原图手动填写')
+  return { items: job.review.items, partial: job.state === 'needs_review' }
 }
 
 export function discardPhotoAnalysis(memberId: string, token: string, id?: string) {

@@ -15,6 +15,7 @@ export function PhotoAnalysis({ files, memberId, token, fields, onApply }: { fil
   const [state, setState] = useState<PhotoAnalysisStage | 'ready' | 'failed' | 'applied'>('preparing')
   const [items, setItems] = useState<SmartRecordItem[]>([])
   const [error, setError] = useState('')
+  const [partial, setPartial] = useState(false)
   const [retry, setRetry] = useState(0)
   const identity = files.map(fileIdentity).join('|')
   const filesRef = useRef(files); filesRef.current = files
@@ -23,8 +24,8 @@ export function PhotoAnalysis({ files, memberId, token, fields, onApply }: { fil
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(new Error('图片识别超时，请重试；图片仍保留')), 180000)
     let jobId: string | undefined, active = true
-    setItems([]); setError(''); setState('preparing')
-    void analyzePhotos(memberId, token, filesRef.current, controller.signal, stage => { if (active) setState(stage) }, id => { jobId = id }).then(next => { if (active) { setItems(next); setState('ready') } }).catch(cause => { if (active) { setError(cause instanceof Error ? cause.message : '图片识别未完成，请重试'); setState('failed') } }).finally(() => { clearTimeout(timeout); discardPhotoAnalysis(memberId, token, jobId) })
+    setItems([]); setError(''); setPartial(false); setState('preparing')
+    void analyzePhotos(memberId, token, filesRef.current, controller.signal, stage => { if (active) setState(stage) }, id => { jobId = id }).then(next => { if (active) { setItems(next.items); setPartial(next.partial); setState('ready') } }).catch(cause => { if (active) { setError(cause instanceof Error ? cause.message : '图片识别未完成，请重试'); setState('failed') } }).finally(() => { clearTimeout(timeout); discardPhotoAnalysis(memberId, token, jobId) })
     return () => { active = false; clearTimeout(timeout); controller.abort(); discardPhotoAnalysis(memberId, token, jobId) }
   }, [identity, memberId, token, retry])
   if (!files.length) return null
@@ -32,6 +33,7 @@ export function PhotoAnalysis({ files, memberId, token, fields, onApply }: { fil
   return <section aria-label="图片识别" className="grid gap-2" aria-live="polite">
     {state in stageLabels && <p role="status">{stageLabels[state as PhotoAnalysisStage]}</p>}
     {state === 'failed' && <><p role="alert">{error}</p><HohoButton type="button" variant="text" onClick={() => setRetry(value => value + 1)}>重试图片识别</HohoButton></>}
+      {partial && (state === 'ready' || state === 'applied') && <><p role="status">部分内容尚未识别完整，请对照原图核对；以下有原文依据的字段可单独采用，其余内容请手动补充。</p><HohoButton type="button" variant="text" onClick={() => setRetry(value => value + 1)}>重新识别未完成的内容</HohoButton></>}
     {state === 'ready' && <>
       <p>{candidates.length ? '识别结果待核对' : '未识别到可采用的内容，请按原图手动填写'}</p>
       {items.filter(item=>sourcedPhotoFields([item],fields).length>0).map(item=><div key={item.id} className="grid gap-2">
