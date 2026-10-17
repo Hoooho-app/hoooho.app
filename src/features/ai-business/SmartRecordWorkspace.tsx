@@ -24,7 +24,7 @@ import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFil
 import {caseService} from '../case-continuity/api'
 import {CaseMergePrompt} from '../case-continuity/CaseMergePrompt'
 
-export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,page=false,initialText=''}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;page?:boolean;initialText?:string}) {
+export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,page=false,followupReturn=false,initialText=''}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;page?:boolean;followupReturn?:boolean;initialText?:string}) {
   const viewport=useVisibleViewport()
   const navigate=useNavigate()
   const accountId=useAppStore(s=>s.authUser?.id??'guest'),key=`${conversational?'home-smart':'smart'}:${accountId}:${memberId}:${eventId??'new'}`
@@ -250,6 +250,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     await acknowledgeGuides(guides,saved.result?.count??0,saved.id)
   }
   async function acknowledgeGuides(guides:SavedRecordGuide[],count:number,draftId?:string,raw=false){
+    if(followupReturn&&eventId)guides=guides.map(guide=>({...guide,text:'已保存，可在症状跟进的变化过程查看。'}))
     completedGuideIds.current=new Set(guides.map(guide=>guide.id))
     await writes.current
     if(page||conversational){
@@ -301,6 +302,10 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const acknowledgedRaw=current.current.rawSavedGuide?.id===guide.id
       const checkpoint=persist({...current.current,returningFromRecord:true,returnScrollTop:scrollBody.current?.scrollTop??0})
       if(acknowledgedRaw)await checkpoint.catch(()=>undefined);else await checkpoint
+      if(followupReturn&&eventId){
+        const params=new URLSearchParams({memberId,eventId,recordId:guide.recordId})
+        navigate(`/cases?${params}`);return
+      }
       if(guide.sectionId&&guide.entryId){navigate(savedRecordUrl(guide));return}
       const records=await request<{id:string;occurredAt:string;journal?:Parameters<typeof journalOccurrenceAt>[0] & {timePrecision?:string}}[]>(`/api/events/${encodeURIComponent(guide.eventId)}/records`,'GET')
       const record=records.find(item=>item.id===guide.recordId)
