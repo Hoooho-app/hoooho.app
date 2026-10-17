@@ -37,7 +37,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
         <Typography className="nurse-home-dialogue__summary" variant="caption">吃了什么、睡得怎样、哪里不舒服，都帮你记清楚。</Typography>
         <div className="nurse-station-visual">{nurseVisual}</div>
       </div>
-      <RecordEntryActions disabled={!token || !memberId} identity={identity} onSmartRecord={() => navigate('/smart-record?source=front-desk', { state: { frontDeskReturn: true } })} onRecord={(category, kind) => navigate('/health-events', { state: { nurseRecordEntry: category, nurseRecordDietKind: kind, calendarIdentity: identity } })} />
+      <RecordEntryActions disabled={!token || !memberId} identity={identity} onSmartRecord={() => navigate('/smart-record?source=front-desk', { state: { frontDeskReturn: true } })} onRecord={(category, kind) => navigate('/health-events', { state: { nurseRecordEntry: category, nurseRecordDietKind: kind, calendarIdentity: identity, frontDeskReturn: true } })} />
     </HealthCard>
   </section>
 }

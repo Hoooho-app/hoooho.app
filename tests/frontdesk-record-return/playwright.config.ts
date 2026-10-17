@@ -1,0 +1,2 @@
+import {defineConfig,devices} from '@playwright/test'
+export default defineConfig({testDir:'.',workers:1,timeout:120_000,globalTeardown:'../time-view/teardown.ts',use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium',timezoneId:'Asia/Shanghai',serviceWorkers:'block',baseURL:'http://127.0.0.1:4194',launchOptions:{executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'},screenshot:'only-on-failure'},webServer:{command:'node tests/time-view/serve.mjs',cwd:import.meta.dirname+'/../..',url:'http://127.0.0.1:4194/api/health',timeout:30000}})

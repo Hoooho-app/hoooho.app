@@ -52,6 +52,8 @@ function HealthEventsContent() {
   const token = useAppStore((state) => state.authToken); const currentMemberId = useAppStore((state) => state.currentMemberId); const cachedMembers = useAppStore((state) => state.members)
   const accountId = useAppStore(state=>state.authUser?.id ?? '')
   const identity = `${accountId}:${currentMemberId}`
+  const recordOrigin = location.state as { frontDeskReturn?: boolean; calendarIdentity?: string } | null
+  const returnToFrontDesk = Boolean(recordOrigin?.frontDeskReturn && recordOrigin.calendarIdentity === identity)
   const { state, retry } = useHealthEventsList()
   const rawReturn = (location.state as { journalReturn?: CalendarReturnState } | null)?.journalReturn
   const returnState = !rawReturn?.identity || rawReturn.identity === identity ? rawReturn : undefined
@@ -161,7 +163,8 @@ function HealthEventsContent() {
     const saved = await quickRecordService.create(input, token)
     const savedDay = getLocalDateKey(new Date(occurredAt))!
     setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...journal, id: saved.recordId, eventId: saved.eventId, content, occurredAt, createdAt: new Date().toISOString(), attachmentCount: photos.photoIds.length, status: 'observing' } })
-    navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(journal, calendar.category) ? calendar.category : '' }); finishSave(); return '已记录'
+    if (!returnToFrontDesk) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(journal, calendar.category) ? calendar.category : '' })
+    finishSave(); return '已记录'
   }
   const resolveDuplicate = async (action: 'update' | 'create', changeSummary?: string): Promise<void> => {
     if (!pendingDuplicate || !token) return
@@ -170,7 +173,8 @@ function HealthEventsContent() {
       const saved = await quickRecordService.create({ ...pending.input, rawText: pending.input.content, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, duplicateAction: action, duplicateEventId: pending.duplicate.eventId }, token)
       const savedDay = getLocalDateKey(new Date(pending.input.occurredAt))!
       setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...pending.input.journal, id: saved.recordId, eventId: saved.eventId, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, occurredAt: pending.input.occurredAt, createdAt: new Date().toISOString(), attachmentCount: pending.input.photoIds?.length ?? 0, status: 'observing', categories: pending.input.journal?.categories ?? ['other'] } })
-      navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(pending.input.journal ?? {}, calendar.category) ? calendar.category : '' }); finishSave(); pending.resolve(action === 'update' ? '已补充到原来的记录' : '已新增一条记录')
+      if (!returnToFrontDesk) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(pending.input.journal ?? {}, calendar.category) ? calendar.category : '' })
+      finishSave(); pending.resolve(action === 'update' ? '已补充到原来的记录' : '已新增一条记录')
     } catch (error) { pending.reject(error) }
   }
   const cancelDuplicate = () => { if (!pendingDuplicate) return; const pending=pendingDuplicate; setPendingDuplicate(null); pending.reject(new Error('')) }
@@ -193,7 +197,7 @@ function HealthEventsContent() {
     </div>
     {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} reminders={reminderDays.get(sheetDay) ?? []} onReminder={reminder => navigate(reminder.href)} suspended={Boolean(selectedRecord)} loading={journal.loading || scheduled.loading} error={journal.error || scheduled.error} onRetry={() => { journal.retry(); scheduled.retry() }} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
     {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay && !sheetDay) setDay(changedDay); setSavedRecordFocus(changedDay && !sheetDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}${location.hash}`, { replace: true, state: location.state }) } }}/ >}
-    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day > today ? today : day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
+    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} returnToSource={returnToFrontDesk} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day > today ? today : day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined); if (returnToFrontDesk) navigate('/nurse-station', { replace: true }) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
     {pendingDuplicate && <DuplicateRecordPrompt duplicate={pendingDuplicate.duplicate} onCancel={cancelDuplicate} onDiscard={discardDuplicate} onUpdate={changeSummary => resolveDuplicate('update', changeSummary)} onCreate={() => resolveDuplicate('create')}/>}
     {savedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{savedNotice}</div>}
     {navigation.legacyNotice && <div className="journal-saved-toast" role="status">旧类型已按全部类型显示</div>}

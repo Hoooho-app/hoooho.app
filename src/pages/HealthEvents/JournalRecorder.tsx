@@ -35,10 +35,11 @@ import type { ReactNode } from 'react'
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'topical-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen | 'ai'; depth: number; dietKind: DietRecordKind | null }
 
-export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, onClose, onConfirm, onSaved }: {
+export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, returnToSource = false, onClose, onConfirm, onSaved }: {
   memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   initialDietKind?: DietRecordKind
+  returnToSource?: boolean
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata, daily?: DailyExtras) => Promise<string>
   onSaved?: (message: string) => void
 }) {
@@ -69,6 +70,12 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   }
   const closeRecorder = () => {
     const current = historyEntry()
+    // Pop the recorder's own entries before the parent returns to its source.
+    // Browser back and the header back then share the same exit path.
+    if (returnToSource && current?.id === flowIdRef.current) {
+      window.history.go(-(current.depth + 1))
+      return
+    }
     onClose()
     if (current?.id === flowIdRef.current) window.history.go(-(current.depth + 1))
   }
@@ -80,7 +87,9 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   }
   useEffect(() => {
     const initial: RecorderHistoryEntry = { id: flowIdRef.current, screen: initialScreen, depth: 0, dietKind }
-    window.history.pushState({ ...window.history.state, hooohoRecorder: initial }, '', `${location.pathname}${location.search}`)
+    // A front-desk entry already owns a route entry; do not add a calendar stop.
+    if (returnToSource) window.history.replaceState({ ...window.history.state, hooohoRecorder: initial }, '', `${location.pathname}${location.search}`)
+    else window.history.pushState({ ...window.history.state, hooohoRecorder: initial }, '', `${location.pathname}${location.search}`)
     const handlePopState = () => {
       const current = historyEntry()
       if (current?.id !== flowIdRef.current) { onClose(); return }
