@@ -14,7 +14,7 @@ Acceptance checklist:
 - [x] Recognition completion is observable without fixed polling delays; waiting never holds the account/storage lock and supports cancellation.
 - [x] Draft edits are atomic and version protected, including a batch of changes; no partial changes on validation failure.
 - [x] Safe trace/task/phase metadata distinguishes provider return, validation, queue and client waiting; no health text/media/account IDs/credentials enter ordinary logs.
-- [ ] Relevant server/client regression, typecheck/build and mobile browser checks pass; test fixtures are distinguished from real supplier checks.
+- [x] Relevant server/client regression, typecheck/build and mobile browser checks pass; test fixtures are distinguished from real supplier checks.
 - [ ] Commit/push/main integration, isolated Staging verification, Production deployment and verification complete; physical iPhone checks are not claimed from emulation.
 
 Implementation and validation results are appended before release.
@@ -42,3 +42,10 @@ Validation before release:
 - Physical iPhone/Safari and a statistically useful real-provider latency distribution remain unverified.
 
 Release state: awaiting main integration, Staging and Production verification of the exact commit. No environment variables, supplier models, region, replicas, dependencies, TLS settings, quotas or global supplier concurrency limits were changed.
+
+Additional browser evidence before integration:
+
+- Six selected business/text/image/preview cases passed, including save/undo, multi-page PDF selective re-recognition, source rejection and no additional model call on confirmation.
+- Reminder/medication photo flows: 10 passed at 375/430 widths. Two obsolete visit-photo tests fail before upload on an entry removed in the baseline; those flows are not claimed as passing.
+- Dialogue CI selection: 21 existing cases passed; the sole outdated artifact-GET expectation was replaced by an explicit old-response fallback plus a zero-redundant-GET test. Both targeted tests passed, including first artifact GET failure, bounded retry, preserved typed input and exactly two model requests.
+- Symptom follow-up: 4/4 passed. GitHub quick-search and session-recovery CI passed on the initial implementation commit; the final test-only update reruns CI before integration.

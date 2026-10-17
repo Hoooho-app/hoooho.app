@@ -40,12 +40,31 @@ test('pause keeps originals and resume uses the same job identity',async({page,r
  await page.getByRole('button',{name:'继续处理'}).click();await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  const after=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json();expect(after.id).toBe(before.id)
 })
-test('one failed artifact read is retried; original input and typed supplement survive',async({page})=>{
- let failed=false
- await page.route('**/front-desk-record/contexts/*',route=>{if(route.request().method()==='GET'&&!failed){failed=true;return route.fulfill({status:503,json:{error:{code:'TEMPORARY',message:'合成临时中断'}}})}return route.continue()})
+test('one failed artifact read is retried; original input and typed supplement survive',async({page,request})=>{
+ let failed=false,forcedFallback=false,artifactReads=0
+ const before=await(await request.get('http://127.0.0.1:4198/stats')).json()
+ // Simulate an older ready response without its embedded review. The normal
+ // current response must not pay for a redundant context GET (covered below).
+ await page.route(/\/recognition-jobs\/[^/?]+(?:\?.*)?$/,async route=>{
+  if(route.request().method()!=='GET')return route.continue()
+  const response=await route.fetch(),body=await response.json()
+  if(response.ok()&&['ready','needs_review'].includes(body.state)&&body.frontDesk?.context){delete body.frontDesk.context.review;forcedFallback=true}
+  return route.fulfill({response,json:body})
+ })
+ await page.route('**/front-desk-record/contexts/*',route=>{if(route.request().method()==='GET'){artifactReads++;if(!failed){failed=true;return route.fulfill({status:503,json:{error:{code:'TEMPORARY',message:'合成临时中断'}}})}}return route.continue()})
  await send(page,'今天脸颊发红');await page.getByLabel('对话输入').fill('尚未发送的补充')
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled();expect(failed).toBe(true)
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled();expect(forcedFallback).toBe(true);expect(failed).toBe(true);expect(artifactReads).toBe(2)
  await expect(page.getByLabel('对话输入')).toHaveValue('尚未发送的补充');await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+ expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)
+})
+test('complete text review avoids a redundant artifact GET and remains available for review',async({page,request})=>{
+ let artifactReads=0
+ page.on('request',request=>{if(request.method()==='GET'&&/\/front-desk-record\/contexts\//.test(request.url()))artifactReads++})
+ const before=await(await request.get('http://127.0.0.1:4198/stats')).json()
+ await send(page,'今天脸颊发红');await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ expect(artifactReads).toBe(0)
+ await page.getByRole('button',{name:'核对记录',exact:true}).click();await expect(page.locator('.smart-review-card')).toContainText('今天脸颊发红')
+ expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)
 })
 test('image then supplement reuses OCR and keeps a single original bubble per input',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/delay?ms=400')
