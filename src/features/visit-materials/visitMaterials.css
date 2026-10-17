@@ -23,6 +23,7 @@
 .vm-import-tip>span{flex:1;min-width:0}.vm-import-tip>svg{flex-shrink:0}
 .vm-record-time{margin:0}
 .vm-record-time .occurrence-time-field{padding:0}
+.vm-supplement-row small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vm-supplement-row:disabled{opacity:.5;cursor:not-allowed}
 .vm-full-row{justify-content:flex-start;text-align:left}
 .vm-full-row .hoho-button__content{width:100%;justify-content:flex-start}
