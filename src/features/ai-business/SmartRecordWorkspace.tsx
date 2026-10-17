@@ -1,3 +1,4 @@
+import {startAITiming} from '../../services/aiTiming'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Stethoscope, X } from 'lucide-react'
 import { useBlocker, useNavigate } from 'react-router-dom'
@@ -16,11 +17,12 @@ import { SmartRecordReview } from './SmartRecordReview'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
 import {apiRequest} from '../../services/apiClient'
+import {mapWithConcurrency} from '../../services/concurrentTasks'
 import { WebPageHeader } from '../../components/common'
 import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import './caseCapture.css'
 import {RecognitionProgress} from './RecognitionProgress'
-import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFile,uploadRecognitionAudio,type RecognitionJob} from './recognitionJobs'
+import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFile,uploadRecognitionAudio,waitForRecognitionJob,type RecognitionJob} from './recognitionJobs'
 import {caseService} from '../case-continuity/api'
 import {CaseMergePrompt} from '../case-continuity/CaseMergePrompt'
 
@@ -29,6 +31,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const navigate=useNavigate()
   const accountId=useAppStore(s=>s.authUser?.id??'guest'),key=`${conversational?'home-smart':'smart'}:${accountId}:${memberId}:${eventId??'new'}`
   const [local,setLocal]=useState<CaptureDraft>(()=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId}))
+  const operationTimings=useRef(new Map<string,ReturnType<typeof startAITiming>>())
+  useEffect(()=>()=>{for(const timing of operationTimings.current.values())timing.finish('cancelled');operationTimings.current.clear()},[key])
   const current=useRef(local),credentials=useRef(token);credentials.current=token
   const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState('')
   const [progressError,setProgressError]=useState('')
@@ -39,7 +43,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [dialogueBusy,setDialogueBusy]=useState(false)
   const [localStage,setLocalStage]=useState(''),[commandBusy,setCommandBusy]=useState(false)
   const job=local.recognitionSnapshot,jobBusy=recognitionActive(job)
-  const lastSeq=useRef(0),workEpoch=useRef(0),uploadAbort=useRef<AbortController|null>(null),pollLock=useRef(false),commandLock=useRef(false)
+  const lastSeq=useRef(0),workEpoch=useRef(0),uploadAbort=useRef<AbortController|null>(null),commandLock=useRef(false)
   const queue=useRef<Promise<unknown>>(Promise.resolve()),queueSize=useRef(0),hiddenTurns=useRef(new Set<string>()),scrollBody=useRef<HTMLDivElement>(null),visibleMedia=useRef(new Map<string,File>())
   const [completed,setCompleted]=useState(false)
   const rawFinalizing=useRef(false)
@@ -139,26 +143,32 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     return()=>{active=false}
   },[ready,key,local.smartReview?.id,Boolean(resumeChoices)])
   function assertWork(epoch:number){if(epoch!==workEpoch.current||leaving.current||!mounted.current)throw new DOMException('Closed','AbortError')}
-  async function uploadFiles(files:File[],epoch:number,signal:AbortSignal){
-    const assetIds:string[]=[]
-    for(const file of files){const identity=fileIdentity(file);let id=current.current.recognitionAssets?.[identity]
-      if(!id){setLocalStage('uploading');id=await uploadRecognitionFile(memberId,credentials.current,file,signal);assertWork(epoch);await persist({...current.current,recognitionAssets:{...current.current.recognitionAssets,[identity]:id}})}
-      assetIds.push(id)
-    }
-    return assetIds
+  async function uploadFiles(files:File[],epoch:number,signal:AbortSignal,audio?:File){
+    const sources=[...files.map(file=>({file,identity:fileIdentity(file),asr:false})),...(audio?[{file:audio,identity:`asr:${fileIdentity(audio)}`,asr:true}]:[])]
+    const ids=await mapWithConcurrency(sources,2,async source=>{
+      assertWork(epoch)
+      let id=current.current.recognitionAssets?.[source.identity]
+      if(!id){
+        if(source.asr)setLocalStage('converting')
+        id=await(source.asr?uploadRecognitionAudio(memberId,credentials.current,source.file,signal):uploadRecognitionFile(memberId,credentials.current,source.file,signal))
+        assertWork(epoch)
+        await persist({...current.current,recognitionAssets:{...current.current.recognitionAssets,[source.identity]:id}})
+      }
+      return id
+    },signal)
+    return {assetIds:ids.slice(0,files.length),asrAssetId:audio?ids[files.length]:undefined}
   }
   async function enqueue(input:CaptureDraft,turn?:CaptureTurn){
     if(!ready||leaving.current)return
     setError('');setLocalStage('uploading')
     const epoch=workEpoch.current,controller=new AbortController();uploadAbort.current=controller
     const id=current.current.recognitionJobId??crypto.randomUUID()
+    operationTimings.current.get(id)?.finish('cancelled');operationTimings.current.set(id,startAITiming('smart-record',credentials.current,id))
     await persist({...current.current,recognitionJobId:id})
     try{
       const files=turn?input.files.filter(f=>turn.fileKeys?.includes(fileIdentity(f))):input.files
-      const assetIds=await uploadFiles(files,epoch,controller.signal);assertWork(epoch)
       const audio=turn?.kind==='voice'?files.find(f=>f.type.startsWith('audio/')):undefined
-      let asrAssetId:string|undefined
-      if(audio&&!turn?.text){setLocalStage('converting');const derived=`asr:${fileIdentity(audio)}`;asrAssetId=current.current.recognitionAssets?.[derived];if(!asrAssetId){asrAssetId=await uploadRecognitionAudio(memberId,credentials.current,audio,controller.signal);assertWork(epoch);await persist({...current.current,recognitionAssets:{...current.current.recognitionAssets,[derived]:asrAssetId}})}}
+      const {assetIds,asrAssetId}=await uploadFiles(files,epoch,controller.signal,audio&&!turn?.text?audio:undefined);assertWork(epoch)
       const occurredAt=input.capturedAt??new Date().toISOString()
       if(Date.parse(occurredAt)>Date.now())throw new Error('发生时间不能晚于现在')
       const body={id,mode:page&&!eventId?'front':'record',scopeKey:page&&!eventId?'front':`record:${eventId??'new'}`,input:{id:turn?.id??crypto.randomUUID(),kind:turn?.kind??'text',text:turn?.text??input.text,inputAt:turn?.at??Date.now(),assetIds,asrAssetId},options:{initialText:(!page||eventId)&&!current.current.recognitionSnapshot?(turn?.text&&input.text.endsWith(turn.text)?input.text.slice(0,-turn.text.length).trim():input.text):undefined,task:'record',eventId:input.eventId||null,smartRecord:true,frontDeskRecord:page,confirmOccurrenceTime:false,followUp:page||!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,id:input.smartReview?.id,version:input.smartReview?.version}}
@@ -173,6 +183,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       try{const accepted=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');assertWork(epoch);await persist({...current.current,recognitionSnapshot:accepted});return}catch{/* Original bytes and immutable message ID stay local. */}
       if(epoch!==workEpoch.current||leaving.current||!mounted.current)return
       if(turn)await persist({...current.current,conversationTurns:current.current.conversationTurns?.map(t=>t.id===turn.id?{...t,status:'failed',error:e instanceof Error?e.message:'上传未完成'}:t)})
+      operationTimings.current.get(id)?.finish(controller.signal.aborted?'cancelled':'failed');operationTimings.current.delete(id)
       setError(e instanceof Error?e.message:'提交结果尚未确认，原内容保留，请重试')
     }finally{if(mounted.current)setLocalStage('')}
   }
@@ -193,12 +204,13 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   useEffect(()=>{
     if(!ready||!local.recognitionJobId)return
     lastSeq.current=0
-    let active=true,timer:ReturnType<typeof setTimeout>|undefined;const id=local.recognitionJobId
+    let active=true,polling=false,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined;const id=local.recognitionJobId
     const poll=async()=>{
-      if(!active||document.hidden||pollLock.current)return
-      pollLock.current=true
+      if(!active||document.hidden||polling)return
+      polling=true;controller=new AbortController()
+      let failed=false
       try{
-        const snapshot=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET')
+        const snapshot=await waitForRecognitionJob(memberId,credentials.current,id,current.current.recognitionSnapshot,controller.signal)
         if(!active||current.current.recognitionJobId!==id||leaving.current)return
         if(snapshot.seq>lastSeq.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)&&snapshot.inputRevision>=(current.current.recognitionSnapshot?.inputRevision??0)){
           let next={...current.current,recognitionSnapshot:snapshot}
@@ -207,7 +219,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
           if(snapshot.frontDesk){const context=snapshot.frontDesk.context;next={...next,conversationTurns:next.conversationTurns?.map(t=>{const message=context.messages.find(m=>m.id===t.id);return message?{...t,text:message.text,status:message.status}:t})}}
           if(snapshot.review&&snapshot.resultRevision===snapshot.inputRevision&&['ready','needs_review'].includes(snapshot.state)){
             if(snapshot.frontDesk){
-              const context=await request<FrontContext>(`${frontUrl}/contexts/${snapshot.frontDesk.context.id}`,'GET')
+              const provided=snapshot.frontDesk.context,complete=provided.review?.id===snapshot.review.id&&provided.review?.version===snapshot.review.version&&provided.messages.every(message=>[...message.files??[],...message.voices??[]].every(file=>typeof file.dataUrl==='string'))
+              const context=complete?provided:await request<FrontContext>(`${frontUrl}/contexts/${provided.id}`,'GET')
               if(!active||current.current.recognitionJobId!==id||leaving.current||snapshot.seq<(current.current.recognitionSnapshot?.seq??0)||snapshot.inputRevision<(current.current.recognitionSnapshot?.inputRevision??0))return
               context.messages.flatMap(message=>[...message.files??[],...message.voices??[]]).map(restoreFrontFile).forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
               const restored=restoreFrontContext(context,current.current),old=(current.current.conversationTurns??[]).filter(t=>!restored.conversationTurns?.some(s=>s.id===t.id))
@@ -215,16 +228,16 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
             }else next={...next,recognitionSnapshot:snapshot,text:snapshot.review.inputText,smartReview:retainSmartRecordEdits(snapshot.review,current.current.smartReview),aiDraftId:snapshot.review.id,conversationTurns:next.conversationTurns}
             if(snapshot.review.state==='ready'&&!page&&snapshot.review.items.length)setStage('review')
           }
-          if(active&&!leaving.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)){await persist(next);lastSeq.current=snapshot.seq}
+          if(active&&!leaving.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)){await persist(next);lastSeq.current=snapshot.seq;if(['ready','needs_review','failed','discarded','paused'].includes(snapshot.state)){operationTimings.current.get(id)?.finish(snapshot.state==='needs_review'?'needs_review':snapshot.state==='ready'?'ready':snapshot.state==='failed'?'failed':'cancelled');operationTimings.current.delete(id)}}
         }
         setProgressError('')
-      }catch{if(active&&!leaving.current)setProgressError('暂时无法获取处理进度，原内容仍保留；连接恢复后会继续查询')}
-      finally{pollLock.current=false;if(active)timer=setTimeout(()=>void poll(),current.current.recognitionSnapshot&&Date.now()-Date.parse(current.current.recognitionSnapshot.processingStartedAt??current.current.recognitionSnapshot.createdAt)>20000?3000:1000)}
+      }catch{failed=true;if(active&&!leaving.current&&!controller?.signal.aborted)setProgressError('暂时无法获取处理进度，原内容仍保留；连接恢复后会继续查询')}
+      finally{polling=false;if(active&&!document.hidden&&(failed||recognitionActive(current.current.recognitionSnapshot)))timer=setTimeout(()=>void poll(),failed?1000:0)}
     }
-    const visibility=()=>{if(document.hidden){if(timer)clearTimeout(timer)}else void poll()}
+    const visibility=()=>{if(document.hidden){if(timer)clearTimeout(timer);controller?.abort()}else void poll()}
     document.addEventListener('visibilitychange',visibility);void poll()
-    return()=>{active=false;if(timer)clearTimeout(timer);document.removeEventListener('visibilitychange',visibility)}
-  },[ready,key,local.recognitionJobId])
+    return()=>{active=false;if(timer)clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility)}
+  },[ready,key,local.recognitionJobId,local.recognitionSnapshot?.state])
   async function discardTurn(turn:CaptureTurn){try{await request(`${frontUrl}/messages/${encodeURIComponent(turn.id)}`,'DELETE');const remaining=current.current.conversationTurns?.filter(t=>t.id!==turn.id)??[];await persist({...current.current,conversationTurns:remaining,files:current.current.files.filter(file=>!turn.fileKeys?.includes(fileIdentity(file))||remaining.some(t=>t.fileKeys?.includes(fileIdentity(file))))})}catch(e){setError(e instanceof Error?e.message:'移除未完成，请重试')}}
   const voiceId=(file:File)=>`voice:${file.lastModified}:${file.size}`
   const voice=useSmartRecordVoice({memberId,token,autoTranscribe:false,onFinalizationStart:()=>beginCaptureFinalization(key),pendingVoice:local.pendingVoice,pendingTranscript:local.voiceTranscript,onRecorded:async file=>{
@@ -321,15 +334,17 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     pending.current=true;setBusy(true);setError('');setStatus('正在保存…');let saved=review
     try{
       await writes.current
-      for(const itemId of review.deletedItemIds??[])saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,deleteItem:itemId})
+      const changes:Record<string,unknown>[]=[]
+      for(const itemId of review.deletedItemIds??[])changes.push({deleteItem:itemId})
       for(const item of review.items){
-        if(item.userAdded){saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,addItem:{id:item.id,category:item.category,text:item.fields[0].value,title:item.title,timeText:item.timeText}});continue}
-        if(item.titleChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,field:'title',value:item.title})
-        if(item.categoryChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,category:item.category})
-        if(item.categoriesChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,visibilityCategories:item.visibilityCategories})
-        if(item.timeChanged)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,field:'time',value:item.timeText})
-        for(const field of item.fields.filter(f=>f.editedBy==='user'))saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,itemId:item.id,field:field.name,value:field.value})
+        if(item.userAdded){changes.push({addItem:{id:item.id,category:item.category,text:item.fields[0].value,title:item.title,timeText:item.timeText}});continue}
+        if(item.titleChanged)changes.push({itemId:item.id,field:'title',value:item.title})
+        if(item.categoryChanged)changes.push({itemId:item.id,category:item.category})
+        if(item.categoriesChanged)changes.push({itemId:item.id,visibilityCategories:item.visibilityCategories})
+        if(item.timeChanged)changes.push({itemId:item.id,field:'time',value:item.timeText})
+        for(const field of item.fields.filter(f=>f.editedBy==='user'))changes.push({itemId:item.id,field:field.name,value:field.value})
       }
+      if(changes.length)saved=await request<SmartRecordDraft>(`${url}/${saved.id}`,'PATCH',{version:saved.version,changes})
       // Persist the acknowledged version before the save request. A lost save
       // response is retried against the same draft and server idempotency key.
       await persist({...current.current,smartReview:saved})

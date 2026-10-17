@@ -1,3 +1,4 @@
+import {traceMetadata} from '../providers/telemetry.mjs'
 import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
 import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
 import { parseStrictInstant } from '../../time/strict-date.mjs'
@@ -18,7 +19,7 @@ import {reconcileFrontDeskFields} from './front-desk-field-contract.mjs'
 import { assertSyntheticRequest, captureSyntheticOutput } from './synthetic-replay.mjs'
 import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
-import { withAIAccount } from '../providers/call-control.mjs'
+import { withAIAccount, withQueuedAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, prepareVoiceOriginals, recognizePage, recognitionKey } from './documents.mjs'
 import { archiveItem } from './archive.mjs'
 import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
@@ -55,6 +56,8 @@ export class AIBusinessService {
     this.now = options.now ?? (()=>new Date())
     const configured=Number(options.maxDraftCalls??process.env.AI_DRAFT_MAX_CALLS??14)
     this.maxDraftCalls=Number.isInteger(configured)&&configured>=2&&configured<=100?configured:14
+    const concurrency=Number((options.env??process.env).AI_MAX_CONCURRENT_CALLS??2)
+    this.pageConcurrency=Number.isInteger(concurrency)&&concurrency>=1&&concurrency<=10?Math.min(2,concurrency):2
     this.inFlight=new Map()
     this.assertRecognitionCurrent=options.assertRecognitionCurrent??(draft=>{if(draft.recognitionBinding)throw fail('请通过原识别任务核对后保存',409,'RECOGNITION_REVISION_CONFLICT')})
   }
@@ -192,17 +195,48 @@ export class AIBusinessService {
       draft.sources=[]
       if(syntheticRequested)assertSyntheticRequest(input,await this.context(accountId,memberId,raw))
       if(raw)draft.sources.push({id:'input',page:1,text:raw,status:'readable'})
-      for(const page of draft.pages){
-        signal?.throwIfAborted()
+      // Workers may finish out of order, but source evidence and each durable
+      // checkpoint retain the original page order. Serialize only draft mutation,
+      // never supplier work, so call-budget and checkpoint updates cannot race.
+      const pageSources=draft.pages.map(page=>{
         const cached=previous?.sources?.find(s=>s.hash===page.hash&&s.recognitionKey===recognitionKey(page,this.model))
-        if(cached&&!input.reprocessPages?.includes(`${page.id}:${page.page}`)){draft.sources.push({...cached,id:page.id,page:page.page});await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length,reused:true});continue}
-        await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length})
-        if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，尚未识别的页面未标记为完成',429,'AI_DRAFT_CALL_LIMIT')
-        draft.callCount++;await this.checkpoint(draft,signal)
-        const source=await recognizePage(page,this.model,signal,syntheticOptions);signal?.throwIfAborted();draft.sources.push(source);draft.diagnostics.push(source.diagnostics)
-        await this.checkpoint(draft,signal)
-        await progress?.({stage:'reading',completed:draft.sources.filter(s=>s.id!=='input').length,total:draft.pages.length})
+        return cached&&!input.reprocessPages?.includes(`${page.id}:${page.page}`)?{...cached,id:page.id,page:page.page}:undefined
+      }),inputSources=[...draft.sources]
+      draft.sources=[...inputSources,...pageSources.filter(Boolean)]
+      let nextPage=0,firstPageError=null,mutations=Promise.resolve()
+      const mutate=operation=>{
+        const update=mutations.then(async()=>{signal?.throwIfAborted();operation();await this.checkpoint(draft,signal)})
+        mutations=update.catch(()=>undefined)
+        return update
       }
+      const completed=()=>pageSources.filter(Boolean).length
+      const worker=async()=>{
+        try{
+          while(!firstPageError&&nextPage<draft.pages.length){
+            const index=nextPage++,page=draft.pages[index]
+            signal?.throwIfAborted()
+            const cached=pageSources[index]
+            if(cached){
+              await mutate(()=>{pageSources[index]={...cached,id:page.id,page:page.page};draft.sources=[...inputSources,...pageSources.filter(Boolean)]})
+              await progress?.({stage:'reading',completed:completed(),total:draft.pages.length,reused:true})
+              continue
+            }
+            await mutate(()=>{
+              if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，尚未识别的页面未标记为完成',429,'AI_DRAFT_CALL_LIMIT')
+              draft.callCount++
+            })
+            await progress?.({stage:'reading',completed:completed(),total:draft.pages.length})
+            const source=await withQueuedAIAccount(accountId,()=>recognizePage(page,this.model,signal,syntheticOptions),signal)
+            signal?.throwIfAborted()
+            await mutate(()=>{pageSources[index]=source;draft.sources=[...inputSources,...pageSources.filter(Boolean)];draft.diagnostics.push(source.diagnostics)})
+            await progress?.({stage:'reading',completed:completed(),total:draft.pages.length})
+          }
+        }catch(error){firstPageError??=error}
+      }
+      // On failure, stop dispatching pages and await in-flight work so verified
+      // sibling results remain reusable after an explicit user retry.
+      await Promise.all(Array.from({length:Math.min(this.pageConcurrency,draft.pages.length)},worker))
+      if(firstPageError)throw firstPageError
       mark('recognitionMs')
       if(draft.sources.reduce((n,s)=>n+s.text.length,0)>60000)throw fail('资料内容过长，请分批整理；本次未截断或保存资料')
       if(!draft.sources.some(s=>s.text.trim()))throw fail('没有可整理的文字，请换一份资料或手动输入')
@@ -259,7 +293,7 @@ export class AIBusinessService {
       throw error
     }finally{
       mark('finalizationMs')
-      this.logger.info('[Hoooho AI] draft phases',JSON.stringify({requestId:extractionDiagnostics?.requestId??null,task:'draft-extraction',success:draft.state==='ready',pageCount:draft.pages.length,itemCount:draft.items.length,elapsedMs:Date.now()-started,...timings}))
+      this.logger.info('[Hoooho AI] draft phases',JSON.stringify({...traceMetadata(),requestId:extractionDiagnostics?.requestId??null,task:'draft-extraction',success:draft.state==='ready',pageCount:draft.pages.length,itemCount:draft.items.length,elapsedMs:Date.now()-started,...timings}))
     }
   }
   resolve(item,draft){
@@ -290,7 +324,18 @@ export class AIBusinessService {
     return needed.filter(q=>allowed.has(q.id)&&!skipped.includes(q.id)).slice(0,3)
   }
   async edit(accountId,memberId,id,input){
-    const d=await this.get(accountId,memberId,id);if(d.state==='saved'||d.version!==input.version)throw fail('草稿状态已变化，请重新加载',409)
+    if(!input||typeof input!=='object'||Array.isArray(input))throw fail('草稿修改格式无效')
+    const changes=Object.hasOwn(input,'changes')?input.changes:[input]
+    if(!Array.isArray(changes)||!changes.length||changes.length>512||changes.some(change=>!change||typeof change!=='object'||Array.isArray(change)||Object.hasOwn(change,'changes')))throw fail('草稿修改列表无效')
+    // One version guard, one commit. If any individual change fails, every
+    // preceding change remains private to this transaction and is rolled back.
+    return accountTransaction(this.directory,async()=>{
+      const d=await this.get(accountId,memberId,id);if(d.state==='saved'||d.version!==input.version)throw fail('草稿状态已变化，请重新加载',409)
+      for(const change of changes)await this.applyEdit(accountId,memberId,d,change)
+      d.questions=this.questions(d.items,d.skippedQuestions??[],d.questionHistory??[]);d.questionHistory=[...new Set([...(d.questionHistory??[]),...d.questions.map(q=>q.id)])];d.version++;return this.write(d)
+    })
+  }
+  async applyEdit(accountId,memberId,d,input){
     if (input.eventId) { const event = await this.events.get(accountId, input.eventId); if (event.memberId !== memberId || event.caseArchivedAt) throw fail('资料归属无效',409); d.targetEventId = event.id }
     if (input.sourceRecordId) { const source = await this.records.getOwnedRecord(accountId,input.sourceRecordId); if (source.eventId !== d.targetEventId || !source.caseContext || d.sourceRecordId && d.sourceRecordId !== source.id) throw fail('原件关联无效',404); if (!d.sourceRecordId) { d.sourceRecordId=source.id;d.sourceRecordRevision=revisionKey(source) } }
     if (input.sourceIdentity) { if (!['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.sourceIdentity)) throw fail('资料来源无效'); d.sourceIdentity = input.sourceIdentity }
@@ -329,7 +374,6 @@ export class AIBusinessService {
       d.manualOriginal=true;d.items=[this.resolve({id:'manual-original',category:'other',title:'原件待补充',archiveCategory:null,timeText:null,fields:[{name:'conclusion',value:text(input.note,4000)||'资料原件待手动补充，未完成智能识别',sources:[],editedBy:'user',confirmed:true}]},d)]
       d.state='ready';d.unmappedRows=[];d.documentWarnings=[];d.confirmedPages=d.sources.map(s=>`${s.id}:${s.page}`)
     }
-    d.questions=this.questions(d.items,d.skippedQuestions??[],d.questionHistory??[]);d.questionHistory=[...new Set([...(d.questionHistory??[]),...d.questions.map(q=>q.id)])];d.version++;return this.write(d)
   }
   async save(accountId,memberId,id,input){
     await this.scoped(accountId,memberId)

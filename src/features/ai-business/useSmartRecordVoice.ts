@@ -1,3 +1,4 @@
+import {startAITiming} from '../../services/aiTiming'
 import { observeAudioLevel } from './observeAudioLevel'
 import { useEffect, useRef, useState } from 'react'
 import { recordingToWav } from './recordingAudio'
@@ -68,6 +69,7 @@ export function useSmartRecordVoice(options: Options) {
     if (locked.current) return
     locked.current = true
     const turn = generation.current, config = latest.current, op = begin(turn), signal = op.controller.signal
+    const timing=startAITiming('audio-transcription',config.token)
     if (current(turn)) { setState('transcribing'); setPhase('preparing'); setError(''); setErrorCode('') }
     try {
       let transcript = config.pendingTranscript ?? transcripts.current.get(file)
@@ -79,13 +81,14 @@ export function useSmartRecordVoice(options: Options) {
         setPhase('recognizing')
         const extension = ({ 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3' } as Record<string, string>)[audio.type] ?? 'wav'
         const result = await abortable(apiRequest<{ transcript: string }>('/api/ai/audio/transcriptions', {
-          method: 'POST', token: latest.current.token, signal,
+          method: 'POST', token: latest.current.token, signal, headers:{'X-Hoooho-Trace-Id':timing.traceId},
           body: { memberId: config.memberId, mimeType: audio.type, dataUrl, name: `recording.${extension}` },
         }), signal)
         if (!current(turn)) return
         if (typeof result.transcript !== 'string' || !result.transcript.trim()) throw new AudioRequestError('ASR_NO_SPEECH', 422)
         transcript = result.transcript; transcripts.current.set(file, transcript)
       }
+      timing.finish('ready')
       if (current(turn)) { setPhase('delivering'); await abortable(latest.current.onTranscript(transcript, file), signal) }
     } catch (e) {
       if (current(turn)) {
@@ -93,6 +96,7 @@ export function useSmartRecordVoice(options: Options) {
         setError(audioErrorMessage(signal.aborted ? { code: 'ASR_TIMEOUT' } : e))
       }
     } finally {
+      timing.finish(signal.aborted||!current(turn)?'cancelled':'failed')
       finish(op)
       if (current(turn)) { locked.current = false; setState('idle') }
     }

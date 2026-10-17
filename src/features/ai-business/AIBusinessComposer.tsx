@@ -10,8 +10,9 @@ import { AudioRequestError, audioErrorMessage } from './audioErrors'
 import { useAppStore } from '../../store/useAppStore'
 import { CaseCaptureWorkspace } from './CaseCaptureWorkspace'
 import { captureDraft } from './captureDraft'
+import {mapWithConcurrency} from '../../services/concurrentTasks'
 import {RecognitionProgress} from './RecognitionProgress'
-import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFile,uploadRecognitionAudio,type RecognitionJob} from './recognitionJobs'
+import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFile,uploadRecognitionAudio,waitForRecognitionJob,type RecognitionJob} from './recognitionJobs'
 import { SmartRecordWorkspace } from './SmartRecordWorkspace'
 import { SelectedFilePreviews } from '../health-attachments/PhotoPreview'
 type Field={name:string;value:string;editedBy:string;sources:{sourceId:string;page:number;quote:string}[]}
@@ -33,7 +34,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const accountId=useAppStore(state=>state.authUser?.id??''),credentials=useRef({accountId,token});credentials.current={accountId,token}
   const [phase,setPhase]=useState('正在处理…')
   const [recognition,setRecognition]=useState<RecognitionJob|null>(null),[localStage,setLocalStage]=useState('')
-  const recognitionRef=useRef<RecognitionJob|null>(null),jobIdentity=useRef<string>(),voiceJobIdentity=useRef<string>(),assetIds=useRef<Record<string,string>>({}),pollBusy=useRef(false),uploadController=useRef<AbortController|null>(null),submittedFiles=useRef(new Set<string>())
+  const recognitionRef=useRef<RecognitionJob|null>(null),jobIdentity=useRef<string>(),voiceJobIdentity=useRef<string>(),assetIds=useRef<Record<string,string>>({}),uploadController=useRef<AbortController|null>(null),voicePollController=useRef<AbortController|null>(null),submittedFiles=useRef(new Set<string>())
   const processing=recognitionActive(recognition)
   const applyJob=(job:RecognitionJob)=>{recognitionRef.current=job;setRecognition(job)}
   const [transcribing,setTranscribing]=useState(false),[voiceError,setVoiceError]=useState(''),[ttsConfigured,setTtsConfigured]=useState(false),[canRetryVoice,setCanRetryVoice]=useState(false)
@@ -60,12 +61,12 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   const interrupt=(pause=true)=>{
     const id=jobIdentity.current,turn=++session.current
     if(pause&&id&&recognitionActive(recognitionRef.current))void recognitionCommand(memberId,credentials.current.token,id,'pause').then(job=>applyCommand(job,id,turn)).catch(()=>{if(commandCurrent(id,turn))setError('暂停尚未确认，请重试')})
-    stopPlayback();recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();recorder.current=null;stopTracks();permissionPending.current=false;operationPending.current=null;setRecording(false);setBusy(false);setTranscribing(false);if(pendingAudio.current){setVoiceError(audioErrorMessage({code:'ASR_CANCELLED'}));setCanRetryVoice(true)}
+    stopPlayback();recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();voicePollController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();recorder.current=null;stopTracks();permissionPending.current=false;operationPending.current=null;setRecording(false);setBusy(false);setTranscribing(false);if(pendingAudio.current){setVoiceError(audioErrorMessage({code:'ASR_CANCELLED'}));setCanRetryVoice(true)}
   }
   useEffect(()=>{const hide=()=>{if(document.visibilityState==='hidden'){backgrounding.current=true;void (async()=>{if(recorder.current?.state==='recording'){recorder.current.stop();await recordingFinalization.current}interrupt(false);backgrounding.current=false})().catch(()=>setVoiceError('录音原件尚未保存，请重试'))}};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide)},[])
   // Token refresh is not a change of data owner. Only owner/member/closure
   // ends this recording session; normal resume must retain retryable audio.
-  useEffect(()=>{session.current++;return()=>{session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();stopTracks();stopPlayback();pendingAudio.current=null;const d=draftRef.current,cleanupToken=credentials.current.accountId===accountId?credentials.current.token:token;if(d&&d.state!=='saved'&&!profileMode&&!eventId&&!jobIdentity.current)void fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${cleanupToken}`}}).catch(()=>undefined)}},[memberId,accountId,profileMode,eventId])
+  useEffect(()=>{session.current++;return()=>{session.current++;recordingGeneration.current++;cancelled.current=true;uploadController.current?.abort();voicePollController.current?.abort();abort.current?.abort();if(recorder.current?.state==='recording')recorder.current.stop();stopTracks();stopPlayback();pendingAudio.current=null;const d=draftRef.current,cleanupToken=credentials.current.accountId===accountId?credentials.current.token:token;if(d&&d.state!=='saved'&&!profileMode&&!eventId&&!jobIdentity.current)void fetch(`${url}/${d.id}`,{method:'DELETE',headers:{Authorization:`Bearer ${cleanupToken}`}}).catch(()=>undefined)}},[memberId,accountId,profileMode,eventId])
   async function request<T>(path:string,method:string,input?:unknown):Promise<T>{const turn=session.current,controller=new AbortController();abort.current=controller;const response=await fetch(path,{method,headers:{Authorization:`Bearer ${credentials.current.token}`,'Content-Type':'application/json'},body:input===undefined?undefined:JSON.stringify(input),signal:controller.signal});const isAudio=path==='/api/ai/audio/transcriptions';let result;try{result=await response.json()}catch{if(isAudio)throw new AudioRequestError('ASR_OUTPUT_INVALID',response.status);throw new Error('服务响应无法读取，原稿仍保留')}if(turn!==session.current)throw new DOMException('Cancelled','AbortError');if(!response.ok){if(isAudio)throw new AudioRequestError(result.error?.code??'ASR_UPSTREAM_UNAVAILABLE',response.status,result.error?.requestId??null);throw new Error(result.error?.message||result.message||'操作暂时失败，原稿仍保留')}return result as T}
   const run=async(operation:()=>Promise<void>,status='正在处理…')=>{if(operationPending.current!==null||cancelPending.current)return;const operationId=++operationSequence.current;operationPending.current=operationId;const turn=session.current;setPhase(status);setBusy(true);setError('');try{await operation()}catch(e){if(turn===session.current&&!(e instanceof DOMException&&e.name==='AbortError'))setError(e instanceof Error?e.message:'操作失败，请重试')}finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current)setBusy(false)}}
   useEffect(() => { void run(async () => {
@@ -86,8 +87,7 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
     stopPlayback();const turn=session.current,controller=new AbortController();uploadController.current=controller;const check=()=>{if(turn!==session.current||controller.signal.aborted)throw new DOMException('Cancelled','AbortError')};const d=draftRef.current,id=jobIdentity.current??crypto.randomUUID();jobIdentity.current=id
     submittedFiles.current=new Set(files.map(fileKey));setLocalStage('uploading')
     try{
-      const originals:string[]=[]
-      for(const file of files){const key=JSON.stringify([file.name,file.type,file.size,file.lastModified]);let assetId=assetIds.current[key];if(!assetId){assetId=await uploadRecognitionFile(memberId,credentials.current.token,file,controller.signal);check();assetIds.current[key]=assetId}originals.push(assetId)}
+      const originals=await mapWithConcurrency(files,2,async file=>{check();const key=JSON.stringify([file.name,file.type,file.size,file.lastModified]);let assetId=assetIds.current[key];if(!assetId){assetId=await uploadRecognitionFile(memberId,credentials.current.token,file,controller.signal);check();assetIds.current[key]=assetId}return assetId},controller.signal)
       check()
       await captureDraft(localKey,{text:raw,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:d?.id,recognitionJobId:id,recognitionAssets:assetIds.current,recognitionSubmittedFiles:[...submittedFiles.current]})
       check()
@@ -97,22 +97,22 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
   }
   useEffect(()=>{
     if(!localReady||!jobIdentity.current)return
-    let active=true,timer:ReturnType<typeof setTimeout>|undefined;const id=jobIdentity.current
+    let active=true,polling=false,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined;const id=jobIdentity.current
     const poll=async()=>{
-      if(!active||document.hidden||pollBusy.current)return;pollBusy.current=true
-      try{const job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');if(!active||cancelPending.current||jobIdentity.current!==id||job.seq<(recognitionRef.current?.seq??0))return
+      if(!active||document.hidden||polling)return;polling=true;controller=new AbortController();let failed=false
+      try{const job=await waitForRecognitionJob(memberId,credentials.current.token,id,recognitionRef.current,controller.signal);if(!active||cancelPending.current||jobIdentity.current!==id||job.seq<(recognitionRef.current?.seq??0))return
         if(job.seq!==(recognitionRef.current?.seq??-1)||job.review?.state==='saved'){
           applyJob(job)
           if(job.state==='discarded')jobIdentity.current=undefined
           if(job.state==='failed'&&job.draftId){try{current(await request<Draft>(`${url}/${job.draftId}`,'GET'))}catch{/* Exact failed draft may have expired; originals remain task-owned. */}}
           if(job.review&&job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state)){const next=job.review as unknown as Draft;current(next);setFiles(previous=>previous.filter(file=>!submittedFiles.current.has(fileKey(file))));setNotice('已整理，核对后才会保存');await playReply(next)}
         }
-      }catch{if(active)setNotice('暂时无法获取处理进度，连接恢复后会继续查询；原件仍保留')}
-      finally{pollBusy.current=false;if(active)timer=setTimeout(()=>void poll(),recognitionRef.current&&Date.now()-Date.parse(recognitionRef.current.processingStartedAt??recognitionRef.current.createdAt)>20000?3000:1000)}
+      }catch{failed=true;if(active&&!controller?.signal.aborted)setNotice('暂时无法获取处理进度，连接恢复后会继续查询；原件仍保留')}
+      finally{polling=false;if(active&&!document.hidden&&(failed||recognitionActive(recognitionRef.current)))timer=setTimeout(()=>void poll(),failed?1000:0)}
     }
-    const visibility=()=>{if(document.hidden){if(timer)clearTimeout(timer)}else void poll()};document.addEventListener('visibilitychange',visibility);void poll()
-    return()=>{active=false;if(timer)clearTimeout(timer);document.removeEventListener('visibilitychange',visibility)}
-  },[localReady,recognition?.id,localKey])
+    const visibility=()=>{if(document.hidden){if(timer)clearTimeout(timer);controller?.abort()}else void poll()};document.addEventListener('visibilitychange',visibility);void poll()
+    return()=>{active=false;if(timer)clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility)}
+  },[localReady,recognition?.id,recognition?.state,localKey])
   async function jobCommand(type:'pause'|'resume'|'retry'|'use_text'){
     const id=jobIdentity.current,turn=session.current;if(!id||cancelPending.current)return
     try{applyCommand(await recognitionCommand(memberId,credentials.current.token,id,type),id,turn)}catch{if(commandCurrent(id,turn))setError('操作尚未确认，原件仍保留，请重试')}
@@ -146,18 +146,21 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
       let job:RecognitionJob|undefined
       try{job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET')}catch{/* Create only the same retained identity. */}
       if(!job){
-        setLocalStage('uploading');const originalId=await uploadRecognitionFile(memberId,credentials.current.token,original)
-        setLocalStage('converting');const asrAssetId=await uploadRecognitionAudio(memberId,credentials.current.token,original)
+        setLocalStage('uploading');const controller=new AbortController();uploadController.current=controller
+        const [originalId,asrAssetId]=await mapWithConcurrency([false,true],2,async asr=>asr?uploadRecognitionAudio(memberId,credentials.current.token,original,controller.signal):uploadRecognitionFile(memberId,credentials.current.token,original,controller.signal),controller.signal)
         if(turn!==session.current||cancelled.current)return
         job=await request<RecognitionJob>(recognitionUrl(memberId),'POST',{id,mode:'transcription',scopeKey:`${localKey}:voice`,input:{id:`${id}:input`,kind:'voice',text:'',assetIds:[originalId],asrAssetId},options:{}})
       }else if(['failed','paused'].includes(job.state))job=await recognitionCommand(memberId,credentials.current.token,id,job.state==='paused'?'resume':'retry')
       setLocalStage('');setVoiceJob(job)
       while(recognitionActive(job)){
-        await new Promise(resolve=>setTimeout(resolve,1000))
         if(turn!==session.current||cancelled.current)return
-        job=await request<RecognitionJob>(`${recognitionUrl(memberId)}/${id}`,'GET');setVoiceJob(job)
+        const controller=new AbortController();voicePollController.current=controller
+        job=await waitForRecognitionJob(memberId,credentials.current.token,id,job,controller.signal)
+        if(turn!==session.current||cancelled.current||voiceJobIdentity.current!==id||controller.signal.aborted)return
+        setVoiceJob(job)
         await captureDraft(`${localKey}:voice`,{text:'',files:[original],pendingVoice:original,occurredAt:'',timeUnknown:true,requestId:id,recognitionJobId:id,recognitionSnapshot:job})
       }
+      if(turn!==session.current||cancelled.current||voiceJobIdentity.current!==id)return
       if(job.state!=='ready'||!job.transcript?.text)throw new Error(job.error?.message??'转写未完成，原件保留，可重试')
       if(turn!==session.current||cancelled.current)return
       if(!appliedVoices.current.includes(id)){
@@ -165,7 +168,8 @@ function StructuredBusinessComposer({memberId,token,onClose,onSaved,onApply,init
         await captureDraft(localKey,{text:nextText,files,occurredAt:'',timeUnknown:true,requestId:sourceRecordId??localKey,eventId,aiDraftId:draftRef.current?.id,recognitionJobId:jobIdentity.current,recognitionAssets:assetIds.current,recognitionSnapshot:recognitionRef.current??undefined,appliedVoiceJobIds:nextApplied,recognitionSubmittedFiles:[...submittedFiles.current]})
         appliedVoices.current=nextApplied
       }
-      await captureDraft(`${localKey}:voice`,null);pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setNotice('转写完成，请先编辑核对文字，再点击整理；不会自动保存')
+      if(turn!==session.current||cancelled.current||voiceJobIdentity.current!==id)return
+      await captureDraft(`${localKey}:voice`,null);if(turn!==session.current||cancelled.current||voiceJobIdentity.current!==id)return;pendingAudio.current=null;voiceJobIdentity.current=undefined;setVoiceJob(null);setCanRetryVoice(false);setNotice('转写完成，请先编辑核对文字，再点击整理；不会自动保存')
     }catch(e){if(turn===session.current){setVoiceError(audioErrorMessage(e));setCanRetryVoice(true)}}
     finally{if(operationPending.current===operationId)operationPending.current=null;if(turn===session.current){setLocalStage('');setTranscribing(false);setBusy(false)}}
   }

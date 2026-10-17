@@ -10,7 +10,7 @@ test('批量原生入口、多选/追加/拍照/取消/移除、视频拒绝与�
   const make=(category:string,archiveCategory:string,fields:Record<string,string>)=>({category,archiveCategory,subject:'current',title:'合成资料',timeText:'2026-09-29',relationKey:null,fields:Object.entries(fields).map(([name,value])=>({name,value,quote:value,sourceId:'@first',page:1}))})
   await request.post('http://127.0.0.1:4198/draft-data',{data:{ocrText:text,items:[make('vaccination','vaccination',{vaccineName:'乙肝疫苗',doseOriginal:'第2剂'}),make('other','surgery',{historyName:'阑尾切除术'}),make('other','family-history',{relationship:'父亲',historyName:'疑似哮喘'}),make('examination','allergy',{allergen:'牛奶',allergyStatus:'待排查'})]}})
   await page.goto('/health-profile');const pdf=await PDFDocument.create();pdf.addPage();pdf.addPage()
-  let picker=page.waitForEvent('filechooser');await page.locator('.health-profile-smart-record').click();await(await picker).setFiles([await photo(),{name:'合成双页.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())}])
+  let picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'上传资料',exact:true}).click();await(await picker).setFiles([await photo(),{name:'合成双页.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())}])
   const sheet=page.getByRole('dialog',{name:'上传资料'});await expect(sheet.locator('li')).toHaveCount(2)
   const before=await(await request.get('http://127.0.0.1:4198/status')).json()
   picker=page.waitForEvent('filechooser');await sheet.getByRole('button',{name:'继续添加',exact:true}).click();await(await picker).setFiles([]);await expect(sheet.locator('li')).toHaveCount(2)
@@ -29,7 +29,7 @@ test('批量原生入口、多选/追加/拍照/取消/移除、视频拒绝与�
   const attachments=await(await request.get(`/api/events/${saved.result.records[0].eventId}/attachments`,{headers})).json();expect(attachments.filter((f:any)=>draft.pages.some((p:any)=>p.id===`file-${f.contentHash.slice(0,24)}`)).length).toBe(2)
 })
 test('识别失败保留资料、重试成功可核对，取消不写档案',async({page,request})=>{
-  await request.get('http://127.0.0.1:4198/failure');await page.goto('/health-profile');const picker=page.waitForEvent('filechooser');await page.locator('.health-profile-smart-record').click();await(await picker).setFiles(await photo('失败可重试.png'))
+  await request.get('http://127.0.0.1:4198/failure');await page.goto('/health-profile');const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'上传资料',exact:true}).click();await(await picker).setFiles(await photo('失败可重试.png'))
   const sheet=page.getByRole('dialog',{name:'上传资料'});await sheet.getByRole('button',{name:'开始整理',exact:true}).click();await expect(sheet.getByRole('alert')).toBeVisible();await expect(sheet.locator('li')).toHaveCount(1);await expect(page.getByRole('button',{name:'保存到档案',exact:true})).toHaveCount(0)
   const failed=await(await request.get('/api/members/empty-child/ai-drafts',{headers})).json();expect(failed.state).toBe('failed');expect(failed.pages.length).toBe(1)
   await request.get('http://127.0.0.1:4198/success');await sheet.getByRole('button',{name:'开始整理',exact:true}).click();await expect(page.getByRole('dialog',{name:'整理结果'})).toBeVisible();await page.getByRole('dialog',{name:'整理结果'}).getByRole('button',{name:'关闭整理结果',exact:true}).click();expect((await request.get(`/api/members/empty-child/ai-drafts/${failed.id}`,{headers})).status()).toBe(404)

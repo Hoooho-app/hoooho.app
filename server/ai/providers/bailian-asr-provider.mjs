@@ -1,3 +1,4 @@
+import {linkedAISignal,traceMetadata} from './telemetry.mjs'
 import { bailianConfiguration, boundedSetting, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
@@ -35,11 +36,12 @@ export class BailianASRProvider {
     if (!['audio/wav','audio/x-wav','audio/webm','audio/mpeg'].includes(mimeType)) throw configurationError('请使用 WAV、WebM 或 MP3 录音；Safari 录音需先转换为 WAV', 'ASR_AUDIO_FORMAT_UNSUPPORTED')
     const data = `data:${mimeType === 'audio/x-wav' ? 'audio/wav' : mimeType};base64,${buffer.toString('base64')}`
     if (data.length > 10 * 1024 * 1024) throw configurationError('录音编码后超过百炼10 MB限制，请缩短录音', 'ASR_AUDIO_TOO_LARGE')
+    signal=linkedAISignal(signal)
     const started = Date.now()
     let upstream, diagnostics,phase='http_wait'
     if(signal?.aborted)throw configurationError('已取消语音转写','ASR_CANCELLED')
     const requestSignal=signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs)
-    try { return await controlledCall(async () => {
+    try { return await controlledCall(async ({queueWaitMs}) => {
       try {
         const response = await this.transport(`${this.config.baseUrl}/chat/completions`, {
           method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
@@ -59,7 +61,7 @@ export class BailianASRProvider {
         if (choice?.finish_reason === 'length') throw configurationError('语音转写未完整返回，请缩短录音；原输入仍保留', 'ASR_OUTPUT_INCOMPLETE')
         if (choice?.finish_reason !== 'stop' || choice?.message?.tool_calls || choice?.message?.refusal || typeof transcript !== 'string' || transcript.length > 15000) throw configurationError('语音结果格式不完整，未采用该结果，请手动重试', 'ASR_OUTPUT_INVALID')
         if (!transcript.trim()) throw configurationError('未识别到语音，请重新录音或继续输入文字', 'ASR_NO_SPEECH')
-        diagnostics = {network:transportTimings(response),provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,requestId:upstream.requestId,inputTokens:count(result.usage?.prompt_tokens),outputTokens:count(result.usage?.completion_tokens),audioSeconds:count(result.usage?.seconds),supplierRequestAttempted:true,supplierResponseReceived:true,success:true}
+        diagnostics = {...traceMetadata(),queueWaitMs,network:transportTimings(response),provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,requestId:upstream.requestId,inputTokens:count(result.usage?.prompt_tokens),outputTokens:count(result.usage?.completion_tokens),audioSeconds:count(result.usage?.seconds),supplierRequestAttempted:true,supplierResponseReceived:true,success:true}
         this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
         return {transcript:transcript.trim(),model:this.model,diagnostics}
       } catch (error) {
@@ -70,7 +72,7 @@ export class BailianASRProvider {
         safe.supplierResponseReceived=!!upstream
         safe.transportDiagnostic=error.transportDiagnostic??{stage:phase,cause:safeNetworkCause(error)}
         if (upstream) safe.upstream = upstream
-        this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,success:false,...upstream,...codes,code:safe.code,transport:safe.transportDiagnostic}))
+        this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({...traceMetadata(),queueWaitMs,provider:this.name,model:this.model,task:'audio-transcription',elapsedMs:Date.now()-started,success:false,...upstream,...codes,code:safe.code,transport:safe.transportDiagnostic}))
         throw safe
       }
     }, this.env) } catch(error) {

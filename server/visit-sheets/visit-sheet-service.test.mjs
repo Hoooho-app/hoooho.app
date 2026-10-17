@@ -6,6 +6,7 @@ import test from 'node:test'
 import { VisitSheetService } from './visit-sheet-service.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { visitFixture } from './fixtures.mjs'
+import { JsonStore } from '../auth/storage/json-store.mjs'
 import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import {situationRaw,situationOutput} from '../../tests/visit-sheet/current-situation-v2.fixture.mjs'
@@ -163,6 +164,7 @@ test('整单 AI 草稿确认只使用已核验候选，不重复收费；模型�
   const request={requestId:'draft-model-preview',expectedVersion:1,previewUpdate:true,generateAI:true}
   const preview=await svc.save(a,m,request);await svc.save(a,m,request);assert.equal(calls,1)
   await svc.save(a,m,{requestId:'draft-model-confirm',expectedVersion:1,confirmUpdate:preview.updateCandidate.id});assert.equal(calls,1)
+  for(const record of f.records)record.content+='；新的合成变化'
   svc.medicalSummary={generate:async()=>{throw new Error('合成模型失败')}}
   await assert.rejects(()=>svc.save(a,m,{requestId:'draft-model-failed',expectedVersion:2,previewUpdate:true,generateAI:true}),/合成模型失败/)
   assert.equal((await svc.get(a,m)).report.version,2)
@@ -437,4 +439,47 @@ test('删除来源不能通过报告编辑历史回流，包括缺少依赖信�
   f.records=f.records.filter(r=>r.id!=='m0')
   const unlinked=await svc.save(a,m,{expectedVersion:4,requestId:'unlinked'})
   assert.ok(!JSON.stringify(unlinked.report).includes('SYNTHETIC_LINKED_DELETED'))
+})
+
+
+const verifiedSyntheticSummary=input=>{
+ const section=input.sections.find(section=>section.id==='record'&&section.lines.length),quote=section.lines[0]
+ return {...normalizeMedicalSummary({overview:'合成观察',keyPoints:[{text:'合成观察',sectionId:section.id,quote}],missingInformation:[]},input),provider:'bailian',model:'same-model'}
+}
+test('普通生成相同来源复用已核验摘要，新来源才请求模型且重复提交不收费',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id;let calls=0
+ svc.medicalSummary={generate:async input=>{calls++;return verifiedSyntheticSummary(input)}}
+ const first=await svc.save(a,m,{requestId:'same-source-first',expectedVersion:0,generateAI:true})
+ const repeated={requestId:'same-source-second',expectedVersion:first.report.version,generateAI:true}
+ const [second,replay]=await Promise.all([svc.save(a,m,repeated),svc.save(a,m,repeated)])
+ assert.equal(calls,1);assert.equal(second.report.version,replay.report.version);assert.deepEqual(second.report.aiSummary,first.report.aiSummary)
+ for(const record of f.records)record.content+='；新的合成变化'
+ await svc.save(a,m,{requestId:'changed-source',expectedVersion:second.report.version,generateAI:true})
+ assert.equal(calls,2)
+})
+test('模型等待期间释放全局存储事务，其他账号数据写入可以完成',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ let release,started
+ const gate=new Promise(resolve=>{release=resolve}),entered=new Promise(resolve=>{started=resolve})
+ t.after(()=>release())
+ svc.medicalSummary={generate:async input=>{started();await gate;return verifiedSyntheticSummary(input)}}
+ const pending=svc.save(a,m,{requestId:'outside-storage-lock',expectedVersion:0,generateAI:true})
+ await entered
+ const other=new JsonStore(path.join(svc.dataDirectory,'unrelated-account.json'),{rows:[]})
+ let timer
+ try{await Promise.race([other.update(data=>({rows:[...data.rows,{accountId:'other-account',text:'并发保存'}]})),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Model call holds the global storage lock')),1000)})])}finally{clearTimeout(timer);release()}
+ assert.equal((await other.read()).rows.length,1)
+ assert.equal((await pending).report.aiSummary.provider,'bailian')
+})
+test('事务外生成期间来源改变或调用取消都不写报告，重试由用户决定',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ const before=await svc.save(a,m,{requestId:'snapshot-before',expectedVersion:0})
+ let calls=0
+ svc.medicalSummary={generate:async input=>{calls++;for(const record of f.records)record.content+='；已变化';return verifiedSyntheticSummary(input)}}
+ await assert.rejects(()=>svc.save(a,m,{requestId:'snapshot-stale',expectedVersion:before.report.version,generateAI:true}),{status:409})
+ assert.equal(calls,1);assert.equal((await svc.get(a,m)).report.version,before.report.version)
+ const controller=new AbortController()
+ svc.medicalSummary={generate:async input=>{controller.abort();return verifiedSyntheticSummary(input)}}
+ await assert.rejects(()=>svc.save(a,m,{requestId:'snapshot-aborted',expectedVersion:before.report.version,generateAI:true},new Date(),controller.signal),error=>error.name==='AbortError')
+ assert.equal((await svc.get(a,m)).report.version,before.report.version)
 })

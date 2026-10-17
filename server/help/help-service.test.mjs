@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { HelpService, localHelpReply } from './help-service.mjs'
+import { HelpService, localHelpReply, selectHelpKnowledge } from './help-service.mjs'
 import { helpApi } from './help-api.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { SUPPORT_ARTICLES, EXTRA_ARTICLES, USER_MANUAL, HELP_MODULES } from '../../shared/help-center.mjs'
@@ -117,4 +117,28 @@ test('API rejects unsupported routes and exposes only owned session views',async
 test('录音正常且重复转写失败时保留输入并进入具体错误排查，不再循环要求麦克风权限',()=>{
  const result=localHelpReply([{role:'user',text:'麦克风权限已开启，可以录音，但转写提示失败。重试两次还不成功，下一步怎么操作？'}])
  assert.match(result.reply,/完整提示/);assert.match(result.reply,/反馈意见/);assert.match(result.reply,/文字/);assert.doesNotMatch(result.reply,/先检查当前网站/);assert.equal(result.askResolved,false)
+})
+
+
+test('model knowledge is bounded to relevant public articles, retaining linked follow-up context', () => {
+  const knowledge = selectHelpKnowledge([{ role: 'user', text: '麦克风权限已开启，录音后转写失败' }])
+  assert.ok(knowledge.articles.some(article => article.id === 'mic'))
+  assert.ok(knowledge.articles.length <= 6)
+  assert.ok(knowledge.articles.length < SUPPORT_ARTICLES.length + EXTRA_ARTICLES.length)
+  assert.ok(knowledge.manual.every(item => knowledge.articles.some(article => article.id === item.helpArticleId)))
+  const followUp = selectHelpKnowledge([{ role: 'assistant', text: '请试试。', articleIds: ['mic'] }, { role: 'user', text: '还是不行' }])
+  assert.ok(followUp.articles.some(article => article.id === 'mic'))
+  const unknown = selectHelpKnowledge([{ role: 'user', text: '宇宙飞船发动机' }])
+  assert.deepEqual(unknown.articles, [])
+  assert.ok(unknown.directory.length > 0)
+  assert.ok(unknown.directory.every(article => Object.keys(article).every(key => ['id', 'title', 'module'].includes(key))))
+})
+
+test('provider receives selected tutorials rather than the entire knowledge base', async t => {
+  let body
+  const { service } = await fixture(t, { baseUrl: 'https://example.test', fetch: async (_, init) => { body = JSON.parse(init.body); return response({ reply: '请先保留录音。', articleIds: ['mic'], choices: [], askResolved: true }) } })
+  const session = await service.start('a')
+  await service.turn('a', session.id, question(session, '录音后转写失败'))
+  assert.ok(body.instructions.includes(SUPPORT_ARTICLES.find(article => article.id === 'mic').steps[0]))
+  assert.ok(!body.instructions.includes(EXTRA_ARTICLES.find(article => article.id === 'export-data').steps[0]))
 })

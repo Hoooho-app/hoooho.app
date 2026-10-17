@@ -1,6 +1,6 @@
 import { imagePreview } from '../image-preview.mjs'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withAccountLock } from '../auth/account-lock.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
@@ -31,6 +31,11 @@ const failure = (message, status = 400) =>
     status,
     code: status === 409 ? 'VISIT_VERSION_CONFLICT' : 'VISIT_SHEET_ERROR',
   })
+const summaryKey=summary=>createHash('sha256').update(JSON.stringify(summary)).digest('hex')
+class SummaryGenerationPlan extends Error {
+  constructor(summary,snapshot){super('Summary generation required');this.summary=summary;this.snapshot=snapshot;this.key=summaryKey(summary)}
+}
+
 export class VisitSheetService {
   constructor(options) {
     this.medicalSummary = options.medicalSummary ?? new MedicalSummaryService(options)
@@ -216,7 +221,7 @@ export class VisitSheetService {
       ...(report ? {} : { expectedVersion: saved?.current.version ?? 0 }),
     }
   }
-  async save(accountId, memberId, request, now = new Date()) {
+  async save(accountId, memberId, request, now = new Date(), signal) {
     if(request.organizeCurrent!==undefined&&(!request.organizeCurrent||typeof request.organizeCurrent.scopeKey!=='string'||Object.keys(request.organizeCurrent).some(k=>k!=='scopeKey')||Object.keys(request).some(k=>!['organizeCurrent','expectedVersion','requestId'].includes(k))))throw failure('目前情况整理设置无效')
     if(request.previewUpdate!==undefined&&typeof request.previewUpdate!=='boolean')throw failure('更新预览设置无效')
     if(request.confirmUpdate!==undefined&&(typeof request.confirmUpdate!=='string'||Object.keys(request).some(k=>!['confirmUpdate','expectedVersion','requestId'].includes(k))))throw failure('更新确认设置无效')
@@ -225,12 +230,27 @@ export class VisitSheetService {
     if(request.previewAI!==undefined&&typeof request.previewAI!=='boolean')throw failure('AI 预览设置无效')
     if(request.confirmAI!==undefined&&(typeof request.confirmAI!=='string'||request.generateAI))throw failure('摘要确认设置无效')
     if((request.previewAI||request.confirmAI)&&Object.keys(request).some(k=>!['generateAI','previewAI','confirmAI','aiOverview','requestId','expectedVersion'].includes(k)))throw failure('摘要预览或确认不能同时修改其他资料')
-    return withAccountLock(accountId, () => accountTransaction(this.dataDirectory, async () => {
+    return withAccountLock(accountId, async () => {
+      let generated=null
+      // First pass validates and collects the exact model input, then aborts the
+      // transaction without committing staged changes. The remote request runs
+      // outside the process-wide storage barrier. The second pass revalidates
+      // report edits, version, ownership and every model source before commit.
+      const run=()=>accountTransaction(this.dataDirectory, async () => {
+      signal?.throwIfAborted()
       let input = await this.collect(accountId, memberId, now)
       const saved = (await this.store.read()).reports.find(
         (r) => r.accountId === accountId && r.memberId === memberId,
       )
       const previous = saved?.current
+      const snapshot=JSON.stringify(previous??null)
+      if(generated&&generated.snapshot!==snapshot)throw failure('情况单已变化，请重新读取后整理；原报告保留',409)
+      const summarize=summary=>{
+        if(!generated)throw new SummaryGenerationPlan(summary,snapshot)
+        if(generated.snapshot!==snapshot||generated.key!==summaryKey(summary))throw failure('来源或情况单已变化，请重新读取后整理；原报告保留',409)
+        signal?.throwIfAborted()
+        return structuredClone(generated.value)
+      }
       if (
         typeof request.requestId !== 'string' ||
         request.requestId.length > 100 ||
@@ -424,6 +444,7 @@ export class VisitSheetService {
       // Local report generation remains independent of AI availability. Never
       // send client-supplied report text; collect() is account/member scoped.
       const aiFingerprint = visitAISummaryFingerprint(report)
+      const reusableSummary=previous?.aiSourceFingerprint===aiFingerprint&&!previous?.aiSummaryStale&&['openai','bailian'].includes(previous?.aiSummary?.provider)&&Array.isArray(previous?.aiSummary?.keyPointEvidence)&&previous.aiSourceIds?.every(id=>available.has(id))?previous.aiSummary:null
       if(request.organizeCurrent){
         if(request.organizeCurrent.scopeKey!==previous?.photoKey||request.organizeCurrent.scopeKey!==report.photoKey)throw failure('目前情况已切换，请重新读取后整理',409)
         const sources=situationSources(report),fingerprint=situationFingerprint(sources)
@@ -431,7 +452,7 @@ export class VisitSheetService {
         if(report.currentSituationResults[report.photoKey]?.fingerprint!==fingerprint){
           // One existing medical-summary call, with a scoped view extension. Never overwrite user edits or source records.
           const summaryInput=visitAISummaryInput({...report,focusSourceIds:[...new Set([...report.focusSourceIds,...sources.map(s=>s.id)])]}),cleanSources=sources.map(s=>({...s,text:summaryInput.visitFacts.sources.find(f=>f.id===s.id)?.text??''}))
-          const summary=await this.medicalSummary.generate({...summaryInput,currentSituationSources:cleanSources},accountId)
+          const summary=await summarize({...summaryInput,currentSituationSources:cleanSources})
           if(!['openai','bailian'].includes(summary.provider)||!summary.currentSituation)throw failure('目前情况整理暂不可用，原话和已有编辑保留',503)
           const latestInput=await this.collect(accountId,memberId,now),latest=buildVisitSheet(latestInput,report,now)
           if(latestInput.warnings.length||fingerprint!==situationFingerprint(situationSources(latest)))throw failure('来源已变化，请重新读取后整理；已有内容保留',409)
@@ -445,9 +466,9 @@ export class VisitSheetService {
         const cached=(await this.updateCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.version===(previous?.version??0)&&c.report.fingerprint===report.fingerprint&&Date.parse(c.expiresAt)>now.getTime())
         if(cached)return {report:previous??null,stale:false,warnings:[],hasLegacy:false,updateCandidate:{id:cached.id,report:cached.report}}
         if(request.generateAI){
-          const summary=await this.medicalSummary.generate(visitAISummaryInput(report),accountId)
+          const summary=reusableSummary??await summarize(visitAISummaryInput(report))
           if(!['openai','bailian'].includes(summary.provider))throw failure('摘要暂不可用，原情况单保留',503)
-          report.aiSummary={...summary,generatedAt:now.toISOString()};report.aiSourceFingerprint=aiFingerprint;report.aiSourceIds=visitAISources(report).map(s=>s.id);report.aiSummaryStale=false
+          report.aiSummary={...summary,generatedAt:summary.generatedAt??now.toISOString()};report.aiSourceFingerprint=aiFingerprint;report.aiSourceIds=visitAISources(report).map(s=>s.id);report.aiSummaryStale=false
         }else if(previous?.aiSummary&&previous.aiSourceIds?.every(id=>available.has(id))){report.aiSummary=previous.aiSummary;report.aiSourceFingerprint=previous.aiSourceFingerprint;report.aiSourceIds=previous.aiSourceIds;report.aiSummaryStale=previous.aiSourceFingerprint!==aiFingerprint}
         const candidate={id:randomUUID(),accountId,memberId,requestId:request.requestId,version:previous?.version??0,report,expiresAt:new Date(now.getTime()+86400000).toISOString()}
         await this.updateCandidates.update(data=>({candidates:[...data.candidates.filter(c=>Date.parse(c.expiresAt)>now.getTime()&&!(c.accountId===accountId&&c.memberId===memberId)),candidate]}))
@@ -456,7 +477,7 @@ export class VisitSheetService {
       if(request.generateAI&&request.previewAI){
         if(!visitAISources(report).length)throw failure('请先补充当前成员的健康资料')
         const cached=(await this.aiCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.fingerprint===aiFingerprint&&Date.parse(c.expiresAt)>now.getTime())
-        const candidate=cached??{id:randomUUID(),accountId,memberId,requestId:request.requestId,fingerprint:aiFingerprint,summary:await this.medicalSummary.generate(visitAISummaryInput(report),accountId),expiresAt:new Date(now.getTime()+86400000).toISOString()}
+        const candidate=cached??{id:randomUUID(),accountId,memberId,requestId:request.requestId,fingerprint:aiFingerprint,summary:reusableSummary??await summarize(visitAISummaryInput(report)),expiresAt:new Date(now.getTime()+86400000).toISOString()}
         candidate.summary.generatedAt??=now.toISOString()
         if(!['openai','bailian'].includes(candidate.summary.provider))throw failure('AI 摘要暂不可用',503)
         if(!cached)await this.aiCandidates.update(data=>({candidates:[...data.candidates.filter(c=>Date.parse(c.expiresAt)>now.getTime()&&!(c.accountId===accountId&&c.memberId===memberId)),candidate]}))
@@ -472,9 +493,9 @@ export class VisitSheetService {
       }
       if (request.generateAI) {
         if (!visitAISources(report).length) throw failure('请先补充当前成员的健康资料')
-        const aiSummary = await this.medicalSummary.generate(visitAISummaryInput(report), accountId)
+        const aiSummary = reusableSummary??await summarize(visitAISummaryInput(report))
         if (!['openai', 'bailian'].includes(aiSummary.provider)) throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
-        report.aiSummary = { ...aiSummary, generatedAt: now.toISOString() }
+        report.aiSummary = { ...aiSummary, generatedAt: aiSummary.generatedAt??now.toISOString() }
         report.aiSourceFingerprint = aiFingerprint
         report.aiSourceIds = visitAISources(report).map(source => source.id)
         report.aiSummaryStale = false
@@ -484,6 +505,7 @@ export class VisitSheetService {
         report.aiSourceIds = previous.aiSourceIds
         report.aiSummaryStale = previous.aiSourceFingerprint !== aiFingerprint
       }
+      signal?.throwIfAborted()
       await this.store.update((data) => ({
         ...data,
         reports: [
@@ -510,6 +532,15 @@ export class VisitSheetService {
         warnings: report.warnings,
         hasLegacy: input.events.some((e) => e.medicalPreparation),
       }
-    }))
+      })
+      try{return await run()}catch(error){
+        if(!(error instanceof SummaryGenerationPlan))throw error
+        signal?.throwIfAborted()
+        const value=await this.medicalSummary.generate(error.summary,accountId,{signal})
+        signal?.throwIfAborted()
+        generated={key:error.key,snapshot:error.snapshot,value}
+        return run()
+      }
+    })
   }
 }

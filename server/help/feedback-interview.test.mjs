@@ -9,8 +9,8 @@ function fixture(value = output()) {
   const interview = new FeedbackInterview({ provider: { baseUrl: 'https://fixture.invalid', fetch: async (_, options) => { calls++; body = JSON.parse(options.body); return Response.json({ output: [{ content: [{ text: JSON.stringify(value) }] }] }) } } })
   return { interview, calls: () => calls, body: () => body }
 }
-test('conversation produces a grounded structured draft and preserves uncertainty', async () => {
-  const f = fixture(), result = await f.interview.respond('synthetic', { turns, mode: 'chat' })
+test('organizing produces a grounded structured draft and preserves uncertainty', async () => {
+  const f = fixture(), result = await f.interview.respond('synthetic', { turns, mode: 'organize' })
   assert.match(result.description, /问题或改进建议：\n图片一段段加载，很慢/)
   assert.match(result.description, /使用影响：\n未补充/)
   assert.match(result.description, /不是每次都发生/)
@@ -43,5 +43,19 @@ test('unconfigured AI leaves manual feedback possible and does not call another 
   await assert.rejects(() => new FeedbackInterview({ env: { AI_PROVIDER: 'local' } }).respond('synthetic', { turns, mode: 'chat' }), { code: 'FEEDBACK_AI_UNAVAILABLE' })
 })
 test('model format failures do not return a misleading successful draft', async () => {
-  for (const value of [null, { ...output(), problemType: 'absolute_safe' }, { ...output(), reply: '' }, { ...output(), fields: {} }]) await assert.rejects(() => fixture(value).interview.respond('synthetic', { turns, mode: 'chat' }))
+  for (const value of [null, { ...output(), problemType: 'absolute_safe' }, { ...output(), reply: '' }]) await assert.rejects(() => fixture(value).interview.respond('synthetic', { turns, mode: 'chat' }))
+  await assert.rejects(() => fixture({ ...output(), fields: {} }).interview.respond('synthetic', { turns, mode: 'organize' }))
+})
+
+
+test('chat requests only the response and classification while preserving the frontend result shape', async () => {
+  const f = fixture({ reply: '图片加载慢时，你还能继续操作吗？', problemType: 'performance_issue' })
+  const result = await f.interview.respond('synthetic', { turns, mode: 'chat' })
+  assert.equal(result.reply, '图片加载慢时，你还能继续操作吗？')
+  assert.equal(result.problemType, 'performance_issue')
+  assert.deepEqual(Object.keys(f.body().text.format.schema.properties), ['reply', 'problemType'])
+  assert.deepEqual(result.fields, { page: '', actual: '', expected: '', impact: '', reproduction: '' })
+  assert.equal(result.description, '')
+  assert.doesNotMatch(f.body().instructions, /每个 quote 必须逐字摘自/)
+  assert.equal(f.calls(), 1)
 })

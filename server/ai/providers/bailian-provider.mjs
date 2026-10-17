@@ -1,4 +1,5 @@
 import Ajv from 'ajv'
+import {linkedAISignal,traceMetadata} from './telemetry.mjs'
 import { createHash } from 'node:crypto'
 import { OpenAIProvider } from './openai-provider.mjs'
 import { bailianConfiguration, configurationError } from './provider-config.mjs'
@@ -58,16 +59,21 @@ export class BailianProvider extends OpenAIProvider {
       })
       if (imageCount > config.maxImages || characters > config.maxInputCharacters) throw configurationError('资料超过单次 AI 输入限制，请分批处理；原文未截断', 'AI_INPUT_LIMIT')
       const model = imageCount ? config.visionModel : config.model
-      const task = imageCount ? (format.name === 'health_image_analysis' ? 'image-analysis' : 'document-page') : format.name === 'hoooho_medical_summary' ? 'medical-summary' : format.name === 'health_ai_output' ? 'health-organization' : 'draft-extraction'
+      const fallbackTask = imageCount ? (format.name === 'health_image_analysis' ? 'image-analysis' : 'document-page') : format.name === 'hoooho_medical_summary' ? 'medical-summary' : format.name === 'health_ai_output' ? 'health-organization' : 'draft-extraction'
+      const taskNames=new Set(['front-desk-dialogue','document-page','draft-extraction','food-label-read','food-label-coverage','food-label-translate','medical-summary','image-analysis','health-organization','product-help','feedback-interview','nurse-dialogue','nurse-assessment','nurse-organization','symptom-media-observations'])
+      const schemaTasks={hoooho_product_help:'product-help',hoooho_feedback_interview:'feedback-interview',hoooho_feedback_chat:'feedback-interview',hoooho_nurse_v1:'nurse-organization',hoooho_nurse_chat:'nurse-dialogue',hoooho_nurse_assessment:'nurse-assessment',symptom_media_observations:'symptom-media-observations',hoooho_front_desk_reply:'front-desk-dialogue'}
+      const task=taskNames.has(init.task)?init.task:schemaTasks[format.name]??fallbackTask
+      const signal=linkedAISignal(init.signal)
+      signal?.throwIfAborted()
       const started = Date.now()
       let upstream
       let preview
-      return controlledCall(async () => {
+      return controlledCall(async ({queueWaitMs}) => {
         try {
           const response = await transport(`${config.baseUrl}/chat/completions`, {
             method: 'POST', redirect: 'error',
             headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-            signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(config.timeoutMs)]) : AbortSignal.timeout(config.timeoutMs),
+            signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(config.timeoutMs)]) : AbortSignal.timeout(config.timeoutMs),
             body: JSON.stringify({ model, messages: [{ role: 'system', content: body.instructions ?? '' }, ...conversation],
               stream: false, enable_thinking: false, ...(Number.isFinite(body.temperature)&&body.temperature>=0&&body.temperature<2?{temperature:body.temperature}:{}), max_tokens: Math.min(config.maxOutputTokens, body.max_output_tokens ?? config.maxOutputTokens),
               response_format: { type: 'json_schema', json_schema: { name: format.name, strict: true, schema: format.schema } } }),
@@ -118,7 +124,7 @@ export class BailianProvider extends OpenAIProvider {
             }
             throw error
           }
-          const diagnostics = { network:transportTimings(response), provider: this.name, model, task:format.name==='hoooho_front_desk_reply'?'front-desk-dialogue':task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
+          const diagnostics = { ...traceMetadata(),queueWaitMs, network:transportTimings(response), provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })
@@ -127,7 +133,7 @@ export class BailianProvider extends OpenAIProvider {
           const safe = error?.code?.startsWith('AI_') ? error : configurationError(codes.transportCode === 'TIMEOUT' || codes.transportCode === 'ABORTED' ? '百炼请求超时或已取消；原内容与旧摘要仍保留' : '百炼连接暂不可用；原内容与旧摘要仍保留', codes.transportCode === 'TIMEOUT' ? 'AI_TIMEOUT' : 'AI_NETWORK_ERROR')
           if (upstream) safe.upstream = upstream
           if(preview&&safe.validation)Object.defineProperty(safe,'preview',{value:quarantinePreview(preview,safe.validation),enumerable:false})
-          this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({ provider: this.name, model, task, elapsedMs: Date.now() - started, success: false, ...upstream, ...codes, code: safe.code,...(safe.validation?{validation:safe.validation}:{}) }))
+          this.logger.warn('[Hoooho AI] provider failed', JSON.stringify({ ...traceMetadata(),queueWaitMs, provider: this.name, model, task, elapsedMs: Date.now() - started, success: false, ...upstream, ...codes, code: safe.code,...(safe.validation?{validation:safe.validation}:{}) }))
           throw safe
         }
       }, options.env)

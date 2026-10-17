@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {SymptomMediaJobs} from './symptom-media-jobs.mjs'
+import {controlledCall} from './providers/call-control.mjs'
 
 const tick=()=>new Promise(r=>setTimeout(r,5))
 async function settled(jobs){for(let i=0;i<200&&jobs.active.size;i++)await tick();assert.equal(jobs.active.size,0)}
@@ -35,4 +36,58 @@ test('deleted item is not resurrected by a late provider response',async()=>{
 })
 test('invalid supplier root array is rejected without auto retry or changing the transcript',async()=>{
  let calls=0;const f=setup({provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:async(_url,init)=>{calls++;assert.match(JSON.parse(init.body).instructions,/顶层数组/);return Response.json({output:[{content:[{type:'output_text',text:'[{"frame":0,"text":"不合规结果"}]'}]}]})}}});await f.jobs.start('a','m','draft','one');await settled(f.jobs);assert.equal(f.read().review.vision.status,'failed');assert.equal(f.read().review.vision.observations,undefined);assert.match(f.read().review.audio.text,/没有发烧/);assert.equal(f.read().review.confirmed,false);assert.equal(calls,1);assert.equal(f.read().review.calls.automaticRetries,0)
+})
+
+const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r});return {promise,resolve}}
+async function until(predicate){for(let i=0;i<200&&!predicate();i++)await tick();assert.ok(predicate())}
+const emptyVision=()=>Response.json({output:[{content:[{type:'output_text',text:'{"observations":[],"questions":[]}'}]}]})
+test('audio and vision overlap and persist independent results before the other stage finishes',async()=>{
+ const audioStarted=deferred(),visionStarted=deferred(),audioRelease=deferred(),visionRelease=deferred()
+ const f=setup({audio:{transcribe:async()=>{audioStarted.resolve();await audioRelease.promise;return {transcript:'没有发烧',provider:'fixture'}}},provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:async()=>{visionStarted.resolve();await visionRelease.promise;throw Object.assign(Error('画面暂不可用'),{code:'VISION_FAILED'})}}})
+ await f.jobs.start('a','m','draft','one');await Promise.all([audioStarted.promise,visionStarted.promise])
+ assert.equal(f.read().review.audio.status,'processing');assert.equal(f.read().review.vision.status,'processing')
+ audioRelease.resolve();await until(()=>f.read().review.audio.status==='needs_confirmation')
+ assert.equal(f.read().review.vision.status,'processing');assert.equal(f.jobs.active.size,1)
+ visionRelease.resolve();await settled(f.jobs)
+ assert.equal(f.read().review.vision.status,'failed');assert.equal(f.read().review.audio.text,'没有发烧')
+})
+test('two media jobs share two outbound slots and waiting stages do not fail as busy',async()=>{
+ const release=deferred();let active=0,peak=0,entered=0
+ const outbound=operation=>controlledCall(async()=>{active++;entered++;peak=Math.max(peak,active);try{await release.promise;return operation()}finally{active--}},{AI_MAX_CONCURRENT_CALLS:'2'})
+ const f=setup({audio:{transcribe:()=>outbound(()=>({transcript:'合成文字',provider:'fixture'}))},provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:()=>outbound(emptyVision)}})
+ await f.photos.store.update(data=>({...data,photos:[...data.photos,{...data.photos[0],id:'two',storageKey:'two.mp4'}]}))
+ await f.jobs.start('a','m','draft','one');await until(()=>entered===2)
+ await f.jobs.start('a','m','draft','two');await tick()
+ assert.equal(entered,2);assert.equal(active,2)
+ release.resolve();await settled(f.jobs)
+ assert.equal(entered,4);assert.equal(peak,2)
+ for(const photo of (await f.photos.store.read()).photos){assert.equal(photo.review.audio.status,'needs_confirmation');assert.equal(photo.review.vision.status,'empty')}
+})
+test('all-stage retry preserves completed audio and reuses successful visual preparation',async()=>{
+ const preparations=[];let audioCalls=0,visionCalls=0
+ const f=setup({inputs:async(_file,_video,options)=>{preparations.push(options.part);return {image:Buffer.from('fixture'),times:[0,3],audio:Buffer.from('fixture'),duration:3}},audio:{transcribe:async()=>{audioCalls++;return {transcript:'原话仍保留',provider:'fixture'}}},provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:async()=>{visionCalls++;if(visionCalls===1)throw Error('临时失败');return emptyVision()}}})
+ await f.jobs.start('a','m','draft','one');await settled(f.jobs)
+ assert.equal(f.read().review.vision.status,'failed');assert.equal(f.read().review.audio.status,'needs_confirmation')
+ await f.jobs.start('a','m','draft','one','all');await settled(f.jobs)
+ assert.deepEqual(preparations,['all']);assert.equal(audioCalls,1);assert.equal(visionCalls,2)
+ assert.equal(f.read().review.audio.text,'原话仍保留');assert.equal(f.read().review.vision.status,'empty')
+ await f.jobs.start('a','m','draft','one','all');assert.equal(f.jobs.active.size,0);assert.equal(visionCalls,2)
+})
+test('a failed preparation retries only that stage and leaves completed visuals untouched',async()=>{
+ const parts=[];let audioCalls=0,visualCalls=0
+ const f=setup({inputs:async(_file,_video,options)=>{parts.push(options.part);return {image:Buffer.from('fixture'),times:[0,3],audio:parts.length===1?null:Buffer.from('fixture'),audioError:parts.length===1?Object.assign(Error('音轨提取失败'),{code:'AUDIO_PREP_FAILED'}):null,duration:3}},audio:{transcribe:async()=>{audioCalls++;return {transcript:'合成原话',provider:'fixture'}}},provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:async()=>{visualCalls++;return emptyVision()}}})
+ await f.jobs.start('a','m','draft','one');await settled(f.jobs)
+ assert.equal(f.read().review.audio.status,'failed');assert.equal(f.read().review.vision.status,'empty')
+ await f.jobs.start('a','m','draft','one','all');await settled(f.jobs)
+ assert.deepEqual(parts,['all','audio']);assert.equal(audioCalls,1);assert.equal(visualCalls,1)
+ assert.equal(f.read().review.audio.status,'needs_confirmation');assert.equal(f.read().review.vision.status,'empty')
+})
+test('cancel stops queued stages without invoking suppliers or overwriting a completed peer stage',async()=>{
+ const heldRelease=deferred(),running=deferred(),audioDone=deferred(),queued=deferred();let visionEntered=0
+ const block=controlledCall(async()=>{running.resolve();await heldRelease.promise},{AI_MAX_CONCURRENT_CALLS:'1'})
+ await running.promise
+ const f=setup({audio:{transcribe:async()=>{audioDone.resolve();return {transcript:'已完成原话',provider:'fixture'}}},provider:{name:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid',fetch:()=>{queued.resolve();return controlledCall(async()=>{visionEntered++;return emptyVision()},{AI_MAX_CONCURRENT_CALLS:'1'})}}})
+ await f.jobs.start('a','m','draft','one');await Promise.all([audioDone.promise,queued.promise]);await until(()=>f.read().review.audio.status==='needs_confirmation')
+ f.jobs.cancel('one');heldRelease.resolve();await block;await tick()
+ assert.equal(visionEntered,0);assert.equal(f.read().review.audio.text,'已完成原话');assert.equal(f.read().review.vision.status,'processing')
 })

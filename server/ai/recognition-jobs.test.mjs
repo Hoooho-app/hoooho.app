@@ -129,3 +129,80 @@ test('ASR failure does not silently retry on new text; user explicitly selects u
  const selected=await f.jobs.command('synthetic',f.member.id,'task-1',{id:'use-text',type:'use_text'});assert.equal(selected.state,'ready');assert.equal(selected.unresolvedInputs.length,0)
  assert.equal((await f.business.save('synthetic',f.member.id,ready.review.id,{version:ready.review.version,confirmed:true})).state,'saved')
 })
+test('long polling observes updates before or after subscription and releases all listeners',async t=>{
+ const f=await setup(t),entered=deferred(),release=deferred(),original=f.frontModel.structured
+ t.after(()=>release.resolve());f.frontModel.structured=async input=>{entered.resolve();await release.promise;return original(input)}
+ await f.submit('first','脸颊发红');await entered.promise
+ let j=f.jobs.raw('task-1'),oldSeq=j.seq;f.jobs.put({...j,stage:'reading'})
+ const alreadyChanged=await f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:oldSeq,waitMs:25000});assert.equal(alreadyChanged.stage,'reading')
+ const pending=f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:alreadyChanged.seq,waitMs:25000})
+ await until(()=>f.jobs.waiters.size===1);j=f.jobs.raw('task-1');f.jobs.put({...j,stage:'organizing'})
+ assert.equal((await pending).stage,'organizing');assert.equal(f.jobs.waiters.size,0)
+ release.resolve();const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j})
+ assert.equal((await f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:ready.seq,waitMs:25000})).state,'ready');assert.equal(f.jobs.waiters.size,0)
+})
+test('long polling has a bounded wait, accepts cancellation and validates sequence parameters',async t=>{
+ const f=await setup(t),entered=deferred(),release=deferred(),original=f.frontModel.structured
+ t.after(()=>release.resolve());f.frontModel.structured=async input=>{entered.resolve();await release.promise;return original(input)}
+ await f.submit('first','脸颊发红');await entered.promise
+ const seq=f.jobs.raw('task-1').seq,started=Date.now()
+ const timed=await f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:seq,waitMs:20});assert.equal(timed.seq,seq);assert.ok(Date.now()-started>=15);assert.equal(f.jobs.waiters.size,0)
+ const controller=new AbortController(),pending=f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:seq,waitMs:25000,signal:controller.signal}),rejected=assert.rejects(()=>pending,{name:'AbortError'})
+ await until(()=>f.jobs.waiters.size===1);controller.abort();await rejected;assert.equal(f.jobs.waiters.size,0)
+ await assert.rejects(()=>f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:-1,waitMs:10}),{code:'RECOGNITION_WAIT_INVALID'})
+ release.resolve()
+})
+test('a waiting GET cannot return old private data after member deletion',async t=>{
+ const f=await setup(t),entered=deferred(),release=deferred(),original=f.frontModel.structured
+ t.after(()=>release.resolve());f.frontModel.structured=async input=>{entered.resolve();await release.promise;return original(input)}
+ await f.submit('first','脸颊发红');await entered.promise
+ const pending=f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:f.jobs.raw('task-1').seq,waitMs:25000}),rejected=assert.rejects(()=>pending,{code:'RECOGNITION_NOT_FOUND'})
+ await until(()=>f.jobs.waiters.size===1)
+ await new FamilyMemberService({dataDirectory:f.directory}).delete('synthetic',f.member.id)
+ await rejected;assert.equal(f.jobs.waiters.size,0);release.resolve()
+})
+test('ready front response includes its published context and verified review without private original bytes',async t=>{
+ const f=await setup(t),image=await sharp({create:{width:8,height:8,channels:3,background:'#fff'}}).png().toBuffer()
+ const asset=await f.jobs.upload('synthetic',f.member.id,{buffer:image,mimeType:'image/png',name:'合成.png'})
+ await f.jobs.submit('synthetic',f.member.id,{id:'task-1',mode:'front',input:{id:'image-1',kind:'image',text:'脸颊发红',assetIds:[asset.id]},options:{smartRecord:true,selectedOccurredAt:new Date().toISOString()}})
+ const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j})
+ assert.equal(ready.frontDesk.context.id,ready.contextId);assert.equal(ready.frontDesk.context.draftId,ready.review.id);assert.equal(ready.frontDesk.context.review.version,ready.review.version)
+ assert.equal(JSON.stringify(ready.frontDesk).includes('data:image'),false);assert.equal(ready.frontDesk.context.messages.filter(m=>m.kind==='image')[0].files.length,1)
+})
+test('structured jobs preserve profile batch identity through deferred and final preparation',async t=>{
+ const f=await setup(t)
+ await f.jobs.submit('synthetic',f.member.id,{id:'task-1',mode:'structured',scopeKey:'profile-upload',input:{id:'batch-1',kind:'text',text:'脸颊发红'},options:{task:'archive',profileBatch:true,profileBatchId:'profile-batch-1'}})
+ const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j}),draft=await f.business.get('synthetic',f.member.id,ready.review.id)
+ assert.equal(draft.profileBatch,true);assert.equal(draft.profileBatchId,'profile-batch-1');assert.equal(ready.review.profileBatchId,'profile-batch-1')
+})
+
+test('ready GET and latest publish fresh user edits with a new stable sequence',async t=>{
+ const f=await setup(t);await f.submit('first','脸颊发红')
+ const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j})
+ const edited=await f.business.edit('synthetic',f.member.id,ready.review.id,{version:ready.review.version,itemId:ready.review.items[0].id,field:'title',value:'用户新标题'})
+ const fresh=await f.jobs.get('synthetic',f.member.id,'task-1',{afterSeq:ready.seq,waitMs:25000})
+ assert.equal(fresh.review.version,edited.version);assert.equal(fresh.review.items[0].title,'用户新标题');assert.ok(fresh.seq>ready.seq)
+ assert.equal(fresh.frontDesk.context.review.version,edited.version);assert.equal(fresh.frontDesk.context.review.items[0].title,'用户新标题')
+ assert.equal((await f.snapshot()).seq,fresh.seq)
+ const latest=await f.jobs.latest('synthetic',f.member.id)
+ assert.equal(latest.review.version,edited.version);assert.equal(latest.seq,fresh.seq)
+ const next=await f.business.edit('synthetic',f.member.id,edited.id,{version:edited.version,itemId:edited.items[0].id,field:'title',value:'另一次用户修改'})
+ const latestEdited=await f.jobs.latest('synthetic',f.member.id)
+ assert.equal(latestEdited.review.version,next.version);assert.equal(latestEdited.frontDesk.context.review.items[0].title,'另一次用户修改');assert.ok(latestEdited.seq>fresh.seq)
+})
+test('fresh review hydration cannot revive a discarded job or overwrite a new input revision',async t=>{
+ const f=await setup(t);await f.submit('first','脸颊发红')
+ const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j}),read=f.business.read.bind(f.business)
+ f.business.read=async(...args)=>{
+  const value=await read(...args),current=f.jobs.raw('task-1')
+  f.jobs.put({...current,state:'queued',stage:'queued',inputRevision:current.inputRevision+1,review:null})
+  return value
+ }
+ const changed=await f.snapshot();assert.equal(changed.state,'queued');assert.equal(changed.inputRevision,ready.inputRevision+1);assert.equal(changed.review,null)
+ // The next test transition represents a ready result being discarded while its
+ // asynchronous draft read is in progress. No stale hydration may revive it.
+ const current=f.jobs.raw('task-1');f.jobs.put({...current,state:'ready',stage:'ready',inputRevision:ready.inputRevision,resultRevision:ready.resultRevision,review:ready.review})
+ f.business.read=async(...args)=>{const value=await read(...args);const current=f.jobs.raw('task-1');f.jobs.put({...current,state:'discarded',stage:'discarded',cancelEpoch:(current.cancelEpoch??0)+1});return value}
+ const discarded=await f.snapshot();assert.equal(discarded.state,'discarded');assert.equal(f.jobs.raw('task-1').state,'discarded')
+ f.business.read=read
+})

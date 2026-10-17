@@ -19,6 +19,18 @@ const ajv=new Ajv({strict:false,allErrors:false})
 const validateCurrentSituation=ajv.compile(currentSituationSchema)
 const validateCurrentSituationResponse=ajv.compile(currentSituationResponseSchema)
 const negativeSubjects=['头痛|头疼','发热|发烧'].map(subject=>({subject:new RegExp(subject),negative:new RegExp(`(?:没有|不是|未见|否认|无|未|不)(?:明显|出现|再|有)?(?:${subject})|(?:${subject})(?:也)?(?:没有|不)`)}))
+// A shared negative conjunction is ambiguous in presentation. Expand it only
+// when every source clause mentioning either subject explicitly denies it.
+// Positive, uncertain and mixed-history sources still fail the original checks.
+export function expandSourceSupportedNegation(text,context) {
+  const clauses=context.split(/[，,。；;\n]/).filter(Boolean)
+  if(!negativeSubjects.every(rule=>{
+    const matching=clauses.filter(clause=>rule.subject.test(clause))
+    return matching.length&&matching.every(clause=>rule.negative.test(clause)&&!/怀疑|估计|可能|疑似|不确定|不知道|待核对/.test(clause))
+  }))return text
+  return text.replace(/((?:无|没有|未见|否认)(?:明显|出现|有)?(?:头痛|头疼))\s*(?:及|和|、)\s*(发热|发烧)/g,'$1，无$2')
+    .replace(/((?:无|没有|未见|否认)(?:明显|出现|有)?(?:发热|发烧))\s*(?:及|和|、)\s*(头痛|头疼)/g,'$1，无$2')
+}
 export const currentSituationInstructions = `忠实整理当前原话，只去掉口语填充并按事实分块，不做医学推理。本次现有摘要调用仅返回 {currentSituation}，仅使用 currentSituationSources，不输出 overview、keyPoints 或 missingInformation。
 只能使用已有事实，不补诊断、严重程度、病因、风险、建议或身份。不要把姓名或其他身份信息重复写入摘要。保留原文时间、程度、数量、否定及只/仅等限定；“有点”“少量”等不是口语填充，不能删除或加重。数字和单位保留原形式，不把“一个”变“1个”，不从相对时间推算日期。
 每行sourceId只用当前来源id；quote从同一来源的裸text中连续逐字复制，覆盖整行事实及相关限定，不加编号/元数据/省略号，不跨来源拼接。合并关联事实仍用覆盖全部事实的连续quote。

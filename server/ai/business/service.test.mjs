@@ -121,3 +121,26 @@ test('重新识别资料后不能沿用上一版缺页确认',async t=>{
   assert.equal(next.confirmPageWarnings,false)
   assert.equal((await f.service.get('synthetic-a',f.member.id,next.id)).confirmPageWarnings,false)
 })
+
+
+test('batch edits have one version increment, preserve evidence and never invoke another model',async t=>{
+  const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'}),item=d.items[0]
+  const edited=await f.service.edit('synthetic-a',f.member.id,d.id,{version:d.version,changes:[{itemId:item.id,field:'title',value:'观察记录'},{itemId:item.id,field:'location',value:'腹部'}]})
+  assert.equal(edited.version,d.version+1);assert.equal(edited.items[0].title,'观察记录')
+  assert.equal(edited.items[0].fields.find(x=>x.name==='location').value,'腹部')
+  assert.deepEqual(edited.items[0].fields.find(x=>x.name==='symptom').sources,item.fields[0].sources)
+  assert.equal(f.calls(),1)
+})
+test('a later invalid batch change rolls back all earlier edits',async t=>{
+  const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'})
+  await assert.rejects(()=>f.service.edit('synthetic-a',f.member.id,d.id,{version:d.version,changes:[{itemId:d.items[0].id,field:'title',value:'不应保存'},{itemId:d.items[0].id,field:'nonexistent',value:'拒绝'}]}))
+  const unchanged=await f.service.read('synthetic-a',f.member.id,d.id)
+  assert.equal(unchanged.version,d.version);assert.equal(unchanged.items[0].title,d.items[0].title)
+})
+test('concurrent batch edits share an atomic version guard',async t=>{
+  const f=await fixture(t),d=await f.service.prepare('synthetic-a',f.member.id,{text:'没有呕吐'})
+  const results=await Promise.allSettled(['观察甲','观察乙'].map(value=>f.service.edit('synthetic-a',f.member.id,d.id,{version:d.version,changes:[{itemId:d.items[0].id,field:'title',value}]})))
+  assert.equal(results.filter(x=>x.status==='fulfilled').length,1)
+  assert.equal(results.find(x=>x.status==='rejected').reason.status,409)
+  assert.equal((await f.service.read('synthetic-a',f.member.id,d.id)).version,d.version+1)
+})

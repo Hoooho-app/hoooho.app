@@ -79,7 +79,8 @@ export async function normalizePhoto(photo){
 
 export function mergeRows(blocks){
   let rows=[],connected=true
-  for(const [photoIndex,block] of blocks.entries()){
+  for(const [blockIndex,block] of blocks.entries()){
+    const photoIndex=block.photoIndex??blockIndex
     const next=flattenIngredients(block.ingredients).map(row=>({...row,readReliable:block.readable,evidence:{kind:'label',photoIndices:[photoIndex],excerpt:row.rawOriginal??row.fullOriginal}}))
     if(!next.length)continue
     const previousRoots=new Set(rows.filter(r=>r.parent===null).map(r=>normalize(r.fullOriginal)))
@@ -109,22 +110,55 @@ export class FoodLabelService{
     await assertCurrent()
     if(!Array.isArray(input.photos)||input.photos.length<1||input.photos.length>6)throw failure('一次可核对同一食品的1–6张照片','FOOD_PHOTO_LIMIT')
     let bytes=0,calls=0,partialFailure=null
-    const pages=[],diagnostics=[],previews=[],seenPhotos=new Set(),coverageJobs=[]
-    for(const photo of input.photos){
+    const pages=[],diagnostics=[],previews=[],seenPhotos=new Set(),coverageJobs=[],prepared=[]
+    // Validate/decode each source before spending a call. Keep its original photo
+    // index even when request-local duplicate images are omitted from OCR.
+    for(const [photoIndex,photo] of input.photos.entries()){
       signal?.throwIfAborted()
       const normalized=await normalizePhoto(photo);bytes+=normalized.bytes
       previews.push(normalized.preview)
       if(bytes>30*1024*1024)throw failure('本次照片总量超过30MB，请重新拍摄','FOOD_PHOTO_SIZE',413)
-      // Request-local identity only: no retained result, cross-task cache or file.
       const identity=createHash('sha256').update(normalized.dataUrl).digest('hex')
       if(seenPhotos.has(identity))continue
-      seenPhotos.add(identity)
+      seenPhotos.add(identity);prepared.push({normalized,photoIndex})
+    }
+    const reads=new Array(prepared.length)
+    const read=async index=>{
+      const {normalized}=prepared[index]
       try{
-        calls++
+        signal?.throwIfAborted();calls++
         const out=await withQueuedAIAccount(accountId,()=>this.model.structured({task:'food-label-read',schema:readSchema,instructions:readInstructions+'截图中的搜索、放大镜、购买按钮、商品浮层、网页导航等界面图标不是配料文字。不能把图标误读的字母或圆圈、度数符号等拼到成分名；区分印刷文字与覆盖在其旁边的界面图形。不能删除真实化学名里的数字、撇号、括号或百分比。如果界面图形实际遮住文字而无法看清，status用uncertain，不能猜被遮住的字。',vision:true,signal,input:[{role:'user',content:[{type:'input_image',image_url:normalized.dataUrl,detail:'high'}]}]}),signal)
         if(!validRead(out.value)||out.value.text.length>24000)throw failure('未获得可用识别结果','FOOD_READ_INVALID')
-        const page=parseLabelText(out.value.text,out.value.status)
-        pages.push(page);diagnostics.push(out.diagnostics)
+        reads[index]={page:parseLabelText(out.value.text,out.value.status),diagnostics:out.diagnostics}
+      }catch(error){reads[index]={error};return false}
+      return true
+    }
+    // Preserve the existing first-photo rejection contract before starting any
+    // speculative paid work. Later photos use two workers, never extra slots.
+    if(!await read(0)){
+      const error=reads[0].error
+      error.foodDiagnostics={calls,successfulCalls:0,errorCodes:[error.code??'FOOD_READ_FAILED']};throw error
+    }
+    let next=1,stopped=false
+    const worker=async()=>{
+      while(!stopped&&next<prepared.length){
+        if(signal?.aborted){stopped=true;break}
+        const index=next++
+        if(!await read(index))stopped=true
+      }
+    }
+    // A failure stops new dispatch; wait for already-started pages so successful
+    // in-flight evidence is retained, in source order, without repeating OCR.
+    await Promise.all([worker(),worker()]);signal?.throwIfAborted()
+    for(const [index,{normalized,photoIndex}] of prepared.entries()){
+      const result=reads[index]
+      if(!result?.page){
+        partialFailure='read'
+        pages.push({photoIndex,ingredients:'',contains:[],advisory:[],ingredientComplete:false,packagingComplete:false,readable:false,issues:['部分照片识别未完成，请补拍'],productName:''})
+        diagnostics.push({success:false,code:result?.error?.code??(result?'FOOD_READ_FAILED':'FOOD_READ_NOT_ATTEMPTED')})
+        continue
+      }
+      const page={...result.page,photoIndex};pages.push(page);diagnostics.push(result.diagnostics)
         // A clear excerpt can retain a known conflict, but cannot prove coverage.
         if(page.ingredients)coverageJobs.push(async()=>{
           try{
@@ -136,13 +170,6 @@ export class FoodLabelService{
             if(!page.ingredientComplete||!page.packagingComplete)page.issues.push('标签范围未完整确认，请补拍完整背标签')
           }catch(error){page.issues.push('标签范围核验未完成，请补拍');diagnostics.push({success:false,code:error.code??'FOOD_COVERAGE_FAILED'})}
         })
-      }catch(error){
-        if(!pages.length){error.foodDiagnostics={calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:[...diagnostics.filter(d=>!d.success).map(d=>d.code),error.code??'FOOD_READ_FAILED']};throw error}
-        partialFailure='read'
-        pages.push({ingredients:'',contains:[],advisory:[],ingredientComplete:false,packagingComplete:false,readable:false,issues:['部分照片识别未完成，请补拍'],productName:''})
-        diagnostics.push({success:false,code:error.code??'FOOD_READ_FAILED'})
-        break
-      }
     }
     const {rows,connected}=mergeRows(pages)
     if(!rows.length){const error=failure('未识别到成分','FOOD_NO_INGREDIENTS');error.foodDiagnostics={calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:[...diagnostics.filter(d=>!d.success).map(d=>d.code),'FOOD_NO_INGREDIENTS']};throw error}
@@ -183,7 +210,7 @@ export class FoodLabelService{
     if(!translationComplete)issues.push('部分原词或中文对照未可靠确认，请补拍')
     const label={...translations,ingredients:translations.ingredients.map((r,i)=>({...r,name:rows[i].name,fullOriginal:rows[i].fullOriginal,evidence:rows[i].evidence,parent:rows[i].parent,reliable:r.reliable&&rows[i].readReliable})),contains:translations.contains.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.contains.some(s=>excerpt(r.original,s)))})),advisory:translations.advisory.map(r=>({...r,reliable:r.reliable&&pages.some(p=>p.readable&&p.advisory.includes(r.original))})),complete:complete&&translationComplete&&!diagnostics.some(d=>d.success===false),issues}
     const checked=checkLabel(label,records)
-    return {taskId:input.taskId,memberId,previews,...checked,labelEvidence:pages.flatMap((p,photoIndex)=>p.ingredients?[{photoIndex,text:p.ingredients,reliable:p.readable}]:[]),assessmentComplete,conflictCount:assessmentComplete?checked.conflictCount:null,counts:assessmentComplete?checked.counts:'',failure:partialFailure,checkErrorCode:assessmentComplete?null:'FOOD_PROFILE_UNAVAILABLE',diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
+    return {taskId:input.taskId,memberId,previews,...checked,labelEvidence:pages.flatMap((p,photoIndex)=>p.ingredients?[{photoIndex:p.photoIndex??photoIndex,text:p.ingredients,reliable:p.readable}]:[]),assessmentComplete,conflictCount:assessmentComplete?checked.conflictCount:null,counts:assessmentComplete?checked.counts:'',failure:partialFailure,checkErrorCode:assessmentComplete?null:'FOOD_PROFILE_UNAVAILABLE',diagnostics:{calls,successfulCalls:diagnostics.filter(d=>d.success).length,errorCodes:diagnostics.filter(d=>!d.success).map(d=>d.code)}}
   }
 }
 
