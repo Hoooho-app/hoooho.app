@@ -22,7 +22,7 @@ function HandoffContent({ data, draft = handoffDraft(data), avatar, onEdit }: { 
     <MemberIdentity member={m} avatar={avatar} asOf={data.asOf} height={m.heightCm} weight={m.weightKg} />
     {sections.map(({ Icon, ...section }) => <section key={section.id} className="hoho-health-card handoff-section" aria-labelledby={`handoff-${section.id}`}>
       <header className="handoff-module-heading"><Icon size={18} aria-hidden="true" /><Typography variant="sectionTitle" id={`handoff-${section.id}`}>{section.title}</Typography>{onEdit && <HohoButton variant="text" onClick={() => onEdit(section.id)} aria-label={`编辑${section.title}`}><Pencil size={16} />编辑</HohoButton>}</header>
-      {section.id === 'routines' && section.rows.length ? <ol className="handoff-schedule" aria-label="按时间排列的固定安排">{handoffSchedule(section.rows).map(row => <li key={row.key}><span className="handoff-schedule-time">{row.time}</span><p>{row.description}</p></li>)}</ol> : section.rows.length ? section.rows.map((row, i) => <article className="handoff-row" key={i}>
+      {section.id === 'routines' && section.rows.length ? <ol className="handoff-schedule" aria-label="按时间排列的固定安排">{handoffSchedule(section.rows).map(row => <li key={row.key}><span className="handoff-schedule-time">{row.time}</span><p>{row.description}</p></li>)}</ol> : section.rows.length ? section.rows.map((row, i) => <article className={`handoff-row${section.id === 'cautions' ? ' handoff-row--caution' : ''}`} key={i}>
         {row.title && <Typography variant="cardTitle">{row.title}</Typography>}{row.detail && <Typography variant="body">{row.detail}</Typography>}
       </article>) : <Typography variant="body" className="handoff-empty">{section.empty}</Typography>}
     </section>)}
