@@ -61,7 +61,7 @@ test('saving original after model failure also returns to the symptom process',a
  await page.getByRole('button',{name:'先保存原话',exact:true}).click({timeout:30000})
  await expect(page.getByText('已保存，可在症状跟进的变化过程查看。',{exact:true})).toBeVisible()
  await page.getByRole('button',{name:'查看',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
- const timeline=page.locator(`[data-case-id="${saved.eventId}"] .case-followup-timeline`);await expect(timeline.locator('.case-followup-record-summary').first()).toHaveText('手臂瘙痒');await timeline.getByText('查看完整原文',{exact:true}).first().click();await expect(timeline.locator('details[open]')).toContainText('手臂有点痒，原话保留测试')
+ const recordId=new URL(page.url()).searchParams.get('recordId');expect(recordId).toBeTruthy();const line=page.locator(`[data-case-id="${saved.eventId}"] [data-record-id="${recordId}"]`);await expect(line.locator('.case-followup-record-summary')).toHaveText('手臂瘙痒');await line.getByText('查看完整原文',{exact:true}).click();await expect(line.locator('details[open]')).toContainText('手臂有点痒，原话保留测试')
 })
 
 test('historical long narratives use one-line core phrases and muted dates inside the process, preserving originals',async({page,request},info)=>{
