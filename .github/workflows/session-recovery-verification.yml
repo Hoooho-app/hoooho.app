@@ -1,0 +1,38 @@
+name: Session recovery verification
+on:
+  pull_request:
+    paths:
+      - 'src/components/auth/**'
+      - 'src/services/browserRecoveryState.ts'
+      - 'src/services/profileSectionStorage.ts'
+      - 'src/services/apiClient.ts'
+      - 'src/store/useAppStore.ts'
+      - 'src/pages/Login/**'
+      - 'src/pages/Family/EditFamilyMemberPage.tsx'
+      - 'tests/session-recovery/**'
+      - '.github/workflows/session-recovery-verification.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:client
+      - run: npm run test:auth
+      - run: npm run build
+      - run: npx playwright test --config tests/session-recovery/playwright.config.ts --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: session-recovery-browser-evidence
+          path: test-results/
