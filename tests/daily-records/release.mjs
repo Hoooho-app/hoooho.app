@@ -11,10 +11,15 @@ await mkdir(output, { recursive: true })
 const proxyUrl = process.env.HTTPS_PROXY ? new URL(process.env.HTTPS_PROXY) : null
 const browser = await chromium.launch({ ...(proxyUrl ? { proxy: { server: proxyUrl.origin, ...(proxyUrl.username ? { username: decodeURIComponent(proxyUrl.username), password: decodeURIComponent(proxyUrl.password) } : {}) } } : {}) })
 const context = await browser.newContext({ baseURL: origin, viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
-const page = await context.newPage(), errors = [], builds = new Set()
+const page = await context.newPage(), errors = [], failedResources = [], serverErrors = [], builds = new Set()
 const report = { target, commit, syntheticOnly: true, physicalIPhone: 'NOT_VERIFIED', checks: [] }
 let token = '', accountId = '', memberId = ''
 page.on('pageerror', error => errors.push(error.message))
+page.on('response', response => {
+  const path = new URL(response.url()).pathname
+  if (response.status() >= 500) serverErrors.push({ path, status: response.status() })
+  if (response.status() >= 400 && ['document', 'script', 'stylesheet'].includes(response.request().resourceType())) failedResources.push({ path, status: response.status() })
+})
 page.on('request', request => { const build = request.headers()['x-hoooho-client-build']; if (build) builds.add(build) })
 async function api(path, method = 'GET', data) {
   const response = await context.request.fetch(path, { method, data, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Hoooho-Timezone': 'Asia/Shanghai' }, timeout: 30000 })
@@ -48,6 +53,7 @@ async function checkTemplate(category) {
   report.checks.push(category)
 }
 try {
+  assert.equal((await context.request.get('/')).status(), 200)
   assert.equal((await api('/api/health')).status, 'ok')
   const session = await api('/api/auth/register', 'POST', { nickname: `dailyqa${randomUUID().replaceAll('-', '').slice(0, 12)}`, password: randomUUID(), idempotencyKey: randomUUID() })
   token = session.token; accountId = session.user.id
@@ -107,6 +113,7 @@ try {
   await expect(page.getByLabel('第1项名称')).toHaveValue('验收早奶')
   report.checks.push('original feeding fields preserved', 'header save and rule reload', '320/375/390/430px alignment')
   assert.deepEqual(errors, [])
+  assert.deepEqual(serverErrors, []); assert.deepEqual(failedResources, [])
   if (commit) assert([...builds].some(value => value.includes(commit)), `Expected client build ${commit}; got ${[...builds]}`)
   report.status = 'PASS'
 } catch (error) {
@@ -118,7 +125,7 @@ try {
     const member = (await api('/api/members')).find(value => value.id === memberId)
     if (member?.accountId === accountId && member.name === '自动记录验收（虚构资料）') { await api(`/api/members/${memberId}`, 'DELETE'); report.cleanup = 'synthetic member removed' }
   }
-  report.builds = [...builds]; report.errors = errors
+  report.builds = [...builds]; report.errors = errors; report.serverErrors = serverErrors; report.failedResources = failedResources
   await writeFile(`${output}/acceptance.json`, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report)); await browser.close()
 }
