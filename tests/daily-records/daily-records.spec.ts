@@ -9,7 +9,7 @@ async function prepare(page: Page, name: string, width: number, existing = false
   const member = existing ? (await (await page.request.get('/api/members', { headers })).json()).find((value: any) => value.name === name) : await (await page.request.post('/api/members', { headers, data: { name, birthday: '2025-01-01', gender: 'female', relationship: 'child' } })).json()
   expect(member.id).toBeTruthy()
   await page.addInitScript(({ token, accountId, memberId }) => { sessionStorage.setItem('hoooho-auth-token', token); if (!sessionStorage.getItem('daily-test-init')) { localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: accountId }, currentMemberId: memberId, members: [], profile: null }, version: 5 })); sessionStorage.setItem('daily-test-init', 'true') } }, { token, accountId, memberId: member.id })
-  await page.goto('/health-events'); await expect(page.getByRole('button', { name: '记录日常', exact: true })).toBeEnabled()
+  await page.goto('/health-events?view=day'); await expect(page.getByRole('button', { name: '日常', exact: true })).toBeEnabled()
   return member.id as string
 }
 test('all existing daily forms expose one starter without writing on cancellation, and corrupt drafts/load errors do not silently activate rules', async ({ page }) => {
@@ -17,7 +17,7 @@ test('all existing daily forms expose one starter without writing on cancellatio
   const settings = () => page.getByRole('region', { name: '每天自动记录设置' })
   let writes = 0
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/quick-records' && request.method() === 'POST') writes++ })
-  for (const [entry, title] of [['喂养/饮食', '喂养/饮食'], ['记录用药', '记录用药']]) {
+  for (const [entry, title] of [['喂养/饮食', '喂养/饮食'], ['用药', '记录用药']]) {
     await page.getByRole('button', { name: entry, exact: true }).click()
     const form = page.getByRole('dialog', { name: title, exact: true })
     if (entry === '喂养/饮食') await form.getByRole('radio', { name: '补剂', exact: true }).click()
@@ -26,7 +26,7 @@ test('all existing daily forms expose one starter without writing on cancellatio
     await form.getByRole('button', { name: /^返回/ }).click(); await expect(form).toHaveCount(0)
   }
   for (const [choice, title] of [['睡眠', '记录睡眠'], ['排便', '记录排便'], ['身体涂抹', '记录身体涂抹']]) {
-    await page.getByRole('button', { name: '记录日常', exact: true }).click(); await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: choice, exact: true }).click()
+    await page.getByRole('button', { name: '日常', exact: true }).click(); await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: choice, exact: true }).click()
     const form = page.getByRole('dialog', { name: title, exact: true })
     await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toBeEnabled()
     await settings().getByRole('switch', { name: '每天自动记录', exact: true }).click(); await expect(settings().locator('.daily-record-slot')).toHaveCount(1)
@@ -55,7 +55,7 @@ test('all existing daily forms expose one starter without writing on cancellatio
   await page.unroute(url); await settings().getByRole('button', { name: '重试', exact: true }).click(); await expect(settings().getByRole('switch', { name: '每天自动记录', exact: true })).toBeEnabled()
 })
 async function shot(page: Page, name: string) { await mkdir('outputs/daily-records', { recursive: true }); await page.screenshot({ path: `outputs/daily-records/${name}.png` }) }
-test('explicit manual association keeps provenance while feeding is ongoing and ends the same actual record', async ({ page }) => {
+test('header save keeps explicit automatic-record provenance without starting another feeding flow', async ({ page }) => {
   const memberId = await prepare(page, '自动记录验收关联', 375, true)
   const day = localDay(-1)
   await page.getByLabel('选择日期', { exact: true }).fill(day)
@@ -65,22 +65,35 @@ test('explicit manual association keeps provenance while feeding is ongoing and 
   await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
   const form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
   await form.getByRole('radio', { name: '配方奶', exact: true }).click()
-  await form.getByLabel('本次名称（选填）').fill('早奶'); await form.getByRole('spinbutton', { name: /^喂奶量/ }).fill('160')
+  await expect(form.getByLabel('本次名称（选填）')).toHaveCount(0)
+  await expect(form.getByLabel('备注（选填）')).toHaveCount(0)
+  await expect(form.getByRole('button', { name: '开始喂养', exact: true })).toHaveCount(0)
+  await form.getByRole('spinbutton', { name: /^喂奶量/ }).fill('160')
   await form.getByRole('textbox', { name: '记录时间', exact: true }).fill(`${day}T07:30`)
   await form.getByLabel('关联本次自动记录（选填）').selectOption(early.id)
   const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/quick-records' && r.request().method() === 'POST')
-  await form.getByRole('button', { name: '开始喂养', exact: true }).click()
+  await form.locator('header').getByRole('button', { name: /^保存记录/ }).click()
   const saved = await response; expect(saved.status()).toBe(201); const ids = await saved.json()
   await expect(form).toHaveCount(0); await expect(page.locator('[data-automatic-id]')).toHaveCount(2)
   const row = page.locator(`[data-record-id="${ids.recordId}"]`)
+  await expect(row).toContainText('160mL')
+  const actual = (await (await page.request.get(`/api/events/${ids.eventId}/records?view=time`, { headers })).json()).find((value: any) => value.id === ids.recordId)
+  expect((await page.request.patch(`/api/records/${ids.recordId}`, { headers, data: { journal: { ...actual.journal, diet: { ...actual.journal.diet, name: '历史早奶', note: '历史备注保留' } } } })).ok()).toBe(true)
   await row.getByRole('button').click()
-  const detail = page.getByRole('dialog', { name: '早奶记录详情', exact: true })
+  const detail = page.getByRole('dialog')
   await expect(detail.getByText('自动记录 · 已确认 · 早奶', { exact: true })).toBeVisible()
-  await detail.getByLabel('实际结束时间').fill(`${day}T07:50`)
-  await detail.getByRole('button', { name: '结束喂养', exact: true }).click()
-  await expect(detail).toHaveCount(0); await expect(row).toContainText('早奶 · 共20分钟')
+  await expect(detail.getByRole('button', { name: '结束喂养', exact: true })).toHaveCount(0)
   expect((await (await page.request.get(`/api/events/${ids.eventId}/records?view=time`, { headers })).json()).length).toBe(1)
   expect((await (await page.request.get(`/api/routines/${memberId}/daily/source/${ids.recordId}`, { headers })).json()).id).toBe(early.id)
+  await detail.getByRole('button', { name: '编辑喂养/饮食', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
+  await expect(editor.getByLabel('本次名称（选填）')).toHaveCount(0)
+  await expect(editor.getByLabel('备注（选填）')).toHaveCount(0)
+  await editor.getByRole('spinbutton', { name: /^喂奶量/ }).fill('170')
+  await editor.getByRole('button', { name: '保存记录', exact: true }).click()
+  await expect(editor).toHaveCount(0)
+  const edited = (await (await page.request.get(`/api/events/${ids.eventId}/records?view=time`, { headers })).json()).find((value: any) => value.id === ids.recordId)
+  expect(edited.journal.diet).toMatchObject({ bottleMl: 170, name: '历史早奶', note: '历史备注保留' })
 })
 for (const width of [375, 390, 430]) {
   test(`one starter, independent slots, atomic actual save, next-day rule and reload at ${width}`, async ({ page }) => {
@@ -97,7 +110,7 @@ for (const width of [375, 390, 430]) {
     await settings.getByLabel('第2项名称').fill('晚奶'); await settings.getByLabel('第2项时间').fill('21:00'); await settings.getByLabel('第2项喂养方式').selectOption('formula'); await settings.getByLabel('第2项奶量（mL）').fill('200')
     await settings.scrollIntoViewIfNeeded(); expect(await form.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true); await shot(page, `two-slots-${width}`)
     const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/quick-records' && r.request().method() === 'POST')
-    await form.getByRole('button', { name: '保存记录并开启自动记录', exact: true }).click(); expect((await response).status()).toBe(201); await expect(form).toHaveCount(0)
+    await form.getByRole('button', { name: '保存记录', exact: true }).click(); expect((await response).status()).toBe(201); await expect(form).toHaveCount(0)
     const rules = await (await page.request.get(`/api/routines/${memberId}/daily`, { headers })).json()
     expect(rules[0].slots.map((slot: any) => slot.fields.bottleMl)).toEqual(['150', '200']); expect(rules[0].effectiveFrom).toBe(localDay(1))
     expect(await (await page.request.get(`/api/routines/${memberId}/daily/instances?day=${localDay()}`, { headers })).json()).toEqual([])
@@ -141,3 +154,57 @@ for (const width of [375, 390, 430]) {
     expect(afterBatch.filter((value: any) => dueToday.some((due: any) => due.id === value.id) && value.status === 'confirmed')).toHaveLength(dueToday.length)
   })
 }
+test('shared template keeps name, time and delete together for every category without changing the original feeding fields', async ({ page }) => {
+  await prepare(page, '通用模板验收', 375)
+  const check = async () => {
+    const settings = page.getByRole('region', { name: '每天自动记录设置' })
+    const toggle = settings.getByRole('switch', { name: '每天自动记录', exact: true })
+    await expect(toggle).toBeEnabled()
+    await expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await expect(settings.locator('small')).toHaveCount(0)
+    await toggle.click()
+    await expect(settings.getByText(/新设置从当地次日生效/)).toBeVisible()
+    const name = settings.getByLabel('第1项名称'), time = settings.getByLabel('第1项时间')
+    await name.fill('每天测试'); await time.fill('08:00')
+    for (const width of [320, 375, 390, 430]) {
+      await page.setViewportSize({ width, height: 667 })
+      const a = await name.boundingBox(), b = await time.boundingBox()
+      expect(a && b && Math.abs(a.y + a.height - b.y - b.height) < 2).toBeTruthy()
+      expect(await settings.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    }
+    await settings.getByRole('button', { name: '添加一项', exact: true }).click()
+    await settings.getByLabel('第2项名称').fill('第二项')
+    await settings.getByRole('button', { name: '删除第1项', exact: true }).click()
+    await expect(settings.getByLabel('第1项名称')).toHaveValue('第二项')
+    await toggle.click()
+    await expect(settings.locator('.daily-record-slot')).toHaveCount(0)
+    await expect(settings.locator('small')).toHaveCount(0)
+  }
+  await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
+  await expect(form.getByRole('heading', { name: '母乳喂养时长' })).toBeVisible()
+  await form.getByLabel('左侧手填分钟').fill('12')
+  await form.getByRole('button', { name: '顺利', exact: true }).click()
+  await check()
+  for (const method of ['配方奶', '瓶喂母乳', '混合喂养']) {
+    await form.getByRole('radio', { name: method, exact: true }).click()
+    await expect(form.getByRole('spinbutton', { name: /^喂奶量/ })).toBeVisible()
+    await expect(form.getByRole('group', { name: '进食状态（可选）' })).toBeVisible()
+  }
+  await form.getByRole('radio', { name: '母乳', exact: true }).click()
+  await expect(form.getByLabel('左侧手填分钟')).toHaveValue('12')
+  await expect(form.getByRole('button', { name: '顺利', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(form.getByRole('textbox', { name: '记录时间', exact: true })).toBeVisible()
+  await form.getByRole('radio', { name: '饮食', exact: true }).click()
+  for (const category of ['辅食', '正餐', '零食']) { await form.getByRole('radio', { name: category, exact: true }).click(); await check() }
+  await form.getByRole('radio', { name: '补剂', exact: true }).click(); await check()
+  await form.getByRole('button', { name: '返回', exact: true }).click()
+  await page.getByRole('button', { name: '用药', exact: true }).click(); await check()
+  await page.getByRole('dialog').getByRole('button', { name: /^返回/ }).click()
+  for (const category of ['睡眠', '排便', '身体涂抹']) {
+    await page.getByRole('button', { name: '日常', exact: true }).click()
+    await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: category, exact: true }).click()
+    await check()
+    await page.getByRole('dialog').getByRole('button', { name: /^返回/ }).click()
+  }
+})

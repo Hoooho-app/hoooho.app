@@ -6,7 +6,7 @@ import { FamilyMemberRepository } from '../../server/members/repositories/family
 import { localDateKey } from '../../server/time/local-calendar.mjs'
 import { shiftDay } from '../../server/routines/daily-record-service.mjs'
 process.chdir(path.resolve(import.meta.dirname, '../..'))
-const shutdownMarker = path.resolve('.codex-tmp/daily-records-shutdown')
+const shutdownMarker = path.resolve('.codex-tmp', process.env.DAILY_RECORDS_SHUTDOWN_MARKER ?? 'daily-records-shutdown')
 await mkdir(path.dirname(shutdownMarker), { recursive: true })
 await rm(shutdownMarker, { force: true })
 setInterval(() => void access(shutdownMarker).then(() => process.exit()).catch(() => undefined), 200)

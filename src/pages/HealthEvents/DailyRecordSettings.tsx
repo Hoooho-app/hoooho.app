@@ -82,14 +82,12 @@ function DailyRecordSettingsContent({ kind, seed, name }: { kind: DailyKind; see
   return <section className="record-form-group daily-record-settings" aria-label="每天自动记录设置">
     <div className="daily-record-heading"><strong>每天自动记录</strong><fieldset disabled={!ready} className="daily-toggle-fieldset"><HohoToggle label="每天自动记录" checked={enabled} onChange={value => { if (value && !seedUsed.current) { setSlots(slots => slots.map((slot, index) => index === 0 ? { ...slot, name: name.trim() || slot.name, fields: seed } : slot)); seedUsed.current = true } setEnabled(value) }} /></fieldset></div>
     {!ready && !error && <small role="status">正在加载每天设置…</small>}
-    {ready && !enabled && <small>开启后每天生成待确认条目；核对真实发生后，才计入健康记录。</small>}
     {error && <p role="alert">{error}<HohoButton variant="ghost" onClick={() => setRetry(value => value + 1)}>重试</HohoButton></p>}
     {ready && enabled && <><small>时区：{timeZone}。新设置从当地次日生效。到点生成未确认条目，确认后才计入真实记录。</small>{slots.map((slot, index) => <div key={slot.id} className="daily-record-slot">
-      <div className="daily-record-heading"><HohoInput label={`第${index + 1}项名称`} value={slot.name} maxLength={20} onChange={event => update(slot.id, { name: event.target.value })} /><HohoToggle label={`启用第${index + 1}项`} checked={slot.enabled} onChange={value => update(slot.id, { enabled: value })} /></div>
-      {slot.enabled && <><HohoInput label={`第${index + 1}项时间`} type="time" value={slot.time} onChange={event => update(slot.id, { time: event.target.value })} /><DailyTypeFields kind={kind} prefix={`第${index + 1}项`} value={slot.fields} onChange={fields => update(slot.id, { fields })} /></>}
-      <HohoButton variant="ghost" onClick={() => setSlots(value => value.filter(item => item.id !== slot.id))}>删除第{index + 1}项</HohoButton>
+      <div className="daily-record-slot-summary"><HohoInput label={`第${index + 1}项名称`} value={slot.name} maxLength={20} onChange={event => update(slot.id, { name: event.target.value })} />{slot.enabled && <HohoInput label={`第${index + 1}项时间`} type="time" value={slot.time} onChange={event => update(slot.id, { time: event.target.value })} />}<HohoButton variant="ghost" aria-label={`删除第${index + 1}项`} onClick={() => setSlots(value => value.filter(item => item.id !== slot.id))}>删除</HohoButton></div>
+      <HohoToggle label={`启用第${index + 1}项`} checked={slot.enabled} onChange={value => update(slot.id, { enabled: value })} />
+      {slot.enabled && <DailyTypeFields kind={kind} prefix={`第${index + 1}项`} value={slot.fields} onChange={fields => update(slot.id, { fields })} />}
     </div>)}<HohoButton variant="secondary" disabled={slots.length >= 12} onClick={() => setSlots(value => [...value, { id: crypto.randomUUID(), name: '', time: '', enabled: true, fields: {} }])}>添加一项</HohoButton></>}
-    {ready && !enabled && slots.length > 0 && <small>{revision > 0 ? `已设置${slots.length}项 · 暂停（打开可管理）` : name.trim() || suggestions[kind]}</small>}
     {instances.length > 0 && <label>关联本次自动记录（选填）<select value={linkId} onChange={event => setLinkId(event.target.value)}><option value="">不关联，保留为独立实际记录</option>{instances.map(instance => <option key={instance.id} value={instance.id}>{instance.name} · {new Date(instance.plannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</option>)}</select></label>}
   </section>
 }
