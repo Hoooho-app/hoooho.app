@@ -23,6 +23,8 @@ test('home restores situation sheet and real symptom detail, filling SE and tall
  await page.goto('/nurse-station')
  await expect(page.getByRole('region',{name:'症状事件'})).toContainText('头皮发痒，反复抓挠')
  await expect(page.locator('.home-symptom-meta')).toContainText('最近记录')
+ await expect(page.getByRole('region',{name:'症状事件'}).getByText(/已记录\s*\d+\s*条/)).toHaveCount(0)
+ await expect(page.locator('.home-followup-count')).toHaveText('1 项')
  await expect(page.getByRole('button',{name:'合并这两项',exact:true})).toHaveCount(0)
  await expect(page.getByRole('region',{name:'症状合并建议'})).toHaveCount(0)
  const heights:number[]=[]
