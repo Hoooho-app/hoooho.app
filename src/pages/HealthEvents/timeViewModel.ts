@@ -164,12 +164,13 @@ export function searchJournalEntries(entries: readonly JournalEntry[], query: st
   const exclusions=[...raw.matchAll(/(?:不含|排除|不要)([^\s，,]+)/g)].map(m=>normalizeJournalSearch(m[1]));raw=raw.replace(/(?:不含|排除|不要)[^\s，,]+/g,'')
   const needle = normalizeJournalSearch(raw)
   if (!needle) return []
-  const terms=raw.split(/[\s，,]+/).filter(Boolean).map(journalSearchAlternatives)
+  const terms=raw.split(/[\s，,]+/).filter(Boolean).map(term=>journalSearchAlternatives(term).map(normalizeJournalSearch))
+  const excludedTerms=exclusions.map(term=>journalSearchAlternatives(term).map(normalizeJournalSearch))
   const scopedById=new Map(entries.map(e=>[e.id,e]))
   const results=entries.filter(entry=>{const linked=Object.values(entry.symptom?.linkedRecordIds??{}).flat().flatMap(id=>scopedById.has(id)?[scopedById.get(id)!]:[]),values=[...journalSearchFields(entry),...linked.flatMap(journalSearchFields)].map(normalizeJournalSearch),at=Date.parse(entry.occurredAt)
     if(from!==null&&(entry.timePrecision==='unknown'||at<from||at>=to!))return false
-    if(exclusions.some(term=>journalSearchAlternatives(term).some(alias=>values.some(v=>v.includes(normalizeJournalSearch(alias))))))return false
-    return values.some(v=>v.includes(needle))||terms.every(alternatives=>alternatives.some(term=>values.some(v=>v.includes(normalizeJournalSearch(term)))))})
+    if(excludedTerms.some(alternatives=>alternatives.some(alias=>values.some(v=>v.includes(alias)))))return false
+    return values.some(v=>v.includes(needle))||terms.every(alternatives=>alternatives.some(term=>values.some(v=>v.includes(term))))})
     .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt) || right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
   return latest?results.slice(0,1):results
 }
