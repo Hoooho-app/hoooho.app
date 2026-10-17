@@ -63,13 +63,15 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
 
   if (!response.ok) {
     const errorBody = data as ApiErrorBody | null
-    if (response.status === 401 && !mayRecover && useBrowserRecoveryState.getState().contextAccountId) {
+    const credentialRejected = ['CODE_INCORRECT', 'CODE_ATTEMPTS_EXCEEDED', 'INVALID_CURRENT_PASSWORD', 'INVALID_CREDENTIALS'].includes(errorBody?.error?.code ?? '')
+    const sessionUnauthorized = response.status === 401 && !credentialRejected
+    if (sessionUnauthorized && !mayRecover && useBrowserRecoveryState.getState().contextAccountId) {
       useBrowserRecoveryState.setState({ reauthenticationRequired: true, phase: 'idle' })
       const { useAppStore } = await import('../store/useAppStore')
       useAppStore.getState().suspendAuthSession()
       throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
     }
-    if (response.status === 401 && mayRecover) {
+    if (sessionUnauthorized && mayRecover) {
       try {
         const recovery = recoverSessionToken()
         const token = await (options.signal ? abortable(recovery, options.signal) : recovery)

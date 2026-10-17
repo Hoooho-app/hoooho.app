@@ -1,3 +1,4 @@
+import {clinicalContext} from '../../../shared/clinical-evidence.mjs'
 import { normalizeHealthAIOutput } from '../ai-types.mjs'
 
 const symptomPatterns = [
@@ -148,7 +149,8 @@ function semanticsFor(clause, fullText, matchIndex = 0, matchText = '') {
   const resolvedLater = /现在已经退了|目前没有|本次就诊无|这次没有|后来确认没有|再也没|症状消失|体温正常|其实[^，。]*正常/.test(trailingText)
   const correctionIndex = Math.max(fullText.lastIndexOf('不对'), fullText.lastIndexOf('说错'), fullText.lastIndexOf('记错'))
   const correctedAway = correctionIndex >= 0 && absoluteMatchIndex >= 0 && absoluteMatchIndex < correctionIndex
-  const polarity = negated || correctedAway ? 'negated' : uncertain || conditional ? 'uncertain' : 'affirmed'
+  const assertion=matchText?clinicalContext(text,matchIndex,matchIndex+matchText.length):null
+  const polarity = correctedAway ? 'negated' : assertion?.qualifier ? assertion.polarity : negated ? 'negated' : uncertain || conditional ? 'uncertain' : 'affirmed'
   const temporality = conditional ? 'conditional' : future ? 'future' : historical ? 'historical' : 'current'
   const negatedResolved = /(?:没有|没|未)(?:有)?再|一天都没|已经不|不再/.test(scope.text)
   const status = polarity === 'negated' ? (negatedResolved ? 'resolved' : 'not_applicable') : future ? 'planned'
@@ -390,10 +392,10 @@ function extractClinicalFacts(clause, fullText) {
     if (index < 0) continue
     const diagnosisSemantics = semanticsFor(clause, fullText, index, diagnosis)
     const scope = semanticScopeFor(clause.sourceText, index).text
-    const ruledOut = new RegExp(`(?<!是)(?:不是|排除|未见|阴性)[^，。；]{0,6}${diagnosis}|${diagnosis}[^，。；]{0,6}(?:被排除|不成立)`).test(scope)
+    const ruledOut = diagnosisSemantics.polarity==='negated' && new RegExp(`(?<!是)(?:不是|排除|未见|阴性)[^，。；]{0,6}${diagnosis}|${diagnosis}[^，。；]{0,6}(?:被排除|不成立)`).test(scope)
     const suspected = /认为|判断|可能|大概率|疑似|怀疑|待查/.test(scope)
     const aiAssessment = diagnosisSemantics.source === 'ai_consultation' && suspected
-    const confirmed = /确诊(?:是|为)?|诊断为|检查结果(?:支持|提示|为|是)/.test(scope)
+    const confirmed = diagnosisSemantics.polarity==='affirmed' && /确诊(?:是|为)?|诊断为|检查结果(?:支持|提示|为|是)/.test(scope)
     if (ruledOut) {
       output.push(fact('diagnosis', '排除诊断', clause, fullText, {
         concept: '排除诊断',

@@ -118,6 +118,7 @@ export class FeedbackService {
     const suppliedProblemPage = inputText(input.problemPage, 30)
     const problemPage = PROBLEM_PAGES.has(suppliedProblemPage) ? suppliedProblemPage : null
     const description = inputText(input.description, 5_000)
+    if (typeof input.idempotencyKey === 'string' && input.idempotencyKey.trim().length > 80) throw new FeedbackError('提交标识不能超过80个字符，请重新提交', 400, 'INVALID_IDEMPOTENCY_KEY')
     const idempotencyKey = inputText(input.idempotencyKey, 80)
     if (category && !CATEGORIES.has(category) && !CATEGORY_VALUES.has(category)) throw new FeedbackError('反馈类型无效', 400, 'INVALID_FEEDBACK_CATEGORY')
     if (!idempotencyKey) throw new FeedbackError('缺少提交标识，请重新提交', 400, 'MISSING_IDEMPOTENCY_KEY')
@@ -181,39 +182,51 @@ export class FeedbackService {
 
   async addUserMessage(accountId, feedbackId, input, now = new Date()) {
     checkedInput(input)
-    const data = normalizeData(await this.#store.read())
-    const feedback = data.feedback.find((item) => item.id === feedbackId && item.accountId === accountId)
-    if (!feedback) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
+    const initial = normalizeData(await this.#store.read())
+    if (!initial.feedback.some((item) => item.id === feedbackId && item.accountId === accountId)) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
     const text = inputText(input.text, 5_000)
-    const existingCount = data.attachments.filter((item) => item.feedbackId === feedbackId).length
-    const prepared = await this.#prepareAttachments(input.attachments, MAX_ATTACHMENTS - existingCount)
+    // Decode before taking the storage barrier; ownership and total count are
+    // checked again inside it immediately before any private files are saved.
+    const prepared = await this.#prepareAttachments(input.attachments)
     if (!text && prepared.length === 0) throw new FeedbackError('请填写补充内容或添加图片', 400, 'EMPTY_FEEDBACK_MESSAGE')
-    const createdAt = iso(now), messageId = randomUUID()
-    const message = { id: messageId, feedbackId, authorAccountId: accountId, kind: 'user-supplement', text, createdAt }
-    const savedAttachments = await this.#saveAttachments(accountId, feedbackId, messageId, prepared, now)
-    try {
-      await this.#store.update((raw) => {
-        const current = normalizeData(raw)
-        const currentStatus = normalizeStatus(feedback.status), nextStatus = currentStatus === 'needs_more_info' ? 'reviewing' : currentStatus
-        return { ...current, messages: [...current.messages, message], attachments: [...current.attachments, ...savedAttachments], feedback: current.feedback.map((item) => item.id === feedbackId ? { ...item, status: nextStatus, statusUpdatedAt: nextStatus !== currentStatus ? createdAt : (item.statusUpdatedAt ?? item.updatedAt), updatedAt: createdAt } : item), statusHistory: nextStatus !== currentStatus ? [...current.statusHistory, { id: randomUUID(), feedbackId, status: nextStatus, actorAccountId: accountId, createdAt }] : current.statusHistory }
-      })
-    } catch (error) {
-      await Promise.all(savedAttachments.map((item) => this.#storage.remove(item.storageKey)))
-      throw error
-    }
-    return this.getForAccount(accountId, feedbackId)
+    return withStorageLock(async () => {
+      let savedAttachments = []
+      try {
+        return await accountTransaction(this.#dataDirectory, async () => {
+          const data = normalizeData(await this.#store.read())
+          const feedback = data.feedback.find((item) => item.id === feedbackId && item.accountId === accountId)
+          if (!feedback) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
+          const existingCount = data.attachments.filter((item) => item.feedbackId === feedbackId).length
+          if (existingCount + prepared.length > MAX_ATTACHMENTS) throw new FeedbackError(`每条反馈最多 ${MAX_ATTACHMENTS} 张图片`, 400, 'TOO_MANY_FEEDBACK_ATTACHMENTS')
+          const createdAt = iso(now), messageId = randomUUID()
+          const message = { id: messageId, feedbackId, authorAccountId: accountId, kind: 'user-supplement', text, createdAt }
+          savedAttachments = await this.#saveAttachments(accountId, feedbackId, messageId, prepared, now)
+          await this.#store.update((raw) => {
+            const current = normalizeData(raw)
+            const currentStatus = normalizeStatus(feedback.status), nextStatus = currentStatus === 'needs_more_info' ? 'reviewing' : currentStatus
+            return { ...current, messages: [...current.messages, message], attachments: [...current.attachments, ...savedAttachments], feedback: current.feedback.map((item) => item.id === feedbackId ? { ...item, status: nextStatus, statusUpdatedAt: nextStatus !== currentStatus ? createdAt : (item.statusUpdatedAt ?? item.updatedAt), updatedAt: createdAt } : item), statusHistory: nextStatus !== currentStatus ? [...current.statusHistory, { id: randomUUID(), feedbackId, status: nextStatus, actorAccountId: accountId, createdAt }] : current.statusHistory }
+          })
+          return this.getForAccount(accountId, feedbackId)
+        })
+      } catch (error) {
+        await Promise.all(savedAttachments.map((item) => this.#storage.remove(item.storageKey)))
+        throw error
+      }
+    })
   }
 
   async deleteForAccount(accountId, feedbackId) {
-    const data = normalizeData(await this.#store.read())
-    if (!data.feedback.some((item) => item.id === feedbackId && item.accountId === accountId)) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
-    const ownedAttachments = data.attachments.filter((item) => item.feedbackId === feedbackId)
-    await this.#store.update((raw) => {
-      const current = normalizeData(raw)
-      return { ...current, feedback: current.feedback.filter((item) => item.id !== feedbackId), attachments: current.attachments.filter((item) => item.feedbackId !== feedbackId), messages: current.messages.filter((item) => item.feedbackId !== feedbackId), statusHistory: current.statusHistory.filter((item) => item.feedbackId !== feedbackId) }
+    return withStorageLock(async () => {
+      const data = normalizeData(await this.#store.read())
+      if (!data.feedback.some((item) => item.id === feedbackId && item.accountId === accountId)) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
+      const ownedAttachments = data.attachments.filter((item) => item.feedbackId === feedbackId)
+      await this.#store.update((raw) => {
+        const current = normalizeData(raw)
+        return { ...current, feedback: current.feedback.filter((item) => item.id !== feedbackId), attachments: current.attachments.filter((item) => item.feedbackId !== feedbackId), messages: current.messages.filter((item) => item.feedbackId !== feedbackId), statusHistory: current.statusHistory.filter((item) => item.feedbackId !== feedbackId) }
+      })
+      await Promise.all(ownedAttachments.map((item) => this.#storage.remove(item.storageKey)))
+      return { success: true }
     })
-    await Promise.all(ownedAttachments.map((item) => this.#storage.remove(item.storageKey)))
-    return { success: true }
   }
 
   async listForOps(filters = {}) {

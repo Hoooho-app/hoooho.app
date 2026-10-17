@@ -1,5 +1,5 @@
 import {outputFailure} from '../providers/output-diagnostics.mjs'
-const rules=new Set(['source_missing','quote_missing','value_missing','quote_not_in_source','value_not_in_quote','negation_scope','negation_prefix','negated_fact_coverage','affirmed_fact_coverage'])
+const rules=new Set(['source_missing','quote_missing','value_missing','quote_not_in_source','value_not_in_quote','negation_scope','negation_prefix','negated_fact_coverage','affirmed_fact_coverage','evidence_ambiguous','subject_context','temporal_context','literal_observation_coverage'])
 // Fixed rule names and numeric positions only. No fact names, values or quotes.
 export function evidenceFailure(message,path,rule,positions={}){
  const error=Object.assign(outputFailure(message,'source_validation',path,'source_mismatch','AI_EVIDENCE_MISMATCH'),{status:422})

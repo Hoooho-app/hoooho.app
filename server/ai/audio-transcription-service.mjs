@@ -1,6 +1,6 @@
 import { AudioTranscriptionError } from './audio-transcription-error.mjs'
 export { AudioTranscriptionError } from './audio-transcription-error.mjs'
-import { normalizeMp4Audio } from './compressed-audio.mjs'
+import { normalizeMp4Audio, validateWavAudio } from './compressed-audio.mjs'
 import { createAudioProvider } from './providers/provider-factory.mjs'
 import { MedicalSummaryError } from './medical-summary-service.mjs'
 import { withAIAccount } from './providers/call-control.mjs'
@@ -74,6 +74,8 @@ export class AudioTranscriptionService {
       audio=validateAudio(input);stage='configuration'
       if (!this.provider?.transcribeAudio) throw new AudioTranscriptionError('语音转写服务尚未配置，请改用文字记录', 503, 'ASR_NOT_CONFIGURED')
       if(this.provider.configurationError)throw new AudioTranscriptionError('语音服务配置异常，请继续文字记录',503,'ASR_CONFIGURATION_INVALID')
+      stage='audio_validation'
+      audio=await validateWavAudio(audio,signal)
       stage='call_limit'
       if(accountId){const now=Date.now();for(const [id,c] of this.calls)if(now-c.started>=3600000)this.calls.delete(id);const count=this.calls.get(accountId)??{started:now,count:0};if(count.count>=this.maxCallsPerHour)throw new AudioTranscriptionError('本小时转写次数已达上限，请继续文字记录',429,'ASR_CALL_LIMIT');count.count++;this.calls.set(accountId,count)}
       if(signal?.aborted)throw new AudioTranscriptionError('已取消转写',499,'ASR_CANCELLED')

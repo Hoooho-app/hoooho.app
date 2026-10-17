@@ -5,7 +5,7 @@ import { HealthChangeAnnotationService } from './health-change-annotation-servic
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
-import { accountTransaction } from '../auth/storage/transaction.mjs'
+import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { parseStrictInstant } from '../time/strict-date.mjs'
 import path from 'node:path'
@@ -159,27 +159,29 @@ export class HealthEventRecordService {
   }
 
   async createRecord(accountId, eventId, input, now = new Date()) {
-    const event = await this.assertEventOwnership(accountId, eventId)
-    rejectImmutableFields(input)
-    const journal = input.journal === undefined ? undefined : validateJournal(input.journal, { now })
-    const occurredAt = validateOccurredAt(journalOccurrenceAt(journal, input.occurredAt), now)
-    if (journal?.sleep?.sleepAt) validateOccurredAt(journal.sleep.sleepAt, now)
-    if (journal?.diet?.startedAt) validateOccurredAt(journal.diet.startedAt, now)
-    await this.validateSymptomLinks(accountId, event, journal)
-    const created = await this.repository.create({
-      accountId,
-      eventId,
-      type: validateType(input.type),
-      ...(input.caseIdentity ? { caseContext: { identity: ['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.caseIdentity) ? input.caseIdentity : 'pending', confirmed: false, attachmentIds: [] } } : {}),
-      ...(journal === undefined ? {} : { journal }),
-      content: validateContent(input.content),
-      occurredAt,
-      sourceType: input.sourceType === undefined ? 'user_record' : validateSourceType(input.sourceType),
-      sourceText: validateOptionalText(input.sourceText, '原始记录', 15000),
-      measurementMethod: validateMeasurementMethod(input.measurementMethod),
-      measurementDevice: validateOptionalText(input.measurementDevice, '测量设备', 200),
-      note: validateOptionalText(input.note, '备注', 1000)
-    }, now)
+    const created = await withStorageLock(async () => {
+      const event = await this.assertEventOwnership(accountId, eventId)
+      rejectImmutableFields(input)
+      const journal = input.journal === undefined ? undefined : validateJournal(input.journal, { now })
+      const occurredAt = validateOccurredAt(journalOccurrenceAt(journal, input.occurredAt), now)
+      if (journal?.sleep?.sleepAt) validateOccurredAt(journal.sleep.sleepAt, now)
+      if (journal?.diet?.startedAt) validateOccurredAt(journal.diet.startedAt, now)
+      await this.validateSymptomLinks(accountId, event, journal)
+      return this.repository.create({
+        accountId,
+        eventId,
+        type: validateType(input.type),
+        ...(input.caseIdentity ? { caseContext: { identity: ['parent','medical_consultation','examination_report','external_ai','pending'].includes(input.caseIdentity) ? input.caseIdentity : 'pending', confirmed: false, attachmentIds: [] } } : {}),
+        ...(journal === undefined ? {} : { journal }),
+        content: validateContent(input.content),
+        occurredAt,
+        sourceType: input.sourceType === undefined ? 'user_record' : validateSourceType(input.sourceType),
+        sourceText: validateOptionalText(input.sourceText, '原始记录', 15000),
+        measurementMethod: validateMeasurementMethod(input.measurementMethod),
+        measurementDevice: validateOptionalText(input.measurementDevice, '测量设备', 200),
+        note: validateOptionalText(input.note, '备注', 1000)
+      }, now)
+    })
     const bodyLocations = Array.isArray(input.bodyLocations)
       ? [...new Set(input.bodyLocations.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean))].slice(0, 12)
       : []
@@ -223,6 +225,9 @@ export class HealthEventRecordService {
         }
         await this.validateSymptomLinks(accountId, event, changes.journal)
       }
+    }
+    if (Object.hasOwn(changes, 'journal') && record.journal?.visit?.materials && !changes.journal?.visit?.materials) {
+      throw new HealthEventRecordError('已保存的原件与原话需保留，后续资料请追加', 400, 'VISIT_ORIGINAL_IMMUTABLE')
     }
     if (changes.journal?.visit?.materials) {
       const previous = record.journal?.visit?.materials, next = changes.journal.visit.materials

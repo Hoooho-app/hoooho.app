@@ -275,15 +275,24 @@ export class MedicationReminderService {
     })
   }
 
+  async removeCompletionRecord(accountId, completion, now = new Date()) {
+    const record = await this.records.repository.findById(completion.recordId)
+    const removed = record?.accountId === accountId && record.eventId === completion.eventId
+    if (removed) await this.records.repository.delete(completion.recordId)
+    const event = await this.events.repository.findById(completion.eventId)
+    // The confirmation originally created this event, but users can subsequently
+    // add independent records. Keep their parent while any records remain.
+    if (event?.accountId !== accountId) return
+    if (!(await this.records.repository.findByEventId(completion.eventId)).length) await this.events.repository.delete(completion.eventId)
+    else if (removed) await this.records.recomputeAfterMutation(accountId, completion.eventId, now)
+  }
+
   async undo(accountId, id, now = new Date()) {
     return accountTransaction(this.dataDirectory, async () => {
       const reminder = await this.owned(accountId, id)
       const latest = reminder.completions.filter((item) => !item.undoneAt).sort((left, right) => (Number(right.sequence) || 0) - (Number(left.sequence) || 0) || right.completedAt.localeCompare(left.completedAt) || right.id.localeCompare(left.id))[0]
       if (!latest) throw new MedicationReminderError('没有可撤回的服用记录', 409, 'NO_MEDICATION_COMPLETION_TO_UNDO')
-      const record = await this.records.repository.findById(latest.recordId)
-      if (record?.accountId === accountId) await this.records.repository.delete(latest.recordId)
-      const event = await this.events.repository.findById(latest.eventId)
-      if (event?.accountId === accountId) await this.events.repository.delete(latest.eventId)
+      await this.removeCompletionRecord(accountId, latest, now)
       let saved
       await this.store.update((data) => ({ ...data, reminders: data.reminders.map((item) => {
         if (item.id !== reminder.id) return item
@@ -309,10 +318,7 @@ export class MedicationReminderService {
       if (!reminder) return { deleted: true, idempotent: true }
       if (reminder.accountId !== accountId) throw new MedicationReminderError('未找到这条用药提醒', 404, 'MEDICATION_REMINDER_NOT_FOUND')
       for (const completion of reminder.completions) {
-        const record = await this.records.repository.findById(completion.recordId)
-        if (record?.accountId === accountId) await this.records.repository.delete(completion.recordId)
-        const event = await this.events.repository.findById(completion.eventId)
-        if (event?.accountId === accountId) await this.events.repository.delete(completion.eventId)
+        await this.removeCompletionRecord(accountId, completion)
       }
       await this.store.update((current) => ({ ...current, reminders: current.reminders.filter((item) => item.id !== id) }))
       return { deleted: true, idempotent: false }

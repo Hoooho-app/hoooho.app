@@ -4,7 +4,7 @@ import {AudioTranscriptionService} from './audio-transcription-service.mjs'
 function wav({channels=1,rate=16000,bits=16,format=1,junk=false,streaming=false}={}){
  const block=channels*Math.ceil(bits/8),samples=Buffer.alloc(block*160),fmtSize=format===0xfffe?40:16,fmt=Buffer.alloc(8+fmtSize)
  fmt.write('fmt ');fmt.writeUInt32LE(fmtSize,4);fmt.writeUInt16LE(format,8);fmt.writeUInt16LE(channels,10);fmt.writeUInt32LE(rate,12);fmt.writeUInt32LE(rate*block,16);fmt.writeUInt16LE(block,20);fmt.writeUInt16LE(bits,22)
- if(format===0xfffe)fmt.writeUInt16LE(22,24)
+ if(format===0xfffe){fmt.writeUInt16LE(22,24);fmt.writeUInt16LE(bits,26);Buffer.from('0100000000001000800000aa00389b71','hex').copy(fmt,32)}
  const data=Buffer.alloc(8);data.write('data');data.writeUInt32LE(streaming?0xffffffff:samples.length,4)
  const ancillary=Buffer.from('JUNK\x03\x00\x00\x00abc\x00','binary'),body=Buffer.concat([fmt,...(junk?[ancillary]:[]),data,samples]),head=Buffer.alloc(12);head.write('RIFF');head.writeUInt32LE(streaming?0xffffffff:body.length+4,4);head.write('WAVE',8)
  return Buffer.concat([head,body])
@@ -20,6 +20,7 @@ test('magic-only, missing/empty data, invalid format and truncated chunks never 
  const valid=wav(),truncated=valid.subarray(0,valid.length-2),empty=Buffer.from(valid);empty.writeUInt32LE(0,40)
  const noFmt=Buffer.from(valid);noFmt.write('JUNK',12)
  const invalidFmt=Buffer.from(valid);invalidFmt.writeUInt16LE(0,22)
- for(const bytes of [magic,truncated,empty,noFmt,invalidFmt])await assert.rejects(()=>f.service.transcribe(input(bytes)),{code:'AUDIO_DECODE_FAILED',status:422})
+ const invalidSubtype=wav({format:0xfffe});invalidSubtype.fill(0,44,60)
+ for(const bytes of [magic,truncated,empty,noFmt,invalidFmt,invalidSubtype])await assert.rejects(()=>f.service.transcribe(input(bytes)),{code:'AUDIO_DECODE_FAILED',status:422})
  assert.equal(f.calls(),0)
 })

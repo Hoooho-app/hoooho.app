@@ -11,6 +11,50 @@ const owned = (row, memberId) => !row.memberId || row.memberId === memberId
 const failure = message => Object.assign(new Error(message), { status: 409, code: 'ALLERGY_SYNC_CONFLICT' })
 const unknownNames = new Set(['尚未明确', '过敏原未明', '不明确', '未知'])
 const recordObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+export function projectFamilyIssues(record, id) {
+  const text = value => typeof value === 'string' ? value.trim() : ''
+  if (Array.isArray(record.healthIssues)) return record.healthIssues
+  // Match the existing legacy family-history adapter: conditions are separate
+  // issues, while old shared details belong only to the first issue.
+  const names = [...new Set([...(Array.isArray(record.conditions) ? record.conditions : []), text(record.disease)].map(value => String(value ?? '').trim()).filter(Boolean))]
+  if (!names.length) names.push(...[text(record.disease ?? record.conditions ?? record.name)].filter(Boolean))
+  return names.map((name, index) => ({
+    id: index === 0 ? `${id}:legacy` : `${id}:legacy-${index + 1}`, name,
+    onset: index === 0 ? record.onset ?? record.age : '',
+    certainty: index === 0 ? record.certainty ?? record.diagnosed ?? record.diagnosisStatus : '',
+  }))
+}
+
+// IDs stay opaque and unchanged. Reject ambiguity rather than regenerating
+// identities or silently selecting a different historical record.
+export function assertUniqueProfileRecordIds(sectionId, records, status = 400) {
+  if (!['allergy', 'chronic', 'family-history', 'surgery', 'vaccination'].includes(sectionId)) return
+  const seen = new Set(), allergyIds = new Set(), familyIds = new Set()
+  const add = (ids, id) => {
+    // Match Map/strict-equality row identities: neither normalize nor coerce.
+    if (ids.has(id)) throw Object.assign(new Error('档案标识重复，请核对后重试；原记录未修改'), { status, code: 'PROFILE_IDENTITY_CONFLICT' })
+    ids.add(id)
+  }
+  for (const [index, record] of (Array.isArray(records) ? records : []).entries()) {
+    if (!recordObject(record)) continue
+    const id = record.id ?? `legacy-${sectionId}-${index + 1}`
+    add(seen, id)
+    if (sectionId === 'allergy' && record.recordType !== 'allergy-report') {
+      const nested = record._allergyArchive?.items
+      if (Array.isArray(nested)) for (const [i, item] of nested.entries()) {
+        if (recordObject(item)) add(allergyIds, item.id ?? `legacy-allergy-${index + 1}:item-${i + 1}`)
+      }
+      else add(allergyIds, id)
+    }
+    if (sectionId === 'family-history') {
+      // Family row IDs are template strings, so check their final identity as
+      // well (numeric/string IDs and slash-containing parts can otherwise alias).
+      for (const [i, issue] of projectFamilyIssues(record, id).entries()) {
+        if (recordObject(issue)) add(familyIds, `${id}/${issue.id ?? `issue-${i + 1}`}`)
+      }
+    }
+  }
+}
 export function validateProfileSectionRecords(sectionId, records) {
   const invalid = () => { throw Object.assign(new Error('档案条目或详细内容格式无效'), { status: 400, code: 'INVALID_PROFILE_SECTION' }) }
   const objectRows = value => Array.isArray(value) && value.every(recordObject)
@@ -25,6 +69,7 @@ export function validateProfileSectionRecords(sectionId, records) {
     }
     if (sectionId === 'family-history' && record.healthIssues !== undefined && !objectRows(record.healthIssues)) invalid()
   }
+  assertUniqueProfileRecordIds(sectionId, records)
   return records
 }
 

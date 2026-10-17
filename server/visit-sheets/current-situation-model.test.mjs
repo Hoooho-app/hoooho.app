@@ -25,7 +25,7 @@ test('摘要专属传输回填连续原话与来源，省去重复引文并保�
   const compact=compactFixture(),original=situationOutput();let calls=0,body
   const provider=new BailianProvider({env:{BAILIAN_API_KEY:'fixture-only',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'},logger:{info(){},warn(){}},fetchImpl:async(_,init)=>{calls++;body=JSON.parse(init.body);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(compact)}}]})}})
   const result=await new MedicalSummaryService({provider}).generate(input,'account-a')
-  assert.equal(calls,1);assert.equal(result.provider,'bailian');assert.equal(result.model,'qwen3.7-plus')
+  assert.equal(calls,1);assert.equal(result.provider,'bailian');assert.equal(result.model,'qwen3.7-plus-2026-05-26')
   assert.equal(body.stream,false);assert.equal(body.enable_thinking,false);assert.equal(body.max_tokens,5000)
   assert.ok(JSON.stringify(compact).length<JSON.stringify(original).length*0.8)
   assert.doesNotMatch(JSON.stringify(body.response_format.json_schema.schema),/sourceId|quote/)

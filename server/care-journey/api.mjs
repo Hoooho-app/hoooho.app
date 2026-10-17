@@ -43,7 +43,7 @@ export async function readCareAccountId(request, {
   const payload = tokens.verify(/^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1] ?? '');
   if (!payload || payload.purpose) throw new CareJourneyError('登录状态无效或已过期', 401, 'UNAUTHORIZED');
   const user = await service.users.findById(payload.sub);
-  if (!user || user.mergedInto) throw new CareJourneyError('登录状态无效或已过期', 401, 'UNAUTHORIZED');
+  if (!user || user.mergedInto || !tokens.isCurrentForUser(payload, user)) throw new CareJourneyError('登录状态无效或已过期', 401, 'UNAUTHORIZED');
   sessions.assertSameOrigin(request);
   if (payload.browserSession || payload.guest || user.guest) {
     const current = await sessions.current(request);

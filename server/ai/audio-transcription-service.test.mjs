@@ -15,6 +15,25 @@ function realWavBuffer() {
   return Buffer.concat([header, samples])
 }
 
+test('unsupported WAV codec is rejected before ASR and does not consume its call budget', async () => {
+  let calls = 0
+  const service = new AudioTranscriptionService({ maxCallsPerHour: 1, logger: { info() {}, warn() {} }, provider: { name: 'local-fixture', async transcribeAudio(audio) { calls++; assert.equal(Buffer.compare(audio.buffer, realWavBuffer()), 0); return { transcript: '合成转写' } } } })
+  const buffer = realWavBuffer(); buffer.writeUInt16LE(65535, 20)
+  const input = bytes => ({ mimeType: 'audio/wav', dataUrl: 'data:audio/wav;base64,' + bytes.toString('base64') })
+  await assert.rejects(service.transcribe(input(buffer), 'synthetic-wav'), { code: 'AUDIO_DECODE_FAILED' })
+  assert.equal(calls, 0)
+  await service.transcribe(input(realWavBuffer()), 'synthetic-wav')
+  assert.equal(calls, 1)
+})
+
+test('decodable streaming WAV with unknown chunk lengths retains original bytes and reaches ASR', async () => {
+  const buffer = realWavBuffer(); buffer.writeUInt32LE(0xffffffff, 4); buffer.writeUInt32LE(0xffffffff, 40)
+  let calls = 0
+  const service = new AudioTranscriptionService({ logger: { info() {}, warn() {} }, provider: { name: 'local-fixture', async transcribeAudio(audio) { calls++; assert.equal(Buffer.compare(audio.buffer, buffer), 0); return { transcript: '合成转写' } } } })
+  await service.transcribe({ mimeType: 'audio/wav', dataUrl: 'data:audio/wav;base64,' + buffer.toString('base64') })
+  assert.equal(calls, 1)
+})
+
 async function readFixture() {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-asr-fixture-'))
   const file = path.join(directory, 'mandarin-safety.wav')

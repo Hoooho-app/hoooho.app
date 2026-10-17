@@ -62,7 +62,7 @@ export class BrowserSessionService {
       const payload = this.auth.tokens.verify(legacyToken)
       if (payload && !payload.purpose && !payload.browserSession) {
         const user = payload.guest ? await this.auth.users.createGuest(payload.sub) : await this.auth.users.findById(payload.sub)
-        if (user && !user.mergedInto) {
+        if (user && !user.mergedInto && this.auth.tokens.isCurrentForUser(payload, user)) {
           response.setHeader('X-Hoooho-Session-Outcome', 'legacy-upgraded')
           return this.issue(request, response, user)
         }

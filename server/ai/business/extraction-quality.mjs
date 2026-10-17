@@ -1,3 +1,4 @@
+import {clinicalAssertions,literalBodyObservations} from '../../../shared/clinical-evidence.mjs'
 import { LocalFactProvider, extractTimeMentions } from '../providers/local-fact-provider.mjs'
 import { resolveItemTime } from './contract.mjs'
 import { outputFailure } from '../providers/output-diagnostics.mjs'
@@ -44,8 +45,14 @@ export async function reconcileExtraction(items,sources,context){
   const times=new Set(),timeSources=[]
   for(const field of result.fields.filter(f=>f.name==='symptom'))for(const ref of field.sources){
    const source=sources.find(s=>s.id===ref.sourceId&&s.page===ref.page)
-   const quoteStart=ref.start,quoteEnd=ref.end
-   if(!source||source.text.indexOf(ref.quote)!==source.text.lastIndexOf(ref.quote))continue
+   const quoteStart=ref.valueStart??ref.start,quoteEnd=ref.valueEnd??ref.end
+   if(!source)continue
+   const scoped=[...clinicalAssertions(source.text),...literalBodyObservations(source.text)].filter(a=>a.start>=quoteStart&&a.end<=quoteEnd)
+   const history=scoped.find(a=>a.temporality==='historical')
+   if(history&&!result.timeText&&field.value.includes(history.historicalTime)){
+    if(scoped.some(a=>a.temporality==='current'))throw evidenceFailure('同一事项混有历史和当前观察，请分别核对时间','/items','temporal_context')
+    result.timeText=history.historicalTime
+   }
    const facts=parsed.get(`${source.id}:${source.page}`).facts.filter(f=>f.type==='symptom'&&f.subject==='event_subject'&&f.sourceText&&source.text.includes(f.sourceText))
    for(const fact of facts){
     const start=source.text.indexOf(fact.sourceText),end=start+fact.sourceText.length
@@ -112,6 +119,18 @@ export async function reconcileExtraction(items,sources,context){
   }
   const sourceItems=reconciled.filter(item=>item.fields.some(field=>field.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page)))
   if(!sourceItems.some(item=>routineCategories.has(item.category)))continue
+  // Check literal body observations even when the general fact vocabulary has
+  // no clinical concept for them. Reject omission; never manufacture a diagnosis.
+  for(const observation of literalBodyObservations(source.text)){
+   if(observation.subject!=='current'||observation.temporality!=='current')continue
+   const represented=sourceItems.some(item=>item.fields.some(field=>
+    (item.category==='symptom'||['symptom','reaction'].includes(field.name))&&
+    field.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page&&
+     [...clinicalAssertions(field.value),...literalBodyObservations(field.value)].some(a=>a.concept===observation.concept&&a.polarity===observation.polarity&&(ref.valueStart??ref.start)+a.start>=observation.clause.start&&(ref.valueStart??ref.start)+a.end<=observation.clause.end)
+    )
+   ))
+   if(!represented)throw evidenceFailure('生成结果遗漏了原话中的身体观察，请核对；原稿未修改','/items','literal_observation_coverage',{sourceIndex,page:source.page})
+  }
   for(const [factIndex,fact] of parsed.get(`${source.id}:${source.page}`).facts.entries()){
    if(!(fact.type==='symptom'&&fact.subject==='event_subject'&&fact.polarity==='affirmed'&&fact.temporality==='current'&&fact.assertionType==='observation'))continue
    let represented=false

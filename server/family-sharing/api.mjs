@@ -2,6 +2,7 @@ import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { AuthService } from '../auth/auth-service.mjs'
 import { BrowserSessionService } from '../auth/browser-session-service.mjs'
+import { readCareAccountId } from '../care-journey/api.mjs'
 import { EventAttachmentService } from '../events/event-attachment-service.mjs'
 import { FamilySharingError, FamilySharingService } from './family-sharing-service.mjs'
 
@@ -57,12 +58,8 @@ export function familySharingApiPlugin(options = {}) {
       if (options.readAccountId) accountId = await options.readAccountId(request)
       else {
         browser.assertSameOrigin(request)
-        const current = await browser.current(request)
-        if (current) accountId = current.user.id
-        else {
-          const token = auth.tokens.verify(/^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1] ?? '')
-          if (token && !token.browserSession && !token.purpose) accountId = token.sub
-        }
+        if (request.headers.authorization) accountId = await readCareAccountId(request, { tokens: auth.tokens, service: auth, sessions: browser })
+        else accountId = (await browser.current(request))?.user.id
       }
       if (!accountId) throw new FamilySharingError('请重新登录后继续', 401, 'UNAUTHORIZED')
       let input

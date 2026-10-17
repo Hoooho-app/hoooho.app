@@ -180,29 +180,39 @@ export function AccountPasswordPage() {
   const { token, profile } = useAccount()
   const clear = useAppStore((state) => state.clearAuthSession)
   const [currentPassword, setCurrentPassword] = useState('')
+  const [verifyWithEmail, setVerifyWithEmail] = useState(false)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const emailVerification = !profile?.hasPassword || verifyWithEmail
+  useEffect(() => { if (countdown < 1) return; const timer = setInterval(() => setCountdown((n) => Math.max(0, n - 1)), 1000); return () => clearInterval(timer) }, [countdown])
+  const switchVerification = () => {
+    setVerifyWithEmail((value) => !value)
+    setCurrentPassword(''); setCode(''); setSent(false); setError('')
+  }
   const send = async () => {
+    if (busy || countdown > 0) return
     if (!profile?.email) return setError('请先绑定邮箱后再设置密码')
     setBusy(true); setError('')
-    try { await accountService.sendCode(token, 'email', profile.email); setSent(true) } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
+    try { const result = await accountService.sendCode(token, 'email', profile.email); setSent(true); setCountdown(result.retryAfter) } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
   }
   const save = async () => {
     if (password.length < 6 || password.length > 64) return setError('密码需为 6–64 个字符')
     setBusy(true); setError('')
     try {
-      await accountService.setPassword(token, { password, ...(profile?.hasPassword ? { currentPassword } : { code }) })
+      await accountService.setPassword(token, { password, ...(emailVerification ? { code } : { currentPassword }) })
       clear(); navigate('/login', { replace: true, state: { passwordChanged: true } })
     } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
   }
   return <AccountLayout title={profile?.hasPassword ? '修改密码' : '设置密码'}>
-    {profile?.hasPassword ? <HohoInput label="当前密码" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /> : <><StatusNotice title={profile?.email ? `验证码将发送至 ${maskEmail(profile.email)}` : '请先绑定邮箱'} />{profile?.email && <div className="account-code-row"><HohoInput label="邮箱验证码" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} /><CodeButton countdown={0} disabled={busy || sent} onClick={() => void send()} /></div>}</>}
+    {!emailVerification ? <HohoInput label="当前密码" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /> : <><StatusNotice title={profile?.email ? `验证码将发送至 ${maskEmail(profile.email)}` : '请先绑定邮箱'} />{profile?.email && <div className="account-code-row"><HohoInput label="邮箱验证码" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} /><CodeButton countdown={countdown} disabled={busy} onClick={() => void send()} /></div>}</>}
+    {profile?.hasPassword && profile.email && <HohoButton variant="text" disabled={busy} onClick={switchVerification}>{verifyWithEmail ? '使用当前密码验证' : '使用邮箱验证码验证'}</HohoButton>}
     <HohoInput label="新密码" hint="6–64 个字符" type="password" autoComplete="new-password" maxLength={64} value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} />
     {error && <StatusNotice title={error} tone="error" />}
-    <HohoButton fullWidth loading={busy} size="large" disabled={!password || Boolean(profile?.hasPassword && !currentPassword) || Boolean(!profile?.hasPassword && (!sent || code.length !== 6))} onClick={() => void save()}>保存密码并重新登录</HohoButton>
+    <HohoButton fullWidth loading={busy} size="large" disabled={!password || busy || (emailVerification ? !profile?.email || !sent || code.length !== 6 : !currentPassword)} onClick={() => void save()}>保存密码并重新登录</HohoButton>
   </AccountLayout>
 }
 

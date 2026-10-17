@@ -1,4 +1,4 @@
-import { ProfileSectionStore } from './profile-section-store.mjs'
+import { ProfileSectionStore, assertUniqueProfileRecordIds, projectFamilyIssues } from './profile-section-store.mjs'
 import path from 'node:path'
 import {createHash,randomUUID} from 'node:crypto'
 import {JsonStore} from '../auth/storage/json-store.mjs'
@@ -14,6 +14,7 @@ const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex
 const norm=value=>String(value??'').normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
 const text=value=>typeof value==='string'?value.trim():''
 const own=(r,m)=>!r.memberId||r.memberId===m
+const objectRow=r=>r!==null&&typeof r==='object'&&!Array.isArray(r)
 export class ProfileListError extends Error{constructor(message,status=400,code='INVALID_PROFILE_LIST'){super(message);this.status=status;this.code=code}}
 const fail=(message,status,code)=>{throw new ProfileListError(message,status,code)}
 export function calendarDay(value){return value?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)):''}
@@ -47,10 +48,10 @@ export class ChildProfileListService{
     return {member,section,state,data}
   }
   async project(accountId,memberId,kind,context){
-    const c=context??await this.context(accountId,memberId,kind),rows=[],targets=new Map(),pending=[],unknown=[]
+    const c=context??await this.context(accountId,memberId,kind),rows=[],targets=new Map(),ambiguousIds=new Set(),pending=[],unknown=[]
     const relations=profileGroups['family-history'].map(name=>({id:relationId(name),name,default:true}))
     for(const relation of c.state.relations??[])if(!relations.some(r=>r.id===relation.id))relations.push(relation)
-    const add=(row,target,raw)=>{if(Array.isArray(raw)?raw.some(v=>v?.profileListDeletedAt):raw?.profileListDeletedAt)return;rows.push({...row,version:hash(raw)});targets.set(row.id,target)}
+    const add=(row,target,raw)=>{if(Array.isArray(raw)?raw.some(v=>v?.profileListDeletedAt):raw?.profileListDeletedAt)return;rows.push({...row,version:hash(raw)});if(targets.has(row.id))ambiguousIds.add(row.id);else targets.set(row.id,target)}
     for(const [index,outer] of (Array.isArray(c.section?.records)?c.section.records:[]).entries()){
       if(!outer||typeof outer!=='object'||Array.isArray(outer)||!own(outer,memberId)||outer.recordType==='allergy-report')continue
       const sources=kind==='allergy'&&Array.isArray(outer._allergyArchive?.items)?outer._allergyArchive.items:[outer]
@@ -67,8 +68,8 @@ export class ChildProfileListService{
         }else if(kind==='family-history'){
           const label=relationship(r),rid=r.relationId??relationId(label)
           if(!relations.some(v=>v.id===rid))relations.push({id:rid,name:label,default:false})
-          const issues=Array.isArray(r.healthIssues)?r.healthIssues:[{id:`${id}:legacy`,name:r.disease??r.conditions??r.name??'',onset:r.onset??r.age,certainty:r.certainty}]
-          for(const [i,issue] of issues.entries())if(issue&&typeof issue==='object'&&!Array.isArray(issue)&&text(issue.name))add({...base,id:`${id}/${issue.id??`issue-${i+1}`}`,name:text(issue.name),group:rid},{...target,issueIndex:i,issue},[r,issue])
+          const issues=projectFamilyIssues(r,id)
+          for(const [i,issue] of issues.entries())if(objectRow(issue)&&text(issue.name))add({...base,id:`${id}/${issue.id??`issue-${i+1}`}`,name:text(issue.name),group:rid},{...target,issueIndex:i,issue,...(!Array.isArray(r.healthIssues)?{legacyIssues:issues}:{})},[r,issue])
         }else if(kind==='vaccination'){
           if(name)add({...base,date:text(r.date??r.vaccinationDate),group:vaccinationAgeGroup(c.member.birthday,text(r.date??r.vaccinationDate),r.profileAgeGroup)},{...target,legacy:true},r)
         }else if(name)add({...base,group:kind==='chronic'?(profileGroups.chronic.includes(r.profileCategory)?r.profileCategory:profileGroups.chronic.includes(r.category)?r.category:'其他'):''},target,r)
@@ -84,15 +85,17 @@ export class ChildProfileListService{
       }
     }
     if(kind==='surgery')rows.sort((a,b)=>{const x=targets.get(a.id),y=targets.get(b.id);return (x.raw.sequence>0?x.raw.sequence:x.index+1)-(y.raw.sequence>0?y.raw.sequence:y.index+1)})
-    return {rows,pendingAllergyRows:pending,groups:kind==='family-history'?relations.map(r=>({id:r.id,name:r.name})):profileGroups[kind].map(name=>({id:name,name})),compatibility:{pendingAllergies:pending.length,confirmedUnknownCategory:unknown.length,unknownVaccineAge:rows.filter(r=>r.group==='年龄待确认').length,olderVaccineAge:rows.filter(r=>r.group==='7岁及以上').length},targets,context:c}
+    return {rows,pendingAllergyRows:pending,groups:kind==='family-history'?relations.map(r=>({id:r.id,name:r.name})):profileGroups[kind].map(name=>({id:name,name})),compatibility:{pendingAllergies:pending.length,confirmedUnknownCategory:unknown.length,unknownVaccineAge:rows.filter(r=>r.group==='年龄待确认').length,olderVaccineAge:rows.filter(r=>r.group==='7岁及以上').length},targets,ambiguousIds,context:c}
   }
-  async list(a,m,k){const {targets,context,...result}=await this.project(a,m,k);return result}
+  async list(a,m,k){const {targets,ambiguousIds,context,...result}=await this.project(a,m,k);return result}
   async command(accountId,memberId,kind,input){return accountTransaction(this.directory,async()=>{
     const c=await this.context(accountId,memberId,kind),key=text(input.key)
     if(!key||key.length>120)fail('缺少保存标识')
     const prior=c.data.requests.find(r=>r.accountId===accountId&&r.key===key)
     if(prior){if(prior.memberId!==memberId||prior.kind!==kind)fail('保存标识不属于当前孩子',409);return {...await this.list(accountId,memberId,kind),notice:prior.notice,undoId:prior.undoId}}
     const p=await this.project(accountId,memberId,kind,c),now=this.now(),timestamp=now.toISOString(),records=structuredClone(c.section?.records??[])
+    assertUniqueProfileRecordIds(kind,records,409)
+    if(['edit','delete'].includes(input.action)&&p.ambiguousIds.has(input.id))fail('档案标识重复，请核对后重试；原记录未修改',409,'PROFILE_IDENTITY_CONFLICT')
     let notice='已保存',undoId,sectionChanged=false
     const row=p.rows.find(r=>r.id===input.id),target=p.targets.get(input.id)
     if(['edit','delete'].includes(input.action)&&(!target||row.version!==input.version))fail('记录已更新，请重新加载后核对；草稿仍保留',409,'PROFILE_LIST_CONFLICT')
@@ -109,7 +112,7 @@ export class ChildProfileListService{
         validateJournal(journal);await this.records.update(record.id,{journal},now)
       }else{
         const current=records[target.index];current.id??=legacyId(kind,target.index);if(target.issueIndex!==undefined){
-          if(!Array.isArray(current.healthIssues))current.healthIssues=[structuredClone(target.issue)]
+          if(!Array.isArray(current.healthIssues))current.healthIssues=structuredClone(target.legacyIssues??[target.issue])
           Object.assign(current.healthIssues[target.issueIndex],changes)
           current.id??=target.raw.id??legacyId(kind,target.index);current.healthIssues[target.issueIndex].id??=`issue-${target.issueIndex+1}`
         }else if(target.nested!==null)Object.assign(current._allergyArchive.items[target.nested],changes,{id:target.raw.id??input.id})
@@ -129,20 +132,21 @@ export class ChildProfileListService{
       if(undo.target.record){const r=await this.records.findById(undo.target.record.id);if(!r||r.accountId!==accountId)fail('记录已不存在',409);const journal=structuredClone(r.journal),v=journal.vaccination.items.find(v=>v.id===undo.target.raw.id);if(!v)fail('记录已变更，无法直接撤销',409);delete v.profileListDeletedAt;await this.records.update(r.id,{journal},now)}
       else {
         const t=undo.target,outerId=t.outer.id??legacyId(kind,t.index)
-        let r=records.find(v=>v.id===outerId)
+        let r=records.find(v=>objectRow(v)&&v.id===outerId)
         // Legacy serializers may omit a hidden record. Recover only its saved
         // identity, never whichever unrelated row now occupies its old index.
         if(!r){r={...structuredClone(t.outer),id:outerId};records.push(r)}
         let destination=r
         if(t.issueIndex!==undefined){
           const issueId=t.issue.id??`issue-${t.issueIndex+1}`
-          r.healthIssues??=[{...structuredClone(t.issue),id:issueId}]
-          r.healthIssues=r.healthIssues.map((v,i)=>({...v,id:v.id??`issue-${i+1}`}))
-          destination=r.healthIssues.find(v=>v.id===issueId)
+          if(!Array.isArray(r.healthIssues))r.healthIssues=structuredClone(t.legacyIssues??[{...t.issue,id:issueId}])
+          r.healthIssues=r.healthIssues.map((v,i)=>objectRow(v)?{...v,id:v.id??`issue-${i+1}`}:v)
+          destination=r.healthIssues.find(v=>objectRow(v)&&v.id===issueId)
           if(!destination){destination={...structuredClone(t.issue),id:issueId};r.healthIssues.push(destination)}
         }else if(t.nested!==null){
-          destination=r._allergyArchive?.items.find(v=>v.id===(t.raw.id??undo.rowId))
-          if(!destination&&r._allergyArchive?.items[t.nested]&&hash(r._allergyArchive.items[t.nested])===hash(t.raw)){destination=r._allergyArchive.items[t.nested];destination.id=t.raw.id??undo.rowId}
+          const items=Array.isArray(r._allergyArchive?.items)?r._allergyArchive.items:[]
+          destination=items.find(v=>objectRow(v)&&v.id===(t.raw.id??undo.rowId))
+          if(!destination&&objectRow(items[t.nested])&&hash(items[t.nested])===hash(t.raw)){destination=items[t.nested];destination.id=t.raw.id??undo.rowId}
           if(!destination)fail('记录已变更，无法直接撤销',409)
         }
         delete destination.profileListDeletedAt;sectionChanged=true
@@ -160,7 +164,8 @@ export class ChildProfileListService{
         if(kind==='family-history'&&group!==row.group){
           const current=records[target.index],label=p.groups.find(g=>g.id===group).name
           const familyChanges={relationship:label,customRelationship:'',relationId:group}
-          if(Array.isArray(current.healthIssues)&&current.healthIssues.length>1){
+          if(!Array.isArray(current.healthIssues))current.healthIssues=structuredClone(target.legacyIssues??[target.issue])
+          if(current.healthIssues.length>1){
             // Move only the selected issue; siblings remain with their original
             // relative. Keep the issue identity and its existing evidence.
             const moved={...structuredClone(target.issue),...changes}

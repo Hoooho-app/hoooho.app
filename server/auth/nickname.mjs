@@ -2,7 +2,7 @@ const invisiblePattern = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u
 const allowedPattern = /^[\p{L}\p{N}]+$/u
 
 export function normalizeNickname(value) {
-  return String(value ?? '').normalize('NFKC').trim()
+  return typeof value === 'string' ? value.normalize('NFKC').trim() : ''
 }
 
 export function nicknameKey(value) {

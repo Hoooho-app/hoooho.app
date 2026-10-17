@@ -1,4 +1,5 @@
 import { HealthEventRecordError } from './health-event-record-error.mjs'
+import { parseStrictInstant } from '../time/strict-date.mjs'
 const invalid = message => { throw new HealthEventRecordError(message, 400, 'INVALID_VISIT_MATERIALS') }
 const text = (value, limit, empty = false) => {
   if (typeof value !== 'string' || value.length > limit || !empty && !value.trim()) invalid('就诊资料内容格式或长度无效')
@@ -35,10 +36,11 @@ export function validateVisitMaterials(value) {
   })
   const result = { source: value.source, status: value.status, title: text(value.title, 120), documents, blocks }
   for (const [key, limit] of [['institution', 120], ['supplement', 1000]]) if (value[key] !== undefined) result[key] = text(value[key], limit, true)
-  if (value.occurredAt) {
-    const time = Date.parse(value.occurredAt)
-    if (!Number.isFinite(time) || time > Date.now()) invalid('就诊时间不能晚于现在')
-    result.occurredAt = new Date(time).toISOString()
+  if (value.occurredAt !== undefined) {
+    const time = parseStrictInstant(value.occurredAt)
+    if (!time) invalid('就诊时间格式无效')
+    if (time.getTime() > Date.now()) invalid('就诊时间不能晚于现在')
+    result.occurredAt = time.toISOString()
   }
   return result
 }

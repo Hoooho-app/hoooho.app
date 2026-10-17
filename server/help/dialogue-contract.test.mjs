@@ -18,7 +18,7 @@ test('all conversation roles select Qwen despite a legacy global OpenAI selectio
   assert.equal(provider.name,'bailian')
   await provider.fetch(`${provider.baseUrl}/responses`,{body:JSON.stringify({instructions:'fixture policy',input:'fixture question',text:{format:{type:'json_schema',name:'dialogue_test',schema:{type:'object',required:['reply'],additionalProperties:false,properties:{reply:{type:'string'}}}}}})})
   assert.equal(target,'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions')
-  assert.equal(body.model,'qwen3.7-plus');assert.equal(body.stream,false)
+  assert.equal(body.model,'qwen3.7-plus-2026-05-26');assert.equal(body.stream,false)
 })
 test('help screenshots reach only the supplied Qwen request; retry checks image identity and storage excludes image bytes',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'dialogue-contract-'));t.after(()=>rm(directory,{recursive:true,force:true}))

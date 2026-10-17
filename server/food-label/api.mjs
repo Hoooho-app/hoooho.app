@@ -4,7 +4,7 @@ import { AuthService } from '../auth/auth-service.mjs'
 import { FamilyMemberService } from '../members/family-member-service.mjs'
 import { FoodLabelService, foodFailureMessage } from './service.mjs'
 import { activeAllergyRecords } from '../health-profile/profile-section-store.mjs'
-const legacyStatus=value=>({'已明确':'confirmed','已确诊':'confirmed','医生确认':'confirmed','待排查':'investigating','疑似':'suspected','已排除':'excluded','曾经有，目前已耐受':'tolerated'}[value]??value)
+const legacyStatus=value=>({'已明确':'confirmed','已确诊':'confirmed','医生明确':'confirmed','医生确认':'confirmed','待排查':'investigating','疑似':'suspected','已排除':'excluded','曾经有，目前已耐受':'tolerated'}[value]??value)
 
 export function createFoodLabelService(options){
   const sections=new JsonStore(path.join(options.dataDirectory,'health-profile-sections.json'),{sections:[]})

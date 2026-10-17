@@ -105,8 +105,14 @@ function rangeForDay(parts, timezone, raw, precision = 'day', source = 'user_tex
 function resolveExplicit(raw, timezone, referenceParts) {
   // Numeric historical dates are local wall times unless an explicit offset
   // is supplied. Never ignore the date and reuse today's clock.
-  if(/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)){
-    const instant=parseStrictInstant(raw)
+  if(/^\d{4}([-/])\d{1,2}\1\d{1,2}[T ]\d/i.test(raw)){
+    const numeric=/^(\d{4})([-/])(\d{1,2})\2(\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:?\d{2})?$/i.exec(raw)
+    if(!numeric)throw invalidTime()
+    const [,year,,month,day,hour,minute,second,fraction,zone]=numeric
+    const local=zone?null:isoInTimezone({year:Number(year),month:Number(month),day:Number(day),hour:Number(hour),minute:Number(minute),second:Number(second??0)},timezone)
+    const milliseconds=fraction?'.'+fraction.slice(0,3).padEnd(3,'0'):''
+    const value=zone?`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T${hour.padStart(2,'0')}:${minute}:${second??'00'}${milliseconds}${zone}`:local.replace(/([+-]\d{2}:\d{2})$/,milliseconds+'$1')
+    const instant=parseStrictInstant(value)
     if(!instant)throw invalidTime()
     return {raw,resolvedStart:instant.toISOString(),resolvedEnd:null,precision:'exact',source:'user_text'}
   }
