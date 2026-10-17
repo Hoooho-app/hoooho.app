@@ -23,6 +23,12 @@ export function sleepAngle(value: string, timeZone: string = SLEEP_CLOCK.timeZon
 export function pointerAngle(x: number, y: number) { return (Math.atan2(y, x) * 180 / Math.PI + 450) % 360 }
 export function angleDelta(previous: number, next: number) { return ((next - previous + 540) % 360) - 180 }
 export function draggedSleepInstant(initial: string, degrees: number, minutesPerTurn: number = SLEEP_CLOCK.minutesPerTurn) { return new Date(Date.parse(initial) + Math.round(degrees * minutesPerTurn / 360) * 60000).toISOString() }
+export function sleepRelativeDateLabel(value: string, now: string | Date = new Date(Date.now()), timeZone: string = SLEEP_CLOCK.timeZone) {
+  const date = sleepLocal(value, timeZone).slice(0, 10)
+  const today = sleepLocal(now, timeZone).slice(0, 10)
+  const days = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86400000
+  return days === 0 ? '今天' : days === 1 ? '昨天' : days === 2 ? '前天' : date
+}
 export function sleepDateLabel(value: string, reference: string, timeZone: string = SLEEP_CLOCK.timeZone) {
   const local = sleepLocal(value, timeZone)
   const days = Math.round((Date.parse(`${local.slice(0, 10)}T00:00:00Z`) - Date.parse(`${sleepLocal(reference, timeZone).slice(0, 10)}T00:00:00Z`)) / 86400000)

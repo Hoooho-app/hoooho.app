@@ -1,5 +1,5 @@
 import { RecordSaveTarget, RecordEditorSave } from './RecordSaveAction'
-import { ArrowLeft, ChevronDown, Moon, Sun } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, Moon, Sun } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
 import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
@@ -9,7 +9,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalMetadata, JournalSleepDetails } from '../../types/journal'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { durationMinutes, formatSleepDuration } from './sleepTime'
-import { SLEEP_CLOCK, angleDelta, draggedSleepInstant, pointerAngle, sleepAngle as recordAngle, sleepDateLabel as recordDateLabel, sleepInstant as recordInstant, sleepLocal as recordLocal, sleepMinute as recordMinute, sleepPeriod as recordPeriod } from './sleepEditorTime'
+import { SLEEP_CLOCK, angleDelta, draggedSleepInstant, pointerAngle, sleepAngle as recordAngle, sleepDateLabel as recordDateLabel, sleepInstant as recordInstant, sleepLocal as recordLocal, sleepMinute as recordMinute, sleepPeriod as recordPeriod, sleepRelativeDateLabel } from './sleepEditorTime'
 import './TimeView.css'
 import './SleepEditor.css'
 
@@ -28,7 +28,7 @@ function point(angle: number, radius = 96) { const r = (angle - 90) * Math.PI / 
 const clock = (value: string, timeZone?: string) => recordLocal(value, timeZone).slice(11)
 
 export function SleepEditor({ initial, automatic = false, allowStatusChange = false, manualOverview = false, saving, error, onSave, onSkip }: { initial: SleepDraft; automatic?: boolean; allowStatusChange?: boolean; manualOverview?: boolean; saving: boolean; error: string; onSave: (draft: SleepDraft) => void; onSkip?: () => void }) {
-  const minutesPerTurn=manualOverview?1440:SLEEP_CLOCK.minutesPerTurn
+  const minutesPerTurn = SLEEP_CLOCK.minutesPerTurn
   const zone = initial.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const sleepLocal = (value: string) => recordLocal(value, zone)
   const sleepInstant = (value: string) => recordInstant(value, zone)
@@ -71,13 +71,13 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
   const overlapping = Math.abs(angleDelta(sleepAngle(draft.sleepAt), sleepAngle(draft.wakeAt))) < 25
   return <div className={`sleep-editor${automatic ? ' sleep-editor--automatic' : ''}${manualOverview ? ' sleep-editor--manual-overview' : ''}`} style={manualOverview ? { '--sleep-arc': draft.sleepAt !== initial.sleepAt || draft.wakeAt !== initial.wakeAt ? SLEEP_CLOCK.adjusted.accent : draft.kind === 'nap' ? SLEEP_CLOCK.day.accent : SLEEP_CLOCK.night.accent } as CSSProperties : undefined}>
     {allowStatusChange && !manualOverview && <HohoSegmentedControl label="本次睡眠状态" disabled={saving} value={draft.status ?? 'completed'} options={[{ value: 'ongoing', label: '正在睡眠' }, { value: 'completed', label: '已经醒来' }]} onChange={status => {setDraft(previous => { const now = Math.floor(Date.now() / 60000) * 60000; return { ...previous, status: status as 'ongoing' | 'completed', ...(status === 'ongoing' ? { sleepAt: new Date(now).toISOString(), wakeAt: new Date(now + 480 * 60000).toISOString(), durationMinutes: 480 } : {}) } })}} />}
-    <svg aria-label={manualOverview?"二十四小时睡眠时间圆环，每圈24小时":"十二小时睡眠时间圆环，每圈12小时"} className="sleep-editor-ring" onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => finish()} ref={ring} role="group" viewBox="0 0 260 260">
-      {manualOverview?<><circle className="sleep-overview-night" cx="130" cy="130" r="96"/><circle className="sleep-overview-day" cx="130" cy="130" r="96" pathLength="1440" strokeDasharray="720 720"/></>:<circle className="sleep-editor-track" cx="130" cy="130" r="96" />}
+    <svg aria-label="十二小时睡眠时间圆环，每圈12小时" className="sleep-editor-ring" onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => finish()} ref={ring} role="group" viewBox="0 0 260 260">
+      <circle className="sleep-editor-track" cx="130" cy="130" r="96" />
       {Array.from({ length: Math.min(full, 3) }, (_, index) => <circle className="sleep-editor-arc" cx="130" cy="130" key={index} r={96 - index * 10} />)}
       {minutes > 0 && remainder > 0 && <circle className="sleep-editor-arc" cx="130" cy="130" r={96 - Math.min(full, 3) * 10} pathLength={minutesPerTurn} strokeDasharray={`${remainder} ${minutesPerTurn - remainder}`} transform={`rotate(${sleepAngle(draft.sleepAt) - 90} 130 130)`} />}
       {manualOverview?<>
-        {Array.from({length:24},(_,hour)=>{const a=point(hour*15,77),b=point(hour*15,hour%3===0?84:80);return <line className="sleep-ring-tick" key={hour} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>})}
-        {[0,3,6,9,12,15,18,21].map(hour=>{const at=point(hour*15,124);return <text className="sleep-ring-label" key={hour} x={at.x} y={at.y+4} textAnchor="middle">{hour}</text>})}
+        {Array.from({length:60},(_,minute)=>{const a=point(minute*6,77),b=point(minute*6,minute%5===0?86:80);return <line className="sleep-ring-tick" key={minute} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>})}
+        {Array.from({length:12},(_,hour)=>{const at=point(hour*30,124);return <text className="sleep-ring-label" key={hour} x={at.x} y={at.y+4} textAnchor="middle">{hour || 12}</text>})}
         <text className="sleep-ring-caption" x="130" y="108" textAnchor="middle">本次睡眠</text>
         <text className="sleep-ring-duration" x="130" y="134" textAnchor="middle">{formatSleepDuration(Math.max(0, minutes))}</text>
         <text className="sleep-ring-caption" x="130" y="155" textAnchor="middle">{draft.kind === 'nap' ? '日间小睡' : '夜间睡眠'}</text>
@@ -95,12 +95,22 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
         </g>
       })}
     </svg>
-    <div className="sleep-editor-cards">{fields.map(field => { const period = sleepPeriod(draft[field]); const Icon = field === 'sleepAt' ? Moon : Sun; return <button aria-expanded={editing === field} className="sleep-editor-card" disabled={saving} key={field} onClick={() => { finish(); setActive(field); setEditing(editing === field ? null : field) }} style={{ '--sleep-accent': period.accent } as CSSProperties} type="button"><span><Icon size={20} />{names[field]}</span><strong>{clock(draft[field])}</strong>{Date.parse(draft[field]) !== Date.parse(initial[field]) && <em style={{ color: SLEEP_CLOCK.adjusted.accent, background: SLEEP_CLOCK.adjusted.background }}>已调整</em>}<small>{manualOverview ? sleepLocal(draft[field]).slice(0, 10) : sleepDateLabel(draft[field], draft.sleepAt)}</small></button> })}</div>
+    <div className="sleep-editor-cards">{fields.map(field => {
+      const period = sleepPeriod(draft[field]); const Icon = field === 'sleepAt' ? Moon : Sun
+      const time = clock(draft[field]); const hour = Number(time.slice(0, 2))
+      return <button aria-expanded={editing === field} className="sleep-editor-card" disabled={saving} key={field} onClick={() => { finish(); setActive(field); setEditing(editing === field ? null : field) }} style={{ '--sleep-accent': period.accent } as CSSProperties} type="button">
+        <span><Icon size={20} />{names[field]}</span>
+        {manualOverview && <small className="sleep-editor-date">{sleepRelativeDateLabel(draft[field], new Date(Date.now()), zone)}</small>}
+        <strong>{manualOverview ? <>{String(hour % 12 || 12).padStart(2, '0')}{time.slice(2)}<span className="sleep-editor-period">{hour < 12 ? 'AM' : 'PM'}</span></> : time}</strong>
+        {Date.parse(draft[field]) !== Date.parse(initial[field]) && <em style={{ color: SLEEP_CLOCK.adjusted.accent, background: SLEEP_CLOCK.adjusted.background }}>已调整</em>}
+        {!manualOverview && <small>{sleepDateLabel(draft[field], draft.sleepAt)}</small>}
+      </button>
+    })}</div>
     {editing && <div className="sleep-editor-inputs"><label>{names[editing]}日期<input aria-label={`${names[editing]}日期`} onChange={event => { finish(); if (event.target.value) update(editing, sleepInstant(`${event.target.value}T${clock(draft[editing])}`)) }} type="date" value={sleepLocal(draft[editing]).slice(0, 10)} /></label><label>{names[editing]}时间<input aria-label={`${names[editing]}时间`} onChange={event => { finish(); if (event.target.value) update(editing, sleepInstant(`${sleepLocal(draft[editing]).slice(0, 10)}T${event.target.value}`)) }} step="60" type="time" value={clock(draft[editing])} /></label></div>}
     {automatic && <p className="sleep-editor-hint">仅修改本次，不改变日常作息</p>}
     {allowStatusChange && !manualOverview && draft.status !== 'ongoing' && <p className="sleep-editor-hint">初始时间仅供调整，请核对实际入睡和醒来时间后保存。</p>}
     {draft.status === 'ongoing' && <p className="sleep-editor-hint">预计醒来；保存后继续运行，实际醒来后请确认结束。</p>}
-    <section className="sleep-editor-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen(!supplementOpen)} type="button"><span>睡得怎么样<small>（选填）</small></span><ChevronDown size={18} /></button>{!supplementOpen && Boolean(draft.quality || draft.observations?.length) && <p>{[draft.quality, ...(draft.observations ?? []), draft.otherNote].filter(Boolean).join('、')}</p>}{supplementOpen && <><div className="sleep-choice-row">{qualities.map(option => <button aria-pressed={draft.quality === option} key={option} onClick={() => setDraft({ ...draft, quality: draft.quality === option ? undefined : option })} type="button">{option}</button>)}{observations.map(option => <button aria-pressed={draft.observations?.includes(option)} key={option} onClick={() => setDraft({ ...draft, observations: draft.observations?.includes(option) ? draft.observations.filter(item => item !== option) : [...(draft.observations ?? []), option] })} type="button">{option}</button>)}</div>{draft.observations?.includes('其他') && <input aria-label="其他影响睡眠的情况" maxLength={120} onChange={event => setDraft({ ...draft, otherNote: event.target.value })} value={draft.otherNote ?? ''} />}</>}</section>
+    <section className="sleep-editor-supplement"><button aria-expanded={supplementOpen} onClick={() => setSupplementOpen(!supplementOpen)} type="button"><span>睡得怎么样<small>（选填）</small></span>{manualOverview ? <ChevronRight aria-hidden="true" size={18} /> : <ChevronDown aria-hidden="true" size={18} />}</button>{!supplementOpen && Boolean(draft.quality || draft.observations?.length) && <p>{[draft.quality, ...(draft.observations ?? []), draft.otherNote].filter(Boolean).join('、')}</p>}{supplementOpen && <><div className="sleep-choice-row">{qualities.map(option => <button aria-pressed={draft.quality === option} key={option} onClick={() => setDraft({ ...draft, quality: draft.quality === option ? undefined : option })} type="button">{option}</button>)}{observations.map(option => <button aria-pressed={draft.observations?.includes(option)} key={option} onClick={() => setDraft({ ...draft, observations: draft.observations?.includes(option) ? draft.observations.filter(item => item !== option) : [...(draft.observations ?? []), option] })} type="button">{option}</button>)}</div>{draft.observations?.includes('其他') && <input aria-label="其他影响睡眠的情况" maxLength={120} onChange={event => setDraft({ ...draft, otherNote: event.target.value })} value={draft.otherNote ?? ''} />}</>}</section>
     {minutes > 1440 && <p className="sleep-editor-hint">这是一段较长的睡眠，请核对实际日期与时间。</p>}{validation && <p className="sleep-validation" role="alert">{validation}</p>}{error && <p className="sleep-save-error" role="alert">{error}</p>}
     {allowStatusChange && <DailyRecordSettings kind="sleep" seed={{ kind: draft.kind, endTime: clock(draft.wakeAt) }} />}
     <div className="sleep-editor-save"><RecordEditorSave disabled={Boolean(validation)} saving={saving} onClick={() => onSave({ ...draft, timeZone: zone, durationMinutes: minutes, ...(!draft.observations?.includes('其他') ? { otherNote: undefined } : {}) })}><DailySaveText /></RecordEditorSave>{onSkip && <HohoButton disabled={saving} fullWidth onClick={onSkip} variant="secondary">本次未发生</HohoButton>}</div>
