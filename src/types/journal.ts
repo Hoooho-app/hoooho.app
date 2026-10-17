@@ -199,6 +199,7 @@ export type VisitFollowUpAction = 'home_observation' | 'medication_as_instructed
 export type VisitDocumentType = 'medical_record' | 'prescription' | 'examination_report' | 'receipt' | 'other'
 
 export interface JournalVisitDetails {
+  materials?: import('../features/visit-materials/types').VisitMaterials
   visitType: VisitType
   visitTypeOtherText?: string
   reasonText?: string

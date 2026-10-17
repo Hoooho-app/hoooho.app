@@ -3,7 +3,7 @@ import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { AIBusinessService } from '../ai/business/service.mjs'
 import { normalizePhoto } from '../food-label/service.mjs'
 import { prepareDocuments, prepareVoiceOriginals } from '../ai/business/documents.mjs'
-import { fail } from '../ai/business/contract.mjs'
+import { fail, fingerprint } from '../ai/business/contract.mjs'
 import { validateOccurredAt } from './health-event-record-service.mjs'
 import { validateJournal } from './journal-metadata.mjs'
 import { QuickRecordPhotoService } from './quick-record-photo-service.mjs'
@@ -119,15 +119,23 @@ export class CaseContinuityService {
       await normalizePhoto(file)
       return {name:String(file.name||'图片原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120),mimeType:file.mimeType,dataUrl:file.dataUrl,contentHash:createHash('sha256').update(Buffer.from(file.dataUrl.split(',')[1],'base64')).digest('hex')}
     }))
-    const files = await prepareDocuments(allFiles.filter(f => !/^audio\//.test(f.mimeType ?? '')&&!/^image\/hei[cf]$/.test(f.mimeType??'')))
+    const files = await prepareDocuments(allFiles.filter(f => !/^audio\//.test(f.mimeType ?? '')&&!/^image\/hei[cf]$/.test(f.mimeType??'')), { originalsOnly: Boolean(input.journal?.visit?.materials) })
     files.documents.push(...voices,...originals)
     if (files.documents.reduce((n, file) => n + Buffer.from(file.dataUrl.split(',')[1], 'base64').length, 0) > 15 * 1024 * 1024) throw fail('原件总大小不能超过15 MB')
     if (!content && !files.documents.length && !input.photoIds?.length) throw fail('先留一句话或一份原件，不保存空情况')
     const key = clean(input.requestId ?? '', 100)
     if (!key) throw fail('保存标识缺失，请重试')
-    const identity = identities.has(input.identity) ? input.identity : 'parent'
-    const occurredAt = input.timeUnknown ? this.now().toISOString() : validateOccurredAt(input.occurredAt, this.now())
     const journal = validateJournal(input.journal ?? { categories: ['other'], timePrecision: input.timeUnknown ? 'unknown' : 'exact' })
+    const materials = journal?.visit?.materials
+    const identity = materials ? materials.source === 'external_ai' ? 'external_ai' : 'medical_consultation' : identities.has(input.identity) ? input.identity : 'parent'
+    const timeUnknown = materials ? !materials.occurredAt : Boolean(input.timeUnknown)
+    const occurredAt = timeUnknown ? this.now().toISOString() : validateOccurredAt(materials?.occurredAt ?? input.occurredAt, this.now())
+    if (materials) journal.timePrecision = timeUnknown ? 'unknown' : 'exact'
+    const originalsByHash = new Map(allFiles.map(file => [fingerprint(file.dataUrl), file]))
+    if (materials) for (const document of materials.documents.filter(document => document.kind === 'file')) {
+      const original = originalsByHash.get(document.contentHash)
+      if (!original || original.mimeType !== document.mimeType || String(original.name).slice(0,120) !== document.name) throw fail('资料原件与核对内容不一致，请重新选择', 422, 'VISIT_ORIGINAL_MISMATCH')
+    }
     const linkedDraft = input.aiDraftId ? await this.business.get(accountId, memberId, input.aiDraftId) : null
     if (linkedDraft?.state === 'saved') throw fail('这份草稿已经保存，请查看原记录',409)
     return accountTransaction(this.directory, async () => {
@@ -138,6 +146,11 @@ export class CaseContinuityService {
         return { eventId: event.id, recordId: previous.id, attachmentIds: previous.caseContext.attachmentIds ?? [], duplicate: true }
       }
       let event = input.eventId ? await this.owned(accountId, memberId, input.eventId) : null
+      const existingEvent = Boolean(event)
+      if (materials && journal.visit.linkedVisitRecordId) {
+        const parent = await this.records.getOwnedRecord(accountId, journal.visit.linkedVisitRecordId)
+        if (!event || parent.eventId !== event.id || !parent.journal?.categories?.includes('visit')) throw fail('只能给当前人物的同一次就诊补资料', 422, 'VISIT_PARENT_MISMATCH')
+      }
       if(event?.caseMergedInto&&(await this.owned(accountId,memberId,event.caseMergedInto)).caseArchivedAt) throw fail('这次情况已归档，请恢复跟进后再记录',409)
       if (event?.caseArchivedAt) throw fail('这次情况已归档，请恢复跟进或选择新的一次情况', 409)
       const task = input.taskId && event?.observationTasks?.find(t => t.id === input.taskId)
@@ -149,14 +162,25 @@ export class CaseContinuityService {
       const record = await this.records.create(accountId, event.id, { type: 'note', caseIdentity: identity, content: content || '资料原件已保留，内容待整理', occurredAt, sourceType: identity === 'medical_consultation' || identity === 'examination_report' ? 'medical_file' : 'user_record', sourceText: content || null, journal }, this.now())
       const attachedPhotos = await this.photos.attach(accountId, event.id, record.id, memberId, photos, this.now())
       const attachmentIds = attachedPhotos.map(photo => photo.id)
+      const materialAttachmentIds = new Map()
       for (const file of files.documents) {
         const { id, ...original } = file
         const { attachment } = await this.attachments.createUnique({ ...original, accountId, memberId, eventId: event.id, recordId: record.id, binarySize: Buffer.from(file.dataUrl.split(',')[1], 'base64').length, analysis: { status: 'needs_confirmation', confirmed: false, sourceIdentity: identity } }, this.now())
         attachmentIds.push(attachment.id)
+        materialAttachmentIds.set(original.contentHash, attachment.id)
+      }
+      if (materials) {
+        for (const document of materials.documents.filter(document => document.kind === 'file')) {
+          const original = originalsByHash.get(document.contentHash)
+          const hash = /^image\/hei[cf]$/.test(original.mimeType) ? createHash('sha256').update(Buffer.from(original.dataUrl.split(',')[1], 'base64')).digest('hex') : document.contentHash
+          document.attachmentId = materialAttachmentIds.get(hash)
+          if (!document.attachmentId) throw fail('原件保存结果尚未确认，请重试', 503, 'VISIT_ORIGINAL_PENDING')
+        }
       }
       const bodyLocations = Array.isArray(input.bodyLocations) ? input.bodyLocations.slice(0, 20).map(v => clean(v, 100)) : []
-      await this.records.repository.update(record.id, { caseContext: { requestId: key, identity, timeUnknown: Boolean(input.timeUnknown), supplement: clean(input.supplement ?? '', 1000), bodyLocations, attachmentIds, ...(linkedDraft ? { aiDraftId: linkedDraft.id } : {}), ...(task ? { taskId: task.id, result: input.result } : {}) } }, this.now())
-      await this.events.repository.update(event.id, { caseTracking: input.followUp===false&&!input.eventId?false:true }, this.now())
+      await this.records.repository.update(record.id, { ...(materials ? { journal } : {}), caseContext: { requestId: key, identity, timeUnknown, ...(materials ? { confirmed: materials.status === 'reviewed' } : {}), supplement: clean(input.supplement ?? '', 1000), bodyLocations, attachmentIds, ...(linkedDraft ? { aiDraftId: linkedDraft.id } : {}), ...(task ? { taskId: task.id, result: input.result } : {}) } }, this.now())
+      if (!materials || !existingEvent) await this.events.repository.update(event.id, { caseTracking: materials ? false : input.followUp===false&&!input.eventId?false:true }, this.now())
+      if (materials) await this.records.recomputeAfterMutation(accountId, event.id, this.now())
       await this.photos.consume(accountId, input.photoDraftId, photos, this.now())
       return { eventId: event.id, recordId: record.id, attachmentIds, duplicate: false }
     })
@@ -233,6 +257,7 @@ export class CaseContinuityService {
       const record = await this.records.getOwnedRecord(accountId, recordId)
       if (record.eventId !== eventId || !record.caseContext) throw fail('资料归属不匹配', 404)
       if (!identities.has(input.identity) || input.identity === 'pending' || input.confirmed !== true) throw fail('请先核对原件和资料来源')
+      if (record.journal?.visit?.materials?.source === 'external_ai' && input.identity !== 'external_ai') throw fail('AI资料需保留AI来源，不能改为医生医嘱', 422, 'VISIT_AI_SOURCE_IMMUTABLE')
       const content = clean(input.content ?? record.content)
       const updated = await this.records.update(accountId, recordId, { content, sourceType: input.identity === 'medical_consultation' || input.identity === 'examination_report' ? 'medical_file' : 'user_record' }, this.now())
       await this.records.repository.update(recordId, { caseContext: { ...record.caseContext, identity: input.identity, confirmed: true, revisions: [...(record.caseContext.revisions ?? []), { content: record.content, identity: record.caseContext.identity, at: this.now().toISOString() }].slice(-20) } }, this.now())

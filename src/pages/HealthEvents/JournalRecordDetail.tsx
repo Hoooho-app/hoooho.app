@@ -1,3 +1,4 @@
+import { VisitMaterialsWorkspace } from '../../features/visit-materials/VisitMaterialsWorkspace'
 import {useReadRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../components/design-system'
 import type { JournalDietDetails } from '../../types/journal'
@@ -57,6 +58,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   const entry = state.data.viewModel.event.timeline.find((item) => item.sourceRecordId === recordId) ?? null
   const record = state.data.records.find((item) => item.id === recordId) ?? null
   const origin = <DailyRecordOrigin memberId={memberId} recordId={recordId} token={token}/>
+  if (record?.journal?.visit?.materials) return <VisitMaterialsWorkspace memberId={memberId} token={token} initialRecord={record} onBack={onClose} onClose={onClose} onSaved={() => { onChanged(); void retry() }} onDelete={async () => { await deleteRecord(recordId); onChanged(); onClose() }}/>
   if (!entry) return <StatusSheet onClose={onClose}><StatusNotice tone="error" title="未找到这条记录" /></StatusSheet>
   if (record?.journal?.sleep?.status === 'ongoing') {
     const sleep = record.journal.sleep
