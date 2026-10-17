@@ -1,0 +1,37 @@
+name: Bowel form verification
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/bowel-design-standard-20261017']
+    paths:
+      - 'src/pages/HealthEvents/Bowel*'
+      - 'tests/bowel-form/**'
+      - '.github/workflows/bowel-form-verification.yml'
+  pull_request:
+    paths:
+      - 'src/pages/HealthEvents/Bowel*'
+      - 'tests/bowel-form/**'
+      - '.github/workflows/bowel-form-verification.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:client
+      - run: npm run test:server
+      - run: npm run build
+      - run: npx playwright test --config tests/bowel-form/playwright.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bowel-form-evidence
+          path: |
+            outputs/bowel-form
+            test-results/bowel-form

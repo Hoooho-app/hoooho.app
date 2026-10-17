@@ -7,7 +7,7 @@ export default defineConfig({
   outputDir: '../../test-results/bowel-form',
   use: { ...devices['iPhone SE'], browserName: 'chromium', baseURL: origin,
     timezoneId: 'Asia/Shanghai', serviceWorkers: 'block',
-    launchOptions: { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' },
+    launchOptions: process.platform === 'win32' ? { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' } : undefined,
     trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   webServer: process.env.BOWEL_TEST_URL ? undefined : {
     command: 'node tests/time-view/serve.mjs', env: { HOOOHO_TIME_VIEW_PORT: '4293' },
