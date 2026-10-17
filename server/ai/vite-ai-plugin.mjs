@@ -3,14 +3,14 @@ import { TokenService } from '../auth/token-service.mjs'
 import { HealthRecordOrganizationError, HealthRecordOrganizationService } from './health-record-organization-service.mjs'
 import { AudioTranscriptionService } from './audio-transcription-service.mjs'
 
-const readJson = (request) => new Promise((resolve, reject) => {
+const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = ''
   let settled = false
   request.setEncoding('utf8')
   request.on('data', (chunk) => {
     if (settled) return
     body += chunk
-    if (body.length > 16_384) {
+    if (body.length > maxLength) {
       settled = true
       reject(new HealthRecordOrganizationError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
     }
@@ -55,8 +55,14 @@ export function aiApiPlugin(options = {}) {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         if (pathname === '/api/ai/audio/transcriptions') {
           try {
-            readAccountId(request, tokens)
-            if (request.method === 'POST') return sendJson(response, 200, await audio.transcribe(await readJson(request, 21_000_000)))
+            const accountId = readAccountId(request, tokens)
+            if (request.method === 'POST') {
+              const controller = new AbortController()
+              const cancel = () => { if (!response.writableEnded) controller.abort() }
+              response.once('close', cancel)
+              try { return sendJson(response, 200, await audio.transcribe(await readJson(request, 21_000_000), accountId, controller.signal)) }
+              finally { response.off('close', cancel) }
+            }
             return sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
           } catch (error) {
             const status = Number.isInteger(error?.status) ? error.status : 500

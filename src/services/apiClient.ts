@@ -1,3 +1,4 @@
+import { abortable } from './abortable'
 import {trackSavedMutation} from '../features/record-updates/store'
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
 import { useBrowserRecoveryState } from './browserRecoveryState'
@@ -32,7 +33,9 @@ interface ApiRequestOptions {
 }
 
 async function executeApiRequest<T>(path: string, options: ApiRequestOptions, mayRecover: boolean): Promise<T> {
-  const mutationScope=options.method&&options.method!=='GET'?await import('../store/useAppStore').then(({useAppStore})=>{const s=useAppStore.getState();return {accountId:s.authUser?.id??'',memberId:s.currentMemberId}}):undefined
+  const changesData = Boolean(options.method && options.method !== 'GET' && !(options.method === 'POST' && path.split('?')[0] === '/api/ai/audio/transcriptions'))
+  options.signal?.throwIfAborted()
+  const mutationScope=changesData?await import('../store/useAppStore').then(({useAppStore})=>{const s=useAppStore.getState();return {accountId:s.authUser?.id??'',memberId:s.currentMemberId}}):undefined
   const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const response = await fetch(path, {
     method: options.method ?? 'GET',
@@ -67,10 +70,13 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
     }
     if (response.status === 401 && mayRecover) {
       try {
-        const token = await recoverSessionToken()
+        const recovery = recoverSessionToken()
+        const token = await (options.signal ? abortable(recovery, options.signal) : recovery)
+        options.signal?.throwIfAborted()
         if (token) return executeApiRequest<T>(path, { ...options, token }, false)
         if (useBrowserRecoveryState.getState().reauthenticationRequired) throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
       } catch {
+        options.signal?.throwIfAborted()
         if (useBrowserRecoveryState.getState().reauthenticationRequired) throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
         throw new ApiRequestError('暂时无法恢复使用状态，请检查网络后重试', 503, 'SESSION_RECOVERY_FAILED')
       }
@@ -84,8 +90,9 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
     throw failure
   }
 
-  if (options.method && options.method !== 'GET' && typeof window !== 'undefined') {
-    if(mutationScope)trackSavedMutation(mutationScope,path,options.method,options.body,data)
+  options.signal?.throwIfAborted()
+  if (changesData && typeof window !== 'undefined') {
+    if(mutationScope && options.method)trackSavedMutation(mutationScope,path,options.method,options.body,data)
     window.dispatchEvent(new Event('hoooho-data-changed'))
   }
   return data as T

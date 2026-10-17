@@ -42,3 +42,11 @@ export async function recordingToWav(blob:Blob,trimSilence=false):Promise<Blob> 
   }catch(error){if(error instanceof Error&&'code' in error&&typeof error.code==='string'&&(error.code.startsWith('AUDIO_')||error.code==='FILE_READ_FAILED'))throw error;throw Object.assign(new Error('录音格式无法读取，请重新录音或继续输入文字'),{code:'AUDIO_DECODE_FAILED'})}
   finally {await context?.close().catch(()=>undefined)}
 }
+
+// Quick lookup accepts the recorder's real compressed container. MP4/AAC is
+// normalized to supported compressed audio on the server, never relabelled AAC.
+export async function recordingForSearch(blob: Blob): Promise<Blob> {
+  const mime = blob.type.split(';')[0].trim().toLowerCase()
+  if (['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav'].includes(mime)) return blob.slice(0, blob.size, mime)
+  return recordingToSearchWav(blob)
+}

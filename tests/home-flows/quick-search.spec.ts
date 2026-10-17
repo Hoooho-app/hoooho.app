@@ -152,3 +152,87 @@ test('识别未返回时离开，再次进入不会被旧语音结果回填',asy
  await input.fill('新的查找');await expect(page.getByText('没有找到相关记录',{exact:true})).toBeVisible();await expect(input).toHaveValue('新的查找')
  await expect(page.getByRole('alert')).toHaveCount(0)
 })
+
+test('日历入口共用首页语音与规则，压缩WebM直传且转写不重复读取索引，返回保留日历位置',async({page,request})=>{
+ const member=await request.post('/api/members',{headers,data:{name:'统一查找（虚构）',relationship:'child'}}),memberId=(await member.json()).id
+ const day=new Date(Date.now()-2*86400000).toISOString().slice(0,10)
+ const record=await request.post('/api/quick-records',{headers,data:{memberId,content:'脸颊湿疹和发痒',title:'皮肤观察',occurredAt:new Date(Date.now()-86400000).toISOString(),inputChannel:'text',idempotencyKey:randomUUID(),journal:{categories:['symptom'],timePrecision:'exact'}}});expect(record.ok()).toBeTruthy()
+ await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
+ await page.goto(`/health-events?view=day&day=${day}&sort=asc`)
+ await expect(page.getByRole('button',{name:'搜索健康日历'})).toBeVisible()
+ const before=new URL(page.url()).search
+ let indexes=0,payload:any
+ page.on('request',r=>{if(r.url().includes('/journal-index'))indexes++})
+ await page.route('**/api/ai/audio/transcriptions',async route=>{payload=route.request().postDataJSON();await route.fulfill({json:{transcript:'最近两个月皮肤情况'}})})
+ await page.getByRole('button',{name:'搜索健康日历'}).click()
+ const input=page.getByLabel('查找记录文字'),hold=page.getByRole('button',{name:'按住说话',exact:true})
+ await expect(input).toHaveValue('');await expect(hold).toBeInViewport()
+ await expect(page.locator('.quick-search-progress')).toHaveCount(0)
+ const indexCount=indexes
+ const box=(await hold.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(1100);await page.mouse.up()
+ await expect(input).toHaveValue('最近两个月皮肤情况')
+ await expect(page.locator('.journal-search-result')).toHaveCount(1)
+ expect(payload.mimeType).toBe('audio/webm');expect(payload.name).toBe('recording.webm')
+ const bytes=Buffer.from(payload.dataUrl.split(',')[1],'base64')
+ expect(bytes.subarray(0,4).toString('hex')).toBe('1a45dfa3');expect(bytes.length).toBeLessThan(24000)
+ expect(indexes).toBe(indexCount)
+ await page.getByRole('button',{name:'返回',exact:true}).click()
+ expect(new URL(page.url()).search).toBe(before)
+ await page.getByRole('button',{name:'搜索健康日历'}).click();await expect(input).toHaveValue('');await expect(hold).toBeEnabled()
+})
+
+test('索引与识别都挂起时仍按总预算结束等待，旧结果不能覆盖下一次录音',async({page,request})=>{
+ const member=await request.post('/api/members',{headers,data:{name:'超时检索（虚构）',relationship:'child'}}),memberId=(await member.json()).id
+ await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
+ let release!:()=>void,calls=0
+ const gate=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/journal-index',async route=>{await gate;await route.fulfill({json:{events:[],records:[],attachments:[]}}).catch(()=>{})})
+ await page.route('**/api/ai/audio/transcriptions',async route=>{
+  calls++;if(calls===1){await gate;await route.fulfill({json:{transcript:'迟到的旧查找'}}).catch(()=>{})}
+  else await route.fulfill({json:{transcript:'新的查找'}})
+ })
+ await page.clock.install();await page.goto('/quick-search')
+ const input=page.getByLabel('查找记录文字'),hold=page.getByRole('button',{name:'按住说话',exact:true})
+ const speak=async()=>{const box=(await hold.boundingBox())!;await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(1100);await page.mouse.up()}
+ await speak();await expect.poll(()=>calls).toBe(1)
+ await page.clock.fastForward(25001)
+ await expect(page.locator('.quick-search-progress')).toHaveCount(0)
+ await expect(page.getByText('没能识别这段语音，请重新按住说话',{exact:true})).toBeVisible()
+ await expect(input).toBeEnabled();await expect(hold).toBeEnabled()
+ release();await speak();await expect(input).toHaveValue('新的查找');expect(calls).toBe(2)
+})
+
+test('共享录音逻辑在智能记录退出后仍保存迟到的最后音频字节',async({page,request})=>{
+ const member=await request.post('/api/members',{headers,data:{name:'原件保护（虚构）',relationship:'child'}}),memberId=(await member.json()).id
+ await page.addInitScript(({token,memberId})=>{
+  sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))
+  const descriptor=Object.getOwnPropertyDescriptor(MediaRecorder.prototype,'onstop')!
+  Object.defineProperty(MediaRecorder.prototype,'onstop',{...descriptor,set(handler){descriptor.set!.call(this,handler?function(this:MediaRecorder,event:Event){setTimeout(()=>handler.call(this,event),350)}:null)}})
+ },{token,memberId})
+ await page.goto('/smart-record?source=front-desk')
+ const hold=page.getByRole('button',{name:'按住说话',exact:true});await expect(hold).toBeEnabled()
+ await hold.focus();await page.keyboard.down('Space');await page.waitForTimeout(1100)
+ await page.getByRole('button',{name:'返回',exact:true}).click();await page.keyboard.up('Space')
+ await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click();await expect(page).toHaveURL(/nurse-station$/)
+ await page.getByRole('button',{name:'智能记录',exact:true}).click()
+ await expect.poll(()=>page.evaluate(async memberId=>{
+  const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})
+  try{return await new Promise<boolean>((resolve,reject)=>{const r=db.transaction('drafts').objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);r.onsuccess=()=>resolve(Boolean(r.result?.files?.some((file:any)=>file.type.startsWith('audio/')&&file.bytes?.byteLength>300)));r.onerror=()=>reject(r.error)})}finally{db.close()}
+ },memberId)).toBe(true)
+})
+
+test('录音文件读取永不结束时总时限仍恢复输入，不会进入无限准备状态',async({page,request})=>{
+ const member=await request.post('/api/members',{headers,data:{name:'准备超时（虚构）',relationship:'child'}}),memberId=(await member.json()).id
+ await page.addInitScript(({token,memberId})=>{
+  sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))
+  const read=Blob.prototype.arrayBuffer
+  Blob.prototype.arrayBuffer=function(){return this.type.startsWith('audio/')?new Promise(()=>{}):read.call(this)}
+ },{token,memberId})
+ let calls=0;page.on('request',r=>{if(r.url().includes('/api/ai/audio/transcriptions'))calls++})
+ await page.clock.install();await page.goto('/quick-search')
+ const input=page.getByLabel('查找记录文字'),hold=page.getByRole('button',{name:'按住说话',exact:true}),box=(await hold.boundingBox())!
+ await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(1100);await page.mouse.up()
+ await expect(page.locator('.quick-search-progress')).toBeVisible();await page.clock.fastForward(25001)
+ await expect(page.locator('.quick-search-progress')).toHaveCount(0);await expect(input).toBeEnabled();await expect(hold).toBeEnabled()
+ await expect(page.getByText('没能识别这段语音，请重新按住说话',{exact:true})).toBeVisible();expect(calls).toBe(0)
+})

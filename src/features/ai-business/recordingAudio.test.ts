@@ -36,3 +36,13 @@ test('查找裁掉静音边缘但保留轻声、400ms余量和句中停顿，原
  assert.equal(trimSearchSilence(quiet,rate),quiet)
  assert.equal((await encodeMonoWav([trimmed],rate).arrayBuffer()).byteLength,44+trimmed.length*2)
 })
+
+test('快速查找保留WebM和Safari MP4原始压缩字节，不进入WAV解码或篡改容器',async()=>{
+ const {recordingForSearch}=await import('./recordingAudio.ts')
+ for(const mime of ['audio/webm;codecs=opus','audio/mp4']){
+  const original=new File(['immutable compressed recording'],'recording',{type:mime})
+  const prepared=await recordingForSearch(original)
+  assert.equal(prepared.type,mime.split(';')[0]);assert.equal(prepared.size,original.size)
+  assert.deepEqual(new Uint8Array(await prepared.arrayBuffer()),new Uint8Array(await original.arrayBuffer()))
+ }
+})

@@ -8,7 +8,7 @@ const styles = readFileSync(new URL('./TimeView.css', import.meta.url), 'utf8')
 test('the primary record hub exposes four real paths and daily details are second level', () => {
   assert.match(source, /记录症状/)
   assert.match(source, /记录日常/)
-  assert.match(source, /记录就医/)
+  assert.match(source, /category: 'visit', label: '就诊资料'/)
   assert.match(source, /记录用药/)
   assert.match(source, /screen === 'daily-types'/)
   assert.match(source, /dailyFeedingImage/)

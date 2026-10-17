@@ -37,7 +37,7 @@ try{
  await cell.click();await expect(page.locator('.calendar-reminder-row')).toHaveCount(2);await expect(page.getByRole('dialog')).toContainText('待执行');await page.screenshot({path:`${output}/pending-sheet.png`});await page.keyboard.press('Escape')
  const select=page.getByLabel('筛选记录类型');await select.selectOption('daily');await expect(cell.locator('.health-calendar__reminders')).toHaveCount(0)
  await page.getByRole('button',{name:'切换日历视图'}).click();await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
- await page.getByRole('button',{name:'搜索健康日历'}).click();await page.getByRole('button',{name:'返回健康日历'}).click();await expect(select).toHaveValue('daily')
+ await page.getByRole('button',{name:'搜索健康日历'}).click();await page.getByRole('button',{name:'返回',exact:true}).click();await expect(select).toHaveValue('daily')
  await page.reload();await expect(select).toHaveValue('');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
  await page.getByRole('button',{name:'切换日历视图'}).click();await page.getByLabel('选择月份',{exact:true}).fill(day.slice(0,7));await select.selectOption('medication');await cell.click();await page.locator('.calendar-reminder-row').first().click();await expect(page).toHaveURL(new RegExp(`/medication-reminders\\?reminderId=${reminderId}`));await expect(page.locator(`[data-reminder-id="${reminderId}"]`)).toBeVisible()
  await page.goto(origin+'/health-events');await expect(select).toHaveValue('');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','month')

@@ -1,7 +1,7 @@
 name: Quick search verification
 on:
   pull_request:
-    paths: ['src/pages/NurseStation/recordFinderModel*', 'src/pages/NurseStation/RecordFinder.tsx', 'src/pages/NurseStation/QuickSearchPage.css', 'src/pages/HealthEvents/JournalSearchResults.tsx', 'tests/home-flows/quick-search*', '.github/workflows/quick-search-verification.yml']
+    paths: ['src/pages/NurseStation/recordFinderModel*', 'src/pages/NurseStation/RecordFinder.tsx', 'src/pages/NurseStation/QuickSearchPage.css', 'src/pages/HealthEvents/JournalSearchResults.tsx', 'src/pages/HealthEvents/JournalSearchPage.tsx', 'src/pages/HealthEvents/useJournal.ts', 'src/services/apiClient*', 'src/services/abortable*', 'src/services/sharedRequests*', 'src/services/journalIndexRequests.ts', 'src/features/ai-business/recordingAudio*', 'src/features/ai-business/useSmartRecordVoice.ts', 'server/ai/audio-transcription*', 'server/ai/compressed-audio*', 'server/ai/vite-ai-plugin*', 'tests/home-flows/quick-search*', 'tests/home-flows/unified-search-release.mjs', '.github/workflows/quick-search-verification.yml']
 permissions:
   contents: read
 jobs:
@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: node --test server/ai/audio-transcription-service.test.mjs
       - run: npm run test:client
       - run: npm run build
       - run: npx playwright test --config tests/home-flows/playwright.config.ts quick-search.spec.ts --reporter=line

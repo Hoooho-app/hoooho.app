@@ -89,7 +89,7 @@ try {
     }
     await page.getByLabel('筛选记录类型').selectOption('daily')
     await page.getByRole('button', { name: '搜索健康日历' }).click()
-    await page.getByRole('button', { name: '返回健康日历' }).click()
+    await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page.getByLabel('选择月份')).toHaveValue('2026-03')
     await expect(page.getByLabel('筛选记录类型')).toHaveValue('daily')
     assert.equal(new URL(page.url()).searchParams.get('verify'), commit)
