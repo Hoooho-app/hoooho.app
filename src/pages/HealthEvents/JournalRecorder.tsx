@@ -35,13 +35,14 @@ import type { ReactNode } from 'react'
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'topical-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen | 'ai'; depth: number; dietKind: DietRecordKind | null }
 
-export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, returnToSource = false, onClose, onConfirm, onSaved }: {
+export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, returnToSource = false, onClose, onConfirm, onSaved, onViewRecord }: {
   memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   initialDietKind?: DietRecordKind
   returnToSource?: boolean
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata, daily?: DailyExtras) => Promise<string>
   onSaved?: (message: string) => void
+  onViewRecord?: (eventId: string, recordId: string) => void
 }) {
   const location = useLocation()
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
@@ -120,7 +121,7 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   if (screen === 'symptom-form') return <SymptomRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'medication-form') return withDaily(<MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
   if (screen === 'vaccination-form') return <VaccinationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
-  if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
+  if (screen === 'visit-form') return <VisitRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onViewRecord={onViewRecord} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   const dietOptions: readonly { kind: DietRecordKind; title: string; description: string; image: string }[] = [
     { kind: 'feeding', title: '喂养', description: '母乳 / 配方奶', image: feedingImage },
     { kind: 'complementary', title: '辅食', description: '泥糊 / 颗粒', image: complementaryImage },
@@ -143,7 +144,7 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   const hubCategories: readonly { category: JournalCategory; label: string; image: string; action?: () => void }[] = [
     { category: 'symptom', label: '记录症状', image: symptomCardImage },
     { category: 'other', label: '记录日常', image: dailyCardImage, action: () => navigateScreen('daily-types') },
-    { category: 'visit', label: '记录就医', image: visitCardImage },
+    { category: 'visit', label: '就诊资料', image: visitCardImage },
     { category: 'medication', label: '记录用药', image: medicationCardImage }
   ]
   const sheetTitle = screen === 'daily-types' ? '记录日常' : isDietTypes ? '记录喂养/饮食' : screen === 'generic' ? '记录到今天' : '记一下'

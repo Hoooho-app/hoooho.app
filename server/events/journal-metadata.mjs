@@ -1,3 +1,4 @@
+import { validateVisitMaterials } from './visit-materials-metadata.mjs'
 import { visibleRecordCategories } from '../../shared/record-categories.mjs'
 import { validateNurseMetadata } from '../ai/nurse-contract.mjs'
 import { TimeResolverService } from '../ai/time-resolver-service.mjs'
@@ -378,6 +379,9 @@ function validateVisit(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !visitTypes.has(value.visitType)) throw new HealthEventRecordError('就医方式无效', 400, 'INVALID_JOURNAL_VISIT')
   const result = { visitType: value.visitType }
+  const materials = validateVisitMaterials(value.materials)
+  if (materials) result.materials = materials
+  if (materials?.source === 'external_ai' && (value.doctorStatement || value.followUpActions?.length)) throw new HealthEventRecordError('AI 资料不能作为医生医嘱或自动安排', 400, 'INVALID_VISIT_MATERIALS')
   const textFields = {
     visitTypeOtherText: 80, reasonText: 240, institutionName: 120, platformName: 120,
     department: 80, departmentOtherText: 80, doctorName: 80, doctorStatement: 500,

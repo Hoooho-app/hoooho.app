@@ -25,7 +25,7 @@ export function documentPageWarnings(sources){
   }
   return warnings
 }
-export async function prepareDocuments(files=[]) {
+export async function prepareDocuments(files=[], { originalsOnly = false } = {}) {
   if(!Array.isArray(files)||files.length>12)throw fail('一次最多上传 12 份文件')
   const documents=[],pages=[];let size=0
   for(const file of files){
@@ -37,13 +37,15 @@ export async function prepareDocuments(files=[]) {
     documents.push({id,name,mimeType:file.mimeType,dataUrl:file.dataUrl,contentHash:hash})
     if(file.mimeType==='application/pdf'){
       let pdf;try{pdf=await PDFDocument.load(bytes)}catch{throw fail('PDF 无法读取或已加密，请转为图片后上传')}
-      const count=pdf.getPageCount();if(!count||pages.length+count>12)throw fail('一次最多识别 12 页；请分批上传，未识别页不会标记为完成')
+      const count=pdf.getPageCount();if(!count||!originalsOnly&&pages.length+count>12)throw fail('一次最多识别 12 页；请分批上传，未识别页不会标记为完成')
+      if(originalsOnly)continue
       for(let index=0;index<count;index++){
         const single=await PDFDocument.create(),[page]=await single.copyPages(pdf,[index]);single.addPage(page)
         pages.push({id,page:index+1,name,hash:fingerprint([hash,index]),dataUrl:`data:application/pdf;base64,${Buffer.from(await single.save()).toString('base64')}`,mimeType:file.mimeType})
       }
     }else{
       try{const metadata=await sharp(bytes,{limitInputPixels:40_000_000}).metadata();if(metadata.format!==({'image/png':'png','image/jpeg':'jpeg','image/webp':'webp'})[file.mimeType])throw new Error('MIME mismatch')}catch{throw fail('图片无法解码或格式与声明不一致，请重新选择')}
+      if(originalsOnly)continue
       if(pages.length>=12)throw fail('一次最多识别 12 页')
       pages.push({id,page:1,name,hash,dataUrl:file.dataUrl,mimeType:file.mimeType})
     }

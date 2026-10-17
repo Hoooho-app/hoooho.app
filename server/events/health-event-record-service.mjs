@@ -213,6 +213,23 @@ export class HealthEventRecordService {
         await this.validateSymptomLinks(accountId, event, changes.journal)
       }
     }
+    if (changes.journal?.visit?.materials) {
+      const previous = record.journal?.visit?.materials, next = changes.journal.visit.materials
+      if (!previous) throw new HealthEventRecordError('请通过就诊资料上传原件', 400, 'VISIT_ORIGINAL_MISMATCH')
+      for (const original of previous.documents) {
+        const retained = next.documents.find(document => document.id === original.id)
+        if (!retained || retained.kind !== original.kind || retained.originalText !== original.originalText || retained.contentHash !== original.contentHash) throw new HealthEventRecordError('已保存的原件与原话需保留，后续资料请追加', 400, 'VISIT_ORIGINAL_IMMUTABLE')
+      }
+      if (previous.source === 'external_ai' && next.source !== 'external_ai') throw new HealthEventRecordError('AI资料需保留AI来源', 400, 'VISIT_AI_SOURCE_IMMUTABLE')
+      for (const document of next.documents.filter(document => document.kind === 'file')) {
+        const owned = previous.documents.find(original => original.id === document.id && original.contentHash === document.contentHash && record.caseContext?.attachmentIds?.includes(original.attachmentId))
+        if (!owned) throw new HealthEventRecordError('资料原件不属于这次就诊，请通过补充资料添加', 400, 'VISIT_ORIGINAL_MISMATCH')
+        document.attachmentId = owned.attachmentId
+      }
+      changes.caseContext = { ...record.caseContext, timeUnknown: !next.occurredAt, identity: next.source === 'external_ai' ? 'external_ai' : 'medical_consultation', confirmed: next.status === 'reviewed' }
+      changes.journal.timePrecision = next.occurredAt ? 'exact' : 'unknown'
+      if (next.occurredAt) changes.occurredAt = validateOccurredAt(next.occurredAt, now)
+    }
     if (changes.journal) {
       changes.occurredAt = validateOccurredAt(journalOccurrenceAt(changes.journal, changes.occurredAt ?? record.occurredAt), now)
       if (changes.journal.sleep?.sleepAt) validateOccurredAt(changes.journal.sleep.sleepAt, now)

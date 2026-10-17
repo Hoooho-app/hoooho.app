@@ -1,3 +1,4 @@
+import { normalizePhoto } from '../food-label/service.mjs'
 import { imagePreview } from '../image-preview.mjs'
 import { HealthEventRepository } from './repositories/health-event-repository.mjs'
 import { EventAttachmentRepository } from './repositories/event-attachment-repository.mjs'
@@ -88,8 +89,8 @@ export class EventAttachmentService {
       throw new EventAttachmentError('未找到这张照片', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     if (!attachment.storageKey) {
-      const embedded = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
-      if (embedded) { const file = { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }; return variant === 'preview' ? imagePreview(file) : file }
+      const embedded = /^data:(image\/(?:png|jpeg|webp|heic|heif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
+      if (embedded) { let file = { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }; if (variant === 'preview' && /^image\/hei[cf]$/.test(file.mimeType)) { const normalized = await normalizePhoto({ name: attachment.name, mimeType: file.mimeType, dataUrl: attachment.dataUrl }); file = { mimeType: normalized.mimeType, buffer: Buffer.from(normalized.dataUrl.split(',')[1], 'base64') } }; return variant === 'preview' ? imagePreview(file) : file }
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     try {
