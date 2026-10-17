@@ -35,6 +35,13 @@ export function mergeNarratedIncidents(items,sources,options){
   const input=sources.find(s=>s.id==='input')?.text??''
   for(const item of [...result]){
     if(!continuation(item))continue
+    const clinicianEvidence=item.fields.some(f=>medical.test(f.value)||(f.sources??[]).some(ref=>{
+      if(medical.test(ref.quote))return true
+      const source=sources.find(s=>s.id===ref.sourceId&&s.page===ref.page||s.id===ref.sourceId&&s.page===undefined)
+      if(!source||source.text.indexOf(ref.quote)!==source.text.lastIndexOf(ref.quote))return false
+      const at=source.text.indexOf(ref.quote)
+      return at>=0&&medical.test(source.text.slice(Math.max(0,at-16),at).split(/[。；;\n]/u).at(-1))
+    }))
     const related=primary.filter(anchor=>{
       if(!compatibleTime(anchor,item,options))return false
       if(anchor.relationKey&&item.relationKey&&anchor.relationKey!==item.relationKey)return false
@@ -42,8 +49,8 @@ export function mergeNarratedIncidents(items,sources,options){
       // A shared model key is still bounded by verified parent evidence. Files
       // with independent dates/results remain their own records.
       if(!fromParent(anchor)||!fromParent(item))return false
-      if(item.fields.some(f=>f.name==='result')&&!item.fields.some(f=>medical.test(f.value))&&!explicitlyRelated)return false
-      return explicitlyRelated||primary.length===1&&medical.test(input)&&!separate.test(input)&&(item.fields.some(f=>['doctorStatement','followUp'].includes(f.name)||medical.test(f.value))||item.fields.every(f=>upload.test(f.value)))
+      if(item.fields.some(f=>f.name==='result')&&!clinicianEvidence&&!explicitlyRelated)return false
+      return explicitlyRelated||primary.length===1&&medical.test(input)&&!separate.test(input)&&(clinicianEvidence||item.fields.some(f=>['doctorStatement','followUp'].includes(f.name))||item.fields.every(f=>upload.test(f.value)))
     })
     if(related.length!==1)continue
     const anchor=related[0]

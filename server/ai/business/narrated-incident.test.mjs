@@ -32,6 +32,8 @@ test('one oral injury, attached material, clinician statement and followup remai
   for(const f of merged[0].fields)assert.ok(f.sources.every(s=>s.quote.includes(f.value)))
   const sameNames=fragments();sameNames[1].fields=[field('conclusion','上传资料')];sameNames[2].fields=[field('conclusion','医生说没事')]
   assert.equal(merge(sameNames).length,1,'an upload placeholder cannot conflict with a real clinical field')
+  const shortStatement=fragments();shortStatement[2].fields=[field('result','没事')]
+  assert.equal(merge(shortStatement).length,1,'a short quoted result retains its explicit clinician attribution from the same source clause')
 })
 test('independent diet, sleep, medication, tests, other episodes and archives never collapse into the clinical narration',()=>{
   const independent=[item('food','diet',[field('food','奶')]),item('sleep','sleep',[field('quality','午睡')]),item('drug','medication',[field('medicationName','药品')]),item('test','examination',[field('testName','血常规'),field('result','正常')]),item('other-symptom','symptom',[field('symptom','咳嗽')]),item('archive','other',[field('doctorStatement','医生说没事')],{archiveCategory:'allergy'})]
