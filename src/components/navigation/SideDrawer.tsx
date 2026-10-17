@@ -13,6 +13,7 @@ import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
+import { organizeNavigationState } from '../../features/organize/navigation'
 
 interface SideDrawerProps {
   open: boolean
@@ -112,7 +113,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
       navigate('/nurse-station', { replace: true })
       return
     }
-    navigate(to, to === '/feedback' ? {
+    navigate(to, to === '/care-handoff' ? { state: organizeNavigationState(location, window.history.state?.idx) } : to === '/feedback' ? {
       state: makeFeedbackState(
         getCurrentPath(location.pathname, location.search, location.hash),
         location.pathname.startsWith('/health-events/') ? '健康日历详情' : location.pathname === '/health-events' || location.pathname === '/health-calendar' ? '健康日历' : location.pathname === '/settings' ? '我的' : '原页面',

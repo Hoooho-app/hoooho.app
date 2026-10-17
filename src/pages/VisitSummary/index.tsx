@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { ArrowLeft, Copy, Download, FileText, List } from 'lucide-react'
+import { Copy, Download, FileText, List } from 'lucide-react'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'
@@ -30,6 +30,8 @@ import { consultationHtml, doctorBriefText, downloadContent, type ExportResource
 import { PhotoPicker, PhotoViewer, readPhoto } from './ReportPhotos'
 import './report.css'
 import './reading.css'
+import { OrganizeHeader } from '../../features/organize/OrganizeHeader'
+import { ProcessingState } from '../../components/design-system/ProcessingState'
 import { situationData } from './currentSituationCopy'
 import { ReportDirectory } from './ReportDirectory'
 import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
@@ -66,6 +68,7 @@ function VisitSheetReader({
     controller = useRef<AbortController | null>(null),
     busy = useRef(false),
     alive = useRef(true)
+  const [loadStep, setLoadStep] = useState(0)
   const [state, setState] = useState<VisitSheetState | null>(null),
     [loading, setLoading] = useState(true),
     [working, setWorking] = useState(false),
@@ -118,6 +121,7 @@ function VisitSheetReader({
     const c = new AbortController()
     controller.current = c
     setLoading(true)
+    setLoadStep(0)
     setError('')
     try {
       let caseFocus: VisitSheetUpdate['focus'] | undefined
@@ -135,6 +139,7 @@ function VisitSheetReader({
       if (result.report) accept(result)
       if (result.report && !result.stale && (!caseFocus || result.report.focus.caseEventId === eventId)) accept(result)
       else {
+        setLoadStep(1)
         const generated = await visitSheetService.save(
           memberId,
           token,
@@ -252,17 +257,11 @@ function VisitSheetReader({
   const sources = report?.sources ?? []
   return (
     <main className="visit-report" data-visit-sheet-root onClickCapture={event=>{if(!modalOpen){const trigger=(event.target as Element).closest<HTMLElement>('button,a,input');if(trigger)modalTrigger.current=trigger}}}>
-      <header className="visit-report-header">
-        <button aria-label="返回" onClick={() => navigate(-1)}>
-          <ArrowLeft size={20} />
-        </button>
-        <strong>就诊情况单</strong>
-        <span aria-hidden="true" className="visit-header-spacer"/>
-      </header>
+      <OrganizeHeader title="就诊情况单" className="visit-report-header" />
       <div className="visit-reading-toolbar">
         <button
           aria-label="章节目录"
-          disabled={!report}
+          disabled={!report||loading}
           onClick={() => setMenu(true)}
         >
           <List size={21} />
@@ -288,12 +287,8 @@ function VisitSheetReader({
           if(current)setActive(current.id.replace('chapter-','') as VisitChapterId)
         }}
       >
-        {loading && !report ? (
-          <section className="visit-report-state" role="status">
-            <FileText size={36} />
-            <h1>正在整理已有记录</h1>
-            <p>读取当前孩子的真实资料，整理病情、经过与依据。</p>
-          </section>
+        {loading ? (
+          <ProcessingState title="正在整理就诊情况单" steps={['读取已有记录', '整理就诊内容', '准备情况单']} step={loadStep} />
         ) : null}
         {error && (
           <StatusNotice
@@ -306,7 +301,7 @@ function VisitSheetReader({
             {error}
           </StatusNotice>
         )}
-        {report && (
+        {report && !loading && (
           <>
             {[...new Set([...(state?.warnings??[]),...report.warnings])].map(w=><StatusNotice title={w} tone="warning" key={w}/>)}
             <VisitReading report={report} token={token} busy={loading||working} organizing={organizing} organizationError={organizationError} onOrganize={organizeCurrent} onEvidence={openEvidence} onEdit={(kind,line=0)=>{setSelectedSymptom(line);setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>{setAttachmentPicker(true);setPhotoPicker(true)}} onMedications={()=>setMedicationOpen(true)} opened={opened}/>

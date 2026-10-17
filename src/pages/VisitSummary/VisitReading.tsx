@@ -7,19 +7,19 @@ import {
   Pencil,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Avatar } from "../../components/common/Avatar";
+import { MemberIdentity } from "../../features/organize/MemberIdentity";
+import { readingCourseGroups, questionText, questionOrdinal } from "./readingPresentation";
 import { useAppStore } from "../../store/useAppStore";
 import type { VisitChapterId, VisitSheet } from "../../types/visitSheet";
-import { formatAgeFromBirthday } from "../../utils/formatAgeFromBirthday";
 import { FactLineChart } from "../../components/design-system/FactCharts";
 import { reportTime } from "./ReportChapter";
 import { CurrentSituation } from "./CurrentSituation";
 import { growthReading, visitSignature } from "./reportCopy";
 export const readingCards = [
   { id: "overview", title: "目前情况" },
-  { id: "medication", title: "本次想问" },
   { id: "course", title: "相关经过与处理" },
   { id: "sources", title: "完整资料档案" },
+  { id: "medication", title: "本次想问" },
 ] as const;
 export type ReadingEditor =
   | "focus"
@@ -34,7 +34,7 @@ export function visibleReadingCards(report: VisitSheet) {
   return readingCards.filter(
     (card) =>
       card.id !== "course" ||
-      !!report.reading?.courseGroups?.length ||
+      !!readingCourseGroups(report).length ||
       !!report.notes.course,
   );
 }
@@ -72,9 +72,7 @@ export function VisitReading({
     const timer = setTimeout(() => setPaperUpdated(false), 450)
     return () => clearTimeout(timer)
   }, [paperUpdated])
-  const [folds, setFolds] = useState<Record<string, boolean>>({
-    overview: true,
-  });
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
   const [lastOpened, setLastOpened] = useState(opened.serial);
   if (lastOpened !== opened.serial) {
     setLastOpened(opened.serial);
@@ -85,7 +83,7 @@ export function VisitReading({
   );
   const reading = report.reading,
     questions = report.question.split("\n").filter((line) => line.trim()),
-    groups = reading?.courseGroups ?? [],
+    groups = readingCourseGroups(report),
     growth = growthReading(report);
   function card(
     id: VisitChapterId,
@@ -139,52 +137,7 @@ export function VisitReading({
   }
   return (
     <div className="visit-reading" data-paper-updated={paperUpdated || undefined}>
-      <div className="visit-reading-person">
-        <Avatar
-          name={report.member.name}
-          src={currentMember?.avatar ?? report.member.avatar ?? undefined}
-          size="sm"
-        />
-        <div>
-          <strong>{report.member.name}</strong>
-          <small>
-            {report.member.gender === "female"
-              ? "女"
-              : report.member.gender === "male"
-                ? "男"
-                : "性别未填写"}{" "}
-            ·{" "}
-            {report.member.birthday
-              ? formatAgeFromBirthday(
-                  report.member.birthday,
-                  new Date(),
-                )
-              : "生日未填写"}
-          </small>
-        </div>
-        <div className="visit-reading-growth">
-          {(["cm", "kg"] as const).map((unit) => {
-            const point = unit === "cm" ? reading?.height : reading?.weight;
-            return point ? (
-              <button
-                key={unit}
-                onClick={() => onEvidence([point.sourceId])}
-                aria-label={`${unit === "cm" ? "身高" : "体重"}测量来源`}
-              >
-                <strong>
-                  {point.value}
-                  <span>{unit}</span>
-                </strong>
-              </button>
-            ) : null;
-          })}
-          {report.member.bloodType && (
-            <span className="visit-reading-blood" aria-label="血型">
-              {report.member.bloodType}型
-            </span>
-          )}
-        </div>
-      </div>
+      <MemberIdentity member={report.member} avatar={currentMember?.avatar ?? report.member.avatar} asOf={report.dataAsOf} height={reading?.height?.value} weight={reading?.weight?.value} onHeight={reading?.height ? () => onEvidence([reading.height!.sourceId]) : undefined} onWeight={reading?.weight ? () => onEvidence([reading.weight!.sourceId]) : undefined} />
       {card(
         "overview",
         "目前情况",
@@ -194,18 +147,7 @@ export function VisitReading({
         <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia} organizing={organizing} organizationError={organizationError} onOrganize={onOrganize}/>,
 
       )}
-      {card(
-        "medication",
-        "本次想问",
-        <CircleHelp size={19} />,
-        "question",
-        `${questions.length} 个问题`,
-        <ol className="visit-reading-questions">
-          {questions.map((question, i) => (
-            <li key={i}>{question}</li>
-          ))}
-        </ol>,
-      )}
+
       {groups.length || report.notes.course
         ? card(
             "course",
@@ -327,6 +269,18 @@ export function VisitReading({
           {report.notes.allergy && <p>{report.notes.allergy}</p>}
           {report.notes.sources && <p>{report.notes.sources}</p>}
         </>,
+      )}
+      {card(
+        "medication",
+        "本次想问",
+        <CircleHelp size={19} />,
+        "question",
+        `${questions.length} 个问题`,
+        <ol className="visit-reading-questions">
+          {questions.map((question, i) => (
+            <li key={i}><span className="visit-question-number">{questionOrdinal(i)}</span><p>{questionText(question)}</p></li>
+          ))}
+        </ol>,
       )}
       <footer className="visit-reading-footer">
         {visitSignature(report)} ·{" "}

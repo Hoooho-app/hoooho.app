@@ -31,3 +31,8 @@
 .handoff-module-heading .hoho-button { margin-left: auto; }
 .handoff-edit-row { display: grid; gap: var(--hoho-space-2); padding-block: var(--hoho-space-4); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
 .handoff-edit-row textarea, .handoff-page textarea { min-height: 100px; resize: vertical; }
+.handoff-schedule { display: grid; list-style: none; padding: 0; margin: var(--hoho-space-2) 0 0; }
+.handoff-schedule li { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: baseline; gap: var(--hoho-space-3); padding-block: var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border) / .6); }
+.handoff-schedule li:last-child { border-bottom: 0; padding-bottom: 0; }
+.handoff-schedule-time { white-space:nowrap; font-size: var(--hoho-font-size-caption); font-variant-numeric: tabular-nums; color: rgb(var(--hoho-color-primary)); overflow-wrap: anywhere; }
+.handoff-schedule li p { font-size: var(--hoho-font-size-caption); line-height: var(--hoho-line-height-body); margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

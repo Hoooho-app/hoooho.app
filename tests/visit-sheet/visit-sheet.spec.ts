@@ -9,7 +9,7 @@ const videoId = () => webmFixture() ? 'test-webm' : 'test-video';
 const videoMime = () => webmFixture() ? 'video/webm' : 'video/mp4';
 const videoName = () => webmFixture() ? '合成视频上传.webm' : '合成视频上传.mp4';
 const read = async (p: Page) => (await (await p.request.get(endpoint, { headers })).json()).report;
-async function enter(p: Page, member = 'child-a') { await p.addInitScript(({ token, member }) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 })); }, { token, member }); await p.goto('/visit-summary'); await expect(p.locator('#chapter-overview')).toBeVisible(); }
+async function enter(p: Page, member = 'child-a', expand = true) { await p.addInitScript(({ token, member }) => { sessionStorage.setItem('hoooho-auth-token', token); localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: member, members: [], profile: null }, version: 5 })); }, { token, member }); await p.goto('/visit-summary'); await expect(p.locator('#chapter-overview')).toBeVisible(); if(expand)await p.getByRole('button',{name:'目前情况',exact:true}).click(); }
 async function verifyVideo(v: ReturnType<Page['locator']>, p: Page, offline = false) {
     await expect.poll(() => v.evaluate((e: HTMLVideoElement) => e.readyState >= 2 ? 'ready' : e.error ? 'error' : 'waiting')).not.toBe('waiting');
     const error = await v.evaluate((e: HTMLVideoElement) => e.error?.code ?? null);
@@ -33,12 +33,12 @@ async function chapter(p: Page, title: string) { await expect(p.locator('#chapte
 async function edit(p: Page, title: string) { const toggle=p.getByRole('button',{name:new RegExp('^'+title)});if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();const editorTitle=title==='目前情况'?'情况描述':title;await p.getByRole('button', { name: '编辑' + editorTitle, exact: true }).click(); return p.getByRole('dialog', { name: '编辑' + editorTitle, exact: true }); }
 async function photos(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '添加 / 调整影像', exact: true }).click(); return p.getByRole('dialog', { name: '添加 / 调整影像' }); }
 async function scope(p: Page) { await edit(p, '完整资料档案'); await p.getByRole('button', { name: '调整 / 恢复资料范围', exact: true }).click(); return p.getByRole('dialog', { name: '本次资料范围', exact: true }); }
-async function update(p: Page) {await p.reload();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled();}
+async function update(p: Page) {await p.reload();await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled();}
 async function fromHome(p: Page) {
     await p.goto('/nurse-station');
     await p.getByRole('button', { name: '一键整理', exact: true }).click();
     await p.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /就诊情况单/ }).click();
-    await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
+    await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();
 }
 test.beforeEach(async ({ page: p }) => { const s = await (await p.request.get(endpoint, { headers })).json(); expect((await p.request.put(endpoint, { headers, data: { expectedVersion: s.report?.version ?? s.expectedVersion ?? 0, requestId: crypto.randomUUID(), focus: { mode: 'source', sourceId: 'record:s7' }, caseDetails: {}, question: '这些表现需要了解什么？\n何时需要就医？\n怎样护理和记录？', notes: {}, selection: null, selectedPhotoIds: ['attachment:v5-image-0', 'attachment:v5-image-1', 'attachment:' + videoId()] } })).ok()).toBeTruthy(); });
 test('浏览器返回保护四项草稿，继续编辑和放弃均有明确结果', async ({page:p})=>{
@@ -119,7 +119,7 @@ test('情况单血型只显示 ABO，移除时区与年龄说明', async ({ page
     for (const [abo, rh] of [['B', 'positive'], ['A', 'negative'], ['AB', 'unknown'], ['O', null], [null, 'positive']]) {
         bloodType = abo; rhBloodType = rh;
         await p.reload();
-        await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
+        await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();
         if (abo) await expect(p.getByLabel('血型', { exact: true })).toHaveText(`${abo}型`);
         else await expect(p.getByLabel('血型', { exact: true })).toHaveCount(0);
         await expect(p.locator('.visit-reading > .visit-muted')).toHaveCount(0);
@@ -138,7 +138,7 @@ test('四卡片默认展开、独立编辑、目录键盘定位、实际全页�
     await width(p);
     for (const [id, open] of [['overview', true], ['medication', false], ['course', false], ['sources', false]] as const)
         await expect(p.locator('#chapter-' + id + ' .visit-reading-toggle')).toHaveAttribute('aria-expanded', String(open));
-    await expect(p.locator('.visit-reading-growth button')).toHaveCount(2);
+    await expect(p.locator('.organize-member-facts button')).toHaveCount(2);
     await expect(p.getByRole('button', { name: '更新情况单', exact: true })).toHaveCount(0);
     await p.screenshot({ path: info.outputPath('phone-final.png') });
     await p.locator('[data-scroll-container]').evaluate(e => { Object.assign((e as HTMLElement).style, { position: 'static', height: 'auto', overflow: 'visible' }); });
@@ -146,7 +146,7 @@ test('四卡片默认展开、独立编辑、目录键盘定位、实际全页�
     await p.locator('html,body,#root').evaluateAll(elements=>elements.forEach(e=>Object.assign((e as HTMLElement).style,{height:'auto',overflow:'visible'})));
     await p.screenshot({ path: info.outputPath('full-reader.png'), fullPage: true });
     await p.reload();
-    await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
+    await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();
     for (const title of ['本次想问', '相关经过与处理', '完整资料档案', '目前情况']) {
         await chapter(p, title);
         await width(p);
@@ -459,7 +459,7 @@ test('读取超时中文提示重试恢复原版本', async ({ page: p }) => {
     await p.reload();
     await expect(p.getByText('情况单读取超时或连接中断，请重试。已有资料未修改。', { exact: true })).toBeVisible();
     await p.getByRole('button', { name: '重试', exact: true }).click();
-    await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
+    await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();
     expect((await read(p)).version).toBe(before.version);
 });
 
@@ -495,8 +495,66 @@ test('自动整理失败保留已确认内容，重试后才采用新资料',asy
  const response=await p.request.post('/api/events/event-a/records',{headers,data:{type:'note',content:'前臂观察：重试后读取',occurredAt:'2026-09-21T11:00:00Z',journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'前臂观察：重试后读取',locations:[{id:'forearm',label:'前臂',locationNumber:1,locationLayer:'surface'}],descriptors:[]}}}});expect(response.ok()).toBeTruthy();const record=await response.json()
  try{
   await p.route('**/api/members/child-a/visit-sheet',r=>r.request().method()==='PUT'?r.fulfill({status:503,json:{error:{message:'自动整理暂时失败'}}}):r.continue())
-  await p.reload();await expect(p.getByText('自动整理暂时失败',{exact:true})).toBeVisible();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();expect((await read(p)).version).toBe(before.version)
+  await p.reload();await expect(p.getByText('自动整理暂时失败',{exact:true})).toBeVisible();await expect(p.locator('#chapter-overview')).toBeVisible();if(await p.getByRole('button',{name:'目前情况',exact:true}).getAttribute('aria-expanded')==='false')await p.getByRole('button',{name:'目前情况',exact:true}).click();expect((await read(p)).version).toBe(before.version)
   await p.unroute('**/api/members/child-a/visit-sheet');await p.getByRole('button',{name:'重试',exact:true}).click();await expect(p.getByText('自动整理暂时失败',{exact:true})).toHaveCount(0);await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled()
   expect((await read(p)).version).toBeGreaterThan(before.version);expect((await read(p)).question).toBe(before.question)
  }finally{expect((await p.request.delete('/api/records/'+record.id,{headers})).ok()).toBeTruthy()}
 })
+
+test('默认收起目前情况、紧凑对齐，问题编号置底且保留目录展开和返回来源', async ({ page: p }, info) => {
+    const { installQaFont } = await import('../organize/qaFont'); await installQaFont(p);
+    await p.route('**/api/members/child-a/visit-sheet', async route => {
+        if (route.request().method() !== 'GET') return route.continue();
+        const response = await route.fetch(), body = await response.json();
+        body.report.question = '1、3天后需要复查吗？\n问题二：1岁孩子需要检查吗？\n（3）怎样护理？\n有哪些事项需要观察？\n什么时候复查？';
+        body.report.member = { ...body.report.member, name: '刘景怡', bloodType: 'B' };
+        await route.fulfill({ response, json: body });
+    });
+    await enter(p, 'child-a', false);
+    await expect(p.getByRole('button', { name: '目前情况', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    const cards = await p.locator('[data-reading-card]').evaluateAll(nodes => nodes.map(n => n.getAttribute('data-reading-card')));
+    expect(cards.at(-1)).toBe('medication');
+    const box = await p.locator('#chapter-overview').boundingBox(); expect(box!.height).toBeLessThanOrEqual(70);
+    const iconX = await p.locator('.visit-reading-toggle > span > svg').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().x));
+    expect(Math.max(...iconX) - Math.min(...iconX)).toBeLessThanOrEqual(1);
+    const name = p.locator('.organize-member-heading h2'); await expect(name).toHaveText('刘景怡');
+    const font = await p.getByLabel('血型', { exact: true }).evaluate(e => Number.parseFloat(getComputedStyle(e).fontSize)); expect(font).toBeLessThanOrEqual(14);
+    await width(p); await p.evaluate(() => document.fonts.ready); await p.screenshot({ path: info.outputPath('collapsed-polish.png') });
+    await p.getByRole('button', { name: /^本次想问/ }).click();
+    await expect(p.locator('.visit-question-number')).toHaveText(['问题一','问题二','问题三','问题四','问题五']);
+    await expect(p.locator('.visit-reading-questions li p').first()).toHaveText('3天后需要复查吗？');
+    await p.locator('#chapter-medication').scrollIntoViewIfNeeded();
+    await p.screenshot({ path: info.outputPath('numbered-questions.png') });
+    await p.getByRole('button', { name: /^相关经过与处理/ }).click();
+    await expect(p.locator('.visit-reading-course-group h3').getByText('相关症状经过', { exact: true })).toHaveCount(0);
+    await p.getByRole('button', { name: '章节目录', exact: true }).click();
+    const directory = p.getByRole('dialog', { name: '章节目录' });
+    expect((await directory.locator('nav button').allTextContents()).at(-1)).toContain('本次想问');
+    await directory.getByRole('button', { name: /目前情况/ }).click();
+    await expect(p.getByRole('button', { name: '目前情况', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await p.getByRole('button', { name: '返回', exact: true }).click();
+    await expect(p).toHaveURL(/\/nurse-station$/);
+    await p.goto('/health-events?organizeOrigin=calendar');
+    await p.getByRole('button', { name: '打开菜单', exact: true }).click();
+    await p.getByRole('button', { name: '一键整理', exact: true }).click();
+    await p.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /就诊情况单/ }).click();
+    await expect(p.locator('#chapter-overview')).toBeVisible();
+    await p.getByRole('button', { name: '返回', exact: true }).click();
+    await expect(p).toHaveURL(/\/health-events\?organizeOrigin=calendar(?:&|$)/);
+});
+
+test('就诊整理显示真实等待进度且可返回首页取消', async ({ page: p }) => {
+    await enter(p);
+    await p.goto('/nurse-station');
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve });
+    await p.route('**/api/members/child-a/visit-sheet', async route => { if(route.request().method()==='GET')await gate; await route.continue(); });
+    try {
+        await p.getByRole('button', { name: '一键整理', exact: true }).click();
+        await p.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /就诊情况单/ }).click();
+        await expect(p.getByRole('progressbar', { name: '资料读取进度' })).toBeVisible();
+        await expect(p.getByRole('heading', { name: '正在整理就诊情况单' })).toBeVisible();
+        await p.getByRole('button', { name: '返回', exact: true }).click();
+        await expect(p).toHaveURL(/\/nurse-station$/);
+    } finally { release(); }
+});
