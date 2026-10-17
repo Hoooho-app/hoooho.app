@@ -16,8 +16,9 @@
 .vm-import p{text-align:center;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));margin:var(--hoho-space-1) 0 var(--hoho-space-5)}
 .vm-action-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2)}
 .vm-action-pair>.hoho-button{min-width:0}
-.visit-materials-page .vm-import-actions>.hoho-button[data-variant=secondary]{background:rgb(var(--hoho-color-surface-white));background-image:none;color:rgb(var(--hoho-color-text-primary));border:1px solid rgb(var(--hoho-color-border-strong));box-shadow:none}
+.visit-materials-page .vm-import-actions>.hoho-button[data-variant=secondary]{background:rgb(var(--hoho-color-surface-white));background-image:none;color:rgb(var(--hoho-color-text-primary));border:1px solid rgb(var(--hoho-color-border-strong));box-shadow:none;padding-inline:var(--hoho-space-2)}
 .visit-materials-page .vm-import-actions>.hoho-button[data-variant=secondary]:hover:not(:disabled){background:rgb(var(--hoho-color-surface-subtle))}
+.vm-import-actions .hoho-button__content{white-space:nowrap}
 .vm-supplement{display:grid;gap:var(--hoho-space-1)}
 .vm-import-tip{display:flex;align-items:center;gap:var(--hoho-space-2);min-height:var(--hoho-touch-target);padding:var(--hoho-space-1) var(--hoho-space-2);border:0;background:transparent;color:rgb(var(--hoho-color-text-secondary));font:inherit;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);text-align:left}
 .vm-import-tip>span{flex:1;min-width:0}.vm-import-tip>svg{flex-shrink:0}
