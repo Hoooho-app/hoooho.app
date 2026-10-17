@@ -28,14 +28,20 @@ test('folded by default, no merge/materials, text edit and three bottom actions 
  for(const width of [320,375,390,430]){
   await page.setViewportSize({width,height:width===375?667:844})
   const row=card.locator('.case-followup-primary-actions button');await expect(row).toHaveText(['补充变化','标记已康复','删除'])
-  const boxes=await row.evaluateAll(buttons=>buttons.map(b=>{const r=b.getBoundingClientRect();return {top:r.top,height:r.height}}))
-  expect(Math.max(...boxes.map(b=>b.top))-Math.min(...boxes.map(b=>b.top))).toBeLessThan(1);expect(boxes.every(b=>b.height>=44)).toBe(true)
+  const boxes=await row.evaluateAll(buttons=>buttons.map(b=>{const r=b.getBoundingClientRect(),s=getComputedStyle(b);return {top:r.top,width:r.width,height:r.height,border:s.borderTopWidth,borderStyle:s.borderTopStyle,borderColor:s.borderTopColor}}))
+  expect(Math.max(...boxes.map(b=>b.top))-Math.min(...boxes.map(b=>b.top))).toBeLessThan(1);expect(boxes.every(b=>b.width>=44&&b.height>=44)).toBe(true)
+  expect(boxes.every(b=>b.border==='1px'&&b.borderStyle==='solid'&&!['transparent','rgba(0, 0, 0, 0)'].includes(b.borderColor))).toBe(true)
+  await expect(edit).toHaveCSS('font-size',await row.last().evaluate(b=>getComputedStyle(b).fontSize))
+  const toggle=card.getByRole('button',{name:'展开',exact:true});await expect(toggle).toHaveText('');await expect(toggle.locator('svg')).toHaveCount(1);await expect(toggle).toHaveAttribute('aria-expanded','false')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
   await page.screenshot({path:info.outputPath(`folded-${width}.png`)})
  }
  await edit.click();await page.getByLabel('情况名称',{exact:true}).fill('颈部皮疹');await page.getByRole('dialog',{name:'编辑情况'}).getByRole('button',{name:'保存',exact:true}).click();await expect(card.getByRole('heading',{name:'颈部皮疹',exact:true})).toBeVisible()
  await card.getByRole('button',{name:'展开',exact:true}).click();await expect(card.locator('.case-followup-timeline')).toContainText('颈部发红');await expect(card.getByRole('heading',{name:'原始资料',exact:true})).toHaveCount(0)
- await card.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(card).toHaveCount(0);await page.getByRole('tab',{name:/已归档/}).click();await expect(card.getByRole('button',{name:'恢复跟进',exact:true})).toBeVisible();await card.getByRole('button',{name:'恢复跟进',exact:true}).click();await page.getByRole('tab',{name:/跟进中/}).click();await expect(card).toBeVisible()
+ await expect(card.getByRole('button',{name:'收起',exact:true})).toHaveText('');await expect(card.locator('.case-followup-toggle svg')).toHaveClass(/case-followup-chevron-open/)
+ await card.getByRole('button',{name:'标记已康复',exact:true}).click();await expect(card).toHaveCount(0);await page.getByRole('tab',{name:/已归档/}).click();await expect(card.getByRole('button',{name:'恢复跟进',exact:true})).toBeVisible()
+ for(const button of await card.locator('.case-followup-primary-actions button').all()){await expect(button).toHaveCSS('border-top-width','1px');await expect(button).toHaveCSS('border-top-style','solid')}
+ await card.getByRole('button',{name:'恢复跟进',exact:true}).click();await page.getByRole('tab',{name:/跟进中/}).click();await expect(card).toBeVisible()
  await card.getByRole('button',{name:'删除颈部皮疹',exact:true}).click();await page.getByRole('dialog',{name:'删除情况'}).getByRole('button',{name:'确认删除',exact:true}).click();await expect(card).toHaveCount(0)
 })
 test('supplement saves to the same symptom and opens its process above other folded symptoms',async({page,request},info)=>{
