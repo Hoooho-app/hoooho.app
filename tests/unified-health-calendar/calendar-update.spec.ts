@@ -6,21 +6,36 @@ async function prepare(page:Page, url='/health-events') {
  await page.goto(url);await expect(page.getByRole('heading',{name:'健康日历',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'日常',exact:true})).toBeEnabled()
 }
 const toggle=(page:Page)=>page.getByRole('button',{name:'切换日历视图',exact:true})
-test('compact icon toolbar, today within date picker, view preference and fresh filter reset',async({page})=>{
+test('labelled neutral toolbar, today within date picker, view preference and fresh filter reset',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await prepare(page)
  await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','month')
- await expect(toggle(page)).toHaveText('');await expect(toggle(page).locator('svg')).toHaveCount(1)
+ await expect(toggle(page)).toHaveText('月历');await expect(toggle(page).locator('svg')).toHaveCount(1)
  await expect(page.locator('.calendar-toolbar').getByRole('button',{name:'今天',exact:true})).toHaveCount(0)
  const options=page.getByLabel('筛选记录类型');await expect(options.locator('option')).toHaveText(['查看全部','查看喂养','查看日常','查看用药','查看症状','查看就诊资料'])
- for(const [width,height] of [[320,568],[375,667],[390,844],[430,932]]){
-  await page.setViewportSize({width,height})
-  const boxes=await page.locator('.calendar-toolbar').evaluate(el=>Array.from(el.children).map(n=>n.getBoundingClientRect().toJSON()).filter(b=>b.height>0))
-  expect(Math.max(...boxes.map(b=>b.top))-Math.min(...boxes.map(b=>b.top))).toBeLessThanOrEqual(3)
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-  await expect(page.locator('.health-calendar__day').last()).toBeInViewport()
+ for(const mode of ['month','day'] as const){
+  if(mode==='day')await toggle(page).click()
+  await expect(toggle(page)).toHaveText(mode==='month'?'月历':'日历')
+  for(const [width,height] of [[320,568],[375,667],[390,844],[430,932]]){
+   await page.setViewportSize({width,height})
+   const layout=await page.locator('.calendar-toolbar').evaluate(el=>{
+    const rect=el.getBoundingClientRect(), nodes=Array.from(el.children) as HTMLElement[]
+    return {right:rect.right, groups:nodes.map(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,top:n.getBoundingClientRect().top,overflow:n.scrollWidth>n.clientWidth,background:getComputedStyle(n).backgroundColor})),primary:`rgb(${getComputedStyle(document.documentElement).getPropertyValue('--hoho-color-primary').trim().replaceAll(/\s+/g,', ')})`}
+   })
+   expect(layout.groups).toHaveLength(3)
+   expect(Math.max(...layout.groups.map(b=>b.top))-Math.min(...layout.groups.map(b=>b.top))).toBeLessThanOrEqual(1)
+   expect(layout.groups[0].right).toBeLessThan(layout.groups[1].left)
+   expect(layout.groups[1].right).toBeLessThan(layout.groups[2].left)
+   expect(layout.groups[2].right).toBeCloseTo(layout.right,0)
+   expect(layout.groups.every(group=>!group.overflow&&group.background!==layout.primary)).toBe(true)
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+   if(mode==='month')await expect(page.locator('.health-calendar__day').last()).toBeInViewport()
+   await page.screenshot({path:`outputs/calendar-header/${mode}-${width}.png`})
+  }
  }
+ await toggle(page).click()
  await options.selectOption('daily');await expect(options).toHaveValue('daily');await toggle(page).click()
  await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
+ await expect(toggle(page)).toHaveText('日历')
  await page.getByRole('button',{name:'搜索健康日历'}).click();await page.getByRole('button',{name:'返回健康日历'}).click();await expect(options).toHaveValue('daily')
  await page.reload();await expect(options).toHaveValue('');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
  await page.goto('/health-profile');await page.goto('/health-events');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day');await expect(options).toHaveValue('')
