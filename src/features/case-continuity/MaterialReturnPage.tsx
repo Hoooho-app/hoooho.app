@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { healthEventRecordService } from '../../services/healthEventRecords'
 import { AIBusinessComposer } from '../ai-business/AIBusinessComposer'
 import { RecordOriginals } from '../ai-business/RecordOriginals'
+import { SelectedFilePreviews } from '../health-attachments/PhotoPreview'
 import { fileDataUrl } from '../ai-business/CaseCaptureWorkspace'
 import { captureDraft } from '../ai-business/captureDraft'
 import { identityLabels } from './CaseActions'
@@ -91,7 +92,7 @@ export function MaterialReturnForm({ eventId, initialRecordId = null, embedded =
         <label><span><input style={{ width:'auto' }} type="checkbox" checked={timeUnknown} disabled={busy || !hydrated} onChange={e => setTimeUnknown(e.target.checked)}/>就诊时间未提供</span></label>
         <HohoButton variant="secondary" disabled={busy || !hydrated} onClick={() => input.current?.click()}>添加截图／报告（可多页）</HohoButton>
         <input aria-label="上传就诊资料" ref={input} hidden multiple type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy || !hydrated} onChange={e => { const chosen=Array.from(e.currentTarget.files??[]); setFiles(old => [...old, ...chosen]); e.currentTarget.value = '' }}/>
-        {files.map((file,index) => <p key={index}>{file.name}<HohoButton variant="text" disabled={busy} onClick={() => setFiles(old => old.filter((_, i) => i !== index))}>移除</HohoButton></p>)}
+        <SelectedFilePreviews files={files} disabled={busy} onRemove={file=>setFiles(old=>old.filter(item=>item!==file))}/>
         <small>支持照片与PDF；原件先保存，识别与人工核对另行确认。识别失败不影响原件保留。</small>
         <HohoButton disabled={busy || !hydrated || (!files.length && !text.trim())} loading={busy} onClick={() => void originals()}>{embedded ? '保存到这次情况' : '先保留原件'}</HohoButton>
       </>}
