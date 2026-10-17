@@ -1,18 +1,22 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { recoverBrowserSession } from './SessionBootstrap'
-import { HohoButton } from '../design-system/HohoButton'
+import { useBrowserRecoveryState } from '../../services/browserRecoveryState'
+import { SessionRecoveryScreen } from './SessionRecoveryView'
+import { SessionExpiredDialog } from './SessionExpiredDialog'
 
 export function RequireAuth() {
   const token = useAppStore((state) => state.authToken)
   const authStatus = useAppStore((state) => state.authStatus)
+  const accountId = useAppStore((state) => state.authUser?.id)
+  const { contextAccountId, reauthenticationRequired, phase } = useBrowserRecoveryState()
   const location = useLocation()
 
-  if (authStatus === 'unknown' || authStatus === 'loading') return <main className="app-shell px-4 py-16"><p role="status">正在恢复使用状态…</p></main>
-  if (authStatus === 'error') return <main className="app-shell px-4 py-16"><p role="alert">暂时无法恢复使用状态，请检查网络后重试</p><HohoButton onClick={() => void recoverBrowserSession()}>重试</HohoButton></main>
-  if (!token) {
+  const keepPage = accountId && contextAccountId === accountId
+  if (!keepPage && (authStatus === 'unknown' || authStatus === 'loading' || token || authStatus === 'error')) return <SessionRecoveryScreen failed={phase === 'failed'} onRetry={() => void recoverBrowserSession()} />
+  if (!token && !reauthenticationRequired) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}${location.hash}` }} />
   }
 
-  return <Outlet />
+  return <><div className="session-protected-page" key={accountId} aria-hidden={reauthenticationRequired || undefined}><Outlet /></div>{reauthenticationRequired && <SessionExpiredDialog />}</>
 }
