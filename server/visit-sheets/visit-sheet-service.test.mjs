@@ -392,6 +392,28 @@ test('纯编辑不改资料截至、幂等重放不泄露已删除来源，照�
   await assert.rejects(svc.save(a,m,{expectedVersion:1,requestId:'edit'}),{status:409})
 })
 
+test('已有自动问题打开即更新为通用问法，切换主诉与重开一致，人工问题保留',async t=>{
+  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+  const first=await svc.save(a,m,{expectedVersion:0,requestId:'generic-first',focus:{mode:'custom',text:'脖子红点'}})
+  const expected='可能需要考虑哪些情况？\n现有资料能帮助判断什么？\n接下来怎样处理和记录？\n有哪些需要避免的做法？'
+  assert.equal(first.report.question,expected)
+  const legacy='“脖子红点”可能需要考虑哪些情况，现有资料能帮助判断什么？'
+  await svc.store.update(data=>({...data,reports:data.reports.map(row=>({...row,current:{...row.current,question:legacy,reading:{...row.current.reading,questionCandidates:[legacy]}}}))}))
+  const opened=(await svc.get(a,m)).report
+  assert.equal(opened.question,expected)
+  assert.equal(opened.reading.questionCandidates.length,10)
+  for(const key of ['id','version','fingerprint','dataAsOf','generatedAt','editedAt'])assert.equal(opened[key],first.report[key])
+  assert.equal((await svc.store.read()).reports[0].current.question,legacy)
+  const changed=await svc.save(a,m,{expectedVersion:opened.version,requestId:'generic-switch',focus:{mode:'custom',text:'咳嗽'}})
+  assert.equal(changed.report.question,expected)
+  assert.equal((await svc.get(a,m)).report.question,expected)
+  const manual='想问脖子红点是否要复诊？'
+  const edited=await svc.save(a,m,{expectedVersion:changed.report.version,requestId:'generic-manual',question:manual})
+  const switched=await svc.save(a,m,{expectedVersion:edited.report.version,requestId:'generic-manual-switch',focus:{mode:'custom',text:'其他关注'}})
+  assert.equal(switched.report.question,manual)
+  assert.equal((await svc.get(a,m)).report.question,manual)
+})
+
 test('首次部分读取失败不能保存为无记录；章节补充不改变问题来源身份',async t=>{
   const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
   svc.growth.list=async()=>{throw new Error('unavailable')}

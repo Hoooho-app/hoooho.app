@@ -858,7 +858,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   }
   if (!preferences.questionEdited) {
     const recorded = (report.questionSourceIds?.length ? report.question.split('\n').filter(Boolean) : [])
-    report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,3).join('\n')
+    report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,4).join('\n')
     report.questionOrigin = recorded.length ? '据家长记录整理' : '可参考的问题'
   }
   return report

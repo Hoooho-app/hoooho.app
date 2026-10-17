@@ -21,6 +21,7 @@ import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from './visit-ai-summary.mjs'
 import { situationSources, situationFingerprint } from './current-situation-output.mjs'
+import { questionCandidates } from './reading-context.mjs'
 import {
   buildVisitSheet,
   chapters,
@@ -187,7 +188,7 @@ export class VisitSheetService {
     const saved = (await this.store.read()).reports.find(
       (r) => r.accountId === accountId && r.memberId === memberId,
     )
-    const report = saved?.current ?? null
+    let report = saved?.current ?? null
     let stale = false
     if (report) {
       // An unavailable source is not proof that it has been deleted. Fail closed
@@ -212,6 +213,16 @@ export class VisitSheetService {
           ],
           hasLegacy: input.events.some((e) => e.medicalPreparation),
         }
+      // Refresh presentation-only templates in saved snapshots without changing
+      // parent-authored questions, source-linked questions or report metadata.
+      const candidates = questionCandidates(report.complaint, report.reading)
+      report = {
+        ...report,
+        ...(report.reading ? { reading: { ...report.reading, questionCandidates: candidates } } : {}),
+        ...(!report.questionEdited && !report.questionSourceIds?.length
+          ? { question: candidates.slice(0,4).join('\n'), questionOrigin: '可参考的问题' }
+          : {}),
+      }
     }
     return {
       report,
