@@ -12,10 +12,14 @@ on:
       - 'src/pages/HealthEvents/Bowel*'
       - 'tests/bowel-form/**'
       - '.github/workflows/bowel-form-verification.yml'
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TZ: Asia/Shanghai
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
