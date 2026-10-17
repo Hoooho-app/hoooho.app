@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto'
 import {mkdir,writeFile} from 'node:fs/promises'
 import {chromium,expect} from '@playwright/test'
 const origin=process.argv[2]
-assert(['https://hooohoapp-staging.up.railway.app','https://hoooho.com'].includes(origin))
+assert(['https://hooohoapp-staging.up.railway.app','https://hoooho-calendar-verify-20261010-staging.up.railway.app','https://hoooho.com'].includes(origin))
 const target=origin.includes('staging')?'staging':'production',out=`outputs/quick-search/${target}`
 await mkdir(out,{recursive:true})
 const browser=await chromium.launch({args:['--no-sandbox']})
