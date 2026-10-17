@@ -1,5 +1,1 @@
 .record-update-dot{display:inline-block;flex:none;width:5px;height:5px;border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-error));vertical-align:middle;margin-inline-start:var(--hoho-space-1)}
-.record-update-links{max-height:160px;overflow:auto;display:grid;gap:var(--hoho-space-1);padding-block:var(--hoho-space-2)}
-.record-update-links button{display:flex;align-items:center;gap:var(--hoho-space-2);min-height:44px;text-align:left;color:rgb(var(--hoho-color-text-primary));font-size:var(--hoho-font-size-caption)}
-.record-update-links button>span:last-child{margin-left:auto;white-space:nowrap;color:rgb(var(--hoho-color-primary))}
-.record-update-view{min-height:44px;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}

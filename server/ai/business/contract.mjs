@@ -143,7 +143,7 @@ export function mergeItems(items) {
 export const extractionSchema = {
   type:'object', additionalProperties:false, required:['items'], properties:{items:{type:'array',maxItems:30,items:{
     type:'object',additionalProperties:false,required:['category','title','timeText','fields','archiveCategory','subject','relationKey'],properties:{
-      category:{type:'string',enum:categories,description:'按整句话的实际事项分类，不能仅因身体部位就判为symptom。喂养饮食diet、睡眠sleep、排便elimination、涂抹护理care、户外活动及无不适的普通晒黑activity；实际身体不适及否定症状观察symptom。混合事项拆分。examination必须有真实检查项目/结果，visit必须是就诊事实。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。没说时间必须为null，不能自行补今天或00:00；实时录入的缺省时分由程序处理。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null']},
+      category:{type:'string',enum:categories,description:'按完整事件分类。症状/受伤及针对它的就医、医生判断、观察要求保留在同一item的不同字段；上传附件不是新的健康事项。独立饮食/睡眠/用药、不同日期或多次发生才拆分。examination必须有真实检查项目/结果，“医生说没事”不是检查。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。没说时间必须为null，不能自行补今天或00:00；实时录入的缺省时分由程序处理。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null'],description:'同一次具体健康事件的关联标识；不是对话ID。同一事件的症状、就医、医生原话和观察要求优先合为一条，独立事件或不明确关联用null。'},
       fields:{type:'array',maxItems:50,items:{type:'object',additionalProperties:false,required:['name','value','sourceId','quote','page'],properties:{name:{type:'string',enum:fieldNames},value:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},page:{type:'integer'}}}
     }
   }}}}

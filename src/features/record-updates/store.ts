@@ -1,6 +1,6 @@
 import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
-export type RecordUpdate={id:string;accountId:string;memberId:string;destination:'symptom'|'calendar'|'profile';eventId?:string;recordId?:string;sectionId?:string;entryId?:string;label:string;at:number}
+export type RecordUpdate={id:string;accountId:string;memberId:string;destination:'symptom'|'calendar'|'profile';eventId?:string;recordId?:string;sectionId?:string;entryId?:string;label:string;at:number;occurredAt?:string}
 export const useUpdateStore=create<{items:RecordUpdate[];add:(items:RecordUpdate[])=>void;read:(ids:string[],through?:number)=>void}>()(persist((set)=>({items:[],add:items=>set(s=>({items:[...s.items.filter(old=>!items.some(i=>i.id===old.id)),...items].slice(-500)})),read:(ids,through=Date.now())=>set(s=>({items:s.items.filter(i=>!ids.includes(i.id)||i.at>through)}))}),{name:'hoooho-record-updates-v1'}))
 export type UpdateScope={accountId:string;memberId:string}
 export function trackSavedMutation(scope:UpdateScope,path:string,method:string,input:any,data:any) {
@@ -16,13 +16,13 @@ export function trackSavedMutation(scope:UpdateScope,path:string,method:string,i
  }
  const at=Date.now(),updates:RecordUpdate[]=[]
  const push=(row:Partial<RecordUpdate>&Pick<RecordUpdate,'destination'|'label'>)=>{const id=JSON.stringify([scope.accountId,scope.memberId,row.destination,row.sectionId??'',row.entryId??row.recordId??row.eventId??'section']);updates.push({...scope,...row,id,at})}
- const record=(row:any)=>{if(!row?.id||!row.eventId)return;const symptom=row.type==='symptom'||row.journal?.categories?.includes('symptom');push({destination:symptom?'symptom':'calendar',eventId:row.eventId,recordId:row.id,label:row.content?.slice(0,32)||'新记录'})}
+ const record=(row:any)=>{if(!row?.id||!row.eventId)return;const symptom=row.type==='symptom'||row.journal?.categories?.includes('symptom');push({destination:symptom?'symptom':'calendar',eventId:row.eventId,recordId:row.id,occurredAt:row.occurredAt,label:row.content?.slice(0,32)||'新记录'})}
  const memberMatch=/^\/api\/members\/([^/]+)/.exec(path)
  if(memberMatch&&decodeURIComponent(memberMatch[1])!==scope.memberId)return
  if(/\/ai-drafts\/[^/]+\/save$/.test(path)&&data.state==='saved') for(const row of data.result?.records??[]) {
   if(row.memberId&&row.memberId!==scope.memberId)continue
   if(row.profileEntries?.length)for(const p of row.profileEntries)push({destination:'profile',sectionId:p.sectionId,entryId:p.entryId,label:'档案已更新'})
-  else push({destination:(row.categories??[row.category]).includes('symptom')?'symptom':'calendar',eventId:row.eventId,recordId:row.recordId,label:'新记录'})
+  else push({destination:(row.categories??[row.category]).includes('symptom')?'symptom':'calendar',eventId:row.eventId,recordId:row.recordId,occurredAt:row.occurredAt,label:'新记录'})
  }
  else if(/\/case-records$/.test(path)&&data.recordId)push({destination:input?.journal?.categories?.includes('symptom')?'symptom':'calendar',eventId:data.eventId,recordId:data.recordId,label:input?.text?.slice(0,32)||'新记录'})
  else if(/\/profile-list\//.test(path)) {

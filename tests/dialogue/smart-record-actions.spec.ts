@@ -46,7 +46,8 @@ test('full review edits one field, adds and deletes cards, saves together',async
  await page.getByRole('dialog').getByLabel('发生时间',{exact:true}).fill('昨天')
  await page.getByRole('button',{name:'添加',exact:true}).click()
  await expect(page.locator('.smart-review-card')).toHaveCount(2)
- await page.getByRole('button',{name:'删除胳膊有点痒',exact:true}).click()
+ await page.getByRole('button',{name:'编辑胳膊有点痒的名称',exact:true}).click()
+ await page.getByRole('button',{name:'删除这条记录',exact:true}).click()
  await expect(page.locator('.smart-review-card')).toHaveCount(1)
  for(const width of [320,375,390]){await page.setViewportSize({width,height:667});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}
  await page.screenshot({path:info.outputPath('review.png')})
@@ -62,7 +63,9 @@ test('zero extracted records offer no record actions',async({page,request})=>{
 })
 test('delete the extracted record and save only a manual addition',async({page})=>{
  await page.getByRole('button',{name:'核对记录',exact:true}).click()
- await page.getByRole('button',{name:/删除/}).click()
+ await expect(page.getByRole('button',{name:/删除/})).toHaveCount(0)
+ await page.getByRole('button',{name:/编辑.*的名称/}).click()
+ await page.getByRole('button',{name:'删除这条记录',exact:true}).click()
  await expect(page.locator('.smart-review-card')).toHaveCount(0)
  await expect(page.getByRole('button',{name:'保存',exact:true})).toBeDisabled()
  await page.getByRole('button',{name:'新增记录',exact:true}).click()
@@ -82,6 +85,7 @@ test('voice recording remains available and automatically gets the two record ac
  await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
  await page.waitForTimeout(900);await page.keyboard.up('Space')
  await expect(page.locator('.nurse-turn--user').last()).toContainText('今天胳膊有点痒')
+ await expect(page.locator('.smart-record-page audio')).toHaveCount(0)
  await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对记录/})).toBeEnabled()
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
 })

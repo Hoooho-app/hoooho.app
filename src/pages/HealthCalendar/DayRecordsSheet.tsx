@@ -1,10 +1,10 @@
-import { ChevronRight, Paperclip } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
 import { JournalCategoryIcon } from '../HealthEvents/JournalCategoryIcon'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
-import { presentCalendarRecord } from './presentation'
+import { presentCalendarRecord,compactCalendarSummary } from './presentation'
 import type { CalendarReminder } from './reminders'
 import { CalendarReminderRows } from './CalendarReminderRows'
 
@@ -44,9 +44,8 @@ export function DayRecordsSheet({ day, entries, reminders = [], suspended, loadi
         const clock = at.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
         return <article key={entry.id} data-tone={presented.group ?? 'neutral'}>
           <button type="button" data-day-record={entry.id} onClick={() => { lastRecord.current = entry.id; scroll.current = root.current?.parentElement?.scrollTop ?? 0; onOpen(entry) }}>
-            <span className="calendar-day-icon"><JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} size={22} strokeWidth={1.75}/></span><time dateTime={at.toISOString()}>{clock}</time>
-            <span><strong>{presented.group?presented.coreSummary:entry.content.split('\n')[0]||presented.coreSummary}</strong></span><ChevronRight aria-hidden="true" size={16}/>
-            {entry.attachmentCount > 0 && <span className="calendar-day-attachment"><Paperclip aria-hidden="true" size={14}/>{entry.attachmentCount}个附件</span>}
+            <span className="calendar-day-icon"><JournalCategoryIcon category={entry.categories?.[0] ?? 'other'} dietKind={entry.diet?.kind} size={22} strokeWidth={1.75}/></span>{entry.timePrecision==='exact'?<time dateTime={at.toISOString()}>{clock}</time>:<span className="calendar-day-clock" aria-label="具体时间未记录">—</span>}
+            <span className="calendar-day-summary"><strong title={entry.content}>{compactCalendarSummary(entry)}</strong></span><ChevronRight aria-hidden="true" size={16}/>
           </button>
         </article>
       })}</div>

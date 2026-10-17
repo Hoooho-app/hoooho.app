@@ -470,7 +470,7 @@ export function projectJournalRecord(record, timezone = 'Asia/Shanghai') {
     else {delete journal.vaccination;journal.categories=journal.categories.filter(c=>c!=='vaccination');if(!journal.categories.length)journal.categories=['other']}
     record={...record,journal}
   }
-  if (record.journal?.timePrecision === 'unknown') return { ...record, journal: { ...record.journal, timePrecision: 'unknown', occurredAt: record.occurredAt } }
+  if (['unknown','period'].includes(record.journal?.timePrecision)) return { ...record, journal: { ...record.journal, occurredAt: record.occurredAt } }
   const selected = record.journal?.timePrecision === 'exact' || ['user_record', 'measurement', 'doctor_confirmation'].includes(record.sourceType)
   let journal = { ...record.journal, timePrecision: 'exact', occurredAt: record.occurredAt }
   if (!selected) {
