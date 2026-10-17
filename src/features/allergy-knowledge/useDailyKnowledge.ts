@@ -1,0 +1,27 @@
+import { useEffect, useState } from 'react'
+import { getKnowledgeStorage, nextKnowledgeUpdate, readDailyKnowledge } from './daily'
+
+export function useDailyKnowledge(accountId: string) {
+  const [article, setArticle] = useState(() => readDailyKnowledge(accountId, new Date(), getKnowledgeStorage()))
+  useEffect(() => {
+    let timer: number
+    const refresh = () => {
+      window.clearTimeout(timer)
+      const now = new Date()
+      setArticle(readDailyKnowledge(accountId, now, getKnowledgeStorage()))
+      timer = window.setTimeout(refresh, nextKnowledgeUpdate(now).getTime() - now.getTime() + 50)
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    refresh()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
+  }, [accountId])
+  return article
+}

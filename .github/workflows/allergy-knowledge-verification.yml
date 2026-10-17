@@ -1,0 +1,55 @@
+name: Allergy knowledge verification
+on:
+  push:
+    branches: ['feat/daily-allergy-knowledge-20261017']
+  pull_request:
+    paths: ['src/features/allergy-knowledge/**', 'src/pages/AllergyKnowledge/**', 'src/pages/NurseStation/HomeFlows*', 'tests/dialogue/knowledge*', '.github/workflows/allergy-knowledge-verification.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/allergy-knowledge/daily.test.ts src/pages/NurseStation/nurseStationStyle.contract.test.ts src/pages/NurseStation/nurseStationView.test.ts
+      - run: npm run build
+      - run: npx playwright test --config tests/dialogue/knowledge.config.ts --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allergy-knowledge-mobile-evidence
+          path: test-results/
+  live:
+    if: github.ref == 'refs/heads/feat/daily-allergy-knowledge-20261017'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify Staging
+        run: node tests/dialogue/knowledge-live.mjs https://hooohoapp-staging.up.railway.app
+      - name: Verify Production after Staging
+        run: node tests/dialogue/knowledge-live.mjs https://hoooho.com
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allergy-knowledge-online-evidence
+          path: outputs/allergy-knowledge/

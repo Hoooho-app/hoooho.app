@@ -105,3 +105,17 @@
 }
 .home-symptom-followup{gap:var(--hoho-space-2)}
 .home-event-descriptions>li{gap:0;padding-top:var(--hoho-space-1)}
+.home-knowledge-entry.hoho-button{justify-self:stretch;min-height:var(--hoho-touch-target);padding:var(--hoho-space-1) 0;text-align:left;white-space:normal}
+.home-knowledge-entry>.hoho-button__content{width:100%;justify-content:flex-start;min-width:0}
+.home-knowledge-entry__copy{display:grid;gap:var(--hoho-space-1);min-width:0}
+.home-knowledge-entry__label{display:flex;align-items:center;gap:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);font-weight:400}
+.home-knowledge-entry__label svg{flex:none}
+.home-knowledge-entry__title{font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);font-weight:500;overflow-wrap:anywhere}
+.home-knowledge-entry__title svg{display:inline;vertical-align:middle;margin-left:var(--hoho-space-1)}
+/* The daily entry occupies the existing welcome copy beside the unchanged nurse footage. */
+@media(min-height:760px){
+ .nurse-home-dialogue__intro:has(.home-knowledge-entry){grid-template-columns:minmax(0,1fr) 154px;grid-template-rows:auto 1fr;justify-items:stretch;gap:var(--hoho-space-2)}
+ .nurse-home-dialogue__intro:has(.home-knowledge-entry)>.home-followup-heading{grid-column:1/-1}
+ .nurse-home-dialogue__intro:has(.home-knowledge-entry)>.home-knowledge-entry{grid-column:1;grid-row:2;text-align:left;max-width:none}
+ .nurse-station-page--home .nurse-home-dialogue__intro:has(.home-knowledge-entry)>.nurse-station-visual{grid-column:2;grid-row:2}
+}

@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NotebookText, Stethoscope } from 'lucide-react'
+import { ArrowUpRight, BookOpen, NotebookText, Stethoscope } from 'lucide-react'
 import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { useAppStore } from '../../store/useAppStore'
@@ -8,11 +8,13 @@ import { RecordEntryActions } from '../HealthEvents/RecordEntryActions'
 import { activeSymptomFollowups, symptomPreview } from './symptomFollowup'
 import './HomeFlows.css'
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
+import { useDailyKnowledge } from '../../features/allergy-knowledge/useDailyKnowledge'
 
 export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const navigate = useNavigate()
   const { data, memberId, token } = useCases()
   const accountId = useAppStore(state => state.authUser?.id ?? '')
+  const knowledge = useDailyKnowledge(accountId)
   const updates=useRecordUpdates()
   const identity = `${accountId}:${memberId}`
   const symptoms = activeSymptomFollowups(data?.active ?? [], memberId)
@@ -34,7 +36,9 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
     <HealthCard className="home-flow-card nurse-home-dialogue" aria-label="健康随记">
       <div className="nurse-home-dialogue__intro">
         <div className="home-followup-heading"><NotebookText size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">健康随记</Typography></div>
-        <Typography className="nurse-home-dialogue__summary" variant="caption">吃了什么、睡得怎样、哪里不舒服，都帮你记清楚。</Typography>
+        {knowledge ? <HohoButton className="home-knowledge-entry nurse-home-dialogue__summary" variant="text" onClick={() => navigate(`/allergy-knowledge/${knowledge.id}`, { state: { fromNurseStation: true } })}>
+          <span className="home-knowledge-entry__copy"><span className="home-knowledge-entry__label"><BookOpen size={14} aria-hidden="true" />今日过敏小知</span><span className="home-knowledge-entry__title">{knowledge.title}<ArrowUpRight size={14} aria-hidden="true" /></span></span>
+        </HohoButton> : <Typography className="nurse-home-dialogue__summary" variant="caption">吃了什么、睡得怎样、哪里不舒服，都帮你记清楚。</Typography>}
         <div className="nurse-station-visual">{nurseVisual}</div>
       </div>
       <RecordEntryActions disabled={!token || !memberId} identity={identity} onSmartRecord={() => navigate('/smart-record?source=front-desk', { state: { frontDeskReturn: true } })} onRecord={(category, kind) => navigate('/health-events', { state: { nurseRecordEntry: category, nurseRecordDietKind: kind, calendarIdentity: identity, frontDeskReturn: true } })} />
