@@ -45,11 +45,10 @@ export function HealthProfilePage() {
   }, [token, currentMemberId, member?.id, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview"><MainAppHeader compact title="孩子档案" /><div className="page-content health-profile-home">
-    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={<></>} />
+    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={<div className="health-profile-upload"><ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger => <HohoButton className="health-profile-upload-action" {...trigger}><Upload aria-hidden="true" size={18}/><span>上传资料</span></HohoButton>} /></div>} />
     <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
       <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
-    <ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger => <HohoButton className="health-profile-upload-action" fullWidth {...trigger}><Upload aria-hidden="true" size={20}/><span>上传资料</span></HohoButton>} />
   </div></main>
 }
