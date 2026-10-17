@@ -6,8 +6,10 @@ const sections = new Map<string, Section>()
 let activeToken = ''
 let cacheGeneration = 0
 let readGeneration = 0
+let snapshot = { loaded: false, loading: false, failed: false }
 const listeners = new Set<() => void>()
 export function subscribeProfileSections(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } }
+export function getProfileSectionSnapshot() { return snapshot }
 const notify = () => { listeners.forEach(listener => listener()) }
 const invalidations = new Set<() => void>()
 const channel = (() => { try { return typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('hoooho-profile-sections-changed') : null } catch { return null } })()
@@ -16,34 +18,50 @@ export function subscribeProfileSectionInvalidation(listener: () => void) { inva
 export function announceProfileSectionsChange() { readGeneration++; channel?.postMessage('updated') }
 
 const keyFor = (item: Pick<Section, 'memberId' | 'sectionId'>) => `hoho-health-profile:${item.memberId}:${item.sectionId}`
-export function clearProfileSectionCache() { cacheGeneration++; readGeneration++; sections.clear(); activeToken = ''; notify() }
+export function clearProfileSectionCache() { cacheGeneration++; readGeneration++; sections.clear(); activeToken = ''; snapshot = { loaded: false, loading: false, failed: false }; notify() }
 
 export async function loadProfileSections(token: string, members: Member[], signal?: AbortSignal) {
   const generation = cacheGeneration, requestId = readGeneration
-  const saved = await apiRequest<Section[]>('/api/auth/profile-sections', { token, signal })
-  const next = new Map(saved.map((item) => [keyFor(item), item]))
-  // Import legacy local archives only for server-confirmed owned members, never
-  // overwrite a server archive, and retain the old copy as a recovery source.
-  for (const member of members) {
-    const prefix = `hoho-health-profile:${member.id}:`
-    let keys: string[] = []
-    try { keys = Object.keys(localStorage).filter((key) => key.startsWith(prefix)) } catch { /* Storage may be disabled. */ }
-    for (const key of keys) {
-      if (next.has(key)) continue
-      let records: unknown
-      try { records = JSON.parse(localStorage.getItem(key) ?? '[]') } catch { continue }
-      if (!Array.isArray(records) || !records.length) continue
-      const item = await apiRequest<Section>('/api/auth/profile-sections', { token, signal, method: 'POST', body: { memberId: member.id, sectionId: key.slice(prefix.length), records, revision: 0, importOnly: true } })
-      next.set(key, item)
-      item.relatedSections?.forEach(section => next.set(keyFor(section), section))
-    }
-  }
-  signal?.throwIfAborted()
-  if (generation !== cacheGeneration || requestId !== readGeneration) return
-  sections.clear()
-  next.forEach((value, key) => sections.set(key, value))
-  activeToken = token
+  snapshot = { ...snapshot, loading: true, failed: false }
   notify()
+  try {
+    const saved = await apiRequest<Section[]>('/api/auth/profile-sections', { token, signal })
+    const next = new Map(saved.map((item) => [keyFor(item), item]))
+    // Import legacy local archives only for server-confirmed owned members, never
+    // overwrite a server archive, and retain the old copy as a recovery source.
+    for (const member of members) {
+      const prefix = `hoho-health-profile:${member.id}:`
+      let keys: string[] = []
+      try { keys = Object.keys(localStorage).filter((key) => key.startsWith(prefix)) } catch { /* Storage may be disabled. */ }
+      for (const key of keys) {
+        if (next.has(key)) continue
+        let records: unknown
+        try { records = JSON.parse(localStorage.getItem(key) ?? '[]') } catch { continue }
+        if (!Array.isArray(records) || !records.length) continue
+        const item = await apiRequest<Section>('/api/auth/profile-sections', { token, signal, method: 'POST', body: { memberId: member.id, sectionId: key.slice(prefix.length), records, revision: 0, importOnly: true } })
+        next.set(key, item)
+        item.relatedSections?.forEach(section => next.set(keyFor(section), section))
+      }
+    }
+    signal?.throwIfAborted()
+    if (generation !== cacheGeneration) return
+    if (requestId !== readGeneration) {
+      snapshot = { ...snapshot, loading: false, failed: !snapshot.loaded }
+      notify()
+      return
+    }
+    sections.clear()
+    next.forEach((value, key) => sections.set(key, value))
+    activeToken = token
+    snapshot = { loaded: true, loading: false, failed: false }
+    notify()
+  } catch (error) {
+    if (generation === cacheGeneration && requestId === readGeneration) {
+      snapshot = { ...snapshot, loading: false, failed: true }
+      notify()
+    }
+    throw error
+  }
 }
 
 export function readProfileSection(key: string) { return JSON.stringify(sections.get(key)?.records ?? []) }
