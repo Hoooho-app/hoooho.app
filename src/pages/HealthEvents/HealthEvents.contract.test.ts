@@ -30,13 +30,13 @@ const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 const homeFlows = read('../NurseStation/HomeFlows.tsx')
 
-test('统一健康日历移除身份块，共享入口保留情况单且首页按需呈现', () => {
+test('统一健康日历移除身份块，共享入口与首页均保留情况单', () => {
   assert.match(page, /<MainAppHeader title="健康日历"/)
   assert.doesNotMatch(page, /HealthRecordSubjectHeader/)
   assert.match(page, /showInstallApp=\{false\} action=/)
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
-  assert.doesNotMatch(homeFlows, /navigate\('\/visit-summary'\)/)
+  assert.match(homeFlows, /navigate\('\/visit-summary'\)/)
   assert.match(read('../../components/navigation/SideDrawer.tsx'), /to: '\/visit-summary'/)
   assert.doesNotMatch(page, /journal-quick-record-action|aria-label="快捷记录"/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
