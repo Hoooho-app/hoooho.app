@@ -17,14 +17,28 @@ export function encodeMonoWav(channels:Float32Array[],sampleRate:number):Blob {
   }
   return new Blob([buffer],{type:'audio/wav'})
 }
-export async function recordingToWav(blob:Blob):Promise<Blob> {
+// Trim only quiet edges; keep 400ms padding, interior pauses and the original.
+export function trimSearchSilence(channels:Float32Array[],sampleRate:number):Float32Array[] {
+  if(!channels.length||!channels[0].length)return channels
+  const size=Math.max(1,Math.floor(sampleRate*.02)),length=channels[0].length,padding=Math.ceil(sampleRate*.4)
+  const audible=(start:number)=>channels.some(channel=>{let sum=0;const end=Math.min(length,start+size);for(let i=start;i<end;i++)sum+=(channel[i]??0)**2;return Math.sqrt(sum/(end-start))>=.001})
+  let first=0,last=Math.floor((length-1)/size)*size
+  while(first<length&&!audible(first))first+=size
+  if(first>=length)return channels
+  while(last>first&&!audible(last))last-=size
+  const from=Math.max(0,first-padding),to=Math.min(length,last+size+padding)
+  return channels.map(channel=>channel.subarray(from,to))
+}
+export const recordingToSearchWav=(blob:Blob)=>recordingToWav(blob,true)
+export async function recordingToWav(blob:Blob,trimSilence=false):Promise<Blob> {
   let context:AudioContext|undefined
   try {
     context=new AudioContext()
     // decodeAudioData takes ownership of (and detaches) its buffer. Keep the
     // immutable snapshot usable for IDB writes, original upload and retries.
     const decoded=await context.decodeAudioData((await fileBytes(blob)).slice(0))
-    return encodeMonoWav(Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i)),decoded.sampleRate)
+    const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i))
+    return encodeMonoWav(trimSilence?trimSearchSilence(channels,decoded.sampleRate):channels,decoded.sampleRate)
   }catch(error){if(error instanceof Error&&'code' in error&&typeof error.code==='string'&&(error.code.startsWith('AUDIO_')||error.code==='FILE_READ_FAILED'))throw error;throw Object.assign(new Error('录音格式无法读取，请重新录音或继续输入文字'),{code:'AUDIO_DECODE_FAILED'})}
   finally {await context?.close().catch(()=>undefined)}
 }

@@ -5,11 +5,14 @@ import { AudioRequestError, audioErrorMessage } from './audioErrors'
 import {apiRequest} from '../../services/apiClient'
 import {fileDataUrl} from './draftFiles'
 
-type Options = {autoTranscribe?:boolean;memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onFinalizationStart?:()=>()=>void;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
+type Options = {prepareAudio?:(file:File)=>Promise<Blob>;timeoutMs?:number;autoTranscribe?:boolean;memberId:string;token:string;pendingVoice?:File;pendingTranscript?:string;onFinalizationStart?:()=>()=>void;onRecorded:(file:File)=>Promise<void>;onTranscript:(text:string,file:File)=>Promise<void>}
 // The raw recording is persisted before contacting ASR. Retry consumes the same
 // file, so a network failure or closing the workspace never requires re-recording.
 export function useSmartRecordVoice(options:Options) {
   const [audioLevel, setAudioLevel] = useState(0)
+  const [phase,setPhase]=useState<'preparing'|'recognizing'|'delivering'>('preparing')
+  const prepared=useRef(new WeakMap<File,Promise<Blob>>()),transcripts=useRef(new WeakMap<File,string>())
+  const prepare=(file:File)=>{let value=prepared.current.get(file);if(!value){value=(latest.current.prepareAudio??recordingToWav)(file);prepared.current.set(file,value);void value.catch(()=>prepared.current.delete(file))}return value}
   const stopMeter = useRef<(() => void) | undefined>()
   const latest=useRef(options);latest.current=options
   const [state,setState]=useState<'idle'|'requesting'|'listening'|'transcribing'>('idle'),[error,setError]=useState(''),[errorCode,setErrorCode]=useState('')
@@ -20,16 +23,17 @@ export function useSmartRecordVoice(options:Options) {
   const transcribe=async(file:File)=>{
     if(locked.current)return
     locked.current=true;const turn=generation.current,config=latest.current,abort=new AbortController();controller.current=abort
-    if(mounted.current){setState('transcribing');setError('');setErrorCode('')}
-    const timeout=setTimeout(()=>abort.abort(),60000)
+    if(mounted.current){setState('transcribing');setPhase('preparing');setError('');setErrorCode('')}
+    const timeout=setTimeout(()=>abort.abort(),config.timeoutMs??60000)
     try{
-      let transcript=config.pendingTranscript
-      if(!transcript){const wav=await recordingToWav(file)
+      let transcript=config.pendingTranscript??transcripts.current.get(file)
+      if(!transcript){const wav=await prepare(file)
       if(!mounted.current||turn!==generation.current)return
+      setPhase('recognizing')
       const result=await apiRequest<{transcript:string}>('/api/ai/audio/transcriptions',{method:'POST',token:latest.current.token,signal:abort.signal,body:{memberId:config.memberId,mimeType:wav.type,dataUrl:await fileDataUrl(wav),name:'recording.wav'}})
       if(typeof result.transcript!=='string'||!result.transcript.trim())throw new AudioRequestError('ASR_NO_SPEECH',422)
-      transcript=result.transcript}
-      if(mounted.current&&turn===generation.current)await latest.current.onTranscript(transcript,file)
+      transcript=result.transcript;transcripts.current.set(file,transcript)}
+      if(mounted.current&&turn===generation.current){setPhase('delivering');await latest.current.onTranscript(transcript,file)}
     }catch(e){if(mounted.current&&turn===generation.current){setErrorCode(e&&typeof e==='object'&&'code' in e?String(e.code):'');setError(audioErrorMessage(abort.signal.aborted?{code:'ASR_TIMEOUT'}:e))}}
     finally{clearTimeout(timeout);locked.current=false;if(mounted.current&&turn===generation.current)setState('idle')}
   }
@@ -56,11 +60,12 @@ export function useSmartRecordVoice(options:Options) {
         const blob=new Blob(chunks,{type:r.mimeType});chunks.length=0
         if(blob.size<300||Date.now()-started<500){release();if(mounted.current)setError('录音太短，请重新录音');return}
         const file=new File([blob],`语音原件-${started}.${r.mimeType.includes('mp4')?'m4a':'webm'}`,{type:r.mimeType})
+        if(config.prepareAudio&&config.autoTranscribe!==false)void prepare(file).catch(()=>undefined)
         try{await config.onRecorded(file);release();if(config.autoTranscribe!==false&&mounted.current&&turn===generation.current)await transcribe(file)}catch{release();if(mounted.current)setError('录音草稿保存失败，请保持页面打开并重试')}
       })()}
       r.start(250);locked.current=false;setState('listening');limit.current=setTimeout(stop,90000)
     }catch(e){clean();locked.current=false;if(mounted.current){setState('idle');setError(e instanceof DOMException&&e.name==='NotAllowedError'?'麦克风未获授权，请允许麦克风或输入文字':'麦克风暂不可用，请输入文字')}}
   }
   useEffect(()=>{mounted.current=true;const hidden=()=>{if(document.hidden)stop()};document.addEventListener('visibilitychange',hidden);return()=>{mounted.current=false;generation.current++;controller.current?.abort();stop();clean();document.removeEventListener('visibilitychange',hidden)}},[])
-  return {audioLevel,state,error,busy:state!=='idle',start,stop,discard,unreadable:['AUDIO_DECODE_FAILED','FILE_READ_FAILED','ASR_AUDIO_FORMAT_UNSUPPORTED','INVALID_AUDIO_DATA','AUDIO_EMPTY'].includes(errorCode),clearError:()=>{setError('');setErrorCode('')},retry:()=>{if(latest.current.pendingVoice)void transcribe(latest.current.pendingVoice)}}
+  return {audioLevel,state,phase,error,busy:state!=='idle',start,stop,discard,unreadable:['AUDIO_DECODE_FAILED','FILE_READ_FAILED','ASR_AUDIO_FORMAT_UNSUPPORTED','INVALID_AUDIO_DATA','AUDIO_EMPTY'].includes(errorCode),clearError:()=>{setError('');setErrorCode('')},retry:()=>{if(latest.current.pendingVoice)void transcribe(latest.current.pendingVoice)}}
 }

@@ -57,3 +57,45 @@ test('语音松开后转写自动使用同一模糊检索',async({page,request})
  await expect(page.locator('.journal-search-result')).toHaveCount(1)
  await expect(page.locator('.journal-search-result')).toContainText('湿疹')
 })
+
+test('识别等待只呈现放大镜；失败可用同一录音重试；结果自然接入',async({page,request},info)=>{
+ const member=await request.post('/api/members',{headers,data:{name:'等待态验收（虚构）',relationship:'child'}});const memberId=(await member.json()).id
+ await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
+ let release:()=>void=()=>{},calls=0;const bodies:string[]=[]
+ const gate=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/api/ai/audio/transcriptions',async route=>{
+  calls++;bodies.push(route.request().postData()!)
+  if(calls===1){await gate;await route.fulfill({status:503,json:{error:'ASR_UPSTREAM_UNAVAILABLE',message:'识别暂不可用'}})}
+  else await route.fulfill({json:{transcript:'查找最近两周草莓'}})
+ })
+ await page.goto('/quick-search')
+ const input=page.getByLabel('查找记录文字');await input.fill('草莓')
+ await expect(page.getByText('没有找到相关记录',{exact:true})).toBeVisible()
+ const hold=page.getByRole('button',{name:'按住说话',exact:true}),box=(await hold.boundingBox())!
+ await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(1100);await page.mouse.up()
+ await expect.poll(()=>calls).toBe(1)
+ await expect(page.locator('.quick-search-progress')).toContainText('正在识别你说的话')
+ await expect(page.getByText('没有找到相关记录',{exact:true})).toHaveCount(0)
+ await expect(page.getByText('录音已保留',{exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'重试识别',exact:true})).toHaveCount(0)
+ const lens=page.locator('.quick-search-progress__lens'),before=await lens.evaluate(el=>getComputedStyle(el).transform)
+ await page.waitForTimeout(150)
+ expect(await lens.evaluate(el=>getComputedStyle(el).transform)).not.toBe(before)
+ await expect(page.locator('.quick-search-progress__hint')).toContainText('识别比平时久',{timeout:10000})
+ for(const [width,height] of [[320,568],[375,667],[390,844]]){
+  await page.setViewportSize({width,height})
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await expect(page.locator('.quick-search-progress__label')).toBeInViewport()
+  await page.screenshot({path:info.outputPath(`recognizing-${width}.png`)})
+ }
+ await page.emulateMedia({reducedMotion:'reduce'})
+ expect(await lens.evaluate(el=>getComputedStyle(el).animationName)).toBe('none')
+ release()
+ await expect(page.getByRole('button',{name:'重试识别',exact:true})).toBeEnabled()
+ await expect(page.getByText('录音已保留',{exact:true})).toHaveCount(0)
+ await page.getByRole('button',{name:'重试识别',exact:true}).click()
+ await expect(input).toHaveValue('查找最近两周草莓')
+ await expect(page.getByText('没有找到相关记录',{exact:true})).toBeVisible()
+ expect(calls).toBe(2);expect(bodies[1]).toBe(bodies[0])
+ await expect(page.locator('.quick-search-progress')).toHaveCount(0)
+})

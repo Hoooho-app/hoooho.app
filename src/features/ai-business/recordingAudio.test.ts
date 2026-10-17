@@ -20,3 +20,19 @@ test('解码使用独立缓冲区，原件快照在录音转写后仍可持久�
  try{const file=new File(['original-recording'],'录音.webm',{type:'audio/webm'});const before=await fileBytes(file);await recordingToWav(file);assert.equal(before.byteLength,18);assert.equal(new TextDecoder().decode(await fileBytes(file)),'original-recording')}
  finally{Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:Original})}
 })
+
+
+test('查找裁掉静音边缘但保留轻声、400ms余量和句中停顿，原件不变',async()=>{
+ const {trimSearchSilence}=await import('./recordingAudio.ts')
+ const rate=16000,pcm=new Float32Array(rate*6)
+ pcm.fill(.002,rate*2,rate*2.2);pcm.fill(.1,rate*3,rate*4)
+ const [trimmed]=trimSearchSilence([pcm],rate)
+ assert.equal(trimmed.length,rate*2.8)
+ assert.equal(trimmed[rate*.4],pcm[rate*2])
+ assert.equal(trimmed[rate*1],0)
+ assert.equal(pcm.length,rate*6)
+ const silent=[new Float32Array(rate)],quiet=[new Float32Array(rate).fill(.0001)]
+ assert.equal(trimSearchSilence(silent,rate),silent)
+ assert.equal(trimSearchSilence(quiet,rate),quiet)
+ assert.equal((await encodeMonoWav([trimmed],rate).arrayBuffer()).byteLength,44+trimmed.length*2)
+})
