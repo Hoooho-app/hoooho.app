@@ -16,6 +16,9 @@
 .handoff-module-heading h2 { font-size: var(--hoho-font-size-card-title); }
 .handoff-row { display: grid; gap: var(--hoho-space-1); padding-block: var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border) / .6); min-width: 0; }
 .handoff-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.handoff-row--caution { display: block; padding-block: var(--hoho-space-2); }
+.handoff-row--caution > h3, .handoff-row--caution > p { display: inline; }
+.handoff-row--caution > h3:not(:last-child) { margin-inline-end: var(--hoho-space-2); }
 .handoff-row-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--hoho-space-1) var(--hoho-space-2); }
 .handoff-row h3 { font-size: var(--hoho-font-size-body); font-weight: 500; }
 .handoff-row p { font-size: var(--hoho-font-size-body-small); }
