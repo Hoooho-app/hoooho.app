@@ -154,7 +154,9 @@ export function useSmartRecordVoice(options: Options) {
       r.start(250); locked.current = false; setState('listening'); limit.current = setTimeout(stop, 90000)
     } catch (e) {
       if (!current(turn)) return
-      clean(); locked.current = false; setState('idle')
+      clean(); locked.current = false; release()
+      if (operation.current?.turn === turn) finish(operation.current)
+      setState('idle')
       setError(e instanceof DOMException && e.name === 'NotAllowedError' ? '麦克风未获授权，请允许麦克风或输入文字' : '麦克风暂不可用，请输入文字')
     }
   }
