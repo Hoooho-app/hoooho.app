@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { AccountProfile, AuthSession, AuthUser, Member, UserProfile } from '../types'
 import { postAuthRequest } from '../services/auth'
 import { clearProfileSectionCache } from '../services/profileSectionStorage'
+import { resetBrowserRecoveryState } from '../services/browserRecoveryState'
 
 const authTokenKey = 'hoooho-auth-token'
 const opsAuthTokenKey = 'hoooho-ops-auth-token'
@@ -35,6 +36,7 @@ interface AppState {
   setAuthSession: (session: AuthSession) => void
   setAccountProfile: (profile: AccountProfile | null) => void
   clearAuthSession: () => void
+  suspendAuthSession: () => void
   setOpsAuthSession: (session: AuthSession) => void
   clearOpsAuthSession: (reason?: AppState['opsAuthFailure']) => void
   addMember: (member: Member) => void
@@ -63,17 +65,21 @@ export const useAppStore = create<AppState>()(
       },
       setAuthSession: ({ token, user }) => {
         writeSessionToken(authTokenKey, null)
-        set((state) => ({
-        authStatus: user.guest ? 'guest' : 'authenticated',
-        authToken: token,
-        authUser: user,
-        ...(state.authUser?.id && state.authUser.id !== user.id
-          ? { profile: null, accountProfile: null, currentMemberId: 'self', members: [] }
-          : {})
-        }))
+        set((state) => {
+          if (state.authUser?.id && state.authUser.id !== user.id) clearProfileSectionCache()
+          return {
+            authStatus: user.guest ? 'guest' : 'authenticated',
+            authToken: token,
+            authUser: user,
+            ...(state.authUser?.id && state.authUser.id !== user.id
+              ? { profile: null, accountProfile: null, currentMemberId: 'self', members: [] }
+              : {})
+          }
+        })
       },
       setAccountProfile: (accountProfile) => set({ accountProfile }),
-      clearAuthSession: () => { clearProfileSectionCache(); writeSessionToken(authTokenKey, null); set({ authStatus: 'unauthenticated', authToken: null, authUser: null, accountProfile: null, profile: null, members: [], currentMemberId: 'self' }) },
+      suspendAuthSession: () => { writeSessionToken(authTokenKey, null); set({ authStatus: 'unauthenticated', authToken: null }) },
+      clearAuthSession: () => { resetBrowserRecoveryState(); clearProfileSectionCache(); writeSessionToken(authTokenKey, null); set({ authStatus: 'unauthenticated', authToken: null, authUser: null, accountProfile: null, profile: null, members: [], currentMemberId: 'self' }) },
       setOpsAuthSession: ({ token, user }) => {
         writeSessionToken(opsAuthTokenKey, token)
         set({

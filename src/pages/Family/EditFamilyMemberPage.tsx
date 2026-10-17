@@ -102,6 +102,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   const { memberId = '' } = useParams()
   const [editOrigin] = useState(() => create ? null : readMemberProfileEditOrigin(location.state, memberId))
   const token = useAppStore((state) => state.authToken)
+  const accountId = useAppStore((state) => state.authUser?.id)
   const members = useAppStore((state) => state.members)
   const currentMemberId = useAppStore((state) => state.currentMemberId)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
@@ -123,14 +124,20 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   const [error, setError] = useState('')
   const allowNavigationRef = useRef(false)
   const draftEditedRef = useRef(false)
+  const draftScopeRef = useRef('')
   const savingRef = useRef(false)
 
   useEffect(() => {
     if (create || !token || !memberId) return
     const cached = familyMemberService.getCachedById(memberId, token)
-    draftEditedRef.current = false
+    const scope = `${accountId ?? ''}:${memberId}`
+    const keepDraft = draftScopeRef.current === scope && draftEditedRef.current
+    draftScopeRef.current = scope
+    if (!keepDraft) draftEditedRef.current = false
     setError('')
-    if (cached && isChildProfileMember(cached)) {
+    if (keepDraft) {
+      setLoading(false)
+    } else if (cached && isChildProfileMember(cached)) {
       const cachedDraft = makeDraft(cached)
       setSourceMember(cached)
       setDraft(cachedDraft)
@@ -171,7 +178,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
       })
       .finally(() => setLoading(false))
     return () => controller.abort()
-  }, [clearAuthSession, create, memberId, navigate, token])
+  }, [accountId, clearAuthSession, create, memberId, navigate, token])
 
   const birthdayValidation = useMemo(() => validateChildBirthday(draft?.birthday ?? ''), [draft?.birthday])
   const birthdayError = childBirthdayErrorMessage(birthdayValidation.error)

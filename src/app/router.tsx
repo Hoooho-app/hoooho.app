@@ -5,11 +5,13 @@ import { RequireAuth } from '../components/auth/RequireAuth'
 import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
 import { RequireOpsAuth } from '../components/auth/RequireOpsAuth'
 import { RequireRegisteredAccount } from '../components/auth/RequireRegisteredAccount'
+import { ProfileSectionGate } from '../components/auth/SessionRecoveryView'
 
-function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string) {
+function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string, archive = false) {
   return async () => {
     const module = await load()
-    return { Component: module[exportName] as ComponentType }
+    const Page = module[exportName] as ComponentType
+    return { Component: archive ? () => <ProfileSectionGate><Page /></ProfileSectionGate> : Page }
   }
 }
 
@@ -63,23 +65,23 @@ export const router = createBrowserRouter([
       {
         element: <RequireEstablishedHealthData requireHealthRecord={false} />,
         children: [
-          { path: '/dietary-card', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardPage') },
-          { path: '/dietary-card/edit', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardEditPage') },
+          { path: '/dietary-card', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardPage', true) },
+          { path: '/dietary-card/edit', lazy: lazyPage(() => import('../pages/DietaryCard'), 'DietaryCardEditPage', true) },
           { path: '/health-profile', lazy: lazyPage(() => import('../pages/HealthProfile'), 'HealthProfilePage') },
-          { path: '/health-profile/smart-record', lazy: lazyPage(() => import('../pages/HealthProfile/SmartRecordPage'), 'SmartRecordPage') },
+          { path: '/health-profile/smart-record', lazy: lazyPage(() => import('../pages/HealthProfile/SmartRecordPage'), 'SmartRecordPage', true) },
           { path: '/health-profile/vaccination', lazy: lazyPage(() => import('../pages/HealthProfile/InlineChildProfilePage'), 'InlineChildProfilePage') },
           { path: '/health-profile/allergy', lazy: lazyPage(() => import('../pages/HealthProfile/InlineChildProfilePage'), 'InlineChildProfilePage') },
           { path: '/health-profile/chronic', lazy: lazyPage(() => import('../pages/HealthProfile/InlineChildProfilePage'), 'InlineChildProfilePage') },
           { path: '/health-profile/family-history', lazy: lazyPage(() => import('../pages/HealthProfile/InlineChildProfilePage'), 'InlineChildProfilePage') },
           { path: '/health-profile/surgery', lazy: lazyPage(() => import('../pages/HealthProfile/InlineChildProfilePage'), 'InlineChildProfilePage') },
-          { path: '/health-profile/legacy/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') },
+          { path: '/health-profile/legacy/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage', true) },
           { path: '/health-profile/growth', lazy: lazyPage(() => import('../pages/HealthProfile/GrowthRecordsPage'), 'GrowthRecordsPage') },
           { path: '/health-profile/growth/reassurance', lazy: lazyPage(() => import('../pages/HealthProfile/GrowthReassurancePage'), 'GrowthReassurancePage') },
           { path: '/health-profile/facts', lazy: lazyPage(() => import('../pages/HealthProfile/ImportantHealthFactsPage'), 'ImportantHealthFactsPage') },
           { path: '/health-profile/facts/candidates/:candidateId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileFactCandidatePage'), 'HealthProfileFactCandidatePage') },
           { path: '/health-profile/facts/:factId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileFactDetailPage'), 'HealthProfileFactDetailPage') },
-          { path: '/health-profile/allergy/*', lazy: lazyPage(() => import('../pages/HealthProfile/AllergyProfilePage'), 'AllergyHistoryPage') },
-          { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage') }
+          { path: '/health-profile/allergy/*', lazy: lazyPage(() => import('../pages/HealthProfile/AllergyProfilePage'), 'AllergyHistoryPage', true) },
+          { path: '/health-profile/:sectionId', lazy: lazyPage(() => import('../pages/HealthProfile/HealthProfileSectionPage'), 'HealthProfileSectionPage', true) }
         ]
       },
       { path: '/family', element: <Navigate to="/nurse-station" replace /> },
