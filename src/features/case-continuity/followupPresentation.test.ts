@@ -6,6 +6,8 @@ import type { HealthEventRecordApiDto } from '../../types'
 
 test('long historical narratives become whole short concepts rather than sliced sentences', () => {
   assert.equal(followupCorePhrase('今天头皮一直发痒，抓挠后发红，没有发热，想记录一下观察变化'), '头皮瘙痒、抓挠')
+  assert.equal(followupCorePhrase('有点头晕但不是头疼发烧，脖子有一个小红点，估计是湿疹，腿部还有小疹子'), '头晕、颈部发红')
+  assert.equal(followupCorePhrase('头总是痒'), '头部瘙痒')
   assert.equal(followupCorePhrase('嘴角有红疹，反复出现，其他细节在原文里'), '嘴角皮疹')
   assert.equal(followupCorePhrase('脖子这个地方不知道是什么批准，想观察一下'), '颈部症状')
 })

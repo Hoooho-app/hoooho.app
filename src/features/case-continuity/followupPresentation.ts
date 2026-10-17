@@ -4,7 +4,7 @@ import type { HealthEventRecordApiDto } from '../../types'
 
 // A read-only projection for both old and new follow-ups. Never rewrite source text.
 export function followupCorePhrase(value: string, fallback = '症状记录'): string {
-  const source = value.trim().replace(/不知道|不知是否/gu, '不确定').replace(/(?:不确定)?是不是/gu, '可能').replace(/估计(?:是)?/gu, '可能')
+  const source = value.trim().replace(/不知道|不知是否/gu, '不确定').replace(/(?:不确定)?是不是/gu, '可能').replace(/估计(?:是)?/gu, '可能').replace(/小?红点/gu, '发红').replace(/小?疹子/gu, '皮疹')
   const body = source.match(/嘴角|嘴唇|头部|头皮|颈部|脖子|手臂|腿部|脚踝/u)?.[0] || (/头(?:总是|一直|经常|很|有点)*痒/u.test(source) ? '头部' : '')
   const phrase = symptomCorePhrase(source, { location: body })
   const concepts = phrase.split('、')
