@@ -56,3 +56,7 @@ Hoooho V2 is quiet, trustworthy and information-first. Its distinctive motif is 
 ## Brand naming
 
 Visible product copy and generated share images use `Hoooho`. Persistence keys and protocol identifiers keep their existing spelling because changing them would be a data or API migration rather than a visual change.
+
+### Nested original preview
+
+Original photo previews opened from an existing record, reminder or upload workspace use `BottomSheetSurface` with `layerClassName="hoho-bottom-sheet-layer--nested"`. Render this layer in a body portal so it stays above the parent form without inheriting thumbnail sizing or clipping. This changes stacking only and retains the standard sheet, controls and tokens.

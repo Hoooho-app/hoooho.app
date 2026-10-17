@@ -126,9 +126,12 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   useEffect(() => { initializeEditor(initialEditing) }, [entry?.id, initialEditing, memberId, record?.id])
 
   if (!entry) return null
+  const category = record?.journal?.categories?.[0]
+  const recordLabel = category && category !== 'symptom' ? `${journalCategoryLabels[category]}记录` : '症状记录'
+  const isSymptomRecord = recordLabel === '症状记录'
   const title = symptomRecordTitle(entry)
   const originalNarrative = record?.journal?.symptom?.narrative ?? entry.source.originalText ?? record?.content ?? title
-  const detailKeywords = visibleSymptomKeywords(originalNarrative, record?.journal?.symptom?.keywords ?? [])
+  const detailKeywords = isSymptomRecord ? visibleSymptomKeywords(originalNarrative, record?.journal?.symptom?.keywords ?? []) : []
   const detailLocation = symptomLocationDisplay(record?.journal?.symptom)
   const hasStructuredTemperature = typeof record?.journal?.symptom?.symptomSpecificData?.currentTemperature === 'number'
   const isMeasurement = entry.source.type === 'measurement' || entry.kind === 'temperature' || hasStructuredTemperature
@@ -176,7 +179,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   }
 
   const footer = confirmingDelete
-    ? <div className="symptom-record-delete-confirm" role="alertdialog" aria-label="删除这条症状记录？"><strong>删除这条症状记录？</strong><p>删除后将从当前症状跟踪中移除。</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>
+    ? <div className="symptom-record-delete-confirm" role="alertdialog" aria-label={`删除这条${recordLabel}？`}><strong>删除这条{recordLabel}？</strong><p>{isSymptomRecord ? '删除后将从当前症状跟踪中移除。' : '删除后将从当前记录列表中移除。'}</p><div><HohoButton disabled={busy} onClick={() => setConfirmingDelete(false)} variant="secondary">取消</HohoButton><HohoButton disabled={busy} onClick={() => void remove()} variant="danger">删除</HohoButton></div></div>
     : editing
     ? <div className="symptom-record-editor-actions">
         <HohoButton disabled={busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
@@ -184,7 +187,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
       </div>
     : <div className="symptom-record-detail-actions">
         <HohoButton disabled={!canEdit || busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
-        <HohoButton disabled={!canEdit || busy} onClick={onEditTopical ?? onEditDiet ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditTopical?'编辑身体涂抹':onEditDiet?'编辑喂养/饮食':'编辑症状记录'}</HohoButton>
+        <HohoButton disabled={!canEdit || busy} onClick={onEditTopical ?? onEditDiet ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditTopical?'编辑身体涂抹':onEditDiet?'编辑喂养/饮食':`编辑${recordLabel}`}</HohoButton>
       </div>
 
   const originalSymptom = record?.journal?.symptom
@@ -209,11 +212,11 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
     <BottomSheetSurface
       className="symptom-record-sheet"
       footer={footer}
-      label={editing ? '编辑症状记录' : '症状记录详情'}
+      label={editing ? `编辑${recordLabel}` : `${recordLabel}详情`}
       onClose={close}
       open
       size={editing ? 'workspace' : 'default'}
-      title={editing ? '编辑症状记录' : '症状记录详情'}
+      title={editing ? `编辑${recordLabel}` : `${recordLabel}详情`}
     >
       {refreshError && <p role="alert">{refreshError}</p>}
       {confirmExit && <div role="alert"><p>还有未保存的修改</p><HohoButton loading={busy} onClick={()=>void save()}>保存</HohoButton><HohoButton variant="secondary" onClick={onClose}>放弃修改</HohoButton><HohoButton variant="text" onClick={()=>setConfirmExit(false)}>继续编辑</HohoButton></div>}
@@ -237,7 +240,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
       ) : (
         <div className="symptom-record-detail">
           {origin}
-          <section><h3>主要症状</h3><p className="symptom-record-original">{originalNarrative}</p>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}</section>
+          <section><h3>{isSymptomRecord ? '主要症状' : '记录内容'}</h3><p className="symptom-record-original">{originalNarrative}</p>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}</section>
           {detailLocation && <section><h3>症状部位</h3><p className="symptom-record-original">{detailLocation}</p></section>}
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
           {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}

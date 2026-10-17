@@ -1,4 +1,6 @@
-import { ChangeEvent, FormEvent, useRef, useState } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
+import { PhotoPreview } from '../../features/health-attachments/PhotoPreview'
+import { prepareHealthImage } from '../../features/health-attachments/prepareHealthImage'
 import { Camera, Check, ChevronDown, Plus } from 'lucide-react'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
@@ -27,17 +29,20 @@ function MedicationNumber({ sequence }: { sequence: number }) {
   return <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-surface">{sequence}</span>
 }
 
-function MedicationFields({ record, onChange, onImage }: {
+function MedicationFields({ record, onChange, onImage, onRemoveImage, imageBusy }: {
   record: MedicationProfileRecord
   onChange: (changes: Partial<MedicationProfileRecord>) => void
   onImage: (event: ChangeEvent<HTMLInputElement>) => void
+  onRemoveImage: () => void
+  imageBusy: boolean
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   return <div className="grid gap-4">
     <button className="grid min-h-28 place-items-center rounded-control border border-dashed bg-background px-4 text-center" onClick={() => fileInput.current?.click()} type="button">
-      <span className="grid gap-1"><span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-primary-soft text-primary"><Camera size={22} /></span><strong className="text-sm">拍摄 / 上传药盒或处方</strong><span className="text-xs leading-5 text-text-secondary">{record.imageName || '图片将关联到当前药物；智能识别暂未开放'}</span></span>
+      <span className="grid gap-1"><span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-primary-soft text-primary"><Camera size={22} /></span><strong className="text-sm">拍摄 / 上传药盒或处方</strong><span className="text-xs leading-5 text-text-secondary">{imageBusy ? '正在处理图片…' : record.imageName || '图片将关联到当前药物；智能识别暂未开放'}</span></span>
     </button>
-    <input ref={fileInput} accept="image/*" capture="environment" className="sr-only" type="file" onChange={onImage} />
+    <input ref={fileInput} accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" capture="environment" className="sr-only" type="file" onChange={onImage} />
+    {record.imageDataUrl && <PhotoPreview src={record.imageDataUrl} name={record.imageName || '药品图片'} onRemove={onRemoveImage} />}
     <label className="hoho-field"><span className="hoho-text-label">药物名称</span><input className="hoho-input" value={record.name} onChange={(event) => onChange({ name: event.target.value })} /></label>
     <label className="hoho-field"><span className="hoho-text-label">使用原因 / 对症</span><input className="hoho-input" value={record.reason} onChange={(event) => onChange({ reason: event.target.value })} /></label>
     <div className="grid grid-cols-2 gap-3">
@@ -58,6 +63,13 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
   const [records, setRecords] = useState<MedicationProfileRecord[]>(() => initial.length ? initial : [emptyMedicationRecord(1)])
   const [expandedId, setExpandedId] = useState(() => initial[0]?.id ?? records[0].id)
   const [status, setStatus] = useState('')
+  const [processing, setProcessing] = useState<string[]>([])
+  const [imageErrors, setImageErrors] = useState<Record<string,string>>({})
+  const imageTasks = useRef(new Map<string,number>())
+  const mounted = useRef(true)
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;imageTasks.current.clear()}},[])
+  const clearImageError = (id:string) => setImageErrors(current=>{const next={...current};delete next[id];return next})
+  const removeImage = (id:string) => { imageTasks.current.set(id,(imageTasks.current.get(id)??0)+1);setProcessing(current=>current.filter(value=>value!==id));clearImageError(id);updateRecord(id,{imageName:'',imageDataUrl:''});setStatus('') }
 
   const updateRecord = (id: string, changes: Partial<MedicationProfileRecord>) => setRecords((current) => current.map((record) => record.id === id ? { ...record, ...changes } : record))
   const toggleRecord = (id: string) => setExpandedId((current) => current === id ? '' : id)
@@ -67,6 +79,7 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
   }
   const deleteRecord = (id: string) => {
     if (!window.confirm('确认删除这一种药物吗？')) return
+    imageTasks.current.set(id,(imageTasks.current.get(id)??0)+1);setProcessing(current=>current.filter(value=>value!==id));clearImageError(id)
     setRecords((current) => {
       const next = current.filter((record) => record.id !== id)
       if (!next.length) { const empty = emptyMedicationRecord(1); setExpandedId(empty.id); return [empty] }
@@ -74,16 +87,20 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
       return next
     })
   }
-  const attachImage = (id: string, event: ChangeEvent<HTMLInputElement>) => {
+  const attachImage = async (id: string, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+    event.currentTarget.value = ''
     if (!file) return
-    if (file.size > 1_500_000) { setStatus('图片过大，请选择 1.5MB 以内的图片'); return }
-    const reader = new FileReader()
-    reader.onload = () => updateRecord(id, { imageName: file.name, imageDataUrl: String(reader.result ?? '') })
-    reader.readAsDataURL(file)
+    const version=(imageTasks.current.get(id)??0)+1
+    imageTasks.current.set(id,version);setProcessing(current=>[...current.filter(value=>value!==id),id]);clearImageError(id);setStatus('')
+    const current=()=>mounted.current&&imageTasks.current.get(id)===version
+    try {const prepared=await prepareHealthImage(file);if(current())updateRecord(id,{imageName:prepared.name,imageDataUrl:prepared.dataUrl})}
+    catch(error){if(current())setImageErrors(errors=>({...errors,[id]:error instanceof Error?error.message:'图片处理失败，请重新选择'}))}
+    finally{if(current())setProcessing(values=>values.filter(value=>value!==id))}
   }
   const saveArchive = async (event: FormEvent) => {
     event.preventDefault()
+    if(processing.length||Object.keys(imageErrors).length)return
     try {
       const savedAt = new Date().toISOString()
       const next = records.map((record) => ({ ...record, _savedAt: savedAt }))
@@ -112,7 +129,8 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
               {expanded ? <button className="min-h-11 px-1 text-sm font-medium text-danger" onClick={() => deleteRecord(record.id)} type="button">删除</button> : <button aria-label={`展开药物 ${record.sequence}`} className="grid h-11 w-11 place-items-center rounded-full text-text-secondary" onClick={() => toggleRecord(record.id)} type="button"><ChevronDown size={21} /></button>}
             </div>
             {expanded && <div className="mt-5 grid gap-4">
-              <MedicationFields record={record} onChange={(changes) => updateRecord(record.id, changes)} onImage={(event) => attachImage(record.id, event)} />
+              <MedicationFields record={record} onChange={(changes) => updateRecord(record.id, changes)} onImage={(event) => void attachImage(record.id, event)} onRemoveImage={()=>removeImage(record.id)} imageBusy={processing.includes(record.id)} />
+              {imageErrors[record.id]&&<div role="alert"><p className="text-sm text-danger">{imageErrors[record.id]}</p><HohoButton type="button" variant="text" onClick={()=>{imageTasks.current.set(record.id,(imageTasks.current.get(record.id)??0)+1);clearImageError(record.id)}}>取消本次图片选择</HohoButton></div>}
               <HohoButton onClick={() => setExpandedId('')} type="button" variant="secondary"><Check size={17} />确认并收起</HohoButton>
             </div>}
           </article>
@@ -121,6 +139,6 @@ export function MedicationProfilePage({ member, storageKey }: { member: Member; 
         {status && <p className={`text-sm ${status.includes('失败') || status.includes('过大') ? 'text-danger' : 'text-primary'}`} role="status">{status}</p>}
       </form>
     </div>
-    <HealthProfileActionBar><HohoButton fullWidth form="medication-profile-form" type="submit">保存档案</HohoButton></HealthProfileActionBar>
+    <HealthProfileActionBar><HohoButton fullWidth form="medication-profile-form" type="submit" disabled={processing.length>0||Object.keys(imageErrors).length>0}>保存档案</HohoButton></HealthProfileActionBar>
   </main>
 }

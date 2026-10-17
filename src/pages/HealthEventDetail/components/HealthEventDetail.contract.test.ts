@@ -114,7 +114,7 @@ test('症状记录使用轻量行、详情抽屉和左滑编辑删除', () => {
   assert.match(timelineSource, /onPointerMove/)
   assert.match(timelineSource, /编辑症状记录/)
   assert.match(timelineSource, /删除症状记录/)
-  assert.match(recordSheetSource, /症状记录详情/)
+  assert.match(recordSheetSource, /\$\{recordLabel\}详情/)
   assert.match(recordSheetSource, /来源信息/)
   assert.match(recordSheetSource, /主要症状/)
   assert.equal(recordSheetSource.includes('<h3>症状标签</h3>'), false)

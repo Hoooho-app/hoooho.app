@@ -98,7 +98,7 @@ export function HealthProfileSectionPage() {
   if(requestedMember&&requestedMember!==member.id)return <main className="app-shell"><WebPageHeader title="健康档案"/><p role="status">这条记录不属于当前孩子</p></main>
 
   if (!section) return <Navigate replace to="/health-profile" />
-  if (section.id === 'medication') return <MedicationProfilePage member={member} storageKey={storageKey} />
+  if (section.id === 'medication') return <MedicationProfilePage key={storageKey} member={member} storageKey={storageKey} />
   if (section.id === 'allergy') return <AllergyProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'chronic') return <ChronicProfilePage member={member} storageKey={storageKey} />
   if (section.id === 'surgery') return <SurgeryProfilePage member={member} storageKey={storageKey} />
