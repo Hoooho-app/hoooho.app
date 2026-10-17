@@ -41,9 +41,16 @@ test("自动关联颈部红点而不纳入同时发生的臀部红疹和黑便�
   );
   assert.deepEqual(r.focusSourceIds, ["record:neck"]);
   assert.equal(r.reading.description, "脖子有红点");
-  assert.equal(r.question.split("\n").length, 3);
+  assert.deepEqual(r.question.split("\n"), [
+    "可能需要考虑哪些情况？",
+    "现有资料能帮助判断什么？",
+    "接下来怎样处理和记录？",
+    "有哪些需要避免的做法？",
+  ]);
   assert.equal(r.reading.questionCandidates.length, 10);
-  assert.doesNotMatch(r.question, /黑便|屁股/);
+  assert.doesNotMatch(r.reading.questionCandidates.join("\n"), /黑便|屁股|颈部|红点|[“”"]/);
+  const changed = buildVisitSheet(f, { ...r, focus: { mode: "custom", text: "屁股红疹" } }, now);
+  assert.equal(changed.question, r.question);
   assert.ok(r.reading.courseGroups.find((g) => g.id === "symptom"));
   assert.equal(sameReadingTopic("脖子红点", "屁股红点"), false);
 });

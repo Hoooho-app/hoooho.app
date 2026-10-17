@@ -81,7 +81,7 @@ export function offlineRuntime() {
         data.report.questionSourceIds=questionSources.map((s:any)=>s.id)
         data.report.question=questionSources.flatMap((s:any)=>s.text.split(/\n/).filter((t:string)=>/(?:想问|希望了解|想了解|请问|是否.*[？?])/.test(t))).slice(0,3).join('\n')
         data.report.questionOrigin=data.report.question?'据家长记录整理':'可参考的问题'
-        if(!data.report.question)data.report.question='这些表现需要进一步了解或检查什么？\n哪些变化需要记录，何时需要再就医？\n日常照护有哪些需要向医生确认的事项？'
+        if(!data.report.question)data.report.question=data.report.reading.questionCandidates.slice(0,4).join('\n')
       }
       data.focusChanged=true
     })
