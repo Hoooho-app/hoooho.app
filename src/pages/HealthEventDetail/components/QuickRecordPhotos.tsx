@@ -10,6 +10,7 @@ import { prepareHealthImage } from '../../../features/health-attachments/prepare
 import { useDialogFocus } from '../../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
 import { quickRecordService, type QuickRecordPhotoDto } from '../../../services/quickRecords'
+import { createSerialPoller } from '../../../services/serialPolling'
 
 
 export type QuickRecordPhotoStatus = 'uploading' | 'uploaded' | 'failed'
@@ -195,7 +196,22 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     photoIds: [...new Set(photosRef.current.filter((photo) => photo.status === 'uploaded' && photo.serverId).map((photo) => photo.serverId!))]
   })
 
-  useEffect(()=>{if(!allowVideos||!memberId||!token)return;let active=true;const tick=async()=>{for(const item of photosRef.current.filter(p=>p.status==='uploaded'&&p.serverId&&(!p.review||[p.review.audio?.status,p.review.vision?.status].includes('processing')))){try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId!,memberId,token);if(active&&live.current)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(active&&live.current)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}};const timer=window.setInterval(()=>void tick(),2000);void tick();return()=>{active=false;clearInterval(timer)}},[allowVideos,memberId,token])
+  useEffect(()=>{
+    if(!allowVideos||!memberId||!token)return
+    let active=true
+    const poller=createSerialPoller(async signal=>{
+      for(const item of photosRef.current.filter(p=>p.status==='uploaded'&&p.serverId&&(!p.review||[p.review.audio?.status,p.review.vision?.status].includes('processing')))){
+        if(signal.aborted)return
+        try{
+          const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId!,memberId,token,undefined,signal)
+          if(active&&live.current&&!signal.aborted)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))
+        }catch{if(active&&live.current&&!signal.aborted)setPhotos(current=>current.map(p=>p.localId===item.localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}
+      }
+    },2000)
+    const visibility=()=>{if(document.hidden)poller.pause();else poller.start()}
+    document.addEventListener('visibilitychange',visibility);visibility()
+    return()=>{active=false;poller.stop();document.removeEventListener('visibilitychange',visibility)}
+  },[allowVideos,memberId,token])
   const refreshReview=async(localId:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;const scope=localScope;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token);if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}
   const retryReview=async(localId:string,part:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token,part);if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??undefined}:p))}catch(e){setNotice(e instanceof Error?e.message:'整理重试失败')}}
   const confirmReview=async(localId:string,text:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)throw new Error('资料尚未上传');const scope=localScope;const review=await quickRecordService.confirmMedia(ensureDraftId(),item.serverId,memberId,token,text);if(!live.current||scopeRef.current!==scope||!photosRef.current.some(p=>p.localId===localId))throw new Error('资料已移除或人物已切换，未应用到正文');if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review}:p))}

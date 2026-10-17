@@ -7,7 +7,7 @@ import type { JournalMetadata } from '../../types/journal'
 import { localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
 import { captureDraft, type CaptureDraft } from '../ai-business/captureDraft'
 import { fileDataUrl } from '../ai-business/draftFiles'
-import { recognitionCommand, recognitionUrl, uploadRecognitionFile, type RecognitionJob } from '../ai-business/recognitionJobs'
+import { recognitionCommand, recognitionUrl, uploadRecognitionFile, waitForRecognitionJob, type RecognitionJob } from '../ai-business/recognitionJobs'
 import { prepareHealthImage } from '../health-attachments/prepareHealthImage'
 import { caseService } from '../case-continuity/api'
 import { materialRecordText, materialReview, mergeMaterialBlocks, visitContentHash, visitDocumentKey } from './materialReview'
@@ -16,12 +16,6 @@ import { visitMaterialIdentity, type LocalVisitDocument, type VisitMaterialBlock
 type Saved = { eventId: string; recordId: string; attachmentIds: string[] }
 type Stage = 'entry' | 'processing' | 'review' | 'saved'
 const message = (error: unknown) => error instanceof Error ? error.message : '处理未完成，原件仍保留，请重试'
-const wait = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
-  const stop = () => { clearTimeout(timer); reject(signal.reason) }
-  const timer = setTimeout(() => { signal.removeEventListener('abort', stop); resolve() }, 1200)
-  signal.addEventListener('abort', stop, { once: true })
-  if (signal.aborted) stop()
-})
 const persisted = ({ file: _file, preview: _preview, job: _job, ...document }: LocalVisitDocument): VisitMaterialDocument => document
 export function useVisitMaterials({ memberId, token, initialRecord, onSaved }: { memberId: string; token: string; initialRecord?: HealthEventRecordApiDto; onSaved: (message: string) => void }) {
   const accountId = useAppStore(store => store.authUser?.id ?? '')
@@ -127,8 +121,7 @@ export function useVisitMaterials({ memberId, token, initialRecord, onSaved }: {
       }
       while (job && !['ready', 'needs_review', 'failed', 'discarded', 'paused'].includes(job.state)) {
         updateDocument(document.id, { job, jobId, status: job.state === 'queued' ? 'queued' : ['organizing', 'publishing'].includes(job.stage) ? 'organizing' : 'recognizing' })
-        await wait(controller.signal)
-        job = await apiRequest<RecognitionJob>(recognitionUrl(memberId) + '/' + encodeURIComponent(jobId!), { token: credentials.current.token, signal: controller.signal })
+        job = await waitForRecognitionJob(memberId, credentials.current.token, jobId!, job, controller.signal)
       }
       if (epoch !== generation.current || !alive.current || lock.current || !latest.current.documents.some(current => current.id === document.id)) return
       if (!job || !['ready', 'needs_review'].includes(job.state)) throw new Error(job?.error?.message ?? '本份资料暂未整理完成，可以单独重试')

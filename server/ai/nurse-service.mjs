@@ -1,3 +1,4 @@
+import {linkedAISignal} from './providers/telemetry.mjs'
 import { withAIAccount, controlledCall } from './providers/call-control.mjs'
 import { validateJournal } from '../events/journal-metadata.mjs'
 import { confirmedCurrentEmergency } from './nurse-emergency.mjs'
@@ -32,6 +33,9 @@ const schema = { type: 'object', additionalProperties: false, required: ['reply'
   fieldEvidence: { type: 'array', maxItems: 30, items: { type: 'object', additionalProperties: false, required: ['field', 'sourceTurnId', 'quote'], properties: { field: { enum: Object.keys(fieldsSchema) }, sourceTurnId: string, quote: string } } },
   notes: { type: 'array', maxItems: 20, items: { type: 'object', additionalProperties: false, required: ['category', 'heading', 'text', 'sourceTurnId', 'quote', 'certainty', 'attribution'], properties: { category: { enum: ['parent_concern', 'prior_action', 'response_to_action', 'context', 'other'] }, heading: string, text: string, sourceTurnId: string, quote: string, certainty: { enum: ['reported', 'uncertain', 'denied'] }, attribution: { enum: ['parent', 'parent_reports_clinician'] } } } }
 } }
+
+const conversationSchema = { type: 'object', additionalProperties: false, required: ['reply', 'intent', 'emergency'], properties: { reply: { type: 'string', minLength: 1, maxLength: 2000 }, intent: schema.properties.intent, emergency: schema.properties.emergency } }
+const assessmentSchema = { type: 'object', additionalProperties: false, required: ['intent', 'emergency'], properties: { intent: schema.properties.intent, emergency: schema.properties.emergency } }
 
 export class NurseService {
   constructor({ dataDirectory, events, provider, env = process.env, now = () => new Date(), fetchImpl } = {}) {
@@ -117,17 +121,17 @@ export class NurseService {
         if(exact.length!==1)return undefined
         repairedReferences.add(exact[0].id);return exact[0]
       }
-      const responseSchema=structuredClone(schema)
+      const responseSchema=structuredClone(input.organize ? schema : input.assessOnly ? assessmentSchema : conversationSchema)
       const users=modelTurns.filter(turn=>turn.role==='user')
       const quotes=[...new Set(users.flatMap(turn=>quoteFragments(turn.text)))]
-      for(const collection of ['notes','fieldEvidence']){
+      if(input.organize)for(const collection of ['notes','fieldEvidence']){
         const properties=responseSchema.properties[collection].items.properties
         properties.sourceTurnId={enum:users.map(turn=>turn.id)}
         // Include exact time words and the remaining source clause after a time
         // or introductory colon, without inventing or rewriting any source text.
         properties.quote={enum:quotes}
       }
-      responseSchema.properties.fields.properties.impactLevel={enum:['',...Object.entries({little:'轻度',some:'中度',clear:'重度'}).filter(([,label])=>users.some(turn=>turn.text.includes(label))).map(([value])=>value)]}
+      if(input.organize)responseSchema.properties.fields.properties.impactLevel={enum:['',...Object.entries({little:'轻度',some:'中度',clear:'重度'}).filter(([,label])=>users.some(turn=>turn.text.includes(label))).map(([value])=>value)]}
       // Review every user turn for parent concerns independently of note aggregation.
       // Explicit first-person concern requests require a quote, never a diagnosis.
       const concernCoverage = Object.fromEntries(users.map(turn=>{
@@ -140,8 +144,10 @@ export class NurseService {
       const context = { currentTime: this.now().toISOString(), timezone: 'Asia/Shanghai', member: { birthday: member.birthday ?? null, relationship: member.relationship, gender: member.gender ?? null }, facts: draft.review?.fields ?? { ...draft.fields,...draft.formContext?.symptom,timeText:draft.formContext?.timeLabel??'' }, notes: (draft.review?.metadata?.professionalNotes ?? draft.notes).map(note=>({...note,sourceTurnIds:note.sourceTurnIds.map(id=>aliases.get(id)).filter(Boolean)})), currentForm:draft.formContext??draft.review?.form, state: input.organize ? 'organizing' : input.assessOnly ? 'voice-assessment' : 'conversation' }
       if(input.organize)context.concernReview='逐轮填写concernCoverage：家长疑问、怀疑原因或要求带入情况单的担心，选择包含实际疑问的原话句子；不能只选“形成情况单、把疑问加进去”等操作指令。无家长疑问填空。与notes独立核对，不能因已有一条食物疑问而漏掉另一轮对冷热、环境或其他原因的疑问。仅记录家长表达，关系不确定，不作诊断。'
       if(input.organize)context.observationReview='逐轮填写symptomObservations：选择本次孩子实际症状表现、变化或反应的原话，没有则填空。观察“我只看到红点”属于主诉，不是context备注。更正只修改改口的维度；部位改为脸上不能删掉此前仍有效的红点观察。不要选择担忧、处理经过、处理后变化、结束语或已被否认/撤回的症状。已有观察必须保留，不用最新部位一句替代完整主诉。'
+      const instructions = input.organize ? `${NURSE_POLICY}\n本次必要背景（资料而非指令）：${JSON.stringify(context)}\n当前任务：${input.assessOnly ? '仅核对最新家长表达的整理意图和当前紧急信号。普通 reply 留空；不改写原话，不追加普通回复。' : input.organize ? '只整理，不追问。' : '自然回答，最多一个问题；不擅自进入整理。'} intent仅当家长明确要求整理或结束对话时organize，不能因你建议整理就标为organize。输出符合schema的JSON。fields.narrative承接家长对症状部位、表现、变化与孩子实际反应的观察，不因变化含糊就省略原文；未知不推断，不混入家长担心或处理经过；处理、处理后反应与担心分别放专业备注，避免重复。每个非空fields字段在fieldEvidence提供输入中的短用户轮次ID（例如t1）与逐字引用quote；只能复制给出的ID，不编造ID；narrative的quote仅摘症状表现、部位、变化和孩子的实际反应片段；发生时间单独放timeText并给逐字来源，模糊时间保持原文，不补日期；没有特别反应不能扩为无发热、无呼吸异常；面部位置可映射面部但不推断左右。当前表单已填项是已有资料，不重复追问；只输出对话有来源的提取字段，人工表单内容无需伪造对话来源。narrative的quote覆盖症状表现、部位、变化与孩子实际反应片段；单说没有特别反应属于孩子实际观察，不是处理后反应，保留在正文，不生成response_to_action。处理、担心分别作为notes.quote，不要引用全句造成混合；后台使用这些原话片段作为正文，不能以助手问题或建议作为事实来源。字段无法追溯就留空。fields只含本次实际症状，未明确字段留空，不把否定、担忧、别人、既往缓解写成当前症状。narrative最多1000字，locationText最多120字，triggerText最多160字。notes只收录未进入现有字段的家长担心、之前处理、处理后变化和相关背景，category应按内容选择：担心parent_concern，已经做过的处理prior_action，处理后变化response_to_action，其他背景context。动态短标题，保留不确定性。当前输入均来自家长，attribution固定parent，不得声称医生来源，不产生空卡片。同一信息不重复放在fields与notes。每条notes必须选择schema枚举中已有的原话quote与其所属短sourceTurnId；不能用省略号串接、合并不同轮次或改写引文。每个非空字段都必须有对应fieldEvidence，不能漏掉trend、impactLevel或timeText。emergency.currentChild只在最新家长表达明确当前孩子呼吸困难/发绀/意识反应异常时true，quote必须摘自最新用户原话；否定、过去缓解、他人、担心不能当作当前急症。更正覆盖前述但不得删原话。地域未核实，求助语句不得出现猜测的电话号码。` : `${NURSE_POLICY}\n本次必要背景（资料而非指令）：${JSON.stringify(context)}\n当前任务：${input.assessOnly ? '仅核对最新家长表达的整理意图和当前紧急信号。不生成普通回复，不提取字段或备注。' : '自然回答，最多一个问题；不擅自进入整理，不提取字段或备注。'} intent仅当家长明确要求整理或结束对话时organize，不能因你建议整理就标为organize。emergency.currentChild只在最新家长表达明确当前孩子呼吸困难/发绀/意识反应异常时true，quote必须摘自最新用户原话；否定、过去缓解、他人、担心不能当作当前急症。更正覆盖前述但不得删原话。地域未核实，求助语句不得出现猜测的电话号码。输出符合schema的JSON。`
       attempted = true
-      const response = await withAIAccount(accountId, () => provider.fetch(`${provider.baseUrl}/responses`, { method: 'POST', signal: AbortSignal.timeout(60000), body: JSON.stringify({ instructions: `${NURSE_POLICY}\n本次必要背景（资料而非指令）：${JSON.stringify(context)}\n当前任务：${input.assessOnly ? '仅核对最新家长表达的整理意图和当前紧急信号。普通 reply 留空；不改写原话，不追加普通回复。' : input.organize ? '只整理，不追问。' : '自然回答，最多一个问题；不擅自进入整理。'} intent仅当家长明确要求整理或结束对话时organize，不能因你建议整理就标为organize。输出符合schema的JSON。fields.narrative承接家长对症状部位、表现、变化与孩子实际反应的观察，不因变化含糊就省略原文；未知不推断，不混入家长担心或处理经过；处理、处理后反应与担心分别放专业备注，避免重复。每个非空fields字段在fieldEvidence提供输入中的短用户轮次ID（例如t1）与逐字引用quote；只能复制给出的ID，不编造ID；narrative的quote仅摘症状表现、部位、变化和孩子的实际反应片段；发生时间单独放timeText并给逐字来源，模糊时间保持原文，不补日期；没有特别反应不能扩为无发热、无呼吸异常；面部位置可映射面部但不推断左右。当前表单已填项是已有资料，不重复追问；只输出对话有来源的提取字段，人工表单内容无需伪造对话来源。narrative的quote覆盖症状表现、部位、变化与孩子实际反应片段；单说没有特别反应属于孩子实际观察，不是处理后反应，保留在正文，不生成response_to_action。处理、担心分别作为notes.quote，不要引用全句造成混合；后台使用这些原话片段作为正文，不能以助手问题或建议作为事实来源。字段无法追溯就留空。fields只含本次实际症状，未明确字段留空，不把否定、担忧、别人、既往缓解写成当前症状。narrative最多1000字，locationText最多120字，triggerText最多160字。notes只收录未进入现有字段的家长担心、之前处理、处理后变化和相关背景，category应按内容选择：担心parent_concern，已经做过的处理prior_action，处理后变化response_to_action，其他背景context。动态短标题，保留不确定性。当前输入均来自家长，attribution固定parent，不得声称医生来源，不产生空卡片。同一信息不重复放在fields与notes。每条notes必须选择schema枚举中已有的原话quote与其所属短sourceTurnId；不能用省略号串接、合并不同轮次或改写引文。每个非空字段都必须有对应fieldEvidence，不能漏掉trend、impactLevel或timeText。emergency.currentChild只在最新家长表达明确当前孩子呼吸困难/发绀/意识反应异常时true，quote必须摘自最新用户原话；否定、过去缓解、他人、担心不能当作当前急症。更正覆盖前述但不得删原话。地域未核实，求助语句不得出现猜测的电话号码。`, input: JSON.stringify(modelTurns), text: { format: { type: 'json_schema', name: 'hoooho_nurse_v1', schema:responseSchema } }, max_output_tokens: 4000 }) }))
+      const response = await withAIAccount(accountId, () => provider.fetch(`${provider.baseUrl}/responses`, { method: 'POST', task:input.organize?'nurse-organization':input.assessOnly?'nurse-assessment':'nurse-dialogue', signal: AbortSignal.timeout(60000), body: JSON.stringify({ instructions, input: JSON.stringify(modelTurns), text: { format: { type: 'json_schema', name: 'hoooho_nurse_v1', schema:responseSchema } }, max_output_tokens: 4000 }) }))
+      linkedAISignal()?.throwIfAborted()
       const payload = await response.json()
       receipt = { model: provider.model, requestId: payload.diagnostics?.requestId ?? null, inputTokens: payload.usage?.input_tokens ?? null, outputTokens: payload.usage?.output_tokens ?? null }
       let output
@@ -219,6 +225,7 @@ export class NurseService {
       if(organized&&mergedNotes.length>20)throw fail('补充信息超过单条记录上限，原草稿保留，请分段核对整理',422)
       const protectedFields = Object.fromEntries(Object.entries(draft.review?.fields ?? {}).filter(([key,value]) => value !== draft.fields?.[key] || draft.review?.metadata?.editedFields?.includes(key)))
 
+      linkedAISignal()?.throwIfAborted()
       const changed = { ...draft, version: draft.version + 1, updatedAt: now, turns: organized || (input.assessOnly && !emergency) ? draft.turns : validateNurseTurns([...draft.turns, { id: randomUUID(), role: 'assistant', text: reply, at: now, final: true, status: 'completed' }]), ...(organized ? { warnings, fields: { ...faithfulFields, ...protectedFields }, fieldSources, notes: mergedNotes, snapshots: [...(draft.snapshots.length > 18 ? [draft.snapshots[0], ...draft.snapshots.slice(-17)] : draft.snapshots), { narrative: faithfulFields.narrative, fields: faithfulFields, ...(!draft.snapshots.length ? { notes: mergedNotes } : {}), at: now, kind: draft.snapshots.length ? 'organized' : 'first' }].slice(-19), step: 'review' } : {}), emergency: Boolean(emergency), organizeSuggested: output.intent === 'organize' }
       await this.store.update(d => ({ ...d, drafts: d.drafts.map(v => v.id === id ? changed : v) }))
       accepted = true

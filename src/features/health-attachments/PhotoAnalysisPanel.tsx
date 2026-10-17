@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
+import type { UploadedPhotoSource } from '../ai-business/recognitionJobs'
 import type { SmartRecordItem } from '../ai-business/smartRecordTypes'
 import { analyzePhotos, discardPhotoAnalysis, sourcedPhotoFields, type PhotoAnalysisStage } from './photoAnalysis'
 import fieldLabels from '../../../shared/ai-business-field-labels.json'
@@ -11,7 +12,7 @@ function fileIdentity(file: File) {
   if (!fileIdentities.has(file)) fileIdentities.set(file, ++nextFileIdentity)
   return fileIdentities.get(file)
 }
-export function PhotoAnalysis({ files, memberId, token, fields, onApply }: { files: File[]; memberId: string; token: string; fields: string[]; onApply: (items: SmartRecordItem[]) => void }) {
+export function PhotoAnalysis({ files, uploadedSources, memberId, token, fields, onApply }: { files: File[]; uploadedSources?: UploadedPhotoSource[]; memberId: string; token: string; fields: string[]; onApply: (items: SmartRecordItem[]) => void }) {
   const [state, setState] = useState<PhotoAnalysisStage | 'ready' | 'failed' | 'applied'>('preparing')
   const [items, setItems] = useState<SmartRecordItem[]>([])
   const [error, setError] = useState('')
@@ -19,15 +20,18 @@ export function PhotoAnalysis({ files, memberId, token, fields, onApply }: { fil
   const [retry, setRetry] = useState(0)
   const identity = files.map(fileIdentity).join('|')
   const filesRef = useRef(files); filesRef.current = files
+  const sourcesRef = useRef(uploadedSources); sourcesRef.current = uploadedSources
+  const sourceIdentity=uploadedSources===undefined?'direct':JSON.stringify(uploadedSources)
   useEffect(() => {
     if (!filesRef.current.length) return
+    if(sourcesRef.current&&(sourcesRef.current.length!==filesRef.current.length||sourcesRef.current.some(source=>!source?.quickRecordDraftId?.trim()||!source?.photoId?.trim()))){setState('uploading');return}
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(new Error('图片识别超时，请重试；图片仍保留')), 180000)
     let jobId: string | undefined, active = true
     setItems([]); setError(''); setPartial(false); setState('preparing')
-    void analyzePhotos(memberId, token, filesRef.current, controller.signal, stage => { if (active) setState(stage) }, id => { jobId = id }).then(next => { if (active) { setItems(next.items); setPartial(next.partial); setState('ready') } }).catch(cause => { if (active) { setError(cause instanceof Error ? cause.message : '图片识别未完成，请重试'); setState('failed') } }).finally(() => { clearTimeout(timeout); discardPhotoAnalysis(memberId, token, jobId) })
+    void analyzePhotos(memberId, token, filesRef.current, controller.signal, stage => { if (active) setState(stage) }, id => { jobId = id },sourcesRef.current).then(next => { if (active) { setItems(next.items); setPartial(next.partial); setState('ready') } }).catch(cause => { if (active) { setError(cause instanceof Error ? cause.message : '图片识别未完成，请重试'); setState('failed') } }).finally(() => { clearTimeout(timeout); discardPhotoAnalysis(memberId, token, jobId) })
     return () => { active = false; clearTimeout(timeout); controller.abort(); discardPhotoAnalysis(memberId, token, jobId) }
-  }, [identity, memberId, token, retry])
+  }, [identity, sourceIdentity, memberId, token, retry])
   if (!files.length) return null
   const candidates = sourcedPhotoFields(items, fields)
   return <section aria-label="图片识别" className="grid gap-2" aria-live="polite">

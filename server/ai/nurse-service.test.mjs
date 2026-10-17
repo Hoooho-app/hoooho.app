@@ -299,3 +299,32 @@ test('a known user alias with a unique exact quote is reconciled transparently; 
  f.nurse.provider.fetch=async()=>Response.json({output:[{content:[{text:JSON.stringify(value)}]}]})
  await assert.rejects(()=>f.nurse.generate('qa-nurse',f.member.id,d.id,{version:d.version,organize:true}),/字段来源/)
 })
+
+
+test('chat and voice assessment request only used outputs and preserve extraction until organization', async t => {
+  const f = await fixture(t); await f.append()
+  const requests = []
+  f.nurse.provider.fetch = async (_, init) => {
+    const body = JSON.parse(init.body); requests.push(body)
+    const assessing = body.text.format.schema.required.includes('reply') === false
+    return Response.json({ output: [{ content: [{ text: JSON.stringify({ ...(assessing ? {} : { reply: '痒有没有影响睡眠？' }), intent: assessing ? 'organize' : 'continue', emergency: { currentChild: false, quote: '' } }) }] }] })
+  }
+  const spoken = await f.nurse.generate('qa-nurse', f.member.id, f.draft.id, { version: f.draft.version })
+  assert.deepEqual(Object.keys(requests[0].text.format.schema.properties), ['reply', 'intent', 'emergency'])
+  assert.deepEqual(spoken.fields, f.draft.fields); assert.deepEqual(spoken.notes, f.draft.notes); assert.deepEqual(spoken.snapshots, f.draft.snapshots)
+  assert.equal(spoken.turns.length, f.draft.turns.length + 1)
+  const assessed = await f.nurse.generate('qa-nurse', f.member.id, f.draft.id, { version: spoken.version, assessOnly: true })
+  assert.deepEqual(Object.keys(requests[1].text.format.schema.properties), ['intent', 'emergency'])
+  assert.deepEqual(assessed.turns, spoken.turns); assert.equal(assessed.organizeSuggested, true)
+  assert.deepEqual(assessed.fields, f.draft.fields); assert.deepEqual(assessed.notes, f.draft.notes)
+  assert.ok(requests.every(body => !body.instructions.includes('每个非空fields字段在fieldEvidence')))
+})
+
+test('compact voice assessment still verifies the latest current emergency quote', async t => {
+  const f = await fixture(t)
+  const draft = await f.nurse.change('qa-nurse', f.member.id, f.draft.id, { version: 0, turn: { ...f.user, text: '孩子现在呼吸困难。' } })
+  f.nurse.provider.fetch = async () => Response.json({ output: [{ content: [{ text: JSON.stringify({ intent: 'continue', emergency: { currentChild: true, quote: '孩子现在呼吸困难' } }) }] }] })
+  const result = await f.nurse.generate('qa-nurse', f.member.id, draft.id, { version: draft.version, assessOnly: true })
+  assert.equal(result.emergency, true); assert.match(result.turns.at(-1).text, /当地急救/)
+  assert.deepEqual(result.fields, {}); assert.deepEqual(result.notes, [])
+})

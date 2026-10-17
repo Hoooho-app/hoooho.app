@@ -1,3 +1,4 @@
+import {linkedAISignal} from '../ai/providers/telemetry.mjs'
 import path from 'node:path'
 import { dialogueImage } from './dialogue-image.mjs'
 import { randomUUID, createHash } from 'node:crypto'
@@ -8,6 +9,41 @@ import { SUPPORT_ARTICLES, EXTRA_ARTICLES, USER_MANUAL, HELP_MODULES } from '../
 
 const articles = [...SUPPORT_ARTICLES, ...EXTRA_ARTICLES]
 const ids = articles.map(a => a.id)
+const normalizeKnowledgeText = value => value.toLocaleLowerCase().normalize('NFKC').replace(/[\s\p{P}\p{S}]+/gu, '')
+const knowledgeIndex = articles.map(article => ({ article, title: normalizeKnowledgeText(article.title), terms: [...article.keywords, ...(article.aliases ?? [])].map(normalizeKnowledgeText).filter(Boolean) }))
+
+// Select public product knowledge locally before the single model request. Keep
+// recent linked articles available for short follow-ups such as “还是不行”.
+export function selectHelpKnowledge(turns, image = false) {
+  const questions = turns.filter(turn => turn.role === 'user').slice(-3).reverse().map(turn => normalizeKnowledgeText(turn.text))
+  const ranked = knowledgeIndex.map(entry => {
+    let score = 0
+    for (const [index, query] of questions.entries()) {
+      const weight = 1 / (index + 1)
+      if (!query) continue
+      let match = entry.terms.reduce((sum, term) => sum + (query.includes(term) ? 18 + Math.min(term.length, 12) : 0), 0)
+      const pairs = [...new Set(Array.from({ length: Math.max(0, query.length - 1) }, (_, i) => query.slice(i, i + 2)))]
+      match += pairs.filter(pair => entry.title.includes(pair)).length * 3
+      score += match * weight
+    }
+    return { article: entry.article, score }
+  }).filter(entry => entry.score >= 9).sort((a, b) => b.score - a.score)
+  const chosen = new Set(ranked.slice(0, 4).map(entry => entry.article.id))
+  for (const turn of turns.slice(-4)) for (const id of turn.articleIds ?? []) if (ids.includes(id) && chosen.size < 6) chosen.add(id)
+  for (const id of [...chosen]) {
+    const article = articles.find(article => article.id === id)
+    for (const related of article?.relatedArticleIds ?? []) if (chosen.size < 6) chosen.add(related)
+  }
+  const selected = articles.filter(article => chosen.has(article.id))
+  return {
+    articles: selected,
+    manual: USER_MANUAL.filter(item => chosen.has(item.helpArticleId)),
+    // A screenshot or an unknown question can be located using titles, without
+    // sending every tutorial and manual entry on each turn.
+    ...(!selected.length || image ? { directory: articles.map(({ id, title, module }) => ({ id, title, module })) } : {}),
+    modules: HELP_MODULES.map(({ id, label, description }) => ({ id, label, description }))
+  }
+}
 export const HELP_GREETING = '你好，我是 Hoooho 的 AI 产品经理。你在哪个功能里遇到了什么问题？我会陪你一步步排查。'
 const fail = (message, status = 400, code = 'HELP_INVALID_INPUT') => Object.assign(new Error(message), { status, code })
 const schema = { type: 'object', additionalProperties: false, required: ['reply', 'articleIds', 'choices', 'askResolved'], properties: {
@@ -83,8 +119,9 @@ export class HelpService {
     if (medical(turns.at(-1).text)) return {...localHelpReply(turns), mode:'local', notice:''}
     const provider=this.provider===undefined ? createDialogueProvider({env:this.env}) : this.provider
     if(!provider?.fetch) return {...localHelpReply(turns),mode:'local',notice:'智能回复暂时不可用，先根据帮助内容继续排查。'}
+    const knowledge=selectHelpKnowledge(turns,Boolean(image))
     try {
-      const result=await withAIAccount(accountId,()=>provider.fetch(`${provider.baseUrl}/responses`,{method:'POST',headers:{Authorization:`Bearer ${provider.apiKey}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({instructions:policy+'\n当前帮助知识库：'+JSON.stringify(articles)+'\n用户手册：'+JSON.stringify(USER_MANUAL),input:image?[{role:'user',content:[{type:'input_text',text:JSON.stringify(turns.slice(-16).map(t=>({role:t.role,text:t.text})))},{type:'input_image',image_url:image}]}]:JSON.stringify(turns.slice(-16).map(t=>({role:t.role,text:t.text}))),text:{format:{type:'json_schema',name:'hoooho_product_help',strict:true,schema}},temperature:0.2,max_output_tokens:1300})}))
+      const result=await withAIAccount(accountId,()=>provider.fetch(`${provider.baseUrl}/responses`,{method:'POST',headers:{Authorization:`Bearer ${provider.apiKey}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({instructions:policy+'\n当前帮助知识库：'+JSON.stringify(knowledge.articles)+'\n用户手册：'+JSON.stringify(knowledge.manual)+'\n模块目录：'+JSON.stringify(knowledge.modules)+(knowledge.directory?'\n文章标题目录（只可用于定位，不代表已提供具体操作步骤）：'+JSON.stringify(knowledge.directory):'')+'\n只有标题或没有匹配内容时先澄清，不猜具体步骤。',input:image?[{role:'user',content:[{type:'input_text',text:JSON.stringify(turns.slice(-16).map(t=>({role:t.role,text:t.text})))},{type:'input_image',image_url:image}]}]:JSON.stringify(turns.slice(-16).map(t=>({role:t.role,text:t.text}))),text:{format:{type:'json_schema',name:'hoooho_product_help',strict:true,schema}},temperature:0.2,max_output_tokens:1300})}))
       if(result.ok===false)throw fail('智能帮助暂时不可用')
       const payload=await result.json(), outputText=payload.output?.flatMap(item=>item.content??[]).filter(item=>item.type==='output_text'||typeof item.text==='string').map(item=>item.text).join('')
       const output=JSON.parse(outputText ?? '')
@@ -97,6 +134,7 @@ export class HelpService {
       const askResolved = output.articleIds.includes('no-diagnosis') ? false : output.askResolved || linkedSolution
       return {...output,askResolved,articleIds:[...new Set(output.articleIds)],mode:'ai',notice:''}
     } catch(error) {
+      linkedAISignal()?.throwIfAborted()
       console.warn('[Hoooho help] AI unavailable',JSON.stringify({code:typeof error.code==='string'?error.code:'HELP_AI_UNAVAILABLE'}))
       return {...localHelpReply(turns),mode:'local',notice:'智能回复暂时不可用，先根据帮助内容继续排查。'}
     }
@@ -115,13 +153,14 @@ export class HelpService {
     try {
       const user={id:randomUUID(),role:'user',text,requestId,...(image?{imageAttached:true,imageHash}:{}),at:this.now().toISOString()}
       const answer=await this.generate(accountId,[...session.turns,user],image)
+      linkedAISignal()?.throwIfAborted()
       const assistant={id:randomUUID(),role:'assistant',text:answer.reply,at:this.now().toISOString(),articleIds:answer.articleIds,choices:answer.choices,askResolved:answer.askResolved,mode:answer.mode}
       let changed
-      await this.store.update(data=>({...data,sessions:data.sessions.map(s=>{
+      await this.store.update(data=>{linkedAISignal()?.throwIfAborted();return {...data,sessions:data.sessions.map(s=>{
         if(s.id!==id)return s
         if(s.version!==input.version)throw fail('对话已更新，未覆盖新内容',409,'HELP_VERSION_CONFLICT')
         changed={...s,turns:[...s.turns,user,assistant],version:s.version+1,updatedAt:assistant.at,notice:answer.notice};return changed
-      })}))
+      })}})
       return this.public(changed)
     } finally { this.busy.delete(id) }
   }

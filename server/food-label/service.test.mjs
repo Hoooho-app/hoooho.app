@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
+import {controlledCall} from '../ai/providers/call-control.mjs'
 import { FoodLabelService,normalizePhoto,parseLabelText,foodFailureMessage,mergeRows } from './service.mjs'
 test('actual model failures explain the failure without requesting label completion',()=>{
   for(const code of ['AI_TIMEOUT','AI_OUTPUT_INVALID','AI_OUTPUT_EMPTY','AI_OUTPUT_INCOMPLETE','UNKNOWN'])assert.doesNotMatch(foodFailureMessage({code}),/补拍|未完整|安全/)
@@ -135,4 +136,77 @@ test('photo dedup never confuses a substring, child, or differently composed par
   assert.equal(repeated.filter(r=>r.parent===null).length,2)
   assert.deepEqual(repeated[0].evidence.photoIndices,[0,1])
   assert.equal(merge(['Rice (20%)','Rice (60%)']).length,2)
+})
+
+const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}}
+const pause=()=>new Promise(r=>setTimeout(r,5))
+async function until(predicate){for(let i=0;i<200&&!predicate();i++)await pause();assert.ok(predicate(),'expected stage was not reached')}
+async function concurrentFixture(count,{read=async()=>{},wrap=operation=>operation()}={}){
+ const photos=await Promise.all(Array.from({length:count},async(_,i)=>({dataUrl:'data:image/png;base64,'+(await sharp({create:{width:12+i,height:12,channels:3,background:'#fff'}}).png().toBuffer()).toString('base64')})))
+ const urls=await Promise.all(photos.map(async photo=>(await normalizePhoto(photo)).dataUrl)),entered=[],entries=[]
+ let activeReads=0,peakReads=0
+ const texts=['Water, Milk','Milk, Salt','Salt, Egg','Egg, Sugar','Sugar, Rice','Rice, Corn']
+ const model={structured:request=>wrap(async()=>{
+  const index=request.vision?urls.indexOf(request.input[0].content.find(c=>c.type==='input_image').image_url):-1
+  entries.push({task:request.task,index})
+  if(request.task==='food-label-read'){
+   entered.push(index);activeReads++;peakReads=Math.max(peakReads,activeReads)
+   try{await read(index,request);return {value:{text:'Ingredients: '+texts[index],status:'readable'},diagnostics:{success:true}}}finally{activeReads--}
+  }
+  if(request.task==='food-label-coverage')return {value:{text:'完整范围',status:'readable'},diagnostics:{success:true}}
+  const source=JSON.parse(request.input)
+  return {value:Object.fromEntries(Object.entries(source).map(([key,list])=>[key,list.map(original=>({original,chinese:original,english:original,sourceLanguage:'en',reliable:true,sourceUnknown:false}))])),diagnostics:{success:true}}
+ })}
+ const service=new FoodLabelService({model,members:{get:async()=>{}},readRecords:async()=>records})
+ return {service,photos,entered,entries,texts,get peakReads(){return peakReads},analyze:(options={})=>service.analyze('food-parallel-owner',{...input,photos,...options})}
+}
+test('after the first-photo gate, two OCR workers overlap and preserve input evidence order',{timeout:3000},async()=>{
+ const gates=Array.from({length:4},deferred),f=await concurrentFixture(4,{read:async index=>{if(index)await gates[index].promise}})
+ const pending=f.analyze()
+ await until(()=>f.entered.length===3);assert.deepEqual(f.entered,[0,1,2]);assert.equal(f.peakReads,2)
+ gates[2].resolve();await until(()=>f.entered.includes(3));gates[3].resolve();gates[1].resolve()
+ const result=await pending
+ assert.equal(f.peakReads,2);assert.deepEqual(result.labelEvidence.map(p=>p.photoIndex),[0,1,2,3])
+ assert.deepEqual(result.labelEvidence.map(p=>p.text),f.texts.slice(0,4))
+ assert.deepEqual(result.ingredients.map(row=>row.original),['Water','Milk','Salt','Egg','Sugar'])
+ assert.equal(result.diagnostics.calls,9);assert.equal(result.diagnostics.successfulCalls,9);assert.equal(f.entries.length,9)
+})
+test('first-photo read failure rejects before any extra paid photo, coverage or translation call',async()=>{
+ const f=await concurrentFixture(4,{read:async()=>{throw Object.assign(new Error('synthetic read failure'),{code:'AI_TIMEOUT'})}})
+ await assert.rejects(()=>f.analyze(),error=>{assert.equal(error.code,'AI_TIMEOUT');assert.deepEqual(error.foodDiagnostics,{calls:1,successfulCalls:0,errorCodes:['AI_TIMEOUT']});return true})
+ assert.deepEqual(f.entered,[0]);assert.equal(f.entries.length,1)
+})
+test('later failure stops dispatch but retains successful in-flight evidence and an honest partial result',{timeout:3000},async()=>{
+ const failed=deferred(),inFlight=deferred()
+ const f=await concurrentFixture(5,{read:async index=>{if(index===1){await failed.promise;throw Object.assign(new Error('synthetic read failure'),{code:'AI_TIMEOUT'})}if(index===2)await inFlight.promise}})
+ const pending=f.analyze();await until(()=>f.entered.length===3)
+ failed.resolve();await pause();assert.deepEqual(f.entered,[0,1,2])
+ inFlight.resolve();const result=await pending
+ assert.deepEqual(f.entered,[0,1,2]);assert.equal(result.failure,'read');assert.equal(result.complete,false);assert.notEqual(result.tone,'success')
+ assert.deepEqual(result.labelEvidence.map(p=>p.photoIndex),[0,2]);assert.deepEqual(result.labelEvidence.map(p=>p.text),[f.texts[0],f.texts[2]])
+ assert.ok(result.ingredients.some(row=>row.original==='Milk'&&row.status==='known'))
+ assert.ok(result.ingredients.some(row=>row.original==='Egg'));assert.equal(result.previews.length,5)
+ assert.equal(result.diagnostics.calls,6);assert.equal(result.diagnostics.successfulCalls,5);assert.equal(f.entries.length,6)
+ assert.deepEqual(result.diagnostics.errorCodes,['AI_TIMEOUT','FOOD_READ_NOT_ATTEMPTED','FOOD_READ_NOT_ATTEMPTED'])
+ await pause();assert.equal(f.entries.length,6)
+})
+test('food OCR and the existing coverage/translation lanes obey two shared supplier slots',{timeout:3000},async()=>{
+ const hold=deferred(),slowRead=deferred();let active=0,peak=0
+ const wrap=operation=>controlledCall(async()=>{active++;peak=Math.max(peak,active);try{return await operation()}finally{active--}},{AI_MAX_CONCURRENT_CALLS:'2',AI_MAX_CALLS_PER_ACCOUNT_HOUR:'1000'})
+ const occupied=wrap(()=>hold.promise)
+ const f=await concurrentFixture(4,{wrap,read:async index=>{if(index===1)await slowRead.promise}}),pending=f.analyze()
+ await until(()=>f.entered.length===2);assert.deepEqual(f.entered,[0,1]);assert.equal(active,2)
+ hold.resolve();await occupied;await until(()=>f.entered.includes(2));slowRead.resolve()
+ const result=await pending
+ assert.equal(peak,2);assert.ok(f.peakReads<=2);assert.equal(result.diagnostics.calls,9);assert.equal(f.entries.length,9)
+})
+test('request-local duplicate OCR keeps original input photo indices without cross-task reuse',async()=>{
+ const f=await concurrentFixture(2),photos=[f.photos[0],f.photos[0],f.photos[1]]
+ for(let n=0;n<2;n++){
+  const result=await f.analyze({photos})
+  assert.equal(result.previews.length,3);assert.deepEqual(result.labelEvidence.map(p=>p.photoIndex),[0,2])
+  assert.deepEqual(result.ingredients.find(row=>row.original==='Milk').evidence.photoIndices,[0,2])
+  assert.equal(result.diagnostics.calls,5);assert.equal(result.complete,true)
+ }
+ assert.deepEqual(f.entered,[0,1,0,1]);assert.equal(f.entries.length,10)
 })

@@ -1,3 +1,5 @@
+import {withAITrace,safeTraceId,aiRequestOperation,bypassAccountRequestLock,safeClientTiming} from './ai/providers/telemetry.mjs'
+import { resolveBusinessAssetInput } from './ai/business/asset-input.mjs'
 import { parseJsonObject } from './json-input.mjs'
 import { JournalIndexService } from './events/journal-index-service.mjs'
 import {uploadSymptomMedia} from './events/symptom-media-upload.mjs'
@@ -123,7 +125,7 @@ aiBusiness.assertRecognitionCurrent=draft=>recognitionJobs.assertCurrent(draft)
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
 
-function requestSignal(request,response){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});return controller.signal}
+function requestSignal(request,response){const controller=new AbortController(),cancel=()=>{if(!response.writableEnded)controller.abort()};request.once('aborted',cancel);response.once('close',cancel);response.once('finish',()=>{request.off('aborted',cancel);response.off('close',cancel)});return controller.signal}
 
 function setCommonHeaders(response) {
   response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -871,7 +873,17 @@ async function handleApi(request, response, pathname, searchParams) {
     const result = await caseApiResult(caseContinuity, await readAccountId(request), request.method, pathname, limit => readJson(request, limit), searchParams)
     if (result) { sendJson(response, result.status ?? 200, result.data); return true }
   }
-  if(recognitionRoute(pathname)){const result=await recognitionApi(recognitionJobs,await readAccountId(request),request,pathname,limit=>readJson(request,limit));response.setHeader('Cache-Control','no-store');sendJson(response,result.status??200,result.data);return true}
+  if(pathname==='/api/ai/telemetry'){
+    await readAccountId(request)
+    if(request.method!=='POST'){sendEmpty(response,405);return true}
+    const timing=safeClientTiming(await readJson(request,2048));if(!timing){sendEmpty(response,400);return true}
+    console.info('[Hoooho AI] client phases',JSON.stringify(timing));sendEmpty(response,204);return true
+  }
+  const recognitionMatch=recognitionRoute(pathname)
+  if(recognitionMatch){
+    const accountId=await readAccountId(request)
+    const result=await recognitionApi(recognitionJobs,accountId,request,pathname,limit=>readJson(request,limit));response.setHeader('Cache-Control','no-store');sendJson(response,result.status??200,result.data);return true
+  }
   const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
   const failedFrontMessage=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
@@ -895,7 +907,7 @@ async function handleApi(request, response, pathname, searchParams) {
     const accountId=await readAccountId(request),memberId=decodeRouteValue(businessMatch[1]),id=businessMatch[2]&&decodeRouteValue(businessMatch[2]),action=businessMatch[3]
     let result
     if(request.method==='GET'&&!id){sendJson(response,200,await aiBusiness.latest(accountId,memberId));return true}
-    if(request.method==='POST'&&!id){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});result=await aiBusiness.prepare(accountId,memberId,await readJson(request,22*1024*1024),controller.signal)}
+    if(request.method==='POST'&&!id){const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()});const input=await resolveBusinessAssetInput(recognitionJobs,accountId,memberId,await readJson(request,22*1024*1024),controller.signal);result=await aiBusiness.prepare(accountId,memberId,input,controller.signal)}
     else if(request.method==='GET'&&id&&!action)result=await aiBusiness.read(accountId,memberId,id)
     else if(request.method==='PATCH'&&id&&!action)result=await aiBusiness.edit(accountId,memberId,id,await readJson(request,80000))
     else if(request.method==='DELETE'&&id&&!action)result=await aiBusiness.cancel(accountId,memberId,id)
@@ -930,7 +942,7 @@ async function handleApi(request, response, pathname, searchParams) {
     const accountId = await readAccountId(request)
     const memberId = decodeRouteValue(visitSheetMatch[1])
     if (request.method === 'GET') sendJson(response, 200, await visitSheets.get(accountId, memberId))
-    else if (request.method === 'PUT') sendJson(response, 200, await visitSheets.save(accountId, memberId, await readJson(request, 60_000)))
+    else if (request.method === 'PUT') sendJson(response, 200, await visitSheets.save(accountId, memberId, await readJson(request, 60_000),new Date(),requestSignal(request,response)))
     else sendEmpty(response, 405)
     return true
   }
@@ -1037,7 +1049,7 @@ async function handleStatic(request, response, pathname) {
   await sendFile(request, response, indexPath)
 }
 
-const server = createServer(async (request, response) => {
+async function handleRequest(request, response) {
   try {
     const canonicalRedirect = getCanonicalDomainRedirect(request)
     if (canonicalRedirect) {
@@ -1054,9 +1066,10 @@ const server = createServer(async (request, response) => {
     observeSessionRequest(request, response, pathname)
     const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
     const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
-    if (await withAccountLock(lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
+    if (await withAccountLock(bypassAccountRequestLock(request.method,pathname)?null:lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
     await handleStatic(request, response, pathname)
   } catch (error) {
+    if(response.destroyed)return
     const status = Number.isInteger(error?.status) ? error.status : 500
     const code = typeof error?.code === 'string' ? error.code : 'INTERNAL_ERROR'
     const safeAI = error instanceof MedicalSummaryError || error instanceof SafeAIProviderError || error instanceof AudioTranscriptionError
@@ -1067,6 +1080,17 @@ const server = createServer(async (request, response) => {
     }
     sendJson(response, status, { error: { code, message, ...(error?.details ?? {}), ...(safeAI&&error.preview?{preview:error.preview}:{}) } })
   }
+}
+
+const server=createServer((request,response)=>{
+  let operation
+  try{operation=aiRequestOperation(new URL(request.url??'/', 'http://localhost').pathname)}catch{return handleRequest(request,response)}
+  if(!operation)return handleRequest(request,response)
+  const traceId=safeTraceId(request.headers['x-hoooho-trace-id']),started=Date.now(),signal=requestSignal(request,response)
+  response.setHeader('X-Hoooho-Trace-Id',traceId)
+  const done=()=>console.info('[Hoooho AI] http phases',JSON.stringify({traceId,operation,elapsedMs:Date.now()-started,httpStatus:response.writableFinished?response.statusCode:499,commit:/^[a-f0-9]{40}$/.test(process.env.RAILWAY_GIT_COMMIT_SHA??'')?process.env.RAILWAY_GIT_COMMIT_SHA:'local'}))
+  response.once('close',done)
+  return withAITrace({traceId,operation,signal},()=>handleRequest(request,response))
 })
 
 server.listen(port, host, () => {

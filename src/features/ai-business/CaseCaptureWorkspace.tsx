@@ -10,6 +10,7 @@ import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurr
 import { useAppStore } from '../../store/useAppStore'
 import { caseService } from '../case-continuity/api'
 import type { CasesData, ObservationResult } from '../case-continuity/types'
+import { recognizeCasePhotos, type CaseRecognitionCache } from './caseCaptureRecognition'
 import { captureDraft, type CaptureDraft } from './captureDraft'
 import './caseCapture.css'
 
@@ -28,16 +29,17 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
   const camera = useRef<HTMLInputElement>(null), album = useRef<HTMLInputElement>(null), pending = useRef(false), mounted = useRef(true)
   const voice = useSymptomVoice(draft.text, text => setDraft(d => ({ ...d, text })), 5000, file => { if (mounted.current) setDraft(d => ({ ...d, files: [...d.files, file] })) })
   const [recognition, setRecognition] = useState(''), [types, setTypes] = useState<string[]>([])
-  const recognitionRun = useRef(0), recognitionAbort = useRef<AbortController | null>(null)
+  const recognitionRun = useRef(0), recognitionAbort = useRef<AbortController | null>(null),recognitionCache=useRef<CaseRecognitionCache>({assets:{}})
   const [height, setHeight] = useState(window.visualViewport?.height ?? window.innerHeight)
   const loadCases = () => { const controller = new AbortController(); setCaseError(''); void caseService.list(memberId, token, controller.signal).then(data => { if (!controller.signal.aborted) setCases(data) }).catch(e => { if (!controller.signal.aborted) setCaseError(e instanceof Error ? e.message : '情况列表未能加载') }); return controller }
   useEffect(() => {
+    recognitionCache.current={assets:{}}
     mounted.current = true
     const controller = new AbortController()
     const verified = caseService.list(memberId,token,controller.signal).then(data=>{if(!controller.signal.aborted)setCases(data);return data}).catch(e=>{if(!controller.signal.aborted)setCaseError(e instanceof Error?e.message:'情况列表未加载');return null})
     void Promise.all([captureDraft(key),verified]).then(async ([local,data]) => {
       const saved = local ?? (data && !controller.signal.aborted ? await captureDraft(key,undefined,{accountId,memberId}) : null)
-      if (mounted.current && !controller.signal.aborted) { if (saved) { setDraft(saved); setChosen(saved.eventId ?? ''); setResult(saved.result); setLocations(saved.locations ?? []) } setHydrated(true) }
+      if (mounted.current && !controller.signal.aborted) { if (saved) { recognitionCache.current={assets:{...saved.recognitionAssets},draft:saved.caseRecognitionDraft??(saved.aiDraftId?{id:saved.aiDraftId,version:0}:undefined)};setDraft(saved); setChosen(saved.eventId ?? ''); setResult(saved.result); setLocations(saved.locations ?? []) } setHydrated(true) }
     }).catch(() => { if (mounted.current && !controller.signal.aborted) { setError('本设备草稿读取失败，请保持页面打开后重试'); setHydrated(true) } })
     return () => { mounted.current = false; recognitionRun.current++; recognitionAbort.current?.abort(); controller.abort() }
   }, [key])
@@ -52,22 +54,15 @@ export function CaseCaptureWorkspace({ memberId, token, onClose, onSaved, initia
     const controller = new AbortController(), run = ++recognitionRun.current
     recognitionAbort.current = controller; setRecognition('原件保存与整理中…'); setTypes([])
     const current = () => mounted.current && run === recognitionRun.current && !controller.signal.aborted
-    const url = `/api/members/${encodeURIComponent(memberId)}/ai-drafts`
-    type ServerDraft = { id: string; version: number; state: string; items: { category: string; title: string }[] }
-    const request = async (input: unknown) => {
-      const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify(input) })
-      const value = await response.json()
-      if (!response.ok) throw new Error(value.error?.message ?? '识别未完成')
-      return value as ServerDraft
-    }
     try {
-      const original = await request({ text: draft.text, task:'record', sourceIdentity:'pending', deferRecognition:true, ...(initialEventId ? {eventId:initialEventId} : {}), files:await Promise.all(photos.map(async f => ({name:f.name,mimeType:f.type,dataUrl:await fileDataUrl(f)}))) })
-      if (!current()) return
-      setDraft(d => ({...d,aiDraftId:original.id})); setRecognition('原件已保存，正在生成待确认类型…')
-      const prepared = await request({ id:original.id, version:original.version, text:draft.text, task:'record', sourceIdentity:'pending' })
-      if (current()) { setTypes(prepared.items.map(item => item.title)); setRecognition('类型草稿待确认；保存原件后可在详情核对或改类型') }
+      await recognizeCasePhotos({memberId,token,text:draft.text,files:photos,eventId:initialEventId,signal:controller.signal,cache:recognitionCache.current,
+        onAsset:(key,id)=>{if(current())setDraft(d=>({...d,recognitionAssets:{...d.recognitionAssets,[key]:id}}))},
+        onOriginal:original=>{if(current()){setDraft(d=>({...d,aiDraftId:original.id,caseRecognitionDraft:{id:original.id,version:original.version}}));setRecognition('原件已保存，正在生成待确认类型…')}},
+        onPrepared:prepared=>{if(current()){setDraft(d=>({...d,caseRecognitionDraft:{id:prepared.id,version:prepared.version}}));setTypes(prepared.items.map(item=>item.title));setRecognition('类型草稿待确认；保存原件后可在详情核对或改类型')}}
+      })
     } catch (e) { if (current()) setRecognition(`待确认：${e instanceof Error ? e.message : '识别未完成'}。仍可先保存原件，再手动整理。`) }
   }
+
   const openOwnership = () => { voice.stop(); setOwnership(true) }
   const chooseFiles = (files: FileList | null) => { if (!files?.length) return; const selected = [...draft.files, ...Array.from(files)]; if (selected.length > 12 || selected.reduce((n, f) => n + f.size, 0) > 15 * 1024 * 1024) { setError('最多12份原件，总大小15 MB'); return } setDraft(d => ({ ...d, files: selected, aiDraftId: undefined })); setError(''); void recognize(selected) }
   const save = async () => {

@@ -58,3 +58,18 @@ test('已有症状的影像保存复用随记记录，选已有照片不复制�
   await svc.save('account-a',m,{expectedVersion:1,requestId:'select-existing',selectedPhotoIds:[photo.sourceId]})
   assert.equal((await svc.attachments.findByEventId(event.id)).length,1);assert.equal((await svc.records.findByAccountId('account-a')).length,1)
 })
+
+test('影像和摘要同次提交在模型前不消费原件，复核后只关联一次',async t=>{
+  const {svc,member,upload}=await setup(t),m=member.id,event=await svc.events.create({accountId:'account-a',memberId:m,title:'颈部观察',category:'other',status:'observing',startTime:new Date().toISOString()}),record=await svc.records.create({accountId:'account-a',eventId:event.id,type:'symptom',content:'脖子红点',occurredAt:new Date().toISOString(),journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'脖子红点',locations:[],descriptors:[]}}})
+  const photo=await upload();let calls=0
+  svc.medicalSummary={generate:async()=>{
+    calls++
+    assert.equal((await svc.attachments.findByEventId(event.id)).length,0)
+    assert.equal((await svc.photos.list('account-a',m,photo.draftId)).length,1)
+    return {overview:'脖子红点',keyPoints:[],keyPointEvidence:[],missingInformation:[],provider:'bailian',model:'same-model'}
+  }}
+  const result=await svc.save('account-a',m,{expectedVersion:0,requestId:'photo-summary-two-phase',generateAI:true,focus:{mode:'source',sourceId:`record:${record.id}`},photoDraft:{draftId:photo.draftId,photoIds:[photo.id]},selectedPhotoIds:[`draft:${photo.id}`]})
+  assert.equal(calls,1);assert.equal(result.report.aiSummary.overview,'脖子红点')
+  assert.equal((await svc.attachments.findByEventId(event.id)).length,1)
+  assert.equal((await svc.photos.list('account-a',m,photo.draftId)).length,0)
+})

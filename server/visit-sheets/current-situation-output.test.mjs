@@ -83,7 +83,8 @@ test('V2校验诊断穿过摘要服务，仅记录固定字段和规则，不记
  for(const fixture of fixtures){
   const logs=[],body=situationOutput();fixture.change(body);let calls=0
   const provider=new BailianProvider({env:{BAILIAN_API_KEY:'fixture-only-secret',BAILIAN_BASE_URL:'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'},logger:{info(){},warn(){}},fetchImpl:async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(body)}}]})}})
-  const service=new MedicalSummaryService({provider,logger:{warn:(...args)=>logs.push(args)}})
+  // Preserve the legacy provider-method boundary; compact transport has its own safety regression suite.
+  const service=new MedicalSummaryService({provider:{name:provider.name,model:provider.model,summarizeMedicalPreparation:summary=>provider.summarizeMedicalPreparation(summary)},logger:{warn:(...args)=>logs.push(args)}})
   await assert.rejects(()=>service.generate(input),error=>{
    assert.equal(error.code,'AI_MEDICAL_SUMMARY_UNAVAILABLE')
    assert.equal(error.validation.fieldPath,fixture.path)

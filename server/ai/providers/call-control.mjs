@@ -29,6 +29,7 @@ function waitForSlot(signal) {
 export async function controlledCall(operation, env = process.env) {
   const max = boundedSetting(env, 'AI_MAX_CONCURRENT_CALLS', 2, 1, 10)
   const hourly = boundedSetting(env, 'AI_MAX_CALLS_PER_ACCOUNT_HOUR', 30, 1, 1000)
+  const queuedAt=Date.now()
   const queuedSignal = slotContext.getStore()
   queuedSignal?.throwIfAborted()
   if (queuedSignal) while (active >= max) await waitForSlot(queuedSignal)
@@ -42,5 +43,5 @@ export async function controlledCall(operation, env = process.env) {
     value.count++; calls.set(accountId, value)
   }
   active++
-  try { return await operation() } finally { active--; for (const ready of [...slotWaiters]) ready() }
+  try { return await operation({queueWaitMs:Date.now()-queuedAt}) } finally { active--; for (const ready of [...slotWaiters]) ready() }
 }

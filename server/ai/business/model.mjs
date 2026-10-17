@@ -13,7 +13,7 @@ export class BusinessModel {
     const started=Date.now(), model=p.name==='bailian'?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
     try {
       const timeout=p.config?.timeoutMs??60000
-      const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(p.name==='bailian'&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':'hoooho_business',strict:true,schema}}})})
+      const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',task,syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(p.name==='bailian'&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':'hoooho_business',strict:true,schema}}})})
       if(!response.ok)throw Object.assign(new Error('业务整理接口不可用'),{status:response.status,upstream:await readOpenAIErrorDetails(response)})
       const result=await response.json()
       if(result.status==='incomplete'||result.incomplete_details)throw fail('资料整理未完整返回，草稿未更新，请缩小资料范围',503,'AI_OUTPUT_INCOMPLETE')
@@ -23,7 +23,7 @@ export class BusinessModel {
       if(!text)throw fail('没有获得可用的整理结果',503,'AI_OUTPUT_EMPTY')
       let value;try{value=JSON.parse(text)}catch{throw fail('整理结果格式无效，草稿未更新',503,'AI_OUTPUT_INVALID')}
       const diagnostics={...result.diagnostics,provider:p.name??'openai',model,task,elapsedMs:Date.now()-started,inputTokens:Number.isInteger(result.usage?.input_tokens)?result.usage.input_tokens:null,outputTokens:Number.isInteger(result.usage?.output_tokens)?result.usage.output_tokens:null,success:true}
-      this.logger.info('[Hoooho AI] business usage',diagnostics)
+      this.logger.info('[Hoooho AI] business usage',JSON.stringify(diagnostics))
       return {value,diagnostics}
     }catch(error){
       if(error?.code?.startsWith('AI_'))throw error
