@@ -5,6 +5,7 @@ import { TimeResolverService } from '../ai/time-resolver-service.mjs'
 import { HealthEventRecordError } from './health-event-record-error.mjs'
 import {localDateKey} from '../time/local-calendar.mjs'
 import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
+import { parseStrictInstant, validCalendarDate } from '../time/strict-date.mjs'
 
 const categories = new Set(['diet', 'sleep', 'elimination', 'activity', 'emotion', 'social', 'symptom', 'measurement', 'growth', 'injury', 'medication', 'care', 'vaccination', 'environment', 'visit', 'examination', 'other'])
 const dietKinds = new Set(['feeding', 'complementary', 'meal', 'snack', 'supplement'])
@@ -105,10 +106,10 @@ function validateDiet(value) {
   }
   if (value.startedAt !== undefined || value.endedAt !== undefined) {
     if (!['meal', 'feeding'].includes(value.kind) || !value.startedAt || (!value.endedAt && value.status !== 'ongoing') || (value.endedAt && value.status === 'ongoing')) throw new HealthEventRecordError('请核对实际用餐状态和起止时间', 400, 'INVALID_JOURNAL_DIET')
-    const startedAt = new Date(value.startedAt)
-    const endedAt = value.endedAt ? new Date(value.endedAt) : null
-    const elapsed = endedAt ? endedAt.getTime() - startedAt.getTime() : null
-    if (!Number.isFinite(startedAt.getTime()) || (endedAt && (!Number.isFinite(endedAt.getTime()) || elapsed <= 0))) throw new HealthEventRecordError('用餐结束时间必须晚于开始时间', 400, 'INVALID_JOURNAL_DIET')
+    const startedAt = parseStrictInstant(value.startedAt)
+    const endedAt = value.endedAt ? parseStrictInstant(value.endedAt) : null
+    const elapsed = startedAt && endedAt ? endedAt.getTime() - startedAt.getTime() : null
+    if (!startedAt || (value.endedAt && (!endedAt || elapsed <= 0))) throw new HealthEventRecordError('用餐结束时间必须晚于开始时间', 400, 'INVALID_JOURNAL_DIET')
     result.startedAt = startedAt.toISOString()
     if (endedAt) result.endedAt = endedAt.toISOString()
   } else if (value.status === 'ongoing') {
@@ -154,15 +155,15 @@ function validateBowel(value) {
 function validateSleep(value) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !sleepKinds.has(value.kind)) throw new HealthEventRecordError('睡眠类型无效', 400, 'INVALID_JOURNAL_SLEEP')
-  const sleepAt = new Date(value.sleepAt)
+  const sleepAt = parseStrictInstant(value.sleepAt)
   if (value.timeZone !== undefined) {
     try { if (typeof value.timeZone !== 'string' || !value.timeZone) throw new Error(); new Intl.DateTimeFormat('en', { timeZone: value.timeZone }) }
     catch { throw new HealthEventRecordError('睡眠记录时区无效', 400, 'INVALID_JOURNAL_SLEEP') }
   }
-  if (!Number.isFinite(sleepAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
+  if (!sleepAt) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
   if (value.status === 'ongoing' && !value.wakeAt) return { sleepAt: sleepAt.toISOString(), kind: value.kind, status: 'ongoing', ...(value.timeZone ? { timeZone: value.timeZone } : {}) }
-  const wakeAt = new Date(value.wakeAt)
-  if (!Number.isFinite(wakeAt.getTime())) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
+  const wakeAt = parseStrictInstant(value.wakeAt)
+  if (!wakeAt) throw new HealthEventRecordError('睡眠时间无效', 400, 'INVALID_JOURNAL_SLEEP')
   const elapsedMilliseconds = wakeAt.getTime() - sleepAt.getTime()
   const durationMinutes = Math.max(1, Math.round(elapsedMilliseconds / 60_000))
   if (elapsedMilliseconds <= 0) throw new HealthEventRecordError('睡眠时长必须大于0', 400, 'INVALID_JOURNAL_SLEEP')
@@ -277,6 +278,7 @@ function validateSymptom(value, allowEmptyNarrative = false) {
     symptomSpecificData = {}
     for (const [key, item] of Object.entries(value.symptomSpecificData)) {
       if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key) || !(typeof item === 'string' && item.length <= 160 || typeof item === 'number' && Number.isFinite(item) || typeof item === 'boolean' || Array.isArray(item) && item.length <= 12 && item.every((entry) => typeof entry === 'string' && entry.length <= 80))) throw new HealthEventRecordError('症状专属信息无效', 400, 'INVALID_JOURNAL_SYMPTOM')
+      if (['currentTemperature', 'maxTemperature'].includes(key) && (typeof item !== 'number' || !Number.isFinite(item) || item < 20 || item > 50)) throw new HealthEventRecordError('体温应为20至50℃之间的有效数值，未测量时请留空', 400, 'INVALID_JOURNAL_TEMPERATURE')
       symptomSpecificData[key] = item
     }
   }
@@ -290,8 +292,8 @@ function validateMedication(value) {
     if (value.medications.length < 1 || value.medications.length > 12) throw new HealthEventRecordError('用药项目数量无效', 400, 'INVALID_JOURNAL_MEDICATION')
     const ids = new Set()
     const medications = value.medications.map((item) => {
-      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.medicationName !== 'string' || !item.medicationName.trim() || item.medicationName.trim().length > 120) throw new HealthEventRecordError('用药项目无效', 400, 'INVALID_JOURNAL_MEDICATION')
-      ids.add(item.id)
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id.trim()) || typeof item.medicationName !== 'string' || !item.medicationName.trim() || item.medicationName.trim().length > 120) throw new HealthEventRecordError('用药项目无效', 400, 'INVALID_JOURNAL_MEDICATION')
+      ids.add(item.id.trim())
       if (!Number.isFinite(item.amountValue) || item.amountValue <= 0 || item.amountValue > 100000 || typeof item.amountUnit !== 'string' || !item.amountUnit.trim() || item.amountUnit.trim().length > 20) throw new HealthEventRecordError('本次用量无效', 400, 'INVALID_JOURNAL_MEDICATION')
       if (![0.1, 0.5, 1].includes(item.dosageStep)) throw new HealthEventRecordError('剂量步长无效', 400, 'INVALID_JOURNAL_MEDICATION')
       const result = { id: item.id.trim(), medicationName: item.medicationName.trim(), amountValue: item.amountValue, amountUnit: item.amountUnit.trim(), dosageStep: item.dosageStep }
@@ -303,9 +305,9 @@ function validateMedication(value) {
         result.reminder = { enabled: reminder.enabled, frequency: reminder.frequency, timesPerDay: reminder.timesPerDay, times: [...new Set(reminder.times)].sort(), durationDays: reminder.durationDays }
         if (result.reminder.times.length !== reminder.timesPerDay) throw new HealthEventRecordError('提醒时间不能重复', 400, 'INVALID_JOURNAL_MEDICATION')
         if (reminder.configured !== undefined) { if (typeof reminder.configured !== 'boolean') throw new HealthEventRecordError('用药提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.reminder.configured = reminder.configured }
-        if (reminder.endDate !== undefined) { if (typeof reminder.endDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(reminder.endDate) || !Number.isFinite(Date.parse(`${reminder.endDate}T00:00:00Z`))) throw new HealthEventRecordError('提醒结束日期无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.reminder.endDate = reminder.endDate }
+        if (reminder.endDate !== undefined) { if (!validCalendarDate(reminder.endDate)) throw new HealthEventRecordError('提醒结束日期无效', 400, 'INVALID_JOURNAL_MEDICATION'); result.reminder.endDate = reminder.endDate }
         if (reminder.frequency === 'interval_hours' && reminder.configured) {
-          if (!Number.isInteger(reminder.intervalHours) || reminder.intervalHours < 1 || reminder.intervalHours > 168 || typeof reminder.firstReminderAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(reminder.firstReminderAt)) throw new HealthEventRecordError('间隔提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
+          if (!Number.isInteger(reminder.intervalHours) || reminder.intervalHours < 1 || reminder.intervalHours > 168 || typeof reminder.firstReminderAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(reminder.firstReminderAt) || !validCalendarDate(reminder.firstReminderAt.slice(0, 10))) throw new HealthEventRecordError('间隔提醒设置无效', 400, 'INVALID_JOURNAL_MEDICATION')
           result.reminder.intervalHours = reminder.intervalHours; result.reminder.firstReminderAt = reminder.firstReminderAt
         }
         if (reminder.frequency === 'weekly' && reminder.configured) {
@@ -313,14 +315,15 @@ function validateMedication(value) {
           result.reminder.weekdays = [...reminder.weekdays].sort(); result.reminder.durationWeeks = reminder.durationWeeks
         }
         if (reminder.frequency === 'custom' && reminder.configured) {
-          if (!Array.isArray(reminder.selectedDates) || reminder.selectedDates.length < 1 || reminder.selectedDates.length > 100 || reminder.selectedDates.some((date) => typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`))) || new Set(reminder.selectedDates).size !== reminder.selectedDates.length) throw new HealthEventRecordError('自定义提醒日期无效', 400, 'INVALID_JOURNAL_MEDICATION')
+          if (!Array.isArray(reminder.selectedDates) || reminder.selectedDates.length < 1 || reminder.selectedDates.length > 100 || reminder.selectedDates.some((date) => !validCalendarDate(date)) || new Set(reminder.selectedDates).size !== reminder.selectedDates.length) throw new HealthEventRecordError('自定义提醒日期无效', 400, 'INVALID_JOURNAL_MEDICATION')
           result.reminder.selectedDates = [...reminder.selectedDates].sort()
         }
       }
       return result
     })
     const first = medications[0]
-    return { medications, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: 'oral' }
+    const parent = validateMedication({ ...value, medications: undefined, medicationName: first.medicationName, amountValue: first.amountValue, amountUnit: first.amountUnit, administrationRoute: value.administrationRoute === undefined ? 'oral' : value.administrationRoute })
+    return { ...parent, medications }
   }
   if (!value || typeof value !== 'object' || typeof value.medicationName !== 'string' || !value.medicationName.trim() || value.medicationName.trim().length > 120 || !medicationRoutes.has(value.administrationRoute)) throw new HealthEventRecordError('用药记录无效', 400, 'INVALID_JOURNAL_MEDICATION')
   const result = { medicationName: value.medicationName.trim(), administrationRoute: value.administrationRoute }
@@ -348,8 +351,8 @@ function validateVaccination(value) {
   if (!value || typeof value !== 'object' || !Array.isArray(value.items) || value.items.length < 1 || value.items.length > 8) throw new HealthEventRecordError('疫苗接种记录无效', 400, 'INVALID_JOURNAL_VACCINATION')
   const ids = new Set()
   const items = value.items.map((item) => {
-    if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.vaccineName !== 'string' || !item.vaccineName.trim() || item.vaccineName.trim().length > 120 || !vaccinationDoses.has(item.doseSequence)) throw new HealthEventRecordError('疫苗项目无效', 400, 'INVALID_JOURNAL_VACCINATION')
-    ids.add(item.id)
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id.trim()) || typeof item.vaccineName !== 'string' || !item.vaccineName.trim() || item.vaccineName.trim().length > 120 || !vaccinationDoses.has(item.doseSequence)) throw new HealthEventRecordError('疫苗项目无效', 400, 'INVALID_JOURNAL_VACCINATION')
+    ids.add(item.id.trim())
     const result = { id: item.id.trim(), vaccineName: item.vaccineName.trim(), doseSequence: item.doseSequence }
     if(item.administeredOn!==undefined){
       const day=item.administeredOn,d=typeof day==='string'&&day?new Date(`${day}T00:00:00Z`):null
@@ -375,7 +378,7 @@ function validateVaccination(value) {
   return result
 }
 
-function validateVisit(value) {
+function validateVisit(value, now = new Date()) {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || !visitTypes.has(value.visitType)) throw new HealthEventRecordError('就医方式无效', 400, 'INVALID_JOURNAL_VISIT')
   const result = { visitType: value.visitType }
@@ -402,8 +405,10 @@ function validateVisit(value) {
   }
   if (value.linkedVisitRecordId !== undefined) { if (typeof value.linkedVisitRecordId !== 'string' || !value.linkedVisitRecordId.trim() || value.linkedVisitRecordId.trim().length > 80) throw new HealthEventRecordError('关联就医记录无效', 400, 'INVALID_JOURNAL_VISIT'); result.linkedVisitRecordId = value.linkedVisitRecordId.trim() }
   for (const key of ['followUpAt', 'expectedResultAt', 'admittedAt', 'dischargedAt', 'emergencyArrivalAt', 'emergencyDepartureAt']) if (value[key] !== undefined && value[key] !== '') {
-    if (typeof value[key] !== 'string' || !Number.isFinite(Date.parse(value[key]))) throw new HealthEventRecordError('就医时间信息无效', 400, 'INVALID_JOURNAL_VISIT')
-    result[key] = new Date(value[key]).toISOString()
+    const parsed = parseStrictInstant(value[key])
+    if (!parsed) throw new HealthEventRecordError('就医时间信息无效', 400, 'INVALID_JOURNAL_VISIT')
+    if (['admittedAt', 'dischargedAt', 'emergencyArrivalAt', 'emergencyDepartureAt'].includes(key) && parsed.getTime() > now.getTime()) throw new HealthEventRecordError('实际就医时间不能晚于现在', 400, 'FUTURE_OCCURRED_AT')
+    result[key] = parsed.toISOString()
   }
   if (value.isCurrentlyHospitalized !== undefined) { if (typeof value.isCurrentlyHospitalized !== 'boolean') throw new HealthEventRecordError('住院状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.isCurrentlyHospitalized = value.isCurrentlyHospitalized }
   if (result.dischargedAt && result.admittedAt && Date.parse(result.dischargedAt) < Date.parse(result.admittedAt)) throw new HealthEventRecordError('出院时间不能早于入院时间', 400, 'INVALID_JOURNAL_VISIT')
@@ -421,7 +426,7 @@ function recordedClock(occurredAt, timezone) {
   return `${parts.hour}:${parts.minute}`
 }
 
-export function validateJournal(value, { allowEmptySymptomDraft = false } = {}) {
+export function validateJournal(value, { allowEmptySymptomDraft = false, now = new Date() } = {}) {
   if (value === undefined || value === null) return undefined
   if (typeof value !== 'object' || !Array.isArray(value.categories) || value.categories.some((category) => !categories.has(category))) {
     throw new HealthEventRecordError('记录分类无效', 400, 'INVALID_JOURNAL_CATEGORY')
@@ -435,7 +440,7 @@ export function validateJournal(value, { allowEmptySymptomDraft = false } = {}) 
   const aiNurse = validateNurseMetadata(value.aiNurse)
   const medication = validateMedication(value.medication)
   const vaccination = validateVaccination(value.vaccination)
-  const visit = validateVisit(value.visit)
+  const visit = validateVisit(value.visit, now)
   let topical
   if (value.topical !== undefined) {
     const t = value.topical

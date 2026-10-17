@@ -330,6 +330,7 @@ export function readingProjection(report, input) {
   }
 
   for (const r of plans) {
+    for (const issue of r.scheduleIssues ?? []) medicationLines.push(`${r.plan.medicationName}：${issue.day} ${issue.time} ${issue.reason}`);
     const p = r.plan,
       confirmed = r.occurrences.filter((o) => o.completed),
       frequency =

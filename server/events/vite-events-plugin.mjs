@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventError, HealthEventService } from './health-event-service.mjs'
@@ -25,7 +26,7 @@ const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) 
     if (settled) return
     try {
       settled = true
-      resolve(body ? JSON.parse(body) : {})
+      resolve(parseJsonObject(body))
     } catch {
       settled = true
       reject(new HealthEventError('请求格式错误', 400, 'INVALID_JSON'))

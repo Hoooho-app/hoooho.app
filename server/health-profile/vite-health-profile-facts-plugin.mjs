@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthProfileFactError, HealthProfileFactService } from './health-profile-fact-service.mjs'
@@ -10,7 +11,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
     if (body.length > 16_384) reject(new HealthProfileFactError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
   })
   request.on('end', () => {
-    try { resolve(body ? JSON.parse(body) : {}) }
+    try { resolve(parseJsonObject(body)) }
     catch { reject(new HealthProfileFactError('请求格式错误', 400, 'INVALID_JSON')) }
   })
   request.on('error', reject)

@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import {authConfig} from '../auth/config.mjs'
 import {TokenService} from '../auth/token-service.mjs'
 import {ChildProfileListService,ProfileListError} from './child-profile-list-service.mjs'
@@ -18,7 +19,7 @@ export function childProfileListApiPlugin(options={}){
       if(!payload)throw new ProfileListError('登录状态无效',401)
       let input={};if(request.method==='POST'){
         let body='';for await(const chunk of request){body+=chunk;if(body.length>16384)throw new ProfileListError('请求过大',413)}
-        try{input=JSON.parse(body)}catch{throw new ProfileListError('请求格式错误')}
+        try{input=parseJsonObject(body)}catch{throw new ProfileListError('请求格式错误')}
       }
       result=await profileListResult(service,payload.sub,match,request.method,input)
     }catch(e){status=e.status??500;result={error:{code:e.code??'PROFILE_LIST_UNAVAILABLE',message:e.status?e.message:'暂时无法读取或保存，请重试'}}}

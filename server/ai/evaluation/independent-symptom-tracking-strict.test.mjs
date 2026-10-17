@@ -31,6 +31,7 @@ function includesNormalized(actual, expected) {
   if (actualText.includes(expectedText) || expectedText.includes(actualText)) return true
   const aliases = {
     '腹部': /腹|肚/u, '小腿': /小腿|腿/u, '肩': /肩/u, '咽喉': /咽|喉|嗓/u,
+    '咽喉痛': /^(?:咽喉|喉咙|嗓子)(?:疼|痛|疼痛)$/u,
     '胳膊': /胳膊|手臂|上肢/u, '右下腹': /右下腹/u, '肚脐周围': /肚脐|脐周/u,
     '2小时': /2小时|两个小时|PT2H/i, '3天': /3天|三天|P3D/i,
     occasional: /occasional|偶尔/u, frequent: /frequent|频繁/u, '晚上': /晚上|夜间|每天晚上/u,

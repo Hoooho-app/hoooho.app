@@ -25,9 +25,13 @@ export function validateVisitMaterials(value) {
     // never trusted from a client-provided foreign record.
     return result
   })
+  const blockIds = new Set()
   const blocks = value.status === 'originals_only' ? [] : value.blocks.map(block => {
     if (!block || !ids.has(block.documentId) || !Number.isInteger(block.page) || block.page < 1 || block.page > 12 || block.edited !== undefined && typeof block.edited !== 'boolean') invalid('整理内容的原件出处无效')
-    return { id: text(block.id, 200), title: text(block.title, 120), text: text(block.text, 60000, true), documentId: block.documentId, page: block.page, quote: text(block.quote, 60000, true), ...(block.edited ? { edited: true } : {}) }
+    const id = text(block.id, 200).normalize('NFKC')
+    if (blockIds.has(id)) invalid('整理段落标识不能重复')
+    blockIds.add(id)
+    return { id, title: text(block.title, 120), text: text(block.text, 60000, true), documentId: block.documentId, page: block.page, quote: text(block.quote, 60000, true), ...(block.edited ? { edited: true } : {}) }
   })
   const result = { source: value.source, status: value.status, title: text(value.title, 120), documents, blocks }
   for (const [key, limit] of [['institution', 120], ['supplement', 1000]]) if (value[key] !== undefined) result[key] = text(value[key], limit, true)

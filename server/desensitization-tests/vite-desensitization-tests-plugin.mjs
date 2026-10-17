@@ -1,9 +1,10 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { DesensitizationTestError, DesensitizationTestService } from './desensitization-test-service.mjs'
 
 const send = (response, status, data) => { response.statusCode = status; response.setHeader('Content-Type', 'application/json; charset=utf-8'); response.setHeader('Cache-Control', 'no-store'); response.end(JSON.stringify(data)) }
-const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk; if (text.length > 32_768) reject(new DesensitizationTestError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE')) }); request.on('end', () => { try { resolve(text ? JSON.parse(text) : {}) } catch { reject(new DesensitizationTestError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
+const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk; if (text.length > 32_768) reject(new DesensitizationTestError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE')) }); request.on('end', () => { try { resolve(parseJsonObject(text)) } catch { reject(new DesensitizationTestError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
 const account = (request, tokens) => { const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? ''); const payload = match ? tokens.verify(match[1]) : null; if (!payload) throw new DesensitizationTestError('登录状态无效或已过期', 401, 'UNAUTHORIZED'); return payload.sub }
 
 export function desensitizationTestsApiPlugin(options = {}) {

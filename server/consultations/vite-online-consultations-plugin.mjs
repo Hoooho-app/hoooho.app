@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { OnlineConsultationError, OnlineConsultationService } from './online-consultation-service.mjs'
@@ -16,7 +17,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
   })
   request.on('end', () => {
     if (settled) return
-    try { settled = true; resolve(body ? JSON.parse(body) : {}) }
+    try { settled = true; resolve(parseJsonObject(body)) }
     catch { settled = true; reject(new OnlineConsultationError('请求格式错误', 400, 'INVALID_JSON')) }
   })
   request.on('error', reject)

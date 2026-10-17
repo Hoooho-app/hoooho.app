@@ -2,6 +2,8 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
+import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
+import { validateRasterImage } from '../image-validation.mjs'
 
 const CATEGORIES = new Set(['不好用', '出现错误', '功能异常', '内容有误', '希望新增', '隐私与数据', '其他'])
 const CATEGORY_VALUES = new Set(['function_error', 'display_issue', 'usability_issue', 'content_error', 'performance_issue', 'login_issue', 'voice_issue', 'image_issue', 'feature_request', 'experience_suggestion'])
@@ -21,6 +23,13 @@ const emptyData = { feedback: [], attachments: [], messages: [], statusHistory: 
 const iso = (value = new Date()) => value.toISOString()
 const cleanText = (value, max = 2_000) => String(value ?? '').trim().slice(0, max)
 const cleanNullable = (value, max) => cleanText(value, max) || null
+const checkedInput = (input) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new FeedbackError('请求格式错误', 400, 'INVALID_FEEDBACK_INPUT')
+}
+const inputText = (value, max) => {
+  if (value !== undefined && value !== null && typeof value !== 'string') throw new FeedbackError('文字内容格式错误', 400, 'INVALID_FEEDBACK_TEXT')
+  return cleanText(value, max)
+}
 const normalizeStatus = (value) => STATUSES.has(value) ? value : STATUS_ALIASES.get(value) ?? 'received'
 const opsCategory = (item) => {
   const value = item?.problemType ?? item?.category
@@ -60,7 +69,7 @@ export class FeedbackAttachmentStorage {
   async remove(key) { await rm(path.join(this.directory, key), { force: true }) }
 }
 
-function decodeAttachment(input) {
+async function decodeAttachment(input) {
   const name = cleanText(input?.name, 180)
   const type = cleanText(input?.type, 80).toLowerCase()
   const extension = IMAGE_TYPES.get(type)
@@ -73,6 +82,8 @@ function decodeAttachment(input) {
       : type === 'image/webp' ? buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
         : buffer.subarray(4, 8).toString('ascii') === 'ftyp' && /heic|heix|hevc|hevx|mif1|msf1/.test(buffer.subarray(8, 24).toString('ascii'))
   if (!validMagic) throw new FeedbackError('图片内容与文件类型不一致', 400, 'FEEDBACK_ATTACHMENT_TYPE_MISMATCH')
+  try { await validateRasterImage(buffer, type) }
+  catch { throw new FeedbackError('图片损坏或无法解码，请重新选择', 400, 'INVALID_FEEDBACK_ATTACHMENT') }
   return { name, type, extension, buffer }
 }
 
@@ -86,52 +97,58 @@ export class FeedbackService {
   #store
   #storage
   #tokenSecret
+  #dataDirectory
   constructor(options = {}) {
     const directory = options.dataDirectory ?? process.cwd()
+    this.#dataDirectory = directory
     this.#store = options.store ?? new JsonStore(path.join(directory, 'feedback', 'records.json'), emptyData)
     this.#storage = options.storage ?? new FeedbackAttachmentStorage(path.join(directory, 'feedback', 'attachments'))
     this.#tokenSecret = options.tokenSecret ?? 'hoooho-local-development-secret'
   }
 
   async create(accountId, input, now = new Date()) {
-    const problemType = cleanText(input.problemType ?? input.category, 30)
-    const category = problemType || cleanText(input.category, 30) || null
-    const suppliedProblemPage = cleanText(input.problemPage, 30)
+    checkedInput(input)
+    const problemType = inputText(input.problemType ?? input.category, 30)
+    const category = problemType || inputText(input.category, 30) || null
+    const suppliedProblemPage = inputText(input.problemPage, 30)
     const problemPage = PROBLEM_PAGES.has(suppliedProblemPage) ? suppliedProblemPage : null
-    const description = cleanText(input.description, 5_000)
-    const idempotencyKey = cleanText(input.idempotencyKey, 80)
-    const prepared = this.#prepareAttachments(input.attachments)
+    const description = inputText(input.description, 5_000)
+    const idempotencyKey = inputText(input.idempotencyKey, 80)
     if (category && !CATEGORIES.has(category) && !CATEGORY_VALUES.has(category)) throw new FeedbackError('反馈类型无效', 400, 'INVALID_FEEDBACK_CATEGORY')
-    if (!description && prepared.length === 0) throw new FeedbackError('请填写反馈或添加图片', 400, 'EMPTY_FEEDBACK')
     if (!idempotencyKey) throw new FeedbackError('缺少提交标识，请重新提交', 400, 'MISSING_IDEMPOTENCY_KEY')
-    const current = normalizeData(await this.#store.read())
-    const duplicate = current.feedback.find((item) => item.accountId === accountId && item.idempotencyKey === idempotencyKey)
-    if (duplicate) return { id: duplicate.id, status: duplicate.status, createdAt: duplicate.createdAt, duplicate: true }
-
-    const createdAt = iso(now), feedbackId = randomUUID()
-    const feedback = {
-      id: feedbackId, accountId, idempotencyKey, category, problemPage, problemType: category, description,
-      summary: summarize(description, category),
-      sourcePath: cleanNullable(input.sourcePath, 300), sourceName: cleanNullable(input.sourceName, 100),
-      appVersion: cleanNullable(input.appVersion, 60), device: this.#cleanDevice(input.device),
-      status: 'received', priority: 'normal', mergedIntoId: null, handledVersion: null,
-      noActionReason: null, lastOpsViewedAt: null, createdAt, updatedAt: createdAt, statusUpdatedAt: createdAt, closedAt: null
-    }
-    const savedAttachments = await this.#saveAttachments(accountId, feedbackId, null, prepared, now)
-    try {
-      await this.#store.update((raw) => {
-        const data = normalizeData(raw)
-        if (data.feedback.some((item) => item.accountId === accountId && item.idempotencyKey === idempotencyKey)) return data
-        return {
-          ...data, feedback: [...data.feedback, feedback], attachments: [...data.attachments, ...savedAttachments],
-          statusHistory: [...data.statusHistory, { id: randomUUID(), feedbackId, status: 'received', actorAccountId: accountId, createdAt }]
-        }
-      })
-    } catch (error) {
-      await Promise.all(savedAttachments.map((item) => this.#storage.remove(item.storageKey)))
-      throw error
-    }
-    return { id: feedbackId, status: 'received', createdAt }
+    const prepared = await this.#prepareAttachments(input.attachments)
+    if (!description && prepared.length === 0) throw new FeedbackError('请填写反馈或添加图片', 400, 'EMPTY_FEEDBACK')
+    return withStorageLock(async () => {
+      let savedAttachments = []
+      try {
+        return await accountTransaction(this.#dataDirectory, async () => {
+          const current = normalizeData(await this.#store.read())
+          const duplicate = current.feedback.find((item) => item.accountId === accountId && item.idempotencyKey === idempotencyKey)
+          if (duplicate) return { id: duplicate.id, status: duplicate.status, createdAt: duplicate.createdAt, duplicate: true }
+          const createdAt = iso(now), feedbackId = randomUUID()
+          const feedback = {
+            id: feedbackId, accountId, idempotencyKey, category, problemPage, problemType: category, description,
+            summary: summarize(description, category),
+            sourcePath: cleanNullable(input.sourcePath, 300), sourceName: cleanNullable(input.sourceName, 100),
+            appVersion: cleanNullable(input.appVersion, 60), device: this.#cleanDevice(input.device),
+            status: 'received', priority: 'normal', mergedIntoId: null, handledVersion: null,
+            noActionReason: null, lastOpsViewedAt: null, createdAt, updatedAt: createdAt, statusUpdatedAt: createdAt, closedAt: null
+          }
+          savedAttachments = await this.#saveAttachments(accountId, feedbackId, null, prepared, now)
+          await this.#store.update((raw) => {
+            const data = normalizeData(raw)
+            return {
+              ...data, feedback: [...data.feedback, feedback], attachments: [...data.attachments, ...savedAttachments],
+              statusHistory: [...data.statusHistory, { id: randomUUID(), feedbackId, status: 'received', actorAccountId: accountId, createdAt }]
+            }
+          })
+          return { id: feedbackId, status: 'received', createdAt }
+        })
+      } catch (error) {
+        await Promise.all(savedAttachments.map((item) => this.#storage.remove(item.storageKey)))
+        throw error
+      }
+    })
   }
 
   async listForAccount(accountId) {
@@ -158,12 +175,13 @@ export class FeedbackService {
   }
 
   async addUserMessage(accountId, feedbackId, input, now = new Date()) {
+    checkedInput(input)
     const data = normalizeData(await this.#store.read())
     const feedback = data.feedback.find((item) => item.id === feedbackId && item.accountId === accountId)
     if (!feedback) throw new FeedbackError('反馈不存在', 404, 'FEEDBACK_NOT_FOUND')
-    const text = cleanText(input.text, 5_000)
+    const text = inputText(input.text, 5_000)
     const existingCount = data.attachments.filter((item) => item.feedbackId === feedbackId).length
-    const prepared = this.#prepareAttachments(input.attachments, MAX_ATTACHMENTS - existingCount)
+    const prepared = await this.#prepareAttachments(input.attachments, MAX_ATTACHMENTS - existingCount)
     if (!text && prepared.length === 0) throw new FeedbackError('请填写补充内容或添加图片', 400, 'EMPTY_FEEDBACK_MESSAGE')
     const createdAt = iso(now), messageId = randomUUID()
     const message = { id: messageId, feedbackId, authorAccountId: accountId, kind: 'user-supplement', text, createdAt }
@@ -229,6 +247,8 @@ export class FeedbackService {
   }
 
   async updateFromOps(actorAccountId, feedbackId, input, now = new Date()) {
+    checkedInput(input)
+    if (input.status !== undefined && !STATUSES.has(input.status) && !STATUS_ALIASES.has(input.status)) throw new FeedbackError('反馈状态无效', 400, 'INVALID_FEEDBACK_STATUS')
     const createdAt = iso(now)
     await this.#store.update((raw) => {
       const data = normalizeData(raw), index = data.feedback.findIndex((item) => item.id === feedbackId)
@@ -236,7 +256,7 @@ export class FeedbackService {
       const current = data.feedback[index], currentStatus = normalizeStatus(current.status)
       const status = input.status === undefined ? currentStatus : normalizeStatus(input.status)
       const priority = PRIORITIES.has(input.priority) ? input.priority : current.priority
-      const officialReply = cleanText(input.officialReply, 5_000)
+      const officialReply = inputText(input.officialReply, 5_000)
       const noActionReason = input.noActionReason === undefined ? current.noActionReason : cleanNullable(input.noActionReason, 800)
       const handledVersion = input.handledVersion === undefined ? current.handledVersion : cleanNullable(input.handledVersion, 80)
       const mergedIntoId = input.mergedIntoId === undefined ? current.mergedIntoId : cleanNullable(input.mergedIntoId, 80)
@@ -253,8 +273,9 @@ export class FeedbackService {
   }
 
   async addOpsMessage(actorAccountId, feedbackId, input, now = new Date()) {
+    checkedInput(input)
     const kind = input.kind === 'internal-note' ? 'internal-note' : input.kind === 'user-reply' ? 'user-reply' : null
-    const text = cleanText(input.text, 5_000)
+    const text = inputText(input.text, 5_000)
     if (!kind || !text) throw new FeedbackError('请选择消息类型并填写内容', 400, 'INVALID_OPS_MESSAGE')
     const createdAt = iso(now)
     await this.#store.update((raw) => {
@@ -274,10 +295,11 @@ export class FeedbackService {
     return { ...attachment, buffer: await this.#storage.read(attachment.storageKey) }
   }
 
-  #prepareAttachments(input, limit = MAX_ATTACHMENTS) {
-    const values = Array.isArray(input) ? input : []
+  async #prepareAttachments(input, limit = MAX_ATTACHMENTS) {
+    if (input !== undefined && !Array.isArray(input)) throw new FeedbackError('附件格式错误，请重新选择图片', 400, 'INVALID_FEEDBACK_ATTACHMENTS')
+    const values = input ?? []
     if (values.length > limit) throw new FeedbackError(`每条反馈最多 ${MAX_ATTACHMENTS} 张图片`, 400, 'TOO_MANY_FEEDBACK_ATTACHMENTS')
-    const prepared = values.map(decodeAttachment)
+    const prepared = await Promise.all(values.map(decodeAttachment))
     if (prepared.reduce((sum, item) => sum + item.buffer.length, 0) > MAX_TOTAL_BYTES) throw new FeedbackError('图片总大小不能超过 20MB', 413, 'FEEDBACK_ATTACHMENTS_TOO_LARGE')
     return prepared
   }

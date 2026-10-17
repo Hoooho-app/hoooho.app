@@ -32,6 +32,10 @@ export class FamilyMemberError extends Error {
   }
 }
 
+function assertMemberInput(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new FamilyMemberError('请求格式错误', 400, 'INVALID_MEMBER_INPUT')
+}
+
 function validateName(value) {
   const name = typeof value === 'string' ? value.trim() : ''
   if (!name || name.length > 50) throw new FamilyMemberError('成员名称应为 1–50 个字符', 400, 'INVALID_MEMBER_NAME')
@@ -142,7 +146,7 @@ async function validateAvatar(value) {
 
 function validateOptionalNumber(value, label, min, max, precision = 1) {
   if (value === undefined || value === null || value === '') return null
-  const number = Number(value)
+  const number = (typeof value === 'number' || (typeof value === 'string' && value.trim())) ? Number(value) : NaN
   if (!Number.isFinite(number) || number < min || number > max) {
     throw new FamilyMemberError(`${label}格式错误`, 400, `INVALID_${label === '身高' ? 'HEIGHT' : 'WEIGHT'}`)
   }
@@ -202,13 +206,14 @@ export class FamilyMemberService {
   }
 
   async create(accountId, input, now = new Date(), timeZone) {
+    assertMemberInput(input)
     const relationship = validateRelationship(input.relationship)
     return this.repository.create({
       accountId,
       name: validateName(input.name),
       relationship,
       gender: validateGender(input.gender),
-      birthday: validateBirthday(input.birthday, now, timeZone),
+      birthday: validateBirthdayForRelationship(input.birthday, relationship, now, timeZone),
       avatar: await validateAvatar(input.avatar),
       caregivers: validateCaregivers(input.caregivers),
       primaryRecorderRelationship: validatePrimaryRecorderRelationship(input.primaryRecorderRelationship),
@@ -219,6 +224,7 @@ export class FamilyMemberService {
   }
 
   async createSelf(accountId, input = {}, now = new Date(), timeZone) {
+    assertMemberInput(input)
     const existing = (await this.repository.findByAccountId(accountId)).find((member) => member.isSelf)
     const member = existing ?? await this.repository.ensureSelf(accountId, now)
     const changes = {}
@@ -230,11 +236,13 @@ export class FamilyMemberService {
   }
 
   async update(accountId, id, input, now = new Date(), timeZone) {
+    assertMemberInput(input)
     const member = await this.get(accountId, id)
     const changes = {}
     const targetRelationship = input.relationship === undefined
       ? member.relationship
       : validateRelationship(input.relationship)
+    if (input.birthday === undefined && targetRelationship !== member.relationship) validateBirthdayForRelationship(member.birthday, targetRelationship, now, timeZone)
     for (const key of Object.keys(input)) {
       if (!editableFields.has(key)) continue
       if (key === 'name') changes.name = validateName(input.name)

@@ -15,7 +15,7 @@ async function imageInput(memberId, sortOrder = 0, color = '#2f8f83') {
 async function setup() {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-quick-record-photos-'))
   const members = new FamilyMemberService({ dataDirectory })
-  const member = await members.create('account-1', { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
+  const member = await members.create('account-1', { name: '小明', relationship: 'child', gender: 'male', birthday: `${new Date().getUTCFullYear() - 3}-01-01` })
   return { dataDirectory, member, service: new QuickRecordPhotoService({ dataDirectory }) }
 }
 

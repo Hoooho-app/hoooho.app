@@ -7,6 +7,7 @@ import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { journalOccurrenceAt } from '../../shared/journal-occurrence.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
+import { parseStrictInstant } from '../time/strict-date.mjs'
 import path from 'node:path'
 
 export { HealthEventRecordError } from './health-event-record-error.mjs'
@@ -58,8 +59,8 @@ export function validateOccurredAt(value, now = new Date()) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
     throw new HealthEventRecordError('发生时间必须是 ISO 8601 日期时间', 400, 'INVALID_OCCURRED_AT')
   }
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
+  const parsed = parseStrictInstant(value)
+  if (!parsed) {
     throw new HealthEventRecordError('发生时间格式错误', 400, 'INVALID_OCCURRED_AT')
   }
   if (parsed.getTime() > now.getTime()) {
@@ -68,7 +69,12 @@ export function validateOccurredAt(value, now = new Date()) {
   return parsed.toISOString()
 }
 
+function assertRecordInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HealthEventRecordError('记录内容格式无效', 400, 'INVALID_RECORD_INPUT')
+}
+
 function rejectImmutableFields(input) {
+  assertRecordInput(input)
   const field = Object.keys(input).find((key) => immutableFields.has(key))
   if (field) {
     throw new HealthEventRecordError(`${field} 由服务端管理，不能由客户端提交`, 400, 'IMMUTABLE_RECORD_FIELD')
@@ -115,21 +121,26 @@ export class HealthEventRecordService {
   }
 
   async validateSymptomLinks(accountId, event, journal) {
-    const groups = journal?.symptom?.linkedRecordIds
-    if (!groups) return
+    const groups = { ...(journal?.symptom?.linkedRecordIds ?? {}) }
+    const add = (category, ids) => { if (ids?.length) groups[category] = [...(groups[category] ?? []), ...ids] }
+    add('symptom', journal?.medication?.linkedSymptomRecordIds)
+    add('symptom', journal?.vaccination?.linkedSymptomRecordIds)
+    for (const [key, category] of [['linkedSymptomRecordIds', 'symptom'], ['linkedMedicationRecordIds', 'medication'], ['linkedExaminationRecordIds', 'examination'], ['linkedInjuryRecordIds', 'injury'], ['linkedVaccinationRecordIds', 'vaccination']]) add(category, journal?.visit?.[key])
+    if (journal?.visit?.linkedVisitRecordId) add('visit', [journal.visit.linkedVisitRecordId])
     for (const [category, recordIds] of Object.entries(groups)) {
-      for (const id of recordIds) {
+      for (const id of new Set(recordIds)) {
         const related = await this.repository.findById(id)
         if (!related || related.accountId !== accountId) throw new HealthEventRecordError('关联记录不存在', 400, 'INVALID_RELATED_RECORD')
         const relatedEvent = await this.events.findById(related.eventId)
         if (!relatedEvent || relatedEvent.accountId !== accountId || relatedEvent.memberId !== event.memberId) throw new HealthEventRecordError('只能关联当前记录对象的内容', 400, 'INVALID_RELATED_RECORD')
-        const categories = related.journal?.categories ?? [related.type]
+        const categories = related.journal?.categories?.length ? related.journal.categories : [related.type]
         if (!categories.includes(category)) throw new HealthEventRecordError('关联记录类型不匹配', 400, 'INVALID_RELATED_RECORD')
       }
     }
   }
 
   async create(accountId, eventId, input, now = new Date()) {
+    assertRecordInput(input)
     if (!input.journal?.aiNurse) return this.createRecord(accountId, eventId, input, now)
     return accountTransaction(this.directory, async () => {
       const event = await this.assertEventOwnership(accountId, eventId)
@@ -150,7 +161,7 @@ export class HealthEventRecordService {
   async createRecord(accountId, eventId, input, now = new Date()) {
     const event = await this.assertEventOwnership(accountId, eventId)
     rejectImmutableFields(input)
-    const journal = input.journal === undefined ? undefined : validateJournal(input.journal)
+    const journal = input.journal === undefined ? undefined : validateJournal(input.journal, { now })
     const occurredAt = validateOccurredAt(journalOccurrenceAt(journal, input.occurredAt), now)
     if (journal?.sleep?.sleepAt) validateOccurredAt(journal.sleep.sleepAt, now)
     if (journal?.diet?.startedAt) validateOccurredAt(journal.diet.startedAt, now)
@@ -164,7 +175,7 @@ export class HealthEventRecordService {
       content: validateContent(input.content),
       occurredAt,
       sourceType: input.sourceType === undefined ? 'user_record' : validateSourceType(input.sourceType),
-      sourceText: validateOptionalText(input.sourceText, '原始记录'),
+      sourceText: validateOptionalText(input.sourceText, '原始记录', 15000),
       measurementMethod: validateMeasurementMethod(input.measurementMethod),
       measurementDevice: validateOptionalText(input.measurementDevice, '测量设备', 200),
       note: validateOptionalText(input.note, '备注', 1000)
@@ -198,12 +209,12 @@ export class HealthEventRecordService {
       if (key === 'content') changes.content = validateContent(input.content)
       if (key === 'occurredAt') changes.occurredAt = validateOccurredAt(input.occurredAt, now)
       if (key === 'sourceType') changes.sourceType = validateSourceType(input.sourceType)
-      if (key === 'sourceText') changes.sourceText = validateOptionalText(input.sourceText, '原始记录')
+      if (key === 'sourceText') changes.sourceText = validateOptionalText(input.sourceText, '原始记录', 15000)
       if (key === 'measurementMethod') changes.measurementMethod = validateMeasurementMethod(input.measurementMethod)
       if (key === 'measurementDevice') changes.measurementDevice = validateOptionalText(input.measurementDevice, '测量设备', 200)
       if (key === 'note') changes.note = validateOptionalText(input.note, '备注', 1000)
       if (key === 'journal') {
-        changes.journal = validateJournal(input.journal)
+        changes.journal = validateJournal(input.journal, { now })
         if (record.journal?.aiNurse) {
           const original = record.journal.aiNurse
           const requested = changes.journal?.aiNurse
@@ -230,10 +241,13 @@ export class HealthEventRecordService {
       changes.journal.timePrecision = next.occurredAt ? 'exact' : 'unknown'
       if (next.occurredAt) changes.occurredAt = validateOccurredAt(next.occurredAt, now)
     }
-    if (changes.journal) {
-      changes.occurredAt = validateOccurredAt(journalOccurrenceAt(changes.journal, changes.occurredAt ?? record.occurredAt), now)
-      if (changes.journal.sleep?.sleepAt) validateOccurredAt(changes.journal.sleep.sleepAt, now)
-      if (changes.journal.diet?.startedAt) validateOccurredAt(changes.journal.diet.startedAt, now)
+    const effectiveJournal = Object.hasOwn(changes, 'journal') ? changes.journal : record.journal
+    if (changes.journal || (Object.hasOwn(changes, 'occurredAt') && effectiveJournal)) {
+      const canonicalTime = validateOccurredAt(journalOccurrenceAt(effectiveJournal, changes.occurredAt ?? record.occurredAt), now)
+      if (!Object.hasOwn(changes, 'journal') && changes.occurredAt !== canonicalTime) throw new HealthEventRecordError('发生时间需与实际起止时间保持一致，请修改对应的开始或结束时间', 400, 'INCONSISTENT_OCCURRED_AT')
+      changes.occurredAt = canonicalTime
+      if (effectiveJournal.sleep?.sleepAt) validateOccurredAt(effectiveJournal.sleep.sleepAt, now)
+      if (effectiveJournal.diet?.startedAt) validateOccurredAt(effectiveJournal.diet.startedAt, now)
     }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')
@@ -245,6 +259,7 @@ export class HealthEventRecordService {
   }
 
   async endSleep(accountId, id, input = {}, now = new Date()) {
+    assertRecordInput(input)
     const record = await this.getOwnedRecord(accountId, id)
     const current = record.journal?.sleep
     if (!current) throw new HealthEventRecordError('这不是睡眠记录', 400, 'NOT_SLEEP_RECORD')

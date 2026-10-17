@@ -94,7 +94,7 @@ test('FamilyMember API 支持按需创建本人、CRUD 和账号隔离', async (
     assert.equal(self.isSelf, true)
 
     const createdResponse = await postJson(`${baseUrl}/api/members`, {
-      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02',
+      name: '小明', relationship: 'child', gender: 'male', birthday: `${new Date().getUTCFullYear() - 3}-01-01`,
       avatar: 'boy-age7-east-asian',
       caregivers: ['father', 'mother'], primaryRecorderRelationship: 'mother', otherRelative: ' 姨妈 ', otherCaregiver: ' 王老师 '
     }, first.token)

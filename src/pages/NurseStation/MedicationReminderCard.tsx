@@ -1,10 +1,15 @@
 import { Archive, MoreHorizontal, Pill, RotateCcw, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MedicationReminderDto } from '../../services/medicationReminders'
+import { StatusNotice } from '../../components/design-system'
 import { routeLabel } from './medicationReminderLogic'
 import { formatReminderOccurrence, reminderActionState, reminderCoursePlanText, reminderCourseText, reminderProgressGroupLabel, weekRows } from './medicationCardLogic'
 import type { VisitMedicationSnapshot } from '../../types/visitSheet'
 import './medicationReadOnly.css'
+
+function MedicationScheduleIssues({ issues }: { issues?: VisitMedicationSnapshot['scheduleIssues'] }) {
+  return issues?.length ? <StatusNotice tone="warning" title="提醒时间需要核对">{issues.map(issue => <p key={`${issue.day}-${issue.time}`}>{issue.day} {issue.time}：{issue.reason}</p>)}</StatusNotice> : null
+}
 
 // Both the interactive nurse card and the report use this same calendar and grouping.
 export function MedicationCalendar({ reminder, now, readOnly = false, expanded = false, onEvidence }: {
@@ -27,7 +32,7 @@ export function MedicationCalendar({ reminder, now, readOnly = false, expanded =
 
 export function ReadOnlyMedicationReminderCard({ reminder, now, expanded=false, onEvidence }: {reminder:VisitMedicationSnapshot;now:Date;expanded?:boolean;onEvidence?:(ids:string[])=>void}) {
   const confirmed=reminder.occurrences.filter(o=>o.completed).length,unconfirmed=reminder.occurrences.filter(o=>!o.completed&&Date.parse(o.scheduledAt)<=now.getTime()).length,future=reminder.occurrences.filter(o=>!o.completed&&Date.parse(o.scheduledAt)>now.getTime()).length
-  return <article className="medication-course-card medication-course-card--readonly" data-readonly-reminder={reminder.id}><div className="medication-course-card__surface"><div className="medication-course-card__summary"><h3><Pill aria-hidden="true"/>{reminder.plan.medicationName}</h3><p>{reminderCoursePlanText(reminder)} · {reminder.plan.startDate} — {reminder.plan.endDate||'未设结束日期'}</p><p>{reminder.plan.amount!=null?`每次 ${reminder.plan.amount} ${reminder.plan.unit||''}`:'剂量未记录'} · {reminder.plan.route?routeLabel(reminder.plan.route):'途径未记录'}</p><p>{reminder.status==='archived'?'提醒已归档':reminder.status==='active'?'提醒计划':'提醒状态未提供'} · 截至本报告生成时</p></div><div className="medication-course-card__course"><MedicationCalendar reminder={reminder} now={now} readOnly expanded={expanded} onEvidence={onEvidence}/><p className="visit-med-legend">✓ {confirmed} 次已确认使用 · ? {unconfirmed} 次未确认 · · {future} 次未来计划</p></div>{onEvidence?<button className="visit-text-action" onClick={()=>onEvidence(reminder.sourceIds)}>查看提醒计划依据</button>:reminder.sourceIds.map(id=><a key={id} href={`#${id}`}>查看提醒计划依据</a>)}</div></article>
+  return <article className="medication-course-card medication-course-card--readonly" data-readonly-reminder={reminder.id}><div className="medication-course-card__surface"><div className="medication-course-card__summary"><h3><Pill aria-hidden="true"/>{reminder.plan.medicationName}</h3><p>{reminderCoursePlanText(reminder)} · {reminder.plan.startDate} — {reminder.plan.endDate||'未设结束日期'}</p><p>{reminder.plan.amount!=null?`每次 ${reminder.plan.amount} ${reminder.plan.unit||''}`:'剂量未记录'} · {reminder.plan.route?routeLabel(reminder.plan.route):'途径未记录'}</p><p>{reminder.status==='archived'?'提醒已归档':reminder.status==='active'?'提醒计划':'提醒状态未提供'} · 截至本报告生成时</p></div><MedicationScheduleIssues issues={reminder.scheduleIssues}/><div className="medication-course-card__course"><MedicationCalendar reminder={reminder} now={now} readOnly expanded={expanded} onEvidence={onEvidence}/><p className="visit-med-legend">✓ {confirmed} 次已确认使用 · ? {unconfirmed} 次未确认 · · {future} 次未来计划</p></div>{onEvidence?<button className="visit-text-action" onClick={()=>onEvidence(reminder.sourceIds)}>查看提醒计划依据</button>:reminder.sourceIds.map(id=><a key={id} href={`#${id}`}>查看提醒计划依据</a>)}</div></article>
 }
 
 export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTake, onUndo, onArchive, onDelete }: {
@@ -94,7 +99,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           <p className="medication-course-card__today">今日计划：{todayTotal === 0 ? '无计划' : <><strong className={todayScheduledCompleted > 0 ? 'has-completed' : ''}>{todayScheduledCompleted}</strong><span>/{todayTotal}</span></>}</p>
           {todayCompleted !== todayScheduledCompleted && <p className="medication-course-card__today">按实际服用时间：今日 {todayCompleted} 次</p>}
           {historical && !archived && <p className="medication-course-card__pending">待确认计划：{next && formatReminderOccurrence(next, reminder.plan.timezone, now)} · 不代表未服用</p>}
-          <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : future ? formatReminderOccurrence(future, reminder.plan.timezone, now) : '无未来计划'}</p>
+          <p className="medication-course-card__next">下次：{archived ? '计划已停止' : allComplete ? '疗程已完成' : future ? formatReminderOccurrence(future, reminder.plan.timezone, now) : reminder.scheduleIssues?.length ? '计划时间待核对' : '无未来计划'}</p>
           {historical && !archived && <p>点击“记录服用”仍按当前服用时间记录，不自动补为过去已服用。</p>}
         </div>
         <div className="medication-course-card__controls">
@@ -102,6 +107,7 @@ export function MedicationReminderCard({ reminder, now, open, busy, onOpen, onTa
           {archived ? <span className="medication-course-card__archived">已归档</span> : <><button className="medication-course-card__take" disabled={busy || !due || allComplete || todayDone} onClick={onTake} type="button">{busy ? '处理中…' : takeLabel}</button><button className="medication-course-card__undo" disabled={busy || activeCompletions.length === 0} onClick={onUndo} type="button"><RotateCcw />撤回</button></>}
         </div>
       </div>
+      <MedicationScheduleIssues issues={reminder.scheduleIssues}/>
       <div className="medication-course-card__course">
         <MedicationCalendar reminder={reminder} now={now}/>
       </div>

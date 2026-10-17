@@ -7,6 +7,7 @@ import { AVATAR_PHOTO_MAX_DATA_URL_LENGTH } from '../../shared/avatar-photo-poli
 import { TokenService } from '../auth/token-service.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { isValidNickname, normalizeNickname } from '../auth/nickname.mjs'
+import { validateRasterImage } from '../image-validation.mjs'
 
 const providerLabels = { wechat: '微信', qq: 'QQ', apple: 'Apple' }
 
@@ -43,6 +44,7 @@ export class AccountService {
   }
 
   async updateProfile(accountId, input, now = new Date()) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('请求格式错误', 400, 'INVALID_ACCOUNT_INPUT')
     const current = await this.get(accountId)
     const changes = {}
     if (Object.hasOwn(input, 'nickname')) {
@@ -51,9 +53,15 @@ export class AccountService {
       changes.nickname = nickname
     }
     if (Object.hasOwn(input, 'avatar')) {
-      const avatar = input.avatar === null ? null : String(input.avatar)
-      if (avatar && (!avatar.startsWith('data:image/') || avatar.length > AVATAR_PHOTO_MAX_DATA_URL_LENGTH)) {
+      const avatar = input.avatar
+      if (avatar !== null && (typeof avatar !== 'string' || avatar.length > AVATAR_PHOTO_MAX_DATA_URL_LENGTH)) {
         throw new AuthError('头像格式或大小不符合要求', 400, 'INVALID_AVATAR')
+      }
+      if (avatar) {
+        const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/.exec(avatar)
+        if (!match || match[2].length % 4 !== 0) throw new AuthError('头像格式或大小不符合要求', 400, 'INVALID_AVATAR')
+        try { await validateRasterImage(Buffer.from(match[2], 'base64'), match[1], 4096 * 4096) }
+        catch { throw new AuthError('头像图片损坏或格式不符合要求', 400, 'INVALID_AVATAR') }
       }
       changes.avatar = avatar
     }
@@ -140,6 +148,7 @@ export class AccountService {
   }
 
   async delete(accountId, input, now = Date.now()) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('请求格式错误', 400, 'INVALID_ACCOUNT_INPUT')
     const user = await this.users.findById(accountId)
     if (!user) return { deleted: true, idempotent: true }
     const proof = this.tokens.verify(String(input.deleteToken ?? ''), now)

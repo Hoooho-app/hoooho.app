@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { FamilyMemberError, FamilyMemberService } from './family-member-service.mjs'
@@ -20,7 +21,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
     if (settled) return
     try {
       settled = true
-      resolve(body ? JSON.parse(body) : {})
+      resolve(parseJsonObject(body))
     } catch {
       settled = true
       reject(new FamilyMemberError('请求格式错误', 400, 'INVALID_JSON'))

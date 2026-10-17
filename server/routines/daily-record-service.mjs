@@ -4,6 +4,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 import { localDateKey, validTimeZone } from '../time/local-calendar.mjs'
+import { validCalendarDate, parseStrictInstant } from '../time/strict-date.mjs'
 import { validateJournal } from '../events/journal-metadata.mjs'
 
 const kinds = new Set(['feeding', 'complementary', 'meal', 'snack', 'supplement', 'sleep', 'bowel', 'topical', 'medication'])
@@ -22,6 +23,9 @@ function safeFields(kind, source) {
     return [key, typeof value === 'string' ? value.trim() : value]
   }))
 }
+function numericField(value) {
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim())) ? Number(value) : NaN
+}
 function matchesKind(kind, journal) {
   return journal && (['feeding', 'complementary', 'meal', 'snack', 'supplement'].includes(kind) ? journal.diet?.kind === kind : ({ sleep: 'sleep', bowel: 'elimination', topical: 'care', medication: 'medication' }[kind] === journal.categories?.[0]))
 }
@@ -37,6 +41,7 @@ export const shiftDay = (day, days = 1) => new Date(Date.parse(`${day}T12:00:00Z
 // Resolve a wall clock in the rule's zone, not the browser/server zone. Reject
 // nonexistent DST clocks rather than silently shifting an occurrence.
 export function zonedInstant(day, clock, zone) {
+  if (!validCalendarDate(day) || !clockPattern.test(clock ?? '') || !validTimeZone(zone)) return null
   const target = Date.parse(`${day}T${clock}:00Z`)
   const formatter = new Intl.DateTimeFormat('sv-SE', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
   let instant = target
@@ -52,8 +57,8 @@ export function dailySnapshot(kind, fields, day = '2026-01-01', time = '00:00', 
   let journal
   if (kind === 'feeding') {
     if (!['breast', 'formula', 'expressed', 'mixed'].includes(fields.feedingMethod)) fail('请选择喂养方式')
-    if (fields.feedingMethod !== 'breast' && !(Number(fields.bottleMl) > 0)) fail('请填写奶量')
-    journal = { categories: ['diet'], diet: { kind, feedingMethod: fields.feedingMethod, ...(fields.bottleMl ? { bottleMl: Number(fields.bottleMl) } : {}) } }
+    if (fields.feedingMethod !== 'breast' && !(numericField(fields.bottleMl) > 0)) fail('请填写奶量')
+    journal = { categories: ['diet'], diet: { kind, feedingMethod: fields.feedingMethod, ...(fields.bottleMl ? { bottleMl: numericField(fields.bottleMl) } : {}) } }
   } else if (['complementary', 'meal', 'snack'].includes(kind)) {
     const foods = String(fields.foods ?? '').split(/[、，,]/).map(value => value.trim()).filter(Boolean)
     if (!foods.length) fail('请填写食物内容')
@@ -72,10 +77,10 @@ export function dailySnapshot(kind, fields, day = '2026-01-01', time = '00:00', 
     journal = { categories: ['care'], topical: { kind: fields.kind || 'skincare', productName: fields.productName, bodyLocations: String(fields.bodyLocations ?? '').split(/[、，,]/).map(s => s.trim()).filter(Boolean), ...pick(fields, ['amount']) } }
   } else if (kind === 'medication') {
     if (fields.mode !== 'fixed') fail('按需用药不能开启每天自动记录')
-    if (!String(fields.medicationName ?? '').trim() || !(Number(fields.amountValue) > 0) || !String(fields.amountUnit ?? '').trim()) fail('请填写药名、剂量和单位')
+    if (!String(fields.medicationName ?? '').trim() || !(numericField(fields.amountValue) > 0) || !String(fields.amountUnit ?? '').trim()) fail('请填写药名、剂量和单位')
     if (!fields.endDate && fields.untilClosed !== true) fail('请选择用药结束日期或持续至关闭')
     if (fields.endDate && (!/^\d{4}-\d{2}-\d{2}$/.test(fields.endDate) || !Number.isFinite(Date.parse(`${fields.endDate}T00:00:00Z`)) || new Date(`${fields.endDate}T00:00:00Z`).toISOString().slice(0, 10) !== fields.endDate || fields.endDate < day)) fail('请核对用药结束日期，不得早于生效日期')
-    journal = { categories: ['medication'], medication: { medicationName: fields.medicationName, amountValue: Number(fields.amountValue), amountUnit: fields.amountUnit, administrationRoute: fields.administrationRoute || 'oral' } }
+    journal = { categories: ['medication'], medication: { medicationName: fields.medicationName, amountValue: numericField(fields.amountValue), amountUnit: fields.amountUnit, administrationRoute: fields.administrationRoute || 'oral' } }
   } else fail('记录类型无效')
   // Whitelisted reconstruction excludes observations, photos, transcripts,
   // nurse metadata, reminders and previous actual interval endpoints.
@@ -206,7 +211,7 @@ export class DailyRecordService {
   }
   async instances(accountId, memberId, day) {
     await this.versions(accountId, memberId)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) fail('日期无效')
+    if (!validCalendarDate(day)) fail('日期无效')
     const db = await this.database()
     return db.prepare('SELECT * FROM instances WHERE account_id=? AND member_id=? AND day=? ORDER BY planned_at DESC,id DESC').all(accountId, memberId, day).map(row => ({ ...JSON.parse(row.payload), status: row.status }))
   }
@@ -251,8 +256,9 @@ export class DailyRecordService {
       if (instance.status === 'skipped') fail('本次已标记未发生，不会生成实际记录')
       const prior = await this.routines.quickRecords.requests?.find(accountId, `daily_${id}`)
       if (prior?.recordId) { await this.link(accountId, memberId, id, prior, now); return { ...instance, recordId: prior.recordId, eventId: prior.eventId, status: 'confirmed' } }
-      const occurredAt = input.occurredAt ?? instance.plannedAt
-      if (!Number.isFinite(Date.parse(occurredAt)) || Date.parse(occurredAt) > now.getTime()) fail('请填写已经发生的真实时间')
+      const actualInstant = parseStrictInstant(input.occurredAt ?? instance.plannedAt)
+      if (!actualInstant || actualInstant.getTime() > now.getTime()) fail('请填写已经发生的真实时间')
+      const occurredAt = actualInstant.toISOString()
       const localClock = new Intl.DateTimeFormat('sv-SE', { timeZone: instance.timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(occurredAt))
       let journal = input.journal ? validateJournal(input.journal) : dailySnapshot(instance.kind, input.fields ?? instance.fields, localDateKey(new Date(occurredAt), instance.timeZone), localClock, instance.timeZone)
       if (!matchesKind(instance.kind, journal)) fail('当次调整不能更换记录类型')
@@ -260,8 +266,9 @@ export class DailyRecordService {
       if (instance.kind === 'sleep') {
         journal.sleep.sleepAt = occurredAt
         if (input.sleepStatus === 'completed') {
-          if (!input.wakeAt || Date.parse(input.wakeAt) <= Date.parse(occurredAt) || Date.parse(input.wakeAt) > now.getTime()) fail('请填写真实醒来时间，且晚于入睡时间')
-          journal.sleep = { ...journal.sleep, status: 'completed', wakeAt: input.wakeAt }
+          const wakeAt = parseStrictInstant(input.wakeAt)
+          if (!wakeAt || wakeAt <= actualInstant || wakeAt > now) fail('请填写真实醒来时间，且晚于入睡时间')
+          journal.sleep = { ...journal.sleep, status: 'completed', wakeAt: wakeAt.toISOString() }
         } else journal.sleep = { kind: journal.sleep.kind, sleepAt: occurredAt, timeZone: instance.timeZone, status: 'ongoing' }
         journal = validateJournal(journal)
       }

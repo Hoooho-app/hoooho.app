@@ -80,7 +80,7 @@ test('结构化健康事实保留原文、识别否定表达并隔离账号', as
     const events = new HealthEventService({ dataDirectory })
     const records = new HealthEventRecordService({ dataDirectory })
     const organizations = new HealthRecordOrganizationService({ dataDirectory, structuredMode: 'enabled' })
-    const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: '2018-08-09' })
+    const member = await members.create(accountId, { name: '小明', relationship: 'child', gender: 'male', birthday: `${new Date().getUTCFullYear() - 3}-01-01` })
     const event = await events.create(accountId, { memberId: member.id, title: '', category: 'other', startTime: '2026-08-09T09:00:00+08:00' })
 
     const organize = async (content) => {

@@ -1,3 +1,4 @@
+import { parseJsonObject } from './json-input.mjs'
 import { JournalIndexService } from './events/journal-index-service.mjs'
 import {uploadSymptomMedia} from './events/symptom-media-upload.mjs'
 import {SymptomMediaJobs} from './ai/symptom-media-jobs.mjs'
@@ -163,7 +164,7 @@ function readJson(request, maxLength = 16_384) {
       if (settled) return
       try {
         settled = true
-        resolve(body ? JSON.parse(body) : {})
+        resolve(parseJsonObject(body))
       } catch {
         settled = true
         const error = new Error('请求格式错误')
@@ -630,7 +631,7 @@ async function handleEventRecords(request, response, pathname) {
     if (request.method === 'GET') sendJson(response, 200, new URL(request.url, 'http://localhost').searchParams.get('view') === 'time'
       ? await records.listJournal(accountId, eventId, request.headers['x-hoooho-timezone'])
       : await records.list(accountId, eventId))
-    else if (request.method === 'POST') sendJson(response, 201, await records.create(accountId, eventId, await readJson(request)))
+    else if (request.method === 'POST') sendJson(response, 201, await records.create(accountId, eventId, await readJson(request, 80_000)))
     else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
     return true
   }
@@ -652,7 +653,7 @@ async function handleEventRecords(request, response, pathname) {
   }
 
   const recordId = decodeRouteValue(recordMatch[1])
-  if (request.method === 'PATCH') sendJson(response, 200, await records.update(accountId, recordId, await readJson(request)))
+  if (request.method === 'PATCH') sendJson(response, 200, await records.update(accountId, recordId, await readJson(request, 80_000)))
   else if (request.method === 'DELETE') sendJson(response, 200, await records.delete(accountId, recordId))
   else sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '请求方法不支持' } })
   return true

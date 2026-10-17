@@ -119,3 +119,22 @@ test('历史未确认计划不冒充未来下次，也不自动归档或补为�
   assert.equal(ended.future, null); assert.equal(ended.todayTotal, 0)
   assert.equal(value.status, 'active'); assert.equal(value.completions.length, 0)
 })
+
+test('存在未决当地时刻时不把其余剂次全部确认当作整个疗程完成', () => {
+  const value = reminder(1)
+  value.occurrences = value.occurrences.map(item => ({ ...item, completed: true }))
+  value.nextOccurrence = null
+  value.scheduleIssues = [{ day: '2026-09-01', time: '02:30', reason: '当地时间不存在，请核对这次用药安排' }]
+  const state = reminderActionState(value, new Date('2026-09-02T00:00:00Z'))
+  assert.equal(state.allComplete, false)
+  assert.equal(state.due, false)
+  assert.notEqual(state.takeLabel, '疗程已完成')
+})
+
+test('空投影不按巨大totalDays生成周历，计划天数保持原样', () => {
+  const value = reminder(1)
+  value.totalDays = 2_000_000
+  value.occurrences = []
+  assert.deepEqual(weekRows(value), [])
+  assert.equal(value.totalDays, 2_000_000)
+})
