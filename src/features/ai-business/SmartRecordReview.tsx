@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { BottomSheetSurface, HealthCard, HohoButton } from '../../components/design-system'
 import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
 import fieldLabels from '../../../shared/ai-business-field-labels.json'
@@ -10,6 +10,12 @@ type Editing = {itemId:string;field:string;value:string;label:string} | {field:'
 export function SmartRecordReview({review,disabled,error,onChange}:{review:SmartRecordDraft;disabled:boolean;error:string;onChange:(review:SmartRecordDraft)=>void}){
   const [editing,setEditing]=useState<Editing|null>(null),[formError,setFormError]=useState('')
   const open=(value:Editing)=>{setFormError('');setEditing(value)}
+  const remove=(itemId:string)=>{
+    const item=review.items.find(item=>item.id===itemId)
+    if(!item||disabled)return
+    onChange({...review,items:review.items.filter(item=>item.id!==itemId),deletedItemIds:item.userAdded?review.deletedItemIds:[...new Set([...(review.deletedItemIds??[]),itemId])]})
+    setEditing(null)
+  }
   const commit=()=>{
     if(!editing||disabled)return
     if(!editing.value.trim()){setFormError('请填写内容');return}
@@ -22,10 +28,10 @@ export function SmartRecordReview({review,disabled,error,onChange}:{review:Smart
     }
     setEditing(null)
   }
-  const row=(item:SmartRecordItem,label:string,value:string,field:string)=><div className="smart-review-row" key={field}><dt>{label}</dt><dd>{value||'未填写'}</dd><HohoButton variant="text" size="icon" disabled={disabled} aria-label={`编辑${item.title}的${label}`} onClick={()=>open({itemId:item.id,field,value:field==='time'?item.timeText??(item.time.resolvedStart?localDateTimeValue(new Date(item.time.resolvedStart)).replace('T',' '):''):value,label})}><Pencil size={16} aria-hidden="true"/></HohoButton></div>
+  const row=(item:SmartRecordItem,label:string,value:string,field:string)=><div className="smart-review-row" key={field}><dt>{label}</dt><dd>{value||'未填写'}</dd><HohoButton variant="text" size="small" disabled={disabled} aria-label={`编辑${item.title}的${label}`} onClick={()=>open({itemId:item.id,field,value:field==='time'?item.timeText??(item.time.resolvedStart?localDateTimeValue(new Date(item.time.resolvedStart)).replace('T',' '):''):value,label})}>编辑</HohoButton></div>
   return <div className="smart-record-review" aria-label="核对记录">
     {review.items.map(item=><HealthCard key={item.id} className="smart-record-item smart-review-card">
-      <header><strong>{item.title}</strong><HohoButton variant="text" size="icon" disabled={disabled} aria-label={`编辑${item.title}的名称`} onClick={()=>open({itemId:item.id,field:'title',value:item.title,label:item.category==='symptom'?'症状':'记录名称'})}><Pencil size={16} aria-hidden="true"/></HohoButton><HohoButton variant="text" size="icon" disabled={disabled} aria-label={`删除${item.title}`} onClick={()=>onChange({...review,items:review.items.filter(candidate=>candidate.id!==item.id),deletedItemIds:item.userAdded?review.deletedItemIds:[...new Set([...(review.deletedItemIds??[]),item.id])]})}><Trash2 size={18} aria-hidden="true"/></HohoButton></header>
+      <header><strong>{item.title}</strong><HohoButton variant="text" size="small" disabled={disabled} aria-label={`编辑${item.title}的名称`} onClick={()=>open({itemId:item.id,field:'title',value:item.title,label:item.category==='symptom'?'症状':'记录名称'})}>编辑</HohoButton></header>
       <dl>{row(item,'记录类型',recordCategoryLabels[item.category]??'其他','category')}
         {item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':field.name==='durationMinutes'?'睡眠时长':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}
         {row(item,'发生时间',smartRecordTimeLabel(item),'time')}
@@ -39,6 +45,7 @@ export function SmartRecordReview({review,disabled,error,onChange}:{review:Smart
         {editing.field!=='category'&&<label>{editing.field==='time'?'发生时间':'itemId' in editing?editing.label:'原话'}<textarea aria-label={editing.field==='time'?'发生时间':'itemId' in editing?editing.label:'原话'} autoFocus maxLength={editing.field==='time'?100:4000} value={editing.value} onChange={event=>setEditing({...editing,value:event.target.value})}/></label>}
         {'timeText' in editing&&<label>发生时间<input value={editing.timeText} maxLength={100} onChange={event=>setEditing({...editing,timeText:event.target.value})}/></label>}
         {formError&&<p role="alert">{formError}</p>}
+        {'itemId' in editing&&editing.field==='title'&&<HohoButton variant="text" disabled={disabled} onClick={()=>remove(editing.itemId)}>删除这条记录</HohoButton>}
       </div>
     </BottomSheetSurface>}
   </div>

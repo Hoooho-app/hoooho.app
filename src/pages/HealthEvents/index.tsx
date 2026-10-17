@@ -1,4 +1,6 @@
-import {UpdatedRecordLinks} from '../../features/record-updates/RecordUpdates'
+import {useRecordUpdates,useReadDestinationUpdates} from '../../features/record-updates/RecordUpdates'
+import {useUpdateStore} from '../../features/record-updates/store'
+import {calendarUpdateDays} from '../../features/record-updates/calendarUpdates'
 import { Search, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
@@ -69,6 +71,15 @@ function HealthEventsContent() {
   const previousToday = useRef(today)
   const setDay = (value: string) => navigation.change({ ...calendar, day: value, month: value.slice(0, 7) })
   const journal = useJournal(currentMemberId, token ?? '', revision)
+  const updates=useRecordUpdates()
+  const unreadDays=calendarUpdateDays(updates,journal.sourceEntries)
+  useReadDestinationUpdates('calendar',calendar.view==='day'&&!journal.loading&&!journal.error)
+  useReadDestinationUpdates('symptom',calendar.view==='day'&&!journal.loading&&!journal.error)
+  useEffect(()=>{
+    if(!sheetDay||journal.loading||journal.error)return
+    const ids=unreadDays.get(sheetDay)??[]
+    if(ids.length)useUpdateStore.getState().read(ids)
+  },[sheetDay,journal.loading,journal.error,JSON.stringify([...unreadDays])])
   const scheduled = useCalendarReminders(accountId, currentMemberId, token ?? '', today, revision)
   const reminderDays = useMemo(() => calendarReminderDays(scheduled.reminders, calendar.category), [scheduled.reminders, calendar.category])
   const filteredEntries = useMemo(() => savedCalendarFacts(journal.entries).filter(entry => matchesCalendarGroup(entry, calendar.category)), [journal.entries, calendar.category])
@@ -187,11 +198,10 @@ function HealthEventsContent() {
     <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
-      <UpdatedRecordLinks destination="calendar"/>
       {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
       {calendar.view === 'day' && (reminderDays.get(day)?.length ?? 0) > 0 && <CalendarReminderRows reminders={reminderDays.get(day)!} onOpen={reminder => navigate(reminder.href)}/>}
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
-      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
+      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} unreadDays={new Set(unreadDays.keys())} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
     </div>
     <footer className="journal-record-actions"><RecordEntryActions onSmartRecord={() => navigate('/smart-record?source=calendar', { state: { calendarReturn: true } })} disabled={!token || currentMember?.id !== currentMemberId} identity={identity} onRecord={(category, kind) => { submissionKeyRef.current = ''; setRecorderInitialCategory(category); setRecorderInitialDietKind(kind); setRecorderMode('manual') }}/></footer>
     </div>

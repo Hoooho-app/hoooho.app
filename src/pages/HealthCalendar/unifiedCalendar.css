@@ -41,7 +41,6 @@
 .calendar-day-records time, .calendar-day-records small, .calendar-day-records summary { font-size: var(--hoho-font-size-caption); }
 .calendar-day-records summary { min-height: var(--hoho-touch-target); align-content: center; color: rgb(var(--hoho-color-text-secondary)); cursor: pointer; }
 .calendar-day-original { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--hoho-font-size-body-small); }
-.calendar-day-attachment { grid-column: 3; display: flex; gap: var(--hoho-space-1); font-size: var(--hoho-font-size-caption); }
 @media (max-width: 350px) {
   .calendar-toolbar { grid-template-columns: 68px minmax(0,1fr) 88px; gap: var(--hoho-space-1); margin-inline: var(--hoho-space-2); }
   .calendar-toolbar .hoho-button[data-size='icon'], .calendar-toolbar .calendar-sort-slot .hoho-button[data-size='icon'] { width: 24px; min-width: 24px; }
@@ -75,3 +74,6 @@
 .calendar-day-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:var(--hoho-radius-pill);background:rgb(var(--calendar-tone-surface));color:rgb(var(--calendar-tone))}
 .calendar-day-records time{color:rgb(var(--hoho-color-text-secondary));font-variant-numeric:tabular-nums}
 .calendar-day-records strong{font-size:var(--hoho-font-size-body);font-weight:500;line-height:var(--hoho-line-height-body)}
+.calendar-day-summary{min-width:0}
+.calendar-day-records .calendar-day-summary strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calendar-day-clock{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}

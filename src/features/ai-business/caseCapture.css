@@ -50,7 +50,6 @@
 .smart-record-thumbnail{display:block;width:100%;min-height:44px;padding:0;border:0;background:transparent;cursor:zoom-in}
 .smart-record-thumbnail .is-expanded{max-height:none;width:100%}
 .smart-record-media{display:grid;gap:var(--hoho-space-2);min-width:0}
-.smart-record-page audio{width:100%;max-width:100%;margin-top:var(--hoho-space-2)}
 .smart-record-page .hoho-dialogue-text textarea{border-radius:0;box-shadow:none!important;outline:none}
 .smart-record-page .hoho-dialogue-text:focus-within{border-color:rgb(var(--hoho-color-primary));outline:2px solid rgb(var(--hoho-color-primary)/.3);outline-offset:2px}
 .smart-record-saved{display:grid;gap:var(--hoho-space-3);min-width:0}
@@ -81,13 +80,18 @@
 
 .smart-record-actions{display:grid;grid-template-columns:minmax(0,1fr)}
 .smart-record-actions>strong{font-size:var(--hoho-font-size-body);font-weight:600}
-.smart-record-dialog .recognition-steps{display:flex;list-style:none;gap:var(--hoho-space-2);padding:var(--hoho-space-4) 0;margin:0}
-.recognition-steps>li{position:relative;flex:1;display:grid;justify-items:center;gap:var(--hoho-space-2);text-align:center;min-width:0;color:rgb(var(--hoho-color-text-secondary))}
-.recognition-steps>li:not(:last-child)::after{content:'';position:absolute;top:15px;left:calc(50% + 20px);width:calc(100% - 32px);height:1px;background:rgb(var(--hoho-color-border))}
-.recognition-steps>li>span{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface))}
+.smart-record-dialog .recognition-steps{display:flex;list-style:none;gap:var(--hoho-space-3);padding:var(--hoho-space-2) 0;margin:0}
+.recognition-steps>li{position:relative;flex:1;display:flex;align-items:center;gap:var(--hoho-space-1);min-width:0;color:rgb(var(--hoho-color-text-secondary))}
+.recognition-steps>li:not(:last-child)::after{content:'';flex:1;height:1px;background:rgb(var(--hoho-color-border));margin-left:var(--hoho-space-1)}
+.recognition-steps>li>span{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface))}
 .recognition-steps>li[data-state=done]>span{background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-surface))}
 .recognition-steps>li[data-state=current]>span{border-color:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-primary))}
 .recognition-steps small{font-size:var(--hoho-font-size-caption);line-height:1.4}
 .smart-record-dialog .recognition-progress>.hoho-button{width:100%;margin-top:var(--hoho-space-2)}
 
 .smart-record-dialog .recognition-progress>p{border:0;border-radius:0;background:transparent;padding:0;margin:var(--hoho-space-2) 0;font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-text-secondary))}
+.smart-record-dialog .recognition-meta{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.smart-record-dialog .recognition-meta>.hoho-button{margin-left:auto;padding:0 var(--hoho-space-1);min-height:var(--hoho-touch-target);font-weight:400}
+.smart-record-dialog .nurse-turn-content,.smart-record-dialog .nurse-turn-content>p{font-size:var(--hoho-font-size-body-small);line-height:var(--hoho-line-height-body)}
+.smart-record-dialog .nurse-turn-content{padding:var(--hoho-space-3)}
+.smart-review-card .hoho-button[data-variant=text]{color:rgb(var(--hoho-color-primary));font-size:var(--hoho-font-size-body-small);font-weight:400;padding-inline:var(--hoho-space-1);flex:none}

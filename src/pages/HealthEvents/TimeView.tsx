@@ -61,7 +61,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
   useEffect(() => { sessionStorage.removeItem('hoooho:journal-layout') }, []); useEffect(() => { onContext({ memberId, eventId: timelineEntries[0]?.eventId ?? null }) }, [memberId, onContext, timelineEntries]); useEffect(() => { didInitialScrollRef.current = '' }, [day, memberId])
 
   const displayItems = useMemo(() => {
-    const items: TimelineItem[] = dayEntries.map(entry => {
+    const items: TimelineItem[] = dayEntries.filter(entry=>entry.timePrecision==='exact').map(entry => {
       const at = new Date(journalOccurrenceAt(entry, entry.occurredAt))
       return { kind: 'record', entry, createdTime: Date.parse(entry.createdAt), hour: at.getHours(), minute: at.getMinutes(), key: `record:${entry.id}`, sortTime: at.getTime() }
     })
@@ -101,6 +101,7 @@ export function TimeView({ memberId, token, day, today, focusRecord, onFocusHand
     {(loading || routines.loading) && <div className="journal-grid-loading" role="status">正在加载时间轴…</div>}{error && <StatusNotice action={<HohoButton onClick={retry} variant="secondary">重新加载</HohoButton>} title={entries.length ? '记录刷新失败，正在显示上次内容' : error} tone="error" />}{routines.error && <StatusNotice action={<HohoButton onClick={routines.retry} variant="secondary">重新加载</HohoButton>} title="日常作息加载失败" tone="error" />}
     {daily.error && <StatusNotice tone="error" title={daily.error} action={<HohoButton variant="secondary" onClick={daily.retry}>重试自动记录</HohoButton>}/>}
     {day === today && daily.items.some(item => item.status === 'unconfirmed') && <HohoButton variant="ghost" onClick={() => setBatchOpen(true)}>核对今天的自动记录</HohoButton>}
+    {dayEntries.some(entry=>entry.timePrecision!=='exact')&&<section aria-label="具体时间未记录" className="journal-imprecise-records"><p className="hoho-text-caption">具体时间未记录</p>{dayEntries.filter(entry=>entry.timePrecision!=='exact').map(entry=><RecordRow key={entry.id} confirmed={false} entry={entry} highlighted={highlightedRecordId===entry.id} onOpen={()=>onRecordOpen(entry.eventId,entry.id)}/>)}</section>}
     <div aria-label={`${day} 全天时间轴`} className="journal-day-grid">{timelineRows}</div>
   </div>{automatic && <DailyInstanceSheet key={automatic.id} item={automatic} memberId={memberId} token={token} onClose={() => setAutomatic(null)} onChanged={refreshDaily} onManage={kind => { setAutomatic(null); setManagement({ kind }) }}/>}
   {batchOpen && <DailyBatchSheet items={daily.items} memberId={memberId} token={token} onClose={() => setBatchOpen(false)} onChanged={refreshDaily}/>}

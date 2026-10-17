@@ -1,6 +1,7 @@
 import type { JournalCategory, JournalMetadata } from '../../types/journal'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import { compactDuration } from '../../../shared/journal-occurrence.mjs'
+import {symptomItemCorePhrase} from '../../../shared/symptom-core-phrase.mjs'
 
 export const calendarCategories = ['feeding', 'daily', 'medication', 'symptom', 'materials'] as const
 export type PresentationGroup = typeof calendarCategories[number]
@@ -84,7 +85,8 @@ export function presentCalendarRecord(record: Presentable) {
     const state = qualifier(drug.note) || qualifier(record.content)
     coreSummary = state ? savedShortCore(drug.note) || savedShortCore(record.content) || `${state}用药记录` : reliable || '用药记录'; monthSummary = state ? coreSummary : reliable && reliable.length <= 6 ? reliable : '用药记录'
   } else if (record.symptom) {
-    const safe = savedShortCore(record.symptom.narrative) || savedShortCore(record.symptom.shortNote)
+    const calculated=symptomItemCorePhrase({fields:[{name:'symptom',value:record.symptom.narrative??''},{name:'location',value:record.symptom.locationText??''}]})
+    const safe = savedShortCore(record.symptom.narrative) || savedShortCore(record.symptom.shortNote) || (record.symptom.generatedSummary===calculated?savedShortCore(calculated):'')
     coreSummary = safe || `${qualifier(record.symptom.narrative)}症状记录`; monthSummary = coreSummary
   } else if (record.vaccination) {
     coreSummary = record.vaccination.items.map(item => item.vaccineName).filter(Boolean).join('、') || '疫苗记录'
@@ -96,4 +98,16 @@ export function presentCalendarRecord(record: Presentable) {
   else { coreSummary = savedShortCore(record.content) || `${subtype}记录`; monthSummary = coreSummary }
   const fullDetail = [...new Set([record.content, record.sourceText, record.caseContext?.originalText].filter(Boolean)), ...structuredValues({ 喂养: record.diet, 睡眠: record.sleep, 症状: record.symptom, 用药: record.medication, 疫苗: record.vaccination, 就医: record.visit, 排便: record.bowel, 涂抹: record.topical, 户外活动: record.outdoorActivity, 来源: record.caseContext?.identity ?? record.sourceType, 原文出处: record.aiProvenance?.sources, 原文版本: record.aiProvenance?.originalVersions })].filter(Boolean).join('\n')
   return { group, subtype, coreSummary, monthSummary, fullDetail }
+}
+
+/** A list phrase; the untouched wording and every attachment stay in detail. */
+export function compactCalendarSummary(record:Presentable){
+  const fields=record.aiProvenance?.fields??[]
+  if(record.symptom||fields.some(f=>f.name==='symptom')){
+    const core=symptomItemCorePhrase({fields:record.symptom?.narrative?[{name:'symptom',value:record.symptom.narrative},{name:'location',value:record.symptom.locationText??''}]:fields,title:record.content})
+    if(core&&core!=='症状记录')return core
+  }
+  const presented=presentCalendarRecord(record)
+  const original=presented.group?presented.coreSummary:fields.find(f=>['doctorStatement','followUp','conclusion','result','activity'].includes(f.name))?.value||record.content?.split('\n')[0]||presented.coreSummary
+  return original.replace(/^(?:医生原话|结果|结论|活动原话|原话|随访|跟进)\s*[:：]\s*/u,'').replace(/(?:那个|就是|然后)/gu,'').replace(/\s+/gu,'').replace(/[的了。；;，,]+$/u,'')||presented.coreSummary
 }

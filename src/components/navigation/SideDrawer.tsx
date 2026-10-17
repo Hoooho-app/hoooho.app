@@ -176,7 +176,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
                       return (
                         <button aria-current={active ? 'page' : undefined} key={label} className="hoho-drawer__item" data-active={active} type="button" onClick={() => openPage(to)}>
                           <Icon size={20} strokeWidth={1.7} />
-                          <span className="flex-1">{label}<UpdateDot show={updates.some(i=>to==='/health-events'?i.destination==='calendar':to==='/health-profile'?i.destination==='profile':false)}/></span>
+                          <span className="flex-1">{label}<UpdateDot show={updates.some(i=>to==='/health-events'?i.destination!=='profile':to==='/health-profile'?i.destination==='profile':false)}/></span>
                           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
                         </button>
                       )

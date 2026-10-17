@@ -83,6 +83,16 @@ test('journal keeps untitled lifestyle containers without changing the legacy ev
 })
 
 const record = (content, extra = {}) => ({ content, sourceType: 'voice_record', occurredAt: '2026-09-05T15:00:00Z', createdAt: '2026-09-05T15:01:00Z', ...extra })
+test('explicit saved date precision is never promoted to an invented midnight clock on read',()=>{
+  for(const sourceType of ['voice_record','text_record','user_record','ai_organized']){
+    const raw=record('医生说牙齿需要观察',{sourceType,occurredAt:'2026-09-04T16:00:00Z',sourceText:'今天上嘴唇出血，昨天上传资料。',journal:{categories:['symptom'],timePrecision:'period'},aiProvenance:{time:{precision:'day',resolvedStart:'2026-09-04T16:00:00Z'}}})
+    const projected=projectJournalRecord(raw)
+    assert.equal(projected.journal.timePrecision,'period')
+    assert.equal(projected.journal.occurredAt,raw.occurredAt)
+    assert.equal(projected.occurredAt,raw.occurredAt)
+    assert.equal(raw.journal.timePrecision,'period')
+  }
+})
 test('period remains a period and records without a spoken time use their recorded minute', () => {
   const raw = record('晚上起了一片疹子')
   const result = projectJournalRecord(raw)

@@ -1,4 +1,4 @@
-import {ProfileUpdateMarker,useReadRecordUpdates,UpdatedRecordLinks} from '../../features/record-updates/RecordUpdates'
+import {useReadRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import {useEffect,useRef,useState} from 'react'
 import {useLocation,useNavigate,useParams} from 'react-router-dom'
 import {ChevronDown,MoreHorizontal,Pencil,Plus,Trash2} from 'lucide-react'
@@ -95,7 +95,7 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     </form>
   }
   function record(row:Row,index:number,g=row.group){
-    return <li className="inline-profile-item" key={row.id} data-record-id={row.id}><ProfileUpdateMarker sectionId={kind} entryId={row.id}/>
+    return <li className="inline-profile-item" key={row.id} data-record-id={row.id}>
       <div className="inline-profile-row"><span className="inline-profile-number">{index+1}</span><span><strong>{kind==='family-history'?`${data?.groups.find(item=>item.id===g)?.name??g} · `:''}{row.displayName??row.name}</strong>{kind==='vaccination'&&<small>{row.date||'接种日期未填写'}</small>}{kind==='chronic'&&row.frequency&&<small>{row.frequency}</small>}</span><button className="inline-profile-more" disabled={busy} aria-label={`管理${row.name}`} type="button" onClick={()=>setMenu(row)}><MoreHorizontal aria-hidden size={22}/></button></div>
     </li>
   }
@@ -103,7 +103,6 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
   const primaryGroups=data?.groups.filter((_,index)=>kind!=='vaccination'||index<3)??[]
   const extraGroups=data?.groups.filter((_,index)=>kind==='vaccination'&&index>=3)??[]
   return <main className="app-shell inline-profile-shell" aria-busy={busy}><WebPageHeader title={titles[kind]} onBack={()=>navigate('/health-profile')}/><div className="page-content inline-profile-content">
-    <UpdatedRecordLinks destination="profile" sectionId={kind}/>
     {kind==='allergy'&&Boolean(data?.pendingAllergyRows?.length)&&<details className="inline-profile-item"><summary className="inline-profile-row">待排查 · {data!.pendingAllergyRows!.length}项<ChevronDown aria-hidden size={18}/></summary><p className="hoho-text-caption">以下仍是待确认线索，不代表已明确过敏。</p><ul className="inline-profile-list">{data!.pendingAllergyRows!.map(row=><li className="inline-profile-row" key={row.id}><span>{row.name}</span><small>{row.group} · 待排查</small></li>)}</ul></details>}
     {kind!=='surgery'&&kind!=='family-history'&&<nav className="inline-profile-tabs" aria-label={`${titles[kind]}分类`}>{primaryGroups.map(g=><button type="button" disabled={busy} key={g.id} aria-pressed={group===g.id} onClick={()=>{setSession(old=>({...old,group:g.id}));setConfirmDelete(undefined)}}>{g.name}</button>)}{extraGroups.length>0&&<button type="button" disabled={busy} aria-expanded={moreOpen} aria-pressed={extraGroups.some(g=>g.id===group)} onClick={()=>setMoreOpen(true)}>{extraGroups.find(g=>g.id===group)?.name??'更多'}<ChevronDown size={16} aria-hidden/></button>}</nav>}
     {kind==='family-history'&&session.relation&&<form className="inline-profile-editor" onSubmit={e=>{e.preventDefault();void command({action:'relation',name:session.relation?.name,key:session.relation?.key},next=>{setSession(old=>({...old,relation:undefined,group:next.groups.at(-1)?.id??old.group}))})}}><label className="hoho-field"><span>亲属关系</span><input className="hoho-input" autoFocus maxLength={20} disabled={busy} value={session.relation.name} onChange={e=>setSession(old=>({...old,relation:{...old.relation!,name:e.target.value,key:crypto.randomUUID()}}))}/></label><div className="inline-profile-actions"><HohoButton variant="text" disabled={busy} onClick={()=>setSession(old=>({...old,relation:undefined}))}>取消</HohoButton><HohoButton type="submit" loading={busy} disabled={!session.relation.name.trim()}>添加关系</HohoButton></div></form>}
