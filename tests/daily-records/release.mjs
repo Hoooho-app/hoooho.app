@@ -8,7 +8,8 @@ assert(['https://hoooho-calendar-verify-20261010-staging.up.railway.app', 'https
 const target = origin.includes('staging') ? 'staging' : 'production'
 const output = `outputs/daily-records/${target}`
 await mkdir(output, { recursive: true })
-const browser = await chromium.launch()
+const proxyUrl = process.env.HTTPS_PROXY ? new URL(process.env.HTTPS_PROXY) : null
+const browser = await chromium.launch({ ...(proxyUrl ? { proxy: { server: proxyUrl.origin, ...(proxyUrl.username ? { username: decodeURIComponent(proxyUrl.username), password: decodeURIComponent(proxyUrl.password) } : {}) } } : {}) })
 const context = await browser.newContext({ baseURL: origin, viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
 const page = await context.newPage(), errors = [], builds = new Set()
 const report = { target, commit, syntheticOnly: true, physicalIPhone: 'NOT_VERIFIED', checks: [] }
