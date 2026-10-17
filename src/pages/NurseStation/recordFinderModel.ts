@@ -1,5 +1,6 @@
+import { outdoorActivitySummary } from '../HealthEvents/outdoorActivityLogic'
 import { journalSearchAlternatives, journalSearchFields, journalSearchResultSummary, normalizeJournalSearch, searchJournalEntries, type JournalEntry } from '../HealthEvents/timeViewModel'
-export interface FinderPlan { question: string; terms: string[][]; relatedTerms: string[]; filters: string[][]; excludes: string[]; from: number | null; to: number | null; first: boolean; changes: boolean; newFood: boolean; category?: string }
+export interface FinderPlan { question: string; terms: string[][]; relatedTerms: string[]; filters: string[][]; excludes: string[]; from: number | null; to: number | null; first: boolean; changes: boolean; newFood: boolean; category?: string; anyTerms?: string[][][] }
 export interface FinderMatch { entry: JournalEntry; evidence: string; related: boolean; reason?: string }
 // Ordinary lookup uses the journal magnifier's existing matcher. The extended
 // earliest/new-food/matter queries keep their evidence and uncertainty rules.
@@ -8,7 +9,7 @@ export function lookupRecords(entries: readonly JournalEntry[], question: string
   const sources = entries.map(entry => ({ ...entry, aiNurse: undefined }))
   const query = question.replace(/^(只看|只查|仅看|仅查|再看)/, '').replace(/上的/g, '')
   const plan = finderPlan(query, undefined, now)
-  if (plan.first || plan.changes || plan.newFood || /(?:最近|近)[一两二三四五六七八九十\d]+个?(?:月|天|周)|前天/.test(question)) return findRecords(sources, plan)
+  if (plan.first || plan.changes || plan.newFood || plan.from !== null || spokenIntent.test(query)) return findRecords(sources, plan)
   const classified = new Map(findRecords(sources, plan).map(match => [match.entry.id, match]))
   return searchJournalEntries(sources, query, now).map(entry => classified.get(entry.id) ?? {
     entry,
@@ -34,15 +35,59 @@ const concepts = [
   { words: ['呕吐', '吐了'], related: ['溢奶', '吐奶'] },
 ]
 const locations: Record<string, string[]> = { 屁股: ['屁股', '臀部', '肛周', '屁屁'], 脸: ['脸', '面部', '脸颊'], 手: ['手'], 脚: ['脚', '足'] }
-const number = (v: string) => ({ 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }[v] ?? Number(v))
+// Broad lookup concepts expand only the query; they never change recorded facts.
+const broadConcepts = [
+  { query: /皮肤(?:情况|状况|表现|问题)?/g, terms: ['皮肤', '皮疹', '红疹', '疹子', '湿疹', '荨麻疹', '发痒', '瘙痒', '抓痒', '抓挠', '红点', '红斑', '发红', '红肿', '干燥', '脱皮', '起皮', '痘痘', '小疙瘩', '红屁股', 'skin', 'scratching'] },
+  { query: /肉类|肉食|荤菜|肉/g, terms: ['猪肉', '牛肉', '羊肉', '鸡肉', '鸭肉', '鹅肉', '兔肉', '瘦肉', '肉类', '吃肉', '吃了肉', '吃过肉', '肉泥', '肉末', '肉粥', '肉丝', '肉片', '肉丸', '肉馅', '肉汤', '鸡胸', '鸡腿', '鸡翅', '鸡肝', '鸭腿', '鸭胸', '鸭肝', '猪肝', '猪蹄', '猪排', '牛排', '牛腩', '牛肝', '羊排', '排骨', '里脊', '培根', '火腿', '香肠', '鱼', '虾', '蟹', '贝类', '扇贝', '蛤蜊', '牡蛎', '贻贝'] },
+  { query: /户外(?:活动)?|室外(?:活动)?|外出(?:活动)?|出门(?:活动)?/g, terms: ['户外', '室外', '外出', '出门', '散步', '公园', '草地', '遛弯', '爬山', '郊游', '露营', '骑车', '小区玩'] },
+  { query: /接触\s*(?:过)?(?:什么|哪些)?(?:东西|环境|物品)?|环境/g, terms: ['接触', '环境', '户外', '公园', '草地', '花粉', '动物', '猫', '狗', '尘', '沙土', 'plants_pollen', 'animals', 'sand_soil', 'dust'] },
+]
+const spokenIntent = /皮肤|肉类|荤菜|所有|全部|调出来|找出来|帮我|查一下|户外|室外|外出|出门|接触|情况|状况/
+const filler = /第一次|最早|最近一次|后来|有什么变化|变化|最近|这次|那次|帮我|给我|让我|我想要|我想|我|想知道|想|知道|宝宝|孩子|麻烦|请问|请|查找|查一下|找一下|搜索|查|找|看看|看一下|看|回想一下|回想|调出来|调出|列出来|列出|找出来|找出|都|一下|所有|全部|有关|相关|那些|哪些|那个|这个|记录|随记|有没有|是否|什么时候|是什么|什么|时候|吃过什么|用过什么|出现过|出现|发生过|发生|吃过|吃了|吃|喝过|喝了|喝|情况|状况|表现|问题|的|了|吗|呢|嗯|呃|在|过/g
+function number(value: string): number {
+  if (/^\d+$/.test(value)) return Number(value)
+  const digits: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
+  let total = 0, digit = 0
+  for (const character of value) {
+    if (character === '十' || character === '百') { total += (digit || 1) * (character === '十' ? 10 : 100); digit = 0 }
+    else digit = digits[character] ?? 0
+  }
+  return total + digit
+}
+function wordTerms(text: string): { terms: string[][]; relatedTerms: string[] } {
+  const terms: string[][] = [], relatedTerms: string[] = []
+  let rest = text.replace(filler, ' ').replace(/[？?，,。！!：:；;]/g, ' ')
+  // A specific food name stays specific: 鸡肉 must not become all meat.
+  for (const concept of broadConcepts) {
+    const expression = concept === broadConcepts[1] ? /肉类|肉食|荤菜|(?<![\p{Script=Han}])肉(?![\p{Script=Han}])/gu : concept.query
+    if (expression.test(rest)) { terms.push(concept.terms); rest = rest.replace(expression, ' ') }
+  }
+  for (const concept of concepts) {
+    const matched = concept.words.find(word => rest.includes(word))
+    if (matched) { terms.push(concept.words); relatedTerms.push(...concept.related); for (const word of concept.words) rest = rest.replaceAll(word, ' ') }
+    else {
+      const nearby = concept.related.find(word => rest.includes(word))
+      if (nearby) { terms.push([nearby]); relatedTerms.push(...concept.words, ...concept.related.filter(word => word !== nearby)); rest = rest.replaceAll(nearby, ' ') }
+    }
+  }
+  if (terms.length && !terms.some(group => group === broadConcepts[1].terms)) {
+    for (const aliases of Object.values(locations)) {
+      const location = [...aliases].sort((a, b) => b.length - a.length).find(word => rest.includes(word))
+      if (location) { terms.push(aliases); rest = rest.replace(new RegExp(`${location}(?:上|部)?`, 'g'), ' ') }
+    }
+  }
+  const clean = rest.replace(filler, ' ').replace(/[？?，,。！!：:；;]/g, ' ')
+  terms.push(...clean.split(/\s+/).filter(Boolean).map(journalSearchAlternatives))
+  return { terms, relatedTerms }
+}
 function words(text: string) {
-  const concept = concepts.find(c => c.words.some(w => text.includes(w)))
-  const location = Object.keys(locations).find(word => text.includes(word))
-  if (concept) return { terms: [concept.words, ...(location ? [locations[location]] : [])], relatedTerms: concept.related }
-  const related = concepts.find(c => c.related.some(w => text.includes(w)))
-  if (related) return { terms: [[related.related.find(w => text.includes(w))!]], relatedTerms: [...related.words, ...related.related.filter(w => !text.includes(w))] }
-  const clean = text.replace(/第一次|最早|最近一次|后来|有什么变化|变化|最近|这次|那次|帮我|宝宝|孩子|最近一次|上次|请|查找|查一下|查|搜索|记录|随记|有没有|是否|什么时候|是什么|什么|时候|吃过什么|用过什么|出现过|出现|发生过|发生|吃过|吃了|吃|喝过|喝了|喝|的|了|吗|呢|在|过/g, ' ').replace(/[？?，,。]/g, ' ')
-  return { terms: clean.split(/\s+/).filter(Boolean).map(journalSearchAlternatives), relatedTerms: [] as string[] }
+  const branches = text.split(/以及|还有|和|及|、/).map(wordTerms).filter(branch => branch.terms.length)
+  const parsed = wordTerms(text)
+  return branches.length > 1 ? { ...parsed, anyTerms: branches.map(branch => branch.terms) } : parsed
+}
+function lookupFields(entry: JournalEntry): string[] {
+  const values = (value: unknown): string[] => typeof value === 'string' || typeof value === 'number' ? [String(value)] : Array.isArray(value) ? value.flatMap(values) : value && typeof value === 'object' ? Object.values(value).flatMap(values) : []
+  return [...journalSearchFields({ ...entry, aiNurse: undefined }), ...(entry.outdoorActivity ? [outdoorActivitySummary(entry.outdoorActivity)] : []), ...values(entry.topical), ...values(entry.bowel), ...values(entry.visit)]
 }
 export function finderPlan(question: string, previous?: FinderPlan, now = new Date()): FinderPlan {
   const refine = !!previous && /^(只看|只查|仅看|仅查|排除|不要|不含|再看)/.test(question.trim())
@@ -61,25 +106,34 @@ export function finderPlan(question: string, previous?: FinderPlan, now = new Da
     const start = new Date(end); start.setDate(start.getDate() - 7)
     from = start.getTime(); to = end.getTime() - 1; raw = raw.replace(/上周|上星期/g, '')
   }
-  const range = raw.match(/(?:最近|近)([一两二三四五六七八九十\d]+)个?(月|天|周)/)
-  if (range) { const start = new Date(now); const n = number(range[1]); if (range[2] === '月') start.setMonth(start.getMonth() - n); else start.setDate(start.getDate() - n * (range[2] === '周' ? 7 : 1)); from = start.getTime(); to = now.getTime(); raw = raw.replace(range[0], '') }
+  const range = raw.match(/(?:最近|过去|近|这)([零〇一两二三四五六七八九十百\d]+|半)个?(月|天|周|星期)/)
+  if (range) {
+    const start = new Date(now), n = range[1] === '半' ? 0.5 : number(range[1])
+    start.setHours(0, 0, 0, 0)
+    if (range[2] === '月' && Number.isInteger(n)) {
+      const day = start.getDate(); start.setDate(1); start.setMonth(start.getMonth() - n)
+      const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate(); start.setDate(Math.min(day, lastDay))
+    } else start.setDate(start.getDate() - Math.ceil(n * (range[2] === '月' ? 30 : /周|星期/.test(range[2]) ? 7 : 1)))
+    from = start.getTime(); to = now.getTime(); raw = raw.replace(range[0], '')
+  }
   const day = raw.match(/今天|昨天|前天/)
   if (day) { const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (day[0] === '昨天' ? 1 : day[0] === '前天' ? 2 : 0)); from = start.getTime(); const end = new Date(start); end.setDate(end.getDate() + 1); to = end.getTime() - 1; raw = raw.replace(day[0], '') }
+  const excludes = [...raw.matchAll(/(?:不含|排除|不要)([^\s，,。]+)/g)].map(match => match[1]); raw = raw.replace(/(?:不含|排除|不要)[^\s，,。]+/g, '')
   const newFood = /新(东西|食物|食材)|第一次吃/.test(raw)
-  const category = newFood || /饮食|吃了什么/.test(raw) ? 'diet' : /睡眠|睡觉|睡着|睡得|睡了/.test(raw) ? 'sleep' : /用药|吃药/.test(raw) ? 'medication' : undefined
-  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡觉|睡着|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes: [], from, to, first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
+  const category = /和|以及|还有|、/.test(raw) ? undefined : newFood || /饮食|吃了什么/.test(raw) ? 'diet' : /睡眠|睡觉|睡着|睡得|睡了/.test(raw) ? 'sleep' : /用药|吃药/.test(raw) ? 'medication' : undefined
+  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡觉|睡着|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes, from, to, first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
 }
 export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan): FinderMatch[] {
   if (!plan.terms.length && !plan.category) return []
   const direct: FinderMatch[] = [], related: FinderMatch[] = []
   for (const entry of entries) {
-    const fields = journalSearchFields({...entry,aiNurse:undefined}), values = fields.map(normalizeJournalSearch)
+    const fields = lookupFields(entry), values = fields.map(normalizeJournalSearch)
     const has = (terms: string[]) => terms.some(t => values.some(v => v.includes(normalizeJournalSearch(t))))
     if (plan.category && !entry.categories?.includes(plan.category as never)) continue
     if (plan.filters.some(f => !has(f)) || plan.excludes.some(t => has([t]))) continue
     const at = Date.parse(entry.occurredAt), uncertain = entry.timePrecision === 'unknown' || !Number.isFinite(at)
     if (!uncertain && ((plan.from !== null && at < plan.from) || (plan.to !== null && at > plan.to))) continue
-    const exact = plan.terms.every(has), nearby = plan.relatedTerms.length > 0 && has(plan.relatedTerms)
+    const exact = plan.anyTerms ? plan.anyTerms.some(terms => terms.every(has)) : plan.terms.every(has), nearby = plan.relatedTerms.length > 0 && has(plan.relatedTerms)
     if (!exact && !nearby) continue
     const newEvidence = !!entry.diet?.firstTryFoods?.length || fields.some(v => /第一次|首次|新食物|新食材|新东西|初次/.test(v))
     const negative = plan.terms.some(ts => ts.some(t => fields.some(v => new RegExp(`(?:没有|未见|无|没出现|没)[^，。；]{0,3}${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(v))))

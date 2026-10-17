@@ -25,7 +25,7 @@ export function JournalSearchResults({ entries, query, today, onOpen, summaryFor
   query: string
   today: string
   onOpen: (entry: JournalEntry) => void
-  layout?: 'compact' | 'stacked'
+  layout?: 'compact' | 'stacked' | 'lookup'
   summaryFor?: (entry: JournalEntry) => string
 }) {
   const groups = useMemo(() => {
@@ -37,6 +37,17 @@ export function JournalSearchResults({ entries, query, today, onOpen, summaryFor
     }
     return [...days].map(([day, items]) => ({ day, items }))
   }, [entries])
+  if (layout === 'lookup') return <div className="journal-search-results journal-search-results--lookup">{entries.map(entry => {
+    const day = entry.timePrecision === 'unknown' ? null : getLocalDateKey(entry.occurredAt)
+    const date = day ? `${day.slice(0, 4) === today.slice(0, 4) ? '' : `${day.slice(0, 4)}/`}${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}` : '时间未明确'
+    const time = !day || entry.timePrecision === 'day' ? '' : journalTime(entry).label
+    const summary = (summaryFor?.(entry) ?? journalSearchResultSummary(entry, query)).replace(/\s+/g, ' ').trim()
+    return <button className="journal-search-result" key={entry.id} type="button" onClick={() => onOpen(entry)} aria-label={`${date} ${time} ${summary}，查看原话和附件`}>
+      <time dateTime={day ? (entry.timePrecision === 'exact' ? entry.occurredAt : day) : undefined}>{date}{time && ` ${time}`}</time>
+      <span><HighlightedText query={query} text={summary} /></span>
+      <ChevronRight aria-hidden="true" size={17} />
+    </button>
+  })}</div>
   return <div className="journal-search-results">{groups.map(group => <section className="journal-search-date-group" key={group.day}>
     <h2>{group.day === 'unknown' ? '时间未明确' : resultDateLabel(group.day, today)}</h2>
     <div>{group.items.map(entry => {
