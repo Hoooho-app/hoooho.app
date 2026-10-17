@@ -107,12 +107,12 @@ for (const width of [375, 390, 430]) {
     await expect(settings.locator('.daily-record-slot')).toHaveCount(1); await expect(settings.getByLabel('第1项名称')).toHaveValue('早奶')
     await settings.getByLabel('第1项时间').fill('07:30'); await expect(settings.getByLabel('第1项奶量（mL）')).toHaveValue('150')
     await settings.getByRole('button', { name: '添加一项', exact: true }).click(); await expect(settings.getByLabel('第2项名称')).toHaveValue('')
-    await settings.getByLabel('第2项名称').fill('晚奶'); await settings.getByLabel('第2项时间').fill('21:00'); await settings.getByLabel('第2项喂养方式').selectOption('formula'); await settings.getByLabel('第2项奶量（mL）').fill('200')
+    await settings.getByLabel('第2项名称').fill('晚奶'); await settings.getByLabel('第2项时间').fill('21:00'); await expect(settings.getByRole('combobox', { name: /喂养方式/ })).toHaveCount(0); await expect(settings.getByRole('switch')).toHaveCount(1); await settings.getByLabel('第2项奶量（mL）').fill('200')
     await settings.scrollIntoViewIfNeeded(); expect(await form.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true); await shot(page, `two-slots-${width}`)
     const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/quick-records' && r.request().method() === 'POST')
     await form.getByRole('button', { name: '保存记录', exact: true }).click(); expect((await response).status()).toBe(201); await expect(form).toHaveCount(0)
     const rules = await (await page.request.get(`/api/routines/${memberId}/daily`, { headers })).json()
-    expect(rules[0].slots.map((slot: any) => slot.fields.bottleMl)).toEqual(['150', '200']); expect(rules[0].effectiveFrom).toBe(localDay(1))
+    expect(rules[0].slots.map((slot: any) => slot.fields.bottleMl)).toEqual(['150', '200']); expect(rules[0].slots.map((slot: any) => slot.fields.feedingMethod)).toEqual(['formula', 'formula']); expect(rules[0].slots.every((slot: any) => slot.enabled)).toBe(true); expect(rules[0].effectiveFrom).toBe(localDay(1))
     expect(await (await page.request.get(`/api/routines/${memberId}/daily/instances?day=${localDay()}`, { headers })).json()).toEqual([])
     await page.reload(); await page.getByRole('button', { name: '喂养/饮食', exact: true }).click(); await expect(page.locator('.daily-record-slot')).toHaveCount(2)
     await page.getByRole('dialog', { name: '喂养/饮食' }).getByRole('button', { name: '返回', exact: true }).click()
@@ -133,14 +133,14 @@ for (const width of [375, 390, 430]) {
     const item = instances.find((value: any) => value.status === 'confirmed')
     const actual = (await (await page.request.get(`/api/events/${item.eventId}/records?view=time`, { headers })).json()).find((value: any) => value.id === item.recordId)
     expect(actual.journal.diet.bottleMl).toBe(190)
-    await page.locator('[data-record-id]').getByRole('button').click(); await expect(page.getByText('自动记录 · 已确认 · 晚奶')).toBeVisible(); await page.getByRole('dialog', { name: '症状记录详情' }).getByRole('button', { name: '关闭症状记录详情', exact: true }).click()
+    await page.locator('[data-record-id]').getByRole('button').click(); await expect(page.getByText('自动记录 · 已确认 · 晚奶')).toBeVisible(); await page.getByRole('dialog', { name: '饮食记录详情' }).getByRole('button', { name: '关闭饮食记录详情', exact: true }).click()
     await page.locator('[data-automatic-id]').first().getByRole('button').click(); await page.getByRole('button', { name: '本次未发生', exact: true }).click(); await expect(page.locator('[data-automatic-id]')).toHaveCount(1)
     await page.locator('[data-record-id]').getByRole('button').click()
     await page.getByRole('button', { name: '修改每天设置', exact: true }).click()
     await expect(page.getByRole('dialog', { name: '每天记录设置' })).toBeVisible(); await expect(page.locator('.daily-record-slot')).toHaveCount(3)
     await shot(page, `manage-${width}`)
     await page.getByRole('dialog', { name: '每天记录设置' }).getByRole('button', { name: '关闭每天记录设置', exact: true }).click()
-    await page.getByRole('dialog', { name: '症状记录详情' }).getByRole('button', { name: '关闭症状记录详情', exact: true }).click()
+    await page.getByRole('dialog', { name: '饮食记录详情' }).getByRole('button', { name: '关闭饮食记录详情', exact: true }).click()
     await page.getByLabel('选择日期', { exact: true }).fill(localDay())
     const dueToday = (await (await page.request.get(`/api/routines/${memberId}/daily/instances?day=${localDay()}`, { headers })).json()).filter((value: any) => value.status === 'unconfirmed')
     expect(dueToday.length).toBeGreaterThanOrEqual(2) // Two midnight fixtures plus milk slots already due at the actual test time.
@@ -164,6 +164,8 @@ test('shared template keeps name, time and delete together for every category wi
     await expect(settings.locator('small')).toHaveCount(0)
     await toggle.click()
     await expect(settings.getByText(/新设置从当地次日生效/)).toBeVisible()
+    await expect(settings.getByRole('switch')).toHaveCount(1)
+    await expect(settings.getByRole('combobox', { name: /喂养方式/ })).toHaveCount(0)
     const name = settings.getByLabel('第1项名称'), time = settings.getByLabel('第1项时间')
     await name.fill('每天测试'); await time.fill('08:00')
     for (const width of [320, 375, 390, 430]) {
@@ -173,6 +175,7 @@ test('shared template keeps name, time and delete together for every category wi
       expect(await settings.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
     }
     await settings.getByRole('button', { name: '添加一项', exact: true }).click()
+    await expect(settings.getByRole('switch')).toHaveCount(1)
     await settings.getByLabel('第2项名称').fill('第二项')
     await settings.getByRole('button', { name: '删除第1项', exact: true }).click()
     await expect(settings.getByLabel('第1项名称')).toHaveValue('第二项')
@@ -207,4 +210,28 @@ test('shared template keeps name, time and delete together for every category wi
     await check()
     await page.getByRole('dialog').getByRole('button', { name: /^返回/ }).click()
   }
+})
+
+test('existing paused slots and stored feeding methods survive removal of item switches', async ({ page }) => {
+  const memberId = await prepare(page, '旧暂停设置验收', 375)
+  const slots = [
+    { id: 'active-slot', name: '早奶', time: '07:30', enabled: true, fields: { feedingMethod: 'formula', bottleMl: '150' } },
+    { id: 'paused-slot', name: '暂停晚奶', time: '21:00', enabled: false, fields: { feedingMethod: 'expressed', bottleMl: '180' } }
+  ]
+  const configured = await page.request.patch(`/api/routines/${memberId}/daily`, { headers, data: { kind: 'feeding', enabled: true, revision: 0, timeZone: 'Asia/Shanghai', slots } })
+  expect(configured.ok()).toBe(true)
+  await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
+  const settings = form.getByRole('region', { name: '每天自动记录设置' })
+  await expect(settings.locator('.daily-record-slot')).toHaveCount(2)
+  await expect(settings.getByRole('switch')).toHaveCount(1)
+  await expect(settings.getByRole('combobox', { name: /喂养方式/ })).toHaveCount(0)
+  await expect(settings.getByText('已暂停；需要时可删除后重新添加。')).toBeVisible()
+  await form.getByRole('radio', { name: '配方奶', exact: true }).click()
+  await form.getByRole('spinbutton', { name: /^喂奶量/ }).fill('150')
+  const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/quick-records' && response.request().method() === 'POST')
+  await form.locator('header').getByRole('button', { name: '保存记录', exact: true }).click()
+  expect((await saved).status()).toBe(201)
+  const rules = await (await page.request.get(`/api/routines/${memberId}/daily`, { headers })).json()
+  expect(rules[0].slots).toEqual(slots)
 })

@@ -14,11 +14,11 @@ const fields: Record<DailyKind, Array<[string, string, 'text' | 'number' | 'time
   topical: [['productName', '涂抹产品', 'text'], ['bodyLocations', '部位（选填）', 'text'], ['amount', '用量（选填）', 'text']],
   medication: [['medicationName', '药物名称', 'text'], ['amountValue', '剂量', 'number'], ['amountUnit', '单位', 'text'], ['endDate', '结束日期', 'date']]
 }
-export function DailyTypeFields({ kind, value, onChange, prefix = '' }: { kind: DailyKind; value: DailyFields; onChange: (value: DailyFields) => void; prefix?: string }) {
+export function DailyTypeFields({ kind, value, onChange, prefix = '', hideFeedingMethod = false }: { kind: DailyKind; value: DailyFields; onChange: (value: DailyFields) => void; prefix?: string; hideFeedingMethod?: boolean }) {
   const change = (key: string, field: string | number | boolean) => onChange({ ...value, [key]: field })
   const select = (key: string, label: string, options: Array<[string, string]>) => <label>{label}<select aria-label={`${prefix}${label}`} value={String(value[key] ?? '')} onChange={event => change(key, event.target.value)}><option value="">请选择</option>{options.map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></label>
   return <div className="daily-record-fields">
-    {kind === 'feeding' && select('feedingMethod', '喂养方式', [['breast', '母乳'], ['formula', '配方奶'], ['expressed', '瓶喂母乳'], ['mixed', '混合喂养']])}
+    {kind === 'feeding' && !hideFeedingMethod && select('feedingMethod', '喂养方式', [['breast', '母乳'], ['formula', '配方奶'], ['expressed', '瓶喂母乳'], ['mixed', '混合喂养']])}
     {kind === 'sleep' && select('kind', '睡眠类型', [['night', '夜间睡眠'], ['nap', '午睡']])}
     {kind === 'supplement' && select('unit', '单位', [['滴', '滴'], ['毫升', '毫升'], ['粒', '粒'], ['袋', '袋']])}
     {kind === 'medication' && select('mode', '用药类型', [['fixed', '固定用药'], ['as_needed', '按需用药（不自动执行）']])}
@@ -85,9 +85,9 @@ function DailyRecordSettingsContent({ kind, seed, name }: { kind: DailyKind; see
     {error && <p role="alert">{error}<HohoButton variant="ghost" onClick={() => setRetry(value => value + 1)}>重试</HohoButton></p>}
     {ready && enabled && <><small>时区：{timeZone}。新设置从当地次日生效。到点生成未确认条目，确认后才计入真实记录。</small>{slots.map((slot, index) => <div key={slot.id} className="daily-record-slot">
       <div className="daily-record-slot-summary"><HohoInput label={`第${index + 1}项名称`} value={slot.name} maxLength={20} onChange={event => update(slot.id, { name: event.target.value })} />{slot.enabled && <HohoInput label={`第${index + 1}项时间`} type="time" value={slot.time} onChange={event => update(slot.id, { time: event.target.value })} />}<HohoButton variant="ghost" aria-label={`删除第${index + 1}项`} onClick={() => setSlots(value => value.filter(item => item.id !== slot.id))}>删除</HohoButton></div>
-      <HohoToggle label={`启用第${index + 1}项`} checked={slot.enabled} onChange={value => update(slot.id, { enabled: value })} />
-      {slot.enabled && <DailyTypeFields kind={kind} prefix={`第${index + 1}项`} value={slot.fields} onChange={fields => update(slot.id, { fields })} />}
-    </div>)}<HohoButton variant="secondary" disabled={slots.length >= 12} onClick={() => setSlots(value => [...value, { id: crypto.randomUUID(), name: '', time: '', enabled: true, fields: {} }])}>添加一项</HohoButton></>}
+      {!slot.enabled && <small>已暂停；需要时可删除后重新添加。</small>}
+      {slot.enabled && <DailyTypeFields kind={kind} prefix={`第${index + 1}项`} hideFeedingMethod value={slot.fields} onChange={fields => update(slot.id, { fields })} />}
+    </div>)}<HohoButton variant="secondary" disabled={slots.length >= 12} onClick={() => setSlots(value => [...value, { id: crypto.randomUUID(), name: '', time: '', enabled: true, fields: kind === 'feeding' ? { feedingMethod: seed.feedingMethod ?? value.find(slot => slot.enabled)?.fields.feedingMethod ?? value[0]?.fields.feedingMethod ?? '' } : {} }])}>添加一项</HohoButton></>}
     {instances.length > 0 && <label>关联本次自动记录（选填）<select value={linkId} onChange={event => setLinkId(event.target.value)}><option value="">不关联，保留为独立实际记录</option>{instances.map(instance => <option key={instance.id} value={instance.id}>{instance.name} · {new Date(instance.plannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</option>)}</select></label>}
   </section>
 }

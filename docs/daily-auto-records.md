@@ -9,6 +9,15 @@ templates remain plan-only and accessible from the original settings sheet.
 - Start OFF with one editable suggestion, not a pre-created set of rules.
 - Additional slots are blank and explicitly added. Names, clocks, quantities and
   type-specific fields are independent; stable rule/slot IDs survive renaming.
+- The shared settings UI has one section-level switch. Per-slot switches are
+  removed across feeding/food/supplement, sleep, bowel, topical and medication.
+  Existing paused slots remain paused and can be deleted and recreated; opening
+  or saving a form never silently re-enables them.
+- Feeding settings omit the duplicate feeding-method selector. The starter keeps
+  the current form's method; added feeding slots inherit that method (or an
+  existing slot's method in the standalone settings editor). Quantities remain
+  independent. Stored methods and the instance-confirmation editor are preserved.
+  Required medication dose and duration controls remain available.
 - Settings belong to an authenticated account and member. The established guest
   merge transfers rule ownership; proposals reconcile against canonical member
   and rule ownership without changing instance IDs. Verified account deletion
