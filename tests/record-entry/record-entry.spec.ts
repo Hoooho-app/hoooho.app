@@ -20,6 +20,33 @@ async function diet(page:Page) {
   return page.getByRole('dialog',{name:'喂养/饮食',exact:true})
 }
 async function shot(page:Page,name:string) {await mkdir('outputs/record-entry',{recursive:true});await page.screenshot({path:`outputs/record-entry/${name}.png`})}
+for(const width of [375,390,430]) test(`daily menu keeps sleep and elimination without body application at ${width}`,async({page})=>{
+  await page.setViewportSize({width,height:667})
+  await prepare(page)
+  let recordWrites=0
+  page.on('request',request=>{if(request.method()!=='GET' && /\/api\/(quick-records|records|events|daily-records)/.test(new URL(request.url()).pathname))recordWrites++})
+  const daily=page.getByRole('button',{name:'日常',exact:true})
+  const options=page.getByRole('group',{name:'记录日常选项'})
+  await daily.click()
+  await expect(options.getByRole('button')).toHaveText(['睡眠','排便'])
+  await expect(page.getByRole('button',{name:'身体涂抹',exact:true})).toHaveCount(0)
+  await expect(options).toBeInViewport()
+  expect(await options.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2)
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await shot(page,`daily-without-body-application-${width}`)
+  await page.keyboard.press('Escape')
+  await expect(options).toHaveCount(0)
+  await expect(daily).toBeFocused()
+  for(const [entry,title]of [['睡眠','记录睡眠'],['排便','记录排便']]){
+    await daily.click()
+    await options.getByRole('button',{name:entry,exact:true}).click()
+    const form=page.getByRole('dialog',{name:title,exact:true})
+    await expect(form).toBeVisible()
+    await form.getByRole('button',{name:/返回/,exact:true}).click()
+    await expect(form).toHaveCount(0)
+  }
+  expect(recordWrites).toBe(0)
+})
 async function save(page:Page,form:ReturnType<Page['getByRole']>) {
   const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/quick-records'&&r.request().method()==='POST')
   await form.getByRole('button',{name:'保存记录',exact:true}).click()
@@ -57,9 +84,9 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
   await shot(page,`home-${width}`)
   const daily=page.getByRole('button',{name:'日常',exact:true})
   await daily.click();const options=page.getByRole('group',{name:'记录日常选项'})
-  await expect(options.getByRole('button')).toHaveText(['睡眠','排便','身体涂抹'])
-  await expect(options.locator('img')).toHaveCount(3)
-  expect(await options.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(3)
+  await expect(options.getByRole('button')).toHaveText(['睡眠','排便'])
+  await expect(options.locator('img')).toHaveCount(2)
+  expect(await options.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2)
   const labels=await footer.locator('.record-entry-grid button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth))
   expect(labels).toBe(true)
   await expect(footer.getByRole('button',{name:'记录症状',exact:true})).toBeInViewport()
@@ -75,7 +102,7 @@ for(const width of [375,390,430,1280]) test(`entry layout, anchored routine and 
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     if(title==='记录症状')await form.getByRole('button',{name:'返回',exact:true}).click();else await form.getByRole('button',{name:/返回/,exact:true}).click()
   }
-  for(const [option,title] of [['睡眠','记录睡眠'],['排便','记录排便'],['身体涂抹','记录身体涂抹']]){
+  for(const [option,title] of [['睡眠','记录睡眠'],['排便','记录排便']]){
     await daily.click();await options.getByRole('button',{name:option,exact:true}).click()
     const form=page.getByRole('dialog',{name:title,exact:true});await expect(form).toBeVisible();await expect(options).toHaveCount(0)
     await form.getByRole('button',{name:/返回/,exact:true}).click()
@@ -244,12 +271,11 @@ test('direct supplement preserves dose, saves supplement type and restores edit 
   await expect(form.getByLabel('已添加补剂')).toContainText('合成补剂')
 })
 
-for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['身体涂抹','记录身体涂抹','care'],['记录用药','记录用药','medication']]) test(`reorganized ${entry} saves through its original form for the selected member`,async({page})=>{
+for(const [entry,title,category] of [['睡眠','记录睡眠','sleep'],['排便','记录排便','elimination'],['记录用药','记录用药','medication']]) test(`reorganized ${entry} saves through its original form for the selected member`,async({page})=>{
   await prepare(page,'child-two')
   if(entry==='记录用药')await page.getByRole('button',{name:entry,exact:true}).click()
   else {await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('group',{name:'记录日常选项'}).getByRole('button',{name:entry,exact:true}).click()}
   const form=page.getByRole('dialog',{name:title,exact:true})
-  if(category==='care')await form.getByLabel('产品名称（或添加包装照片）').fill('合成保湿产品')
   if(category==='medication'){await form.getByLabel('药品名称',{exact:true}).fill('合成记录测试药');await form.getByLabel('本次用量').fill('1')}
   if(category==='elimination')await form.getByRole('button',{name:'糊状',exact:true}).click()
   const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/quick-records'&&r.request().method()==='POST')

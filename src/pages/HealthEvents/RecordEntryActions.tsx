@@ -4,7 +4,6 @@ import type { JournalCategory, DietRecordKind } from '../../types/journal'
 import { HohoButton } from '../../components/design-system'
 import sleep from '../../assets/health-events/daily-record/sleep.webp'
 import bowel from '../../assets/health-events/daily-record/bowel.webp'
-import activity from '../../assets/health-events/quick-record/medication.webp'
 import './RecordEntryActions.css'
 
 const direct: readonly { id: string; category: JournalCategory; label: string; kind?: DietRecordKind }[] = [
@@ -14,7 +13,7 @@ const direct: readonly { id: string; category: JournalCategory; label: string; k
   { id:'medication',category:'medication',label:'用药' },
   { id:'materials',category:'visit',label:'就诊资料' }
 ]
-const routines = [{ category:'sleep',label:'睡眠',image:sleep },{ category:'elimination',label:'排便',image:bowel },{ category:'care',label:'身体涂抹',image:activity }] as const
+const routines = [{ category:'sleep',label:'睡眠',image:sleep },{ category:'elimination',label:'排便',image:bowel }] as const
 export function RecordEntryActions({ disabled, identity, onRecord, onSmartRecord }: { disabled: boolean; identity: string; onSmartRecord: () => void; onRecord: (category: JournalCategory, kind?: DietRecordKind) => void }) {
   const [open,setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
