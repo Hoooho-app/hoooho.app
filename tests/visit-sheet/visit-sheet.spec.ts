@@ -36,7 +36,8 @@ async function scope(p: Page) { await edit(p, '完整资料档案'); await p.get
 async function update(p: Page) {await p.reload();await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();await expect(p.getByRole('button',{name:'编辑情况描述',exact:true})).toBeEnabled();}
 async function fromHome(p: Page) {
     await p.goto('/nurse-station');
-    await p.getByRole('button', { name: '就诊情况单', exact: true }).click();
+    await p.getByRole('button', { name: '一键整理', exact: true }).click();
+    await p.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /就诊情况单/ }).click();
     await expect(p.locator('#chapter-overview .visit-reading-case')).toBeVisible();
 }
 test.beforeEach(async ({ page: p }) => { const s = await (await p.request.get(endpoint, { headers })).json(); expect((await p.request.put(endpoint, { headers, data: { expectedVersion: s.report?.version ?? s.expectedVersion ?? 0, requestId: crypto.randomUUID(), focus: { mode: 'source', sourceId: 'record:s7' }, caseDetails: {}, question: '这些表现需要了解什么？\n何时需要就医？\n怎样护理和记录？', notes: {}, selection: null, selectedPhotoIds: ['attachment:v5-image-0', 'attachment:v5-image-1', 'attachment:' + videoId()] } })).ok()).toBeTruthy(); });

@@ -55,7 +55,7 @@ import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
 import {profileListRoute,profileListResult} from './health-profile/child-profile-list-api.mjs'
 import { CareHandoffService } from './care-handoff/care-handoff-service.mjs'
-import { handoffRoute, handoffResult } from './care-handoff/api.mjs'
+import { handoffRoute, handoffResult, HANDOFF_BODY_LIMIT } from './care-handoff/api.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -858,7 +858,7 @@ async function handleApi(request, response, pathname, searchParams) {
   if (handoff) {
     response.setHeader('Referrer-Policy', 'no-referrer')
     const accountId = handoff.shared ? null : await readAccountId(request)
-    sendJson(response, 200, await handoffResult(careHandoff, accountId, handoff, request.method, request.method === 'POST' ? await readJson(request, 1024) : undefined))
+    sendJson(response, 200, await handoffResult(careHandoff, accountId, handoff, request.method, request.method === 'POST' ? await readJson(request, HANDOFF_BODY_LIMIT) : undefined))
     return true
   }
   if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {

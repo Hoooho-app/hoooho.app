@@ -22,6 +22,21 @@ export class CareHandoffError extends Error {
   constructor(message, status = 400, code = 'CARE_HANDOFF_INVALID') { super(message); this.status = status; this.code = code }
 }
 
+// Draft edits belong only to this immutable share, never to source health data.
+function normalizeDraft(value) {
+  if (value === undefined) return undefined // Existing clients and links remain compatible.
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CareHandoffError('交接内容格式错误')
+  const rows = key => {
+    if (!Array.isArray(value[key]) || value[key].length > 80) throw new CareHandoffError('交接事项过多或格式错误')
+    return value[key].map(row => {
+      if (!row || typeof row.title !== 'string' || !row.title.trim() || row.title.length > 200 || typeof row.detail !== 'string' || row.detail.length > 2000) throw new CareHandoffError('请检查交接事项的标题和说明')
+      return { title: row.title.trim(), detail: row.detail.trim(), source: '家长确认的本次交接' }
+    })
+  }
+  if (typeof value.parentNote !== 'string' || value.parentNote.length > 4000) throw new CareHandoffError('家长交代不能超过4000字')
+  return { routines: rows('routines'), cautions: rows('cautions'), parentNote: value.parentNote.trim() }
+}
+
 // Read-only care projection. Actual journal entries never become routines,
 // unconfirmed allergies never become confirmed restrictions, and no AI call is made.
 export class CareHandoffService {
@@ -133,17 +148,18 @@ export class CareHandoffService {
   async share(accountId, memberId, input) {
     if (!/^[a-f0-9]{64}$/.test(input?.fingerprint ?? '')) throw new CareHandoffError('请先读取并确认照看资料')
     if (input.token !== undefined && !/^[A-Za-z0-9_-]{32}$/.test(input.token)) throw new CareHandoffError('分享链接格式错误')
+    const draft = normalizeDraft(input.draft)
     return accountTransaction(this.directory, async () => {
       await this.owned(accountId, memberId)
       const token = input.token ?? randomBytes(24).toString('base64url'), tokenHash = digest(token)
       const existing = (await this.shares.read()).shares.find(s => s.tokenHash === tokenHash)
       if (existing) {
-        if (existing.accountId !== accountId || existing.memberId !== memberId || existing.data.fingerprint !== input.fingerprint) throw new CareHandoffError('请重新生成分享链接', 409)
+        if (existing.accountId !== accountId || existing.memberId !== memberId || existing.data.fingerprint !== input.fingerprint || digest(existing.data.handoffDraft ?? null) !== digest(draft ?? null)) throw new CareHandoffError('请重新生成分享链接', 409)
         return { path: `/care-handoff/shared/${token}` }
       }
       const data = await this.preview(accountId, memberId)
       if (data.fingerprint !== input.fingerprint) throw new CareHandoffError('照看资料已有更新，请重新查看后分享', 409, 'CARE_HANDOFF_CHANGED')
-      await this.shares.update(store => ({ ...store, shares: [...store.shares, { accountId, memberId, tokenHash, data, createdAt: this.now().toISOString() }] }))
+      await this.shares.update(store => ({ ...store, shares: [...store.shares, { accountId, memberId, tokenHash, data: draft ? { ...data, sections: [], handoffDraft: draft } : data, createdAt: this.now().toISOString() }] }))
       return { path: `/care-handoff/shared/${token}` }
     })
   }

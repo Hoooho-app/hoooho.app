@@ -2,8 +2,10 @@ import './FactCharts.css'
 import type { MouseEvent } from 'react'
 
 export function FactDistribution({
-  values,
+  values, unit = '条记录', showPercent = false,
 }: {
+  unit?: string
+  showPercent?: boolean
   values: Array<{ label: string; count: number }>
 }) {
   const total = values.reduce((sum, value) => sum + value.count, 0)
@@ -14,7 +16,7 @@ export function FactDistribution({
         <svg
           viewBox="0 0 120 120"
           role="img"
-          aria-label={values.map((v) => `${v.label} ${v.count} 条`).join('，')}
+          aria-label={values.map((v) => `${v.label} ${v.count} ${unit}`).join('，')}
         >
           {values.map((value, index) => {
             const length = (value.count / total) * 100
@@ -40,7 +42,7 @@ export function FactDistribution({
             {total}
           </text>
           <text x="60" y="79" textAnchor="middle" className="hoho-chart-unit">
-            条记录
+            {unit}
           </text>
         </svg>
       )}
@@ -52,7 +54,7 @@ export function FactDistribution({
               aria-hidden="true"
             />
             <span>{value.label}</span>
-            <strong>{value.count}</strong>
+            <strong>{value.count}{showPercent && total > 0 ? ` · ${Math.round(value.count / total * 100)}%` : ''}</strong>
           </div>
         ))}
       </figcaption>
@@ -166,4 +168,29 @@ export function FactLineChart({
       </text>
     </svg>
   )
+}
+
+/** Calendar buckets preserve missing values as gaps; usable for counts or measurements. */
+export function FactBucketChart({ buckets, label, unit, kind = 'line', format = value => String(Math.round(value * 10) / 10), onBucket }: {
+  buckets: Array<{ label: string; value: number | null }>; label: string; unit: string; kind?: 'line' | 'bar'; format?: (value: number) => string; onBucket?: (index: number) => void
+}) {
+  const values = buckets.flatMap(b => b.value === null ? [] : [b.value])
+  if (!values.length) return <p className="hoho-text-caption">暂无可绘制的数据</p>
+  const low = kind === 'bar' ? 0 : Math.floor(Math.min(...values)), high = Math.max(low + 1, Math.ceil(Math.max(...values)))
+  const x = (i: number) => 42 + (i + .5) / buckets.length * 260, y = (v: number) => 126 - (v - low) / (high - low) * 96
+  const paths: string[][] = [[]]
+  buckets.forEach((b, i) => { if (b.value === null) paths.push([]); else paths.at(-1)!.push(`${x(i)},${y(b.value)}`) })
+  return <svg className="hoho-fact-line hoho-fact-buckets" viewBox="0 0 320 166" role="group" aria-label={label}>
+    <text x="3" y="14">{unit}</text><text x="2" y="34">{format(high)}</text><text x="2" y="130">{format(low)}</text>
+    <path d="M40 26 V130 H310" className="hoho-chart-axis" fill="none" />
+    {kind === 'line' && paths.filter(p => p.length > 1).map((p, i) => <polyline key={i} points={p.join(' ')} fill="none" className="hoho-chart-trace" strokeWidth="2" />)}
+    {buckets.map((b, i) => <g key={i}>
+      {b.value !== null && <g role={onBucket ? 'button' : undefined} tabIndex={onBucket ? 0 : undefined} aria-label={`${b.label}，${format(b.value)}${unit}`} onClick={() => onBucket?.(i)} onKeyDown={e => { if (onBucket && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onBucket(i) } }}>
+        <rect x={x(i) - Math.min(18, 125 / buckets.length)} y="20" width={Math.min(36, 250 / buckets.length)} height="112" fill="transparent" />
+        {kind === 'bar' ? <rect x={x(i) - Math.min(10, 85 / buckets.length)} y={y(b.value)} width={Math.min(20, 170 / buckets.length)} height={Math.max(1, 126 - y(b.value))} className="hoho-chart-point" /> : <circle cx={x(i)} cy={y(b.value)} r="4" className="hoho-chart-point" />}
+        <title>{b.label} · {format(b.value)}{unit}</title>
+      </g>}
+      {(buckets.length <= 8 || i % 2 === 0 || i === buckets.length - 1) && <text x={x(i)} y="153" textAnchor="middle">{b.label}</text>}
+    </g>)}
+  </svg>
 }

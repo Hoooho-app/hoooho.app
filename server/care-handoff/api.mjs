@@ -2,6 +2,8 @@ import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { CareHandoffService, CareHandoffError } from './care-handoff-service.mjs'
 
+export const HANDOFF_BODY_LIMIT = 1_500_000
+
 export function handoffRoute(pathname) {
   const shared = /^\/api\/care-handoffs\/shared\/([^/]+)$/.exec(pathname)
   const owned = /^\/api\/members\/([^/]+)\/care-handoff(?:\/(share))?$/.exec(pathname)
@@ -24,7 +26,7 @@ export function careHandoffApiPlugin(options = {}) {
       if (!route.shared && !payload) throw new CareHandoffError('登录状态无效', 401)
       let input
       if (request.method === 'POST') {
-        let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 1024) throw new CareHandoffError('请求过大', 413) }
+        let body = ''; for await (const chunk of request) { body += chunk; if (Buffer.byteLength(body) > HANDOFF_BODY_LIMIT) throw new CareHandoffError('请求过大', 413) }
         try { input = JSON.parse(body) } catch { throw new CareHandoffError('请求格式错误') }
       }
       result = await handoffResult(service, payload?.sub, route, request.method, input)
