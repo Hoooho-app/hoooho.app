@@ -60,9 +60,9 @@ test('all modules are grouped cards with compact routines, one basic identity an
   await parent(page)
   expect(await page.locator('.handoff-section h2').allTextContents()).toEqual(['每天固定安排', '需要留意', '家长交代'])
   await expect(page.locator('.handoff-section.hoho-health-card')).toHaveCount(3)
-  await expect(page.locator('.handoff-basic')).toHaveCount(1)
+  await expect(page.locator('.organize-member-identity')).toHaveCount(1)
   await expect(page.getByRole('heading', { name: '花生' })).toBeAttached()
-  await expect(page.getByRole('heading', { name: '药甲' })).toBeVisible()
+  await expect(page.locator('.handoff-schedule').getByText(/药甲/).first()).toBeVisible()
   await expect(page.getByRole('checkbox')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /停止分享|查看对方页面/ })).toHaveCount(0)
   await expect(page.getByText('12:30—14:00', { exact: false })).toBeAttached()
@@ -211,6 +211,7 @@ test('sidebar organizer and chart drilldown use actual member records with a vis
   await parent(page)
   const at = '2026-10-10T12:00:00Z'
   await page.route('**/journal-index', route => route.fulfill({ json: { events: [{ id: 'chart-event', memberId: 'handoff-child', accountId: 'handoff-test', title: '皮疹记录', category: 'symptom', status: 'observing', startTime: at, createdAt: at, updatedAt: at }], records: [{ id: 'chart-record', eventId: 'chart-event', accountId: 'handoff-test', type: 'symptom', content: '手臂出现皮疹', occurredAt: at, createdAt: at, updatedAt: at, journal: { categories: ['symptom'], timePrecision: 'exact', symptom: { narrative: '手臂出现皮疹', symptomCategory: 'skin' } } }], attachments: [] } }))
+  await page.goto('/health-events?reviewOrigin=calendar')
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   await page.getByRole('button', { name: '一键整理', exact: true }).click()
   await page.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /近期情况回顾/ }).click()
@@ -225,4 +226,78 @@ test('sidebar organizer and chart drilldown use actual member records with a vis
   const detail = page.getByRole('dialog', { name: '图表记录明细', exact: true })
   await expect(detail.getByText('手臂出现皮疹', { exact: true }).last()).toBeVisible()
   await expect(detail.getByRole('button', { name: '查看原始记录' })).toBeVisible()
+})
+
+test('organizer pages keep contextual back, a real loading state, and a chronological compact handoff', async ({ page }, info) => {
+  const { installQaFont } = await import('../organize/qaFont')
+  await installQaFont(page)
+  await parent(page)
+  await expect(page.getByRole('button', { name: '打开菜单' })).toHaveCount(0)
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(page).toHaveURL(/\/nurse-station$/)
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/api/members/handoff-child/care-handoff', async route => { await gate; await route.continue() })
+  try {
+    await page.getByRole('button', { name: '一键整理', exact: true }).click()
+    await page.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /照顾交接单/ }).click()
+    await expect(page.getByRole('progressbar', { name: '资料读取进度' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '正在整理照顾交接单' })).toBeVisible()
+    await page.getByRole('button', { name: '返回', exact: true }).click()
+    await expect(page).toHaveURL(/\/nurse-station$/)
+  } finally { release() }
+  await page.unroute('**/api/members/handoff-child/care-handoff')
+  await page.getByRole('button', { name: '一键整理', exact: true }).click()
+  await page.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /照顾交接单/ }).click()
+  await expect(page.locator('.handoff-schedule')).toBeVisible()
+  expect(await page.locator('.handoff-schedule-time').allTextContents()).toEqual(['08:00', '12:30—14:00', '20:00', '21:00—次日07:00'])
+  await expect(page.locator('.handoff-content').getByText('家长已设置的用药安排', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.organize-member-heading img')).toBeVisible()
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.evaluate(() => document.fonts.ready)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const facts = await page.locator('.organize-member-facts').evaluate(e => [...e.querySelectorAll('dd')].every(n => n.getBoundingClientRect().bottom < e.parentElement!.getBoundingClientRect().bottom))
+    expect(facts).toBe(true)
+    await page.screenshot({ path: info.outputPath(`care-polish-${width}.png`) })
+  }
+  await page.goto('/health-events?organizeOrigin=calendar')
+  await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+  await page.getByRole('button', { name: '一键整理', exact: true }).click()
+  await page.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button', { name: /近期情况回顾/ }).click()
+  await expect(page.getByRole('button', { name: '保存图表回顾' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('button', { name: '保存图表回顾' })).toBeVisible()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(page).toHaveURL(/\/health-events\?organizeOrigin=calendar(?:&|$)/)
+  await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+  await page.getByRole('button', { name: '辅助工具', exact: true }).click()
+  await page.getByRole('button', { name: '照顾交接单', exact: true }).click()
+  await expect(page.locator('.handoff-schedule')).toBeVisible()
+  await page.reload()
+  await expect(page.locator('.handoff-schedule')).toBeVisible()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(page).toHaveURL(/\/health-events\?organizeOrigin=calendar(?:&|$)/)
+})
+
+test('review progress reflects completed source reads and recovers from failure', async ({ page }) => {
+  await parent(page)
+  let release!: () => void, fail = true
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/journal-index', async route => {
+    await gate
+    if (fail) await route.fulfill({ status: 503, json: { error: { message: '读取失败，请重试' } } })
+    else await route.continue()
+  })
+  try {
+    await page.goto('/recent-review')
+    const bar = page.getByRole('progressbar', { name: '资料读取进度' })
+    await expect(bar).toBeVisible()
+    await expect(bar).toHaveAttribute('aria-valuenow', '75')
+    await expect(page.getByText('已读取 3/4 类资料')).toBeVisible()
+  } finally { release() }
+  await expect(page.getByRole('alert')).toContainText('读取失败，请重试')
+  fail = false
+  await page.getByRole('button', { name: '重试', exact: true }).click()
+  await expect(page.getByRole('button', { name: '保存图表回顾' })).toBeVisible()
 })

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, SlidersHorizontal } from 'lucide-react'
-import { MainAppHeader } from '../../components/navigation'
+import { OrganizeHeader } from '../../features/organize/OrganizeHeader'
+import { ProcessingState } from '../../components/design-system/ProcessingState'
 import { BottomSheetSurface, HealthCard, HohoButton, StatusNotice, Typography } from '../../components/design-system'
 import { FactBucketChart, FactDistribution } from '../../components/design-system/FactCharts'
 import { useAppStore } from '../../store/useAppStore'
@@ -18,20 +19,22 @@ function ChartCard({ title, metric, note, children, onSource }: { title: string;
 function ReviewContent({ memberId, token, accountId }: { memberId: string; token: string; accountId: string }) {
   const scope = `${accountId}:${memberId}:${token}`, navigate = useNavigate(), exportRef = useRef<HTMLDivElement>(null)
   const name = useAppStore(s => s.members.find(m => m.id === memberId)?.name || s.profile?.nickname || '')
+  const [sourcesRead, setSourcesRead] = useState(0)
   const [state, setState] = useState<DataState>({ scope, status: 'loading' }), [revision, setRevision] = useState(0)
   const [preset, setPreset] = useState('180'), [range, setRange] = useState(() => reviewRange('180')), [custom, setCustom] = useState(false), [dates, setDates] = useState(range), [rangeError, setRangeError] = useState('')
   const [detail, setDetail] = useState<{ title: string; rows: ReviewRow[] } | null>(null), [exportMessage, setExportMessage] = useState('')
   useEffect(() => { const refresh = () => setRevision(r => r + 1); window.addEventListener('hoooho-data-changed', refresh); return () => window.removeEventListener('hoooho-data-changed', refresh) }, [])
   useEffect(() => {
-    const controller = new AbortController(); setState({ scope, status: 'loading' }); setDetail(null)
+    const controller = new AbortController(); setState({ scope, status: 'loading' }); setSourcesRead(0); setDetail(null)
     async function load() {
       try {
         const options = { token, signal: controller.signal }, path = `/api/members/${encodeURIComponent(memberId)}`
+        const track = <T,>(promise: Promise<T>) => promise.then(value => { if (!controller.signal.aborted) setSourcesRead(n => n + 1); return value })
         const [index, cases, profiles, reminders] = await Promise.all([
-          apiRequest<ReviewSources['index']>(`${path}/journal-index`, options),
-          apiRequest<ReviewSources['cases']>(`${path}/cases?timezone=Asia%2FShanghai`, options),
-          apiRequest<ReviewSources['profiles']>('/api/auth/profile-sections', options),
-          apiRequest<ReviewSources['reminders']>(`/api/medication-reminders?memberId=${encodeURIComponent(memberId)}`, options),
+          track(apiRequest<ReviewSources['index']>(`${path}/journal-index`, options)),
+          track(apiRequest<ReviewSources['cases']>(`${path}/cases?timezone=Asia%2FShanghai`, options)),
+          track(apiRequest<ReviewSources['profiles']>('/api/auth/profile-sections', options)),
+          track(apiRequest<ReviewSources['reminders']>(`/api/medication-reminders?memberId=${encodeURIComponent(memberId)}`, options)),
         ])
         if (!controller.signal.aborted) setState({ scope, status: 'ready', data: { index, cases, profiles, reminders } })
       } catch (error) { if (!controller.signal.aborted) setState({ scope, status: 'error', message: error instanceof Error ? error.message : '回顾加载失败，请重试' }) }
@@ -50,9 +53,9 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
   }
   return <>
     <div className="continuity-scroll review-content">
-      <div className="review-controls"><div role="group" aria-label="回顾范围">{presets.map(p => <button key={p.id} aria-pressed={preset === p.id} onClick={() => { setPreset(p.id); setRange(reviewRange(p.id)); setDetail(null) }}>{p.title}</button>)}</div><HohoButton variant="text" onClick={() => { setDates(range); setRangeError(''); setCustom(true) }}><SlidersHorizontal size={16} />自定义</HohoButton></div>
-      <Typography variant="caption">{range.start} — {range.end} · 北京时间</Typography>
-      {state.scope !== scope || state.status === 'loading' ? <p role="status">正在整理图表…</p> : state.status === 'error' ? <StatusNotice tone="error" title={state.message}><HohoButton variant="secondary" onClick={() => setRevision(r => r + 1)}>重试</HohoButton></StatusNotice> : model && <>
+      {state.scope === scope && state.status !== 'loading' && <><div className="review-controls"><div role="group" aria-label="回顾范围">{presets.map(p => <button key={p.id} aria-pressed={preset === p.id} onClick={() => { setPreset(p.id); setRange(reviewRange(p.id)); setDetail(null) }}>{p.title}</button>)}</div><HohoButton variant="text" onClick={() => { setDates(range); setRangeError(''); setCustom(true) }}><SlidersHorizontal size={16} />自定义</HohoButton></div>
+      <Typography variant="caption">{range.start} — {range.end} · 北京时间</Typography></>}
+      {state.scope !== scope || state.status === 'loading' ? <ProcessingState title="正在整理近期情况回顾" steps={['读取健康与日常记录', '汇总统计指标', '生成图表']} step={state.scope === scope && sourcesRead === 4 ? 1 : 0} progress={{ completed: state.scope === scope ? sourcesRead : 0, total: 4 }} /> : state.status === 'error' ? <StatusNotice tone="error" title={state.message}><HohoButton variant="secondary" onClick={() => setRevision(r => r + 1)}>重试</HohoButton></StatusNotice> : model && <>
         <div className="review-coverage"><span>{name}</span><span>{model.recordCount}条已录入记录</span><span>夜间睡眠覆盖 {model.sleepDays}/{model.totalDays}天</span></div>
         <div ref={exportRef} className="review-charts">
           <ChartCard title="症状相关事件" metric={<>{model.symptoms.length}<small>组</small></>} note="按合并后的事件首次记录时间计数" onSource={() => source('症状相关事件', model.symptoms)}>
@@ -84,5 +87,5 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
 }
 export function RecentReviewPage() {
   const memberId = useAppStore(s => s.currentMemberId), token = useAppStore(s => s.authToken) ?? '', accountId = useAppStore(s => s.authUser?.id) ?? ''
-  return <main className="app-shell continuity-page review-page"><MainAppHeader title="近期情况回顾" /><ReviewContent key={`${accountId}:${memberId}`} memberId={memberId} token={token} accountId={accountId} /></main>
+  return <main className="app-shell continuity-page review-page"><OrganizeHeader title="近期情况回顾" /><ReviewContent key={`${accountId}:${memberId}`} memberId={memberId} token={token} accountId={accountId} /></main>
 }
