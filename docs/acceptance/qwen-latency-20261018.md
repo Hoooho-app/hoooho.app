@@ -41,7 +41,7 @@ Validation before release:
 - Initial broad legacy browser suites include obsolete page labels, selectors, summary entry points and the old direct ASR endpoint. They are not claimed as passing. Only narrow selector updates matching the existing baseline were made; product copy/navigation were not changed.
 - Physical iPhone/Safari and a statistically useful real-provider latency distribution remain unverified.
 
-Release state: awaiting main integration, Staging and Production verification of the exact commit. No environment variables, supplier models, region, replicas, dependencies, TLS settings, quotas or global supplier concurrency limits were changed.
+Release state: implementation, main integration, Staging acceptance and Production deployment are complete. Full Production model acceptance is BLOCKED by the supplier quota response described below. No environment variables, supplier models, region, replicas, dependencies, TLS settings, quotas or global supplier concurrency limits were changed.
 
 Additional browser evidence before integration:
 
@@ -49,3 +49,14 @@ Additional browser evidence before integration:
 - Reminder/medication photo flows: 10 passed at 375/430 widths. Two obsolete visit-photo tests fail before upload on an entry removed in the baseline; those flows are not claimed as passing.
 - Dialogue CI selection: 21 existing cases passed; the sole outdated artifact-GET expectation was replaced by an explicit old-response fallback plus a zero-redundant-GET test. Both targeted tests passed, including first artifact GET failure, bounded retry, preserved typed input and exactly two model requests.
 - Symptom follow-up: 4/4 passed. GitHub quick-search and session-recovery CI passed on the initial implementation commit; the final test-only update reruns CI before integration.
+
+
+Release evidence — 2026-10-18:
+
+- PR #467 merged as `661562b5135e342e779ec2937a0c4d7df168439e`; final GitHub smart-record, quick-search and session-recovery checks all passed.
+- Staging deployment `807a72a8-b174-4039-a790-b3c92905a800` succeeded. A complete six-call synthetic acceptance run (2026-10-17 18:39–18:43 UTC) passed ASR, text extraction, mixed facts, single-image OCR/extraction and summary preview. Saved-record API readback, authenticated mobile browser display, exact runtime SHA, fact polarity and preservation of the old summary all passed.
+- Early diagnostic runs are retained separately: difficult synthetic English speech produced a near-homophone, and an image generated before the test container had a Chinese font lacked readable Chinese. A verified clear WAV and visually checked Chinese image were used for the successful full run; failures were not counted as passes.
+- Production deployment `ddeaf781-cf8d-46e5-8e71-9115ade9e687` served the same verified `661562b` commit. Health, real ASR (supplier elapsed 1,771 ms), manual record save/readback and authenticated browser display at 320/375/430 widths passed. Synthetic records and members were removed and cleanup readback passed.
+- Production text extraction returned HTTP 403 with upstream `insufficient_quota`, surfaced as `AI_BAILIAN_QUOTA_UNKNOWN`. Remaining paid model scenarios were stopped. Runtime logs still showed the same supplier quota response at 2026-10-17 19:35 UTC. This is a Production acceptance blocker, not a measured latency result.
+- Later Production commit `4494a6b9c98db5bd2d8d71e084bde0aeb62c97f2` contains `661562b` as an ancestor; concurrent changes were preserved. No model routing/configuration files or dependencies were changed by this optimization, and no supplier quota/billing change or model substitution was used to bypass the blocker.
+- Overall status remains BLOCKED for full Production model acceptance until the existing supplier quota is restored. The final compound delivery checkbox stays unchecked for that reason. Physical iPhone/Safari and statistically meaningful before/after latency percentiles remain unverified.
