@@ -28,7 +28,18 @@ test('nurse-side daily article is readable, bookmarkable and reachable again on 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     const bookmark = page.getByRole('button', { name: '收藏', exact: true })
     if (await bookmark.isVisible()) await bookmark.click()
-    await expect(page.getByRole('button', { name: '已收藏', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const savedBookmark = page.getByRole('button', { name: '已收藏', exact: true })
+    await expect(savedBookmark).toHaveAttribute('aria-pressed', 'true')
+    expect(await savedBookmark.locator('[aria-live]').evaluate(label => {
+      const range = document.createRange()
+      range.selectNodeContents(label)
+      return range.getClientRects().length
+    })).toBe(1)
+    const bookmarkBox = (await savedBookmark.boundingBox())!
+    const headerTitleBox = (await page.getByRole('heading', { name: '过敏小知', exact: true }).boundingBox())!
+    expect(bookmarkBox.height).toBeGreaterThanOrEqual(44)
+    expect(bookmarkBox.x).toBeGreaterThanOrEqual(headerTitleBox.x + headerTitleBox.width)
+    expect(bookmarkBox.x + bookmarkBox.width).toBeLessThanOrEqual(size.width)
     await page.getByText('参考依据', { exact: true }).click()
     await expect(page.getByRole('link', { name: /美国儿科学会/ })).toBeVisible()
     await page.screenshot({ path: info.outputPath(`knowledge-article-${size.width}.png`) })

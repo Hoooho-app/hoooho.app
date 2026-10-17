@@ -1,4 +1,7 @@
 .allergy-knowledge-page{padding-bottom:0}
+.allergy-knowledge-page>.hoho-page-header{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+.allergy-knowledge-bookmark.hoho-button{flex-shrink:0;min-height:var(--hoho-touch-target)}
+.allergy-knowledge-bookmark .hoho-button__content{display:inline-flex;align-items:center;gap:var(--hoho-space-1);white-space:nowrap}
 .allergy-knowledge-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:var(--hoho-space-6) var(--hoho-page-gutter) max(var(--hoho-space-10),env(safe-area-inset-bottom))}
 .allergy-knowledge-article{max-width:var(--hoho-content-compact);margin-inline:auto;overflow-wrap:anywhere}
 .allergy-knowledge-meta{display:block;color:rgb(var(--hoho-color-text-secondary));margin-bottom:var(--hoho-space-3)}

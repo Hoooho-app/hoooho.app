@@ -37,7 +37,7 @@ export function AllergyKnowledgePage() {
     else navigate('/nurse-station', { replace: true })
   }
   return <main className="app-shell allergy-knowledge-page">
-    <WebPageHeader title="过敏小知" onBack={back} action={article && <HohoButton variant="text" size="small" aria-pressed={saved} onClick={toggleBookmark}><Bookmark size={16} aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span aria-live="polite">{saved ? '已收藏' : '收藏'}</span></HohoButton>} />
+    <WebPageHeader title="过敏小知" onBack={back} action={article && <HohoButton variant="text" size="small" className="allergy-knowledge-bookmark" aria-pressed={saved} onClick={toggleBookmark}><Bookmark size={16} aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span aria-live="polite">{saved ? '已收藏' : '收藏'}</span></HohoButton>} />
     <div className="allergy-knowledge-scroll" ref={scrollRef}>
       {!articleId ? <section className="allergy-knowledge-archive" aria-label="往期内容">
         <Typography variant="sectionTitle">往期内容</Typography>

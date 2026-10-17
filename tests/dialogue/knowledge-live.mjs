@@ -56,6 +56,16 @@ try {
     const bookmark = page.getByRole('button', { name: '收藏', exact: true })
     if (await bookmark.isVisible()) await bookmark.click()
     await expect(page.getByRole('button', { name: '已收藏', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const savedBookmark = page.getByRole('button', { name: '已收藏', exact: true })
+    assert.equal(await savedBookmark.locator('[aria-live]').evaluate(label => {
+      const range = document.createRange()
+      range.selectNodeContents(label)
+      return range.getClientRects().length
+    }), 1)
+    const bookmarkBox = await savedBookmark.boundingBox()
+    const headerTitleBox = await page.getByRole('heading', { name: '过敏小知', exact: true }).boundingBox()
+    assert.ok(bookmarkBox.height >= 44 && bookmarkBox.x >= headerTitleBox.x + headerTitleBox.width && bookmarkBox.x + bookmarkBox.width <= width)
+    await page.screenshot({ path: `${out}/article-saved-${width}.png` })
     await page.getByText('参考依据', { exact: true }).click()
     await expect(page.getByRole('link', { name: /美国儿科学会/ })).toBeVisible()
     await page.getByRole('button', { name: '往期内容', exact: true }).click()
