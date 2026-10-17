@@ -1,6 +1,6 @@
 import { useAppStore } from '../../store/useAppStore'
 import { SelectedFilePreviews } from '../../features/health-attachments/PhotoPreview'
-import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysis'
+import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysisPanel'
 import { sourcedPhotoFields } from '../../features/health-attachments/photoAnalysis'
 import { ArrowLeft, Bell, Camera, Check, Clock3, Pause, Pill, RotateCcw, SkipForward, Trash2, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
