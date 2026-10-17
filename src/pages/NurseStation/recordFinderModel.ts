@@ -125,18 +125,24 @@ export function finderPlan(question: string, previous?: FinderPlan, now = new Da
 }
 export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan): FinderMatch[] {
   if (!plan.terms.length && !plan.category) return []
+  // Query vocabulary is constant for the whole scan. Normalize it once instead
+  // of once per record field; preserve raw terms for evidence and negation.
+  const groups = (terms: string[][]) => terms.map(group => group.map(normalizeJournalSearch))
+  const terms = groups(plan.terms), anyTerms = plan.anyTerms?.map(groups)
+  const filters = groups(plan.filters), excludes = plan.excludes.map(normalizeJournalSearch), relatedTerms = plan.relatedTerms.map(normalizeJournalSearch)
+  const negativePatterns = plan.terms.flatMap(group => group.map(term => new RegExp(`(?:没有|未见|无|没出现|没)[^，。；]{0,3}${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)))
   const direct: FinderMatch[] = [], related: FinderMatch[] = []
   for (const entry of entries) {
-    const fields = lookupFields(entry), values = fields.map(normalizeJournalSearch)
-    const has = (terms: string[]) => terms.some(t => values.some(v => v.includes(normalizeJournalSearch(t))))
     if (plan.category && !entry.categories?.includes(plan.category as never)) continue
-    if (plan.filters.some(f => !has(f)) || plan.excludes.some(t => has([t]))) continue
     const at = Date.parse(entry.occurredAt), uncertain = entry.timePrecision === 'unknown' || !Number.isFinite(at)
     if (!uncertain && ((plan.from !== null && at < plan.from) || (plan.to !== null && at > plan.to))) continue
-    const exact = plan.anyTerms ? plan.anyTerms.some(terms => terms.every(has)) : plan.terms.every(has), nearby = plan.relatedTerms.length > 0 && has(plan.relatedTerms)
+    const fields = lookupFields(entry), values = fields.map(normalizeJournalSearch)
+    const has = (terms: string[]) => terms.some(t => values.some(v => v.includes(t)))
+    if (filters.some(f => !has(f)) || excludes.some(t => has([t]))) continue
+    const exact = anyTerms ? anyTerms.some(branch => branch.every(has)) : terms.every(has), nearby = relatedTerms.length > 0 && has(relatedTerms)
     if (!exact && !nearby) continue
     const newEvidence = !!entry.diet?.firstTryFoods?.length || fields.some(v => /第一次|首次|新食物|新食材|新东西|初次/.test(v))
-    const negative = plan.terms.some(ts => ts.some(t => fields.some(v => new RegExp(`(?:没有|未见|无|没出现|没)[^，。；]{0,3}${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(v))))
+    const negative = negativePatterns.some(pattern => fields.some(value => pattern.test(value)))
     const possible = !exact || uncertain || negative || (plan.newFood && !newEvidence)
     const evidence = plan.newFood && entry.diet?.firstTryFoods?.length ? `首次尝试：${entry.diet.firstTryFoods.join('、')}。${entry.content}` : fields.find(v => plan.terms.some(ts => ts.some(t => v.includes(t))) || (plan.newFood && /第一次|首次|新食物|新食材/.test(v))) ?? entry.content
     const match = { entry, evidence, related: possible, reason: uncertain ? '发生时间不明确，无法确认范围或先后' : negative ? '原文是否定描述，不能当作发生过' : plan.newFood && !newEvidence ? '已有饮食记录，未明确写到首次或新食物' : !exact ? '可能相关的表达，不能视为同一健康情况' : undefined }
@@ -147,7 +153,7 @@ export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan):
   if (plan.changes && direct.length) {
     // Follow changes only within the real matter containing the latest explicit match.
     const eventId = direct[0].entry.eventId
-    const scoped = entries.filter(e => { if(e.eventId!==eventId)return false; const values=journalSearchFields({...e,aiNurse:undefined}).map(normalizeJournalSearch);const has=(terms:string[])=>terms.some(t=>values.some(v=>v.includes(normalizeJournalSearch(t))));const at=Date.parse(e.occurredAt);return !plan.filters.some(f=>!has(f))&&!plan.excludes.some(t=>has([t]))&&(e.timePrecision==='unknown'||(plan.from===null||at>=plan.from)&&(plan.to===null||at<=plan.to)) }).map(entry => { const original=related.find(m=>m.entry.id===entry.id);return { entry, evidence: entry.content, related: !!original || entry.timePrecision === 'unknown', reason: original?.reason ?? (entry.timePrecision === 'unknown' ? '发生时间不明确' : undefined) } })
+    const scoped = entries.filter(e => { if(e.eventId!==eventId)return false; const values=journalSearchFields({...e,aiNurse:undefined}).map(normalizeJournalSearch);const has=(terms:string[])=>terms.some(t=>values.some(v=>v.includes(t)));const at=Date.parse(e.occurredAt);return !filters.some(f=>!has(f))&&!excludes.some(t=>has([t]))&&(e.timePrecision==='unknown'||(plan.from===null||at>=plan.from)&&(plan.to===null||at<=plan.to)) }).map(entry => { const original=related.find(m=>m.entry.id===entry.id);return { entry, evidence: entry.content, related: !!original || entry.timePrecision === 'unknown', reason: original?.reason ?? (entry.timePrecision === 'unknown' ? '发生时间不明确' : undefined) } })
     return scoped.sort((a, b) => Number(a.related) - Number(b.related) || order(a, b))
   }
   return [...direct, ...related]
