@@ -8,7 +8,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useAppStore } from '../../store/useAppStore'
 import { healthEventRecordService } from '../../services/healthEventRecords'
 import type { HealthEventRecordApiDto } from '../../types'
-import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
+import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeValue } from '../../utils/healthOccurredAt'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { OccurrenceTimeField } from '../../pages/HealthEvents/OccurrenceTimeField'
 import { useJournal } from '../../pages/HealthEvents/useJournal'
@@ -97,7 +97,8 @@ export function VisitMaterialsWorkspace({ memberId, token, initialRecord, onBack
     <HohoButton variant="text" size="small" className="vm-source-link" onClick={() => { const document = model.documents.find(item => item.id === block.documentId); if (document) showOriginal(document, block.quote) }}><ScanText aria-hidden="true" size={14}/>对照原件{block.page > 1 ? ' · 第' + block.page + '页' : ''}<ChevronRight aria-hidden="true" size={13}/></HohoButton>
   </section>
   // A missing visit time stays unknown until explicitly chosen, including after clearing.
-  const recordTime = <section className="record-time-group vm-record-time"><OccurrenceTimeField label="记录时间" disabled={locked} showDateContext displayLabel={!model.occurredAt ? '资料未注明' : undefined} model={{ mode: 'specified', specifiedValue: model.occurredAt, now: new Date(), today: getLocalDateKey(new Date()) ?? '', error: model.occurredAt && Date.parse(localDateTimeToIso(model.occurredAt) ?? '') > Date.now() ? FUTURE_OCCURRED_AT_MESSAGE : '', setSpecifiedValue: model.setOccurredAt, setMode: () => model.setOccurredAt('') }}/></section>
+  const occurrenceInstant = model.occurredAt ? new Date(model.occurredAt).getTime() : NaN
+  const recordTime = <section className="record-time-group vm-record-time"><OccurrenceTimeField label="记录时间" disabled={locked} showDateContext displayLabel={!model.occurredAt ? '资料未注明' : undefined} model={{ mode: 'specified', specifiedValue: model.occurredAt, now: new Date(), today: getLocalDateKey(new Date()) ?? '', error: model.occurredAt && (!Number.isFinite(occurrenceInstant) || occurrenceInstant > Date.now()) ? FUTURE_OCCURRED_AT_MESSAGE : '', setSpecifiedValue: model.setOccurredAt, setMode: () => model.setOccurredAt('') }}/></section>
   const supplementRow = <button className="vm-recent-row vm-supplement-row" aria-label="补充一句" type="button" disabled={locked} onClick={() => openText('supplement')}><PencilLine aria-hidden="true" size={23}/><span><strong>补充一句</strong>{model.supplement && <small>{model.supplement}</small>}</span><ChevronRight aria-hidden="true" size={17}/></button>
   const importPanel = <HealthCard className="vm-import">
     <div className="vm-import-art">{model.source === 'hospital' ? <Files aria-hidden="true" size={40} strokeWidth={1.3}/> : <MessageSquareText aria-hidden="true" size={40} strokeWidth={1.3}/>}</div>
