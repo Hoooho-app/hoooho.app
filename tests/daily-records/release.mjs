@@ -4,17 +4,22 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium, expect } from '@playwright/test'
 
 const origin = process.argv[2], commit = process.argv[3]
-assert(['https://hoooho-calendar-verify-20261010-staging.up.railway.app', 'https://hoooho.com'].includes(origin))
+assert(['https://hoooho-calendar-verify-20261010-staging.up.railway.app', 'https://hooohoapp-staging.up.railway.app', 'https://hoooho.com'].includes(origin))
 const target = origin.includes('staging') ? 'staging' : 'production'
 const output = `outputs/daily-records/${target}`
 await mkdir(output, { recursive: true })
 const proxyUrl = process.env.HTTPS_PROXY ? new URL(process.env.HTTPS_PROXY) : null
 const browser = await chromium.launch({ ...(proxyUrl ? { proxy: { server: proxyUrl.origin, ...(proxyUrl.username ? { username: decodeURIComponent(proxyUrl.username), password: decodeURIComponent(proxyUrl.password) } : {}) } } : {}) })
 const context = await browser.newContext({ baseURL: origin, viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
-const page = await context.newPage(), errors = [], builds = new Set()
+const page = await context.newPage(), errors = [], failedResources = [], serverErrors = [], builds = new Set()
 const report = { target, commit, syntheticOnly: true, physicalIPhone: 'NOT_VERIFIED', checks: [] }
 let token = '', accountId = '', memberId = ''
 page.on('pageerror', error => errors.push(error.message))
+page.on('response', response => {
+  const path = new URL(response.url()).pathname
+  if (response.status() >= 500) serverErrors.push({ path, status: response.status() })
+  if (response.status() >= 400 && ['document', 'script', 'stylesheet'].includes(response.request().resourceType())) failedResources.push({ path, status: response.status() })
+})
 page.on('request', request => { const build = request.headers()['x-hoooho-client-build']; if (build) builds.add(build) })
 async function api(path, method = 'GET', data) {
   const response = await context.request.fetch(path, { method, data, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Hoooho-Timezone': 'Asia/Shanghai' }, timeout: 30000 })
@@ -28,6 +33,8 @@ async function checkTemplate(category) {
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   await expect(settings.locator('small')).toHaveCount(0)
   await toggle.click()
+  await expect(settings.getByRole('switch')).toHaveCount(1)
+  await expect(settings.getByRole('combobox', { name: /喂养方式/ })).toHaveCount(0)
   const name = settings.getByLabel('第1项名称'), time = settings.getByLabel('第1项时间')
   await name.fill('验收条目'); await time.fill('08:00')
   for (const width of [320, 375, 390, 430]) {
@@ -46,6 +53,7 @@ async function checkTemplate(category) {
   report.checks.push(category)
 }
 try {
+  assert.equal((await context.request.get('/')).status(), 200)
   assert.equal((await api('/api/health')).status, 'ok')
   const session = await api('/api/auth/register', 'POST', { nickname: `dailyqa${randomUUID().replaceAll('-', '').slice(0, 12)}`, password: randomUUID(), idempotencyKey: randomUUID() })
   token = session.token; accountId = session.user.id
@@ -93,17 +101,19 @@ try {
   const settings = form.getByRole('region', { name: '每天自动记录设置' })
   await settings.getByRole('switch', { name: '每天自动记录', exact: true }).click()
   await settings.getByLabel('第1项名称').fill('验收早奶'); await settings.getByLabel('第1项时间').fill('08:00')
-  await settings.getByLabel('第1项喂养方式').selectOption('formula'); await settings.getByLabel('第1项奶量（mL）').fill('150')
+  await expect(settings.getByLabel('第1项喂养方式')).toHaveCount(0); await settings.getByLabel('第1项奶量（mL）').fill('150')
   await settings.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/template-375.png` })
   const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/quick-records' && response.request().method() === 'POST')
   await form.locator('header').getByRole('button', { name: '保存记录', exact: true }).click()
   assert.equal((await saved).status(), 201); await expect(form).toHaveCount(0)
   const rules = await api(`/api/routines/${memberId}/daily`)
   assert.equal(rules.length, 1); assert.equal(rules[0].slots[0].name, '验收早奶'); assert.equal(rules[0].slots[0].time, '08:00')
+  assert.equal(rules[0].slots[0].fields.feedingMethod, 'formula'); assert.equal(rules[0].slots[0].enabled, true)
   await page.reload(); await page.getByRole('button', { name: '喂养/饮食', exact: true }).click()
   await expect(page.getByLabel('第1项名称')).toHaveValue('验收早奶')
   report.checks.push('original feeding fields preserved', 'header save and rule reload', '320/375/390/430px alignment')
   assert.deepEqual(errors, [])
+  assert.deepEqual(serverErrors, []); assert.deepEqual(failedResources, [])
   if (commit) assert([...builds].some(value => value.includes(commit)), `Expected client build ${commit}; got ${[...builds]}`)
   report.status = 'PASS'
 } catch (error) {
@@ -115,7 +125,7 @@ try {
     const member = (await api('/api/members')).find(value => value.id === memberId)
     if (member?.accountId === accountId && member.name === '自动记录验收（虚构资料）') { await api(`/api/members/${memberId}`, 'DELETE'); report.cleanup = 'synthetic member removed' }
   }
-  report.builds = [...builds]; report.errors = errors
+  report.builds = [...builds]; report.errors = errors; report.serverErrors = serverErrors; report.failedResources = failedResources
   await writeFile(`${output}/acceptance.json`, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report)); await browser.close()
 }
