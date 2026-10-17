@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import sharp from 'sharp'
 import { FeedbackService } from './feedback-service.mjs'
 
-const imageBuffer = (index = 1) => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from(`image-${index}`)])
+const validJpeg = await sharp({ create: { width: 8, height: 6, channels: 3, background: '#87a5b6' } }).jpeg().toBuffer()
+const imageBuffer = (index = 1) => Buffer.concat([validJpeg, Buffer.from(`image-${index}`)])
 const image = (index = 1) => ({ name: `${index}.jpg`, type: 'image/jpeg', dataUrl: `data:image/jpeg;base64,${imageBuffer(index).toString('base64')}` })
 function setup() {
   let data = { feedback: [], attachments: [], messages: [], statusHistory: [] }

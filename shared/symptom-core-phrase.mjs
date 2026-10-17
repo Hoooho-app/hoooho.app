@@ -31,6 +31,14 @@ export function symptomCorePhrase(value, { location = '' } = {}) {
       if (negative.test(prefix.replace(/\s/g, ''))) negativeScope = true
       else if (prefix && !/^[、和及也与]*$/u.test(prefix)) negativeScope = false
       if (negativeScope) { absent.push(`无${term}`); continue }
+      // A directly attached status is part of the observation, not a positive diagnosis.
+      const suffix = /^\s*((?:(?:已(?:经)?(?:被|明确)?|被|明确)?排除|尚未确诊|未确诊|未(?:被)?证实|未出现|待确认|待排(?:查|除)))(?=$|[，。；、,.;!?！？\s（）()]|但是|但|且|而|并|后|了)/u.exec(segment.slice(previousEnd))?.[1]
+      if (suffix) {
+        const phrase = `${term}${suffix}`
+        if (/排除$|未出现$/u.test(suffix)) absent.push(phrase)
+        else observed.push(phrase)
+        continue
+      }
       if (uncertain.test(prefix)) uncertainScope = true
       else if (prefix && !/^[、和及也与]*$/u.test(prefix)) uncertainScope = false
       const qualifier = uncertainScope ? '疑似' : ''

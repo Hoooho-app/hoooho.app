@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { assertOpsAccess } from '../ops/ops-service.mjs'
@@ -8,7 +9,7 @@ const readJson = (request, max = 29_000_000) => new Promise((resolve, reject) =>
   let body = '', settled = false
   request.setEncoding('utf8')
   request.on('data', (chunk) => { if (settled) return; body += chunk; if (body.length > max) { settled = true; reject(Object.assign(new Error('请求内容过大'), { status: 413, code: 'PAYLOAD_TOO_LARGE' })) } })
-  request.on('end', () => { if (settled) return; try { resolve(body ? JSON.parse(body) : {}) } catch { reject(Object.assign(new Error('请求格式错误'), { status: 400, code: 'INVALID_JSON' })) } })
+  request.on('end', () => { if (settled) return; try { resolve(parseJsonObject(body)) } catch { reject(Object.assign(new Error('请求格式错误'), { status: 400, code: 'INVALID_JSON' })) } })
   request.on('error', reject)
 })
 const send = (response, status, data) => { response.statusCode = status; response.setHeader('Content-Type', 'application/json; charset=utf-8'); response.setHeader('Cache-Control', 'no-store'); response.end(JSON.stringify(data)) }

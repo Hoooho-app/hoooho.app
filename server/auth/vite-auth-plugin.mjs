@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { AuthError, AuthService } from './auth-service.mjs'
 import { BrowserSessionService } from './browser-session-service.mjs'
 import { withAccountLock } from './account-lock.mjs'
@@ -11,7 +12,7 @@ const readJson = (request, limit = 16_384) => new Promise((resolve, reject) => {
   })
   request.on('end', () => {
     try {
-      resolve(body ? JSON.parse(body) : {})
+      resolve(parseJsonObject(body))
     } catch {
       reject(new AuthError('请求格式错误', 400, 'INVALID_JSON'))
     }

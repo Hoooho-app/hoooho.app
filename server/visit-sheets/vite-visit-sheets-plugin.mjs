@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { VisitSheetService } from './visit-sheet-service.mjs'
@@ -51,7 +52,7 @@ export function visitSheetsApiPlugin(options = {}) {
             })
             req.on('end', () => {
               try {
-                resolve(JSON.parse(raw))
+                resolve(parseJsonObject(raw))
               } catch {
                 reject(
                   Object.assign(new Error('请求格式错误'), { status: 400 }),

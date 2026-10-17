@@ -9,6 +9,32 @@ import { randomUUID } from 'node:crypto'
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024
 
+function validWavStructure(buffer) {
+  if(buffer.length<44||buffer.toString('ascii',0,4)!=='RIFF'||buffer.toString('ascii',8,12)!=='WAVE')return false
+  const declared=buffer.readUInt32LE(4),streaming=declared===0||declared===0xffffffff
+  if(!streaming&&(declared<36||declared+8>buffer.length))return false
+  const end=streaming?buffer.length:declared+8
+  let offset=12,format=null,dataBytes=0
+  while(offset+8<=end){
+    const id=buffer.toString('ascii',offset,offset+4),size=buffer.readUInt32LE(offset+4),start=offset+8,available=end-start
+    if(id==='data'&&(size===0xffffffff||streaming&&size===0)){
+      dataBytes+=available;break
+    }
+    if(size>available)return false
+    if(id==='fmt '){
+      if(size<16)return false
+      const code=buffer.readUInt16LE(start),channels=buffer.readUInt16LE(start+2),rate=buffer.readUInt32LE(start+4),byteRate=buffer.readUInt32LE(start+8),align=buffer.readUInt16LE(start+12),bits=buffer.readUInt16LE(start+14)
+      if(!code||!channels||!rate||!byteRate||!align)return false
+      if([1,3,0xfffe].includes(code)&&(!bits||bits>64||align<channels*Math.ceil(bits/8)))return false
+      if(code===0xfffe&&size<40)return false
+      format={code,align}
+    }
+    if(id==='data')dataBytes+=size
+    offset=start+size+(size%2)
+  }
+  return Boolean(format&&dataBytes>0&&dataBytes>=format.align)
+}
+
 function validateAudio(input) {
   const mimeType = typeof input?.mimeType === 'string' ? input.mimeType.toLowerCase() : ''
   const dataUrl = typeof input?.dataUrl === 'string' ? input.dataUrl : ''
@@ -19,8 +45,8 @@ function validateAudio(input) {
   const buffer = Buffer.from(dataUrl.slice(prefix.length), 'base64')
   if (!buffer.length) throw new AudioTranscriptionError('音频为空，请重新录音',422,'AUDIO_EMPTY')
   if (buffer.length > MAX_AUDIO_BYTES) throw new AudioTranscriptionError('音频超过 15MB，请缩短后重试', 413, 'AUDIO_TOO_LARGE')
-  if (mimeType.includes('wav') && !(buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE')) {
-    throw new AudioTranscriptionError('WAV 音频无法解码', 422, 'AUDIO_DECODE_FAILED')
+  if (mimeType.includes('wav') && !validWavStructure(buffer)) {
+    throw new AudioTranscriptionError('WAV 音频无法解码，请重新录音或输入文字', 422, 'AUDIO_DECODE_FAILED')
   }
   return { name: String(input?.name || 'recording').slice(0, 120), mimeType, buffer }
 }

@@ -6,6 +6,7 @@ import { TimeResolverService } from '../time-resolver-service.mjs'
 import { validateJournal } from '../../events/journal-metadata.mjs'
 import { outputFailure } from '../providers/output-diagnostics.mjs'
 import { evidenceFailure } from './evidence-diagnostics.mjs'
+import { parseStrictInstant } from '../../time/strict-date.mjs'
 
 export const categories = ['diet','sleep','elimination','activity','emotion','social','symptom','measurement','growth','injury','medication','care','vaccination','environment','visit','examination','other']
 export const fieldNames = ['symptom','location','severityOriginal','handling','food','amount','unit','reaction','sleepAt','wakeAt','sleepKind','quality','bowelShape','bowelColor','bowelPain','bowelCount','activity','durationMinutes','institution','department','doctorStatement','diagnosisCertainty','testName','result','referenceRange','abnormalFlag','conclusion','medicationName','doseOriginal','allergen','allergyStatus','correction','reportType','chiefComplaint','followUp','historyName','frequency','route','statusRaw','relationship','vaccineName','manufacturerName','batchNumber']
@@ -20,6 +21,19 @@ export function bodyLocations(raw) {
   if(matches.length!==1)return []
   const {region,item}=matches[0]
   return [{id:item.id,label:item.label,locationNumber:1,locationLayer:'surface',localRegion:region.label,parentId:region.id,schemaVersion:bodyCatalog.schemaVersion}]
+}
+
+// Qualifiers belong to the value's own clause, not to every field quoted from
+// a multi-clause sentence. Location/amount fields do not assert polarity.
+const assertionFields = new Set(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','doctorStatement','conclusion'])
+function dropsEvidenceQualifier(source, quote, value) {
+  const valueAt = source.text.indexOf(quote) + quote.indexOf(value)
+  const prefix = source.text.slice(Math.max(0,valueAt-40),valueAt).split(/[，。；\n,;.!！?？]/u).at(-1)
+  // “不是只有咳嗽” and “没少咳嗽” affirm the symptom rather than deny it.
+  const expansion = /(?:并不是|不是|并非)(?:只有|只是|只|仅有|仅仅|仅|光有|光是|光|单单)(?:会|有|出现|发生)?$/u.test(prefix) || /没少(?:有|出现|发生)?$/u.test(prefix)
+  const suffix = source.text.slice(valueAt + value.length)
+  const qualifiedAfter = /^\s*(?:(?:已(?:经)?(?:被|明确)?|被|明确)?排除|尚未确诊|未确诊|未(?:被)?证实|未出现|待确认|待排(?:查|除))(?=$|[，。；、,.;!?！？\s（）()]|但是|但|且|而|并|后|了)/u.test(suffix)
+  return qualifiedAfter || !expansion && /(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查|未确诊|并不是|不是|并非|未发生|未出现|没(?:有|出现|发生)?)[^，。；\n,;.!！?？]{0,3}$/u.test(prefix)
 }
 
 // A schema is not a factual validator. Every extracted value must be supported
@@ -42,6 +56,7 @@ function validateExtractionContent(output, sources) {
         const position=source.text.indexOf(quote),prefix=source.text.slice(Math.max(0,position-8),position).split(/[，。；\n,;.!]/).at(-1)
         if(/(?:没有|未见|否认|排除|疑似|可能|无|未确诊)[^，。；\n,;.!]{0,3}$/.test(prefix)&&!/没有|未见|否认|排除|疑似|可能|无|未确诊/.test(value))throw evidenceFailure('引文截去了否定或疑似前缀，请对照完整原话',fieldPath,'negation_prefix')
       }
+      if(assertionFields.has(field.name)&&dropsEvidenceQualifier(source,quote,value))throw evidenceFailure('引文截去了否定或疑似限定，请对照完整原话',fieldPath,quote.indexOf(value)>0?'negation_scope':'negation_prefix')
       return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, start: source.text.indexOf(quote), end: source.text.indexOf(quote) + quote.length }], confirmed: false, editedBy: 'model' }
     })
     const timeText = item.timeText == null ? null : safeText(item.timeText, 100)
@@ -65,8 +80,10 @@ export function validateExtraction(output,sources){
 export function resolveItemTime(item, options) {
   const raw = item.timeText
   const day = typeof raw === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
-  const iso = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(raw) && Number.isFinite(Date.parse(raw))
-  const time = iso ? { raw, resolvedStart: new Date(raw).toISOString(), resolvedEnd:null, precision:'exact', source:'user_text' } : new TimeResolverService().resolve(day ? `${day[1]}年${Number(day[2])}月${Number(day[3])}日` : raw, options)
+  const isZonedISO = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)
+  const iso = isZonedISO ? parseStrictInstant(raw) : null
+  if(isZonedISO&&!iso)throw fail('发生时间格式错误，请核对日期和时分',422,'INVALID_OCCURRED_AT')
+  const time = iso ? { raw, resolvedStart: iso.toISOString(), resolvedEnd:null, precision:'exact', source:'user_text' } : new TimeResolverService().resolve(day ? `${day[1]}年${Number(day[2])}月${Number(day[3])}日` : raw, options)
   time.raw = raw
   if(time.resolvedStart)time.resolvedStart=new Date(time.resolvedStart).toISOString()
   if(time.resolvedEnd)time.resolvedEnd=new Date(time.resolvedEnd).toISOString()

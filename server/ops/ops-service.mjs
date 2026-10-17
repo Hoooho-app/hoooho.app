@@ -2,6 +2,7 @@ import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
+import { validateRasterImage } from '../image-validation.mjs'
 
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
 export const OPS_SNAPSHOT_REQUEST_MAX_LENGTH = 17_000_000
@@ -54,7 +55,7 @@ function normalizeData(data) {
   }
 }
 
-function decodeSnapshot(input) {
+async function decodeSnapshot(input) {
   const name = cleanText(input?.name, 180)
   const type = cleanText(input?.type, 80).toLowerCase()
   const extension = IMAGE_TYPES.get(type)
@@ -66,6 +67,8 @@ function decodeSnapshot(input) {
     : type === 'image/png' ? buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
       : buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
   if (!validMagic) throw new OpsError('截图内容与文件类型不一致', 400, 'OPS_SNAPSHOT_TYPE_MISMATCH')
+  try { await validateRasterImage(buffer, type) }
+  catch { throw new OpsError('截图损坏或无法解码，请重新选择', 400, 'INVALID_OPS_SNAPSHOT') }
   return { name, type, extension, buffer, contentHash: createHash('sha256').update(buffer).digest('hex') }
 }
 
@@ -92,7 +95,18 @@ function summary(sources, now = new Date()) {
   }
 }
 
+function assertInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new OpsError('请求格式错误', 400, 'INVALID_OPS_INPUT')
+}
+function validSourceUrl(value) {
+  try { const url = new URL(value); return url.protocol === 'https:' && Boolean(url.hostname) && !/\s/.test(value) }
+  catch { return false }
+}
 function cleanSourceInput(input, current = {}) {
+  assertInput(input)
+  for (const key of ['name', 'icon', 'platformUrl', 'loginUrl', 'targetDescription', 'targetSelector', 'waitCondition', 'notes']) {
+    if (input[key] !== undefined && input[key] !== null && typeof input[key] !== 'string') throw new OpsError('费用来源字段格式错误', 400, 'INVALID_OPS_SOURCE_FIELD')
+  }
   const method = METHODS.has(input.method) ? input.method : current.method ?? 'manual-screenshot'
   const frequency = FREQUENCIES.has(input.frequency) ? input.frequency : current.frequency ?? 'manual'
   return {
@@ -151,7 +165,7 @@ export class OpsService {
   async create(input, now = new Date()) {
     const values = cleanSourceInput(input)
     if (!values.name) throw new OpsError('请输入平台名称', 400, 'OPS_SOURCE_NAME_REQUIRED')
-    if (!values.platformUrl || !/^https:\/\//i.test(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
+    if (!validSourceUrl(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
     const createdAt = iso(now)
     const item = { id: randomUUID(), ...values, icon: values.icon || values.name.slice(0, 2).toUpperCase(), status: values.method === 'manual-screenshot' ? 'manual' : 'unconfigured', lastAttemptAt: null, lastSuccessAt: null, lastFailureReason: null, latestSnapshotId: null, createdAt, updatedAt: createdAt }
     await this.#store.update((raw) => { const data = normalizeData(raw); return { ...data, sources: [...data.sources, item] } })
@@ -165,7 +179,7 @@ export class OpsService {
       if (index < 0) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
       const current = data.sources[index], values = cleanSourceInput(input, current)
       if (!values.name) throw new OpsError('请输入平台名称', 400, 'OPS_SOURCE_NAME_REQUIRED')
-      if (!values.platformUrl || !/^https:\/\//i.test(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
+      if (!validSourceUrl(values.platformUrl)) throw new OpsError('请输入 HTTPS 费用页面地址', 400, 'OPS_SOURCE_URL_REQUIRED')
       selected = { ...current, ...values, status: values.method === 'manual-screenshot' && current.status === 'unconfigured' ? 'manual' : current.status, updatedAt: iso(now) }
       const sources = [...data.sources]; sources[index] = selected
       return { ...data, sources }
@@ -174,11 +188,15 @@ export class OpsService {
   }
 
   async addManualSnapshot(id, input, now = new Date()) {
-    const snapshotMethod = METHODS.has(input.method) ? input.method : 'manual-screenshot'
-    if (snapshotMethod === 'manual-screenshot' && input.privacyConfirmed !== true) {
+    assertInput(input)
+    if (input.privacyConfirmed !== true) {
       throw new OpsError('保存前必须确认截图已裁除无关隐私信息', 400, 'OPS_SNAPSHOT_PRIVACY_CONFIRMATION_REQUIRED')
     }
-    const prepared = decodeSnapshot(input), createdAt = iso(now), snapshotId = randomUUID()
+    return this.#saveSnapshot(id, input, now, 'manual-screenshot')
+  }
+
+  async #saveSnapshot(id, input, now, snapshotMethod) {
+    const prepared = await decodeSnapshot(input), createdAt = iso(now), snapshotId = randomUUID()
     const storageKey = `${id}-${snapshotId}.${prepared.extension}`
     const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, contentHash: prepared.contentHash, important: false, failureReason: null }
     const data = await this.#readAndRepair()
@@ -228,7 +246,7 @@ export class OpsService {
     try {
       const result = await collector(item)
       if (!result?.dataUrl) throw Object.assign(new Error('collector did not return an image'), { code: 'COLLECTOR_EMPTY' })
-      return this.addManualSnapshot(id, { name: result.name ?? `${item.name}.png`, type: result.type ?? 'image/png', dataUrl: result.dataUrl, method: item.method }, now)
+      return this.#saveSnapshot(id, { name: result.name ?? `${item.name}.png`, type: result.type ?? 'image/png', dataUrl: result.dataUrl }, now, item.method)
     } catch (error) {
       const status = error?.code === 'AUTH_REQUIRED' ? 'relogin' : error?.code === 'MANUAL_REQUIRED' ? 'manual' : 'failed'
       const reason = status === 'relogin' ? '登录会话已失效，需要重新授权。' : status === 'manual' ? '平台要求人工验证，请手动上传截图。' : '采集任务失败，已保留上一张成功截图。'
@@ -285,6 +303,7 @@ export class OpsService {
   }
 
   async updateSnapshot(id, snapshotId, input) {
+    assertInput(input)
     let selected
     await this.#store.update((raw) => {
       const data = normalizeData(raw), index = data.snapshots.findIndex((item) => item.id === snapshotId && item.sourceId === id)

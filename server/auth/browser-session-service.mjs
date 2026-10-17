@@ -1,4 +1,4 @@
-import { ProfileSectionStore } from '../health-profile/profile-section-store.mjs'
+import { ProfileSectionStore, validateProfileSectionRecords } from '../health-profile/profile-section-store.mjs'
 import { SessionRepository, sessionTtlMs } from './session-repository.mjs'
 import { accountTransaction } from './storage/transaction.mjs'
 import { AuthError } from './auth-service.mjs'
@@ -165,6 +165,7 @@ export class BrowserSessionService {
     const member = await this.auth.members.findById(input.memberId)
     if (!member || member.accountId !== current.user.id) throw new AuthError('记录对象不存在', 404, 'MEMBER_NOT_FOUND')
     if (!/^[a-z-]{1,60}$/.test(input.sectionId ?? '') || !Array.isArray(input.records) || input.records.length > 500) throw new AuthError('档案格式无效', 400, 'INVALID_PROFILE_SECTION')
+    validateProfileSectionRecords(input.sectionId, input.records)
     let saved
     const result = await this.sections.update((data) => {
       const existing = data.sections.find((item) => item.accountId === current.user.id && item.memberId === member.id && item.sectionId === input.sectionId)

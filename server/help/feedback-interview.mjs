@@ -16,6 +16,7 @@ const invalid = message => Object.assign(new Error(message), { status: 400, code
 export class FeedbackInterview {
   constructor(options = {}) { this.options = options; this.provider = options.provider }
   async respond(accountId, input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw invalid('请求格式错误，请重新提交。')
     const turns = input.turns
     if (!Array.isArray(turns) || !turns.length || turns.length > 24 || !['chat', 'organize'].includes(input.mode)) throw invalid('请先说说想改进的地方；每次反馈最多 12 轮问答。')
     let length = 0

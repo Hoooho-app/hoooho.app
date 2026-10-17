@@ -3,6 +3,7 @@ import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { validateJournal } from '../events/journal-metadata.mjs'
+import { validCalendarDate, parseStrictInstant } from '../time/strict-date.mjs'
 import { DailyRecordService } from './daily-record-service.mjs'
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
@@ -84,8 +85,8 @@ export class RoutineService {
 
   async saveTemplateVersion(accountId, memberId, input, now = new Date()) {
     await this.assertMember(accountId, memberId)
-    const effectiveFrom = String(input?.effectiveFrom ?? '')
-    if (!datePattern.test(effectiveFrom)) throw new RoutineError('作息生效日期无效')
+    const effectiveFrom = input?.effectiveFrom
+    if (!validCalendarDate(effectiveFrom)) throw new RoutineError('作息生效日期无效')
     const enabled = input.enabled !== false
     const items = enabled ? cleanItems(input.items) : []
     if (enabled && !items.length) throw new RoutineError('请至少设置一项日常作息')
@@ -134,7 +135,7 @@ export class RoutineService {
 
   async getDay(accountId, memberId, day, timeZone = 'Asia/Shanghai') {
     await this.assertMember(accountId, memberId)
-    if (!datePattern.test(day)) throw new RoutineError('日期无效')
+    if (!validCalendarDate(day)) throw new RoutineError('日期无效')
     const preference = await this.preference(accountId, memberId)
     const template = preference?.firstEnabledOn && day >= preference.firstEnabledOn ? await this.activeTemplate(accountId, memberId, day) : null
     if (!template?.enabled) return { consent: preference?.status ?? 'unset', template: template ?? null, tracks: [] }
@@ -172,32 +173,32 @@ export class RoutineService {
     if (input.action === 'skipped') return this.saveOverride(accountId, memberId, day, itemKey, { status: 'skipped', recordId: null }, now)
     if (input.action !== 'confirm' || !this.quickRecords) throw new RoutineError('操作无效')
     if (track.status === 'confirmed' && track.recordId && track.category !== 'sleep') return { ...track, idempotent: true }
-    const scheduled = new Date(track.category === 'sleep' ? input.sleepAt : input.occurredAt)
-    if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() > now.getTime()) throw new RoutineError('尚未到达这个时间，请调整为实际发生时间后保存', 400, 'FUTURE_ROUTINE_CONFIRMATION')
+    const scheduled = parseStrictInstant(track.category === 'sleep' ? input.sleepAt : input.occurredAt)
+    if (!scheduled || scheduled.getTime() > now.getTime()) throw new RoutineError('尚未到达这个时间，请调整为实际发生时间后保存', 400, 'FUTURE_ROUTINE_CONFIRMATION')
     let journal
     let content
     let occurredAt = scheduled.toISOString()
     if (track.category === 'diet') {
       const foods = Array.isArray(input.foods) ? input.foods.map(String).map((item) => item.trim()).filter(Boolean).slice(0, 12) : []
-      const startedAt = new Date(input.startedAt ?? input.occurredAt)
-      const endedAt = track.endTime ? new Date(input.endedAt) : null
-      if (track.endTime && (Number.isNaN(endedAt.getTime()) || endedAt <= startedAt || endedAt > now)) throw new RoutineError('请填写已经结束的真实用餐时间', 400, 'INVALID_ROUTINE_MEAL')
+      const startedAt = parseStrictInstant(input.startedAt ?? input.occurredAt)
+      const endedAt = track.endTime ? parseStrictInstant(input.endedAt) : null
+      if (!startedAt || startedAt > now || (track.endTime && (!endedAt || endedAt <= startedAt || endedAt > now))) throw new RoutineError('请填写已经结束的真实用餐时间', 400, 'INVALID_ROUTINE_MEAL')
       if (endedAt) occurredAt = endedAt.toISOString()
       journal = { categories: ['diet'], occurredAt, timePrecision: 'exact', diet: { kind: 'meal', meal: track.meal, ...(foods.length ? { foods } : {}), ...(endedAt ? { startedAt: startedAt.toISOString(), endedAt: endedAt.toISOString() } : {}) } }
       content = foods.length ? `${track.title} · ${foods.join('、')}` : track.title
     } else if (track.category === 'sleep') {
-      const sleepAt = new Date(input.sleepAt)
-      const wakeAt = new Date(input.wakeAt)
+      const sleepAt = parseStrictInstant(input.sleepAt)
+      const wakeAt = parseStrictInstant(input.wakeAt)
       // Legacy confirm calls explicitly record a completed fact. The new editor always sends its state.
       const status = input.sleepStatus ?? track.sleep?.status ?? 'completed'
-      if (!['ongoing', 'completed'].includes(status) || [sleepAt, wakeAt].some((value) => Number.isNaN(value.getTime())) || wakeAt <= sleepAt || (status === 'completed' && wakeAt > now)) throw new RoutineError('请核对入睡、醒来时间与实际完成状态', 400, 'INVALID_ROUTINE_SLEEP')
+      if (!['ongoing', 'completed'].includes(status) || [sleepAt, wakeAt].some((value) => !value) || wakeAt <= sleepAt || (status === 'completed' && wakeAt > now)) throw new RoutineError('请核对入睡、醒来时间与实际完成状态', 400, 'INVALID_ROUTINE_SLEEP')
       occurredAt = status === 'ongoing' ? sleepAt.toISOString() : wakeAt.toISOString()
       journal = validateJournal({ categories: ['sleep'], occurredAt, timePrecision: 'exact', sleep: { sleepAt: sleepAt.toISOString(), wakeAt: wakeAt.toISOString(), kind: track.itemKey === 'napSleep' ? 'nap' : 'night', status, timeZone: input.timeZone ?? track.sleep?.timeZone ?? timeZone, quality: input.quality, observations: input.observations, otherNote: input.otherNote } })
       content = '夜间睡眠'
     } else {
-      const startedAt = new Date(input.startedAt ?? input.occurredAt)
-      const endedAt = track.endTime ? new Date(input.endedAt) : null
-      if (Number.isNaN(startedAt.getTime()) || (endedAt && (Number.isNaN(endedAt.getTime()) || endedAt <= startedAt || endedAt > now))) throw new RoutineError('请填写已经结束的真实作息时间', 400, 'INVALID_CUSTOM_ROUTINE')
+      const startedAt = parseStrictInstant(input.startedAt ?? input.occurredAt)
+      const endedAt = track.endTime ? parseStrictInstant(input.endedAt) : null
+      if (!startedAt || startedAt > now || (track.endTime && (!endedAt || endedAt <= startedAt || endedAt > now))) throw new RoutineError('请填写已经结束的真实作息时间', 400, 'INVALID_CUSTOM_ROUTINE')
       if (endedAt) occurredAt = endedAt.toISOString()
       journal = { categories: ['activity'], occurredAt, timePrecision: 'exact' }
       content = track.title

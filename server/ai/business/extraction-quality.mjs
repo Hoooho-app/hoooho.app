@@ -96,6 +96,10 @@ export async function reconcileExtraction(items,sources,context){
   }
  }
  const values=new Map()
+ // A routine item must not silently swallow a separate, explicit observation.
+ // Use only the deterministic parser's direct current-person observations, and
+ // require a symptom/reaction field (or an actual symptom item) to cover them.
+ const routineCategories=new Set(['diet','sleep','elimination','activity','care'])
  for(const [sourceIndex,source] of sources.entries()){
   for(const [factIndex,fact] of parsed.get(`${source.id}:${source.page}`).facts.entries()){
    if(!(fact.type==='symptom'&&fact.subject==='event_subject'&&fact.polarity==='negated'))continue
@@ -105,6 +109,17 @@ export async function reconcileExtraction(items,sources,context){
     if(values.get(field.value).facts.some(f=>f.type==='symptom'&&f.name===fact.name&&f.polarity==='negated')){represented=true;break}
    }
    if(!represented)throw evidenceFailure('生成结果遗漏了原话中的否定观察，请核对；原稿未修改','/items','negated_fact_coverage',{sourceIndex,factIndex,page:source.page})
+  }
+  const sourceItems=reconciled.filter(item=>item.fields.some(field=>field.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page)))
+  if(!sourceItems.some(item=>routineCategories.has(item.category)))continue
+  for(const [factIndex,fact] of parsed.get(`${source.id}:${source.page}`).facts.entries()){
+   if(!(fact.type==='symptom'&&fact.subject==='event_subject'&&fact.polarity==='affirmed'&&fact.temporality==='current'&&fact.assertionType==='observation'))continue
+   let represented=false
+   for(const item of sourceItems)for(const field of item.fields.filter(f=>(item.category==='symptom'||['symptom','reaction'].includes(f.name))&&f.sources.some(ref=>ref.sourceId===source.id&&ref.page===source.page))){
+    if(!values.has(field.value))values.set(field.value,await local.organize(field.value))
+    if(values.get(field.value).facts.some(f=>f.type==='symptom'&&f.name===fact.name&&f.polarity==='affirmed'&&f.subject==='event_subject')){represented=true;break}
+   }
+   if(!represented)throw evidenceFailure('生成结果遗漏了原话中的身体观察，请核对；原稿未修改','/items','affirmed_fact_coverage',{sourceIndex,factIndex,page:source.page})
   }
  }
  return reconciled

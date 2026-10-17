@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { CareHandoffService, CareHandoffError } from './care-handoff-service.mjs'
@@ -27,7 +28,7 @@ export function careHandoffApiPlugin(options = {}) {
       let input
       if (request.method === 'POST') {
         let body = ''; for await (const chunk of request) { body += chunk; if (Buffer.byteLength(body) > HANDOFF_BODY_LIMIT) throw new CareHandoffError('请求过大', 413) }
-        try { input = JSON.parse(body) } catch { throw new CareHandoffError('请求格式错误') }
+        try { input = parseJsonObject(body) } catch { throw new CareHandoffError('请求格式错误') }
       }
       result = await handoffResult(service, payload?.sub, route, request.method, input)
     } catch (e) { status = e.status ?? 500; result = { error: { code: e.code ?? 'CARE_HANDOFF_UNAVAILABLE', message: e.status ? e.message : '暂时无法读取照看资料，请重试' } } }

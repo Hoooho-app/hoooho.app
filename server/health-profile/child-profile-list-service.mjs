@@ -24,7 +24,7 @@ export function vaccinationAgeGroup(birthday,date,fallback=''){
   let age=Number(date.slice(0,4))-Number(birthday.slice(0,4));if(date.slice(5)<birthday.slice(5))age--
   return age<1?'1岁内':age<=6?`${age}岁`:'7岁及以上'
 }
-const confirmed=r=>['confirmed','已明确','医生明确'].includes(r.currentStatus??r.certainty)
+const confirmed=r=>['confirmed','已明确','已确诊','医生明确','医生确认'].includes(r.currentStatus??r.certainty)
 const relationship=r=>text(r.relationship==='其他'?r.customRelationship||r.relationship:r.relationship)||'亲属关系待确认'
 const relationId=name=>`relation:${hash(name).slice(0,24)}`
 const legacyId=(kind,i)=>`legacy-${kind}-${i+1}`
@@ -51,11 +51,11 @@ export class ChildProfileListService{
     const relations=profileGroups['family-history'].map(name=>({id:relationId(name),name,default:true}))
     for(const relation of c.state.relations??[])if(!relations.some(r=>r.id===relation.id))relations.push(relation)
     const add=(row,target,raw)=>{if(Array.isArray(raw)?raw.some(v=>v?.profileListDeletedAt):raw?.profileListDeletedAt)return;rows.push({...row,version:hash(raw)});targets.set(row.id,target)}
-    for(const [index,outer] of (c.section?.records??[]).entries()){
-      if(!outer||typeof outer!=='object'||!own(outer,memberId)||outer.recordType==='allergy-report')continue
-      const sources=kind==='allergy'&&outer._allergyArchive?.items?outer._allergyArchive.items:[outer]
+    for(const [index,outer] of (Array.isArray(c.section?.records)?c.section.records:[]).entries()){
+      if(!outer||typeof outer!=='object'||Array.isArray(outer)||!own(outer,memberId)||outer.recordType==='allergy-report')continue
+      const sources=kind==='allergy'&&Array.isArray(outer._allergyArchive?.items)?outer._allergyArchive.items:[outer]
       for(const [nested,r] of sources.entries()){
-        if(!own(r,memberId)||r.profileListDeletedAt)continue
+        if(!r||typeof r!=='object'||Array.isArray(r)||!own(r,memberId)||r.profileListDeletedAt)continue
         const id=r.id??(outer===r?legacyId(kind,index):`${legacyId(kind,index)}:item-${nested+1}`),name=text(r.name??r.subject)
         const base={id,name,group:'',frequency:text(r.frequency),date:''}
         const target={outer,index,nested:outer===r?null:nested,raw:r}
@@ -68,7 +68,7 @@ export class ChildProfileListService{
           const label=relationship(r),rid=r.relationId??relationId(label)
           if(!relations.some(v=>v.id===rid))relations.push({id:rid,name:label,default:false})
           const issues=Array.isArray(r.healthIssues)?r.healthIssues:[{id:`${id}:legacy`,name:r.disease??r.conditions??r.name??'',onset:r.onset??r.age,certainty:r.certainty}]
-          for(const [i,issue] of issues.entries())if(text(issue.name))add({...base,id:`${id}/${issue.id??`issue-${i+1}`}`,name:text(issue.name),group:rid},{...target,issueIndex:i,issue},[r,issue])
+          for(const [i,issue] of issues.entries())if(issue&&typeof issue==='object'&&!Array.isArray(issue)&&text(issue.name))add({...base,id:`${id}/${issue.id??`issue-${i+1}`}`,name:text(issue.name),group:rid},{...target,issueIndex:i,issue},[r,issue])
         }else if(kind==='vaccination'){
           if(name)add({...base,date:text(r.date??r.vaccinationDate),group:vaccinationAgeGroup(c.member.birthday,text(r.date??r.vaccinationDate),r.profileAgeGroup)},{...target,legacy:true},r)
         }else if(name)add({...base,group:kind==='chronic'?(profileGroups.chronic.includes(r.profileCategory)?r.profileCategory:profileGroups.chronic.includes(r.category)?r.category:'其他'):''},target,r)
@@ -151,12 +151,27 @@ export class ChildProfileListService{
     }else if(['add','edit'].includes(input.action)){
       if(input.action==='edit'){
         const changes=kind==='vaccination'&&target.record?{vaccineName:name}:{name}
-        if(kind==='chronic'&&Object.hasOwn(input,'frequency'))changes.frequency=input.frequency
+        if(kind==='allergy'&&group!==row.group)changes.category=Object.keys(allergyGroups).find(k=>allergyGroups[k]===group)
+        if(kind==='chronic'){changes.profileCategory=group;if(Object.hasOwn(input,'frequency'))changes.frequency=input.frequency}
         if(kind==='vaccination'&&Object.hasOwn(input,'date')){
           Object.assign(changes,target.record?{administeredOn:input.date,profileAgeGroup:profileGroups.vaccination.includes(group)?group:target.raw.profileAgeGroup}:{date:input.date,profileAgeGroup:profileGroups.vaccination.includes(group)?group:target.raw.profileAgeGroup})
           const nextGroup=vaccinationAgeGroup(c.member.birthday,input.date,changes.profileAgeGroup);if(nextGroup!==row.group)notice=`已保存，记录移到${nextGroup}`
         }
-        await updateTarget(changes)
+        if(kind==='family-history'&&group!==row.group){
+          const current=records[target.index],label=p.groups.find(g=>g.id===group).name
+          const familyChanges={relationship:label,customRelationship:'',relationId:group}
+          if(Array.isArray(current.healthIssues)&&current.healthIssues.length>1){
+            // Move only the selected issue; siblings remain with their original
+            // relative. Keep the issue identity and its existing evidence.
+            const moved={...structuredClone(target.issue),...changes}
+            current.healthIssues=current.healthIssues.filter((_,i)=>i!==target.issueIndex)
+            records.push({...structuredClone(current),id:randomUUID(),...familyChanges,healthIssues:[moved]})
+            sectionChanged=true
+          }else{
+            Object.assign(current,familyChanges)
+            await updateTarget(changes)
+          }
+        }else await updateTarget(changes)
       }else if(kind==='vaccination'){
         const date=input.date??'',occurredAt=date?`${date}T00:00:00+08:00`:timestamp
         const event=await this.events.create(accountId,{memberId,title:'疫苗接种记录',category:'other',startTime:occurredAt},now)

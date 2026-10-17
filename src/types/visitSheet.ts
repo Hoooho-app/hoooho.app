@@ -81,6 +81,7 @@ export interface VisitMedicationSnapshot {
   status: string
   plan: { medicationName: string; amount?: number; unit?: string; route?: string; mode: string; times: string[]; intervalHours?: number; startDate: string; endDate?: string | null; timezone: string }
   totalDays: number | null
+  scheduleIssues?: Array<{ code?: string; day: string; time: string; reason: string }>
   occurrences: Array<{id: string; scheduledAt: string; day: string; dayIndex: number; weekIndex: number; slotIndex: number; completed: boolean; sourceId?: string}>
   sourceIds: string[]
 }

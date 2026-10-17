@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess } from './ops-service.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
@@ -12,7 +13,7 @@ const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) 
   })
   request.on('end', () => {
     if (settled) return
-    try { settled = true; resolve(body ? JSON.parse(body) : {}) } catch { settled = true; reject(Object.assign(new Error('请求格式错误'), { status: 400, code: 'INVALID_JSON' })) }
+    try { settled = true; resolve(parseJsonObject(body)) } catch { settled = true; reject(Object.assign(new Error('请求格式错误'), { status: 400, code: 'INVALID_JSON' })) }
   })
   request.on('error', reject)
 })

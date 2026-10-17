@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventService } from '../events/health-event-service.mjs'
@@ -5,7 +6,7 @@ import { HealthEventRecordService } from '../events/health-event-record-service.
 import { MedicationReminderError, MedicationReminderService } from './medication-reminder-service.mjs'
 
 const send = (response, status, data) => { response.statusCode = status; response.setHeader('Content-Type', 'application/json; charset=utf-8'); response.setHeader('Cache-Control', 'no-store'); response.end(JSON.stringify(data)) }
-const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk }); request.on('end', () => { try { resolve(text ? JSON.parse(text) : {}) } catch { reject(new MedicationReminderError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
+const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk }); request.on('end', () => { try { resolve(parseJsonObject(text)) } catch { reject(new MedicationReminderError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
 const account = (request, tokens) => { const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? ''); const value = match ? tokens.verify(match[1]) : null; if (!value) throw new MedicationReminderError('登录状态无效或已过期', 401, 'UNAUTHORIZED'); return value.sub }
 
 export function medicationRemindersApiPlugin(options = {}) {

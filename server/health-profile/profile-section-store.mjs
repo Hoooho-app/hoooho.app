@@ -10,15 +10,32 @@ const food = row => row.category === 'food' || String(row.category ?? row.type ?
 const owned = (row, memberId) => !row.memberId || row.memberId === memberId
 const failure = message => Object.assign(new Error(message), { status: 409, code: 'ALLERGY_SYNC_CONFLICT' })
 const unknownNames = new Set(['尚未明确', '过敏原未明', '不明确', '未知'])
+const recordObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+export function validateProfileSectionRecords(sectionId, records) {
+  const invalid = () => { throw Object.assign(new Error('档案条目或详细内容格式无效'), { status: 400, code: 'INVALID_PROFILE_SECTION' }) }
+  const objectRows = value => Array.isArray(value) && value.every(recordObject)
+  if (!objectRows(records) || records.length > 500) invalid()
+  for (const record of records) {
+    if (sectionId === 'allergy') {
+      if (record._allergyArchive !== undefined) {
+        const archive = record._allergyArchive
+        if (!recordObject(archive)) invalid()
+        for (const key of ['items', 'reports']) if (archive[key] !== undefined && !objectRows(archive[key])) invalid()
+      }
+    }
+    if (sectionId === 'family-history' && record.healthIssues !== undefined && !objectRows(record.healthIssues)) invalid()
+  }
+  return records
+}
 
 // Keep all evidence and legacy fields in the existing archive. This is a write
 // adapter for that store, not another allergy database or a GET-time migration.
 function allergyRows(records, memberId) {
-  return records.flatMap((outer, index) => {
-    if (!outer || outer.profileListDeletedAt || !owned(outer, memberId) || outer.recordType === 'allergy-report') return []
+  return (Array.isArray(records) ? records : []).flatMap((outer, index) => {
+    if (!recordObject(outer) || outer.profileListDeletedAt || !owned(outer, memberId) || outer.recordType === 'allergy-report') return []
     const nested = outer._allergyArchive?.items
     return (Array.isArray(nested) ? nested : [outer]).flatMap((row, nestedIndex) =>
-      row && owned(row, memberId) ? [{ row, id: row.id ?? (nested ? `legacy-allergy-${index + 1}:item-${nestedIndex + 1}` : `legacy-allergy-${index + 1}`) }] : [])
+      recordObject(row) && owned(row, memberId) ? [{ row, id: row.id ?? (nested ? `legacy-allergy-${index + 1}:item-${nestedIndex + 1}` : `legacy-allergy-${index + 1}`) }] : [])
   })
 }
 

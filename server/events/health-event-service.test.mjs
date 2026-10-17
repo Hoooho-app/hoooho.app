@@ -216,7 +216,7 @@ test('HealthEvent API 支持本人和孩子事件 CRUD，并隔离不同账号',
     assert.equal(selfEvent.title, '')
 
     const childResponse = await jsonRequest(`${baseUrl}/api/members`, 'POST', first.token, {
-      name: '小明', relationship: 'child', gender: 'male', birthday: '2018-06-02'
+      name: '小明', relationship: 'child', gender: 'male', birthday: `${new Date().getUTCFullYear() - 3}-01-01`
     })
     assert.equal(childResponse.status, 201)
     const child = await childResponse.json()

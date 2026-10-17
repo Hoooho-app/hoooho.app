@@ -1,4 +1,7 @@
+import { validCalendarDate, parseStrictInstant } from '../time/strict-date.mjs'
+
 const DEFAULT_TIMEZONE = 'Asia/Shanghai'
+const invalidTime = () => Object.assign(new Error('发生时间格式错误，请核对日期和时分'), {status:422,code:'INVALID_OCCURRED_AT'})
 
 const periodDefinitions = [
   { names: ['凌晨', '半夜'], startHour: 0, endHour: 6 },
@@ -51,7 +54,11 @@ function pad(value) {
 }
 
 function isoInTimezone(parts, timezone) {
+  const day=`${String(parts.year).padStart(4,'0')}-${pad(parts.month)}-${pad(parts.day)}`
+  if(!validCalendarDate(day)||![parts.hour??0,parts.minute??0,parts.second??0].every(Number.isInteger)||(parts.hour??0)<0||(parts.hour??0)>23||(parts.minute??0)<0||(parts.minute??0)>59||(parts.second??0)<0||(parts.second??0)>59)throw invalidTime()
   const instant = localDateToInstant(parts, timezone)
+  const actual=zonedParts(instant,timezone)
+  if(['year','month','day','hour','minute','second'].some(key=>actual[key] !== (parts[key]??0)))throw invalidTime()
   const offset = offsetMinutes(instant, timezone)
   const sign = offset >= 0 ? '+' : '-'
   const absolute = Math.abs(offset)
@@ -96,6 +103,18 @@ function rangeForDay(parts, timezone, raw, precision = 'day', source = 'user_tex
 }
 
 function resolveExplicit(raw, timezone, referenceParts) {
+  // Numeric historical dates are local wall times unless an explicit offset
+  // is supplied. Never ignore the date and reuse today's clock.
+  if(/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)){
+    const instant=parseStrictInstant(raw)
+    if(!instant)throw invalidTime()
+    return {raw,resolvedStart:instant.toISOString(),resolvedEnd:null,precision:'exact',source:'user_text'}
+  }
+  const numericDate=/(\d{4})([-/])(\d{1,2})\2(\d{1,2})(?!\d)/.exec(raw)
+  if(numericDate){
+    const parts={year:Number(numericDate[1]),month:Number(numericDate[3]),day:Number(numericDate[4])}
+    return resolveClockOrPeriod(raw,parts,timezone)??rangeForDay(parts,timezone,raw,'day')
+  }
   const fullDate = /(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日?/.exec(raw)
   if (fullDate) {
     const parts = { year: Number(fullDate[1]), month: Number(fullDate[2]), day: Number(fullDate[3]) }
@@ -149,21 +168,21 @@ function relativeDate(raw, referenceParts) {
 function resolveClockOrPeriod(raw, parts, timezone) {
   const chineseNumber = (value) => {
     if (/^\d+$/.test(value)) return Number(value)
-    const digits = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
-    if (value === '十') return 10
-    if (value.startsWith('十')) return 10 + (digits[value[1]] ?? 0)
-    if (value.endsWith('十')) return (digits[value[0]] ?? 0) * 10
-    return digits[value] ?? Number.NaN
+    const digits = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
+    if(value.includes('十')){const [tens,ones]=value.split('十');return (tens?digits[tens]:1)*10+(ones?digits[ones]:0)}
+    return [...value].every(character=>digits[character]!==undefined)?Number([...value].map(character=>digits[character]).join('')):Number.NaN
   }
-  const exactTime = /([一二两三四五六七八九十\d]{1,3})(?:点(?:(半)|([一二两三四五六七八九十\d]{1,3})分?)?|:(\d{1,2}))/.exec(raw)
+  const exactTime = /([零〇一二两三四五六七八九十\d]{1,3})(?:点(?:(半)|([零〇一二两三四五六七八九十\d]{1,3})分?)?|:(\d{1,2})(?::(\d{1,2}))?)/.exec(raw)
   if (exactTime) {
     let hour = chineseNumber(exactTime[1])
     if (/下午|晚上|昨晚|夜里|夜间/.test(raw) && hour < 12) hour += 12
     if (/凌晨|半夜/.test(raw) && hour === 12) hour = 0
     const minute = exactTime[2] ? 30 : exactTime[3] ? chineseNumber(exactTime[3]) : Number(exactTime[4] ?? 0)
+    const second=Number(exactTime[5]??0)
+    if(!Number.isInteger(hour)||hour<0||hour>23||!Number.isInteger(minute)||minute<0||minute>59||!Number.isInteger(second)||second<0||second>59)throw invalidTime()
     return {
       raw,
-      resolvedStart: isoInTimezone({ ...parts, hour, minute, second: 0 }, timezone),
+      resolvedStart: isoInTimezone({ ...parts, hour, minute, second }, timezone),
       resolvedEnd: null,
       precision: 'exact',
       source: 'user_text'

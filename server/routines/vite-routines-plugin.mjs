@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventService } from '../events/health-event-service.mjs'
@@ -7,7 +8,7 @@ import { RoutineError, RoutineService } from './routine-service.mjs'
 import { DailyRecordError } from './daily-record-service.mjs'
 
 const send = (response, status, data) => { response.statusCode = status; response.setHeader('Content-Type', 'application/json; charset=utf-8'); response.setHeader('Cache-Control', 'no-store'); response.end(JSON.stringify(data)) }
-const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk }); request.on('end', () => { try { resolve(text ? JSON.parse(text) : {}) } catch { reject(new RoutineError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
+const body = (request) => new Promise((resolve, reject) => { let text = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { text += chunk }); request.on('end', () => { try { resolve(parseJsonObject(text)) } catch { reject(new RoutineError('请求格式错误', 400, 'INVALID_JSON')) } }); request.on('error', reject) })
 const account = (request, tokens) => { const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? ''); const value = match ? tokens.verify(match[1]) : null; if (!value) throw new RoutineError('登录状态无效或已过期', 401, 'UNAUTHORIZED'); return value.sub }
 
 export function routinesApiPlugin(options = {}) {

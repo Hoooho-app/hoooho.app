@@ -104,10 +104,12 @@ export class CaseContinuityService {
     })
   }
   async capture(accountId, memberId, input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw fail('情况内容格式无效')
     await this.events.assertMemberOwnership(accountId, memberId)
     const content = clean(input.text ?? '')
     const allFiles = input.files ?? []
     if (!Array.isArray(allFiles) || allFiles.length > 12) throw fail('最多保存12份原件')
+    if (allFiles.some(file => !file || typeof file !== 'object' || Array.isArray(file))) throw fail('资料原件格式无效')
     const voices = prepareVoiceOriginals(allFiles.filter(file=>/^audio\//.test(file.mimeType??'')))
     const heic=allFiles.filter(file=>/^image\/hei[cf]$/.test(file.mimeType??''))
     const originals=await Promise.all(heic.map(async file=>{

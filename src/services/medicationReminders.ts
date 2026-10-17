@@ -34,6 +34,7 @@ export interface MedicationReminderDto {
   occurrences: MedicationReminderOccurrence[]
   nextOccurrence: MedicationReminderOccurrence | null
   totalDays: number | null
+  scheduleIssues?: Array<{ code?: string; day: string; time: string; reason: string }>
   createdAt: string
   updatedAt: string
   archivedAt?: string

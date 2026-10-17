@@ -3,6 +3,16 @@ import assert from 'node:assert/strict'
 import {buildVisitSheet} from './report-model.mjs'
 import {visitFixture} from './fixtures.mjs'
 const now=new Date('2026-09-26T00:00:00Z')
+test('提醒投影不可用的原因在快照和阅读资料中保留，原计划及确认记录不改写',()=>{
+ const f=visitFixture(),reminder=f.reminders[0]
+ const issue={code:'SCHEDULE_TOO_LARGE',day:reminder.plan.startDate,time:'08:00',reason:'提醒次数过多，请核对原计划'}
+ reminder.scheduleIssues=[issue];reminder.occurrences=[];reminder.totalDays=2_000_000
+ const before=JSON.stringify(f),report=buildVisitSheet(f,{},now)
+ assert.deepEqual(report.medicationReminders[0].scheduleIssues,[issue])
+ assert.equal(report.medicationReminders[0].totalDays,2_000_000)
+ assert.match(JSON.stringify(report.reading),/提醒次数过多，请核对原计划/)
+ assert.equal(JSON.stringify(f),before)
+})
 test('筛选只隐藏照片，不丢失选择；恢复全部带回原选照片',()=>{
  const f=visitFixture(),first=buildVisitSheet(f,{focus:{mode:'source',sourceId:'record:s0'}},now)
  first.photoSelections[first.photoKey]=['attachment:photo']

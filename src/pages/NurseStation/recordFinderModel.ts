@@ -1,6 +1,6 @@
 import { outdoorActivitySummary } from '../HealthEvents/outdoorActivityLogic'
 import { journalSearchAlternatives, journalSearchFields, journalSearchResultSummary, normalizeJournalSearch, searchJournalEntries, type JournalEntry } from '../HealthEvents/timeViewModel'
-export interface FinderPlan { question: string; terms: string[][]; relatedTerms: string[]; filters: string[][]; excludes: string[]; from: number | null; to: number | null; first: boolean; changes: boolean; newFood: boolean; category?: string; anyTerms?: string[][][] }
+export interface FinderPlan { question: string; terms: string[][]; relatedTerms: string[]; filters: string[][]; excludes: string[]; from: number | null; to: number | null; first: boolean; changes: boolean; newFood: boolean; category?: string; anyTerms?: string[][][]; dateRanges?: Array<{ from: number; to: number }> }
 export interface FinderMatch { entry: JournalEntry; evidence: string; related: boolean; reason?: string }
 // Ordinary lookup uses the journal magnifier's existing matcher. The extended
 // earliest/new-food/matter queries keep their evidence and uncertainty rules.
@@ -9,7 +9,14 @@ export function lookupRecords(entries: readonly JournalEntry[], question: string
   const sources = entries.map(entry => ({ ...entry, aiNurse: undefined }))
   const query = question.replace(/^(只看|只查|仅看|仅查|再看)/, '').replace(/上的/g, '')
   const plan = finderPlan(query, undefined, now)
-  if (plan.first || plan.changes || plan.newFood || plan.from !== null || spokenIntent.test(query)) return findRecords(sources, plan)
+  // Decide polarity and time certainty before selecting the latest occurrence.
+  // The ordinary journal matcher truncates first and can hide a real symptom
+  // behind a newer negative observation.
+  const latest = /最近一次|上次/.test(query)
+  if (latest || plan.first || plan.changes || plan.newFood || plan.from !== null || spokenIntent.test(query)) {
+    const matches = findRecords(sources, plan)
+    return latest ? matches.slice(0, 1) : matches
+  }
   const classified = new Map(findRecords(sources, plan).map(match => [match.entry.id, match]))
   return searchJournalEntries(sources, query, now).map(entry => classified.get(entry.id) ?? {
     entry,
@@ -96,7 +103,8 @@ export function finderPlan(question: string, previous?: FinderPlan, now = new Da
     const term = question.replace(/^(只看|只查|仅看|仅查|排除|不要|不含|再看)/, '').replace(/上的|的/g, '').trim()
     return { ...previous, question: `${previous.question}；${question}`, filters: /^(排除|不要|不含)/.test(question) ? previous.filters : [...previous.filters, location ? locations[location] : [term]], excludes: /^(排除|不要|不含)/.test(question) ? [...previous.excludes, term] : previous.excludes }
   }
-  let raw = question, from: number | null = null, to: number | null = null
+  let raw = question.replace(/今日/g, '今天').replace(/昨日/g, '昨天'), from: number | null = null, to: number | null = null
+  let dateRanges: FinderPlan['dateRanges']
   if (/上个?月/.test(raw)) {
     const end = new Date(now); end.setHours(0, 0, 0, 0); end.setDate(1)
     const start = new Date(end); start.setMonth(start.getMonth() - 1)
@@ -116,12 +124,26 @@ export function finderPlan(question: string, previous?: FinderPlan, now = new Da
     } else start.setDate(start.getDate() - Math.ceil(n * (range[2] === '月' ? 30 : /周|星期/.test(range[2]) ? 7 : 1)))
     from = start.getTime(); to = now.getTime(); raw = raw.replace(range[0], '')
   }
-  const day = raw.match(/今天|昨天|前天/)
-  if (day) { const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (day[0] === '昨天' ? 1 : day[0] === '前天' ? 2 : 0)); from = start.getTime(); const end = new Date(start); end.setDate(end.getDate() + 1); to = end.getTime() - 1; raw = raw.replace(day[0], '') }
+  // Connected day names form a union, not search keywords. Keep disjoint
+  // days separate so "前天和今天" never accidentally includes yesterday.
+  const compoundDays = raw.match(/(?:今天|昨天|前天)(?:\s*(?:以及|还有|或者|和|及|、|或)\s*(?:今天|昨天|前天))+/g)
+  const selectedDays = compoundDays
+    ? [...new Set(compoundDays.flatMap(phrase => phrase.match(/今天|昨天|前天/g) ?? []))]
+    : raw.match(/今天|昨天|前天/)
+  if (selectedDays?.length) {
+    dateRanges = selectedDays.map(day => {
+      const start = new Date(now); start.setHours(0, 0, 0, 0)
+      start.setDate(start.getDate() - (day === '昨天' ? 1 : day === '前天' ? 2 : 0))
+      const end = new Date(start); end.setDate(end.getDate() + 1)
+      return { from: start.getTime(), to: end.getTime() - 1 }
+    })
+    from = Math.min(...dateRanges.map(range => range.from)); to = Math.max(...dateRanges.map(range => range.to))
+    for (const phrase of compoundDays ?? selectedDays) raw = raw.replace(phrase, ' ')
+  }
   const excludes = [...raw.matchAll(/(?:不含|排除|不要)([^\s，,。]+)/g)].map(match => match[1]); raw = raw.replace(/(?:不含|排除|不要)[^\s，,。]+/g, '')
   const newFood = /新(东西|食物|食材)|第一次吃/.test(raw)
   const category = /和|以及|还有|、/.test(raw) ? undefined : newFood || /饮食|吃了什么/.test(raw) ? 'diet' : /睡眠|睡觉|睡着|睡得|睡了/.test(raw) ? 'sleep' : /用药|吃药/.test(raw) ? 'medication' : undefined
-  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡觉|睡着|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes, from, to, first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
+  return { question, ...words(category ? raw.replace(/新东西|新食物|新食材|饮食|吃了什么|睡眠|睡觉|睡着|睡得怎样|睡了|用药|吃药|第一次吃/g, '') : raw), filters: [], excludes, from, to, ...(dateRanges ? { dateRanges } : {}), first: /第一次|最早/.test(question) && !newFood, changes: /后来|变化|进展/.test(question), newFood, category }
 }
 export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan): FinderMatch[] {
   if (!plan.terms.length && !plan.category) return []
@@ -132,10 +154,11 @@ export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan):
   const filters = groups(plan.filters), excludes = plan.excludes.map(normalizeJournalSearch), relatedTerms = plan.relatedTerms.map(normalizeJournalSearch)
   const negativePatterns = plan.terms.flatMap(group => group.map(term => new RegExp(`(?:没有|未见|无|没出现|没)[^，。；]{0,3}${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)))
   const direct: FinderMatch[] = [], related: FinderMatch[] = []
+  const withinDateScope = (at: number) => (plan.from === null || at >= plan.from) && (plan.to === null || at <= plan.to) && (!plan.dateRanges?.length || plan.dateRanges.some(range => at >= range.from && at <= range.to))
   for (const entry of entries) {
     if (plan.category && !entry.categories?.includes(plan.category as never)) continue
     const at = Date.parse(entry.occurredAt), uncertain = entry.timePrecision === 'unknown' || !Number.isFinite(at)
-    if (!uncertain && ((plan.from !== null && at < plan.from) || (plan.to !== null && at > plan.to))) continue
+    if (!uncertain && !withinDateScope(at)) continue
     const fields = lookupFields(entry), values = fields.map(normalizeJournalSearch)
     const has = (terms: string[]) => terms.some(t => values.some(v => v.includes(t)))
     if (filters.some(f => !has(f)) || excludes.some(t => has([t]))) continue
@@ -153,7 +176,7 @@ export function findRecords(entries: readonly JournalEntry[], plan: FinderPlan):
   if (plan.changes && direct.length) {
     // Follow changes only within the real matter containing the latest explicit match.
     const eventId = direct[0].entry.eventId
-    const scoped = entries.filter(e => { if(e.eventId!==eventId)return false; const values=journalSearchFields({...e,aiNurse:undefined}).map(normalizeJournalSearch);const has=(terms:string[])=>terms.some(t=>values.some(v=>v.includes(t)));const at=Date.parse(e.occurredAt);return !filters.some(f=>!has(f))&&!excludes.some(t=>has([t]))&&(e.timePrecision==='unknown'||(plan.from===null||at>=plan.from)&&(plan.to===null||at<=plan.to)) }).map(entry => { const original=related.find(m=>m.entry.id===entry.id);return { entry, evidence: entry.content, related: !!original || entry.timePrecision === 'unknown', reason: original?.reason ?? (entry.timePrecision === 'unknown' ? '发生时间不明确' : undefined) } })
+    const scoped = entries.filter(e => { if(e.eventId!==eventId)return false; const values=journalSearchFields({...e,aiNurse:undefined}).map(normalizeJournalSearch);const has=(terms:string[])=>terms.some(t=>values.some(v=>v.includes(t)));const at=Date.parse(e.occurredAt);return !filters.some(f=>!has(f))&&!excludes.some(t=>has([t]))&&(e.timePrecision==='unknown'||withinDateScope(at)) }).map(entry => { const original=related.find(m=>m.entry.id===entry.id);return { entry, evidence: entry.content, related: !!original || entry.timePrecision === 'unknown', reason: original?.reason ?? (entry.timePrecision === 'unknown' ? '发生时间不明确' : undefined) } })
     return scoped.sort((a, b) => Number(a.related) - Number(b.related) || order(a, b))
   }
   return [...direct, ...related]

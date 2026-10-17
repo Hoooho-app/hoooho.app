@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { AuthService } from '../auth/auth-service.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
@@ -7,7 +8,7 @@ const json = (request) => new Promise((resolve, reject) => {
   let body = ''
   request.setEncoding('utf8')
   request.on('data', (chunk) => { body += chunk })
-  request.on('end', () => { try { resolve(body ? JSON.parse(body) : {}) } catch (error) { reject(error) } })
+  request.on('end', () => { try { resolve(parseJsonObject(body)) } catch (error) { reject(error) } })
   request.on('error', reject)
 })
 const send = (response, status, data) => {

@@ -4,6 +4,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { HealthEventRepository } from '../events/repositories/health-event-repository.mjs'
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs'
+import { validCalendarDate, parseStrictInstant } from '../time/strict-date.mjs'
 
 const dayMs = 86_400_000
 const statuses = new Set(['active', 'archived'])
@@ -21,7 +22,7 @@ const definitions = [
   { key: 'soy', label: '大豆类', confirmed: ['大豆', '黄豆', '豆浆', '豆腐'], candidates: ['豆制品', '酱料'] }
 ]
 
-const normalizeName = (value) => String(value ?? '').trim().replace(/\s+/g, '').slice(0, 30)
+const normalizeName = (value) => typeof value === 'string' ? value.trim().replace(/\s+/g, '') : ''
 const definitionForName = (name) => definitions.find((item) => item.confirmed.includes(normalizeName(name))) ?? null
 const definitionForKey = (key) => definitions.find((item) => item.key === key) ?? null
 
@@ -34,6 +35,7 @@ export class DesensitizationTestError extends Error {
 export function classifyFoodName(rawName) {
   const name = normalizeName(rawName)
   if (!name) throw new DesensitizationTestError('请输入食物名称', 400, 'EMPTY_FOOD_NAME')
+  if (name.length > 30) throw new DesensitizationTestError('食物名称最多30个字符', 400, 'INVALID_FOOD_NAME')
   if (name === '牛') throw new DesensitizationTestError('请区分牛肉或牛奶', 422, 'AMBIGUOUS_FOOD', { choices: ['牛肉', '牛奶'] })
   const definition = definitionForName(name)
   return definition ? { categoryKey: definition.key, categoryLabel: definition.label, confidence: 'confirmed' } : { categoryKey: `custom:${name.toLocaleLowerCase('zh-CN')}`, categoryLabel: `${name}（单独观察）`, confidence: 'custom' }
@@ -50,13 +52,14 @@ function localDateKey(date, timeZone) {
 }
 
 function validOccurredAt(value, now) {
-  const date = new Date(value)
-  if (!value || Number.isNaN(date.getTime())) throw new DesensitizationTestError('请填写发生或观察时间', 400, 'INVALID_OCCURRED_AT')
+  const date = parseStrictInstant(value)
+  if (!date) throw new DesensitizationTestError('请填写发生或观察时间', 400, 'INVALID_OCCURRED_AT')
   if (date.getTime() > now.getTime()) throw new DesensitizationTestError('发生或观察时间不能晚于现在', 400, 'FUTURE_OCCURRED_AT')
   return date.toISOString()
 }
 
 function normalizeRecord(input, now, previous = null) {
+  if (input?.status !== undefined && !['draft', 'effective'].includes(input.status)) throw new DesensitizationTestError('观察记录状态无效', 400, 'INVALID_OBSERVATION_STATUS')
   const status = input?.status === 'draft' ? 'draft' : 'effective'
   const symptomAnswer = symptomAnswers.has(input?.symptomAnswer) ? input.symptomAnswer : null
   const exposureAnswer = exposureAnswers.has(input?.exposureAnswer) ? input.exposureAnswer : null
@@ -74,15 +77,21 @@ function normalizeRecord(input, now, previous = null) {
   }
 }
 
+function optionalPlanDate(value) {
+  if (value === undefined || value === null || value === '') return ''
+  if (!validCalendarDate(value)) throw new DesensitizationTestError('安排日期无效', 400, 'INVALID_PLAN_DATE')
+  return value
+}
+
 function normalizePlan(input, nextVersion, now) {
   const sourceType = input?.sourceType === 'verified_source' ? 'verified_source' : 'caregiver_transcription'
   const fields = {
-    sourceType, sourceName: cleanText(input?.sourceName, 160), visitDate: cleanText(input?.visitDate, 10),
+    sourceType, sourceName: cleanText(input?.sourceName, 160), visitDate: optionalPlanDate(input?.visitDate),
     food: cleanText(input?.food, 120), preparation: cleanText(input?.preparation, 160),
     firstAmount: cleanText(input?.firstAmount, 40), unit: cleanText(input?.unit, 30),
     location: cleanText(input?.location, 120), frequency: cleanText(input?.frequency, 120),
     observationPeriod: cleanText(input?.observationPeriod, 160), progressionCondition: cleanText(input?.progressionCondition, 500),
-    stopRule: cleanText(input?.stopRule, 500), reviewDate: cleanText(input?.reviewDate, 10)
+    stopRule: cleanText(input?.stopRule, 500), reviewDate: optionalPlanDate(input?.reviewDate)
   }
   const complete = Boolean(fields.sourceName && fields.food && fields.firstAmount && fields.unit && fields.location && fields.observationPeriod && fields.stopRule)
   return { id: randomUUID(), version: nextVersion, ...fields, complete, createdAt: now.toISOString() }
@@ -210,7 +219,7 @@ export class DesensitizationTestService {
 
   async updateName(accountId, id, input, now = new Date()) {
     const task = await this.owned(accountId, id); const displayName = normalizeName(input?.displayName)
-    if (!displayName) throw new DesensitizationTestError('请输入食物名称')
+    if (!displayName || displayName.length > 30) throw new DesensitizationTestError('食物名称应为1至30个字符', 400, 'INVALID_FOOD_NAME')
     if (Number.isInteger(input?.version) && task.version !== input.version) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     let saved
     await this.store.update((data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, displayName, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))

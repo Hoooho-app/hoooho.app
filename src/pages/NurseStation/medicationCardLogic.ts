@@ -59,7 +59,7 @@ export function reminderActionState(reminder: MedicationReminderDto, now: Date) 
   const next = reminder.nextOccurrence
   const historical = Boolean(next && next.day < today)
   const future = reminder.occurrences.filter(item => !item.completed && Date.parse(item.scheduledAt) > now.getTime()).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0] ?? null
-  const allComplete = reminder.occurrences.length > 0 && !next
+  const allComplete = reminder.occurrences.length > 0 && !next && !reminder.scheduleIssues?.length
   const todayDone = Boolean(next && next.day > today && todayOccurrences.length && todayScheduledCompleted === todayOccurrences.length)
   return {
     allComplete,
@@ -76,13 +76,20 @@ export function reminderActionState(reminder: MedicationReminderDto, now: Date) 
 }
 
 export function weekRows(reminder: CalendarData) {
-  const lastWeek = reminder.totalDays ? Math.ceil(reminder.totalDays / 7) : Math.max(1, ...reminder.occurrences.map((item) => item.weekIndex + 1))
+  if (!reminder.occurrences.length) return []
+  const occurrencesByDay = new Map<string, CalendarData['occurrences']>()
+  for (const occurrence of reminder.occurrences) {
+    const values = occurrencesByDay.get(occurrence.day) ?? []
+    values.push(occurrence)
+    occurrencesByDay.set(occurrence.day, values)
+  }
+  const lastWeek = reminder.totalDays ? Math.ceil(reminder.totalDays / 7) : reminder.occurrences.reduce((maximum, item) => Math.max(maximum, item.weekIndex + 1), 1)
   const weeks = Array.from({ length: lastWeek }, (_, weekIndex) => {
     const remaining = reminder.totalDays === null ? 7 : Math.max(0, reminder.totalDays - weekIndex * 7)
     const dayCount = Math.min(7, remaining || 7)
     const days = Array.from({ length: dayCount }, (_, dayIndex) => {
       const day = addDays(reminder.plan.startDate, weekIndex * 7 + dayIndex)
-      return { day, occurrences: reminder.occurrences.filter((item) => item.day === day).sort((left, right) => left.scheduledAt.localeCompare(right.scheduledAt)) }
+      return { day, occurrences: (occurrencesByDay.get(day) ?? []).sort((left, right) => left.scheduledAt.localeCompare(right.scheduledAt)) }
     })
     const rows = Math.max(1, ...days.map((item) => item.occurrences.length))
     return { weekIndex, days, rows }

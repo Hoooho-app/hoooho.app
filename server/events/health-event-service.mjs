@@ -3,6 +3,7 @@ import { HealthEventRepository } from './repositories/health-event-repository.mj
 import { correctHealthEventSummary, healthEventSummaryAggregationVersion } from './health-event-summary.mjs'
 import { randomBytes } from 'node:crypto'
 import { MedicalSummaryService } from '../ai/medical-summary-service.mjs'
+import { parseStrictInstant } from '../time/strict-date.mjs'
 
 const categories = new Set(['fever', 'cough', 'pain', 'injury', 'allergy', 'other'])
 const statuses = new Set(['observing', 'handling', 'recovered'])
@@ -23,6 +24,7 @@ function validateTitle(value) {
 }
 
 function validateInitialTitle(value) {
+  if (value !== undefined && typeof value !== 'string') throw new HealthEventError('随记标题格式无效', 400, 'INVALID_EVENT_TITLE')
   const title = typeof value === 'string' ? value.trim() : ''
   if (title.length > 120) throw new HealthEventError('随记标题不能超过 120 个字符', 400, 'INVALID_EVENT_TITLE')
   return title
@@ -66,8 +68,8 @@ export function validateStartTime(value, now = new Date()) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
     throw new HealthEventError('开始时间必须是 ISO 8601 日期时间', 400, 'INVALID_START_TIME')
   }
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) throw new HealthEventError('开始时间格式错误', 400, 'INVALID_START_TIME')
+  const parsed = parseStrictInstant(value)
+  if (!parsed) throw new HealthEventError('开始时间格式错误', 400, 'INVALID_START_TIME')
   if (parsed.getTime() > now.getTime()) throw new HealthEventError('发生时间不能晚于现在', 400, 'FUTURE_START_TIME')
   return parsed.toISOString()
 }
@@ -89,6 +91,7 @@ export class HealthEventService {
   }
 
   async create(accountId, input, now = new Date()) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HealthEventError('随记内容格式无效', 400, 'INVALID_EVENT_INPUT')
     const memberId = typeof input.memberId === 'string' ? input.memberId : ''
     await this.assertMemberOwnership(accountId, memberId)
     const startTime = input.startTime === undefined
@@ -129,6 +132,7 @@ export class HealthEventService {
   }
 
   async update(accountId, id, input, now = new Date()) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HealthEventError('随记内容格式无效', 400, 'INVALID_EVENT_INPUT')
     const event = await this.get(accountId, id)
     const changes = {}
     for (const key of Object.keys(input)) {

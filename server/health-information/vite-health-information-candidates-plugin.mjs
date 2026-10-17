@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthInformationCandidateError, HealthInformationCandidateService } from './health-information-candidate-service.mjs'
@@ -7,7 +8,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
   request.setEncoding('utf8')
   request.on('data', (chunk) => { body += chunk })
   request.on('end', () => {
-    try { resolve(body ? JSON.parse(body) : {}) }
+    try { resolve(parseJsonObject(body)) }
     catch { reject(new HealthInformationCandidateError('请求格式错误', 400, 'INVALID_JSON')) }
   })
   request.on('error', reject)

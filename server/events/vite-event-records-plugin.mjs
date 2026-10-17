@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthEventRecordError, HealthEventRecordService } from './health-event-record-service.mjs'
@@ -9,7 +10,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
   request.on('data', (chunk) => {
     if (settled) return
     body += chunk
-    if (body.length > 16_384) {
+    if (body.length > 80_000) {
       settled = true
       reject(new HealthEventRecordError('请求内容过大', 413, 'PAYLOAD_TOO_LARGE'))
     }
@@ -18,7 +19,7 @@ const readJson = (request) => new Promise((resolve, reject) => {
     if (settled) return
     try {
       settled = true
-      resolve(body ? JSON.parse(body) : {})
+      resolve(parseJsonObject(body))
     } catch {
       settled = true
       reject(new HealthEventRecordError('请求格式错误', 400, 'INVALID_JSON'))

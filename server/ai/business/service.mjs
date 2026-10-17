@@ -1,5 +1,6 @@
 import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
 import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
+import { parseStrictInstant } from '../../time/strict-date.mjs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import fieldLabels from '../../../shared/ai-business-field-labels.json' with {type:'json'}
@@ -135,6 +136,10 @@ export class AIBusinessService {
     let previous=input.id?await this.get(accountId,memberId,input.id):null
     if(previous?.state==='saved')throw fail('这份草稿已保存，请新建记录',409)
     if(previous && input.version!==previous.version)throw fail('草稿已更新，请重新加载',409,'AI_DRAFT_VERSION_CONFLICT')
+    // Validate before creating/updating the draft or preparing attachments. A
+    // rejected replacement must leave the previous original and version intact.
+    if(input.text != null && typeof input.text !== 'string')throw fail('原始记录内容格式无效',422,'INVALID_INPUT_TEXT')
+    if(typeof input.text === 'string' && input.text.length>15000)throw fail('原始记录不能超过15000字，请分批整理；原稿仍保留',422,'AI_INPUT_TEXT_TOO_LONG')
     const raw=text(input.text,15000);if(!raw&&!(input.files?.length)&&!previous?.documents?.length)throw fail('请先填写文字或上传资料')
     const voices=Object.hasOwn(input,'voiceFiles')?prepareVoiceOriginals(input.voiceFiles):previous?.voices??[]
     const prepared=Object.hasOwn(input,'files')?await prepareDocuments(input.files):{documents:previous?.documents??[],pages:previous?.pages??[]}
@@ -153,7 +158,9 @@ export class AIBusinessService {
     const confirmOccurrenceTime = smartRecord && (input.confirmOccurrenceTime ?? previous?.confirmOccurrenceTime ?? false) === true
     const followUp = smartRecord ? input.followUp ?? previous?.followUp ?? true : true
     const selectedOccurredAt = smartRecord ? input.selectedOccurredAt ?? previous?.selectedOccurredAt ?? this.now().toISOString() : null
-    if(smartRecord&&(!Number.isFinite(Date.parse(selectedOccurredAt))||Date.parse(selectedOccurredAt)>this.now().getTime()))throw fail('发生时间不能晚于现在',422,'INVALID_OCCURRED_AT')
+    const selectedInstant=smartRecord?parseStrictInstant(selectedOccurredAt):null
+    if(smartRecord&&!selectedInstant)throw fail('发生时间格式错误，请核对日期和时分',422,'INVALID_OCCURRED_AT')
+    if(smartRecord&&selectedInstant.getTime()>this.now().getTime())throw fail('发生时间不能晚于现在',422,'INVALID_OCCURRED_AT')
     const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record']:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length&&previous.pages.every(p=>previous.sources.some(s=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,this.model)))){
@@ -366,7 +373,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
           const occurredAt=item.time?.resolvedStart??d.referenceNow
           const relatedEvent=conflictRecords.length?ownedEvents.find(e=>e.id===conflictRecords[0].eventId):null
           event=targetEvent??relatedEvent??await this.events.create(accountId,{memberId,title:item.title,category:'other',startTime:occurredAt},this.now())
-          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:item.manualAdded?'text_record':d.documents.length?'medical_file':'text_record',sourceText:(item.manualAdded?d.sources.find(source=>source.id===item.id)?.text??d.raw:d.raw).slice(0,5000)},this.now())
+          record=await this.records.create(accountId,event.id,{type:['symptom','medication','visit','examination'].includes(item.category)?item.category:'note',...(d.sourceIdentity ? {caseIdentity:d.sourceIdentity}:{}),content,occurredAt,journal:item.journal,sourceType:item.manualAdded?'text_record':d.documents.length?'medical_file':'text_record',sourceText:item.manualAdded?d.sources.find(source=>source.id===item.id)?.text??d.raw:d.raw},this.now())
           history.push({recordId:record.id,eventId:event.id,created:true,createdEvent:!targetEvent&&!relatedEvent})
         }
         if(d.smartRecord&&!targetEvent)targetEvent=event

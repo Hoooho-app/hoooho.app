@@ -31,7 +31,15 @@ export function parseLabelText(text,status){
   if(heading){
     const rest=text.slice(heading.index+heading[0].length);let depth=0,end=rest.length
     const next=/^(?:\b(?:CONTAINS?|MAY CONTAIN|ALLERGEN(?: INFORMATION| ADVICE)?|ALLERGY INFORMATION|NUTRITION(?: FACTS|AL INFORMATION)?|STORAGE|BEST BEFORE|DIRECTIONS)\b|(?:本产品|本品|产品)?(?:可能含有|含有)|过敏原信息|致敏物质提示|营养成分表|营养信息|贮存|储存|食用方法|保质期|生产日期)/i
-    for(let i=0;i<rest.length;i++){if('([（'.includes(rest[i]))depth++;else if(')]）'.includes(rest[i]))depth=Math.max(0,depth-1);if(!depth&&next.test(rest.slice(i))){end=i;break}}
+    // Packaging claims and storage prose are not ingredient identities. Only
+    // stop at a sentence/printed-line boundary: qualified ingredients such as
+    // lactose-free milk and bracketed sub-ingredients must remain intact.
+    const packaging=/^(?:(?:(?:certified\s+)?(?:gluten|milk|dairy|egg|nuts?|peanuts?|soy|wheat|allergen)[- ]free(?:\s+(?:product|products|certified))?(?:\s*[™®©])*|glutenfrei)(?=\s*(?:[.。;；\n]|$))|free[- ]from\b|without\b|no\s+(?:added|artificial)\b|不含|不添加|无麸质|無麩質|(?:sans|sin|senza)\s+glut(?:en|ine)\b|store\s+(?:in|at|below|away)\b|(?:conserver|conservare|almacenar|lagern)\b)/i
+    for(let i=0;i<rest.length;i++){
+      if('([（'.includes(rest[i]))depth++;else if(')]）'.includes(rest[i]))depth=Math.max(0,depth-1)
+      const tail=rest.slice(i)
+      if(!depth&&(next.test(tail)||packaging.test(tail)&&/(?:^|[\n。.;；])\s*$/.test(rest.slice(0,i)))){end=i;break}
+    }
     ingredients=rest.slice(0,end).trim().replace(/[.。;；]\s*$/,'')
   }
   // A cropped, list-only excerpt can omit its heading. Never treat packaging

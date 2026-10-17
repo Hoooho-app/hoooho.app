@@ -1,3 +1,4 @@
+import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { QuickRecordService } from './quick-record-service.mjs'
@@ -31,7 +32,7 @@ const readJson = (request, limit = 16_384) => new Promise((resolve, reject) => {
     if (settled) return
     try {
       settled = true
-      resolve(body ? JSON.parse(body) : {})
+      resolve(parseJsonObject(body))
     } catch {
       settled = true
       const error = new Error('请求格式错误')

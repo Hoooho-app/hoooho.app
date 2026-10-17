@@ -70,6 +70,7 @@ export class HelpService {
   }
   public(session) { const {accountId, ...view}=session; return view }
   async start(accountId, input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw fail('请求格式错误')
     if (input.new !== undefined && typeof input.new !== 'boolean') throw fail('请求格式错误')
     const existing=(await this.store.read()).sessions.filter(s => s.accountId===accountId).at(-1)
     if(existing&&!input.new) return this.public(existing)
@@ -125,6 +126,7 @@ export class HelpService {
     } finally { this.busy.delete(id) }
   }
   async rate(accountId,id,input) {
+    if(!input || typeof input !== 'object' || Array.isArray(input)) throw fail('请求格式错误')
     if(typeof input.solved!=='boolean')throw fail('请选择是否解决')
     const turnId=checkedText(input,'turnId',100)
     const session=await this.owned(accountId,id)
