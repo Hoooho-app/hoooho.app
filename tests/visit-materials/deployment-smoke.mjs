@@ -7,8 +7,11 @@ assert(['https://hooohoapp-staging.up.railway.app', 'https://hoooho.com'].includ
 const target = origin.includes('staging') ? 'staging' : 'production'
 const output = 'outputs/visit-materials/' + target
 await mkdir(output, { recursive: true })
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy
+const proxy = proxyUrl ? (() => { const url = new URL(proxyUrl); return { server: url.origin, ...(url.username ? { username: decodeURIComponent(url.username), password: decodeURIComponent(url.password) } : {}) } })() : undefined
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE, args: ['--no-sandbox'] })
-const context = await browser.newContext({ baseURL: origin, viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' })
+const context = await browser.newContext({ baseURL: origin, viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block', proxy })
+context.setDefaultTimeout(45000)
 const page = await context.newPage(), errors = [], report = { target, syntheticOnly: true, physicalIPhone: 'NOT_VERIFIED', checks: [] }
 let token = '', memberId = '', accountId = ''
 page.on('pageerror', error => errors.push(error.message))
