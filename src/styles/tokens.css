@@ -5,6 +5,10 @@
   --hoho-color-primary-active: 44 64 52;
   --hoho-color-primary-soft: 235 239 230;
   --hoho-color-primary-border: 199 210 193;
+  /* Sprout affordances stay pale green even when a collected theme is applied. */
+  --hoho-color-sprout-surface: 235 239 230;
+  --hoho-color-sprout-border: 199 210 193;
+  --hoho-color-sprout-text: 72 98 83;
   --hoho-color-secondary: 94 105 97;
   /* Product-owner restored the previous moss button palette. */
   --hoho-color-action: var(--hoho-color-primary);

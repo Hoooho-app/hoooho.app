@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react'
 import { Avatar } from '../../components/common'
-import { calculateGrowthPosition, exactAgeInMonths, growthValueAtZScore } from '../../features/health-profile/utils/childGrowthReference'
+import { calculateGrowthPosition, exactAgeInMonths, growthReferenceRange, growthValueAtZScore, type GrowthReferenceId } from '../../features/health-profile/utils/childGrowthReference'
 import type { GrowthMeasurementApiDto, Member } from '../../types'
 import { metricRecords, type GrowthMeasure } from './growthInterpretation'
 
@@ -9,39 +9,43 @@ const displayValue = (_measure: GrowthMeasure, value: number) => value.toFixed(1
 const displayUnit = (measure: GrowthMeasure) => measure === 'height' ? 'cm' : 'kg'
 const ageText = (age: number) => `${Math.floor(age / 12)}岁${Math.floor(age % 12)}个月`
 
-export function GrowthCurveChart({ compact = false, measure, member, records }: { compact?: boolean; measure: GrowthMeasure; member: Member; records: GrowthMeasurementApiDto[] }) {
+export function GrowthCurveChart({ compact = false, measure, member, records, referenceId = 'who-2006', ageWindow, valueWindow }: { compact?: boolean; measure: GrowthMeasure; member: Member; records: GrowthMeasurementApiDto[]; referenceId?: GrowthReferenceId; ageWindow?: readonly [number, number]; valueWindow?: readonly [number, number] }) {
   const rawId = useId(), titleId = `growth-chart-${rawId.replace(/:/g, '')}`
   const [selectedId, setSelectedId] = useState('')
-  useEffect(() => setSelectedId(''), [measure, member.id])
+  useEffect(() => setSelectedId(''), [measure, member.id, referenceId])
 
   const model = useMemo(() => {
+    const range = growthReferenceRange(referenceId)
+    const minAge = Math.max(range.minimumMonth, ageWindow?.[0] ?? range.minimumMonth)
+    const limitAge = Math.min(range.maximumMonth, ageWindow?.[1] ?? range.maximumMonth)
     const points = metricRecords(records, measure).flatMap((record) => {
       const value = measure === 'height' ? record.heightCm : record.weightKg
       const age = exactAgeInMonths(member.birthday, record.measuredAt)
-      return value == null || age == null || age > 60 ? [] : [{ record, age, value }]
+      return value == null || age == null || age < minAge || age > limitAge ? [] : [{ record, age, value }]
     })
     if (!points.length) return null
-    const latest = points.at(-1)!, maxAge = Math.min(60, Math.max(12, Math.ceil((latest.age + 3) / 6) * 6))
-    const sampleAges = Array.from({ length: 25 }, (_, index) => maxAge * index / 24)
-    const referenceValues = percentiles.flatMap(({ z }) => sampleAges.map((age) => growthValueAtZScore({ ageInMonths: age, gender: member.gender ?? '', measure, zScore: z })).filter((value): value is number => value != null))
+    const latest = points.at(-1)!, maxAge = Math.min(limitAge, Math.max(minAge + 12, Math.ceil((latest.age + 3) / 6) * 6))
+    const sampleAges = Array.from({ length: 25 }, (_, index) => minAge + (maxAge - minAge) * index / 24)
+    const referenceValues = percentiles.flatMap(({ z }) => sampleAges.map((age) => growthValueAtZScore({ ageInMonths: age, gender: member.gender ?? '', measure, zScore: z, referenceId })).filter((value): value is number => value != null))
+    if (!referenceValues.length) return null
     const rawMin = Math.min(...referenceValues, ...points.map((point) => point.value)), rawMax = Math.max(...referenceValues, ...points.map((point) => point.value)), padding = Math.max(measure === 'height' ? 1 : .4, (rawMax - rawMin) * .08)
-    const min = Math.floor((rawMin - padding) * 10) / 10, max = Math.ceil((rawMax + padding) * 10) / 10
-    const x = (age: number) => 42 + Math.min(maxAge, age) / maxAge * 258, y = (value: number) => 244 - (value - min) / Math.max(.1, max - min) * 208
-    const linePoints = (z: number) => sampleAges.flatMap((age) => { const value = growthValueAtZScore({ ageInMonths: age, gender: member.gender ?? '', measure, zScore: z }); return value == null ? [] : [{ age, value }] })
+    const min = valueWindow?.[0] ?? Math.floor((rawMin - padding) * 10) / 10, max = valueWindow?.[1] ?? Math.ceil((rawMax + padding) * 10) / 10
+    const x = (age: number) => 42 + (Math.min(maxAge, age) - minAge) / Math.max(1, maxAge - minAge) * 258, y = (value: number) => 244 - (value - min) / Math.max(.1, max - min) * 208
+    const linePoints = (z: number) => sampleAges.flatMap((age) => { const value = growthValueAtZScore({ ageInMonths: age, gender: member.gender ?? '', measure, zScore: z, referenceId }); return value == null ? [] : [{ age, value }] })
     const pathFor = (values: Array<{ age: number; value: number }>) => values.map((point, index) => `${index ? 'L' : 'M'}${x(point.age).toFixed(1)},${y(point.value).toFixed(1)}`).join(' ')
     const referencePaths = percentiles.map((line) => ({ ...line, values: linePoints(line.z), path: pathFor(linePoints(line.z)) }))
     const upper = referencePaths.at(-1)!.values, lower = [...referencePaths[0].values].reverse()
     const bandPath = `${pathFor(upper)} ${lower.map((point) => `L${x(point.age).toFixed(1)},${y(point.value).toFixed(1)}`).join(' ')} Z`
-    const xTicks = [0, .25, .5, .75, 1].map((ratio) => Math.round(maxAge * ratio))
+    const xTicks = [...new Set([0, .25, .5, .75, 1].map((ratio) => Math.round(minAge + (maxAge - minAge) * ratio)))]
     const yTicks = [0, .25, .5, .75, 1].map((ratio) => Math.round((min + (max - min) * ratio) * 10) / 10)
     return { points, latest, x, y, referencePaths, bandPath, actualPath: pathFor(points), xTicks, yTicks }
-  }, [measure, member.birthday, member.gender, records])
+  }, [measure, member.birthday, member.gender, records, referenceId, ageWindow?.[0], ageWindow?.[1], valueWindow?.[0], valueWindow?.[1]])
 
-  if (!model) return <div className="growth-chart-empty">保存第一次{measure === 'height' ? '身长或身高' : '体重'}测量后，这里会出现真实曲线</div>
+  if (!model) return <div className="growth-chart-empty">{referenceId === 'cdc-2000' ? '暂无适用 CDC 参考的已保存测量（2–20岁）' : '保存适用月龄的测量后，这里会出现真实曲线'}</div>
   const selectedIndex = model.points.findIndex((point) => point.record.id === selectedId)
   const selected = selectedIndex >= 0 ? model.points[selectedIndex] : null
   const previous = selectedIndex > 0 ? model.points[selectedIndex - 1] : null
-  const selectedPosition = selected ? calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: selected.record.measuredAt, measure, value: selected.value }) : null
+  const selectedPosition = selected ? calculateGrowthPosition({ birthday: member.birthday, gender: member.gender, measuredAt: selected.record.measuredAt, measure, value: selected.value, referenceId }) : null
   const toggle = (id: string) => setSelectedId((current) => current === id ? '' : id)
   const openFromKeyboard = (event: KeyboardEvent<SVGCircleElement>, id: string) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
@@ -51,7 +55,7 @@ export function GrowthCurveChart({ compact = false, measure, member, records }: 
 
   return <div className={`growth-curve-chart ${compact ? 'growth-curve-chart--compact' : ''}`}>
     <svg aria-labelledby={titleId} onClick={() => setSelectedId('')} role="img" viewBox="0 0 340 286">
-      <title id={titleId}>{measure === 'height' ? '身长身高' : '体重'}成长曲线，可点选真实测量点查看数据</title>
+      <title id={titleId}>{referenceId === 'cdc-2000' ? 'CDC' : 'WHO'} {measure === 'height' ? '身长身高' : '体重'}成长曲线，可点选真实测量点查看数据</title>
       <path className="growth-chart-band" d={model.bandPath} />
       {model.yTicks.map((value) => <g key={value}><line className="growth-chart-grid" x1="42" x2="300" y1={model.y(value)} y2={model.y(value)} /><text className="growth-chart-axis growth-chart-axis--y" x="36" y={model.y(value) + 3}>{displayValue(measure, value)}</text></g>)}
       {model.xTicks.map((month) => <g key={month}><line className="growth-chart-grid" x1={model.x(month)} x2={model.x(month)} y1="36" y2="244" /><text className="growth-chart-axis" x={model.x(month)} y="266">{month}</text></g>)}
@@ -72,6 +76,6 @@ export function GrowthCurveChart({ compact = false, measure, member, records }: 
       <span>{displayValue(measure, selected.value)} {displayUnit(measure)}{selectedPosition ? ` · ${selectedPosition.percentileLabel}` : ''}</span>
       {previous && <small>较上次 {selected.value - previous.value >= 0 ? '+' : ''}{(selected.value - previous.value).toFixed(1)} {displayUnit(measure)}</small>}
     </button>}
-    <p className="growth-chart-footnote">横轴：月龄 · 纵轴：{displayUnit(measure)}。浅线为 WHO 参考曲线，深色线和圆点为已保存记录。</p>
+    <p className="growth-chart-footnote">横轴：月龄 · 纵轴：{displayUnit(measure)}。浅线为 {referenceId === 'cdc-2000' ? 'CDC 2000' : 'WHO 2006'} 参考曲线，深色线和圆点为已保存记录。</p>
   </div>
 }

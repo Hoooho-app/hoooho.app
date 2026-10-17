@@ -60,3 +60,8 @@ Visible product copy and generated share images use `Hoooho`. Persistence keys a
 ### Nested original preview
 
 Original photo previews opened from an existing record, reminder or upload workspace use `BottomSheetSurface` with `layerClassName="hoho-bottom-sheet-layer--nested"`. Render this layer in a body portal so it stays above the parent form without inheriting thumbnail sizing or clipping. This changes stacking only and retains the standard sheet, controls and tokens.
+
+
+### 树芽功能入口（V6）
+
+`SproutEntry` 用于现有食品扫描、忌口卡、用药与档案页面中的树芽功能入口。其背景／边框／前景使用 `--hoho-color-sprout-surface/border/text` 固定淡绿，与会员主题主色分开；晨雾蓝主题也保留此识别色。仅该授权入口增加淡绿，不改变原表单或健康状态语义。`CareHandsIcon` 为双手形成心形空隙的轻入口，首页只显示图形并保留无障碍名称。

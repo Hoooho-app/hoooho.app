@@ -1,7 +1,8 @@
+import { careToolsApi, type MedicationTemplate } from '../../features/care-tools/api'
 import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { EmptyState, HohoButton, StatusNotice } from '../../components/design-system'
+import { EmptyState, HohoButton, StatusNotice, SproutEntry } from '../../components/design-system'
 import { WebPageHeader } from '../../components/common/WebPageHeader'
 import { readNurseStationState, writeNurseStationState } from '../../features/nurse-station/state'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
@@ -46,6 +47,15 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
   const [deleteReminder, setDeleteReminder] = useState<MedicationReminderDto | null>(null)
   const [deleteDesensitization, setDeleteDesensitization] = useState<DesensitizationTaskDto | null>(null)
   const [reminderFlow, setReminderFlow] = useState(false)
+  const [scheduleTemplate,setScheduleTemplate]=useState<MedicationTemplate|null>(null)
+  useEffect(()=>{
+    setScheduleTemplate(null);setReminderFlow(false)
+    const id=new URLSearchParams(location.search).get('template')
+    if(kind!=='medication'||!id||!token)return
+    const controller=new AbortController()
+    void careToolsApi.templates(token,controller.signal).then(result=>{if(controller.signal.aborted)return;const item=result.items.find(x=>x.id===id);if(!result.owned||!item)throw new Error('模板暂时不可用，请从我的模板重新选择');setScheduleTemplate(item);setReminderFlow(true)}).catch(error=>{if(!controller.signal.aborted)setNotice({message:error instanceof Error?error.message:'模板暂时无法读取'})})
+    return()=>controller.abort()
+  },[kind,location.search,member.id,token])
   const [selectedDesensitization, setSelectedDesensitization] = useState<{ id: string; view: DesensitizationView } | null>(null)
   const [notice, setNotice] = useState<{ message: string; undo?: () => Promise<void> } | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -232,7 +242,7 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
   }
 
   const add = () => {
-    if (kind === 'medication') setReminderFlow(true)
+    if (kind === 'medication') {setScheduleTemplate(null);setReminderFlow(true)}
     else navigate('/nurse-station/desensitization/new', { state: { returnTo: '/desensitization-tests' } })
   }
 
@@ -255,6 +265,7 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
   return <main className="app-shell guardian-task-page">
     <WebPageHeader action={<button className="guardian-task-page__add" disabled={status === 'loading'} onClick={add} type="button"><Plus aria-hidden="true" />{meta.add}</button>} fallback="/nurse-station" title={meta.title} />
     <div className="guardian-task-page__scroll" ref={scrollRef}>
+      {kind==='medication'&&<SproutEntry to="/care-tools/medication-templates" title="常用用药安排模板" description="20个树芽长期收藏；只复用排程，药品和用量重新核对"/>}
       <div aria-label={`${meta.title}状态`} className="guardian-task-page__tabs" role="tablist">
         <button aria-selected={view === 'active'} onClick={() => chooseView('active')} role="tab" type="button">进行中 <span>{status === 'success' ? activeCount : '—'}</span></button>
         <button aria-selected={view === 'archive'} onClick={() => chooseView('archive')} role="tab" type="button">已归档 <span>{status === 'success' ? archivedCount : '—'}</span></button>
@@ -265,7 +276,7 @@ function GuardianTaskListPage({ kind }: { kind: TaskKind }) {
       <section aria-busy={status === 'loading'} aria-label={`${view === 'active' ? '进行中' : '已归档'}${meta.title}`} className="guardian-task-list guardian-task-page__list">{list}</section>
     </div>
     {notice && <p aria-live="polite" className="nurse-station-save-notice desensitization-notice" role="status"><span>{notice.message}</span>{notice.undo && <button onClick={() => { const undo = notice.undo; setNotice(null); void undo?.().catch((error) => setNotice({ message: error instanceof Error ? error.message : '撤销失败，请重试' })) }} type="button">撤销</button>}</p>}
-    {reminderFlow && <MedicationReminderFlow memberName={member.name} onClose={() => setReminderFlow(false)} onSave={saveMedication} recentPlans={medicationReminders.map((item) => item.plan)} />}
+    {reminderFlow && <MedicationReminderFlow template={scheduleTemplate?.structure} memberName={member.name} onClose={() => {setReminderFlow(false);setScheduleTemplate(null)}} onSave={saveMedication} recentPlans={medicationReminders.map((item) => item.plan)} />}
     {selectedTask && selectedDesensitization && <DesensitizationTaskSheet initialView={selectedDesensitization.view} onArchive={() => void desensitizationAction(selectedTask, 'archive')} onClose={() => setSelectedDesensitization(null)} onDelete={() => setDeleteDesensitization(selectedTask)} onNotice={(message, undo) => { if (message !== '记录已保存，趋势已更新') setNotice({ message, undo }) }} onRefresh={refreshDesensitization} onRestore={() => void desensitizationAction(selectedTask, 'restore')} task={selectedTask} token={token} />}
     {deleteReminder && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyId) setDeleteReminder(null) }} role="presentation"><section aria-labelledby="medication-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="medication-delete-title">删除“{deleteReminder.plan.medicationName}”提醒？</h2><p>删除后，这条提醒和它生成的服用记录都会移除，无法恢复。</p><div><button disabled={Boolean(busyId)} onClick={() => setDeleteReminder(null)} type="button">取消</button><button disabled={Boolean(busyId)} onClick={() => void reminderAction(deleteReminder, 'delete')} type="button">{busyId ? '删除中…' : '删除提醒'}</button></div></section></div>}
     {deleteDesensitization && <div className="medication-delete-layer" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyId) setDeleteDesensitization(null) }} role="presentation"><section aria-labelledby="desensitization-delete-title" aria-modal="true" className="medication-delete-dialog" role="dialog"><h2 id="desensitization-delete-title">删除“{deleteDesensitization.displayName}”测试？</h2><p>这会删除排敏测试及其中记录；健康随记里的原始饮食记录不会删除。完成后可立即撤销。</p><div><button disabled={Boolean(busyId)} onClick={() => setDeleteDesensitization(null)} type="button">取消</button><button disabled={Boolean(busyId)} onClick={() => void desensitizationAction(deleteDesensitization, 'delete')} type="button">{busyId ? '删除中…' : '删除测试'}</button></div></section></div>}

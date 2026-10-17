@@ -12,6 +12,7 @@ import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { GrowthMeasurementApiDto, Member } from '../../types'
 import { GrowthCurveChart } from './GrowthCurveChart'
+import { GrowthReferenceComparison } from './GrowthReferenceComparison'
 import { validHeight } from './growthCardForm'
 import { buildGrowthInterpretation, growthMetricLabel, metricDisplayValue, metricRecords, type GrowthMeasure } from './growthInterpretation'
 import { formatSigned, formatWeightKg, stepHeightValue, stepWeightKgValue, validWeightKg } from './growthUpdateForm'
@@ -156,6 +157,7 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
       <section className="growth-data-curve" aria-label={`${tabLabel}最新记录与曲线`}>
         <header className="growth-data-latest"><span><small>最新记录</small>{latest && <em>{latest.measuredAt} · {ageText(member.birthday, latest.measuredAt)}</em>}</span><div className="growth-data-latest-value">{latestValue == null ? <strong>暂无记录</strong> : <strong>{metricDisplayValue(measure, latestValue)} <i>{latestPosition?.percentileLabel ?? '暂无百分位'}</i></strong>}<p className="growth-data-reference" title="WHO 儿童生长标准（2006），同性别、测量时月龄的 P50 中位数">标准参考值：{referenceValue == null ? '暂不可用' : `${referenceValue.toFixed(1)}${measure === 'height' ? 'cm' : 'kg'}`}</p></div></header>
         <GrowthCurveChart measure={measure} member={member} records={records} />
+        <GrowthReferenceComparison measure={measure} member={member} records={records} />
       </section>
       <section className="growth-interpretation" aria-label={`${tabLabel}成长解读`}><header><h2>成长解读</h2><small>依据 {measureItems.length} 条记录 · {recordsRange}</small></header><dl><div><dt>这次记录</dt><dd>{interpretation.latest}</dd></div><div><dt>与上次相比</dt><dd>{interpretation.comparison}</dd></div><div><dt>这些记录能说明什么</dt><dd>{interpretation.observation}</dd></div><div><dt>接下来怎么做</dt><dd>{interpretation.next}</dd></div></dl><p>参考：WHO 儿童生长标准。百分位需结合准确月龄和测量方式理解。</p></section>
     </>}

@@ -35,3 +35,10 @@ test('medication denominator excludes future, archived cutoff, another child, an
   const d = data(), r = { id: 'med', memberId: 'child', plan: { medicationName: '已设置药品' }, archivedAt: '2026-10-12T00:00:00Z', occurrences: [{ id: 'done', scheduledAt: '2026-10-10T00:00:00Z', completed: true, completion: { eventId: 'e', recordId: 'r', undoneAt: null } }, { id: 'undone', scheduledAt: '2026-10-11T00:00:00Z', completed: true, completion: { undoneAt: '2026-10-11T01:00:00Z' } }, { id: 'archived', scheduledAt: '2026-10-13T00:00:00Z' }, { id: 'future', scheduledAt: '2026-10-17T20:00:00Z' }] } as ReviewSources['reminders'][number]
   d.reminders = [r, { ...r, id: 'other', memberId: 'other' }]; const m = build(d); assert.equal(m.medicationTotal, 2); assert.equal(m.medicationDone.length, 1); assert.equal(m.medicationPercent, 50)
 })
+test('unconfirmed or external-AI source identities never become factual milk/sleep statistics', () => {
+  const d=data();d.index.events=[event('e')]
+  const milk=record('pending-milk','e',{categories:['diet'],timePrecision:'exact',diet:{kind:'feeding',bottleMl:200}})
+  const sleep=record('external-sleep','e',{categories:['sleep'],timePrecision:'exact',sleep:{kind:'night',status:'completed',sleepAt:'2026-10-10T13:00:00Z',wakeAt:'2026-10-10T23:00:00Z',durationMinutes:600}})
+  d.index.records=[{...milk,caseContext:{identity:'pending'}},{...sleep,caseContext:{identity:'external_ai'}}]
+  const m=build(d);assert.equal(m.recordCount,0);assert.equal(m.milkTotal,0);assert.equal(m.sleepRows.length,0)
+})

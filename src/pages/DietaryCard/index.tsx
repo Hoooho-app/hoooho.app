@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, ChevronDown, Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../components/design-system'
+import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice, SproutEntry } from '../../components/design-system'
 import { loadProfileSections, readProfileSection, readProfileSectionRevision, saveProfileSection, subscribeProfileSections, subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
 import { ApiRequestError } from '../../services/apiClient'
@@ -136,6 +136,7 @@ export function DietaryCardPage() {
   return <main className="app-shell dietary-card-page">
     <DietaryHeader onBack={() => navigate('/nurse-station')} />
     <div className="dietary-card-scroll">
+      <SproutEntry to="/care-tools/handoff" title="忌口交接增强版" description="用10个树芽整理一次托育、出行或临时照顾场景"/>
       <nav aria-label="忌口卡操作" className="dietary-toolbar">
         <button disabled={state.status !== 'ready'} onClick={() => navigate('/dietary-card/edit')} type="button"><Pencil />修改编辑</button>
         <label aria-label="选择出示语言"><select onChange={(event) => setLanguage(event.target.value as DietaryCardLanguage)} value={language}>{languageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown aria-hidden="true" /></label>

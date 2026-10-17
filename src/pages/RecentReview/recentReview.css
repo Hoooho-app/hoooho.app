@@ -3,7 +3,7 @@
 .review-controls { display: flex; align-items: center; gap: var(--hoho-space-2); flex-wrap: wrap; }
 .review-controls > div { display: flex; flex: 1; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: var(--hoho-space-1); background: rgb(var(--hoho-color-surface)); }
 .review-controls > div button { flex: 1; min-height: var(--hoho-touch-target); padding-inline: var(--hoho-space-2); font: inherit; font-size: var(--hoho-font-size-body-small); border: 0; border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-text-secondary)); background: transparent; }
-.review-controls button[aria-pressed="true"] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-weight: 600; }
+.review-controls button[aria-pressed="true"] { background: rgb(var(--hoho-color-sprout-surface)); color: rgb(var(--hoho-color-primary)); font-weight: 600; }
 .review-coverage { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2) var(--hoho-space-3); font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }
 .review-charts { display: grid; gap: var(--hoho-space-3); min-width: 0; }
 .review-card { min-width: 0; padding: var(--hoho-space-4); box-shadow: none; }
@@ -23,4 +23,23 @@
 .review-dates { display: grid; gap: var(--hoho-space-3); }
 .review-page .hoho-fact-line text { font-size: 11px; }
 .review-page .hoho-fact-distribution { margin: var(--hoho-space-4) 0; gap: var(--hoho-space-3); }
+.review-snapshot-tools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--hoho-space-1) var(--hoho-space-3); padding: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-sprout-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-sprout-surface)); }
+.review-snapshot-tools > div { display: flex; align-items: center; gap: var(--hoho-space-2); color: rgb(var(--hoho-color-sprout-text)); font-size: var(--hoho-font-size-body-small); }
+.review-snapshot-tools > .hoho-text-caption { flex-basis: 100%; }
+.review-view-tabs { display: flex; border-bottom: 1px solid rgb(var(--hoho-color-border)); gap: var(--hoho-space-3); }
+.review-view-tabs button { flex: 1; min-height: var(--hoho-touch-target); border: 0; border-bottom: 2px solid transparent; color: rgb(var(--hoho-color-text-secondary)); background: transparent; font: inherit; font-size: var(--hoho-font-size-body-small); }
+.review-view-tabs button[aria-selected="true"] { border-bottom-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
+.review-page .review-export[data-view="charts"] .review-comparison, .review-page .review-export[data-view="comparison"] .review-charts { display: none; }
+.review-comparison { display: grid; gap: var(--hoho-space-4); min-width: 0; }
+.review-comparison-day { display: grid; gap: var(--hoho-space-2); min-width: 0; }
+.review-comparison-scroll { overflow-x: auto; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); }
+.review-comparison table { width: 100%; min-width: 720px; table-layout: fixed; border-collapse: collapse; font-size: var(--hoho-font-size-body-small); }
+.review-comparison th, .review-comparison td { padding: var(--hoho-space-3); text-align: left; vertical-align: top; border-right: 1px solid rgb(var(--hoho-color-border)); }
+.review-comparison th { font-weight: 500; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.review-comparison th:last-child, .review-comparison td:last-child { border-right: 0; }
+.review-comparison td article + article { border-top: 1px solid rgb(var(--hoho-color-border)); padding-top: var(--hoho-space-2); margin-top: var(--hoho-space-2); }
+.review-comparison td p { margin: var(--hoho-space-1) 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.review-comparison time, .review-comparison-empty { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
+.review-snapshot-list-row { display: flex; align-items: center; justify-content: space-between; gap: var(--hoho-space-3); padding-block: var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.review-snapshot-list-row > div { min-width: 0; }
 @media (min-width: 760px) { .review-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

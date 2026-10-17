@@ -1,0 +1,21 @@
+.care-tools-page {padding-bottom:0;}
+.care-tools-content {display:grid;gap:var(--hoho-space-6);padding:var(--hoho-space-4) var(--hoho-page-gutter) calc(var(--hoho-space-10) + env(safe-area-inset-bottom));}
+.care-tools-stack {display:grid;gap:var(--hoho-space-3);}
+.care-tools-sprout {display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-sprout-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-sprout-surface));}
+.care-tools-check {display:flex;align-items:flex-start;gap:var(--hoho-space-3);min-height:var(--hoho-touch-target);font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);}
+.care-tools-check input {width:18px;height:18px;flex-shrink:0;margin-top:4px;accent-color:rgb(var(--hoho-color-sprout-text));}
+.care-tools-between {display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-3);}
+.care-tools-photos {display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);}
+.care-tools-photo {display:grid;gap:var(--hoho-space-1);width:64px;}
+.care-tools-photo img {width:64px;height:64px;object-fit:cover;border-radius:var(--hoho-radius-small);border:1px solid rgb(var(--hoho-color-border));}
+.care-tools-photo button {min-height:var(--hoho-touch-target);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-primary));}
+.care-tools-source-image {width:100%;height:auto;object-fit:contain;max-height:70dvh;}
+.care-tools-page .hoho-surface-row .hoho-text-caption {white-space:normal;}
+.care-tools-comparison {overflow-x:auto;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);}
+.care-tools-table {width:100%;table-layout:fixed;border-collapse:collapse;min-width:300px;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-body);}
+.care-tools-table th,.care-tools-table td {padding:var(--hoho-space-3);border-bottom:1px solid rgb(var(--hoho-color-border));vertical-align:top;text-align:left;font-weight:400;overflow-wrap:anywhere;}
+.care-tools-table thead th {font-weight:500;background:rgb(var(--hoho-color-surface-subtle));}
+.care-tools-table td p+p {margin-top:var(--hoho-space-2);}
+.care-tools-table tbody tr:last-child td {border-bottom:0;}
+.care-tools-list {display:grid;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);}
+.care-tools-list li {padding-left:var(--hoho-space-3);border-left:2px solid rgb(var(--hoho-color-border));}
