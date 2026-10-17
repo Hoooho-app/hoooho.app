@@ -20,10 +20,12 @@ Acceptance:
 - Validate at 320px and 390px, including keyboard/safe-area, reduced motion, accessible status and focus behavior. Browser emulation is distinct from physical iPhone validation.
 - Run the build, relevant authentication/client checks and mobile browser recovery scenarios. Commit, push, integrate into main, verify Railway Staging, then Production and report the verified release.
 
-## Verified local result and release status
+## Verified result and release
 
-- Local implementation and build passed. The final local run passed all 16 browser scenarios in 22.7 seconds; client checks passed 665/665, authentication checks 26/26 and durable-session checks 21/21.
+- The production build passed. Local verification passed 665/665 client checks, 26/26 authentication checks, 21/21 durable-session checks and all 16 browser scenarios, including four existing real-server authentication flows. GitHub Actions run [39018817472](https://github.com/Hoooho-app/hoooho.app/actions/runs/39018817472) repeated the client/auth checks, build and 16 browser scenarios successfully.
 - Visual inspection covered the original-page indicator, bottom retry notice and branded startup fallback at 320px and 390px. Reauthentication also fits a 320px by 420px visible viewport. Physical iPhone/Safari has not been verified.
-- Source commits: `7238504` (implementation), `5c19526` (stable acceptance setup). The worktree is isolated from the other active Hoooho tasks.
-- Delivery status: **RELEASE IN PROGRESS**. The user explicitly authorized the proposed repository upload and deployment on 2026-10-17. The earlier automatic approval block is resolved by this authorization.
-- Command-line Git has no write credential in this environment. Publish the verified files through the connected GitHub integration, verify the remote tree matches the local tree, and complete PR checks, main integration, Staging verification and Production verification before reporting completion.
+- [PR #449](https://github.com/Hoooho-app/hoooho.app/pull/449) was merged into main as `bb90bee4076640c93f45446c068e3d53f658dd5a`. Files were published through the connected GitHub integration because command-line Git had no write credential. The uploaded tree `11576ceebc202b50387f33fada82ef47f91d0d48` exactly matched the locally verified tree.
+- Railway Staging deployment `3e94a4b3-0847-4b88-bad7-1b022473feb0` reached **SUCCESS** for that exact main commit. All 12 recovery scenarios passed against the deployed Staging frontend in 1.5 minutes; GET `/api/health` returned `status: ok`.
+- After Staging acceptance, Railway Production deployment `ea534ef8-6885-4a8c-a457-2b776fac94f4` reached **SUCCESS** for the same commit. All 12 recovery scenarios passed against [hoooho.com](https://hoooho.com) in 2.9 minutes; GET `/api/health` returned `status: ok`. Railway reported one running replica, zero crashed replicas, no pending work and no service issues.
+- Deployed-frontend browser scenarios intercept all API requests with fictional accounts and member fixtures; they do not write user data. Real-server authentication was separately covered by the four localhost flows in local/CI acceptance.
+- Delivery status: **DONE**, 2026-10-17. The user approved the recovery UX and explicitly authorized repository publication and deployment. This final acceptance-record update changes documentation only; the verified application release remains `bb90bee`.
