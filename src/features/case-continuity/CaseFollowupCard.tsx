@@ -60,10 +60,10 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   return <article className="continuity-card case-followup-card" data-case-id={id} aria-label={displayTitle}>
     <div className="case-followup-card-header">
       <h2><Cross size={21} strokeWidth={1.8} aria-hidden/><span className="case-followup-title">{displayTitle}</span></h2>
-      <div className="case-followup-management"><HohoButton aria-label={`编辑${displayTitle}`} variant="text" disabled={busy} onClick={()=>{setTitle(view.title);setManagementError('');setManagement('edit')}}>编辑</HohoButton></div>
+      <div className="case-followup-management"><HohoButton aria-label={`编辑${displayTitle}`} variant="text" size="small" disabled={busy} onClick={()=>{setTitle(view.title);setManagementError('');setManagement('edit')}}>编辑</HohoButton></div>
     </div>
     {archived&&<p className="case-followup-time">{knownRecovery ? `${item.event.caseArchiveReason==='user_recovered'?'用户标记康复':'已记录康复'}：${dateText(item.event.caseRecoveryMarkedAt||item.event.recoveredAt,timezone)}` : <><span className="case-legacy-archive">历史归档</span>归档时间：{dateText(item.event.caseArchivedAt,timezone)}<span>未记录康复原因，不代表已确认康复</span></>}</p>}
-    <div className="case-followup-toggle"><span>变化过程</span><HohoButton variant="text" aria-expanded={expanded} aria-controls={`case-timeline-${id}`} onClick={()=>setExpanded(v=>!v)}>{expanded?'收起':'展开'}<ChevronDown size={15} aria-hidden className={expanded?'case-followup-chevron-open':undefined}/></HohoButton></div>
+    <div className="case-followup-toggle"><span>变化过程</span><HohoButton variant="text" size="icon" aria-label={expanded?'收起':'展开'} aria-expanded={expanded} aria-controls={`case-timeline-${id}`} onClick={()=>setExpanded(v=>!v)}><ChevronDown size={15} aria-hidden className={expanded?'case-followup-chevron-open':undefined}/></HohoButton></div>
     {expanded&&<div id={`case-timeline-${id}`} className="case-followup-timeline">
       {error?<p role="alert">{error}<HohoButton variant="secondary" onClick={()=>setVersion(v=>v+1)}>重试加载过程记录</HohoButton></p>:!records?<p role="status">正在加载过程记录…</p>:!records.length?<p>暂无过程记录</p>:<ol>{records.map(record=><li key={record.id} data-record-id={record.id}>
         <time dateTime={timeKnown(record)?record.occurredAt:undefined}>{timeKnown(record)?dateText(record.occurredAt,timezone):'发生时间未提供'}</time>
@@ -78,9 +78,9 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
       {view.hasUnknownTime&&<p className="case-followup-time">含发生时间未提供的记录</p>}
     </div>}
     <div className="case-followup-primary-actions">
-      {!archived&&<HohoButton variant="text" disabled={busy} onClick={supplement}>补充变化</HohoButton>}
-      <HohoButton variant="text" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton>
-      <HohoButton aria-label={`删除${displayTitle}`} variant="text" disabled={busy} onClick={()=>{setManagementError('');setManagement('delete')}}>删除</HohoButton>
+      {!archived&&<HohoButton variant="secondary" disabled={busy} onClick={supplement}>补充变化</HohoButton>}
+      <HohoButton variant="secondary" disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton>
+      <HohoButton aria-label={`删除${displayTitle}`} variant="secondary" disabled={busy} onClick={()=>{setManagementError('');setManagement('delete')}}>删除</HohoButton>
     </div>
     {!archived&&form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={materialEventId} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}
     <BottomSheetSurface open={Boolean(management)} viewportAware title={management==='delete'?'删除这次情况？':'编辑情况名称'} label={management==='delete'?'删除情况':'编辑情况'} onClose={()=>{if(!busy)setManagement(null)}} footer={<HohoButton fullWidth loading={busy} variant={management==='delete'?'danger':'primary'} disabled={management==='edit'&&!title.trim()} onClick={()=>void manage()}>{management==='delete'?'确认删除':'保存'}</HohoButton>}>
