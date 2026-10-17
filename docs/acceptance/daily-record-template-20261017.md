@@ -18,8 +18,12 @@
 - Railway 独立 Staging 验收服务部署 1c0922d5-3ad4-4516-8ffa-4831711dbf80 SUCCESS，应用提交243cc3d。线上 release.mjs 检查全部通过，客户端构建标记匹配243cc3d，无页面错误，虚构成员已清理。
 - 实体 iPhone/Safari 和产品负责人视觉验收尚未完成。
 
-## 发布状态：BLOCKED
+## 发布状态：DONE（2026-10-17 重试完成）
 
-正式发布操作被取消。复核 Production 最新成功部署仍是 b6ae10f7-b117-4dc0-9884-b132fea00d60，应用提交 ea433c35ce5983fdfa5ec89378ba968a510dce4d，本次修改尚未上线。
+首次正式发布操作被取消，用户随后明确要求“重试”。重试前已复核待发布 patch 8bc46311-49a7-47f5-bccf-17981469c4c9 仅包含目标服务来源配置，没有变量或数据操作；Staging 验收版本保持 SUCCESS。
 
-Production patch 8bc46311-49a7-47f5-bccf-17981469c4c9 保留待发布目标main/243cc3d，仅来源配置，无变量或数据操作。没有重试被取消的发布动作。主 Staging 服务原有的另一任务 patch 7cab7e0c-7f2d-43dd-bcc1-3c6ad9a8324e 未被接受或替换。
+- Production 部署 188bb950-d49e-434c-87f0-8e2169e092cf：SUCCESS，2026-10-17T01:09:59Z 完成，正式站 https://hoooho.com。
+- Railway 实际构建 main/702c7b6122af8eda0c70ceaca6690fffaf6f470f；与 Staging 的 243cc3d 应用代码一致，差异仅验收文档和线上测试代理支持。
+- 正式站 release.mjs：PASS；覆盖奶类、辅食、正餐、零食、补剂、用药、睡眠、排便、身体涂抹，原喂养字段保留、右上角保存、规则保存后重进，以及320/375/390/430px排版。客户端构建标记匹配702c7b6，无页面错误，虚构成员已清理。
+- Production 待发布配置已清空；主 Staging 服务原有的另一任务 patch 7cab7e0c-7f2d-43dd-bcc1-3c6ad9a8324e 未被接受或替换。
+- 本次未修改应用源码。实体 iPhone/Safari 和产品负责人视觉验收仍未完成，浏览器模拟验收不替代二者。
