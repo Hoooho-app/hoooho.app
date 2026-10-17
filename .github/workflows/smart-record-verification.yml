@@ -20,8 +20,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/business/*.test.mjs
       - run: npm run build
-      - run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
+      - if: ${{ !cancelled() }}
+        run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
