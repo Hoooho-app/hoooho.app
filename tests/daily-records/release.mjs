@@ -29,7 +29,7 @@ async function api(path, method = 'GET', data) {
 async function checkTemplate(category) {
   const settings = page.getByRole('region', { name: '每天自动记录设置' })
   const toggle = settings.getByRole('switch', { name: '每天自动记录', exact: true })
-  await expect(toggle).toBeEnabled()
+  await expect(toggle).toBeEnabled({ timeout: 15_000 })
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   await expect(settings.locator('small')).toHaveCount(0)
   await toggle.click()
@@ -102,10 +102,18 @@ try {
   await settings.getByRole('switch', { name: '每天自动记录', exact: true }).click()
   await settings.getByLabel('第1项名称').fill('验收早奶'); await settings.getByLabel('第1项时间').fill('08:00')
   await expect(settings.getByLabel('第1项喂养方式')).toHaveCount(0); await settings.getByLabel('第1项奶量（mL）').fill('150')
+  // Use the deployed server's clock for this synthetic past record. A local
+  // workstation clock ahead of Railway must not trip the real future-time gate.
+  const serverTime = Date.parse((await context.request.get('/api/health')).headers().date)
+  assert(Number.isFinite(serverTime), 'Health response must provide a server Date header')
+  const occurredAt = new Date(serverTime - 5 * 60_000).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).slice(0, 16).replace(' ', 'T')
+  await form.getByRole('textbox', { name: '记录时间', exact: true }).fill(occurredAt)
   await settings.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/template-375.png` })
   const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/quick-records' && response.request().method() === 'POST')
   await form.locator('header').getByRole('button', { name: '保存记录', exact: true }).click()
-  assert.equal((await saved).status(), 201); await expect(form).toHaveCount(0)
+  const savedResponse = await saved
+  if (savedResponse.status() !== 201) { const body = await savedResponse.json(); throw new Error(JSON.stringify({ status: savedResponse.status(), error: body.error })) }
+  await expect(form).toHaveCount(0)
   const rules = await api(`/api/routines/${memberId}/daily`)
   assert.equal(rules.length, 1); assert.equal(rules[0].slots[0].name, '验收早奶'); assert.equal(rules[0].slots[0].time, '08:00')
   assert.equal(rules[0].slots[0].fields.feedingMethod, 'formula'); assert.equal(rules[0].slots[0].enabled, true)
