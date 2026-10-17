@@ -82,7 +82,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
         else blob=await quickRecordService.readPhoto(hydrationDraft,photo.id,memberId,token)
         let posterUrl: string | undefined
         if(allowVideos&&photo.mimeType.startsWith('video/'))try{posterUrl=URL.createObjectURL(await quickRecordService.mediaPreview(hydrationDraft,photo.id,memberId,token,true))}catch{/* identifiable video fallback remains */}
-        return { localId: photo.uploadId??photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, size:photo.binarySize,duration:photo.duration,review:photo.review,previewUrl: URL.createObjectURL(blob), posterUrl, status: 'uploaded' as const }
+        return { ...(!allowVideos ? { file: new File([blob], photo.name, { type: photo.mimeType }) } : {}), localId: photo.uploadId??photo.id, serverId: photo.id, name: photo.name, mimeType: photo.mimeType, size:photo.binarySize,duration:photo.duration,review:photo.review,previewUrl: URL.createObjectURL(blob), posterUrl, status: 'uploaded' as const }
       }))
       const pending=allowVideos?(await localMediaDraft.list(localScope).catch(()=>[])).filter(p=>!saved.some(s=>s.uploadId===p.localId)):[]
       const restored=pending.map(p=>({localId:p.localId,file:p.file,name:p.file.name,mimeType:p.file.type,size:p.file.size,origin:p.origin,previewUrl:URL.createObjectURL(p.file),status:'failed' as const,error:'上次上传未完成，原件已在本机恢复，请重试上传'}))
@@ -202,7 +202,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   return { refreshReview,retryReview,confirmReview,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
-export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, onApply }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; onApply?: (text:string,id:string)=>void }) {
+export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, onApply, onChooseFiles }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; onApply?: (text:string,id:string)=>void; onChooseFiles?: (files:FileList|null)=>void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lightboxRef = useRef<HTMLDivElement>(null)
   const { photos, notice, previewIndex } = model
@@ -228,7 +228,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
         </div>)}
         {showAddButton && photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
       </div>
-      {showAddButton && <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />}
+      {showAddButton && <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { (onChooseFiles ?? model.chooseFiles)(event.target.files); event.currentTarget.value = '' }} type="file" />}
       {model.allowVideos && <div className="media-item-details">{photos.map((p,i)=><MediaItemDetails key={p.localId} item={p} index={i} model={model} onApply={onApply} />)}</div>}
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}
       {!model.allowVideos && model.blocked && <p className="quick-record-photo-error" role="alert">{photos.some((photo) => photo.status === 'failed') ? (model.allowVideos ? '有资料上传失败，请重试或移除' : '有照片上传失败，请重试或移除') : (model.allowVideos ? '资料上传中，请稍候' : '照片上传中，请稍候')}</p>}

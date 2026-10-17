@@ -14,7 +14,7 @@ test.beforeEach(async({page,request})=>{
  await page.getByRole('button',{name:'改用文字'}).click()
  await page.getByLabel('对话输入').fill('昨天脸颊有点红')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'核对 1 条记录',exact:true})).toBeEnabled()
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
  await page.getByRole('button',{name:'直接记录',exact:true}).click()
@@ -28,7 +28,7 @@ test('automatic review, direct save ends input, exact record opens over its mont
  await expect(page.getByRole('dialog')).toBeVisible()
 })
 test('full review edits one field, adds and deletes cards, saves together',async({page},info)=>{
- await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click()
+ await page.getByRole('button',{name:'核对记录',exact:true}).click()
  await expect(page.getByRole('heading',{name:'核对记录',exact:true})).toBeVisible()
  await expect(page.getByRole('dialog')).toHaveCount(0)
  await expect(page.getByText(/点开需要修改|护士整理了|还想补充吗/)).toHaveCount(0)
@@ -58,10 +58,10 @@ test('zero extracted records offer no record actions',async({page,request})=>{
  await page.getByLabel('对话输入').fill('谢谢')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.getByLabel('对话输入')).toBeEnabled()
- await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对 \d+ 条记录|直接记录/})).toHaveCount(0)
+ await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对记录|直接记录/})).toHaveCount(0)
 })
 test('delete the extracted record and save only a manual addition',async({page})=>{
- await page.getByRole('button',{name:'核对 1 条记录',exact:true}).click()
+ await page.getByRole('button',{name:'核对记录',exact:true}).click()
  await page.getByRole('button',{name:/删除/}).click()
  await expect(page.locator('.smart-review-card')).toHaveCount(0)
  await expect(page.getByRole('button',{name:'保存',exact:true})).toBeDisabled()
@@ -82,6 +82,6 @@ test('voice recording remains available and automatically gets the two record ac
  await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
  await page.waitForTimeout(900);await page.keyboard.up('Space')
  await expect(page.locator('.nurse-turn--user').last()).toContainText('今天胳膊有点痒')
- await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对 \d+ 条记录/})).toBeEnabled()
+ await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对记录/})).toBeEnabled()
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
 })

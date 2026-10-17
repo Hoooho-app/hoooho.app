@@ -5,7 +5,6 @@ import { HeartPulse, Pencil, PlusCircle, Trash2 } from 'lucide-react'
 import { BottomSheetSurface, HohoButton, HohoInput } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventRecordApiDto } from '../../types'
-import { RecordOriginals } from '../ai-business/RecordOriginals'
 import { MaterialReturnForm } from './MaterialReturnPage'
 import type { FollowedCase } from './types'
 import { caseService } from './api'
@@ -16,7 +15,7 @@ const dateText = (value: string | null | undefined, timezone: string) => value &
 
 export function CaseFollowupCard({item, memberId, token, timezone, reload, onDirty, onStatus}: {item:FollowedCase;memberId:string;token:string;timezone:string;reload:()=>void;onDirty:(id:string,dirty:boolean)=>void;onStatus:(archived:boolean)=>void}) {
   const navigate = useNavigate(),[query]=useSearchParams()
-  const [expanded,setExpanded] = useState(true), [form,setForm] = useState<'materials'|null>(null)
+  const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'materials'|null>(null)
   const [materialRecordId,setMaterialRecordId]=useState<string|null>(null),[materialEventId,setMaterialEventId]=useState(item.event.id)
   const [records,setRecords] = useState<HealthEventRecordApiDto[]|null>(null), [error,setError] = useState(''), [version,setVersion] = useState(0)
   const [recordsLoadedAt,setRecordsLoadedAt]=useState(0)
@@ -25,7 +24,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   const pending = useRef(false), dirty = useRef(false), materialDirty = useRef(false)
   const statusRequest = useRef<{archivedAt:string|null;id:string}|null>(null)
   const id = item.event.id, archived = Boolean(item.event.caseArchivedAt), knownRecovery = item.event.caseArchiveReason === 'user_recovered' || item.event.status==='recovered'&&Boolean(item.event.recoveredAt)
-  useEffect(()=>{const focus=query.get('eventId');if(focus&&(item.sourceEventIds??[item.event.id]).includes(focus))setExpanded(true)},[query,item.event.id])
+  useEffect(()=>{const focus=query.get('eventId');setExpanded(Boolean(focus&&query.get('recordId')&&(item.sourceEventIds??[item.event.id]).includes(focus)))},[query,item.event.id])
   const setMaterialDirty = useCallback((value:boolean) => { materialDirty.current=value;dirty.current=value;onDirty(id,dirty.current) },[id,onDirty])
   useEffect(() => () => onDirty(id,false),[id,onDirty])
   useEffect(() => {
@@ -60,7 +59,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   return <article className="continuity-card case-followup-card" data-case-id={id} aria-label={view.title}>
     <div className="case-followup-card-header">
       <h2><HeartPulse size={22} aria-hidden/>{view.title}</h2>
-      <div className="case-followup-management"><HohoButton aria-label={`编辑${view.title}`} variant="text" size="icon" disabled={busy} onClick={()=>{setTitle(view.title);setManagementError('');setManagement('edit')}}><Pencil size={18}/></HohoButton><HohoButton aria-label={`删除${view.title}`} variant="text" size="icon" disabled={busy} onClick={()=>{setManagementError('');setManagement('delete')}}><Trash2 size={18}/></HohoButton></div>
+      <div className="case-followup-management"><HohoButton aria-label={`编辑${view.title}`} variant="text" disabled={busy} onClick={()=>{setTitle(view.title);setManagementError('');setManagement('edit')}}>编辑<Pencil size={16} aria-hidden/></HohoButton></div>
     </div>
     {view.description&&<p className="case-followup-description">{view.description}</p>}
     {view.keyword&&<span className="case-followup-keyword">{view.keyword}</span>}
@@ -75,13 +74,15 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
         {(record.sourceText||record.caseContext?.originalText)&& (record.sourceText||record.caseContext?.originalText)!==record.content && <details><summary>查看完整原文</summary><p className="continuity-source">{record.caseContext?.originalText||record.sourceText}</p></details>}
         {record.caseContext?.supplement&&<p className="continuity-source">{record.caseContext.supplement}</p>}
         {record.journal?.symptom?.shortNote&&!record.content.includes(record.journal.symptom.shortNote)&&<p className="continuity-source">{record.journal.symptom.shortNote}</p>}
-        <RecordOriginals eventId={record.eventId} recordId={record.id} attachmentIds={record.caseContext?.attachmentIds??record.aiProvenance?.attachmentIds??[]}/>
         {!archived&&record.caseContext&&record.caseContext.identity!=='parent'&&<HohoButton variant="text" onClick={()=>{if(!dirty.current||window.confirm('当前内容尚未保存，切换后保留设备草稿，确定继续吗？')){setMaterialRecordId(record.id);setMaterialEventId(record.eventId);setForm('materials')}}}>核对这份资料</HohoButton>}
       </li>)}</ol>}
     </div>}
-    {!archived&&<><div className="case-followup-primary-actions"><HohoButton variant="secondary" fullWidth disabled={busy} onClick={supplement}><PlusCircle size={18} aria-hidden/>补充变化</HohoButton></div>
-      {form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={materialEventId} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}</>}
-    <div className="case-followup-recovery"><HohoButton fullWidth disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton></div>
+    <div className="case-followup-primary-actions">
+      {!archived&&<HohoButton variant="secondary" disabled={busy} onClick={supplement}><PlusCircle size={16} aria-hidden/>补充变化</HohoButton>}
+      <HohoButton disabled={busy} loading={busy} onClick={()=>void changeStatus()}>{archived?'恢复跟进':'标记已康复'}</HohoButton>
+      <HohoButton aria-label={`删除${view.title}`} variant="text" disabled={busy} onClick={()=>{setManagementError('');setManagement('delete')}}><Trash2 size={16} aria-hidden/>删除</HohoButton>
+    </div>
+    {!archived&&form==='materials'&&<MaterialReturnForm key={materialRecordId??'new'} initialRecordId={materialRecordId} embedded eventId={materialEventId} onDirtyChange={setMaterialDirty} onClose={()=>setForm(null)} onSaved={saved}/>}
     <BottomSheetSurface open={Boolean(management)} viewportAware title={management==='delete'?'删除这次情况？':'编辑情况名称'} label={management==='delete'?'删除情况':'编辑情况'} onClose={()=>{if(!busy)setManagement(null)}} footer={<HohoButton fullWidth loading={busy} variant={management==='delete'?'danger':'primary'} disabled={management==='edit'&&!title.trim()} onClick={()=>void manage()}>{management==='delete'?'确认删除':'保存'}</HohoButton>}>
       {management==='edit'?<HohoInput label="情况名称" maxLength={24} value={title} onChange={event=>setTitle(event.target.value)}/>:<p>将删除“{view.title}”及其{view.recordCount}条关联记录。删除后无法恢复。</p>}
       {managementError&&<p role="alert">{managementError}</p>}
@@ -89,4 +90,4 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
     {failure&&<p role="alert">{failure}</p>}{notice&&<p role="status" className="case-followup-time">{notice}</p>}
   </article>
 }
-function RecordText({text}:{text:string}) { const [full,setFull]=useState(false);return <><p className="continuity-source">{!full&&text.length>240?`${text.slice(0,240)}…`:text}</p>{text.length>240&&<HohoButton variant="text" aria-expanded={full} onClick={()=>setFull(v=>!v)}>{full?'收起全文':'展开全文'}</HohoButton>}</> }
+function RecordText({text}:{text:string}) { text=text.replace(/^症状原话(?=\s*[：:])/gm,'症状');const [full,setFull]=useState(false);return <><p className="continuity-source">{!full&&text.length>240?`${text.slice(0,240)}…`:text}</p>{text.length>240&&<HohoButton variant="text" aria-expanded={full} onClick={()=>setFull(v=>!v)}>{full?'收起全文':'展开全文'}</HohoButton>}</> }

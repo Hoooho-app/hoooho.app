@@ -319,6 +319,8 @@
     overscroll-behavior: none;
   }
 
+  .hoho-bottom-sheet-layer--nested { z-index: 120; }
+
   .hoho-bottom-sheet-backdrop {
     position: absolute;
     inset: 0;

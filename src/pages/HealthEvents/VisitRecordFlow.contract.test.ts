@@ -15,7 +15,7 @@ test('visit entry opens a direct continuous form with the fixed field order', ()
 
 test('visit documents keep the requested factual safety boundary', () => {
   assert.match(flow, /limit=\{6\}/)
-  assert.match(flow, /识别结果待核对/)
+  assert.match(flow, /<PhotoAnalysis/)
   assert.match(flow, /当前人物还没有可关联的症状记录/)
   assert.doesNotMatch(flow, /GPS|地图|推荐医院|推荐科室|AI已确认|诊断已核验|治疗建议/)
 })
