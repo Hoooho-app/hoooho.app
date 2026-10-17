@@ -30,7 +30,7 @@ const styles = read('../../styles/index.css')
 const station = read('../NurseStation/index.tsx')
 const homeFlows = read('../NurseStation/HomeFlows.tsx')
 
-test('统一健康日历移除身份块，共享入口与首页均保留情况单', () => {
+test('统一健康日历移除身份块，共享入口保留情况单且首页按需呈现', () => {
   assert.match(page, /<MainAppHeader title="健康日历"/)
   assert.doesNotMatch(page, /HealthRecordSubjectHeader/)
   assert.match(page, /showInstallApp=\{false\} action=/)
