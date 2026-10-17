@@ -1,0 +1,50 @@
+name: Quick search verification
+on:
+  pull_request:
+    paths: ['src/pages/NurseStation/recordFinderModel*', 'src/pages/NurseStation/RecordFinder.tsx', 'src/pages/NurseStation/QuickSearchPage.css', 'src/pages/HealthEvents/JournalSearchResults.tsx', 'tests/home-flows/quick-search*', '.github/workflows/quick-search-verification.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:client
+      - run: npm run build
+      - run: npx playwright test --config tests/home-flows/playwright.config.ts quick-search.spec.ts --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-search-browser-evidence
+          path: test-results/
+  live:
+    if: github.head_ref == 'codex/quick-search-fuzzy-20261017'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify Staging after release
+        run: node tests/home-flows/quick-search-release.mjs https://hooohoapp-staging.up.railway.app
+      - name: Verify Production after Staging
+        run: node tests/home-flows/quick-search-release.mjs https://hoooho.com
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-search-online-evidence
+          path: outputs/quick-search/
