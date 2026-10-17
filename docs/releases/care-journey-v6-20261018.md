@@ -18,7 +18,7 @@ Acceptance checklist:
 - [x] Family authorizations remain isolated and server-validated; real payment unavailable cannot pretend membership purchase; no unconsented cross-account data copying.
 - [x] Ordinary feedback stays free; no paid bug handling or unvalidated reward promises.
 - [x] Build/relevant automated tests and mobile browser checks.
-- [ ] Commit/main, Staging deployment/acceptance, Production deployment/acceptance.
+- [x] Commit/main, Staging deployment/acceptance, Production deployment/acceptance.
 
 Frozen: unrelated layouts, nurse assets, AI providers/models, health chronology and original records. Product-owner visual acceptance remains separate from automated verification; emulation does not equal physical iPhone Safari acceptance.
 
@@ -40,3 +40,13 @@ Commercial release scope:
 - Current review/month view/automatic settings are not prematurely paywalled. Subscription price, payment/restore and seven-day paid migration remain disabled until ready.
 - Family workspace implementation is available only to server-allowlisted internal test accounts until membership authorization is ready; normal users see its truthful not-open state.
 - Regional vaccination provides free program/source/record-check preview and user-confirmed local calendar export;20-sprout comprehensive regional service is not sold while local qualification validation is incomplete. Unlicensed/unintegrated growth references and paid co-creation are not sold.
+
+
+Online release evidence — 2026-10-18:
+
+- Implementation PR #472 merged as `2e5679e894c2b9b9de11bc0d5071fc6054e902d8`. The GitHub-published tree exactly matched the locally verified tree. The intervening symptom-action fix was preserved and the combined production build passed.
+- Staging deployment `096533a2-3858-44b7-a106-fb75e9b4fa84` reached SUCCESS at `2e5679e`. Authenticated mobile smoke passed20 checks, including exact runtime SHA, real account/member APIs, idempotent check-in, server-backed task completion,13 routes, pale-green home entry and320/390 widths. No page JavaScript errors; the synthetic child was removed.
+- Production deployment `5ddbd64c-c338-4d52-9fc8-4f99cb21912a` reached SUCCESS at `93d49cb7e6ecce4756fe7481ef8073eda4f3e456`. This commit contains the implementation with only a subsequent acceptance-document change. The same20 authenticated online smoke checks passed, with exact runtime SHA and synthetic-child cleanup. Later documentation-only commits do not change this application source.
+- These online checks are smoke acceptance. Complete redemption, settlement, failure release, frozen snapshots and family revocation were validated by the local integrated service/browser checks listed above; no production AI-provider success or physical iPhone acceptance is claimed.
+- The existing Production supplier quota issue documented in `docs/acceptance/qwen-latency-20261018.md` remains outside this change. No supplier, secret or quota setting was changed to bypass it; failed enhancement generation does not consume sprouts.
+- Product-owner visual approval remains pending their review of the live application. Actual payment, full membership activation, regional clinical qualification and other unready datasets remain disabled as listed above.
