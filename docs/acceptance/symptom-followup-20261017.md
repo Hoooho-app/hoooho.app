@@ -14,4 +14,14 @@
 
 ## 验证与发布
 
-构建（含类型、资源、视口、认证与安装配置）通过；savedRecordGuide 两项回归通过。本地 Chromium 因运行环境禁止 socket 启动失败，三项浏览器用例尚未执行，改由 GitHub CI 独立运行。待完成提交推送、CI、main 集成、Staging 与 Production 验证。实体 iPhone/Safari 未验收。
+- 完整构建通过（类型、资源、视口、认证与安装配置）。
+- savedRecordGuide 两项测试、case-continuity-service 18 项测试通过。
+- GitHub CI 38985426207 成功：124 项后端测试、3 项专项浏览器测试、22 项智能记录浏览器回归全部通过。
+- 专项浏览器覆盖 320/375/390/430px，默认折叠与同排操作、编辑/康复/恢复/删除、补充正常保存和模型失败后保存原话的同症状回跳、完整原文与存储原文保留。
+- 旧智能记录浏览器测试的过期按钮定位已同步至当前已批准文案（核对记录、停止处理），未改变产品功能。
+- PR #436 已合入 main，应用合并提交 1e5393d8e3e45675566e47a16a9427353bc5c84f。
+- 本地 Chromium 启动受 socket 限制，浏览器回归已在 GitHub CI 实际执行；实体 iPhone/Safari 未验收，产品负责人视觉验收待确认。
+
+发布状态：BLOCKED，尚未上线本次改动。
+
+2026-10-17 00:20 UTC 左右复核：Staging 已有 patch 7cab7e0c-7f2d-43dd-bcc1-3c6ad9a8324e，拟切换至 codex/frontdesk-record-return-20261017 / 25f4180；Production 已有 patch 8bc46311-49a7-47f5-bccf-17981469c4c9，拟发布较早 main 9f1c883。两个环境当前成功部署仍为 ea433c3。未接受、覆盖或清除这些其他任务的待发布配置。需确认以当前主分支统一发布，或待上述任务完成后顺序发布，再执行 Staging/Production 在线验证。
