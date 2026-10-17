@@ -105,6 +105,7 @@ test('检索真实结构字段和原话，不拿护理/户外枚举或旧分类�
  assert.deepEqual(lookupRecords(rows,'最近两个月皮肤情况',now).map(m=>m.entry.id),['typed','topical'])
  assert.deepEqual(lookupRecords(rows,'最近两周花粉',now).map(m=>m.entry.id),['outside'])
  assert.deepEqual(lookupRecords(rows,'最近两周有没有接触过什么东西',now).map(m=>m.entry.id),['outside'])
+ assert.deepEqual(lookupRecords(rows,'这两个月有没有接触到什么东西',now).map(m=>m.entry.id),['outside'])
  assert.deepEqual(lookupRecords(rows,'最近两个月肉类',now).map(m=>m.entry.id),['legacy'])
  assert.deepEqual(lookupRecords(rows,'最近两个月皮肤情况 不含干燥',now).map(m=>m.entry.id),['typed'])
 })
