@@ -3,7 +3,6 @@ import {useEffect,useRef,useState} from 'react'
 import {useLocation,useNavigate,useParams} from 'react-router-dom'
 import {ChevronDown,MoreHorizontal,Pencil,Plus,Trash2} from 'lucide-react'
 import {WebPageHeader} from '../../components/common'
-import {MemberIdentityCard} from '../../components/health'
 import {BottomSheetSurface,HohoButton,StatusNotice} from '../../components/design-system'
 import {useAppStore} from '../../store/useAppStore'
 import {apiRequest} from '../../services/apiClient'
@@ -104,7 +103,7 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
   const primaryGroups=data?.groups.filter((_,index)=>kind!=='vaccination'||index<3)??[]
   const extraGroups=data?.groups.filter((_,index)=>kind==='vaccination'&&index>=3)??[]
   return <main className="app-shell inline-profile-shell" aria-busy={busy}><WebPageHeader title={titles[kind]} onBack={()=>navigate('/health-profile')}/><div className="page-content inline-profile-content">
-    <MemberIdentityCard member={member}/><UpdatedRecordLinks destination="profile" sectionId={kind}/>
+    <UpdatedRecordLinks destination="profile" sectionId={kind}/>
     {kind==='allergy'&&Boolean(data?.pendingAllergyRows?.length)&&<details className="inline-profile-item"><summary className="inline-profile-row">待排查 · {data!.pendingAllergyRows!.length}项<ChevronDown aria-hidden size={18}/></summary><p className="hoho-text-caption">以下仍是待确认线索，不代表已明确过敏。</p><ul className="inline-profile-list">{data!.pendingAllergyRows!.map(row=><li className="inline-profile-row" key={row.id}><span>{row.name}</span><small>{row.group} · 待排查</small></li>)}</ul></details>}
     {kind!=='surgery'&&kind!=='family-history'&&<nav className="inline-profile-tabs" aria-label={`${titles[kind]}分类`}>{primaryGroups.map(g=><button type="button" disabled={busy} key={g.id} aria-pressed={group===g.id} onClick={()=>{setSession(old=>({...old,group:g.id}));setConfirmDelete(undefined)}}>{g.name}</button>)}{extraGroups.length>0&&<button type="button" disabled={busy} aria-expanded={moreOpen} aria-pressed={extraGroups.some(g=>g.id===group)} onClick={()=>setMoreOpen(true)}>{extraGroups.find(g=>g.id===group)?.name??'更多'}<ChevronDown size={16} aria-hidden/></button>}</nav>}
     {kind==='family-history'&&session.relation&&<form className="inline-profile-editor" onSubmit={e=>{e.preventDefault();void command({action:'relation',name:session.relation?.name,key:session.relation?.key},next=>{setSession(old=>({...old,relation:undefined,group:next.groups.at(-1)?.id??old.group}))})}}><label className="hoho-field"><span>亲属关系</span><input className="hoho-input" autoFocus maxLength={20} disabled={busy} value={session.relation.name} onChange={e=>setSession(old=>({...old,relation:{...old.relation!,name:e.target.value,key:crypto.randomUUID()}}))}/></label><div className="inline-profile-actions"><HohoButton variant="text" disabled={busy} onClick={()=>setSession(old=>({...old,relation:undefined}))}>取消</HohoButton><HohoButton type="submit" loading={busy} disabled={!session.relation.name.trim()}>添加关系</HohoButton></div></form>}
