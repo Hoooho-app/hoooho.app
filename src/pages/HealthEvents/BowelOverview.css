@@ -1,12 +1,31 @@
-/* Approved Overview board 2; only the bowel entry form is affected. */
+/* Bowel-only V2 refinement; shared record forms retain their approved layout. */
+.bowel-record-page.bowel-record-page{color:rgb(var(--hoho-color-text-primary));font-family:var(--hoho-font-family)}
+.bowel-record-page.bowel-record-page>header{background:rgb(var(--hoho-color-page-background));backdrop-filter:none}
+.bowel-record-page.bowel-record-page>header h1{font-family:var(--hoho-font-family-heading)}
+.bowel-record-page.bowel-record-page .diet-record-scroll{padding:var(--hoho-space-4) var(--hoho-page-gutter) calc(var(--hoho-space-6) + env(safe-area-inset-bottom));background:rgb(var(--hoho-color-surface))}
+.bowel-record-page.bowel-record-page .diet-record-scroll>*{margin:0}
+.bowel-record-page.bowel-record-page :is(.bowel-fieldset,.bowel-photo-section,.record-form-group,.record-time-group){min-width:0;border:0;border-radius:0;background:transparent;box-shadow:none;padding:var(--hoho-space-4) 0}
+.bowel-record-page.bowel-record-page .diet-record-scroll>.bowel-fieldset:first-child{padding-top:0}
+.bowel-record-page.bowel-record-page .diet-record-scroll>*+*{border-top:1px solid rgb(var(--hoho-color-border))}
+.bowel-record-page.bowel-record-page :is(.bowel-fieldset>legend,.bowel-section-heading h2,.occurrence-time-field>strong,.daily-record-heading>strong){color:rgb(var(--hoho-color-text-primary));font:500 var(--hoho-font-size-body)/var(--hoho-line-height-body) var(--hoho-font-family)}
+.bowel-record-page.bowel-record-page :is(.bowel-fieldset>legend span,.bowel-section-heading h2 span){color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);font-weight:400}
 .bowel-record-page .bowel-shape-grid,.bowel-record-page .bowel-color-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--hoho-space-2)}
 .bowel-record-page .bowel-shape-grid>button{min-height:76px;gap:var(--hoho-space-2);padding:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);line-height:1.4;border-radius:var(--hoho-radius-control)}
 .bowel-record-page .bowel-color-grid>button{display:grid;place-items:center;gap:var(--hoho-space-1);min-height:72px;aspect-ratio:auto;border:1px solid rgb(var(--hoho-color-border));background:rgb(var(--hoho-color-surface));box-shadow:none;padding:var(--hoho-space-2);color:rgb(var(--hoho-color-text-primary));font-size:var(--hoho-font-size-caption)}
 .bowel-record-page .bowel-color-grid>button[aria-pressed=true]{border-color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft)/.58)}
 .bowel-record-page .bowel-color-grid i{display:block;width:30px;height:30px;border-radius:50%;background:#ddd9ca;border:1px solid rgb(var(--hoho-color-border))}
 .bowel-record-page [data-color='黄色'] i{background:#f4ce59}.bowel-record-page [data-color='黄褐'] i{background:#aa7830}.bowel-record-page [data-color='棕色'] i{background:#8a4f23}.bowel-record-page [data-color='深棕'] i{background:#4e2b19}.bowel-record-page [data-color='绿色'] i{background:#479452}.bowel-record-page [data-color='近黑'] i{background:#273238}.bowel-record-page [data-color='红色'] i{background:#d84949}
-.bowel-overview-supplement{border-block:1px solid rgb(var(--hoho-color-border))}
-.bowel-overview-supplement>summary{display:flex;justify-content:space-between;align-items:center;min-height:44px;list-style:none;font-size:var(--hoho-font-size-body-small);cursor:pointer}
+.bowel-record-page .bowel-overview-supplement{border:0;border-radius:0;background:transparent;box-shadow:none}
+.bowel-overview-supplement>summary{display:flex;justify-content:space-between;align-items:center;gap:var(--hoho-space-2);min-height:calc(var(--hoho-touch-target) + var(--hoho-space-2));list-style:none;color:rgb(var(--hoho-color-text-primary));font:500 var(--hoho-font-size-body)/var(--hoho-line-height-body) var(--hoho-font-family);cursor:pointer}
+.bowel-overview-supplement>summary svg{flex-shrink:0;color:rgb(var(--hoho-color-text-secondary));transition:transform var(--hoho-motion-fast) var(--hoho-ease-standard)}
+.bowel-overview-supplement .bowel-optional{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption);font-weight:400}
+.bowel-overview-supplement[open]>summary svg{transform:rotate(180deg)}
 .bowel-overview-supplement>summary::-webkit-details-marker{display:none}
-.bowel-overview-supplement>div{display:grid;gap:var(--hoho-space-3);padding-block:var(--hoho-space-3)}
-.bowel-record-page .bowel-photo-actions button{min-height:44px;background:rgb(var(--hoho-color-surface));font-weight:500}
+.bowel-overview-supplement>div{display:grid;gap:var(--hoho-space-4);padding-bottom:var(--hoho-space-4)}
+.bowel-record-page.bowel-record-page .bowel-overview-supplement :is(.record-combined-group,.bowel-fieldset){padding:0}
+.bowel-record-page.bowel-record-page .bowel-overview-supplement .bowel-fieldset+*{padding-top:var(--hoho-space-4)}
+.bowel-record-page.bowel-record-page :is(.bowel-shape-grid,.bowel-color-grid,.bowel-choice-grid)>button{font-family:var(--hoho-font-family);line-height:var(--hoho-line-height-caption)}
+.bowel-record-page.bowel-record-page :is(.bowel-shape-grid,.bowel-color-grid,.bowel-choice-grid)>button[aria-pressed=true]{border-color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary));box-shadow:inset 0 0 0 1px rgb(var(--hoho-color-primary));font-weight:500}
+.bowel-record-page .bowel-photo-actions{margin-top:var(--hoho-space-2)}
+.bowel-record-page .bowel-photo-actions .hoho-button__content{display:inline-flex;align-items:center;gap:var(--hoho-space-2)}
+@media(prefers-reduced-motion:reduce){.bowel-overview-supplement>summary svg{transition:none}}

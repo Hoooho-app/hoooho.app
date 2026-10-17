@@ -12,16 +12,18 @@ test('bowel form exposes the confirmed fields without diagnostic or low-value ch
   assert.match(source, /<ScaleChoice label="排便大约用了多久？"/)
 })
 
-test('bowel form keeps time first and photo lower with save order with the six-photo limit', () => {
-  assert.ok(source.indexOf('<OccurrenceTimeField') < source.indexOf('legend>形状'))
+test('bowel form omits member identity and places time before the final daily settings row', () => {
+  assert.doesNotMatch(source, /MemberIdentityCard|record-subject-card/)
+  assert.ok(source.indexOf('legend>形状') < source.indexOf('<OccurrenceTimeField'))
   assert.ok(source.indexOf('还观察到什么') < source.indexOf('<BowelPhotos'))
+  assert.ok(source.indexOf('<BowelPhotos') < source.indexOf('<OccurrenceTimeField'))
   assert.ok(source.indexOf('<OccurrenceTimeField') < source.indexOf('<DailyRecordSettings'))
   assert.match(source, /<header>.*RecordSaveAction.*<\/header>/)
   assert.doesNotMatch(source, /diet-record-save/)
   assert.match(source, /useOccurrenceTime\(selectedDay, today,initialOccurredAt\)/)
   assert.match(source, /initialJournal\?:JournalBowelDetails/)
   assert.match(source, /useQuickRecordPhotos\(memberId, token, 6\)/)
-  assert.match(source, />上传照片</)
+  assert.match(source, />上传照片<\/HohoButton>/)
   assert.doesNotMatch(source, /capture="environment"|>拍照<|从相册选择|照片只用于记录所见/)
   assert.match(source, /hoooho-bowel-record-draft:/)
 })

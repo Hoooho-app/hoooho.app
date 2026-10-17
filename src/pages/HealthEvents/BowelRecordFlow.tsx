@@ -1,6 +1,5 @@
 import { PhotoPreview } from '../../features/health-attachments/PhotoPreview'
 import { RecordSaveAction } from './RecordSaveAction'
-import { CompleteImage } from '../../components/common/CompleteImage'
 import { ArrowLeft, ChevronDown, ImagePlus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
@@ -9,10 +8,8 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { JournalBowelDetails, JournalMetadata } from '../../types/journal'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
-import { MemberIdentityCard } from '../../components/health'
-import { useAppStore } from '../../store/useAppStore'
 import './BowelOverview.css'
-import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
+import { DailyRecordSettings } from './DailyRecordSettings'
 
 type SaveRecord = (content: string, occurredAt: string, channel: 'text', photos: QuickRecordPhotoPayload, journal: JournalMetadata) => Promise<string>
 type Draft = JournalBowelDetails & { occurredAt: string }
@@ -56,7 +53,7 @@ function ScaleChoice({ label, options, value, onChange, optional = true }: { lab
 function BowelPhotos({ model }: { model: ReturnType<typeof useQuickRecordPhotos> }) {
   const fileRef = useRef<HTMLInputElement>(null)
   return <section className="bowel-photo-section"><div className="bowel-section-heading"><h2>添加图片 <span>（可选）</span></h2><em>{model.photos.length}/6</em></div>
-    <div className="bowel-photo-actions"><button onClick={() => fileRef.current?.click()} type="button"><ImagePlus size={22} />上传照片</button></div>
+    <div className="bowel-photo-actions"><HohoButton fullWidth variant="secondary" onClick={() => fileRef.current?.click()}><ImagePlus size={22} aria-hidden />上传照片</HohoButton></div>
     {model.photos.length > 0 && <div className="bowel-photo-grid">{model.photos.map((photo, index) => <div key={photo.localId}><PhotoPreview compact name={`照片 ${index + 1}`} src={photo.previewUrl}/><button aria-label={`删除照片 ${index + 1}`} onClick={() => model.remove(photo.localId)} type="button">×</button>{photo.status === 'failed' ? <button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button">重试</button> : <span>{photo.status === 'uploading' ? '上传中' : ''}</span>}</div>)}</div>}
     <input ref={fileRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { model.chooseFiles(event.target.files); event.currentTarget.value = '' }} type="file" />
     {model.notice && <p role="status">{model.notice}</p>}{model.blocked && <p role="alert">请重试或删除上传失败的照片后再保存</p>}
@@ -71,7 +68,6 @@ export function bowelSummary(details: JournalBowelDetails) {
 }
 
 export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved,initialJournal,initialOccurredAt }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void;initialJournal?:JournalBowelDetails;initialOccurredAt?:string }) {
-  const member=useAppStore(state=>state.members.find(item=>item.id===memberId))
   const [draft, setDraft] = useState<Draft>(() => {if(!initialJournal)return readDraft(memberId);try{return {...readDraft(memberId),...initialJournal,...JSON.parse(sessionStorage.getItem(draftKey(memberId))??'{}')}}catch{return {...readDraft(memberId),...initialJournal}}})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -96,11 +92,9 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
   return <div className="diet-record-page-layer"><section aria-label="记录排便" aria-modal="true" className="diet-record-page bowel-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录排便</h1><RecordSaveAction disabled={saving || photos.blocked} saving={saving} onClick={() => void save()}/></header>
     <div className="diet-record-scroll">
-      {member&&<MemberIdentityCard member={member}/>}
-      <section className="record-time-group"><OccurrenceTimeField model={occurrence} label="发生时间" /></section>
       <fieldset className="bowel-fieldset"><legend>形状 <span>（可多选）</span></legend><div className="bowel-shape-grid">{bowelShapes.map((shape, index) => <button aria-pressed={draft.shapes.includes(shape)} key={shape} onClick={() => update('shapes', toggle(draft.shapes, shape))} type="button"><i data-shape={index} aria-hidden="true"><b /><b /><b /></i><span>{shape}</span></button>)}</div></fieldset>
       <fieldset className="bowel-fieldset"><legend>颜色</legend><div className="bowel-color-grid">{bowelColors.map((color) => <button aria-label={color} aria-pressed={draft.color === color} data-color={color} key={color} onClick={() => update('color', draft.color === color ? undefined : color)} type="button"><i aria-hidden="true"/><span>{color}</span></button>)}</div>{draft.color && ['灰白', '近黑', '红色'].includes(draft.color) && <p className="bowel-gentle-hint">建议拍照留存；如有担心，可及时咨询医生</p>}</fieldset>
-      <details className="bowel-overview-supplement"><summary>补充信息（选填）<ChevronDown size={18} aria-hidden/></summary><div>
+      <details className="bowel-overview-supplement"><summary><span>补充信息<span className="bowel-optional">（选填）</span></span><ChevronDown size={18} aria-hidden/></summary><div>
       <section className="record-form-group record-combined-group">
         <ScaleChoice label="分量" optional={false} options={bowelAmounts} value={draft.amount} onChange={(value) => update('amount', value)} />
         <ScaleChoice label="排便大约用了多久？" options={bowelDurations} value={draft.durationRange} onChange={(value) => update('durationRange', value)} />
@@ -111,6 +105,7 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
       <fieldset className="bowel-fieldset"><legend>还观察到什么？<span>（可多选）</span></legend><div className="bowel-choice-grid">{bowelObservations.map((option) => <button aria-pressed={draft.observations.includes(option)} key={option} onClick={() => updateObservation(option)} type="button">{option}</button>)}</div></fieldset>
       </div></details>
       <BowelPhotos model={photos} />
+      <section className="record-time-group"><OccurrenceTimeField model={occurrence} label="发生时间" /></section>
       <DailyRecordSettings kind="bowel" />
       {error && <p className="diet-save-error" role="alert">{error}</p>}
 
