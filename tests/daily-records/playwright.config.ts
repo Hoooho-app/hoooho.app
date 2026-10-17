@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+process.env.DAILY_RECORDS_SHUTDOWN_MARKER ??= `daily-records-shutdown-${process.pid}`
 export default defineConfig({
   testDir: '.', testMatch: '*.spec.ts', workers: 1, timeout: 60_000,
   outputDir: '../../test-results/daily-records',
