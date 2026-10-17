@@ -69,7 +69,7 @@ try{
  await expect(page.getByRole('button',{name:/重试识别|重新识别|改用文字|改变文字/})).toHaveCount(0)
  await expect(hold).toBeEnabled();await expect(input).toBeEnabled()
  await page.screenshot({path:`${out}/failed-without-recovery-controls.png`})
- await input.fill('最近两周草莓');await expect(page.getByRole('alert')).toHaveCount(0)
+ await input.fill('草莓');await expect(page.getByRole('alert')).toHaveCount(0)
  const nextBox=await hold.boundingBox();await page.mouse.move(nextBox.x+nextBox.width/2,nextBox.y+nextBox.height/2);await page.mouse.down();await page.waitForTimeout(1200);await page.mouse.up()
  await expect(input).toHaveValue('查找最近两个月的皮肤情况')
  await expect(page.locator('.journal-search-result')).toHaveCount(1)
