@@ -34,17 +34,17 @@
 
 .sleep-editor--manual-overview{gap:var(--hoho-space-3)}
 .sleep-editor--manual-overview .sleep-editor-ring{width:300px}
-.sleep-overview-night,.sleep-overview-day{fill:none;stroke-width:20;stroke:#d4e5f3}
-.sleep-overview-day{stroke:#ffe4b9}
+.sleep-editor--manual-overview .sleep-editor-track{stroke-width:20;stroke:rgb(var(--hoho-color-border)/.5)}
 .sleep-editor--manual-overview .sleep-editor-arc{stroke-width:5;stroke:var(--sleep-arc)}
 .sleep-editor--manual-overview .sleep-editor-cards{gap:0;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-white))}
 .sleep-editor--manual-overview .sleep-editor-card{padding:var(--hoho-space-3) var(--hoho-space-4);border:0;border-radius:0;background:transparent}
 .sleep-editor--manual-overview .sleep-editor-card + .sleep-editor-card{border-left:1px solid rgb(var(--hoho-color-border))}
 .sleep-editor--manual-overview .sleep-editor-card strong{font-size:var(--hoho-font-size-display);line-height:var(--hoho-line-height-display)}
 .sleep-editor--manual-overview .sleep-editor-card small{font-size:var(--hoho-font-size-caption);line-height:1.4}
+.sleep-editor--manual-overview .sleep-editor-period{margin-left:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);font-weight:400;color:rgb(var(--hoho-color-text-secondary))}
 
 .sleep-editor--manual-overview .sleep-ring-duration{font-size:24px;font-weight:600;fill:rgb(var(--hoho-color-text-primary));font-variant-numeric:tabular-nums}
-.sleep-editor--manual-overview .sleep-editor-supplement{padding:0 var(--hoho-space-3);background:rgb(var(--hoho-color-surface-white));border-radius:var(--hoho-radius-card)}
-.sleep-editor--manual-overview .sleep-editor-supplement > button{min-height:calc(var(--hoho-touch-target) + var(--hoho-space-2));font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body)}
+.sleep-editor--manual-overview .sleep-editor-supplement{padding:0 var(--hoho-space-4);background:rgb(var(--hoho-color-surface-white));border-radius:var(--hoho-radius-card)}
+.sleep-editor--manual-overview .sleep-editor-supplement > button{min-height:calc(var(--hoho-touch-target) + var(--hoho-space-2));font-family:var(--hoho-font-family);font-size:var(--hoho-font-size-body);font-weight:400;line-height:var(--hoho-line-height-body)}
 .sleep-editor--manual-overview .sleep-editor-supplement small,.sleep-editor--manual-overview .sleep-editor-supplement p{font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
 .sleep-editor--manual-overview .sleep-choice-row button{min-height:var(--hoho-touch-target)}
