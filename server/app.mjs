@@ -9,6 +9,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
+import { serveLegacyDomainServiceWorker } from './legacy-domain-service-worker.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
 import { BrowserSessionService } from './auth/browser-session-service.mjs'
 import { observeSessionRequest } from './auth/session-diagnostics.mjs'
@@ -1041,6 +1042,7 @@ const server = createServer(async (request, response) => {
     const canonicalRedirect = getCanonicalDomainRedirect(request)
     if (canonicalRedirect) {
       setCommonHeaders(response)
+      if (serveLegacyDomainServiceWorker(request, response, canonicalRedirect)) return
       response.statusCode = 308
       response.setHeader('Location', canonicalRedirect)
       response.setHeader('Cache-Control', 'no-store')
