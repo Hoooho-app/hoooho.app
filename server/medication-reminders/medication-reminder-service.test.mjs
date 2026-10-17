@@ -103,3 +103,46 @@ test('账号人物隔离、归档保留进度，删除彻底移除提醒及关�
     assert.deepEqual(await value.service.delete('account-1', reminder.id, now), { deleted: true, idempotent: true })
   } finally { await rm(value.dataDirectory, { recursive: true, force: true }) }
 })
+
+for (const action of ['undo', 'delete']) {
+  test(`${action} preserves the parent and independently added records after removing its completion`, async (t) => {
+    const value = await context(); t.after(() => rm(value.dataDirectory, { recursive: true, force: true }))
+    const now = new Date('2026-01-01T13:00:00.000Z')
+    let reminder = await value.service.create('account-1', { memberId: value.member.id, plan: basePlan }, now)
+    reminder = await value.service.complete('account-1', reminder.id, reminder.nextOccurrence.id, {}, now)
+    const completion = reminder.completions[0]
+    const note = await value.service.records.create('account-1', completion.eventId, { type: 'note', content: '另外观察到的情况', occurredAt: now.toISOString() }, now)
+    assert.equal((await value.service.records.list('account-1', completion.eventId)).length, 2)
+    const refreshed = [], recompute = value.service.records.recomputeAfterMutation.bind(value.service.records)
+    value.service.records.recomputeAfterMutation = async (...args) => { refreshed.push(args[1]); return recompute(...args) }
+    const result = await value.service[action]('account-1', reminder.id, now)
+    if (action === 'undo') reminder = result
+    assert.equal(await value.service.records.repository.findById(completion.recordId), null)
+    assert.deepEqual(await value.service.records.repository.findById(note.id), note)
+    assert.equal((await value.service.events.repository.findById(completion.eventId)).id, completion.eventId)
+    assert.deepEqual((await value.service.records.list('account-1', completion.eventId)).map(record => record.id), [note.id])
+    assert.deepEqual(refreshed, [completion.eventId], 'kept event summaries/annotations are refreshed after removing the completion')
+    if (action === 'undo') {
+      // Re-completion owns a fresh event. Deleting the reminder later must still
+      // retain the old event/note without retaining its empty new event.
+      reminder = await value.service.complete('account-1', reminder.id, reminder.nextOccurrence.id, {}, now)
+      const second = reminder.completions.at(-1)
+      assert.notEqual(second.eventId, completion.eventId)
+      await value.service.delete('account-1', reminder.id)
+      assert.equal(await value.service.events.repository.findById(second.eventId), null)
+      assert.deepEqual((await value.service.records.list('account-1', completion.eventId)).map(record => record.id), [note.id])
+    }
+  })
+}
+
+test('undo still cleans the empty event when no independent records were added', async (t) => {
+  const value = await context(); t.after(() => rm(value.dataDirectory, { recursive: true, force: true }))
+  const now = new Date('2026-01-01T13:00:00.000Z')
+  let reminder = await value.service.create('account-1', { memberId: value.member.id, plan: basePlan }, now)
+  reminder = await value.service.complete('account-1', reminder.id, reminder.nextOccurrence.id, {}, now)
+  const completion = reminder.completions[0]
+  const undone = await value.service.undo('account-1', reminder.id, now)
+  assert.equal(undone.completions[0].undoneAt, now.toISOString())
+  assert.equal(await value.service.events.repository.findById(completion.eventId), null)
+  assert.equal(await value.service.records.repository.findById(completion.recordId), null)
+})

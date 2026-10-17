@@ -25,7 +25,7 @@ test('nickname and password registration creates a formal account without exposi
     assert.match(f.headers.get('Set-Cookie'), /HttpOnly; SameSite=Lax;.*Secure/)
     const stored = await readFile(path.join(f.directory, 'users.json'), 'utf8')
     assert.doesNotMatch(stored, /simple7/)
-    assert.match(JSON.parse(stored).users[0].passwordHash, /^\$2[aby]\$12\$/)
+    assert.match(JSON.parse(stored).users[0].passwordHash, /^hoooho-sha256-bcrypt-v1:\$2[aby]\$12\$/)
     const replay = await f.browser.register({ ...f.request, headers: { ...f.request.headers, cookie: f.headers.get('Set-Cookie').split(';')[0] } }, f.response, { nickname: 'ignored', password: 'ignored7', idempotencyKey: '11111111-1111-4111-8111-111111111111' })
     assert.equal(replay.user.id, result.user.id)
   } finally { await rm(f.directory, { recursive: true, force: true }) }

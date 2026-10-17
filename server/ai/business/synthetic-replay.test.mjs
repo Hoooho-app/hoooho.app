@@ -53,9 +53,9 @@ async function fixture(t,output){
 }
 
 test('合成失败有精确响应回放且保留原稿；诊断不持久化、不改变拒绝判定',async t=>{
- const f=await fixture(t,syntheticCases()[1].output)
+ const f=await fixture(t,syntheticCases()[3].output)
  let error;try{await f.service.prepare('synthetic-replay-owner',f.member.id,input)}catch(e){error=e}
- assert.equal(error.code,'AI_EVIDENCE_MISMATCH');assert.equal(error.validation.fieldPath,'/items/1/fields/0');assert.ok(error.details.syntheticReplay);assert.equal(error.upstream.requestId,'synthetic_fixture_not_actual_response')
+ assert.equal(error.code,'AI_EVIDENCE_MISMATCH');assert.equal(error.validation.fieldPath,'/items/0/fields/0');assert.ok(error.details.syntheticReplay);assert.equal(error.upstream.requestId,'synthetic_fixture_not_actual_response')
  assert.equal((await replaySyntheticCapture(error.details.syntheticReplay)).validation.rule,'negation_scope')
  assert.doesNotMatch(JSON.stringify({...error,details:undefined}),/呕吐|恶心/)
  const stored=(await f.service.store.read()).drafts[0];assert.equal(stored.raw,syntheticText);assert.equal(stored.state,'failed');assert.equal(stored.syntheticReplay,undefined)
@@ -83,7 +83,7 @@ test('回放标识不能绕过账号成员权限或带入历史医疗资料；�
 })
 
 test('同组判断与原validator一致，诊断规则只细分定位而不放宽事实边界',()=>{
- assert.throws(()=>validateExtraction(syntheticCases()[1].output,[{id:'input',page:1,text:syntheticText}]),{code:'AI_EVIDENCE_MISMATCH'})
+ assert.equal(validateExtraction(syntheticCases()[1].output,[{id:'input',page:1,text:syntheticText}]).length,2)
  assert.equal(validateExtraction(syntheticCases()[0].output,[{id:'input',page:1,text:syntheticText}]).length,2)
 })
 

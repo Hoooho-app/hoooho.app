@@ -133,6 +133,15 @@ export class DesensitizationTestService {
     return task
   }
 
+  async updateForMember(accountId, memberId, updater) {
+    return this.store.update(async (data) => {
+      // Check within the same storage lock as the write, including a deletion
+      // that completed after an earlier task lookup.
+      await this.assertMember(accountId, memberId)
+      return updater(data)
+    })
+  }
+
   async healthContext(accountId, memberId, now) {
     const [events, records] = await Promise.all([this.events.findByAccountId(accountId), this.healthRecords.findByAccountId(accountId)])
     const eventIds = new Set(events.filter((item) => item.memberId === memberId).map((item) => item.id))
@@ -152,15 +161,18 @@ export class DesensitizationTestService {
   }
 
   async publicTask(data, task, memberRecords, timeZone, now) {
-    const records = data.records.filter((item) => item.taskId === task.id && !item.withdrawnAt).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt))
+    const records = data.records.filter((item) => item.taskId === task.id && !item.withdrawnAt).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
     const linkedRecords = []
     for (const record of memberRecords) {
       const foods = recordFoods(record); const matched = foods.map((food) => ({ food, relation: linkType(food, task) })).filter((item) => item.relation)
       if (!matched.length) continue
       linkedRecords.push({ recordId: record.id, eventId: record.eventId, occurredAt: record.occurredAt, sourceText: record.sourceText, content: record.content, foods, amount: record.journal?.diet?.amount ?? '', preparation: record.journal?.diet?.foodForm ?? '', reactions: record.journal?.diet?.reactions ?? [], relation: matched.some((item) => item.relation === 'confirmed') ? 'confirmed' : 'pending', matchedFoods: matched.map((item) => item.food) })
     }
+    const today = localDateKey(now, timeZone)
     const trend = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(now.getTime() - (6 - index) * dayMs); const day = localDateKey(date, timeZone)
+      // Subtract calendar days from a UTC anchor of the local date. A local day
+      // can have 23 or 25 hours across DST, so elapsed hours cannot select dates.
+      const day = new Date(Date.parse(`${today}T12:00:00Z`) - (6 - index) * dayMs).toISOString().slice(0, 10)
       const items = records.filter((item) => item.status === 'effective' && localDateKey(new Date(item.occurredAt), timeZone) === day)
       const state = items.some((item) => item.symptomAnswer === 'present') ? 'symptom' : items.length && items.every((item) => item.symptomAnswer === 'absent') ? 'clear' : 'unknown'
       return { day, state, recordIds: items.map((item) => item.id) }
@@ -185,7 +197,7 @@ export class DesensitizationTestService {
     const memberId = cleanText(input?.memberId, 180, true); await this.assertMember(accountId, memberId)
     const displayName = normalizeName(input?.displayName); const classification = classifyFoodName(displayName)
     let result
-    await this.store.update((data) => {
+    await this.updateForMember(accountId, memberId, (data) => {
       const existing = data.tasks.find((item) => item.accountId === accountId && item.memberId === memberId && item.categoryKey === classification.categoryKey && item.status !== 'deleted')
       if (existing) { result = { task: existing, existing: true }; return data }
       const deleted = data.tasks.find((item) => item.accountId === accountId && item.memberId === memberId && item.categoryKey === classification.categoryKey && item.status === 'deleted')
@@ -202,7 +214,9 @@ export class DesensitizationTestService {
     const task = await this.owned(accountId, id, action === 'undo-delete')
     if (Number.isInteger(expectedVersion) && task.version !== expectedVersion) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     let saved
-    await this.store.update((data) => ({ ...data, tasks: data.tasks.map((item) => {
+    await this.store.update(async (data) => {
+      if (action === 'restore' || action === 'undo-delete') await this.assertMember(accountId, task.memberId)
+      return ({ ...data, tasks: data.tasks.map((item) => {
       if (item.id !== task.id) return item
       if (action === 'archive') saved = { ...item, status: 'archived', archivedAt: now.toISOString(), updatedAt: now.toISOString(), version: item.version + 1 }
       if (action === 'restore') {
@@ -213,7 +227,8 @@ export class DesensitizationTestService {
       if (action === 'delete') saved = { ...item, previousStatus: item.status, status: 'deleted', deletedAt: now.toISOString(), updatedAt: now.toISOString(), version: item.version + 1 }
       if (action === 'undo-delete') saved = { ...item, status: statuses.has(item.previousStatus) ? item.previousStatus : 'active', deletedAt: null, updatedAt: now.toISOString(), version: item.version + 1 }
       return saved ?? item
-    }) }))
+    }) })
+    })
     return saved
   }
 
@@ -222,14 +237,14 @@ export class DesensitizationTestService {
     if (!displayName || displayName.length > 30) throw new DesensitizationTestError('食物名称应为1至30个字符', 400, 'INVALID_FOOD_NAME')
     if (Number.isInteger(input?.version) && task.version !== input.version) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     let saved
-    await this.store.update((data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, displayName, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))
+    await this.updateForMember(accountId, task.memberId, (data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, displayName, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))
     return saved
   }
 
   async saveRecord(accountId, taskId, input, now = new Date()) {
     const task = await this.owned(accountId, taskId); await this.assertMember(accountId, task.memberId)
     let saved; let taskSaved = task; let idempotent = false
-    await this.store.update((data) => {
+    await this.updateForMember(accountId, task.memberId, (data) => {
       const duplicate = input?.idempotencyKey ? data.records.find((item) => item.taskId === task.id && item.idempotencyKey === input.idempotencyKey) : null
       if (duplicate) { saved = duplicate; idempotent = true; return data }
       const timestamp = now.toISOString(); const record = { id: randomUUID(), accountId, memberId: task.memberId, taskId: task.id, createdAt: timestamp, updatedAt: timestamp, version: 1, versions: [], planVersion: task.planVersions.at(-1)?.version ?? null, ...normalizeRecord(input, now) }
@@ -248,13 +263,13 @@ export class DesensitizationTestService {
     const { versions: previousVersions = [], ...previousSnapshot } = previous
     const replacement = { ...normalizeRecord(input, now, previous), id: previous.id, accountId, memberId: task.memberId, taskId: task.id, createdAt: previous.createdAt, updatedAt: now.toISOString(), version: previous.version + 1, versions: [...previousVersions, previousSnapshot], planVersion: previous.planVersion }
     const taskReplacement = replacement.status === 'effective' && replacement.symptomAnswer === 'present' && !task.progressionPaused ? { ...task, progressionPaused: true, pausedAt: now.toISOString(), updatedAt: now.toISOString(), version: task.version + 1 } : task
-    await this.store.update((current) => ({ ...current, records: current.records.map((item) => item.id === previous.id ? replacement : item), tasks: current.tasks.map((item) => item.id === task.id ? taskReplacement : item) }))
+    await this.updateForMember(accountId, task.memberId, (current) => ({ ...current, records: current.records.map((item) => item.id === previous.id ? replacement : item), tasks: current.tasks.map((item) => item.id === task.id ? taskReplacement : item) }))
     return replacement
   }
 
   async undoRecordUpdate(accountId, taskId, recordId, expectedVersion, now = new Date()) {
-    await this.owned(accountId, taskId); let saved
-    await this.store.update((data) => ({ ...data, records: data.records.map((item) => {
+    const task = await this.owned(accountId, taskId); let saved
+    await this.updateForMember(accountId, task.memberId, (data) => ({ ...data, records: data.records.map((item) => {
       if (item.id !== recordId || item.taskId !== taskId || item.accountId !== accountId) return item
       if (item.version !== expectedVersion || !item.versions?.length) throw new DesensitizationTestError('记录已变化，无法撤销刚才的修改', 409, 'UNDO_CONFLICT')
       const previous = item.versions.at(-1)
@@ -276,8 +291,8 @@ export class DesensitizationTestService {
   }
 
   async restoreRecord(accountId, taskId, recordId, expectedVersion, now = new Date()) {
-    await this.owned(accountId, taskId); let saved
-    await this.store.update((data) => ({ ...data, records: data.records.map((item) => {
+    const task = await this.owned(accountId, taskId); let saved
+    await this.updateForMember(accountId, task.memberId, (data) => ({ ...data, records: data.records.map((item) => {
       if (item.id !== recordId || item.taskId !== taskId || item.accountId !== accountId) return item
       if (item.version !== expectedVersion || !item.withdrawnAt) throw new DesensitizationTestError('记录已变化，无法撤回刚才的操作', 409, 'UNDO_CONFLICT')
       return (saved = { ...item, withdrawnAt: null, updatedAt: now.toISOString(), version: item.version + 1 })
@@ -291,7 +306,7 @@ export class DesensitizationTestService {
     if (Number.isInteger(input?.taskVersion) && task.version !== input.taskVersion) throw new DesensitizationTestError('观察任务已在其他位置更新，请刷新后重试', 409, 'VERSION_CONFLICT')
     const plan = normalizePlan(input, (task.planVersions.at(-1)?.version ?? 0) + 1, now)
     let saved
-    await this.store.update((data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, planVersions: [...item.planVersions, plan], progressionPaused: input?.resumeProgression === true && plan.complete ? false : item.progressionPaused, pausedAt: input?.resumeProgression === true && plan.complete ? null : item.pausedAt, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))
+    await this.updateForMember(accountId, task.memberId, (data) => ({ ...data, tasks: data.tasks.map((item) => item.id === task.id ? (saved = { ...item, planVersions: [...item.planVersions, plan], progressionPaused: input?.resumeProgression === true && plan.complete ? false : item.progressionPaused, pausedAt: input?.resumeProgression === true && plan.complete ? null : item.pausedAt, updatedAt: now.toISOString(), version: item.version + 1 }) : item) }))
     return { task: saved, plan }
   }
 
@@ -308,7 +323,7 @@ export class DesensitizationTestService {
     const timestamp = now.toISOString()
     const conclusion = { id: randomUUID(), value, source: 'caregiver_explicit', observationIds, createdAt: timestamp }
     let saved
-    await this.store.update((current) => ({ ...current, tasks: current.tasks.map((item) => item.id === task.id ? (saved = { ...item, conclusion, conclusionHistory: [...(item.conclusionHistory ?? []), conclusion], updatedAt: timestamp, version: item.version + 1 }) : item) }))
+    await this.updateForMember(accountId, task.memberId, (current) => ({ ...current, tasks: current.tasks.map((item) => item.id === task.id ? (saved = { ...item, conclusion, conclusionHistory: [...(item.conclusionHistory ?? []), conclusion], updatedAt: timestamp, version: item.version + 1 }) : item) }))
     return saved
   }
 }

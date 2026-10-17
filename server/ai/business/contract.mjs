@@ -1,3 +1,5 @@
+import {clinicalAssertions} from '../../../shared/clinical-evidence.mjs'
+import {locateEvidence} from './evidence-location.mjs'
 import { itemRecordCategories } from '../../../shared/record-categories.mjs'
 import { symptomItemCorePhrase } from '../../../shared/symptom-core-phrase.mjs'
 import { createHash } from 'node:crypto'
@@ -23,24 +25,12 @@ export function bodyLocations(raw) {
   return [{id:item.id,label:item.label,locationNumber:1,locationLayer:'surface',localRegion:region.label,parentId:region.id,schemaVersion:bodyCatalog.schemaVersion}]
 }
 
-// Qualifiers belong to the value's own clause, not to every field quoted from
-// a multi-clause sentence. Location/amount fields do not assert polarity.
-const assertionFields = new Set(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','doctorStatement','conclusion'])
-function dropsEvidenceQualifier(source, quote, value) {
-  const valueAt = source.text.indexOf(quote) + quote.indexOf(value)
-  const prefix = source.text.slice(Math.max(0,valueAt-40),valueAt).split(/[，。；\n,;.!！?？]/u).at(-1)
-  // “不是只有咳嗽” and “没少咳嗽” affirm the symptom rather than deny it.
-  const expansion = /(?:并不是|不是|并非)(?:只有|只是|只|仅有|仅仅|仅|光有|光是|光|单单)(?:会|有|出现|发生)?$/u.test(prefix) || /没少(?:有|出现|发生)?$/u.test(prefix)
-  const suffix = source.text.slice(valueAt + value.length)
-  const qualifiedAfter = /^\s*(?:(?:已(?:经)?(?:被|明确)?|被|明确)?排除|尚未确诊|未确诊|未(?:被)?证实|未出现|待确认|待排(?:查|除))(?=$|[，。；、,.;!?！？\s（）()]|但是|但|且|而|并|后|了)/u.test(suffix)
-  return qualifiedAfter || !expansion && /(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查|未确诊|并不是|不是|并非|未发生|未出现|没(?:有|出现|发生)?)[^，。；\n,;.!！?？]{0,3}$/u.test(prefix)
-}
-
 // A schema is not a factual validator. Every extracted value must be supported
 // by an exact quote in a supplied source, not by the model's confidence score.
 function validateExtractionContent(output, sources) {
   if (!output || !Array.isArray(output.items) || output.items.length > 30) throw fail('整理结果格式无效，未更新草稿')
   if(output.items.length===30)throw fail('结果已达到单批事项上限，请分批核对，未将可能遗漏的内容保存为完整结果',422,'AI_SOURCE_LIMIT')
+  const sourceAssertions=new Map(sources.map(source=>[source,clinicalAssertions(source.text)]))
   return output.items.flatMap((item, index) => {
     if (Object.keys(item).some(key => !['category','title','timeText','fields','archiveCategory','subject','relationKey'].includes(key))) throw fail('整理结果包含不允许的字段')
     if (!categories.includes(item.category) || !['current','other','unknown'].includes(item.subject) || !Array.isArray(item.fields) || item.fields.length > 50) throw fail('记录分类或主体无效')
@@ -51,13 +41,8 @@ function validateExtractionContent(output, sources) {
       const quote = safeText(field.quote, 4000), value = safeText(field.value, 4000)
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
-      if(/没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查/.test(quote)&&!/(?:没有|未见|否认|无(?:明显)?|排除|疑似|可能|待排查)/.test(value))throw evidenceFailure('否定或不确定性被遗漏，请核对',fieldPath,'negation_scope')
-      if(['symptom','reaction','diagnosisCertainty','allergyStatus','historyName','doctorStatement','conclusion'].includes(field.name)){
-        const position=source.text.indexOf(quote),prefix=source.text.slice(Math.max(0,position-8),position).split(/[，。；\n,;.!]/).at(-1)
-        if(/(?:没有|未见|否认|排除|疑似|可能|无|未确诊)[^，。；\n,;.!]{0,3}$/.test(prefix)&&!/没有|未见|否认|排除|疑似|可能|无|未确诊/.test(value))throw evidenceFailure('引文截去了否定或疑似前缀，请对照完整原话',fieldPath,'negation_prefix')
-      }
-      if(assertionFields.has(field.name)&&dropsEvidenceQualifier(source,quote,value))throw evidenceFailure('引文截去了否定或疑似限定，请对照完整原话',fieldPath,quote.indexOf(value)>0?'negation_scope':'negation_prefix')
-      return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, start: source.text.indexOf(quote), end: source.text.indexOf(quote) + quote.length }], confirmed: false, editedBy: 'model' }
+      const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source))
+      return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, ...located }], confirmed: false, editedBy: 'model' }
     })
     const timeText = item.timeText == null ? null : safeText(item.timeText, 100)
     const itemSources=new Set(fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
@@ -80,8 +65,8 @@ export function validateExtraction(output,sources){
 export function resolveItemTime(item, options) {
   const raw = item.timeText
   const day = typeof raw === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
-  const isZonedISO = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)
-  const iso = isZonedISO ? parseStrictInstant(raw) : null
+  const isZonedISO = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}[T ].*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)
+  const iso = isZonedISO ? parseStrictInstant(raw.replace(' ', 'T')) : null
   if(isZonedISO&&!iso)throw fail('发生时间格式错误，请核对日期和时分',422,'INVALID_OCCURRED_AT')
   const time = iso ? { raw, resolvedStart: iso.toISOString(), resolvedEnd:null, precision:'exact', source:'user_text' } : new TimeResolverService().resolve(day ? `${day[1]}年${Number(day[2])}月${Number(day[3])}日` : raw, options)
   time.raw = raw
@@ -143,7 +128,7 @@ export function mergeItems(items) {
 export const extractionSchema = {
   type:'object', additionalProperties:false, required:['items'], properties:{items:{type:'array',maxItems:30,items:{
     type:'object',additionalProperties:false,required:['category','title','timeText','fields','archiveCategory','subject','relationKey'],properties:{
-      category:{type:'string',enum:categories,description:'按完整事件分类。症状/受伤及针对它的就医、医生判断、观察要求保留在同一item的不同字段；上传附件不是新的健康事项。独立饮食/睡眠/用药、不同日期或多次发生才拆分。examination必须有真实检查项目/结果，“医生说没事”不是检查。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。没说时间必须为null，不能自行补今天或00:00；实时录入的缺省时分由程序处理。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null'],description:'同一次具体健康事件的关联标识；不是对话ID。同一事件的症状、就医、医生原话和观察要求优先合为一条，独立事件或不明确关联用null。'},
+      category:{type:'string',enum:categories,description:'按完整事件分类。症状/受伤及针对它的就医、医生判断、观察要求保留在同一item的不同字段；上传附件不是新的健康事项。独立饮食/睡眠/用药、不同日期或多次发生才拆分。examination必须有真实检查项目/结果，“医生说没事”不是检查。'},title:{type:'string'},timeText:{type:['string','null'],description:'同一事项来源中的原始发生时间文字，例如今天、昨天、昨日；跨事项不同日期分别拆分。参考日期与timezone由服务端提供，只抽取原话，不生成具体时刻。没说时间必须为null，不能自行补今天或00:00；实时录入的缺省时分由程序处理。'},archiveCategory:{type:['string','null']},subject:{type:'string',enum:['current','other','unknown']},relationKey:{type:['string','null'],description:'同一次具体健康随记的关联标识；不是对话ID。同一事件的症状、就医、医生原话和观察要求优先合为一条，独立事件或不明确关联用null。'},
       fields:{type:'array',maxItems:50,items:{type:'object',additionalProperties:false,required:['name','value','sourceId','quote','page'],properties:{name:{type:'string',enum:fieldNames},value:{type:'string'},sourceId:{type:'string'},quote:{type:'string'},page:{type:'integer'}}}
     }
   }}}}

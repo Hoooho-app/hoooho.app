@@ -203,3 +203,52 @@ test('sleep confirmation never treats a usual wake clock as actual; explicit cro
   assert.equal(actual.occurredAt, '2026-10-08T23:00:00.000Z')
   assert.equal((await quickRecords.records.repository.findByAccountId('owner')).length, 2)
 })
+
+test('timezone revision resolves new proposals in its own zone and preserves persisted history', async () => {
+  const { routine, member, input, dataDirectory } = await fixture(), daily = routine.daily
+  const initial = { ...input, slots: [input.slots[0]] }
+  const first = await daily.saveSettings('owner', member.id, initial, new Date('2026-10-14T00:00:00Z'))
+  await daily.materialize(new Date('2026-10-15T12:00:00Z'))
+  const history = await daily.instances('owner', member.id, '2026-10-15')
+  const updated = await daily.saveSettings('owner', member.id, { ...initial, revision: first.revision, timeZone: 'America/New_York' }, new Date('2026-10-16T12:00:00Z'))
+  assert.equal(updated.effectiveAt, '2026-10-17T04:00:00.000Z')
+  await daily.materialize(new Date('2026-10-18T20:00:00Z'))
+  const [current] = await daily.instances('owner', member.id, '2026-10-18')
+  assert.equal(current.plannedAt, '2026-10-18T11:30:00.000Z')
+  assert.equal(current.timeZone, 'America/New_York')
+  assert.equal(current.revision, 2)
+  assert.deepEqual(await daily.instances('owner', member.id, '2026-10-15'), history)
+  const restarted = new RoutineService({ dataDirectory, members: routine.members, quickRecords: routine.quickRecords }).daily
+  await restarted.materialize(new Date('2026-10-18T20:00:00Z'))
+  assert.deepEqual(await restarted.instances('owner', member.id, '2026-10-18'), [current])
+  ;(await restarted.database()).close()
+  ;(await daily.database()).close()
+})
+
+test('timezone revision generates a new-zone date ahead of the original zone', async () => {
+  const { routine, member, input } = await fixture(), daily = routine.daily
+  const initial = { ...input, timeZone: 'America/New_York', slots: [{ ...input.slots[0], time: '00:15' }] }
+  const first = await daily.saveSettings('owner', member.id, initial, new Date('2026-10-14T12:00:00Z'))
+  await daily.saveSettings('owner', member.id, { ...initial, revision: first.revision, timeZone: 'Asia/Kathmandu' }, new Date('2026-10-16T12:00:00Z'))
+  await daily.materialize(new Date('2026-10-17T18:45:00Z'))
+  const entries = await daily.instances('owner', member.id, '2026-10-18')
+  assert.equal(entries.length, 1)
+  assert.equal(entries[0].plannedAt, '2026-10-17T18:30:00.000Z')
+  assert.equal(entries[0].timeZone, 'Asia/Kathmandu')
+  ;(await daily.database()).close()
+})
+
+test('timezone cursor does not mark a new-zone current day complete before its late slot', async () => {
+  const { routine, member, input } = await fixture(), daily = routine.daily
+  const initial = { ...input, slots: [{ ...input.slots[0], time: '21:00' }] }
+  const first = await daily.saveSettings('owner', member.id, initial, new Date('2026-10-14T00:00:00Z'))
+  await daily.saveSettings('owner', member.id, { ...initial, revision: first.revision, timeZone: 'America/New_York' }, new Date('2026-10-16T12:00:00Z'))
+  await daily.materialize(new Date('2026-10-18T00:00:00Z'))
+  assert.deepEqual(await daily.instances('owner', member.id, '2026-10-17'), [])
+  await daily.materialize(new Date('2026-10-18T02:00:00Z'))
+  const entries = await daily.instances('owner', member.id, '2026-10-17')
+  assert.equal(entries.length, 1)
+  assert.equal(entries[0].plannedAt, '2026-10-18T01:00:00.000Z')
+  assert.equal(entries[0].revision, 2)
+  ;(await daily.database()).close()
+})

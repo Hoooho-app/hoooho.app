@@ -192,12 +192,13 @@ async function readAccountId(request) {
   const authorization = request.headers.authorization ?? ''
   const match = /^Bearer\s+(.+)$/i.exec(authorization)
   const payload = match ? tokens.verify(match[1]) : null
-  if (payload?.guest) {
-    const user = await auth.users.findById(payload.sub)
+  const user = payload ? await auth.users.findById(payload.sub) : null
+  const current = user ? tokens.isCurrentForUser(payload, user) : Boolean(payload?.guest && !payload.purpose)
+  if (payload?.guest && current) {
     if (user) browserSessions.assertSameOrigin(request)
     if (!user?.mergedInto && (!user || (await browserSessions.current(request))?.user.id === payload.sub)) return payload.sub
   }
-  if (payload && !payload.guest && await auth.users.findById(payload.sub)) return payload.sub
+  if (payload && !payload.guest && current) return payload.sub
 
   const error = new Error('登录状态无效或已过期')
   error.status = 401
@@ -216,10 +217,11 @@ function decodeRouteValue(value) {
   }
 }
 
-function readAuthPayload(request) {
+async function readAuthPayload(request) {
   const match = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')
   const payload = match ? tokens.verify(match[1]) : null
-  if (payload) return payload
+  const user = payload ? await auth.users.findById(payload.sub) : null
+  if (tokens.isCurrentForUser(payload, user)) return payload
   const error = new Error('登录状态无效或已过期')
   error.status = 401
   error.code = 'UNAUTHORIZED'
@@ -228,7 +230,7 @@ function readAuthPayload(request) {
 
 async function handleOps(request, response, pathname) {
   if (!pathname.startsWith('/api/ops')) return false
-  const payload = readAuthPayload(request)
+  const payload = await readAuthPayload(request)
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
   else if (pathname === '/api/ops/sources' && request.method === 'GET') sendJson(response, 200, await ops.list())
@@ -261,7 +263,7 @@ async function handleOps(request, response, pathname) {
 
 async function handleOpsFeedback(request, response, pathname, searchParams) {
   if (!pathname.startsWith('/api/ops/feedback')) return false
-  const payload = readAuthPayload(request)
+  const payload = await readAuthPayload(request)
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (pathname === '/api/ops/feedback' && request.method === 'GET') {
     sendJson(response, 200, await feedback.listForOps(Object.fromEntries(searchParams)))
@@ -371,7 +373,7 @@ async function handleAuth(request, response, pathname) {
     }
     if (pathname === '/api/auth/nickname/login') {
       const clientKey = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim()
-      const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
+      const session = await auth.loginWithPassword(body.nickname, body.password, clientKey)
       sendJson(response, 200, await browserSessions.completePasswordLogin(request, response, session, body.remember !== false && body.remember !== 'false'))
       return true
     }

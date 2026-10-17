@@ -91,3 +91,95 @@ test('多段粘贴和来源链接完整保留，不读取私有分享正文，�
   assert.equal(record.journal.medication, undefined)
   assert.deepEqual((await f.service.events.get(accountId, saved.eventId)).observationTasks ?? [], [])
 })
+
+// R2-006: validate the original nested date before it can become a different day.
+test('就诊材料非法自然日和非字符串时间在创建任何健康事实前拒绝', async t => {
+  const f = await fixture(t)
+  for (const occurredAt of ['2026-02-30T12:00:00Z', '2025-02-29T12:00:00Z', '2026-04-31T12:00:00Z', null, 0, false, [], {}, '']) {
+    await assert.rejects(() => f.capture({}, { ...f.materials, occurredAt }), { status: 400, code: 'INVALID_VISIT_MATERIALS' })
+  }
+  assert.deepEqual(await f.service.events.repository.findByAccountId(accountId), [])
+  assert.deepEqual(await f.service.records.repository.findByAccountId(accountId), [])
+})
+test('合法闰日与时区保存为同一真实时刻，省略材料日期仍保留未知语义', async t => {
+  const f = await fixture(t)
+  const saved = await f.capture({}, { ...f.materials, occurredAt: '2024-02-29T12:00:00+08:00' })
+  const record = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  assert.equal(record.occurredAt, '2024-02-29T04:00:00.000Z')
+  assert.equal(record.journal.visit.materials.occurredAt, record.occurredAt)
+  assert.equal((await f.service.events.get(accountId, saved.eventId)).startTime, record.occurredAt)
+  assert.equal(record.caseContext.timeUnknown, false)
+  const unknown = await f.capture()
+  const unprovided = await f.service.records.getOwnedRecord(accountId, unknown.recordId)
+  assert.equal(unprovided.caseContext.timeUnknown, true)
+  assert.equal(unprovided.journal.timePrecision, 'unknown')
+  assert.equal(unprovided.journal.visit.materials.occurredAt, undefined)
+})
+test('编辑材料非法日期时正文和已有原件也不发生部分更新', async t => {
+  const f = await fixture(t), saved = await f.capture()
+  const before = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  const journal = structuredClone(before.journal)
+  journal.visit.materials.occurredAt = '2026-02-30T12:00:00Z'
+  await assert.rejects(() => f.service.records.update(accountId, saved.recordId, { content: '不得部分保存的新正文', journal }, f.service.now()), { status: 400, code: 'INVALID_VISIT_MATERIALS' })
+  assert.deepEqual(await f.service.records.getOwnedRecord(accountId, saved.recordId), before)
+  assert.equal((await f.service.attachments.findByEventId(saved.eventId)).length, 1)
+})
+
+// R2-007: replacing an entire metadata parent cannot remove protected originals.
+test('null、空分类和省略materials都不能删除当前就诊原话或变成普通记录', async t => {
+  const f = await fixture(t)
+  const originalText = '医生原话：目前未确诊过敏，原始意见必须完整保留。'
+  const materials = { ...f.materials, status: 'reviewed', documents: [{ id: 'text-1', name: '问诊原话', kind: 'text', status: 'ready', originalText }] }
+  const saved = await f.capture({ files: [] }, materials)
+  const before = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  for (const journal of [null, { categories: [] }, { categories: ['other'] }, { categories: ['visit'], visit: { visitType: 'outpatient' } }]) {
+    await assert.rejects(() => f.service.records.update(accountId, saved.recordId, { content: '不得部分更新', journal }, f.service.now()), { status: 400, code: 'VISIT_ORIGINAL_IMMUTABLE' })
+    assert.deepEqual(await f.service.records.getOwnedRecord(accountId, saved.recordId), before)
+  }
+  assert.equal((await f.service.records.list(accountId, saved.eventId))[0].journal.visit.materials.documents[0].originalText, originalText)
+})
+test('整块省略材料不能移除已经绑定的图片原件，原件仍按字节可读', async t => {
+  const f = await fixture(t), saved = await f.capture()
+  const before = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  await assert.rejects(() => f.service.records.update(accountId, saved.recordId, { journal: { categories: ['visit'], visit: { visitType: 'outpatient' } } }, f.service.now()), { status: 400, code: 'VISIT_ORIGINAL_IMMUTABLE' })
+  assert.deepEqual(await f.service.records.getOwnedRecord(accountId, saved.recordId), before)
+  const original = await new EventAttachmentService({ dataDirectory: f.service.directory }).read(accountId, saved.eventId, saved.attachmentIds[0])
+  assert.equal(original.buffer.toString('base64'), f.file.dataUrl.split(',')[1])
+})
+test('正文更新与正常核对、补充原话仍可保存且保留已有原件及身份', async t => {
+  const f = await fixture(t), saved = await f.capture()
+  const before = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  const contentOnly = await f.service.records.update(accountId, saved.recordId, { content: '补充资料摘要' }, f.service.now())
+  assert.deepEqual(contentOnly.journal, before.journal)
+  assert.deepEqual(contentOnly.caseContext, before.caseContext)
+  const journal = structuredClone(contentOnly.journal)
+  journal.visit.materials.status = 'reviewed'
+  journal.visit.materials.supplement = '家长补充：当天未发热'
+  journal.visit.materials.documents.push({ id: 'text-2', name: '补充原话', kind: 'text', status: 'ready', originalText: '医生补充：按实际情况复诊。' })
+  journal.visit.materials.blocks = [{ id: 'review-1', title: '核对摘要', text: '保留旧原件并补充原话', documentId: 'text-2', page: 1, quote: '按实际情况复诊' }]
+  const updated = await f.service.records.update(accountId, saved.recordId, { content: '已核对就诊资料', journal }, f.service.now())
+  const reread = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  assert.deepEqual(reread, updated)
+  assert.deepEqual(reread.journal.visit.materials.documents[0], before.journal.visit.materials.documents[0])
+  assert.equal(reread.journal.visit.materials.documents[1].originalText, '医生补充：按实际情况复诊。')
+  assert.equal(reread.journal.visit.materials.supplement, '家长补充：当天未发热')
+  assert.equal(reread.caseContext.confirmed, true)
+  assert.deepEqual(reread.caseContext.attachmentIds, saved.attachmentIds)
+})
+test('更新保留材料时仍拒绝直接改写已有医生原话', async t => {
+  const f = await fixture(t)
+  const materials = { ...f.materials, documents: [{ id: 'text-1', name: '问诊原话', kind: 'text', status: 'ready', originalText: '没有确诊过敏' }] }
+  const saved = await f.capture({ files: [] }, materials), before = await f.service.records.getOwnedRecord(accountId, saved.recordId)
+  const journal = structuredClone(before.journal)
+  journal.visit.materials.documents[0].originalText = '已确诊过敏'
+  await assert.rejects(() => f.service.records.update(accountId, saved.recordId, { journal }, f.service.now()), { status: 400, code: 'VISIT_ORIGINAL_IMMUTABLE' })
+  assert.deepEqual(await f.service.records.getOwnedRecord(accountId, saved.recordId), before)
+})
+test('没有就诊原件的普通记录仍可清除journal并更新正文', async t => {
+  const f = await fixture(t), saved = await f.capture()
+  const normal = await f.service.records.create(accountId, saved.eventId, { type: 'note', content: '普通观察', occurredAt: '2026-09-10T02:00:00Z', journal: { categories: ['other'] } }, f.service.now())
+  await f.service.records.update(accountId, normal.id, { journal: null, content: '普通观察更正' }, f.service.now())
+  const reread = await f.service.records.getOwnedRecord(accountId, normal.id)
+  assert.equal(reread.journal, undefined)
+  assert.equal(reread.content, '普通观察更正')
+})

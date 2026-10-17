@@ -12,6 +12,26 @@ const cancelled = () => new AudioTranscriptionError('已取消转写', 499, 'ASR
 const invalid = () => new AudioTranscriptionError('录音格式无法读取，请重新录音或输入文字', 422, 'AUDIO_DECODE_FAILED')
 const tooLong = () => new AudioTranscriptionError('录音超过90秒，请缩短后重试', 413, 'AUDIO_TOO_LARGE')
 
+// A RIFF/fmt/data header alone does not prove its codec is decodable. Check
+// locally before dispatching any WAV to the supplier, retaining the original.
+export async function validateWavAudio(audio, signal) {
+  if (!['audio/wav', 'audio/x-wav'].includes(audio.mimeType)) return audio
+  if (signal?.aborted) throw cancelled()
+  const directory = await mkdtemp(path.join(tmpdir(), 'hoooho-wav-'))
+  const source = path.join(directory, 'source.wav')
+  try {
+    await writeFile(source, audio.buffer)
+    await run(ffmpeg, ['-nostdin', '-v', 'error', '-threads', '1', '-i', source, '-map', '0:a:0', '-vn', '-f', 'null', '-'], { signal, timeout: 8000, maxBuffer: 256 * 1024, windowsHide: true, killSignal: 'SIGKILL' })
+    if (signal?.aborted) throw cancelled()
+    return audio
+  } catch (error) {
+    if (signal?.aborted) throw cancelled()
+    if (error.code === 'ENOENT') throw new AudioTranscriptionError('录音验证暂不可用，请输入文字', 503, 'ASR_AUDIO_CONVERSION_UNAVAILABLE')
+    if (error.killed && error.signal === 'SIGKILL') throw new AudioTranscriptionError('录音验证超时，请重新录音或输入文字', 504, 'ASR_TIMEOUT')
+    throw invalid()
+  } finally { await rm(directory, { recursive: true, force: true }) }
+}
+
 // Bailian accepts compressed WebM/MP3, but not Safari's MP4/AAC container.
 // Keep the original upload untouched and convert only that container, locally.
 export async function normalizeMp4Audio(audio, signal) {

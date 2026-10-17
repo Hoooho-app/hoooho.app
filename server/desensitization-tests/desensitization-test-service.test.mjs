@@ -164,3 +164,99 @@ test('guest registration merge carries both tasks and records into the registere
   assert.equal(stored.tasks[0].accountId, 'registered-one')
   assert.equal(stored.records[0].accountId, 'registered-one')
 })
+
+const completeObservation = { status: 'effective', symptomAnswer: 'absent', exposureAnswer: 'eaten', symptoms: [], note: '', actualFood: '鸡蛋', preparation: '', amount: '5克', occurredAt: '2026-09-25T01:00:00.000Z' }
+const completePlan = { sourceName: '已有医生安排', food: '鸡蛋', firstAmount: '1', unit: '克', location: '医院', observationPeriod: '2小时', stopRule: '按已有医生安排处理' }
+
+async function memberLifecycleFixture(t) {
+  const { FamilyMemberRepository } = await import('../members/repositories/family-member-repository.mjs')
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-desensitization-owner-'))
+  t.after(() => rm(dataDirectory, { recursive: true, force: true }))
+  const members = new FamilyMemberRepository(dataDirectory)
+  const member = await members.create({ accountId, name: '孩子', relationship: 'child' }, now)
+  const service = new DesensitizationTestService({ dataDirectory, members })
+  const { task } = await service.create(accountId, { memberId: member.id, displayName: '鸡蛋' }, now)
+  const { record } = await service.saveRecord(accountId, task.id, completeObservation, now)
+  return { service, members, member, task, record }
+}
+
+test('deleted member rejects observation/plan and other content writes without changing stored data', async (t) => {
+  const actions = {
+    updateRecord: async v => v.service.updateRecord(accountId, v.task.id, v.record.id, { ...completeObservation, amount: '10克', version: v.record.version }, now),
+    savePlan: async v => v.service.savePlan(accountId, v.task.id, completePlan, now),
+    saveRecord: async v => v.service.saveRecord(accountId, v.task.id, { ...completeObservation, amount: '20克' }, now),
+    updateName: async v => v.service.updateName(accountId, v.task.id, { displayName: '熟鸡蛋', version: v.task.version }, now),
+    saveConclusion: async v => v.service.saveConclusion(accountId, v.task.id, { value: 'confirmed', observationIds: [v.record.id], taskVersion: v.task.version }, now),
+    create: async v => v.service.create(accountId, { memberId: v.member.id, displayName: '牛奶' }, now)
+  }
+  for (const [name, action] of Object.entries(actions)) await t.test(name, async (t) => {
+    const value = await memberLifecycleFixture(t)
+    await value.members.delete(value.member.id)
+    const before = structuredClone(await value.service.store.read())
+    await assert.rejects(action(value), error => error.status === 404 && error.code === 'MEMBER_NOT_FOUND')
+    assert.deepEqual(await value.service.store.read(), before)
+  })
+})
+
+test('member check is repeated inside the write lock after an earlier successful task lookup', async (t) => {
+  const value = await memberLifecycleFixture(t)
+  const owned = value.service.owned.bind(value.service)
+  value.service.owned = async (...args) => {
+    const task = await owned(...args)
+    await value.members.delete(value.member.id)
+    return task
+  }
+  const before = structuredClone(await value.service.store.read())
+  await assert.rejects(value.service.updateRecord(accountId, value.task.id, value.record.id, { ...completeObservation, amount: '10克', version: value.record.version }, now), error => error.code === 'MEMBER_NOT_FOUND')
+  assert.deepEqual(await value.service.store.read(), before)
+})
+
+test('deleted member cannot restore records/tasks, while explicit withdrawal and deletion still clean up', async (t) => {
+  const value = await memberLifecycleFixture(t)
+  const edited = await value.service.updateRecord(accountId, value.task.id, value.record.id, { ...completeObservation, amount: '10克', version: value.record.version }, now)
+  const withdrawn = await value.service.withdrawRecord(accountId, value.task.id, value.record.id, edited.version, now)
+  const archived = await value.service.mutateTask(accountId, value.task.id, 'archive', now)
+  await value.members.delete(value.member.id)
+  const before = structuredClone(await value.service.store.read())
+  for (const action of [
+    () => value.service.restoreRecord(accountId, value.task.id, value.record.id, withdrawn.version, now),
+    () => value.service.undoRecordUpdate(accountId, value.task.id, value.record.id, withdrawn.version, now),
+    () => value.service.mutateTask(accountId, value.task.id, 'restore', now, archived.version)
+  ]) await assert.rejects(action(), error => error.code === 'MEMBER_NOT_FOUND')
+  assert.deepEqual(await value.service.store.read(), before)
+  const removed = await value.service.mutateTask(accountId, value.task.id, 'delete', now, archived.version)
+  assert.equal(removed.status, 'deleted')
+  await assert.rejects(value.service.mutateTask(accountId, value.task.id, 'undo-delete', now, removed.version), error => error.code === 'MEMBER_NOT_FOUND')
+})
+
+test('observation chronology orders equal instants by createdAt then id descending', async (t) => {
+  const { service, cleanup } = await fixture(); t.after(cleanup)
+  const { task } = await service.create(accountId, { memberId, displayName: '鸡蛋' }, now)
+  const template = (await service.saveRecord(accountId, task.id, completeObservation, now)).record
+  const record = (id, occurredAt = template.occurredAt, createdAt = template.createdAt) => ({ ...template, id, occurredAt, createdAt })
+  await service.store.update(data => ({ ...data, records: [record('record-a'), record('record-z'), record('record-m'), record('backfill', '2026-09-24T01:00:00.000Z', '2026-09-26T01:00:00.000Z'), record('newer-created', template.occurredAt, '2026-09-26T03:00:00.000Z')] }))
+  const listed = (await service.list(accountId, memberId, now)).tasks[0]
+  assert.deepEqual(listed.records.map(record => record.id), ['newer-created', 'record-z', 'record-m', 'record-a', 'backfill'])
+  assert.equal(listed.records.length, (await service.store.read()).records.length)
+})
+
+for (const scenario of [
+  { name: 'New York fall-back near midnight', zone: 'America/New_York', now: '2026-11-02T04:30:00Z', start: '2026-10-26', day: '2026-11-01', occurredAt: '2026-11-01T17:00:00Z' },
+  { name: 'New York spring-forward near midnight', zone: 'America/New_York', now: '2026-03-09T04:30:00Z', start: '2026-03-03', day: '2026-03-08', occurredAt: '2026-03-08T16:00:00Z' },
+  { name: 'Lord Howe half-hour fall-back', zone: 'Australia/Lord_Howe', now: '2026-04-05T13:15:00Z', start: '2026-03-30', day: '2026-04-05', occurredAt: '2026-04-05T01:00:00Z' },
+  { name: 'Lord Howe half-hour spring-forward', zone: 'Australia/Lord_Howe', now: '2026-10-04T13:15:00Z', start: '2026-09-29', day: '2026-10-04', occurredAt: '2026-10-04T01:00:00Z' },
+  { name: 'Kathmandu leap day and local midnight', zone: 'Asia/Kathmandu', now: '2024-03-01T18:30:00Z', start: '2024-02-25', day: '2024-02-29', occurredAt: '2024-02-29T08:00:00Z' }
+]) test(`seven-day trend uses seven unique local dates: ${scenario.name}`, async (t) => {
+  const { service, cleanup } = await fixture(); t.after(cleanup)
+  const clock = new Date(scenario.now)
+  const { task } = await service.create(accountId, { memberId, displayName: '鸡蛋' }, clock, scenario.zone)
+  const { record } = await service.saveRecord(accountId, task.id, { ...completeObservation, occurredAt: scenario.occurredAt }, clock)
+  const listed = (await service.list(accountId, memberId, clock, scenario.zone)).tasks[0]
+  const expected = Array.from({ length: 7 }, (_, index) => new Date(Date.parse(`${scenario.start}T12:00:00Z`) + index * 86400000).toISOString().slice(0, 10))
+  assert.deepEqual(listed.trend.map(item => item.day), expected)
+  assert.equal(new Set(listed.trend.map(item => item.day)).size, 7)
+  assert.equal(listed.trend.flatMap(item => item.recordIds).filter(id => id === record.id).length, 1)
+  assert.deepEqual(listed.trend.find(item => item.day === scenario.day).recordIds, [record.id])
+  assert.equal(listed.trend.find(item => item.day === scenario.day).state, 'clear')
+  assert.equal((await service.store.read()).records[0].occurredAt, new Date(scenario.occurredAt).toISOString())
+})

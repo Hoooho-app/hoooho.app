@@ -43,11 +43,11 @@ export default defineConfig({
     host: true
   },
   plugins: [
+    authApiPlugin(),
     careJourneyApiPlugin({enabledProducts:['growth-comparison','food-comparison','handoff-enhanced','medication-templates']}),
     familySharingApiPlugin(),
     careToolsApiPlugin(),
     careHandoffApiPlugin(),
-    authApiPlugin(),
     childProfileListApiPlugin(),
     foodLabelApiPlugin(),
     accountApiPlugin(),

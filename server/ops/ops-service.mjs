@@ -2,6 +2,7 @@ import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
+import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { validateRasterImage } from '../image-validation.mjs'
 
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
@@ -196,28 +197,31 @@ export class OpsService {
   }
 
   async #saveSnapshot(id, input, now, snapshotMethod) {
-    const prepared = await decodeSnapshot(input), createdAt = iso(now), snapshotId = randomUUID()
-    const storageKey = `${id}-${snapshotId}.${prepared.extension}`
-    const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, contentHash: prepared.contentHash, important: false, failureReason: null }
-    const data = await this.#readAndRepair()
-    const selected = data.sources.find((item) => item.id === id)
-    if (!selected) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
-    const latest = data.snapshots.find((item) => item.id === selected.latestSnapshotId && item.result === 'success')
-    if (latest?.contentHash === prepared.contentHash) {
-      await this.#store.update((raw) => {
-        const current = normalizeData(raw)
-        return { ...current, sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastFailureReason: null, updatedAt: createdAt } : item) }
-      })
+    const prepared = await decodeSnapshot(input)
+    return withStorageLock(async () => {
+      const createdAt = iso(now), snapshotId = randomUUID()
+      const storageKey = `${id}-${snapshotId}.${prepared.extension}`
+      const snapshot = { id: snapshotId, sourceId: id, result: 'success', method: snapshotMethod, createdAt, capturedAt: createdAt, fileName: prepared.name, mimeType: prepared.type, size: prepared.buffer.length, storageKey, contentHash: prepared.contentHash, important: false, failureReason: null }
+      const data = await this.#readAndRepair()
+      const selected = data.sources.find((item) => item.id === id)
+      if (!selected) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+      const latest = data.snapshots.find((item) => item.id === selected.latestSnapshotId && item.result === 'success')
+      if (latest?.contentHash === prepared.contentHash) {
+        await this.#store.update((raw) => {
+          const current = normalizeData(raw)
+          return { ...current, sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastFailureReason: null, updatedAt: createdAt } : item) }
+        })
+        return this.get(id)
+      }
+      await this.#storage.save(storageKey, prepared.buffer)
+      try {
+        await this.#store.update((raw) => {
+          const current = normalizeData(raw)
+          return { ...current, snapshots: [snapshot, ...current.snapshots], sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastSuccessAt: createdAt, lastFailureReason: null, latestSnapshotId: snapshotId, updatedAt: createdAt } : item) }
+        })
+      } catch (error) { await this.#storage.remove(storageKey); throw error }
       return this.get(id)
-    }
-    await this.#storage.save(storageKey, prepared.buffer)
-    try {
-      await this.#store.update((raw) => {
-        const current = normalizeData(raw)
-        return { ...current, snapshots: [snapshot, ...current.snapshots], sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastSuccessAt: createdAt, lastFailureReason: null, latestSnapshotId: snapshotId, updatedAt: createdAt } : item) }
-      })
-    } catch (error) { await this.#storage.remove(storageKey); throw error }
-    return this.get(id)
+    })
   }
 
   async #recordAttempt(id, status, reason, method, now = new Date()) {

@@ -43,6 +43,11 @@ test('profile validates nickname and retains login identity', async () => {
   try {
     const user = await context.auth.users.findOrCreateByEmail('profile@example.com')
     await assert.rejects(context.account.updateProfile(user.id, { nickname: 'has space' }), (error) => error instanceof AuthError && error.code === 'INVALID_NICKNAME')
+    for (const nickname of [true, 123, ['ValidName'], { name: 'ValidName' }, null]) {
+      const before = await context.account.get(user.id)
+      await assert.rejects(context.account.updateProfile(user.id, { nickname }), { code: 'INVALID_NICKNAME' })
+      assert.deepEqual(await context.account.get(user.id), before)
+    }
     const updated = await context.account.updateProfile(user.id, { nickname: '刘磊', avatar: null })
     assert.equal(updated.nickname, '刘磊')
     assert.equal(updated.email, 'profile@example.com')

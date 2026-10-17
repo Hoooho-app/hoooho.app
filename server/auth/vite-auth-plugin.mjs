@@ -64,16 +64,16 @@ export function authApiPlugin(options = {}) {
       })
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-        if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+        const publicHandoff = request.method === 'GET' && /^\/api\/care-handoffs\/shared\/[^/]+$/.test(pathname)
+        if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/') && !publicHandoff) {
           try {
             const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
             const payload = token ? auth.tokens.verify(token) : null
-            if (payload?.guest) {
-              const user = await auth.users.findById(payload.sub)
-              if (user) {
-                sessions.assertSameOrigin(request)
-                if (user.mergedInto || (await sessions.current(request))?.user.id !== payload.sub) throw new AuthError('使用状态已失效，请重新恢复', 401, 'UNAUTHORIZED')
-              }
+            const user = payload ? await auth.users.findById(payload.sub) : null
+            if (payload && (user ? !auth.tokens.isCurrentForUser(payload, user) : !payload.guest || payload.purpose)) throw new AuthError('使用状态已失效，请重新登录', 401, 'UNAUTHORIZED')
+            if (payload?.guest && user) {
+              sessions.assertSameOrigin(request)
+              if (user.mergedInto || (await sessions.current(request))?.user.id !== payload.sub) throw new AuthError('使用状态已失效，请重新恢复', 401, 'UNAUTHORIZED')
             }
           } catch (error) { return sendJson(response, error.status ?? 503, { error: { code: error.code ?? 'SESSION_UNAVAILABLE', message: '暂时无法恢复使用状态，请重试' } }) }
         }
@@ -94,7 +94,7 @@ export function authApiPlugin(options = {}) {
           if (pathname === '/api/auth/register') return sendJson(response, 200, await sessions.register(request, response, body))
           if (pathname === '/api/auth/nickname/login') {
             const clientKey = String(request.socket?.remoteAddress ?? '')
-            const session = await auth.loginWithPassword(String(body.nickname ?? ''), String(body.password ?? ''), clientKey)
+            const session = await auth.loginWithPassword(body.nickname, body.password, clientKey)
             return sendJson(response, 200, await sessions.completePasswordLogin(request, response, session, body.remember !== false && body.remember !== 'false'))
           }
           if (pathname === '/api/auth/logout') return sendJson(response, 200, await sessions.logout(request, response))

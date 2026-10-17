@@ -183,21 +183,24 @@ export class DailyRecordService {
     const db = await this.database()
     for (const history of groups.values()) {
       history.sort((a, b) => a.revision - b.revision)
-      const first = history[0], today = localDateKey(now, first.timeZone)
+      const first = history[0]
+      const localDays = history.map(version => localDateKey(now, version.timeZone)).sort()
+      const today = localDays.at(-1), completeBefore = localDays[0]
+      const firstDay = history.map(version => version.effectiveFrom).sort()[0]
       const member = await this.routines.members.findById(first.memberId)
       if (member?.accountId !== first.accountId) continue
       db.prepare('UPDATE instances SET account_id=? WHERE rule_id=? AND member_id=? AND account_id<>?').run(first.accountId, first.id, first.memberId, first.accountId)
       const cursor = db.prepare('SELECT last_day FROM generation_cursors WHERE rule_id=?').get(first.id)
-      for (let day = cursor ? shiftDay(cursor.last_day) : first.effectiveFrom; day <= today; day = shiftDay(day)) {
+      for (let day = cursor ? shiftDay(cursor.last_day) : firstDay; day <= today; day = shiftDay(day)) {
         const candidates = new Map()
-        for (const version of history) for (const slot of version.slots) candidates.set(`${slot.id}:${slot.time}`, slot)
-        for (const slot of candidates.values()) {
+        for (const version of history) for (const slot of version.slots) candidates.set(`${slot.id}:${slot.time}:${version.timeZone}`, { slot, timeZone: version.timeZone })
+        for (const { slot, timeZone } of candidates.values()) {
           if (!clockPattern.test(slot.time)) continue
-          const at = zonedInstant(day, slot.time, first.timeZone)
+          const at = zonedInstant(day, slot.time, timeZone)
           if (!at || at > now.toISOString()) continue
           const active = history.filter(version => version.effectiveAt <= at).at(-1)
           const selected = active?.slots.find(value => value.id === slot.id && value.time === slot.time)
-          if (!active?.enabled || !selected?.enabled || (selected.fields.endDate && day > selected.fields.endDate)) continue
+          if (!active?.enabled || active.timeZone !== timeZone || !selected?.enabled || (selected.fields.endDate && day > selected.fields.endDate)) continue
           // Removing/pausing an individual slot stops future proposals immediately;
           // resuming or changing its contents still takes effect the next local day.
           if (history.some(version => version.revision > active.revision && version.updatedAt <= at && (!version.enabled || !version.slots.some(value => value.id === slot.id && value.enabled)))) continue
@@ -205,7 +208,9 @@ export class DailyRecordService {
           const payload = { id: createHash('sha256').update(identity).digest('hex'), ruleId: first.id, slotId: slot.id, revision: active.revision, day, kind: active.kind, name: selected.name, plannedAt: at, generatedAt: now.toISOString(), timeZone: active.timeZone, fields: selected.fields, journal: dailySnapshot(active.kind, selected.fields, day, slot.time, active.timeZone) }
           db.prepare('INSERT OR IGNORE INTO instances (id,account_id,member_id,rule_id,slot_id,day,planned_at,generated_at,payload) VALUES (?,?,?,?,?,?,?,?,?)').run(payload.id, first.accountId, first.memberId, first.id, slot.id, day, at, now.toISOString(), JSON.stringify(payload))
         }
-        if (day < today) db.prepare('INSERT INTO generation_cursors (rule_id,last_day) VALUES (?,?) ON CONFLICT(rule_id) DO UPDATE SET last_day=MAX(last_day,excluded.last_day)').run(first.id, day)
+        // A date is complete only after it has ended in every historical zone.
+        // Otherwise a zone change could advance the cursor past a still-due slot.
+        if (day < completeBefore) db.prepare('INSERT INTO generation_cursors (rule_id,last_day) VALUES (?,?) ON CONFLICT(rule_id) DO UPDATE SET last_day=MAX(last_day,excluded.last_day)').run(first.id, day)
       }
     }
   }

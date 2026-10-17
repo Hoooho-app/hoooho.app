@@ -6,12 +6,13 @@ import { TokenService } from './token-service.mjs'
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { EmailProviderError, ResendEmailVerificationProvider } from './providers/email-verification-provider.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
-import { registerTransactionRoot } from './storage/transaction.mjs'
+import { accountTransaction, registerTransactionRoot } from './storage/transaction.mjs'
 import bcrypt from 'bcryptjs'
 import { PasswordAttemptRepository } from './repositories/password-attempt-repository.mjs'
 import { hashRegistrationKey } from './repositories/user-repository.mjs'
 import { SessionRepository } from './session-repository.mjs'
 import { isValidNickname, normalizeNickname, nicknameKey } from './nickname.mjs'
+import { hashPassword, validPasswordInput, verifyPassword } from './password-hash.mjs'
 
 const dummyPasswordHash = bcrypt.hashSync('Hoooho-dummy-password', 12)
 
@@ -53,15 +54,15 @@ export class AuthService {
   }
 
   validateNickname(value) {
+    if (typeof value !== 'string') throw new AuthError('请输入 1–20 个中文、英文或数字', 400, 'INVALID_NICKNAME')
     const nickname = normalizeNickname(value)
     if (!isValidNickname(nickname)) throw new AuthError('请输入 1–20 个中文、英文或数字', 400, 'INVALID_NICKNAME')
     return nickname
   }
 
   validatePassword(value) {
-    const password = String(value ?? '')
-    if (password.length < 6 || password.length > 64) throw new AuthError('密码需为 6–64 个字符', 400, 'INVALID_PASSWORD')
-    return password
+    if (!validPasswordInput(value)) throw new AuthError('密码需为 6–64 个字符', 400, 'INVALID_PASSWORD')
+    return value
   }
 
   async register(nicknameValue, passwordValue, idempotencyKey, guestId = null, now = Date.now()) {
@@ -70,7 +71,7 @@ export class AuthService {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
       throw new AuthError('请重试注册', 400, 'INVALID_IDEMPOTENCY_KEY')
     }
-    const passwordHash = await bcrypt.hash(password, 12)
+    const passwordHash = await hashPassword(password)
     let user
     try { user = await this.users.register({ nickname, passwordHash, registrationKeyHash: hashRegistrationKey(idempotencyKey), guestId }, new Date(now)) }
     catch (error) {
@@ -89,13 +90,13 @@ export class AuthService {
 
   async loginWithPassword(nicknameValue, passwordValue, clientKey = '', now = Date.now()) {
     const nickname = normalizeNickname(nicknameValue)
-    const password = String(passwordValue ?? '')
-    if (!isValidNickname(nickname) || password.length < 6 || password.length > 64) throw new AuthError('昵称或密码不正确', 401, 'INVALID_CREDENTIALS')
+    const password = passwordValue
+    if (typeof nicknameValue !== 'string' || !isValidNickname(nickname) || !validPasswordInput(password)) throw new AuthError('昵称或密码不正确', 401, 'INVALID_CREDENTIALS')
     const attemptKey = `${nicknameKey(nickname)}:${clientKey}`
     const retryAfter = await this.passwordAttempts.assertAllowed(attemptKey, now)
     if (retryAfter) throw new AuthError('昵称或密码不正确，请稍后再试', 429, 'PASSWORD_LOGIN_RATE_LIMITED', { retryAfter })
     const user = await this.users.findByNickname(nickname)
-    const valid = await bcrypt.compare(password, user?.passwordHash ?? dummyPasswordHash) && Boolean(user?.passwordHash)
+    const valid = await verifyPassword(password, user?.passwordHash ?? dummyPasswordHash) && Boolean(user?.passwordHash)
     if (!valid) {
       const failed = await this.passwordAttempts.fail(attemptKey, now)
       this.logger(`[Hoooho auth] password login rejected nicknameHash=${createHash('sha256').update(nicknameKey(nickname)).digest('hex').slice(0, 10)} failures=${failed.failures}`)
@@ -107,19 +108,32 @@ export class AuthService {
   }
 
   async setPassword(accountId, input, now = Date.now()) {
-    const user = await this.users.findById(accountId)
-    if (!user || user.guest) throw new AuthError('账户不存在', 404, 'ACCOUNT_NOT_FOUND')
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('密码设置格式无效', 400, 'INVALID_PASSWORD')
     const password = this.validatePassword(input.password)
-    if (user.passwordHash) {
-      if (!await bcrypt.compare(String(input.currentPassword ?? ''), user.passwordHash)) throw new AuthError('当前密码错误', 401, 'INVALID_CURRENT_PASSWORD')
-    } else {
-      if (!user.email) throw new AuthError('请先绑定邮箱后再设置密码', 409, 'EMAIL_REQUIRED')
-      await this.verifyEmailCode(user.email, String(input.code ?? ''), now)
-    }
-    const passwordHash = await bcrypt.hash(password, 12)
-    const updated = await this.users.update(user.id, { passwordHash, passwordChangedAt: new Date(now).toISOString() }, new Date(now))
-    await this.sessions.revokeAccount(user.id, now)
-    return { success: true }
+    const passwordHash = await hashPassword(password)
+    const result = await accountTransaction(this.config.dataDirectory, async () => {
+      try {
+        const user = await this.users.findById(accountId)
+        if (!user || user.guest) throw new AuthError('账户不存在', 404, 'ACCOUNT_NOT_FOUND')
+        if (!user.passwordHash || Object.hasOwn(input, 'code')) {
+          if (!user.email) throw new AuthError('请先绑定邮箱后再设置密码', 409, 'EMAIL_REQUIRED')
+          if (typeof input.code !== 'string') throw new AuthError('请输入 6 位数字验证码', 400, 'INVALID_CODE_FORMAT')
+          await this.verifyEmailCode(user.email, input.code, now)
+        } else if (!await verifyPassword(input.currentPassword, user.passwordHash)) {
+          throw new AuthError('当前密码错误；已绑定邮箱可使用邮箱验证码验证', 401, 'INVALID_CURRENT_PASSWORD')
+        }
+        await this.users.update(user.id, { passwordHash, passwordChangedAt: new Date(now).toISOString() }, new Date(now))
+        await this.sessions.revokeAccount(user.id, now)
+        return { value: { success: true } }
+      } catch (error) {
+        // Bad-code attempt counters must commit, while storage failures still
+        // roll back code consumption, the password and session revocations.
+        if (error instanceof AuthError) return { error }
+        throw error
+      }
+    })
+    if (result.error) throw result.error
+    return result.value
   }
 
   validatePhone(phone) {
