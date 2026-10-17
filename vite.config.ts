@@ -83,19 +83,19 @@ export default defineConfig({
         lang: 'zh-CN',
         icons: [
           {
-            src: '/icons/app-icon-192.png',
+            src: '/icons/app-icon-192-huhu-20261017.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/icons/app-icon-512.png',
+            src: '/icons/app-icon-512-huhu-20261017.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/icons/app-icon-maskable-512.png',
+            src: '/icons/app-icon-maskable-512-huhu-20261017.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'

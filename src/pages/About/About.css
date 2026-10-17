@@ -11,6 +11,13 @@
   text-align: center;
 }
 
+.about-brand__logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
 .about-menu {
   display: grid;
   gap: var(--hoho-space-6);

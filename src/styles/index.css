@@ -495,9 +495,6 @@
   .feedback-check-submit svg,.feedback-submit-placeholder svg { @apply h-6 w-6; stroke-width: 2.4; }
   .feedback-success { @apply grid gap-4 px-5 py-12 text-center; padding-bottom: calc(var(--hoho-space-10) + env(safe-area-inset-bottom)); }
   .feedback-success__trace { width: 64px; height: 64px; margin: 0 auto var(--hoho-space-2); overflow: visible; fill: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-primary)); }
-  .feedback-success__trace path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
-  .feedback-success__trace .hoho-health-trace__start { opacity: 0.42; }
-  .feedback-success__trace .hoho-health-trace__end { opacity: 0.72; }
   .feedback-success h2 { @apply text-xl font-semibold; }
   .feedback-success p { @apply text-sm leading-6 text-text-secondary; }
   .feedback-success small { @apply break-all text-xs text-text-secondary; }
@@ -540,9 +537,6 @@
   .my-feedback-page .feedback-list-content { @apply space-y-3 px-3 py-3; padding-bottom: max(var(--hoho-space-5), env(safe-area-inset-bottom)); }
   .feedback-received { @apply m-0 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold; border-color: rgb(15 118 110 / 18%); background: #edf8f5; color: #0b6f67; }
   .feedback-received .hoho-health-trace { width: 28px; height: 28px; flex: 0 0 auto; overflow: visible; fill: currentColor; }
-  .feedback-received .hoho-health-trace path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
-  .feedback-received .hoho-health-trace__start { opacity: 0.42; }
-  .feedback-received .hoho-health-trace__end { opacity: 0.72; }
   .my-feedback-stats { @apply px-2 py-1; }
   .my-feedback-stats p { @apply m-0 text-sm leading-6; }
   .my-feedback-stats p:last-child { @apply text-xs text-text-secondary; }
