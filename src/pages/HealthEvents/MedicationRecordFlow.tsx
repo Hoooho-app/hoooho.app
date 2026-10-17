@@ -1,4 +1,4 @@
-import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysis'
+import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysisPanel'
 import { sourcedPhotoFields } from '../../features/health-attachments/photoAnalysis'
 import { RecordSaveAction } from './RecordSaveAction'
 import { CompleteImage } from '../../components/common/CompleteImage'
