@@ -94,9 +94,12 @@ test('仅进程内白名单能力允许捕获schema失败的内容；不进入�
  assert.equal(body.syntheticEvidence,undefined);assert.equal(body.onSyntheticOutput,undefined);assert.doesNotMatch(JSON.stringify(logs),/structuredText/)
 })
 
-test('配置默认北京 qwen3.7-plus；兼容 Base URL 与 endpoint 不混用，拒绝不安全/外域/凭据/原生接口',()=>{
-  assert.equal(bailianConfiguration({env}).model,'qwen3.7-plus')
-  assert.equal(bailianConfiguration({env}).visionModel,'qwen3.7-plus')
+test('配置默认北京 qwen3.7-plus 已验证快照；显式模型配置优先，兼容 Base URL 与 endpoint 不混用',()=>{
+  assert.equal(bailianConfiguration({env}).model,'qwen3.7-plus-2026-05-26')
+  assert.equal(bailianConfiguration({env}).visionModel,'qwen3.7-plus-2026-05-26')
+  const explicit = bailianConfiguration({env:{...env,BAILIAN_MODEL:'qwen3.7-plus',BAILIAN_VISION_MODEL:'configured-vision'}})
+  assert.equal(explicit.model,'qwen3.7-plus')
+  assert.equal(explicit.visionModel,'configured-vision')
   for(const url of ['http://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',baseUrl+'/chat/completions','https://example.com/compatible-mode/v1','https://dashscope.aliyuncs.com/api/v1','https://user:secret@dashscope.aliyuncs.com/compatible-mode/v1',baseUrl+'?token=secret','https://fixture.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1']){
     assert.throws(()=>bailianConfiguration({env:{...env,BAILIAN_BASE_URL:url}}),error=>{assert.equal(error.code,'AI_BASE_URL_INVALID');assert.doesNotMatch(error.message,/user:secret|token=secret/);return true})
   }
@@ -118,7 +121,7 @@ test('文字适配 Chat Completions、顶层 enable_thinking=false、严格 sche
   const model=modelFor(async(u,i)=>{calls++;url=u;init=i;body=JSON.parse(i.body);return success({text:'ok'})},{logger:{info:(...x)=>logs.push(x),warn:(...x)=>logs.push(x)}})
   const result=await structured(model)
   assert.equal(calls,1);assert.equal(url,baseUrl+'/chat/completions');assert.equal(init.redirect,'error')
-  assert.equal(body.model,'qwen3.7-plus');assert.equal(body.enable_thinking,false);assert.equal(body.stream,false)
+  assert.equal(body.model,'qwen3.7-plus-2026-05-26');assert.equal(body.enable_thinking,false);assert.equal(body.stream,false)
   assert.equal(body.response_format.type,'json_schema');assert.equal(body.response_format.json_schema.strict,true)
   assert.equal(body.tools,undefined);assert.equal(body.input,undefined);assert.equal(body.store,undefined);assert.ok(body.max_tokens<=8000)
   assert.equal(result.value.text,'ok');assert.equal(result.diagnostics.provider,'bailian');assert.equal(result.diagnostics.requestId,requestId)
@@ -177,7 +180,7 @@ test('应用草稿：当前账号成员隔离、来源确认、重复提交幂�
   const previous=await svc.read('synthetic-account',member.id,draft.id);assert.equal(previous.state,'failed');assert.equal(previous.items[0].fields[0].value,'家长更正：没有呕吐')
   await svc.cancel('synthetic-account',member.id,draft.id);assert.equal((await svc.records.repository.findByAccountId('synthetic-account')).length,0)
   fail=false;const next=await svc.prepare('synthetic-account',member.id,input),saved=await svc.save('synthetic-account',member.id,next.id,{version:next.version,confirmed:true})
-  const record=await svc.records.repository.findById(saved.result.records[0].recordId);assert.equal(record.aiProvenance.provider,'bailian');assert.equal(record.aiProvenance.model,'qwen3.7-plus');assert.equal(record.aiProvenance.sources[0].quote,'没有呕吐')
+  const record=await svc.records.repository.findById(saved.result.records[0].recordId);assert.equal(record.aiProvenance.provider,'bailian');assert.equal(record.aiProvenance.model,'qwen3.7-plus-2026-05-26');assert.equal(record.aiProvenance.sources[0].quote,'没有呕吐')
   await svc.save('synthetic-account',member.id,next.id,{version:next.version,confirmed:true});assert.equal((await svc.records.repository.findByAccountId('synthetic-account')).length,1)
 })
 

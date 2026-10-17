@@ -28,7 +28,9 @@ export function bailianConfiguration(options = {}) {
   if (url.protocol !== 'https:' || !beijing || url.port || url.username || url.password || url.search || url.hash || !/^\/compatible-mode\/v1\/?$/.test(url.pathname)) {
     throw configurationError('BAILIAN_BASE_URL 必须是北京地域 HTTPS 兼容 Base URL，以 /compatible-mode/v1 结尾；不要粘贴 API Host、原生接口或 /chat/completions', 'AI_BASE_URL_INVALID')
   }
-  const model = options.model ?? env.BAILIAN_MODEL ?? 'qwen3.7-plus'
+  // Pin the functionally equivalent snapshot verified against this account's
+  // quota; the floating alias can reject requests while this snapshot works.
+  const model = options.model ?? env.BAILIAN_MODEL ?? 'qwen3.7-plus-2026-05-26'
   const visionModel = options.visionModel ?? env.BAILIAN_VISION_MODEL ?? model
   if (![model, visionModel].every(value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,100}$/.test(value))) throw configurationError('百炼模型变量格式无效')
   return {
