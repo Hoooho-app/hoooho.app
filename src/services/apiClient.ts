@@ -1,5 +1,6 @@
 import {trackSavedMutation} from '../features/record-updates/store'
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
+import { useBrowserRecoveryState } from './browserRecoveryState'
 import type { AIUnverifiedPreview } from '../features/ai-business/AIResultPreview'
 
 interface ApiErrorBody {
@@ -58,11 +59,19 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
 
   if (!response.ok) {
     const errorBody = data as ApiErrorBody | null
+    if (response.status === 401 && !mayRecover && useBrowserRecoveryState.getState().contextAccountId) {
+      useBrowserRecoveryState.setState({ reauthenticationRequired: true, phase: 'idle' })
+      const { useAppStore } = await import('../store/useAppStore')
+      useAppStore.getState().suspendAuthSession()
+      throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
+    }
     if (response.status === 401 && mayRecover) {
       try {
         const token = await recoverSessionToken()
         if (token) return executeApiRequest<T>(path, { ...options, token }, false)
+        if (useBrowserRecoveryState.getState().reauthenticationRequired) throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
       } catch {
+        if (useBrowserRecoveryState.getState().reauthenticationRequired) throw new ApiRequestError('请重新登录后继续', 0, 'SESSION_EXPIRED')
         throw new ApiRequestError('暂时无法恢复使用状态，请检查网络后重试', 503, 'SESSION_RECOVERY_FAILED')
       }
     }
