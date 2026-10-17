@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
       { path: '/onboarding/profile', lazy: lazyPage(() => import('../pages/ProfileSetup'), 'ProfileSetupPage') },
       { path: '/health-calendar', lazy: lazyPage(() => import('../pages/HealthCalendar'), 'HealthCalendarPage') },
       { path: '/care-handoff', lazy: lazyPage(() => import('../pages/CareHandoff'), 'CareHandoffPage') },
+      { path: '/recent-review', lazy: lazyPage(() => import('../pages/RecentReview'), 'RecentReviewPage') },
       { path: '/nurse-station', lazy: lazyPage(() => import('../pages/NurseStation'), 'NurseStationPage') },
       { path: '/allergy-knowledge', lazy: lazyPage(() => import('../pages/AllergyKnowledge'), 'AllergyKnowledgePage') },
       { path: '/allergy-knowledge/:articleId', lazy: lazyPage(() => import('../pages/AllergyKnowledge'), 'AllergyKnowledgePage') },

@@ -12,6 +12,7 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
+import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
 
 interface SideDrawerProps {
   open: boolean
@@ -26,7 +27,7 @@ export const sidebarMenuGroups = [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '情况单', icon: ClipboardList, to: '/visit-summary' }
+    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
     ]
   },
   {
@@ -38,7 +39,7 @@ export const sidebarMenuGroups = [
     { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
     { label: '用药安排', icon: Pill, to: '/medication-reminders' },
-    { label: '照看交接', icon: ClipboardList, to: '/care-handoff' }
+    { label: '照顾交接单', icon: ClipboardList, to: '/care-handoff' }
     ]
   },
   {
@@ -78,6 +79,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   const accountProfile = useAppStore((state) => state.accountProfile)
   const setAccountProfile = useAppStore((state) => state.setAccountProfile)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [organizeOpen, setOrganizeOpen] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const accountRelationship = member.primaryRecorderRelationship
     ? recorderRelationshipLabel[member.primaryRecorderRelationship]
@@ -101,10 +103,11 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
     void accountService.get(authToken).then(setAccountProfile).catch(() => undefined)
   }, [accountProfile, authToken, authUser?.guest, open, setAccountProfile])
 
-  if (!open) return null
+  if (!open) return <OrganizeSheet open={organizeOpen} onClose={() => setOrganizeOpen(false)} />
 
   const openPage = (to: string) => {
     onClose()
+    if (to === '/visit-summary') { setOrganizeOpen(true); return }
     if (members.length === 0 && to === '/health-profile') {
       navigate('/nurse-station', { replace: true })
       return

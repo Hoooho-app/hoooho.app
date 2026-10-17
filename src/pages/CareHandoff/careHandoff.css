@@ -28,3 +28,6 @@
 .handoff-share > .hoho-text-caption { text-align: center; }
 .handoff-public-header { display: grid; gap: var(--hoho-space-1); padding: var(--hoho-space-5) var(--hoho-page-gutter) var(--hoho-space-3); border-bottom: 1px solid rgb(var(--hoho-color-border)); background: rgb(var(--hoho-color-surface)); }
 .handoff-url { width: 100%; min-height: var(--hoho-touch-target); color: rgb(var(--hoho-color-text-primary)); background: rgb(var(--hoho-color-surface)); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); padding: var(--hoho-space-2); font: inherit; font-size: 16px; }
+.handoff-module-heading .hoho-button { margin-left: auto; }
+.handoff-edit-row { display: grid; gap: var(--hoho-space-2); padding-block: var(--hoho-space-4); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.handoff-edit-row textarea, .handoff-page textarea { min-height: 100px; resize: vertical; }

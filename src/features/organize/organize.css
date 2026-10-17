@@ -1,0 +1,8 @@
+.organize-choices { display: grid; }
+.organize-choice { display: flex; align-items: center; gap: var(--hoho-space-3); width: 100%; min-height: 84px; padding: var(--hoho-space-3) 0; text-align: left; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.organize-choice:last-child { border-bottom: 0; }
+.organize-choice > svg:first-child { flex-shrink: 0; color: rgb(var(--hoho-color-primary)); }
+.organize-choice > svg:last-child { margin-left: auto; flex-shrink: 0; color: rgb(var(--hoho-color-text-secondary)); }
+.organize-choice > span { min-width: 0; display: grid; gap: var(--hoho-space-1); }
+.organize-choice strong { font-size: var(--hoho-font-size-body); font-weight: 500; }
+.organize-choice span span { font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); }

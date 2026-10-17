@@ -112,3 +112,24 @@ test('历史症状不会自动变成正在观察，只呈现用户选择的有�
  f.events[0].caseArchivedAt='2026-10-09T10:00:00Z'
  assert.equal(rows(await f.service.preview('parent','child'),'observations').length,0)
 })
+
+test('share snapshots retain only reviewed draft sections and preserve sources without changing health data', async t => {
+  const f = await fixture(t), preview = await f.service.preview('parent', 'child')
+  const draft = { routines: [{ title: '午睡', detail: '12:30—14:00', source: '伪造医嘱来源' }], cautions: [], parentNote: '醒来后联系妈妈' }
+  const input = { fingerprint: preview.fingerprint, token: 'D'.repeat(32), draft }
+  const first = await f.service.share('parent', 'child', input), shared = await f.service.shared(input.token)
+  assert.deepEqual(shared.sections, [])
+  assert.equal(shared.handoffDraft.parentNote, draft.parentNote)
+  assert.equal(shared.handoffDraft.routines[0].source, '家长确认的本次交接')
+  assert.ok(!JSON.stringify(shared).includes('三天后复查'))
+  assert.deepEqual(await f.service.share('parent', 'child', input), first)
+  await assert.rejects(f.service.share('parent', 'child', { ...input, draft: { ...draft, parentNote: '替换原链接' } }), e => e.status === 409)
+  assert.deepEqual(await f.service.preview('parent', 'child'), preview)
+})
+test('invalid or oversized handoff drafts never publish', async t => {
+  const f = await fixture(t), preview = await f.service.preview('parent', 'child')
+  for (const draft of [null, {}, { routines: [], cautions: [], parentNote: 'a'.repeat(4001) }, { routines: [{ title: '', detail: '' }], cautions: [], parentNote: '' }, { routines: new Array(81).fill({ title: 'x', detail: '' }), cautions: [], parentNote: '' }]) {
+    await assert.rejects(f.service.share('parent', 'child', { fingerprint: preview.fingerprint, draft }), e => e.status === 400)
+  }
+  assert.equal((await f.service.shares.read()).shares.length, 0)
+})
