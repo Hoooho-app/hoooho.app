@@ -1,3 +1,6 @@
+import { AudioTranscriptionError } from './audio-transcription-error.mjs'
+export { AudioTranscriptionError } from './audio-transcription-error.mjs'
+import { normalizeMp4Audio } from './compressed-audio.mjs'
 import { createAudioProvider } from './providers/provider-factory.mjs'
 import { MedicalSummaryError } from './medical-summary-service.mjs'
 import { withAIAccount } from './providers/call-control.mjs'
@@ -5,10 +8,6 @@ import { randomUUID } from 'node:crypto'
 
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024
-
-export class AudioTranscriptionError extends Error {
-  constructor(message, status = 400, code = 'AUDIO_TRANSCRIPTION_ERROR') { super(message); this.status = status; this.code = code }
-}
 
 function validateAudio(input) {
   const mimeType = typeof input?.mimeType === 'string' ? input.mimeType.toLowerCase() : ''
@@ -52,12 +51,17 @@ export class AudioTranscriptionService {
       stage='call_limit'
       if(accountId){const now=Date.now();for(const [id,c] of this.calls)if(now-c.started>=3600000)this.calls.delete(id);const count=this.calls.get(accountId)??{started:now,count:0};if(count.count>=this.maxCallsPerHour)throw new AudioTranscriptionError('本小时转写次数已达上限，请继续文字记录',429,'ASR_CALL_LIMIT');count.count++;this.calls.set(accountId,count)}
       if(signal?.aborted)throw new AudioTranscriptionError('已取消转写',499,'ASR_CANCELLED')
+      stage='audio_preparation'
+      const sourceMimeType=audio.mimeType, sourceBytes=audio.buffer.length, preparationStarted=Date.now()
+      audio=await normalizeMp4Audio(audio,signal)
+      const preparationMs=Date.now()-preparationStarted
+      if(signal?.aborted)throw new AudioTranscriptionError('已取消转写',499,'ASR_CANCELLED')
       stage='provider';providerInvoked=true
       const result = await withAIAccount(accountId,()=>this.provider.transcribeAudio(audio,signal))
       stage='transcript_validation'
       const transcript = typeof result?.transcript === 'string' ? result.transcript.trim() : ''
       if (!transcript) throw new AudioTranscriptionError('未识别到可用语音，请重试或改用文字', 422, 'ASR_NO_SPEECH')
-      stage='complete';this.logger.info('[Hoooho AI] audio request',JSON.stringify(diagnostic(true,{supplierRequestAttempted:result.diagnostics?.supplierRequestAttempted??null,supplierResponseReceived:result.diagnostics?.supplierResponseReceived??null,supplierRequestId:result.diagnostics?.requestId??null,httpStatus:200})))
+      stage='complete';this.logger.info('[Hoooho AI] audio request',JSON.stringify(diagnostic(true,{sourceMimeType,sourceBytes,preparationMs,supplierRequestAttempted:result.diagnostics?.supplierRequestAttempted??null,supplierResponseReceived:result.diagnostics?.supplierResponseReceived??null,supplierRequestId:result.diagnostics?.requestId??null,httpStatus:200})))
       return { transcript, provider: this.provider.name, model: result.model ?? null,requestId,runtime:this.runtime,...(result.diagnostics?{diagnostics:result.diagnostics}:{}) }
     } catch (error) {
       const failure=error instanceof AudioTranscriptionError?error:new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字',typeof error?.code==='string'&&error.code.startsWith('ASR_')?error.code:'ASR_UPSTREAM_UNAVAILABLE',error)

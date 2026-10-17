@@ -36,7 +36,7 @@ test('labelled neutral toolbar, today within date picker, view preference and fr
  await options.selectOption('daily');await expect(options).toHaveValue('daily');await toggle(page).click()
  await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
  await expect(toggle(page)).toHaveText('日历')
- await page.getByRole('button',{name:'搜索健康日历'}).click();await page.getByRole('button',{name:'返回健康日历'}).click();await expect(options).toHaveValue('daily')
+ await page.getByRole('button',{name:'搜索健康日历'}).click();await page.getByRole('button',{name:'返回',exact:true}).click();await expect(options).toHaveValue('daily')
  await page.reload();await expect(options).toHaveValue('');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day')
  await page.goto('/health-profile');await page.goto('/health-events');await expect(page.locator('.unified-health-calendar')).toHaveAttribute('data-calendar-view','day');await expect(options).toHaveValue('')
  await toggle(page).click();await page.getByLabel('选择月份',{exact:true}).fill('2027-02');await expect(page.getByLabel('选择月份',{exact:true})).toHaveValue('2027-02')

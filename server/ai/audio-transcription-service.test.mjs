@@ -59,3 +59,29 @@ test('音频失败日志白名单可定位配置/格式/取消阶段，不记录
  assert.doesNotMatch(JSON.stringify(logs),/私有医疗|私有转写|data:audio|Authorization|normal-account/)
  assert.equal(configured.capabilities().asr.model,'qwen3-asr-flash')
 })
+
+test('Safari MP4 is truly converted into compressed MP3; invalid/no-audio/long inputs never reach ASR', async () => {
+  const {execFile}=await import('node:child_process'),{promisify}=await import('node:util')
+  const run=promisify(execFile),directory=await mkdtemp(path.join(os.tmpdir(),'hoooho-compressed-test-'))
+  let calls=0,received
+  const service=new AudioTranscriptionService({logger:{info(){},warn(){}},provider:{name:'bailian',transcribeAudio:async audio=>{calls++;received=audio;return {transcript:'合成语音'}}}})
+  const input=buffer=>({mimeType:'audio/mp4',dataUrl:`data:audio/mp4;base64,${buffer.toString('base64')}`})
+  try{
+    const file=path.join(directory,'audio.m4a')
+    await run('ffmpeg',['-nostdin','-y','-v','error','-f','lavfi','-i','sine=frequency=500:duration=2','-c:a','aac',file])
+    const original=await readFile(file)
+    await service.transcribe(input(original));assert.equal(calls,1);assert.equal(received.mimeType,'audio/mpeg');assert(received.buffer.length<32000*2)
+    const output=path.join(directory,'converted.mp3');await writeFile(output,received.buffer)
+    const probe=JSON.parse((await run('ffprobe',['-v','error','-show_streams','-of','json',output])).stdout)
+    assert.equal(probe.streams[0].codec_name,'mp3');assert.equal(probe.streams[0].sample_rate,'16000');assert.equal(probe.streams[0].channels,1)
+    await assert.rejects(()=>service.transcribe(input(realWavBuffer())),{code:'AUDIO_DECODE_FAILED'})
+    const broken=Buffer.from(original.subarray(0,40));await assert.rejects(()=>service.transcribe(input(broken)),{code:'AUDIO_DECODE_FAILED'})
+    const video=path.join(directory,'video.mp4')
+    await run('ffmpeg',['-nostdin','-y','-v','error','-f','lavfi','-i','color=size=16x16:duration=1','-an',video])
+    const videoBytes=await readFile(video);await assert.rejects(()=>service.transcribe(input(videoBytes)),{code:'AUDIO_DECODE_FAILED'})
+    await run('ffmpeg',['-nostdin','-y','-v','error','-f','lavfi','-i','sine=frequency=500:duration=92','-c:a','aac',file])
+    const long=await readFile(file);await assert.rejects(()=>service.transcribe(input(long)),{code:'AUDIO_TOO_LARGE'})
+    const controller=new AbortController(),cancelled=service.transcribe(input(original),null,controller.signal)
+    setTimeout(()=>controller.abort(),5);await assert.rejects(cancelled,{code:'ASR_CANCELLED'});assert.equal(calls,1)
+  }finally{await rm(directory,{recursive:true,force:true})}
+})

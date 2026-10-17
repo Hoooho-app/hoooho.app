@@ -12,7 +12,7 @@ import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import '../HealthEvents/JournalSearchPage.css'
 import './QuickSearchPage.css'
 import { captureDraft } from '../../features/ai-business/captureDraft'
-import { recordingToSearchWav } from '../../features/ai-business/recordingAudio'
+import { recordingForSearch } from '../../features/ai-business/recordingAudio'
 import { useSmartRecordVoice } from '../../features/ai-business/useSmartRecordVoice'
 import { useAppStore } from '../../store/useAppStore'
 import { finderPlan, lookupRecords, orderLookupMatches } from './recordFinderModel'
@@ -26,7 +26,7 @@ export function QuickSearchPage() {
   return <RecordFinder key={`${accountId}:${memberId}`} memberId={memberId} token={token} onClose={() => navigate('/nurse-station', { replace: true })} />
 }
 
-function RecordFinder({ memberId, token, onClose }: { memberId: string; token: string; onClose: () => void }) {
+export function RecordFinder({ memberId, token, onClose }: { memberId: string; token: string; onClose: () => void }) {
   const { sourceEntries, loading, error, retry } = useJournal(memberId, token, 0)
   const accountId = useAppStore(s => s.authUser?.id ?? 'guest')
   const draftKey = `lookup:${accountId}:${memberId}`
@@ -48,7 +48,7 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
   }, [draftKey])
   const search = (value: string) => startSearch(() => setQuestion(value.trim()))
   const changeText = (value: string) => { voice.clearError(); setText(value) }
-  const voice = useSmartRecordVoice({ memberId, token, prepareAudio: recordingToSearchWav, timeoutMs: 25000,
+  const voice = useSmartRecordVoice({ memberId, token, prepareAudio: recordingForSearch, timeoutMs: 25000, audioBitsPerSecond: 48000, ephemeral: true,
     onFinalizationStart: () => { setFinalizing(true); return () => { if (mounted.current) setFinalizing(false) } },
     onRecorded: async () => {},
     onTranscript: async value => {
@@ -105,7 +105,7 @@ function RecordFinder({ memberId, token, onClose }: { memberId: string; token: s
         <span key={progress} className="quick-search-progress__label">{progress}</span>
         {slow && <span className="quick-search-progress__hint">{voice.busy || finalizing ? '识别比平时久，正在等待返回' : '记录较多，正在继续查找'}</span>}
       </div>}
-      {!working && voice.error && <p role="alert">{voice.error.includes('麦克风') || voice.error.includes('不支持录音') ? voice.error : '没能识别这段语音，请重新按住说话'}</p>}
+      {!voice.busy && !finalizing && voice.error && <p role="alert">{voice.error.includes('麦克风') || voice.error.includes('不支持录音') ? voice.error : '没能识别这段语音，请重新按住说话'}</p>}
       {error && <StatusNotice tone="error" title="记录同步未完成">{error}。当前结果可能不完整。<HohoButton variant="text" onClick={retry}>重试加载</HohoButton></StatusNotice>}
       {!showProgress && !voice.busy && !finalizing && question && <section className="quick-search-settled" aria-label="查找结果" aria-live="polite">
         {!!matches.length && <JournalSearchResults layout="lookup" entries={matches.map(match => match.entry)} query={question} today={today} onOpen={openEntry} summaryFor={entry => evidence.get(entry.id) ?? entry.content} />}
