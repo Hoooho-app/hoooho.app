@@ -1,0 +1,21 @@
+.observation-page {padding-bottom:0;}
+.observation-content {display:grid;gap:var(--hoho-space-5);padding:var(--hoho-space-4) var(--hoho-page-gutter) calc(var(--hoho-space-10) + env(safe-area-inset-bottom));}
+.observation-stack {display:grid;gap:var(--hoho-space-3);min-width:0;}
+.observation-between {display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-3);min-width:0;}
+.observation-between>div {min-width:0;}
+.observation-between>.hoho-health-tag,.observation-between>.hoho-button {flex-shrink:0;}
+.observation-entitlement {padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-sprout-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-sprout-surface));}
+.observation-entitlement h2 {display:flex;align-items:center;gap:var(--hoho-space-2);}
+.observation-entitlement svg {flex-shrink:0;color:rgb(var(--hoho-color-sprout-text));}
+.observation-food-title {display:flex;align-items:center;gap:var(--hoho-space-3);}
+.observation-food-title>svg {color:rgb(var(--hoho-color-sprout-text));flex-shrink:0;}
+.observation-food-title h2 {overflow-wrap:anywhere;}
+.observation-card {display:grid;gap:var(--hoho-space-2);}
+.observation-time {gap:var(--hoho-space-1);}
+.observation-days.hoho-button {color:rgb(var(--hoho-color-sprout-text));font-variant-numeric:tabular-nums;}
+.observation-presets,.observation-tabs {display:flex;gap:var(--hoho-space-2);flex-wrap:wrap;}
+.observation-choice {display:flex;align-items:flex-start;gap:var(--hoho-space-3);min-height:var(--hoho-touch-target);font-size:var(--hoho-font-size-body);line-height:var(--hoho-line-height-body);padding-block:var(--hoho-space-2);}
+.observation-choice input {width:18px;height:18px;flex-shrink:0;margin-top:var(--hoho-space-1);accent-color:rgb(var(--hoho-color-sprout-text));}
+.observation-busy {pointer-events:none;opacity:.6;}
+.observation-stack .hoho-surface-row .hoho-text-caption {white-space:normal;overflow-wrap:anywhere;}
+.observation-stack legend {margin-bottom:var(--hoho-space-2);}

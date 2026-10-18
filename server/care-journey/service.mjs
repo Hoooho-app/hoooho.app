@@ -47,7 +47,23 @@ export const LEVELS = [{
   name: '守望',
   threshold: 300
 }];
+// Timed grants remain in the ledger after expiry; only active grants unlock new work.
+export function activeCareOwnership(account, productId, now = new Date()) {
+  return (account.owned ?? []).filter(item => item.productId === productId &&
+    (item.kind !== 'term' || Date.parse(item.expiresAt) > now.getTime()))
+    .sort((a, b) => (Date.parse(b.expiresAt) || 0) - (Date.parse(a.expiresAt) || 0))[0] ?? null;
+}
 export const PRODUCTS = [{
+  id: 'food-observation',
+  title: '排敏观察 · 30天',
+  description: '30天内为食物开启独立观察与自动跟进；已开启的观察到期后仍可完成回访、查看汇总。',
+  cost: 30,
+  type: 'term',
+  kind: 'term',
+  durationDays: 30,
+  version: 'food-observation-v1',
+  path: '/food-observations'
+}, {
   id: 'theme-mist-blue',
   title: '晨雾蓝主题',
   description: '预览后收藏一个主题，账号长期拥有，随时切回默认。',
@@ -379,7 +395,8 @@ export class CareJourneyService {
   async catalogue(accountId) {
     return this.transaction(accountId, null, async a => ({
       items: await Promise.all(PRODUCTS.map(async p => {
-        const owned = a.owned.some(o => o.productId === p.id);
+        const grant = activeCareOwnership(a, p.id, this.now());
+        const owned = Boolean(grant);
         const included = p.id !== 'theme-mist-blue' && (await this.isIncluded(accountId, p.id));
         let reason = !this.enabled.has(p.id) ? p.id === 'review-once' ? '当前回顾可直接使用，无需兑换' : '完成数据与功能验收后开放' : owned ? '已拥有' : included ? '会员已包含' : p.minLevel && levelFor(a.lifetime).id < p.minLevel ? '达到Lv.' + p.minLevel + '后可兑换' : null;
         if (p.id === 'growth-comparison' && !reason && !(await this.growthEligible(accountId))) reason = '目前没有2至5岁共同适龄孩子，无需兑换';
@@ -389,6 +406,7 @@ export class CareJourneyService {
         return {
           ...p,
           owned,
+          expiresAt: grant?.expiresAt ?? null,
           included,
           available: !reason,
           reason,
@@ -404,7 +422,8 @@ export class CareJourneyService {
         owned: p.owned,
         included: p.included,
         available: this.enabled.has(p.id),
-        version: p.version ?? null
+        version: p.version ?? null,
+        expiresAt: p.expiresAt ?? null
       }])),
       commercializationReady: Boolean(this.options.commercializationReady)
     };
@@ -425,7 +444,7 @@ export class CareJourneyService {
       }
       if (!this.enabled.has(product.id)) throw new CareJourneyError('该功能尚未开放兑换', 409, 'PRODUCT_UNAVAILABLE');
       if (product.id !== 'theme-mist-blue' && (await this.isIncluded(accountId, product.id))) throw new CareJourneyError('当前会员已包含，无需兑换', 409, 'ALREADY_INCLUDED');
-      if (a.owned.some(o => o.productId === product.id)) throw new CareJourneyError('你已拥有此项目', 409, 'ALREADY_OWNED');
+      if (activeCareOwnership(a, product.id, this.now())) throw new CareJourneyError('你已拥有此项目', 409, 'ALREADY_OWNED');
       if (product.id === 'growth-comparison' && !(await this.growthEligible(accountId))) throw new CareJourneyError('目前没有WHO与CDC共同适龄的2至5岁孩子，无需兑换', 409, 'GROWTH_NOT_APPLICABLE');
       if (product.minLevel && levelFor(a.lifetime).id < product.minLevel) throw new CareJourneyError('达到Lv.' + product.minLevel + '后可兑换', 409, 'LEVEL_REQUIRED');
       if (product.id === 'review-once') {
@@ -451,7 +470,8 @@ export class CareJourneyService {
         createdAt: at
       });else a.owned.push({
         ...redemption,
-        kind: 'permanent',
+        kind: product.kind === 'term' ? 'term' : 'permanent',
+        ...(product.kind === 'term' ? { expiresAt: new Date(this.now().getTime() + product.durationDays * DAY).toISOString() } : {}),
         version: product.version,
         path: product.path
       });

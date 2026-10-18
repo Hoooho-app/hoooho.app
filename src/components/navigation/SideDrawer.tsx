@@ -1,6 +1,6 @@
 import { CareHandsIcon } from '../design-system/SproutEntry'
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
+import { Eye, CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -44,6 +44,7 @@ export const sidebarMenuGroups = [
     menuId: 'drawer-tools-menu',
     items: [
     { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
+    { label: '排敏观察', icon: Eye, to: '/food-observations' },
     { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
     { label: '用药安排', icon: Pill, to: '/medication-reminders' },
     { label: '照顾交接单', icon: ClipboardList, to: '/care-handoff' }
@@ -119,7 +120,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
       navigate('/nurse-station', { replace: true })
       return
     }
-    navigate(to, to === '/care-handoff' ? { state: organizeNavigationState(location, window.history.state?.idx) } : to === '/feedback' ? {
+    navigate(to, to === '/food-observations' ? { state: { observationFrom: getCurrentPath(location.pathname, location.search, location.hash) } } : to === '/care-handoff' ? { state: organizeNavigationState(location, window.history.state?.idx) } : to === '/feedback' ? {
       state: makeFeedbackState(
         getCurrentPath(location.pathname, location.search, location.hash),
         location.pathname.startsWith('/health-events/') ? '健康日历详情' : location.pathname === '/health-events' || location.pathname === '/health-calendar' ? '健康日历' : location.pathname === '/settings' ? '我的' : '原页面',

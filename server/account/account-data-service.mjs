@@ -8,6 +8,8 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 
 export const accountCollections = [
+  ['food-observations.json', 'preferences'],
+  ['food-observations.json', 'observations'],
   ['care-journey.json', 'accounts'],
   ['care-tool-templates.json', 'templates'],
   ['care-handoff-shares.json', 'shares'],

@@ -1,3 +1,4 @@
+import { foodObservationApiPlugin } from './server/food-observations/api.mjs'
 import { careJourneyApiPlugin } from './server/care-journey/api.mjs'
 import { familySharingApiPlugin } from './server/family-sharing/api.mjs'
 import { careToolsApiPlugin } from './server/care-tools/api.mjs'
@@ -44,7 +45,8 @@ export default defineConfig({
   },
   plugins: [
     authApiPlugin(),
-    careJourneyApiPlugin({enabledProducts:['growth-comparison','food-comparison','handoff-enhanced','medication-templates']}),
+    foodObservationApiPlugin(),
+    careJourneyApiPlugin({enabledProducts:['food-observation','growth-comparison','food-comparison','handoff-enhanced','medication-templates']}),
     familySharingApiPlugin(),
     careToolsApiPlugin(),
     careHandoffApiPlugin(),
