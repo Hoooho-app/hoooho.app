@@ -24,8 +24,8 @@ const dialog = name => page.getByRole('dialog', { name, exact: true })
 async function screenshot(name) { assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} overflow`); await page.screenshot({ path: `${output}/${name}.png`, fullPage: true }) }
 try {
   assert.equal((await api('/api/health')).status, 'ok')
-  if (expectedCommit) assert.equal((await api('/api/ai/audio/capabilities')).runtime.commit, expectedCommit)
   const session = await api('/api/auth/register', 'POST', { nickname: `profileqa${randomUUID().replaceAll('-', '').slice(0, 8)}`, password: randomUUID(), idempotencyKey: randomUUID() }); token = session.token
+  if (expectedCommit) assert.equal((await api('/api/ai/audio/capabilities')).runtime.commit, expectedCommit)
   const createChild = name => api('/api/members', 'POST', { name, relationship: 'child', gender: 'female', birthday: '2024-01-01', primaryRecorderRelationship: 'mother' })
   memberId = (await createChild('档案验收孩子（虚构）')).id; secondId = (await createChild('隔离验收孩子（虚构）')).id
   await api('/api/auth/current-member', 'POST', { memberId })
