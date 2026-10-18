@@ -53,3 +53,47 @@ test('the approved seed is complete, sourced, and has no tomorrow teaser', () =>
   assert.ok(article.sources.length >= 2)
   assert.ok(article.sources.every(source => new URL(source.url).protocol === 'https:'))
 })
+
+test('the next release is selected first for every pool size, then older articles rotate', () => {
+  const release = { ...article, id: 'new-release', publishedAt: '2026-10-19' }
+  for (let count = 1; count <= 7; count++) {
+    const history = Array.from({ length: count }, (_, index) => ({ ...article, id: `old-${index}`, publishedAt: '2026-10-17' }))
+    const expanded = [...history, release]
+    const yesterday = { day: '2026-10-18', articleId: history[0].id }
+    assert.notEqual(chooseDailyKnowledge(new Date(2026, 9, 19, 5, 59), expanded, yesterday)?.id, release.id)
+    assert.equal(chooseDailyKnowledge(new Date(2026, 9, 19, 6), expanded, yesterday)?.id, release.id)
+    assert.equal(chooseDailyKnowledge(new Date(2026, 9, 19, 23), [...expanded].reverse())?.id, release.id)
+    assert.notEqual(chooseDailyKnowledge(new Date(2026, 9, 20, 6), expanded)?.id, release.id)
+  }
+})
+
+test('same-edition saved content wins; draft, future, missing or withdrawn choices cannot leak', () => {
+  const release = { ...article, id: 'release', publishedAt: '2026-10-19' }
+  const future = { ...release, id: 'future', publishedAt: '2026-10-20' }
+  const draft: KnowledgeArticle = { ...release, id: 'draft', status: 'draft' }
+  const edition = new Date(2026, 9, 19, 12)
+  assert.equal(chooseDailyKnowledge(edition, [article, release], { day: '2026-10-19', articleId: article.id })?.id, article.id)
+  for (const id of ['draft', 'future', 'missing', 'withdrawn']) {
+    assert.equal(chooseDailyKnowledge(edition, [article, release, future, draft], { day: '2026-10-19', articleId: id })?.id, release.id)
+  }
+  assert.equal(chooseDailyKnowledge(edition, [future, draft], { day: '2026-10-19', articleId: article.id }), null)
+  const values = new Map<string, string>()
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) } }
+  assert.equal(readDailyKnowledge('edition', new Date(2026, 9, 18, 12), storage, [article, release])?.id, article.id)
+  assert.equal(readDailyKnowledge('edition', new Date(2026, 9, 19, 5, 59), storage, [article, release])?.id, article.id)
+  assert.equal(readDailyKnowledge('edition', new Date(2026, 9, 19, 6), storage, [article, release])?.id, release.id)
+  assert.equal(readDailyKnowledge('edition', edition, storage, [article, release, { ...release, id: 'late-addition' }])?.id, release.id)
+})
+
+test('the next scheduled edition contains complete, distinct, sourced Chinese prose', () => {
+  const next = KNOWLEDGE_ARTICLES.find(item => item.id === 'eczema-observation-beyond-redness')!
+  assert.equal(next.publishedAt, '2026-10-19')
+  assert.equal(chooseDailyKnowledge(new Date(2026, 9, 19, 6), KNOWLEDGE_ARTICLES)?.id, next.id)
+  const text = next.sections.flatMap(section => [section.title ?? '', ...section.paragraphs, ...(section.items ?? [])]).join('')
+  const chinese = text.match(/\p{Script=Han}/gu)?.length ?? 0
+  assert.ok(chinese >= 600 && chinese <= 900, `Chinese characters: ${chinese}`)
+  assert.equal(new Set(KNOWLEDGE_ARTICLES.map(item => item.id)).size, KNOWLEDGE_ARTICLES.length)
+  assert.doesNotMatch(text, /明天聊|明日预告|医生审核/)
+  assert.ok(next.sources.length >= 2)
+  assert.ok(next.sources.every(source => source.checkedAt === '2026-10-18' && new URL(source.url).protocol === 'https:'))
+})

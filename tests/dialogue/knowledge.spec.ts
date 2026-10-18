@@ -4,7 +4,10 @@ import { TokenService } from '../../server/auth/token-service.mjs'
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
 const headers = { Authorization: `Bearer ${token}` }
 
-test('nurse-side daily article is readable, bookmarkable and reachable again on mobile', async ({ page, request }, info) => {
+for (const edition of [
+  { time: '2026-10-18T04:00:00Z', title: '过敏检测阳性，就一定要忌口吗？' },
+  { time: '2026-10-19T04:00:00Z', title: '湿疹反复，除了红不红，还该记录什么？' }
+]) test(`nurse-side article ${edition.time} is readable, bookmarkable and reachable again on mobile`, async ({ page, request }, info) => {
   const response = await request.post('/api/members', { headers, data: { name: '科普验收（虚构）', relationship: 'child' } })
   const { id: memberId } = await response.json()
   await request.post(`/api/members/${memberId}/case-records`, { headers, data: { requestId: crypto.randomUUID(), text: '头皮发痒', occurredAt: new Date(Date.now() - 60000).toISOString(), files: [], journal: { categories: ['symptom'] } } })
@@ -12,7 +15,7 @@ test('nurse-side daily article is readable, bookmarkable and reachable again on 
     sessionStorage.setItem('hoooho-auth-token', token)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { token, memberId })
-  await page.clock.install({ time: new Date('2026-10-17T04:00:00Z') })
+  await page.clock.install({ time: new Date(edition.time) })
   for (const size of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(size)
     await page.goto('/nurse-station')
@@ -22,7 +25,7 @@ test('nurse-side daily article is readable, bookmarkable and reachable again on 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath(`knowledge-home-${size.width}.png`) })
     await entry.click()
-    await expect(page.getByRole('heading', { name: '过敏检测阳性，就一定要忌口吗？', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: edition.title, exact: true })).toBeVisible()
     await expect(page.getByText(/明天聊|明日预告/)).toHaveCount(0)
     expect((await page.locator('.allergy-knowledge-body').innerText()).length).toBeGreaterThan(600)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -41,11 +44,12 @@ test('nurse-side daily article is readable, bookmarkable and reachable again on 
     expect(bookmarkBox.x).toBeGreaterThanOrEqual(headerTitleBox.x + headerTitleBox.width)
     expect(bookmarkBox.x + bookmarkBox.width).toBeLessThanOrEqual(size.width)
     await page.getByText('参考依据', { exact: true }).click()
-    await expect(page.getByRole('link', { name: /美国儿科学会/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /美国儿科学会/ }).first()).toBeVisible()
+    await expect(page.locator('.allergy-knowledge-sources a')).toHaveCount(edition.time.includes('10-19') ? 3 : 2)
     await page.screenshot({ path: info.outputPath(`knowledge-article-${size.width}.png`) })
     await page.getByRole('button', { name: '往期内容', exact: true }).click()
     await expect(page.getByRole('region', { name: '往期内容' })).toContainText('已收藏')
-    await page.getByRole('button', { name: /过敏检测阳性，就一定要忌口吗/ }).click()
+    await page.getByRole('button', { name: new RegExp(edition.title.replace(/[？?]/g, '')) }).click()
     await expect(page.getByRole('button', { name: '已收藏', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/nurse-station$/)
