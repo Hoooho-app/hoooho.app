@@ -18,13 +18,14 @@ const formal = (r, now) => !r.deletedAt && r.status !== 'pending' && r.confirmat
 // from product names, pictures, recipes, maternal intake or AI-only previews.
 export function observedFoods(record) {
   const diet = record.journal?.diet;
-  if (!record.journal?.categories?.includes('diet') || !['complementary', 'meal', 'snack'].includes(diet?.kind) || !Array.isArray(diet.foods)) return [];
+  if (!record.journal?.categories?.includes('diet') || !['feeding', 'complementary', 'meal', 'snack'].includes(diet?.kind) || !Array.isArray(diet.foods)) return [];
+  if (diet.kind === 'feeding' && ['breast', 'expressed', 'mixed'].includes(diet.feedingMethod)) return [];
   const original = String(record.sourceText ?? record.rawText ?? record.content ?? '');
-  const clauses = original.split(/[。！？!?；;，,\n]/).map(x => x.trim()).filter(Boolean);
+  const clauses = (original.match(/[^。！？!?；;，,\n]+[。！？!?；;，,\n]?/g) ?? []).map(x => x.trim()).filter(Boolean);
   return [...new Set(diet.foods.filter(value => typeof value === 'string' && value.trim() && value.length <= 40))].filter(name => {
     const relevant = clauses.filter(clause => clause.includes(name));
     if (!relevant.length) return false;
-    return relevant.some(clause => !/(?:妈妈|母亲|母乳妈妈|宝妈).{0,12}(?:吃|喝)|(?:打算|准备|计划|明天|下次|还没|未曾|从未|没(?:有)?吃|没(?:有)?喝|不吃|不喝|不能吃|没有加|未食用|未进食|未吃|未喝|没碰|不含|无添加|忌口|避免|如果|能不能|可以吃吗)/.test(clause) && !/(?:吃|喝).{0,8}(?:了吗|了没|？|\?)/.test(clause));
+    return relevant.some(clause => !/[？?]/.test(clause) && !/(?:妈妈|母亲|母乳妈妈|宝妈).{0,12}(?:吃|喝)|(?:打算|准备|计划|要吃|要喝|想吃|想喝|能吃吗|能喝吗|要不要|能否|明天|下次|还没|未曾|从未|没(?:有)?吃|没(?:有)?喝|不吃|不喝|不能吃|没有加|未食用|未进食|未吃|未喝|没碰|不含|无添加|忌口|避免|如果|能不能|可以吃吗)/.test(clause) && !/(?:吃|喝).{0,8}(?:了吗|了没|？|\?)/.test(clause));
   });
 }
 const sourceOf = r => ({ id: r.id, eventId: r.eventId, occurredAt: r.occurredAt, createdAt: r.createdAt, content: r.content ?? '', amount: r.journal?.diet?.amount ?? '', foodForm: r.journal?.diet?.foodForm ?? '' });

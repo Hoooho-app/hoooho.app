@@ -26,7 +26,7 @@ Scope excludes unrelated UI, models/providers, assets and historical medical dat
 ## 本地验收记录
 
 - `TZ=Asia/Shanghai npm run test:client`：745 passed（项目既有日期用例以此时区运行）。
-- 新服务端观察用例：15 passed；含并发扣费、回访冲突、来源变更、到期、账户合并与删除。
+- 新服务端观察用例：16 passed；含并发扣费、回访冲突、来源变更、到期、账户合并与删除。
 - 呵护权益与生命周期回归：21 passed；核心认证／孩子／事件／记录／账户回归：51 passed。
 - 智能记录业务回归：208 passed；guest/session/storage/account 回归：21 passed。
 - `npm run build`：PASS；`git diff --check`：PASS。

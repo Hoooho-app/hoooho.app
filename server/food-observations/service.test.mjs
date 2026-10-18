@@ -77,7 +77,7 @@ test('automatic is opt-in, skips baseline history and tracks actual source times
 });
 test('food extraction excludes plans, negations, maternal intake, uncertain times and ingredients inferred from mixtures', async t => {
   const f = await setup(t); await f.unlock(); await f.s.automatic('owner', { memberId: f.member.id, enabled: true }); f.tick();
-  for (const content of ['明天准备吃鸡蛋', '今天没有吃鸡蛋', '妈妈吃了鸡蛋', '今天不吃鸡蛋', '今天没碰鸡蛋']) await f.food('鸡蛋', { content });
+  for (const content of ['明天准备吃鸡蛋', '今天没有吃鸡蛋', '妈妈吃了鸡蛋', '今天不吃鸡蛋', '今天没碰鸡蛋', '下午要吃鸡蛋', '今天吃了鸡蛋？', '鸡蛋能吃吗？']) await f.food('鸡蛋', { content });
   await f.food('花生', { journal: { categories: ['diet'], timePrecision: 'unknown', diet: { kind: 'complementary', foods: ['花生'] } } });
   await f.food('牛奶', { journal: { categories: ['diet'], diet: { kind: 'feeding', feedingMethod: 'breast', foods: ['牛奶'] } } });
   await f.food('鸡蛋', { content: '吃了蛋糕' });
@@ -172,4 +172,12 @@ test('guest upgrade retains both timed grants and moves observation ownership wi
   const state = await f.s.list('owner', child.id); assert.equal(state.items[0].name, '苹果');
   assert.equal(state.entitlement.expiresAt, new Date(f.now().getTime() + 60 * DAY).toISOString());
   const account = (await f.care.store.read()).accounts.find(a => a.accountId === 'owner'); assert.equal(account.owned.filter(o => o.productId === 'food-observation').length, 2);
+});
+
+test('explicit child milk/formula intake may be observed by product name without inferring ingredients or maternal exposure', () => {
+  const record = (content, foods, feedingMethod) => ({ content, journal: { categories: ['diet'], diet: { kind: 'feeding', foods, feedingMethod } } });
+  assert.deepEqual(observedFoods(record('喝了牛奶100ml', ['牛奶'], 'formula')), ['牛奶']);
+  assert.deepEqual(observedFoods(record('喝了A牌配方奶', ['A牌配方奶', '牛奶', '大豆'], 'formula')), ['A牌配方奶']);
+  assert.deepEqual(observedFoods(record('妈妈吃了鸡蛋后喂母乳', ['鸡蛋'], 'breast')), []);
+  assert.deepEqual(observedFoods(record('喝了母乳', ['母乳'], 'expressed')), []);
 });
