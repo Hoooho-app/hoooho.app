@@ -60,6 +60,16 @@ export function validateProfileSectionRecords(sectionId, records) {
   const objectRows = value => Array.isArray(value) && value.every(recordObject)
   if (!objectRows(records) || records.length > 500) invalid()
   for (const record of records) {
+    if (sectionId === 'checkups' || sectionId === 'vaccination-plans') {
+      const day = sectionId === 'checkups' ? record.date : record.plannedOn
+      const parsed = typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T00:00:00Z`) : null
+      if (!record.id || typeof record.id !== 'string' || typeof record.title !== 'string' || !record.title.trim() || record.title.length > 120 || !parsed || !Number.isFinite(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== day) invalid()
+      if (sectionId === 'checkups') {
+        if (!['record', 'plan'].includes(record.recordType) || !['checkup', 'hearing', 'newborn', 'vision', 'oral'].includes(record.type)) invalid()
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+        if (record.recordType !== 'plan' && day > today) invalid()
+      }
+    }
     if (sectionId === 'allergy') {
       if (record._allergyArchive !== undefined) {
         const archive = record._allergyArchive

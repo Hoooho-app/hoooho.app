@@ -218,7 +218,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   const leaveEditor = (reopenMemberProfileSheet: boolean) => {
     allowNavigationRef.current = true
     if (!editOrigin) {
-      navigate(APP_HOME_PATH, { replace: true })
+      navigate((location.state as { profileReturnTo?: string } | null)?.profileReturnTo === '/health-profile/identity' && reopenMemberProfileSheet ? '/health-profile/identity' : APP_HOME_PATH, { replace: true })
       return
     }
     navigate(editOrigin.returnTo, {
