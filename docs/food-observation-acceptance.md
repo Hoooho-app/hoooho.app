@@ -19,7 +19,7 @@ Branch: codex/food-observation-20261018; initial worktree clean.
 
 - [x] 服务端相关测试、客户端／typecheck、完整 build。
 - [x] 真实 Chromium 手机尺寸浏览器操作，包括入口／兑换／逐项设置／回访／空态与重试。注明模拟与真机区别。
-- [ ] commit → push → main 整合 → Railway Staging 成功与在线验收 → Production 成功与在线验收。
+- [x] commit → push → main 整合 → Railway Staging 成功与在线验收 → Production 成功与在线验收。
 
 Scope excludes unrelated UI, models/providers, assets and historical medical data. AI scores do not constitute product-owner acceptance.
 
@@ -37,3 +37,12 @@ Scope excludes unrelated UI, models/providers, assets and historical medical dat
 ## 发布验收方式
 
 `node scripts/verify-food-observations-release.mjs <known-origin> <full-SHA>` 对 Staging / Production 核对运行时 SHA、健康状态、新权益目录、未解锁拒绝写入、侧边栏入口、解锁弹层和重新加载；仅创建并删除虚构验收孩子，不修改真实钱包或患者记录。完整扣费与回访链路在相同源代码的隔离生产服务器验收。
+
+## 已完成发布验收（2026-10-18）
+
+- 应用合入：PR #479；部署提交 `40e6d1c0895b9f13032ec84041b057c838ba46e9`。Git tree `e5b75d93095297425680d0a66cd2f1b094444d09` 与本地验收源码一致。GitHub commit checks：PASS。
+- Railway Staging：部署 `ca715208-4505-48fd-b50f-cfb1a96c7997`，SUCCESS；`https://hooohoapp-staging.up.railway.app` 在线 API 与真实登录浏览器验收 PASS，运行时 SHA 匹配。
+- Railway Production：部署 `6ae6bb08-9921-48ae-9fca-08ea248724cf`，SUCCESS；`https://hoooho.com` 在线 API 与真实登录浏览器验收 PASS，运行时 SHA 匹配。
+- 两环境均核对新目录的30树芽／30天权益、自动观察默认关闭、未解锁写入403且不产生观察、辅助工具入口、解锁弹层、320/390宽度、页面重新加载；无页面运行错误。虚构验收孩子及观察数据已清理，没有修改真实钱包或患者记录。
+- 在线页面验收使用测试环境中平台提供的可信代理根证书，证书校验保持开启；完整扣费、被动跟进和回访流程在隔离生产服务器验收。实体 iPhone/Safari 尚未验证，不等同于产品负责人最终视觉验收。
+- 本次发布记录仅更新文档；应用服务保持以上已验收提交，无需因文档更新重新部署。
