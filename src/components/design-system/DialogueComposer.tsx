@@ -6,11 +6,12 @@ import './DialogueComposer.css'
 
 export type DialoguePhotoSource = 'camera' | 'album'
 /** A 44px row; choice and recording feedback float above it. */
-export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松开即结束', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, requesting = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…' }: {
+export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松开即结束', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, requesting = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…', expandedFeedback = false, feedbackHint }: {
   text: string; onTextChange: (value: string) => void; onSend: () => void
   onStart: () => void; onStop: () => void; onDiscard?: () => void; onPhoto: (source: DialoguePhotoSource) => void
   audioLevel?: number; disabled?: boolean; voiceDisabled?: boolean; listening?: boolean; requesting?: boolean; processing?: boolean
   maxLength?: number; placeholder?: string; initialTyping?: boolean; directPhoto?: boolean; allowTextWhileProcessing?:boolean; inputOnly?:boolean; releaseLabel?:string; discardOnBlur?:boolean
+  expandedFeedback?:boolean; feedbackHint?:string
 }) {
   const [typing, setTyping] = useState(initialTyping), [photoOpen, setPhotoOpen] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null), root = useRef<HTMLDivElement>(null)
@@ -27,7 +28,7 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
       {typing ? <Mic size={20} aria-hidden/> : <Keyboard size={20} aria-hidden/>}
     </HohoButton>}
     {typing ? <div className="hoho-dialogue-text"><textarea ref={input} aria-label="对话输入" rows={1} maxLength={maxLength} value={text} placeholder={placeholder} disabled={textBlocked} onChange={e => onTextChange(e.target.value)} onCompositionStart={()=>{composing.current=true}} onCompositionEnd={()=>{composing.current=false}} onKeyDown={e => {if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !composing.current && e.keyCode!==229 && text.trim()) {e.preventDefault();onSend()}}}/><HohoButton variant="text" size="icon" aria-label="发送" disabled={textBlocked || !text.trim()} onClick={onSend}><Send size={18} aria-hidden/></HohoButton></div> :
-      <HoldToTalkButton className="hoho-dialogue-hold" disabled={disabled || voiceDisabled} listening={listening} requesting={requesting} processing={processing} audioLevel={audioLevel} releaseLabel={releaseLabel} discardOnBlur={discardOnBlur} onStart={() => {setPhotoOpen(false);onStart()}} onStop={onStop} onDiscard={onDiscard}/> }
+      <HoldToTalkButton className="hoho-dialogue-hold" disabled={disabled || voiceDisabled} listening={listening} requesting={requesting} processing={processing} audioLevel={audioLevel} releaseLabel={releaseLabel} discardOnBlur={discardOnBlur} expandedFeedback={expandedFeedback} feedbackHint={feedbackHint} onStart={() => {setPhotoOpen(false);onStart()}} onStop={onStop} onDiscard={onDiscard}/> }
     <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="拍照" aria-haspopup={directPhoto?undefined:'menu'} aria-expanded={directPhoto?undefined:photoOpen} aria-controls={photoOpen?menuId:undefined} disabled={disabled || listening || processing} onClick={() => directPhoto?onPhoto('album'):setPhotoOpen(!photoOpen)}><Camera size={21} aria-hidden/></HohoButton>
     {photoOpen&&<div id={menuId} role="menu" aria-label="添加图片" className="hoho-dialogue-photo-menu" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setPhotoOpen(false);root.current?.querySelector<HTMLButtonElement>('.hoho-dialogue-photo')?.focus()}}}>
       <HohoButton role="menuitem" variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto('camera')}}><Camera size={20} aria-hidden/>拍照</HohoButton>

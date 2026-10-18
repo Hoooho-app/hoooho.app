@@ -10,3 +10,8 @@ body .hoho-hold-to-talk.is-cancelling[data-variant='primary']{background:rgb(var
 .hoho-hold-feedback__wave{display:flex;align-items:center;justify-content:center;gap:4px;height:24px}
 .hoho-hold-feedback__wave span{width:4px;border-radius:var(--hoho-radius-pill);background:currentColor;transition:height 80ms linear}
 @media(prefers-reduced-motion:reduce){.hoho-hold-feedback__wave span{transition:none}}
+.hoho-hold-feedback--expanded .hoho-hold-feedback__status{width:min(320px,calc(100vw - 32px));min-width:0;white-space:normal;text-align:center;padding:var(--hoho-space-5);gap:var(--hoho-space-2);font-size:var(--hoho-font-size-section-title);font-weight:600}
+.hoho-hold-feedback--expanded .hoho-hold-feedback__wave{height:32px}
+.hoho-hold-feedback--expanded .hoho-hold-feedback__wave span{width:5px}
+.hoho-hold-feedback--expanded .hoho-hold-feedback__status small{font-size:var(--hoho-font-size-body);font-weight:400}
+.hoho-hold-feedback__time{font-variant-numeric:tabular-nums;font-size:var(--hoho-font-size-page-title)}

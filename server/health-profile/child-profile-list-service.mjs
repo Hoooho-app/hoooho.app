@@ -5,6 +5,7 @@ import {JsonStore} from '../auth/storage/json-store.mjs'
 import {accountTransaction} from '../auth/storage/transaction.mjs'
 import {HealthEventService} from '../events/health-event-service.mjs'
 import {HealthEventRecordRepository} from '../events/repositories/health-event-record-repository.mjs'
+import {EventAttachmentRepository} from '../events/repositories/event-attachment-repository.mjs'
 import {validateJournal} from '../events/journal-metadata.mjs'
 
 export const profileGroups={allergy:['食物','药物','动物','环境','接触物'],chronic:['呼吸道','皮肤','消化','其他'],'family-history':['父亲','母亲','祖父','祖母'],surgery:[],vaccination:['1岁内','1岁','2岁','3岁','4岁','5岁','6岁']}
@@ -37,6 +38,7 @@ export class ChildProfileListService{
   constructor({dataDirectory,now=()=>new Date()}){
     this.directory=dataDirectory;this.now=now;this.events=new HealthEventService({dataDirectory})
     this.records=new HealthEventRecordRepository(dataDirectory)
+    this.attachments=new EventAttachmentRepository(dataDirectory)
     this.sections=new ProfileSectionStore(dataDirectory)
     this.state=new JsonStore(path.join(dataDirectory,'child-profile-list-state.json'),{members:[],requests:[]})
   }
@@ -71,17 +73,18 @@ export class ChildProfileListService{
           const issues=projectFamilyIssues(r,id)
           for(const [i,issue] of issues.entries())if(objectRow(issue)&&text(issue.name))add({...base,id:`${id}/${issue.id??`issue-${i+1}`}`,name:text(issue.name),group:rid},{...target,issueIndex:i,issue,...(!Array.isArray(r.healthIssues)?{legacyIssues:issues}:{})},[r,issue])
         }else if(kind==='vaccination'){
-          if(name)add({...base,date:text(r.date??r.vaccinationDate),group:vaccinationAgeGroup(c.member.birthday,text(r.date??r.vaccinationDate),r.profileAgeGroup)},{...target,legacy:true},r)
+          if(name)add({...base,date:text(r.date??r.vaccinationDate),doseSequence:text(r.doseSequence)||'unknown',dose:text(r.dose),sourceLabel:text(r.sourceLabel)||'既有档案',sourceFiles:Array.isArray(r.sourceFiles)?r.sourceFiles:[],createdAt:text(r.createdAt??r._savedAt),group:vaccinationAgeGroup(c.member.birthday,text(r.date??r.vaccinationDate),r.profileAgeGroup)},{...target,legacy:true},r)
         }else if(name)add({...base,group:kind==='chronic'?(profileGroups.chronic.includes(r.profileCategory)?r.profileCategory:profileGroups.chronic.includes(r.category)?r.category:'其他'):''},target,r)
       }
     }
     if(kind==='vaccination'){
+      const linkedAttachments=await this.attachments.findIndexByAccountId(accountId)
       const ids=new Set((await this.events.repository.findByAccountId(accountId)).filter(e=>e.memberId===memberId).map(e=>e.id))
       const records=(await this.records.findByAccountId(accountId)).filter(r=>ids.has(r.eventId)).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)||b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id))
       for(const record of records)for(const [i,v] of (record.journal?.vaccination?.items??[]).entries()){
         const date=Object.hasOwn(v,'administeredOn')?v.administeredOn:record.journal.timePrecision==='unknown'?'':calendarDay(record.occurredAt)
         const suffix={dose_1:'第1剂',dose_2:'第2剂',dose_3:'第3剂',dose_4:'第4剂',booster:'加强剂'}[v.doseSequence]
-        add({id:`${record.id}/${v.id}`,name:v.vaccineName,displayName:suffix?`${v.vaccineName}（${suffix}）`:v.vaccineName,group:vaccinationAgeGroup(c.member.birthday,date,v.profileAgeGroup),date,frequency:''},{record,itemIndex:i,raw:v},[record,v])
+        add({id:`${record.id}/${v.id}`,name:v.vaccineName,displayName:suffix?`${v.vaccineName}（${suffix}）`:v.vaccineName,doseSequence:v.doseSequence??'unknown',eventId:record.eventId,recordId:record.id,attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...linkedAttachments.filter(a=>a.recordId===record.id&&a.eventId===record.eventId).map(a=>a.id)])],sourceLabel:record.aiProvenance?'资料整理':'手动记录',createdAt:record.createdAt,group:vaccinationAgeGroup(c.member.birthday,date,v.profileAgeGroup),date,frequency:''},{record,itemIndex:i,raw:v},[record,v])
       }
     }
     if(kind==='surgery')rows.sort((a,b)=>{const x=targets.get(a.id),y=targets.get(b.id);return (x.raw.sequence>0?x.raw.sequence:x.index+1)-(y.raw.sequence>0?y.raw.sequence:y.index+1)})
@@ -105,6 +108,7 @@ export class ChildProfileListService{
     if(kind!=='family-history'&&kind!=='surgery'&&['add','edit'].includes(input.action)&&!profileGroups[kind].includes(group)&&!(kind==='vaccination'&&['年龄待确认','7岁及以上'].includes(group)))fail('分类无效')
     if(kind==='chronic'&&Object.hasOwn(input,'frequency')&&input.frequency!==''&&!profileFrequencies.includes(input.frequency))fail('出现频率无效')
     if(kind==='vaccination'&&Object.hasOwn(input,'date')&&input.date!==''&&(!validDay(input.date)||input.date>calendarDay(now)))fail('请填写有效且不晚于今天的接种日期')
+    if(kind==='vaccination'&&Object.hasOwn(input,'doseSequence')&&!['unknown','dose_1','dose_2','dose_3','dose_4','booster'].includes(input.doseSequence))fail('接种剂次无效')
     if(['add','edit'].includes(input.action)&&!['surgery','vaccination'].includes(kind)&&p.rows.some(r=>r.id!==input.id&&r.group===group&&norm(r.name)===norm(name)))fail('当前分类已有这条记录',409,'PROFILE_LIST_DUPLICATE')
     const updateTarget=async(changes)=>{
       if(target.record){
@@ -161,6 +165,7 @@ export class ChildProfileListService{
           Object.assign(changes,target.record?{administeredOn:input.date,profileAgeGroup:profileGroups.vaccination.includes(group)?group:target.raw.profileAgeGroup}:{date:input.date,profileAgeGroup:profileGroups.vaccination.includes(group)?group:target.raw.profileAgeGroup})
           const nextGroup=vaccinationAgeGroup(c.member.birthday,input.date,changes.profileAgeGroup);if(nextGroup!==row.group)notice=`已保存，记录移到${nextGroup}`
         }
+        if(kind==='vaccination'&&Object.hasOwn(input,'doseSequence'))changes.doseSequence=input.doseSequence
         if(kind==='family-history'&&group!==row.group){
           const current=records[target.index],label=p.groups.find(g=>g.id===group).name
           const familyChanges={relationship:label,customRelationship:'',relationId:group}
@@ -180,7 +185,7 @@ export class ChildProfileListService{
       }else if(kind==='vaccination'){
         const date=input.date??'',occurredAt=date?`${date}T00:00:00+08:00`:timestamp
         const event=await this.events.create(accountId,{memberId,title:'疫苗接种记录',category:'other',startTime:occurredAt},now)
-        const journal=validateJournal({categories:['vaccination'],timePrecision:date?'exact':'unknown',vaccination:{items:[{id:randomUUID(),vaccineName:name,doseSequence:'unknown',administeredOn:date,profileAgeGroup:group}]}})
+        const journal=validateJournal({categories:['vaccination'],timePrecision:date?'exact':'unknown',vaccination:{items:[{id:randomUUID(),vaccineName:name,doseSequence:input.doseSequence??'unknown',administeredOn:date,...(profileGroups.vaccination.includes(group)?{profileAgeGroup:group}:{})}]}})
         await this.records.create({accountId,eventId:event.id,type:'note',content:name,occurredAt,sourceType:'text_record',sourceText:name,journal},now)
       }else{
         const common={id:randomUUID(),name,accountId,memberId,_savedAt:timestamp}

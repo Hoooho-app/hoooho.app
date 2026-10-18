@@ -1,5 +1,5 @@
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { ChevronRight, HeartPulse, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
+import { Baby, ChevronRight, HeartPulse, Ruler, ScanLine, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HealthRecordSubjectHeader } from '../../components/health'
@@ -12,6 +12,9 @@ import './healthProfileHome.css'
 import { ProfileUploadBatch } from './ProfileUploadBatch'
 
 const entries = [
+  { id: 'identity', title: '基本资料', icon: Baby },
+  { id: 'growth', title: '生长记录', icon: Ruler, path: '/health-profile/basic' },
+  { id: 'checkups', title: '儿保与筛查', icon: ScanLine },
   { id: 'allergy', title: '过敏史', icon: ShieldPlus },
   { id: 'chronic', title: '慢性病史', icon: HeartPulse },
   { id: 'family-history', title: '家族史', icon: UsersRound },
@@ -35,7 +38,7 @@ export function HealthProfilePage() {
   useEffect(() => {
     const controller = new AbortController()
     setCounts({memberId:currentMemberId,values:{}})
-    if (token && member) void Promise.allSettled(entries.map(async ({id})=>{
+    if (token && member) void Promise.allSettled(entries.filter(e=>!['identity','growth','checkups'].includes(e.id)).map(async ({id})=>{
       const result=await apiRequest<{rows:unknown[];pendingAllergyRows?:unknown[]}>(`/api/members/${encodeURIComponent(currentMemberId)}/profile-list/${id}`,{token,signal:controller.signal})
       return [id,result.rows.length+(id==='allergy'?(result.pendingAllergyRows?.length??0):0)] as const
     })).then(results=>{
@@ -45,8 +48,8 @@ export function HealthProfilePage() {
   }, [token, currentMemberId, member?.id, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview"><MainAppHeader compact title="孩子档案" /><div className="page-content health-profile-home">
-    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={<div className="health-profile-upload"><ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={trigger => <HohoButton className="health-profile-upload-action" {...trigger}><Upload aria-hidden="true" size={18}/><span>上传资料</span></HohoButton>} /></div>} />
-    <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(`/health-profile/${id}`)} type="button">
+    <HealthRecordSubjectHeader className="health-profile-record-subject" member={member} action={<div className="health-profile-upload"><ProfileUploadBatch key={authUser?.id??'guest'} member={member} token={token??''} onSaved={()=>setRetry(value=>value+1)} renderTrigger={({disabled,onClick}) => <HohoButton className="health-profile-upload-action" disabled={disabled} onClick={onClick}><Upload aria-hidden="true" size={18}/><span>上传资料</span></HohoButton>} /></div>} />
+    <nav className="health-profile-entries" aria-label="档案分类">{entries.map(({ id, title, icon: Icon, path }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(path??`/health-profile/${id}`)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
       <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</nav>
